@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Plus, Edit2, Trash2, Search, Filter } from 'lucide-react';
 import type { Spell } from '@/types/spell';
@@ -6,6 +6,7 @@ import SpellEditor from '@/components/SpellEditor';
 import initialSpells from '@/data/spells.json';
 import { commitFile } from '@/utils/github';
 
+const STORAGE_KEY = 'DND-spells';
 const levelLabels: Record<number, string> = {
   0: '戏法',
   1: '1环',
@@ -19,9 +20,25 @@ const levelLabels: Record<number, string> = {
   9: '9环',
 };
 
+function loadSpells(): Spell[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch {
+    // ignore
+  }
+  return initialSpells;
+}
+
+function saveSpellsToStorage(spells: Spell[]): void {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(spells));
+}
+
 export default function SpellList() {
   const navigate = useNavigate();
-  const [spells, setSpells] = useState<Spell[]>(initialSpells);
+  const [spells, setSpells] = useState<Spell[]>(loadSpells);
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState<number | 'all'>('all');
   const [editorOpen, setEditorOpen] = useState(false);
@@ -29,6 +46,11 @@ export default function SpellList() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // 确保组件挂载时从存储加载最新数据
+  useEffect(() => {
+    setSpells(loadSpells());
+  }, []);
 
   const filteredSpells = spells.filter((spell) => {
     const matchesSearch =
@@ -57,6 +79,11 @@ export default function SpellList() {
         newSpells = [...spells, spell];
       }
 
+      // 先保存到 localStorage
+      saveSpellsToStorage(newSpells);
+      setSpells(newSpells);
+
+      // 尝试同步到 GitHub
       try {
         await commitFile(
           'src/data/spells.json',
@@ -66,10 +93,8 @@ export default function SpellList() {
             : `add spell: ${spell.name}`
         );
       } catch (githubError) {
-        console.warn('GitHub 同步失败，使用本地数据:', githubError);
+        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
       }
-
-      setSpells(newSpells);
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败');
       throw err;
@@ -88,6 +113,12 @@ export default function SpellList() {
     try {
       const newSpells = spells.filter((s) => s.id !== id);
 
+      // 先保存到 localStorage
+      saveSpellsToStorage(newSpells);
+      setSpells(newSpells);
+      setDeleteConfirm(null);
+
+      // 尝试同步到 GitHub
       try {
         await commitFile(
           'src/data/spells.json',
@@ -95,11 +126,8 @@ export default function SpellList() {
           `delete spell: ${spell.name}`
         );
       } catch (githubError) {
-        console.warn('GitHub 同步失败，使用本地数据:', githubError);
+        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
       }
-
-      setSpells(newSpells);
-      setDeleteConfirm(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败');
     } finally {
