@@ -624,33 +624,33 @@ export default function CharacterDetail() {
               <div className="text-xs uppercase tracking-wide mb-1 dark:text-text-dark-muted light:text-text-light-muted">
                 {abilityLabels[ability]}
               </div>
-              <input
-                type="number"
-                value={character.abilities[ability].score === 0 ? '' : character.abilities[ability].score}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    // 允许清空，暂不更新 store
-                  } else {
-                    const num = parseInt(val);
-                    if (!isNaN(num)) {
-                      updateAbilityScore(ability, num);
+              <div className="flex items-center justify-center gap-1">
+                <button
+                  onClick={() => {
+                    const currentScore = character.abilities[ability].score;
+                    if (currentScore > 1) {
+                      updateAbilityScore(ability, currentScore - 1);
                     }
-                  }
-                }}
-                onBlur={(e) => {
-                  if (e.target.value === '') {
-                    updateAbilityScore(ability, 0);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                    updateAbilityScore(ability, 0);
-                  }
-                }}
-                placeholder="10"
-                className="w-14 py-1 text-2xl font-bold text-center rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light"
-              />
+                  }}
+                  className="w-8 h-8 rounded-lg bg-white/50 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-primary/30 flex items-center justify-center transition-colors"
+                >
+                  <Minus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
+                </button>
+                <span className="w-12 py-1 text-2xl font-bold text-center dark:text-text-dark light:text-text-light">
+                  {character.abilities[ability].score}
+                </span>
+                <button
+                  onClick={() => {
+                    const currentScore = character.abilities[ability].score;
+                    if (currentScore < 30) {
+                      updateAbilityScore(ability, currentScore + 1);
+                    }
+                  }}
+                  className="w-8 h-8 rounded-lg bg-white/50 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-primary/30 flex items-center justify-center transition-colors"
+                >
+                  <Plus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
+                </button>
+              </div>
               <div className="mt-1 text-lg font-semibold text-primary">
                 {character.abilities[ability].modifier >= 0
                   ? `+${character.abilities[ability].modifier}`
