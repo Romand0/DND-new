@@ -370,7 +370,7 @@ export default function CharacterDetail() {
                 reloadChar();
               }}
               placeholder="最大"
-              className="w-16 px-2 py-1 text-lg rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark-muted light:text-text-light-muted"
+              className="w-12 px-2 py-1 text-lg rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark-muted light:text-text-light-muted"
             />
           </div>
           <div className="mt-2 h-2 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
