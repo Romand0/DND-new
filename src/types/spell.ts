@@ -14,4 +14,7 @@ export interface Spell {
   description: string;
   classes: string[];
   notes?: string;
+  hasHeightened?: boolean;
+  heightenedEffect?: string;
+  materialInfo?: string;
 }

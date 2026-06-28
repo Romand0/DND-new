@@ -17,6 +17,35 @@ const levelLabels: Record<number, string> = {
   9: '9环',
 };
 
+function renderWithDice(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const regex = /(\d+)d(4|6|8|10|12|20)/gi;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    parts.push(
+      <span key={key++} className="inline-flex items-baseline mx-0.5">
+        <span className="text-primary font-bold">{match[1]}</span>
+        <span className="px-1.5 py-0.5 mx-0.5 rounded bg-accent/20 text-accent font-mono text-sm font-semibold">
+          d{match[2]}
+        </span>
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+
+  return parts;
+}
+
 export default function SpellDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -51,7 +80,7 @@ export default function SpellDetail() {
   const renderDescription = (text: string) => {
     return text.split('\n\n').map((paragraph, index) => (
       <p key={index} className={index > 0 ? 'mt-4' : ''}>
-        {paragraph}
+        {renderWithDice(paragraph)}
       </p>
     ));
   };
@@ -124,6 +153,11 @@ export default function SpellDetail() {
                   .filter(Boolean)
                   .join(', ') || '无'}
               </div>
+              {spell.components.material && spell.materialInfo && (
+                <div className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  {spell.materialInfo}
+                </div>
+              )}
             </div>
             <div className="p-3 rounded-lg dark:bg-white/5 light:bg-white/50">
               <div className="flex items-center gap-2 text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1">
@@ -144,6 +178,17 @@ export default function SpellDetail() {
               {renderDescription(spell.description)}
             </div>
           </div>
+
+          {spell.hasHeightened && spell.heightenedEffect && (
+            <div>
+              <h3 className="text-sm font-semibold mb-2 dark:text-text-dark light:text-text-light">
+                升环效果
+              </h3>
+              <div className="p-4 rounded-lg bg-accent/10 text-sm dark:text-text-dark light:text-text-light border border-accent/20">
+                {renderDescription(spell.heightenedEffect)}
+              </div>
+            </div>
+          )}
 
           {spell.notes && (
             <div>

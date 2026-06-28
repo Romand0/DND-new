@@ -46,6 +46,35 @@ const proficiencyLabels: Record<ProficiencyCategory, string> = {
 
 const displayedProficiencyCategories: ProficiencyCategory[] = ['armor', 'weapons', 'tools', 'languages'];
 
+function renderSpellDice(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const regex = /(\d+)d(4|6|8|10|12|20)/gi;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    parts.push(
+      <span key={key++} className="inline-flex items-baseline mx-0.5">
+        <span className="text-primary font-bold">{match[1]}</span>
+        <span className="px-1 py-0 mx-0.5 rounded bg-accent/20 text-accent font-mono font-semibold">
+          d{match[2]}
+        </span>
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+
+  return parts;
+}
+
 function Section({
   title,
   icon: Icon,
@@ -1173,9 +1202,22 @@ export default function CharacterDetail() {
                                   .join(', ')}
                               </div>
                             </div>
+                            {spellInfo.components.material && spellInfo.materialInfo && (
+                              <div className="mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                                材料: {spellInfo.materialInfo}
+                              </div>
+                            )}
                             <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
-                              {spellInfo.description}
+                              {renderSpellDice(spellInfo.description)}
                             </div>
+                            {spellInfo.hasHeightened && spellInfo.heightenedEffect && (
+                              <div className="mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
+                                <div className="text-xs font-medium text-accent mb-1">升环效果</div>
+                                <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
+                                  {renderSpellDice(spellInfo.heightenedEffect)}
+                                </div>
+                              </div>
+                            )}
                             {spellInfo.notes && (
                               <div className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                                 备注: {spellInfo.notes}
@@ -1270,9 +1312,22 @@ export default function CharacterDetail() {
                                   .join(', ')}
                               </div>
                             </div>
+                            {spellInfo.components.material && spellInfo.materialInfo && (
+                              <div className="mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                                材料: {spellInfo.materialInfo}
+                              </div>
+                            )}
                             <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
-                              {spellInfo.description}
+                              {renderSpellDice(spellInfo.description)}
                             </div>
+                            {spellInfo.hasHeightened && spellInfo.heightenedEffect && (
+                              <div className="mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
+                                <div className="text-xs font-medium text-accent mb-1">升环效果</div>
+                                <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
+                                  {renderSpellDice(spellInfo.heightenedEffect)}
+                                </div>
+                              </div>
+                            )}
                             {spellInfo.notes && (
                               <div className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                                 备注: {spellInfo.notes}

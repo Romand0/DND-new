@@ -44,6 +44,9 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
     description: '',
     classes: [],
     notes: '',
+    hasHeightened: false,
+    heightenedEffect: '',
+    materialInfo: '',
   });
 
   const [classInput, setClassInput] = useState('');
@@ -66,6 +69,9 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
         description: '',
         classes: [],
         notes: '',
+        hasHeightened: false,
+        heightenedEffect: '',
+        materialInfo: '',
       });
     }
     setError('');
@@ -258,6 +264,53 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
             </div>
           </div>
 
+          {formData.components.material && (
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                材料成分
+              </label>
+              <textarea
+                value={formData.materialInfo || ''}
+                onChange={(e) => setFormData({ ...formData, materialInfo: e.target.value })}
+                placeholder="例如：一颗硫黄球和一团蝙蝠粪"
+                rows={2}
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none text-sm"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
+              升环机制
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer dark:text-text-dark light:text-text-light">
+              <input
+                type="checkbox"
+                checked={formData.hasHeightened || false}
+                onChange={(e) =>
+                  setFormData({ ...formData, hasHeightened: e.target.checked })
+                }
+                className="w-4 h-4 rounded border-primary text-primary focus:ring-primary"
+              />
+              <span className="text-sm">是否有升环机制</span>
+            </label>
+          </div>
+
+          {formData.hasHeightened && (
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                升环效果
+              </label>
+              <textarea
+                value={formData.heightenedEffect || ''}
+                onChange={(e) => setFormData({ ...formData, heightenedEffect: e.target.value })}
+                placeholder="例如：当你使用2环或更高环位施展此法术时，每高1环伤害增加1d6"
+                rows={3}
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none text-sm"
+              />
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               描述
@@ -265,9 +318,9 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              placeholder="法术描述（支持 Markdown）..."
+              placeholder="法术描述..."
               rows={6}
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none font-mono text-sm"
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none text-sm"
             />
           </div>
 
@@ -278,7 +331,7 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
             <textarea
               value={formData.notes || ''}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              placeholder="升环效果、来源等..."
+              placeholder="其他备注信息..."
               rows={2}
               className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none text-sm"
             />
