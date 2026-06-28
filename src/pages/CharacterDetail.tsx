@@ -832,25 +832,25 @@ export default function CharacterDetail() {
                     value={attack.name}
                     onChange={(e) => handleUpdateAttack(attack.id!, 'name', e.target.value)}
                     placeholder="攻击名称"
-                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light"
+                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light min-w-0 break-words"
                   />
                   <input
                     type="text"
                     value={attack.bonus}
                     onChange={(e) => handleUpdateAttack(attack.id!, 'bonus', e.target.value)}
                     placeholder="+5"
-                    className="w-14 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm text-center dark:text-text-dark light:text-text-light"
+                    className="w-14 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm text-center dark:text-text-dark light:text-text-light flex-shrink-0"
                   />
                   <input
                     type="text"
                     value={attack.damage}
                     onChange={(e) => handleUpdateAttack(attack.id!, 'damage', e.target.value)}
                     placeholder="1d6+3"
-                    className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm text-center dark:text-text-dark light:text-text-light"
+                    className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm text-center dark:text-text-dark light:text-text-light flex-shrink-0"
                   />
                   <button
                     onClick={() => handleDeleteAttack(attack.id!)}
-                    className="p-1 rounded hover:bg-danger/20 text-danger"
+                    className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -885,16 +885,16 @@ export default function CharacterDetail() {
                     value={item.name}
                     onChange={(e) => handleUpdateEquipment(item.id!, 'name', e.target.value)}
                     placeholder="装备名称"
-                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light"
+                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light min-w-0 break-words"
                   />
                   <input
                     type="text"
                     value={item.category}
                     onChange={(e) => handleUpdateEquipment(item.id!, 'category', e.target.value)}
                     placeholder="分类"
-                    className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark light:text-text-light"
+                    className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark light:text-text-light flex-shrink-0"
                   />
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => handleUpdateEquipment(item.id!, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
                       className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
