@@ -22,7 +22,10 @@ import {
   Download,
 } from 'lucide-react';
 import type { Character, AbilityKey, ProficiencyCategory } from '@/types/character';
+import type { Spell } from '@/types/spell';
 import { characterStore } from '@/data/characterStore';
+import allSpells from '@/data/spells.json';
+import SpellPicker from '@/components/SpellPicker';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -84,8 +87,8 @@ export default function CharacterDetail() {
   const navigate = useNavigate();
   const [character, setCharacter] = useState<Character | null>(null);
   const [loading, setLoading] = useState(true);
-  const [newCantrip, setNewCantrip] = useState('');
-  const [newSpell, setNewSpell] = useState('');
+  const [spellPickerOpen, setSpellPickerOpen] = useState(false);
+  const [selectedSpellType, setSelectedSpellType] = useState<'cantrip' | 'spell'>('cantrip');
   const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
     armor: '',
     weapons: '',
@@ -93,6 +96,25 @@ export default function CharacterDetail() {
     languages: '',
     savingThrows: '',
   });
+
+  const getSpellByName = (name: string): Spell | undefined => {
+    return allSpells.find((s) => s.name === name);
+  };
+
+  const getSelectedSpellNames = (): string[] => {
+    if (!character) return [];
+    return [...character.spells.cantrips, ...character.spells.custom];
+  };
+
+  const handleSelectSpell = (spell: Spell) => {
+    if (!id) return;
+    if (selectedSpellType === 'cantrip') {
+      characterStore.addCantrip(id, spell.name);
+    } else {
+      characterStore.addCustomSpell(id, spell.name);
+    }
+    reloadChar();
+  };
 
   useEffect(() => {
     if (id) {
@@ -177,23 +199,9 @@ export default function CharacterDetail() {
     reloadChar();
   };
 
-  const handleAddCantrip = () => {
-    if (!id || !newCantrip.trim()) return;
-    characterStore.addCantrip(id, newCantrip.trim());
-    setNewCantrip('');
-    reloadChar();
-  };
-
   const handleRemoveCantrip = (index: number) => {
     if (!id) return;
     characterStore.removeCantrip(id, index);
-    reloadChar();
-  };
-
-  const handleAddCustomSpell = () => {
-    if (!id || !newSpell.trim()) return;
-    characterStore.addCustomSpell(id, newSpell.trim());
-    setNewSpell('');
     reloadChar();
   };
 
@@ -1070,39 +1078,51 @@ export default function CharacterDetail() {
                   <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
                     戏法 ({character.spells.cantrips.length})
                   </div>
-                <div className="space-y-1">
-                  {character.spells.cantrips.map((cantrip, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                    >
-                      <span className="flex-1 text-sm dark:text-text-dark light:text-text-light">
-                        {cantrip}
-                      </span>
-                      <button
-                        onClick={() => handleRemoveCantrip(index)}
-                        className="p-1 rounded hover:bg-danger/20 text-danger"
+                <div className="space-y-2">
+                  {character.spells.cantrips.map((cantrip, index) => {
+                    const spellInfo = getSpellByName(cantrip);
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newCantrip}
-                      onChange={(e) => setNewCantrip(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddCantrip()}
-                      placeholder="戏法名称"
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                    <button
-                      onClick={handleAddCantrip}
-                      className="px-3 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                            {cantrip}
+                          </div>
+                          {spellInfo && (
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-500/20 text-gray-400">
+                                戏法
+                              </span>
+                              <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                {spellInfo.school}
+                              </span>
+                              <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                {spellInfo.castingTime}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleRemoveCantrip(index)}
+                          className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <button
+                    onClick={() => {
+                      setSelectedSpellType('cantrip');
+                      setSpellPickerOpen(true);
+                    }}
+                    className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                  >
+                    <Plus className="w-4 h-4 inline mr-1" />
+                    从法术库添加戏法
+                  </button>
                 </div>
               </div>
 
@@ -1110,39 +1130,55 @@ export default function CharacterDetail() {
                 <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
                   已知法术 ({character.spells.custom.length})
                 </div>
-                <div className="space-y-1">
-                  {character.spells.custom.map((spell, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                    >
-                      <span className="flex-1 text-sm dark:text-text-dark light:text-text-light">
-                        {spell}
-                      </span>
-                      <button
-                        onClick={() => handleRemoveCustomSpell(index)}
-                        className="p-1 rounded hover:bg-danger/20 text-danger"
+                <div className="space-y-2">
+                  {character.spells.custom.map((spell, index) => {
+                    const spellInfo = getSpellByName(spell);
+                    return (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
                       >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newSpell}
-                      onChange={(e) => setNewSpell(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddCustomSpell()}
-                      placeholder="法术名称"
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                    <button
-                      onClick={handleAddCustomSpell}
-                      className="px-3 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                            {spell}
+                          </div>
+                          {spellInfo && (
+                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                              <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                spellInfo.level === 0
+                                  ? 'bg-gray-500/20 text-gray-400'
+                                  : 'bg-primary/20 text-primary'
+                              }`}>
+                                {spellInfo.level === 0 ? '戏法' : `${spellInfo.level}环`}
+                              </span>
+                              <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                {spellInfo.school}
+                              </span>
+                              <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                {spellInfo.castingTime}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => handleRemoveCustomSpell(index)}
+                          className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  <button
+                    onClick={() => {
+                      setSelectedSpellType('spell');
+                      setSpellPickerOpen(true);
+                    }}
+                    className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                  >
+                    <Plus className="w-4 h-4 inline mr-1" />
+                    从法术库添加法术
+                  </button>
                 </div>
               </div>
             </div>
@@ -1323,6 +1359,16 @@ export default function CharacterDetail() {
           </button>
         </div>
       </div>
+
+      <SpellPicker
+        isOpen={spellPickerOpen}
+        onClose={() => setSpellPickerOpen(false)}
+        onSelect={handleSelectSpell}
+        selectedSpellIds={getSelectedSpellNames()}
+        characterClass={character?.class}
+        filterLevel={selectedSpellType === 'cantrip' ? 0 : 'all'}
+        matchByName={true}
+      />
     </div>
   );
 }
