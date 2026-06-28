@@ -125,6 +125,7 @@ function createBlankCharacter(name?: string): Character {
   return {
     id: generateId(),
     name: name || '新角色',
+    gender: '',
     class: '',
     level: 1,
     race: '',

@@ -128,6 +128,27 @@ export default function CharacterDetail() {
     languages: '',
     savingThrows: '',
   });
+  const [genderPickerOpen, setGenderPickerOpen] = useState(false);
+
+  const genderOptions = [
+    { value: 'male', label: '男', icon: '♂', color: 'text-info' },
+    { value: 'female', label: '女', icon: '♀', color: 'text-danger' },
+    { value: 'other', label: '其他', icon: '⚧', color: 'text-accent' },
+    { value: '', label: '不显示', icon: '—', color: 'dark:text-text-dark-muted light:text-text-light-muted' },
+  ] as const;
+
+  const getGenderDisplay = () => {
+    if (!character?.gender) return null;
+    const option = genderOptions.find((o) => o.value === character.gender);
+    return option || null;
+  };
+
+  const handleSelectGender = (gender: string) => {
+    if (!id) return;
+    characterStore.update(id, { gender: gender as any });
+    reloadChar();
+    setGenderPickerOpen(false);
+  };
 
   const getSpellByName = (name: string): Spell | undefined => {
     return allSpells.find((s) => s.name === name);
@@ -335,16 +356,33 @@ export default function CharacterDetail() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div className="flex-1">
-          <input
-            type="text"
-            value={character.name}
-            onChange={(e) => {
-              characterStore.update(id!, { name: e.target.value });
-              reloadChar();
-            }}
-            className="text-3xl font-bold bg-transparent border-none outline-none w-full dark:text-text-dark light:text-text-light"
-            placeholder="角色名称"
-          />
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={character.name}
+              onChange={(e) => {
+                characterStore.update(id!, { name: e.target.value });
+                reloadChar();
+              }}
+              className="text-3xl font-bold bg-transparent border-none outline-none flex-1 dark:text-text-dark light:text-text-light"
+              placeholder="角色名称"
+            />
+            <button
+              onClick={() => setGenderPickerOpen(true)}
+              className="flex-shrink-0 p-1 rounded-lg hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
+              title={getGenderDisplay()?.label || '设置性别'}
+            >
+              {getGenderDisplay() ? (
+                <span className={`text-2xl font-bold ${getGenderDisplay()!.color}`}>
+                  {getGenderDisplay()!.icon}
+                </span>
+              ) : (
+                <span className="text-xl dark:text-text-dark-muted light:text-text-light-muted">
+                  ⚲
+                </span>
+              )}
+            </button>
+          </div>
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <input
               type="text"
@@ -1538,6 +1576,43 @@ export default function CharacterDetail() {
         filterLevel={selectedSpellType === 'cantrip' ? 0 : 'all'}
         matchByName={true}
       />
+
+      {genderPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setGenderPickerOpen(false)} />
+          <div className="relative w-full max-w-xs rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6">
+            <h3 className="text-lg font-bold mb-4 text-center dark:text-text-dark light:text-text-light">
+              选择性别
+            </h3>
+            <div className="grid grid-cols-2 gap-3">
+              {genderOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleSelectGender(option.value)}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
+                    character?.gender === option.value
+                      ? 'border-primary bg-primary/10'
+                      : 'dark:border-border-dark light:border-border-light hover:border-primary hover:bg-primary/5'
+                  }`}
+                >
+                  <span className={`text-3xl font-bold ${option.color}`}>
+                    {option.icon}
+                  </span>
+                  <span className="text-sm dark:text-text-dark light:text-text-light">
+                    {option.label}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setGenderPickerOpen(false)}
+              className="w-full mt-4 py-2 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
