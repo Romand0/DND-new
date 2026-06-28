@@ -348,52 +348,53 @@ export default function CharacterDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link
-          to="/characters"
-          className="p-2 rounded-lg transition-colors dark:hover:bg-card-dark light:hover:bg-card-light dark:text-text-dark-muted light:text-text-light-muted"
+      <Link
+        to="/characters"
+        className="inline-flex items-center gap-2 text-primary hover:underline"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        返回角色列表
+      </Link>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <input
+          type="text"
+          value={character.name}
+          onChange={(e) => {
+            characterStore.update(id!, { name: e.target.value });
+            reloadChar();
+          }}
+          className="text-xl sm:text-2xl md:text-3xl font-bold bg-transparent border-none outline-none dark:text-text-dark light:text-text-light"
+          placeholder="角色名称"
+        />
+        <button
+          onClick={() => setGenderPickerOpen(true)}
+          className="flex-shrink-0 p-1 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
+          title={getGenderDisplay()?.label || '设置性别'}
         >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <input
-              type="text"
-              value={character.name}
-              onChange={(e) => {
-                characterStore.update(id!, { name: e.target.value });
-                reloadChar();
-              }}
-              className="text-xl sm:text-2xl md:text-3xl font-bold bg-transparent border-none outline-none flex-1 min-w-0 dark:text-text-dark light:text-text-light"
-              placeholder="角色名称"
-            />
-            <button
-              onClick={() => setGenderPickerOpen(true)}
-              className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
-              title={getGenderDisplay()?.label || '设置性别'}
-            >
-              {getGenderDisplay() ? (
-                <span className={`text-xl sm:text-2xl md:text-3xl font-bold ${getGenderDisplay()!.color}`}>
-                  {getGenderDisplay()!.icon}
-                </span>
-              ) : (
-                <span className="text-lg sm:text-xl md:text-2xl dark:text-text-dark-muted light:text-text-light-muted">
-                  ⚲
-                </span>
-              )}
-            </button>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 mt-1">
-            <input
-              type="text"
-              value={character.race}
-              onChange={(e) => {
-                characterStore.update(id!, { race: e.target.value });
-                reloadChar();
-              }}
-              placeholder="种族"
-              className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-24"
-            />
+          {getGenderDisplay() ? (
+            <span className={`text-xl sm:text-2xl md:text-3xl font-bold ${getGenderDisplay()!.color}`}>
+              {getGenderDisplay()!.icon}
+            </span>
+          ) : (
+            <span className="text-lg sm:text-xl md:text-2xl dark:text-text-dark-muted light:text-text-light-muted">
+              ⚲
+            </span>
+          )}
+        </button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={character.race}
+          onChange={(e) => {
+            characterStore.update(id!, { race: e.target.value });
+            reloadChar();
+          }}
+          placeholder="种族"
+          className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-24"
+        />
             <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
             <input
               type="text"
@@ -436,9 +437,8 @@ export default function CharacterDetail() {
                 {characterStore.getLevelFromExp(character.experience)}
               </span>
             </div>
-            
-         </div>
-          
+          </div>
+
           <div className="mt-2">
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="dark:text-text-dark-muted light:text-text-light-muted">
@@ -491,8 +491,6 @@ export default function CharacterDetail() {
               placeholder="输入经验值..."
             />
           </div>
-        </div>
-      </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
