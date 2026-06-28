@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #e63946;
+  --color-primary-dark: #c1121f;
+  --color-primary-light: #ff6b6b;
+  --color-accent: #d4a574;
+  --color-accent-dark: #b8860b;
+  --color-accent-light: #e8c99b;
+  
+  --color-bg-dark: #1a1a2e;
+  --color-bg-dark-2: #16213e;
+  --color-bg-dark-3: #0f3460;
+  --color-bg-light: #faf8f5;
+  --color-bg-light-2: #f0ebe3;
+  --color-bg-light-3: #e8e0d5;
+  
+  --color-text-dark: #e8e6e3;
+  --color-text-dark-muted: #a0a0b0;
+  --color-text-light: #1a1a2e;
+  --color-text-light-muted: #5a5a6e;
+  
+  --color-border-dark: #2a2a4a;
+  --color-border-dark-hover: #3a3a5a;
+  --color-border-light: #d4cfc5;
+  --color-border-light-hover: #b8b0a0;
+  
+  --color-card-dark: #1e1e3a;
+  --color-card-dark-hover: #282848;
+  --color-card-light: #ffffff;
+  --color-card-light-hover: #f5f2ed;
+  
+  --color-success: #2ecc71;
+  --color-warning: #f39c12;
+  --color-danger: #e74c3c;
+  --color-info: #3498db;
+  
+  --font-display: 'Cinzel', 'Georgia', serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+}
+
+.dark {
+  background-color: var(--color-bg-dark);
+  color: var(--color-text-dark);
+}
+
+.light {
+  background-color: var(--color-bg-light);
+  color: var(--color-text-light);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: var(--color-bg-dark-2);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--color-border-dark);
+  border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-dark-hover);
+}
+
+.light ::-webkit-scrollbar-track {
+  background: var(--color-bg-light-2);
+}
+
+.light ::-webkit-scrollbar-thumb {
+  background: var(--color-border-light);
+  border-radius: 4px;
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: var(--color-border-light-hover);
+}
+
+/* Placeholder styles */
+input::placeholder,
+textarea::placeholder {
+  opacity: 0.5;
+}
+
+input:focus::placeholder,
+textarea:focus::placeholder {
+  opacity: 0;
+}
