@@ -89,6 +89,8 @@ export default function CharacterDetail() {
   const [loading, setLoading] = useState(true);
   const [spellPickerOpen, setSpellPickerOpen] = useState(false);
   const [selectedSpellType, setSelectedSpellType] = useState<'cantrip' | 'spell'>('cantrip');
+  const [expandedCantrips, setExpandedCantrips] = useState<Set<number>>(new Set());
+  const [expandedSpells, setExpandedSpells] = useState<Set<number>>(new Set());
   const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
     armor: '',
     weapons: '',
@@ -104,6 +106,30 @@ export default function CharacterDetail() {
   const getSelectedSpellNames = (): string[] => {
     if (!character) return [];
     return [...character.spells.cantrips, ...character.spells.custom];
+  };
+
+  const toggleCantripExpand = (index: number) => {
+    setExpandedCantrips((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
+  };
+
+  const toggleSpellExpand = (index: number) => {
+    setExpandedSpells((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
+      return next;
+    });
   };
 
   const handleSelectSpell = (spell: Spell) => {
@@ -1081,35 +1107,74 @@ export default function CharacterDetail() {
                 <div className="space-y-2">
                   {character.spells.cantrips.map((cantrip, index) => {
                     const spellInfo = getSpellByName(cantrip);
+                    const isExpanded = expandedCantrips.has(index);
                     return (
                       <div
                         key={index}
-                        className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                        className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden"
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
-                            {cantrip}
-                          </div>
-                          {spellInfo && (
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-500/20 text-gray-400">
-                                戏法
-                              </span>
-                              <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                                {spellInfo.school}
-                              </span>
-                              <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                                {spellInfo.castingTime}
-                              </span>
+                        <div className="flex items-center gap-2 p-2">
+                          <button
+                            onClick={() => spellInfo && toggleCantripExpand(index)}
+                            className="flex-1 flex items-center gap-2 text-left min-w-0"
+                          >
+                            {spellInfo && (
+                              <ChevronDown
+                                className={`w-4 h-4 flex-shrink-0 transition-transform dark:text-text-dark-muted light:text-text-light-muted ${
+                                  isExpanded ? 'rotate-180' : ''
+                                }`}
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                                {cantrip}
+                              </div>
+                              {spellInfo && (
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-500/20 text-gray-400">
+                                    戏法
+                                  </span>
+                                  <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                    {spellInfo.school}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </button>
+                          <button
+                            onClick={() => handleRemoveCantrip(index)}
+                            className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleRemoveCantrip(index)}
-                          className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isExpanded && spellInfo && (
+                          <div className="px-4 pb-3 pt-1 border-t dark:border-border-dark light:border-border-light">
+                            <div className="grid grid-cols-2 gap-2 mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                              <div>施法时间: {spellInfo.castingTime}</div>
+                              <div>射程: {spellInfo.range}</div>
+                              <div>持续时间: {spellInfo.duration}</div>
+                              <div>
+                                成分:{' '}
+                                {[
+                                  spellInfo.components.verbal && 'V',
+                                  spellInfo.components.somatic && 'S',
+                                  spellInfo.components.material && 'M',
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </div>
+                            </div>
+                            <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
+                              {spellInfo.description}
+                            </div>
+                            {spellInfo.notes && (
+                              <div className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                                备注: {spellInfo.notes}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -1133,39 +1198,80 @@ export default function CharacterDetail() {
                 <div className="space-y-2">
                   {character.spells.custom.map((spell, index) => {
                     const spellInfo = getSpellByName(spell);
+                    const isExpanded = expandedSpells.has(index);
                     return (
                       <div
                         key={index}
-                        className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                        className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden"
                       >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
-                            {spell}
-                          </div>
-                          {spellInfo && (
-                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                              <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
-                                spellInfo.level === 0
-                                  ? 'bg-gray-500/20 text-gray-400'
-                                  : 'bg-primary/20 text-primary'
-                              }`}>
-                                {spellInfo.level === 0 ? '戏法' : `${spellInfo.level}环`}
-                              </span>
-                              <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                                {spellInfo.school}
-                              </span>
-                              <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                                {spellInfo.castingTime}
-                              </span>
+                        <div className="flex items-center gap-2 p-2">
+                          <button
+                            onClick={() => spellInfo && toggleSpellExpand(index)}
+                            className="flex-1 flex items-center gap-2 text-left min-w-0"
+                          >
+                            {spellInfo && (
+                              <ChevronDown
+                                className={`w-4 h-4 flex-shrink-0 transition-transform dark:text-text-dark-muted light:text-text-light-muted ${
+                                  isExpanded ? 'rotate-180' : ''
+                                }`}
+                              />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                                {spell}
+                              </div>
+                              {spellInfo && (
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span
+                                    className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      spellInfo.level === 0
+                                        ? 'bg-gray-500/20 text-gray-400'
+                                        : 'bg-primary/20 text-primary'
+                                    }`}
+                                  >
+                                    {spellInfo.level === 0 ? '戏法' : `${spellInfo.level}环`}
+                                  </span>
+                                  <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                    {spellInfo.school}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          )}
+                          </button>
+                          <button
+                            onClick={() => handleRemoveCustomSpell(index)}
+                            className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleRemoveCustomSpell(index)}
-                          className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isExpanded && spellInfo && (
+                          <div className="px-4 pb-3 pt-1 border-t dark:border-border-dark light:border-border-light">
+                            <div className="grid grid-cols-2 gap-2 mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                              <div>施法时间: {spellInfo.castingTime}</div>
+                              <div>射程: {spellInfo.range}</div>
+                              <div>持续时间: {spellInfo.duration}</div>
+                              <div>
+                                成分:{' '}
+                                {[
+                                  spellInfo.components.verbal && 'V',
+                                  spellInfo.components.somatic && 'S',
+                                  spellInfo.components.material && 'M',
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
+                              </div>
+                            </div>
+                            <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
+                              {spellInfo.description}
+                            </div>
+                            {spellInfo.notes && (
+                              <div className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                                备注: {spellInfo.notes}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
