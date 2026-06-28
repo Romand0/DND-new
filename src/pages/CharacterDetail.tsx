@@ -969,36 +969,7 @@ export default function CharacterDetail() {
               className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-              阵营
-            </label>
-            <input
-              type="text"
-              value={character.alignment}
-              onChange={(e) => {
-                characterStore.update(id!, { alignment: e.target.value });
-                reloadChar();
-              }}
-              placeholder="例如：守序善良、中立邪恶..."
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-              体型
-            </label>
-            <input
-              type="text"
-              value={character.size}
-              onChange={(e) => {
-                characterStore.update(id!, { size: e.target.value });
-                reloadChar();
-              }}
-              placeholder="例如：中等、小型..."
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-            />
-          </div>
+          
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               外貌描述
