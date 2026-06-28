@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
-/* 你可以在这里继续添加你自己的样式 */
 @theme {
+  --dark-selector: .dark &;
+  
   --color-primary: #e63946;
   --color-primary-dark: #c1121f;
   --color-primary-light: #ff6b6b;
