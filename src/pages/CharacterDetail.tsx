@@ -303,7 +303,40 @@ export default function CharacterDetail() {
                 {characterStore.getLevelFromExp(character.experience)}
               </span>
             </div>
-          </div>
+                  <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+                  <input
+                    type="text"
+                    value={character.background}
+                    onChange={(e) => {
+                      characterStore.update(id!, { background: e.target.value });
+                      reloadChar();
+                    }}
+                    placeholder="背景"
+                    className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-20"
+                  />
+                  <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+                  <input
+                    type="text"
+                    value={character.alignment}
+                    onChange={(e) => {
+                      characterStore.update(id!, { alignment: e.target.value });
+                      reloadChar();
+                    }}
+                    placeholder="阵营"
+                    className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-20"
+                  />
+                  <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+                  <input
+                    type="text"
+                    value={character.size}
+                    onChange={(e) => {
+                      characterStore.update(id!, { size: e.target.value });
+                      reloadChar();
+                    }}
+                    placeholder="体型"
+                    className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-16"
+                  />
+
           <div className="mt-2">
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="dark:text-text-dark-muted light:text-text-light-muted">
