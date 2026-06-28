@@ -109,9 +109,9 @@ export default function CharacterDetail() {
     }
   };
 
-  const updateAbilityScore = (ability: AbilityKey, score: number) => {
+  const updateAbilityScore = (ability: AbilityKey, score: number | null) => {
     if (!id) return;
-    const finalScore = score || 10;
+    const finalScore = score ?? 10;
     const modifier = characterStore.calcModifier(finalScore);
     characterStore.update(id, {
       abilities: {
@@ -323,13 +323,19 @@ export default function CharacterDetail() {
             </div>
             <input
               type="number"
-              value={character.experience || ''}
+              value={character.experience}
               onChange={(e) => {
                 const val = e.target.value;
-                const exp = val === '' ? 0 : parseInt(val) || 0;
-                const level = characterStore.getLevelFromExp(exp);
-                const proficiencyBonus = Math.ceil(level / 4) + 1;
-                characterStore.update(id!, { experience: exp, level, proficiencyBonus });
+                if (val === '') {
+                  characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                } else {
+                  const exp = parseInt(val);
+                  if (!isNaN(exp)) {
+                    const level = characterStore.getLevelFromExp(exp);
+                    const proficiencyBonus = Math.ceil(level / 4) + 1;
+                    characterStore.update(id!, { experience: exp, level, proficiencyBonus });
+                  }
+                }
                 reloadChar();
               }}
               className="mt-2 w-full px-2 py-1 text-xs bg-white/50 dark:bg-white/10 rounded outline-none dark:text-text-dark light:text-text-light"
@@ -348,10 +354,17 @@ export default function CharacterDetail() {
           <div className="flex items-baseline gap-1">
             <input
               type="number"
-              value={character.currentHp || ''}
+              value={character.currentHp}
               onChange={(e) => {
                 const val = e.target.value;
-                characterStore.update(id!, { currentHp: val === '' ? 0 : parseInt(val) || 0 });
+                if (val === '') {
+                  characterStore.update(id!, { currentHp: 0 });
+                } else {
+                  const num = parseInt(val);
+                  if (!isNaN(num)) {
+                    characterStore.update(id!, { currentHp: num });
+                  }
+                }
                 reloadChar();
               }}
               placeholder="当前"
@@ -363,10 +376,17 @@ export default function CharacterDetail() {
             <span className="text-lg dark:text-text-dark-muted light:text-text-light-muted">/</span>
             <input
               type="number"
-              value={character.maxHp || ''}
+              value={character.maxHp}
               onChange={(e) => {
                 const val = e.target.value;
-                characterStore.update(id!, { maxHp: val === '' ? 0 : parseInt(val) || 0 });
+                if (val === '') {
+                  characterStore.update(id!, { maxHp: 0 });
+                } else {
+                  const num = parseInt(val);
+                  if (!isNaN(num)) {
+                    characterStore.update(id!, { maxHp: num });
+                  }
+                }
                 reloadChar();
               }}
               placeholder="最大"
@@ -380,10 +400,17 @@ export default function CharacterDetail() {
             <span className="dark:text-text-dark-muted light:text-text-light-muted">临时HP:</span>
             <input
               type="number"
-              value={character.tempHp || ''}
+              value={character.tempHp}
               onChange={(e) => {
                 const val = e.target.value;
-                characterStore.update(id!, { tempHp: val === '' ? 0 : parseInt(val) || 0 });
+                if (val === '') {
+                  characterStore.update(id!, { tempHp: 0 });
+                } else {
+                  const num = parseInt(val);
+                  if (!isNaN(num)) {
+                    characterStore.update(id!, { tempHp: num });
+                  }
+                }
                 reloadChar();
               }}
               placeholder="0"
@@ -399,10 +426,17 @@ export default function CharacterDetail() {
           </div>
           <input
             type="number"
-            value={character.armorClass || ''}
+            value={character.armorClass}
             onChange={(e) => {
               const val = e.target.value;
-              characterStore.update(id!, { armorClass: val === '' ? 0 : parseInt(val) || 0 });
+              if (val === '') {
+                characterStore.update(id!, { armorClass: 0 });
+              } else {
+                const num = parseInt(val);
+                if (!isNaN(num)) {
+                  characterStore.update(id!, { armorClass: num });
+                }
+              }
               reloadChar();
             }}
             placeholder="10"
@@ -418,10 +452,17 @@ export default function CharacterDetail() {
           <div className="flex items-baseline gap-1">
             <input
               type="number"
-              value={character.speed || ''}
+              value={character.speed}
               onChange={(e) => {
                 const val = e.target.value;
-                characterStore.update(id!, { speed: val === '' ? 0 : parseInt(val) || 0 });
+                if (val === '') {
+                  characterStore.update(id!, { speed: 0 });
+                } else {
+                  const num = parseInt(val);
+                  if (!isNaN(num)) {
+                    characterStore.update(id!, { speed: num });
+                  }
+                }
                 reloadChar();
               }}
               placeholder="30"
@@ -438,11 +479,17 @@ export default function CharacterDetail() {
           </div>
           <input
             type="number"
-            value={character.proficiencyBonus || ''}
+            value={character.proficiencyBonus}
             onChange={(e) => {
               const val = e.target.value;
-              const bonus = val === '' ? 2 : parseInt(val) || 2;
-              characterStore.update(id!, { proficiencyBonus: Math.max(2, Math.min(6, bonus)) });
+              if (val === '') {
+                characterStore.update(id!, { proficiencyBonus: 2 });
+              } else {
+                const num = parseInt(val);
+                if (!isNaN(num)) {
+                  characterStore.update(id!, { proficiencyBonus: Math.max(2, Math.min(6, num)) });
+                }
+              }
               reloadChar();
             }}
             placeholder="2"
@@ -467,10 +514,17 @@ export default function CharacterDetail() {
               </div>
               <input
                 type="number"
-                value={character.abilities[ability].score || ''}
+                value={character.abilities[ability].score}
                 onChange={(e) => {
                   const val = e.target.value;
-                  updateAbilityScore(ability, val === '' ? 0 : parseInt(val) || 0);
+                  if (val === '') {
+                    updateAbilityScore(ability, null);
+                  } else {
+                    const num = parseInt(val);
+                    if (!isNaN(num)) {
+                      updateAbilityScore(ability, num);
+                    }
+                  }
                 }}
                 placeholder="10"
                 className="w-14 py-1 text-2xl font-bold text-center rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light"
@@ -712,15 +766,27 @@ export default function CharacterDetail() {
                   </div>
                   <input
                     type="number"
-                    value={character.currency[coin] || ''}
+                    value={character.currency[coin]}
                     onChange={(e) => {
                       const val = e.target.value;
-                      characterStore.update(id!, {
-                        currency: {
-                          ...character!.currency,
-                          [coin]: val === '' ? 0 : parseInt(val) || 0,
-                        },
-                      });
+                      if (val === '') {
+                        characterStore.update(id!, {
+                          currency: {
+                            ...character!.currency,
+                            [coin]: 0,
+                          },
+                        });
+                      } else {
+                        const num = parseInt(val);
+                        if (!isNaN(num)) {
+                          characterStore.update(id!, {
+                            currency: {
+                              ...character!.currency,
+                              [coin]: num,
+                            },
+                          });
+                        }
+                      }
                       reloadChar();
                     }}
                     placeholder="0"
@@ -773,11 +839,18 @@ export default function CharacterDetail() {
                           <div className="flex items-center justify-center gap-1 mt-1">
                             <input
                               type="number"
-                              value={slot.used || ''}
+                              value={slot.used}
                               onChange={(e) => {
                                 const val = e.target.value;
                                 const levelKey = 'level' + slot.level;
-                                handleUpdateSpellSlots(levelKey, 'used', val === '' ? 0 : parseInt(val) || 0);
+                                if (val === '') {
+                                  handleUpdateSpellSlots(levelKey, 'used', 0);
+                                } else {
+                                  const num = parseInt(val);
+                                  if (!isNaN(num)) {
+                                    handleUpdateSpellSlots(levelKey, 'used', num);
+                                  }
+                                }
                               }}
                               placeholder="0"
                               className="w-8 py-0.5 text-sm rounded bg-white/50 dark:bg-white/10 outline-none text-center dark:text-text-dark light:text-text-light"
