@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Plus, Edit2, Trash2, Search, Filter } from 'lucide-react';
 import type { Spell } from '@/types/spell';
