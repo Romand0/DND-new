@@ -182,7 +182,7 @@ export default function SpellList() {
         </div>
       </div>
 
-      <div className="rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
+      <div className="hidden md:block rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b dark:border-border-dark light:border-border-light">
@@ -273,6 +273,66 @@ export default function SpellList() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="md:hidden space-y-3">
+        {sortedSpells.length === 0 ? (
+          <div className="text-center py-12 text-sm dark:text-text-dark-muted light:text-text-light-muted rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light">
+            暂无匹配的法术
+          </div>
+        ) : (
+          sortedSpells.map((spell) => (
+            <div
+              key={spell.id}
+              className="p-4 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <button
+                  onClick={() => navigate(`/spells/${spell.id}`)}
+                  className="text-left flex-1"
+                >
+                  <h3 className="font-medium hover:text-primary transition-colors dark:text-text-dark light:text-text-light">
+                    {spell.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                    <span
+                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                        spell.level === 0
+                          ? 'bg-gray-500/20 text-gray-400'
+                          : 'bg-primary/20 text-primary'
+                      }`}
+                    >
+                      {levelLabels[spell.level]}
+                    </span>
+                    <span className="text-xs dark:text-text-dark light:text-text-light">
+                      {spell.school}
+                    </span>
+                  </div>
+                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleEdit(spell)}
+                    className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary transition-colors"
+                    title="编辑"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirm(spell.id)}
+                    className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger transition-colors"
+                    title="删除"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 mt-3 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                <span>施法时间: {spell.castingTime}</span>
+                <span>成分: {getComponentAbbr(spell.components) || '无'}</span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       <SpellEditor
