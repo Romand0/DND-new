@@ -110,6 +110,7 @@ export interface Feature {
 export interface Character {
   id: string;
   name: string;
+  gender: 'male' | 'female' | 'other' | '';
   class: string;
   level: number;
   race: string;

@@ -97,6 +97,21 @@ export default function CharacterDetail() {
     languages: '',
     savingThrows: '',
   });
+  const [genderPickerOpen, setGenderPickerOpen] = useState(false);
+
+  const getGenderDisplay = () => {
+    if (!character?.gender) return null;
+    switch (character.gender) {
+      case 'male':
+        return { icon: '♂', label: '男性', color: 'text-info' };
+      case 'female':
+        return { icon: '♀', label: '女性', color: 'text-danger' };
+      case 'other':
+        return { icon: '⚲', label: '其他', color: 'text-accent' };
+      default:
+        return null;
+    }
+  };
 
   const getSpellByName = (name: string): Spell | undefined => {
     return (allSpells as Spell[]).find((s) => s.name === name);
@@ -287,14 +302,15 @@ export default function CharacterDetail() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Link
-          to="/characters"
-          className="p-2 rounded-lg transition-colors dark:hover:bg-card-dark light:hover:bg-card-light dark:text-text-dark-muted light:text-text-light-muted"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div className="flex-1">
+      <Link
+        to="/characters"
+        className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </Link>
+
+      <div>
+        <div className="flex items-center gap-2 flex-wrap">
           <input
             type="text"
             value={character.name}
@@ -302,78 +318,119 @@ export default function CharacterDetail() {
               characterStore.update(id!, { name: e.target.value });
               reloadChar();
             }}
-            className="text-3xl font-bold bg-transparent border-none outline-none w-full dark:text-text-dark light:text-text-light"
+            className="text-xl sm:text-2xl md:text-3xl font-bold bg-transparent border-none outline-none dark:text-text-dark light:text-text-light"
             placeholder="角色名称"
           />
-          <div className="flex flex-wrap items-center gap-2 mt-1">
-            <input
-              type="text"
-              value={character.race}
-              onChange={(e) => {
-                characterStore.update(id!, { race: e.target.value });
-                reloadChar();
-              }}
-              placeholder="种族"
-              className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-24"
-            />
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-            <input
-              type="text"
-              value={character.class}
-              onChange={(e) => {
-                characterStore.update(id!, { class: e.target.value });
-                reloadChar();
-              }}
-              placeholder="职业"
-              className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-24"
-            />
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 text-accent" />
-              <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">等级</span>
-              <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
-                {characterStore.getLevelFromExp(character.experience)}
+          <button
+            onClick={() => setGenderPickerOpen(true)}
+            className="flex-shrink-0 p-1 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
+            title={getGenderDisplay()?.label || '设置性别'}
+          >
+            {getGenderDisplay() ? (
+              <span className={`text-xl sm:text-2xl md:text-3xl font-bold ${getGenderDisplay()!.color}`}>
+                {getGenderDisplay()!.icon}
               </span>
-            </div>
+            ) : (
+              <span className="text-lg sm:text-xl md:text-2xl dark:text-text-dark-muted light:text-text-light-muted">
+                ⚲
+              </span>
+            )}
+          </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 mt-2">
+          <input
+            type="text"
+            value={character.race}
+            onChange={(e) => {
+              characterStore.update(id!, { race: e.target.value });
+              reloadChar();
+            }}
+            placeholder="种族"
+            className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
+          />
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+          <input
+            type="text"
+            value={character.class}
+            onChange={(e) => {
+              characterStore.update(id!, { class: e.target.value });
+              reloadChar();
+            }}
+            placeholder="职业"
+            className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 mt-1">
+          <input
+            type="text"
+            value={character.alignment}
+            onChange={(e) => {
+              characterStore.update(id!, { alignment: e.target.value });
+              reloadChar();
+            }}
+            placeholder="阵营"
+            className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-20"
+          />
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+          <input
+            type="text"
+            value={character.size}
+            onChange={(e) => {
+              characterStore.update(id!, { size: e.target.value });
+              reloadChar();
+            }}
+            placeholder="体型"
+            className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-16"
+          />
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+          <div className="flex items-center gap-1">
+            <Star className="w-3.5 h-3.5 text-accent" />
+            <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">等级</span>
+            <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
+              {characterStore.getLevelFromExp(character.experience)}
+            </span>
           </div>
-          <div className="mt-2">
-            <div className="flex items-center justify-between text-xs mb-1">
-              <span className="dark:text-text-dark-muted light:text-text-light-muted">
-                经验值: {character.experience}
-              </span>
-              <span className="dark:text-text-dark-muted light:text-text-light-muted">
-                {characterStore.getNextLevelInfo(character.experience).currentLevel >= 20
-                  ? '已满级'
-                  : `距下一级还需 ${characterStore.getNextLevelInfo(character.experience).expRemaining} XP`}
-              </span>
-            </div>
-            <div className="h-1.5 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
-              <div
-                className="h-full rounded-full bg-accent transition-all"
-                style={{ width: `${characterStore.getNextLevelInfo(character.experience).expProgress * 100}%` }}
-              />
-            </div>
-            <input
-              type="number"
-              value={character.experience}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
-                } else {
-                  const exp = parseInt(val);
-                  if (!isNaN(exp)) {
-                    const level = characterStore.getLevelFromExp(exp);
-                    const proficiencyBonus = Math.ceil(level / 4) + 1;
-                    characterStore.update(id!, { experience: exp, level, proficiencyBonus });
-                  }
+        </div>
+
+        <div className="mt-2">
+          <div className="flex items-center justify-between text-xs mb-1">
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">
+              经验值: {character.experience}
+            </span>
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">
+              {characterStore.getNextLevelInfo(character.experience).currentLevel >= 20
+                ? '已满级'
+                : `距下一级还需 ${characterStore.getNextLevelInfo(character.experience).expRemaining} XP`}
+            </span>
+          </div>
+          <div className="h-1.5 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-accent transition-all"
+              style={{ width: `${characterStore.getNextLevelInfo(character.experience).expProgress * 100}%` }}
+            />
+          </div>
+          <input
+            type="number"
+            value={character.experience}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === '') {
+                characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+              } else {
+                const exp = parseInt(val);
+                if (!isNaN(exp)) {
+                  const level = characterStore.getLevelFromExp(exp);
+                  const proficiencyBonus = Math.ceil(level / 4) + 1;
+                  characterStore.update(id!, { experience: exp, level, proficiencyBonus });
                 }
-                reloadChar();
-              }}
-              className="mt-2 w-full px-2 py-1 text-xs bg-white/50 dark:bg-white/10 rounded outline-none dark:text-text-dark light:text-text-light"
-              placeholder="输入经验值..."
-            />
-          </div>
+              }
+              reloadChar();
+            }}
+            className="mt-2 w-full px-2 py-1 text-xs bg-white/50 dark:bg-white/10 rounded outline-none dark:text-text-dark light:text-text-light"
+            placeholder="输入经验值..."
+          />
         </div>
       </div>
 
@@ -1368,6 +1425,70 @@ export default function CharacterDetail() {
           </button>
         </div>
       </div>
+
+      {genderPickerOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="rounded-xl border p-6 w-full max-w-sm dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
+            <h3 className="text-lg font-bold mb-4 dark:text-text-dark light:text-text-light">
+              选择性别
+            </h3>
+            <div className="space-y-2">
+              <button
+                onClick={() => {
+                  characterStore.update(id!, { gender: 'male' });
+                  reloadChar();
+                  setGenderPickerOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors dark:border-border-dark dark:hover:bg-card-dark-hover light:border-border-light light:hover:bg-card-light-hover"
+              >
+                <span className="text-2xl font-bold text-info">♂</span>
+                <span className="dark:text-text-dark light:text-text-light">男性</span>
+              </button>
+              <button
+                onClick={() => {
+                  characterStore.update(id!, { gender: 'female' });
+                  reloadChar();
+                  setGenderPickerOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors dark:border-border-dark dark:hover:bg-card-dark-hover light:border-border-light light:hover:bg-card-light-hover"
+              >
+                <span className="text-2xl font-bold text-danger">♀</span>
+                <span className="dark:text-text-dark light:text-text-light">女性</span>
+              </button>
+              <button
+                onClick={() => {
+                  characterStore.update(id!, { gender: 'other' });
+                  reloadChar();
+                  setGenderPickerOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors dark:border-border-dark dark:hover:bg-card-dark-hover light:border-border-light light:hover:bg-card-light-hover"
+              >
+                <span className="text-2xl font-bold text-accent">⚲</span>
+                <span className="dark:text-text-dark light:text-text-light">其他</span>
+              </button>
+              <button
+                onClick={() => {
+                  characterStore.update(id!, { gender: '' });
+                  reloadChar();
+                  setGenderPickerOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors dark:border-border-dark dark:hover:bg-card-dark-hover light:border-border-light light:hover:bg-card-light-hover"
+              >
+                <span className="text-2xl font-bold dark:text-text-dark-muted light:text-text-light-muted">
+                  ✕
+                </span>
+                <span className="dark:text-text-dark-muted light:text-text-light-muted">不设置</span>
+              </button>
+            </div>
+            <button
+              onClick={() => setGenderPickerOpen(false)}
+              className="w-full mt-4 py-2 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark-hover light:border-border-light light:text-text-light light:hover:bg-card-light-hover"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
