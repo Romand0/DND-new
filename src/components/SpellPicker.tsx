@@ -1,7 +1,7 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { X, Search, Filter, Sparkles } from 'lucide-react';
 import type { Spell } from '@/types/spell';
-import allSpells from '@/data/spells.json';
+import { spellStore } from '@/data/spellStore';
 
 interface SpellPickerProps {
   isOpen: boolean;
@@ -42,6 +42,20 @@ export default function SpellPicker({
   const [classFilter, setClassFilter] = useState<string>(
     characterClass || 'all'
   );
+  const [allSpells, setAllSpells] = useState<Spell[]>(spellStore.getAll());
+
+  useEffect(() => {
+    const unsubscribe = spellStore.subscribe(() => {
+      setAllSpells(spellStore.getAll());
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      setAllSpells(spellStore.getAll());
+    }
+  }, [isOpen]);
 
   const availableClasses = useMemo(() => {
     const classes = new Set<string>();

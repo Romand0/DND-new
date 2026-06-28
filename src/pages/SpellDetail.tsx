@@ -1,6 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Sparkles, Clock, Target, Zap, Hourglass } from 'lucide-react';
-import spellsData from '@/data/spells.json';
+import { useState, useEffect } from 'react';
+import type { Spell } from '@/types/spell';
+import { spellStore } from '@/data/spellStore';
 
 const levelLabels: Record<number, string> = {
   0: '戏法',
@@ -18,7 +20,14 @@ const levelLabels: Record<number, string> = {
 export default function SpellDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const spell = spellsData.find((s) => s.id === id);
+  const [spell, setSpell] = useState<Spell | undefined>(spellStore.getById(id || ''));
+
+  useEffect(() => {
+    const unsubscribe = spellStore.subscribe(() => {
+      setSpell(spellStore.getById(id || ''));
+    });
+    return unsubscribe;
+  }, [id]);
 
   if (!spell) {
     return (

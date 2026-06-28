@@ -24,7 +24,7 @@ import {
 import type { Character, AbilityKey, ProficiencyCategory } from '@/types/character';
 import type { Spell } from '@/types/spell';
 import { characterStore } from '@/data/characterStore';
-import allSpells from '@/data/spells.json';
+import { spellStore } from '@/data/spellStore';
 import SpellPicker from '@/components/SpellPicker';
 
 const abilityLabels: Record<AbilityKey, string> = {
@@ -91,6 +91,7 @@ export default function CharacterDetail() {
   const [selectedSpellType, setSelectedSpellType] = useState<'cantrip' | 'spell'>('cantrip');
   const [expandedCantrips, setExpandedCantrips] = useState<Set<number>>(new Set());
   const [expandedSpells, setExpandedSpells] = useState<Set<number>>(new Set());
+  const [allSpells, setAllSpells] = useState<Spell[]>(spellStore.getAll());
   const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
     armor: '',
     weapons: '',
@@ -149,6 +150,13 @@ export default function CharacterDetail() {
       setLoading(false);
     }
   }, [id]);
+
+  useEffect(() => {
+    const unsubscribe = spellStore.subscribe(() => {
+      setAllSpells(spellStore.getAll());
+    });
+    return unsubscribe;
+  }, []);
 
   const reloadChar = () => {
     if (id) {

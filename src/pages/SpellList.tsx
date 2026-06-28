@@ -3,10 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { Sparkles, Plus, Edit2, Trash2, Search, Filter } from 'lucide-react';
 import type { Spell } from '@/types/spell';
 import SpellEditor from '@/components/SpellEditor';
-import initialSpells from '@/data/spells.json';
+import { spellStore } from '@/data/spellStore';
 import { commitFile } from '@/utils/github';
 
-const STORAGE_KEY = 'DND-spells';
 const levelLabels: Record<number, string> = {
   0: '戏法',
   1: '1环',
@@ -20,25 +19,9 @@ const levelLabels: Record<number, string> = {
   9: '9环',
 };
 
-function loadSpells(): Spell[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch {
-    // ignore
-  }
-  return initialSpells;
-}
-
-function saveSpellsToStorage(spells: Spell[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(spells));
-}
-
 export default function SpellList() {
   const navigate = useNavigate();
-  const [spells, setSpells] = useState<Spell[]>(loadSpells);
+  const [spells, setSpells] = useState<Spell[]>(spellStore.getAll());
   const [searchQuery, setSearchQuery] = useState('');
   const [levelFilter, setLevelFilter] = useState<number | 'all'>('all');
   const [editorOpen, setEditorOpen] = useState(false);
@@ -47,9 +30,11 @@ export default function SpellList() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // 确保组件挂载时从存储加载最新数据
   useEffect(() => {
-    setSpells(loadSpells());
+    const unsubscribe = spellStore.subscribe(() => {
+      setSpells(spellStore.getAll());
+    });
+    return unsubscribe;
   }, []);
 
   const filteredSpells = spells.filter((spell) => {
@@ -79,8 +64,8 @@ export default function SpellList() {
         newSpells = [...spells, spell];
       }
 
-      // 先保存到 localStorage
-      saveSpellsToStorage(newSpells);
+      // 先保存到 spellStore（会自动通知所有订阅者）
+      spellStore.save(newSpells);
       setSpells(newSpells);
 
       // 尝试同步到 GitHub
@@ -113,8 +98,8 @@ export default function SpellList() {
     try {
       const newSpells = spells.filter((s) => s.id !== id);
 
-      // 先保存到 localStorage
-      saveSpellsToStorage(newSpells);
+      // 先保存到 spellStore（会自动通知所有订阅者）
+      spellStore.save(newSpells);
       setSpells(newSpells);
       setDeleteConfirm(null);
 
