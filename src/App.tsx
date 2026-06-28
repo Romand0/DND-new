@@ -7,6 +7,7 @@ import CharacterList from '@/pages/CharacterList';
 import CharacterDetail from '@/pages/CharacterDetail';
 import SpellList from '@/pages/SpellList';
 import SpellDetail from '@/pages/SpellDetail';
+import Settings from '@/pages/Settings';
 import Placeholder from '@/pages/Placeholder';
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
             />
             <Route path="spells" element={<SpellList />} />
             <Route path="spells/:id" element={<SpellDetail />} />
+            <Route path="settings" element={<Settings />} />
             <Route
               path="notes"
               element={<Placeholder title="剧情笔记" description="剧情记录与世界设定管理功能即将上线" />}

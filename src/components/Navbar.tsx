@@ -13,6 +13,7 @@ import {
   Moon,
   Download,
   Upload,
+  Settings,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { characterStore } from '@/data/characterStore';
@@ -79,6 +80,13 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Link
+              to="/settings"
+              className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
+              title="设置"
+            >
+              <Settings className="w-5 h-5" />
+            </Link>
             <button
               onClick={handleImport}
               className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
