@@ -355,8 +355,8 @@ export default function CharacterDetail() {
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
             <input
               type="text"
               value={character.name}
@@ -364,20 +364,20 @@ export default function CharacterDetail() {
                 characterStore.update(id!, { name: e.target.value });
                 reloadChar();
               }}
-              className="text-3xl font-bold bg-transparent border-none outline-none flex-1 dark:text-text-dark light:text-text-light"
+              className="text-xl sm:text-2xl md:text-3xl font-bold bg-transparent border-none outline-none flex-1 min-w-0 dark:text-text-dark light:text-text-light"
               placeholder="角色名称"
             />
             <button
               onClick={() => setGenderPickerOpen(true)}
-              className="flex-shrink-0 p-1 rounded-lg hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
+              className="flex-shrink-0 p-1.5 rounded-lg hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
               title={getGenderDisplay()?.label || '设置性别'}
             >
               {getGenderDisplay() ? (
-                <span className={`text-2xl font-bold ${getGenderDisplay()!.color}`}>
+                <span className={`text-xl sm:text-2xl md:text-3xl font-bold ${getGenderDisplay()!.color}`}>
                   {getGenderDisplay()!.icon}
                 </span>
               ) : (
-                <span className="text-xl dark:text-text-dark-muted light:text-text-light-muted">
+                <span className="text-lg sm:text-xl md:text-2xl dark:text-text-dark-muted light:text-text-light-muted">
                   ⚲
                 </span>
               )}
