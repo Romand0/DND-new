@@ -1,7 +1,4 @@
-/* 全局样式 */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
 /* 你可以在这里继续添加你自己的样式 */
 @theme {
