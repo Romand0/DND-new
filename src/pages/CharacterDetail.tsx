@@ -764,6 +764,54 @@ export default function CharacterDetail() {
         </div>
       </Section>
 
+      <Section title="熟练项" icon={Star}>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {displayedProficiencyCategories.map((category) => (
+            <div key={category}>
+              <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
+                {proficiencyLabels[category]}
+              </label>
+              <div className="space-y-1 mb-2">
+                {character.proficiencies[category].map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                  >
+                    <span className="flex-1 text-sm dark:text-text-dark light:text-text-light">
+                      {item}
+                    </span>
+                    <button
+                      onClick={() => handleRemoveProficiency(category, item)}
+                      className="p-1 rounded hover:bg-danger/20 text-danger"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newProficiency[category]}
+                  onChange={(e) =>
+                    setNewProficiency({ ...newProficiency, [category]: e.target.value })
+                  }
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddProficiency(category)}
+                  placeholder="添加..."
+                  className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+                <button
+                  onClick={() => handleAddProficiency(category)}
+                  className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
           <Section title="攻击" icon={Swords}>
@@ -1244,54 +1292,6 @@ export default function CharacterDetail() {
               className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none"
             />
           </div>
-        </div>
-      </Section>
-
-      <Section title="熟练项" icon={Star}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {displayedProficiencyCategories.map((category) => (
-            <div key={category}>
-              <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
-                {proficiencyLabels[category]}
-              </label>
-              <div className="space-y-1 mb-2">
-                {character.proficiencies[category].map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                  >
-                    <span className="flex-1 text-sm dark:text-text-dark light:text-text-light">
-                      {item}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveProficiency(category, item)}
-                      className="p-1 rounded hover:bg-danger/20 text-danger"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newProficiency[category]}
-                  onChange={(e) =>
-                    setNewProficiency({ ...newProficiency, [category]: e.target.value })
-                  }
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddProficiency(category)}
-                  placeholder="添加..."
-                  className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                />
-                <button
-                  onClick={() => handleAddProficiency(category)}
-                  className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
         </div>
       </Section>
 
