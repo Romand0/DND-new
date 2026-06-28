@@ -21,7 +21,7 @@ const navItems = [
   { path: '/characters', label: '角色卡库', icon: Users },
   { path: '/combat', label: '战斗记录', icon: Swords },
   { path: '/inventory', label: '物资钱币', icon: Coins },
-  { path: '/spells', label: '法术管理', icon: Sparkles },
+  { path: '/spells', label: '法术库', icon: Sparkles },
   { path: '/notes', label: '剧情笔记', icon: ScrollText },
 ];
 

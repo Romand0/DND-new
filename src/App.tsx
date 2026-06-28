@@ -5,6 +5,8 @@ import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import CharacterList from '@/pages/CharacterList';
 import CharacterDetail from '@/pages/CharacterDetail';
+import SpellList from '@/pages/SpellList';
+import SpellDetail from '@/pages/SpellDetail';
 import Placeholder from '@/pages/Placeholder';
 
 export default function App() {
@@ -24,10 +26,8 @@ export default function App() {
               path="inventory"
               element={<Placeholder title="物资钱币" description="装备、货币、经验值变动记录功能即将上线" />}
             />
-            <Route
-              path="spells"
-              element={<Placeholder title="法术管理" description="法术位追踪与法术书管理功能即将上线" />}
-            />
+            <Route path="spells" element={<SpellList />} />
+            <Route path="spells/:id" element={<SpellDetail />} />
             <Route
               path="notes"
               element={<Placeholder title="剧情笔记" description="剧情记录与世界设定管理功能即将上线" />}
