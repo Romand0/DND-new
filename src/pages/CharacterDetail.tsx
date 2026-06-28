@@ -111,7 +111,8 @@ export default function CharacterDetail() {
 
   const updateAbilityScore = (ability: AbilityKey, score: number | null) => {
     if (!id) return;
-    const finalScore = score ?? 10;
+    // 当 score 为 null 时，设置为 0
+    const finalScore = score ?? 0;
     const modifier = characterStore.calcModifier(finalScore);
     characterStore.update(id, {
       abilities: {
@@ -348,20 +349,34 @@ export default function CharacterDetail() {
             </div>
             <input
               type="number"
-              value={character.experience}
+              value={character.experience === 0 ? '' : character.experience}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === '') {
-                  characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                  // 允许清空，暂不更新 store
                 } else {
                   const exp = parseInt(val);
                   if (!isNaN(exp)) {
                     const level = characterStore.getLevelFromExp(exp);
                     const proficiencyBonus = Math.ceil(level / 4) + 1;
                     characterStore.update(id!, { experience: exp, level, proficiencyBonus });
+                    reloadChar();
                   }
                 }
-                reloadChar();
+              }}
+              onBlur={(e) => {
+                // 失去焦点时，如果为空，设置为 0
+                if (e.target.value === '') {
+                  characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                  reloadChar();
+                }
+              }}
+              onKeyDown={(e) => {
+                // 按回车时，如果为空，设置为 0
+                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                  characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                  reloadChar();
+                }
               }}
               className="mt-2 w-full px-2 py-1 text-xs bg-white/50 dark:bg-white/10 rounded outline-none dark:text-text-dark light:text-text-light"
               placeholder="输入经验值..."
@@ -379,18 +394,30 @@ export default function CharacterDetail() {
           <div className="flex items-baseline gap-1">
             <input
               type="number"
-              value={character.currentHp}
+              value={character.currentHp === 0 ? '' : character.currentHp}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === '') {
-                  characterStore.update(id!, { currentHp: 0 });
+                  // 允许清空，暂不更新 store
                 } else {
                   const num = parseInt(val);
                   if (!isNaN(num)) {
                     characterStore.update(id!, { currentHp: num });
+                    reloadChar();
                   }
                 }
-                reloadChar();
+              }}
+              onBlur={(e) => {
+                if (e.target.value === '') {
+                  characterStore.update(id!, { currentHp: 0 });
+                  reloadChar();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                  characterStore.update(id!, { currentHp: 0 });
+                  reloadChar();
+                }
               }}
               placeholder="当前"
               className="w-16 px-2 py-1 text-2xl font-bold rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light"
@@ -401,18 +428,30 @@ export default function CharacterDetail() {
             <span className="text-lg dark:text-text-dark-muted light:text-text-light-muted">/</span>
             <input
               type="number"
-              value={character.maxHp}
+              value={character.maxHp === 0 ? '' : character.maxHp}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === '') {
-                  characterStore.update(id!, { maxHp: 0 });
+                  // 允许清空，暂不更新 store
                 } else {
                   const num = parseInt(val);
                   if (!isNaN(num)) {
                     characterStore.update(id!, { maxHp: num });
+                    reloadChar();
                   }
                 }
-                reloadChar();
+              }}
+              onBlur={(e) => {
+                if (e.target.value === '') {
+                  characterStore.update(id!, { maxHp: 0 });
+                  reloadChar();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                  characterStore.update(id!, { maxHp: 0 });
+                  reloadChar();
+                }
               }}
               placeholder="最大"
               className="w-16 px-2 py-1 text-lg rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark-muted light:text-text-light-muted"
@@ -425,18 +464,30 @@ export default function CharacterDetail() {
             <span className="dark:text-text-dark-muted light:text-text-light-muted">临时HP:</span>
             <input
               type="number"
-              value={character.tempHp}
+              value={character.tempHp === 0 ? '' : character.tempHp}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === '') {
-                  characterStore.update(id!, { tempHp: 0 });
+                  // 允许清空，暂不更新 store
                 } else {
                   const num = parseInt(val);
                   if (!isNaN(num)) {
                     characterStore.update(id!, { tempHp: num });
+                    reloadChar();
                   }
                 }
-                reloadChar();
+              }}
+              onBlur={(e) => {
+                if (e.target.value === '') {
+                  characterStore.update(id!, { tempHp: 0 });
+                  reloadChar();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                  characterStore.update(id!, { tempHp: 0 });
+                  reloadChar();
+                }
               }}
               placeholder="0"
               className="w-14 px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light text-center text-sm"
@@ -451,18 +502,30 @@ export default function CharacterDetail() {
           </div>
           <input
             type="number"
-            value={character.armorClass}
+            value={character.armorClass === 0 ? '' : character.armorClass}
             onChange={(e) => {
               const val = e.target.value;
               if (val === '') {
-                characterStore.update(id!, { armorClass: 0 });
+                // 允许清空，暂不更新 store
               } else {
                 const num = parseInt(val);
                 if (!isNaN(num)) {
                   characterStore.update(id!, { armorClass: num });
+                  reloadChar();
                 }
               }
-              reloadChar();
+            }}
+            onBlur={(e) => {
+              if (e.target.value === '') {
+                characterStore.update(id!, { armorClass: 0 });
+                reloadChar();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                characterStore.update(id!, { armorClass: 0 });
+                reloadChar();
+              }
             }}
             placeholder="10"
             className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-full"
@@ -477,18 +540,30 @@ export default function CharacterDetail() {
           <div className="flex items-baseline gap-1">
             <input
               type="number"
-              value={character.speed}
+              value={character.speed === 0 ? '' : character.speed}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === '') {
-                  characterStore.update(id!, { speed: 0 });
+                  // 允许清空，暂不更新 store
                 } else {
                   const num = parseInt(val);
                   if (!isNaN(num)) {
                     characterStore.update(id!, { speed: num });
+                    reloadChar();
                   }
                 }
-                reloadChar();
+              }}
+              onBlur={(e) => {
+                if (e.target.value === '') {
+                  characterStore.update(id!, { speed: 0 });
+                  reloadChar();
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                  characterStore.update(id!, { speed: 0 });
+                  reloadChar();
+                }
               }}
               placeholder="30"
               className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-20"
@@ -504,18 +579,30 @@ export default function CharacterDetail() {
           </div>
           <input
             type="number"
-            value={character.proficiencyBonus}
+            value={character.proficiencyBonus === 0 ? '' : character.proficiencyBonus}
             onChange={(e) => {
               const val = e.target.value;
               if (val === '') {
-                characterStore.update(id!, { proficiencyBonus: 2 });
+                // 允许清空，暂不更新 store
               } else {
                 const num = parseInt(val);
                 if (!isNaN(num)) {
                   characterStore.update(id!, { proficiencyBonus: Math.max(2, Math.min(6, num)) });
+                  reloadChar();
                 }
               }
-              reloadChar();
+            }}
+            onBlur={(e) => {
+              if (e.target.value === '') {
+                characterStore.update(id!, { proficiencyBonus: 2 });
+                reloadChar();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                characterStore.update(id!, { proficiencyBonus: 2 });
+                reloadChar();
+              }
             }}
             placeholder="2"
             className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-full"
@@ -539,16 +626,26 @@ export default function CharacterDetail() {
               </div>
               <input
                 type="number"
-                value={character.abilities[ability].score}
+                value={character.abilities[ability].score === 0 ? '' : character.abilities[ability].score}
                 onChange={(e) => {
                   const val = e.target.value;
                   if (val === '') {
-                    updateAbilityScore(ability, null);
+                    // 允许清空，暂不更新 store
                   } else {
                     const num = parseInt(val);
                     if (!isNaN(num)) {
                       updateAbilityScore(ability, num);
                     }
+                  }
+                }}
+                onBlur={(e) => {
+                  if (e.target.value === '') {
+                    updateAbilityScore(ability, 0);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                    updateAbilityScore(ability, 0);
                   }
                 }}
                 placeholder="10"
@@ -791,16 +888,11 @@ export default function CharacterDetail() {
                   </div>
                   <input
                     type="number"
-                    value={character.currency[coin]}
+                    value={character.currency[coin] === 0 ? '' : character.currency[coin]}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === '') {
-                        characterStore.update(id!, {
-                          currency: {
-                            ...character!.currency,
-                            [coin]: 0,
-                          },
-                        });
+                        // 允许清空，暂不更新 store
                       } else {
                         const num = parseInt(val);
                         if (!isNaN(num)) {
@@ -810,9 +902,31 @@ export default function CharacterDetail() {
                               [coin]: num,
                             },
                           });
+                          reloadChar();
                         }
                       }
-                      reloadChar();
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value === '') {
+                        characterStore.update(id!, {
+                          currency: {
+                            ...character!.currency,
+                            [coin]: 0,
+                          },
+                        });
+                        reloadChar();
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                        characterStore.update(id!, {
+                          currency: {
+                            ...character!.currency,
+                            [coin]: 0,
+                          },
+                        });
+                        reloadChar();
+                      }
                     }}
                     placeholder="0"
                     className="w-full py-1 text-lg font-bold text-center rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light"
@@ -864,17 +978,29 @@ export default function CharacterDetail() {
                           <div className="flex items-center justify-center gap-1 mt-1">
                             <input
                               type="number"
-                              value={slot.used}
+                              value={slot.used === 0 ? '' : slot.used}
                               onChange={(e) => {
                                 const val = e.target.value;
-                                const levelKey = 'level' + slot.level;
                                 if (val === '') {
-                                  handleUpdateSpellSlots(levelKey, 'used', 0);
+                                  // 允许清空，暂不更新 store
                                 } else {
                                   const num = parseInt(val);
                                   if (!isNaN(num)) {
+                                    const levelKey = 'level' + slot.level;
                                     handleUpdateSpellSlots(levelKey, 'used', num);
                                   }
+                                }
+                              }}
+                              onBlur={(e) => {
+                                if (e.target.value === '') {
+                                  const levelKey = 'level' + slot.level;
+                                  handleUpdateSpellSlots(levelKey, 'used', 0);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                                  const levelKey = 'level' + slot.level;
+                                  handleUpdateSpellSlots(levelKey, 'used', 0);
                                 }
                               }}
                               placeholder="0"
