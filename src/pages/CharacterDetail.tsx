@@ -918,9 +918,9 @@ export default function CharacterDetail() {
       </Section>
 
       <Section title="熟练项" icon={Star}>
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="flex flex-wrap gap-4">
           {displayedProficiencyCategories.map((category) => (
-            <div key={category}>
+            <div key={category} className="flex-1 min-w-[200px] max-w-[320px]">
               <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
                 {proficiencyLabels[category]}
               </label>
