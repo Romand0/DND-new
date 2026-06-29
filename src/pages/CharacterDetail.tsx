@@ -977,7 +977,7 @@ export default function CharacterDetail() {
             <div className="space-y-2">
               <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 px-2 py-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                 <span className="pl-2">名称</span>
-                <span className="w-20 text-center">分类</span>
+                <span className="w-14 text-center">分类</span>
                 <div className="flex items-center justify-end gap-1 pr-6">
                   <span>数量</span>
                 </div>
@@ -999,7 +999,7 @@ export default function CharacterDetail() {
                     value={item.category}
                     onChange={(e) => handleUpdateEquipment(item.id!, 'category', e.target.value)}
                     placeholder="分类"
-                    className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark light:text-text-light flex-shrink-0"
+                    className="w-14 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark light:text-text-light flex-shrink-0"
                   />
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
