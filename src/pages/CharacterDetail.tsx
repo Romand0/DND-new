@@ -13,6 +13,7 @@ import {
   ScrollText,
   Package,
   Coins,
+  Scale,
   Sparkles,
   Plus,
   Minus,
@@ -125,6 +126,7 @@ export default function CharacterDetail() {
   const [expandedSpells, setExpandedSpells] = useState<Set<number>>(new Set());
   const [allSpells, setAllSpells] = useState<Spell[]>(spellStore.getAll());
   const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
+  const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
   const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
     armor: '',
     weapons: '',
@@ -264,8 +266,26 @@ export default function CharacterDetail() {
       category: item.category,
       quantity: 1,
       description: item.description,
+      weight: item.weight,
+      price: item.price,
+      properties: item.properties,
+      tags: item.tags,
+      source: item.source,
+      subtype: item.subtype,
     });
     reloadChar();
+  };
+
+  const toggleEquipmentExpand = (equipId: string) => {
+    setExpandedEquipment((prev) => {
+      const next = new Set(prev);
+      if (next.has(equipId)) {
+        next.delete(equipId);
+      } else {
+        next.add(equipId);
+      }
+      return next;
+    });
   };
 
   const handleUpdateEquipment = (equipId: string, field: string, value: any) => {
@@ -999,55 +1019,143 @@ export default function CharacterDetail() {
 
           <Section title="装备" icon={Package}>
             <div className="space-y-2">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 px-2 py-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                <span className="pl-2">名称</span>
-                <span className="w-14 text-center">分类</span>
-                <div className="flex items-center justify-end gap-1 pr-6">
-                  <span>数量</span>
-                </div>
-              </div>
-              {character.equipment.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 items-center p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                >
-                  <textarea
-                    value={item.name}
-                    onChange={(e) => handleUpdateEquipment(item.id!, 'name', e.target.value)}
-                    placeholder="装备名称"
-                    rows={1}
-                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light min-w-0 break-words resize-none min-h-[32px] field-sizing-content"
-                  />
-                  <input
-                    type="text"
-                    value={item.category}
-                    onChange={(e) => handleUpdateEquipment(item.id!, 'category', e.target.value)}
-                    placeholder="分类"
-                    className="w-14 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark light:text-text-light flex-shrink-0"
-                  />
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => handleUpdateEquipment(item.id!, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
-                      className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
-                    >
-                      <Minus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
-                    </button>
-                    <span className="w-6 text-center text-sm dark:text-text-dark light:text-text-light">{item.quantity || 1}</span>
-                    <button
-                      onClick={() => handleUpdateEquipment(item.id!, 'quantity', (item.quantity || 1) + 1)}
-                      className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
-                    >
-                      <Plus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEquipment(item.id!)}
-                      className="p-1 rounded hover:bg-danger/20 text-danger ml-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+              {character.equipment.map((item) => {
+                const isExpanded = expandedEquipment.has(item.id!);
+                return (
+                  <div
+                    key={item.id}
+                    className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden"
+                  >
+                    <div className="p-3">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <textarea
+                            value={item.name}
+                            onChange={(e) => handleUpdateEquipment(item.id!, 'name', e.target.value)}
+                            placeholder="装备名称"
+                            rows={1}
+                            className="w-full pl-1 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm font-medium dark:text-text-dark light:text-text-light resize-none min-h-[32px] field-sizing-content"
+                          />
+                          <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs">
+                            <input
+                              type="text"
+                              value={item.category}
+                              onChange={(e) => handleUpdateEquipment(item.id!, 'category', e.target.value)}
+                              placeholder="分类"
+                              className="w-16 px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark light:text-text-light"
+                            />
+                            <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                              <Scale className="w-3 h-3 inline mr-0.5" />
+                              {item.weight != null ? `${item.weight} 磅` : '— 磅'}
+                            </span>
+                            <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                              <Coins className="w-3 h-3 inline mr-0.5" />
+                              {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                          <button
+                            onClick={() => handleUpdateEquipment(item.id!, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
+                            className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
+                          >
+                            <Minus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
+                          </button>
+                          <span className="w-6 text-center text-sm dark:text-text-dark light:text-text-light">{item.quantity || 1}</span>
+                          <button
+                            onClick={() => handleUpdateEquipment(item.id!, 'quantity', (item.quantity || 1) + 1)}
+                            className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
+                          >
+                            <Plus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
+                        <button
+                          onClick={() => toggleEquipmentExpand(item.id!)}
+                          className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
+                        >
+                          {isExpanded ? (
+                            <>
+                              <ChevronUp className="w-3.5 h-3.5" />
+                              收起详情
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="w-3.5 h-3.5" />
+                              详情
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEquipment(item.id!)}
+                          className="p-1 rounded hover:bg-danger/20 text-danger"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
+                        {item.description && (
+                          <div>
+                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">描述</div>
+                            <textarea
+                              value={item.description}
+                              onChange={(e) => handleUpdateEquipment(item.id!, 'description', e.target.value)}
+                              placeholder="装备描述..."
+                              rows={3}
+                              className="w-full px-2 py-1.5 text-sm rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light resize-none"
+                            />
+                          </div>
+                        )}
+                        {item.properties && item.properties.length > 0 && (
+                          <div>
+                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">属性标签</div>
+                            <div className="flex flex-wrap gap-1">
+                              {item.properties.map((prop, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary"
+                                >
+                                  {prop}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {item.tags && item.tags.length > 0 && (
+                          <div>
+                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">自由标签</div>
+                            <div className="flex flex-wrap gap-1">
+                              {item.tags.map((tag, idx) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 text-xs rounded-full bg-accent/10 text-accent"
+                                >
+                                  {tag.key}: {tag.value}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {item.subtype && (
+                          <div>
+                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">子分类</div>
+                            <div className="text-sm dark:text-text-dark light:text-text-light">{item.subtype}</div>
+                          </div>
+                        )}
+                        {item.source && (
+                          <div>
+                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">来源</div>
+                            <div className="text-sm dark:text-text-dark light:text-text-light">{item.source}</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div className="flex gap-2">
                 <button
                   onClick={handleAddEquipment}

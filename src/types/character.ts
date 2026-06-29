@@ -54,6 +54,14 @@ export interface Equipment {
   category: string;
   weight?: number;
   description?: string;
+  price?: {
+    amount: number;
+    unit: 'gp' | 'sp' | 'cp';
+  };
+  properties?: string[];
+  tags?: { key: string; value: string }[];
+  source?: string;
+  subtype?: string;
 }
 
 export interface Currency {
