@@ -443,6 +443,21 @@ export default function CharacterDetail() {
   const hpColor =
     hpPercentage > 60 ? 'bg-success' : hpPercentage > 30 ? 'bg-warning' : 'bg-danger';
 
+  const carryCapacity = character ? character.abilities.strength.score * 15 : 0;
+  const totalWeight = character
+    ? character.equipment.reduce((sum, item) => {
+        const w = item.weight || 0;
+        const q = item.quantity || 1;
+        return sum + w * q;
+      }, 0)
+    : 0;
+  const isOverloaded = totalWeight > carryCapacity;
+  const effectiveSpeed = character
+    ? isOverloaded
+      ? Math.max(0, character.speed - 10)
+      : character.speed
+    : 0;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -656,9 +671,18 @@ export default function CharacterDetail() {
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">速度</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <span className="text-3xl font-bold dark:text-text-dark light:text-text-light">{character.speed}</span>
+            <span className={`text-3xl font-bold ${
+              isOverloaded ? 'text-danger' : 'dark:text-text-dark light:text-text-light'
+            }`}>
+              {isOverloaded ? effectiveSpeed : character.speed}
+            </span>
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">尺</span>
           </div>
+          {isOverloaded && (
+            <div className="mt-1 text-xs text-danger">
+              负重 {character.speed} 尺 → {effectiveSpeed} 尺
+            </div>
+          )}
         </div>
 
         <div className="p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
@@ -723,6 +747,11 @@ export default function CharacterDetail() {
           ))}
         </div>
       </Section>
+
+      <div className="flex items-center justify-end gap-2 px-4 py-2 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+        <Scale className="w-4 h-4" />
+        <span>载重：{carryCapacity} 磅</span>
+      </div>
 
       <Section title="技能与豁免" icon={Star}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1071,6 +1100,18 @@ export default function CharacterDetail() {
                   </div>
                 );
               })}
+              <div className={`mt-3 pt-3 border-t flex items-center justify-between text-sm dark:border-border-dark/50 light:border-border-light/50 ${
+                isOverloaded ? 'text-danger' : 'dark:text-text-dark-muted light:text-text-light-muted'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Scale className="w-4 h-4" />
+                  <span>总负重</span>
+                </div>
+                <span className="font-medium">
+                  {totalWeight} / {carryCapacity} 磅
+                  {isOverloaded && <span className="ml-2 text-xs">（超重）</span>}
+                </span>
+              </div>
             </div>
           </Section>
 
