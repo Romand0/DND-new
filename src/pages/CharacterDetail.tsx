@@ -924,23 +924,23 @@ export default function CharacterDetail() {
               <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
                 {proficiencyLabels[category]}
               </label>
-              <div className="space-y-1 mb-2">
+              <div className="flex flex-wrap gap-1.5 mb-2">
                 {character.proficiencies[category].map((item, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
                   >
                     <input
                       type="text"
                       value={item}
                       onChange={(e) => handleUpdateProficiency(category, index, e.target.value)}
-                      className="flex-1 px-1 py-0.5 bg-transparent outline-none text-sm dark:text-text-dark light:text-text-light"
+                      className="w-20 px-1 py-0.5 bg-transparent outline-none text-xs dark:text-text-dark light:text-text-light"
                     />
                     <button
                       onClick={() => handleRemoveProficiency(category, index)}
-                      className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                      className="p-0.5 rounded hover:bg-danger/20 text-danger flex-shrink-0"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <X className="w-3 h-3" />
                     </button>
                   </div>
                 ))}
