@@ -21,6 +21,7 @@ import {
   ChevronDown,
   ChevronUp,
   Edit2,
+  X,
   Download,
   Library,
 } from 'lucide-react';
@@ -132,6 +133,15 @@ export default function CharacterDetail() {
   const [equipmentEditorOpen, setEquipmentEditorOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [statsEditorOpen, setStatsEditorOpen] = useState(false);
+  const [statsForm, setStatsForm] = useState({
+    currentHp: 0,
+    maxHp: 0,
+    tempHp: 0,
+    armorClass: 0,
+    speed: 0,
+    proficiencyBonus: 2,
+  });
   const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
     armor: '',
     weapons: '',
@@ -328,6 +338,33 @@ export default function CharacterDetail() {
     characterStore.deleteEquipment(id, deleteConfirmId);
     reloadChar();
     setDeleteConfirmId(null);
+  };
+
+  const handleOpenStatsEditor = () => {
+    if (!character) return;
+    setStatsForm({
+      currentHp: character.currentHp,
+      maxHp: character.maxHp,
+      tempHp: character.tempHp,
+      armorClass: character.armorClass,
+      speed: character.speed,
+      proficiencyBonus: character.proficiencyBonus,
+    });
+    setStatsEditorOpen(true);
+  };
+
+  const handleSaveStats = () => {
+    if (!id) return;
+    characterStore.update(id, {
+      currentHp: statsForm.currentHp || 0,
+      maxHp: statsForm.maxHp || 0,
+      tempHp: statsForm.tempHp || 0,
+      armorClass: statsForm.armorClass || 0,
+      speed: statsForm.speed || 0,
+      proficiencyBonus: Math.max(2, Math.min(6, statsForm.proficiencyBonus || 2)),
+    });
+    reloadChar();
+    setStatsEditorOpen(false);
   };
 
   const toggleEquipmentExpand = (equipId: string) => {
@@ -575,6 +612,14 @@ export default function CharacterDetail() {
             />
           </div>
 
+      <div className="relative">
+        <button
+          onClick={handleOpenStatsEditor}
+          className="absolute top-0 right-0 z-10 p-2 rounded-lg border dark:border-border-dark dark:bg-bg-dark dark:text-text-dark-muted hover:border-primary hover:text-primary light:border-border-light light:bg-bg-light-2 light:text-text-light-muted transition-colors"
+          title="编辑属性"
+        >
+          <Edit2 className="w-4 h-4" />
+        </button>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
           <div className="flex items-center gap-2 mb-2">
@@ -582,106 +627,18 @@ export default function CharacterDetail() {
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">生命值</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <input
-              type="number"
-              value={character.currentHp === 0 ? '' : character.currentHp}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  // 允许清空，暂不更新 store
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) {
-                    characterStore.update(id!, { currentHp: num });
-                    reloadChar();
-                  }
-                }
-              }}
-              onBlur={(e) => {
-                if (e.target.value === '') {
-                  characterStore.update(id!, { currentHp: 0 });
-                  reloadChar();
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                  characterStore.update(id!, { currentHp: 0 });
-                  reloadChar();
-                }
-              }}
-              placeholder="当前"
-              className="w-16 px-2 py-1 text-2xl font-bold rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light"
-            />
+            <span className="text-2xl font-bold dark:text-text-dark light:text-text-light">{character.currentHp}</span>
             {character.tempHp > 0 && (
               <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">(+{character.tempHp})</span>
             )}
             <span className="text-lg dark:text-text-dark-muted light:text-text-light-muted">/</span>
-            <input
-              type="number"
-              value={character.maxHp === 0 ? '' : character.maxHp}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  // 允许清空，暂不更新 store
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) {
-                    characterStore.update(id!, { maxHp: num });
-                    reloadChar();
-                  }
-                }
-              }}
-              onBlur={(e) => {
-                if (e.target.value === '') {
-                  characterStore.update(id!, { maxHp: 0 });
-                  reloadChar();
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                  characterStore.update(id!, { maxHp: 0 });
-                  reloadChar();
-                }
-              }}
-              placeholder="最大"
-              className="w-16 px-2 py-1 text-lg rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark-muted light:text-text-light-muted"
-            />
+            <span className="text-lg dark:text-text-dark-muted light:text-text-light-muted">{character.maxHp}</span>
           </div>
           <div className="mt-2 h-2 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
             <div className={`h-full rounded-full transition-all ${hpColor}`} style={{ width: `${hpPercentage}%` }} />
           </div>
           <div className="mt-2 flex items-center gap-2 text-xs">
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">临时HP:</span>
-            <input
-              type="number"
-              value={character.tempHp === 0 ? '' : character.tempHp}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  // 允许清空，暂不更新 store
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) {
-                    characterStore.update(id!, { tempHp: num });
-                    reloadChar();
-                  }
-                }
-              }}
-              onBlur={(e) => {
-                if (e.target.value === '') {
-                  characterStore.update(id!, { tempHp: 0 });
-                  reloadChar();
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                  characterStore.update(id!, { tempHp: 0 });
-                  reloadChar();
-                }
-              }}
-              placeholder="0"
-              className="w-14 px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light text-center text-sm"
-            />
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">临时HP: {character.tempHp}</span>
           </div>
         </div>
 
@@ -690,36 +647,7 @@ export default function CharacterDetail() {
             <Shield className="w-5 h-5 text-info" />
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">护甲等级</span>
           </div>
-          <input
-            type="number"
-            value={character.armorClass === 0 ? '' : character.armorClass}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '') {
-                // 允许清空，暂不更新 store
-              } else {
-                const num = parseInt(val);
-                if (!isNaN(num)) {
-                  characterStore.update(id!, { armorClass: num });
-                  reloadChar();
-                }
-              }
-            }}
-            onBlur={(e) => {
-              if (e.target.value === '') {
-                characterStore.update(id!, { armorClass: 0 });
-                reloadChar();
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                characterStore.update(id!, { armorClass: 0 });
-                reloadChar();
-              }
-            }}
-            placeholder="10"
-            className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-full"
-          />
+          <div className="text-3xl font-bold dark:text-text-dark light:text-text-light">{character.armorClass}</div>
         </div>
 
         <div className="p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
@@ -728,36 +656,7 @@ export default function CharacterDetail() {
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">速度</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <input
-              type="number"
-              value={character.speed === 0 ? '' : character.speed}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  // 允许清空，暂不更新 store
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) {
-                    characterStore.update(id!, { speed: num });
-                    reloadChar();
-                  }
-                }
-              }}
-              onBlur={(e) => {
-                if (e.target.value === '') {
-                  characterStore.update(id!, { speed: 0 });
-                  reloadChar();
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                  characterStore.update(id!, { speed: 0 });
-                  reloadChar();
-                }
-              }}
-              placeholder="30"
-              className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-20"
-            />
+            <span className="text-3xl font-bold dark:text-text-dark light:text-text-light">{character.speed}</span>
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">尺</span>
           </div>
         </div>
@@ -767,41 +666,15 @@ export default function CharacterDetail() {
             <Star className="w-5 h-5 text-accent" />
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">熟练加值</span>
           </div>
-          <input
-            type="number"
-            value={character.proficiencyBonus === 0 ? '' : character.proficiencyBonus}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '') {
-                // 允许清空，暂不更新 store
-              } else {
-                const num = parseInt(val);
-                if (!isNaN(num)) {
-                  characterStore.update(id!, { proficiencyBonus: Math.max(2, Math.min(6, num)) });
-                  reloadChar();
-                }
-              }
-            }}
-            onBlur={(e) => {
-              if (e.target.value === '') {
-                characterStore.update(id!, { proficiencyBonus: 2 });
-                reloadChar();
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                characterStore.update(id!, { proficiencyBonus: 2 });
-                reloadChar();
-              }
-            }}
-            placeholder="2"
-            className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-full"
-          />
+          <div className="text-3xl font-bold dark:text-text-dark light:text-text-light">
+            {character.proficiencyBonus >= 0 ? `+${character.proficiencyBonus}` : character.proficiencyBonus}
+          </div>
           <div className="mt-2 flex items-center gap-2 text-xs">
             <Eye className="w-3.5 h-3.5 dark:text-text-dark-muted light:text-text-light-muted" />
             <span className="dark:text-text-dark-muted light:text-text-light-muted">被动察觉: {character ? characterStore.calcPassivePerception(character) : 10}</span>
           </div>
         </div>
+      </div>
       </div>
 
       <Section title="属性值" icon={Zap}>
@@ -1801,6 +1674,109 @@ export default function CharacterDetail() {
                 className="flex-1 py-2 px-4 text-sm rounded-lg bg-danger hover:bg-danger-dark text-white transition-colors"
               >
                 删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {statsEditorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setStatsEditorOpen(false)} />
+          <div className="relative w-full max-w-md rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                编辑属性
+              </h3>
+              <button
+                onClick={() => setStatsEditorOpen(false)}
+                className="p-1 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">生命值</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs mb-1 dark:text-text-dark-muted light:text-text-light-muted">当前HP</label>
+                    <input
+                      type="number"
+                      value={statsForm.currentHp || ''}
+                      onChange={(e) => setStatsForm({ ...statsForm, currentHp: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1 dark:text-text-dark-muted light:text-text-light-muted">最大HP</label>
+                    <input
+                      type="number"
+                      value={statsForm.maxHp || ''}
+                      onChange={(e) => setStatsForm({ ...statsForm, maxHp: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1 dark:text-text-dark-muted light:text-text-light-muted">临时HP</label>
+                    <input
+                      type="number"
+                      value={statsForm.tempHp || ''}
+                      onChange={(e) => setStatsForm({ ...statsForm, tempHp: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">护甲等级 (AC)</label>
+                <input
+                  type="number"
+                  value={statsForm.armorClass || ''}
+                  onChange={(e) => setStatsForm({ ...statsForm, armorClass: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  placeholder="10"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">速度</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={statsForm.speed || ''}
+                    onChange={(e) => setStatsForm({ ...statsForm, speed: parseInt(e.target.value) || 0 })}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    placeholder="30"
+                  />
+                  <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">尺</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">熟练加值</label>
+                <input
+                  type="number"
+                  value={statsForm.proficiencyBonus || ''}
+                  onChange={(e) => setStatsForm({ ...statsForm, proficiencyBonus: parseInt(e.target.value) || 2 })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  placeholder="2"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setStatsEditorOpen(false)}
+                className="flex-1 py-2 px-4 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light light:hover:border-primary light:hover:text-primary"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveStats}
+                className="flex-1 py-2 px-4 text-sm rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors"
+              >
+                保存
               </button>
             </div>
           </div>
