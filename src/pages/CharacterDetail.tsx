@@ -918,7 +918,7 @@ export default function CharacterDetail() {
       </Section>
 
       <Section title="熟练项" icon={Star}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           {displayedProficiencyCategories.map((category) => (
             <div key={category}>
               <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
