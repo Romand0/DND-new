@@ -1,0 +1,424 @@
+import { useState, useEffect } from 'react';
+import { X, Plus, Trash2 } from 'lucide-react';
+import type { EquipmentItem } from '@/types/equipment';
+
+interface EquipmentEditorProps {
+  item?: EquipmentItem;
+  onSave: (item: EquipmentItem) => void;
+  onDelete?: () => void;
+  onClose: () => void;
+}
+
+const CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+const PRICE_UNITS = ['gp', 'sp', 'cp'] as const;
+const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '远程', '弹药', '+2 AC', '单手', '双手'];
+
+export default function EquipmentEditor({ item, onSave, onDelete, onClose }: EquipmentEditorProps) {
+  const [formData, setFormData] = useState<Omit<EquipmentItem, 'id' | 'isCustom'>>({
+    name: '',
+    category: '武器',
+    subtype: '',
+    weight: 0,
+    price: { amount: 0, unit: 'gp' },
+    description: '',
+    properties: [],
+    tags: [],
+    source: '',
+  });
+  const [newProperty, setNewProperty] = useState('');
+  const [newTagKey, setNewTagKey] = useState('');
+  const [newTagValue, setNewTagValue] = useState('');
+  const [customCategory, setCustomCategory] = useState('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  useEffect(() => {
+    if (item) {
+      setFormData({
+        name: item.name,
+        category: item.category,
+        subtype: item.subtype || '',
+        weight: item.weight,
+        price: { ...item.price },
+        description: item.description,
+        properties: item.properties || [],
+        tags: [...(item.tags || [])],
+        source: item.source || '',
+      });
+    }
+  }, [item]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const equipment: EquipmentItem = {
+      id: item?.id || `custom-${Date.now()}`,
+      ...formData,
+      isCustom: true,
+    };
+    onSave(equipment);
+  };
+
+  const handleAddProperty = () => {
+    if (newProperty.trim() && !formData.properties?.includes(newProperty.trim())) {
+      setFormData({
+        ...formData,
+        properties: [...(formData.properties || []), newProperty.trim()],
+      });
+      setNewProperty('');
+    }
+  };
+
+  const handleRemoveProperty = (prop: string) => {
+    setFormData({
+      ...formData,
+      properties: formData.properties?.filter((p) => p !== prop),
+    });
+  };
+
+  const handleAddTag = () => {
+    if (newTagKey.trim() && newTagValue.trim()) {
+      setFormData({
+        ...formData,
+        tags: [...(formData.tags || []), { key: newTagKey.trim(), value: newTagValue.trim() }],
+      });
+      setNewTagKey('');
+      setNewTagValue('');
+    }
+  };
+
+  const handleRemoveTag = (index: number) => {
+    setFormData({
+      ...formData,
+      tags: formData.tags?.filter((_, i) => i !== index),
+    });
+  };
+
+  const handleCategoryChange = (value: string) => {
+    if (value === '自定义') {
+      setFormData({ ...formData, category: customCategory || '自定义' });
+    } else {
+      setFormData({ ...formData, category: value });
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="rounded-xl border w-full max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
+        <div className="sticky top-0 bg-inherit p-4 border-b dark:border-border-dark light:border-border-light flex items-center justify-between">
+          <h2 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+            {item ? '编辑装备' : '新增自定义装备'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* 名称 */}
+          <div>
+            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+              名称 *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+            />
+          </div>
+
+          {/* 分类 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                分类
+              </label>
+              <select
+                value={CATEGORIES.includes(formData.category) ? formData.category : '自定义'}
+                onChange={(e) => handleCategoryChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              >
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                子分类
+              </label>
+              <input
+                type="text"
+                value={formData.subtype}
+                onChange={(e) => setFormData({ ...formData, subtype: e.target.value })}
+                placeholder="例如：简易武器"
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+            </div>
+          </div>
+
+          {/* 自定义分类输入 */}
+          {formData.category === '自定义' && (
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                自定义分类名称
+              </label>
+              <input
+                type="text"
+                value={customCategory}
+                onChange={(e) => {
+                  setCustomCategory(e.target.value);
+                  setFormData({ ...formData, category: e.target.value || '自定义' });
+                }}
+                placeholder="输入自定义分类"
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+            </div>
+          )}
+
+          {/* 重量和价格 */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                重量
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={formData.weight}
+                  onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })}
+                  min="0"
+                  step="0.1"
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+                <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">磅</span>
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                价格
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={formData.price.amount}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: { ...formData.price, amount: parseInt(e.target.value) || 0 } })
+                  }
+                  min="0"
+                  className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+                <select
+                  value={formData.price.unit}
+                  onChange={(e) =>
+                    setFormData({ ...formData, price: { ...formData.price, unit: e.target.value as 'gp' | 'sp' | 'cp' } })
+                  }
+                  className="px-2 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  {PRICE_UNITS.map((unit) => (
+                    <option key={unit} value={unit}>
+                      {unit}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* 来源 */}
+          <div>
+            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+              来源
+            </label>
+            <input
+              type="text"
+              value={formData.source}
+              onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              placeholder="例如：玩家手册"
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+            />
+          </div>
+
+          {/* 描述 */}
+          <div>
+            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+              描述
+            </label>
+            <textarea
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              rows={3}
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none"
+            />
+          </div>
+
+          {/* 属性标签 */}
+          <div>
+            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+              属性标签
+            </label>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {formData.properties?.map((prop) => (
+                <span
+                  key={prop}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded bg-primary/20 text-primary text-sm"
+                >
+                  {prop}
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveProperty(prop)}
+                    className="hover:text-danger"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <select
+                value={newProperty}
+                onChange={(e) => setNewProperty(e.target.value)}
+                className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              >
+                <option value="">选择属性或输入自定义</option>
+                {PROPERTY_OPTIONS.filter((p) => !formData.properties?.includes(p)).map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+                <option value="__custom__">自定义...</option>
+              </select>
+              {newProperty === '__custom__' ? (
+                <input
+                  type="text"
+                  value={customCategory}
+                  onChange={(e) => setNewProperty(e.target.value)}
+                  placeholder="输入自定义属性"
+                  className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+              ) : null}
+              <button
+                type="button"
+                onClick={handleAddProperty}
+                className="px-3 py-2 rounded-lg bg-primary text-white"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* 自由标签 */}
+          <div>
+            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+              自由标签
+            </label>
+            <div className="space-y-2 mb-2">
+              {formData.tags?.map((tag, index) => (
+                <div
+                  key={index}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                >
+                  <span className="text-sm dark:text-text-dark light:text-text-light">
+                    {tag.key}: {tag.value}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveTag(index)}
+                    className="ml-auto p-1 rounded hover:bg-danger/20 text-danger"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newTagKey}
+                onChange={(e) => setNewTagKey(e.target.value)}
+                placeholder="标签名"
+                className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+              <input
+                type="text"
+                value={newTagValue}
+                onChange={(e) => setNewTagValue(e.target.value)}
+                placeholder="标签值"
+                className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={handleAddTag}
+                className="px-3 py-2 rounded-lg bg-primary text-white"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* 按钮 */}
+          <div className="flex gap-3 pt-4">
+            {item && onDelete && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="px-4 py-2 rounded-lg bg-danger/20 text-danger hover:bg-danger/30"
+              >
+                删除
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
+            >
+              保存
+            </button>
+          </div>
+        </form>
+
+        {/* 删除确认 */}
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+            <div className="rounded-xl border p-6 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light max-w-sm w-full">
+              <h3 className="text-lg font-bold mb-2 dark:text-text-dark light:text-text-light">
+                确认删除
+              </h3>
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
+                确定要删除 "{item?.name}" 吗？此操作无法撤销。
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={() => {
+                    onDelete?.();
+                    onClose();
+                  }}
+                  className="flex-1 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -9,6 +9,9 @@ import SpellList from '@/pages/SpellList';
 import SpellDetail from '@/pages/SpellDetail';
 import Settings from '@/pages/Settings';
 import Placeholder from '@/pages/Placeholder';
+import InventoryPage from '@/pages/InventoryPage';
+import EquipmentList from '@/pages/EquipmentList';
+import EquipmentDetail from '@/pages/EquipmentDetail';
 
 export default function App() {
   return (
@@ -23,10 +26,9 @@ export default function App() {
               path="combat"
               element={<Placeholder title="战斗记录" description="战斗追踪与回合管理功能即将上线" />}
             />
-            <Route
-              path="inventory"
-              element={<Placeholder title="物资钱币" description="装备、货币、经验值变动记录功能即将上线" />}
-            />
+            <Route path="inventory" element={<InventoryPage />} />
+            <Route path="equipment" element={<EquipmentList />} />
+            <Route path="equipment/:id" element={<EquipmentDetail />} />
             <Route path="spells" element={<SpellList />} />
             <Route path="spells/:id" element={<SpellDetail />} />
             <Route path="settings" element={<Settings />} />

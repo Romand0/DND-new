@@ -20,12 +20,15 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Library,
 } from 'lucide-react';
 import type { Character, AbilityKey, ProficiencyCategory } from '@/types/character';
 import type { Spell } from '@/types/spell';
+import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
 import SpellPicker from '@/components/SpellPicker';
+import EquipmentPicker from '@/components/EquipmentPicker';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -121,6 +124,7 @@ export default function CharacterDetail() {
   const [expandedCantrips, setExpandedCantrips] = useState<Set<number>>(new Set());
   const [expandedSpells, setExpandedSpells] = useState<Set<number>>(new Set());
   const [allSpells, setAllSpells] = useState<Spell[]>(spellStore.getAll());
+  const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
     armor: '',
     weapons: '',
@@ -250,6 +254,17 @@ export default function CharacterDetail() {
   const handleAddEquipment = () => {
     if (!id) return;
     characterStore.addEquipment(id, { name: '新装备' });
+    reloadChar();
+  };
+
+  const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
+    if (!id) return;
+    characterStore.addEquipment(id, {
+      name: item.name,
+      category: item.category,
+      quantity: 1,
+      description: item.description,
+    });
     reloadChar();
   };
 
@@ -1033,13 +1048,22 @@ export default function CharacterDetail() {
                   </div>
                 </div>
               ))}
-              <button
-                onClick={handleAddEquipment}
-                className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
-              >
-                <Plus className="w-4 h-4 inline mr-1" />
-                添加装备
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleAddEquipment}
+                  className="flex-1 py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                >
+                  <Plus className="w-4 h-4 inline mr-1" />
+                  手动添加
+                </button>
+                <button
+                  onClick={() => setEquipmentPickerOpen(true)}
+                  className="flex-1 py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                >
+                  <Library className="w-4 h-4 inline mr-1" />
+                  从装备库添加
+                </button>
+              </div>
             </div>
           </Section>
 
@@ -1583,6 +1607,13 @@ export default function CharacterDetail() {
         filterLevel={selectedSpellType === 'cantrip' ? 0 : 'all'}
         matchByName={true}
       />
+
+      {equipmentPickerOpen && (
+        <EquipmentPicker
+          onSelect={handleAddEquipmentFromLibrary}
+          onClose={() => setEquipmentPickerOpen(false)}
+        />
+      )}
 
       {genderPickerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
