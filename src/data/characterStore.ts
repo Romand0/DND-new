@@ -512,11 +512,20 @@ function addProficiency(charId: string, category: ProficiencyCategory, item: str
   return char.proficiencies[category];
 }
 
-function removeProficiency(charId: string, category: ProficiencyCategory, item: string): void {
+function removeProficiency(charId: string, category: ProficiencyCategory, index: number): void {
   const char = getCharacter(charId);
   if (!char) return;
   if (!char.proficiencies[category]) return;
-  char.proficiencies[category] = char.proficiencies[category].filter((p) => p !== item);
+  char.proficiencies[category].splice(index, 1);
+  saveCharacter(char as Character);
+}
+
+function updateProficiency(charId: string, category: ProficiencyCategory, index: number, value: string): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+  if (!char.proficiencies[category]) return;
+  if (index < 0 || index >= char.proficiencies[category].length) return;
+  char.proficiencies[category][index] = value;
   saveCharacter(char as Character);
 }
 
@@ -1229,6 +1238,7 @@ export const characterStore = {
   
   addProficiency,
   removeProficiency,
+  updateProficiency,
   
   updateSkill,
 };

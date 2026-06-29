@@ -308,9 +308,15 @@ export default function CharacterDetail() {
     reloadChar();
   };
 
-  const handleRemoveProficiency = (category: ProficiencyCategory, item: string) => {
+  const handleRemoveProficiency = (category: ProficiencyCategory, index: number) => {
     if (!id) return;
-    characterStore.removeProficiency(id, category, item);
+    characterStore.removeProficiency(id, category, index);
+    reloadChar();
+  };
+
+  const handleUpdateProficiency = (category: ProficiencyCategory, index: number, value: string) => {
+    if (!id) return;
+    characterStore.updateProficiency(id, category, index, value);
     reloadChar();
   };
 
@@ -882,14 +888,17 @@ export default function CharacterDetail() {
                 {character.proficiencies[category].map((item, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
                   >
-                    <span className="flex-1 text-sm dark:text-text-dark light:text-text-light">
-                      {item}
-                    </span>
+                    <input
+                      type="text"
+                      value={item}
+                      onChange={(e) => handleUpdateProficiency(category, index, e.target.value)}
+                      className="flex-1 px-1 py-0.5 bg-transparent outline-none text-sm dark:text-text-dark light:text-text-light"
+                    />
                     <button
-                      onClick={() => handleRemoveProficiency(category, item)}
-                      className="p-1 rounded hover:bg-danger/20 text-danger"
+                      onClick={() => handleRemoveProficiency(category, index)}
+                      className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
