@@ -746,12 +746,12 @@ export default function CharacterDetail() {
                   key={attack.id}
                   className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 items-center p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
                 >
-                  <input
-                    type="text"
+                  <textarea
                     value={attack.name}
                     onChange={(e) => handleUpdateAttack(attack.id!, 'name', e.target.value)}
                     placeholder="攻击名称"
-                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light"
+                    rows={1}
+                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light resize-none min-h-[32px] field-sizing-content"
                   />
                   <input
                     type="text"
@@ -799,12 +799,12 @@ export default function CharacterDetail() {
                   key={item.id}
                   className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 items-center p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
                 >
-                  <input
-                    type="text"
+                  <textarea
                     value={item.name}
                     onChange={(e) => handleUpdateEquipment(item.id!, 'name', e.target.value)}
                     placeholder="装备名称"
-                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light"
+                    rows={1}
+                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light resize-none min-h-[32px] field-sizing-content"
                   />
                   <input
                     type="text"
@@ -1182,12 +1182,12 @@ export default function CharacterDetail() {
                   className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-2"
                 >
                   <div className="flex items-center gap-2">
-                    <input
-                      type="text"
+                    <textarea
                       value={feature.name}
                       onChange={(e) => handleUpdateFeature(feature.id!, 'name', e.target.value)}
                       placeholder="特性名称"
-                      className="flex-1 px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm font-medium dark:text-text-dark light:text-text-light"
+                      rows={1}
+                      className="flex-1 px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm font-medium dark:text-text-dark light:text-text-light resize-none min-h-[32px] field-sizing-content"
                     />
                     <input
                       type="text"
@@ -1208,7 +1208,7 @@ export default function CharacterDetail() {
                     onChange={(e) => handleUpdateFeature(feature.id!, 'description', e.target.value)}
                     placeholder="描述..."
                     rows={2}
-                    className="w-full px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs dark:text-text-dark-muted light:text-text-light-muted resize-none"
+                    className="w-full px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs dark:text-text-dark-muted light:text-text-light-muted resize-none min-h-[48px] field-sizing-content"
                   />
                 </div>
               ))}
@@ -1230,15 +1230,15 @@ export default function CharacterDetail() {
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               背景
             </label>
-            <input
-              type="text"
+            <textarea
               value={character.background}
               onChange={(e) => {
                 characterStore.update(id!, { background: e.target.value });
                 reloadChar();
               }}
               placeholder="例如：士兵、学者、游荡者..."
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              rows={1}
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none min-h-[40px] field-sizing-content"
             />
           </div>
           <div>
@@ -1283,7 +1283,7 @@ export default function CharacterDetail() {
               }}
               placeholder="描述角色的外貌特征..."
               rows={2}
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none"
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none min-h-[80px] field-sizing-content"
             />
           </div>
           <div>
@@ -1298,7 +1298,7 @@ export default function CharacterDetail() {
               }}
               placeholder="角色的性格特征..."
               rows={3}
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none"
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none min-h-[96px] field-sizing-content"
             />
           </div>
           <div>
@@ -1313,7 +1313,7 @@ export default function CharacterDetail() {
               }}
               placeholder="角色的理想与信念..."
               rows={3}
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none"
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none min-h-[96px] field-sizing-content"
             />
           </div>
           <div>
@@ -1328,7 +1328,7 @@ export default function CharacterDetail() {
               }}
               placeholder="角色的羁绊与重要的人..."
               rows={3}
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none"
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none min-h-[96px] field-sizing-content"
             />
           </div>
           <div>
@@ -1343,7 +1343,7 @@ export default function CharacterDetail() {
               }}
               placeholder="角色的缺点与弱点..."
               rows={3}
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none"
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none min-h-[96px] field-sizing-content"
             />
           </div>
         </div>
