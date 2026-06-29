@@ -1065,48 +1065,50 @@ export default function CharacterDetail() {
                               <Coins className="w-3 h-3 inline mr-0.5" />
                               {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
                             </span>
-                            <div className="flex items-center gap-0.5">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUpdateEquipmentQuantity(item.id!, -1);
-                                }}
-                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
-                                title="减少数量"
-                              >
-                                <Minus className="w-3 h-3" />
-                              </button>
-                              <span className="w-6 text-center text-xs dark:text-text-dark light:text-text-light">
-                                ×{item.quantity || 1}
-                              </span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleUpdateEquipmentQuantity(item.id!, 1);
-                                }}
-                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
-                                title="增加数量"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <button
-                            onClick={() => handleEditEquipment(item as Equipment & { id: string })}
-                            className="p-1.5 rounded hover:bg-primary/20 text-primary"
-                            title="编辑"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(item.id!)}
-                            className="p-1.5 rounded hover:bg-danger/20 text-danger"
-                            title="删除"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleEditEquipment(item as Equipment & { id: string })}
+                              className="p-1.5 rounded hover:bg-primary/20 text-primary"
+                              title="编辑"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(item.id!)}
+                              className="p-1.5 rounded hover:bg-danger/20 text-danger"
+                              title="删除"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateEquipmentQuantity(item.id!, -1);
+                              }}
+                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                              title="减少数量"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </button>
+                            <span className="w-6 text-center text-xs dark:text-text-dark light:text-text-light">
+                              ×{item.quantity || 1}
+                            </span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUpdateEquipmentQuantity(item.id!, 1);
+                              }}
+                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                              title="增加数量"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
