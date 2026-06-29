@@ -300,7 +300,21 @@ export default function CharacterDetail() {
 
   const handleSaveEquipment = (formData: Omit<EquipmentItem, 'id' | 'isCustom'>) => {
     if (!id) return;
-    if (editingEquipment && editingEquipment.id.startsWith('temp-')) {
+    if (!editingEquipment) {
+      // 手动新增装备
+      characterStore.addEquipment(id, {
+        name: formData.name,
+        category: formData.category,
+        quantity: 1,
+        description: formData.description,
+        weight: formData.weight,
+        price: formData.price,
+        properties: formData.properties,
+        tags: formData.tags,
+        source: formData.source,
+        subtype: formData.subtype,
+      });
+    } else if (editingEquipment.id.startsWith('temp-')) {
       // 从装备库添加的新装备
       characterStore.addEquipment(id, {
         name: formData.name,
