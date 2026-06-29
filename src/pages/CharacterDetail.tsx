@@ -20,16 +20,18 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  Edit2,
   Download,
   Library,
 } from 'lucide-react';
-import type { Character, AbilityKey, ProficiencyCategory } from '@/types/character';
+import type { Character, AbilityKey, ProficiencyCategory, Equipment } from '@/types/character';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
 import SpellPicker from '@/components/SpellPicker';
 import EquipmentPicker from '@/components/EquipmentPicker';
+import EquipmentEditor from '@/components/EquipmentEditor';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -127,6 +129,9 @@ export default function CharacterDetail() {
   const [allSpells, setAllSpells] = useState<Spell[]>(spellStore.getAll());
   const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
+  const [equipmentEditorOpen, setEquipmentEditorOpen] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
     armor: '',
     weapons: '',
@@ -254,26 +259,75 @@ export default function CharacterDetail() {
   };
 
   const handleAddEquipment = () => {
-    if (!id) return;
-    characterStore.addEquipment(id, { name: '新装备' });
-    reloadChar();
+    setEditingEquipment(null);
+    setEquipmentEditorOpen(true);
   };
 
   const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
     if (!id) return;
-    characterStore.addEquipment(id, {
+    // 创建临时装备对象用于编辑器
+    const tempEquipment: Equipment & { id: string } = {
+      id: `temp-${Date.now()}`,
       name: item.name,
       category: item.category,
       quantity: 1,
-      description: item.description,
+      description: item.description || '',
       weight: item.weight,
       price: item.price,
-      properties: item.properties,
-      tags: item.tags,
-      source: item.source,
-      subtype: item.subtype,
-    });
+      properties: item.properties || [],
+      tags: item.tags || [],
+      source: item.source || '',
+      subtype: item.subtype || '',
+    };
+    setEditingEquipment(tempEquipment);
+    setEquipmentEditorOpen(true);
+  };
+
+  const handleEditEquipment = (item: Equipment & { id: string }) => {
+    setEditingEquipment(item);
+    setEquipmentEditorOpen(true);
+  };
+
+  const handleSaveEquipment = (formData: Omit<EquipmentItem, 'id' | 'isCustom'>) => {
+    if (!id) return;
+    if (editingEquipment && editingEquipment.id.startsWith('temp-')) {
+      // 从装备库添加的新装备
+      characterStore.addEquipment(id, {
+        name: formData.name,
+        category: formData.category,
+        quantity: editingEquipment.quantity || 1,
+        description: formData.description,
+        weight: formData.weight,
+        price: formData.price,
+        properties: formData.properties,
+        tags: formData.tags,
+        source: formData.source,
+        subtype: formData.subtype,
+      });
+    } else if (editingEquipment) {
+      // 编辑已有装备
+      characterStore.updateEquipment(id, editingEquipment.id, {
+        name: formData.name,
+        category: formData.category,
+        description: formData.description,
+        weight: formData.weight,
+        price: formData.price,
+        properties: formData.properties,
+        tags: formData.tags,
+        source: formData.source,
+        subtype: formData.subtype,
+      });
+    }
     reloadChar();
+    setEquipmentEditorOpen(false);
+    setEditingEquipment(null);
+  };
+
+  const handleDeleteEquipmentConfirm = () => {
+    if (!id || !deleteConfirmId) return;
+    characterStore.deleteEquipment(id, deleteConfirmId);
+    reloadChar();
+    setDeleteConfirmId(null);
   };
 
   const toggleEquipmentExpand = (equipId: string) => {
@@ -286,18 +340,6 @@ export default function CharacterDetail() {
       }
       return next;
     });
-  };
-
-  const handleUpdateEquipment = (equipId: string, field: string, value: any) => {
-    if (!id) return;
-    characterStore.updateEquipment(id, equipId, { [field]: value });
-    reloadChar();
-  };
-
-  const handleDeleteEquipment = (equipId: string) => {
-    if (!id) return;
-    characterStore.deleteEquipment(id, equipId);
-    reloadChar();
   };
 
   const handleAddFeature = () => {
@@ -1019,6 +1061,22 @@ export default function CharacterDetail() {
 
           <Section title="装备" icon={Package}>
             <div className="space-y-2">
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={handleAddEquipment}
+                  className="flex-1 py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                >
+                  <Plus className="w-4 h-4 inline mr-1" />
+                  添加装备
+                </button>
+                <button
+                  onClick={() => setEquipmentPickerOpen(true)}
+                  className="flex-1 py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                >
+                  <Library className="w-4 h-4 inline mr-1" />
+                  从装备库添加
+                </button>
+              </div>
               {character.equipment.map((item) => {
                 const isExpanded = expandedEquipment.has(item.id!);
                 return (
@@ -1029,21 +1087,13 @@ export default function CharacterDetail() {
                     <div className="p-3">
                       <div className="flex items-start gap-2">
                         <div className="flex-1 min-w-0">
-                          <textarea
-                            value={item.name}
-                            onChange={(e) => handleUpdateEquipment(item.id!, 'name', e.target.value)}
-                            placeholder="装备名称"
-                            rows={1}
-                            className="w-full pl-1 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm font-medium dark:text-text-dark light:text-text-light resize-none min-h-[32px] field-sizing-content"
-                          />
-                          <div className="flex items-center gap-3 mt-1.5 flex-wrap text-xs">
-                            <input
-                              type="text"
-                              value={item.category}
-                              onChange={(e) => handleUpdateEquipment(item.id!, 'category', e.target.value)}
-                              placeholder="分类"
-                              className="w-16 px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark light:text-text-light"
-                            />
+                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                            {item.name || '未命名装备'}
+                          </div>
+                          <div className="flex items-center gap-3 mt-1 flex-wrap text-xs">
+                            <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 dark:text-text-dark light:text-text-light">
+                              {item.category || '—'}
+                            </span>
                             <span className="dark:text-text-dark-muted light:text-text-light-muted">
                               <Scale className="w-3 h-3 inline mr-0.5" />
                               {item.weight != null ? `${item.weight} 磅` : '— 磅'}
@@ -1052,21 +1102,25 @@ export default function CharacterDetail() {
                               <Coins className="w-3 h-3 inline mr-0.5" />
                               {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
                             </span>
+                            <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                              ×{item.quantity || 1}
+                            </span>
                           </div>
                         </div>
-                        <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <div className="flex items-center gap-1 flex-shrink-0">
                           <button
-                            onClick={() => handleUpdateEquipment(item.id!, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
-                            className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
+                            onClick={() => handleEditEquipment(item as Equipment & { id: string })}
+                            className="p-1.5 rounded hover:bg-primary/20 text-primary"
+                            title="编辑"
                           >
-                            <Minus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
+                            <Edit2 className="w-4 h-4" />
                           </button>
-                          <span className="w-6 text-center text-sm dark:text-text-dark light:text-text-light">{item.quantity || 1}</span>
                           <button
-                            onClick={() => handleUpdateEquipment(item.id!, 'quantity', (item.quantity || 1) + 1)}
-                            className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
+                            onClick={() => setDeleteConfirmId(item.id!)}
+                            className="p-1.5 rounded hover:bg-danger/20 text-danger"
+                            title="删除"
                           >
-                            <Plus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>
@@ -1087,12 +1141,6 @@ export default function CharacterDetail() {
                             </>
                           )}
                         </button>
-                        <button
-                          onClick={() => handleDeleteEquipment(item.id!)}
-                          className="p-1 rounded hover:bg-danger/20 text-danger"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
                     {isExpanded && (
@@ -1100,13 +1148,7 @@ export default function CharacterDetail() {
                         {item.description && (
                           <div>
                             <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">描述</div>
-                            <textarea
-                              value={item.description}
-                              onChange={(e) => handleUpdateEquipment(item.id!, 'description', e.target.value)}
-                              placeholder="装备描述..."
-                              rows={3}
-                              className="w-full px-2 py-1.5 text-sm rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light resize-none"
-                            />
+                            <div className="text-sm dark:text-text-dark light:text-text-light whitespace-pre-wrap">{item.description}</div>
                           </div>
                         )}
                         {item.properties && item.properties.length > 0 && (
@@ -1156,22 +1198,6 @@ export default function CharacterDetail() {
                   </div>
                 );
               })}
-              <div className="flex gap-2">
-                <button
-                  onClick={handleAddEquipment}
-                  className="flex-1 py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
-                >
-                  <Plus className="w-4 h-4 inline mr-1" />
-                  手动添加
-                </button>
-                <button
-                  onClick={() => setEquipmentPickerOpen(true)}
-                  className="flex-1 py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
-                >
-                  <Library className="w-4 h-4 inline mr-1" />
-                  从装备库添加
-                </button>
-              </div>
             </div>
           </Section>
 
@@ -1721,6 +1747,64 @@ export default function CharacterDetail() {
           onSelect={handleAddEquipmentFromLibrary}
           onClose={() => setEquipmentPickerOpen(false)}
         />
+      )}
+
+      {equipmentEditorOpen && (
+        <EquipmentEditor
+          item={editingEquipment ? {
+            id: editingEquipment.id,
+            name: editingEquipment.name,
+            category: editingEquipment.category,
+            subtype: editingEquipment.subtype,
+            weight: editingEquipment.weight || 0,
+            price: editingEquipment.price || { amount: 0, unit: 'gp' },
+            description: editingEquipment.description || '',
+            properties: editingEquipment.properties || [],
+            isCustom: true,
+            tags: editingEquipment.tags || [],
+            source: editingEquipment.source,
+          } : undefined}
+          onSave={handleSaveEquipment}
+          onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
+            if (!id) return;
+            characterStore.deleteEquipment(id, editingEquipment.id);
+            reloadChar();
+            setEquipmentEditorOpen(false);
+            setEditingEquipment(null);
+          } : undefined}
+          onClose={() => {
+            setEquipmentEditorOpen(false);
+            setEditingEquipment(null);
+          }}
+        />
+      )}
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirmId(null)} />
+          <div className="relative w-full max-w-xs rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6">
+            <h3 className="text-lg font-bold mb-4 text-center dark:text-text-dark light:text-text-light">
+              确认删除
+            </h3>
+            <p className="text-sm text-center mb-6 dark:text-text-dark-muted light:text-text-light-muted">
+              确定要删除这件装备吗？此操作无法撤销。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 py-2 px-4 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light light:hover:border-primary light:hover:text-primary"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDeleteEquipmentConfirm}
+                className="flex-1 py-2 px-4 text-sm rounded-lg bg-danger hover:bg-danger-dark text-white transition-colors"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {genderPickerOpen && (
