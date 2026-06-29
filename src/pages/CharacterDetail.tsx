@@ -350,10 +350,9 @@ export default function CharacterDetail() {
     <div className="space-y-6">
       <Link
         to="/characters"
-        className="inline-flex items-center gap-2 text-primary hover:underline"
+        className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
       >
-        <ArrowLeft className="w-4 h-4" />
-        返回角色列表
+        <ArrowLeft className="w-5 h-5" />
       </Link>
 
       <div className="flex items-center gap-2 flex-wrap">
@@ -393,53 +392,54 @@ export default function CharacterDetail() {
             reloadChar();
           }}
           placeholder="种族"
-          className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-24"
+          className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
         />
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-            <input
-              type="text"
-              value={character.class}
-              onChange={(e) => {
-                characterStore.update(id!, { class: e.target.value });
-                reloadChar();
-              }}
-              placeholder="职业"
-              className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-24"
-            />
-            
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-            <input
-              type="text"
-              value={character.alignment}
-              onChange={(e) => {
-                characterStore.update(id!, { alignment: e.target.value });
-                reloadChar();
-              }}
-               placeholder="阵营"
-               className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-20"
-            />
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-            <input
-              type="text"
-              value={character.size}
-              onChange={(e) => {
-                characterStore.update(id!, { size: e.target.value });
-                reloadChar();
-              }}
-               placeholder="体型"
-               className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-16"
-            />
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-            <div className="flex items-center gap-1">
-              <Star className="w-4 h-4 text-accent" />
-              <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">等级</span>
-              <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
-                {characterStore.getLevelFromExp(character.experience)}
-              </span>
-            </div>
-          </div>
+        <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+        <input
+          type="text"
+          value={character.class}
+          onChange={(e) => {
+            characterStore.update(id!, { class: e.target.value });
+            reloadChar();
+          }}
+          placeholder="职业"
+          className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
+        />
+      </div>
 
-          <div className="mt-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={character.alignment}
+          onChange={(e) => {
+            characterStore.update(id!, { alignment: e.target.value });
+            reloadChar();
+          }}
+          placeholder="阵营"
+          className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-20"
+        />
+        <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+        <input
+          type="text"
+          value={character.size}
+          onChange={(e) => {
+            characterStore.update(id!, { size: e.target.value });
+            reloadChar();
+          }}
+          placeholder="体型"
+          className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-16"
+        />
+        <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+        <div className="flex items-center gap-1">
+          <Star className="w-3.5 h-3.5 text-accent" />
+          <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">等级</span>
+          <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
+            {characterStore.getLevelFromExp(character.experience)}
+          </span>
+        </div>
+      </div>
+
+      <div className="mt-2">
             <div className="flex items-center justify-between text-xs mb-1">
               <span className="dark:text-text-dark-muted light:text-text-light-muted">
                 经验值: {character.experience}
