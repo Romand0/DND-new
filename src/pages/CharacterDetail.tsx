@@ -22,6 +22,7 @@ import {
   ChevronUp,
   Edit2,
   X,
+  ArrowUpDown,
   Download,
   Library,
 } from 'lucide-react';
@@ -352,6 +353,21 @@ export default function CharacterDetail() {
     characterStore.deleteEquipment(id, deleteConfirmId);
     reloadChar();
     setDeleteConfirmId(null);
+  };
+
+  const handleSortEquipment = () => {
+    if (!id || !character) return;
+    const categoryOrder = ['武器', '护甲', '法器', '工具', '药水', '杂物'];
+    const sorted = [...character.equipment].sort((a, b) => {
+      const aIndex = categoryOrder.indexOf(a.category);
+      const bIndex = categoryOrder.indexOf(b.category);
+      const aRank = aIndex === -1 ? categoryOrder.length : aIndex;
+      const bRank = bIndex === -1 ? categoryOrder.length : bIndex;
+      if (aRank !== bRank) return aRank - bRank;
+      return a.name.localeCompare(b.name, 'zh-CN');
+    });
+    characterStore.update(id, { equipment: sorted });
+    reloadChar();
   };
 
   const handleOpenStatsEditor = () => {
@@ -1114,7 +1130,16 @@ export default function CharacterDetail() {
                   </div>
                 );
               })}
-              <div className={`mt-3 pt-3 border-t flex items-center justify-between text-sm dark:border-border-dark/50 light:border-border-light/50 ${
+              <div className="flex justify-end mb-3">
+                <button
+                  onClick={handleSortEquipment}
+                  className="px-3 py-1.5 text-sm rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors flex items-center gap-1.5"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                  整理背包
+                </button>
+              </div>
+              <div className={`pt-3 border-t flex items-center justify-between text-sm dark:border-border-dark/50 light:border-border-light/50 ${
                 isOverloaded ? 'text-danger' : 'dark:text-text-dark-muted light:text-text-light-muted'
               }`}>
                 <div className="flex items-center gap-2">
