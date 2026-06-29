@@ -488,6 +488,28 @@ export default function CharacterDetail() {
       : character.speed
     : 0;
 
+  const totalValue = character
+    ? character.equipment.reduce(
+        (acc, item) => {
+          if (!item.price) return acc;
+          const amount = item.price.amount * (item.quantity || 1);
+          if (item.price.unit === 'gp') acc.gp += amount;
+          else if (item.price.unit === 'sp') acc.sp += amount;
+          else if (item.price.unit === 'cp') acc.cp += amount;
+          return acc;
+        },
+        { gp: 0, sp: 0, cp: 0 }
+      )
+    : { gp: 0, sp: 0, cp: 0 };
+  const { gp, sp, cp } = (() => {
+    let totalCp = totalValue.gp * 100 + totalValue.sp * 10 + totalValue.cp;
+    const g = Math.floor(totalCp / 100);
+    totalCp %= 100;
+    const s = Math.floor(totalCp / 10);
+    const c = totalCp % 10;
+    return { gp: g, sp: s, cp: c };
+  })();
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1139,17 +1161,31 @@ export default function CharacterDetail() {
                   整理背包
                 </button>
               </div>
-              <div className={`pt-3 border-t flex items-center justify-between text-sm dark:border-border-dark/50 light:border-border-light/50 ${
+              <div className={`pt-3 border-t text-sm dark:border-border-dark/50 light:border-border-light/50 ${
                 isOverloaded ? 'text-danger' : 'dark:text-text-dark-muted light:text-text-light-muted'
               }`}>
-                <div className="flex items-center gap-2">
-                  <Scale className="w-4 h-4" />
-                  <span>总负重</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Scale className="w-4 h-4" />
+                    <span>总负重</span>
+                  </div>
+                  <span className="font-medium">
+                    {totalWeight} / {carryCapacity} 磅
+                    {isOverloaded && <span className="ml-2 text-xs">（超重）</span>}
+                  </span>
                 </div>
-                <span className="font-medium">
-                  {totalWeight} / {carryCapacity} 磅
-                  {isOverloaded && <span className="ml-2 text-xs">（超重）</span>}
-                </span>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2">
+                    <Coins className="w-4 h-4" />
+                    <span>总价值</span>
+                  </div>
+                  <span className="font-medium">
+                    {gp > 0 && <span>{gp} gp </span>}
+                    {sp > 0 && <span>{sp} sp </span>}
+                    {cp > 0 && <span>{cp} cp</span>}
+                    {gp === 0 && sp === 0 && cp === 0 && <span>0 cp</span>}
+                  </span>
+                </div>
               </div>
             </div>
           </Section>
