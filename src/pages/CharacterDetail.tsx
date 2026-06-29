@@ -370,6 +370,15 @@ export default function CharacterDetail() {
     reloadChar();
   };
 
+  const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
+    if (!id) return;
+    const equip = character?.equipment.find((e) => e.id === equipId);
+    if (!equip) return;
+    const newQty = Math.max(1, (equip.quantity || 1) + delta);
+    characterStore.updateEquipment(id, equipId, { quantity: newQty });
+    reloadChar();
+  };
+
   const handleOpenStatsEditor = () => {
     if (!character) return;
     setStatsForm({
@@ -1056,9 +1065,31 @@ export default function CharacterDetail() {
                               <Coins className="w-3 h-3 inline mr-0.5" />
                               {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
                             </span>
-                            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-                              ×{item.quantity || 1}
-                            </span>
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateEquipmentQuantity(item.id!, -1);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                                title="减少数量"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="w-6 text-center text-xs dark:text-text-dark light:text-text-light">
+                                ×{item.quantity || 1}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateEquipmentQuantity(item.id!, 1);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                                title="增加数量"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-1 flex-shrink-0">
