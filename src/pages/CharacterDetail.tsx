@@ -26,7 +26,7 @@ import {
   Download,
   Library,
 } from 'lucide-react';
-import type { Character, AbilityKey, ProficiencyCategory, Equipment } from '@/types/character';
+import type { Character, AbilityKey, ProficiencyCategory, Equipment, Attack } from '@/types/character';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
@@ -35,6 +35,7 @@ import { equipmentStore } from '@/data/equipmentStore';
 import SpellPicker from '@/components/SpellPicker';
 import EquipmentPicker from '@/components/EquipmentPicker';
 import EquipmentEditor from '@/components/EquipmentEditor';
+import AttackEditor from '@/components/AttackEditor';
 import { commitFile } from '@/utils/github';
 
 const abilityLabels: Record<AbilityKey, string> = {
@@ -153,6 +154,8 @@ export default function CharacterDetail() {
     savingThrows: '',
   });
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
+  const [attackEditorOpen, setAttackEditorOpen] = useState(false);
+  const [editingAttack, setEditingAttack] = useState<(Attack & { id: string }) | null>(null);
 
   const genderOptions = [
     { value: 'male', label: '男', icon: '♂', color: 'text-info' },
@@ -254,20 +257,44 @@ export default function CharacterDetail() {
   };
 
   const handleAddAttack = () => {
-    if (!id) return;
-    characterStore.addAttack(id, { name: '新攻击' });
-    reloadChar();
+    setEditingAttack(null);
+    setAttackEditorOpen(true);
   };
 
-  const handleUpdateAttack = (attackId: string, field: string, value: string) => {
-    if (!id) return;
-    characterStore.updateAttack(id, attackId, { [field]: value });
-    reloadChar();
+  const handleEditAttack = (attack: Attack & { id: string }) => {
+    setEditingAttack(attack);
+    setAttackEditorOpen(true);
   };
 
-  const handleDeleteAttack = (attackId: string) => {
-    if (!id) return;
-    characterStore.deleteAttack(id, attackId);
+  const handleSaveAttack = (attack: Attack) => {
+    if (!id || !character) return;
+    let updatedAttacks: Attack[];
+    if (editingAttack) {
+      updatedAttacks = character.attacks.map((a) =>
+        a.id === editingAttack.id ? { ...attack, id: editingAttack.id } : a
+      );
+    } else {
+      updatedAttacks = [...character.attacks, { ...attack, id: `attack-${Date.now()}` }];
+    }
+    characterStore.update(id, { attacks: updatedAttacks });
+    reloadChar();
+    setAttackEditorOpen(false);
+    setEditingAttack(null);
+  };
+
+  const handleDeleteAttack = () => {
+    if (!id || !editingAttack || !character) return;
+    const updatedAttacks = character.attacks.filter((a) => a.id !== editingAttack.id);
+    characterStore.update(id, { attacks: updatedAttacks });
+    reloadChar();
+    setAttackEditorOpen(false);
+    setEditingAttack(null);
+  };
+
+  const handleDeleteAttackDirect = (attackId: string) => {
+    if (!id || !character) return;
+    const updatedAttacks = character.attacks.filter((a) => a.id !== attackId);
+    characterStore.update(id, { attacks: updatedAttacks });
     reloadChar();
   };
 
@@ -1010,46 +1037,58 @@ export default function CharacterDetail() {
         <div className="space-y-6">
           <Section title="攻击" icon={Swords}>
             <div className="space-y-2">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 px-2 py-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                <span className="pl-2">攻击名</span>
-                <span className="w-14 text-center pr-2">攻击加值</span>
-                <span className="w-20 text-center pr-2">伤害/类型</span>
-                <span className="w-6"></span>
-              </div>
-              {character.attacks.map((attack) => (
-                <div
-                  key={attack.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 items-center p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                >
-                  <textarea
-                    value={attack.name}
-                    onChange={(e) => handleUpdateAttack(attack.id!, 'name', e.target.value)}
-                    placeholder="攻击名称"
-                    rows={1}
-                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light min-w-0 break-words resize-none min-h-[32px] field-sizing-content"
-                  />
-                  <input
-                    type="text"
-                    value={attack.bonus}
-                    onChange={(e) => handleUpdateAttack(attack.id!, 'bonus', e.target.value)}
-                    placeholder="+5"
-                    className="w-14 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm text-center dark:text-text-dark light:text-text-light flex-shrink-0"
-                  />
-                  <input
-                    type="text"
-                    value={attack.damage}
-                    onChange={(e) => handleUpdateAttack(attack.id!, 'damage', e.target.value)}
-                    placeholder="1d6+3"
-                    className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm text-center dark:text-text-dark light:text-text-light flex-shrink-0"
-                  />
-                  <button
-                    onClick={() => handleDeleteAttack(attack.id!)}
-                    className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+              {character.attacks.length === 0 ? (
+                <div className="text-center py-6 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                  暂无攻击
                 </div>
-              ))}
+              ) : (
+                character.attacks.map((attack) => (
+                  <div
+                    key={attack.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light truncate">
+                        {attack.name || '未命名攻击'}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs flex-wrap dark:text-text-dark-muted light:text-text-light-muted">
+                        <span className="text-primary font-medium">{attack.attackBonus || '—'}</span>
+                        <span>·</span>
+                        <span>{attack.damage || '—'}</span>
+                        {attack.damageType && <span>{attack.damageType}</span>}
+                        {attack.range && (
+                          <>
+                            <span>·</span>
+                            <span>{attack.range}</span>
+                          </>
+                        )}
+                        {attack.properties && attack.properties.length > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="truncate">{attack.properties.join('、')}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleEditAttack(attack as Attack & { id: string })}
+                        className="p-1.5 rounded hover:bg-primary/20 text-primary"
+                        title="编辑"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAttackDirect(attack.id!)}
+                        className="p-1.5 rounded hover:bg-danger/20 text-danger"
+                        title="删除"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
               <button
                 onClick={handleAddAttack}
                 className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
@@ -2018,6 +2057,19 @@ export default function CharacterDetail() {
             </button>
           </div>
         </div>
+      )}
+
+      {attackEditorOpen && (
+        <AttackEditor
+          attack={editingAttack || undefined}
+          weapons={character.equipment.filter((e) => e.category === '武器')}
+          onSave={handleSaveAttack}
+          onDelete={editingAttack ? handleDeleteAttack : undefined}
+          onClose={() => {
+            setAttackEditorOpen(false);
+            setEditingAttack(null);
+          }}
+        />
       )}
     </div>
   );

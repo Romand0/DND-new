@@ -22,9 +22,11 @@ export interface HitDice {
 export interface Attack {
   id?: string;
   name: string;
-  bonus: string;
+  attackBonus: string;
   damage: string;
-  type: string;
+  damageType: string;
+  range: string;
+  properties: string[];
 }
 
 export interface SpellSlots {
@@ -47,6 +49,11 @@ export interface Spells {
   custom: string[];
 }
 
+export interface EquipmentTag {
+  key: string;
+  value: string;
+}
+
 export interface Equipment {
   id?: string;
   name: string;
@@ -59,7 +66,7 @@ export interface Equipment {
     unit: 'gp' | 'sp' | 'cp';
   };
   properties?: string[];
-  tags?: { key: string; value: string }[];
+  tags?: EquipmentTag[];
   source?: string;
   subtype?: string;
 }

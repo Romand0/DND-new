@@ -381,7 +381,7 @@ function exportAllWithConfirm(): void {
 function addAttack(charId: string, attackData: Partial<Attack>): Attack | null {
   const char = getCharacter(charId);
   if (!char) return null;
-  const newAttack: Attack = { id: generateId(), name: '', bonus: '', damage: '', type: '', ...attackData };
+  const newAttack: Attack = { id: generateId(), name: '', attackBonus: '', damage: '', damageType: '', range: '', properties: [], ...attackData };
   char.attacks.push(newAttack);
   saveCharacter(char as Character);
   return newAttack;
