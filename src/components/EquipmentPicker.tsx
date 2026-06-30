@@ -1,9 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Search, Package } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
-import staticEquipments from '@/data/equipments.json';
-
-const STORAGE_KEY = 'custom-equipments';
+import { equipmentStore } from '@/data/equipmentStore';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
@@ -15,25 +13,17 @@ interface EquipmentPickerProps {
 export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('全部');
-  const [customEquipments, setCustomEquipments] = useState<EquipmentItem[]>([]);
+  const [equipments, setEquipments] = useState<EquipmentItem[]>(equipmentStore.getAll());
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        setCustomEquipments(JSON.parse(stored));
-      } catch {
-        setCustomEquipments([]);
-      }
-    }
+    const unsubscribe = equipmentStore.subscribe(() => {
+      setEquipments(equipmentStore.getAll());
+    });
+    return unsubscribe;
   }, []);
 
-  const allEquipments = useMemo(() => {
-    return [...(staticEquipments as EquipmentItem[]), ...customEquipments];
-  }, [customEquipments]);
-
   const filteredEquipments = useMemo(() => {
-    return allEquipments.filter((item) => {
+    return equipments.filter((item) => {
       const matchesCategory = selectedCategory === '全部' || item.category === selectedCategory;
       const matchesSearch =
         !searchQuery ||
@@ -42,7 +32,7 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
         item.category.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [allEquipments, selectedCategory, searchQuery]);
+  }, [equipments, selectedCategory, searchQuery]);
 
   const formatPrice = (item: EquipmentItem) => {
     return `${item.price.amount} ${item.price.unit}`;
