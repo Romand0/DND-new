@@ -43,7 +43,7 @@ export default function SettingsPage() {
             GitHub 同步设置
           </h2>
           <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
-            为了将法术库更改同步到 GitHub，你需要提供 GitHub Personal Access Token。
+            为了将装备库和法术库的更改同步到 GitHub，你需要提供 GitHub Personal Access Token。
           </p>
 
           <div className="space-y-4">
@@ -109,7 +109,7 @@ export default function SettingsPage() {
             <strong>DM Toolkit</strong> - D&amp;D 角色管理工具
           </p>
           <p>
-            法术库数据保存在本地浏览器中（localStorage），配置 GitHub Token 后可同步到 GitHub 仓库。
+            装备库和法术库数据保存在本地浏览器中（localStorage），配置 GitHub Token 后可同步到 GitHub 仓库。
           </p>
         </div>
       </div>

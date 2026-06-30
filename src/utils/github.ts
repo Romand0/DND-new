@@ -97,17 +97,26 @@ export async function commitFile(
 }
 
 export async function fetchFile(path: string): Promise<string | null> {
-  const { owner, repo, branch, token } = getConfig();
-
   try {
+    const owner = import.meta.env.VITE_GITHUB_OWNER || '';
+    const repo = import.meta.env.VITE_GITHUB_REPO || '';
+    const branch = import.meta.env.VITE_GITHUB_BRANCH || 'main';
+    const token = localStorage.getItem('github_token') || '';
+
+    if (!owner || !repo) {
+      return null;
+    }
+
+    const headers: Record<string, string> = {
+      Accept: 'application/vnd.github.v3.raw',
+    };
+    if (token) {
+      headers.Authorization = `token ${token}`;
+    }
+
     const response = await fetch(
       `${GITHUB_API}/repos/${owner}/${repo}/contents/${path}?ref=${branch}`,
-      {
-        headers: {
-          Authorization: `token ${token}`,
-          Accept: 'application/vnd.github.v3.raw',
-        },
-      }
+      { headers }
     );
 
     if (response.status === 404) {
