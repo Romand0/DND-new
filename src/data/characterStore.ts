@@ -20,10 +20,47 @@ const BACKUP_INTERVAL = 30000;
 // 存储层
 // ============================================================
 
+function migrateCharacter(char: any): Character {
+  if (char.attacks && Array.isArray(char.attacks)) {
+    char.attacks = char.attacks.map((attack: any) => ({
+      id: attack.id,
+      name: attack.name || '',
+      attackBonus: attack.attackBonus !== undefined ? attack.attackBonus : (attack.bonus || ''),
+      damage: attack.damage || '',
+      damageType: attack.damageType !== undefined ? attack.damageType : (attack.type || ''),
+      range: attack.range || '',
+      properties: attack.properties || [],
+    }));
+  }
+  return char as Character;
+}
+
+function migrateStore(chars: any[]): Character[] {
+  let migrated = false;
+  const result = chars.map((char) => {
+    const hasOldAttackFields = char.attacks?.some((a: any) => 
+      'bonus' in a || 'type' in a
+    );
+    const missingNewAttackFields = char.attacks?.some((a: any) =>
+      !('attackBonus' in a) || !('damageType' in a) || !('range' in a) || !('properties' in a)
+    );
+    if (hasOldAttackFields || missingNewAttackFields) {
+      migrated = true;
+      return migrateCharacter(char);
+    }
+    return char as Character;
+  });
+  if (migrated) {
+    saveStore(result);
+  }
+  return result;
+}
+
 function getStore(): Character[] {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    const chars = data ? JSON.parse(data) : [];
+    return migrateStore(chars);
   } catch {
     return [];
   }
