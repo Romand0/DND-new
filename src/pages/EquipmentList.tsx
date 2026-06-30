@@ -52,11 +52,18 @@ export default function EquipmentList() {
     setError('');
 
     try {
-      const existingIndex = equipments.findIndex((e) => e.id === item.id);
+      const idMatchIndex = equipments.findIndex((e) => e.id === item.id);
+      const nameMatchIndex = equipments.findIndex((e) => e.name === item.name && e.id !== item.id);
       let newEquipments: EquipmentItem[];
+      let isUpdate = false;
 
-      if (existingIndex >= 0) {
-        newEquipments = equipments.map((e, i) => (i === existingIndex ? item : e));
+      if (idMatchIndex >= 0) {
+        newEquipments = equipments.map((e, i) => (i === idMatchIndex ? item : e));
+        isUpdate = true;
+      } else if (nameMatchIndex >= 0) {
+        const updatedItem = { ...item, id: equipments[nameMatchIndex].id };
+        newEquipments = equipments.map((e, i) => (i === nameMatchIndex ? updatedItem : e));
+        isUpdate = true;
       } else {
         newEquipments = [...equipments, item];
       }
@@ -68,7 +75,7 @@ export default function EquipmentList() {
         await commitFile(
           'src/data/equipments.json',
           JSON.stringify(newEquipments, null, 2),
-          existingIndex >= 0
+          isUpdate
             ? `update equipment: ${item.name}`
             : `add equipment: ${item.name}`
         );

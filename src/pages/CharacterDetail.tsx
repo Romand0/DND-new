@@ -347,19 +347,29 @@ export default function CharacterDetail() {
 
     if (syncToLibrary) {
       const allEquipments = equipmentStore.getAll();
-      const existingIndex = allEquipments.findIndex((e) => e.id === formData.id);
+      const idMatchIndex = allEquipments.findIndex((e) => e.id === formData.id);
+      const nameMatchIndex = allEquipments.findIndex((e) => e.name === formData.name && e.id !== formData.id);
       let newEquipments: EquipmentItem[];
-      if (existingIndex >= 0) {
-        newEquipments = allEquipments.map((e, i) => (i === existingIndex ? libraryItem : e));
+      let isUpdate = false;
+      let finalLibraryItem = libraryItem;
+
+      if (idMatchIndex >= 0) {
+        newEquipments = allEquipments.map((e, i) => (i === idMatchIndex ? libraryItem : e));
+        isUpdate = true;
+      } else if (nameMatchIndex >= 0) {
+        finalLibraryItem = { ...libraryItem, id: allEquipments[nameMatchIndex].id };
+        newEquipments = allEquipments.map((e, i) => (i === nameMatchIndex ? finalLibraryItem : e));
+        isUpdate = true;
       } else {
         newEquipments = [...allEquipments, libraryItem];
       }
+
       equipmentStore.save(newEquipments);
       try {
         await commitFile(
           'src/data/equipments.json',
           JSON.stringify(newEquipments, null, 2),
-          existingIndex >= 0
+          isUpdate
             ? `update equipment: ${formData.name}`
             : `add equipment: ${formData.name}`
         );
