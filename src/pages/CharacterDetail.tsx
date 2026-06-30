@@ -299,14 +299,14 @@ export default function CharacterDetail() {
     setEquipmentEditorOpen(true);
   };
 
-  const handleSaveEquipment = (formData: Omit<EquipmentItem, 'id' | 'isCustom'>) => {
+  const handleSaveEquipment = (formData: EquipmentItem & { quantity?: number }) => {
     if (!id) return;
     if (!editingEquipment) {
       // 手动新增装备
       characterStore.addEquipment(id, {
         name: formData.name,
         category: formData.category,
-        quantity: 1,
+        quantity: formData.quantity || 1,
         description: formData.description,
         weight: formData.weight,
         price: formData.price,
@@ -316,16 +316,16 @@ export default function CharacterDetail() {
         subtype: formData.subtype,
       });
     } else if (editingEquipment.id.startsWith('temp-')) {
-      // 从装备库添加的新装备
+      // 从装备库添加的新装备（深拷贝，与装备库脱离关系）
       characterStore.addEquipment(id, {
         name: formData.name,
         category: formData.category,
-        quantity: editingEquipment.quantity || 1,
+        quantity: formData.quantity || 1,
         description: formData.description,
         weight: formData.weight,
         price: formData.price,
-        properties: formData.properties,
-        tags: formData.tags,
+        properties: formData.properties ? [...formData.properties] : [],
+        tags: formData.tags ? [...formData.tags] : [],
         source: formData.source,
         subtype: formData.subtype,
       });
@@ -334,6 +334,7 @@ export default function CharacterDetail() {
       characterStore.updateEquipment(id, editingEquipment.id, {
         name: formData.name,
         category: formData.category,
+        quantity: formData.quantity,
         description: formData.description,
         weight: formData.weight,
         price: formData.price,
@@ -1785,7 +1786,9 @@ export default function CharacterDetail() {
             isCustom: true,
             tags: editingEquipment.tags || [],
             source: editingEquipment.source,
+            quantity: editingEquipment.quantity,
           } : undefined}
+          showQuantity={true}
           onSave={handleSaveEquipment}
           onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
             if (!id) return;

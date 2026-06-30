@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Search, Plus, Edit, Trash2, ChevronLeft, Coins } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import staticEquipments from '@/data/equipments.json';
+import { fetchFile, commitFile } from '@/utils/github';
 
 const STORAGE_KEY = 'custom-equipments';
+const STATIC_STORAGE_KEY = 'static-equipments-cache';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
@@ -15,10 +17,13 @@ export default function EquipmentList() {
   const [selectedCategory, setSelectedCategory] = useState('全部');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | undefined>(undefined);
+  const [isEditingStatic, setIsEditingStatic] = useState(false);
   const [customEquipments, setCustomEquipments] = useState<EquipmentItem[]>([]);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [staticEquipmentsList, setStaticEquipmentsList] = useState<EquipmentItem[]>(staticEquipments as EquipmentItem[]);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; isCustom: boolean } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // 加载自定义装备
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -28,17 +33,43 @@ export default function EquipmentList() {
         setCustomEquipments([]);
       }
     }
+
+    const cachedStatic = localStorage.getItem(STATIC_STORAGE_KEY);
+    if (cachedStatic) {
+      try {
+        setStaticEquipmentsList(JSON.parse(cachedStatic));
+      } catch {
+        // ignore
+      }
+    }
+
+    loadStaticEquipments();
   }, []);
 
-  // 合并所有装备
-  const allEquipments = useMemo(() => {
-    return [...(staticEquipments as EquipmentItem[]), ...customEquipments];
-  }, [customEquipments]);
+  const loadStaticEquipments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const content = await fetchFile('src/data/equipments.json');
+      if (content) {
+        const data = JSON.parse(content) as EquipmentItem[];
+        setStaticEquipmentsList(data);
+        localStorage.setItem(STATIC_STORAGE_KEY, JSON.stringify(data));
+      }
+    } catch (err) {
+      console.warn('从 GitHub 加载标准装备失败，使用本地缓存:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // 过滤装备
+  const allEquipments = useMemo(() => {
+    return [...staticEquipmentsList, ...customEquipments];
+  }, [staticEquipmentsList, customEquipments]);
+
   const filteredEquipments = useMemo(() => {
     return allEquipments.filter((item) => {
-      const matchesCategory = selectedCategory === '全部' || item.category === selectedCategory;
+      const matchesCategory = selectedCategory === '全部' || item.category === selectedCategory || (selectedCategory === '自定义' && item.isCustom);
       const matchesSearch =
         !searchQuery ||
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -48,7 +79,7 @@ export default function EquipmentList() {
     });
   }, [allEquipments, selectedCategory, searchQuery]);
 
-  const handleSave = (item: EquipmentItem) => {
+  const handleSaveCustom = (item: EquipmentItem) => {
     const existing = customEquipments.findIndex((e) => e.id === item.id);
     if (existing >= 0) {
       const updated = [...customEquipments];
@@ -64,20 +95,93 @@ export default function EquipmentList() {
     setEditingItem(undefined);
   };
 
-  const handleDelete = (id: string) => {
+  const handleSaveStatic = async (item: EquipmentItem) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const existing = staticEquipmentsList.findIndex((e) => e.id === item.id);
+      let updated: EquipmentItem[];
+      let action: string;
+      if (existing >= 0) {
+        updated = [...staticEquipmentsList];
+        updated[existing] = item;
+        action = 'Update';
+      } else {
+        updated = [...staticEquipmentsList, item];
+        action = 'Add';
+      }
+      const content = JSON.stringify(updated, null, 2);
+      await commitFile('src/data/equipments.json', content, `${action} equipment: ${item.name}`);
+      setStaticEquipmentsList(updated);
+      localStorage.setItem(STATIC_STORAGE_KEY, JSON.stringify(updated));
+      setEditorOpen(false);
+      setEditingItem(undefined);
+      setIsEditingStatic(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '保存失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = (item: EquipmentItem) => {
+    if (item.isCustom) {
+      handleSaveCustom(item);
+    } else {
+      handleSaveStatic(item);
+    }
+  };
+
+  const handleDeleteCustom = (id: string) => {
     const updated = customEquipments.filter((e) => e.id !== id);
     setCustomEquipments(updated);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     setDeleteConfirm(null);
   };
 
+  const handleDeleteStatic = async (id: string) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const item = staticEquipmentsList.find((e) => e.id === id);
+      const updated = staticEquipmentsList.filter((e) => e.id !== id);
+      const content = JSON.stringify(updated, null, 2);
+      await commitFile('src/data/equipments.json', content, `Delete equipment: ${item?.name || id}`);
+      setStaticEquipmentsList(updated);
+      localStorage.setItem(STATIC_STORAGE_KEY, JSON.stringify(updated));
+      setDeleteConfirm(null);
+      setEditorOpen(false);
+      setEditingItem(undefined);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '删除失败');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = (id: string, isCustom: boolean) => {
+    if (isCustom) {
+      handleDeleteCustom(id);
+    } else {
+      handleDeleteStatic(id);
+    }
+  };
+
   const handleEdit = (item: EquipmentItem) => {
     setEditingItem(item);
+    setIsEditingStatic(!item.isCustom);
     setEditorOpen(true);
   };
 
   const handleAddNew = () => {
     setEditingItem(undefined);
+    setIsEditingStatic(false);
+    setEditorOpen(true);
+  };
+
+  const handleAddNewStatic = () => {
+    setEditingItem(undefined);
+    setIsEditingStatic(true);
     setEditorOpen(true);
   };
 
@@ -87,7 +191,6 @@ export default function EquipmentList() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* 头部 */}
       <div className="flex items-center gap-4">
         <button
           onClick={() => navigate('/inventory')}
@@ -98,9 +201,22 @@ export default function EquipmentList() {
         <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">
           装备库
         </h1>
+        <button
+          onClick={loadStaticEquipments}
+          disabled={loading}
+          className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light disabled:opacity-50"
+          title="刷新标准装备"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+        </button>
       </div>
 
-      {/* 搜索和筛选 */}
+      {error && (
+        <div className="p-3 rounded-lg bg-danger/20 text-danger text-sm">
+          {error}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
@@ -123,26 +239,33 @@ export default function EquipmentList() {
             </option>
           ))}
         </select>
-        <button
-          onClick={handleAddNew}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
-        >
-          <Plus className="w-4 h-4" />
-          新增
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={handleAddNew}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
+          >
+            <Plus className="w-4 h-4" />
+            新增自定义
+          </button>
+          <button
+            onClick={handleAddNewStatic}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10"
+          >
+            <Plus className="w-4 h-4" />
+            新增标准
+          </button>
+        </div>
       </div>
 
-      {/* 统计信息 */}
       <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
         共 {filteredEquipments.length} 件装备
+        {loading && <span className="ml-2">（加载中...）</span>}
       </div>
 
-      {/* 装备列表 */}
       <div className="grid gap-3">
         {filteredEquipments.map((item) => (
-          <Link
+          <div
             key={item.id}
-            to={`/equipment/${item.id}`}
             className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group"
           >
             <div className="flex items-start justify-between gap-4">
@@ -151,9 +274,13 @@ export default function EquipmentList() {
                   <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors truncate">
                     {item.name}
                   </h3>
-                  {item.isCustom && (
+                  {item.isCustom ? (
                     <span className="px-1.5 py-0.5 text-xs rounded bg-accent/20 text-accent">
                       自定义
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 text-xs rounded bg-primary/20 text-primary">
+                      标准
                     </span>
                   )}
                 </div>
@@ -188,27 +315,26 @@ export default function EquipmentList() {
                   </div>
                 )}
               </div>
-              {item.isCustom && (
-                <div
-                  className="flex gap-1"
-                  onClick={(e) => e.preventDefault()}
+              <div
+                className="flex gap-1"
+              >
+                <button
+                  onClick={() => handleEdit(item)}
+                  className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                  title="编辑"
                 >
-                  <button
-                    onClick={() => handleEdit(item)}
-                    className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => setDeleteConfirm(item.id)}
-                    className="p-2 rounded hover:bg-danger/20 text-danger"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+                  <Edit className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm({ id: item.id, isCustom: item.isCustom })}
+                  className="p-2 rounded hover:bg-danger/20 text-danger"
+                  title="删除"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
 
@@ -218,20 +344,21 @@ export default function EquipmentList() {
         </div>
       )}
 
-      {/* 编辑器模态框 */}
       {editorOpen && (
         <EquipmentEditor
           item={editingItem}
+          isStatic={!editingItem ? isEditingStatic : !editingItem.isCustom}
           onSave={handleSave}
-          onDelete={editingItem ? () => handleDelete(editingItem.id) : undefined}
+          onDelete={editingItem ? () => handleDelete(editingItem.id, editingItem.isCustom) : undefined}
           onClose={() => {
             setEditorOpen(false);
             setEditingItem(undefined);
+            setIsEditingStatic(false);
           }}
+          loading={loading}
         />
       )}
 
-      {/* 删除确认 */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="rounded-xl border p-6 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light max-w-sm w-full">
@@ -239,7 +366,9 @@ export default function EquipmentList() {
               确认删除
             </h3>
             <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
-              确定要删除这件自定义装备吗？此操作无法撤销。
+              确定要删除这件{deleteConfirm.isCustom ? '自定义' : '标准'}装备吗？
+              {!deleteConfirm.isCustom && '此操作将提交到 GitHub 仓库。'}
+              此操作无法撤销。
             </p>
             <div className="flex gap-3">
               <button
@@ -249,10 +378,11 @@ export default function EquipmentList() {
                 取消
               </button>
               <button
-                onClick={() => handleDelete(deleteConfirm)}
-                className="flex-1 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80"
+                onClick={() => handleDelete(deleteConfirm.id, deleteConfirm.isCustom)}
+                disabled={loading}
+                className="flex-1 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80 disabled:opacity-50"
               >
-                删除
+                {loading ? '删除中...' : '删除'}
               </button>
             </div>
           </div>

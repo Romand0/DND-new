@@ -3,8 +3,11 @@ import { X, Plus, Trash2 } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
 
 interface EquipmentEditorProps {
-  item?: EquipmentItem;
-  onSave: (item: EquipmentItem) => void;
+  item?: EquipmentItem | (EquipmentItem & { quantity?: number });
+  isStatic?: boolean;
+  showQuantity?: boolean;
+  loading?: boolean;
+  onSave: (item: EquipmentItem & { quantity?: number }) => void;
   onDelete?: () => void;
   onClose: () => void;
 }
@@ -13,8 +16,8 @@ const CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物', 
 const PRICE_UNITS = ['gp', 'sp', 'cp'] as const;
 const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '远程', '弹药', '+2 AC', '单手', '双手'];
 
-export default function EquipmentEditor({ item, onSave, onDelete, onClose }: EquipmentEditorProps) {
-  const [formData, setFormData] = useState<Omit<EquipmentItem, 'id' | 'isCustom'>>({
+export default function EquipmentEditor({ item, isStatic = false, showQuantity = false, loading = false, onSave, onDelete, onClose }: EquipmentEditorProps) {
+  const [formData, setFormData] = useState<Omit<EquipmentItem, 'id' | 'isCustom'> & { quantity?: number }>({
     name: '',
     category: '武器',
     subtype: '',
@@ -24,11 +27,13 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
     properties: [],
     tags: [],
     source: '',
+    quantity: showQuantity ? 1 : undefined,
   });
   const [newProperty, setNewProperty] = useState('');
   const [newTagKey, setNewTagKey] = useState('');
   const [newTagValue, setNewTagValue] = useState('');
   const [customCategory, setCustomCategory] = useState('');
+  const [customProperty, setCustomProperty] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -43,27 +48,48 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
         properties: item.properties || [],
         tags: [...(item.tags || [])],
         source: item.source || '',
+        quantity: (item as any).quantity,
       });
+      if (item.category && !CATEGORIES.includes(item.category)) {
+        setCustomCategory(item.category);
+      }
+    } else {
+      setFormData({
+        name: '',
+        category: '武器',
+        subtype: '',
+        weight: 0,
+        price: { amount: 0, unit: 'gp' },
+        description: '',
+        properties: [],
+        tags: [],
+        source: '',
+        quantity: showQuantity ? 1 : undefined,
+      });
+      setCustomCategory('');
     }
-  }, [item]);
+  }, [item, showQuantity]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const equipment: EquipmentItem = {
-      id: item?.id || `custom-${Date.now()}`,
+    const isCustom = !isStatic;
+    const equipment: EquipmentItem & { quantity?: number } = {
+      id: item?.id || (isCustom ? `custom-${Date.now()}` : `static-${Date.now()}`),
       ...formData,
-      isCustom: true,
+      isCustom,
     };
     onSave(equipment);
   };
 
   const handleAddProperty = () => {
-    if (newProperty.trim() && !formData.properties?.includes(newProperty.trim())) {
+    const propToAdd = newProperty === '__custom__' ? customProperty.trim() : newProperty.trim();
+    if (propToAdd && !formData.properties?.includes(propToAdd)) {
       setFormData({
         ...formData,
-        properties: [...(formData.properties || []), newProperty.trim()],
+        properties: [...(formData.properties || []), propToAdd],
       });
       setNewProperty('');
+      setCustomProperty('');
     }
   };
 
@@ -100,12 +126,22 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
     }
   };
 
+  const getTitle = () => {
+    if (item) {
+      return '编辑装备';
+    }
+    if (isStatic) {
+      return '新增标准装备';
+    }
+    return '新增自定义装备';
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="rounded-xl border w-full max-w-2xl max-h-[90vh] overflow-y-auto dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
         <div className="sticky top-0 bg-inherit p-4 border-b dark:border-border-dark light:border-border-light flex items-center justify-between">
           <h2 className="text-lg font-bold dark:text-text-dark light:text-text-light">
-            {item ? '编辑装备' : '新增自定义装备'}
+            {getTitle()}
           </h2>
           <button
             onClick={onClose}
@@ -116,7 +152,6 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* 名称 */}
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               名称 *
@@ -130,7 +165,21 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
             />
           </div>
 
-          {/* 分类 */}
+          {showQuantity && (
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                数量
+              </label>
+              <input
+                type="number"
+                value={formData.quantity ?? 1}
+                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                min="1"
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
@@ -162,8 +211,7 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
             </div>
           </div>
 
-          {/* 自定义分类输入 */}
-          {formData.category === '自定义' && (
+          {formData.category === '自定义' || !CATEGORIES.includes(formData.category) ? (
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
                 自定义分类名称
@@ -179,9 +227,8 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
                 className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
               />
             </div>
-          )}
+          ) : null}
 
-          {/* 重量和价格 */}
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
@@ -230,7 +277,6 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
             </div>
           </div>
 
-          {/* 来源 */}
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               来源
@@ -244,7 +290,6 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
             />
           </div>
 
-          {/* 描述 */}
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               描述
@@ -257,7 +302,6 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
             />
           </div>
 
-          {/* 属性标签 */}
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               属性标签
@@ -293,15 +337,15 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
                 ))}
                 <option value="__custom__">自定义...</option>
               </select>
-              {newProperty === '__custom__' ? (
+              {newProperty === '__custom__' && (
                 <input
                   type="text"
-                  value={customCategory}
-                  onChange={(e) => setNewProperty(e.target.value)}
+                  value={customProperty}
+                  onChange={(e) => setCustomProperty(e.target.value)}
                   placeholder="输入自定义属性"
                   className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                 />
-              ) : null}
+              )}
               <button
                 type="button"
                 onClick={handleAddProperty}
@@ -312,7 +356,6 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
             </div>
           </div>
 
-          {/* 自由标签 */}
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               自由标签
@@ -361,7 +404,6 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
             </div>
           </div>
 
-          {/* 按钮 */}
           <div className="flex gap-3 pt-4">
             {item && onDelete && (
               <button
@@ -381,14 +423,14 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
+              disabled={loading}
+              className="flex-1 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark disabled:opacity-50"
             >
-              保存
+              {loading ? '保存中...' : '保存'}
             </button>
           </div>
         </form>
 
-        {/* 删除确认 */}
         {showDeleteConfirm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
             <div className="rounded-xl border p-6 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light max-w-sm w-full">
@@ -408,7 +450,7 @@ export default function EquipmentEditor({ item, onSave, onDelete, onClose }: Equ
                 <button
                   onClick={() => {
                     onDelete?.();
-                    onClose();
+                    setShowDeleteConfirm(false);
                   }}
                   className="flex-1 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80"
                 >
