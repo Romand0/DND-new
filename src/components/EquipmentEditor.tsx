@@ -6,8 +6,9 @@ interface EquipmentEditorProps {
   item?: EquipmentItem | (EquipmentItem & { quantity?: number });
   isStatic?: boolean;
   showQuantity?: boolean;
+  showSyncOption?: boolean;
   loading?: boolean;
-  onSave: (item: EquipmentItem & { quantity?: number }) => void;
+  onSave: (item: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => void;
   onDelete?: () => void;
   onClose: () => void;
 }
@@ -16,7 +17,7 @@ const CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物', 
 const PRICE_UNITS = ['gp', 'sp', 'cp'] as const;
 const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '远程', '弹药', '+2 AC', '单手', '双手'];
 
-export default function EquipmentEditor({ item, isStatic = false, showQuantity = false, loading = false, onSave, onDelete, onClose }: EquipmentEditorProps) {
+export default function EquipmentEditor({ item, isStatic = false, showQuantity = false, showSyncOption = false, loading = false, onSave, onDelete, onClose }: EquipmentEditorProps) {
   const [formData, setFormData] = useState<Omit<EquipmentItem, 'id' | 'isCustom'> & { quantity?: number }>({
     name: '',
     category: '武器',
@@ -35,6 +36,7 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   const [customCategory, setCustomCategory] = useState('');
   const [customProperty, setCustomProperty] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [syncToLibrary, setSyncToLibrary] = useState(false);
 
   useEffect(() => {
     if (item) {
@@ -78,7 +80,7 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
       ...formData,
       isCustom,
     };
-    onSave(equipment);
+    onSave(equipment, showSyncOption ? syncToLibrary : undefined);
   };
 
   const handleAddProperty = () => {
@@ -403,6 +405,24 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
               </button>
             </div>
           </div>
+
+          {showSyncOption && (
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="syncToLibrary"
+                checked={syncToLibrary}
+                onChange={(e) => setSyncToLibrary(e.target.checked)}
+                className="w-4 h-4 rounded border-border-dark accent-primary"
+              />
+              <label
+                htmlFor="syncToLibrary"
+                className="text-sm dark:text-text-dark light:text-text-light cursor-pointer"
+              >
+                同时更新到装备库（并同步到 GitHub）
+              </label>
+            </div>
+          )}
 
           <div className="flex gap-3 pt-4">
             {item && onDelete && (

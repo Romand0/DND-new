@@ -31,9 +31,11 @@ import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
+import { equipmentStore } from '@/data/equipmentStore';
 import SpellPicker from '@/components/SpellPicker';
 import EquipmentPicker from '@/components/EquipmentPicker';
 import EquipmentEditor from '@/components/EquipmentEditor';
+import { commitFile } from '@/utils/github';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -299,10 +301,47 @@ export default function CharacterDetail() {
     setEquipmentEditorOpen(true);
   };
 
-  const handleSaveEquipment = (formData: EquipmentItem & { quantity?: number }) => {
+  const handleSaveEquipment = async (formData: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => {
     if (!id) return;
+
+    const libraryItem: EquipmentItem = {
+      id: formData.id,
+      name: formData.name,
+      category: formData.category,
+      subtype: formData.subtype,
+      weight: formData.weight,
+      price: formData.price,
+      description: formData.description,
+      properties: formData.properties ? [...formData.properties] : [],
+      tags: formData.tags ? [...formData.tags] : [],
+      source: formData.source,
+      isCustom: false,
+    };
+
+    if (syncToLibrary) {
+      const allEquipments = equipmentStore.getAll();
+      const existingIndex = allEquipments.findIndex((e) => e.id === formData.id);
+      let newEquipments: EquipmentItem[];
+      if (existingIndex >= 0) {
+        newEquipments = allEquipments.map((e, i) => (i === existingIndex ? libraryItem : e));
+      } else {
+        newEquipments = [...allEquipments, libraryItem];
+      }
+      equipmentStore.save(newEquipments);
+      try {
+        await commitFile(
+          'src/data/equipments.json',
+          JSON.stringify(newEquipments, null, 2),
+          existingIndex >= 0
+            ? `update equipment: ${formData.name}`
+            : `add equipment: ${formData.name}`
+        );
+      } catch (githubError) {
+        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
+      }
+    }
+
     if (!editingEquipment) {
-      // 手动新增装备
       characterStore.addEquipment(id, {
         name: formData.name,
         category: formData.category,
@@ -316,7 +355,6 @@ export default function CharacterDetail() {
         subtype: formData.subtype,
       });
     } else if (editingEquipment.id.startsWith('temp-')) {
-      // 从装备库添加的新装备（深拷贝，与装备库脱离关系）
       characterStore.addEquipment(id, {
         name: formData.name,
         category: formData.category,
@@ -330,7 +368,6 @@ export default function CharacterDetail() {
         subtype: formData.subtype,
       });
     } else if (editingEquipment) {
-      // 编辑已有装备
       characterStore.updateEquipment(id, editingEquipment.id, {
         name: formData.name,
         category: formData.category,
@@ -1789,6 +1826,7 @@ export default function CharacterDetail() {
             quantity: editingEquipment.quantity,
           } : undefined}
           showQuantity={true}
+          showSyncOption={true}
           onSave={handleSaveEquipment}
           onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
             if (!id) return;
