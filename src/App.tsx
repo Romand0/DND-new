@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import Home from '@/pages/Home';
 import CharacterList from '@/pages/CharacterList';
 import CharacterDetail from '@/pages/CharacterDetail';
+import CharacterInventory from '@/pages/CharacterInventory';
 import SpellList from '@/pages/SpellList';
 import SpellDetail from '@/pages/SpellDetail';
 import Settings from '@/pages/Settings';
@@ -18,6 +19,7 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
+          <Route path="/characters/:id/inventory" element={<CharacterInventory />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="characters" element={<CharacterList />} />

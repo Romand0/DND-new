@@ -1078,151 +1078,161 @@ export default function CharacterDetail() {
                   从装备库添加
                 </button>
               </div>
-              {character.equipment.map((item) => {
-                const isExpanded = expandedEquipment.has(item.id!);
-                return (
-                  <div
-                    key={item.id}
-                    className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden"
-                  >
-                    <div className="p-3">
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
-                            {item.name || '未命名装备'}
+
+              <div className="relative">
+                {character.equipment.slice(0, 5).map((item) => {
+                  const isExpanded = expandedEquipment.has(item.id!);
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden mb-2 last:mb-0"
+                    >
+                      <div className="p-3">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                              {item.name || '未命名装备'}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 flex-wrap text-xs">
+                              <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 dark:text-text-dark light:text-text-light">
+                                {item.category || '—'}
+                              </span>
+                              <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                                <Scale className="w-3 h-3 inline mr-0.5" />
+                                {item.weight != null ? `${item.weight} 磅` : '— 磅'}
+                              </span>
+                              <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                                <Coins className="w-3 h-3 inline mr-0.5" />
+                                {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 mt-1 flex-wrap text-xs">
-                            <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 dark:text-text-dark light:text-text-light">
-                              {item.category || '—'}
-                            </span>
-                            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-                              <Scale className="w-3 h-3 inline mr-0.5" />
-                              {item.weight != null ? `${item.weight} 磅` : '— 磅'}
-                            </span>
-                            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-                              <Coins className="w-3 h-3 inline mr-0.5" />
-                              {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
-                            </span>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleEditEquipment(item as Equipment & { id: string })}
+                                className="p-1.5 rounded hover:bg-primary/20 text-primary"
+                                title="编辑"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(item.id!)}
+                                className="p-1.5 rounded hover:bg-danger/20 text-danger"
+                                title="删除"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateEquipmentQuantity(item.id!, -1);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                                title="减少数量"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="w-6 text-center text-xs dark:text-text-dark light:text-text-light">
+                                ×{item.quantity || 1}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateEquipmentQuantity(item.id!, 1);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                                title="增加数量"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                          <div className="flex items-center gap-1">
-                            <button
-                              onClick={() => handleEditEquipment(item as Equipment & { id: string })}
-                              className="p-1.5 rounded hover:bg-primary/20 text-primary"
-                              title="编辑"
-                            >
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(item.id!)}
-                              className="p-1.5 rounded hover:bg-danger/20 text-danger"
-                              title="删除"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-0.5">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUpdateEquipmentQuantity(item.id!, -1);
-                              }}
-                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
-                              title="减少数量"
-                            >
-                              <Minus className="w-3 h-3" />
-                            </button>
-                            <span className="w-6 text-center text-xs dark:text-text-dark light:text-text-light">
-                              ×{item.quantity || 1}
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleUpdateEquipmentQuantity(item.id!, 1);
-                              }}
-                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
-                              title="增加数量"
-                            >
-                              <Plus className="w-3 h-3" />
-                            </button>
-                          </div>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
+                          <button
+                            onClick={() => toggleEquipmentExpand(item.id!)}
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
+                          >
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="w-3.5 h-3.5" />
+                                收起详情
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                                详情
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
-                        <button
-                          onClick={() => toggleEquipmentExpand(item.id!)}
-                          className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
-                        >
-                          {isExpanded ? (
-                            <>
-                              <ChevronUp className="w-3.5 h-3.5" />
-                              收起详情
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="w-3.5 h-3.5" />
-                              详情
-                            </>
+                      {isExpanded && (
+                        <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
+                          {item.description && (
+                            <div>
+                              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">描述</div>
+                              <div className="text-sm dark:text-text-dark light:text-text-light whitespace-pre-wrap">{item.description}</div>
+                            </div>
                           )}
-                        </button>
-                      </div>
+                          {item.properties && item.properties.length > 0 && (
+                            <div>
+                              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">属性标签</div>
+                              <div className="flex flex-wrap gap-1">
+                                {item.properties.map((prop, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary"
+                                  >
+                                    {prop}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {item.tags && item.tags.length > 0 && (
+                            <div>
+                              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">自由标签</div>
+                              <div className="flex flex-wrap gap-1">
+                                {item.tags.map((tag, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 text-xs rounded-full bg-accent/10 text-accent"
+                                  >
+                                    {tag.key}: {tag.value}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {item.subtype && (
+                            <div>
+                              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">子分类</div>
+                              <div className="text-sm dark:text-text-dark light:text-text-light">{item.subtype}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                    {isExpanded && (
-                      <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
-                        {item.description && (
-                          <div>
-                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">描述</div>
-                            <div className="text-sm dark:text-text-dark light:text-text-light whitespace-pre-wrap">{item.description}</div>
-                          </div>
-                        )}
-                        {item.properties && item.properties.length > 0 && (
-                          <div>
-                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">属性标签</div>
-                            <div className="flex flex-wrap gap-1">
-                              {item.properties.map((prop, idx) => (
-                                <span
-                                  key={idx}
-                                  className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary"
-                                >
-                                  {prop}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {item.tags && item.tags.length > 0 && (
-                          <div>
-                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">自由标签</div>
-                            <div className="flex flex-wrap gap-1">
-                              {item.tags.map((tag, idx) => (
-                                <span
-                                  key={idx}
-                                  className="px-2 py-0.5 text-xs rounded-full bg-accent/10 text-accent"
-                                >
-                                  {tag.key}: {tag.value}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {item.subtype && (
-                          <div>
-                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">子分类</div>
-                            <div className="text-sm dark:text-text-dark light:text-text-light">{item.subtype}</div>
-                          </div>
-                        )}
-                        {item.source && (
-                          <div>
-                            <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">来源</div>
-                            <div className="text-sm dark:text-text-dark light:text-text-light">{item.source}</div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                })}
+
+                {character.equipment.length > 5 && (
+                  <>
+                    <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none bg-gradient-to-t from-transparent dark:from-card-dark light:from-card-light to-transparent" />
+                    <button
+                      onClick={() => navigate(`/characters/${id}/inventory`)}
+                      className="w-full text-center py-2 text-sm text-primary hover:text-primary-dark transition-colors"
+                    >
+                      … 查看全部 {character.equipment.length} 件装备
+                    </button>
+                  </>
+                )}
+              </div>
+
               <div className="flex justify-end mb-3">
                 <button
                   onClick={handleSortEquipment}

@@ -27,6 +27,14 @@ export default function EquipmentList() {
     return unsubscribe;
   }, []);
 
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = { '全部': equipments.length };
+    for (const item of equipments) {
+      counts[item.category] = (counts[item.category] || 0) + 1;
+    }
+    return counts;
+  }, [equipments]);
+
   const filteredEquipments = useMemo(() => {
     return equipments.filter((item) => {
       const matchesCategory = selectedCategory === '全部' || item.category === selectedCategory;
@@ -166,6 +174,7 @@ export default function EquipmentList() {
         </div>
       )}
 
+      {/* 搜索栏 */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
@@ -177,28 +186,42 @@ export default function EquipmentList() {
             className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
           />
         </div>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="px-4 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-        >
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
-            </option>
-          ))}
-        </select>
         <button
           onClick={handleAddNew}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark whitespace-nowrap"
         >
           <Plus className="w-4 h-4" />
           新增装备
         </button>
       </div>
 
-      <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-        共 {filteredEquipments.length} 件装备
+      {/* 分类 tab */}
+      <div className="flex gap-1 border-b dark:border-border-dark light:border-border-light overflow-x-auto -mx-2 px-2">
+        {CATEGORIES.map((cat) => {
+          const count = categoryCounts[cat] || 0;
+          const isActive = selectedCategory === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors relative ${
+                isActive
+                  ? 'text-primary'
+                  : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+              }`}
+            >
+              {cat}
+              <span className={`ml-1.5 text-xs ${
+                isActive ? 'text-primary' : 'dark:text-text-dark-muted light:text-text-light-muted'
+              }`}>
+                {count}
+              </span>
+              {isActive && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid gap-3">
