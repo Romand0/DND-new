@@ -116,7 +116,11 @@ function syncToGitHub(char: Character): void {
   syncStatusCallback?.('syncing');
   const path = `data/players/${char.id}.json`;
   commitFile(path, JSON.stringify(char, null, 2))
-    .then(() => syncStatusCallback?.('synced'))
+    .then(() => {
+      syncStatusCallback?.('synced');
+      // 同时更新索引
+      syncIndexToGitHub();
+    })
     .catch((err) => {
       console.error('[GitHub Sync] 同步失败:', err);
       syncStatusCallback?.('error');
@@ -129,6 +133,25 @@ function syncDeleteToGitHub(charId: string): void {
   deleteFileFromGitHub(path).catch((err) => {
     console.error('[GitHub Sync] 删除失败:', err);
   });
+  // 同时更新索引
+  syncIndexToGitHub();
+}
+
+// 同步角色索引到 GitHub（供玩家端列表使用）
+function syncIndexToGitHub(): void {
+  if (!hasToken()) return;
+  const chars = getStore();
+  const index = chars.map((c) => ({
+    id: c.id,
+    name: c.name,
+    class: c.class,
+    level: c.level,
+    race: c.race,
+    updatedAt: c.updatedAt,
+  }));
+  const path = 'data/players/index.json';
+  commitFile(path, JSON.stringify(index, null, 2), 'update player index')
+    .catch((err) => console.error('[GitHub Sync] 索引同步失败:', err));
 }
 
 // ============================================================
