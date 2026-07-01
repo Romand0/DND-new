@@ -1,7 +1,7 @@
 // DM Toolkit - Home Page Component
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Swords, Users, ScrollText, Coins, Sparkles, ChevronRight, Eye, Settings } from 'lucide-react';
+import { Swords, Users, ScrollText, Coins, Sparkles, ChevronRight } from 'lucide-react';
 import { hasToken } from '@/lib/github';
 import PlayerHome from '@/pages/PlayerHome';
 
@@ -48,21 +48,25 @@ export default function Home() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    // 检查 Token 状态
     const checkToken = () => {
-      const hasTokenValue = hasToken();
-      setIsDM(hasTokenValue);
+      setIsDM(hasToken());
       setChecking(false);
     };
     checkToken();
-    // 监听 storage 变化（其他标签页修改 token）
+
+    // 监听跨标签页 storage 变化
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'github_token') {
-        checkToken();
-      }
+      if (e.key === 'github_token') checkToken();
     };
+    // 监听同标签页 token 变化（Settings 页面保存时派发）
+    const handleTokenChange = () => checkToken();
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('github-token-change', handleTokenChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('github-token-change', handleTokenChange);
+    };
   }, []);
 
   // 加载中状态

@@ -19,7 +19,13 @@ export default function SettingsPage() {
       setError('Token 格式看起来不正确，GitHub Personal Access Token 通常以 ghp_ 或 github_pat_ 开头');
       return;
     }
-    localStorage.setItem(GITHUB_TOKEN_KEY, token);
+    if (token) {
+      localStorage.setItem(GITHUB_TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(GITHUB_TOKEN_KEY);
+    }
+    // 通知其他组件 token 已变化
+    window.dispatchEvent(new CustomEvent('github-token-change'));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };

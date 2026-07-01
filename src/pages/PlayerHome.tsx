@@ -28,8 +28,14 @@ export default function PlayerHome() {
       const sorted = (data || []).sort((a, b) => b.updatedAt - a.updatedAt);
       setPlayers(sorted);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '加载失败');
-      setPlayers([]);
+      // 404 或未配置时显示空列表而非报错
+      const msg = err instanceof Error ? err.message : '加载失败';
+      if (msg.includes('404') || msg.includes('未配置')) {
+        setPlayers([]);
+      } else {
+        setError(msg);
+        setPlayers([]);
+      }
     } finally {
       setLoading(false);
     }
