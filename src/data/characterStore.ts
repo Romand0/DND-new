@@ -646,8 +646,8 @@ for (const [attrKey, config] of Object.entries(SKILL_GROUP_CONFIG)) {
 function getGroupedSkills(char: Character): {
   attribute: AbilityKey;
   attributeLabel: string;
-  save: { key: AbilityKey; label: string; proficient: boolean; bonus: number; modifier: number };
-  skills: { key: SkillKey; label: string; proficient: boolean; bonus: number; extra: number }[];
+  save: { key: AbilityKey; label: string; proficient: boolean; expertise: boolean; bonus: number; modifier: number };
+  skills: { key: SkillKey; label: string; proficient: boolean; expertise: boolean; bonus: number; extra: number }[];
 }[] {
   if (!char) return [];
   const result = [];
@@ -660,6 +660,7 @@ function getGroupedSkills(char: Character): {
     charisma: char.abilities?.charisma?.modifier || 0,
   };
   const saveProfs = char.proficiencies?.savingThrows || [];
+  const saveExpertiseList = char.saveExpertise || [];
   const skills = char.skills || {};
   const profBonus = char.proficiencyBonus || 2;
 
@@ -667,17 +668,23 @@ function getGroupedSkills(char: Character): {
     const key = attrKey as AbilityKey;
     const saveMod = abilityMods[key] || 0;
     const isSaveProficient = saveProfs.includes(key);
-    const saveBonus = saveMod + (isSaveProficient ? profBonus : 0);
+    const isSaveExpertise = saveExpertiseList.includes(key);
+    // 专精时熟练加值翻倍
+    const saveProfBonus = isSaveProficient ? (isSaveExpertise ? profBonus * 2 : profBonus) : 0;
+    const saveBonus = saveMod + saveProfBonus;
 
     const skillList = config.skills.map((skillKey) => {
-      const skillData = skills[skillKey] || { proficient: false, extra: 0 };
+      const skillData = skills[skillKey] || { proficient: false, extra: 0, expertise: false };
       const abilityMod = abilityMods[key] || 0;
-      const profBonusSkill = skillData.proficient ? profBonus : 0;
+      const isExpertise = skillData.expertise || false;
+      // 专精时熟练加值翻倍
+      const profBonusSkill = skillData.proficient ? (isExpertise ? profBonus * 2 : profBonus) : 0;
       const extra = skillData.extra || 0;
       return {
         key: skillKey,
         label: SKILL_LABELS[skillKey] || skillKey,
         proficient: skillData.proficient || false,
+        expertise: isExpertise,
         bonus: abilityMod + profBonusSkill + extra,
         extra: extra,
       };
@@ -690,6 +697,7 @@ function getGroupedSkills(char: Character): {
         key: key,
         label: SAVE_LABELS[key] || (key + '豁免'),
         proficient: isSaveProficient,
+        expertise: isSaveExpertise,
         bonus: saveBonus,
         modifier: saveMod,
       },
@@ -744,9 +752,13 @@ function toggleSkillProficiency(charId: string, skillKey: SkillKey): void {
   const char = getCharacter(charId);
   if (!char || !char.skills) return;
   if (!char.skills[skillKey]) {
-    char.skills[skillKey] = { proficient: false, extra: 0 };
+    char.skills[skillKey] = { proficient: false, extra: 0, expertise: false };
   }
   char.skills[skillKey].proficient = !char.skills[skillKey].proficient;
+  // 取消熟练时也取消专精
+  if (!char.skills[skillKey].proficient) {
+    char.skills[skillKey].expertise = false;
+  }
   saveCharacter(char as Character);
 }
 
@@ -760,6 +772,38 @@ function toggleSaveProficiency(charId: string, saveKey: AbilityKey): void {
     char.proficiencies.savingThrows.push(saveKey);
   } else {
     char.proficiencies.savingThrows.splice(index, 1);
+    // 取消熟练时也取消专精
+    if (char.saveExpertise) {
+      char.saveExpertise = char.saveExpertise.filter(k => k !== saveKey);
+    }
+  }
+  saveCharacter(char as Character);
+}
+
+function toggleSkillExpertise(charId: string, skillKey: SkillKey): void {
+  const char = getCharacter(charId);
+  if (!char || !char.skills) return;
+  if (!char.skills[skillKey]) {
+    char.skills[skillKey] = { proficient: false, extra: 0, expertise: false };
+  }
+  // 只有熟练时才能切换专精
+  if (!char.skills[skillKey].proficient) return;
+  char.skills[skillKey].expertise = !char.skills[skillKey].expertise;
+  saveCharacter(char as Character);
+}
+
+function toggleSaveExpertise(charId: string, saveKey: AbilityKey): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+  // 只有熟练时才能切换专精
+  const isProficient = char.proficiencies?.savingThrows?.includes(saveKey) || false;
+  if (!isProficient) return;
+  if (!char.saveExpertise) char.saveExpertise = [];
+  const index = char.saveExpertise.indexOf(saveKey);
+  if (index === -1) {
+    char.saveExpertise.push(saveKey);
+  } else {
+    char.saveExpertise.splice(index, 1);
   }
   saveCharacter(char as Character);
 }
@@ -1236,6 +1280,8 @@ export const characterStore = {
   getAllSaveBonuses,
   toggleSkillProficiency,
   toggleSaveProficiency,
+  toggleSkillExpertise,
+  toggleSaveExpertise,
   setSkillProficiencies,
   getLevelFromExp,
   getNextLevelInfo,

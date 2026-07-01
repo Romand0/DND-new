@@ -901,7 +901,7 @@ export default function CharacterDetail() {
                   {group.attributeLabel}
                 </span>
                 <span className="text-xs text-primary font-mono">
-                  {group.save.modifier >= 0 ? `+${group.save.modifier}` : group.save.modifier}
+                  {group.save.bonus >= 0 ? `+${group.save.bonus}` : group.save.bonus}
                 </span>
               </div>
               
@@ -913,6 +913,25 @@ export default function CharacterDetail() {
                     : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
                 }`}
               >
+                <button
+                  onClick={() => {
+                    if (group.save.proficient) {
+                      characterStore.toggleSaveExpertise(id!, group.save.key);
+                      reloadChar();
+                    }
+                  }}
+                  disabled={!group.save.proficient}
+                  className={`w-4 h-4 flex items-center justify-center ${
+                    group.save.proficient
+                      ? group.save.expertise
+                        ? 'text-accent'
+                        : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-accent'
+                      : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+                  }`}
+                  title={group.save.proficient ? (group.save.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+                >
+                  <Star className={`w-3.5 h-3.5 ${group.save.expertise ? 'fill-accent' : ''}`} />
+                </button>
                 <input
                   type="checkbox"
                   checked={group.save.proficient}
@@ -952,6 +971,25 @@ export default function CharacterDetail() {
                       : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
                   }`}
                 >
+                  <button
+                    onClick={() => {
+                      if (skill.proficient) {
+                        characterStore.toggleSkillExpertise(id!, skill.key);
+                        reloadChar();
+                      }
+                    }}
+                    disabled={!skill.proficient}
+                    className={`w-4 h-4 flex items-center justify-center ${
+                      skill.proficient
+                        ? skill.expertise
+                          ? 'text-primary'
+                          : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+                        : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+                    }`}
+                    title={skill.proficient ? (skill.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${skill.expertise ? 'fill-primary' : ''}`} />
+                  </button>
                   <input
                     type="checkbox"
                     checked={skill.proficient}
