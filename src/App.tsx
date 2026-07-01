@@ -13,6 +13,7 @@ import Placeholder from '@/pages/Placeholder';
 import InventoryPage from '@/pages/InventoryPage';
 import EquipmentList from '@/pages/EquipmentList';
 import EquipmentDetail from '@/pages/EquipmentDetail';
+import PlayerView from '@/pages/PlayerView';
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/characters/:id/inventory" element={<CharacterInventory />} />
+          <Route path="/player/:playerId" element={<PlayerView />} />
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="characters" element={<CharacterList />} />

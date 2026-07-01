@@ -1,4 +1,4 @@
-// DM Toolkit - Character State Management (localStorage + CRUD)
+// DM Toolkit - Character State Management (localStorage + GitHub Sync)
 // ============================================================
 import type {
   Character,
@@ -11,6 +11,7 @@ import type {
   SkillKey,
   AbilityKey,
 } from '@/types/character';
+import { commitFile, deleteFileFromGitHub, hasToken } from '@/lib/github';
 
 const STORAGE_KEY = 'DND';
 const BACKUP_KEY = 'dm-characters-backup';
@@ -94,7 +95,40 @@ function saveCharacter(charData: Character): Character {
   }
   
   saveStore(chars);
+  // 静默同步到 GitHub（DM 模式）
+  syncToGitHub(charWithTimestamps);
   return charWithTimestamps;
+}
+
+// ============================================================
+// GitHub 同步
+// ============================================================
+
+type SyncStatus = 'syncing' | 'synced' | 'error' | 'idle';
+let syncStatusCallback: ((status: SyncStatus) => void) | null = null;
+
+function onSyncStatus(cb: ((status: SyncStatus) => void) | null): void {
+  syncStatusCallback = cb;
+}
+
+function syncToGitHub(char: Character): void {
+  if (!hasToken()) return;
+  syncStatusCallback?.('syncing');
+  const path = `data/players/${char.id}.json`;
+  commitFile(path, JSON.stringify(char, null, 2))
+    .then(() => syncStatusCallback?.('synced'))
+    .catch((err) => {
+      console.error('[GitHub Sync] 同步失败:', err);
+      syncStatusCallback?.('error');
+    });
+}
+
+function syncDeleteToGitHub(charId: string): void {
+  if (!hasToken()) return;
+  const path = `data/players/${charId}.json`;
+  deleteFileFromGitHub(path).catch((err) => {
+    console.error('[GitHub Sync] 删除失败:', err);
+  });
 }
 
 // ============================================================
@@ -269,6 +303,8 @@ function addCharacter(characterData: Partial<Character>): Character {
 function deleteCharacter(charId: string): void {
   const chars = getStore().filter((c) => c.id !== charId);
   saveStore(chars);
+  // 静默同步删除到 GitHub
+  syncDeleteToGitHub(charId);
 }
 
 function updateCharacter(charId: string, updatedData: Partial<Character>): Character | null {
@@ -1324,4 +1360,7 @@ export const characterStore = {
   updateProficiency,
   
   updateSkill,
+
+  // GitHub 同步
+  onSyncStatus,
 };

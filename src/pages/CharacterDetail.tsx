@@ -102,6 +102,7 @@ function Section({
   return (
     <div className="rounded-xl border overflow-hidden dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
       <button
+        data-section-toggle
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-4 transition-colors dark:hover:bg-card-dark-hover light:hover:bg-card-light-hover"
       >
@@ -122,11 +123,18 @@ function Section({
   );
 }
 
-export default function CharacterDetail() {
+export default function CharacterDetail({
+  readOnly = false,
+  externalCharacter = null,
+}: {
+  readOnly?: boolean;
+  externalCharacter?: Character | null;
+} = {}) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [character, setCharacter] = useState<Character | null>(null);
+  const [character, setCharacter] = useState<Character | null>(externalCharacter);
   const [loading, setLoading] = useState(true);
+  const [syncToast, setSyncToast] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [spellPickerOpen, setSpellPickerOpen] = useState(false);
   const [selectedSpellType, setSelectedSpellType] = useState<'cantrip' | 'spell'>('cantrip');
   const [expandedCantrips, setExpandedCantrips] = useState<Set<number>>(new Set());
@@ -221,12 +229,29 @@ export default function CharacterDetail() {
   };
 
   useEffect(() => {
+    if (externalCharacter) {
+      setCharacter(externalCharacter);
+      setLoading(false);
+      return;
+    }
     if (id) {
       const char = characterStore.get(id);
       setCharacter(char);
       setLoading(false);
     }
-  }, [id]);
+  }, [id, externalCharacter]);
+
+  // 监听 GitHub 同步状态（DM 模式）
+  useEffect(() => {
+    if (readOnly) return;
+    characterStore.onSyncStatus((status) => {
+      setSyncToast(status);
+      if (status === 'synced') {
+        setTimeout(() => setSyncToast('idle'), 2000);
+      }
+    });
+    return () => characterStore.onSyncStatus(null);
+  }, [readOnly]);
 
   useEffect(() => {
     const unsubscribe = spellStore.subscribe(() => {
@@ -618,13 +643,35 @@ export default function CharacterDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <Link
-        to="/characters"
-        className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
-      >
-        <ArrowLeft className="w-5 h-5" />
-      </Link>
+    <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
+      {/* DM 模式同步提示 */}
+      {syncToast === 'syncing' && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg dark:bg-card-dark dark:border dark:border-border-dark light:bg-card-light light:border light:border-border-light shadow-lg">
+          <div className="w-3 h-3 rounded-full bg-warning animate-pulse" />
+          <span className="text-sm dark:text-text-dark light:text-text-light">同步中…</span>
+        </div>
+      )}
+      {syncToast === 'synced' && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg dark:bg-card-dark dark:border dark:border-border-dark light:bg-card-light light:border light:border-border-light shadow-lg">
+          <div className="w-3 h-3 rounded-full bg-success" />
+          <span className="text-sm dark:text-text-dark light:text-text-light">已保存</span>
+        </div>
+      )}
+      {syncToast === 'error' && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg dark:bg-card-dark dark:border dark:border-danger light:bg-card-light light:border light:border-danger shadow-lg">
+          <div className="w-3 h-3 rounded-full bg-danger" />
+          <span className="text-sm dark:text-text-dark light:text-text-light">同步失败</span>
+        </div>
+      )}
+
+      {!readOnly && (
+        <Link
+          to="/characters"
+          className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+      )}
 
       <div className="flex items-center gap-2 flex-wrap">
         <input
@@ -1860,6 +1907,7 @@ export default function CharacterDetail() {
         </div>
       </Section>
 
+      {!readOnly && (
       <div className="flex justify-between items-center pt-4">
         <button
           onClick={() => navigate('/characters')}
@@ -1888,6 +1936,7 @@ export default function CharacterDetail() {
           </button>
         </div>
       </div>
+      )}
 
       <SpellPicker
         isOpen={spellPickerOpen}
@@ -2070,7 +2119,7 @@ export default function CharacterDetail() {
         </div>
       )}
 
-      {genderPickerOpen && (
+      {genderPickerOpen && !readOnly && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setGenderPickerOpen(false)} />
           <div className="relative w-full max-w-xs rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6">
