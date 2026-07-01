@@ -56,14 +56,12 @@ export async function commitFile(
 ): Promise<void> {
   const token = getToken();
   if (!token) {
-    console.warn('[GitHub] 未配置 Token，跳过同步');
-    return;
+    throw new Error('未配置 GitHub Token');
   }
 
   const { owner, repo, branch } = getGitHubConfig();
   if (!owner || !repo) {
-    console.warn('[GitHub] 未配置 owner/repo，跳过同步');
-    return;
+    throw new Error('未配置 GitHub owner/repo（请检查 .env 文件）');
   }
 
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
@@ -137,10 +135,14 @@ export async function readFileFromGitHub<T = string>(path: string): Promise<T> {
  */
 export async function deleteFileFromGitHub(path: string, message?: string): Promise<void> {
   const token = getToken();
-  if (!token) return;
+  if (!token) {
+    throw new Error('未配置 GitHub Token');
+  }
 
   const { owner, repo, branch } = getGitHubConfig();
-  if (!owner || !repo) return;
+  if (!owner || !repo) {
+    throw new Error('未配置 GitHub owner/repo（请检查 .env 文件）');
+  }
 
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}`;
 
@@ -158,10 +160,14 @@ export async function deleteFileFromGitHub(path: string, message?: string): Prom
       sha = data.sha;
     }
   } catch {
+    // 文件不存在，无需删除
     return;
   }
 
-  if (!sha) return;
+  if (!sha) {
+    // 文件不存在，无需删除
+    return;
+  }
 
   const res = await fetch(url, {
     method: 'DELETE',
