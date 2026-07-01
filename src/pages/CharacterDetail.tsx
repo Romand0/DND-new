@@ -901,7 +901,7 @@ export default function CharacterDetail() {
                   {group.attributeLabel}
                 </span>
                 <span className="text-xs text-primary font-mono">
-                  {group.save.bonus >= 0 ? `+${group.save.bonus}` : group.save.bonus}
+                  {group.save.modifier >= 0 ? `+${group.save.modifier}` : group.save.modifier}
                 </span>
               </div>
               
