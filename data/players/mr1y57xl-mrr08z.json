@@ -1,0 +1,189 @@
+{
+  "id": "mr1y57xl-mrr08z",
+  "name": "鱼格涅夫",
+  "gender": "",
+  "class": "战士",
+  "level": 1,
+  "race": "半兽人",
+  "background": "",
+  "alignment": "混沌善良",
+  "experience": 0,
+  "size": "中型",
+  "abilities": {
+    "strength": {
+      "score": 10,
+      "modifier": 0
+    },
+    "dexterity": {
+      "score": 10,
+      "modifier": 0
+    },
+    "constitution": {
+      "score": 10,
+      "modifier": 0
+    },
+    "intelligence": {
+      "score": 10,
+      "modifier": 0
+    },
+    "wisdom": {
+      "score": 10,
+      "modifier": 0
+    },
+    "charisma": {
+      "score": 11,
+      "modifier": 0
+    }
+  },
+  "proficiencyBonus": 2,
+  "passivePerception": 10,
+  "armorClass": 10,
+  "speed": 30,
+  "maxHp": 13,
+  "currentHp": 13,
+  "tempHp": 0,
+  "hitDice": {
+    "type": "d8",
+    "total": 1,
+    "used": 0
+  },
+  "attacks": [],
+  "spells": {
+    "cantrips": [],
+    "spellSlots": {
+      "level1": {
+        "max": 0,
+        "used": 0
+      },
+      "level2": {
+        "max": 0,
+        "used": 0
+      },
+      "level3": {
+        "max": 0,
+        "used": 0
+      },
+      "level4": {
+        "max": 0,
+        "used": 0
+      },
+      "level5": {
+        "max": 0,
+        "used": 0
+      },
+      "level6": {
+        "max": 0,
+        "used": 0
+      },
+      "level7": {
+        "max": 0,
+        "used": 0
+      },
+      "level8": {
+        "max": 0,
+        "used": 0
+      },
+      "level9": {
+        "max": 0,
+        "used": 0
+      }
+    },
+    "custom": []
+  },
+  "equipment": [],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "gp": 0,
+    "pp": 0
+  },
+  "skills": {
+    "acrobatics": {
+      "proficient": false,
+      "extra": 0
+    },
+    "animalHandling": {
+      "proficient": false,
+      "extra": 0
+    },
+    "arcana": {
+      "proficient": false,
+      "extra": 0
+    },
+    "athletics": {
+      "proficient": false,
+      "extra": 0
+    },
+    "deception": {
+      "proficient": false,
+      "extra": 0
+    },
+    "history": {
+      "proficient": false,
+      "extra": 0
+    },
+    "insight": {
+      "proficient": false,
+      "extra": 0
+    },
+    "intimidation": {
+      "proficient": false,
+      "extra": 0
+    },
+    "investigation": {
+      "proficient": false,
+      "extra": 0
+    },
+    "medicine": {
+      "proficient": false,
+      "extra": 0
+    },
+    "nature": {
+      "proficient": false,
+      "extra": 0
+    },
+    "perception": {
+      "proficient": false,
+      "extra": 0
+    },
+    "performance": {
+      "proficient": false,
+      "extra": 0
+    },
+    "persuasion": {
+      "proficient": false,
+      "extra": 0
+    },
+    "religion": {
+      "proficient": false,
+      "extra": 0
+    },
+    "sleightOfHand": {
+      "proficient": false,
+      "extra": 0
+    },
+    "stealth": {
+      "proficient": false,
+      "extra": 0
+    },
+    "survival": {
+      "proficient": false,
+      "extra": 0
+    }
+  },
+  "proficiencies": {
+    "armor": [],
+    "weapons": [],
+    "tools": [],
+    "languages": [],
+    "savingThrows": []
+  },
+  "features": [],
+  "appearance": "",
+  "personality": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "createdAt": 1782902549865,
+  "updatedAt": 1782917483460
+}
