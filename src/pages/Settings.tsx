@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, Link, Save, Check, AlertCircle, LogOut, Github } from 'lucide-react';
+import { Settings as SettingsIcon, Link, Save, Check, AlertCircle, LogOut, Database } from 'lucide-react';
 import { getGitHubConfig } from '@/lib/github';
 
 const GITHUB_TOKEN_KEY = 'github_token';
@@ -128,7 +128,7 @@ export default function SettingsPage() {
 
             <div className="p-4 rounded-lg border border-dashed dark:border-border-dark light:border-border-light">
               <h3 className="text-sm font-medium mb-3 flex items-center gap-2 dark:text-text-dark light:text-text-light">
-                <Github className="w-4 h-4" />
+                <Database className="w-4 h-4" />
                 当前 GitHub 仓库配置
               </h3>
               <div className="text-sm font-mono space-y-1 dark:text-text-dark-muted light:text-text-light-muted">
