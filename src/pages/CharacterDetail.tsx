@@ -783,40 +783,42 @@ export default function CharacterDetail({
                 style={{ width: `${characterStore.getNextLevelInfo(character.experience).expProgress * 100}%` }}
               />
             </div>
-            <input
-              type="number"
-              value={character.experience === 0 ? '' : character.experience}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  // 允许清空，暂不更新 store
-                } else {
-                  const exp = parseInt(val);
-                  if (!isNaN(exp)) {
-                    const level = characterStore.getLevelFromExp(exp);
-                    const proficiencyBonus = Math.ceil(level / 4) + 1;
-                    characterStore.update(id!, { experience: exp, level, proficiencyBonus });
+            {!readOnly && (
+              <input
+                type="number"
+                value={character.experience === 0 ? '' : character.experience}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    // 允许清空，暂不更新 store
+                  } else {
+                    const exp = parseInt(val);
+                    if (!isNaN(exp)) {
+                      const level = characterStore.getLevelFromExp(exp);
+                      const proficiencyBonus = Math.ceil(level / 4) + 1;
+                      characterStore.update(id!, { experience: exp, level, proficiencyBonus });
+                      reloadChar();
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  // 失去焦点时，如果为空，设置为 0
+                  if (e.target.value === '') {
+                    characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
                     reloadChar();
                   }
-                }
-              }}
-              onBlur={(e) => {
-                // 失去焦点时，如果为空，设置为 0
-                if (e.target.value === '') {
-                  characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
-                  reloadChar();
-                }
-              }}
-              onKeyDown={(e) => {
-                // 按回车时，如果为空，设置为 0
-                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                  characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
-                  reloadChar();
-                }
-              }}
-              className="mt-2 w-full px-2 py-1 text-xs bg-white/50 dark:bg-white/10 rounded outline-none dark:text-text-dark light:text-text-light"
-              placeholder="输入经验值..."
-            />
+                }}
+                onKeyDown={(e) => {
+                  // 按回车时，如果为空，设置为 0
+                  if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                    characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                    reloadChar();
+                  }
+                }}
+                className="mt-2 w-full px-2 py-1 text-xs bg-white/50 dark:bg-white/10 rounded outline-none dark:text-text-dark light:text-text-light"
+                placeholder="输入经验值..."
+              />
+            )}
           </div>
 
       <div className="relative">
@@ -1094,44 +1096,55 @@ export default function CharacterDetail({
                 {proficiencyLabels[category]}
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
+                {character.proficiencies[category].length === 0 && (
+                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
+                )}
                 {character.proficiencies[category].map((item, index) => (
                   <div
                     key={index}
                     className="flex items-center gap-1 px-2 py-1 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
                   >
-                    <input
-                      type="text"
-                      value={item}
-                      onChange={(e) => handleUpdateProficiency(category, index, e.target.value)}
-                      className="w-20 px-1 py-0.5 bg-transparent outline-none text-xs dark:text-text-dark light:text-text-light"
-                    />
-                    <button
-                      onClick={() => handleRemoveProficiency(category, index)}
-                      className="p-0.5 rounded hover:bg-danger/20 text-danger flex-shrink-0"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
+                    {readOnly ? (
+                      <span className="text-xs dark:text-text-dark light:text-text-light">{item}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={item}
+                          onChange={(e) => handleUpdateProficiency(category, index, e.target.value)}
+                          className="w-20 px-1 py-0.5 bg-transparent outline-none text-xs dark:text-text-dark light:text-text-light"
+                        />
+                        <button
+                          onClick={() => handleRemoveProficiency(category, index)}
+                          className="p-0.5 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newProficiency[category]}
-                  onChange={(e) =>
-                    setNewProficiency({ ...newProficiency, [category]: e.target.value })
-                  }
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddProficiency(category)}
-                  placeholder="添加..."
-                  className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                />
-                <button
-                  onClick={() => handleAddProficiency(category)}
-                  className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newProficiency[category]}
+                    onChange={(e) =>
+                      setNewProficiency({ ...newProficiency, [category]: e.target.value })
+                    }
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddProficiency(category)}
+                    placeholder="添加..."
+                    className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                  <button
+                    onClick={() => handleAddProficiency(category)}
+                    className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -1296,6 +1309,7 @@ export default function CharacterDetail({
                         </div>
                         <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
                           <button
+                            data-readonly-keep
                             onClick={() => toggleEquipmentExpand(item.id!)}
                             className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
                           >
@@ -1568,6 +1582,7 @@ export default function CharacterDetail({
                       >
                         <div className="flex items-center gap-2 p-2">
                           <button
+                            data-readonly-keep
                             onClick={() => spellInfo && toggleCantripExpand(index)}
                             className="flex-1 flex items-center gap-2 text-left min-w-0"
                           >
@@ -1672,6 +1687,7 @@ export default function CharacterDetail({
                       >
                         <div className="flex items-center gap-2 p-2">
                           <button
+                            data-readonly-keep
                             onClick={() => spellInfo && toggleSpellExpand(index)}
                             className="flex-1 flex items-center gap-2 text-left min-w-0"
                           >
