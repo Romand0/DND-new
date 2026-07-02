@@ -682,7 +682,7 @@ export default function CharacterDetail({
         </Link>
       )}
 
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className={`flex items-center gap-2 flex-wrap ${readOnly ? 'px-2' : ''}`}>
         <input
           type="text"
           value={character.name}
@@ -1381,7 +1381,8 @@ export default function CharacterDetail({
                   <>
                     <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none bg-gradient-to-t from-transparent dark:from-card-dark light:from-card-light to-transparent" />
                     <button
-                      onClick={() => navigate(`/characters/${id}/inventory`)}
+                      data-readonly-keep
+                      onClick={() => navigate(readOnly ? `/player/${character.id}/inventory` : `/characters/${id}/inventory`)}
                       className="w-full text-center py-2 text-sm text-primary hover:text-primary-dark transition-colors"
                     >
                       … 查看全部 {character.equipment.length} 件装备

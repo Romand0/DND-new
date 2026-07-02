@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ChevronLeft,
   Plus,
@@ -19,13 +19,14 @@ import {
   Package as PackageIcon,
   MoreHorizontal,
   Minus,
+  ArrowLeft,
 } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import EquipmentPicker from '@/components/EquipmentPicker';
 import { characterStore } from '@/data/characterStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { commitFile } from '@/utils/github';
-import type { Equipment } from '@/types/character';
+import type { Equipment, Character } from '@/types/character';
 import type { EquipmentItem } from '@/types/equipment';
 
 const CATEGORIES = [
@@ -39,10 +40,16 @@ const CATEGORIES = [
   { key: '自定义', label: '自定义', icon: MoreHorizontal },
 ];
 
-export default function CharacterInventory() {
+export default function CharacterInventory({
+  readOnly = false,
+  externalCharacter = null,
+}: {
+  readOnly?: boolean;
+  externalCharacter?: Character | null;
+} = {}) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const character = id ? characterStore.get(id) : null;
+  const character = externalCharacter || (id ? characterStore.get(id) : null);
 
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
@@ -246,16 +253,26 @@ export default function CharacterInventory() {
   };
 
   return (
-    <div className="min-h-screen flex dark:bg-bg-dark light:bg-bg-light-1">
+    <div className={`min-h-screen flex dark:bg-bg-dark light:bg-bg-light-1 ${readOnly ? 'read-only-mode' : ''}`}>
       {/* 侧边栏 */}
       <div className="w-20 md:w-24 border-r dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light flex flex-col items-center py-4 gap-2">
-        <button
-          onClick={() => navigate(`/characters/${id}`)}
-          className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-2"
-          title="返回角色卡"
-        >
-          <ChevronLeft className="w-5 h-5" />
-        </button>
+        {!readOnly ? (
+          <button
+            onClick={() => navigate(`/characters/${id}`)}
+            className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-2"
+            title="返回角色卡"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+        ) : (
+          <Link
+            to={`/player/${character?.id}`}
+            className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-2"
+            title="返回角色卡"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+        )}
         {CATEGORIES.map((cat) => {
           const Icon = cat.icon;
           const count =
@@ -296,23 +313,27 @@ export default function CharacterInventory() {
               </p>
             </div>
             <div className="flex gap-2">
-              <button
-                onClick={handleAddEquipment}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
-              >
-                <Plus className="w-4 h-4" />
-                新增
-              </button>
-              <button
-                onClick={() => setEquipmentPickerOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10"
-              >
-                从装备库
-              </button>
+              {!readOnly && (
+                <>
+                  <button
+                    onClick={handleAddEquipment}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
+                  >
+                    <Plus className="w-4 h-4" />
+                    新增
+                  </button>
+                  <button
+                    onClick={() => setEquipmentPickerOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10"
+                  >
+                    从装备库
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {selectedCategory === 'all' && (
+          {selectedCategory === 'all' && !readOnly && (
             <div className="flex justify-end">
               <button
                 onClick={handleSortEquipment}
@@ -404,6 +425,7 @@ export default function CharacterInventory() {
                       </div>
                       <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
                         <button
+                          data-readonly-keep
                           onClick={() => toggleEquipmentExpand(itemId)}
                           className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
                         >
