@@ -1,7 +1,7 @@
 // 玩家主页 - 从 GitHub 读取角色列表供选择
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, RefreshCw, AlertCircle, Users } from 'lucide-react';
+import { Eye, RefreshCw, AlertCircle, Users, Shield } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { readFileFromGitHub } from '@/lib/github';
 
@@ -33,6 +33,17 @@ export default function PlayerHome() {
   useEffect(() => {
     loadPlayers();
   }, []);
+
+  const hpPercentage = (char: Character) => {
+    if (char.maxHp === 0) return 0;
+    return Math.max(0, Math.min(100, (char.currentHp / char.maxHp) * 100));
+  };
+
+  const getHpColor = (percentage: number) => {
+    if (percentage > 60) return 'bg-success';
+    if (percentage > 30) return 'bg-warning';
+    return 'bg-danger';
+  };
 
   if (loading) {
     return (
@@ -98,34 +109,106 @@ export default function PlayerHome() {
       )}
 
       {players.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {players.map((player) => (
-            <Link
+            <div
               key={player.id}
-              to={`/player/${player.id}`}
-              className="group p-4 rounded-xl border transition-all hover:shadow-lg hover:-translate-y-1 dark:bg-card-dark dark:border-border-dark dark:hover:border-primary/50 light:bg-card-light light:border-border-light light:hover:border-primary/50"
+              className="group rounded-xl border overflow-hidden transition-all hover:shadow-lg dark:bg-card-dark dark:border-border-dark dark:hover:border-primary/50 light:bg-card-light light:border-border-light light:hover:border-primary/50"
             >
-              <div className="flex items-start justify-between mb-3">
-                <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
-                  {player.name || '未命名角色'}
-                </h3>
-                <Eye className="w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
+              <Link to={`/player/${player.id}`} className="block">
+                <div className="h-24 bg-gradient-to-br from-primary/30 via-accent/20 to-transparent relative">
+                  <div className="absolute bottom-3 left-4">
+                    <div className="text-xl font-bold dark:text-text-dark light:text-text-light drop-shadow-lg">
+                      {player.name || '未命名角色'}
+                    </div>
+                    <div className="text-sm dark:text-text-dark/80 light:text-text-light/80">
+                      {player.race || '未知种族'} · {player.class || '未知职业'}
+                    </div>
+                  </div>
+                  <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/30 text-white text-sm font-medium">
+                    <Shield className="w-3.5 h-3.5" />
+                    Lv.{player.level}
+                  </div>
+                </div>
+              </Link>
+
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-3 gap-3 text-center">
+                  <div className="p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">生命</div>
+                    <div className="font-bold dark:text-text-dark light:text-text-light">
+                      {player.currentHp}/{player.maxHp}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">护甲</div>
+                    <div className="font-bold dark:text-text-dark light:text-text-light">
+                      {player.armorClass}
+                    </div>
+                  </div>
+                  <div className="p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">速度</div>
+                    <div className="font-bold dark:text-text-dark light:text-text-light">
+                      {player.speed}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-xs">
+                    <span className="dark:text-text-dark-muted light:text-text-light-muted">生命值</span>
+                    <span className="font-medium dark:text-text-dark light:text-text-light">
+                      {player.currentHp}/{player.maxHp}
+                    </span>
+                  </div>
+                  <div className="h-2 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${getHpColor(hpPercentage(player))}`}
+                      style={{ width: `${hpPercentage(player)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-6 gap-1">
+                  {(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const).map(
+                    (ability) => (
+                      <div key={ability} className="text-center">
+                        <div className="text-xs uppercase dark:text-text-dark-muted light:text-text-light-muted">
+                          {ability === 'strength'
+                            ? '力'
+                            : ability === 'dexterity'
+                            ? '敏'
+                            : ability === 'constitution'
+                            ? '体'
+                            : ability === 'intelligence'
+                            ? '智'
+                            : ability === 'wisdom'
+                            ? '感'
+                            : '魅'}
+                        </div>
+                        <div className="text-sm font-bold dark:text-text-dark light:text-text-light">
+                          {player.abilities?.[ability]?.modifier !== undefined
+                            ? player.abilities[ability].modifier >= 0
+                              ? `+${player.abilities[ability].modifier}`
+                              : player.abilities[ability].modifier
+                            : '+0'}
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2 border-t dark:border-border-dark light:border-border-light">
+                  <Link
+                    to={`/player/${player.id}`}
+                    className="flex-1 text-center py-2 text-sm font-medium rounded-lg transition-colors dark:bg-bg-dark dark:hover:bg-border-dark dark:text-text-dark light:bg-bg-light-2 light:hover:bg-bg-light-3 light:text-text-light flex items-center justify-center gap-1.5"
+                  >
+                    <Eye className="w-4 h-4" />
+                    查看详情
+                  </Link>
+                </div>
               </div>
-              <div className="space-y-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                {player.class && (
-                  <p>
-                    <span className="font-medium dark:text-text-dark light:text-text-light">{player.class}</span>
-                    {player.level && <span> · Lv.{player.level}</span>}
-                  </p>
-                )}
-                {player.race && <p>{player.race}</p>}
-                {player.updatedAt && (
-                  <p className="text-xs">
-                    更新于 {new Date(player.updatedAt).toLocaleDateString('zh-CN')}
-                  </p>
-                )}
-              </div>
-            </Link>
+            </div>
           ))}
         </div>
       )}
