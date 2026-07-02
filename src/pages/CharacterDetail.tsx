@@ -36,6 +36,7 @@ import SpellPicker from '@/components/SpellPicker';
 import EquipmentPicker from '@/components/EquipmentPicker';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import AttackEditor from '@/components/AttackEditor';
+import SyncButton from '@/components/SyncButton';
 import { commitFile } from '@/utils/github';
 
 const abilityLabels: Record<AbilityKey, string> = {
@@ -2179,6 +2180,9 @@ export default function CharacterDetail({
           }}
         />
       )}
+
+      {/* DM 模式下显示浮动同步按钮 */}
+      {!readOnly && <SyncButton />}
     </div>
   );
 }

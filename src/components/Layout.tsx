@@ -1,6 +1,7 @@
 // DM Toolkit - Page Layout Component
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
+import SyncButton from './SyncButton';
 
 export default function Layout() {
   return (
@@ -11,6 +12,7 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
+      <SyncButton />
     </div>
   );
 }

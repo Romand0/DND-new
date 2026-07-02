@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import EquipmentPicker from '@/components/EquipmentPicker';
+import SyncButton from '@/components/SyncButton';
 import { characterStore } from '@/data/characterStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { commitFile } from '@/utils/github';
@@ -596,6 +597,9 @@ export default function CharacterInventory({
           </div>
         </div>
       )}
+
+      {/* DM 模式下显示浮动同步按钮 */}
+      {!readOnly && <SyncButton />}
     </div>
   );
 }

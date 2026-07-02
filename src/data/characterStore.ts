@@ -86,22 +86,21 @@ function saveCharacter(charData: Character): Character {
   const index = chars.findIndex((c) => c.id === charData.id);
   const now = Date.now();
   const charWithTimestamps = { ...charData, updatedAt: now };
-  
+
   if (index === -1) {
     charWithTimestamps.createdAt = now;
     chars.push(charWithTimestamps);
   } else {
     chars[index] = { ...chars[index], ...charWithTimestamps };
   }
-  
+
   saveStore(chars);
-  // 静默同步到 GitHub（DM 模式）
-  syncToGitHub(charWithTimestamps);
+  // 不再自动同步，改为手动同步（浮动按钮触发）
   return charWithTimestamps;
 }
 
 // ============================================================
-// GitHub 同步
+// GitHub 同步（手动触发）
 // ============================================================
 
 type SyncStatus = 'syncing' | 'synced' | 'error' | 'idle';
@@ -111,36 +110,66 @@ function onSyncStatus(cb: ((status: SyncStatus) => void) | null): void {
   syncStatusCallback = cb;
 }
 
-// 防抖：合并连续编辑，避免快速编辑触发并发提交导致 409 冲突
-const SYNC_DEBOUNCE_MS = 1500;
-const pendingSync: Map<string, { char: Character; timer: number }> = new Map();
-
-function syncToGitHub(char: Character): void {
-  if (!hasToken()) return;
-  syncStatusCallback?.('syncing');
-
-  // 取消该角色已有的待执行同步，保留最新版本
-  const existing = pendingSync.get(char.id);
-  if (existing) {
-    clearTimeout(existing.timer);
+// 手动同步单个角色到 GitHub
+function syncCharacterToGitHub(charId: string): Promise<void> {
+  if (!hasToken()) {
+    return Promise.reject(new Error('未配置 GitHub Token'));
+  }
+  const char = getCharacter(charId);
+  if (!char) {
+    return Promise.reject(new Error('角色不存在'));
   }
 
-  const timer = window.setTimeout(() => {
-    pendingSync.delete(char.id);
-    const path = `data/players/${char.id}.json`;
-    commitFile(path, JSON.stringify(char, null, 2))
-      .then(() => {
-        syncStatusCallback?.('synced');
-        // 同时更新索引
-        syncIndexToGitHub();
-      })
-      .catch((err) => {
-        console.error('[GitHub Sync] 同步失败:', err);
-        syncStatusCallback?.('error');
-      });
-  }, SYNC_DEBOUNCE_MS);
+  syncStatusCallback?.('syncing');
+  const path = `data/players/${char.id}.json`;
+  return commitFile(path, JSON.stringify(char, null, 2))
+    .then(() => {
+      syncStatusCallback?.('synced');
+      syncIndexToGitHub();
+    })
+    .catch((err) => {
+      console.error('[GitHub Sync] 同步失败:', err);
+      syncStatusCallback?.('error');
+      throw err;
+    });
+}
 
-  pendingSync.set(char.id, { char, timer });
+// 手动同步所有角色到 GitHub
+async function syncAllToGitHub(): Promise<{ success: number; failed: number }> {
+  if (!hasToken()) {
+    throw new Error('未配置 GitHub Token');
+  }
+
+  syncStatusCallback?.('syncing');
+  const chars = getStore();
+  let success = 0;
+  let failed = 0;
+
+  for (const char of chars) {
+    const path = `data/players/${char.id}.json`;
+    try {
+      await commitFile(path, JSON.stringify(char, null, 2));
+      success++;
+    } catch (err) {
+      console.error(`[GitHub Sync] 角色 ${char.name} 同步失败:`, err);
+      failed++;
+    }
+  }
+
+  // 同步索引
+  try {
+    await syncIndexToGitHub();
+  } catch (err) {
+    console.error('[GitHub Sync] 索引同步失败:', err);
+  }
+
+  if (failed === 0) {
+    syncStatusCallback?.('synced');
+  } else {
+    syncStatusCallback?.('error');
+  }
+
+  return { success, failed };
 }
 
 function syncDeleteToGitHub(charId: string): void {
@@ -154,8 +183,8 @@ function syncDeleteToGitHub(charId: string): void {
 }
 
 // 同步角色索引到 GitHub（供玩家端列表使用）
-function syncIndexToGitHub(): void {
-  if (!hasToken()) return;
+function syncIndexToGitHub(): Promise<void> {
+  if (!hasToken()) return Promise.resolve();
   const chars = getStore();
   const index = chars.map((c) => ({
     id: c.id,
@@ -166,8 +195,11 @@ function syncIndexToGitHub(): void {
     updatedAt: c.updatedAt,
   }));
   const path = 'data/players/index.json';
-  commitFile(path, JSON.stringify(index, null, 2), 'update player index')
-    .catch((err) => console.error('[GitHub Sync] 索引同步失败:', err));
+  return commitFile(path, JSON.stringify(index, null, 2), 'update player index')
+    .catch((err) => {
+      console.error('[GitHub Sync] 索引同步失败:', err);
+      throw err;
+    });
 }
 
 // ============================================================
@@ -1400,6 +1432,8 @@ export const characterStore = {
   
   updateSkill,
 
-  // GitHub 同步
+  // GitHub 同步（手动触发）
   onSyncStatus,
+  syncCharacterToGitHub,
+  syncAllToGitHub,
 };
