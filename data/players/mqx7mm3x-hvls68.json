@@ -269,6 +269,22 @@
       "subtype": "服装"
     },
     {
+      "id": "mr0rdr8c-u31aa5",
+      "name": "口粮（一日份）",
+      "quantity": 5,
+      "category": "杂物",
+      "description": "适合长途旅行携带的高能量干粮，包括牛肉干、干果、饼干和坚果等。",
+      "weight": 2,
+      "price": {
+        "amount": 5,
+        "unit": "sp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "玩家手册",
+      "subtype": "食品"
+    },
+    {
       "id": "mr0l9ip2-8fj1go",
       "name": "铺盖",
       "quantity": 1,
@@ -325,22 +341,6 @@
       ],
       "source": "玩家手册",
       "subtype": "容器"
-    },
-    {
-      "id": "mr0rdr8c-u31aa5",
-      "name": "口粮（一日份）",
-      "quantity": 5,
-      "category": "杂物",
-      "description": "适合长途旅行携带的高能量干粮，包括牛肉干、干果、饼干和坚果等。",
-      "weight": 2,
-      "price": {
-        "amount": 5,
-        "unit": "sp"
-      },
-      "properties": [],
-      "tags": [],
-      "source": "玩家手册",
-      "subtype": "食品"
     }
   ],
   "currency": {
@@ -461,6 +461,6 @@
   "bonds": "来冒险前我欠了乐队吉他手 5 万 gp 没还",
   "flaws": "白嫖。我的艺术不能用金钱来衡量——说白了就是不想付钱，让队友付吧。",
   "createdAt": 1782620872048,
-  "updatedAt": 1782963758627,
+  "updatedAt": 1782975972755,
   "gender": "female"
 }
