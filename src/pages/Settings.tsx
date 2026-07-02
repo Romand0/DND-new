@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings as SettingsIcon, Link, Save, Check, AlertCircle, LogOut } from 'lucide-react';
+import { Settings as SettingsIcon, Link, Save, Check, AlertCircle, LogOut, Github } from 'lucide-react';
+import { getGitHubConfig } from '@/lib/github';
 
 const GITHUB_TOKEN_KEY = 'github_token';
 
@@ -123,6 +124,21 @@ export default function SettingsPage() {
                 <li>点击 "Generate new token"，勾选 <span className="px-1 rounded dark:bg-bg-dark light:bg-bg-light font-mono">repo</span> 权限</li>
                 <li>生成后复制 token 并粘贴到上方输入框</li>
               </ol>
+            </div>
+
+            <div className="p-4 rounded-lg border border-dashed dark:border-border-dark light:border-border-light">
+              <h3 className="text-sm font-medium mb-3 flex items-center gap-2 dark:text-text-dark light:text-text-light">
+                <Github className="w-4 h-4" />
+                当前 GitHub 仓库配置
+              </h3>
+              <div className="text-sm font-mono space-y-1 dark:text-text-dark-muted light:text-text-light-muted">
+                <p>Owner: <span className={getGitHubConfig().owner ? 'text-success' : 'text-danger'}>{getGitHubConfig().owner || '(未配置)'}</span></p>
+                <p>Repo: <span className={getGitHubConfig().repo ? 'text-success' : 'text-danger'}>{getGitHubConfig().repo || '(未配置)'}</span></p>
+                <p>Branch: <span className="text-primary">{getGitHubConfig().branch}</span></p>
+              </div>
+              <p className="text-xs mt-3 dark:text-text-dark-muted light:text-text-light-muted">
+                如果上面显示为空，说明环境变量未正确注入，请在 Cloudflare Pages 设置中配置 VITE_GITHUB_OWNER、VITE_GITHUB_REPO、VITE_GITHUB_BRANCH
+              </p>
             </div>
           </div>
         </div>
