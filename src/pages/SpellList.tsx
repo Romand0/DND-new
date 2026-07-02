@@ -200,6 +200,9 @@ export default function SpellList() {
           <thead>
             <tr className="border-b dark:border-border-dark light:border-border-light">
               <th className="text-left px-4 py-3 text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">
+                ID
+              </th>
+              <th className="text-left px-4 py-3 text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">
                 名称
               </th>
               <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">
@@ -223,7 +226,7 @@ export default function SpellList() {
             {sortedSpells.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-4 py-12 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted"
                 >
                   暂无匹配的法术
@@ -235,6 +238,11 @@ export default function SpellList() {
                   key={spell.id}
                   className="border-b last:border-0 dark:border-border-dark/50 light:border-border-light/50 hover:bg-white/5 dark:hover:bg-white/5 light:hover:bg-black/5 transition-colors"
                 >
+                  <td className="px-4 py-3">
+                    <span className="text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">
+                      {spell.id}
+                    </span>
+                  </td>
                   <td className="px-4 py-3">
                     <button
                       onClick={() => navigate(`/spells/${spell.id}`)}

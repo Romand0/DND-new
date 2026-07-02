@@ -240,6 +240,9 @@ export default function EquipmentList() {
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">
+                    {item.id}
+                  </span>
                   <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors truncate">
                     {item.name}
                   </h3>
