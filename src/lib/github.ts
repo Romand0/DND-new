@@ -106,7 +106,11 @@ export async function commitFile(
     }
 
     const errData = await res.json().catch(() => ({}));
-    lastError = new Error(`GitHub API 错误: ${res.status} ${errData.message || res.statusText}`);
+    let errMsg = `GitHub API 错误: ${res.status} ${errData.message || res.statusText}`;
+    if (res.status === 404) {
+      errMsg += `\n\n请求地址: ${url}\n\n可能原因:\n1. Token 没有 repo 权限（GitHub 对无权限的私有仓库返回 404 而不是 403）\n2. 仓库 owner/repo 配置错误\n3. 分支名称错误`;
+    }
+    lastError = new Error(errMsg);
 
     if ((res.status === 409 || res.status === 422) && attempt < MAX_RETRIES) {
       await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
