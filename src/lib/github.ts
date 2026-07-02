@@ -71,37 +71,53 @@ export async function commitFile(
     branch,
   };
 
-  // 先尝试获取现有文件的 sha（用于更新而非新增）
-  let sha: string | undefined;
-  try {
-    const res = await fetch(`${url}?ref=${branch}`, {
+  // 重试机制：sha 过期会返回 409/422，重新获取 sha 后重试
+  const MAX_RETRIES = 2;
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    // 每次尝试前重新获取 sha（避免使用过期 sha）
+    let sha: string | undefined;
+    try {
+      const res = await fetch(`${url}?ref=${branch}`, {
+        headers: {
+          Authorization: `token ${token}`,
+          Accept: 'application/vnd.github.v3+json',
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        sha = data.sha;
+      }
+    } catch {
+      // 文件不存在，继续创建
+    }
+
+    const res = await fetch(url, {
+      method: 'PUT',
       headers: {
         Authorization: `token ${token}`,
+        'Content-Type': 'application/json',
         Accept: 'application/vnd.github.v3+json',
       },
+      body: JSON.stringify(sha ? { ...body, sha } : body),
     });
+
     if (res.ok) {
-      const data = await res.json();
-      sha = data.sha;
+      return;
     }
-  } catch {
-    // 文件不存在，继续创建
-  }
 
-  const res = await fetch(url, {
-    method: 'PUT',
-    headers: {
-      Authorization: `token ${token}`,
-      'Content-Type': 'application/json',
-      Accept: 'application/vnd.github.v3+json',
-    },
-    body: JSON.stringify(sha ? { ...body, sha } : body),
-  });
-
-  if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(`GitHub API 错误: ${res.status} ${err.message || res.statusText}`);
+    lastError = new Error(`GitHub API 错误: ${res.status} ${err.message || res.statusText}`);
+
+    // 409（冲突）或 422（sha 不匹配）时，重新获取 sha 后重试
+    if ((res.status === 409 || res.status === 422) && attempt < MAX_RETRIES) {
+      await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
+      continue;
+    }
+    throw lastError;
   }
+  throw lastError || new Error('GitHub 提交失败');
 }
 
 /**

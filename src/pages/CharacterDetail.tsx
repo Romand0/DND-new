@@ -1442,7 +1442,14 @@ export default function CharacterDetail({
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === '') {
-                        // 允许清空，暂不更新 store
+                        // 立即更新为 0（value 逻辑：0 显示为空，视觉上仍为空）
+                        characterStore.update(id!, {
+                          currency: {
+                            ...character!.currency,
+                            [coin]: 0,
+                          },
+                        });
+                        reloadChar();
                       } else {
                         const num = parseInt(val);
                         if (!isNaN(num)) {
@@ -1454,28 +1461,6 @@ export default function CharacterDetail({
                           });
                           reloadChar();
                         }
-                      }
-                    }}
-                    onBlur={(e) => {
-                      if (e.target.value === '') {
-                        characterStore.update(id!, {
-                          currency: {
-                            ...character!.currency,
-                            [coin]: 0,
-                          },
-                        });
-                        reloadChar();
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                        characterStore.update(id!, {
-                          currency: {
-                            ...character!.currency,
-                            [coin]: 0,
-                          },
-                        });
-                        reloadChar();
                       }
                     }}
                     placeholder="0"

@@ -111,20 +111,36 @@ function onSyncStatus(cb: ((status: SyncStatus) => void) | null): void {
   syncStatusCallback = cb;
 }
 
+// 防抖：合并连续编辑，避免快速编辑触发并发提交导致 409 冲突
+const SYNC_DEBOUNCE_MS = 1500;
+const pendingSync: Map<string, { char: Character; timer: number }> = new Map();
+
 function syncToGitHub(char: Character): void {
   if (!hasToken()) return;
   syncStatusCallback?.('syncing');
-  const path = `data/players/${char.id}.json`;
-  commitFile(path, JSON.stringify(char, null, 2))
-    .then(() => {
-      syncStatusCallback?.('synced');
-      // 同时更新索引
-      syncIndexToGitHub();
-    })
-    .catch((err) => {
-      console.error('[GitHub Sync] 同步失败:', err);
-      syncStatusCallback?.('error');
-    });
+
+  // 取消该角色已有的待执行同步，保留最新版本
+  const existing = pendingSync.get(char.id);
+  if (existing) {
+    clearTimeout(existing.timer);
+  }
+
+  const timer = window.setTimeout(() => {
+    pendingSync.delete(char.id);
+    const path = `data/players/${char.id}.json`;
+    commitFile(path, JSON.stringify(char, null, 2))
+      .then(() => {
+        syncStatusCallback?.('synced');
+        // 同时更新索引
+        syncIndexToGitHub();
+      })
+      .catch((err) => {
+        console.error('[GitHub Sync] 同步失败:', err);
+        syncStatusCallback?.('error');
+      });
+  }, SYNC_DEBOUNCE_MS);
+
+  pendingSync.set(char.id, { char, timer });
 }
 
 function syncDeleteToGitHub(charId: string): void {
