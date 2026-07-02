@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import Layout from '@/components/Layout';
+import PlayerLayout from '@/components/PlayerLayout';
 import Home from '@/pages/Home';
 import CharacterList from '@/pages/CharacterList';
 import CharacterDetail from '@/pages/CharacterDetail';
@@ -21,9 +22,23 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
+          {/* 独立页面（无导航栏） */}
           <Route path="/characters/:id/inventory" element={<CharacterInventory />} />
-          <Route path="/player/:playerId/inventory" element={<PlayerInventory />} />
-          <Route path="/player/:playerId" element={<PlayerView />} />
+
+          {/* 玩家端（精简导航栏：战斗记录、物资钱币、法术库） */}
+          <Route element={<PlayerLayout />}>
+            <Route path="/player/:playerId" element={<PlayerView />} />
+            <Route path="/player/:playerId/inventory" element={<PlayerInventory />} />
+            <Route
+              path="/player/combat"
+              element={<Placeholder title="战斗记录" description="战斗追踪与回合管理功能即将上线" />}
+            />
+            <Route path="/player/inventory" element={<InventoryPage />} />
+            <Route path="/player/spells" element={<SpellList />} />
+            <Route path="/player/spells/:id" element={<SpellDetail />} />
+          </Route>
+
+          {/* DM 端（完整导航栏） */}
           <Route path="/" element={<Layout />}>
             <Route index element={<Home />} />
             <Route path="characters" element={<CharacterList />} />
