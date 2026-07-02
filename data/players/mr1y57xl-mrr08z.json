@@ -31,7 +31,7 @@
       "modifier": 0
     },
     "charisma": {
-      "score": 11,
+      "score": 10,
       "modifier": 0
     }
   },
@@ -185,5 +185,5 @@
   "bonds": "",
   "flaws": "",
   "createdAt": 1782902549865,
-  "updatedAt": 1782917488271
+  "updatedAt": 1782917500092
 }
