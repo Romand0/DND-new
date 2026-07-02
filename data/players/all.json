@@ -770,7 +770,9 @@
         "精灵语",
         "矮人语"
       ],
-      "savingThrows": []
+      "savingThrows": [
+        "constitution"
+      ]
     },
     "features": [
       {
@@ -786,7 +788,7 @@
     "bonds": "来冒险前我欠了乐队吉他手 5 万 gp 没还",
     "flaws": "白嫖。我的艺术不能用金钱来衡量——说白了就是不想付钱，让队友付吧。",
     "createdAt": 1782620872048,
-    "updatedAt": 1782986760864,
+    "updatedAt": 1782986774387,
     "gender": "female"
   },
   {
