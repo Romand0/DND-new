@@ -1,0 +1,472 @@
+{
+  "id": "mqx7mm3x-hvls68",
+  "name": "罗勒",
+  "class": "吟游诗人",
+  "level": 0,
+  "race": "半精灵",
+  "background": "艺人",
+  "alignment": "守序善良",
+  "experience": 0,
+  "size": "中型",
+  "abilities": {
+    "strength": {
+      "score": 8,
+      "modifier": -1
+    },
+    "dexterity": {
+      "score": 15,
+      "modifier": 2
+    },
+    "constitution": {
+      "score": 15,
+      "modifier": 2
+    },
+    "intelligence": {
+      "score": 10,
+      "modifier": 0
+    },
+    "wisdom": {
+      "score": 12,
+      "modifier": 1
+    },
+    "charisma": {
+      "score": 16,
+      "modifier": 3
+    }
+  },
+  "proficiencyBonus": 2,
+  "passivePerception": 10,
+  "armorClass": 13,
+  "speed": 30,
+  "maxHp": 10,
+  "currentHp": 10,
+  "tempHp": 0,
+  "hitDice": {
+    "type": "d8",
+    "total": 1,
+    "used": 0
+  },
+  "attacks": [
+    {
+      "id": "mqxfy635-2w3pp9",
+      "name": "刺剑",
+      "attackBonus": "+1",
+      "damage": "1d8",
+      "damageType": "穿刺",
+      "range": "",
+      "properties": [
+        "灵巧"
+      ]
+    },
+    {
+      "id": "mqxgvdwu-koia40",
+      "name": "匕首",
+      "attackBonus": "+4",
+      "damage": "1d4",
+      "damageType": "穿刺",
+      "range": "",
+      "properties": [
+        "灵巧",
+        "轻型",
+        "掷射"
+      ]
+    }
+  ],
+  "spells": {
+    "cantrips": [
+      "恶语相加",
+      "法师之手"
+    ],
+    "spellSlots": {
+      "level1": {
+        "max": 0,
+        "used": 2
+      },
+      "level2": {
+        "max": 0,
+        "used": 0
+      },
+      "level3": {
+        "max": 0,
+        "used": 0
+      },
+      "level4": {
+        "max": 0,
+        "used": 0
+      },
+      "level5": {
+        "max": 0,
+        "used": 0
+      },
+      "level6": {
+        "max": 0,
+        "used": 0
+      },
+      "level7": {
+        "max": 0,
+        "used": 0
+      },
+      "level8": {
+        "max": 0,
+        "used": 0
+      },
+      "level9": {
+        "max": 0,
+        "used": 0
+      }
+    },
+    "custom": [
+      "不谐低语",
+      "治愈真言",
+      "魅惑人类",
+      "塔莎狂笑术"
+    ]
+  },
+  "equipment": [
+    {
+      "id": "mr0lz33k-tcbkr7",
+      "name": "刺剑",
+      "quantity": 1,
+      "category": "武器",
+      "description": "近战武器，专为敏捷决斗者打造，无声优雅，给出精准致命的一击。",
+      "weight": 2,
+      "price": {
+        "amount": 25,
+        "unit": "gp"
+      },
+      "properties": [
+        "灵巧"
+      ],
+      "tags": [],
+      "source": "玩家手册",
+      "subtype": "军用武器"
+    },
+    {
+      "id": "mqzaho7n-6cn5mp",
+      "name": "皮甲",
+      "quantity": 1,
+      "category": "护甲",
+      "description": "该护甲的护胸和护肩由通过油煮硬化的皮子制成。护甲的其余部分则由更软更灵活的材料制作。\n\n穿戴时，AC = 11 + 敏捷。\n\n当进行玩家隐匿时，检定带劣势。",
+      "weight": 10,
+      "price": {
+        "amount": 10,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "玩家手册",
+      "subtype": "轻甲"
+    },
+    {
+      "id": "mqz9bi03-z56lre",
+      "name": "魔法贝斯",
+      "quantity": 1,
+      "category": "法器",
+      "description": "带有魔法的贝斯，施法道具。\n\n当使用贝斯进行施法时，可选择进行一次表演检定（d20 + 熟练 + 魅力）以免引起旁人注意。若检定结果 ≥ 目标被动感知，没有人发现你在施法；反之，你引起警惕，但不立即进入战斗。",
+      "weight": 8,
+      "price": {
+        "amount": 35,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "自定义",
+      "subtype": "乐器"
+    },
+    {
+      "id": "mr0lt3hu-qxm8ms",
+      "name": "奇妙吉他",
+      "quantity": 1,
+      "category": "法器",
+      "description": "带有魔法的吉他，施法道具。\n\n当使用吉他进行施法时，30 尺内的友方生物在对抗恐惧（Frightened） 效果的豁免检定中具有优势。\n\n当玩家在公开场合进行表演时，表演检定具有优势。",
+      "weight": 5,
+      "price": {
+        "amount": 30,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "自定义",
+      "subtype": "乐器"
+    },
+    {
+      "id": "mr0ip1it-5whsw0",
+      "name": "蜡烛",
+      "quantity": 5,
+      "category": "工具",
+      "description": "为身边 5 尺半径范围提供明亮光照，以及该范围外 5 尺的微光光照。照明效果持续 1 小时。",
+      "weight": 0,
+      "price": {
+        "amount": 1,
+        "unit": "cp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "玩家手册",
+      "subtype": ""
+    },
+    {
+      "id": "mr0ll1d2-i4ibdv",
+      "name": "易容工具",
+      "quantity": 1,
+      "category": "工具",
+      "description": "袋装的工具包里包含了化妆品、染发剂以及一些可以物理性地改变容貌的小道具。\n\n拥有易容工具的角色，在使用该工具进行视觉伪装的属性检定时，可以将其熟练加值加入检定结果中。",
+      "weight": 3,
+      "price": {
+        "amount": 25,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [
+        {
+          "key": "包含在",
+          "value": "艺人套组"
+        }
+      ],
+      "source": "玩家手册",
+      "subtype": ""
+    },
+    {
+      "id": "mr0jkp89-5ydlhp",
+      "name": "背包",
+      "quantity": 1,
+      "category": "杂物",
+      "description": "这是一种皮制或布制背包，可以绑在身上以方便携带物品。背包可以容纳约 1 立方英尺的物体或 30 磅重量。",
+      "weight": 5,
+      "price": {
+        "amount": 2,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [
+        {
+          "key": "包含在",
+          "value": "艺人套组"
+        }
+      ],
+      "source": "玩家手册",
+      "subtype": "容器"
+    },
+    {
+      "id": "mr0hpti6-crfou9",
+      "name": "表演服装",
+      "quantity": 2,
+      "category": "杂物",
+      "description": "艺人（Entertainer）的起始装备，表演时穿着的服装。\n\n",
+      "weight": 4,
+      "price": {
+        "amount": 5,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [
+        {
+          "key": "包含在",
+          "value": "艺人套组"
+        }
+      ],
+      "source": "玩家手册",
+      "subtype": "服装"
+    },
+    {
+      "id": "mr0l9ip2-8fj1go",
+      "name": "铺盖",
+      "quantity": 1,
+      "category": "杂物",
+      "description": "",
+      "weight": 7,
+      "price": {
+        "amount": 1,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [
+        {
+          "key": "包含在",
+          "value": "艺人套组"
+        }
+      ],
+      "source": "玩家手册",
+      "subtype": ""
+    },
+    {
+      "id": "mqz9t22x-lt0z8d",
+      "name": "倾慕者的信物",
+      "quantity": 1,
+      "category": "杂物",
+      "description": "由细绳和玛瑙珠编成的手链，带着稍许陈旧的气息，似乎来自一段久远的往日。",
+      "weight": 0,
+      "price": {
+        "amount": 5,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "自定义",
+      "subtype": ""
+    },
+    {
+      "id": "mr0lenp4-9y9qxy",
+      "name": "水袋",
+      "quantity": 1,
+      "category": "杂物",
+      "description": "",
+      "weight": 5,
+      "price": {
+        "amount": 2,
+        "unit": "sp"
+      },
+      "properties": [],
+      "tags": [
+        {
+          "key": "包含在",
+          "value": "艺人套组"
+        }
+      ],
+      "source": "玩家手册",
+      "subtype": "容器"
+    },
+    {
+      "id": "mr0rdr8c-u31aa5",
+      "name": "口粮（一日份）",
+      "quantity": 5,
+      "category": "杂物",
+      "description": "适合长途旅行携带的高能量干粮，包括牛肉干、干果、饼干和坚果等。",
+      "weight": 2,
+      "price": {
+        "amount": 5,
+        "unit": "sp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "玩家手册",
+      "subtype": "食品"
+    }
+  ],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "gp": 15,
+    "pp": 0
+  },
+  "skills": {
+    "acrobatics": {
+      "proficient": true,
+      "extra": 0
+    },
+    "animalHandling": {
+      "proficient": false,
+      "extra": 0
+    },
+    "arcana": {
+      "proficient": false,
+      "extra": 0
+    },
+    "athletics": {
+      "proficient": false,
+      "extra": 0
+    },
+    "deception": {
+      "proficient": true,
+      "extra": 0
+    },
+    "history": {
+      "proficient": false,
+      "extra": 0
+    },
+    "insight": {
+      "proficient": true,
+      "extra": 0
+    },
+    "intimidation": {
+      "proficient": false,
+      "extra": 0
+    },
+    "investigation": {
+      "proficient": false,
+      "extra": 0
+    },
+    "medicine": {
+      "proficient": false,
+      "extra": 0
+    },
+    "nature": {
+      "proficient": false,
+      "extra": 0
+    },
+    "perception": {
+      "proficient": true,
+      "extra": 0
+    },
+    "performance": {
+      "proficient": true,
+      "extra": 0
+    },
+    "persuasion": {
+      "proficient": true,
+      "extra": 0
+    },
+    "religion": {
+      "proficient": false,
+      "extra": 0
+    },
+    "sleightOfHand": {
+      "proficient": false,
+      "extra": 0
+    },
+    "stealth": {
+      "proficient": true,
+      "extra": 0
+    },
+    "survival": {
+      "proficient": false,
+      "extra": 0
+    }
+  },
+  "proficiencies": {
+    "armor": [
+      "轻甲"
+    ],
+    "weapons": [
+      "简易武器",
+      "手弩",
+      "长剑",
+      "刺剑",
+      "短剑"
+    ],
+    "tools": [
+      "奇妙吉他",
+      "魔法贝斯",
+      "神奇架子鼓",
+      "易容工具"
+    ],
+    "languages": [
+      "通用语",
+      "精灵语",
+      "矮人语"
+    ],
+    "savingThrows": []
+  },
+  "features": [
+    {
+      "id": "mqxgxhsa-49n0rh",
+      "name": "诗人激励",
+      "description": "你可以通过激动人心的话语或音乐激励他人。为此，你可以在自己回合内用一个附赠动作指定身边 60 尺内一个能听到你声音的生物（不能指定你自身），并使该生物获得一个诗人激励，即一个 d6 的激励骰。\n\n在接下来的 10 分钟内，该生物可以掷一次骰子，并将掷出的数字加到一次属性检定、攻击检定或豁免检定上。该生物可以等到掷出 d20 后再决定是否使用吟游诗人的激励骰，但必须在DM宣布该掷骰成功或失败之前做出决定。一旦掷出吟游诗人的激励骰，该骰子就会消失。一个生物同时只能拥有一个吟游诗人的激励骰。\n\n你能够使用该特性的次数等于你的魅力调整值（最低一次）。完成一次长休后，你将重获所有消耗掉的使用次数。\n\n你产生的激励骰大小可以在达到本职业的特定等级时增大。第 5 级时为 d8，第 10 级时为 d10，而第 15 级时为 d12。",
+      "category": "职业"
+    },
+    {
+      "id": "mqxiutb5-kxch06",
+      "name": "新特性",
+      "description": "bb\nb",
+      "category": "其他"
+    }
+  ],
+  "appearance": "· 外貌年龄：看起来约20岁出头\n\n· 身高：175\n\n· 发色：蓝绿色中长发，刚刚及肩，头戴花环\n\n· 瞳色：异色瞳——左眼琥珀金，右眼水绿色\n\n· 穿着：穿一件洗得发白的深绿色带连帽的旧斗篷，里面是皮甲，背后倒背着一把白色魔法fenderP贝斯（用于随时来个哈利路大旋风），一块黑色拨片夹在琴弦中间",
+  "personality": "我总是渴望得到别人的认可",
+  "ideals": "扫除世界上所有牛头人",
+  "bonds": "来冒险前我欠了乐队吉他手 5 万 gp 没还",
+  "flaws": "白嫖。我的艺术不能用金钱来衡量——说白了就是不想付钱，让队友付吧。",
+  "createdAt": 1782620872048,
+  "updatedAt": 1782956095402,
+  "gender": "female"
+}
