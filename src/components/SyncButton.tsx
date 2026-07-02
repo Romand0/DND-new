@@ -1,5 +1,5 @@
 // DM Toolkit - 浮动同步按钮组件
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Cloud, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
 import { hasToken } from '@/lib/github';
@@ -9,15 +9,6 @@ type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 export default function SyncButton() {
   const [status, setStatus] = useState<SyncStatus>('idle');
 
-  useEffect(() => {
-    characterStore.onSyncStatus((s) => {
-      setStatus(s === 'idle' ? 'idle' : s);
-      if (s === 'synced' || s === 'error') {
-        setTimeout(() => setStatus('idle'), 3000);
-      }
-    });
-  }, []);
-
   const handleSync = async () => {
     if (!hasToken()) {
       alert('请先在设置中配置 GitHub Token');
@@ -26,7 +17,11 @@ export default function SyncButton() {
     setStatus('syncing');
     try {
       await characterStore.syncAllToGitHub();
+      setStatus('synced');
+      setTimeout(() => setStatus('idle'), 3000);
     } catch (err) {
+      setStatus('error');
+      setTimeout(() => setStatus('idle'), 3000);
       alert(err instanceof Error ? err.message : '同步失败');
     }
   };
