@@ -11,7 +11,7 @@ import type {
   SkillKey,
   AbilityKey,
 } from '@/types/character';
-import { commitFile, deleteFileFromGitHub, hasToken } from '@/lib/github';
+import { commitFile, hasToken } from '@/lib/github';
 
 const STORAGE_KEY = 'DND';
 const BACKUP_KEY = 'dm-characters-backup';
@@ -100,32 +100,29 @@ function saveCharacter(charData: Character): Character {
 }
 
 // ============================================================
-// GitHub 同步（手动触发）
+// GitHub 同步（手动触发，单文件提交）
 // ============================================================
 
 type SyncStatus = 'syncing' | 'synced' | 'error' | 'idle';
 let syncStatusCallback: ((status: SyncStatus) => void) | null = null;
 
+const SYNC_FILE_PATH = 'data/players/all.json';
+
 function onSyncStatus(cb: ((status: SyncStatus) => void) | null): void {
   syncStatusCallback = cb;
 }
 
-// 手动同步单个角色到 GitHub
-function syncCharacterToGitHub(charId: string): Promise<void> {
+// 同步所有角色到 GitHub（单文件，和装备库逻辑一致）
+function syncAllToGitHub(): Promise<void> {
   if (!hasToken()) {
     return Promise.reject(new Error('未配置 GitHub Token'));
   }
-  const char = getCharacter(charId);
-  if (!char) {
-    return Promise.reject(new Error('角色不存在'));
-  }
 
   syncStatusCallback?.('syncing');
-  const path = `data/players/${char.id}.json`;
-  return commitFile(path, JSON.stringify(char, null, 2))
+  const chars = getStore();
+  return commitFile(SYNC_FILE_PATH, JSON.stringify(chars, null, 2), 'sync player characters')
     .then(() => {
       syncStatusCallback?.('synced');
-      syncIndexToGitHub();
     })
     .catch((err) => {
       console.error('[GitHub Sync] 同步失败:', err);
@@ -134,72 +131,11 @@ function syncCharacterToGitHub(charId: string): Promise<void> {
     });
 }
 
-// 手动同步所有角色到 GitHub
-async function syncAllToGitHub(): Promise<{ success: number; failed: number }> {
-  if (!hasToken()) {
-    throw new Error('未配置 GitHub Token');
-  }
-
-  syncStatusCallback?.('syncing');
-  const chars = getStore();
-  let success = 0;
-  let failed = 0;
-
-  for (const char of chars) {
-    const path = `data/players/${char.id}.json`;
-    try {
-      await commitFile(path, JSON.stringify(char, null, 2));
-      success++;
-    } catch (err) {
-      console.error(`[GitHub Sync] 角色 ${char.name} 同步失败:`, err);
-      failed++;
-    }
-  }
-
-  // 同步索引
-  try {
-    await syncIndexToGitHub();
-  } catch (err) {
-    console.error('[GitHub Sync] 索引同步失败:', err);
-  }
-
-  if (failed === 0) {
-    syncStatusCallback?.('synced');
-  } else {
-    syncStatusCallback?.('error');
-  }
-
-  return { success, failed };
-}
-
-function syncDeleteToGitHub(charId: string): void {
-  if (!hasToken()) return;
-  const path = `data/players/${charId}.json`;
-  deleteFileFromGitHub(path).catch((err) => {
-    console.error('[GitHub Sync] 删除失败:', err);
-  });
-  // 同时更新索引
-  syncIndexToGitHub();
-}
-
-// 同步角色索引到 GitHub（供玩家端列表使用）
-function syncIndexToGitHub(): Promise<void> {
-  if (!hasToken()) return Promise.resolve();
-  const chars = getStore();
-  const index = chars.map((c) => ({
-    id: c.id,
-    name: c.name,
-    class: c.class,
-    level: c.level,
-    race: c.race,
-    updatedAt: c.updatedAt,
-  }));
-  const path = 'data/players/index.json';
-  return commitFile(path, JSON.stringify(index, null, 2), 'update player index')
-    .catch((err) => {
-      console.error('[GitHub Sync] 索引同步失败:', err);
-      throw err;
-    });
+// 从 GitHub 读取所有角色（供工具使用）
+async function loadAllFromGitHub(): Promise<Character[]> {
+  const { readFileFromGitHub } = await import('@/lib/github');
+  const data = await readFileFromGitHub<Character[]>(SYNC_FILE_PATH);
+  return data || [];
 }
 
 // ============================================================
@@ -374,8 +310,6 @@ function addCharacter(characterData: Partial<Character>): Character {
 function deleteCharacter(charId: string): void {
   const chars = getStore().filter((c) => c.id !== charId);
   saveStore(chars);
-  // 静默同步删除到 GitHub
-  syncDeleteToGitHub(charId);
 }
 
 function updateCharacter(charId: string, updatedData: Partial<Character>): Character | null {
@@ -1432,8 +1366,8 @@ export const characterStore = {
   
   updateSkill,
 
-  // GitHub 同步（手动触发）
+  // GitHub 同步（手动触发，单文件）
   onSyncStatus,
-  syncCharacterToGitHub,
   syncAllToGitHub,
+  loadAllFromGitHub,
 };

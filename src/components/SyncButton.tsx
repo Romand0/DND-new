@@ -8,12 +8,10 @@ type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
 export default function SyncButton() {
   const [status, setStatus] = useState<SyncStatus>('idle');
-  const [lastResult, setLastResult] = useState<{ success: number; failed: number } | null>(null);
 
   useEffect(() => {
     characterStore.onSyncStatus((s) => {
       setStatus(s === 'idle' ? 'idle' : s);
-      // 同步完成后 3 秒恢复 idle
       if (s === 'synced' || s === 'error') {
         setTimeout(() => setStatus('idle'), 3000);
       }
@@ -27,17 +25,12 @@ export default function SyncButton() {
     }
     setStatus('syncing');
     try {
-      const result = await characterStore.syncAllToGitHub();
-      setLastResult(result);
-      if (result.failed > 0) {
-        alert(`同步完成：${result.success} 个成功，${result.failed} 个失败`);
-      }
+      await characterStore.syncAllToGitHub();
     } catch (err) {
       alert(err instanceof Error ? err.message : '同步失败');
     }
   };
 
-  // 未配置 Token 时不显示按钮
   if (!hasToken()) {
     return null;
   }
@@ -73,7 +66,7 @@ export default function SyncButton() {
       onClick={handleSync}
       disabled={status === 'syncing'}
       className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-all ${getStatusColor()} ${status === 'syncing' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-      title={lastResult ? `上次同步：${lastResult.success} 成功，${lastResult.failed} 失败` : '点击同步所有角色到 GitHub'}
+      title="点击同步所有角色到 GitHub"
     >
       {getStatusIcon()}
       <span className="font-medium">

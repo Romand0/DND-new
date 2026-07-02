@@ -17,9 +17,14 @@ export default function PlayerInventory() {
     setLoading(true);
     setError(null);
     try {
-      const path = `data/players/${playerId}.json`;
-      const data = await readFileFromGitHub<Character>(path);
-      setCharacter(data);
+      const all = await readFileFromGitHub<Character[]>('data/players/all.json');
+      const found = (all || []).find((c) => c.id === playerId) || null;
+      if (!found) {
+        setError('角色不存在或已被删除');
+        setCharacter(null);
+      } else {
+        setCharacter(found);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载失败');
       setCharacter(null);
@@ -69,7 +74,6 @@ export default function PlayerInventory() {
 
   return (
     <div className="space-y-4">
-      {/* 只读模式标识 */}
       <div className="flex items-center justify-between px-4 py-2 rounded-lg dark:bg-bg-dark-2 light:bg-bg-light-2 dark:border dark:border-border-dark light:border light:border-border-light">
         <div className="flex items-center gap-2">
           <Eye className="w-4 h-4 text-accent" />

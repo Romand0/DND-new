@@ -2,33 +2,22 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, RefreshCw, AlertCircle, Users } from 'lucide-react';
+import type { Character } from '@/types/character';
 import { readFileFromGitHub } from '@/lib/github';
 
-interface PlayerIndexItem {
-  id: string;
-  name: string;
-  class: string;
-  level: number;
-  race: string;
-  updatedAt: number;
-}
-
 export default function PlayerHome() {
-  const [players, setPlayers] = useState<PlayerIndexItem[]>([]);
+  const [players, setPlayers] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const loadPlayerIndex = async () => {
+  const loadPlayers = async () => {
     setLoading(true);
     setError(null);
     try {
-      const path = 'data/players/index.json';
-      const data = await readFileFromGitHub<PlayerIndexItem[]>(path);
-      // 按更新时间倒序排列
-      const sorted = (data || []).sort((a, b) => b.updatedAt - a.updatedAt);
+      const data = await readFileFromGitHub<Character[]>('data/players/all.json');
+      const sorted = (data || []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
       setPlayers(sorted);
     } catch (err) {
-      // 404 或未配置时显示空列表而非报错
       const msg = err instanceof Error ? err.message : '加载失败';
       if (msg.includes('404') || msg.includes('未配置')) {
         setPlayers([]);
@@ -42,7 +31,7 @@ export default function PlayerHome() {
   };
 
   useEffect(() => {
-    loadPlayerIndex();
+    loadPlayers();
   }, []);
 
   if (loading) {
@@ -65,7 +54,7 @@ export default function PlayerHome() {
         <h2 className="text-xl font-bold dark:text-text-dark light:text-text-light">加载失败</h2>
         <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">{error}</p>
         <button
-          onClick={loadPlayerIndex}
+          onClick={loadPlayers}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors"
         >
           <RefreshCw className="w-4 h-4" />
@@ -77,7 +66,6 @@ export default function PlayerHome() {
 
   return (
     <div className="space-y-6">
-      {/* 标题区域 */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
@@ -91,7 +79,7 @@ export default function PlayerHome() {
           </div>
         </div>
         <button
-          onClick={loadPlayerIndex}
+          onClick={loadPlayers}
           className="flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark-hover light:border-border-light light:text-text-light light:hover:bg-card-light-hover"
         >
           <RefreshCw className="w-4 h-4" />
@@ -99,7 +87,6 @@ export default function PlayerHome() {
         </button>
       </div>
 
-      {/* 空状态 */}
       {players.length === 0 && (
         <div className="text-center py-16 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
           <Users className="w-12 h-12 mx-auto mb-4 dark:text-text-dark-muted light:text-text-light-muted" />
@@ -110,7 +97,6 @@ export default function PlayerHome() {
         </div>
       )}
 
-      {/* 角色列表 */}
       {players.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {players.map((player) => (
