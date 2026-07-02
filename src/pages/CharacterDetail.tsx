@@ -37,7 +37,6 @@ import EquipmentPicker from '@/components/EquipmentPicker';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import AttackEditor from '@/components/AttackEditor';
 import SyncButton from '@/components/SyncButton';
-import { commitFile } from '@/utils/github';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -135,7 +134,6 @@ export default function CharacterDetail({
   const navigate = useNavigate();
   const [character, setCharacter] = useState<Character | null>(externalCharacter);
   const [loading, setLoading] = useState(true);
-  const [syncToast, setSyncToast] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
   const [spellPickerOpen, setSpellPickerOpen] = useState(false);
   const [selectedSpellType, setSelectedSpellType] = useState<'cantrip' | 'spell'>('cantrip');
   const [expandedCantrips, setExpandedCantrips] = useState<Set<number>>(new Set());
@@ -241,18 +239,6 @@ export default function CharacterDetail({
       setLoading(false);
     }
   }, [id, externalCharacter]);
-
-  // 监听 GitHub 同步状态（DM 模式）
-  useEffect(() => {
-    if (readOnly) return;
-    characterStore.onSyncStatus((status) => {
-      setSyncToast(status);
-      if (status === 'synced') {
-        setTimeout(() => setSyncToast('idle'), 2000);
-      }
-    });
-    return () => characterStore.onSyncStatus(null);
-  }, [readOnly]);
 
   useEffect(() => {
     const unsubscribe = spellStore.subscribe(() => {
@@ -373,35 +359,14 @@ export default function CharacterDetail({
 
     if (syncToLibrary) {
       const allEquipments = equipmentStore.getAll();
-      const idMatchIndex = allEquipments.findIndex((e) => e.id === formData.id);
       const nameMatchIndex = allEquipments.findIndex((e) => e.name === formData.name && e.id !== formData.id);
-      let newEquipments: EquipmentItem[];
-      let isUpdate = false;
       let finalLibraryItem = libraryItem;
 
-      if (idMatchIndex >= 0) {
-        newEquipments = allEquipments.map((e, i) => (i === idMatchIndex ? libraryItem : e));
-        isUpdate = true;
-      } else if (nameMatchIndex >= 0) {
+      if (nameMatchIndex >= 0) {
         finalLibraryItem = { ...libraryItem, id: allEquipments[nameMatchIndex].id };
-        newEquipments = allEquipments.map((e, i) => (i === nameMatchIndex ? finalLibraryItem : e));
-        isUpdate = true;
-      } else {
-        newEquipments = [...allEquipments, libraryItem];
       }
 
-      equipmentStore.save(newEquipments);
-      try {
-        await commitFile(
-          'src/data/equipments.json',
-          JSON.stringify(newEquipments, null, 2),
-          isUpdate
-            ? `update equipment: ${formData.name}`
-            : `add equipment: ${formData.name}`
-        );
-      } catch (githubError) {
-        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
-      }
+      await equipmentStore.saveItem(finalLibraryItem);
     }
 
     if (!editingEquipment) {
@@ -645,25 +610,6 @@ export default function CharacterDetail({
 
   return (
     <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
-      {/* DM 模式同步提示 */}
-      {syncToast === 'syncing' && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg dark:bg-card-dark dark:border dark:border-border-dark light:bg-card-light light:border light:border-border-light shadow-lg">
-          <div className="w-3 h-3 rounded-full bg-warning animate-pulse" />
-          <span className="text-sm dark:text-text-dark light:text-text-light">同步中…</span>
-        </div>
-      )}
-      {syncToast === 'synced' && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg dark:bg-card-dark dark:border dark:border-border-dark light:bg-card-light light:border light:border-border-light shadow-lg">
-          <div className="w-3 h-3 rounded-full bg-success" />
-          <span className="text-sm dark:text-text-dark light:text-text-light">已保存</span>
-        </div>
-      )}
-      {syncToast === 'error' && (
-        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg dark:bg-card-dark dark:border dark:border-danger light:bg-card-light light:border light:border-danger shadow-lg">
-          <div className="w-3 h-3 rounded-full bg-danger" />
-          <span className="text-sm dark:text-text-dark light:text-text-light">同步失败</span>
-        </div>
-      )}
 
       {!readOnly && (
         <Link

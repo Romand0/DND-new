@@ -26,7 +26,6 @@ import EquipmentPicker from '@/components/EquipmentPicker';
 import SyncButton from '@/components/SyncButton';
 import { characterStore } from '@/data/characterStore';
 import { equipmentStore } from '@/data/equipmentStore';
-import { commitFile } from '@/utils/github';
 import type { Equipment, Character } from '@/types/character';
 import type { EquipmentItem } from '@/types/equipment';
 
@@ -154,23 +153,10 @@ export default function CharacterInventory({
       };
       const allEquipments = equipmentStore.getAll();
       const existingIndex = allEquipments.findIndex((e) => e.id === formData.id);
-      let newEquipments: EquipmentItem[];
       if (existingIndex >= 0) {
-        newEquipments = allEquipments.map((e, i) => (i === existingIndex ? libraryItem : e));
+        await equipmentStore.saveItem(libraryItem);
       } else {
-        newEquipments = [...allEquipments, libraryItem];
-      }
-      equipmentStore.save(newEquipments);
-      try {
-        await commitFile(
-          'src/data/equipments.json',
-          JSON.stringify(newEquipments, null, 2),
-          existingIndex >= 0
-            ? `update equipment: ${formData.name}`
-            : `add equipment: ${formData.name}`
-        );
-      } catch (githubError) {
-        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
+        await equipmentStore.saveItem(libraryItem);
       }
     }
 

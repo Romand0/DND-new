@@ -4,7 +4,6 @@ import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucid
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { equipmentStore } from '@/data/equipmentStore';
-import { commitFile, fetchFile } from '@/utils/github';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
@@ -52,37 +51,8 @@ export default function EquipmentList() {
     setError('');
 
     try {
-      const idMatchIndex = equipments.findIndex((e) => e.id === item.id);
-      const nameMatchIndex = equipments.findIndex((e) => e.name === item.name && e.id !== item.id);
-      let newEquipments: EquipmentItem[];
-      let isUpdate = false;
-
-      if (idMatchIndex >= 0) {
-        newEquipments = equipments.map((e, i) => (i === idMatchIndex ? item : e));
-        isUpdate = true;
-      } else if (nameMatchIndex >= 0) {
-        const updatedItem = { ...item, id: equipments[nameMatchIndex].id };
-        newEquipments = equipments.map((e, i) => (i === nameMatchIndex ? updatedItem : e));
-        isUpdate = true;
-      } else {
-        newEquipments = [...equipments, item];
-      }
-
-      equipmentStore.save(newEquipments);
-      setEquipments(newEquipments);
-
-      try {
-        await commitFile(
-          'src/data/equipments.json',
-          JSON.stringify(newEquipments, null, 2),
-          isUpdate
-            ? `update equipment: ${item.name}`
-            : `add equipment: ${item.name}`
-        );
-      } catch (githubError) {
-        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
-      }
-
+      await equipmentStore.saveItem(item);
+      setEquipments(equipmentStore.getAll());
       setEditorOpen(false);
       setEditingItem(undefined);
     } catch (err) {
@@ -93,28 +63,13 @@ export default function EquipmentList() {
   };
 
   const handleDelete = async (id: string) => {
-    const item = equipments.find((e) => e.id === id);
-    if (!item) return;
-
     setSaving(true);
     setError('');
 
     try {
-      const newEquipments = equipments.filter((e) => e.id !== id);
-
-      equipmentStore.save(newEquipments);
-      setEquipments(newEquipments);
+      await equipmentStore.deleteItem(id);
+      setEquipments(equipmentStore.getAll());
       setDeleteConfirm(null);
-
-      try {
-        await commitFile(
-          'src/data/equipments.json',
-          JSON.stringify(newEquipments, null, 2),
-          `delete equipment: ${item.name}`
-        );
-      } catch (githubError) {
-        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败');
     } finally {
@@ -126,14 +81,10 @@ export default function EquipmentList() {
     try {
       setSyncing(true);
       setError('');
-      const content = await fetchFile('src/data/equipments.json');
-      if (content) {
-        const data = JSON.parse(content) as EquipmentItem[];
-        equipmentStore.save(data);
-        setEquipments(data);
-      }
+      const data = await equipmentStore.fetchAll();
+      setEquipments(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '从 GitHub 同步失败');
+      setError(err instanceof Error ? err.message : '从后端同步失败');
     } finally {
       setSyncing(false);
     }

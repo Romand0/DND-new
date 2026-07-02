@@ -1,9 +1,9 @@
-// 玩家主页 - 从 GitHub 读取角色列表供选择
+// 玩家主页 - 从后端 API 读取角色列表供选择
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Eye, RefreshCw, AlertCircle, Users, Shield } from 'lucide-react';
 import type { Character } from '@/types/character';
-import { readFileFromGitHub } from '@/lib/github';
+import { fetchAllCharacters } from '@/lib/api';
 
 export default function PlayerHome() {
   const [players, setPlayers] = useState<Character[]>([]);
@@ -14,7 +14,7 @@ export default function PlayerHome() {
     setLoading(true);
     setError(null);
     try {
-      const data = await readFileFromGitHub<Character[]>('data/players/all.json');
+      const data = await fetchAllCharacters<Character[]>();
       const sorted = (data || []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
       setPlayers(sorted);
     } catch (err) {
@@ -50,7 +50,7 @@ export default function PlayerHome() {
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center gap-3 dark:text-text-dark-muted light:text-text-light-muted">
           <RefreshCw className="w-5 h-5 animate-spin" />
-          <span>正在从 GitHub 加载角色列表…</span>
+          <span>正在加载角色列表…</span>
         </div>
       </div>
     );

@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { Cloud, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
-import { hasToken } from '@/lib/github';
+import { hasToken } from '@/lib/api';
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
@@ -11,12 +11,13 @@ export default function SyncButton() {
 
   const handleSync = async () => {
     if (!hasToken()) {
-      alert('请先在设置中配置 GitHub Token');
+      alert('请先在设置中配置 DM Token');
       return;
     }
     setStatus('syncing');
     try {
-      await characterStore.syncAllToGitHub();
+      // 从后端拉取最新数据，更新本地缓存
+      await characterStore.loadAllFromBackend();
       setStatus('synced');
       setTimeout(() => setStatus('idle'), 3000);
     } catch (err) {
@@ -61,7 +62,7 @@ export default function SyncButton() {
       onClick={handleSync}
       disabled={status === 'syncing'}
       className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-all ${getStatusColor()} ${status === 'syncing' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-      title="点击同步所有角色到 GitHub"
+      title="从后端同步角色数据"
     >
       {getStatusIcon()}
       <span className="font-medium">

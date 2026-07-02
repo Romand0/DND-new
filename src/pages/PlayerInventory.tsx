@@ -1,9 +1,9 @@
-// 玩家端背包页面 - 从 GitHub Raw 加载角色卡数据
+// 玩家端背包页面 - 从后端 API 加载角色卡数据
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { RefreshCw, AlertCircle, Eye } from 'lucide-react';
 import type { Character } from '@/types/character';
-import { readFileFromGitHub } from '@/lib/github';
+import { fetchAllCharacters } from '@/lib/api';
 import CharacterInventory from '@/pages/CharacterInventory';
 
 export default function PlayerInventory() {
@@ -17,7 +17,7 @@ export default function PlayerInventory() {
     setLoading(true);
     setError(null);
     try {
-      const all = await readFileFromGitHub<Character[]>('data/players/all.json');
+      const all = await fetchAllCharacters<Character[]>();
       const found = (all || []).find((c) => c.id === playerId) || null;
       if (!found) {
         setError('角色不存在或已被删除');

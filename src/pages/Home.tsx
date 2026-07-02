@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Swords, Users, ScrollText, Coins, Sparkles, ChevronRight } from 'lucide-react';
-import { hasToken } from '@/lib/github';
+import { hasToken } from '@/lib/api';
 import PlayerHome from '@/pages/PlayerHome';
 
 const features = [
@@ -56,16 +56,16 @@ export default function Home() {
 
     // 监听跨标签页 storage 变化
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'github_token') checkToken();
+      if (e.key === 'dm_token') checkToken();
     };
     // 监听同标签页 token 变化（Settings 页面保存时派发）
     const handleTokenChange = () => checkToken();
 
     window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('github-token-change', handleTokenChange);
+    window.addEventListener('dm-token-change', handleTokenChange);
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('github-token-change', handleTokenChange);
+      window.removeEventListener('dm-token-change', handleTokenChange);
     };
   }, []);
 

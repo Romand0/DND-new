@@ -1,9 +1,9 @@
-// 玩家端只读页面 - 从 GitHub Raw 加载角色卡数据
+// 玩家端只读页面 - 从后端 API 加载角色卡数据
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Eye, RefreshCw, AlertCircle } from 'lucide-react';
 import type { Character } from '@/types/character';
-import { readFileFromGitHub } from '@/lib/github';
+import { fetchAllCharacters } from '@/lib/api';
 import CharacterDetail from '@/pages/CharacterDetail';
 
 export default function PlayerView() {
@@ -17,7 +17,7 @@ export default function PlayerView() {
     setLoading(true);
     setError(null);
     try {
-      const all = await readFileFromGitHub<Character[]>('data/players/all.json');
+      const all = await fetchAllCharacters<Character[]>();
       const found = (all || []).find((c) => c.id === playerId) || null;
       if (!found) {
         setError('角色不存在或已被删除');
@@ -42,7 +42,7 @@ export default function PlayerView() {
       <div className="flex items-center justify-center h-64">
         <div className="flex items-center gap-3 dark:text-text-dark-muted light:text-text-light-muted">
           <RefreshCw className="w-5 h-5 animate-spin" />
-          <span>正在从 GitHub 加载角色卡…</span>
+          <span>正在加载角色卡…</span>
         </div>
       </div>
     );

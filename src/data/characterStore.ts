@@ -1,4 +1,4 @@
-// DM Toolkit - Character State Management (localStorage + GitHub Sync)
+// DM Toolkit - Character State Management (Backend API + localStorage cache)
 // ============================================================
 import type {
   Character,
@@ -11,7 +11,7 @@ import type {
   SkillKey,
   AbilityKey,
 } from '@/types/character';
-import { commitFile, hasToken } from '@/lib/github';
+import * as api from '@/lib/api';
 
 const STORAGE_KEY = 'DND';
 const BACKUP_KEY = 'dm-characters-backup';
@@ -100,42 +100,29 @@ function saveCharacter(charData: Character): Character {
 }
 
 // ============================================================
-// GitHub 同步（手动触发，单文件提交）
+// 后端 API 同步（单个角色 CRUD）
 // ============================================================
 
-type SyncStatus = 'syncing' | 'synced' | 'error' | 'idle';
-let syncStatusCallback: ((status: SyncStatus) => void) | null = null;
-
-const SYNC_FILE_PATH = 'data/players/all.json';
-
-function onSyncStatus(cb: ((status: SyncStatus) => void) | null): void {
-  syncStatusCallback = cb;
-}
-
-// 同步所有角色到 GitHub（单文件，和装备库逻辑一致）
-function syncAllToGitHub(): Promise<void> {
-  if (!hasToken()) {
-    return Promise.reject(new Error('未配置 GitHub Token'));
+// 同步单个角色到后端
+async function syncCharacterToBackend(char: Character): Promise<void> {
+  if (!api.hasToken()) {
+    throw new Error('未配置 DM Token');
   }
-
-  syncStatusCallback?.('syncing');
-  const chars = getStore();
-  return commitFile(SYNC_FILE_PATH, JSON.stringify(chars, null, 2), 'sync player characters')
-    .then(() => {
-      syncStatusCallback?.('synced');
-    })
-    .catch((err) => {
-      console.error('[GitHub Sync] 同步失败:', err);
-      syncStatusCallback?.('error');
-      throw err;
-    });
+  try {
+    await api.updateCharacter(char.id, char);
+  } catch {
+    // 更新失败，可能是新角色，尝试创建
+    await api.createCharacter(char);
+  }
 }
 
-// 从 GitHub 读取所有角色（供工具使用）
-async function loadAllFromGitHub(): Promise<Character[]> {
-  const { readFileFromGitHub } = await import('@/lib/github');
-  const data = await readFileFromGitHub<Character[]>(SYNC_FILE_PATH);
-  return data || [];
+// 从后端加载所有角色（覆盖本地缓存）
+async function loadAllFromBackend(): Promise<Character[]> {
+  if (!api.hasToken()) {
+    // 玩家端也通过公开接口读取
+    return await api.fetchAllCharacters<Character[]>();
+  }
+  return await api.fetchAllCharacters<Character[]>();
 }
 
 // ============================================================
@@ -1366,8 +1353,7 @@ export const characterStore = {
   
   updateSkill,
 
-  // GitHub 同步（手动触发，单文件）
-  onSyncStatus,
-  syncAllToGitHub,
-  loadAllFromGitHub,
+  // 后端 API
+  syncCharacterToBackend,
+  loadAllFromBackend,
 };

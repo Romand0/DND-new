@@ -4,7 +4,6 @@ import { Sparkles, Plus, Edit2, Trash2, Search, Filter } from 'lucide-react';
 import type { Spell } from '@/types/spell';
 import SpellEditor from '@/components/SpellEditor';
 import { spellStore } from '@/data/spellStore';
-import { commitFile } from '@/utils/github';
 
 const levelLabels: Record<number, string> = {
   0: '戏法',
@@ -55,31 +54,8 @@ export default function SpellList() {
     setError('');
 
     try {
-      const existingIndex = spells.findIndex((s) => s.id === spell.id);
-      let newSpells: Spell[];
-
-      if (existingIndex >= 0) {
-        newSpells = spells.map((s, i) => (i === existingIndex ? spell : s));
-      } else {
-        newSpells = [...spells, spell];
-      }
-
-      // 先保存到 spellStore（会自动通知所有订阅者）
-      spellStore.save(newSpells);
-      setSpells(newSpells);
-
-      // 尝试同步到 GitHub
-      try {
-        await commitFile(
-          'src/data/spells.json',
-          JSON.stringify(newSpells, null, 2),
-          existingIndex >= 0
-            ? `update spell: ${spell.name}`
-            : `add spell: ${spell.name}`
-        );
-      } catch (githubError) {
-        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
-      }
+      await spellStore.saveItem(spell);
+      setSpells(spellStore.getAll());
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败');
       throw err;
@@ -89,30 +65,13 @@ export default function SpellList() {
   };
 
   const handleDeleteSpell = async (id: string) => {
-    const spell = spells.find((s) => s.id === id);
-    if (!spell) return;
-
     setSaving(true);
     setError('');
 
     try {
-      const newSpells = spells.filter((s) => s.id !== id);
-
-      // 先保存到 spellStore（会自动通知所有订阅者）
-      spellStore.save(newSpells);
-      setSpells(newSpells);
+      await spellStore.deleteItem(id);
+      setSpells(spellStore.getAll());
       setDeleteConfirm(null);
-
-      // 尝试同步到 GitHub
-      try {
-        await commitFile(
-          'src/data/spells.json',
-          JSON.stringify(newSpells, null, 2),
-          `delete spell: ${spell.name}`
-        );
-      } catch (githubError) {
-        console.warn('GitHub 同步失败，数据已保存在本地:', githubError);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '删除失败');
     } finally {
