@@ -281,6 +281,7 @@ export default function CharacterInventory({
               : character.equipment.filter((e) => e.category === cat.key).length;
           return (
             <button
+              data-readonly-keep
               key={cat.key}
               onClick={() => setSelectedCategory(cat.key)}
               className={`w-14 h-14 md:w-16 md:h-16 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
