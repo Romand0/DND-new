@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, Link, Save, Check, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Settings as SettingsIcon, Link, Save, Check, AlertCircle, LogOut } from 'lucide-react';
 
 const GITHUB_TOKEN_KEY = 'github_token';
 
 export default function SettingsPage() {
+  const navigate = useNavigate();
   const [token, setToken] = useState('');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
@@ -28,6 +30,14 @@ export default function SettingsPage() {
     window.dispatchEvent(new CustomEvent('github-token-change'));
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleClearToken = () => {
+    localStorage.removeItem(GITHUB_TOKEN_KEY);
+    setToken('');
+    window.dispatchEvent(new CustomEvent('github-token-change'));
+    // 跳转到玩家端首页
+    navigate('/');
   };
 
   return (
@@ -81,6 +91,16 @@ export default function SettingsPage() {
                     </>
                   )}
                 </button>
+                {token && (
+                  <button
+                    onClick={handleClearToken}
+                    className="px-4 py-2 border border-danger/50 text-danger hover:bg-danger/10 rounded-lg transition-colors flex items-center gap-2"
+                    title="清空 Token 并切换到玩家模式"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    切换为玩家模式
+                  </button>
+                )}
               </div>
               {error && (
                 <div className="mt-2 flex items-center gap-2 text-sm text-danger">
