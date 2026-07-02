@@ -52,8 +52,7 @@ export function hasToken(): boolean {
 export async function commitFile(
   path: string,
   content: string,
-  message?: string,
-): Promise<void> {
+  message?: string,): Promise<void> {
   const token = getToken();
   if (!token) {
     throw new Error('未配置 GitHub Token');
@@ -71,19 +70,18 @@ export async function commitFile(
     branch,
   };
 
-  // 重试机制：sha 过期会返回 409/422，重新获取 sha 后重试
   const MAX_RETRIES = 2;
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    // 每次尝试前重新获取 sha（避免使用过期 sha）
     let sha: string | undefined;
     try {
-      const res = await fetch(`${url}?ref=${branch}`, {
+      const res = await fetch(`${url}?ref=${branch}&t=${Date.now()}`, {
         headers: {
           Authorization: `token ${token}`,
           Accept: 'application/vnd.github.v3+json',
         },
+        cache: 'no-store',
       });
       if (res.ok) {
         const data = await res.json();
@@ -107,10 +105,9 @@ export async function commitFile(
       return;
     }
 
-    const err = await res.json().catch(() => ({}));
-    lastError = new Error(`GitHub API 错误: ${res.status} ${err.message || res.statusText}`);
+    const errData = await res.json().catch(() => ({}));
+    lastError = new Error(`GitHub API 错误: ${res.status} ${errData.message || res.statusText}`);
 
-    // 409（冲突）或 422（sha 不匹配）时，重新获取 sha 后重试
     if ((res.status === 409 || res.status === 422) && attempt < MAX_RETRIES) {
       await new Promise((r) => setTimeout(r, 300 * (attempt + 1)));
       continue;
