@@ -18,7 +18,8 @@ const PRICE_UNITS = ['gp', 'sp', 'cp'] as const;
 const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '远程', '弹药', '+2 AC', '单手', '双手'];
 
 export default function EquipmentEditor({ item, isStatic = false, showQuantity = false, showSyncOption = false, loading = false, onSave, onDelete, onClose }: EquipmentEditorProps) {
-  const [formData, setFormData] = useState<Omit<EquipmentItem, 'id' | 'isCustom'> & { quantity?: number }>({
+  const [formData, setFormData] = useState<Omit<EquipmentItem, 'isCustom'> & { quantity?: number }>({
+    id: '',
     name: '',
     category: '武器',
     subtype: '',
@@ -41,6 +42,7 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   useEffect(() => {
     if (item) {
       setFormData({
+        id: item.id,
         name: item.name,
         category: item.category,
         subtype: item.subtype || '',
@@ -57,6 +59,7 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
       }
     } else {
       setFormData({
+        id: '',
         name: '',
         category: '武器',
         subtype: '',
@@ -76,8 +79,8 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
     e.preventDefault();
     const isCustom = !isStatic;
     const equipment: EquipmentItem & { quantity?: number } = {
-      id: item?.id || (isCustom ? `custom-${Date.now()}` : `static-${Date.now()}`),
       ...formData,
+      id: formData.id || (isCustom ? `custom-${Date.now()}` : `static-${Date.now()}`),
       isCustom,
     };
     onSave(equipment, showSyncOption ? syncToLibrary : undefined);
@@ -154,17 +157,31 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-              名称 *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                装备ID
+              </label>
+              <input
+                type="text"
+                value={formData.id}
+                onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+                placeholder="例如：longsword"
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                名称 *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                required
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+            </div>
           </div>
 
           {showQuantity && (
