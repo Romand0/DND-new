@@ -1,7 +1,7 @@
 // 玩家端背包页面 - 从 GitHub Raw 加载角色卡数据
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { RefreshCw, AlertCircle, Eye, Package } from 'lucide-react';
+import { RefreshCw, AlertCircle, Eye } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { readFileFromGitHub } from '@/lib/github';
 import CharacterInventory from '@/pages/CharacterInventory';
