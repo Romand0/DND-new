@@ -335,8 +335,8 @@
     "size": "中型",
     "abilities": {
       "strength": {
-        "score": 7,
-        "modifier": -2
+        "score": 8,
+        "modifier": -1
       },
       "dexterity": {
         "score": 15,
@@ -786,7 +786,7 @@
     "bonds": "来冒险前我欠了乐队吉他手 5 万 gp 没还",
     "flaws": "白嫖。我的艺术不能用金钱来衡量——说白了就是不想付钱，让队友付吧。",
     "createdAt": 1782620872048,
-    "updatedAt": 1782986751904,
+    "updatedAt": 1782986760864,
     "gender": "female"
   },
   {
