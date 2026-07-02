@@ -1,4 +1,4 @@
-import { jsonResponse, errorResponse, handleOptions, verifyDmToken, readJsonBody, now } from '../../../_utils';
+import { jsonResponse, errorResponse, handleOptions, verifyDmToken, readJsonBody, now } from '../../_utils';
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { env } = context;
