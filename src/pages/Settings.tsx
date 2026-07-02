@@ -77,7 +77,7 @@ export default function SettingsPage() {
                 />
                 <button
                   onClick={handleSave}
-                  className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
                 >
                   {saved ? (
                     <>
@@ -91,17 +91,17 @@ export default function SettingsPage() {
                     </>
                   )}
                 </button>
-                {token && (
-                  <button
-                    onClick={handleClearToken}
-                    className="px-4 py-2 border border-danger/50 text-danger hover:bg-danger/10 rounded-lg transition-colors flex items-center gap-2"
-                    title="清空 Token 并切换到玩家模式"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    切换为玩家模式
-                  </button>
-                )}
               </div>
+              {token && (
+                <button
+                  onClick={handleClearToken}
+                  className="px-4 py-2 border border-danger/50 text-danger hover:bg-danger/10 rounded-lg transition-colors flex items-center gap-2"
+                  title="清空 Token 并切换到玩家模式"
+                >
+                  <LogOut className="w-4 h-4" />
+                  清空 Token 切换玩家模式
+                </button>
+              )}
               {error && (
                 <div className="mt-2 flex items-center gap-2 text-sm text-danger">
                   <AlertCircle className="w-4 h-4" />
