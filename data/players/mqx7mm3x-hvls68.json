@@ -2,11 +2,11 @@
   "id": "mqx7mm3x-hvls68",
   "name": "罗勒",
   "class": "吟游诗人",
-  "level": 0,
+  "level": 1,
   "race": "半精灵",
   "background": "艺人",
   "alignment": "守序善良",
-  "experience": 0,
+  "experience": 15,
   "size": "中型",
   "abilities": {
     "strength": {
@@ -461,6 +461,6 @@
   "bonds": "来冒险前我欠了乐队吉他手 5 万 gp 没还",
   "flaws": "白嫖。我的艺术不能用金钱来衡量——说白了就是不想付钱，让队友付吧。",
   "createdAt": 1782620872048,
-  "updatedAt": 1782956105916,
+  "updatedAt": 1782961384613,
   "gender": "female"
 }
