@@ -127,6 +127,19 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 
   return computedHash === hashHex;
 }
+// ---------- 请求体解析工具 ----------
+
+export async function readJsonBody<T>(request: Request): Promise<T | null> {
+  try {
+    return await request.json() as T;
+  } catch {
+    return null;
+  }
+}
+
+export function now(): number {
+  return Date.now();
+}
 
 // ---------- Base64 URL 工具 ----------
 
