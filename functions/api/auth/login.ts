@@ -8,7 +8,6 @@ interface Env {
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { env } = context;
   
-  // 只检查环境变量，不调任何 _utils 里的函数
   return jsonResponse({
     jwtExists: !!env.JWT_SECRET,
     jwtPrefix: env.JWT_SECRET ? env.JWT_SECRET.substring(0, 5) : null,
