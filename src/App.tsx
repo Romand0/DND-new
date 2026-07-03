@@ -1,5 +1,6 @@
 // DM Toolkit - Application Router
 import { AuthProvider } from './contexts/AuthContext';
+import { useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -18,8 +19,18 @@ import Placeholder from '@/pages/Placeholder';
 import InventoryPage from '@/pages/InventoryPage';
 import EquipmentList from '@/pages/EquipmentList';
 import EquipmentDetail from '@/pages/EquipmentDetail';
+import PlayerHome from '@/pages/PlayerHome';
 import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
+
+// 根路径壳：按 role 分流到 DM Layout 或 PlayerLayout
+function RoleShell({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (user?.role === 'player') {
+    return <PlayerLayout>{children}</PlayerLayout>;
+  }
+  return <Layout>{children}</Layout>;
+}
 
 export default function App() {
   return (
@@ -49,6 +60,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
+              <Route path="/player/home" element={<PlayerHome />} />
               <Route path="/player/:playerId" element={<PlayerView />} />
               <Route path="/player/:playerId/inventory" element={<PlayerInventory />} />
               <Route
@@ -65,7 +77,9 @@ export default function App() {
               path="/"
               element={
                 <ProtectedRoute>
-                  <Layout />
+                  <RoleShell>
+                    <Outlet />
+                  </RoleShell>
                 </ProtectedRoute>
               }
             >
