@@ -19,9 +19,27 @@ export default function SettingsPage() {
   const [migrateResult, setMigrateResult] = useState<{ equipments: number; spells: number; characters: number } | null>(null);
   const [migrateError, setMigrateError] = useState('');
 
-  const equipmentCount = equipmentStore.getAll().length;
-  const spellCount = spellStore.getAll().length;
-  const characterCount = characterStore.getAll().length;
+  const [equipmentCount, setEquipmentCount] = useState(0);
+  const [spellCount, setSpellCount] = useState(0);
+  const [characterCount, setCharacterCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const chars = await api.fetchAllCharacters();
+        const eqs = await api.fetchAllEquipments();
+        const sps = await api.fetchAllSpells();
+        setCharacterCount(chars.length);
+        setEquipmentCount(eqs.length);
+        setSpellCount(sps.length);
+      } catch {
+        setCharacterCount(characterStore.getAll().length);
+        setEquipmentCount(equipmentStore.getAll().length);
+        setSpellCount(spellStore.getAll().length);
+      }
+    };
+    fetchCounts();
+  }, []);
 
   useEffect(() => {
     const storedToken = localStorage.getItem(TOKEN_KEY) || '';
