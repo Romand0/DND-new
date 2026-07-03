@@ -5,7 +5,7 @@ import { useEditorState } from '@/data/editorState';
 import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
-import { api } from '@/lib/api';
+import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment } from '@/lib/api';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
@@ -25,12 +25,11 @@ export default function EquipmentList() {
 
   useEditorState(editorOpen);
 
-  // 加载列表（DM 走 API，Player 也走 API 但只读）
   const load = async () => {
     setLoading(true);
     setError('');
     try {
-      const data = await api.fetchAllEquipments();
+      const data = await fetchAllEquipments();
       setEquipments(data);
     } catch (e: any) {
       setError(e.message || '加载失败');
@@ -67,9 +66,9 @@ export default function EquipmentList() {
     setError('');
     try {
       if (editingItem) {
-        await api.updateEquipment(editingItem.id, item);
+        await updateEquipment(editingItem.id, item);
       } else {
-        await api.createEquipment(item);
+        await createEquipment(item);
       }
       setEditorOpen(false);
       setEditingItem(undefined);
@@ -86,7 +85,7 @@ export default function EquipmentList() {
     setSaving(true);
     setError('');
     try {
-      await api.deleteEquipment(id);
+      await deleteEquipment(id);
       setDeleteConfirm(null);
       load();
     } catch (e: any) {
@@ -96,12 +95,11 @@ export default function EquipmentList() {
     }
   };
 
-  // GitHub sync 保留，但改成兜底（API 优先，失败时可尝试本地回退说明）
   const handleSyncFromGitHub = async () => {
     setSyncing(true);
     setError('');
     try {
-      await load(); // 重新拉 API
+      await load();
     } catch (e: any) {
       setError('云端加载失败：' + (e.message || ''));
     } finally {
@@ -143,7 +141,6 @@ export default function EquipmentList() {
 
       {error && <div className="p-3 rounded-lg bg-danger/20 text-danger text-sm">{error}</div>}
 
-      {/* 搜索 + 新增 */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
@@ -159,7 +156,6 @@ export default function EquipmentList() {
         )}
       </div>
 
-      {/* 分类 tab */}
       <div className="flex gap-1 border-b dark:border-border-dark light:border-border-light overflow-x-auto -mx-2 px-2">
         {CATEGORIES.map(cat => {
           const count = categoryCounts[cat] || 0;
@@ -195,8 +191,8 @@ export default function EquipmentList() {
                 </div>
                 {item.properties?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {item.properties.slice(0,4).map(p => <span key={p} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">{p}</span>)}
-                    {item.properties.length > 4 && <span className="px-1.5 py-0.5 text-xs rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">+{item.properties.length-4}</span>}
+                    {item.properties?.slice(0,4).map(p => <span key={p} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">{p}</span>)}
+                    {item.properties && item.properties.length > 4 && <span className="px-1.5 py-0.5 text-xs rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">+{item.properties.length-4}</span>}
                   </div>
                 )}
               </div>
