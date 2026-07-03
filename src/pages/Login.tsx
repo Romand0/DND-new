@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -27,23 +29,20 @@ const Login: React.FC = () => {
         return;
       }
 
-      // 保存 token 和用户信息
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
+      // 用 AuthContext 的 login 方法（它会自动更新状态 + 存 localStorage）
+      login(data.token, data.user);
 
       // 调试：确认 token 是否存进去了
       alert('TOKEN: ' + (data.token ? data.token.substring(0, 15) + '...' : 'NO TOKEN'));
 
       // 跳转到首页
       navigate('/');
-      } catch (err) {
-  // 打印错误到浏览器控制台，方便你查看具体报错
-  console.error('登录失败详情:', err); 
-  
-  // 显示真实的错误提示，不再固定显示“网络问题”
-  setError(err instanceof Error ? err.message : '发生未知错误');
-     } 
-
+    } catch (err) {
+      console.error('登录失败详情:', err);
+      setError(err instanceof Error ? err.message : '发生未知错误');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
