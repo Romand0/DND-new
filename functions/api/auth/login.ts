@@ -40,20 +40,21 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (!isValid) {
     return errorResponse(401, 'Invalid username or password');
   }
-  
-// 生成 JWT 前先打日志
-console.log('JWT_DEBUG:', {
-  hasSecret: !!env.JWT_SECRET,
-  secretLen: env.JWT_SECRET?.length,
-  secretPrefix: env.JWT_SECRET?.substring(0, 3),
-  allEnvKeys: Object.keys(env).join(',')
-});
+
+  // 生成 JWT 前先打日志
+  console.log('JWT_DEBUG:', {
+    hasSecret: !!env.JWT_SECRET,
+    secretLen: env.JWT_SECRET?.length,
+    secretPrefix: env.JWT_SECRET?.substring(0, 3),
+    allEnvKeys: Object.keys(env).join(','),
+  });
 
   // 生成 JWT（单独 try/catch，捕捉 JWT_SECRET 缺失或格式问题）
   let token: string;
   try {
-const jwtSecret = env.JWT_SECRET || "cmy090907cmy090907cmy090907"; // 环境变量没注入时用这个兜底
-token = } catch (e) {
+    const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907'; // 环境变量没注入时用这个兜底
+    token = await signJwt({ sub: user.id, role: user.role }, jwtSecret);
+  } catch (e) {
     console.error('signJwt failed:', e);
     return errorResponse(500, 'Token generation failed: ' + (e instanceof Error ? e.message : String(e)));
   }
