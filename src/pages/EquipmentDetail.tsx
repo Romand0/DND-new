@@ -26,7 +26,10 @@ export default function EquipmentDetail() {
     setLoading(true);
     setError('');
     try {
-      const data = await apiFetch(`/equipments/${id}`, { method: 'GET' }, true);
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const data = await apiFetch(`/equipments/${id}`, { method: 'GET', headers });
       setItem(data);
     } catch (e: any) {
       setError(e.message || '加载失败');
@@ -42,9 +45,12 @@ export default function EquipmentDetail() {
     setSaving(true);
     setError('');
     try {
-      await apiFetch(`/equipments/${id}`, { method: 'PUT', body: JSON.stringify(updatedItem) }, true);
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await apiFetch(`/equipments/${id}`, { method: 'PUT', body: JSON.stringify(updatedItem), headers });
       setEditorOpen(false);
-      load(); // 重新拉详情
+      load();
     } catch (e: any) {
       setError(e.message || '保存失败');
     } finally {
@@ -57,7 +63,10 @@ export default function EquipmentDetail() {
     setSaving(true);
     setError('');
     try {
-      await apiFetch(`/equipments/${id}`, { method: 'DELETE' }, true);
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      await apiFetch(`/equipments/${id}`, { method: 'DELETE', headers });
       navigate('/equipment');
     } catch (e: any) {
       setError(e.message || '删除失败');
@@ -95,7 +104,6 @@ export default function EquipmentDetail() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* 头部 */}
       <div className="flex items-center gap-4">
         <Link to="/equipment" className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light">
           <ChevronLeft className="w-5 h-5" />
@@ -126,12 +134,10 @@ export default function EquipmentDetail() {
         )}
       </div>
 
-      {/* 错误提示 */}
       {error && (
         <div className="p-3 rounded-lg bg-danger/20 text-danger text-sm">{error}</div>
       )}
 
-      {/* 基本信息 */}
       <div className="grid grid-cols-2 gap-4">
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <div className="flex items-center gap-2 mb-1">
@@ -149,7 +155,6 @@ export default function EquipmentDetail() {
         </div>
       </div>
 
-      {/* 属性标签 */}
       {item.properties && item.properties.length > 0 && (
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <h3 className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">属性</h3>
@@ -161,7 +166,6 @@ export default function EquipmentDetail() {
         </div>
       )}
 
-      {/* 描述 */}
       {item.description && (
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <h3 className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">描述</h3>
@@ -169,7 +173,6 @@ export default function EquipmentDetail() {
         </div>
       )}
 
-      {/* 自由标签 */}
       {item.tags && item.tags.length > 0 && (
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <div className="flex items-center gap-2 mb-2">
@@ -187,7 +190,6 @@ export default function EquipmentDetail() {
         </div>
       )}
 
-      {/* 来源 */}
       {item.source && (
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <h3 className="text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">来源</h3>
@@ -195,7 +197,6 @@ export default function EquipmentDetail() {
         </div>
       )}
 
-      {/* 编辑器模态框 */}
       {editorOpen && (
         <EquipmentEditor
           item={item}
@@ -205,7 +206,6 @@ export default function EquipmentDetail() {
         />
       )}
 
-      {/* 删除确认 */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="rounded-xl border p-6 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light max-w-sm w-full">
