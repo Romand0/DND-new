@@ -45,15 +45,3 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     headers: { 'Content-Type': 'application/json' },
   });
 };
-
-
-  if (!user) {
-    return errorResponse(404, 'User not found');
-  }
-
-  // 返回用户信息
-  return new Response(JSON.stringify({ user }), {
-    headers: { 'Content-Type': 'application/json' },
-  });
-};
-
