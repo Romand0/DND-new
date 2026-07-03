@@ -22,15 +22,15 @@ import PlayerHome from '@/pages/PlayerHome';
 import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 
-// 根路径壳：按 role 分流
-const RoleShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+// 根路径壳：按 role 分流（使用 PropsWithChildren 确保类型安全）
+function RoleShell(props: React.PropsWithChildren<{}>) {
   const { user, loading } = useAuth();
   if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
   if (user?.role === 'player') {
     return <Navigate to="/player/home" replace />;
   }
-  return <Layout>{children}</Layout>;
-};
+  return <Layout>{props.children}</Layout>;
+}
 
 export default function App() {
   return (
