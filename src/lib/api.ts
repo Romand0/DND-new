@@ -72,6 +72,13 @@ export async function createCharacter<T = any>(data: T): Promise<T> {
   });
 }
 
+export async function batchUpsertCharacters(items: any[]): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>('/characters', {
+    method: 'POST',
+    body: JSON.stringify(items),
+  });
+}
+
 export async function updateCharacter<T = any>(id: string, data: T): Promise<T> {
   return apiFetch<T>(`/characters/${id}`, {
     method: 'PUT',
@@ -99,6 +106,13 @@ export async function createEquipment<T = any>(data: T): Promise<T> {
   });
 }
 
+export async function batchUpsertEquipments(items: any[]): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>('/equipments', {
+    method: 'POST',
+    body: JSON.stringify(items),
+  });
+}
+
 export async function updateEquipment<T = any>(id: string, data: T): Promise<T> {
   return apiFetch<T>(`/equipments/${id}`, {
     method: 'PUT',
@@ -123,6 +137,13 @@ export async function createSpell<T = any>(data: T): Promise<T> {
   return apiFetch<T>('/spells', {
     method: 'POST',
     body: JSON.stringify(data),
+  });
+}
+
+export async function batchUpsertSpells(items: any[]): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>('/spells', {
+    method: 'POST',
+    body: JSON.stringify(items),
   });
 }
 

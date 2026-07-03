@@ -19,6 +19,32 @@ export async function onRequestPost(context: any): Promise<Response> {
     return errorResponse('未授权', 401);
   }
   const body = await readJsonBody(request);
+  
+  if (Array.isArray(body)) {
+    const timestamp = now();
+    const stmt = env.DB.prepare(
+      'INSERT OR REPLACE INTO spells (id, name, level, school, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    const batch = body.map((item: any) => {
+      const itemData = { ...item, createdAt: item.createdAt || timestamp, updatedAt: timestamp };
+      return stmt.bind(
+        item.id,
+        item.name || '',
+        item.level || 0,
+        item.school || '',
+        JSON.stringify(itemData),
+        item.createdAt || timestamp,
+        timestamp,
+      );
+    });
+    try {
+      await env.DB.batch(batch);
+      return jsonResponse({ count: body.length });
+    } catch (e: any) {
+      return errorResponse(e.message || '批量导入失败', 500);
+    }
+  }
+  
   if (!body || !body.id || !body.name) {
     return errorResponse('缺少必要字段: id, name', 400);
   }

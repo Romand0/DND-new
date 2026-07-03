@@ -100,51 +100,22 @@ export default function SettingsPage() {
       let spCount = 0;
       let chCount = 0;
 
-      if (data.equipments && Array.isArray(data.equipments)) {
+      if (data.equipments && Array.isArray(data.equipments) && data.equipments.length > 0) {
+        const result = await api.batchUpsertEquipments(data.equipments);
+        eqCount = result.count;
         equipmentStore.save(data.equipments);
-        for (const item of data.equipments) {
-          try {
-            await api.createEquipment(item);
-          } catch {
-            try {
-              await api.updateEquipment(item.id, item);
-            } catch {
-              // skip
-            }
-          }
-          eqCount++;
-        }
       }
 
-      if (data.spells && Array.isArray(data.spells)) {
+      if (data.spells && Array.isArray(data.spells) && data.spells.length > 0) {
+        const result = await api.batchUpsertSpells(data.spells);
+        spCount = result.count;
         spellStore.save(data.spells);
-        for (const item of data.spells) {
-          try {
-            await api.createSpell(item);
-          } catch {
-            try {
-              await api.updateSpell(item.id, item);
-            } catch {
-              // skip
-            }
-          }
-          spCount++;
-        }
       }
 
-      if (data.characters && Array.isArray(data.characters)) {
-        for (const item of data.characters) {
-          try {
-            await api.createCharacter(item);
-          } catch {
-            try {
-              await api.updateCharacter(item.id, item);
-            } catch {
-              // skip
-            }
-          }
-          chCount++;
-        }
+      if (data.characters && Array.isArray(data.characters) && data.characters.length > 0) {
+        const result = await api.batchUpsertCharacters(data.characters);
+        chCount = result.count;
+        characterStore.save(data.characters);
       }
 
       setMigrateResult({ equipments: eqCount, spells: spCount, characters: chCount });
