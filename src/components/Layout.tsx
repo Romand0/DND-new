@@ -1,10 +1,14 @@
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import SyncButton from './SyncButton';
-import { hasToken } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Layout() {
-  const isDM = hasToken();
+  const { user, isDM } = useAuth();
+
+  // 调试：确认 AuthContext 状态
+  console.log('Layout render:', { user: user?.username, role: user?.role, isDM });
+
   return (
     <div className="min-h-screen dark:bg-bg-dark light:bg-bg-light">
       <Navbar variant={isDM ? 'dm' : 'player'} />
