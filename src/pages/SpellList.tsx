@@ -5,7 +5,7 @@ import { useEditorState } from '@/data/editorState';
 import { Sparkles, Plus, Edit2, Trash2, Search, Filter } from 'lucide-react';
 import type { Spell } from '@/types/spell';
 import SpellEditor from '@/components/SpellEditor';
-import { api } from '@/lib/api';
+import { fetchAllSpells, createSpell, updateSpell, deleteSpell } from '@/lib/api';
 
 const levelLabels: Record<number, string> = {
   0: '戏法', 1: '1环', 2: '2环', 3: '3环', 4: '4环',
@@ -31,7 +31,7 @@ export default function SpellList() {
     setLoading(true);
     setError('');
     try {
-      const data = await api.fetchAllSpells();
+      const data = await fetchAllSpells();
       setSpells(data);
     } catch (e: any) {
       setError(e.message || '加载失败');
@@ -65,16 +65,16 @@ export default function SpellList() {
     setError('');
     try {
       if (editingSpell) {
-        await api.updateSpell(editingSpell.id, spell);
+        await updateSpell(editingSpell.id, spell);
       } else {
-        await api.createSpell(spell);
+        await createSpell(spell);
       }
       setEditorOpen(false);
       setEditingSpell(undefined);
       load();
     } catch (e: any) {
       setError(e.message || '保存失败');
-      throw e; // SpellEditor 内部可能也要 catch
+      throw e;
     } finally {
       setSaving(false);
     }
@@ -85,7 +85,7 @@ export default function SpellList() {
     setSaving(true);
     setError('');
     try {
-      await api.deleteSpell(id);
+      await deleteSpell(id);
       setDeleteConfirm(null);
       load();
     } catch (e: any) {
@@ -233,7 +233,6 @@ export default function SpellList() {
         )}
       </div>
 
-      {/* SpellEditor —— 注意：原版 SpellEditor 只有 spell/isOpen/onClose/onSave 四个 prop，无 onDelete/loading */}
       <SpellEditor
         spell={editingSpell}
         isOpen={editorOpen}
@@ -241,7 +240,6 @@ export default function SpellList() {
         onSave={handleSaveSpell}
       />
 
-      {/* 删除确认浮层（保留原版逻辑，不走 Editor 的 onDelete） */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirm(null)} />
