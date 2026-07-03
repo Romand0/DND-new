@@ -33,11 +33,14 @@ const Login: React.FC = () => {
 
       // 跳转到首页
       navigate('/');
-    } catch {
-      setError('网络错误，请稍后重试');
-    } finally {
-      setLoading(false);
-    }
+      } catch (err) {
+  // 打印错误到浏览器控制台，方便你查看具体报错
+  console.error('登录失败详情:', err); 
+  
+  // 显示真实的错误提示，不再固定显示“网络问题”
+  setError(err instanceof Error ? err.message : '发生未知错误');
+     } 
+
   };
 
   return (
