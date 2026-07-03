@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Register: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -40,13 +42,14 @@ const Register: React.FC = () => {
         return;
       }
 
-      // 保存 token 和用户信息
-      localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('auth_user', JSON.stringify(data.user));
+      // 用 AuthContext.login（跟 Login.tsx 对齐），确保状态更新 + 存 localStorage
+      await login(data.token, data.user);
 
       // 跳转到首页
       navigate('/');
-    } catch {
+    } catch (err) {
+      // res.json() 失败 或 网络异常 都会进这里
+      console.error('注册异常:', err);
       setError('网络错误，请稍后重试');
     } finally {
       setLoading(false);
