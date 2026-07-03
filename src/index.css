@@ -109,3 +109,24 @@ input:focus::placeholder,
 textarea:focus::placeholder {
   opacity: 0;
 }
+
+/* 只读模式（玩家端） */
+.read-only-mode input,
+.read-only-mode textarea,
+.read-only-mode select {
+  pointer-events: none;
+  -webkit-user-select: text;
+  user-select: text;
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.read-only-mode button:not([data-section-toggle]) {
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.read-only-mode [data-readonly-keep] {
+  pointer-events: auto !important;
+  visibility: visible !important;
+}

@@ -13,18 +13,30 @@ import {
   ScrollText,
   Package,
   Coins,
+  Scale,
   Sparkles,
   Plus,
   Minus,
   Trash2,
   ChevronDown,
   ChevronUp,
+  Edit2,
+  X,
+  ArrowUpDown,
   Download,
+  Library,
 } from 'lucide-react';
-import type { Character, AbilityKey, ProficiencyCategory } from '@/types/character';
+import type { Character, AbilityKey, ProficiencyCategory, Equipment, Attack } from '@/types/character';
 import type { Spell } from '@/types/spell';
+import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
-import allSpells from '@/data/spells.json';
+import { spellStore } from '@/data/spellStore';
+import { equipmentStore } from '@/data/equipmentStore';
+import SpellPicker from '@/components/SpellPicker';
+import EquipmentPicker from '@/components/EquipmentPicker';
+import EquipmentEditor from '@/components/EquipmentEditor';
+import AttackEditor from '@/components/AttackEditor';
+import SyncButton from '@/components/SyncButton';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -45,6 +57,35 @@ const proficiencyLabels: Record<ProficiencyCategory, string> = {
 
 const displayedProficiencyCategories: ProficiencyCategory[] = ['armor', 'weapons', 'tools', 'languages'];
 
+function renderSpellDice(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const regex = /(\d+)d(4|6|8|10|12|20)/gi;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    parts.push(
+      <span key={key++} className="inline-flex items-baseline mx-0.5">
+        <span className="text-primary font-bold">{match[1]}</span>
+        <span className="px-1 py-0 mx-0.5 rounded bg-accent/20 text-accent font-mono font-semibold">
+          d{match[2]}
+        </span>
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+
+  return parts;
+}
+
 function Section({
   title,
   icon: Icon,
@@ -61,6 +102,7 @@ function Section({
   return (
     <div className="rounded-xl border overflow-hidden dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
       <button
+        data-section-toggle
         onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between p-4 transition-colors dark:hover:bg-card-dark-hover light:hover:bg-card-light-hover"
       >
@@ -81,15 +123,36 @@ function Section({
   );
 }
 
-export default function CharacterDetail() {
+export default function CharacterDetail({
+  readOnly = false,
+  externalCharacter = null,
+}: {
+  readOnly?: boolean;
+  externalCharacter?: Character | null;
+} = {}) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [character, setCharacter] = useState<Character | null>(null);
+  const [character, setCharacter] = useState<Character | null>(externalCharacter);
   const [loading, setLoading] = useState(true);
-  const [newCantrip, setNewCantrip] = useState('');
-  const [newSpell, setNewSpell] = useState('');
+  const [spellPickerOpen, setSpellPickerOpen] = useState(false);
+  const [selectedSpellType, setSelectedSpellType] = useState<'cantrip' | 'spell'>('cantrip');
   const [expandedCantrips, setExpandedCantrips] = useState<Set<number>>(new Set());
   const [expandedSpells, setExpandedSpells] = useState<Set<number>>(new Set());
+  const [allSpells, setAllSpells] = useState<Spell[]>(spellStore.getAll());
+  const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
+  const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
+  const [equipmentEditorOpen, setEquipmentEditorOpen] = useState(false);
+  const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [statsEditorOpen, setStatsEditorOpen] = useState(false);
+  const [statsForm, setStatsForm] = useState({
+    currentHp: 0,
+    maxHp: 0,
+    tempHp: 0,
+    armorClass: 0,
+    speed: 0,
+    proficiencyBonus: 2,
+  });
   const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
     armor: '',
     weapons: '',
@@ -98,23 +161,36 @@ export default function CharacterDetail() {
     savingThrows: '',
   });
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
+  const [attackEditorOpen, setAttackEditorOpen] = useState(false);
+  const [editingAttack, setEditingAttack] = useState<(Attack & { id: string }) | null>(null);
+
+  const genderOptions = [
+    { value: 'male', label: '男', icon: '♂', color: 'text-info' },
+    { value: 'female', label: '女', icon: '♀', color: 'text-danger' },
+    { value: 'other', label: '其他', icon: '⚧', color: 'text-accent' },
+    { value: '', label: '不显示', icon: '—', color: 'dark:text-text-dark-muted light:text-text-light-muted' },
+  ] as const;
 
   const getGenderDisplay = () => {
     if (!character?.gender) return null;
-    switch (character.gender) {
-      case 'male':
-        return { icon: '♂', label: '男性', color: 'text-info' };
-      case 'female':
-        return { icon: '♀', label: '女性', color: 'text-danger' };
-      case 'other':
-        return { icon: '⚲', label: '其他', color: 'text-accent' };
-      default:
-        return null;
-    }
+    const option = genderOptions.find((o) => o.value === character.gender);
+    return option || null;
+  };
+
+  const handleSelectGender = (gender: string) => {
+    if (!id) return;
+    characterStore.update(id, { gender: gender as any });
+    reloadChar();
+    setGenderPickerOpen(false);
   };
 
   const getSpellByName = (name: string): Spell | undefined => {
-    return (allSpells as Spell[]).find((s) => s.name === name);
+    return allSpells.find((s) => s.name === name);
+  };
+
+  const getSelectedSpellNames = (): string[] => {
+    if (!character) return [];
+    return [...character.spells.cantrips, ...character.spells.custom];
   };
 
   const toggleCantripExpand = (index: number) => {
@@ -141,13 +217,35 @@ export default function CharacterDetail() {
     });
   };
 
+  const handleSelectSpell = (spell: Spell) => {
+    if (!id) return;
+    if (selectedSpellType === 'cantrip') {
+      characterStore.addCantrip(id, spell.name);
+    } else {
+      characterStore.addCustomSpell(id, spell.name);
+    }
+    reloadChar();
+  };
+
   useEffect(() => {
+    if (externalCharacter) {
+      setCharacter(externalCharacter);
+      setLoading(false);
+      return;
+    }
     if (id) {
       const char = characterStore.get(id);
       setCharacter(char);
       setLoading(false);
     }
-  }, [id]);
+  }, [id, externalCharacter]);
+
+  useEffect(() => {
+    const unsubscribe = spellStore.subscribe(() => {
+      setAllSpells(spellStore.getAll());
+    });
+    return unsubscribe;
+  }, []);
 
   const reloadChar = () => {
     if (id) {
@@ -158,7 +256,8 @@ export default function CharacterDetail() {
 
   const updateAbilityScore = (ability: AbilityKey, score: number | null) => {
     if (!id) return;
-    const finalScore = score ?? 10;
+    // 当 score 为 null 时，设置为 0
+    const finalScore = score ?? 0;
     const modifier = characterStore.calcModifier(finalScore);
     characterStore.update(id, {
       abilities: {
@@ -170,39 +269,219 @@ export default function CharacterDetail() {
   };
 
   const handleAddAttack = () => {
-    if (!id) return;
-    characterStore.addAttack(id, { name: '新攻击' });
-    reloadChar();
+    setEditingAttack(null);
+    setAttackEditorOpen(true);
   };
 
-  const handleUpdateAttack = (attackId: string, field: string, value: string) => {
-    if (!id) return;
-    characterStore.updateAttack(id, attackId, { [field]: value });
-    reloadChar();
+  const handleEditAttack = (attack: Attack & { id: string }) => {
+    setEditingAttack(attack);
+    setAttackEditorOpen(true);
   };
 
-  const handleDeleteAttack = (attackId: string) => {
-    if (!id) return;
-    characterStore.deleteAttack(id, attackId);
+  const handleSaveAttack = (attack: Attack) => {
+    if (!id || !character) return;
+    let updatedAttacks: Attack[];
+    if (editingAttack) {
+      updatedAttacks = character.attacks.map((a) =>
+        a.id === editingAttack.id ? { ...attack, id: editingAttack.id } : a
+      );
+    } else {
+      updatedAttacks = [...character.attacks, { ...attack, id: `attack-${Date.now()}` }];
+    }
+    characterStore.update(id, { attacks: updatedAttacks });
+    reloadChar();
+    setAttackEditorOpen(false);
+    setEditingAttack(null);
+  };
+
+  const handleDeleteAttack = () => {
+    if (!id || !editingAttack || !character) return;
+    const updatedAttacks = character.attacks.filter((a) => a.id !== editingAttack.id);
+    characterStore.update(id, { attacks: updatedAttacks });
+    reloadChar();
+    setAttackEditorOpen(false);
+    setEditingAttack(null);
+  };
+
+  const handleDeleteAttackDirect = (attackId: string) => {
+    if (!id || !character) return;
+    const updatedAttacks = character.attacks.filter((a) => a.id !== attackId);
+    characterStore.update(id, { attacks: updatedAttacks });
     reloadChar();
   };
 
   const handleAddEquipment = () => {
+    setEditingEquipment(null);
+    setEquipmentEditorOpen(true);
+  };
+
+  const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
     if (!id) return;
-    characterStore.addEquipment(id, { name: '新装备' });
+    // 创建临时装备对象用于编辑器
+    const tempEquipment: Equipment & { id: string } = {
+      id: `temp-${Date.now()}`,
+      name: item.name,
+      category: item.category,
+      quantity: 1,
+      description: item.description || '',
+      weight: item.weight,
+      price: item.price,
+      properties: item.properties || [],
+      tags: item.tags || [],
+      source: item.source || '',
+      subtype: item.subtype || '',
+    };
+    setEditingEquipment(tempEquipment);
+    setEquipmentEditorOpen(true);
+  };
+
+  const handleEditEquipment = (item: Equipment & { id: string }) => {
+    setEditingEquipment(item);
+    setEquipmentEditorOpen(true);
+  };
+
+  const handleSaveEquipment = async (formData: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => {
+    if (!id) return;
+
+    const libraryItem: EquipmentItem = {
+      id: formData.id,
+      name: formData.name,
+      category: formData.category,
+      subtype: formData.subtype,
+      weight: formData.weight,
+      price: formData.price,
+      description: formData.description,
+      properties: formData.properties ? [...formData.properties] : [],
+      tags: formData.tags ? [...formData.tags] : [],
+      source: formData.source,
+      isCustom: false,
+    };
+
+    if (syncToLibrary) {
+      const allEquipments = equipmentStore.getAll();
+      const nameMatchIndex = allEquipments.findIndex((e) => e.name === formData.name && e.id !== formData.id);
+      let finalLibraryItem = libraryItem;
+
+      if (nameMatchIndex >= 0) {
+        finalLibraryItem = { ...libraryItem, id: allEquipments[nameMatchIndex].id };
+      }
+
+      await equipmentStore.saveItem(finalLibraryItem);
+    }
+
+    if (!editingEquipment) {
+      characterStore.addEquipment(id, {
+        name: formData.name,
+        category: formData.category,
+        quantity: formData.quantity || 1,
+        description: formData.description,
+        weight: formData.weight,
+        price: formData.price,
+        properties: formData.properties,
+        tags: formData.tags,
+        source: formData.source,
+        subtype: formData.subtype,
+      });
+    } else if (editingEquipment.id.startsWith('temp-')) {
+      characterStore.addEquipment(id, {
+        name: formData.name,
+        category: formData.category,
+        quantity: formData.quantity || 1,
+        description: formData.description,
+        weight: formData.weight,
+        price: formData.price,
+        properties: formData.properties ? [...formData.properties] : [],
+        tags: formData.tags ? [...formData.tags] : [],
+        source: formData.source,
+        subtype: formData.subtype,
+      });
+    } else if (editingEquipment) {
+      characterStore.updateEquipment(id, editingEquipment.id, {
+        name: formData.name,
+        category: formData.category,
+        quantity: formData.quantity,
+        description: formData.description,
+        weight: formData.weight,
+        price: formData.price,
+        properties: formData.properties,
+        tags: formData.tags,
+        source: formData.source,
+        subtype: formData.subtype,
+      });
+    }
+    reloadChar();
+    setEquipmentEditorOpen(false);
+    setEditingEquipment(null);
+  };
+
+  const handleDeleteEquipmentConfirm = () => {
+    if (!id || !deleteConfirmId) return;
+    characterStore.deleteEquipment(id, deleteConfirmId);
+    reloadChar();
+    setDeleteConfirmId(null);
+  };
+
+  const handleSortEquipment = () => {
+    if (!id || !character) return;
+    const categoryOrder = ['武器', '护甲', '法器', '工具', '药水', '杂物'];
+    const sorted = [...character.equipment].sort((a, b) => {
+      const aIndex = categoryOrder.indexOf(a.category);
+      const bIndex = categoryOrder.indexOf(b.category);
+      const aRank = aIndex === -1 ? categoryOrder.length : aIndex;
+      const bRank = bIndex === -1 ? categoryOrder.length : bIndex;
+      if (aRank !== bRank) return aRank - bRank;
+      return a.name.localeCompare(b.name, 'zh-CN');
+    });
+    characterStore.update(id, { equipment: sorted });
     reloadChar();
   };
 
-  const handleUpdateEquipment = (equipId: string, field: string, value: any) => {
+  const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
     if (!id) return;
-    characterStore.updateEquipment(id, equipId, { [field]: value });
+    const equip = character?.equipment.find((e) => e.id === equipId);
+    if (!equip) return;
+    const newQty = Math.max(1, (equip.quantity || 1) + delta);
+    characterStore.updateEquipment(id, equipId, { quantity: newQty });
     reloadChar();
   };
 
-  const handleDeleteEquipment = (equipId: string) => {
+  const handleOpenStatsEditor = () => {
+    if (!character) return;
+    setStatsForm({
+      currentHp: character.currentHp,
+      maxHp: character.maxHp,
+      tempHp: character.tempHp,
+      armorClass: character.armorClass,
+      speed: character.speed,
+      proficiencyBonus: character.proficiencyBonus,
+    });
+    setStatsEditorOpen(true);
+  };
+
+  const handleSaveStats = () => {
     if (!id) return;
-    characterStore.deleteEquipment(id, equipId);
+    characterStore.update(id, {
+      currentHp: statsForm.currentHp || 0,
+      maxHp: statsForm.maxHp || 0,
+      tempHp: statsForm.tempHp || 0,
+      armorClass: statsForm.armorClass || 0,
+      speed: statsForm.speed || 0,
+      proficiencyBonus: Math.max(2, Math.min(6, statsForm.proficiencyBonus || 2)),
+    });
     reloadChar();
+    setStatsEditorOpen(false);
+  };
+
+  const toggleEquipmentExpand = (equipId: string) => {
+    setExpandedEquipment((prev) => {
+      const next = new Set(prev);
+      if (next.has(equipId)) {
+        next.delete(equipId);
+      } else {
+        next.add(equipId);
+      }
+      return next;
+    });
   };
 
   const handleAddFeature = () => {
@@ -223,23 +502,9 @@ export default function CharacterDetail() {
     reloadChar();
   };
 
-  const handleAddCantrip = () => {
-    if (!id || !newCantrip.trim()) return;
-    characterStore.addCantrip(id, newCantrip.trim());
-    setNewCantrip('');
-    reloadChar();
-  };
-
   const handleRemoveCantrip = (index: number) => {
     if (!id) return;
     characterStore.removeCantrip(id, index);
-    reloadChar();
-  };
-
-  const handleAddCustomSpell = () => {
-    if (!id || !newSpell.trim()) return;
-    characterStore.addCustomSpell(id, newSpell.trim());
-    setNewSpell('');
     reloadChar();
   };
 
@@ -262,9 +527,15 @@ export default function CharacterDetail() {
     reloadChar();
   };
 
-  const handleRemoveProficiency = (category: ProficiencyCategory, item: string) => {
+  const handleRemoveProficiency = (category: ProficiencyCategory, index: number) => {
     if (!id) return;
-    characterStore.removeProficiency(id, category, item);
+    characterStore.removeProficiency(id, category, index);
+    reloadChar();
+  };
+
+  const handleUpdateProficiency = (category: ProficiencyCategory, index: number, value: string) => {
+    if (!id) return;
+    characterStore.updateProficiency(id, category, index, value);
     reloadChar();
   };
 
@@ -276,6 +547,43 @@ export default function CharacterDetail() {
 
   const hpColor =
     hpPercentage > 60 ? 'bg-success' : hpPercentage > 30 ? 'bg-warning' : 'bg-danger';
+
+  const carryCapacity = character ? character.abilities.strength.score * 15 : 0;
+  const totalWeight = character
+    ? character.equipment.reduce((sum, item) => {
+        const w = item.weight || 0;
+        const q = item.quantity || 1;
+        return sum + w * q;
+      }, 0)
+    : 0;
+  const isOverloaded = totalWeight > carryCapacity;
+  const effectiveSpeed = character
+    ? isOverloaded
+      ? Math.max(0, character.speed - 10)
+      : character.speed
+    : 0;
+
+  const totalValue = character
+    ? character.equipment.reduce(
+        (acc, item) => {
+          if (!item.price) return acc;
+          const amount = item.price.amount * (item.quantity || 1);
+          if (item.price.unit === 'gp') acc.gp += amount;
+          else if (item.price.unit === 'sp') acc.sp += amount;
+          else if (item.price.unit === 'cp') acc.cp += amount;
+          return acc;
+        },
+        { gp: 0, sp: 0, cp: 0 }
+      )
+    : { gp: 0, sp: 0, cp: 0 };
+  const { gp, sp, cp } = (() => {
+    let totalCp = totalValue.gp * 100 + totalValue.sp * 10 + totalValue.cp;
+    const g = Math.floor(totalCp / 100);
+    totalCp %= 100;
+    const s = Math.floor(totalCp / 10);
+    const c = totalCp % 10;
+    return { gp: g, sp: s, cp: c };
+  })();
 
   if (loading) {
     return (
@@ -301,139 +609,173 @@ export default function CharacterDetail() {
   }
 
   return (
-    <div className="space-y-6">
-      <Link
-        to="/characters"
-        className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
-      >
-        <ArrowLeft className="w-5 h-5" />
-      </Link>
+    <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
 
-      <div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <input
-            type="text"
-            value={character.name}
-            onChange={(e) => {
-              characterStore.update(id!, { name: e.target.value });
-              reloadChar();
-            }}
-            className="text-xl sm:text-2xl md:text-3xl font-bold bg-transparent border-none outline-none dark:text-text-dark light:text-text-light"
-            placeholder="角色名称"
-          />
-          <button
-            onClick={() => setGenderPickerOpen(true)}
-            className="flex-shrink-0 p-1 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
-            title={getGenderDisplay()?.label || '设置性别'}
-          >
-            {getGenderDisplay() ? (
-              <span className={`text-xl sm:text-2xl md:text-3xl font-bold ${getGenderDisplay()!.color}`}>
-                {getGenderDisplay()!.icon}
-              </span>
-            ) : (
-              <span className="text-lg sm:text-xl md:text-2xl dark:text-text-dark-muted light:text-text-light-muted">
-                ⚲
-              </span>
-            )}
-          </button>
-        </div>
+      {!readOnly && (
+        <Link
+          to="/characters"
+          className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
+      )}
+      {readOnly && (
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark-hover light:border-border-light light:text-text-light light:hover:bg-card-light-hover"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回玩家主页
+        </Link>
+      )}
 
-        <div className="flex flex-wrap items-center gap-2 mt-2">
-          <input
-            type="text"
-            value={character.race}
-            onChange={(e) => {
-              characterStore.update(id!, { race: e.target.value });
-              reloadChar();
-            }}
-            placeholder="种族"
-            className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
-          />
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-          <input
-            type="text"
-            value={character.class}
-            onChange={(e) => {
-              characterStore.update(id!, { class: e.target.value });
-              reloadChar();
-            }}
-            placeholder="职业"
-            className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
-          />
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2 mt-1">
-          <input
-            type="text"
-            value={character.alignment}
-            onChange={(e) => {
-              characterStore.update(id!, { alignment: e.target.value });
-              reloadChar();
-            }}
-            placeholder="阵营"
-            className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-20"
-          />
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-          <input
-            type="text"
-            value={character.size}
-            onChange={(e) => {
-              characterStore.update(id!, { size: e.target.value });
-              reloadChar();
-            }}
-            placeholder="体型"
-            className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-16"
-          />
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
-          <div className="flex items-center gap-1">
-            <Star className="w-3.5 h-3.5 text-accent" />
-            <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">等级</span>
-            <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
-              {characterStore.getLevelFromExp(character.experience)}
+      <div className={`flex items-center gap-2 flex-wrap ${readOnly ? 'px-2' : ''}`}>
+        <input
+          type="text"
+          value={character.name}
+          onChange={(e) => {
+            characterStore.update(id!, { name: e.target.value });
+            reloadChar();
+          }}
+          className="text-xl sm:text-2xl md:text-3xl font-bold bg-transparent border-none outline-none dark:text-text-dark light:text-text-light"
+          placeholder="角色名称"
+        />
+        <button
+          onClick={() => setGenderPickerOpen(true)}
+          className="flex-shrink-0 p-1 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
+          title={getGenderDisplay()?.label || '设置性别'}
+        >
+          {getGenderDisplay() ? (
+            <span className={`text-xl sm:text-2xl md:text-3xl font-bold ${getGenderDisplay()!.color}`}>
+              {getGenderDisplay()!.icon}
             </span>
-          </div>
-        </div>
+          ) : (
+            <span className="text-lg sm:text-xl md:text-2xl dark:text-text-dark-muted light:text-text-light-muted">
+              ⚲
+            </span>
+          )}
+        </button>
+      </div>
 
-        <div className="mt-2">
-          <div className="flex items-center justify-between text-xs mb-1">
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-              经验值: {character.experience}
-            </span>
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-              {characterStore.getNextLevelInfo(character.experience).currentLevel >= 20
-                ? '已满级'
-                : `距下一级还需 ${characterStore.getNextLevelInfo(character.experience).expRemaining} XP`}
-            </span>
-          </div>
-          <div className="h-1.5 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-accent transition-all"
-              style={{ width: `${characterStore.getNextLevelInfo(character.experience).expProgress * 100}%` }}
-            />
-          </div>
-          <input
-            type="number"
-            value={character.experience}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '') {
-                characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
-              } else {
-                const exp = parseInt(val);
-                if (!isNaN(exp)) {
-                  const level = characterStore.getLevelFromExp(exp);
-                  const proficiencyBonus = Math.ceil(level / 4) + 1;
-                  characterStore.update(id!, { experience: exp, level, proficiencyBonus });
-                }
-              }
-              reloadChar();
-            }}
-            className="mt-2 w-full px-2 py-1 text-xs bg-white/50 dark:bg-white/10 rounded outline-none dark:text-text-dark light:text-text-light"
-            placeholder="输入经验值..."
-          />
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={character.race}
+          onChange={(e) => {
+            characterStore.update(id!, { race: e.target.value });
+            reloadChar();
+          }}
+          placeholder="种族"
+          className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
+        />
+        <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+        <input
+          type="text"
+          value={character.class}
+          onChange={(e) => {
+            characterStore.update(id!, { class: e.target.value });
+            reloadChar();
+          }}
+          placeholder="职业"
+          className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
+        />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <input
+          type="text"
+          value={character.alignment}
+          onChange={(e) => {
+            characterStore.update(id!, { alignment: e.target.value });
+            reloadChar();
+          }}
+          placeholder="阵营"
+          className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-20"
+        />
+        <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+        <input
+          type="text"
+          value={character.size}
+          onChange={(e) => {
+            characterStore.update(id!, { size: e.target.value });
+            reloadChar();
+          }}
+          placeholder="体型"
+          className="px-2 py-0.5 text-sm bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark-muted dark:focus:text-text-dark light:text-text-light-muted light:focus:text-text-light w-16"
+        />
+        <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
+        <div className="flex items-center gap-1">
+          <Star className="w-3.5 h-3.5 text-accent" />
+          <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">等级</span>
+          <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
+            {characterStore.getLevelFromExp(character.experience)}
+          </span>
         </div>
       </div>
 
+      <div className="mt-2">
+            <div className="flex items-center justify-between text-xs mb-1">
+              <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                经验值: {character.experience}
+              </span>
+              <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                {characterStore.getNextLevelInfo(character.experience).currentLevel >= 20
+                  ? '已满级'
+                  : `距下一级还需 ${characterStore.getNextLevelInfo(character.experience).expRemaining} XP`}
+              </span>
+            </div>
+            <div className="h-1.5 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-accent transition-all"
+                style={{ width: `${characterStore.getNextLevelInfo(character.experience).expProgress * 100}%` }}
+              />
+            </div>
+            {!readOnly && (
+              <input
+                type="number"
+                value={character.experience === 0 ? '' : character.experience}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === '') {
+                    // 允许清空，暂不更新 store
+                  } else {
+                    const exp = parseInt(val);
+                    if (!isNaN(exp)) {
+                      const level = characterStore.getLevelFromExp(exp);
+                      const proficiencyBonus = Math.ceil(level / 4) + 1;
+                      characterStore.update(id!, { experience: exp, level, proficiencyBonus });
+                      reloadChar();
+                    }
+                  }
+                }}
+                onBlur={(e) => {
+                  // 失去焦点时，如果为空，设置为 0
+                  if (e.target.value === '') {
+                    characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                    reloadChar();
+                  }
+                }}
+                onKeyDown={(e) => {
+                  // 按回车时，如果为空，设置为 0
+                  if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                    characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                    reloadChar();
+                  }
+                }}
+                className="mt-2 w-full px-2 py-1 text-xs bg-white/50 dark:bg-white/10 rounded outline-none dark:text-text-dark light:text-text-light"
+                placeholder="输入经验值..."
+              />
+            )}
+          </div>
+
+      <div className="relative">
+        <button
+          onClick={handleOpenStatsEditor}
+          className="absolute top-0 right-0 z-10 p-2 rounded-lg border dark:border-border-dark dark:bg-bg-dark dark:text-text-dark-muted hover:border-primary hover:text-primary light:border-border-light light:bg-bg-light-2 light:text-text-light-muted transition-colors"
+          title="编辑属性"
+        >
+          <Edit2 className="w-4 h-4" />
+        </button>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
           <div className="flex items-center gap-2 mb-2">
@@ -441,70 +783,18 @@ export default function CharacterDetail() {
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">生命值</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <input
-              type="number"
-              value={character.currentHp}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  characterStore.update(id!, { currentHp: 0 });
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) {
-                    characterStore.update(id!, { currentHp: num });
-                  }
-                }
-                reloadChar();
-              }}
-              placeholder="当前"
-              className="w-16 px-2 py-1 text-2xl font-bold rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light"
-            />
+            <span className="text-2xl font-bold dark:text-text-dark light:text-text-light">{character.currentHp}</span>
             {character.tempHp > 0 && (
               <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">(+{character.tempHp})</span>
             )}
             <span className="text-lg dark:text-text-dark-muted light:text-text-light-muted">/</span>
-            <input
-              type="number"
-              value={character.maxHp}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  characterStore.update(id!, { maxHp: 0 });
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) {
-                    characterStore.update(id!, { maxHp: num });
-                  }
-                }
-                reloadChar();
-              }}
-              placeholder="最大"
-              className="w-16 px-2 py-1 text-lg rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark-muted light:text-text-light-muted"
-            />
+            <span className="text-lg dark:text-text-dark-muted light:text-text-light-muted">{character.maxHp}</span>
           </div>
           <div className="mt-2 h-2 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
             <div className={`h-full rounded-full transition-all ${hpColor}`} style={{ width: `${hpPercentage}%` }} />
           </div>
           <div className="mt-2 flex items-center gap-2 text-xs">
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">临时HP:</span>
-            <input
-              type="number"
-              value={character.tempHp}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  characterStore.update(id!, { tempHp: 0 });
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) {
-                    characterStore.update(id!, { tempHp: num });
-                  }
-                }
-                reloadChar();
-              }}
-              placeholder="0"
-              className="w-14 px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light text-center text-sm"
-            />
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">临时HP: {character.tempHp}</span>
           </div>
         </div>
 
@@ -513,24 +803,7 @@ export default function CharacterDetail() {
             <Shield className="w-5 h-5 text-info" />
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">护甲等级</span>
           </div>
-          <input
-            type="number"
-            value={character.armorClass}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '') {
-                characterStore.update(id!, { armorClass: 0 });
-              } else {
-                const num = parseInt(val);
-                if (!isNaN(num)) {
-                  characterStore.update(id!, { armorClass: num });
-                }
-              }
-              reloadChar();
-            }}
-            placeholder="10"
-            className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-full"
-          />
+          <div className="text-3xl font-bold dark:text-text-dark light:text-text-light">{character.armorClass}</div>
         </div>
 
         <div className="p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
@@ -539,26 +812,18 @@ export default function CharacterDetail() {
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">速度</span>
           </div>
           <div className="flex items-baseline gap-1">
-            <input
-              type="number"
-              value={character.speed}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (val === '') {
-                  characterStore.update(id!, { speed: 0 });
-                } else {
-                  const num = parseInt(val);
-                  if (!isNaN(num)) {
-                    characterStore.update(id!, { speed: num });
-                  }
-                }
-                reloadChar();
-              }}
-              placeholder="30"
-              className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-20"
-            />
+            <span className={`text-3xl font-bold ${
+              isOverloaded ? 'text-danger' : 'dark:text-text-dark light:text-text-light'
+            }`}>
+              {isOverloaded ? effectiveSpeed : character.speed}
+            </span>
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">尺</span>
           </div>
+          {isOverloaded && (
+            <div className="mt-1 text-xs text-danger">
+              负重 {character.speed} 尺 → {effectiveSpeed} 尺
+            </div>
+          )}
         </div>
 
         <div className="p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
@@ -566,29 +831,15 @@ export default function CharacterDetail() {
             <Star className="w-5 h-5 text-accent" />
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">熟练加值</span>
           </div>
-          <input
-            type="number"
-            value={character.proficiencyBonus}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (val === '') {
-                characterStore.update(id!, { proficiencyBonus: 2 });
-              } else {
-                const num = parseInt(val);
-                if (!isNaN(num)) {
-                  characterStore.update(id!, { proficiencyBonus: Math.max(2, Math.min(6, num)) });
-                }
-              }
-              reloadChar();
-            }}
-            placeholder="2"
-            className="text-3xl font-bold px-3 py-2 rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light w-full"
-          />
+          <div className="text-3xl font-bold dark:text-text-dark light:text-text-light">
+            {character.proficiencyBonus >= 0 ? `+${character.proficiencyBonus}` : character.proficiencyBonus}
+          </div>
           <div className="mt-2 flex items-center gap-2 text-xs">
             <Eye className="w-3.5 h-3.5 dark:text-text-dark-muted light:text-text-light-muted" />
             <span className="dark:text-text-dark-muted light:text-text-light-muted">被动察觉: {character ? characterStore.calcPassivePerception(character) : 10}</span>
           </div>
         </div>
+      </div>
       </div>
 
       <Section title="属性值" icon={Zap}>
@@ -601,23 +852,33 @@ export default function CharacterDetail() {
               <div className="text-xs uppercase tracking-wide mb-1 dark:text-text-dark-muted light:text-text-light-muted">
                 {abilityLabels[ability]}
               </div>
-              <input
-                type="number"
-                value={character.abilities[ability].score}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  if (val === '') {
-                    updateAbilityScore(ability, null);
-                  } else {
-                    const num = parseInt(val);
-                    if (!isNaN(num)) {
-                      updateAbilityScore(ability, num);
+              <div className="flex items-center justify-center gap-1">
+                <button
+                  onClick={() => {
+                    const currentScore = character.abilities[ability].score;
+                    if (currentScore > 1) {
+                      updateAbilityScore(ability, currentScore - 1);
                     }
-                  }
-                }}
-                placeholder="10"
-                className="w-14 py-1 text-2xl font-bold text-center rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light"
-              />
+                  }}
+                  className="w-8 h-8 rounded-lg bg-white/50 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-primary/30 flex items-center justify-center transition-colors"
+                >
+                  <Minus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
+                </button>
+                <span className="w-12 py-1 text-2xl font-bold text-center dark:text-text-dark light:text-text-light">
+                  {character.abilities[ability].score}
+                </span>
+                <button
+                  onClick={() => {
+                    const currentScore = character.abilities[ability].score;
+                    if (currentScore < 30) {
+                      updateAbilityScore(ability, currentScore + 1);
+                    }
+                  }}
+                  className="w-8 h-8 rounded-lg bg-white/50 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-primary/30 flex items-center justify-center transition-colors"
+                >
+                  <Plus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
+                </button>
+              </div>
               <div className="mt-1 text-lg font-semibold text-primary">
                 {character.abilities[ability].modifier >= 0
                   ? `+${character.abilities[ability].modifier}`
@@ -627,6 +888,11 @@ export default function CharacterDetail() {
           ))}
         </div>
       </Section>
+
+      <div className="flex items-center justify-end gap-2 px-4 py-2 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+        <Scale className="w-4 h-4" />
+        <span>载重：{carryCapacity} 磅</span>
+      </div>
 
       <Section title="技能与豁免" icon={Star}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -652,6 +918,25 @@ export default function CharacterDetail() {
                     : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
                 }`}
               >
+                <button
+                  onClick={() => {
+                    if (group.save.proficient) {
+                      characterStore.toggleSaveExpertise(id!, group.save.key);
+                      reloadChar();
+                    }
+                  }}
+                  disabled={!group.save.proficient}
+                  className={`w-4 h-4 flex items-center justify-center ${
+                    group.save.proficient
+                      ? group.save.expertise
+                        ? 'text-accent'
+                        : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-accent'
+                      : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+                  }`}
+                  title={group.save.proficient ? (group.save.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+                >
+                  <Star className={`w-3.5 h-3.5 ${group.save.expertise ? 'fill-accent' : ''}`} />
+                </button>
                 <input
                   type="checkbox"
                   checked={group.save.proficient}
@@ -691,6 +976,25 @@ export default function CharacterDetail() {
                       : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
                   }`}
                 >
+                  <button
+                    onClick={() => {
+                      if (skill.proficient) {
+                        characterStore.toggleSkillExpertise(id!, skill.key);
+                        reloadChar();
+                      }
+                    }}
+                    disabled={!skill.proficient}
+                    className={`w-4 h-4 flex items-center justify-center ${
+                      skill.proficient
+                        ? skill.expertise
+                          ? 'text-primary'
+                          : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+                        : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+                    }`}
+                    title={skill.proficient ? (skill.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${skill.expertise ? 'fill-primary' : ''}`} />
+                  </button>
                   <input
                     type="checkbox"
                     checked={skill.proficient}
@@ -731,50 +1035,124 @@ export default function CharacterDetail() {
         </div>
       </Section>
 
+      <Section title="熟练项" icon={Star}>
+        <div className="flex flex-wrap gap-4">
+          {displayedProficiencyCategories.map((category) => (
+            <div key={category} className="flex-1 min-w-[200px] max-w-[320px]">
+              <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
+                {proficiencyLabels[category]}
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {character.proficiencies[category].length === 0 && (
+                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
+                )}
+                {character.proficiencies[category].map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                  >
+                    {readOnly ? (
+                      <span className="text-xs dark:text-text-dark light:text-text-light">{item}</span>
+                    ) : (
+                      <>
+                        <input
+                          type="text"
+                          value={item}
+                          onChange={(e) => handleUpdateProficiency(category, index, e.target.value)}
+                          className="w-20 px-1 py-0.5 bg-transparent outline-none text-xs dark:text-text-dark light:text-text-light"
+                        />
+                        <button
+                          onClick={() => handleRemoveProficiency(category, index)}
+                          className="p-0.5 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {!readOnly && (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newProficiency[category]}
+                    onChange={(e) =>
+                      setNewProficiency({ ...newProficiency, [category]: e.target.value })
+                    }
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddProficiency(category)}
+                    placeholder="添加..."
+                    className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                  <button
+                    onClick={() => handleAddProficiency(category)}
+                    className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </Section>
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
           <Section title="攻击" icon={Swords}>
             <div className="space-y-2">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 px-2 py-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                <span className="pl-2">攻击名</span>
-                <span className="w-14 text-center pr-2">攻击加值</span>
-                <span className="w-20 text-center pr-2">伤害/类型</span>
-                <span className="w-6"></span>
-              </div>
-              {character.attacks.map((attack) => (
-                <div
-                  key={attack.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-2 items-center p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                >
-                  <textarea
-                    value={attack.name}
-                    onChange={(e) => handleUpdateAttack(attack.id!, 'name', e.target.value)}
-                    placeholder="攻击名称"
-                    rows={1}
-                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light resize-none min-h-[32px] field-sizing-content"
-                  />
-                  <input
-                    type="text"
-                    value={attack.bonus}
-                    onChange={(e) => handleUpdateAttack(attack.id!, 'bonus', e.target.value)}
-                    placeholder="+5"
-                    className="w-14 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm text-center dark:text-text-dark light:text-text-light"
-                  />
-                  <input
-                    type="text"
-                    value={attack.damage}
-                    onChange={(e) => handleUpdateAttack(attack.id!, 'damage', e.target.value)}
-                    placeholder="1d6+3"
-                    className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm text-center dark:text-text-dark light:text-text-light"
-                  />
-                  <button
-                    onClick={() => handleDeleteAttack(attack.id!)}
-                    className="p-1 rounded hover:bg-danger/20 text-danger"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+              {character.attacks.length === 0 ? (
+                <div className="text-center py-6 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                  暂无攻击
                 </div>
-              ))}
+              ) : (
+                character.attacks.map((attack) => (
+                  <div
+                    key={attack.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light truncate">
+                        {attack.name || '未命名攻击'}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1 text-xs flex-wrap dark:text-text-dark-muted light:text-text-light-muted">
+                        <span className="text-primary font-medium">{attack.attackBonus || '—'}</span>
+                        <span>·</span>
+                        <span>{attack.damage || '—'}</span>
+                        {attack.damageType && <span>{attack.damageType}</span>}
+                        {attack.range && (
+                          <>
+                            <span>·</span>
+                            <span>{attack.range}</span>
+                          </>
+                        )}
+                        {attack.properties && attack.properties.length > 0 && (
+                          <>
+                            <span>·</span>
+                            <span className="truncate">{attack.properties.join('、')}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => handleEditAttack(attack as Attack & { id: string })}
+                        className="p-1.5 rounded hover:bg-primary/20 text-primary"
+                        title="编辑"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAttackDirect(attack.id!)}
+                        className="p-1.5 rounded hover:bg-danger/20 text-danger"
+                        title="删除"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
               <button
                 onClick={handleAddAttack}
                 className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
@@ -787,62 +1165,214 @@ export default function CharacterDetail() {
 
           <Section title="装备" icon={Package}>
             <div className="space-y-2">
-              <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 px-2 py-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                <span className="pl-2">名称</span>
-                <span className="w-20 text-center">分类</span>
-                <div className="flex items-center justify-end gap-1 pr-6">
-                  <span>数量</span>
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={handleAddEquipment}
+                  className="flex-1 py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                >
+                  <Plus className="w-4 h-4 inline mr-1" />
+                  添加装备
+                </button>
+                <button
+                  onClick={() => setEquipmentPickerOpen(true)}
+                  className="flex-1 py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                >
+                  <Library className="w-4 h-4 inline mr-1" />
+                  从装备库添加
+                </button>
+              </div>
+
+              <div className="relative">
+                {character.equipment.slice(0, 5).map((item) => {
+                  const isExpanded = expandedEquipment.has(item.id!);
+                  return (
+                    <div
+                      key={item.id}
+                      className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden mb-2 last:mb-0"
+                    >
+                      <div className="p-3">
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                              {item.name || '未命名装备'}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 flex-wrap text-xs">
+                              <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 dark:text-text-dark light:text-text-light">
+                                {item.category || '—'}
+                              </span>
+                              <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                                <Scale className="w-3 h-3 inline mr-0.5" />
+                                {item.weight != null ? `${item.weight} 磅` : '— 磅'}
+                              </span>
+                              <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                                <Coins className="w-3 h-3 inline mr-0.5" />
+                                {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleEditEquipment(item as Equipment & { id: string })}
+                                className="p-1.5 rounded hover:bg-primary/20 text-primary"
+                                title="编辑"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(item.id!)}
+                                className="p-1.5 rounded hover:bg-danger/20 text-danger"
+                                title="删除"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateEquipmentQuantity(item.id!, -1);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                                title="减少数量"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="w-6 text-center text-xs dark:text-text-dark light:text-text-light">
+                                ×{item.quantity || 1}
+                              </span>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleUpdateEquipmentQuantity(item.id!, 1);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
+                                title="增加数量"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
+                          <button
+                            data-readonly-keep
+                            onClick={() => toggleEquipmentExpand(item.id!)}
+                            className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
+                          >
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="w-3.5 h-3.5" />
+                                收起详情
+                              </>
+                            ) : (
+                              <>
+                                <ChevronDown className="w-3.5 h-3.5" />
+                                详情
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                      {isExpanded && (
+                        <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
+                          {item.description && (
+                            <div>
+                              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">描述</div>
+                              <div className="text-sm dark:text-text-dark light:text-text-light whitespace-pre-wrap">{item.description}</div>
+                            </div>
+                          )}
+                          {item.properties && item.properties.length > 0 && (
+                            <div>
+                              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">属性标签</div>
+                              <div className="flex flex-wrap gap-1">
+                                {item.properties.map((prop, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 text-xs rounded-full bg-primary/10 text-primary"
+                                  >
+                                    {prop}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {item.tags && item.tags.length > 0 && (
+                            <div>
+                              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">自由标签</div>
+                              <div className="flex flex-wrap gap-1">
+                                {item.tags.map((tag, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="px-2 py-0.5 text-xs rounded-full bg-accent/10 text-accent"
+                                  >
+                                    {tag.key}: {tag.value}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {item.subtype && (
+                            <div>
+                              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">子分类</div>
+                              <div className="text-sm dark:text-text-dark light:text-text-light">{item.subtype}</div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {character.equipment.length > 5 && (
+                  <>
+                    <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none bg-gradient-to-t from-transparent dark:from-card-dark light:from-card-light to-transparent" />
+                    <button
+                      data-readonly-keep
+                      onClick={() => navigate(readOnly ? `/player/${character.id}/inventory` : `/characters/${id}/inventory`)}
+                      className="w-full text-center py-2 text-sm text-primary hover:text-primary-dark transition-colors"
+                    >
+                      … 查看全部 {character.equipment.length} 件装备
+                    </button>
+                  </>
+                )}
+              </div>
+
+              <div className="flex justify-end mb-3">
+                <button
+                  onClick={handleSortEquipment}
+                  className="px-3 py-1.5 text-sm rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors flex items-center gap-1.5"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                  整理背包
+                </button>
+              </div>
+              <div className={`pt-3 border-t text-sm dark:border-border-dark/50 light:border-border-light/50 ${
+                isOverloaded ? 'text-danger' : 'dark:text-text-dark-muted light:text-text-light-muted'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Scale className="w-4 h-4" />
+                    <span>总负重</span>
+                  </div>
+                  <span className="font-medium">
+                    {totalWeight} / {carryCapacity} 磅
+                    {isOverloaded && <span className="ml-2 text-xs">（超重）</span>}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center gap-2">
+                    <Coins className="w-4 h-4" />
+                    <span>总价值</span>
+                  </div>
+                  <span className="font-medium">
+                    {gp > 0 && <span>{gp} gp </span>}
+                    {sp > 0 && <span>{sp} sp </span>}
+                    {cp > 0 && <span>{cp} cp</span>}
+                    {gp === 0 && sp === 0 && cp === 0 && <span>0 cp</span>}
+                  </span>
                 </div>
               </div>
-              {character.equipment.map((item) => (
-                <div
-                  key={item.id}
-                  className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-2 items-center p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                >
-                  <textarea
-                    value={item.name}
-                    onChange={(e) => handleUpdateEquipment(item.id!, 'name', e.target.value)}
-                    placeholder="装备名称"
-                    rows={1}
-                    className="pl-2 pr-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm dark:text-text-dark light:text-text-light resize-none min-h-[32px] field-sizing-content"
-                  />
-                  <input
-                    type="text"
-                    value={item.category}
-                    onChange={(e) => handleUpdateEquipment(item.id!, 'category', e.target.value)}
-                    placeholder="分类"
-                    className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark light:text-text-light"
-                  />
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => handleUpdateEquipment(item.id!, 'quantity', Math.max(1, (item.quantity || 1) - 1))}
-                      className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
-                    >
-                      <Minus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
-                    </button>
-                    <span className="w-6 text-center text-sm dark:text-text-dark light:text-text-light">{item.quantity || 1}</span>
-                    <button
-                      onClick={() => handleUpdateEquipment(item.id!, 'quantity', (item.quantity || 1) + 1)}
-                      className="p-1 rounded hover:bg-white/20 dark:hover:bg-white/10"
-                    >
-                      <Plus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteEquipment(item.id!)}
-                      className="p-1 rounded hover:bg-danger/20 text-danger ml-1"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <button
-                onClick={handleAddEquipment}
-                className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
-              >
-                <Plus className="w-4 h-4 inline mr-1" />
-                添加装备
-              </button>
             </div>
           </Section>
 
@@ -855,16 +1385,18 @@ export default function CharacterDetail() {
                   </div>
                   <input
                     type="number"
-                    value={character.currency[coin]}
+                    value={character.currency[coin] === 0 ? '' : character.currency[coin]}
                     onChange={(e) => {
                       const val = e.target.value;
                       if (val === '') {
+                        // 立即更新为 0（value 逻辑：0 显示为空，视觉上仍为空）
                         characterStore.update(id!, {
                           currency: {
                             ...character!.currency,
                             [coin]: 0,
                           },
                         });
+                        reloadChar();
                       } else {
                         const num = parseInt(val);
                         if (!isNaN(num)) {
@@ -874,9 +1406,9 @@ export default function CharacterDetail() {
                               [coin]: num,
                             },
                           });
+                          reloadChar();
                         }
                       }
-                      reloadChar();
                     }}
                     placeholder="0"
                     className="w-full py-1 text-lg font-bold text-center rounded bg-white/50 dark:bg-white/10 outline-none dark:text-text-dark light:text-text-light"
@@ -928,17 +1460,29 @@ export default function CharacterDetail() {
                           <div className="flex items-center justify-center gap-1 mt-1">
                             <input
                               type="number"
-                              value={slot.used}
+                              value={slot.used === 0 ? '' : slot.used}
                               onChange={(e) => {
                                 const val = e.target.value;
-                                const levelKey = 'level' + slot.level;
                                 if (val === '') {
-                                  handleUpdateSpellSlots(levelKey, 'used', 0);
+                                  // 允许清空，暂不更新 store
                                 } else {
                                   const num = parseInt(val);
                                   if (!isNaN(num)) {
+                                    const levelKey = 'level' + slot.level;
                                     handleUpdateSpellSlots(levelKey, 'used', num);
                                   }
+                                }
+                              }}
+                              onBlur={(e) => {
+                                if (e.target.value === '') {
+                                  const levelKey = 'level' + slot.level;
+                                  handleUpdateSpellSlots(levelKey, 'used', 0);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
+                                  const levelKey = 'level' + slot.level;
+                                  handleUpdateSpellSlots(levelKey, 'used', 0);
                                 }
                               }}
                               placeholder="0"
@@ -971,8 +1515,9 @@ export default function CharacterDetail() {
                       >
                         <div className="flex items-center gap-2 p-2">
                           <button
+                            data-readonly-keep
                             onClick={() => spellInfo && toggleCantripExpand(index)}
-                            className="flex-1 flex items-center gap-2 text-left"
+                            className="flex-1 flex items-center gap-2 text-left min-w-0"
                           >
                             {spellInfo && (
                               <ChevronDown
@@ -981,14 +1526,21 @@ export default function CharacterDetail() {
                                 }`}
                               />
                             )}
-                            <span className="text-sm dark:text-text-dark light:text-text-light">
-                              {cantrip}
-                            </span>
-                            {spellInfo && (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-500/20 text-gray-400 flex-shrink-0">
-                                {spellInfo.school}
-                              </span>
-                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                                {cantrip}
+                              </div>
+                              {spellInfo && (
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-500/20 text-gray-400">
+                                    戏法
+                                  </span>
+                                  <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                    {spellInfo.school}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </button>
                           <button
                             onClick={() => handleRemoveCantrip(index)}
@@ -998,40 +1550,41 @@ export default function CharacterDetail() {
                           </button>
                         </div>
                         {isExpanded && spellInfo && (
-                          <div className="px-4 pb-3 pt-1 border-t dark:border-border-dark/50 light:border-border-light/50">
-                            <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
+                          <div className="px-4 pb-3 pt-1 border-t dark:border-border-dark light:border-border-light">
+                            <div className="grid grid-cols-2 gap-2 mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                              <div>施法时间: {spellInfo.castingTime}</div>
+                              <div>射程: {spellInfo.range}</div>
+                              <div>持续时间: {spellInfo.duration}</div>
                               <div>
-                                <span className="dark:text-text-dark-muted light:text-text-light-muted">施法时间: </span>
-                                <span className="dark:text-text-dark light:text-text-light">{spellInfo.castingTime}</span>
-                              </div>
-                              <div>
-                                <span className="dark:text-text-dark-muted light:text-text-light-muted">射程: </span>
-                                <span className="dark:text-text-dark light:text-text-light">{spellInfo.range}</span>
-                              </div>
-                              <div>
-                                <span className="dark:text-text-dark-muted light:text-text-light-muted">持续时间: </span>
-                                <span className="dark:text-text-dark light:text-text-light">{spellInfo.duration}</span>
-                              </div>
-                              <div>
-                                <span className="dark:text-text-dark-muted light:text-text-light-muted">成分: </span>
-                                <span className="dark:text-text-dark light:text-text-light">
-                                  {[
-                                    spellInfo.components.verbal && 'V',
-                                    spellInfo.components.somatic && 'S',
-                                    spellInfo.components.material && 'M',
-                                  ]
-                                    .filter(Boolean)
-                                    .join(', ') || '无'}
-                                </span>
+                                成分:{' '}
+                                {[
+                                  spellInfo.components.verbal && 'V',
+                                  spellInfo.components.somatic && 'S',
+                                  spellInfo.components.material && 'M',
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
                               </div>
                             </div>
-                            <div className="text-xs dark:text-text-dark light:text-text-light whitespace-pre-wrap leading-relaxed">
-                              {spellInfo.description}
+                            {spellInfo.components.material && spellInfo.materialInfo && (
+                              <div className="mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                                材料: {spellInfo.materialInfo}
+                              </div>
+                            )}
+                            <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
+                              {renderSpellDice(spellInfo.description)}
                             </div>
+                            {spellInfo.hasHeightened && spellInfo.heightenedEffect && (
+                              <div className="mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
+                                <div className="text-xs font-medium text-accent mb-1">升环效果</div>
+                                <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
+                                  {renderSpellDice(spellInfo.heightenedEffect)}
+                                </div>
+                              </div>
+                            )}
                             {spellInfo.notes && (
                               <div className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                                <span className="font-medium">备注: </span>
-                                {spellInfo.notes}
+                                备注: {spellInfo.notes}
                               </div>
                             )}
                           </div>
@@ -1039,22 +1592,16 @@ export default function CharacterDetail() {
                       </div>
                     );
                   })}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newCantrip}
-                      onChange={(e) => setNewCantrip(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddCantrip()}
-                      placeholder="戏法名称"
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                    <button
-                      onClick={handleAddCantrip}
-                      className="px-3 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedSpellType('cantrip');
+                      setSpellPickerOpen(true);
+                    }}
+                    className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                  >
+                    <Plus className="w-4 h-4 inline mr-1" />
+                    从法术库添加戏法
+                  </button>
                 </div>
               </div>
 
@@ -1073,8 +1620,9 @@ export default function CharacterDetail() {
                       >
                         <div className="flex items-center gap-2 p-2">
                           <button
+                            data-readonly-keep
                             onClick={() => spellInfo && toggleSpellExpand(index)}
-                            className="flex-1 flex items-center gap-2 text-left"
+                            className="flex-1 flex items-center gap-2 text-left min-w-0"
                           >
                             {spellInfo && (
                               <ChevronDown
@@ -1083,25 +1631,27 @@ export default function CharacterDetail() {
                                 }`}
                               />
                             )}
-                            <span className="text-sm dark:text-text-dark light:text-text-light">
-                              {spell}
-                            </span>
-                            {spellInfo && (
-                              <span
-                                className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium flex-shrink-0 ${
-                                  spellInfo.level === 0
-                                    ? 'bg-gray-500/20 text-gray-400'
-                                    : 'bg-primary/20 text-primary'
-                                }`}
-                              >
-                                {spellInfo.level === 0 ? '戏法' : `${spellInfo.level}环`}
-                              </span>
-                            )}
-                            {spellInfo && (
-                              <span className="inline-block px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-500/20 text-gray-400 flex-shrink-0">
-                                {spellInfo.school}
-                              </span>
-                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                                {spell}
+                              </div>
+                              {spellInfo && (
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  <span
+                                    className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                      spellInfo.level === 0
+                                        ? 'bg-gray-500/20 text-gray-400'
+                                        : 'bg-primary/20 text-primary'
+                                    }`}
+                                  >
+                                    {spellInfo.level === 0 ? '戏法' : `${spellInfo.level}环`}
+                                  </span>
+                                  <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                    {spellInfo.school}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                           </button>
                           <button
                             onClick={() => handleRemoveCustomSpell(index)}
@@ -1111,40 +1661,41 @@ export default function CharacterDetail() {
                           </button>
                         </div>
                         {isExpanded && spellInfo && (
-                          <div className="px-4 pb-3 pt-1 border-t dark:border-border-dark/50 light:border-border-light/50">
-                            <div className="grid grid-cols-2 gap-2 mb-2 text-xs">
+                          <div className="px-4 pb-3 pt-1 border-t dark:border-border-dark light:border-border-light">
+                            <div className="grid grid-cols-2 gap-2 mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                              <div>施法时间: {spellInfo.castingTime}</div>
+                              <div>射程: {spellInfo.range}</div>
+                              <div>持续时间: {spellInfo.duration}</div>
                               <div>
-                                <span className="dark:text-text-dark-muted light:text-text-light-muted">施法时间: </span>
-                                <span className="dark:text-text-dark light:text-text-light">{spellInfo.castingTime}</span>
-                              </div>
-                              <div>
-                                <span className="dark:text-text-dark-muted light:text-text-light-muted">射程: </span>
-                                <span className="dark:text-text-dark light:text-text-light">{spellInfo.range}</span>
-                              </div>
-                              <div>
-                                <span className="dark:text-text-dark-muted light:text-text-light-muted">持续时间: </span>
-                                <span className="dark:text-text-dark light:text-text-light">{spellInfo.duration}</span>
-                              </div>
-                              <div>
-                                <span className="dark:text-text-dark-muted light:text-text-light-muted">成分: </span>
-                                <span className="dark:text-text-dark light:text-text-light">
-                                  {[
-                                    spellInfo.components.verbal && 'V',
-                                    spellInfo.components.somatic && 'S',
-                                    spellInfo.components.material && 'M',
-                                  ]
-                                    .filter(Boolean)
-                                    .join(', ') || '无'}
-                                </span>
+                                成分:{' '}
+                                {[
+                                  spellInfo.components.verbal && 'V',
+                                  spellInfo.components.somatic && 'S',
+                                  spellInfo.components.material && 'M',
+                                ]
+                                  .filter(Boolean)
+                                  .join(', ')}
                               </div>
                             </div>
-                            <div className="text-xs dark:text-text-dark light:text-text-light whitespace-pre-wrap leading-relaxed">
-                              {spellInfo.description}
+                            {spellInfo.components.material && spellInfo.materialInfo && (
+                              <div className="mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                                材料: {spellInfo.materialInfo}
+                              </div>
+                            )}
+                            <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
+                              {renderSpellDice(spellInfo.description)}
                             </div>
+                            {spellInfo.hasHeightened && spellInfo.heightenedEffect && (
+                              <div className="mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
+                                <div className="text-xs font-medium text-accent mb-1">升环效果</div>
+                                <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
+                                  {renderSpellDice(spellInfo.heightenedEffect)}
+                                </div>
+                              </div>
+                            )}
                             {spellInfo.notes && (
                               <div className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                                <span className="font-medium">备注: </span>
-                                {spellInfo.notes}
+                                备注: {spellInfo.notes}
                               </div>
                             )}
                           </div>
@@ -1152,22 +1703,16 @@ export default function CharacterDetail() {
                       </div>
                     );
                   })}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newSpell}
-                      onChange={(e) => setNewSpell(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleAddCustomSpell()}
-                      placeholder="法术名称"
-                      className="flex-1 px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                    <button
-                      onClick={handleAddCustomSpell}
-                      className="px-3 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setSelectedSpellType('spell');
+                      setSpellPickerOpen(true);
+                    }}
+                    className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                  >
+                    <Plus className="w-4 h-4 inline mr-1" />
+                    从法术库添加法术
+                  </button>
                 </div>
               </div>
             </div>
@@ -1241,36 +1786,7 @@ export default function CharacterDetail() {
               className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none min-h-[40px] field-sizing-content"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-              阵营
-            </label>
-            <input
-              type="text"
-              value={character.alignment}
-              onChange={(e) => {
-                characterStore.update(id!, { alignment: e.target.value });
-                reloadChar();
-              }}
-              placeholder="例如：守序善良、中立邪恶..."
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-              体型
-            </label>
-            <input
-              type="text"
-              value={character.size}
-              onChange={(e) => {
-                characterStore.update(id!, { size: e.target.value });
-                reloadChar();
-              }}
-              placeholder="例如：中等、小型..."
-              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-            />
-          </div>
+          
           <div className="md:col-span-2">
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               外貌描述
@@ -1349,54 +1865,7 @@ export default function CharacterDetail() {
         </div>
       </Section>
 
-      <Section title="熟练项" icon={Star}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {displayedProficiencyCategories.map((category) => (
-            <div key={category}>
-              <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
-                {proficiencyLabels[category]}
-              </label>
-              <div className="space-y-1 mb-2">
-                {character.proficiencies[category].map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                  >
-                    <span className="flex-1 text-sm dark:text-text-dark light:text-text-light">
-                      {item}
-                    </span>
-                    <button
-                      onClick={() => handleRemoveProficiency(category, item)}
-                      className="p-1 rounded hover:bg-danger/20 text-danger"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={newProficiency[category]}
-                  onChange={(e) =>
-                    setNewProficiency({ ...newProficiency, [category]: e.target.value })
-                  }
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddProficiency(category)}
-                  placeholder="添加..."
-                  className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                />
-                <button
-                  onClick={() => handleAddProficiency(category)}
-                  className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Section>
-
+      {!readOnly && (
       <div className="flex justify-between items-center pt-4">
         <button
           onClick={() => navigate('/characters')}
@@ -1425,70 +1894,241 @@ export default function CharacterDetail() {
           </button>
         </div>
       </div>
+      )}
 
-      {genderPickerOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="rounded-xl border p-6 w-full max-w-sm dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
-            <h3 className="text-lg font-bold mb-4 dark:text-text-dark light:text-text-light">
+      <SpellPicker
+        isOpen={spellPickerOpen}
+        onClose={() => setSpellPickerOpen(false)}
+        onSelect={handleSelectSpell}
+        selectedSpellIds={getSelectedSpellNames()}
+        characterClass={character?.class}
+        filterLevel={selectedSpellType === 'cantrip' ? 0 : 'all'}
+        matchByName={true}
+      />
+
+      {equipmentPickerOpen && (
+        <EquipmentPicker
+          onSelect={handleAddEquipmentFromLibrary}
+          onClose={() => setEquipmentPickerOpen(false)}
+        />
+      )}
+
+      {equipmentEditorOpen && (
+        <EquipmentEditor
+          item={editingEquipment ? {
+            id: editingEquipment.id,
+            name: editingEquipment.name,
+            category: editingEquipment.category,
+            subtype: editingEquipment.subtype,
+            weight: editingEquipment.weight || 0,
+            price: editingEquipment.price || { amount: 0, unit: 'gp' },
+            description: editingEquipment.description || '',
+            properties: editingEquipment.properties || [],
+            isCustom: true,
+            tags: editingEquipment.tags || [],
+            source: editingEquipment.source,
+            quantity: editingEquipment.quantity,
+          } : undefined}
+          showQuantity={true}
+          showSyncOption={true}
+          onSave={handleSaveEquipment}
+          onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
+            if (!id) return;
+            characterStore.deleteEquipment(id, editingEquipment.id);
+            reloadChar();
+            setEquipmentEditorOpen(false);
+            setEditingEquipment(null);
+          } : undefined}
+          onClose={() => {
+            setEquipmentEditorOpen(false);
+            setEditingEquipment(null);
+          }}
+        />
+      )}
+
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteConfirmId(null)} />
+          <div className="relative w-full max-w-xs rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6">
+            <h3 className="text-lg font-bold mb-4 text-center dark:text-text-dark light:text-text-light">
+              确认删除
+            </h3>
+            <p className="text-sm text-center mb-6 dark:text-text-dark-muted light:text-text-light-muted">
+              确定要删除这件装备吗？此操作无法撤销。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="flex-1 py-2 px-4 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light light:hover:border-primary light:hover:text-primary"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleDeleteEquipmentConfirm}
+                className="flex-1 py-2 px-4 text-sm rounded-lg bg-danger hover:bg-danger-dark text-white transition-colors"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {statsEditorOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setStatsEditorOpen(false)} />
+          <div className="relative w-full max-w-md rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                编辑属性
+              </h3>
+              <button
+                onClick={() => setStatsEditorOpen(false)}
+                className="p-1 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">生命值</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs mb-1 dark:text-text-dark-muted light:text-text-light-muted">当前HP</label>
+                    <input
+                      type="number"
+                      value={statsForm.currentHp || ''}
+                      onChange={(e) => setStatsForm({ ...statsForm, currentHp: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1 dark:text-text-dark-muted light:text-text-light-muted">最大HP</label>
+                    <input
+                      type="number"
+                      value={statsForm.maxHp || ''}
+                      onChange={(e) => setStatsForm({ ...statsForm, maxHp: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs mb-1 dark:text-text-dark-muted light:text-text-light-muted">临时HP</label>
+                    <input
+                      type="number"
+                      value={statsForm.tempHp || ''}
+                      onChange={(e) => setStatsForm({ ...statsForm, tempHp: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">护甲等级 (AC)</label>
+                <input
+                  type="number"
+                  value={statsForm.armorClass || ''}
+                  onChange={(e) => setStatsForm({ ...statsForm, armorClass: parseInt(e.target.value) || 0 })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  placeholder="10"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">速度</label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={statsForm.speed || ''}
+                    onChange={(e) => setStatsForm({ ...statsForm, speed: parseInt(e.target.value) || 0 })}
+                    className="flex-1 px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    placeholder="30"
+                  />
+                  <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">尺</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">熟练加值</label>
+                <input
+                  type="number"
+                  value={statsForm.proficiencyBonus || ''}
+                  onChange={(e) => setStatsForm({ ...statsForm, proficiencyBonus: parseInt(e.target.value) || 2 })}
+                  className="w-full px-3 py-2 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  placeholder="2"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setStatsEditorOpen(false)}
+                className="flex-1 py-2 px-4 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light light:hover:border-primary light:hover:text-primary"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSaveStats}
+                className="flex-1 py-2 px-4 text-sm rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors"
+              >
+                保存
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {genderPickerOpen && !readOnly && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setGenderPickerOpen(false)} />
+          <div className="relative w-full max-w-xs rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6">
+            <h3 className="text-lg font-bold mb-4 text-center dark:text-text-dark light:text-text-light">
               选择性别
             </h3>
-            <div className="space-y-2">
-              <button
-                onClick={() => {
-                  characterStore.update(id!, { gender: 'male' });
-                  reloadChar();
-                  setGenderPickerOpen(false);
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors dark:border-border-dark dark:hover:bg-card-dark-hover light:border-border-light light:hover:bg-card-light-hover"
-              >
-                <span className="text-2xl font-bold text-info">♂</span>
-                <span className="dark:text-text-dark light:text-text-light">男性</span>
-              </button>
-              <button
-                onClick={() => {
-                  characterStore.update(id!, { gender: 'female' });
-                  reloadChar();
-                  setGenderPickerOpen(false);
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors dark:border-border-dark dark:hover:bg-card-dark-hover light:border-border-light light:hover:bg-card-light-hover"
-              >
-                <span className="text-2xl font-bold text-danger">♀</span>
-                <span className="dark:text-text-dark light:text-text-light">女性</span>
-              </button>
-              <button
-                onClick={() => {
-                  characterStore.update(id!, { gender: 'other' });
-                  reloadChar();
-                  setGenderPickerOpen(false);
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors dark:border-border-dark dark:hover:bg-card-dark-hover light:border-border-light light:hover:bg-card-light-hover"
-              >
-                <span className="text-2xl font-bold text-accent">⚲</span>
-                <span className="dark:text-text-dark light:text-text-light">其他</span>
-              </button>
-              <button
-                onClick={() => {
-                  characterStore.update(id!, { gender: '' });
-                  reloadChar();
-                  setGenderPickerOpen(false);
-                }}
-                className="w-full flex items-center gap-3 p-3 rounded-lg border transition-colors dark:border-border-dark dark:hover:bg-card-dark-hover light:border-border-light light:hover:bg-card-light-hover"
-              >
-                <span className="text-2xl font-bold dark:text-text-dark-muted light:text-text-light-muted">
-                  ✕
-                </span>
-                <span className="dark:text-text-dark-muted light:text-text-light-muted">不设置</span>
-              </button>
+            <div className="grid grid-cols-2 gap-3">
+              {genderOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => handleSelectGender(option.value)}
+                  className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all ${
+                    character?.gender === option.value
+                      ? 'border-primary bg-primary/10'
+                      : 'dark:border-border-dark light:border-border-light hover:border-primary hover:bg-primary/5'
+                  }`}
+                >
+                  <span className={`text-3xl font-bold ${option.color}`}>
+                    {option.icon}
+                  </span>
+                  <span className="text-sm dark:text-text-dark light:text-text-light">
+                    {option.label}
+                  </span>
+                </button>
+              ))}
             </div>
             <button
               onClick={() => setGenderPickerOpen(false)}
-              className="w-full mt-4 py-2 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark-hover light:border-border-light light:text-text-light light:hover:bg-card-light-hover"
+              className="w-full mt-4 py-2 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light"
             >
               取消
             </button>
           </div>
         </div>
       )}
+
+      {attackEditorOpen && (
+        <AttackEditor
+          attack={editingAttack || undefined}
+          weapons={character.equipment.filter((e) => e.category === '武器')}
+          onSave={handleSaveAttack}
+          onDelete={editingAttack ? handleDeleteAttack : undefined}
+          onClose={() => {
+            setAttackEditorOpen(false);
+            setEditingAttack(null);
+          }}
+        />
+      )}
+
+      {/* DM 模式下显示浮动同步按钮 */}
+      {!readOnly && <SyncButton />}
     </div>
   );
 }

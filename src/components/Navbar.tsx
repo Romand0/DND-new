@@ -13,22 +13,30 @@ import {
   Moon,
   Download,
   Upload,
+  Settings,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { characterStore } from '@/data/characterStore';
 
-const navItems = [
+const allNavItems = [
   { path: '/characters', label: '角色卡库', icon: Users },
   { path: '/combat', label: '战斗记录', icon: Swords },
   { path: '/inventory', label: '物资钱币', icon: Coins },
-  { path: '/spells', label: '法术管理', icon: Sparkles },
+  { path: '/spells', label: '法术库', icon: Sparkles },
   { path: '/notes', label: '剧情笔记', icon: ScrollText },
 ];
 
-export default function Navbar() {
+const playerNavItems = [
+  { path: '/player/combat', label: '战斗记录', icon: Swords },
+  { path: '/player/inventory', label: '物资钱币', icon: Coins },
+  { path: '/player/spells', label: '法术库', icon: Sparkles },
+];
+
+export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const navItems = variant === 'player' ? playerNavItems : allNavItems;
 
   const handleExport = () => {
     characterStore.exportAllWithConfirm();
@@ -79,20 +87,31 @@ export default function Navbar() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleImport}
+            <Link
+              to="/settings"
               className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
-              title="导入数据"
+              title="设置"
             >
-              <Upload className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleExport}
-              className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
-              title="导出数据"
-            >
-              <Download className="w-5 h-5" />
-            </button>
+              <Settings className="w-5 h-5" />
+            </Link>
+            {variant === 'dm' && (
+              <>
+                <button
+                  onClick={handleImport}
+                  className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
+                  title="导入数据"
+                >
+                  <Upload className="w-5 h-5" />
+                </button>
+                <button
+                  onClick={handleExport}
+                  className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
+                  title="导出数据"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+              </>
+            )}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"

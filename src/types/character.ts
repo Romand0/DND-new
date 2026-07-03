@@ -22,9 +22,11 @@ export interface HitDice {
 export interface Attack {
   id?: string;
   name: string;
-  bonus: string;
+  attackBonus: string;
   damage: string;
-  type: string;
+  damageType: string;
+  range: string;
+  properties: string[];
 }
 
 export interface SpellSlots {
@@ -47,6 +49,11 @@ export interface Spells {
   custom: string[];
 }
 
+export interface EquipmentTag {
+  key: string;
+  value: string;
+}
+
 export interface Equipment {
   id?: string;
   name: string;
@@ -54,6 +61,14 @@ export interface Equipment {
   category: string;
   weight?: number;
   description?: string;
+  price?: {
+    amount: number;
+    unit: 'gp' | 'sp' | 'cp';
+  };
+  properties?: string[];
+  tags?: EquipmentTag[];
+  source?: string;
+  subtype?: string;
 }
 
 export interface Currency {
@@ -66,6 +81,7 @@ export interface Currency {
 export interface Skill {
   proficient: boolean;
   extra: number;
+  expertise?: boolean;  // 专精：熟练加值翻倍
 }
 
 export interface Skills {
@@ -137,6 +153,7 @@ export interface Character {
   
   skills: Skills;
   proficiencies: Proficiencies;
+  saveExpertise?: AbilityKey[];  // 豁免专精列表
   
   features: Feature[];
   

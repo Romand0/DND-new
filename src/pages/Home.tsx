@@ -1,6 +1,9 @@
 // DM Toolkit - Home Page Component
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Swords, Users, ScrollText, Coins, Sparkles, ChevronRight } from 'lucide-react';
+import { hasToken } from '@/lib/api';
+import PlayerHome from '@/pages/PlayerHome';
 
 const features = [
   {
@@ -41,6 +44,46 @@ const features = [
 ];
 
 export default function Home() {
+  const [isDM, setIsDM] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  useEffect(() => {
+    const checkToken = () => {
+      setIsDM(hasToken());
+      setChecking(false);
+    };
+    checkToken();
+
+    // 监听跨标签页 storage 变化
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'dm_token') checkToken();
+    };
+    // 监听同标签页 token 变化（Settings 页面保存时派发）
+    const handleTokenChange = () => checkToken();
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('dm-token-change', handleTokenChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('dm-token-change', handleTokenChange);
+    };
+  }, []);
+
+  // 加载中状态
+  if (checking) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-6 h-6 rounded-full bg-primary animate-pulse" />
+      </div>
+    );
+  }
+
+  // 玩家模式：直接渲染 PlayerHome
+  if (!isDM) {
+    return <PlayerHome />;
+  }
+
+  // DM 模式：原有首页内容
   return (
     <div className="space-y-16">
       <section className="text-center py-16">

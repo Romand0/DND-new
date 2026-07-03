@@ -1,4 +1,4 @@
-// DM Toolkit - Character State Management (localStorage + CRUD)
+// DM Toolkit - Character State Management (Backend API + localStorage cache)
 // ============================================================
 import type {
   Character,
@@ -11,6 +11,7 @@ import type {
   SkillKey,
   AbilityKey,
 } from '@/types/character';
+import * as api from '@/lib/api';
 
 const STORAGE_KEY = 'DND';
 const BACKUP_KEY = 'dm-characters-backup';
@@ -20,10 +21,47 @@ const BACKUP_INTERVAL = 30000;
 // 存储层
 // ============================================================
 
+function migrateCharacter(char: any): Character {
+  if (char.attacks && Array.isArray(char.attacks)) {
+    char.attacks = char.attacks.map((attack: any) => ({
+      id: attack.id,
+      name: attack.name || '',
+      attackBonus: attack.attackBonus !== undefined ? attack.attackBonus : (attack.bonus || ''),
+      damage: attack.damage || '',
+      damageType: attack.damageType !== undefined ? attack.damageType : (attack.type || ''),
+      range: attack.range || '',
+      properties: attack.properties || [],
+    }));
+  }
+  return char as Character;
+}
+
+function migrateStore(chars: any[]): Character[] {
+  let migrated = false;
+  const result = chars.map((char) => {
+    const hasOldAttackFields = char.attacks?.some((a: any) => 
+      'bonus' in a || 'type' in a
+    );
+    const missingNewAttackFields = char.attacks?.some((a: any) =>
+      !('attackBonus' in a) || !('damageType' in a) || !('range' in a) || !('properties' in a)
+    );
+    if (hasOldAttackFields || missingNewAttackFields) {
+      migrated = true;
+      return migrateCharacter(char);
+    }
+    return char as Character;
+  });
+  if (migrated) {
+    saveStore(result);
+  }
+  return result;
+}
+
 function getStore(): Character[] {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    const chars = data ? JSON.parse(data) : [];
+    return migrateStore(chars);
   } catch {
     return [];
   }
@@ -48,16 +86,43 @@ function saveCharacter(charData: Character): Character {
   const index = chars.findIndex((c) => c.id === charData.id);
   const now = Date.now();
   const charWithTimestamps = { ...charData, updatedAt: now };
-  
+
   if (index === -1) {
     charWithTimestamps.createdAt = now;
     chars.push(charWithTimestamps);
   } else {
     chars[index] = { ...chars[index], ...charWithTimestamps };
   }
-  
+
   saveStore(chars);
+  // 不再自动同步，改为手动同步（浮动按钮触发）
   return charWithTimestamps;
+}
+
+// ============================================================
+// 后端 API 同步（单个角色 CRUD）
+// ============================================================
+
+// 同步单个角色到后端
+async function syncCharacterToBackend(char: Character): Promise<void> {
+  if (!api.hasToken()) {
+    throw new Error('未配置 DM Token');
+  }
+  try {
+    await api.updateCharacter(char.id, char);
+  } catch {
+    // 更新失败，可能是新角色，尝试创建
+    await api.createCharacter(char);
+  }
+}
+
+// 从后端加载所有角色（覆盖本地缓存）
+async function loadAllFromBackend(): Promise<Character[]> {
+  if (!api.hasToken()) {
+    // 玩家端也通过公开接口读取
+    return await api.fetchAllCharacters<Character[]>();
+  }
+  return await api.fetchAllCharacters<Character[]>();
 }
 
 // ============================================================
@@ -381,7 +446,7 @@ function exportAllWithConfirm(): void {
 function addAttack(charId: string, attackData: Partial<Attack>): Attack | null {
   const char = getCharacter(charId);
   if (!char) return null;
-  const newAttack: Attack = { id: generateId(), name: '', bonus: '', damage: '', type: '', ...attackData };
+  const newAttack: Attack = { id: generateId(), name: '', attackBonus: '', damage: '', damageType: '', range: '', properties: [], ...attackData };
   char.attacks.push(newAttack);
   saveCharacter(char as Character);
   return newAttack;
@@ -512,11 +577,20 @@ function addProficiency(charId: string, category: ProficiencyCategory, item: str
   return char.proficiencies[category];
 }
 
-function removeProficiency(charId: string, category: ProficiencyCategory, item: string): void {
+function removeProficiency(charId: string, category: ProficiencyCategory, index: number): void {
   const char = getCharacter(charId);
   if (!char) return;
   if (!char.proficiencies[category]) return;
-  char.proficiencies[category] = char.proficiencies[category].filter((p) => p !== item);
+  char.proficiencies[category].splice(index, 1);
+  saveCharacter(char as Character);
+}
+
+function updateProficiency(charId: string, category: ProficiencyCategory, index: number, value: string): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+  if (!char.proficiencies[category]) return;
+  if (index < 0 || index >= char.proficiencies[category].length) return;
+  char.proficiencies[category][index] = value;
   saveCharacter(char as Character);
 }
 
@@ -600,8 +674,8 @@ for (const [attrKey, config] of Object.entries(SKILL_GROUP_CONFIG)) {
 function getGroupedSkills(char: Character): {
   attribute: AbilityKey;
   attributeLabel: string;
-  save: { key: AbilityKey; label: string; proficient: boolean; bonus: number; modifier: number };
-  skills: { key: SkillKey; label: string; proficient: boolean; bonus: number; extra: number }[];
+  save: { key: AbilityKey; label: string; proficient: boolean; expertise: boolean; bonus: number; modifier: number };
+  skills: { key: SkillKey; label: string; proficient: boolean; expertise: boolean; bonus: number; extra: number }[];
 }[] {
   if (!char) return [];
   const result = [];
@@ -614,6 +688,7 @@ function getGroupedSkills(char: Character): {
     charisma: char.abilities?.charisma?.modifier || 0,
   };
   const saveProfs = char.proficiencies?.savingThrows || [];
+  const saveExpertiseList = char.saveExpertise || [];
   const skills = char.skills || {};
   const profBonus = char.proficiencyBonus || 2;
 
@@ -621,17 +696,23 @@ function getGroupedSkills(char: Character): {
     const key = attrKey as AbilityKey;
     const saveMod = abilityMods[key] || 0;
     const isSaveProficient = saveProfs.includes(key);
-    const saveBonus = saveMod + (isSaveProficient ? profBonus : 0);
+    const isSaveExpertise = saveExpertiseList.includes(key);
+    // 专精时熟练加值翻倍
+    const saveProfBonus = isSaveProficient ? (isSaveExpertise ? profBonus * 2 : profBonus) : 0;
+    const saveBonus = saveMod + saveProfBonus;
 
     const skillList = config.skills.map((skillKey) => {
-      const skillData = skills[skillKey] || { proficient: false, extra: 0 };
+      const skillData = skills[skillKey] || { proficient: false, extra: 0, expertise: false };
       const abilityMod = abilityMods[key] || 0;
-      const profBonusSkill = skillData.proficient ? profBonus : 0;
+      const isExpertise = skillData.expertise || false;
+      // 专精时熟练加值翻倍
+      const profBonusSkill = skillData.proficient ? (isExpertise ? profBonus * 2 : profBonus) : 0;
       const extra = skillData.extra || 0;
       return {
         key: skillKey,
         label: SKILL_LABELS[skillKey] || skillKey,
         proficient: skillData.proficient || false,
+        expertise: isExpertise,
         bonus: abilityMod + profBonusSkill + extra,
         extra: extra,
       };
@@ -644,6 +725,7 @@ function getGroupedSkills(char: Character): {
         key: key,
         label: SAVE_LABELS[key] || (key + '豁免'),
         proficient: isSaveProficient,
+        expertise: isSaveExpertise,
         bonus: saveBonus,
         modifier: saveMod,
       },
@@ -698,9 +780,13 @@ function toggleSkillProficiency(charId: string, skillKey: SkillKey): void {
   const char = getCharacter(charId);
   if (!char || !char.skills) return;
   if (!char.skills[skillKey]) {
-    char.skills[skillKey] = { proficient: false, extra: 0 };
+    char.skills[skillKey] = { proficient: false, extra: 0, expertise: false };
   }
   char.skills[skillKey].proficient = !char.skills[skillKey].proficient;
+  // 取消熟练时也取消专精
+  if (!char.skills[skillKey].proficient) {
+    char.skills[skillKey].expertise = false;
+  }
   saveCharacter(char as Character);
 }
 
@@ -714,6 +800,38 @@ function toggleSaveProficiency(charId: string, saveKey: AbilityKey): void {
     char.proficiencies.savingThrows.push(saveKey);
   } else {
     char.proficiencies.savingThrows.splice(index, 1);
+    // 取消熟练时也取消专精
+    if (char.saveExpertise) {
+      char.saveExpertise = char.saveExpertise.filter(k => k !== saveKey);
+    }
+  }
+  saveCharacter(char as Character);
+}
+
+function toggleSkillExpertise(charId: string, skillKey: SkillKey): void {
+  const char = getCharacter(charId);
+  if (!char || !char.skills) return;
+  if (!char.skills[skillKey]) {
+    char.skills[skillKey] = { proficient: false, extra: 0, expertise: false };
+  }
+  // 只有熟练时才能切换专精
+  if (!char.skills[skillKey].proficient) return;
+  char.skills[skillKey].expertise = !char.skills[skillKey].expertise;
+  saveCharacter(char as Character);
+}
+
+function toggleSaveExpertise(charId: string, saveKey: AbilityKey): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+  // 只有熟练时才能切换专精
+  const isProficient = char.proficiencies?.savingThrows?.includes(saveKey) || false;
+  if (!isProficient) return;
+  if (!char.saveExpertise) char.saveExpertise = [];
+  const index = char.saveExpertise.indexOf(saveKey);
+  if (index === -1) {
+    char.saveExpertise.push(saveKey);
+  } else {
+    char.saveExpertise.splice(index, 1);
   }
   saveCharacter(char as Character);
 }
@@ -1190,6 +1308,8 @@ export const characterStore = {
   getAllSaveBonuses,
   toggleSkillProficiency,
   toggleSaveProficiency,
+  toggleSkillExpertise,
+  toggleSaveExpertise,
   setSkillProficiencies,
   getLevelFromExp,
   getNextLevelInfo,
@@ -1229,6 +1349,11 @@ export const characterStore = {
   
   addProficiency,
   removeProficiency,
+  updateProficiency,
   
   updateSkill,
+
+  // 后端 API
+  syncCharacterToBackend,
+  loadAllFromBackend,
 };

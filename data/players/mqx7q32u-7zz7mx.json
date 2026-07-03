@@ -1,0 +1,324 @@
+{
+  "id": "mqx7q32u-7zz7mx",
+  "name": "暗黑暴龙战士",
+  "class": "游荡者",
+  "level": 1,
+  "race": "精灵",
+  "background": "流浪儿",
+  "alignment": "中立混沌",
+  "experience": 0,
+  "size": "中型",
+  "abilities": {
+    "strength": {
+      "score": 8,
+      "modifier": -1
+    },
+    "dexterity": {
+      "score": 17,
+      "modifier": 3
+    },
+    "constitution": {
+      "score": 9,
+      "modifier": -1
+    },
+    "intelligence": {
+      "score": 11,
+      "modifier": 0
+    },
+    "wisdom": {
+      "score": 15,
+      "modifier": 2
+    },
+    "charisma": {
+      "score": 14,
+      "modifier": 2
+    }
+  },
+  "proficiencyBonus": 2,
+  "passivePerception": 10,
+  "armorClass": 10,
+  "speed": 35,
+  "maxHp": 7,
+  "currentHp": 7,
+  "tempHp": 0,
+  "hitDice": {
+    "type": "d8",
+    "total": 1,
+    "used": 0
+  },
+  "attacks": [
+    {
+      "id": "mr0muxot-jf06ik",
+      "name": "手弩",
+      "attackBonus": "+3",
+      "damage": "1d6 + 3",
+      "damageType": "穿刺",
+      "range": "30 / 120 尺",
+      "properties": [
+        "轻型",
+        "弹药",
+        "装填"
+      ]
+    },
+    {
+      "id": "attack-1782829134283",
+      "name": "短剑",
+      "attackBonus": "+5",
+      "damage": "1d6 + 3",
+      "damageType": "穿刺",
+      "range": "",
+      "properties": [
+        "灵巧",
+        "轻型"
+      ]
+    }
+  ],
+  "spells": {
+    "cantrips": [],
+    "spellSlots": {
+      "level1": {
+        "max": 0,
+        "used": 0
+      },
+      "level2": {
+        "max": 0,
+        "used": 0
+      },
+      "level3": {
+        "max": 0,
+        "used": 0
+      },
+      "level4": {
+        "max": 0,
+        "used": 0
+      },
+      "level5": {
+        "max": 0,
+        "used": 0
+      },
+      "level6": {
+        "max": 0,
+        "used": 0
+      },
+      "level7": {
+        "max": 0,
+        "used": 0
+      },
+      "level8": {
+        "max": 0,
+        "used": 0
+      },
+      "level9": {
+        "max": 0,
+        "used": 0
+      }
+    },
+    "custom": []
+  },
+  "equipment": [
+    {
+      "id": "mr0qk4gs-9vbnni",
+      "name": "背包",
+      "quantity": 1,
+      "category": "杂物",
+      "description": "这是一种皮制或布制背包，可以绑在身上以方便携带物品。背包可以容纳约1立方英尺的物体或30磅重量。",
+      "weight": 5,
+      "price": {
+        "amount": 2,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [
+        {
+          "key": "包含在",
+          "value": "窃贼套组"
+        }
+      ],
+      "source": "玩家手册",
+      "subtype": "容器"
+    },
+    {
+      "id": "mr0qrrj7-7v7nvl",
+      "name": "滚珠（1000 粒）",
+      "quantity": 1,
+      "category": "杂物",
+      "description": "用一个动作将这些小金属珠从袋子洒出，并覆盖一片边长 10 尺的方形区域。穿过这片区域的生物必须进行一次 DC10 的敏捷豁免，豁免失败则摔至倒地。以半速穿过该区域的生物不需要进行该豁免。",
+      "weight": 2,
+      "price": {
+        "amount": 1,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [
+        {
+          "key": "包含在",
+          "value": "窃贼套组"
+        }
+      ],
+      "source": "玩家手册",
+      "subtype": ""
+    },
+    {
+      "id": "mr0rg4tx-h1nsl2",
+      "name": "蜡烛",
+      "quantity": 5,
+      "category": "杂物",
+      "description": "为身边 5 尺半径范围提供明亮光照，以及该范围外 5 尺的微光光照。照明效果持续 1 小时。",
+      "weight": 0,
+      "price": {
+        "amount": 1,
+        "unit": "cp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "玩家手册",
+      "subtype": ""
+    },
+    {
+      "id": "mr0rfk17-qkcuau",
+      "name": "铃铛",
+      "quantity": 1,
+      "category": "杂物",
+      "description": "",
+      "weight": 0,
+      "price": {
+        "amount": 1,
+        "unit": "gp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "玩家手册",
+      "subtype": ""
+    },
+    {
+      "id": "mr0qvqh9-3unk73",
+      "name": "弦线（10 尺）",
+      "quantity": 1,
+      "category": "杂物",
+      "description": "细韧不易断的线，适合绑缚、牵引或布置简易陷阱。",
+      "weight": 0,
+      "price": {
+        "amount": 25,
+        "unit": "cp"
+      },
+      "properties": [],
+      "tags": [],
+      "source": "玩家手册",
+      "subtype": ""
+    }
+  ],
+  "currency": {
+    "cp": 0,
+    "sp": 0,
+    "gp": 0,
+    "pp": 0
+  },
+  "skills": {
+    "acrobatics": {
+      "proficient": false,
+      "extra": 0
+    },
+    "animalHandling": {
+      "proficient": false,
+      "extra": 0
+    },
+    "arcana": {
+      "proficient": false,
+      "extra": 0
+    },
+    "athletics": {
+      "proficient": true,
+      "extra": 0
+    },
+    "deception": {
+      "proficient": true,
+      "extra": 0,
+      "expertise": true
+    },
+    "history": {
+      "proficient": false,
+      "extra": 0
+    },
+    "insight": {
+      "proficient": true,
+      "extra": 0
+    },
+    "intimidation": {
+      "proficient": false,
+      "extra": 0
+    },
+    "investigation": {
+      "proficient": false,
+      "extra": 0
+    },
+    "medicine": {
+      "proficient": false,
+      "extra": 0
+    },
+    "nature": {
+      "proficient": false,
+      "extra": 0
+    },
+    "perception": {
+      "proficient": true,
+      "extra": 0
+    },
+    "performance": {
+      "proficient": true,
+      "extra": 0
+    },
+    "persuasion": {
+      "proficient": false,
+      "extra": 0
+    },
+    "religion": {
+      "proficient": false,
+      "extra": 0
+    },
+    "sleightOfHand": {
+      "proficient": true,
+      "extra": 0,
+      "expertise": true
+    },
+    "stealth": {
+      "proficient": true,
+      "extra": 0,
+      "expertise": false
+    },
+    "survival": {
+      "proficient": false,
+      "extra": 0
+    }
+  },
+  "proficiencies": {
+    "armor": [
+      "轻甲"
+    ],
+    "weapons": [
+      "简易武器",
+      "手弩",
+      "长剑",
+      "刺剑",
+      "短剑"
+    ],
+    "tools": [
+      "盗贼工具"
+    ],
+    "languages": [
+      "通用语",
+      "精灵语"
+    ],
+    "savingThrows": [
+      "intelligence"
+    ]
+  },
+  "features": [],
+  "appearance": "",
+  "personality": "",
+  "ideals": "",
+  "bonds": "",
+  "flaws": "",
+  "createdAt": 1782616309014,
+  "updatedAt": 1782917474814,
+  "saveExpertise": []
+}
