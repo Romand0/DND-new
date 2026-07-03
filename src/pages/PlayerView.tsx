@@ -1,7 +1,7 @@
 // 玩家端只读页面 - 从后端 API 加载角色卡数据
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Eye, RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { fetchAllCharacters } from '@/lib/api';
 import CharacterDetail from '@/pages/CharacterDetail';
@@ -74,21 +74,12 @@ export default function PlayerView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between px-4 py-2 rounded-lg dark:bg-bg-dark-2 light:bg-bg-light-2 dark:border dark:border-border-dark light:border light:border-border-light">
-        <div className="flex items-center gap-2">
-          <Eye className="w-4 h-4 text-accent" />
-          <span className="text-sm font-medium dark:text-text-dark light:text-text-light">
-            只读模式
-          </span>
-          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-            · 数据来自 DM 同步
-          </span>
-        </div>
+      <div className="flex justify-end">
         <button
           onClick={loadCharacter}
-          className="flex items-center gap-1.5 px-3 py-1 text-xs rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:bg-card-dark-hover light:border-border-light light:text-text-light-muted light:hover:bg-card-light-hover"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:bg-card-dark-hover light:border-border-light light:text-text-light-muted light:hover:bg-card-light-hover"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          <RefreshCw className="w-4 h-4" />
           刷新数据
         </button>
       </div>
