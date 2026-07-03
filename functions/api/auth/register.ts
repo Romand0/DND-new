@@ -1,4 +1,3 @@
-//  functions/api/auth/register.ts
 import { jsonResponse, errorResponse, hashPassword, signJwt } from '../../_utils';
 
 interface Env {
@@ -40,14 +39,18 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return errorResponse(409, 'Username already exists');
   }
 
-  // 哈希密码（使用 Web Crypto API，无需额外依赖）
-  const passwordHash = await hashPassword(password);
+  // 提前校验 JWT_SECRET，避免插库后 signJwt 崩导致脏数据
+  const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
+  if (!env.JWT_SECRET) {
+    console.warn('[register] JWT_SECRET not set in env, using fallback');
+  }
 
-  // 生成用户 ID
+  // 哈希密码
+  const passwordHash = await hashPassword(password);
   const userId = crypto.randomUUID();
+  const now = Date.now();
 
   // 插入新用户
-  const now = Date.now();
   await env.DB.prepare(
     'INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)'
   )
@@ -55,11 +58,10 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     .run();
 
   // 生成 JWT
-  const token = await signJwt({ sub: userId, role: finalRole }, env.JWT_SECRET);
+  const token = await signJwt({ sub: userId, role: finalRole }, jwtSecret);
 
   return jsonResponse({
     token,
     user: { id: userId, username: username.trim(), role: finalRole },
   });
 };
-
