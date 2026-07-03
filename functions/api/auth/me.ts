@@ -1,5 +1,5 @@
 // functions/api/auth/me.ts
-import { errorResponse } from '../_utils';
+import { errorResponse } from '../../_utils';
 
 interface Env {
   DB: D1Database;
