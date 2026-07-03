@@ -5,6 +5,8 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import Layout from '@/components/Layout';
 import PlayerLayout from '@/components/PlayerLayout';
 import Home from '@/pages/Home';
+import Login from './pages/Login';
+import Register from './pages/Register';
 import CharacterList from '@/pages/CharacterList';
 import CharacterDetail from '@/pages/CharacterDetail';
 import CharacterInventory from '@/pages/CharacterInventory';
@@ -23,11 +25,28 @@ export default function App() {
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-          {/* 独立页面（无导航栏） */}
-          <Route path="/characters/:id/inventory" element={<CharacterInventory />} />
+          {/* 公开路由（无需登录） */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-          {/* 玩家端（精简导航栏：战斗记录、物资钱币、法术库） */}
-          <Route element={<PlayerLayout />}>
+          {/* 独立页面（需要登录） */}
+          <Route
+            path="/characters/:id/inventory"
+            element={
+              <ProtectedRoute>
+                <CharacterInventory />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 玩家端（精简导航栏）- 需要登录 */}
+          <Route
+            element={
+              <ProtectedRoute>
+                <PlayerLayout />
+              </ProtectedRoute>
+            }
+          >
             <Route path="/player/:playerId" element={<PlayerView />} />
             <Route path="/player/:playerId/inventory" element={<PlayerInventory />} />
             <Route
@@ -39,8 +58,15 @@ export default function App() {
             <Route path="/player/spells/:id" element={<SpellDetail />} />
           </Route>
 
-          {/* DM 端（完整导航栏） */}
-          <Route path="/" element={<Layout />}>
+          {/* DM 端（完整导航栏）- 需要登录 */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
             <Route index element={<Home />} />
             <Route path="characters" element={<CharacterList />} />
             <Route path="characters/:id" element={<CharacterDetail />} />
