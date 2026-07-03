@@ -1,17 +1,20 @@
 import { jsonResponse, errorResponse, handleOptions, verifyJwt, readJsonBody, now } from '../../_utils';
 
 export async function onRequestGet(context: any): Promise<Response> {
-  const { env } = context;
-  // JWT 鉴权
+  const { request, env } = context;   // ← 补 request
+
+  // JWT 鉴权（加兜底，跟 login.ts / me.ts / characters 一致）
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
   try {
-    await verifyJwt(authHeader.slice(7), env.JWT_SECRET);
+    const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
+    await verifyJwt(authHeader.slice(7), jwtSecret);
   } catch {
     return errorResponse(401, 'Invalid or expired token');
   }
+
   try {
     const result = await env.DB
       .prepare('SELECT id, name, category, data, updated_at FROM equipments ORDER BY updated_at DESC')
@@ -25,11 +28,26 @@ export async function onRequestGet(context: any): Promise<Response> {
 
 export async function onRequestPost(context: any): Promise<Response> {
   const { request, env } = context;
-  if (!verifyDmToken(request, env)) {
-    return errorResponse('未授权', 401);
+
+  // JWT 鉴权 + DM 角色校验（跟 characters/index.ts 同构）
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return errorResponse(401, 'Missing or invalid Authorization header');
   }
+  let payload: { sub: string; role: string };
+  try {
+    const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
+    payload = await verifyJwt(authHeader.slice(7), jwtSecret);
+  } catch {
+    return errorResponse(401, 'Invalid or expired token');
+  }
+  if (payload.role !== 'dm') {
+    return errorResponse(403, '需要 DM 权限');
+  }
+
   const body = await readJsonBody(request);
-  
+
+  // 批量创建
   if (Array.isArray(body)) {
     const timestamp = now();
     const validItems = body.filter((item: any) => item && typeof item.id === 'string' && item.id.length > 0);
@@ -57,7 +75,8 @@ export async function onRequestPost(context: any): Promise<Response> {
       return errorResponse(`批量导入失败: ${e.message || '未知数据库错误'}`, 500);
     }
   }
-  
+
+  // 单条创建
   if (!body || !body.id || !body.name) {
     return errorResponse('缺少必要字段: id, name', 400);
   }
