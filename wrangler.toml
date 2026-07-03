@@ -1,10 +1,16 @@
-name = "dnd-tool"
+name = "dnd-new"
 compatibility_date = "2024-09-01"
+
+[build]
+command = "npm run build"
+
 pages_build_output_dir = "dist"
 functions_directory = "functions"
-JWT_SECRET = "cmy090907cmy090907cmy090907"
 
 [[d1_databases]]
 binding = "DB"
-database_name = "dnd-tool-db"
+database_name = "dnd-new-db"
 database_id = "23f10100-9d48-439e-bb22-ea7eadd6482c"
+
+[vars]
+JWT_SECRET = "cmy090907cmy090907cmy090907"
