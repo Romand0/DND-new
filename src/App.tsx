@@ -1,8 +1,7 @@
 // DM Toolkit - Application Router
-import { AuthProvider } from './contexts/AuthContext';
-import { useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import Layout from '@/components/Layout';
 import PlayerLayout from '@/components/PlayerLayout';
@@ -23,11 +22,12 @@ import PlayerHome from '@/pages/PlayerHome';
 import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 
-// 根路径壳：按 role 分流到 DM Layout 或 PlayerLayout
+// 根路径壳：按 role 分流
 function RoleShell({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
   if (user?.role === 'player') {
-    return <PlayerLayout>{children}</PlayerLayout>;
+    return <Navigate to="/player/home" replace />;
   }
   return <Layout>{children}</Layout>;
 }
