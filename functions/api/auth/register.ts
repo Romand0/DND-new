@@ -1,5 +1,5 @@
 //  functions/api/auth/register.ts
-import { jsonResponse, errorResponse } from '../../_utils';
+import { jsonResponse, errorResponse, hashPassword, signJwt } from '../../_utils';
 
 interface Env {
   DB: D1Database;
@@ -63,45 +63,3 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   });
 };
 
-// ---------- 工具函数（后续会移至 _utils.ts） ----------
-
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const salt = crypto.getRandomValues(new Uint8Array(16));
-  const salted = new Uint8Array([...salt, ...encoder.encode(password)]);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', salted);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const saltHex = Array.from(salt).map(b => b.toString(16).padStart(2, '0')).join('');
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return `${saltHex}:${hashHex}`; // 格式：salt:hash
-}
-
-async function signJwt(payload: Record<string, unknown>, secret: string): Promise<string> {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-  const fullPayload = { ...payload, iat: now, exp: now + 604800 }; // 7天有效期
-
-  const encoder = new TextEncoder();
-  const headerB64 = base64UrlEncode(encoder.encode(JSON.stringify(header)));
-  const payloadB64 = base64UrlEncode(encoder.encode(JSON.stringify(fullPayload)));
-
-  const signatureInput = `${headerB64}.${payloadB64}`;
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(signatureInput));
-  const signatureB64 = base64UrlEncode(new Uint8Array(signature));
-
-  return `${signatureInput}.${signatureB64}`;
-}
-
-function base64UrlEncode(buffer: Uint8Array): string {
-  return btoa(String.fromCharCode(...buffer))
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
-}
