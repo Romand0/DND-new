@@ -36,7 +36,8 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const navItems = variant === 'player' ? playerNavItems : allNavItems;
+  const isPlayerPath = location.pathname.startsWith('/player/');
+  const navItems = variant === 'player' || isPlayerPath ? playerNavItems : allNavItems;
 
   const handleExport = () => {
     characterStore.exportAllWithConfirm();
