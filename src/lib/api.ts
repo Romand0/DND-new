@@ -193,3 +193,32 @@ export async function updateSpell<T = any>(id: string, data: T): Promise<T> {
 export async function deleteSpell(id: string): Promise<void> {
   await apiFetch(`/spells/${id}`, { method: 'DELETE' });
 }
+
+// ============ 管理员认证函数 ============
+
+export function hasToken(): boolean {
+  return hasAuthToken() || !!getDmToken();
+}
+
+export function setToken(token: string | null): void {
+  setDmToken(token);
+}
+
+export async function verifyToken(): Promise<any> {
+  const jwt = getAuthToken();
+  if (jwt) {
+    try {
+      return await fetchCurrentUser();
+    } catch {
+      // JWT 无效，尝试 DM Token
+    }
+  }
+  const dmToken = getDmToken();
+  if (dmToken) {
+    const res = await fetch('/api/auth/verify', {
+      headers: { Authorization: `Bearer ${dmToken}` },
+    });
+    if (res.ok) return res.json();
+  }
+  throw new Error('No valid token');
+}
