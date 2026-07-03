@@ -23,7 +23,7 @@ import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 
 // 根路径壳：按 role 分流
-function RoleShell({ children }: { children: React.ReactNode }) {
+const RoleShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
   if (user?.role === 'player') {
