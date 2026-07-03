@@ -194,7 +194,7 @@ export async function deleteSpell(id: string): Promise<void> {
   await apiFetch(`/spells/${id}`, { method: 'DELETE' });
 }
 
-// ============ 管理员认证函数 ============
+// ============ 管理员认证函数（旧版兼容）============
 
 export function hasToken(): boolean {
   return hasAuthToken() || !!getDmToken();
