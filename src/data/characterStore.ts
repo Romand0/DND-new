@@ -95,7 +95,7 @@ function saveCharacter(charData: Character): Character {
   }
 
   saveStore(chars);
-  // 不再自动同步，改为手动同步（浮动按钮触发）
+  syncCharacterToBackend(charWithTimestamps).catch(() => {});
   return charWithTimestamps;
 }
 
@@ -297,6 +297,9 @@ function addCharacter(characterData: Partial<Character>): Character {
 function deleteCharacter(charId: string): void {
   const chars = getStore().filter((c) => c.id !== charId);
   saveStore(chars);
+  if (api.hasToken()) {
+    api.deleteCharacter(charId).catch(() => {});
+  }
 }
 
 function updateCharacter(charId: string, updatedData: Partial<Character>): Character | null {

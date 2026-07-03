@@ -1,13 +1,16 @@
-// DM Toolkit - 浮动同步按钮组件
 import { useState } from 'react';
-import { Cloud, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
+import { equipmentStore } from '@/data/equipmentStore';
+import { spellStore } from '@/data/spellStore';
+import * as api from '@/lib/api';
 import { hasToken } from '@/lib/api';
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
 export default function SyncButton() {
   const [status, setStatus] = useState<SyncStatus>('idle');
+  const [result, setResult] = useState<{ characters: number; equipments: number; spells: number } | null>(null);
 
   const handleSync = async () => {
     if (!hasToken()) {
@@ -15,15 +18,35 @@ export default function SyncButton() {
       return;
     }
     setStatus('syncing');
+    setResult(null);
     try {
-      // 从后端拉取最新数据，更新本地缓存
-      await characterStore.loadAllFromBackend();
+      const characters = characterStore.getAll();
+      const equipments = equipmentStore.getAll();
+      const spells = spellStore.getAll();
+
+      const charResult = characters.length > 0
+        ? await api.batchUpsertCharacters(characters)
+        : { count: 0 };
+      const eqResult = equipments.length > 0
+        ? await api.batchUpsertEquipments(equipments)
+        : { count: 0 };
+      const spResult = spells.length > 0
+        ? await api.batchUpsertSpells(spells)
+        : { count: 0 };
+
+      setResult({
+        characters: charResult.count,
+        equipments: eqResult.count,
+        spells: spResult.count,
+      });
       setStatus('synced');
-      setTimeout(() => setStatus('idle'), 3000);
+      setTimeout(() => {
+        setStatus('idle');
+        setResult(null);
+      }, 4000);
     } catch (err) {
       setStatus('error');
-      setTimeout(() => setStatus('idle'), 3000);
-      alert(err instanceof Error ? err.message : '同步失败');
+      setTimeout(() => setStatus('idle'), 4000);
     }
   };
 
@@ -40,7 +63,7 @@ export default function SyncButton() {
       case 'error':
         return <AlertCircle className="w-5 h-5" />;
       default:
-        return <Cloud className="w-5 h-5" />;
+        return <Upload className="w-5 h-5" />;
     }
   };
 
@@ -58,16 +81,28 @@ export default function SyncButton() {
   };
 
   return (
-    <button
-      onClick={handleSync}
-      disabled={status === 'syncing'}
-      className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-all ${getStatusColor()} ${status === 'syncing' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-      title="从后端同步角色数据"
-    >
-      {getStatusIcon()}
-      <span className="font-medium">
-        {status === 'syncing' ? '同步中...' : status === 'synced' ? '已同步' : status === 'error' ? '同步失败' : '同步'}
-      </span>
-    </button>
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+      {status === 'synced' && result && (
+        <div className="bg-success text-white text-sm px-4 py-2 rounded-lg shadow-lg">
+          已上传 {result.characters} 角色 · {result.equipments} 装备 · {result.spells} 法术
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="bg-danger text-white text-sm px-4 py-2 rounded-lg shadow-lg">
+          上传失败，请检查 DM Token
+        </div>
+      )}
+      <button
+        onClick={handleSync}
+        disabled={status === 'syncing'}
+        className={`flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-all ${getStatusColor()} ${status === 'syncing' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+        title="将本地数据上传到云端 D1 数据库"
+      >
+        {getStatusIcon()}
+        <span className="font-medium">
+          {status === 'syncing' ? '上传中...' : status === 'synced' ? '已上传' : status === 'error' ? '上传失败' : '上传到云端'}
+        </span>
+      </button>
+    </div>
   );
 }
