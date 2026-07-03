@@ -78,7 +78,7 @@ export default function SyncButton() {
     setTimeout(() => {
       setStatus('idle');
       setResults([]);
-    }, hasError ? 8000 : 4000);
+    }, hasError ? 6000 : 2500);
   };
 
   if (!hasToken()) {
