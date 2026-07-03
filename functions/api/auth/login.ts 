@@ -1,5 +1,5 @@
 // functions/api/auth/login.ts
-import { jsonResponse, errorResponse } from '../_utils';
+import { jsonResponse, errorResponse } from '../../_utils';
 
 interface Env {
   DB: D1Database;
