@@ -1,4 +1,4 @@
-// functions/api/auth/register.ts
+//  functions/api/auth/register.ts
 import { jsonResponse, errorResponse } from '../_utils';
 
 interface Env {
