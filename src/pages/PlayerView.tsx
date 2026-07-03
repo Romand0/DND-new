@@ -1,7 +1,7 @@
 // 玩家端只读页面 - 从后端 API 加载角色卡数据
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { RefreshCw, AlertCircle } from 'lucide-react';
+import { RefreshCw, AlertCircle, ArrowLeft } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { fetchAllCharacters } from '@/lib/api';
 import CharacterDetail from '@/pages/CharacterDetail';
@@ -74,7 +74,13 @@ export default function PlayerView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <Link
+          to="/"
+          className="p-2 rounded-lg border transition-colors dark:border-border-dark dark:text-white dark:hover:bg-card-dark-hover light:border-border-light light:text-white light:hover:bg-card-light-hover"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </Link>
         <button
           onClick={loadCharacter}
           className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:bg-card-dark-hover light:border-border-light light:text-text-light-muted light:hover:bg-card-light-hover"
