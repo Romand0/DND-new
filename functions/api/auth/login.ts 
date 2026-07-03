@@ -1,0 +1,98 @@
+// functions/api/auth/login.ts
+import { jsonResponse, errorResponse } from '../_utils';
+
+interface Env {
+  DB: D1Database;
+  JWT_SECRET: string;
+}
+
+export const onRequest: PagesFunction<Env> = async (context) => {
+  const { request, env } = context;
+
+  if (request.method !== 'POST') {
+    return errorResponse(405, 'Method not allowed');
+  }
+
+  let body: { username?: string; password?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return errorResponse(400, 'Invalid JSON body');
+  }
+
+  const { username, password } = body;
+
+  if (!username || !password) {
+    return errorResponse(400, 'Username and password are required');
+  }
+
+  // 查找用户
+  const user = await env.DB.prepare('SELECT id, username, password_hash, role FROM users WHERE username = ?')
+    .bind(username.trim())
+    .first<{ id: string; username: string; password_hash: string; role: string }>();
+
+  if (!user) {
+    return errorResponse(401, 'Invalid username or password');
+  }
+
+  // 验证密码
+  const isValid = await verifyPassword(password, user.password_hash);
+  if (!isValid) {
+    return errorResponse(401, 'Invalid username or password');
+  }
+
+  // 生成 JWT
+  const token = await signJwt({ sub: user.id, role: user.role }, env.JWT_SECRET);
+
+  return jsonResponse({
+    token,
+    user: { id: user.id, username: user.username, role: user.role },
+  });
+};
+
+// ---------- 密码验证函数（后续会和 register.ts 的工具函数一起移到 _utils.ts） ----------
+
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  const [saltHex, hashHex] = storedHash.split(':');
+  if (!saltHex || !hashHex) return false;
+
+  const salt = new Uint8Array(saltHex.match(/.{2}/g)!.map(b => parseInt(b, 16)));
+  const encoder = new TextEncoder();
+  const salted = new Uint8Array([...salt, ...encoder.encode(password)]);
+
+  const hashBuffer = await crypto.subtle.digest('SHA-256', salted);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  return computedHash === hashHex;
+}
+
+async function signJwt(payload: Record<string, unknown>, secret: string): Promise<string> {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+  const fullPayload = { ...payload, iat: now, exp: now + 604800 };
+
+  const encoder = new TextEncoder();
+  const headerB64 = base64UrlEncode(encoder.encode(JSON.stringify(header)));
+  const payloadB64 = base64UrlEncode(encoder.encode(JSON.stringify(fullPayload)));
+
+  const signatureInput = `${headerB64}.${payloadB64}`;
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(signatureInput));
+  const signatureB64 = base64UrlEncode(new Uint8Array(signature));
+
+  return `${signatureInput}.${signatureB64}`;
+}
+
+function base64UrlEncode(buffer: Uint8Array): string {
+  return btoa(String.fromCharCode(...buffer))
+    .replace(/=/g, '')
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_');
+}
