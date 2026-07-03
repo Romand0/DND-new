@@ -11,6 +11,7 @@ type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 export default function SyncButton() {
   const [status, setStatus] = useState<SyncStatus>('idle');
   const [result, setResult] = useState<{ characters: number; equipments: number; spells: number } | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string>('');
 
   const handleSync = async () => {
     if (!hasToken()) {
@@ -19,6 +20,7 @@ export default function SyncButton() {
     }
     setStatus('syncing');
     setResult(null);
+    setErrorMsg('');
     try {
       const characters = characterStore.getAll();
       const equipments = equipmentStore.getAll();
@@ -45,8 +47,13 @@ export default function SyncButton() {
         setResult(null);
       }, 4000);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : '未知错误';
+      setErrorMsg(msg);
       setStatus('error');
-      setTimeout(() => setStatus('idle'), 4000);
+      setTimeout(() => {
+        setStatus('idle');
+        setErrorMsg('');
+      }, 6000);
     }
   };
 
@@ -88,8 +95,8 @@ export default function SyncButton() {
         </div>
       )}
       {status === 'error' && (
-        <div className="bg-danger text-white text-sm px-4 py-2 rounded-lg shadow-lg">
-          上传失败，请检查 DM Token
+        <div className="bg-danger text-white text-sm px-4 py-2 rounded-lg shadow-lg max-w-xs">
+          上传失败：{errorMsg}
         </div>
       )}
       <button
