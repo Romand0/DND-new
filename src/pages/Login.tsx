@@ -31,6 +31,9 @@ const Login: React.FC = () => {
       localStorage.setItem('auth_token', data.token);
       localStorage.setItem('auth_user', JSON.stringify(data.user));
 
+      // 调试：确认 token 是否存进去了
+      alert('TOKEN: ' + (data.token ? data.token.substring(0, 15) + '...' : 'NO TOKEN'));
+
       // 跳转到首页
       navigate('/');
       } catch (err) {
