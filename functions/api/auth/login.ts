@@ -40,6 +40,21 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (!isValid) {
     return errorResponse(401, 'Invalid username or password');
   }
+  
+// 生成 JWT 前先打日志
+console.log('JWT_DEBUG:', {
+  hasSecret: !!env.JWT_SECRET,
+  secretLen: env.JWT_SECRET?.length,
+  secretPrefix: env.JWT_SECRET?.substring(0, 3),
+  allEnvKeys: Object.keys(env).join(',')
+});
+
+let token: string;
+try {
+  token = await signJwt({ sub: user.id, role: user.role }, env.JWT_SECRET);
+} catch (e) {
+  // ...
+}
 
   // 生成 JWT（单独 try/catch，捕捉 JWT_SECRET 缺失或格式问题）
   let token: string;
