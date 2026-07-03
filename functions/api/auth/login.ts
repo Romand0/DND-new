@@ -52,8 +52,8 @@ console.log('JWT_DEBUG:', {
   // 生成 JWT（单独 try/catch，捕捉 JWT_SECRET 缺失或格式问题）
   let token: string;
   try {
-    token = await signJwt({ sub: user.id, role: user.role }, env.JWT_SECRET);
-  } catch (e) {
+const jwtSecret = env.JWT_SECRET || "cmy090907cmy090907cmy090907"; // 环境变量没注入时用这个兜底
+token = } catch (e) {
     console.error('signJwt failed:', e);
     return errorResponse(500, 'Token generation failed: ' + (e instanceof Error ? e.message : String(e)));
   }
