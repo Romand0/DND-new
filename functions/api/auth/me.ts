@@ -20,10 +20,11 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
   const token = authHeader.slice(7);
 
-  // 验证 Token 并解析 payload
+  // 验证 Token 并解析 payload（使用硬编码兜底，和 login.ts 保持一致）
   let payload: { sub: string; role: string };
   try {
-    payload = await verifyJwt(token, env.JWT_SECRET);
+    const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
+    payload = await verifyJwt(token, jwtSecret);
   } catch {
     return errorResponse(401, 'Invalid or expired token');
   }
@@ -34,6 +35,17 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   )
     .bind(payload.sub)
     .first<{ id: string; username: string; role: string; created_at: number }>();
+
+  if (!user) {
+    return errorResponse(404, 'User not found');
+  }
+
+  // 返回用户信息
+  return new Response(JSON.stringify({ user }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
+};
+
 
   if (!user) {
     return errorResponse(404, 'User not found');
