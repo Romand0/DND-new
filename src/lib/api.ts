@@ -51,7 +51,7 @@ function authHeaders(): Record<string, string> {
   return {};
 }
 
-async function apiFetch<T = any>(
+export async function apiFetch<T = any>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
