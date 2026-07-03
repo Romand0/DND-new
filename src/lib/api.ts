@@ -36,10 +36,21 @@ async function apiFetch<T = any>(
     },
   });
 
-  const data = await res.json().catch(() => ({}));
+  let data: any;
+  let rawText = '';
+  try {
+    data = await res.json();
+  } catch {
+    try {
+      rawText = await res.clone().text();
+    } catch {
+      rawText = '';
+    }
+    data = {};
+  }
 
   if (!res.ok) {
-    const msg = (data as any).error || `请求失败: ${res.status}`;
+    const msg = (data as any).error || (rawText ? `${res.status} - ${rawText.slice(0, 200)}` : `请求失败: ${res.status}`);
     throw new Error(msg);
   }
 

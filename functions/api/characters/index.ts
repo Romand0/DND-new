@@ -22,10 +22,14 @@ export async function onRequestPost(context: any): Promise<Response> {
   
   if (Array.isArray(body)) {
     const timestamp = now();
+    const validItems = body.filter((item: any) => item && typeof item.id === 'string' && item.id.length > 0);
+    if (validItems.length === 0) {
+      return errorResponse('数组中没有有效的角色数据（缺少 id）', 400);
+    }
     const stmt = env.DB.prepare(
       'INSERT OR REPLACE INTO characters (id, name, class, level, race, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
-    const batch = body.map((item: any) => {
+    const batch = validItems.map((item: any) => {
       const charData = { ...item, createdAt: item.createdAt || timestamp, updatedAt: timestamp };
       return stmt.bind(
         item.id,
@@ -40,9 +44,9 @@ export async function onRequestPost(context: any): Promise<Response> {
     });
     try {
       await env.DB.batch(batch);
-      return jsonResponse({ count: body.length });
+      return jsonResponse({ count: validItems.length });
     } catch (e: any) {
-      return errorResponse(e.message || '批量导入失败', 500);
+      return errorResponse(`批量导入失败: ${e.message || '未知数据库错误'}`, 500);
     }
   }
   

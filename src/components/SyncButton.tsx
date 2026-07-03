@@ -8,10 +8,16 @@ import { hasToken } from '@/lib/api';
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
+interface SyncResult {
+  name: string;
+  status: 'success' | 'error' | 'skipped';
+  count?: number;
+  error?: string;
+}
+
 export default function SyncButton() {
   const [status, setStatus] = useState<SyncStatus>('idle');
-  const [result, setResult] = useState<{ characters: number; equipments: number; spells: number } | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string>('');
+  const [results, setResults] = useState<SyncResult[]>([]);
 
   const handleSync = async () => {
     if (!hasToken()) {
@@ -19,42 +25,60 @@ export default function SyncButton() {
       return;
     }
     setStatus('syncing');
-    setResult(null);
-    setErrorMsg('');
-    try {
-      const characters = characterStore.getAll();
-      const equipments = equipmentStore.getAll();
-      const spells = spellStore.getAll();
+    setResults([]);
 
-      const charResult = characters.length > 0
-        ? await api.batchUpsertCharacters(characters)
-        : { count: 0 };
-      const eqResult = equipments.length > 0
-        ? await api.batchUpsertEquipments(equipments)
-        : { count: 0 };
-      const spResult = spells.length > 0
-        ? await api.batchUpsertSpells(spells)
-        : { count: 0 };
+    const characters = characterStore.getAll();
+    const equipments = equipmentStore.getAll();
+    const spells = spellStore.getAll();
 
-      setResult({
-        characters: charResult.count,
-        equipments: eqResult.count,
-        spells: spResult.count,
-      });
-      setStatus('synced');
-      setTimeout(() => {
-        setStatus('idle');
-        setResult(null);
-      }, 4000);
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : '未知错误';
-      setErrorMsg(msg);
-      setStatus('error');
-      setTimeout(() => {
-        setStatus('idle');
-        setErrorMsg('');
-      }, 6000);
+    const newResults: SyncResult[] = [];
+
+    // 角色卡
+    if (characters.length > 0) {
+      try {
+        const r = await api.batchUpsertCharacters(characters);
+        newResults.push({ name: '角色卡', status: 'success', count: r.count });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '未知错误';
+        newResults.push({ name: '角色卡', status: 'error', error: msg });
+      }
+    } else {
+      newResults.push({ name: '角色卡', status: 'skipped' });
     }
+
+    // 装备
+    if (equipments.length > 0) {
+      try {
+        const r = await api.batchUpsertEquipments(equipments);
+        newResults.push({ name: '装备', status: 'success', count: r.count });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '未知错误';
+        newResults.push({ name: '装备', status: 'error', error: msg });
+      }
+    } else {
+      newResults.push({ name: '装备', status: 'skipped' });
+    }
+
+    // 法术
+    if (spells.length > 0) {
+      try {
+        const r = await api.batchUpsertSpells(spells);
+        newResults.push({ name: '法术', status: 'success', count: r.count });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : '未知错误';
+        newResults.push({ name: '法术', status: 'error', error: msg });
+      }
+    } else {
+      newResults.push({ name: '法术', status: 'skipped' });
+    }
+
+    setResults(newResults);
+    const hasError = newResults.some((r) => r.status === 'error');
+    setStatus(hasError ? 'error' : 'synced');
+    setTimeout(() => {
+      setStatus('idle');
+      setResults([]);
+    }, hasError ? 8000 : 4000);
   };
 
   if (!hasToken()) {
@@ -87,16 +111,25 @@ export default function SyncButton() {
     }
   };
 
+  const allSuccess = results.length > 0 && results.every((r) => r.status === 'success' || r.status === 'skipped');
+
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
-      {status === 'synced' && result && (
-        <div className="bg-success text-white text-sm px-4 py-2 rounded-lg shadow-lg">
-          已上传 {result.characters} 角色 · {result.equipments} 装备 · {result.spells} 法术
-        </div>
-      )}
-      {status === 'error' && (
-        <div className="bg-danger text-white text-sm px-4 py-2 rounded-lg shadow-lg max-w-xs">
-          上传失败：{errorMsg}
+      {results.length > 0 && (
+        <div className={`text-sm px-4 py-2 rounded-lg shadow-lg max-w-xs space-y-1 ${allSuccess ? 'bg-success text-white' : 'bg-danger text-white'}`}>
+          {results.map((r) => (
+            <div key={r.name} className="flex items-center gap-2">
+              {r.status === 'success' && <CheckCircle className="w-3.5 h-3.5" />}
+              {r.status === 'error' && <AlertCircle className="w-3.5 h-3.5" />}
+              {r.status === 'skipped' && <span className="w-3.5 h-3.5 inline-block" />}
+              <span>
+                {r.name}
+                {r.status === 'success' && `：已上传 ${r.count} 条`}
+                {r.status === 'error' && `：${r.error}`}
+                {r.status === 'skipped' && '：无数据'}
+              </span>
+            </div>
+          ))}
         </div>
       )}
       <button
@@ -107,7 +140,7 @@ export default function SyncButton() {
       >
         {getStatusIcon()}
         <span className="font-medium">
-          {status === 'syncing' ? '上传中...' : status === 'synced' ? '已上传' : status === 'error' ? '上传失败' : '上传到云端'}
+          {status === 'syncing' ? '上传中...' : status === 'synced' ? '已上传' : status === 'error' ? '部分失败' : '上传到云端'}
         </span>
       </button>
     </div>
