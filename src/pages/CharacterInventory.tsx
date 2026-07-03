@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useEditorState } from '@/data/editorState';
 import {
   ChevronLeft,
   Plus,
@@ -58,6 +59,8 @@ export default function CharacterInventory({
   const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0);
+
+  useEditorState(equipmentEditorOpen, equipmentPickerOpen);
 
   const reloadChar = () => {
     forceUpdate((n) => n + 1);

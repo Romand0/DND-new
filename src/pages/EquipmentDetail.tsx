@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useEditorState } from '@/data/editorState';
 import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
@@ -14,6 +15,8 @@ export default function EquipmentDetail() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [customEquipments, setCustomEquipments] = useState<EquipmentItem[]>([]);
+
+  useEditorState(editorOpen);
 
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);

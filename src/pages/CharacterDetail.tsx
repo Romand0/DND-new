@@ -1,5 +1,6 @@
 // DM Toolkit - Character Detail Page Component
 import { useState, useEffect } from 'react';
+import { useEditorState } from '@/data/editorState';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -163,6 +164,8 @@ export default function CharacterDetail({
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
   const [attackEditorOpen, setAttackEditorOpen] = useState(false);
   const [editingAttack, setEditingAttack] = useState<(Attack & { id: string }) | null>(null);
+
+  useEditorState(spellPickerOpen, equipmentPickerOpen, equipmentEditorOpen, statsEditorOpen, genderPickerOpen, attackEditorOpen);
 
   const genderOptions = [
     { value: 'male', label: '男', icon: '♂', color: 'text-info' },

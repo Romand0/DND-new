@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { spellStore } from '@/data/spellStore';
+import { editorState } from '@/data/editorState';
 import * as api from '@/lib/api';
 import { hasToken } from '@/lib/api';
 
@@ -18,6 +19,13 @@ interface SyncResult {
 export default function SyncButton() {
   const [status, setStatus] = useState<SyncStatus>('idle');
   const [results, setResults] = useState<SyncResult[]>([]);
+  const [editorOpen, setEditorOpen] = useState(editorState.get());
+
+  useEffect(() => {
+    return editorState.subscribe(() => setEditorOpen(editorState.get()));
+  }, []);
+
+  if (editorOpen) return null;
 
   const handleSync = async () => {
     if (!hasToken()) {
