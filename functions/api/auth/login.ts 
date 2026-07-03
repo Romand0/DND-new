@@ -1,17 +1,6 @@
-import { jsonResponse } from '../../_utils';
-
-interface Env {
-  DB: D1Database;
-  JWT_SECRET: string;
-}
-
-export const onRequest: PagesFunction<Env> = async (context) => {
-  const { env } = context;
-
-  // 只检查环境变量是否存在，不调任何复杂逻辑
-  return jsonResponse({
-    jwtExists: !!env.JWT_SECRET,
-    jwtValue: env.JWT_SECRET ? env.JWT_SECRET.substring(0, 3) + '...' : null,
-    dbExists: !!env.DB,
-  });
+export const onRequest: PagesFunction<unknown> = async () => {
+  return new Response(
+    JSON.stringify({ status: 'ok', message: 'hello from login' }),
+    { headers: { 'Content-Type': 'application/json' } }
+  );
 };
