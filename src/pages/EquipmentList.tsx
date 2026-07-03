@@ -174,37 +174,46 @@ export default function EquipmentList() {
       </div>
 
       <div className="grid gap-3">
-        {filteredEquipments.map(item => (
-          <div key={item.id} className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">{item.name}</h3>
-                <div className="flex items-center gap-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                  <span>{item.category}</span>
-                  {item.subtype && <span>· {item.subtype}</span>}
+        {filteredEquipments.map(item => {
+          const { properties } = item;
+          return (
+            <div key={item.id} className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">{item.name}</h3>
+                  <div className="flex items-center gap-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                    <span>{item.category}</span>
+                    {item.subtype && <span>· {item.subtype}</span>}
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-sm">
+                    <span className="flex items-center gap-1 dark:text-text-dark light:text-text-light">
+                      <Coins className="w-3.5 h-3.5 text-accent" /> {formatPrice(item)}
+                    </span>
+                    <span className="dark:text-text-dark-muted light:text-text-light-muted">{item.weight} 磅</span>
+                  </div>
+                  {properties && properties.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {properties.slice(0, 4).map(p => (
+                        <span key={p} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">{p}</span>
+                      ))}
+                      {properties.length > 4 && (
+                        <span className="px-1.5 py-0.5 text-xs rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
+                          +{properties.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-4 mt-2 text-sm">
-                  <span className="flex items-center gap-1 dark:text-text-dark light:text-text-light">
-                    <Coins className="w-3.5 h-3.5 text-accent" /> {formatPrice(item)}
-                  </span>
-                  <span className="dark:text-text-dark-muted light:text-text-light-muted">{item.weight} 磅</span>
-                </div>
-                {item.properties?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {item.properties?.slice(0,4).map(p => <span key={p} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">{p}</span>)}
-                    {item.properties && item.properties.length > 4 && <span className="px-1.5 py-0.5 text-xs rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">+{item.properties.length-4}</span>}
+                {isDM && (
+                  <div className="flex gap-1">
+                    <button onClick={() => handleEdit(item)} className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light" title="编辑"><Edit className="w-4 h-4" /></button>
+                    <button onClick={() => setDeleteConfirm(item.id)} className="p-2 rounded hover:bg-danger/20 text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 )}
               </div>
-              {isDM && (
-                <div className="flex gap-1">
-                  <button onClick={() => handleEdit(item)} className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light" title="编辑"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => setDeleteConfirm(item.id)} className="p-2 rounded hover:bg-danger/20 text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {filteredEquipments.length === 0 && <div className="text-center py-12 dark:text-text-dark-muted light:text-text-light-muted">没有找到匹配的装备</div>}
