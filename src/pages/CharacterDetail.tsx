@@ -844,7 +844,7 @@ export default function CharacterDetail({
 
       <Section title="属性值" icon={Zap}>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {(Object.keys(character.abilities) as AbilityKey[]).map((ability) => (
+          {(Object.keys(character.abilities || {}) as AbilityKey[]).map((ability) => (
             <div
               key={ability}
               className="text-center p-4 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light"
@@ -896,7 +896,7 @@ export default function CharacterDetail({
 
       <Section title="技能与豁免" icon={Star}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {character && characterStore.getGroupedSkills(character).map((group) => (
+          {characterStore.getGroupedSkills(character || {} as Character).map((group) => (
             <div
               key={group.attribute}
               className="p-3 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light"
@@ -920,12 +920,12 @@ export default function CharacterDetail({
               >
                 <button
                   onClick={() => {
-                    if (group.save.proficient) {
-                      characterStore.toggleSaveExpertise(id!, group.save.key);
+                    if (group.save.proficient && id) {
+                      characterStore.toggleSaveExpertise(id, group.save.key);
                       reloadChar();
                     }
                   }}
-                  disabled={!group.save.proficient}
+                  disabled={!group.save.proficient || !id}
                   className={`w-4 h-4 flex items-center justify-center ${
                     group.save.proficient
                       ? group.save.expertise
@@ -941,8 +941,10 @@ export default function CharacterDetail({
                   type="checkbox"
                   checked={group.save.proficient}
                   onChange={() => {
-                    characterStore.toggleSaveProficiency(id!, group.save.key);
-                    reloadChar();
+                    if (id) {
+                      characterStore.toggleSaveProficiency(id, group.save.key);
+                      reloadChar();
+                    }
                   }}
                   className="w-4 h-4 accent-accent"
                 />
@@ -977,33 +979,35 @@ export default function CharacterDetail({
                   }`}
                 >
                   <button
-                    onClick={() => {
-                      if (skill.proficient) {
-                        characterStore.toggleSkillExpertise(id!, skill.key);
-                        reloadChar();
-                      }
-                    }}
-                    disabled={!skill.proficient}
-                    className={`w-4 h-4 flex items-center justify-center ${
-                      skill.proficient
-                        ? skill.expertise
-                          ? 'text-primary'
-                          : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
-                        : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
-                    }`}
-                    title={skill.proficient ? (skill.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
-                  >
-                    <Star className={`w-3.5 h-3.5 ${skill.expertise ? 'fill-primary' : ''}`} />
-                  </button>
-                  <input
-                    type="checkbox"
-                    checked={skill.proficient}
-                    onChange={() => {
-                      characterStore.toggleSkillProficiency(id!, skill.key);
+                  onClick={() => {
+                    if (skill.proficient && id) {
+                      characterStore.toggleSkillExpertise(id, skill.key);
                       reloadChar();
-                    }}
-                    className="w-4 h-4 accent-primary"
-                  />
+                    }
+                  }}
+                  disabled={!skill.proficient || !id}
+                  className={`w-4 h-4 flex items-center justify-center ${
+                    skill.proficient
+                      ? skill.expertise
+                        ? 'text-primary'
+                        : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+                      : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+                  }`}
+                  title={skill.proficient ? (skill.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+                >
+                  <Star className={`w-3.5 h-3.5 ${skill.expertise ? 'fill-primary' : ''}`} />
+                </button>
+                <input
+                  type="checkbox"
+                  checked={skill.proficient}
+                  onChange={() => {
+                    if (id) {
+                      characterStore.toggleSkillProficiency(id, skill.key);
+                      reloadChar();
+                    }
+                  }}
+                  className="w-4 h-4 accent-primary"
+                />
                   <span
                     className={`text-xs flex-1 ${
                       skill.proficient
@@ -1037,16 +1041,18 @@ export default function CharacterDetail({
 
       <Section title="熟练项" icon={Star}>
         <div className="flex flex-wrap gap-4">
-          {displayedProficiencyCategories.map((category) => (
+          {displayedProficiencyCategories.map((category) => {
+            const items = character.proficiencies?.[category] || [];
+            return (
             <div key={category} className="flex-1 min-w-[200px] max-w-[320px]">
               <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
                 {proficiencyLabels[category]}
               </label>
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {character.proficiencies[category].length === 0 && (
+                {items.length === 0 && (
                   <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
                 )}
-                {character.proficiencies[category].map((item, index) => (
+                {items.map((item, index) => (
                   <div
                     key={index}
                     className="flex items-center gap-1 px-2 py-1 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
@@ -1093,7 +1099,8 @@ export default function CharacterDetail({
                 </div>
               )}
             </div>
-          ))}
+          );
+        })}
         </div>
       </Section>
 
@@ -1101,12 +1108,12 @@ export default function CharacterDetail({
         <div className="space-y-6">
           <Section title="攻击" icon={Swords}>
             <div className="space-y-2">
-              {character.attacks.length === 0 ? (
+              {(character.attacks || []).length === 0 ? (
                 <div className="text-center py-6 text-sm dark:text-text-dark-muted light:text-text-light-muted">
                   暂无攻击
                 </div>
               ) : (
-                character.attacks.map((attack) => (
+                (character.attacks || []).map((attack) => (
                   <div
                     key={attack.id}
                     className="flex items-center justify-between gap-3 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
@@ -1183,8 +1190,8 @@ export default function CharacterDetail({
               </div>
 
               <div className="relative">
-                {character.equipment.slice(0, 5).map((item) => {
-                  const isExpanded = expandedEquipment.has(item.id!);
+                {(character.equipment || []).slice(0, 5).map((item) => {
+                  const isExpanded = expandedEquipment.has(item.id || '');
                   return (
                     <div
                       key={item.id}
@@ -1220,7 +1227,7 @@ export default function CharacterDetail({
                                 <Edit2 className="w-4 h-4" />
                               </button>
                               <button
-                                onClick={() => setDeleteConfirmId(item.id!)}
+                                onClick={() => setDeleteConfirmId(item.id || '')}
                                 className="p-1.5 rounded hover:bg-danger/20 text-danger"
                                 title="删除"
                               >
@@ -1231,7 +1238,7 @@ export default function CharacterDetail({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleUpdateEquipmentQuantity(item.id!, -1);
+                                  handleUpdateEquipmentQuantity(item.id || '', -1);
                                 }}
                                 className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
                                 title="减少数量"
@@ -1244,7 +1251,7 @@ export default function CharacterDetail({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleUpdateEquipmentQuantity(item.id!, 1);
+                                  handleUpdateEquipmentQuantity(item.id || '', 1);
                                 }}
                                 className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
                                 title="增加数量"
@@ -1257,7 +1264,7 @@ export default function CharacterDetail({
                         <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
                           <button
                             data-readonly-keep
-                            onClick={() => toggleEquipmentExpand(item.id!)}
+                            onClick={() => toggleEquipmentExpand(item.id || '')}
                             className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
                           >
                             {isExpanded ? (

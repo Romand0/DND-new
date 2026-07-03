@@ -613,11 +613,10 @@ function calcModifier(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-// 计算被动感知
 function calcPassivePerception(char: Character): number {
-  const wisMod = char.abilities.wisdom.modifier;
-  const prof = char.proficiencyBonus;
-  const extra = char.skills.perception.extra || 0;
+  const wisMod = char.abilities?.wisdom?.modifier || 0;
+  const prof = char.proficiencyBonus || 2;
+  const extra = char.skills?.perception?.extra || 0;
   return 10 + wisMod + prof + extra;
 }
 

@@ -4,21 +4,34 @@ import { Link } from 'react-router-dom';
 import { Plus, Search, Trash2, Heart, Shield, Copy, Download, Upload, CheckSquare, Square } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { characterStore } from '@/data/characterStore';
+import * as api from '@/lib/api';
 
 export default function CharacterList() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadCharacters();
   }, []);
 
-  const loadCharacters = () => {
-    const chars = characterStore.getAll();
-    const charsWithLevels = characterStore.calculateLevelsForCharacters(chars);
-    setCharacters(charsWithLevels);
+  const loadCharacters = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const chars = await api.fetchAllCharacters<Character[]>();
+      const charsWithLevels = characterStore.calculateLevelsForCharacters(chars);
+      setCharacters(charsWithLevels);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '加载失败';
+      setError(msg);
+      setCharacters([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const filteredCharacters = characters.filter(
@@ -166,7 +179,26 @@ export default function CharacterList() {
         )}
       </div>
 
-      {filteredCharacters.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-16">
+          <div className="w-12 h-12 mx-auto mb-4 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <p className="dark:text-text-dark-muted light:text-text-light-muted">加载中...</p>
+        </div>
+      ) : error ? (
+        <div className="text-center py-16 rounded-xl border-2 border-dashed dark:border-border-dark light:border-border-light">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full dark:bg-danger/20 light:bg-danger/10 flex items-center justify-center">
+            <Heart className="w-8 h-8 dark:text-danger light:text-danger" />
+          </div>
+          <h3 className="text-lg font-medium dark:text-text-dark light:text-text-light">加载失败</h3>
+          <p className="mt-1 dark:text-text-dark-muted light:text-text-light-muted">{error}</p>
+          <button
+            onClick={loadCharacters}
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors"
+          >
+            重试
+          </button>
+        </div>
+      ) : filteredCharacters.length === 0 ? (
         <div className="text-center py-16 rounded-xl border-2 border-dashed dark:border-border-dark light:border-border-light">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full dark:bg-card-dark light:bg-card-light flex items-center justify-center">
             <Heart className="w-8 h-8 dark:text-text-dark-muted light:text-text-light-muted" />
