@@ -12,7 +12,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isDM: boolean;
   loading: boolean;
-  login: (token: string, user: User) => void;
+  login: (token: string, user: User) => Promise<void>;
   logout: () => void;
 }
 
@@ -41,7 +41,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setLoading(false);
   }, []);
 
-  // 可选：验证 token 是否仍然有效（调用 /api/auth/me）
+  // 验证 token 是否仍然有效（调用 /api/auth/me）
   useEffect(() => {
     if (!token) return;
 
@@ -55,18 +55,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           logout();
         }
       } catch {
-        // 网络错误，保留当前状态（可能下次请求时会触发重新登录）
+        // 网络错误，保留当前状态
       }
     };
 
     verifyToken();
   }, [token]);
 
-  const login = (newToken: string, newUser: User) => {
-    setToken(newToken);
-    setUser(newUser);
-    localStorage.setItem('auth_token', newToken);
-    localStorage.setItem('auth_user', JSON.stringify(newUser));
+  // login 返回 Promise，确保 setState flush 完再 resolve
+  const login = (newToken: string, newUser: User): Promise<void> => {
+    return new Promise((resolve) => {
+      setToken(newToken);
+      setUser(newUser);
+      localStorage.setItem('auth_token', newToken);
+      localStorage.setItem('auth_user', JSON.stringify(newUser));
+      // 用 requestAnimationFrame 等 React setState flush 完
+      requestAnimationFrame(() => resolve());
+    });
   };
 
   const logout = () => {
