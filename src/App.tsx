@@ -1,4 +1,5 @@
 // DM Toolkit - Application Router
+import ProtectedRoute from './components/ProtectedRoute';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import Layout from '@/components/Layout';
