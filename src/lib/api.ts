@@ -1,26 +1,54 @@
 // API Client - 与 Cloudflare Pages Functions 后端通信
-const TOKEN_KEY = 'dm_token';
+const AUTH_TOKEN_KEY = 'auth_token';
+const DM_TOKEN_KEY = 'dm_token'; // 保留，兼容旧逻辑（设置页的 DM Token 验证）
 const API_BASE = '/api';
 
-function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+// 获取账号 JWT
+function getAuthToken(): string | null {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
-export function setToken(token: string): void {
+// 获取旧 DM Token（设置页用，验证后端 DM_TOKEN 环境变量）
+export function getDmToken(): string | null {
+  return localStorage.getItem(DM_TOKEN_KEY);
+}
+
+export function setDmToken(token: string | null): void {
   if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(DM_TOKEN_KEY, token);
   } else {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(DM_TOKEN_KEY);
   }
 }
 
-export function hasToken(): boolean {
-  return !!getToken();
+// 账号系统登录后存 JWT
+export function setAuthToken(token: string): void {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
 }
 
+export function getAuthTokenExport(): string | null {
+  return getAuthToken();
+}
+
+export function clearAuthToken(): void {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+export function hasAuthToken(): boolean {
+  return !!getAuthToken();
+}
+
+// 请求头：优先带 JWT（账号系统），其次带 DM Token（旧设置页逻辑）
 function authHeaders(): Record<string, string> {
-  const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const authToken = getAuthToken();
+  if (authToken) {
+    return { Authorization: `Bearer ${authToken}` };
+  }
+  const dmToken = getDmToken();
+  if (dmToken) {
+    return { Authorization: `Bearer ${dmToken}` };
+  }
+  return {};
 }
 
 async function apiFetch<T = any>(
@@ -50,21 +78,18 @@ async function apiFetch<T = any>(
   }
 
   if (!res.ok) {
-    const msg = (data as any).error || (rawText ? `${res.status} - ${rawText.slice(0, 200)}` : `请求失败: ${res.status}`);
+    const msg =
+      (data as any).error ||
+      (rawText ? `${res.status} - ${rawText.slice(0, 200)}` : `请求失败: ${res.status}`);
     throw new Error(msg);
   }
 
   return data as T;
 }
 
-// ============ 鉴权 ============
-export async function verifyToken(): Promise<boolean> {
-  try {
-    const result = await apiFetch<{ valid: boolean }>('/auth/verify');
-    return result.valid;
-  } catch {
-    return false;
-  }
+// ============ 鉴权（调 /api/auth/me 验证 JWT）============
+export async function fetchCurrentUser<T = any>(): Promise<T> {
+  return apiFetch<T>('/auth/me');
 }
 
 // ============ 角色卡 ============
