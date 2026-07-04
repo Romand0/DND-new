@@ -6,8 +6,10 @@ interface SpellEditorProps {
   spell?: Spell;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (spell: Spell) => Promise<void>;
+  onSave: (spell: Spell, syncToLibrary?: boolean) => Promise<void>;
+  showSyncOption?: boolean;
 }
+
 
 const schools = [
   '防护系',
@@ -52,6 +54,7 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
   const [classInput, setClassInput] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [syncToLibrary, setSyncToLibrary] = useState(false);
 
   useEffect(() => {
     if (spell) {
@@ -91,7 +94,7 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
     setError('');
 
     try {
-      await onSave(formData);
+      await onSave(formData, showSyncOption ? syncToLibrary : undefined);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败');
@@ -311,6 +314,7 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
             </div>
           )}
 
+        
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               描述
@@ -336,6 +340,18 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
               className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none text-sm"
             />
           </div>
+
+          {showSyncOption && (
+  <label className="flex items-center gap-2 cursor-pointer dark:text-text-dark light:text-text-light">
+    <input
+      type="checkbox"
+      checked={syncToLibrary}
+      onChange={(e) => setSyncToLibrary(e.target.checked)}
+      className="w-4 h-4 rounded border-primary text-primary focus:ring-primary"
+    />
+    <span className="text-sm">同时更新到法术库（并同步到数据库）</span>
+  </label>
+         )}
 
           <div>
             <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
