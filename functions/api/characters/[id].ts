@@ -1,20 +1,19 @@
-import { jsonResponse, errorResponse, handleOptions, verifyJwt, readJsonBody, now } from '../../_utils';
+import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now } from '../../_utils';
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env, params } = context;
   const id = params.id;
 
-  // JWT 鉴权（加兜底，跟 login.ts / me.ts 一致）
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  
+    // 统一认证（JWT 优先，DM_TOKEN 兜底）
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  try {
-    const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-    await verifyJwt(authHeader.slice(7), jwtSecret);
-  } catch {
-    return errorResponse(401, 'Invalid or expired token');
+  if (auth.role !== 'dm') {
+    return errorResponse(403, '需要 DM 权限');
   }
+
 
   try {
     const result = await env.DB
