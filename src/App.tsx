@@ -93,6 +93,8 @@ export default function App() {
               <Route path="equipment/:id" element={<EquipmentDetail />} />
               <Route path="spells" element={<SpellList />} />
               <Route path="spells/:id" element={<SpellDetail />} />
+              <Route path="/player/equipment" element={<EquipmentList />} />
+              <Route path="/player/equipment/:id" element={<EquipmentDetail />} />
               <Route path="settings" element={<Settings />} />
               <Route
                 path="notes"
