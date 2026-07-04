@@ -436,8 +436,8 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
                 htmlFor="syncToLibrary"
                 className="text-sm dark:text-text-dark light:text-text-light cursor-pointer"
               >
-                同时更新到装备库（并同步到 GitHub）
-              </label>
+                同时更新到装备库（并同步到 D1 数据库）
+              </label> 
             </div>
           )}
 
