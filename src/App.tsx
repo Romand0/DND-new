@@ -29,7 +29,7 @@ function RoleShell() {
   if (user?.role === 'player') {
     return <Navigate to="/player/home" replace />;
   }
-  return <Layout />;   // Layout 内部已有 <Outlet />，不需要传 children
+  return <Layout />; // Layout 内部已有 <Outlet />，不需要传 children
 }
 
 export default function App() {
@@ -70,6 +70,11 @@ export default function App() {
               <Route path="/player/inventory" element={<InventoryPage />} />
               <Route path="/player/spells" element={<SpellList />} />
               <Route path="/player/spells/:id" element={<SpellDetail />} />
+              {/* 公共资料库 - 玩家端也能访问 */}
+              <Route path="/equipment" element={<EquipmentList />} />
+              <Route path="/equipment/:id" element={<EquipmentDetail />} />
+              <Route path="/spells" element={<SpellList />} />
+              <Route path="/spells/:id" element={<SpellDetail />} />
             </Route>
 
             {/* DM 端（完整导航栏）- 需要登录 */}
@@ -93,8 +98,6 @@ export default function App() {
               <Route path="equipment/:id" element={<EquipmentDetail />} />
               <Route path="spells" element={<SpellList />} />
               <Route path="spells/:id" element={<SpellDetail />} />
-              <Route path="/player/equipment" element={<EquipmentList />} />
-              <Route path="/player/equipment/:id" element={<EquipmentDetail />} />
               <Route path="settings" element={<Settings />} />
               <Route
                 path="notes"
