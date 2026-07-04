@@ -30,11 +30,11 @@ const defaultClasses = [
   '游侠',
   '术士',
   '法师',
-  '术士',
+  '邪术士',
 ];
 
-export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEditorProps) {
-  const [formData, setFormData] = useState<Spell>({
+export default function SpellEditor({ spell, isOpen, onClose, onSave, showSyncOption }: SpellEditorProps) {
+const [formData, setFormData] = useState<Spell>({
     id: '',
     name: '',
     level: 0,
@@ -42,6 +42,7 @@ export default function SpellEditor({ spell, isOpen, onClose, onSave }: SpellEdi
     castingTime: '',
     range: '',
     components: { verbal: false, somatic: false, material: false },
+
     duration: '',
     description: '',
     classes: [],
