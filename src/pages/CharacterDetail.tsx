@@ -615,7 +615,6 @@ export default function CharacterDetail({
     <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
 
       {!readOnly && (
-              {!readOnly && (
           <Link
             to="/characters"
             className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
