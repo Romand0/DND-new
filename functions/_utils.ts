@@ -41,6 +41,33 @@ export function verifyDmToken(request: Request, env: Env): boolean {
   return token === env.DM_TOKEN;
 }
 
+// ---------- 统一认证（JWT 优先，DM_TOKEN 兜底） ----------
+// 用于写端点（POST/PUT/DELETE），兼容账号系统 JWT 和超级管理员 DM_TOKEN
+
+export async function authenticateRequest(
+  request: Request,
+  env: Env
+): Promise<{ sub: string; role: string } | null> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
+  const token = authHeader.slice(7);
+
+  // 先试 JWT
+  try {
+    const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
+    return await verifyJwt(token, jwtSecret);
+  } catch {
+    // JWT 失败，继续试 DM_TOKEN
+  }
+
+  // 再试 DM_TOKEN
+  if (token === env.DM_TOKEN) {
+    return { sub: 'dm-token-user', role: 'dm' };
+  }
+
+  return null;
+}
+
 // ---------- JWT 工具 ----------
 
 export async function signJwt(payload: Record<string, unknown>, secret: string): Promise<string> {
