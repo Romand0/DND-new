@@ -2,8 +2,8 @@ import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJs
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env, params } = context;
-  
-    // 统一认证（JWT 优先，DM_TOKEN 兜底）
+
+  // 统一认证（JWT 优先，DM_TOKEN 兜底）
   const auth = await authenticateRequest(request, env);
   if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
@@ -11,7 +11,6 @@ export async function onRequestGet(context: any): Promise<Response> {
   if (auth.role !== 'dm') {
     return errorResponse(403, '需要 DM 权限');
   }
-
 
   const id = params.id;
   try {
@@ -30,19 +29,13 @@ export async function onRequestGet(context: any): Promise<Response> {
 
 export async function onRequestPut(context: any): Promise<Response> {
   const { request, env, params } = context;
-  // JWT 鉴权 + DM 角色校验
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+  // 统一认证（JWT 优先，DM_TOKEN 兜底）
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  let payload: { sub: string; role: string };
-  try {
-    const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-    payload = await verifyJwt(authHeader.slice(7), jwtSecret);
-  } catch {
-    return errorResponse(401, 'Invalid or expired token');
-  }
-  if (payload.role !== 'dm') {
+  if (auth.role !== 'dm') {
     return errorResponse(403, '需要 DM 权限');
   }
 
@@ -75,19 +68,13 @@ export async function onRequestPut(context: any): Promise<Response> {
 
 export async function onRequestDelete(context: any): Promise<Response> {
   const { request, env, params } = context;
-  // JWT 鉴权 + DM 角色校验
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+  // 统一认证（JWT 优先，DM_TOKEN 兜底）
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  let payload: { sub: string; role: string };
-  try {
-    const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-    payload = await verifyJwt(authHeader.slice(7), jwtSecret);
-  } catch {
-    return errorResponse(401, 'Invalid or expired token');
-  }
-  if (payload.role !== 'dm') {
+  if (auth.role !== 'dm') {
     return errorResponse(403, '需要 DM 权限');
   }
 
