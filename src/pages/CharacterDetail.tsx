@@ -615,22 +615,14 @@ export default function CharacterDetail({
     <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
 
       {!readOnly && (
-        <Link
-          to="/characters"
-          className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-      )}
-      {readOnly && (
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark-hover light:border-border-light light:text-text-light light:hover:bg-card-light-hover"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          返回玩家主页
-        </Link>
-      )}
+              {!readOnly && (
+          <Link
+            to="/characters"
+            className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </Link>
+        )}
 
       <div className={`flex items-center gap-2 flex-wrap ${readOnly ? 'px-2' : ''}`}>
         <input
