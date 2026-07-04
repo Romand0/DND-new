@@ -21,7 +21,7 @@ export default function CharacterList() {
     setLoading(true);
     setError(null);
     try {
-      const chars = characterStore.getAll();
+      const chars = (characterStore.getAll() || []).filter((c: any) => c && c.id && c.name);
       setCharacters(chars);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载失败';
@@ -34,9 +34,9 @@ export default function CharacterList() {
 
   const filteredCharacters = characters.filter(
     (c) =>
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.class.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.race.toLowerCase().includes(searchQuery.toLowerCase())
+      (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.class || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.race || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const handleAddCharacter = () => {
@@ -91,8 +91,10 @@ export default function CharacterList() {
   };
 
   const hpPercentage = (char: Character) => {
-    if (char.maxHp === 0) return 0;
-    return Math.max(0, Math.min(100, (char.currentHp / char.maxHp) * 100));
+    const maxHp = char.maxHp ?? 0;
+    const curHp = char.currentHp ?? 0;
+    if (maxHp === 0) return 0;
+    return Math.max(0, Math.min(100, (curHp / maxHp) * 100));
   };
 
   const getHpColor = (percentage: number) => {
@@ -103,6 +105,7 @@ export default function CharacterList() {
 
   return (
     <div className="space-y-6">
+      {/* 顶部栏 */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold dark:text-text-dark light:text-text-light">角色卡库</h1>
@@ -113,14 +116,14 @@ export default function CharacterList() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleImport}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text:text-light light:hover:bg-card-light"
           >
             <Upload className="w-4 h-4" />
             导入
           </button>
           <button
             onClick={handleExportAll}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text:text-light light:hover:bg-card-light"
           >
             <Download className="w-4 h-4" />
             导出全部
@@ -135,6 +138,7 @@ export default function CharacterList() {
         </div>
       </div>
 
+      {/* 搜索 + 批量操作栏 */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted" />
@@ -143,7 +147,7 @@ export default function CharacterList() {
             placeholder="搜索角色名称、职业、种族..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border dark:bg-card-dark dark:border-border-dark dark:text-text-dark dark:placeholder:text-text-dark-muted light:bg-card-light light:border-border-light light:text-text-light light:placeholder:text-text-light-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full pl-10 pr-4 py-2.5 rounded-lg border dark:bg-card-dark dark:border-border-dark dark:text-text-dark dark:placeholder:text-text-dark-muted light:bg-card-light light:border-border-light light:text:text-light light:placeholder:text-text-light-muted focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
         {filteredCharacters.length > 0 && (
@@ -177,6 +181,7 @@ export default function CharacterList() {
         )}
       </div>
 
+      {/* 加载/错误/空状态 */}
       {loading ? (
         <div className="text-center py-16">
           <div className="w-12 h-12 mx-auto mb-4 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -263,32 +268,34 @@ export default function CharacterList() {
                 </div>
 
                 <div className="p-4 space-y-4">
+                  {/* HP 数值格 */}
                   <div className="grid grid-cols-3 gap-3 text-center">
                     <div className="p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
                       <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">生命</div>
                       <div className="font-bold dark:text-text-dark light:text-text-light">
-                        {char.currentHp}/{char.maxHp}
+                        {char.currentHp ?? 0}/{char.maxHp ?? 0}
                       </div>
                     </div>
                     <div className="p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
                       <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">护甲</div>
-                      <div className="font-bold dark:text-text-dark light:text-text-light">
-                        {char.armorClass}
+                      <div className="font-bold dark:text-text-dark light:text:text-light">
+                        {char.armorClass ?? '-'}
                       </div>
                     </div>
                     <div className="p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
                       <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">速度</div>
-                      <div className="font-bold dark:text-text-dark light:text-text-light">
-                        {char.speed}
+                      <div className="font-bold dark:text:text-dark light:text:text-light">
+                        {char.speed ?? '-'}
                       </div>
                     </div>
                   </div>
 
+                  {/* HP 条 */}
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs">
-                      <span className="dark:text-text-dark-muted light:text-text-light-muted">生命值</span>
-                      <span className="font-medium dark:text-text-dark light:text-text-light">
-                        {char.currentHp}/{char.maxHp}
+                      <span className="dark:text-text-dark-muted light:text:text-light-muted">生命值</span>
+                      <span className="font-medium dark:text-text-dark light:text:text-light">
+                        {char.currentHp ?? 0}/{char.maxHp ?? 0}
                       </span>
                     </div>
                     <div className="h-2 rounded-full dark:bg-bg-dark light:bg-bg-light-2 overflow-hidden">
@@ -299,11 +306,12 @@ export default function CharacterList() {
                     </div>
                   </div>
 
+                  {/* 六维属性 */}
                   <div className="grid grid-cols-6 gap-1">
                     {(['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const).map(
                       (ability) => (
                         <div key={ability} className="text-center">
-                          <div className="text-xs uppercase dark:text-text-dark-muted light:text-text-light-muted">
+                          <div className="text-xs uppercase dark:text-text-dark-muted light:text:text-light-muted">
                             {ability === 'strength'
                               ? '力'
                               : ability === 'dexterity'
@@ -316,40 +324,43 @@ export default function CharacterList() {
                               ? '感'
                               : '魅'}
                           </div>
-                          <div className="text-sm font-bold dark:text-text-dark light:text-text-light">
-                            {char.abilities[ability].modifier >= 0
-                              ? `+${char.abilities[ability].modifier}`
-                              : char.abilities[ability].modifier}
+                          <div className="text-sm font-bold dark:text-text-dark light:text:text-light">
+                            {char.abilities?.[ability]?.modifier != null
+                              ? (char.abilities[ability].modifier >= 0
+                                ? `+${char.abilities[ability].modifier}`
+                                : char.abilities[ability].modifier)
+                              : '+0'}
                           </div>
                         </div>
                       )
                     )}
                   </div>
 
+                  {/* 操作栏 */}
                   <div className="flex gap-2 pt-2 border-t dark:border-border-dark light:border-border-light">
                     <Link
                       to={`/characters/${char.id}`}
-                      className="flex-1 text-center py-2 text-sm font-medium rounded-lg transition-colors dark:bg-bg-dark dark:hover:bg-border-dark dark:text-text-dark light:bg-bg-light-2 light:hover:bg-bg-light-3 light:text-text-light"
+                      className="flex-1 text-center py-2 text-sm font-medium rounded-lg transition-colors dark:bg-bg-dark dark:hover:bg-border-dark dark:text-text-dark light:bg-bg-light-2 light:hover:bg-bg-light-3 light:text:text-light"
                     >
                       查看详情
                     </Link>
                     <button
                       onClick={() => characterStore.exportSingleCharacter(char.id)}
-                      className="p-2 rounded-lg transition-colors dark:hover:bg-bg-dark dark:text-text-dark-muted dark:hover:text-text-dark light:hover:bg-bg-light-2 light:text-text-light-muted light:hover:text-text-light"
+                      className="p-2 rounded-lg transition-colors dark:hover:bg-bg-dark dark:text-text-dark-muted dark:hover:text-text-dark light:hover:bg-bg-light-2 light:text:text-light-muted light:hover:text:text-light"
                       title="导出此角色"
                     >
                       <Download className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDuplicate(char)}
-                      className="p-2 rounded-lg transition-colors dark:hover:bg-bg-dark dark:text-text-dark-muted dark:hover:text-text-dark light:hover:bg-bg-light-2 light:text-text-light-muted light:hover:text-text-light"
+                      className="p-2 rounded-lg transition-colors dark:hover:bg-bg-dark dark:text-text-dark-muted dark:hover:text-text-dark light:hover:bg-bg-light-2 light:text:text-light-muted light:hover:text:text-light"
                       title="复制角色"
                     >
                       <Copy className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setShowDeleteConfirm(char.id)}
-                      className="p-2 rounded-lg transition-colors dark:hover:bg-danger/20 dark:text-text-dark-muted dark:hover:text-danger light:hover:bg-danger/10 light:text-text-light-muted light:hover:text-danger"
+                      className="p-2 rounded-lg transition-colors dark:hover:bg-danger/20 dark:text-text-dark-muted dark:hover:text-danger light:hover:bg-danger/10 light:text:text-light-muted light:hover:text-danger"
                       title="删除角色"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -362,6 +373,7 @@ export default function CharacterList() {
         </div>
       )}
 
+      {/* 删除确认弹窗 */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="w-full max-w-sm rounded-xl p-6 dark:bg-card-dark dark:border dark:border-border-dark light:bg-card-light light:border light:border-border-light">
@@ -370,19 +382,19 @@ export default function CharacterList() {
                 <Trash2 className="w-6 h-6 text-danger" />
               </div>
               <div>
-                <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">确认删除</h3>
-                <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                <h3 className="text-lg font-bold dark:text-text-dark light:text:text-light">确认删除</h3>
+                <p className="text-sm dark:text-text-dark-muted light:text:text-light-muted">
                   此操作无法撤销
                 </p>
               </div>
             </div>
-            <p className="mb-6 dark:text-text-dark-muted light:text-text-light-muted">
+            <p className="mb-6 dark:text-text-dark-muted light:text:text-light-muted">
               确定要删除这个角色卡片吗？所有相关数据都将被永久删除。
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(null)}
-                className="flex-1 py-2.5 rounded-lg font-medium transition-colors dark:bg-bg-dark dark:hover:bg-border-dark dark:text-text-dark light:bg-bg-light-2 light:hover:bg-bg-light-3 light:text-text-light"
+                className="flex-1 py-2.5 rounded-lg font-medium transition-colors dark:bg-bg-dark dark:hover:bg-border-dark dark:text-text-dark light:bg-bg-light-2 light:hover:bg-bg-light-3 light:text:text-light"
               >
                 取消
               </button>
