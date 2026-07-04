@@ -7,6 +7,7 @@ import { spellStore } from '@/data/spellStore';
 import { characterStore } from '@/data/characterStore';
 
 const TOKEN_KEY = 'dm_token';
+const VERIFIED_KEY = 'dm_token_verified';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function SettingsPage() {
   const [error, setError] = useState('');
   const [verifying, setVerifying] = useState(false);
   const [verified, setVerified] = useState<boolean | null>(null);
+  const [persistedVerified, setPersistedVerified] = useState(() => localStorage.getItem(VERIFIED_KEY) === 'true');
   const [migrating, setMigrating] = useState(false);
   const [migrateResult, setMigrateResult] = useState<{ equipments: number; spells: number; characters: number } | null>(null);
   const [migrateError, setMigrateError] = useState('');
@@ -63,6 +65,8 @@ export default function SettingsPage() {
     api.setToken('');
     setToken('');
     setVerified(null);
+    setPersistedVerified(false);
+    localStorage.removeItem(VERIFIED_KEY);
     window.dispatchEvent(new CustomEvent('dm-token-change'));
     navigate('/');
   };
@@ -72,8 +76,21 @@ export default function SettingsPage() {
     setVerifying(true);
     setVerified(null);
     api.setToken(token.trim());
-    const valid = await api.verifyToken();
-    setVerified(valid);
+    try {
+      const valid = await api.verifyToken();
+      setVerified(valid);
+      if (valid) {
+        setPersistedVerified(true);
+        localStorage.setItem(VERIFIED_KEY, 'true');
+      } else {
+        setPersistedVerified(false);
+        localStorage.removeItem(VERIFIED_KEY);
+      }
+    } catch {
+      setVerified(false);
+      setPersistedVerified(false);
+      localStorage.removeItem(VERIFIED_KEY);
+    }
     setVerifying(false);
   };
 
@@ -91,6 +108,7 @@ export default function SettingsPage() {
     a.download = `dnd-tool-backup-${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+    a.href = '';
   };
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -179,6 +197,7 @@ export default function SettingsPage() {
                   onChange={(e) => {
                     setToken(e.target.value);
                     setVerified(null);
+                    setPersistedVerified(false);
                   }}
                   placeholder="输入 DM Token"
                   className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
@@ -229,14 +248,10 @@ export default function SettingsPage() {
                 <ShieldCheck className="w-4 h-4" />
                 {verifying ? '验证中…' : '验证 Token'}
               </button>
-              {verified === true && (
-                <span className="text-sm text-success flex items-center gap-1">
-                  <Check className="w-4 h-4" /> Token 有效
-                </span>
-              )}
-              {verified === false && (
-                <span className="text-sm text-danger flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" /> Token 无效或后端未配置
+              {(verified !== null || persistedVerified) && (
+                <span className={`text-sm flex items-center gap-1 ${verified === false ? 'text-danger' : 'text-success'}`}>
+                  {verified === false ? <AlertCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                  {verified === false ? 'Token 无效或后端未配置' : 'Token 有效'}
                 </span>
               )}
             </div>
