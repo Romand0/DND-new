@@ -79,21 +79,21 @@ async function syncCharacterToBackend(char: Character): Promise<void> {
   }
 }
 
-export function getCharacters(): Character[] {
+function getCharacters(): Character[] {
   if (chars.length === 0) {
     chars = loadStore();
   }
   return [...chars];
 }
 
-export function getCharacter(id: string): Character | undefined {
+function getCharacter(id: string): Character | undefined {
   if (chars.length === 0) {
     chars = loadStore();
   }
   return chars.find(c => c.id === id);
 }
 
-export function saveCharacter(char: Character): void {
+function saveCharacter(char: Character): void {
   const index = chars.findIndex(c => c.id === char.id);
   const charWithTimestamps = {
     ...char,
@@ -111,13 +111,13 @@ export function saveCharacter(char: Character): void {
   syncCharacterToBackend(charWithTimestamps).catch(() => {});
 }
 
-export function deleteCharacter(id: string): void {
+function deleteCharacter(id: string): void {
   chars = chars.filter(c => c.id !== id);
   saveStore(chars);
   notify();
 }
 
-export function subscribe(fn: (chars: Character[]) => void): () => void {
+function subscribe(fn: (chars: Character[]) => void): () => void {
   listeners.push(fn);
   if (listeners.length === 1) {
     startBackupTimer();
@@ -130,7 +130,7 @@ export function subscribe(fn: (chars: Character[]) => void): () => void {
   };
 }
 
-export function forceSync(): Promise<void[]> {
+function forceSync(): Promise<void[]> {
   const pending = chars.filter(c => c.updatedAt > 0);
   return Promise.all(
     pending.map(char =>
@@ -141,6 +141,28 @@ export function forceSync(): Promise<void[]> {
   );
 }
 
-export function getAllCharacters(): Character[] {
+function getAllCharacters(): Character[] {
   return getCharacters();
 }
+
+// 聚合对象，兼容旧代码的 import { characterStore } from '@/data/characterStore'
+export const characterStore = {
+  getCharacters,
+  getCharacter,
+  saveCharacter,
+  deleteCharacter,
+  subscribe,
+  forceSync,
+  getAllCharacters,
+};
+
+// 同时也保留散装导出，方便新代码按需引入
+export {
+  getCharacters,
+  getCharacter,
+  saveCharacter,
+  deleteCharacter,
+  subscribe,
+  forceSync,
+  getAllCharacters,
+};
