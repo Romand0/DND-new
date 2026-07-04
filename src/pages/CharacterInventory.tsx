@@ -26,6 +26,7 @@ import EquipmentEditor from '@/components/EquipmentEditor';
 import EquipmentPicker from '@/components/EquipmentPicker';
 import SyncButton from '@/components/SyncButton';
 import { characterStore } from '@/data/characterStore';
+import { apiFetch } from '@/lib/api';
 import { equipmentStore } from '@/data/equipmentStore';
 import type { Equipment, Character } from '@/types/character';
 import type { EquipmentItem } from '@/types/equipment';
@@ -140,28 +141,41 @@ export default function CharacterInventory({
   const handleSaveEquipment = async (formData: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => {
     if (!id) return;
 
-    if (syncToLibrary) {
-      const libraryItem: EquipmentItem = {
-        id: formData.id,
-        name: formData.name,
-        category: formData.category,
-        subtype: formData.subtype,
-        weight: formData.weight,
-        price: formData.price,
-        description: formData.description,
-        properties: formData.properties ? [...formData.properties] : [],
-        tags: formData.tags ? [...formData.tags] : [],
-        source: formData.source,
-        isCustom: false,
-      };
-      const allEquipments = equipmentStore.getAll();
-      const existingIndex = allEquipments.findIndex((e) => e.id === formData.id);
-      if (existingIndex >= 0) {
-        await equipmentStore.saveItem(libraryItem);
-      } else {
-        await equipmentStore.saveItem(libraryItem);
-      }
+      if (syncToLibrary) {
+    const libraryItem: EquipmentItem = {
+      id: formData.id,
+      name: formData.name,
+      category: formData.category,
+      subtype: formData.subtype,
+      weight: formData.weight,
+      price: formData.price,
+      description: formData.description,
+      properties: formData.properties ? [...formData.properties] : [],
+      tags: formData.tags ? [...formData.tags] : [],
+      source: formData.source,
+      isCustom: false,
+    };
+    const token = localStorage.getItem('auth_token');
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    try {
+      await apiFetch(`/equipments/${formData.id}`, {
+        method: 'PUT',
+        headers,
+        body: JSON.stringify(libraryItem),
+      });
+    } catch {
+      const finalId = formData.id.startsWith('temp-')
+        ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
+        : formData.id;
+      await apiFetch('/equipments', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ ...libraryItem, id: finalId }),
+      });
     }
+  }
+
 
     if (!editingEquipment) {
       characterStore.addEquipment(id, {
