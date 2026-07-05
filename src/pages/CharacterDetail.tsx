@@ -342,85 +342,43 @@ export default function CharacterDetail({
 
     const libraryItem: EquipmentItem = {
   id: formData.id,
-  name: formData.name,
-  category: formData.category,
-  subtype: formData.subtype,
-  weight: formData.weight,
-  price: formData.price,
-  damageDice: formData.damageDice,
-  damageType: formData.damageType,
-  description: formData.description,
-  properties: formData.properties ? [...formData.properties] : [],
-  tags: formData.tags ? [...formData.tags] : [],
-  source: formData.source,
+  ...extractBaseFields(formData),
   isCustom: false,
 };
 
+if (syncToLibrary) {
+  const allEquipments = equipmentStore.getAll();
+  const nameMatchIndex = allEquipments.findIndex((e) => e.name === formData.name && e.id !== formData.id);
+  let finalLibraryItem = libraryItem;
 
-    if (syncToLibrary) {
-      const allEquipments = equipmentStore.getAll();
-      const nameMatchIndex = allEquipments.findIndex((e) => e.name === formData.name && e.id !== formData.id);
-      let finalLibraryItem = libraryItem;
+  if (nameMatchIndex >= 0) {
+    finalLibraryItem = { ...libraryItem, id: allEquipments[nameMatchIndex].id };
+  }
 
-      if (nameMatchIndex >= 0) {
-        finalLibraryItem = { ...libraryItem, id: allEquipments[nameMatchIndex].id };
-      }
+  await equipmentStore.saveItem(finalLibraryItem);
+}
 
-      await equipmentStore.saveItem(finalLibraryItem);
-    }
+if (!editingEquipment) {
+  characterStore.addEquipment(id, {
+    quantity: formData.quantity || 1,
+    ...extractBaseFields(formData),
+  });
 
-    if (!editingEquipment) {
-      characterStore.addEquipment(id, {
-  name: formData.name,
-  category: formData.category,
-  quantity: formData.quantity || 1,
-  description: formData.description,
-  weight: formData.weight,
-  price: formData.price,
-  damageDice: formData.damageDice,
-  damageType: formData.damageType,
-  properties: formData.properties,
-  tags: formData.tags,
-  source: formData.source,
-  subtype: formData.subtype,
-});
+} else if (editingEquipment.id.startsWith('temp-')) {
+  characterStore.addEquipment(id, {
+    quantity: formData.quantity || 1,
+    ...extractBaseFields(formData),
+  });
 
-    } else if (editingEquipment.id.startsWith('temp-')) {
-      characterStore.addEquipment(id, {
-  name: formData.name,
-  category: formData.category,
-  quantity: formData.quantity || 1,
-  description: formData.description,
-  weight: formData.weight,
-  price: formData.price,
-  damageDice: formData.damageDice,
-  damageType: formData.damageType,
-  properties: formData.properties ? [...formData.properties] : [],
-  tags: formData.tags ? [...formData.tags] : [],
-  source: formData.source,
-  subtype: formData.subtype,
-});
-
-    } else if (editingEquipment) {
-      characterStore.updateEquipment(id, editingEquipment.id, {
-  name: formData.name,
-  category: formData.category,
-  quantity: formData.quantity,
-  description: formData.description,
-  weight: formData.weight,
-  price: formData.price,
-  damageDice: formData.damageDice,
-  damageType: formData.damageType,
-  properties: formData.properties,
-  tags: formData.tags,
-  source: formData.source,
-  subtype: formData.subtype,
-});
-
-    }
-    reloadChar();
-    setEquipmentEditorOpen(false);
-    setEditingEquipment(null);
+} else if (editingEquipment) {
+  characterStore.updateEquipment(id, editingEquipment.id, {
+    quantity: formData.quantity,
+    ...extractBaseFields(formData),
+  });
+}
+reloadChar();
+setEquipmentEditorOpen(false);
+setEditingEquipment(null);
   };
 
   const handleDeleteEquipmentConfirm = () => {
