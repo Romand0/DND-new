@@ -1178,6 +1178,20 @@ setEditingEquipment(null);
       {item.category || '—'}
     </span>
   )}
+
+   
+    {/* 护甲 AC 显示（仅护甲） */}
+    {item.category === '护甲' && item.acBase && (
+      <div className="relative flex items-center min-h-[22px]">
+        <span className="relative z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-700 text-white text-xs font-medium shadow-sm">
+          <Shield className="w-3 h-3" />
+          护甲
+        </span>
+        <span className="inline-flex items-center pl-5 -ml-3 py-0.5 pr-2 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-xs">
+          AC = {item.acBase}
+        </span>
+      </div>
+    )}
 </div>
 
 {/* 重量 + 价格行 */}
