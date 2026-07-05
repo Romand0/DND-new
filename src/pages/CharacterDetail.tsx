@@ -33,6 +33,7 @@ import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
+import { extractBaseFields } from '@/data/equipmentFactory';
 import SpellPicker from '@/components/SpellPicker';
 import EquipmentPicker from '@/components/EquipmentPicker';
 import EquipmentEditor from '@/components/EquipmentEditor';
