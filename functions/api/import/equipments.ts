@@ -97,124 +97,135 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
     const $ = cheerio.load(html);
     const items: Array<{
-  id: string;
-  name: string;
-  price: { amount: number; unit: 'gp' | 'sp' | 'cp' };
-  weight: number;
-  damageDice: string;
-  damageType: string;
-  acBase?: string;           // 护甲 AC，如 "11+DEX"、"14(MAX2)"、"16"、"+2"
-  strengthReq?: number;      // 力量需求，如 13/15，无则为 0
-  stealthDisadvantage?: boolean; // 隐匿劣势
-  description: string;
-  properties: string[];
-  source: string;
-  dataResource: string;
-  category: string;
-}> = [];
+      id: string;
+      name: string;
+      price: { amount: number; unit: 'gp' | 'sp' | 'cp' };
+      weight: number;
+      damageDice: string;
+      damageType: string;
+      acBase?: string;           // 护甲 AC，如 "11+DEX"、"14(MAX2)"、"16"、"+2"
+      armorClass?: string;       // 护甲分类：'light' | 'medium' | 'heavy' | 'shield'
+      strengthReq?: number;      // 力量需求，如 13/15，无则为 0
+      stealthDisadvantage?: boolean; // 隐匿劣势
+      description: string;
+      properties: string[];
+      source: string;
+      dataResource: string;
+      category: string;
+    }> = [];
 
+    const isWeapon = category === 'weapons';
+    const isArmor = category === 'armor';
+    let currentGroup = ''; // 记录当前护甲分组：light / medium / heavy / shield
 
-const isWeapon = category === 'weapons';
-const isArmor = category === 'armor';
+    $('table tr').each((_, row) => {
+      const cells = $(row).find('td');
+      const minCols = isWeapon ? 5 : isArmor ? 6 : 3;
 
-$('table tr').each((_, row) => {
-  const cells = $(row).find('td');
-  const minCols = isWeapon ? 5 : isArmor ? 6 : 3;
+      if (cells.length < minCols) {
+        // 护甲表里分组行是 colspan=6 的单格（"轻甲/Light Armor" 等），单独识别
+        if (isArmor && cells.length === 1) {
+          const groupText = $(cells[0]).text().trim();
+          if (groupText.includes('轻甲')) currentGroup = 'light';
+          else if (groupText.includes('中甲')) currentGroup = 'medium';
+          else if (groupText.includes('重甲')) currentGroup = 'heavy';
+          else if (groupText.includes('盾牌')) currentGroup = 'shield';
+        }
+        return;
+      }
 
-  if (cells.length < minCols) return;
+      const rawName = $(cells[0]).text().trim();
+      if (!rawName || isHeaderRow(cells)) return;
 
-  const rawName = $(cells[0]).text().trim();
-  if (!rawName || isHeaderRow(cells)) return;
+      const { chineseName, englishId } = splitName(rawName);
 
-  const { chineseName, englishId } = splitName(rawName);
+      const priceStr = $(cells[1]).text().trim();
+      const price = parsePrice(priceStr);
 
-  const priceStr = $(cells[1]).text().trim();
-  const price = parsePrice(priceStr);
+      if (isWeapon) {
+        // 武器：名称 | 价格 | 伤害 | 重量 | 属性（5列）
+        const damageStr = $(cells[2]).text().trim();
+        const weightStr = $(cells[3]).text().trim();
+        const propsStr = $(cells[4]).text().trim();
 
-  if (isWeapon) {
-    // 武器：名称 | 价格 | 伤害 | 重量 | 属性（5列）
-    const damageStr = $(cells[2]).text().trim();
-    const weightStr = $(cells[3]).text().trim();
-    const propsStr = $(cells[4]).text().trim();
+        const { dice, type } = parseDamage(damageStr);
+        const weight = parseWeight(weightStr);
+        const properties = propsStr ? propsStr.split(/[,，]\s*/).map(s => s.trim()).filter(Boolean) : [];
 
-    const { dice, type } = parseDamage(damageStr);
-    const weight = parseWeight(weightStr);
-    const properties = propsStr ? propsStr.split(/[,，]\s*/).map(s => s.trim()).filter(Boolean) : [];
+        items.push({
+          id: englishId,
+          name: chineseName,
+          price,
+          weight,
+          damageDice: dice,
+          damageType: type,
+          description: '',
+          properties,
+          source: '',
+          dataResource: '5E不全书',
+          category,
+        });
+      } else if (isArmor) {
+        // 护甲：名称 | 价格 | AC | 力量 | 隐匿 | 重量（6列）
+        const acStr = $(cells[2]).text().trim();
+        const strStr = $(cells[3]).text().trim();
+        const stealthStr = $(cells[4]).text().trim();
+        const weightStr = $(cells[5]).text().trim();
 
-    items.push({
-      id: englishId,
-      name: chineseName,
-      price,
-      weight,
-      damageDice: dice,
-      damageType: type,
-      description: '',
-      properties,
-      source: '',
-      dataResource: '5E不全书',
-      category,
+        // 跳过具装（价格以 × 开头，是坐骑护甲倍数）
+        if (priceStr.startsWith('×')) return;
+
+        const weight = parseWeight(weightStr);
+        if (price.amount === 0 && weight === 0) return;
+
+        // 解析力量需求："－" → 0，"力量13" → 13，"力量15" → 15
+        let strengthReq = 0;
+        const strMatch = strStr.match(/力量(\d+)/);
+        if (strMatch) strengthReq = parseInt(strMatch[1]);
+
+        // 解析隐匿劣势："－" → false，"劣势" → true
+        const stealthDisadvantage = stealthStr.includes('劣势');
+
+        items.push({
+          id: englishId,
+          name: chineseName,
+          price,
+          weight,
+          damageDice: '',
+          damageType: '',
+          acBase: acStr,
+          armorClass: currentGroup || '',
+          strengthReq,
+          stealthDisadvantage,
+          description: '',
+          properties: [],
+          source: '',
+          dataResource: '5E不全书',
+          category,
+        });
+      } else {
+        // 非武器非护甲（工具/冒险用品）：名称 | 价格 | 重量（+ 可选描述）
+        const weightStr = $(cells[2]).text().trim();
+        const descStr = cells.length >= 4 ? $(cells[3]).text().trim() : '';
+
+        const weight = parseWeight(weightStr);
+        if (price.amount === 0 && weight === 0) return;
+
+        items.push({
+          id: englishId,
+          name: chineseName,
+          price,
+          weight,
+          damageDice: '',
+          damageType: '',
+          description: descStr,
+          properties: [],
+          source: '',
+          dataResource: '5E不全书',
+          category,
+        });
+      }
     });
-  } else if (isArmor) {
-    // 护甲：名称 | 价格 | AC | 力量 | 隐匿 | 重量（6列）
-    const acStr = $(cells[2]).text().trim();
-    const strStr = $(cells[3]).text().trim();
-    const stealthStr = $(cells[4]).text().trim();
-    const weightStr = $(cells[5]).text().trim();
-
-    // 跳过具装（价格以 × 开头，是坐骑护甲倍数）
-    if (priceStr.startsWith('×')) return;
-
-    const weight = parseWeight(weightStr);
-    // 过滤分类标题行（价格和重量都为0，如"轻甲/中甲/重甲/盾牌"——但这些是 colspan=6 单格，已被 minCols 过滤，这里主要是防其他异常）
-    if (price.amount === 0 && weight === 0) return;
-
-    // 解析力量需求："－" → 0，"力量13" → 13，"力量15" → 15
-    let strengthReq = 0;
-    const strMatch = strStr.match(/力量(\d+)/);
-    if (strMatch) strengthReq = parseInt(strMatch[1]);
-
-    // 解析隐匿劣势："－" → false，"劣势" → true
-    const stealthDisadvantage = stealthStr.includes('劣势');
-
-    items.push({
-      id: englishId,
-      name: chineseName,
-      price,
-      weight,
-      damageDice: '',
-      damageType: '',
-      acBase: acStr,
-      strengthReq,
-      stealthDisadvantage,
-      description: '',
-      properties: [],
-      source: '',
-      dataResource: '5E不全书',
-      category,
-    });
-  } else {
-    // 非武器非护甲（工具/冒险用品）：名称 | 价格 | 重量（+ 可选描述）
-    const weightStr = $(cells[2]).text().trim();
-    const descStr = cells.length >= 4 ? $(cells[3]).text().trim() : '';
-
-    const weight = parseWeight(weightStr);
-    if (price.amount === 0 && weight === 0) return;
-
-    items.push({
-      id: englishId,
-      name: chineseName,
-      price,
-      weight,
-      damageDice: '',
-      damageType: '',
-      description: descStr,
-      properties: [],
-      source: '',
-      dataResource: '5E不全书',
-      category,
-    });
-  }
-});
 
     return new Response(JSON.stringify({
       message: `成功解析 ${items.length} 条 ${fileName} 数据`,
