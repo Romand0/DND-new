@@ -517,13 +517,6 @@ if (!editingEquipment) {
         </div>
       </div>
 
-      {equipmentPickerOpen && (
-        <EquipmentPicker
-          onSelect={handleAddEquipmentFromLibrary}
-          onClose={() => setEquipmentPickerOpen(false)}
-        />
-      )}
-
       {equipmentEditorOpen && (
   <EquipmentEditor
     item={editingEquipment ? {
@@ -532,23 +525,23 @@ if (!editingEquipment) {
       isCustom: true,
       quantity: editingEquipment.quantity,
     } : undefined}
-       />
+    showQuantity={true}
+    showSyncOption={true}
+    onSave={handleSaveEquipment}
+    onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
+      if (!id) return;
+      characterStore.deleteEquipment(id, editingEquipment.id);
+      reloadChar();
+      setEquipmentEditorOpen(false);
+      setEditingEquipment(null);
+    } : undefined}
+    onClose={() => {
+      setEquipmentEditorOpen(false);
+      setEditingEquipment(null);
+    }}
+  />
 )}
 
-          showQuantity={true}
-          showSyncOption={true}
-          onSave={handleSaveEquipment}
-          onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
-            if (!id) return;
-            characterStore.deleteEquipment(id, editingEquipment.id);
-            reloadChar();
-            setEquipmentEditorOpen(false);
-            setEditingEquipment(null);
-          } : undefined}
-          onClose={() => {
-            setEquipmentEditorOpen(false);
-            setEditingEquipment(null);
-          }}
         
     
 
