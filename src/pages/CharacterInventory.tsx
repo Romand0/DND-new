@@ -379,19 +379,39 @@ export default function CharacterInventory({
                           <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
                             {item.name || '未命名装备'}
                           </div>
-                          <div className="flex items-center gap-3 mt-1 flex-wrap text-xs">
-                            <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 dark:text-text-dark light:text-text-light">
-                              {item.category || '—'}
-                            </span>
-                            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-                              <Scale className="w-3 h-3 inline mr-0.5" />
-                              {item.weight != null ? `${item.weight} 磅` : '— 磅'}
-                            </span>
-                            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-                              <Coins className="w-3 h-3 inline mr-0.5" />
-                              {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
-                            </span>
-                          </div>
+                          {/* 分类标签行 */}
+<div className="flex items-center mt-1 text-xs">
+  {item.category === '武器' && (item.damageDice || item.damageType) ? (
+    /* 武器专用重叠胶囊 */
+    <div className="relative flex items-center min-h-[22px]">
+      <span className="relative z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-700 text-white text-xs font-medium shadow-sm">
+        <Swords className="w-3 h-3" />
+        武器
+      </span>
+      <span className="inline-flex items-center pl-5 -ml-3 py-0.5 pr-2 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-xs">
+        {item.damageDice}{item.damageType ? ` ${item.damageType}` : ''}
+      </span>
+    </div>
+  ) : (
+    /* 其他分类原有小标签 */
+    <span className="px-1.5 py-0.5 rounded bg-white/50 dark:bg-white/10 dark:text-text-dark light:text-text-light">
+      {item.category || '—'}
+    </span>
+  )}
+</div>
+
+{/* 重量 + 价格行 */}
+<div className="flex items-center gap-3 mt-1 text-xs">
+  <span className="dark:text-text-dark-muted light:text-text-light-muted">
+    <Scale className="w-3 h-3 inline mr-0.5" />
+    {item.weight != null ? `${item.weight} 磅` : '— 磅'}
+  </span>
+  <span className="dark:text-text-dark-muted light:text-text-light-muted">
+    <Coins className="w-3 h-3 inline mr-0.5" />
+    {item.price ? `${item.price.amount} ${item.price.unit}` : '—'}
+  </span>
+</div>
+
                         </div>
                         <div className="flex flex-col items-end gap-1 flex-shrink-0">
                           <div className="flex items-center gap-1">
@@ -459,20 +479,6 @@ export default function CharacterInventory({
                     </div>
                     {isExpanded && (
                       <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
-                        {/* 武器伤害胶囊（仅武器） */}
-{item.category === '武器' && (item.damageDice || item.damageType) && (
-  <div className="relative flex items-center min-h-[22px]">
-    <span className="relative z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-700 text-white text-xs font-medium shadow-sm">
-      <Swords className="w-3 h-3" />
-      武器
-    </span>
-    <span className="inline-flex items-center pl-5 -ml-3 py-0.5 pr-2 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-xs">
-      {item.damageDice}{item.damageType ? ` ${item.damageType}` : ''}
-    </span>
-  </div>
-)}
-
-
                         {item.description && (
                           <div>
                             <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">描述</div>
