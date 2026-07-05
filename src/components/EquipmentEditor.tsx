@@ -28,12 +28,16 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   price: { amount: 0, unit: 'gp' },
   damageDice: '',
   damageType: '',
+  acBase: '',
+  strengthReq: 0,
+  stealthDisadvantage: false,
   description: '',
   properties: [],
   tags: [],
   source: '',
   quantity: showQuantity ? 1 : undefined,
- });
+});
+
 
   const [newProperty, setNewProperty] = useState('');
   const [newTagKey, setNewTagKey] = useState('');
@@ -44,43 +48,52 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   const [syncToLibrary, setSyncToLibrary] = useState(false);
 
   useEffect(() => {
-    if (item) {
-        setFormData({
-   id: item.id,
-   name: item.name,
-   category: item.category,
-   subtype: item.subtype || '',
-   weight: item.weight,
-   price: { ...item.price },
-   damageDice: item.damageDice || '',
-   damageType: item.damageType || '',
-   description: item.description,
-   properties: item.properties || [],
-   tags: [...(item.tags || [])],
-   source: item.source || '',
-   quantity: (item as any).quantity,
-  });
+  if (item) {
+    setFormData({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      subtype: item.subtype || '',
+      weight: item.weight,
+      price: { ...item.price },
+      damageDice: item.damageDice || '',
+      damageType: item.damageType || '',
+      acBase: item.acBase || '',
+      strengthReq: item.strengthReq ?? 0,
+      stealthDisadvantage: item.stealthDisadvantage ?? false,
+      description: item.description,
+      properties: item.properties || [],
+      tags: [...(item.tags || [])],
+      source: item.source || '',
+      quantity: (item as any).quantity,
+    });
 
-      if (item.category && !CATEGORIES.includes(item.category)) {
-        setCustomCategory(item.category);
-      }
-    } else {
-      setFormData({
-        id: '',
-        name: '',
-        category: '武器',
-        subtype: '',
-        weight: 0,
-        price: { amount: 0, unit: 'gp' },
-        description: '',
-        properties: [],
-        tags: [],
-        source: '',
-        quantity: showQuantity ? 1 : undefined,
-      });
-      setCustomCategory('');
+    if (item.category && !CATEGORIES.includes(item.category)) {
+      setCustomCategory(item.category);
     }
-  }, [item, showQuantity]);
+  } else {
+    setFormData({
+      id: '',
+      name: '',
+      category: '武器',
+      subtype: '',
+      weight: 0,
+      price: { amount: 0, unit: 'gp' },
+      damageDice: '',
+      damageType: '',
+      acBase: '',
+      strengthReq: 0,
+      stealthDisadvantage: false,
+      description: '',
+      properties: [],
+      tags: [],
+      source: '',
+      quantity: showQuantity ? 1 : undefined,
+    });
+    setCustomCategory('');
+  }
+}, [item, showQuantity]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
