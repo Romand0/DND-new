@@ -532,6 +532,7 @@ if (!editingEquipment) {
       isCustom: true,
       quantity: editingEquipment.quantity,
     } : undefined}
+       />
 )}
 
           showQuantity={true}
