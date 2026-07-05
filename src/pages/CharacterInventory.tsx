@@ -149,6 +149,8 @@ export default function CharacterInventory({
         subtype: formData.subtype,
         weight: formData.weight,
         price: formData.price,
+        damageDice: formData.damageDice,        // ← 加
+        damageType: formData.damageType,
         description: formData.description,
         properties: formData.properties ? [...formData.properties] : [],
         tags: formData.tags ? [...formData.tags] : [],
@@ -184,6 +186,8 @@ export default function CharacterInventory({
         description: formData.description,
         weight: formData.weight,
         price: formData.price,
+        damageDice: formData.damageDice,        // ← 加
+        damageType: formData.damageType,
         properties: formData.properties,
         tags: formData.tags,
         source: formData.source,
@@ -197,6 +201,8 @@ export default function CharacterInventory({
         description: formData.description,
         weight: formData.weight,
         price: formData.price,
+        damageDice: formData.damageDice,        // ← 加
+        damageType: formData.damageType,
         properties: formData.properties ? [...formData.properties] : [],
         tags: formData.tags ? [...formData.tags] : [],
         source: formData.source,
@@ -210,6 +216,8 @@ export default function CharacterInventory({
         description: formData.description,
         weight: formData.weight,
         price: formData.price,
+        damageDice: formData.damageDice,        // ← 加
+        damageType: formData.damageType,
         properties: formData.properties,
         tags: formData.tags,
         source: formData.source,
@@ -246,6 +254,8 @@ export default function CharacterInventory({
       description: item.description,
       weight: item.weight,
       price: item.price,
+      damageDice: formData.damageDice,        // ← 加
+      damageType: formData.damageType,
       properties: item.properties,
       tags: item.tags,
       source: item.source,
