@@ -113,9 +113,9 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
     $('table tr').each((_, row) => {
       const cells = $(row).find('td');
-      const colCount = isWeapon ? 5 : 4;
+      const minCols = isWeapon ? 5 : 3;
 
-      if (cells.length < colCount) return;
+      if (cells.length < minCols) return;
 
       const rawName = $(cells[0]).text().trim();
       if (!rawName || isHeaderRow(cells)) return;
@@ -126,6 +126,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const price = parsePrice(priceStr);
 
       if (isWeapon) {
+        // 武器：名称 | 价格 | 伤害 | 重量 | 属性（5列）
         const damageStr = $(cells[2]).text().trim();
         const weightStr = $(cells[3]).text().trim();
         const propsStr = $(cells[4]).text().trim();
@@ -147,8 +148,9 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           category,
         });
       } else {
+        // 非武器：名称 | 价格 | 重量（+ 可选描述，4列时取）
         const weightStr = $(cells[2]).text().trim();
-        const descStr = cells[3] ? $(cells[3]).text().trim() : '';
+        const descStr = cells.length >= 4 ? $(cells[3]).text().trim() : '';
 
         const weight = parseWeight(weightStr);
 
