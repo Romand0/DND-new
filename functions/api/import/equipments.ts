@@ -109,6 +109,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   description: string;
   properties: string[];
   source: string;
+  dataResource: string;
   category: string;
 }> = [];
 
@@ -149,7 +150,8 @@ $('table tr').each((_, row) => {
       damageType: type,
       description: '',
       properties,
-      source: '5E不全书',
+      source: '',
+      dataResource: '5E不全书',
       category,
     });
   } else if (isArmor) {
@@ -186,7 +188,8 @@ $('table tr').each((_, row) => {
       stealthDisadvantage,
       description: '',
       properties: [],
-      source: '5E不全书',
+      source: '',
+      dataResource: '5E不全书',
       category,
     });
   } else {
@@ -206,7 +209,8 @@ $('table tr').each((_, row) => {
       damageType: '',
       description: descStr,
       properties: [],
-      source: '5E不全书',
+      source: '',
+      dataResource: '5E不全书',
       category,
     });
   }
