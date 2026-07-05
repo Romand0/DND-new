@@ -347,6 +347,51 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
     </div>
   </div>
 )}
+
+         {/* 护甲属性（仅护甲） */}
+{formData.category === '护甲' && (
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+        AC 基础值
+      </label>
+      <input
+        type="text"
+        value={formData.acBase}
+        onChange={(e) => setFormData({ ...formData, acBase: e.target.value })}
+        placeholder="如 11、14、+2"
+        className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+      />
+    </div>
+    
+    <div>
+      <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+        力量需求
+      </label>
+      <input
+        type="number"
+        min={0}
+        value={formData.strengthReq}
+        onChange={(e) => setFormData({ ...formData, strengthReq: parseInt(e.target.value) || 0 })}
+        className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+      />
+    </div>
+    <div className="flex items-center gap-2 md:col-span-2">
+      <input
+        type="checkbox"
+        id="stealthDisadvantage"
+        checked={formData.stealthDisadvantage}
+        onChange={(e) => setFormData({ ...formData, stealthDisadvantage: e.target.checked })}
+        className="w-4 h-4 rounded border-border-dark accent-primary"
+      />
+      <label htmlFor="stealthDisadvantage" className="text-sm dark:text-text-dark light:text-text-light cursor-pointer">
+        隐匿劣势
+      </label>
+    </div>
+  </div>
+)}
+
+          
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               来源
