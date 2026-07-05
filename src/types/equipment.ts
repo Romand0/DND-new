@@ -8,7 +8,8 @@ export interface EquipmentItem {
     amount: number; // 价格数值
     unit: 'gp' | 'sp' | 'cp'; // 单位：金币/银币/铜币
   };
-  damage?: string; // 伤害（武器专属，如 "1d8 穿刺"、"1d6 钝击"）
+  damageDice?: string;   // 如 "1d8"
+  damageType?: string;   // 如 "穿刺"
   description: string; // 描述（支持 Markdown）
   properties?: string[]; // 属性标签，如 ["轻型", "灵巧"]
   isCustom: boolean; // 是否为用户自定义装备
