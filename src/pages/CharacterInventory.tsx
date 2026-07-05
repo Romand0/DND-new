@@ -182,12 +182,17 @@ if (!editingEquipment) {
     ...extractBaseFields(formData),
   });
 
-} else if (editingEquipment) {
-  characterStore.updateEquipment(id, editingEquipment.id, {
-    quantity: formData.quantity,
-    ...extractBaseFields(formData),
-  });
-}
+  } else if (editingEquipment) {
+    characterStore.updateEquipment(id, editingEquipment.id, {
+      quantity: formData.quantity,
+      ...extractBaseFields(formData),
+    });
+  }
+
+  reloadChar();
+  setEquipmentEditorOpen(false);
+  setEditingEquipment(null);
+};
 
 
   const handleDeleteEquipmentConfirm = () => {
