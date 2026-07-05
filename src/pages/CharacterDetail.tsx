@@ -1898,23 +1898,14 @@ setEditingEquipment(null);
       )}
 
       {equipmentEditorOpen && (
-        <EquipmentEditor
-          item={editingEquipment ? {
-            id: editingEquipment.id,
-            name: editingEquipment.name,
-            category: editingEquipment.category,
-            subtype: editingEquipment.subtype,
-            weight: editingEquipment.weight || 0,
-            price: editingEquipment.price || { amount: 0, unit: 'gp' },
-            damageDice: editingEquipment.damageDice,
-            damageType: editingEquipment.damageType,
-            description: editingEquipment.description || '',
-            properties: editingEquipment.properties || [],
-            isCustom: true,
-            tags: editingEquipment.tags || [],
-            source: editingEquipment.source,
-            quantity: editingEquipment.quantity,
-          } : undefined}
+  <EquipmentEditor
+    item={editingEquipment ? {
+      id: editingEquipment.id,
+      ...extractBaseFields(editingEquipment),
+      isCustom: true,
+      quantity: editingEquipment.quantity,
+    } : undefined}
+
           showQuantity={true}
           showSyncOption={true}
           onSave={handleSaveEquipment}
