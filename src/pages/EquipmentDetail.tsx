@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useEditorState } from '@/data/editorState';
-import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag } from 'lucide-react';
+import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag, Swords } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { apiFetch } from '@/lib/api';
@@ -139,6 +139,7 @@ export default function EquipmentDetail() {
       )}
 
       <div className="grid grid-cols-2 gap-4">
+        {/* 价格卡片 */}
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <div className="flex items-center gap-2 mb-1">
             <Coins className="w-4 h-4 text-accent" />
@@ -146,6 +147,8 @@ export default function EquipmentDetail() {
           </div>
           <p className="text-lg font-semibold dark:text-text-dark light:text-text-light">{formatPrice()}</p>
         </div>
+
+        {/* 重量卡片 */}
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <div className="flex items-center gap-2 mb-1">
             <Scale className="w-4 h-4 text-accent" />
@@ -153,6 +156,19 @@ export default function EquipmentDetail() {
           </div>
           <p className="text-lg font-semibold dark:text-text-dark light:text-text-light">{item.weight} 磅</p>
         </div>
+
+        {/* 伤害卡片（仅武器） */}
+        {item.category === '武器' && (item.damageDice || item.damageType) && (
+          <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center gap-2 mb-1">
+              <Swords className="w-4 h-4 text-accent" />
+              <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">伤害</span>
+            </div>
+            <p className="text-lg font-semibold dark:text-text-dark light:text-text-light">
+              {item.damageDice}{item.damageType ? ` ${item.damageType}` : ''}
+            </p>
+          </div>
+        )}
       </div>
 
       {item.properties && item.properties.length > 0 && (
