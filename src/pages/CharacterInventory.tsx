@@ -141,41 +141,40 @@ export default function CharacterInventory({
   const handleSaveEquipment = async (formData: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => {
     if (!id) return;
 
-      if (syncToLibrary) {
-    const libraryItem: EquipmentItem = {
-      id: formData.id,
-      name: formData.name,
-      category: formData.category,
-      subtype: formData.subtype,
-      weight: formData.weight,
-      price: formData.price,
-      description: formData.description,
-      properties: formData.properties ? [...formData.properties] : [],
-      tags: formData.tags ? [...formData.tags] : [],
-      source: formData.source,
-      isCustom: false,
-    };
-    const token = localStorage.getItem('auth_token');
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-    try {
-      await apiFetch(`/equipments/${formData.id}`, {
-        method: 'PUT',
-        headers,
-        body: JSON.stringify(libraryItem),
-      });
-    } catch {
-      const finalId = formData.id.startsWith('temp-')
-        ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
-        : formData.id;
-      await apiFetch('/equipments', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ ...libraryItem, id: finalId }),
-      });
+    if (syncToLibrary) {
+      const libraryItem: EquipmentItem = {
+        id: formData.id,
+        name: formData.name,
+        category: formData.category,
+        subtype: formData.subtype,
+        weight: formData.weight,
+        price: formData.price,
+        description: formData.description,
+        properties: formData.properties ? [...formData.properties] : [],
+        tags: formData.tags ? [...formData.tags] : [],
+        source: formData.source,
+        isCustom: false,
+      };
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      try {
+        await apiFetch(`/equipments/${formData.id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(libraryItem),
+        });
+      } catch {
+        const finalId = formData.id.startsWith('temp-')
+          ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
+          : formData.id;
+        await apiFetch('/equipments', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ ...libraryItem, id: finalId }),
+        });
+      }
     }
-  }
-
 
     if (!editingEquipment) {
       characterStore.addEquipment(id, {
@@ -450,25 +449,26 @@ export default function CharacterInventory({
                     </div>
                     {isExpanded && (
                       <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
-                        <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
-     {/* 武器伤害胶囊（仅武器） */}
-            {item.category === '武器' && (item.damageDice || item.damageType) && (
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-700 text-white text-sm font-medium">
-                  <Swords className="w-3.5 h-3.5" />
-                  武器
-                </span>
-                <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-sm">
-                  {item.damageDice}{item.damageType ? ` ${item.damageType}` : ''}
-                </span>
-              </div>
-            )}
+                        {/* 武器伤害胶囊（仅武器） */}
+                        {item.category === '武器' && (item.damageDice || item.damageType) && (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-700 text-white text-sm font-medium">
+                              <Swords className="w-3.5 h-3.5" />
+                              武器
+                            </span>
+                            <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-sm">
+                              {item.damageDice}{item.damageType ? ` ${item.damageType}` : ''}
+                            </span>
+                          </div>
+                        )}
+
                         {item.description && (
                           <div>
                             <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">描述</div>
                             <div className="text-sm dark:text-text-dark light:text-text-light whitespace-pre-wrap">{item.description}</div>
                           </div>
                         )}
+
                         {item.properties && item.properties.length > 0 && (
                           <div>
                             <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">属性标签</div>
@@ -484,6 +484,7 @@ export default function CharacterInventory({
                             </div>
                           </div>
                         )}
+
                         {item.tags && item.tags.length > 0 && (
                           <div>
                             <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">自由标签</div>
@@ -499,12 +500,14 @@ export default function CharacterInventory({
                             </div>
                           </div>
                         )}
+
                         {item.subtype && (
                           <div>
                             <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">子分类</div>
                             <div className="text-sm dark:text-text-dark light:text-text-light">{item.subtype}</div>
                           </div>
                         )}
+
                         {item.source && (
                           <div>
                             <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">来源</div>
