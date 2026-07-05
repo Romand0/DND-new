@@ -89,12 +89,12 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
 
           <div className="flex items-center gap-2">
             <Link
-              to="/settings"
-              className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
-              title="设置"
-            >
-              <Settings className="w-5 h-5" />
-            </Link>
+  to={variant === 'player' ? '/player/settings' : '/settings'}
+  className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
+  title="设置">
+  <Settings className="w-5 h-5" />
+           </Link>
+
             {variant === 'dm' && (
               <>
                 <button
