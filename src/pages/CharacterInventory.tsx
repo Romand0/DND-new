@@ -142,93 +142,53 @@ export default function CharacterInventory({
   const handleSaveEquipment = async (formData: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => {
     if (!id) return;
 
-    if (syncToLibrary) {
-      const libraryItem: EquipmentItem = {
-        id: formData.id,
-        name: formData.name,
-        category: formData.category,
-        subtype: formData.subtype,
-        weight: formData.weight,
-        price: formData.price,
-        damageDice: formData.damageDice,        // ← 加
-        damageType: formData.damageType,
-        description: formData.description,
-        properties: formData.properties ? [...formData.properties] : [],
-        tags: formData.tags ? [...formData.tags] : [],
-        source: formData.source,
-        isCustom: false,
-      };
-      const token = localStorage.getItem('auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      try {
-        await apiFetch(`/equipments/${formData.id}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(libraryItem),
-        });
-      } catch {
-        const finalId = formData.id.startsWith('temp-')
-          ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
-          : formData.id;
-        await apiFetch('/equipments', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ ...libraryItem, id: finalId }),
-        });
-      }
-    }
+const libraryItem: EquipmentItem = {
+  id: formData.id,
+  ...extractBaseFields(formData),
+  isCustom: false,
+};
 
-    if (!editingEquipment) {
-      characterStore.addEquipment(id, {
-        name: formData.name,
-        category: formData.category,
-        quantity: formData.quantity || 1,
-        description: formData.description,
-        weight: formData.weight,
-        price: formData.price,
-        damageDice: formData.damageDice,        // ← 加
-        damageType: formData.damageType,
-        properties: formData.properties,
-        tags: formData.tags,
-        source: formData.source,
-        subtype: formData.subtype,
-      });
-    } else if (editingEquipment.id.startsWith('temp-')) {
-      characterStore.addEquipment(id, {
-        name: formData.name,
-        category: formData.category,
-        quantity: formData.quantity || 1,
-        description: formData.description,
-        weight: formData.weight,
-        price: formData.price,
-        damageDice: formData.damageDice,        // ← 加
-        damageType: formData.damageType,
-        properties: formData.properties ? [...formData.properties] : [],
-        tags: formData.tags ? [...formData.tags] : [],
-        source: formData.source,
-        subtype: formData.subtype,
-      });
-    } else {
-      characterStore.updateEquipment(id, editingEquipment.id, {
-        name: formData.name,
-        category: formData.category,
-        quantity: formData.quantity,
-        description: formData.description,
-        weight: formData.weight,
-        price: formData.price,
-        damageDice: formData.damageDice,        // ← 加
-        damageType: formData.damageType,
-        properties: formData.properties,
-        tags: formData.tags,
-        source: formData.source,
-        subtype: formData.subtype,
-      });
-    }
-    reloadChar();
-    setEquipmentEditorOpen(false);
-    setEditingEquipment(null);
-  };
+if (syncToLibrary) {
+  const token = localStorage.getItem('auth_token');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  try {
+    await apiFetch(`/equipments/${formData.id}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(libraryItem),
+    });
+  } catch {
+    const finalId = formData.id.startsWith('temp-')
+      ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
+      : formData.id;
+    await apiFetch('/equipments', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ...libraryItem, id: finalId }),
+    });
+  }
+}
+
+if (!editingEquipment) {
+  characterStore.addEquipment(id, {
+    quantity: formData.quantity || 1,
+    ...extractBaseFields(formData),
+  });
+
+} else if (editingEquipment.id.startsWith('temp-')) {
+  characterStore.addEquipment(id, {
+    quantity: formData.quantity || 1,
+    ...extractBaseFields(formData),
+  });
+
+} else if (editingEquipment) {
+  characterStore.updateEquipment(id, editingEquipment.id, {
+    quantity: formData.quantity,
+    ...extractBaseFields(formData),
+  });
+}
+
 
   const handleDeleteEquipmentConfirm = () => {
     if (!id || !deleteConfirmId) return;
