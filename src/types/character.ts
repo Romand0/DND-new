@@ -60,8 +60,11 @@ export interface Equipment {
   quantity: number;
   category: string;
   weight?: number;
-  damageDice?: string;    // 武器专属，如 "1d8"
-  damageType?: string;    // 武器专属，如 "穿刺"
+  damageDice?: string;
+  damageType?: string;
+  acBase?: string;
+  strengthReq?: number;
+  stealthDisadvantage?: boolean;
   description?: string;
   price?: {
     amount: number;
@@ -70,6 +73,7 @@ export interface Equipment {
   properties?: string[];
   tags?: EquipmentTag[];
   source?: string;
+  dataResource?: string;
   subtype?: string;
 }
 
