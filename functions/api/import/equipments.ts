@@ -114,23 +114,46 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     let currentGroup = ''; // 记录当前护甲分组中文标签：轻甲/中甲/重甲/盾牌
 
     // 护甲：预扫表格前的 <p> 标签，提取每个护甲名下的说明文字
-    let descMap = new Map<string, string>();
-    if (isArmor) {
-      const $table = $('table').first();
-      $table.prevAll('p, h4, div').each((_, el) => {
-        const html = $(el).html() || '';
-        // 匹配：<b><i>中文名</i></b><b><i>English</i></b>。说明文字
-        const segRe = /<b><i>[^<]*?([一-鿿]+)[^<]*?<\/i><\/b><b><i>[^<]*?([A-Za-z][A-Za-z\s]*?)<\/i>\s*。([^<]+)/g;
-        let m;
-        while ((m = segRe.exec(html)) !== null) {
-          const cnName = m[1].trim();
-          const desc = m[3].trim();
-          if (cnName && desc) {
+let descMap = new Map<string, string>();
+if (isArmor) {
+  const $table = $('table').first();
+  $table.prevAll('p').each((_, el) => {
+    const $p = $(el);
+    // 找 p 标签内所有连续的 <b><i>...</i></b> 对
+    const $bis = $p.find('b i');
+    $bis.each((i, biEl) => {
+      const text = $(biEl).text().trim();
+      // 检查是否是中文名（纯中文）
+      if (/^[一-鿿]+$/.test(text)) {
+        const cnName = text;
+        // 下一个 <b><i> 应该是英文名
+        const nextBi = $bis.eq(i + 1);
+        if (nextBi.length) {
+          // 英文名之后的文本节点就是描述
+          const nextEl = nextBi[0];
+          // 获取英文名标签后的所有兄弟文本节点
+          let desc = '';
+          let sibling = nextEl.nextSibling;
+          while (sibling) {
+            if (sibling.nodeType === 3) { // 文本节点
+              desc += sibling.textContent || '';
+            } else if (sibling.nodeType === 1 && sibling.tagName === 'br') {
+              break;
+            } else if (sibling.nodeType === 1 && sibling.tagName !== 'b' && sibling.tagName !== 'i') {
+              break;
+            }
+            sibling = sibling.nextSibling;
+          }
+          desc = desc.replace(/^。/, '').trim();
+          if (desc) {
             descMap.set(cnName, desc);
           }
         }
-      });
-    }
+      }
+    });
+  });
+}
+
 
     $('table tr').each((_, row) => {
       const cells = $(row).find('td');
