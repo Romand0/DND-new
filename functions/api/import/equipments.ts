@@ -113,25 +113,24 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     const isArmor = category === 'armor';
     let currentGroup = ''; // 记录当前护甲分组中文标签：轻甲/中甲/重甲/盾牌
 
-        // 护甲：预扫表格前的 <p> 标签，提取每个护甲名下的说明文字
+            // 护甲：预扫表格前的 <p> 标签，提取每个护甲名下的说明文字
     let descMap = new Map<string, string>();
     if (isArmor) {
-      const $table = $('table').first();
-      $table.prevAll('p').each((_, el) => {
-        const html = $(el).html() || '';
-        // 匹配：<b><i><span>中文</span></i></b><b><i><span>English</span></i></b>。说明文字
-        // 说明文字取到下一个 <b><i> 或 <br> 之前
-        const segRe = /<b><i>[^<]*?<span>([一-鿿]+?)<\/span>[^<]*?<\/i><\/b><b><i>[^<]*?<span>[^<]+?<\/span>[^<]*?<\/i>\s*。([^<]+)/g;
-        let m;
-        while ((m = segRe.exec(html)) !== null) {
-          const cnName = m[1].trim();  // "布甲"
-          const desc = m[2].trim();     // "布甲由数层布料与棉料的衬里构成"
-          if (cnName && desc) {
-            descMap.set(cnName, desc);
-          }
+      // 获取整个 WordSection1 的 HTML，避免 prevAll 遗漏
+      const containerHtml = $('div.WordSection1').html() || $('body').html() || '';
+      // 匹配：<b><i><span>中文</span></i></b><b><i><span>English</span></i></b>。描述文字（可能含内联标签）
+      const segRe = /<b><i>[^<]*?<span>([一-鿿]+?)<\/span>[^<]*?<\/i><\/b><b><i>[^<]*?<span>[^<]+?<\/span>[^<]*?<\/i>\s*。([\s\S]*?)(?=<b><i>|<\/p|<br|$)/g;
+      let m;
+      while ((m = segRe.exec(containerHtml)) !== null) {
+        const cnName = m[1].trim();
+        // 去除描述中的 HTML 标签，得到纯文本
+        let desc = m[2].replace(/<[^>]+>/g, '').trim();
+        if (cnName && desc) {
+          descMap.set(cnName, desc);
         }
-      });
+      }
     }
+
 
 
 
