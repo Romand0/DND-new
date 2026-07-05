@@ -1,22 +1,14 @@
 // src/data/equipmentFactory.ts
+import type { EquipmentItem } from '@/types/equipment';
 
 /**
  * 从任意源对象提取标准装备字段
  * 源对象可以是 EquipmentItem、formData、editingEquipment 等
+ * 返回值 = Omit<EquipmentItem, 'id' | 'isCustom'>，即装备库标准字段去掉 id/isCustom
  */
-function extractBaseFields(source: {
-  name?: string;
-  category?: string;
-  subtype?: string;
-  weight?: number;
-  price?: { amount: number; unit: 'gp' | 'sp' | 'cp' };
-  damageDice?: string;
-  damageType?: string;
-  description?: string;
-  properties?: string[];
-  tags?: { key: string; value: string }[];
-  source?: string;
-}) {
+export function extractBaseFields(
+  source: Partial<EquipmentItem>
+): Omit<EquipmentItem, 'id' | 'isCustom'> {
   return {
     name: source.name || '',
     category: source.category || '杂项',
