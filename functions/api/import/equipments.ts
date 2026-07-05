@@ -113,6 +113,25 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     const isArmor = category === 'armor';
     let currentGroup = ''; // 记录当前护甲分组中文标签：轻甲/中甲/重甲/盾牌
 
+    // 护甲：预扫表格前的 <p> 标签，提取每个护甲名下的说明文字
+    let descMap = new Map<string, string>();
+    if (isArmor) {
+      const $table = $('table').first();
+      $table.prevAll('p, h4, div').each((_, el) => {
+        const html = $(el).html() || '';
+        // 匹配：<b><i>中文名</i></b><b><i>English</i></b>。说明文字
+        const segRe = /<b><i>[^<]*?([一-鿿]+)[^<]*?<\/i><\/b><b><i>[^<]*?([A-Za-z][A-Za-z\s]*?)<\/i>\s*。([^<]+)/g;
+        let m;
+        while ((m = segRe.exec(html)) !== null) {
+          const cnName = m[1].trim();
+          const desc = m[3].trim();
+          if (cnName && desc) {
+            descMap.set(cnName, desc);
+          }
+        }
+      });
+    }
+
     $('table tr').each((_, row) => {
       const cells = $(row).find('td');
       const minCols = isWeapon ? 5 : isArmor ? 6 : 3;
@@ -196,7 +215,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           acBase,
           strengthReq,
           stealthDisadvantage,
-          description: '',
+          description: descMap.get(chineseName) || '',
           properties: currentGroup ? [currentGroup] : [],
           source: '',
           dataResource: '5E不全书',
