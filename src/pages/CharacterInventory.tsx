@@ -451,18 +451,18 @@ export default function CharacterInventory({
                     {isExpanded && (
                       <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
                         <div className="px-3 pb-3 space-y-3 border-t dark:border-border-dark/50 light:border-border-light/50">
-    {/* 武器伤害胶囊（仅武器） */}
-    {item.category === '武器' && (item.damageDice || item.damageType) && (
-      <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-700 text-white text-sm font-medium">
-          <Swords className="w-3.5 h-3.5" />
-          武器
-        </span>
-        <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-sm">
-          {item.damageDice}{item.damageType ? ` ${item.damageType}` : ''}
-        </span>
-      </div>
-    )}
+     {/* 武器伤害胶囊（仅武器） */}
+            {item.category === '武器' && (item.damageDice || item.damageType) && (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-700 text-white text-sm font-medium">
+                  <Swords className="w-3.5 h-3.5" />
+                  武器
+                </span>
+                <span className="inline-flex items-center px-3 py-1 rounded-full bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-sm">
+                  {item.damageDice}{item.damageType ? ` ${item.damageType}` : ''}
+                </span>
+              </div>
+            )}
                         {item.description && (
                           <div>
                             <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">描述</div>
