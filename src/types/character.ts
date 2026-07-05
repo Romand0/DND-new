@@ -60,6 +60,8 @@ export interface Equipment {
   quantity: number;
   category: string;
   weight?: number;
+  damageDice?: string;    // 武器专属，如 "1d8"
+  damageType?: string;    // 武器专属，如 "穿刺"
   description?: string;
   price?: {
     amount: number;
@@ -70,6 +72,7 @@ export interface Equipment {
   source?: string;
   subtype?: string;
 }
+
 
 export interface Currency {
   cp: number;
