@@ -549,8 +549,8 @@ if (!editingEquipment) {
             setEquipmentEditorOpen(false);
             setEditingEquipment(null);
           }}
-        />
-      )}
+        
+    
 
       {deleteConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
