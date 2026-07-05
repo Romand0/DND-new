@@ -38,7 +38,7 @@ function parseDamage(raw: string): { dice: string; type: string } {
   if (spacedMatch) {
     return { dice: spacedMatch[1], type: spacedMatch[2].trim() };
   }
-  const chineseMatch = trimmed.match(/^([\da-zA-Z+\-]+)([\u4e00-\u9fff]+.*)$/);
+  const chineseMatch = trimmed.match(/^([\da-zA-Z+\-]+)([一-鿿]+.*)$/);
   if (chineseMatch) {
     return { dice: chineseMatch[1], type: chineseMatch[2].trim() };
   }
@@ -54,18 +54,14 @@ function isHeaderRow(cells: cheerio.Cheerio): boolean {
 /** 从混合名称（如"短棒Club"）中提取中文名和英文ID */
 function splitName(raw: string): { chineseName: string; englishId: string } {
   const trimmed = raw.trim();
-  // 提取开头的连续中文
-  const cnMatch = trimmed.match(/^([\u4e00-\u9fff]+)/);
+  const cnMatch = trimmed.match(/^([一-鿿]+)/);
   const chineseName = cnMatch ? cnMatch[1] : trimmed;
-  // 剩余部分作为英文
   let englishPart = cnMatch ? trimmed.slice(cnMatch[0].length) : '';
-  // 清理英文部分：只保留字母、数字、空格、连字符，然后转小写、空格变连字符
   let englishId = englishPart
     .replace(/[^a-zA-Z0-9\s-]/g, '')
     .trim()
     .replace(/\s+/g, '-')
     .toLowerCase();
-  // 如果英文名为空，暂时置空（后续可由调用者生成）
   return { chineseName, englishId };
 }
 
@@ -103,9 +99,8 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       weight: number;
       damageDice: string;
       damageType: string;
-      acBase?: string;           // 护甲 AC，如 "11+DEX"、"14(MAX2)"、"16"、"+2"
-      armorClass?: string;       // 护甲分类：'light' | 'medium' | 'heavy' | 'shield'
-      strengthReq?: number;      // 力量需求，如 13/15，无则为 0
+      acBase?: string;           // 护甲 AC 简化值，如 "11"、"14"、"16"、"+2"
+      strengthReq?: number;      // 力量需求
       stealthDisadvantage?: boolean; // 隐匿劣势
       description: string;
       properties: string[];
@@ -116,20 +111,20 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
     const isWeapon = category === 'weapons';
     const isArmor = category === 'armor';
-    let currentGroup = ''; // 记录当前护甲分组：light / medium / heavy / shield
+    let currentGroup = ''; // 记录当前护甲分组中文标签：轻甲/中甲/重甲/盾牌
 
     $('table tr').each((_, row) => {
       const cells = $(row).find('td');
       const minCols = isWeapon ? 5 : isArmor ? 6 : 3;
 
       if (cells.length < minCols) {
-        // 护甲表里分组行是 colspan=6 的单格（"轻甲/Light Armor" 等），单独识别
+        // 护甲表分组行（colspan=6 的单格）
         if (isArmor && cells.length === 1) {
           const groupText = $(cells[0]).text().trim();
-          if (groupText.includes('轻甲')) currentGroup = 'light';
-          else if (groupText.includes('中甲')) currentGroup = 'medium';
-          else if (groupText.includes('重甲')) currentGroup = 'heavy';
-          else if (groupText.includes('盾牌')) currentGroup = 'shield';
+          if (groupText.includes('轻甲')) currentGroup = '轻甲';
+          else if (groupText.includes('中甲')) currentGroup = '中甲';
+          else if (groupText.includes('重甲')) currentGroup = '重甲';
+          else if (groupText.includes('盾牌')) currentGroup = '盾牌';
         }
         return;
       }
@@ -172,18 +167,23 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const stealthStr = $(cells[4]).text().trim();
         const weightStr = $(cells[5]).text().trim();
 
-        // 跳过具装（价格以 × 开头，是坐骑护甲倍数）
+        // 跳过具装（价格以 × 开头）
         if (priceStr.startsWith('×')) return;
 
         const weight = parseWeight(weightStr);
         if (price.amount === 0 && weight === 0) return;
 
-        // 解析力量需求："－" → 0，"力量13" → 13，"力量15" → 15
+        // 简化 acBase：只取第一个数字（可能带加号），去掉文字
+        const cleanedAc = acStr.replace(/[＋]/g, '+');
+        const acMatch = cleanedAc.match(/^(\+?\d+)/);
+        const acBase = acMatch ? acMatch[1] : acStr;
+
+        // 解析力量需求
         let strengthReq = 0;
         const strMatch = strStr.match(/力量(\d+)/);
         if (strMatch) strengthReq = parseInt(strMatch[1]);
 
-        // 解析隐匿劣势："－" → false，"劣势" → true
+        // 解析隐匿劣势
         const stealthDisadvantage = stealthStr.includes('劣势');
 
         items.push({
@@ -193,12 +193,11 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           weight,
           damageDice: '',
           damageType: '',
-          acBase: acStr,
-          armorClass: currentGroup || '',
+          acBase,
           strengthReq,
           stealthDisadvantage,
           description: '',
-          properties: [],
+          properties: currentGroup ? [currentGroup] : [],
           source: '',
           dataResource: '5E不全书',
           category,
