@@ -30,6 +30,7 @@ import { apiFetch } from '@/lib/api';
 import { equipmentStore } from '@/data/equipmentStore';
 import type { Equipment, Character } from '@/types/character';
 import type { EquipmentItem } from '@/types/equipment';
+import { extractBaseFields } from '@/data/equipmentFactory';
 
 const CATEGORIES = [
   { key: 'all', label: '所有', icon: Package },
