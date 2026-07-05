@@ -39,12 +39,20 @@ function parseWeight(raw: string): number {
 // 辅助函数：解析伤害字符串 "1d8 穿刺" → { dice: '1d8', type: '穿刺' }
 function parseDamage(raw: string): { dice: string; type: string } {
   const trimmed = raw.trim();
-  const match = trimmed.match(/^([\dw+\-]+)\s+(.+)$/);
-  if (match) {
-    return { dice: match[1], type: match[2].trim() };
+  // 1. 尝试匹配 "1d8 穿刺"（有空格）
+  const spacedMatch = trimmed.match(/^([\dw+\-]+)\s+(.+)$/);
+  if (spacedMatch) {
+    return { dice: spacedMatch[1], type: spacedMatch[2].trim() };
   }
+  // 2. 尝试匹配 "1d4钝击"（无空格，中英文分离）
+  const chineseMatch = trimmed.match(/^([\da-zA-Z+\-]+)([\u4e00-\u9fff]+.*)$/);
+  if (chineseMatch) {
+    return { dice: chineseMatch[1], type: chineseMatch[2].trim() };
+  }
+  // 3. 保底
   return { dice: trimmed, type: '' };
 }
+
 
 // 辅助函数：判断是否为表头行
 function isHeaderRow(cells: cheerio.Cheerio): boolean {
