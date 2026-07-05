@@ -350,18 +350,21 @@ export default function CharacterDetail({
     if (!id) return;
 
     const libraryItem: EquipmentItem = {
-      id: formData.id,
-      name: formData.name,
-      category: formData.category,
-      subtype: formData.subtype,
-      weight: formData.weight,
-      price: formData.price,
-      description: formData.description,
-      properties: formData.properties ? [...formData.properties] : [],
-      tags: formData.tags ? [...formData.tags] : [],
-      source: formData.source,
-      isCustom: false,
-    };
+  id: formData.id,
+  name: formData.name,
+  category: formData.category,
+  subtype: formData.subtype,
+  weight: formData.weight,
+  price: formData.price,
+  damageDice: formData.damageDice,
+  damageType: formData.damageType,
+  description: formData.description,
+  properties: formData.properties ? [...formData.properties] : [],
+  tags: formData.tags ? [...formData.tags] : [],
+  source: formData.source,
+  isCustom: false,
+};
+
 
     if (syncToLibrary) {
       const allEquipments = equipmentStore.getAll();
@@ -377,43 +380,52 @@ export default function CharacterDetail({
 
     if (!editingEquipment) {
       characterStore.addEquipment(id, {
-        name: formData.name,
-        category: formData.category,
-        quantity: formData.quantity || 1,
-        description: formData.description,
-        weight: formData.weight,
-        price: formData.price,
-        properties: formData.properties,
-        tags: formData.tags,
-        source: formData.source,
-        subtype: formData.subtype,
-      });
+  name: formData.name,
+  category: formData.category,
+  quantity: formData.quantity || 1,
+  description: formData.description,
+  weight: formData.weight,
+  price: formData.price,
+  damageDice: formData.damageDice,
+  damageType: formData.damageType,
+  properties: formData.properties,
+  tags: formData.tags,
+  source: formData.source,
+  subtype: formData.subtype,
+});
+
     } else if (editingEquipment.id.startsWith('temp-')) {
       characterStore.addEquipment(id, {
-        name: formData.name,
-        category: formData.category,
-        quantity: formData.quantity || 1,
-        description: formData.description,
-        weight: formData.weight,
-        price: formData.price,
-        properties: formData.properties ? [...formData.properties] : [],
-        tags: formData.tags ? [...formData.tags] : [],
-        source: formData.source,
-        subtype: formData.subtype,
-      });
+  name: formData.name,
+  category: formData.category,
+  quantity: formData.quantity || 1,
+  description: formData.description,
+  weight: formData.weight,
+  price: formData.price,
+  damageDice: formData.damageDice,
+  damageType: formData.damageType,
+  properties: formData.properties ? [...formData.properties] : [],
+  tags: formData.tags ? [...formData.tags] : [],
+  source: formData.source,
+  subtype: formData.subtype,
+});
+
     } else if (editingEquipment) {
       characterStore.updateEquipment(id, editingEquipment.id, {
-        name: formData.name,
-        category: formData.category,
-        quantity: formData.quantity,
-        description: formData.description,
-        weight: formData.weight,
-        price: formData.price,
-        properties: formData.properties,
-        tags: formData.tags,
-        source: formData.source,
-        subtype: formData.subtype,
-      });
+  name: formData.name,
+  category: formData.category,
+  quantity: formData.quantity,
+  description: formData.description,
+  weight: formData.weight,
+  price: formData.price,
+  damageDice: formData.damageDice,
+  damageType: formData.damageType,
+  properties: formData.properties,
+  tags: formData.tags,
+  source: formData.source,
+  subtype: formData.subtype,
+});
+
     }
     reloadChar();
     setEquipmentEditorOpen(false);
