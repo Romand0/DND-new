@@ -153,6 +153,8 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const descStr = cells.length >= 4 ? $(cells[3]).text().trim() : '';
 
         const weight = parseWeight(weightStr);
+        // 过滤分类标题行（价格和重量都为0）
+        if (price.amount === 0 && weight === 0) return;
 
         items.push({
           id: englishId,
