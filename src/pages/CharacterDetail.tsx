@@ -1905,7 +1905,8 @@ setEditingEquipment(null);
       isCustom: true,
       quantity: editingEquipment.quantity,
     } : undefined}
-
+       />
+)}
           showQuantity={true}
           showSyncOption={true}
           onSave={handleSaveEquipment}
