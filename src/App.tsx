@@ -70,6 +70,7 @@ export default function App() {
               <Route path="/player/inventory" element={<InventoryPage />} />
               <Route path="/player/spells" element={<SpellList />} />
               <Route path="/player/spells/:id" element={<SpellDetail />} />
+              <Route path="/player/settings" element={<Settings />} />
               {/* 公共资料库 - 玩家端也能访问 */}
               <Route path="/equipment" element={<EquipmentList />} />
               <Route path="/equipment/:id" element={<EquipmentDetail />} />
