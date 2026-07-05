@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useEditorState } from '@/data/editorState';
-import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag, Swords } from 'lucide-react';
+import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag, Swords, Shield } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { apiFetch } from '@/lib/api';
@@ -171,6 +171,21 @@ export default function EquipmentDetail() {
         )}
       </div>
 
+        {/* 护甲 AC 卡片（仅护甲） */}
+{item.category === '护甲' && item.acBase && (
+  <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+    <div className="flex items-center gap-2 mb-1">
+      <Shield className="w-4 h-4 text-accent" />
+      <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">护甲等级 (AC)</span>
+    </div>
+    <p className="text-lg font-semibold dark:text-text-dark light:text-text-light">
+      AC = {item.acBase}
+      {item.strengthReq ? `，力量 ${item.strengthReq}` : ''}
+      {item.stealthDisadvantage ? '，隐匿劣势' : ''}
+    </p>
+  </div>
+)}
+      
       {item.properties && item.properties.length > 0 && (
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <h3 className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">属性</h3>
