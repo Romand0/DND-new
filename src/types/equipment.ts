@@ -8,11 +8,15 @@ export interface EquipmentItem {
     amount: number; // 价格数值
     unit: 'gp' | 'sp' | 'cp'; // 单位：金币/银币/铜币
   };
-  damageDice?: string;   // 如 "1d8"
-  damageType?: string;   // 如 "穿刺"
+  damageDice?: string; // 如 "1d8"
+  damageType?: string; // 如 "穿刺"
+  acBase?: string; // 护甲基础 AC，如 "11"、"14"、"+2"（盾牌）
+  strengthReq?: number; // 力量需求，如 13/15
+  stealthDisadvantage?: boolean; // 隐匿劣势
   description: string; // 描述（支持 Markdown）
-  properties?: string[]; // 属性标签，如 ["轻型", "灵巧"]
+  properties?: string[]; // 属性标签，如 ["轻型", "灵巧"] / ["轻甲"]
   isCustom: boolean; // 是否为用户自定义装备
   tags: { key: string; value: string }[]; // 自由标签
-  source?: string; // 来源
+  source?: string; // 出版来源，如 "玩家手册 2014"
+  dataResource?: string; // 数据来源网站，如 "5E不全书"
 }
