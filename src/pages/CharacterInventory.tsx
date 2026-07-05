@@ -254,8 +254,8 @@ export default function CharacterInventory({
       description: item.description,
       weight: item.weight,
       price: item.price,
-      damageDice: formData.damageDice,        // ← 加
-      damageType: formData.damageType,
+      damageDice: item.damageDice,        // ← 加
+      damageType: item.damageType,
       properties: item.properties,
       tags: item.tags,
       source: item.source,
