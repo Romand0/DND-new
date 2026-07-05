@@ -246,21 +246,15 @@ export default function CharacterInventory({
   };
 
   const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
-    if (!id) return;
-    characterStore.addEquipment(id, {
-      name: item.name,
-      category: item.category,
-      quantity: 1,
-      description: item.description,
-      weight: item.weight,
-      price: item.price,
-      damageDice: item.damageDice,        // ← 加
-      damageType: item.damageType,
-      properties: item.properties,
-      tags: item.tags,
-      source: item.source,
-      subtype: item.subtype,
-    });
+  if (!id) return;
+  characterStore.addEquipment(id, {
+    quantity: 1,
+    ...extractBaseFields(item),
+  });
+  reloadChar();
+  setEquipmentPickerOpen(false);
+};
+
     reloadChar();
     setEquipmentPickerOpen(false);
   };
