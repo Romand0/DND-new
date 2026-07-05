@@ -256,10 +256,6 @@ export default function CharacterInventory({
   setEquipmentPickerOpen(false);
 };
 
-    reloadChar();
-    setEquipmentPickerOpen(false);
-  };
-
   return (
     <div className={`min-h-screen flex dark:bg-bg-dark light:bg-bg-light-1 ${readOnly ? 'read-only-mode' : ''}`}>
       {/* 侧边栏 */}
