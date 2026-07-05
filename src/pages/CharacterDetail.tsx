@@ -1957,6 +1957,8 @@ export default function CharacterDetail({
             subtype: editingEquipment.subtype,
             weight: editingEquipment.weight || 0,
             price: editingEquipment.price || { amount: 0, unit: 'gp' },
+            damageDice: editingEquipment.damageDice,
+            damageType: editingEquipment.damageType,
             description: editingEquipment.description || '',
             properties: editingEquipment.properties || [],
             isCustom: true,
