@@ -16,21 +16,25 @@ interface EquipmentEditorProps {
 const CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 const PRICE_UNITS = ['gp', 'sp', 'cp'] as const;
 const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '远程', '弹药', '+2 AC', '单手', '双手'];
+const DAMAGE_TYPES = ['穿刺', '钝击', '挥砍', '火焰', '冰冻', '闪电', '光', '黯蚀', '心灵', '毒素', '力场', '声波', '神力'];
 
 export default function EquipmentEditor({ item, isStatic = false, showQuantity = false, showSyncOption = false, loading = false, onSave, onDelete, onClose }: EquipmentEditorProps) {
-  const [formData, setFormData] = useState<Omit<EquipmentItem, 'isCustom'> & { quantity?: number }>({
-    id: '',
-    name: '',
-    category: '武器',
-    subtype: '',
-    weight: 0,
-    price: { amount: 0, unit: 'gp' },
-    description: '',
-    properties: [],
-    tags: [],
-    source: '',
-    quantity: showQuantity ? 1 : undefined,
-  });
+   const [formData, setFormData] = useState<Omit<EquipmentItem, 'isCustom'> & { quantity?: number }>({
+  id: '',
+  name: '',
+  category: '武器',
+  subtype: '',
+  weight: 0,
+  price: { amount: 0, unit: 'gp' },
+  damageDice: '',
+  damageType: '',
+  description: '',
+  properties: [],
+  tags: [],
+  source: '',
+  quantity: showQuantity ? 1 : undefined,
+ });
+
   const [newProperty, setNewProperty] = useState('');
   const [newTagKey, setNewTagKey] = useState('');
   const [newTagValue, setNewTagValue] = useState('');
@@ -41,19 +45,22 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
 
   useEffect(() => {
     if (item) {
-      setFormData({
-        id: item.id,
-        name: item.name,
-        category: item.category,
-        subtype: item.subtype || '',
-        weight: item.weight,
-        price: { ...item.price },
-        description: item.description,
-        properties: item.properties || [],
-        tags: [...(item.tags || [])],
-        source: item.source || '',
-        quantity: (item as any).quantity,
-      });
+        setFormData({
+   id: item.id,
+   name: item.name,
+   category: item.category,
+   subtype: item.subtype || '',
+   weight: item.weight,
+   price: { ...item.price },
+   damageDice: item.damageDice || '',
+   damageType: item.damageType || '',
+   description: item.description,
+   properties: item.properties || [],
+   tags: [...(item.tags || [])],
+   source: item.source || '',
+   quantity: (item as any).quantity,
+  });
+
       if (item.category && !CATEGORIES.includes(item.category)) {
         setCustomCategory(item.category);
       }
@@ -295,7 +302,38 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
               </div>
             </div>
           </div>
-
+          {/* 伤害（仅武器） */}
+{formData.category === '武器' && (
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+        伤害骰
+      </label>
+      <input
+        type="text"
+        value={formData.damageDice}
+        onChange={(e) => setFormData({ ...formData, damageDice: e.target.value })}
+        placeholder="例如：1d8"
+        className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text:text-text-light focus:border-primary"
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+        伤害类型
+      </label>
+      <select
+        value={formData.damageType}
+        onChange={(e) => setFormData({ ...formData, damageType: e.target.value })}
+        className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+      >
+        <option value="">选择伤害类型</option>
+        {DAMAGE_TYPES.map((dt) => (
+          <option key={dt} value={dt}>{dt}</option>
+        ))}
+      </select>
+    </div>
+  </div>
+)}
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               来源
