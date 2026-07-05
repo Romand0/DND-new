@@ -2,7 +2,6 @@
 
 import * as cheerio from 'cheerio';
 
-// 品类名 → 5E不全书文件名映射
 const CATEGORY_MAP: Record<string, string> = {
   weapons: '武器',
   armor: '护甲与盾牌',
@@ -10,7 +9,6 @@ const CATEGORY_MAP: Record<string, string> = {
   adventuring: '冒险用品',
 };
 
-// 辅助函数：解析价格字符串 "15 gp" → { amount: 15, unit: 'gp' }
 function parsePrice(raw: string): { amount: number; unit: 'gp' | 'sp' | 'cp' } {
   const match = raw.trim().match(/^([\d.]+)\s*(gp|sp|cp)$/i);
   if (!match) return { amount: 0, unit: 'gp' };
@@ -20,11 +18,9 @@ function parsePrice(raw: string): { amount: number; unit: 'gp' | 'sp' | 'cp' } {
   };
 }
 
-// 辅助函数：解析重量字符串 "3 磅" → 3， "1/2 磅" → 0.5
 function parseWeight(raw: string): number {
   const trimmed = raw.trim().replace(/[^\d./]/g, '');
   if (!trimmed) return 0;
-  // 处理分数
   if (trimmed.includes('/')) {
     const parts = trimmed.split('/');
     if (parts.length === 2) {
@@ -36,29 +32,41 @@ function parseWeight(raw: string): number {
   return parseFloat(trimmed) || 0;
 }
 
-// 辅助函数：解析伤害字符串 "1d8 穿刺" → { dice: '1d8', type: '穿刺' }
 function parseDamage(raw: string): { dice: string; type: string } {
   const trimmed = raw.trim();
-  // 1. 尝试匹配 "1d8 穿刺"（有空格）
   const spacedMatch = trimmed.match(/^([\dw+\-]+)\s+(.+)$/);
   if (spacedMatch) {
     return { dice: spacedMatch[1], type: spacedMatch[2].trim() };
   }
-  // 2. 尝试匹配 "1d4钝击"（无空格，中英文分离）
   const chineseMatch = trimmed.match(/^([\da-zA-Z+\-]+)([\u4e00-\u9fff]+.*)$/);
   if (chineseMatch) {
     return { dice: chineseMatch[1], type: chineseMatch[2].trim() };
   }
-  // 3. 保底
   return { dice: trimmed, type: '' };
 }
 
-
-// 辅助函数：判断是否为表头行
 function isHeaderRow(cells: cheerio.Cheerio): boolean {
   const firstText = cells.first().text().trim();
   const headerKeywords = ['名称', '价格', '重量', '伤害', '属性', '物品'];
   return headerKeywords.some(kw => firstText.includes(kw));
+}
+
+/** 从混合名称（如"短棒Club"）中提取中文名和英文ID */
+function splitName(raw: string): { chineseName: string; englishId: string } {
+  const trimmed = raw.trim();
+  // 提取开头的连续中文
+  const cnMatch = trimmed.match(/^([\u4e00-\u9fff]+)/);
+  const chineseName = cnMatch ? cnMatch[1] : trimmed;
+  // 剩余部分作为英文
+  let englishPart = cnMatch ? trimmed.slice(cnMatch[0].length) : '';
+  // 清理英文部分：只保留字母、数字、空格、连字符，然后转小写、空格变连字符
+  let englishId = englishPart
+    .replace(/[^a-zA-Z0-9\s-]/g, '')
+    .trim()
+    .replace(/\s+/g, '-')
+    .toLowerCase();
+  // 如果英文名为空，暂时置空（后续可由调用者生成）
+  return { chineseName, englishId };
 }
 
 export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
@@ -89,6 +97,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
     const $ = cheerio.load(html);
     const items: Array<{
+      id: string;
       name: string;
       price: { amount: number; unit: 'gp' | 'sp' | 'cp' };
       weight: number;
@@ -100,7 +109,6 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       category: string;
     }> = [];
 
-    // 根据品类决定列数：武器5列，其他4列
     const isWeapon = category === 'weapons';
 
     $('table tr').each((_, row) => {
@@ -109,14 +117,15 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
       if (cells.length < colCount) return;
 
-      const name = $(cells[0]).text().trim();
-      if (!name || isHeaderRow(cells)) return;
+      const rawName = $(cells[0]).text().trim();
+      if (!rawName || isHeaderRow(cells)) return;
+
+      const { chineseName, englishId } = splitName(rawName);
 
       const priceStr = $(cells[1]).text().trim();
       const price = parsePrice(priceStr);
 
       if (isWeapon) {
-        // 武器：第3列伤害，第4列重量，第5列属性
         const damageStr = $(cells[2]).text().trim();
         const weightStr = $(cells[3]).text().trim();
         const propsStr = $(cells[4]).text().trim();
@@ -126,7 +135,8 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const properties = propsStr ? propsStr.split(/[,，]\s*/).map(s => s.trim()).filter(Boolean) : [];
 
         items.push({
-          name,
+          id: englishId,
+          name: chineseName,
           price,
           weight,
           damageDice: dice,
@@ -137,14 +147,14 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           category,
         });
       } else {
-        // 非武器：第3列重量，第4列描述
         const weightStr = $(cells[2]).text().trim();
         const descStr = cells[3] ? $(cells[3]).text().trim() : '';
 
         const weight = parseWeight(weightStr);
 
         items.push({
-          name,
+          id: englishId,
+          name: chineseName,
           price,
           weight,
           damageDice: '',
