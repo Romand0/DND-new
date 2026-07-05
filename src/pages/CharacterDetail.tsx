@@ -323,18 +323,8 @@ export default function CharacterDetail({
     // 创建临时装备对象用于编辑器
     const tempEquipment: Equipment & { id: string } = {
   id: `temp-${Date.now()}`,
-  name: item.name,
-  category: item.category,
   quantity: 1,
-  description: item.description || '',
-  weight: item.weight,
-  price: item.price,
-  damageDice: item.damageDice,
-  damageType: item.damageType,
-  properties: item.properties || [],
-  tags: item.tags || [],
-  source: item.source || '',
-  subtype: item.subtype || '',
+  ...extractBaseFields(item),
 };
 
     setEditingEquipment(tempEquipment);
