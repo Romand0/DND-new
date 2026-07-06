@@ -67,7 +67,7 @@ function splitName(raw: string): { chineseName: string; englishId: string } {
 
 export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   const url = new URL(context.request.url);
-  const method = context.request.method;
+
 // 在 onRequest 函数内，const url = new URL(context.request.url); 之后，const category = url.searchParams.get('category'); 之前插入以下代码
 
   const method = context.request.method;
@@ -132,11 +132,6 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
   // GET：原有预览逻辑（以下为原有代码，不动）
   const category = url.searchParams.get('category');
-
-
-  // GET：预览逻辑（以下为原有代码，不动）
-  
-const category = url.searchParams.get('category');
 
   if (!category || !CATEGORY_MAP[category]) {
     return new Response(JSON.stringify({
