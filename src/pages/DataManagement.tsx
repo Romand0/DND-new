@@ -103,6 +103,9 @@ export default function DataManagement() {
         ...i,
         category: categoryOverrides[i.id] || i.category,
       }));
+    
+  alert(`即将导入 ${itemsToImport.length} 条，第一件：${itemsToImport[0]?.name || '无'}`);
+
 
     if (itemsToImport.length === 0) return;
 
