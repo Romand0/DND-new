@@ -1,8 +1,8 @@
 // DM Toolkit - Application Router
-import AuthProvider, { useAuth } from './contexts/AuthContext';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import ThemeProvider from '@/contexts/ThemeContext';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 import Layout from '@/components/Layout';
 import PlayerLayout from '@/components/PlayerLayout';
 import Home from '@/pages/Home';
