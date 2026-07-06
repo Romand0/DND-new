@@ -245,7 +245,12 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
         const { dice, type } = parseDamage(damageStr);
         const weight = parseWeight(weightStr);
-        const properties = propsStr ? propsStr.split(/[,，]\s*/).map(s => s.trim()).filter(Boolean) : [];
+        const properties = propsStr
+  ? propsStr.split(/[,，]\s*/)
+      .map(s => s.trim())
+      .filter(Boolean)
+      .filter(s => s !== '－' && s !== '—')
+  : [];
 
         items.push({
           id: englishId,
