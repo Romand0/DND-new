@@ -241,18 +241,19 @@ export default function DataManagement() {
           </button>
 
           {result && (
-            <div className="mt-3 flex items-center gap-2 text-sm">
-              {result.fail === 0 ? (
-                <CheckCircle className="w-4 h-4 text-green-500" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-yellow-500" />
-              )}
-              <span>
-                成功 {result.success} 条
-                {result.fail > 0 ? `，失败 ${result.fail} 条` : ''}
-              </span>
-            </div>
-          )}
+  <div className="mt-3 flex items-center gap-2 text-sm">
+    {(result.fail ?? 0) === 0 ? (
+      <CheckCircle className="w-4 h-4 text-green-500" />
+    ) : (
+      <AlertCircle className="w-4 h-4 text-yellow-500" />
+    )}
+    <span>
+      成功 {result.success ?? 0} 条
+      {(result.fail ?? 0) > 0 ? `，失败 ${result.fail} 条` : ''}
+    </span>
+  </div>
+)}
+
         </>
       )}
 
