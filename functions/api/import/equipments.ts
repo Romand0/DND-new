@@ -97,12 +97,12 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       name: string;
       price: { amount: number; unit: 'gp' | 'sp' | 'cp' };
       weight: number;
-      subtype?: string;  // 武器子分类：简易近战/简易远程/军用近战/军用远程
+      subtype?: string;
       damageDice: string;
       damageType: string;
-      acBase?: string;           // 护甲 AC 简化值，如 "11"、"14"、"16"、"+2"
-      strengthReq?: number;      // 力量需求
-      stealthDisadvantage?: boolean; // 隐匿劣势
+      acBase?: string;
+      strengthReq?: number;
+      stealthDisadvantage?: boolean;
       description: string;
       properties: string[];
       source: string;
@@ -112,10 +112,27 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
     const isWeapon = category === 'weapons';
     const isArmor = category === 'armor';
-    let currentGroup = ''; // 记录当前护甲分组中文标签：轻甲/中甲/重甲/盾牌
-    let currentSubtype = ''; // 记录当前武器子分类：简易近战/简易远程/军用近战/军用远程
+    let currentGroup = ''; // 护甲分组：轻甲/中甲/重甲/盾牌
+    let currentSubtype = ''; // 武器子分类：简易近战/简易远程/军用近战/军用远程
 
-    // 护甲 descMap 构建（不变）...
+    // 护甲：预扫表格前的 <p> 标签，提取每个护甲名下的说明文字
+    let descMap = new Map<string, string>();
+    if (isArmor) {
+      const $table = $('table').first();
+      $table.prevAll('p').each((_, el) => {
+        const html = $(el).html() || '';
+        // 匹配：<b><i><span>中文</span></i></b><b><i><span>English</span></i></b>。说明文字
+        const segRe = /<b><i>[^<]*?<span>([一-鿿]+?)<\/span>[^<]*?<\/i><\/b><b><i>[^<]*?<span>[^<]+?<\/span>[^<]*?<\/i>\s*。([^<]+)/g;
+        let m;
+        while ((m = segRe.exec(html)) !== null) {
+          const cnName = m[1].trim();
+          const desc = m[2].trim();
+          if (cnName && desc) {
+            descMap.set(cnName, desc);
+          }
+        }
+      });
+    }
 
     $('table tr').each((_, row) => {
       const cells = $(row).find('td');
@@ -132,12 +149,10 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         }
         // 武器表分组行（colspan=5 的单格）
         if (isWeapon && cells.length === 1) {
-  const groupText = $(cells[0]).text().trim();
-  // 提取连续中文，去掉末尾的“武器”两字
-  const cnPart = groupText.match(/^([一-鿿]+)/)?.[1] || '';
-  currentSubtype = cnPart.replace(/武器$/, '');
-}
-
+          const groupText = $(cells[0]).text().trim();
+          const cnPart = groupText.match(/^([一-鿿]+)/)?.[1] || '';
+          currentSubtype = cnPart.replace(/武器$/, '');
+        }
         return;
       }
 
@@ -159,7 +174,6 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const weight = parseWeight(weightStr);
         const properties = propsStr ? propsStr.split(/[,，]\s*/).map(s => s.trim()).filter(Boolean) : [];
 
- 
         items.push({
           id: englishId,
           name: chineseName,
@@ -201,29 +215,28 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const stealthDisadvantage = stealthStr.includes('劣势');
 
         // 构建护甲属性数组：隐匿劣势如果有则加入
-const armorProperties: string[] = [];
-if (stealthDisadvantage) {
-  armorProperties.push('隐匿劣势');
-}
+        const armorProperties: string[] = [];
+        if (stealthDisadvantage) {
+          armorProperties.push('隐匿劣势');
+        }
 
-items.push({
-  id: englishId,
-  name: chineseName,
-  price,
-  weight,
-  damageDice: '',
-  damageType: '',
-  acBase,
-  strengthReq,
-  stealthDisadvantage,
-  description: descMap.get(chineseName) || '',
-  subtype: currentGroup || '',
-  properties: armorProperties,
-  source: '',
-  dataResource: '5E不全书',
-  category,
-});
-
+        items.push({
+          id: englishId,
+          name: chineseName,
+          price,
+          weight,
+          damageDice: '',
+          damageType: '',
+          acBase,
+          strengthReq,
+          stealthDisadvantage,
+          description: descMap.get(chineseName) || '',
+          subtype: currentGroup || '',
+          properties: armorProperties,
+          source: '',
+          dataResource: '5E不全书',
+          category,
+        });
       } else {
         // 非武器非护甲（工具/冒险用品）：名称 | 价格 | 重量（+ 可选描述）
         const weightStr = $(cells[2]).text().trim();
