@@ -21,6 +21,7 @@ import EquipmentDetail from '@/pages/EquipmentDetail';
 import PlayerHome from '@/pages/PlayerHome';
 import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
+import DataManagement from '@/pages/DataManagement';
 
 // 根路径壳：按 role 分流，不接受任何 props
 function RoleShell() {
@@ -100,6 +101,7 @@ export default function App() {
               <Route path="spells" element={<SpellList />} />
               <Route path="spells/:id" element={<SpellDetail />} />
               <Route path="settings" element={<Settings />} />
+              <Route path="data-management" element={<DataManagement />} />
               <Route
                 path="notes"
                 element={<Placeholder title="剧情笔记" description="剧情记录与世界设定管理功能即将上线" />}
