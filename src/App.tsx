@@ -2,7 +2,7 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { ThemeProvider } from '@/contexts/ThemeContext';
+import { ThemeProvider } from '@/contexts/ThemeProvider';
 import Layout from '@/components/Layout';
 import PlayerLayout from '@/components/PlayerLayout';
 import Home from '@/pages/Home';
@@ -23,14 +23,14 @@ import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 import DataManagement from '@/pages/DataManagement';
 
-// 根路径壳：按 role 分流，不接受任何 props
+// 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
-  const { user, loading } = useAuth();
-  if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
+  const { user } = useAuth();
+  // loading 由 ProtectedRoute 层吞掉，这里 user 一定已就绪
   if (user?.role === 'player') {
     return <Navigate to="/player/home" replace />;
   }
-  return <Layout />; // Layout 内部已有 <Outlet />，不需要传 children
+  return <Layout />;
 }
 
 export default function App() {
@@ -79,11 +79,11 @@ export default function App() {
               <Route path="/spells/:id" element={<SpellDetail />} />
             </Route>
 
-            {/* DM 端（完整导航栏）- 需要登录 */}
+            {/* DM 端（完整导航栏）- 需要登录 + DM 角色 */}
             <Route
               path="/"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requireDM>
                   <RoleShell />
                 </ProtectedRoute>
               }
