@@ -119,7 +119,7 @@ export default function DataManagement() {
 
   // 更新分类覆盖
   const updateCategoryOverride = (id: string, newCategory: string) => {
-    setCategoryOverrides(prev => ({ ...prev, [id]: newCategory]));
+    setCategoryOverrides(prev => ({ ...prev, [id]: newCategory }));
   };
 
   // 批量字段编辑：解析 JSON → 按 name 匹配 → 动态覆盖
@@ -153,25 +153,26 @@ export default function DataManagement() {
     const typeErrors: string[] = [];
     const unknownFields: string[] = [];
 
+    // 深拷贝一份 preview，循环内只改这份，最后一次性 setPreview
+    const updatedPreview = preview.map(i => ({ ...i }));
+
     parsed.forEach((entry, idx) => {
       if (!entry.name) {
         unmatched.push(`第 ${idx + 1} 条: 缺 name 字段`);
         return;
       }
-      const target = nameMap.get(entry.name);
-      if (!target) {
+      const targetIdx = updatedPreview.findIndex(i => i.name === entry.name);
+      if (targetIdx === -1) {
         unmatched.push(entry.name);
         return;
       }
 
-      // 遍历除 name 外的字段，动态覆盖
       Object.entries(entry).forEach(([key, val]) => {
         if (key === 'name') return;
-        if (PROTECTED_FIELDS.has(key)) return; // id/name/category 保护
+        if (PROTECTED_FIELDS.has(key)) return;
 
         const expectedType = FIELD_TYPES[key];
         if (expectedType) {
-          // 类型校验
           const actual = Array.isArray(val) ? 'array' : typeof val;
           if (actual !== expectedType) {
             typeErrors.push(`${entry.name}.${key}: 期望 ${expectedType}，收到 ${actual}`);
@@ -179,24 +180,16 @@ export default function DataManagement() {
           }
         } else {
           unknownFields.push(`${entry.name}.${key}`);
-          // 未知字段也允许覆盖（便于未来扩字段），但记录一下
         }
 
-        // 覆盖：找到 preview 中对应条目的索引，直接改
-        const previewIdx = preview.findIndex(i => i.name === entry.name);
-        if (previewIdx >= 0) {
-          const updated = { ...preview[previewIdx], [key]: val };
-          setPreview(prev => {
-            const next = [...prev];
-            next[previewIdx] = updated;
-            return next;
-          });
-        }
+        // 直接改 updatedPreview 中的对象（都是深拷贝过的，安全）
+        (updatedPreview[targetIdx] as any)[key] = val;
       });
 
       matched.push(entry.name);
     });
 
+    setPreview(updatedPreview);
     setBulkEditResult({ matched: matched.length, unmatched, typeErrors, unknownFields });
   };
 
