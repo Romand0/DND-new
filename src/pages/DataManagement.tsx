@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Download, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Download, CheckCircle, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { equipmentStore } from '@/data/equipmentStore';
 import { createEquipment, updateEquipment, fetchAllEquipments } from '@/lib/api';
@@ -42,6 +42,21 @@ function guessAdventuringCategory(name: string): string {
   return '杂物';
 }
 
+// 批量编辑的字段类型参考（用于类型校验，与 PreviewItem 对齐）
+const FIELD_TYPES: Record<string, 'string' | 'number' | 'object' | 'array' | 'boolean'> = {
+  price: 'object',
+  weight: 'number',
+  damageDice: 'string',
+  damageType: 'string',
+  acBase: 'string',
+  subtype: 'string',
+  properties: 'array',
+  description: 'string',
+};
+
+// 保护的字段（不可被批量编辑覆盖）
+const PROTECTED_FIELDS = new Set(['id', 'name', 'category']);
+
 export default function DataManagement() {
   const navigate = useNavigate();
   const [category, setCategory] = useState('weapons');
@@ -53,10 +68,21 @@ export default function DataManagement() {
   const [result, setResult] = useState<{ success: number; fail: number } | null>(null);
   const [existingNames, setExistingNames] = useState<Set<string>>(new Set());
 
+  // 批量字段编辑
+  const [showBulkPanel, setShowBulkPanel] = useState(false);
+  const [bulkEditJson, setBulkEditJson] = useState('');
+  const [bulkEditResult, setBulkEditResult] = useState<{
+    matched: number;
+    unmatched: string[];
+    typeErrors: string[];
+    unknownFields: string[];
+  } | null>(null);
+
   // 获取预览
   const fetchPreview = async () => {
     setLoading(true);
     setResult(null);
+    setBulkEditResult(null);
     try {
       const res = await fetch(`/api/import/equipments?category=${category}`);
       const data = await res.json();
@@ -93,7 +119,85 @@ export default function DataManagement() {
 
   // 更新分类覆盖
   const updateCategoryOverride = (id: string, newCategory: string) => {
-    setCategoryOverrides(prev => ({ ...prev, [id]: newCategory }));
+    setCategoryOverrides(prev => ({ ...prev, [id]: newCategory]));
+  };
+
+  // 批量字段编辑：解析 JSON → 按 name 匹配 → 动态覆盖
+  const applyBulkEdit = () => {
+    let parsed: Array<{ name: string; [key: string]: any }>;
+    try {
+      parsed = JSON.parse(bulkEditJson);
+    } catch (e) {
+      setBulkEditResult({
+        matched: 0,
+        unmatched: [],
+        typeErrors: [`JSON 解析失败: ${String(e)}`],
+        unknownFields: [],
+      });
+      return;
+    }
+
+    if (!Array.isArray(parsed)) {
+      setBulkEditResult({
+        matched: 0,
+        unmatched: [],
+        typeErrors: ['顶层必须是 JSON 数组'],
+        unknownFields: [],
+      });
+      return;
+    }
+
+    const nameMap = new Map(preview.map(i => [i.name, i]));
+    const matched: string[] = [];
+    const unmatched: string[] = [];
+    const typeErrors: string[] = [];
+    const unknownFields: string[] = [];
+
+    parsed.forEach((entry, idx) => {
+      if (!entry.name) {
+        unmatched.push(`第 ${idx + 1} 条: 缺 name 字段`);
+        return;
+      }
+      const target = nameMap.get(entry.name);
+      if (!target) {
+        unmatched.push(entry.name);
+        return;
+      }
+
+      // 遍历除 name 外的字段，动态覆盖
+      Object.entries(entry).forEach(([key, val]) => {
+        if (key === 'name') return;
+        if (PROTECTED_FIELDS.has(key)) return; // id/name/category 保护
+
+        const expectedType = FIELD_TYPES[key];
+        if (expectedType) {
+          // 类型校验
+          const actual = Array.isArray(val) ? 'array' : typeof val;
+          if (actual !== expectedType) {
+            typeErrors.push(`${entry.name}.${key}: 期望 ${expectedType}，收到 ${actual}`);
+            return;
+          }
+        } else {
+          unknownFields.push(`${entry.name}.${key}`);
+          // 未知字段也允许覆盖（便于未来扩字段），但记录一下
+        }
+
+        // 覆盖：找到 preview 中对应条目的索引，直接改
+        const previewIdx = preview.findIndex(i => i.name === entry.name);
+        if (previewIdx >= 0) {
+          const updated = { ...preview[previewIdx], [key]: val };
+          setPreview(prev => {
+            const next = [...prev];
+            next[previewIdx] = updated;
+            return next;
+          });
+        }
+      });
+
+      matched.push(entry.name);
+    });
+
+    setBulkEditResult({ matched: matched.length, unmatched, typeErrors, unknownFields });
   };
 
   // 确认导入
@@ -113,11 +217,9 @@ export default function DataManagement() {
 
     for (const item of itemsToImport) {
       try {
-        // 先尝试创建，如果 id 冲突则更新
         await createEquipment(item);
         success++;
       } catch (err: any) {
-        // 如果是因为主键冲突，尝试按 id 更新
         try {
           await updateEquipment(item.id, item);
           success++;
@@ -129,12 +231,11 @@ export default function DataManagement() {
 
     setResult({ success, fail });
 
-    // 刷新已存在列表（从 D1 重新拉，保证最新）
     try {
       const refreshed = await fetchAllEquipments();
       setExistingNames(new Set(refreshed.map((e: any) => e.name)));
     } catch (e) {
-      // 刷新失败不影响主流程
+      // 忽略
     }
 
     setImporting(false);
@@ -152,7 +253,8 @@ export default function DataManagement() {
 
       <h1 className="text-xl font-bold mb-4">数据管理</h1>
 
-      <div className="flex items-center gap-3 mb-4">
+      {/* 品类选择 + 获取预览 */}
+      <div className="flex items-center gap-3 mb-2">
         <select
           value={category}
           onChange={(e) => setCategory(e.target.value)}
@@ -170,6 +272,53 @@ export default function DataManagement() {
           {loading ? '加载中...' : '获取预览'}
         </button>
       </div>
+
+      {/* 批量字段编辑面板 */}
+      {preview.length > 0 && (
+        <div className="mb-4 rounded-lg border dark:border-border-dark light:border-border-light">
+          <button
+            onClick={() => setShowBulkPanel(!showBulkPanel)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-left hover:opacity-80"
+          >
+            {showBulkPanel ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            批量字段编辑（粘贴 JSON 按名称匹配覆盖字段）
+          </button>
+          {showBulkPanel && (
+            <div className="p-3 border-t dark:border-border-dark/50 light:border-border-light/50 space-y-2">
+              <p className="text-xs opacity-60">
+                格式：<code>[{"{"}"name":"皮甲", "description":"..."{"}"}]</code>。除 name 外所有字段动态覆盖，id/name/category 受保护。
+              </p>
+              <textarea
+                value={bulkEditJson}
+                onChange={(e) => setBulkEditJson(e.target.value)}
+                placeholder='[{"name":"皮甲", "description":"皮甲由数层布料与棉料的衬里构成..."}]'
+                className="w-full h-32 px-3 py-2 rounded-lg border bg-transparent outline-none font-mono text-xs dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+              />
+              <button
+                onClick={applyBulkEdit}
+                className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:opacity-90"
+              >
+                应用
+              </button>
+
+              {bulkEditResult && (
+                <div className="text-xs space-y-1">
+                  <div className="text-green-500">匹配并更新: {bulkEditResult.matched} 条</div>
+                  {bulkEditResult.unmatched.length > 0 && (
+                    <div className="text-yellow-500">未匹配（name 找不到）: {bulkEditResult.unmatched.join(', ')}</div>
+                  )}
+                  {bulkEditResult.typeErrors.length > 0 && (
+                    <div className="text-red-500">类型错误: {bulkEditResult.typeErrors.join('; ')}</div>
+                  )}
+                  {bulkEditResult.unknownFields.length > 0 && (
+                    <div className="text-blue-500">未知字段（已覆盖，未来可规范化）: {bulkEditResult.unknownFields.join(', ')}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {preview.length > 0 && (
         <>
@@ -196,6 +345,7 @@ export default function DataManagement() {
                   <th className="p-2 text-left">重量</th>
                   <th className="p-2 text-left">伤害/AC</th>
                   <th className="p-2 text-left">子分类</th>
+                  <th className="p-2 text-left">描述</th>
                   <th className="p-2 text-left">目标分类</th>
                   <th className="p-2 text-left">状态</th>
                 </tr>
@@ -222,6 +372,9 @@ export default function DataManagement() {
                       {item.acBase ? `AC ${item.acBase}` : ''}
                     </td>
                     <td className="p-2 text-xs">{item.subtype || '—'}</td>
+                    <td className="p-2 text-xs max-w-[200px] truncate" title={item.description}>
+                      {item.description || '—'}
+                    </td>
                     <td className="p-2">
                       <select
                         value={categoryOverrides[item.id] || item.category}
