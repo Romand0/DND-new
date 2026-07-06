@@ -97,6 +97,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       name: string;
       price: { amount: number; unit: 'gp' | 'sp' | 'cp' };
       weight: number;
+      subtype?: string;  // 武器子分类：简易近战/简易远程/军用近战/军用远程
       damageDice: string;
       damageType: string;
       acBase?: string;           // 护甲 AC 简化值，如 "11"、"14"、"16"、"+2"
