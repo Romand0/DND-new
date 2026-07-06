@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { equipmentStore } from '@/data/equipmentStore';
 import { createEquipment, updateEquipment, fetchAllEquipments } from '@/lib/api';
 
-
 const CATEGORIES = [
   { key: 'weapons', label: '武器' },
   { key: 'armor', label: '护甲' },
@@ -99,52 +98,47 @@ export default function DataManagement() {
 
   // 确认导入
   const confirmImport = async () => {
-  import { createEquipment, updateEquipment, fetchAllEquipments } from '@/lib/api';
+    const itemsToImport = preview
+      .filter(i => selected.has(i.id))
+      .map(i => ({
+        ...i,
+        category: categoryOverrides[i.id] || i.category,
+      }));
 
-// 在组件内部：
-const confirmImport = async () => {
-  const itemsToImport = preview
-    .filter(i => selected.has(i.id))
-    .map(i => ({
-      ...i,
-      category: categoryOverrides[i.id] || i.category,
-    }));
+    if (itemsToImport.length === 0) return;
 
-  if (itemsToImport.length === 0) return;
+    setImporting(true);
+    let success = 0;
+    let fail = 0;
 
-  setImporting(true);
-  let success = 0;
-  let fail = 0;
-
-  for (const item of itemsToImport) {
-    try {
-      // 先尝试创建，如果 id 冲突则更新
-      await createEquipment(item);
-      success++;
-    } catch (err: any) {
-      // 如果是因为主键冲突（409 或 500 且消息包含 duplicate），尝试按 id 更新
+    for (const item of itemsToImport) {
       try {
-        await updateEquipment(item.id, item);
+        // 先尝试创建，如果 id 冲突则更新
+        await createEquipment(item);
         success++;
-      } catch (updateErr) {
-        fail++;
+      } catch (err: any) {
+        // 如果是因为主键冲突，尝试按 id 更新
+        try {
+          await updateEquipment(item.id, item);
+          success++;
+        } catch (updateErr) {
+          fail++;
+        }
       }
     }
-  }
 
-  setResult({ success, fail });
+    setResult({ success, fail });
 
-  // 刷新已存在列表（从 D1 重新拉，保证最新）
-  try {
-    const refreshed = await fetchAllEquipments();
-    setExistingNames(new Set(refreshed.map((e: any) => e.name)));
-  } catch (e) {
-    // 刷新失败不影响主流程
-  }
+    // 刷新已存在列表（从 D1 重新拉，保证最新）
+    try {
+      const refreshed = await fetchAllEquipments();
+      setExistingNames(new Set(refreshed.map((e: any) => e.name)));
+    } catch (e) {
+      // 刷新失败不影响主流程
+    }
 
-  setImporting(false);
-};
-
+    setImporting(false);
+  };
 
   return (
     <div className="min-h-screen p-4 max-w-4xl mx-auto">
@@ -262,19 +256,18 @@ const confirmImport = async () => {
           </button>
 
           {result && (
-  <div className="mt-3 flex items-center gap-2 text-sm">
-    {(result.fail ?? 0) === 0 ? (
-      <CheckCircle className="w-4 h-4 text-green-500" />
-    ) : (
-      <AlertCircle className="w-4 h-4 text-yellow-500" />
-    )}
-    <span>
-      成功 {result.success ?? 0} 条
-      {(result.fail ?? 0) > 0 ? `，失败 ${result.fail} 条` : ''}
-    </span>
-  </div>
-)}
-
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              {(result.fail ?? 0) === 0 ? (
+                <CheckCircle className="w-4 h-4 text-green-500" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-yellow-500" />
+              )}
+              <span>
+                成功 {result.success ?? 0} 条
+                {(result.fail ?? 0) > 0 ? `，失败 ${result.fail} 条` : ''}
+              </span>
+            </div>
+          )}
         </>
       )}
 
