@@ -115,21 +115,31 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     }
 
     // 原子写入：全部成功或全部回滚
-    try {
-      await db.batch(stmts);
-      return new Response(JSON.stringify({ success: stmts.length, fail: 0 }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
-    } catch (e) {
-      return new Response(JSON.stringify({
-        error: '写入阶段失败，已全部回滚',
-        detail: String(e)
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+    // 原子写入：全部成功或全部回滚
+try {
+  await db.batch(stmts);
+  // 写入后验证：查 D1 当前总条数
+  const verify = await db.prepare('SELECT COUNT(*) as cnt FROM equipments').first();
+  return new Response(JSON.stringify({
+    success: stmts.length,
+    fail: 0,
+    debug: {
+      stmtsCount: stmts.length,
+      totalAfter: (verify as any)?.cnt ?? null,
     }
-  }
+  }), {
+    headers: { 'Content-Type': 'application/json' }
+  });
+} catch (e) {
+  return new Response(JSON.stringify({
+    error: '写入阶段失败，已全部回滚',
+    detail: String(e)
+  }), {
+    status: 500,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
+
 
   // GET：原有预览逻辑（以下为原有代码，不动）
   const category = url.searchParams.get('category');
