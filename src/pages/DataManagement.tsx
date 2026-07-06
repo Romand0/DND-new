@@ -12,6 +12,13 @@ const CATEGORIES = [
 
 const GAME_CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物'];
 
+// 品类映射：import API 的 category → 游戏内分类（武器/护甲/工具直接映射，不猜）
+const IMPORT_CAT_TO_GAME: Record<string, string> = {
+  weapons: '武器',
+  armor: '护甲',
+  tools: '工具',
+};
+
 interface PreviewItem {
   id: string;
   name: string;
@@ -26,14 +33,11 @@ interface PreviewItem {
   description?: string;
 }
 
-// 根据名称推测游戏内分类
-function guessGameCategory(name: string): string {
+// 仅冒险用品需要猜：药水/法器/杂物（不跨进武器/护甲/工具）
+function guessAdventuringCategory(name: string): string {
   const lower = name.toLowerCase();
   if (lower.includes('药水') || lower.includes('药剂') || lower.includes('毒') || lower.includes('油')) return '药水';
   if (lower.includes('圣徽') || lower.includes('法器') || lower.includes('魔杖') || lower.includes('法杖') || lower.includes('水晶')) return '法器';
-  if (lower.includes('工具') || lower.includes('套装')) return '工具';
-  if (lower.includes('武器') || lower.includes('剑') || lower.includes('斧') || lower.includes('弓') || lower.includes('弩') || lower.includes('锤') || lower.includes('矛') || lower.includes('杖') || lower.includes('匕首') || lower.includes('镰刀') || lower.includes('鞭')) return '武器';
-  if (lower.includes('护甲') || lower.includes('甲') || lower.includes('盾') || lower.includes('盔')) return '护甲';
   return '杂物';
 }
 
@@ -59,10 +63,10 @@ export default function DataManagement() {
       setPreview(items);
       setSelected(new Set(items.map((i: PreviewItem) => i.id)));
 
-      // 初始化分类覆盖
+      // 初始化分类覆盖：武器/护甲/工具直接映射，冒险用品才猜
       const overrides: Record<string, string> = {};
       items.forEach((item: PreviewItem) => {
-        overrides[item.id] = guessGameCategory(item.name);
+        overrides[item.id] = IMPORT_CAT_TO_GAME[item.category] || guessAdventuringCategory(item.name);
       });
       setCategoryOverrides(overrides);
 
@@ -97,7 +101,7 @@ export default function DataManagement() {
       .filter(i => selected.has(i.id))
       .map(i => ({
         ...i,
-        category: categoryOverrides[i.id] || i.category, // 使用用户选择的分类
+        category: categoryOverrides[i.id] || i.category,
       }));
 
     if (itemsToImport.length === 0) return;
