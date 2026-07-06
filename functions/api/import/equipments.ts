@@ -200,23 +200,30 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         // 解析隐匿劣势
         const stealthDisadvantage = stealthStr.includes('劣势');
 
-        items.push({
-          id: englishId,
-          name: chineseName,
-          price,
-          weight,
-          subtype: currentGroup|| '',
-          damageDice: '',
-          damageType: '',
-          acBase,
-          strengthReq,
-          stealthDisadvantage,
-          description: descMap.get(chineseName) || '',
-          properties: [],
-          source: '',
-          dataResource: '5E不全书',
-          category,
-        });
+        // 构建护甲属性数组：隐匿劣势如果有则加入
+const armorProperties: string[] = [];
+if (stealthDisadvantage) {
+  armorProperties.push('隐匿劣势');
+}
+
+items.push({
+  id: englishId,
+  name: chineseName,
+  price,
+  weight,
+  damageDice: '',
+  damageType: '',
+  acBase,
+  strengthReq,
+  stealthDisadvantage,
+  description: descMap.get(chineseName) || '',
+  subtype: currentGroup || '',
+  properties: armorProperties,
+  source: '',
+  dataResource: '5E不全书',
+  category,
+});
+
       } else {
         // 非武器非护甲（工具/冒险用品）：名称 | 价格 | 重量（+ 可选描述）
         const weightStr = $(cells[2]).text().trim();
