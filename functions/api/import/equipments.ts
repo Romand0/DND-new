@@ -10,6 +10,7 @@ const CATEGORY_MAP: Record<string, string> = {
 };
 
 function parsePrice(raw: string): { amount: number; unit: 'gp' | 'sp' | 'cp' } {
+  raw = raw.replace(/,/g, ''); // ← 加这一行
   const match = raw.trim().match(/^([\d.]+)\s*(gp|sp|cp)$/i);
   if (!match) return { amount: 0, unit: 'gp' };
   return {
