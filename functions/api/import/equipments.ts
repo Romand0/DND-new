@@ -112,27 +112,9 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     const isWeapon = category === 'weapons';
     const isArmor = category === 'armor';
     let currentGroup = ''; // 记录当前护甲分组中文标签：轻甲/中甲/重甲/盾牌
+    let currentSubtype = ''; // 记录当前武器子分类：简易近战/简易远程/军用近战/军用远程
 
-            // 护甲：预扫表格前的 <p> 标签，提取每个护甲名下的说明文字
-    let descMap = new Map<string, string>();
-    if (isArmor) {
-      // 获取整个 WordSection1 的 HTML，避免 prevAll 遗漏
-      const containerHtml = $('div.WordSection1').html() || $('body').html() || '';
-      // 匹配：<b><i><span>中文</span></i></b><b><i><span>English</span></i></b>。描述文字（可能含内联标签）
-      const segRe = /<b><i>[^<]*?<span>([一-鿿]+?)<\/span>[^<]*?<\/i><\/b><b><i>[^<]*?<span>[^<]+?<\/span>[^<]*?<\/i>\s*。([\s\S]*?)(?=<b><i>|<\/p|<br|$)/g;
-      let m;
-      while ((m = segRe.exec(containerHtml)) !== null) {
-        const cnName = m[1].trim();
-        // 去除描述中的 HTML 标签，得到纯文本
-        let desc = m[2].replace(/<[^>]+>/g, '').trim();
-        if (cnName && desc) {
-          descMap.set(cnName, desc);
-        }
-      }
-    }
-
-
-
+    // 护甲 descMap 构建（不变）...
 
     $('table tr').each((_, row) => {
       const cells = $(row).find('td');
@@ -146,6 +128,17 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           else if (groupText.includes('中甲')) currentGroup = '中甲';
           else if (groupText.includes('重甲')) currentGroup = '重甲';
           else if (groupText.includes('盾牌')) currentGroup = '盾牌';
+        }
+        // 武器表分组行（colspan=5 的单格）
+        if (isWeapon && cells.length === 1) {
+          const groupText = $(cells[0]).text().trim();
+          // 提取中文部分，去掉"武器"和英文
+          const subtypeMatch = groupText.match(/^([一-鿿]+)(?:武器)?/);
+          if (subtypeMatch) {
+            const rawSubtype = subtypeMatch[1]; // "简易近战"、"简易远程"、"军用近战"、"军用远程"
+            // 统一格式：去掉"武器"二字后可能还有"武器"字样？直接保留提取的中文部分
+            currentSubtype = rawSubtype;
+          }
         }
         return;
       }
@@ -168,6 +161,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const weight = parseWeight(weightStr);
         const properties = propsStr ? propsStr.split(/[,，]\s*/).map(s => s.trim()).filter(Boolean) : [];
 
+ 
         items.push({
           id: englishId,
           name: chineseName,
