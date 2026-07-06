@@ -76,6 +76,12 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     const db = context.env.DB;
 
     const stmts: D1PreparedStatement[] = [];
+    if (!body.items || body.items.length === 0) {
+  return new Response(JSON.stringify({ error: '导入列表为空', success: 0, fail: 0 }), {
+    status: 400,
+    headers: { 'Content-Type': 'application/json' }
+  });
+}
 
     for (const item of body.items) {
       try {
