@@ -68,13 +68,16 @@ function splitName(raw: string): { chineseName: string; englishId: string } {
 export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   const url = new URL(context.request.url);
   const method = context.request.method;
+// 在 onRequest 函数内，const url = new URL(context.request.url); 之后，const category = url.searchParams.get('category'); 之前插入以下代码
 
-  // POST：批量导入已确认的条目（按 name upsert 到 D1）
+  const method = context.request.method;
+
+  // POST：批量导入已确认的条目（原子写入 D1，失败自动回滚）
   if (method === 'POST') {
     const body = await context.request.json() as { items: Array<Record<string, any>> };
     const db = context.env.DB;
-    let success = 0;
-    let fail = 0;
+
+    const stmts: D1PreparedStatement[] = [];
 
     for (const item of body.items) {
       try {
@@ -87,25 +90,49 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
         if (existing) {
           // 存在 → 覆盖原 id 的数据
-          await db.prepare(
-            'UPDATE equipments SET data = ? WHERE id = ?'
-          ).bind(data, (existing as any).id).run();
+          stmts.push(
+            db.prepare('UPDATE equipments SET data = ? WHERE id = ?')
+              .bind(data, (existing as any).id)
+          );
         } else {
           // 不存在 → 新建，用解析器给的 id
-          await db.prepare(
-            'INSERT INTO equipments (id, data) VALUES (?, ?)'
-          ).bind(item.id, data).run();
+          stmts.push(
+            db.prepare('INSERT INTO equipments (id, data) VALUES (?, ?)')
+              .bind(item.id, data)
+          );
         }
-        success++;
       } catch (e) {
-        fail++;
+        // SELECT 阶段失败，整批放弃
+        return new Response(JSON.stringify({
+          error: '查询阶段失败，未写入任何数据',
+          detail: String(e)
+        }), {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
     }
 
-    return new Response(JSON.stringify({ success, fail }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    // 原子写入：全部成功或全部回滚
+    try {
+      await db.batch(stmts);
+      return new Response(JSON.stringify({ success: stmts.length, fail: 0 }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (e) {
+      return new Response(JSON.stringify({
+        error: '写入阶段失败，已全部回滚',
+        detail: String(e)
+      }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
   }
+
+  // GET：原有预览逻辑（以下为原有代码，不动）
+  const category = url.searchParams.get('category');
+
 
   // GET：预览逻辑（以下为原有代码，不动）
   
