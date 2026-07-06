@@ -1,8 +1,8 @@
 // DM Toolkit - Application Router
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthContext, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { ThemeContext } from '@/contexts/ThemeProvider';
+import { ThemeContext } from '@/contexts/ThemeContext';
 import Layout from '@/components/Layout';
 import PlayerLayout from '@/components/PlayerLayout';
 import Home from '@/pages/Home';
@@ -35,8 +35,8 @@ function RoleShell() {
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
+    <ThemeContext>
+      <AuthContext>
         <BrowserRouter>
           <Routes>
             {/* 公开路由（无需登录） */}
@@ -110,7 +110,7 @@ export default function App() {
             </Route>
           </Routes>
         </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+      </AuthContext>
+    </ThemeContext>
   );
 }
