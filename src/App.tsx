@@ -2,7 +2,7 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
-import { ThemeProvider } from '@/contexts/ThemeProvider';
+import { ThemeContext } from '@/contexts/ThemeProvider';
 import Layout from '@/components/Layout';
 import PlayerLayout from '@/components/PlayerLayout';
 import Home from '@/pages/Home';
