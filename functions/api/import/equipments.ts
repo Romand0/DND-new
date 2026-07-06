@@ -132,15 +132,12 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         }
         // 武器表分组行（colspan=5 的单格）
         if (isWeapon && cells.length === 1) {
-          const groupText = $(cells[0]).text().trim();
-          // 提取中文部分，去掉"武器"和英文
-          const subtypeMatch = groupText.match(/^([一-鿿]+)(?:武器)?/);
-          if (subtypeMatch) {
-            const rawSubtype = subtypeMatch[1]; // "简易近战"、"简易远程"、"军用近战"、"军用远程"
-            // 统一格式：去掉"武器"二字后可能还有"武器"字样？直接保留提取的中文部分
-            currentSubtype = rawSubtype;
-          }
-        }
+  const groupText = $(cells[0]).text().trim();
+  // 提取连续中文，去掉末尾的“武器”两字
+  const cnPart = groupText.match(/^([一-鿿]+)/)?.[1] || '';
+  currentSubtype = cnPart.replace(/武器$/, '');
+}
+
         return;
       }
 
