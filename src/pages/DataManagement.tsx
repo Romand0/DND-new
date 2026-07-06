@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ArrowLeft, Download, CheckCircle, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { equipmentStore } from '@/data/equipmentStore';
+import { createEquipment, updateEquipment, fetchAllEquipments } from '@/lib/api';
+
 
 const CATEGORIES = [
   { key: 'weapons', label: '武器' },
@@ -97,36 +99,52 @@ export default function DataManagement() {
 
   // 确认导入
   const confirmImport = async () => {
-    const itemsToImport = preview
-      .filter(i => selected.has(i.id))
-      .map(i => ({
-        ...i,
-        category: categoryOverrides[i.id] || i.category,
-      }));
-    
-  alert(`即将导入 ${itemsToImport.length} 条，第一件：${itemsToImport[0]?.name || '无'}`);
+  import { createEquipment, updateEquipment, fetchAllEquipments } from '@/lib/api';
 
+// 在组件内部：
+const confirmImport = async () => {
+  const itemsToImport = preview
+    .filter(i => selected.has(i.id))
+    .map(i => ({
+      ...i,
+      category: categoryOverrides[i.id] || i.category,
+    }));
 
-    if (itemsToImport.length === 0) return;
+  if (itemsToImport.length === 0) return;
 
-    setImporting(true);
+  setImporting(true);
+  let success = 0;
+  let fail = 0;
+
+  for (const item of itemsToImport) {
     try {
-      const res = await fetch('/api/import/equipments', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: itemsToImport }),
-      });
-      const resultData = await res.json();
-      setResult(resultData);
-      // 刷新已存在列表
-      const existing = equipmentStore.getAll();
-      const names = new Set(existing.map((e: any) => e.name));
-      setExistingNames(names);
-    } catch (err) {
-      console.error('导入失败', err);
+      // 先尝试创建，如果 id 冲突则更新
+      await createEquipment(item);
+      success++;
+    } catch (err: any) {
+      // 如果是因为主键冲突（409 或 500 且消息包含 duplicate），尝试按 id 更新
+      try {
+        await updateEquipment(item.id, item);
+        success++;
+      } catch (updateErr) {
+        fail++;
+      }
     }
-    setImporting(false);
-  };
+  }
+
+  setResult({ success, fail });
+
+  // 刷新已存在列表（从 D1 重新拉，保证最新）
+  try {
+    const refreshed = await fetchAllEquipments();
+    setExistingNames(new Set(refreshed.map((e: any) => e.name)));
+  } catch (e) {
+    // 刷新失败不影响主流程
+  }
+
+  setImporting(false);
+};
+
 
   return (
     <div className="min-h-screen p-4 max-w-4xl mx-auto">
