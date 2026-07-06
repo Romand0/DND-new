@@ -67,7 +67,49 @@ function splitName(raw: string): { chineseName: string; englishId: string } {
 
 export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   const url = new URL(context.request.url);
-  const category = url.searchParams.get('category');
+  const method = context.request.method;
+
+  // POST：批量导入已确认的条目（按 name upsert 到 D1）
+  if (method === 'POST') {
+    const body = await context.request.json() as { items: Array<Record<string, any>> };
+    const db = context.env.DB;
+    let success = 0;
+    let fail = 0;
+
+    for (const item of body.items) {
+      try {
+        // 按 name 查找是否已存在（中文名唯一）
+        const existing = await db.prepare(
+          "SELECT id FROM equipments WHERE json_extract(data, '$.name') = ?"
+        ).bind(item.name).first();
+
+        const data = JSON.stringify(item);
+
+        if (existing) {
+          // 存在 → 覆盖原 id 的数据
+          await db.prepare(
+            'UPDATE equipments SET data = ? WHERE id = ?'
+          ).bind(data, (existing as any).id).run();
+        } else {
+          // 不存在 → 新建，用解析器给的 id
+          await db.prepare(
+            'INSERT INTO equipments (id, data) VALUES (?, ?)'
+          ).bind(item.id, data).run();
+        }
+        success++;
+      } catch (e) {
+        fail++;
+      }
+    }
+
+    return new Response(JSON.stringify({ success, fail }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  // GET：预览逻辑（以下为原有代码，不动）
+  
+const category = url.searchParams.get('category');
 
   if (!category || !CATEGORY_MAP[category]) {
     return new Response(JSON.stringify({
