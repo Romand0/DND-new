@@ -271,7 +271,11 @@ export default function CharacterInventory({
         {/* 穿戴管理按钮 */}
         <button
           data-readonly-keep
-          onClick={() => setViewMode(viewMode === 'equipped' ? 'inventory' : 'equipped')}
+          onClick={() => {
+            setViewMode(viewMode === 'equipped' ? 'inventory' : 'equipped');
+            setSelectedCategory('all'); // 切到穿戴时重置分类为“所有”
+          }}
+          
           className={`w-14 h-14 md:w-16 md:h-16 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
             viewMode === 'equipped'
               ? 'bg-primary/20 text-primary'
@@ -293,7 +297,11 @@ export default function CharacterInventory({
             <button
               data-readonly-keep
               key={cat.key}
-              onClick={() => setSelectedCategory(cat.key)}
+              onClick={() => {
+                setSelectedCategory(cat.key);
+                setViewMode('inventory'); // 点击分类时强制切回背包视图
+              }}
+              
               className={`w-14 h-14 md:w-16 md:h-16 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
                 selectedCategory === cat.key
                   ? 'bg-primary/20 text-primary'
