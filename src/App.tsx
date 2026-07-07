@@ -14,6 +14,8 @@ import CharacterInventory from '@/pages/CharacterInventory';
 import SpellList from '@/pages/SpellList';
 import SpellDetail from '@/pages/SpellDetail';
 import Settings from '@/pages/Settings';
+import AdminAuth from '@/pages/AdminAuth';
+import MigrationBackup from '@/pages/MigrationBackup';
 import Placeholder from '@/pages/Placeholder';
 import InventoryPage from '@/pages/InventoryPage';
 import EquipmentList from '@/pages/EquipmentList';
@@ -100,8 +102,15 @@ export default function App() {
               <Route path="equipment/:id" element={<EquipmentDetail />} />
               <Route path="spells" element={<SpellList />} />
               <Route path="spells/:id" element={<SpellDetail />} />
-              <Route path="settings" element={<Settings />} />
-              <Route path="data-management" element={<DataManagement />} />
+              {/* Settings 改为嵌套路由壳 */}
+              <Route path="settings" element={<Settings />}>
+                <Route index element={<Navigate to="/settings/admin" replace />} />
+                <Route path="admin" element={<AdminAuth />} />
+                <Route path="migration" element={<MigrationBackup />} />
+                <Route path="data" element={<DataManagement />} />
+              </Route>
+              {/* 旧路径重定向，保兼容 */}
+              <Route path="data-management" element={<Navigate to="/settings/data" replace />} />
               <Route
                 path="notes"
                 element={<Placeholder title="剧情笔记" description="剧情记录与世界设定管理功能即将上线" />}
