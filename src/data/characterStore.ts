@@ -293,6 +293,9 @@ function createBlankCharacter(name?: string): Character {
     bonds: '',
     flaws: '',
     
+    wornArmorId: null,
+    wornOutfitId: null,
+
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
