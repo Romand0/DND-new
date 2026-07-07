@@ -49,7 +49,7 @@ function wearEquipment(charId: string, equipId: string): { success: boolean; mes
   }
 
   // 服装槽：category === '杂项' && subtype === '服装'
-  if (equip.category === '杂项' && equip.subtype === '服装') {
+  if (equip.category === '杂物' && equip.subtype === '服装') {
     if (char.wornOutfitId) {
       return { success: false, message: '已穿戴服装，请先卸下当前服装' };
     }
