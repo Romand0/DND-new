@@ -328,13 +328,16 @@ if (!editingEquipment) {
     <CharacterEquipmentCard
       key={itemId}
       item={{ ...item, id: itemId }}
+      characterId={id}
       onEdit={handleEditEquipment}
       onDelete={setDeleteConfirmId}
       onUpdateQuantity={handleUpdateEquipmentQuantity}
+      onRefresh={reloadChar}
       showQuantity={true}
     />
   );
 })
+
                                           
              )}
           </div>
