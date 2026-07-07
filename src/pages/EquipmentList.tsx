@@ -54,10 +54,8 @@ const load = async () => {
       const matchesCategory = selectedCategory === '全部' || item.category === selectedCategory;
       const matchesSearch =
         !searchQuery ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+        item.name.toLowerCase().includes(searchQuery.toLowerCase());
+         return matchesCategory && matchesSearch;
     });
   }, [equipments, selectedCategory, searchQuery]);
 
