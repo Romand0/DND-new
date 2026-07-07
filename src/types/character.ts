@@ -172,6 +172,10 @@ export interface Character {
   
   createdAt?: number;
   updatedAt?: number;
+
+  wornArmorId: string | null;   // 当前穿戴的护甲 ID
+  wornOutfitId: string | null;  // 当前穿戴的服装 ID
+
 }
 
 export type AbilityKey = keyof Abilities;
