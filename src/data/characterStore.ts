@@ -103,6 +103,9 @@ function saveCharacter(charData: Character): Character {
     chars[index] = { ...chars[index], ...charWithTimestamps };
   }
 
+    // 自动计算护甲等级
+  recalculateArmorClass(charWithTimestamps);
+
   saveStore(chars);
   syncCharacterToBackend(charWithTimestamps).catch(() => {});
   return charWithTimestamps;
@@ -650,6 +653,39 @@ function calcPassivePerception(char: Character): number {
   const extra = char.skills?.perception?.extra || 0;
   return 10 + wisMod + prof + extra;
 }
+
+/** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
+function recalculateArmorClass(char: Character): void {
+  const dexScore = char.abilities?.dexterity?.score ?? 10;
+  const dexMod = calcModifier(dexScore);
+
+  if (char.wornArmorId) {
+    const armor = char.equipment.find(e => e.id === char.wornArmorId);
+    if (armor?.acBase) {
+      const baseAc = Number(armor.acBase);
+      const subtype = armor.subtype || '轻甲'; // 默认轻甲
+      switch (subtype) {
+        case '轻甲':
+          char.armorClass = baseAc + dexMod;
+          return;
+        case '中甲':
+          char.armorClass = baseAc + Math.min(dexMod, 2);
+          return;
+        case '重甲':
+          char.armorClass = baseAc;
+          return;
+        default:
+          // 未知类型按轻甲处理
+          char.armorClass = baseAc + dexMod;
+          return;
+      }
+    }
+  }
+
+  // 无护甲或找不到护甲 → 裸体 AC
+  char.armorClass = 10 + dexMod;
+}
+
 
 // ============================================================
 // 技能与豁免 (Skills & Saving Throws)
@@ -1330,6 +1366,7 @@ export const characterStore = {
   // 计算辅助
   calcModifier,
   calcPassivePerception,
+  recalculateArmorClass,
   getSkillBonus,
   getSkillsList,
   getGroupedSkills,
