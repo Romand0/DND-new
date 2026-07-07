@@ -2,6 +2,11 @@
 import { characterStore } from './characterStore';
 import type { Character } from '@/types/character';
 
+/** 判断装备是否可穿戴（护甲或服装） */
+function isWearable(item: { category?: string; subtype?: string }): boolean {
+  return item.category === '护甲' || (item.category === '杂项' && item.subtype === '服装');
+}
+
 /**
  * 兼容性矩阵：判断护甲是否允许服装效果生效
  * - 轻甲 → 全部允许
