@@ -63,6 +63,11 @@ export default function CharacterInventory({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0);
 
+  // 新增：视图模式
+  const [viewMode, setViewMode] = useState<'inventory' | 'equipped'>('inventory');
+  // 新增：选择弹窗状态
+  const [selectingSlot, setSelectingSlot] = useState<'armor' | 'outfit' | null>(null);
+
   useEditorState(equipmentEditorOpen, equipmentPickerOpen);
 
   const reloadChar = () => {
@@ -143,58 +148,55 @@ export default function CharacterInventory({
   const handleSaveEquipment = async (formData: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => {
     if (!id) return;
 
-const libraryItem: EquipmentItem = {
-  id: formData.id,
-  ...extractBaseFields(formData),
-  isCustom: false,
-};
-
-if (syncToLibrary) {
-  const token = localStorage.getItem('auth_token');
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-  try {
-    await apiFetch(`/equipments/${formData.id}`, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify(libraryItem),
-    });
-  } catch {
-    const finalId = formData.id.startsWith('temp-')
-      ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
-      : formData.id;
-    await apiFetch('/equipments', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ ...libraryItem, id: finalId }),
-    });
-  }
-}
-
-if (!editingEquipment) {
-  characterStore.addEquipment(id, {
-    quantity: formData.quantity || 1,
-    ...extractBaseFields(formData),
-  });
-
-} else if (editingEquipment.id.startsWith('temp-')) {
-  characterStore.addEquipment(id, {
-    quantity: formData.quantity || 1,
-    ...extractBaseFields(formData),
-  });
-
-  } else if (editingEquipment) {
-    characterStore.updateEquipment(id, editingEquipment.id, {
-      quantity: formData.quantity,
+    const libraryItem: EquipmentItem = {
+      id: formData.id,
       ...extractBaseFields(formData),
-    });
-  }
+      isCustom: false,
+    };
 
-  reloadChar();
-  setEquipmentEditorOpen(false);
-  setEditingEquipment(null);
-};
+    if (syncToLibrary) {
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      try {
+        await apiFetch(`/equipments/${formData.id}`, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(libraryItem),
+        });
+      } catch {
+        const finalId = formData.id.startsWith('temp-')
+          ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
+          : formData.id;
+        await apiFetch('/equipments', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ ...libraryItem, id: finalId }),
+        });
+      }
+    }
 
+    if (!editingEquipment) {
+      characterStore.addEquipment(id, {
+        quantity: formData.quantity || 1,
+        ...extractBaseFields(formData),
+      });
+    } else if (editingEquipment.id.startsWith('temp-')) {
+      characterStore.addEquipment(id, {
+        quantity: formData.quantity || 1,
+        ...extractBaseFields(formData),
+      });
+    } else if (editingEquipment) {
+      characterStore.updateEquipment(id, editingEquipment.id, {
+        quantity: formData.quantity,
+        ...extractBaseFields(formData),
+      });
+    }
+
+    reloadChar();
+    setEquipmentEditorOpen(false);
+    setEditingEquipment(null);
+  };
 
   const handleDeleteEquipmentConfirm = () => {
     if (!id || !deleteConfirmId) return;
@@ -213,14 +215,36 @@ if (!editingEquipment) {
   };
 
   const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
-  if (!id) return;
-  characterStore.addEquipment(id, {
-    quantity: 1,
-    ...extractBaseFields(item),
-  });
-  reloadChar();
-  setEquipmentPickerOpen(false);
-};
+    if (!id) return;
+    characterStore.addEquipment(id, {
+      quantity: 1,
+      ...extractBaseFields(item),
+    });
+    reloadChar();
+    setEquipmentPickerOpen(false);
+  };
+
+  // --- 穿戴管理相关函数 ---
+  const handleWearSelect = (item: Equipment) => {
+    if (!id || !selectingSlot) return;
+    characterStore.wearEquipment(id, item.id!);
+    reloadChar();
+    setSelectingSlot(null);
+  };
+
+  const handleUnequip = (slot: 'armor' | 'outfit') => {
+    if (!id) return;
+    const equipId = slot === 'armor' ? character.wornArmorId : character.wornOutfitId;
+    if (equipId) {
+      characterStore.unwearEquipment(id, equipId);
+      reloadChar();
+    }
+  };
+
+  const armorItem = character.equipment.find(e => e.id === character.wornArmorId);
+  const outfitItem = character.equipment.find(e => e.id === character.wornOutfitId);
+  const armorCandidates = character.equipment.filter(e => e.category === '护甲');
+  const outfitCandidates = character.equipment.filter(e => e.category === '杂项' && e.subtype === '服装');
 
   return (
     <div className={`min-h-screen flex dark:bg-bg-dark light:bg-bg-light-1 ${readOnly ? 'read-only-mode' : ''}`}>
@@ -243,6 +267,22 @@ if (!editingEquipment) {
             <ArrowLeft className="w-5 h-5" />
           </Link>
         )}
+
+        {/* 穿戴管理按钮 */}
+        <button
+          data-readonly-keep
+          onClick={() => setViewMode(viewMode === 'equipped' ? 'inventory' : 'equipped')}
+          className={`w-14 h-14 md:w-16 md:h-16 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
+            viewMode === 'equipped'
+              ? 'bg-primary/20 text-primary'
+              : 'hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted'
+          }`}
+          title="穿戴管理"
+        >
+          <Shield className="w-5 h-5" />
+          <span className="text-xs">穿戴</span>
+        </button>
+
         {CATEGORIES.map((cat) => {
           const Icon = cat.icon;
           const count =
@@ -270,132 +310,254 @@ if (!editingEquipment) {
 
       {/* 主内容 */}
       <div className="flex-1 p-6 overflow-y-auto">
-        <div className="max-w-3xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-text-dark light:text-text-light">
-                <Package className="w-7 h-7 text-primary" />
-                背包
-              </h1>
-              <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                {selectedCategory === 'all'
-                  ? `共 ${character.equipment.length} 件装备`
-                  : `${selectedCategory}：${filteredEquipment.length} 件`}
-              </p>
+        {viewMode === 'inventory' ? (
+          /* ---- 背包视图 ---- */
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-text-dark light:text-text-light">
+                  <Package className="w-7 h-7 text-primary" />
+                  背包
+                </h1>
+                <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                  {selectedCategory === 'all'
+                    ? `共 ${character.equipment.length} 件装备`
+                    : `${selectedCategory}：${filteredEquipment.length} 件`}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {!readOnly && (
+                  <>
+                    <button
+                      onClick={handleAddEquipment}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
+                    >
+                      <Plus className="w-4 h-4" />
+                      新增
+                    </button>
+                    <button
+                      onClick={() => setEquipmentPickerOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10"
+                    >
+                      从装备库
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {!readOnly && (
-                <>
-                  <button
-                    onClick={handleAddEquipment}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark"
-                  >
-                    <Plus className="w-4 h-4" />
-                    新增
-                  </button>
-                  <button
-                    onClick={() => setEquipmentPickerOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary text-primary hover:bg-primary/10"
-                  >
-                    从装备库
-                  </button>
-                </>
+
+            {selectedCategory === 'all' && !readOnly && (
+              <div className="flex justify-end">
+                <button
+                  onClick={handleSortEquipment}
+                  className="px-3 py-1.5 text-sm rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors flex items-center gap-1.5"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                  整理背包
+                </button>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              {filteredEquipment.length === 0 ? (
+                <div className="text-center py-16 dark:text-text-dark-muted light:text-text-light-muted">
+                  没有装备
+                </div>
+              ) : (
+                filteredEquipment.map((item) => {
+                  const itemId = item.id!;
+                  return (
+                    <CharacterEquipmentCard
+                      key={itemId}
+                      item={{ ...item, id: itemId }}
+                      characterId={id}
+                      onEdit={handleEditEquipment}
+                      onDelete={setDeleteConfirmId}
+                      onUpdateQuantity={handleUpdateEquipmentQuantity}
+                      onRefresh={reloadChar}
+                      showQuantity={true}
+                    />
+                  );
+                })
               )}
             </div>
-          </div>
 
-          {selectedCategory === 'all' && !readOnly && (
-            <div className="flex justify-end">
-              <button
-                onClick={handleSortEquipment}
-                className="px-3 py-1.5 text-sm rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors flex items-center gap-1.5"
-              >
-                <ArrowUpDown className="w-4 h-4" />
-                整理背包
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            {filteredEquipment.length === 0 ? (
-              <div className="text-center py-16 dark:text-text-dark-muted light:text-text-light-muted">
-                没有装备
+            {/* 底部统计 */}
+            <div className="pt-4 border-t dark:border-border-dark/50 light:border-border-light/50 space-y-2 text-sm">
+              <div className="flex items-center justify-between dark:text-text-dark-muted light:text-text-light-muted">
+                <div className="flex items-center gap-2">
+                  <Scale className="w-4 h-4" />
+                  <span>总负重</span>
+                </div>
+                <span className="font-medium dark:text-text-dark light:text-text-light">
+                  {totalWeight} 磅
+                </span>
               </div>
-            ) : (
-                filteredEquipment.map((item) => {
-  const itemId = item.id!;
-  return (
-    <CharacterEquipmentCard
-      key={itemId}
-      item={{ ...item, id: itemId }}
-      characterId={id}
-      onEdit={handleEditEquipment}
-      onDelete={setDeleteConfirmId}
-      onUpdateQuantity={handleUpdateEquipmentQuantity}
-      onRefresh={reloadChar}
-      showQuantity={true}
-    />
-  );
-})
-
-                                          
-             )}
-          </div>
-
-          {/* 底部统计 */}
-          <div className="pt-4 border-t dark:border-border-dark/50 light:border-border-light/50 space-y-2 text-sm">
-            <div className="flex items-center justify-between dark:text-text-dark-muted light:text-text-light-muted">
-              <div className="flex items-center gap-2">
-                <Scale className="w-4 h-4" />
-                <span>总负重</span>
+              <div className="flex items-center justify-between dark:text-text-dark-muted light:text-text-light-muted">
+                <div className="flex items-center gap-2">
+                  <Coins className="w-4 h-4" />
+                  <span>总价值</span>
+                </div>
+                <span className="font-medium dark:text-text-dark light:text-text-light">
+                  {gp > 0 && <span>{gp} gp </span>}
+                  {sp > 0 && <span>{sp} sp </span>}
+                  {cp > 0 && <span>{cp} cp</span>}
+                  {gp === 0 && sp === 0 && cp === 0 && <span>0 cp</span>}
+                </span>
               </div>
-              <span className="font-medium dark:text-text-dark light:text-text-light">
-                {totalWeight} 磅
-              </span>
-            </div>
-            <div className="flex items-center justify-between dark:text-text-dark-muted light:text-text-light-muted">
-              <div className="flex items-center gap-2">
-                <Coins className="w-4 h-4" />
-                <span>总价值</span>
-              </div>
-              <span className="font-medium dark:text-text-dark light:text-text-light">
-                {gp > 0 && <span>{gp} gp </span>}
-                {sp > 0 && <span>{sp} sp </span>}
-                {cp > 0 && <span>{cp} cp</span>}
-                {gp === 0 && sp === 0 && cp === 0 && <span>0 cp</span>}
-              </span>
             </div>
           </div>
-        </div>
+        ) : (
+          /* ---- 穿戴管理视图 ---- */
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold flex items-center gap-2 dark:text-text-dark light:text-text-light">
+                <Shield className="w-7 h-7 text-primary" />
+                穿戴管理
+              </h2>
+            </div>
+
+            {/* 护甲位 */}
+            <div className="rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-info" />
+                  <span className="font-semibold dark:text-text-dark light:text-text-light">护甲位</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectingSlot('armor')}
+                    className="px-3 py-1 text-xs rounded-lg bg-primary/10 text-primary hover:bg-primary/20"
+                  >
+                    更换
+                  </button>
+                  {armorItem && (
+                    <button
+                      onClick={() => handleUnequip('armor')}
+                      className="px-3 py-1 text-xs rounded-lg bg-danger/10 text-danger hover:bg-danger/20"
+                    >
+                      卸下
+                    </button>
+                  )}
+                </div>
+              </div>
+              {armorItem ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{armorItem.name}</div>
+                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">AC {armorItem.acBase}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm italic dark:text-text-dark-muted light:text-text-light-muted">空</div>
+              )}
+            </div>
+
+            {/* 服饰位 */}
+            <div className="rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Package className="w-5 h-5 text-accent" />
+                  <span className="font-semibold dark:text-text-dark light:text-text-light">服饰位</span>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSelectingSlot('outfit')}
+                    className="px-3 py-1 text-xs rounded-lg bg-primary/10 text-primary hover:bg-primary/20"
+                  >
+                    更换
+                  </button>
+                  {outfitItem && (
+                    <button
+                      onClick={() => handleUnequip('outfit')}
+                      className="px-3 py-1 text-xs rounded-lg bg-danger/10 text-danger hover:bg-danger/20"
+                    >
+                      卸下
+                    </button>
+                  )}
+                </div>
+              </div>
+              {outfitItem ? (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{outfitItem.name}</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm italic dark:text-text-dark-muted light:text-text-light-muted">空</div>
+              )}
+            </div>
+
+            {/* 当前 AC */}
+            <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">
+              当前护甲等级：<span className="font-bold text-xl dark:text-text-dark light:text-text-light">{character.armorClass}</span>
+            </div>
+
+            {/* 选择弹窗 */}
+            {selectingSlot && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/50" onClick={() => setSelectingSlot(null)} />
+                <div className="relative w-full max-w-md rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6 max-h-[80vh] overflow-y-auto">
+                  <h3 className="text-lg font-bold mb-4 dark:text-text-dark light:text-text-light">
+                    选择{selectingSlot === 'armor' ? '护甲' : '服饰'}
+                  </h3>
+                  <div className="space-y-2">
+                    {(selectingSlot === 'armor' ? armorCandidates : outfitCandidates).length === 0 ? (
+                      <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
+                        背包中没有符合条件的装备
+                      </div>
+                    ) : (
+                      (selectingSlot === 'armor' ? armorCandidates : outfitCandidates).map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => handleWearSelect(item)}
+                          className="w-full text-left p-3 rounded-lg hover:bg-primary/10 transition-colors dark:text-text-dark light:text-text-light"
+                        >
+                          <div className="font-medium">{item.name}</div>
+                          {selectingSlot === 'armor' && item.acBase && (
+                            <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">AC {item.acBase}</div>
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setSelectingSlot(null)}
+                    className="mt-4 w-full py-2 text-sm rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {equipmentEditorOpen && (
-  <EquipmentEditor
-    item={editingEquipment ? {
-      id: editingEquipment.id,
-      ...extractBaseFields(editingEquipment),
-      isCustom: true,
-      quantity: editingEquipment.quantity,
-    } : undefined}
-    showQuantity={true}
-    showSyncOption={true}
-    onSave={handleSaveEquipment}
-    onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
-      if (!id) return;
-      characterStore.deleteEquipment(id, editingEquipment.id);
-      reloadChar();
-      setEquipmentEditorOpen(false);
-      setEditingEquipment(null);
-    } : undefined}
-    onClose={() => {
-      setEquipmentEditorOpen(false);
-      setEditingEquipment(null);
-    }}
-  />
-)}
-
-        
-    
+        <EquipmentEditor
+          item={editingEquipment ? {
+            id: editingEquipment.id,
+            ...extractBaseFields(editingEquipment),
+            isCustom: true,
+            quantity: editingEquipment.quantity,
+          } : undefined}
+          showQuantity={true}
+          showSyncOption={true}
+          onSave={handleSaveEquipment}
+          onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
+            if (!id) return;
+            characterStore.deleteEquipment(id, editingEquipment.id);
+            reloadChar();
+            setEquipmentEditorOpen(false);
+            setEditingEquipment(null);
+          } : undefined}
+          onClose={() => {
+            setEquipmentEditorOpen(false);
+            setEditingEquipment(null);
+          }}
+        />
+      )}
 
       {deleteConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
