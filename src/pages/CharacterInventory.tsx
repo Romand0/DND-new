@@ -244,7 +244,7 @@ export default function CharacterInventory({
   const armorItem = character.equipment.find(e => e.id === character.wornArmorId);
   const outfitItem = character.equipment.find(e => e.id === character.wornOutfitId);
   const armorCandidates = character.equipment.filter(e => e.category === '护甲');
-  const outfitCandidates = character.equipment.filter(e => e.category === '杂项' && e.subtype === '服装');
+  const outfitCandidates = character.equipment.filter(e => e.category === '杂物' && e.subtype === '服装');
 
   return (
     <div className={`min-h-screen flex dark:bg-bg-dark light:bg-bg-light-1 ${readOnly ? 'read-only-mode' : ''}`}>
