@@ -14,11 +14,18 @@ import {
 } from 'lucide-react';
 import type { Equipment } from '@/types/character';
 
+/** 判断装备是否可穿戴（护甲 或 杂项-服装） */
+function isWearable(item: { category?: string; subtype?: string }): boolean {
+  return item.category === '护甲' || (item.category === '杂项' && item.subtype === '服装');
+}
+
 interface Props {
   item: Equipment & { id: string };
   onEdit: (item: Equipment & { id: string }) => void;
   onDelete: (itemId: string) => void;
   onUpdateQuantity?: (itemId: string, delta: number) => void;
+  onWear?: (itemId: string) => void;
+  onUnwear?: (itemId: string) => void;
   showQuantity?: boolean;
 }
 
@@ -27,10 +34,15 @@ export default function CharacterEquipmentCard({
   onEdit,
   onDelete,
   onUpdateQuantity,
+  onWear,
+  onUnwear,
   showQuantity = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const itemId = item.id;
+
+  const wearable = isWearable(item);
+  const isWorn = item.tags?.some(t => t.key === '着装状态' && t.value === '已穿戴');
 
   return (
     <div className="rounded-lg border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
@@ -41,7 +53,7 @@ export default function CharacterEquipmentCard({
             {/* 名称 + 着装状态绿勾 */}
             <div className="text-sm font-medium dark:text-text-dark light:text-text-light flex items-center gap-2">
               <span className="truncate">{item.name || '未命名装备'}</span>
-              {item.tags?.some(t => t.key === '着装状态' && t.value === '已穿戴') && (
+              {isWorn && (
                 <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
               )}
             </div>
@@ -90,6 +102,20 @@ export default function CharacterEquipmentCard({
 
           {/* 右侧操作区 */}
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
+            {/* 穿戴/卸下按钮（仅护甲/服装显示） */}
+            {wearable && (onWear || onUnwear) && (
+              <button
+                onClick={() => isWorn ? onUnwear?.(itemId) : onWear?.(itemId)}
+                className={`w-full text-xs px-2 py-1 rounded transition-colors ${
+                  isWorn
+                    ? 'bg-danger/10 text-danger hover:bg-danger/20'
+                    : 'bg-primary/10 text-primary hover:bg-primary/20'
+                }`}
+              >
+                {isWorn ? '卸下' : '穿戴'}
+              </button>
+            )}
+
             <div className="flex items-center gap-1">
               <button
                 onClick={() => onEdit(item)}
@@ -106,6 +132,7 @@ export default function CharacterEquipmentCard({
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
+
             {showQuantity && onUpdateQuantity && (
               <div className="flex items-center gap-0.5">
                 <button
