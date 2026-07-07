@@ -4,7 +4,7 @@ import type { Character } from '@/types/character';
 
 /** 判断装备是否可穿戴（护甲或服装） */
 function isWearable(item: { category?: string; subtype?: string }): boolean {
-  return item.category === '护甲' || (item.category === '杂项' && item.subtype === '服装');
+  return item.category === '护甲' || (item.category === '杂物' && item.subtype === '服装');
 }
 
 /**
