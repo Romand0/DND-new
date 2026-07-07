@@ -88,15 +88,16 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
-  to={variant === 'player' ? '/player/settings' : '/settings'}
-  className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
-  title="设置">
-  <Settings className="w-5 h-5" />
-           </Link>
-
+            {/* DM 专属工具栏：设置 + 导入 + 导出 */}
             {variant === 'dm' && (
               <>
+                <Link
+                  to="/settings"
+                  className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
+                  title="设置"
+                >
+                  <Settings className="w-5 h-5" />
+                </Link>
                 <button
                   onClick={handleImport}
                   className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
@@ -113,6 +114,8 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
                 </button>
               </>
             )}
+
+            {/* 主题切换（DM 和玩家端都可用） */}
             <button
               onClick={toggleTheme}
               className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
@@ -120,6 +123,8 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
             >
               {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </button>
+
+            {/* 移动端菜单开关 */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="md:hidden p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
