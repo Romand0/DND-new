@@ -8,6 +8,7 @@ import {
   Plus,
   CheckCircle,
   Swords,
+  Shield,
   Scale,
   Coins,
 } from 'lucide-react';
@@ -45,7 +46,7 @@ export default function CharacterEquipmentCard({
               )}
             </div>
 
-            {/* 分类标签行（含武器重叠胶囊） */}
+            {/* 分类标签行（含武器/护甲重叠胶囊） */}
             <div className="flex items-center mt-1 text-xs">
               {item.category === '武器' && (item.damageDice || item.damageType) ? (
                 <div className="relative flex items-center min-h-[22px]">
@@ -55,6 +56,16 @@ export default function CharacterEquipmentCard({
                   </span>
                   <span className="inline-flex items-center pl-5 -ml-3 py-0.5 pr-2 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-xs">
                     {item.damageDice}{item.damageType ? ` ${item.damageType}` : ''}
+                  </span>
+                </div>
+              ) : item.category === '护甲' && item.acBase ? (
+                <div className="relative flex items-center min-h-[22px]">
+                  <span className="relative z-10 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-700 text-white text-xs font-medium shadow-sm">
+                    <Shield className="w-3 h-3" />
+                    护甲
+                  </span>
+                  <span className="inline-flex items-center pl-5 -ml-3 py-0.5 pr-2 rounded bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 text-xs">
+                    AC = {item.acBase}
                   </span>
                 </div>
               ) : (
