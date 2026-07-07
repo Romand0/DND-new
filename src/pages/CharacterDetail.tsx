@@ -1156,8 +1156,10 @@ setEditingEquipment(null);
     <CharacterEquipmentCard
       key={itemId}
       item={{ ...item, id: itemId }}
+      characterId={id}
       onEdit={handleEditEquipment}
       onDelete={setDeleteConfirmId}
+      onRefresh={reloadChar}
       onUpdateQuantity={handleUpdateEquipmentQuantity}
       showQuantity={true}
     />
