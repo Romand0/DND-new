@@ -73,8 +73,16 @@ export default function App() {
               <Route path="/player/inventory" element={<InventoryPage />} />
               <Route path="/player/spells" element={<SpellList />} />
               <Route path="/player/spells/:id" element={<SpellDetail />} />
-              {/* ❌ 玩家端不再有 /player/settings，全部 DM 功能收进 /settings/* */}
-              {/* 公共资料库 - 玩家端也能访问 */}
+            </Route>
+
+            {/* 公共资料库：DM 和玩家都能访问，走 Layout（variant 按 isDM 推导） */}
+            <Route
+              element={
+                <ProtectedRoute>
+                  <Layout />
+                </ProtectedRoute>
+              }
+            >
               <Route path="/equipment" element={<EquipmentList />} />
               <Route path="/equipment/:id" element={<EquipmentDetail />} />
               <Route path="/spells" element={<SpellList />} />
@@ -98,10 +106,6 @@ export default function App() {
                 element={<Placeholder title="战斗记录" description="战斗追踪与回合管理功能即将上线" />}
               />
               <Route path="inventory" element={<InventoryPage />} />
-              <Route path="equipment" element={<EquipmentList />} />
-              <Route path="equipment/:id" element={<EquipmentDetail />} />
-              <Route path="spells" element={<SpellList />} />
-              <Route path="spells/:id" element={<SpellDetail />} />
               {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />
