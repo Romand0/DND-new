@@ -36,21 +36,20 @@ function wearEquipment(charId: string, equipId: string): { success: boolean; mes
   const equip = char.equipment.find((e) => e.id === equipId);
   if (!equip) return { success: false, message: '装备不存在' };
 
-  const category = equip.category;
-
-  if (category !== '护甲' && category !== '服装') {
+  if (!isWearable(equip)) {
     return { success: false, message: '只有护甲和服装可以穿戴' };
   }
 
-  // 唯一性检查
-  if (category === '护甲') {
+  // 护甲槽：category === '护甲'
+  if (equip.category === '护甲') {
     if (char.wornArmorId) {
       return { success: false, message: '已穿戴护甲，请先卸下当前护甲' };
     }
     char.wornArmorId = equipId;
   }
 
-  if (category === '服装') {
+  // 服装槽：category === '杂项' && subtype === '服装'
+  if (equip.category === '杂项' && equip.subtype === '服装') {
     if (char.wornOutfitId) {
       return { success: false, message: '已穿戴服装，请先卸下当前服装' };
     }
@@ -111,4 +110,4 @@ function unwearEquipment(charId: string, equipId: string): { success: boolean; m
   return { success: true, message: `${equip.name} 已卸下` };
 }
 
-export { wearEquipment, unwearEquipment, canWearWithOutfit };
+export { wearEquipment, unwearEquipment, canWearWithOutfit, isWearable };
