@@ -73,7 +73,7 @@ export default function App() {
               <Route path="/player/inventory" element={<InventoryPage />} />
               <Route path="/player/spells" element={<SpellList />} />
               <Route path="/player/spells/:id" element={<SpellDetail />} />
-              <Route path="/player/settings" element={<Settings />} />
+              {/* ❌ 玩家端不再有 /player/settings，全部 DM 功能收进 /settings/* */}
               {/* 公共资料库 - 玩家端也能访问 */}
               <Route path="/equipment" element={<EquipmentList />} />
               <Route path="/equipment/:id" element={<EquipmentDetail />} />
@@ -102,7 +102,7 @@ export default function App() {
               <Route path="equipment/:id" element={<EquipmentDetail />} />
               <Route path="spells" element={<SpellList />} />
               <Route path="spells/:id" element={<SpellDetail />} />
-              {/* Settings 改为嵌套路由壳 */}
+              {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />
                 <Route path="admin" element={<AdminAuth />} />
