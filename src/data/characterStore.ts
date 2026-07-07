@@ -12,6 +12,7 @@ import type {
   AbilityKey,
 } from '@/types/character';
 import * as api from '@/lib/api';
+import { wearEquipment, unwearEquipment } from './equipmentWear';
 
 // 从 localStorage 读取 auth_token，构造带 JWT 的 headers
 function getAuthHeaders(): Record<string, string> {
@@ -1385,4 +1386,9 @@ export const characterStore = {
   // 后端 API
   syncCharacterToBackend,
   loadAllFromBackend,
+
+    // 穿戴/卸下
+  wearEquipment,
+  unwearEquipment,
+
 };
