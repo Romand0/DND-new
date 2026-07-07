@@ -3,13 +3,19 @@ import { characterStore } from './characterStore';
 import type { Character } from '@/types/character';
 
 /**
- * 兼容性矩阵：判断护甲是否允许与服装共存
- * 轻甲/胸甲/链甲衫 → 允许服装套在外面，服装作用可生效
- * 其他护甲 → 不允许
+ * 兼容性矩阵：判断护甲是否允许服装效果生效
+ * - 轻甲 → 全部允许
+ * - 中甲 → 只有链甲衫、胸甲允许
+ * - 重甲 → 不允许
+ * 此函数仅用于 UI 提示，不阻止穿戴。
  */
-function canWearWithOutfit(armorSubtype?: string): boolean {
-  const compatibleTypes = ['轻甲', '胸甲', '链甲衫'];
-  return armorSubtype ? compatibleTypes.includes(armorSubtype) : false;
+function canWearWithOutfit(armor: { subtype?: string; name?: string }): boolean {
+  if (armor.subtype === '轻甲') return true;
+  if (armor.subtype === '中甲') {
+    const compatibleNames = ['链甲衫', '胸甲'];
+    return armor.name ? compatibleNames.includes(armor.name) : false;
+  }
+  return false;
 }
 
 /**
@@ -31,15 +37,10 @@ function wearEquipment(charId: string, equipId: string): { success: boolean; mes
     return { success: false, message: '只有护甲和服装可以穿戴' };
   }
 
+  // 唯一性检查
   if (category === '护甲') {
     if (char.wornArmorId) {
       return { success: false, message: '已穿戴护甲，请先卸下当前护甲' };
-    }
-    if (char.wornOutfitId) {
-      const outfit = char.equipment.find((e) => e.id === char.wornOutfitId);
-      if (outfit && !canWearWithOutfit(equip.subtype)) {
-        return { success: false, message: '当前护甲类型不允许套在服装外面，请先卸下服装' };
-      }
     }
     char.wornArmorId = equipId;
   }
@@ -47,12 +48,6 @@ function wearEquipment(charId: string, equipId: string): { success: boolean; mes
   if (category === '服装') {
     if (char.wornOutfitId) {
       return { success: false, message: '已穿戴服装，请先卸下当前服装' };
-    }
-    if (char.wornArmorId) {
-      const armor = char.equipment.find((e) => e.id === char.wornArmorId);
-      if (armor && !canWearWithOutfit(armor.subtype)) {
-        return { success: false, message: '当前护甲不允许套服装在外面，请先卸下护甲' };
-      }
     }
     char.wornOutfitId = equipId;
   }
