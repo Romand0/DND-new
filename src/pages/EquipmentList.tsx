@@ -25,18 +25,19 @@ export default function EquipmentList() {
 
   useEditorState(editorOpen);
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await fetchAllEquipments();
-      setEquipments(data);
-    } catch (e: any) {
-      setError(e.message || '加载失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+const load = async () => {
+  setLoading(true);
+  setError('');
+  try {
+    const data = await fetchAllEquipments();
+    data.sort((a, b) => a.id.localeCompare(b.id));
+    setEquipments(data);
+  } catch (e: any) {
+    setError(e.message || '加载失败');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => { load(); }, []);
 
