@@ -12,6 +12,7 @@ import {
   Scale,
   Coins,
 } from 'lucide-react';
+import { characterStore } from '@/data/characterStore';
 import type { Equipment } from '@/types/character';
 
 /** 判断装备是否可穿戴（护甲 或 杂项-服装） */
@@ -21,21 +22,21 @@ function isWearable(item: { category?: string; subtype?: string }): boolean {
 
 interface Props {
   item: Equipment & { id: string };
+  characterId?: string;
   onEdit: (item: Equipment & { id: string }) => void;
   onDelete: (itemId: string) => void;
   onUpdateQuantity?: (itemId: string, delta: number) => void;
-  onWear?: (itemId: string) => void;
-  onUnwear?: (itemId: string) => void;
+  onRefresh?: () => void;
   showQuantity?: boolean;
 }
 
 export default function CharacterEquipmentCard({
   item,
+  characterId,
   onEdit,
   onDelete,
   onUpdateQuantity,
-  onWear,
-  onUnwear,
+  onRefresh,
   showQuantity = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
@@ -102,10 +103,16 @@ export default function CharacterEquipmentCard({
 
           {/* 右侧操作区 */}
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            {/* 穿戴/卸下按钮（仅护甲/服装显示） */}
-            {wearable && (onWear || onUnwear) && (
+            {/* 穿戴/卸下按钮（仅护甲/服装 + 有 characterId 时显示） */}
+            {wearable && characterId && (
               <button
-                onClick={() => isWorn ? onUnwear?.(itemId) : onWear?.(itemId)}
+                onClick={() => {
+                  const result = isWorn
+                    ? characterStore.unwearEquipment(characterId, itemId)
+                    : characterStore.wearEquipment(characterId, itemId);
+                  if (!result.success) alert(result.message);
+                  else onRefresh?.();
+                }}
                 className={`w-full text-xs px-2 py-1 rounded transition-colors ${
                   isWorn
                     ? 'bg-danger/10 text-danger hover:bg-danger/20'
