@@ -40,7 +40,8 @@ export default function CharacterEquipmentCard({
   showQuantity = false,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
-  const itemId = item.id;
+  const itemId = item.childId || item.id;
+
 
   const wearable = isWearable(item);
   const isWorn = item.tags?.some(t => t.key === '着装状态' && t.value === '已穿戴');
