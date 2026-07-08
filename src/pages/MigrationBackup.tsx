@@ -9,6 +9,7 @@ import { characterStore } from '@/data/characterStore';
 export default function MigrationBackup() {
   const navigate = useNavigate();
   const [migrating, setMigrating] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [migrateResult, setMigrateResult] = useState<{ equipments: number; spells: number; characters: number } | null>(null);
   const [migrateError, setMigrateError] = useState('');
 
@@ -34,13 +35,37 @@ export default function MigrationBackup() {
     fetchCounts();
   }, []);
 
-  const handleExport = () => {
-    const data = {
-      equipments: equipmentStore.getAll(),
-      spells: spellStore.getAll(),
-      characters: characterStore.getAll(),
-      exportedAt: new Date().toISOString(),
-    };
+  // 导出：优先从远程 API 获取，失败时回退到本地 store
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const [eqs, sps, chars] = await Promise.all([
+        api.fetchAllEquipments(),
+        api.fetchAllSpells(),
+        api.fetchAllCharacters(),
+      ]);
+      const data = {
+        equipments: eqs,
+        spells: sps,
+        characters: chars,
+        exportedAt: new Date().toISOString(),
+      };
+      downloadJson(data);
+    } catch {
+      // 远程失败，回退到本地 store
+      const data = {
+        equipments: equipmentStore.getAll(),
+        spells: spellStore.getAll(),
+        characters: characterStore.getAll(),
+        exportedAt: new Date().toISOString(),
+      };
+      downloadJson(data);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  function downloadJson(data: any) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -49,7 +74,7 @@ export default function MigrationBackup() {
     a.click();
     URL.revokeObjectURL(url);
     a.href = '';
-  };
+  }
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -143,10 +168,20 @@ export default function MigrationBackup() {
           <div className="flex gap-2">
             <button
               onClick={handleExport}
-              className="flex-1 px-4 py-2 border dark:border-border-dark light:border-border-light hover:bg-primary/10 dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center justify-center gap-2"
+              disabled={exporting}
+              className="flex-1 px-4 py-2 border dark:border-border-dark light:border-border-light hover:bg-primary/10 dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
-              导出备份
+              {exporting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  导出中…
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4" />
+                  导出备份
+                </>
+              )}
             </button>
             <button
               onClick={handleImportClick}
