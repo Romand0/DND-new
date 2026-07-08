@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Search, Package } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
-import { fetchAllEquipments } from '@/lib/api';
+import { fetchAllEquipments } from '@@/lib/api';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
@@ -16,13 +16,12 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
   const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  fetchAllEquipments()
-    .then((data) => setEquipments(data))
-    .catch((e) => console.error('装备选择器加载失败', e))
-    .finally(() => setLoading(false));
-}, []);
-
+  useEffect(() => {
+    fetchAllEquipments()
+      .then((data) => setEquipments(data))
+      .catch((e) => console.error('装备选择器加载失败', e))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filteredEquipments = useMemo(() => {
     return equipments.filter((item) => {
@@ -86,59 +85,58 @@ useEffect(() => {
           </div>
         </div>
 
-        {/* 列表 */}
+        {/* 列表区：loading / 空 / 有数据 三者互斥 */}
         <div className="flex-1 overflow-y-auto p-4">
           <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-3">
             共 {filteredEquipments.length} 件装备
           </div>
-          <div className="grid gap-2">
-            {filteredEquipments.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onSelect(item);
-                  onClose();
-                }}
-                className="w-full text-left p-3 rounded-lg border transition-colors hover:border-primary dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light group"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors truncate">
-                        {item.name}
-                      </h3>
-                      <span className="text-xs px-1.5 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
-                        {item.category}
-                      </span>
-                    </div>
-                    <p className="text-xs mt-1 dark:text-text-dark-muted light:text-text-light-muted line-clamp-2">
-                      {item.description}
-                    </p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="text-sm dark:text-text-dark light:text-text-light">
-                      {formatPrice(item)}
-                    </div>
-                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                      {item.weight} 磅
-                    </div>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-          {loading ? (
-  <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
-    加载中...
-  </div>
-) : filteredEquipments.length === 0 ? (
-  <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
-    没有找到匹配的装备
-  </div>
-) : (
-  /* 原有列表 */
-)}
 
+          {loading ? (
+            <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
+              加载中...
+            </div>
+          ) : filteredEquipments.length === 0 ? (
+            <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
+              没有找到匹配的装备
+            </div>
+          ) : (
+            <div className="grid gap-2">
+              {filteredEquipments.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    onSelect(item);
+                    onClose();
+                  }}
+                  className="w-full text-left p-3 rounded-lg border transition-colors hover:border-primary dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light group"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-medium dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors truncate">
+                          {item.name}
+                        </h3>
+                        <span className="text-xs px-1.5 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
+                          {item.category}
+                        </span>
+                      </div>
+                      <p className="text-xs mt-1 dark:text-text-dark-muted light:text-text-light-muted line-clamp-2">
+                        {item.description}
+                      </p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm dark:text-text-dark light:text-text-light">
+                        {formatPrice(item)}
+                      </div>
+                      <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                        {item.weight} 磅
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
