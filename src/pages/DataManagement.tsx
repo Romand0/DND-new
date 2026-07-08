@@ -71,7 +71,7 @@ export default function DataManagement() {
   } | null>(null);
 
   // 获取预览
-  const fetchPreview = async () => {
+  
   const fetchPreview = async () => {
   setLoading(true);
   setResult(null);
