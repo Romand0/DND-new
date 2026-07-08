@@ -34,14 +34,6 @@ interface PreviewItem {
   description?: string;
 }
 
-// 仅冒险用品需要猜：药水/法器/杂物（不跨进武器/护甲/工具）
-function guessAdventuringCategory(name: string): string {
-  const lower = name.toLowerCase();
-  if (lower.includes('药水') || lower.includes('药剂') || lower.includes('毒') || lower.includes('油')) return '药水';
-  if (lower.includes('圣徽') || lower.includes('法器') || lower.includes('魔杖') || lower.includes('法杖') || lower.includes('水晶')) return '法器';
-  return '杂物';
-}
-
 // 批量编辑的字段类型参考（用于类型校验，与 PreviewItem 对齐）
 const FIELD_TYPES: Record<string, 'string' | 'number' | 'object' | 'array' | 'boolean'> = {
   price: 'object',
@@ -93,7 +85,7 @@ export default function DataManagement() {
       // 初始化分类覆盖：武器/护甲/工具直接映射，冒险用品才猜
       const overrides: Record<string, string> = {};
       items.forEach((item: PreviewItem) => {
-        overrides[item.id] = IMPORT_CAT_TO_GAME[item.category] || guessAdventuringCategory(item.name);
+      overrides[item.id] = IMPORT_CAT_TO_GAME[item.category] || '杂物';
       });
       setCategoryOverrides(overrides);
 
