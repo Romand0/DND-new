@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Search, Package } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
-import { fetchAllEquipments } from '@@/lib/api';
+import { fetchAllEquipments } from '@/lib/api';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
