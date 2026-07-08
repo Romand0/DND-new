@@ -133,6 +133,8 @@ export default function CharacterDetail({
   readOnly?: boolean;
   externalCharacter?: Character | null;
 } = {}) {
+
+  try {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [character, setCharacter] = useState<Character | null>(externalCharacter);
@@ -660,7 +662,7 @@ if (character) {
 
 
 
-  try {
+  
   return (
     <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
 
