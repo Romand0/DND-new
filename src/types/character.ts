@@ -55,7 +55,10 @@ export interface EquipmentTag {
 }
 
 export interface Equipment {
+  /** 装备库模板 ID（从装备库选取时带入，自定义装备可空） */
   id?: string;
+  /** 角色背包内实例 ID，格式 `{charId}-{random}`，由 addEquipment 自动生成 */
+  childId?: string;
   name: string;
   quantity: number;
   category: string;
@@ -77,7 +80,6 @@ export interface Equipment {
   subtype?: string;
 }
 
-
 export interface Currency {
   cp: number;
   sp: number;
@@ -88,7 +90,7 @@ export interface Currency {
 export interface Skill {
   proficient: boolean;
   extra: number;
-  expertise?: boolean;  // 专精：熟练加值翻倍
+  expertise?: boolean; // 专精：熟练加值翻倍
 }
 
 export interface Skills {
@@ -141,7 +143,7 @@ export interface Character {
   alignment: string;
   experience: number;
   size: string;
-  
+
   abilities: Abilities;
   proficiencyBonus: number;
   passivePerception: number;
@@ -151,31 +153,32 @@ export interface Character {
   currentHp: number;
   tempHp: number;
   hitDice: HitDice;
-  
+
   attacks: Attack[];
   spells: Spells;
-  
+
   equipment: Equipment[];
   currency: Currency;
-  
+
   skills: Skills;
   proficiencies: Proficiencies;
-  saveExpertise?: AbilityKey[];  // 豁免专精列表
-  
+  saveExpertise?: AbilityKey[]; // 豁免专精列表
+
   features: Feature[];
-  
+
   appearance: string;
   personality: string;
   ideals: string;
   bonds: string;
   flaws: string;
-  
+
   createdAt?: number;
   updatedAt?: number;
 
-  wornArmorId: string | null;   // 当前穿戴的护甲 ID
-  wornOutfitId: string | null;  // 当前穿戴的服装 ID
-
+  /** 当前穿戴的护甲引用 —— 优先存 childId，回退兼容 id */
+  wornArmorId: string | null;
+  /** 当前穿戴的服装引用 —— 优先存 childId，回退兼容 id */
+  wornOutfitId: string | null;
 }
 
 export type AbilityKey = keyof Abilities;
