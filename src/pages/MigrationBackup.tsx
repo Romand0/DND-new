@@ -5,12 +5,13 @@ import * as api from '@/lib/api';
 import { equipmentStore } from '@/data/equipmentStore';
 import { spellStore } from '@/data/spellStore';
 import { characterStore } from '@/data/characterStore';
+import type { Character } from '@/types/character';
 
 export default function MigrationBackup() {
   const navigate = useNavigate();
   const [migrating, setMigrating] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [syncing, setSyncing] = useState(false); // 新增：同步状态
+  const [syncing, setSyncing] = useState(false);
   const [migrateResult, setMigrateResult] = useState<{ equipments: number; spells: number; characters: number } | null>(null);
   const [migrateError, setMigrateError] = useState('');
 
@@ -18,7 +19,6 @@ export default function MigrationBackup() {
   const [spellCount, setSpellCount] = useState(0);
   const [characterCount, setCharacterCount] = useState(0);
 
-  // 获取计数的函数（供同步后调用）
   const fetchCounts = async () => {
     try {
       const chars = await api.fetchAllCharacters();
@@ -38,7 +38,6 @@ export default function MigrationBackup() {
     fetchCounts();
   }, []);
 
-  // 导出：优先从远程 API 获取，失败时回退到本地 store
   const handleExport = async () => {
     setExporting(true);
     try {
@@ -55,7 +54,6 @@ export default function MigrationBackup() {
       };
       downloadJson(data);
     } catch {
-      // 远程失败，回退到本地 store
       const data = {
         equipments: equipmentStore.getAll(),
         spells: spellStore.getAll(),
@@ -119,11 +117,10 @@ export default function MigrationBackup() {
       if (data.characters && Array.isArray(data.characters) && data.characters.length > 0) {
         const result = await api.batchUpsertCharacters(data.characters);
         chCount = result.count;
-        characterStore.save(data.characters);
+        characterStore.save(data.characters as Character[]); // 类型断言
       }
 
       setMigrateResult({ equipments: eqCount, spells: spCount, characters: chCount });
-      // 导入后刷新计数
       await fetchCounts();
     } catch (err) {
       setMigrateError(err instanceof Error ? err.message : '导入失败，请检查文件格式');
@@ -133,7 +130,6 @@ export default function MigrationBackup() {
     }
   };
 
-  // 新增：从云端同步到本地
   const handleSyncFromCloud = async () => {
     setSyncing(true);
     setMigrateError('');
@@ -148,7 +144,7 @@ export default function MigrationBackup() {
 
       if (eqs.length > 0) equipmentStore.save(eqs);
       if (sps.length > 0) spellStore.save(sps);
-      if (chars.length > 0) characterStore.save(chars);
+      if (chars.length > 0) characterStore.save(chars as Character[]); // 类型断言
 
       setMigrateResult({
         equipments: eqs.length,
@@ -156,7 +152,6 @@ export default function MigrationBackup() {
         characters: chars.length,
       });
 
-      // 刷新顶部计数
       await fetchCounts();
     } catch (err) {
       setMigrateError(err instanceof Error ? err.message : '从云端同步失败');
@@ -167,7 +162,6 @@ export default function MigrationBackup() {
 
   return (
     <div className="space-y-6">
-      {/* 返回按钮 */}
       <button
         onClick={() => navigate('/settings')}
         className="flex items-center gap-2 text-sm hover:opacity-80 dark:text-text-dark light:text-text-light"
