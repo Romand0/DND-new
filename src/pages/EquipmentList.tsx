@@ -202,7 +202,8 @@ export default function EquipmentList() {
         {filteredEquipments.map((item) => (
           <div
             key={item.id}
-            className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group"
+            className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group cursor-pointer"
+            onClick={() => navigate(`/equipment/${item.id}`)}
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
@@ -241,7 +242,7 @@ export default function EquipmentList() {
               </div>
 
               {isDM && (
-                <div className="flex gap-1">
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <button
                     onClick={() => handleEdit(item)}
                     className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
