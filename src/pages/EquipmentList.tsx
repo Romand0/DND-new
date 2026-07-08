@@ -6,7 +6,7 @@ import { useEditorState } from '@/data/editorState';
 import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
-import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment } from '@/lib/api';
+import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, batchDeleteEquipments } from '@/lib/api'; // 假设有 batchDeleteEquipments
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
@@ -19,7 +19,9 @@ export default function EquipmentList() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | undefined>(undefined);
   const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
-  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);       // 单个删除用
+  const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false);           // 批量删除确认
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());        // 新增：选中 ID 集合
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -61,6 +63,65 @@ export default function EquipmentList() {
     });
   }, [equipments, selectedCategory, searchQuery]);
 
+  // ---- 新增：全选 / 反选逻辑 ----
+  const allFilteredSelected = useMemo(() => {
+    return filteredEquipments.length > 0 && filteredEquipments.every((item) => selectedIds.has(item.id));
+  }, [filteredEquipments, selectedIds]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      // 取消全选：移除所有过滤后装备的 ID
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredEquipments.forEach((item) => next.delete(item.id));
+        return next;
+      });
+    } else {
+      // 全选：加入所有过滤后装备的 ID
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        filteredEquipments.forEach((item) => next.add(item.id));
+        return next;
+      });
+    }
+  };
+
+  // ---- 批量删除处理 ----
+  const handleBatchDelete = async () => {
+    if (!isDM || selectedIds.size === 0) return;
+    setSaving(true);
+    setError('');
+    try {
+      // 优先使用批量 API，若没有则回退为循环单条删除
+      if (typeof batchDeleteEquipments === 'function') {
+        await batchDeleteEquipments(Array.from(selectedIds));
+      } else {
+        // 兼容旧版：逐条删除
+        await Promise.all(Array.from(selectedIds).map((id) => deleteEquipment(id)));
+      }
+      setSelectedIds(new Set());
+      setBatchDeleteConfirm(false);
+      load();
+    } catch (e: any) {
+      setError(e.message || '批量删除失败');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ---- 原有的 handleSave / handleDelete 保持不变 ----
   const handleSave = async (item: EquipmentItem) => {
     if (!isDM) return;
     setSaving(true);
@@ -150,7 +211,7 @@ export default function EquipmentList() {
         <div className="p-3 rounded-lg bg-danger/20 text-danger text-sm">{error}</div>
       )}
 
-      {/* 搜索 + 新增 */}
+      {/* 搜索 + 新增 + 批量删除 */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
@@ -163,12 +224,23 @@ export default function EquipmentList() {
           />
         </div>
         {isDM && (
-          <button
-            onClick={handleAddNew}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark whitespace-nowrap"
-          >
-            <Plus className="w-4 h-4" /> 新增装备
-          </button>
+          <>
+            <button
+              onClick={handleAddNew}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white hover:bg-primary-dark whitespace-nowrap"
+            >
+              <Plus className="w-4 h-4" /> 新增装备
+            </button>
+            {/* 批量删除按钮：当有选中项且为 DM 时显示 */}
+            {selectedIds.size > 0 && (
+              <button
+                onClick={() => setBatchDeleteConfirm(true)}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80 whitespace-nowrap"
+              >
+                <Trash2 className="w-4 h-4" /> 批量删除 ({selectedIds.size})
+              </button>
+            )}
+          </>
         )}
       </div>
 
@@ -197,52 +269,80 @@ export default function EquipmentList() {
         })}
       </div>
 
+      {/* 全选行（仅 DM 可见） */}
+      {isDM && filteredEquipments.length > 0 && (
+        <label className="flex items-center gap-2 cursor-pointer select-none px-1">
+          <input
+            type="checkbox"
+            checked={allFilteredSelected}
+            onChange={toggleSelectAll}
+            className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+          <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            {allFilteredSelected ? '取消全选' : '全选当前页'}
+            <span className="ml-1">({selectedIds.size} 个已选)</span>
+          </span>
+        </label>
+      )}
+
       {/* 列表 */}
       <div className="grid gap-3">
         {filteredEquipments.map((item) => (
           <div
             key={item.id}
-            className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group cursor-pointer"
-            onClick={() => navigate(`/equipment/${item.id}`)}
+            className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group"
           >
             <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">
-                  {item.name}
-                </h3>
-                <div className="flex items-center gap-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                  <span>{item.category}</span>
-                  {item.subtype && <span>· {item.subtype}</span>}
-                </div>
-                <div className="flex items-center gap-4 mt-2 text-sm">
-                  <span className="flex items-center gap-1 dark:text-text-dark light:text-text-light">
-                    <Coins className="w-3.5 h-3.5 text-accent" /> {formatPrice(item)}
-                  </span>
-                  <span className="dark:text-text-dark-muted light:text-text-light-muted">
-                    {item.weight} 磅
-                  </span>
-                </div>
-                {item.properties && item.properties.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {item.properties.slice(0, 4).map((p) => (
-                      <span
-                        key={p}
-                        className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary"
-                      >
-                        {p}
-                      </span>
-                    ))}
-                    {item.properties.length > 4 && (
-                      <span className="px-1.5 py-0.5 text-xs rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
-                        +{item.properties.length - 4}
-                      </span>
-                    )}
-                  </div>
+              {/* 左侧：checkbox + 内容 */}
+              <div className="flex items-start gap-3 flex-1 min-w-0">
+                {/* 勾选框（仅 DM 可见） */}
+                {isDM && (
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(item.id)}
+                    onChange={() => toggleSelect(item.id)}
+                    className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0"
+                  />
                 )}
+                <div className="min-w-0">
+                  <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">
+                    {item.name}
+                  </h3>
+                  <div className="flex items-center gap-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                    <span>{item.category}</span>
+                    {item.subtype && <span>· {item.subtype}</span>}
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-sm">
+                    <span className="flex items-center gap-1 dark:text-text-dark light:text-text-light">
+                      <Coins className="w-3.5 h-3.5 text-accent" /> {formatPrice(item)}
+                    </span>
+                    <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                      {item.weight} 磅
+                    </span>
+                  </div>
+                  {item.properties && item.properties.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {item.properties.slice(0, 4).map((p) => (
+                        <span
+                          key={p}
+                          className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary"
+                        >
+                          {p}
+                        </span>
+                      ))}
+                      {item.properties.length > 4 && (
+                        <span className="px-1.5 py-0.5 text-xs rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
+                          +{item.properties.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
+              {/* 右侧：编辑/删除按钮（仅 DM 可见） */}
               {isDM && (
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                <div className="flex gap-1 shrink-0">
                   <button
                     onClick={() => handleEdit(item)}
                     className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
@@ -270,7 +370,7 @@ export default function EquipmentList() {
         </div>
       )}
 
-      {/* Editor 弹窗 */}
+      {/* Editor 弹窗（不变） */}
       {editorOpen && (
         <EquipmentEditor
           item={editingItem}
@@ -282,7 +382,7 @@ export default function EquipmentList() {
         />
       )}
 
-      {/* 删除确认 */}
+      {/* 单个删除确认（不变） */}
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="rounded-xl border p-6 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light max-w-sm w-full">
@@ -306,6 +406,36 @@ export default function EquipmentList() {
                 className="flex-1 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80 disabled:opacity-50"
               >
                 {saving ? '删除中...' : '删除'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 新增：批量删除确认弹窗 */}
+      {batchDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="rounded-xl border p-6 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light max-w-sm w-full">
+            <h3 className="text-lg font-bold mb-2 dark:text-text-dark light:text-text-light">
+              批量删除确认
+            </h3>
+            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
+              确定要删除已选的 <strong>{selectedIds.size}</strong> 件装备吗？此操作无法撤销。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBatchDeleteConfirm(false)}
+                disabled={saving}
+                className="flex-1 px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10 disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleBatchDelete}
+                disabled={saving}
+                className="flex-1 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80 disabled:opacity-50"
+              >
+                {saving ? '删除中...' : `删除 ${selectedIds.size} 件`}
               </button>
             </div>
           </div>
