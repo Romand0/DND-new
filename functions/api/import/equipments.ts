@@ -1,5 +1,4 @@
 // functions/api/import/equipments.ts
-
 import * as cheerio from 'cheerio';
 
 const CATEGORY_MAP: Record<string, string> = {
@@ -8,6 +7,15 @@ const CATEGORY_MAP: Record<string, string> = {
   tools: '工具',
   adventuring: '冒险用品',
 };
+
+/** 译名映射：5E不全书原名 → 目标名（可自行扩展） */
+const NAME_TRANSLATIONS: Record<string, string> = {
+  '燃油': '灯油',
+};
+
+function translateName(raw: string): string {
+  return NAME_TRANSLATIONS[raw] || raw;
+}
 
 function parsePrice(raw: string): { amount: number; unit: 'gp' | 'sp' | 'cp' } {
   raw = raw.replace(/,/g, '');
@@ -77,11 +85,11 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
     const stmts: D1PreparedStatement[] = [];
     if (!body.items || body.items.length === 0) {
-  return new Response(JSON.stringify({ error: '导入列表为空', success: 0, fail: 0 }), {
-    status: 400,
-    headers: { 'Content-Type': 'application/json' }
-  });
-}
+      return new Response(JSON.stringify({ error: '导入列表为空', success: 0, fail: 0 }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
     for (const item of body.items) {
       try {
@@ -93,20 +101,17 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const data = JSON.stringify(item);
 
         if (existing) {
-          // 存在 → 覆盖原 id 的数据
           stmts.push(
             db.prepare('UPDATE equipments SET data = ? WHERE id = ?')
               .bind(data, (existing as any).id)
           );
         } else {
-          // 不存在 → 新建，用解析器给的 id
           stmts.push(
             db.prepare('INSERT INTO equipments (id, data) VALUES (?, ?)')
               .bind(item.id, data)
           );
         }
       } catch (e) {
-        // SELECT 阶段失败，整批放弃
         return new Response(JSON.stringify({
           error: '查询阶段失败，未写入任何数据',
           detail: String(e)
@@ -120,7 +125,6 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     // 原子写入：全部成功或全部回滚
     try {
       await db.batch(stmts);
-      // 写入后验证：查 D1 当前总条数
       const verify = await db.prepare('SELECT COUNT(*) as cnt FROM equipments').first();
       return new Response(JSON.stringify({
         success: stmts.length,
@@ -143,7 +147,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     }
   }
 
-  // GET：原有预览逻辑
+  // GET：预览逻辑
   const category = url.searchParams.get('category');
 
   if (!category || !CATEGORY_MAP[category]) {
@@ -234,6 +238,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       if (!rawName || isHeaderRow(cells)) return;
 
       const { chineseName, englishId } = splitName(rawName);
+      const name = translateName(chineseName); // ← 译名转换
 
       const priceStr = $(cells[1]).text().trim();
       const price = parsePrice(priceStr);
@@ -246,15 +251,15 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const { dice, type } = parseDamage(damageStr);
         const weight = parseWeight(weightStr);
         const properties = propsStr
-  ? propsStr.split(/[,，]\s*/)
-      .map(s => s.trim())
-      .filter(Boolean)
-      .filter(s => s !== '－' && s !== '—')
-  : [];
+          ? propsStr.split(/[,，]\s*/)
+            .map(s => s.trim())
+            .filter(Boolean)
+            .filter(s => s !== '－' && s !== '—')
+          : [];
 
         items.push({
           id: englishId,
-          name: chineseName,
+          name,
           price,
           weight,
           subtype: currentSubtype,
@@ -294,7 +299,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
         items.push({
           id: englishId,
-          name: chineseName,
+          name,
           price,
           weight,
           damageDice: '',
@@ -302,7 +307,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           acBase,
           strengthReq,
           stealthDisadvantage,
-          description: descMap.get(chineseName) || '',
+          description: descMap.get(name) || '', // ← 用翻译后的名查描述
           subtype: currentGroup || '',
           properties: armorProperties,
           source: '',
@@ -318,7 +323,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
         items.push({
           id: englishId,
-          name: chineseName,
+          name,
           price,
           weight,
           subtype: currentSubtype,
