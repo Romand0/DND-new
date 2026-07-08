@@ -508,35 +508,56 @@ function deleteAttack(charId: string, attackId: string): void {
 function addEquipment(charId: string, equipData: Partial<Equipment>): Equipment | null {
   const char = getCharacter(charId);
   if (!char) return null;
-  const newEquip: Equipment = { id: generateId(), name: '', quantity: 1, category: '杂项', ...equipData };
+  // 生成子ID：角色ID + 随机后缀
+  const childId = charId + '-' + generateId();
+  const newEquip: Equipment = {
+    id: equipData.id || generateId(),   // 保留装备库模板ID
+    childId,                             // 新增子ID
+    name: '',
+    quantity: 1,
+    category: '杂项',
+    ...equipData,
+  };
   char.equipment.push(newEquip);
   saveCharacter(char as Character);
   return newEquip;
 }
 
+
 function updateEquipment(charId: string, equipId: string, updatedData: Partial<Equipment>): Equipment | null {
   const char = getCharacter(charId);
   if (!char) return null;
-  const index = char.equipment.findIndex((e) => e.id === equipId);
+  const index = char.equipment.findIndex(
+    (e) => e.childId === equipId || e.id === equipId
+  );
   if (index === -1) return null;
   char.equipment[index] = { ...char.equipment[index], ...updatedData };
   saveCharacter(char as Character);
   return char.equipment[index];
 }
 
+
+function deleteEquipment(charId: string, equipId: string): void {
 function deleteEquipment(charId: string, equipId: string): void {
   const char = getCharacter(charId);
   if (!char) return;
-  // 如果要删的装备正穿着，先清槽位
-  if (char.wornArmorId === equipId) {
+  // 优先用 childId 匹配，兼容旧数据用 id
+  const index = char.equipment.findIndex(
+    (e) => e.childId === equipId || e.id === equipId
+  );
+  if (index === -1) return;
+  const removed = char.equipment[index];
+  // 如果被删除的装备正穿着，清槽位（同时检查 id 和 childId）
+  if (char.wornArmorId === removed.id || char.wornArmorId === removed.childId) {
     char.wornArmorId = null;
   }
-  if (char.wornOutfitId === equipId) {
+  if (char.wornOutfitId === removed.id || char.wornOutfitId === removed.childId) {
     char.wornOutfitId = null;
   }
-  char.equipment = char.equipment.filter((e) => e.id !== equipId);
+  char.equipment.splice(index, 1);
   saveCharacter(char as Character);
 }
+
 
 
 // ---------- 特性 (Features) ----------
@@ -664,12 +685,13 @@ function calcPassivePerception(char: Character): number {
 }
 
 /** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
+/** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
 function recalculateArmorClass(char: Character): void {
-  // 悬空引用防护：槽位指着的装备已不在背包里，清掉
-  if (char.wornArmorId && !char.equipment.find(e => e.id === char.wornArmorId)) {
+  // 悬空引用防护：槽位指着的装备已不在背包里，清掉（兼容 childId）
+  if (char.wornArmorId && !char.equipment.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId)) {
     char.wornArmorId = null;
   }
-  if (char.wornOutfitId && !char.equipment.find(e => e.id === char.wornOutfitId)) {
+  if (char.wornOutfitId && !char.equipment.find(e => e.id === char.wornOutfitId || e.childId === char.wornOutfitId)) {
     char.wornOutfitId = null;
   }
 
@@ -677,7 +699,7 @@ function recalculateArmorClass(char: Character): void {
   const dexMod = calcModifier(dexScore);
 
   if (char.wornArmorId) {
-    const armor = char.equipment.find(e => e.id === char.wornArmorId);
+    const armor = char.equipment.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId);
     if (armor?.acBase) {
       const baseAc = Number(armor.acBase);
       const subtype = armor.subtype || '轻甲';
@@ -701,6 +723,7 @@ function recalculateArmorClass(char: Character): void {
   // 无护甲或找不到护甲 → 裸体 AC
   char.armorClass = 10 + dexMod;
 }
+
 
 
 
