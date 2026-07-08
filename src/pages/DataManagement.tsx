@@ -1,7 +1,7 @@
+// src/pages/DataManagement.tsx
 import React, { useState } from 'react';
 import { ArrowLeft, Download, CheckCircle, AlertCircle, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { equipmentStore } from '@/data/equipmentStore';
 import { createEquipment, updateEquipment, fetchAllEquipments } from '@/lib/api';
 
 const CATEGORIES = [
@@ -13,7 +13,7 @@ const CATEGORIES = [
 
 const GAME_CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物'];
 
-// 品类映射：import API 的 category → 游戏内分类（武器/护甲/工具直接映射，不猜）
+// 品类映射：import API 的 category → 游戏内分类（武器/护甲/工具直接映射，冒险用品默认杂物）
 const IMPORT_CAT_TO_GAME: Record<string, string> = {
   weapons: '武器',
   armor: '护甲',
@@ -71,40 +71,38 @@ export default function DataManagement() {
   } | null>(null);
 
   // 获取预览
-  
   const fetchPreview = async () => {
-  setLoading(true);
-  setResult(null);
-  setBulkEditResult(null);
-  try {
-    const res = await fetch(`/api/import/equipments?category=${category}`);
-    const data = await res.json();
-    const items = data.data || [];
-    setPreview(items);
-    setSelected(new Set(items.map((i: PreviewItem) => i.id)));
-
-    // 初始化分类覆盖：武器/护甲/工具直接映射，冒险用品才猜
-    const overrides: Record<string, string> = {};
-    items.forEach((item: PreviewItem) => {
-      overrides[item.id] = IMPORT_CAT_TO_GAME[item.category] || guessAdventuringCategory(item.name);
-    });
-    setCategoryOverrides(overrides);
-
-    // ★ 修改点：优先从远程获取现有装备库，失败时 fallback 本地
-    let existing: any[];
+    setLoading(true);
+    setResult(null);
+    setBulkEditResult(null);
     try {
-      existing = await fetchAllEquipments();
-    } catch {
-      existing = equipmentStore.getAll();
-    }
-    const names = new Set(existing.map((e: any) => e.name));
-    setExistingNames(names);
-  } catch (err) {
-    console.error('获取预览失败', err);
-  }
-  setLoading(false);
-};
+      const res = await fetch(`/api/import/equipments?category=${category}`);
+      const data = await res.json();
+      const items = data.data || [];
+      setPreview(items);
+      setSelected(new Set(items.map((i: PreviewItem) => i.id)));
 
+      // 初始化分类覆盖：武器/护甲/工具直接映射，adventuring 默认"杂物"（不再猜）
+      const overrides: Record<string, string> = {};
+      items.forEach((item: PreviewItem) => {
+        overrides[item.id] = IMPORT_CAT_TO_GAME[item.category] || '杂物';
+      });
+      setCategoryOverrides(overrides);
+
+      // 远程取现有装备库，失败时视为空（不再 fallback 到 equipmentStore）
+      let existing: any[];
+      try {
+        existing = await fetchAllEquipments();
+      } catch {
+        existing = [];
+      }
+      const names = new Set(existing.map((e: any) => e.name));
+      setExistingNames(names);
+    } catch (err) {
+      console.error('获取预览失败', err);
+    }
+    setLoading(false);
+  };
 
   // 切换选中
   const toggleItem = (id: string) => {
@@ -152,7 +150,6 @@ export default function DataManagement() {
     const typeErrors: string[] = [];
     const unknownFields: string[] = [];
 
-    // 深拷贝一份 preview，循环内只改这份，最后一次性 setPreview
     const updatedPreview = preview.map(i => ({ ...i }));
 
     parsed.forEach((entry, idx) => {
@@ -181,7 +178,6 @@ export default function DataManagement() {
           unknownFields.push(`${entry.name}.${key}`);
         }
 
-        // 直接改 updatedPreview 中的对象（都是深拷贝过的，安全）
         (updatedPreview[targetIdx] as any)[key] = val;
       });
 
@@ -192,77 +188,74 @@ export default function DataManagement() {
     setBulkEditResult({ matched: matched.length, unmatched, typeErrors, unknownFields });
   };
 
-  // 确认导入
+  // 确认导入（纯远程 API，不再碰 equipmentStore）
   const confirmImport = async () => {
-  const itemsToImport = preview
-    .filter(i => selected.has(i.id))
-    .map(i => ({
-      ...i,
-      category: categoryOverrides[i.id] || i.category,
-    }));
+    const itemsToImport = preview
+      .filter(i => selected.has(i.id))
+      .map(i => ({
+        ...i,
+        category: categoryOverrides[i.id] || i.category,
+      }));
 
-  if (itemsToImport.length === 0) return;
+    if (itemsToImport.length === 0) return;
 
-  setImporting(true);
-  let success = 0;
-  let fail = 0;
+    setImporting(true);
+    let success = 0;
+    let fail = 0;
 
-  // 获取本地装备库，建立 name → EquipmentItem 映射
-  const localItems = equipmentStore.getAll();
-  const nameToLocal = new Map(localItems.map(e => [e.name, e]));
-
-  for (const item of itemsToImport) {
-    const local = nameToLocal.get(item.name);
+    // 远程取全量装备，建 name → id 映射
+    let remoteList: any[] = [];
     try {
-      // 构造符合 EquipmentItem 类型的对象
-      const equipmentItem: Parameters<typeof equipmentStore.saveItem>[0] = {
-        id: local?.id || item.id,
-        name: item.name,
-        category: item.category,
-        price: {
-          amount: item.price.amount,
-          unit: item.price.unit as 'gp' | 'sp' | 'cp',
-        },
-        weight: item.weight,
-        damageDice: item.damageDice,
-        damageType: item.damageType,
-        acBase: item.acBase,
-        subtype: item.subtype,
-        properties: item.properties,
-        description: item.description,
-        isCustom: false,
-        tags: [],
-      };
-
-      if (local) {
-        // 已有同名装备 → 更新后端（用本地 ID）+ 更新本地 store
-        await updateEquipment(local.id, equipmentItem);
-        equipmentStore.saveItem(equipmentItem);
-      } else {
-        // 新装备 → 创建后端 + 添加到本地 store
-        const created = await createEquipment(equipmentItem);
-        equipmentStore.saveItem(created);
-      }
-      success++;
-    } catch (err) {
-      fail++;
+      remoteList = await fetchAllEquipments();
+    } catch {
+      // 远端挂了就当没有已有装备，全走 create
     }
-  }
+    const nameToId = new Map(remoteList.map((e: any) => [e.name, e.id]));
 
-  setResult({ success, fail });
+    for (const item of itemsToImport) {
+      try {
+        const equipmentItem = {
+          id: nameToId.get(item.name) || item.id,
+          name: item.name,
+          category: item.category,
+          price: {
+            amount: item.price.amount,
+            unit: item.price.unit as 'gp' | 'sp' | 'cp',
+          },
+          weight: item.weight,
+          damageDice: item.damageDice,
+          damageType: item.damageType,
+          acBase: item.acBase,
+          subtype: item.subtype,
+          properties: item.properties,
+          description: item.description,
+          isCustom: false,
+          tags: [],
+        };
 
-  // 刷新本地名称集合
-  try {
-    const refreshed = await fetchAllEquipments();
-    setExistingNames(new Set(refreshed.map((e: any) => e.name)));
-  } catch (e) {
-    // 忽略
-  }
+        if (nameToId.has(item.name)) {
+          await updateEquipment(nameToId.get(item.name)!, equipmentItem);
+        } else {
+          await createEquipment(equipmentItem);
+        }
+        success++;
+      } catch (err) {
+        fail++;
+      }
+    }
 
-  setImporting(false);
-};
+    setResult({ success, fail });
 
+    // 刷新 existingNames
+    try {
+      const refreshed = await fetchAllEquipments();
+      setExistingNames(new Set(refreshed.map((e: any) => e.name)));
+    } catch {
+      // ignore
+    }
 
+    setImporting(false);
+  };
 
   return (
     <div className="min-h-screen p-4 max-w-4xl mx-auto">
