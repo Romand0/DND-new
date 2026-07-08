@@ -660,7 +660,7 @@ if (character) {
 
 
 
-  
+  try {
   return (
     <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
 
@@ -2056,4 +2056,26 @@ if (character) {
       {!readOnly && <SyncButton />}
     </div>
   );
+    } catch (err) {
+  console.error('CharacterDetail 渲染崩溃:', err);
+  return (
+    <div className="min-h-screen flex items-center justify-center p-8">
+      <div className="text-center space-y-4 max-w-lg">
+        <h2 className="text-xl font-bold text-danger">角色详情页渲染异常</h2>
+        <p className="text-sm opacity-70 break-all">
+          错误信息：{err instanceof Error ? err.message : String(err)}
+        </p>
+        <p className="text-xs opacity-50">
+          请截屏此页面，或复制错误信息发送给开发者。
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-lg bg-primary text-white text-sm"
+        >
+          刷新
+        </button>
+      </div>
+    </div>
+  );
+}
 }
