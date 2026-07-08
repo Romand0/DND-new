@@ -538,7 +538,6 @@ function updateEquipment(charId: string, equipId: string, updatedData: Partial<E
 
 
 function deleteEquipment(charId: string, equipId: string): void {
-function deleteEquipment(charId: string, equipId: string): void {
   const char = getCharacter(charId);
   if (!char) return;
   // 优先用 childId 匹配，兼容旧数据用 id
