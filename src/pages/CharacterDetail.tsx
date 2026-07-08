@@ -590,10 +590,59 @@ if (character) {
       charisma: { score: 10, modifier: 0 },
     };
   }
-  if (!character.skills) character.skills = {} as any;
+  if (!character.skills) {
+    character.skills = {
+      acrobatics: { proficient: false, extra: 0 },
+      animalHandling: { proficient: false, extra: 0 },
+      arcana: { proficient: false, extra: 0 },
+      athletics: { proficient: false, extra: 0 },
+      deception: { proficient: false, extra: 0 },
+      history: { proficient: false, extra: 0 },
+      insight: { proficient: false, extra: 0 },
+      intimidation: { proficient: false, extra: 0 },
+      investigation: { proficient: false, extra: 0 },
+      medicine: { proficient: false, extra: 0 },
+      nature: { proficient: false, extra: 0 },
+      perception: { proficient: false, extra: 0 },
+      performance: { proficient: false, extra: 0 },
+      persuasion: { proficient: false, extra: 0 },
+      religion: { proficient: false, extra: 0 },
+      sleightOfHand: { proficient: false, extra: 0 },
+      stealth: { proficient: false, extra: 0 },
+      survival: { proficient: false, extra: 0 },
+    };
+  }
   if (!character.proficiencies) character.proficiencies = { armor: [], weapons: [], tools: [], languages: [], savingThrows: [] };
-  if (!character.spells) character.spells = { cantrips: [], spellSlots: {}, custom: [] };
-  if (!character.spells.spellSlots) character.spells.spellSlots = {};
+  if (!character.spells) {
+    character.spells = {
+      cantrips: [],
+      spellSlots: {
+        level1: { max: 0, used: 0 },
+        level2: { max: 0, used: 0 },
+        level3: { max: 0, used: 0 },
+        level4: { max: 0, used: 0 },
+        level5: { max: 0, used: 0 },
+        level6: { max: 0, used: 0 },
+        level7: { max: 0, used: 0 },
+        level8: { max: 0, used: 0 },
+        level9: { max: 0, used: 0 },
+      },
+      custom: [],
+    };
+  }
+  if (!character.spells.spellSlots) {
+    character.spells.spellSlots = {
+      level1: { max: 0, used: 0 },
+      level2: { max: 0, used: 0 },
+      level3: { max: 0, used: 0 },
+      level4: { max: 0, used: 0 },
+      level5: { max: 0, used: 0 },
+      level6: { max: 0, used: 0 },
+      level7: { max: 0, used: 0 },
+      level8: { max: 0, used: 0 },
+      level9: { max: 0, used: 0 },
+    };
+  }
   if (!character.equipment) character.equipment = [];
   if (!character.features) character.features = [];
   if (!character.attacks) character.attacks = [];
@@ -608,6 +657,7 @@ if (character) {
     return eq;
   });
 }
+
 
 
   
