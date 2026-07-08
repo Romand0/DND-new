@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Search, Package } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
-import { equipmentStore } from '@/data/equipmentStore';
+import { fetchAllEquipments } from '@/lib/api';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
@@ -13,14 +13,16 @@ interface EquipmentPickerProps {
 export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('全部');
-  const [equipments, setEquipments] = useState<EquipmentItem[]>(equipmentStore.getAll());
+  const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const unsubscribe = equipmentStore.subscribe(() => {
-      setEquipments(equipmentStore.getAll());
-    });
-    return unsubscribe;
-  }, []);
+useEffect(() => {
+  fetchAllEquipments()
+    .then((data) => setEquipments(data))
+    .catch((e) => console.error('装备选择器加载失败', e))
+    .finally(() => setLoading(false));
+}, []);
+
 
   const filteredEquipments = useMemo(() => {
     return equipments.filter((item) => {
