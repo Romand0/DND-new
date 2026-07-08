@@ -195,44 +195,54 @@ export default function DataManagement() {
 
   // 确认导入
   const confirmImport = async () => {
-    const itemsToImport = preview
-      .filter(i => selected.has(i.id))
-      .map(i => ({
-        ...i,
-        category: categoryOverrides[i.id] || i.category,
-      }));
+  const itemsToImport = preview
+    .filter(i => selected.has(i.id))
+    .map(i => ({
+      ...i,
+      category: categoryOverrides[i.id] || i.category,
+    }));
 
-    if (itemsToImport.length === 0) return;
+  if (itemsToImport.length === 0) return;
 
-    setImporting(true);
-    let success = 0;
-    let fail = 0;
+  setImporting(true);
+  let success = 0;
+  let fail = 0;
 
-    for (const item of itemsToImport) {
-      try {
-        await createEquipment(item);
-        success++;
-      } catch (err: any) {
-        try {
-          await updateEquipment(item.id, item);
-          success++;
-        } catch (updateErr) {
-          fail++;
-        }
-      }
-    }
+  // 获取本地装备库，建立 name → EquipmentItem 映射
+  const localItems = equipmentStore.getAll();
+  const nameToLocal = new Map(localItems.map(e => [e.name, e]));
 
-    setResult({ success, fail });
-
+  for (const item of itemsToImport) {
+    const local = nameToLocal.get(item.name);
     try {
-      const refreshed = await fetchAllEquipments();
-      setExistingNames(new Set(refreshed.map((e: any) => e.name)));
-    } catch (e) {
-      // 忽略
+      if (local) {
+        // 已有同名装备 → 更新后端（用本地 ID）+ 更新本地 store
+        await updateEquipment(local.id, item);
+        equipmentStore.saveItem({ ...local, ...item, id: local.id });
+      } else {
+        // 新装备 → 创建后端 + 添加到本地 store
+        const created = await createEquipment(item);
+        equipmentStore.saveItem(created);
+      }
+      success++;
+    } catch (err) {
+      fail++;
     }
+  }
 
-    setImporting(false);
-  };
+  setResult({ success, fail });
+
+  // 刷新本地名称集合
+  try {
+    const refreshed = await fetchAllEquipments();
+    setExistingNames(new Set(refreshed.map((e: any) => e.name)));
+  } catch (e) {
+    // 忽略
+  }
+
+  setImporting(false);
+};
+
 
   return (
     <div className="min-h-screen p-4 max-w-4xl mx-auto">
