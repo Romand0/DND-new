@@ -251,41 +251,66 @@ export default function DataManagement() {
 
   // ---- 控制台函数 ----
   const executeConsole = async () => {
-    let parsed: Array<{ name: string; [key: string]: any }>;
-    try {
-      parsed = JSON.parse(consoleInput);
-    } catch (e) {
-      alert('JSON 解析失败');
-      return;
+  let parsed: Array<{ name: string; [key: string]: any }>;
+  try {
+    parsed = JSON.parse(consoleInput);
+  } catch (e) {
+    alert('JSON 解析失败');
+    return;
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    alert('请输入至少一条有效数据');
+    return;
+  }
+
+  setConsoleExecuting(true);
+  setConsoleResult(null);
+
+  let remoteList: any[] = [];
+  try {
+    remoteList = await fetchAllEquipments();
+  } catch {}
+  const nameToId = new Map(remoteList.map((e: any) => [e.name, e.id]));
+  // 建立 name → 完整装备对象的映射，用于更新时保留未提供的字段
+  const nameToFull = new Map(remoteList.map((e: any) => [e.name, e]));
+
+  let success = 0;
+  let fail = 0;
+  const failedItems: { name: string; reason: string }[] = [];
+
+  for (const entry of parsed) {
+    if (!entry.name) {
+      failedItems.push({ name: '(无名)', reason: '缺少 name 字段' });
+      fail++;
+      continue;
     }
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      alert('请输入至少一条有效数据');
-      return;
-    }
 
-    setConsoleExecuting(true);
-    setConsoleResult(null);
-
-    let remoteList: any[] = [];
     try {
-      remoteList = await fetchAllEquipments();
-    } catch {}
-    const nameToId = new Map(remoteList.map((e: any) => [e.name, e.id]));
+      let equipmentItem: any;
 
-    let success = 0;
-    let fail = 0;
-    const failedItems: { name: string; reason: string }[] = [];
-
-    for (const entry of parsed) {
-      if (!entry.name) {
-        failedItems.push({ name: '(无名)', reason: '缺少 name 字段' });
-        fail++;
-        continue;
-      }
-
-      try {
-        const equipmentItem = {
-          id: nameToId.get(entry.name) || entry.name.toLowerCase().replace(/\s+/g, '-'),
+      if (nameToId.has(entry.name)) {
+        // 更新已有装备：基于现有数据，用 entry 覆盖
+        const existing = nameToFull.get(entry.name)!;
+        equipmentItem = {
+          id: existing.id,
+          name: entry.name,
+          category: entry.category ?? existing.category,
+          price: entry.price ?? existing.price,
+          weight: entry.weight ?? existing.weight,
+          damageDice: entry.damageDice ?? existing.damageDice,
+          damageType: entry.damageType ?? existing.damageType,
+          acBase: entry.acBase ?? existing.acBase,
+          subtype: entry.subtype ?? existing.subtype,
+          properties: entry.properties ?? existing.properties,
+          description: entry.description ?? existing.description,
+          isCustom: existing.isCustom ?? false,
+          tags: entry.tags ?? existing.tags ?? [],
+        };
+        await updateEquipment(existing.id, equipmentItem);
+      } else {
+        // 新建装备：使用默认值，但允许 entry 覆盖
+        equipmentItem = {
+          id: entry.name.toLowerCase().replace(/\s+/g, '-'),
           name: entry.name,
           category: entry.category || '杂物',
           price: entry.price || { amount: 0, unit: 'gp' },
@@ -299,22 +324,18 @@ export default function DataManagement() {
           isCustom: false,
           tags: [],
         };
-
-        if (nameToId.has(entry.name)) {
-          await updateEquipment(nameToId.get(entry.name)!, equipmentItem);
-        } else {
-          await createEquipment(equipmentItem);
-        }
-        success++;
-      } catch (err: any) {
-        failedItems.push({ name: entry.name, reason: err.message || '未知错误' });
-        fail++;
+        await createEquipment(equipmentItem);
       }
+      success++;
+    } catch (err: any) {
+      failedItems.push({ name: entry.name, reason: err.message || '未知错误' });
+      fail++;
     }
+  }
 
-    setConsoleResult({ success, fail, failedItems });
-    setConsoleExecuting(false);
-  };
+  setConsoleResult({ success, fail, failedItems });
+  setConsoleExecuting(false);
+};
 
   return (
     <div className="min-h-screen p-4 max-w-4xl mx-auto space-y-8">
