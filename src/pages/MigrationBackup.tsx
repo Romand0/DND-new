@@ -104,42 +104,36 @@ export default function MigrationBackup() {
 
       if (data.equipments && Array.isArray(data.equipments) && data.equipments.length > 0) {
         const result = await api.batchUpsertEquipments(data.equipments);
-      if (data.equipments && Array.isArray(data.equipments) && data.equipments.length > 0) {
-  const result = await api.batchUpsertEquipments(data.equipments);
-  eqCount = result.count;
-  data.equipments.forEach((e: any) => {
-    // 确保装备 id / childId 都存在
-    if (!e.id && e.childId) e.id = e.childId;
-    if (!e.childId && e.id) e.childId = e.id;
-    equipmentStore.save(e);
-  });
-}
+        eqCount = result.count;
+        data.equipments.forEach((e: any) => {
+          if (!e.id && e.childId) e.id = e.childId;
+          if (!e.childId && e.id) e.childId = e.id;
+          equipmentStore.save(e);
+        });
+      }
 
-if (data.spells && Array.isArray(data.spells) && data.spells.length > 0) {
-  const result = await api.batchUpsertSpells(data.spells);
-  spCount = result.count;
-  data.spells.forEach((s: any) => spellStore.save(s));
-}
+      if (data.spells && Array.isArray(data.spells) && data.spells.length > 0) {
+        const result = await api.batchUpsertSpells(data.spells);
+        spCount = result.count;
+        data.spells.forEach((s: any) => spellStore.save(s));
+      }
 
-if (data.characters && Array.isArray(data.characters) && data.characters.length > 0) {
-  const result = await api.batchUpsertCharacters(data.characters);
-  chCount = result.count;
-  const blank = characterStore.createBlank();
-  data.characters.forEach((c: any) => {
-    // 垫一层空白角色，补齐所有缺失嵌套字段
-    const merged = { ...blank, ...c };
-    // 再确保每个装备有 id + childId
-    if (merged.equipment) {
-      merged.equipment = merged.equipment.map((eq: any) => {
-        if (!eq.id && eq.childId) eq.id = eq.childId;
-        if (!eq.childId && eq.id) eq.childId = eq.id;
-        return eq;
-      });
-    }
-    characterStore.save(merged);
-  });
-}
-
+      if (data.characters && Array.isArray(data.characters) && data.characters.length > 0) {
+        const result = await api.batchUpsertCharacters(data.characters);
+        chCount = result.count;
+        const blank = characterStore.createBlank();
+        data.characters.forEach((c: any) => {
+          const merged = { ...blank, ...c };
+          if (merged.equipment) {
+            merged.equipment = merged.equipment.map((eq: any) => {
+              if (!eq.id && eq.childId) eq.id = eq.childId;
+              if (!eq.childId && eq.id) eq.childId = eq.id;
+              return eq;
+            });
+          }
+          characterStore.save(merged);
+        });
+      }
 
       setMigrateResult({ equipments: eqCount, spells: spCount, characters: chCount });
       await fetchCounts();
@@ -164,25 +158,25 @@ if (data.characters && Array.isArray(data.characters) && data.characters.length 
       ]);
 
       if (eqs.length > 0) eqs.forEach((e: any) => {
-  if (!e.id && e.childId) e.id = e.childId;
-  if (!e.childId && e.id) e.childId = e.id;
-  equipmentStore.save(e);
-});
-if (sps.length > 0) sps.forEach((s: any) => spellStore.save(s));
-if (chars.length > 0) {
-  const blank = characterStore.createBlank();
-  chars.forEach((c: any) => {
-    const merged = { ...blank, ...c };
-    if (merged.equipment) {
-      merged.equipment = merged.equipment.map((eq: any) => {
-        if (!eq.id && eq.childId) eq.id = eq.childId;
-        if (!eq.childId && eq.id) eq.childId = eq.id;
-        return eq;
+        if (!e.id && e.childId) e.id = e.childId;
+        if (!e.childId && e.id) e.childId = e.id;
+        equipmentStore.save(e);
       });
-    }
-    characterStore.save(merged);
-  });
-}
+      if (sps.length > 0) sps.forEach((s: any) => spellStore.save(s));
+      if (chars.length > 0) {
+        const blank = characterStore.createBlank();
+        chars.forEach((c: any) => {
+          const merged = { ...blank, ...c };
+          if (merged.equipment) {
+            merged.equipment = merged.equipment.map((eq: any) => {
+              if (!eq.id && eq.childId) eq.id = eq.childId;
+              if (!eq.childId && eq.id) eq.childId = eq.id;
+              return eq;
+            });
+          }
+          characterStore.save(merged);
+        });
+      }
 
       setMigrateResult({
         equipments: eqs.length,
