@@ -24,40 +24,50 @@ function canWearWithOutfit(armor: { subtype?: string; name?: string }): boolean 
 }
 
 /**
+ * 查找装备：优先 childId，回退 id（兼容新旧数据）
+ */
+function findEquip(char: Character, equipId: string) {
+  return char.equipment.find(e => e.childId === equipId || e.id === equipId);
+}
+
+/**
  * 穿戴装备
  * @param charId 角色 ID
- * @param equipId 装备 ID
+ * @param equipId 装备 ID（优先 childId，回退 id）
  * @returns { success: boolean; message: string }
  */
 function wearEquipment(charId: string, equipId: string): { success: boolean; message: string } {
   const char = characterStore.get(charId);
   if (!char) return { success: false, message: '角色不存在' };
 
-  const equip = char.equipment.find((e) => e.id === equipId);
+  const equip = findEquip(char, equipId);
   if (!equip) return { success: false, message: '装备不存在' };
 
   if (!isWearable(equip)) {
     return { success: false, message: '只有护甲和服装可以穿戴' };
   }
 
+  // 槽位优先存 childId
+  const slotId = equip.childId || equip.id;
+
   // 护甲槽：category === '护甲'
   if (equip.category === '护甲') {
     if (char.wornArmorId) {
       return { success: false, message: '已穿戴护甲，请先卸下当前护甲' };
     }
-    char.wornArmorId = equipId;
+    char.wornArmorId = slotId;
   }
 
-  // 服装槽：category === '杂项' && subtype === '服装'
+  // 服装槽：category === '杂物' && subtype === '服装'
   if (equip.category === '杂物' && equip.subtype === '服装') {
     if (char.wornOutfitId) {
       return { success: false, message: '已穿戴服装，请先卸下当前服装' };
     }
-    char.wornOutfitId = equipId;
+    char.wornOutfitId = slotId;
   }
 
-  // 更新装备 tags
-  const equipIndex = char.equipment.findIndex((e) => e.id === equipId);
+  // 更新装备 tags（findIndex 也要兼容 childId）
+  const equipIndex = char.equipment.findIndex(e => e.childId === equipId || e.id === equipId);
   if (equipIndex !== -1) {
     const tags = char.equipment[equipIndex].tags || [];
     const existingIdx = tags.findIndex((t) => t.key === '着装状态');
@@ -76,27 +86,28 @@ function wearEquipment(charId: string, equipId: string): { success: boolean; mes
 /**
  * 卸下装备
  * @param charId 角色 ID
- * @param equipId 装备 ID
+ * @param equipId 装备 ID（优先 childId，回退 id）
  * @returns { success: boolean; message: string }
  */
 function unwearEquipment(charId: string, equipId: string): { success: boolean; message: string } {
   const char = characterStore.get(charId);
   if (!char) return { success: false, message: '角色不存在' };
 
-  const equip = char.equipment.find((e) => e.id === equipId);
+  const equip = findEquip(char, equipId);
   if (!equip) return { success: false, message: '装备不存在' };
 
-  // 清除槽位
-  if (char.wornArmorId === equipId) {
+  // 清除槽位（槽位里现在优先存的是 childId，所以要用 childId 比对，再回退 id）
+  const slotId = equip.childId || equip.id;
+  if (char.wornArmorId === slotId) {
     char.wornArmorId = null;
-  } else if (char.wornOutfitId === equipId) {
+  } else if (char.wornOutfitId === slotId) {
     char.wornOutfitId = null;
   } else {
     return { success: false, message: '该装备未穿戴' };
   }
 
-  // 更新装备 tags
-  const equipIndex = char.equipment.findIndex((e) => e.id === equipId);
+  // 更新装备 tags（findIndex 兼容 childId）
+  const equipIndex = char.equipment.findIndex(e => e.childId === equipId || e.id === equipId);
   if (equipIndex !== -1) {
     const tags = char.equipment[equipIndex].tags || [];
     const existingIdx = tags.findIndex((t) => t.key === '着装状态');
