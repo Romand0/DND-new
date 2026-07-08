@@ -127,11 +127,18 @@ useEffect(() => {
               </button>
             ))}
           </div>
-          {filteredEquipments.length === 0 && (
-            <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
-              没有找到匹配的装备
-            </div>
-          )}
+          {loading ? (
+  <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
+    加载中...
+  </div>
+) : filteredEquipments.length === 0 ? (
+  <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
+    没有找到匹配的装备
+  </div>
+) : (
+  /* 原有列表 */
+)}
+
         </div>
       </div>
     </div>
