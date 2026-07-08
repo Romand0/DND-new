@@ -96,16 +96,17 @@ function saveCharacter(charData: Character): Character {
   const now = Date.now();
   const charWithTimestamps = { ...charData, updatedAt: now };
 
-  if (index === -1) {
+    if (index === -1) {
     charWithTimestamps.createdAt = now;
+    // 新增：先算 AC，再 push（同一个引用，顺序无所谓但统一风格）
+    recalculateArmorClass(charWithTimestamps);
     chars.push(charWithTimestamps);
   } else {
+    // 先算 AC，再 spread 进数组
+    recalculateArmorClass(charWithTimestamps);
     chars[index] = { ...chars[index], ...charWithTimestamps };
   }
-
-    // 自动计算护甲等级
-  recalculateArmorClass(charWithTimestamps);
-
+  
   saveStore(chars);
   syncCharacterToBackend(charWithTimestamps).catch(() => {});
   return charWithTimestamps;
