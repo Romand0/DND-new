@@ -215,13 +215,33 @@ export default function DataManagement() {
   for (const item of itemsToImport) {
     const local = nameToLocal.get(item.name);
     try {
+      // 构造符合 EquipmentItem 类型的对象
+      const equipmentItem: Parameters<typeof equipmentStore.saveItem>[0] = {
+        id: local?.id || item.id,
+        name: item.name,
+        category: item.category,
+        price: {
+          amount: item.price.amount,
+          unit: item.price.unit as 'gp' | 'sp' | 'cp',
+        },
+        weight: item.weight,
+        damageDice: item.damageDice,
+        damageType: item.damageType,
+        acBase: item.acBase,
+        subtype: item.subtype,
+        properties: item.properties,
+        description: item.description,
+        isCustom: false,
+        tags: [],
+      };
+
       if (local) {
         // 已有同名装备 → 更新后端（用本地 ID）+ 更新本地 store
-        await updateEquipment(local.id, item);
-        equipmentStore.saveItem({ ...local, ...item, id: local.id });
+        await updateEquipment(local.id, equipmentItem);
+        equipmentStore.saveItem(equipmentItem);
       } else {
         // 新装备 → 创建后端 + 添加到本地 store
-        const created = await createEquipment(item);
+        const created = await createEquipment(equipmentItem);
         equipmentStore.saveItem(created);
       }
       success++;
@@ -242,6 +262,7 @@ export default function DataManagement() {
 
   setImporting(false);
 };
+
 
 
   return (
