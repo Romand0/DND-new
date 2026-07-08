@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
-import { equipmentStore } from '@/data/equipmentStore';
-import { spellStore } from '@/data/spellStore';
 import { editorState } from '@/data/editorState';
 import * as api from '@/lib/api';
 import { hasToken } from '@/lib/api';
@@ -36,12 +34,9 @@ export default function SyncButton() {
     setResults([]);
 
     const characters = characterStore.getAll();
-    const equipments = equipmentStore.getAll();
-    const spells = spellStore.getAll();
-
     const newResults: SyncResult[] = [];
 
-    // 角色卡
+    // 只上传角色卡
     if (characters.length > 0) {
       try {
         const r = await api.batchUpsertCharacters(characters);
@@ -52,32 +47,6 @@ export default function SyncButton() {
       }
     } else {
       newResults.push({ name: '角色卡', status: 'skipped' });
-    }
-
-    // 装备
-    if (equipments.length > 0) {
-      try {
-        const r = await api.batchUpsertEquipments(equipments);
-        newResults.push({ name: '装备', status: 'success', count: r.count });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : '未知错误';
-        newResults.push({ name: '装备', status: 'error', error: msg });
-      }
-    } else {
-      newResults.push({ name: '装备', status: 'skipped' });
-    }
-
-    // 法术
-    if (spells.length > 0) {
-      try {
-        const r = await api.batchUpsertSpells(spells);
-        newResults.push({ name: '法术', status: 'success', count: r.count });
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : '未知错误';
-        newResults.push({ name: '法术', status: 'error', error: msg });
-      }
-    } else {
-      newResults.push({ name: '法术', status: 'skipped' });
     }
 
     setResults(newResults);
@@ -144,7 +113,7 @@ export default function SyncButton() {
         onClick={handleSync}
         disabled={status === 'syncing'}
         className={`flex items-center gap-2 px-4 py-3 rounded-full shadow-lg transition-all ${getStatusColor()} ${status === 'syncing' ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-        title="将本地数据上传到云端 D1 数据库"
+        title="将本地角色数据上传到云端 D1 数据库"
       >
         {getStatusIcon()}
         <span className="font-medium">
