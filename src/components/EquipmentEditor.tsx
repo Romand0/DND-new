@@ -19,8 +19,11 @@ const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '
 const DAMAGE_TYPES = ['穿刺', '钝击', '挥砍', '火焰', '冰冻', '闪电', '光', '黯蚀', '心灵', '毒素', '力场', '声波', '神力'];
 
 export default function EquipmentEditor({ item, isStatic = false, showQuantity = false, showSyncOption = false, loading = false, onSave, onDelete, onClose }: EquipmentEditorProps) {
-   const [formData, setFormData] = useState<Omit<EquipmentItem, 'isCustom'> & { quantity?: number }>({
+   const [formData, setFormData] = useState<
+  Omit<EquipmentItem, 'isCustom'> & { quantity?: number } & { childId?: string }
+>({
   id: '',
+  childId: '',   // 新增：收装备实例的子ID
   name: '',
   category: '武器',
   subtype: '',
@@ -39,6 +42,7 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
 });
 
 
+
   const [newProperty, setNewProperty] = useState('');
   const [newTagKey, setNewTagKey] = useState('');
   const [newTagValue, setNewTagValue] = useState('');
@@ -50,23 +54,25 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   useEffect(() => {
   if (item) {
     setFormData({
-      id: item.id,
-      name: item.name,
-      category: item.category,
-      subtype: item.subtype || '',
-      weight: item.weight,
-      price: { ...item.price },
-      damageDice: item.damageDice || '',
-      damageType: item.damageType || '',
-      acBase: item.acBase || '',
-      strengthReq: item.strengthReq ?? 0,
-      stealthDisadvantage: item.stealthDisadvantage ?? false,
-      description: item.description,
-      properties: item.properties || [],
-      tags: [...(item.tags || [])],
-      source: item.source || '',
-      quantity: (item as any).quantity,
-    });
+  id: item.id,
+  childId: (item as any).childId || '',   // 透传 childId
+  name: item.name,
+  category: item.category,
+  subtype: item.subtype || '',
+  weight: item.weight,
+  price: { ...item.price },
+  damageDice: item.damageDice || '',
+  damageType: item.damageType || '',
+  acBase: item.acBase || '',
+  strengthReq: item.strengthReq ?? 0,
+  stealthDisadvantage: item.stealthDisadvantage ?? false,
+  description: item.description,
+  properties: item.properties || [],
+  tags: [...(item.tags || [])],
+  source: item.source || '',
+  quantity: (item as any).quantity,
+});
+
 
     if (item.category && !CATEGORIES.includes(item.category)) {
       setCustomCategory(item.category);
