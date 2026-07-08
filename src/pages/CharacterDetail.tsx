@@ -372,11 +372,13 @@ if (!editingEquipment) {
   });
 
 } else if (editingEquipment) {
-  characterStore.updateEquipment(id, editingEquipment.id, {
+  const equipId = (editingEquipment as any).childId || editingEquipment.id;
+  characterStore.updateEquipment(id, equipId, {
     quantity: formData.quantity,
     ...extractBaseFields(formData),
   });
 }
+
 reloadChar();
 setEquipmentEditorOpen(false);
 setEditingEquipment(null);
@@ -406,7 +408,7 @@ setEditingEquipment(null);
 
   const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
     if (!id) return;
-    const equip = character?.equipment.find((e) => e.id === equipId);
+    const equip = character?.equipment.find((e) => (e.childId || e.id) === equipId);
     if (!equip) return;
     const newQty = Math.max(1, (equip.quantity || 1) + delta);
     characterStore.updateEquipment(id, equipId, { quantity: newQty });
@@ -1768,12 +1770,14 @@ setEditingEquipment(null);
     showSyncOption={true}
     onSave={handleSaveEquipment}
     onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
-      if (!id) return;
-      characterStore.deleteEquipment(id, editingEquipment.id);
-      reloadChar();
-      setEquipmentEditorOpen(false);
-      setEditingEquipment(null);
-    } : undefined}
+  if (!id) return;
+  const equipId = (editingEquipment as any).childId || editingEquipment.id;
+  characterStore.deleteEquipment(id, equipId);
+  reloadChar();
+  setEquipmentEditorOpen(false);
+  setEditingEquipment(null);
+} : undefined}
+
     onClose={() => {
       setEquipmentEditorOpen(false);
       setEditingEquipment(null);
