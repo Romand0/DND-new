@@ -6,7 +6,7 @@ import { useEditorState } from '@/data/editorState';
 import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
-import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, batchDeleteEquipments } from '@/lib/api'; // 假设有 batchDeleteEquipments
+import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment } from '@/lib/api'; // 假设有 batchDeleteEquipments
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
@@ -105,12 +105,9 @@ export default function EquipmentList() {
     setError('');
     try {
       // 优先使用批量 API，若没有则回退为循环单条删除
-      if (typeof batchDeleteEquipments === 'function') {
-        await batchDeleteEquipments(Array.from(selectedIds));
-      } else {
-        // 兼容旧版：逐条删除
-        await Promise.all(Array.from(selectedIds).map((id) => deleteEquipment(id)));
-      }
+      
+      await Promise.all(Array.from(selectedIds).map((id) => deleteEquipment(id)));
+      
       setSelectedIds(new Set());
       setBatchDeleteConfirm(false);
       load();
