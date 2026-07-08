@@ -209,17 +209,21 @@ export default function CharacterEquipmentCard({
           )}
 
           {item.tags && item.tags.length > 0 && (
-            <div>
-              <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">自由标签</div>
-              <div className="flex flex-wrap gap-1">
-                {item.tags.map((tag, idx) => (
-                  <span key={idx} className="px-2 py-0.5 text-xs rounded-full bg-accent/10 text-accent">
-                    {tag.key}: {tag.value}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+  <div>
+    <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">自由标签</div>
+    <div className="flex flex-wrap gap-1">
+      {item.tags.filter(tag => tag.key !== '着装状态').map((tag, idx) => (
+        <span key={idx} className="px-2 py-0.5 text-xs rounded-full bg-accent/10 text-accent">
+          {tag.key}: {tag.value}
+        </span>
+      ))}
+      {item.tags.filter(tag => tag.key === '着装状态').length === 0 && (
+        <span className="text-xs italic dark:text-text-dark-muted light:text-text-light-muted">无</span>
+      )}
+    </div>
+  </div>
+)}
+
 
           {item.subtype && (
             <div>
