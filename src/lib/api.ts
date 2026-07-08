@@ -222,3 +222,10 @@ export async function verifyToken(): Promise<any> {
   }
   throw new Error('No valid token');
 }
+
+
+export async function deleteEquipments(ids: string[]): Promise<void> {
+  // 根据后端接口实现，可以是并发请求或单次批量请求
+  await Promise.all(ids.map(id => deleteEquipment(id)));
+}
+
