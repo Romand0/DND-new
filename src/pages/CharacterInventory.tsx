@@ -215,14 +215,17 @@ export default function CharacterInventory({
   };
 
   const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
-    if (!id) return;
-    characterStore.addEquipment(id, {
-      quantity: 1,
-      ...extractBaseFields(item),
-    });
-    reloadChar();
-    setEquipmentPickerOpen(false);
-  };
+  if (!id) return;
+  // 用 temp- 前缀，让 handleSaveEquipment 走 add 路径
+  setEditingEquipment({
+    ...item,
+    id: 'temp-library-' + item.id,
+    quantity: 1,
+  } as any);
+  setEquipmentEditorOpen(true);
+  setEquipmentPickerOpen(false);
+};
+
 
   // --- 穿戴管理相关函数 ---
   const handleWearSelect = (item: Equipment) => {
