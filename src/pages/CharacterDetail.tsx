@@ -578,6 +578,39 @@ setEditingEquipment(null);
     );
   }
 
+   // 深度补齐：防止因 D1 同步回来的角色缺嵌套字段导致渲染崩溃
+if (character) {
+  if (!character.abilities) {
+    character.abilities = {
+      strength: { score: 10, modifier: 0 },
+      dexterity: { score: 10, modifier: 0 },
+      constitution: { score: 10, modifier: 0 },
+      intelligence: { score: 10, modifier: 0 },
+      wisdom: { score: 10, modifier: 0 },
+      charisma: { score: 10, modifier: 0 },
+    };
+  }
+  if (!character.skills) character.skills = {} as any;
+  if (!character.proficiencies) character.proficiencies = { armor: [], weapons: [], tools: [], languages: [], savingThrows: [] };
+  if (!character.spells) character.spells = { cantrips: [], spellSlots: {}, custom: [] };
+  if (!character.spells.spellSlots) character.spells.spellSlots = {};
+  if (!character.equipment) character.equipment = [];
+  if (!character.features) character.features = [];
+  if (!character.attacks) character.attacks = [];
+  if (!character.currency) character.currency = { cp: 0, sp: 0, gp: 0, pp: 0 };
+  if (character.wornArmorId === undefined) character.wornArmorId = null;
+  if (character.wornOutfitId === undefined) character.wornOutfitId = null;
+
+  // 每个装备确保 id / childId 都有
+  character.equipment = character.equipment.map(eq => {
+    if (!eq.id && (eq as any).childId) eq.id = (eq as any).childId;
+    if (!(eq as any).childId && eq.id) (eq as any).childId = eq.id;
+    return eq;
+  });
+}
+
+
+  
   return (
     <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
 
@@ -1153,11 +1186,11 @@ setEditingEquipment(null);
               <div className="relative">
                 
               {(character.equipment || []).slice(0, 5).map((item) => {
-  const itemId = item.id!;
+  const itemId = (item as any).childId || item.id;
   return (
     <CharacterEquipmentCard
       key={itemId}
-      item={{ ...item, id: itemId }}
+      item={{ ...item, id: itemId, childId: (item as any).childId }}
       characterId={id}
       onEdit={handleEditEquipment}
       onDelete={setDeleteConfirmId}
@@ -1167,6 +1200,7 @@ setEditingEquipment(null);
     />
   );
 })}
+
 
 
                 {character.equipment.length > 5 && (
