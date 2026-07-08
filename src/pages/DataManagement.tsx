@@ -72,32 +72,39 @@ export default function DataManagement() {
 
   // 获取预览
   const fetchPreview = async () => {
-    setLoading(true);
-    setResult(null);
-    setBulkEditResult(null);
+  const fetchPreview = async () => {
+  setLoading(true);
+  setResult(null);
+  setBulkEditResult(null);
+  try {
+    const res = await fetch(`/api/import/equipments?category=${category}`);
+    const data = await res.json();
+    const items = data.data || [];
+    setPreview(items);
+    setSelected(new Set(items.map((i: PreviewItem) => i.id)));
+
+    // 初始化分类覆盖：武器/护甲/工具直接映射，冒险用品才猜
+    const overrides: Record<string, string> = {};
+    items.forEach((item: PreviewItem) => {
+      overrides[item.id] = IMPORT_CAT_TO_GAME[item.category] || guessAdventuringCategory(item.name);
+    });
+    setCategoryOverrides(overrides);
+
+    // ★ 修改点：优先从远程获取现有装备库，失败时 fallback 本地
+    let existing: any[];
     try {
-      const res = await fetch(`/api/import/equipments?category=${category}`);
-      const data = await res.json();
-      const items = data.data || [];
-      setPreview(items);
-      setSelected(new Set(items.map((i: PreviewItem) => i.id)));
-
-      // 初始化分类覆盖：武器/护甲/工具直接映射，冒险用品才猜
-      const overrides: Record<string, string> = {};
-      items.forEach((item: PreviewItem) => {
-      overrides[item.id] = IMPORT_CAT_TO_GAME[item.category] || '杂物';
-      });
-      setCategoryOverrides(overrides);
-
-      // 获取现有装备库
-      const existing = equipmentStore.getAll();
-      const names = new Set(existing.map((e: any) => e.name));
-      setExistingNames(names);
-    } catch (err) {
-      console.error('获取预览失败', err);
+      existing = await fetchAllEquipments();
+    } catch {
+      existing = equipmentStore.getAll();
     }
-    setLoading(false);
-  };
+    const names = new Set(existing.map((e: any) => e.name));
+    setExistingNames(names);
+  } catch (err) {
+    console.error('获取预览失败', err);
+  }
+  setLoading(false);
+};
+
 
   // 切换选中
   const toggleItem = (id: string) => {
