@@ -187,11 +187,13 @@ export default function CharacterInventory({
         ...extractBaseFields(formData),
       });
     } else if (editingEquipment) {
-      characterStore.updateEquipment(id, editingEquipment.id, {
-        quantity: formData.quantity,
-        ...extractBaseFields(formData),
-      });
-    }
+  const equipId = (editingEquipment as any).childId || editingEquipment.id;
+  characterStore.updateEquipment(id, equipId, {
+    quantity: formData.quantity,
+    ...extractBaseFields(formData),
+  });
+}
+
 
     reloadChar();
     setEquipmentEditorOpen(false);
@@ -206,13 +208,14 @@ export default function CharacterInventory({
   };
 
   const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
-    if (!id) return;
-    const equip = character.equipment.find((e) => e.id === equipId);
-    if (!equip) return;
-    const newQty = Math.max(1, (equip.quantity || 1) + delta);
-    characterStore.updateEquipment(id, equipId, { quantity: newQty });
-    reloadChar();
-  };
+  if (!id) return;
+  const equip = character.equipment.find((e) => (e.childId || e.id) === equipId);
+  if (!equip) return;
+  const newQty = Math.max(1, (equip.quantity || 1) + delta);
+  characterStore.updateEquipment(id, equipId, { quantity: newQty });
+  reloadChar();
+};
+
 
   const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
   if (!id) return;
@@ -244,8 +247,8 @@ export default function CharacterInventory({
     }
   };
 
-  const armorItem = character.equipment.find(e => e.id === character.wornArmorId);
-  const outfitItem = character.equipment.find(e => e.id === character.wornOutfitId);
+  const armorItem = character.equipment.find(e => (e.childId || e.id) === character.wornArmorId);
+  const outfitItem = character.equipment.find(e => (e.childId || e.id) === character.wornOutfitId);
   const armorCandidates = character.equipment.filter(e => e.category === '护甲');
   const outfitCandidates = character.equipment.filter(e => e.category === '杂物' && e.subtype === '服装');
 
