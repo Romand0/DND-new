@@ -105,19 +105,19 @@ export default function MigrationBackup() {
       if (data.equipments && Array.isArray(data.equipments) && data.equipments.length > 0) {
         const result = await api.batchUpsertEquipments(data.equipments);
         eqCount = result.count;
-        equipmentStore.save(data.equipments);
+        data.equipments.forEach((e: any) => equipmentStore.save(e));
       }
 
       if (data.spells && Array.isArray(data.spells) && data.spells.length > 0) {
         const result = await api.batchUpsertSpells(data.spells);
         spCount = result.count;
-        spellStore.save(data.spells);
+        data.spells.forEach((s: any) => spellStore.save(s));
       }
 
       if (data.characters && Array.isArray(data.characters) && data.characters.length > 0) {
         const result = await api.batchUpsertCharacters(data.characters);
         chCount = result.count;
-        characterStore.save(data.characters as Character[]); // 类型断言
+        data.characters.forEach((c: any) => characterStore.save(c));
       }
 
       setMigrateResult({ equipments: eqCount, spells: spCount, characters: chCount });
@@ -142,9 +142,9 @@ export default function MigrationBackup() {
         api.fetchAllCharacters(),
       ]);
 
-      if (eqs.length > 0) equipmentStore.save(eqs);
-      if (sps.length > 0) spellStore.save(sps);
-      if (chars.length > 0) characterStore.save(chars as Character[]); // 类型断言
+      if (eqs.length > 0) eqs.forEach((e: any) => equipmentStore.save(e));
+      if (sps.length > 0) sps.forEach((s: any) => spellStore.save(s));
+      if (chars.length > 0) chars.forEach((c: any) => characterStore.save(c));
 
       setMigrateResult({
         equipments: eqs.length,
