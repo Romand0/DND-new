@@ -527,9 +527,17 @@ function updateEquipment(charId: string, equipId: string, updatedData: Partial<E
 function deleteEquipment(charId: string, equipId: string): void {
   const char = getCharacter(charId);
   if (!char) return;
+  // 如果要删的装备正穿着，先清槽位
+  if (char.wornArmorId === equipId) {
+    char.wornArmorId = null;
+  }
+  if (char.wornOutfitId === equipId) {
+    char.wornOutfitId = null;
+  }
   char.equipment = char.equipment.filter((e) => e.id !== equipId);
   saveCharacter(char as Character);
 }
+
 
 // ---------- 特性 (Features) ----------
 function addFeature(charId: string, featureData: Partial<Feature>): Feature | null {
@@ -657,6 +665,14 @@ function calcPassivePerception(char: Character): number {
 
 /** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
 function recalculateArmorClass(char: Character): void {
+  // 悬空引用防护：槽位指着的装备已不在背包里，清掉
+  if (char.wornArmorId && !char.equipment.find(e => e.id === char.wornArmorId)) {
+    char.wornArmorId = null;
+  }
+  if (char.wornOutfitId && !char.equipment.find(e => e.id === char.wornOutfitId)) {
+    char.wornOutfitId = null;
+  }
+
   const dexScore = char.abilities?.dexterity?.score ?? 10;
   const dexMod = calcModifier(dexScore);
 
@@ -664,7 +680,7 @@ function recalculateArmorClass(char: Character): void {
     const armor = char.equipment.find(e => e.id === char.wornArmorId);
     if (armor?.acBase) {
       const baseAc = Number(armor.acBase);
-      const subtype = armor.subtype || '轻甲'; // 默认轻甲
+      const subtype = armor.subtype || '轻甲';
       switch (subtype) {
         case '轻甲':
           char.armorClass = baseAc + dexMod;
@@ -676,7 +692,6 @@ function recalculateArmorClass(char: Character): void {
           char.armorClass = baseAc;
           return;
         default:
-          // 未知类型按轻甲处理
           char.armorClass = baseAc + dexMod;
           return;
       }
@@ -686,6 +701,7 @@ function recalculateArmorClass(char: Character): void {
   // 无护甲或找不到护甲 → 裸体 AC
   char.armorClass = 10 + dexMod;
 }
+
 
 
 // ============================================================
