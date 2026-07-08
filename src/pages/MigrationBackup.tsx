@@ -10,6 +10,7 @@ export default function MigrationBackup() {
   const navigate = useNavigate();
   const [migrating, setMigrating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [syncing, setSyncing] = useState(false); // 新增：同步状态
   const [migrateResult, setMigrateResult] = useState<{ equipments: number; spells: number; characters: number } | null>(null);
   const [migrateError, setMigrateError] = useState('');
 
@@ -17,21 +18,23 @@ export default function MigrationBackup() {
   const [spellCount, setSpellCount] = useState(0);
   const [characterCount, setCharacterCount] = useState(0);
 
+  // 获取计数的函数（供同步后调用）
+  const fetchCounts = async () => {
+    try {
+      const chars = await api.fetchAllCharacters();
+      const eqs = await api.fetchAllEquipments();
+      const sps = await api.fetchAllSpells();
+      setCharacterCount(chars.length);
+      setEquipmentCount(eqs.length);
+      setSpellCount(sps.length);
+    } catch {
+      setCharacterCount(characterStore.getAll().length);
+      setEquipmentCount(equipmentStore.getAll().length);
+      setSpellCount(spellStore.getAll().length);
+    }
+  };
+
   useEffect(() => {
-    const fetchCounts = async () => {
-      try {
-        const chars = await api.fetchAllCharacters();
-        const eqs = await api.fetchAllEquipments();
-        const sps = await api.fetchAllSpells();
-        setCharacterCount(chars.length);
-        setEquipmentCount(eqs.length);
-        setSpellCount(sps.length);
-      } catch {
-        setCharacterCount(characterStore.getAll().length);
-        setEquipmentCount(equipmentStore.getAll().length);
-        setSpellCount(spellStore.getAll().length);
-      }
-    };
     fetchCounts();
   }, []);
 
@@ -120,11 +123,45 @@ export default function MigrationBackup() {
       }
 
       setMigrateResult({ equipments: eqCount, spells: spCount, characters: chCount });
+      // 导入后刷新计数
+      await fetchCounts();
     } catch (err) {
       setMigrateError(err instanceof Error ? err.message : '导入失败，请检查文件格式');
     } finally {
       setMigrating(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // 新增：从云端同步到本地
+  const handleSyncFromCloud = async () => {
+    setSyncing(true);
+    setMigrateError('');
+    setMigrateResult(null);
+
+    try {
+      const [eqs, sps, chars] = await Promise.all([
+        api.fetchAllEquipments(),
+        api.fetchAllSpells(),
+        api.fetchAllCharacters(),
+      ]);
+
+      if (eqs.length > 0) equipmentStore.save(eqs);
+      if (sps.length > 0) spellStore.save(sps);
+      if (chars.length > 0) characterStore.save(chars);
+
+      setMigrateResult({
+        equipments: eqs.length,
+        spells: sps.length,
+        characters: chars.length,
+      });
+
+      // 刷新顶部计数
+      await fetchCounts();
+    } catch (err) {
+      setMigrateError(err instanceof Error ? err.message : '从云端同步失败');
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -184,6 +221,23 @@ export default function MigrationBackup() {
               )}
             </button>
             <button
+              onClick={handleSyncFromCloud}
+              disabled={syncing}
+              className="flex-1 px-4 py-2 border dark:border-border-dark light:border-border-light hover:bg-primary/10 dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  同步中…
+                </>
+              ) : (
+                <>
+                  <Database className="w-4 h-4" />
+                  从云端同步
+                </>
+              )}
+            </button>
+            <button
               onClick={handleImportClick}
               disabled={migrating || !api.hasToken()}
               className="flex-1 px-4 py-2 bg-primary hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors flex items-center justify-center gap-2"
@@ -211,8 +265,15 @@ export default function MigrationBackup() {
 
           {migrateResult && (
             <div className="mt-3 p-3 rounded-lg border border-success/30 bg-success/5 text-sm text-success">
-              <div className="font-medium mb-1">导入完成！</div>
-              <div>已导入 {migrateResult.equipments} 个装备、{migrateResult.spells} 个法术、{migrateResult.characters} 个角色到云端</div>
+              <div className="font-medium mb-1">操作完成！</div>
+              <div>
+                {migrateResult.equipments > 0 && `${migrateResult.equipments} 个装备、`}
+                {migrateResult.spells > 0 && `${migrateResult.spells} 个法术、`}
+                {migrateResult.characters > 0 && `${migrateResult.characters} 个角色`}
+                {migrateResult.equipments === 0 && migrateResult.spells === 0 && migrateResult.characters === 0
+                  ? '无数据变更'
+                  : ' 已同步到本地'}
+              </div>
             </div>
           )}
 
