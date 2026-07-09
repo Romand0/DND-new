@@ -1243,7 +1243,7 @@ if (character) {
   return (
     <CharacterEquipmentCard
       key={itemId}
-      item={{ ...item, id: itemId, childId: (item as any).childId }}
+      item={{ ...item, childId: (item as any).childId }}
       characterId={id}
       onEdit={handleEditEquipment}
       onDelete={setDeleteConfirmId}
@@ -1253,6 +1253,7 @@ if (character) {
     />
   );
 })}
+
 
 
 
