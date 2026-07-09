@@ -182,10 +182,14 @@ export default function CharacterInventory({
         ...extractBaseFields(formData),
       });
     } else if (editingEquipment.id.startsWith('temp-')) {
-      characterStore.addEquipment(id, {
-        quantity: formData.quantity || 1,
-        ...extractBaseFields(formData),
-      });
+  const templateId = (editingEquipment as any).templateId || '';
+  const finalId = formData.id.startsWith('temp-') ? (templateId || undefined) : formData.id;
+  characterStore.addEquipment(id, {
+    id: finalId,
+    quantity: formData.quantity || 1,
+    ...extractBaseFields({ ...formData, id: finalId }),
+  });
+
     } else if (editingEquipment) {
   const equipId = (editingEquipment as any).childId || editingEquipment.id;
   characterStore.updateEquipment(id, equipId, {
@@ -219,15 +223,16 @@ export default function CharacterInventory({
 
   const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
   if (!id) return;
-  // 用 temp- 前缀，让 handleSaveEquipment 走 add 路径
   setEditingEquipment({
     ...item,
     id: 'temp-library-' + item.id,
+    templateId: item.id,
     quantity: 1,
   } as any);
   setEquipmentEditorOpen(true);
   setEquipmentPickerOpen(false);
 };
+
 
 
   // --- 穿戴管理相关函数 ---
@@ -373,26 +378,28 @@ export default function CharacterInventory({
             )}
 
             <div className="space-y-2">
-              {filteredEquipment.length === 0 ? (
+              {
+                filteredEquipment.length === 0 ? (
                 <div className="text-center py-16 dark:text-text-dark-muted light:text-text-light-muted">
                   没有装备
                 </div>
               ) : (
                 filteredEquipment.map((item) => {
-                  const itemId = item.id!;
-                  return (
-                    <CharacterEquipmentCard
-                      key={itemId}
-                      item={{ ...item, id: itemId }}
-                      characterId={id}
-                      onEdit={handleEditEquipment}
-                      onDelete={setDeleteConfirmId}
-                      onUpdateQuantity={handleUpdateEquipmentQuantity}
-                      onRefresh={reloadChar}
-                      showQuantity={true}
-                    />
-                  );
-                })
+  const itemId = (item as any).childId || item.id;
+  return (
+    <CharacterEquipmentCard
+      key={itemId}
+      item={{ ...item, id: itemId, childId: (item as any).childId }}
+      characterId={id}
+      onEdit={handleEditEquipment}
+      onDelete={setDeleteConfirmId}
+      onUpdateQuantity={handleUpdateEquipmentQuantity}
+      onRefresh={reloadChar}
+      showQuantity={true}
+    />
+  );
+})
+
               )}
             </div>
 
