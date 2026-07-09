@@ -686,6 +686,8 @@ function calcPassivePerception(char: Character): number {
 /** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
 /** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
 function recalculateArmorClass(char: Character): void {
+  if (!char.equipment) char.equipment = [];
+
   // 悬空引用防护：槽位指着的装备已不在背包里，清掉（兼容 childId）
   if (char.wornArmorId && !char.equipment.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId)) {
     char.wornArmorId = null;
