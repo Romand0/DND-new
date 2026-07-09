@@ -325,18 +325,18 @@ export default function CharacterDetail({
     setEquipmentEditorOpen(true);
   };
 
-  const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
-    if (!id) return;
-    // 创建临时装备对象用于编辑器
-    const tempEquipment: Equipment & { id: string } = {
-  id: `temp-${Date.now()}`,
-  quantity: 1,
-  ...extractBaseFields(item),
+const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
+  if (!id) return;
+  const tempEquipment: Equipment & { id: string; templateId?: string } = {
+    id: `temp-${Date.now()}`,
+    templateId: item.id,
+    quantity: 1,
+    ...extractBaseFields(item),
+  };
+  setEditingEquipment(tempEquipment);
+  setEquipmentEditorOpen(true);
 };
 
-    setEditingEquipment(tempEquipment);
-    setEquipmentEditorOpen(true);
-  };
 
   const handleEditEquipment = (item: Equipment & { id: string }) => {
     setEditingEquipment(item);
@@ -371,10 +371,14 @@ if (!editingEquipment) {
   });
 
 } else if (editingEquipment.id.startsWith('temp-')) {
+  const templateId = (editingEquipment as any).templateId || '';
+  const finalId = formData.id.startsWith('temp-') ? (templateId || undefined) : formData.id;
   characterStore.addEquipment(id, {
+    id: finalId,
     quantity: formData.quantity || 1,
-    ...extractBaseFields(formData),
+    ...extractBaseFields({ ...formData, id: finalId }),
   });
+
 
 } else if (editingEquipment) {
   const equipId = (editingEquipment as any).childId || editingEquipment.id;
