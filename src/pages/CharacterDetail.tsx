@@ -41,6 +41,7 @@ import AttackEditor from '@/components/AttackEditor';
 import SyncButton from '@/components/SyncButton';
 import CharacterEquipmentCard from '@/components/CharacterEquipmentCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { useEquipmentActions } from '@/hooks/useEquipmentActions';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -264,6 +265,14 @@ export default function CharacterDetail({
     }
   };
 
+  const {
+  handleAddEquipmentFromLibrary: hookHandleAddEquipmentFromLibrary,
+  handleSaveEquipment: hookHandleSaveEquipment,
+  handleDeleteEquipment: hookHandleDeleteEquipment,
+  handleUpdateEquipmentQuantity: hookHandleUpdateEquipmentQuantity,
+} = useEquipmentActions(id, reloadChar);
+
+    
   const updateAbilityScore = (ability: AbilityKey, score: number | null) => {
     if (!id) return;
     // 当 score 为 null 时，设置为 0
@@ -325,80 +334,30 @@ export default function CharacterDetail({
     setEquipmentEditorOpen(true);
   };
 
-const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
-  if (!id) return;
-  const tempEquipment: Equipment & { id: string; templateId?: string } = {
-    id: `temp-${Date.now()}`,
-    templateId: item.id,
-    quantity: 1,
-    ...extractBaseFields(item),
-  };
-  setEditingEquipment(tempEquipment);
-  setEquipmentEditorOpen(true);
-};
-
-
   const handleEditEquipment = (item: Equipment & { id: string }) => {
     setEditingEquipment(item);
     setEquipmentEditorOpen(true);
   };
 
-  const handleSaveEquipment = async (formData: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => {
-    if (!id) return;
-
-    const libraryItem: EquipmentItem = {
-  id: formData.id,
-  ...extractBaseFields(formData),
-  isCustom: false,
+  const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
+  if (!id) return;
+  const temp = hookHandleAddEquipmentFromLibrary(item);
+  if (temp) {
+    setEditingEquipment(temp);
+    setEquipmentEditorOpen(true);
+  }
 };
 
-if (syncToLibrary) {
-  const allEquipments = equipmentStore.getAll();
-  const nameMatchIndex = allEquipments.findIndex((e) => e.name === formData.name && e.id !== formData.id);
-  let finalLibraryItem = libraryItem;
+ const handleDeleteEquipmentConfirm = () => {
+  if (!deleteConfirmId) return;
+  hookHandleDeleteEquipment(deleteConfirmId);
+  setDeleteConfirmId(null);
+};
 
-  if (nameMatchIndex >= 0) {
-    finalLibraryItem = { ...libraryItem, id: allEquipments[nameMatchIndex].id };
-  }
-
-  await equipmentStore.saveItem(finalLibraryItem);
-}
-
-if (!editingEquipment) {
-  characterStore.addEquipment(id, {
-    quantity: formData.quantity || 1,
-    ...extractBaseFields(formData),
-  });
-
-} else if (editingEquipment.id.startsWith('temp-')) {
-  const templateId = (editingEquipment as any).templateId || '';
-  const finalId = formData.id.startsWith('temp-') ? (templateId || undefined) : formData.id;
-  characterStore.addEquipment(id, {
-    id: finalId,
-    quantity: formData.quantity || 1,
-    ...extractBaseFields({ ...formData, id: finalId }),
-  });
-
-
-} else if (editingEquipment) {
-  const equipId = (editingEquipment as any).childId || editingEquipment.id;
-  characterStore.updateEquipment(id, equipId, {
-    quantity: formData.quantity,
-    ...extractBaseFields(formData),
-  });
-}
-
-reloadChar();
-setEquipmentEditorOpen(false);
-setEditingEquipment(null);
-  };
-
-  const handleDeleteEquipmentConfirm = () => {
-    if (!id || !deleteConfirmId) return;
-    characterStore.deleteEquipment(id, deleteConfirmId);
-    reloadChar();
-    setDeleteConfirmId(null);
-  };
+  const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
+  hookHandleUpdateEquipmentQuantity(equipId, delta);
+};
+  
 
   const handleSortEquipment = () => {
     if (!id || !character) return;
@@ -415,14 +374,6 @@ setEditingEquipment(null);
     reloadChar();
   };
 
-  const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
-    if (!id) return;
-    const equip = character?.equipment.find((e) => (e.childId || e.id) === equipId);
-    if (!equip) return;
-    const newQty = Math.max(1, (equip.quantity || 1) + delta);
-    characterStore.updateEquipment(id, equipId, { quantity: newQty });
-    reloadChar();
-  };
 
   const handleOpenStatsEditor = () => {
     if (!character) return;
@@ -1917,12 +1868,16 @@ if (character) {
     } : undefined}
     showQuantity={true}
     showSyncOption={true}
-    onSave={handleSaveEquipment}
+    onSave={(formData, syncToLibrary) => {
+  hookHandleSaveEquipment(editingEquipment, formData, syncToLibrary, () => {
+    setEquipmentEditorOpen(false);
+    setEditingEquipment(null);
+  });
+}}
+
     onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
-  if (!id) return;
   const equipId = (editingEquipment as any).childId || editingEquipment.id;
-  characterStore.deleteEquipment(id, equipId);
-  reloadChar();
+  hookHandleDeleteEquipment(equipId);
   setEquipmentEditorOpen(false);
   setEditingEquipment(null);
 } : undefined}
