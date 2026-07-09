@@ -40,6 +40,7 @@ import EquipmentEditor from '@/components/EquipmentEditor';
 import AttackEditor from '@/components/AttackEditor';
 import SyncButton from '@/components/SyncButton';
 import CharacterEquipmentCard from '@/components/CharacterEquipmentCard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -943,6 +944,11 @@ if (character) {
       </div>
 
       <Section title="技能与豁免" icon={Star}>
+        <ErrorBoundary fallback={
+    <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
+      技能与豁免区块渲染异常，请尝试重新同步角色数据
+    </div>
+  }>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           
           {(() => {
@@ -1097,13 +1103,17 @@ if (character) {
   }
 })()}
 
-          
-                  
-  
+      
         </div>
+          </ErrorBoundary>
       </Section>
 
       <Section title="熟练项" icon={Star}>
+        <ErrorBoundary fallback={
+    <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
+      熟练项区块渲染异常，请尝试重新同步角色数据
+    </div>
+  }>
         <div className="flex flex-wrap gap-4">
           {displayedProficiencyCategories.map((category) => {
             const items = character.proficiencies?.[category] || [];
@@ -1166,11 +1176,17 @@ if (character) {
           );
         })}
         </div>
+          </ErrorBoundary>
       </Section>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
           <Section title="攻击" icon={Swords}>
+            <ErrorBoundary fallback={
+    <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
+      攻击区块渲染异常，请尝试重新同步角色数据
+    </div>
+  }>
             <div className="space-y-2">
               {(character.attacks || []).length === 0 ? (
                 <div className="text-center py-6 text-sm dark:text-text-dark-muted light:text-text-light-muted">
@@ -1232,9 +1248,15 @@ if (character) {
                 添加攻击
               </button>
             </div>
+              </ErrorBoundary>
           </Section>
 
           <Section title="装备" icon={Package}>
+            <ErrorBoundary fallback={
+    <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
+      装备区块渲染异常，请尝试重新同步角色数据
+    </div>
+  }>
             <div className="space-y-2">
               <div className="flex gap-2 mb-4">
                 <button
@@ -1323,6 +1345,7 @@ if (character) {
                 </div>
               </div>
             </div>
+              </ErrorBoundary>
           </Section>
 
           <Section title="货币" icon={Coins}>
