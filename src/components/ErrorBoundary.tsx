@@ -27,8 +27,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return this.props.fallback || (
-        <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
-          该区块渲染异常，请检查数据或联系开发者。
+        <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg space-y-1">
+          <div>该区块渲染异常</div>
+          {this.state.error && (
+            <pre className="text-xs opacity-70 whitespace-pre-wrap break-all">
+              {this.state.error.message}
+            </pre>
+          )}
         </div>
       );
     }
