@@ -185,29 +185,59 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                装备ID
-              </label>
-              <input
-                type="text"
-                value={formData.id}
-                onChange={(e) => setFormData({ ...formData, id: e.target.value })}
-                placeholder="例如：longsword"
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                名称 *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                required
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              />
-            </div>
+               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+              装备 ID
+      {item && (item as any).id?.startsWith('temp-') && (
+        <span className="ml-1 text-xs dark:text-text-dark-muted light:text-text-light-muted font-normal">
+          （临时，保存后由模板 ID 替代）
+        </span>
+      )}
+    </label>
+    <input
+      type="text"
+      value={formData.id}
+      onChange={(e) => setFormData({ ...formData, id: e.target.value })}
+      placeholder={item && (item as any).id?.startsWith('temp-') ? '保存后生成模板 ID' : '例如：longsword'}
+      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+    />
+  </div>
+  <div>
+    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+      实例 ID
+    </label>
+    {formData.childId ? (
+      <div className="w-full px-3 py-2 rounded-lg border dark:bg-bg-dark/50 dark:border-border-dark/50 dark:text-text-dark-muted light:bg-bg-light/50 light:border-border-light/50 light:text-text-light-muted text-sm font-mono break-all">
+        {formData.childId}
+      </div>
+    ) : item && (item as any).id?.startsWith('temp-') ? (
+      <div className="w-full px-3 py-2 rounded-lg border dark:bg-bg-dark/50 dark:border-border-dark/50 dark:text-text-dark-muted light:bg-bg-light/50 light:border-border-light/50 light:text-text-light-muted text-sm">
+        （临时，保存后生成：角色 ID + 随机后缀）
+      </div>
+    ) : item ? (
+      <div className="w-full px-3 py-2 rounded-lg border dark:bg-bg-dark/50 dark:border-border-dark/50 dark:text-text-dark-muted light:bg-bg-light/50 light:border-border-light/50 light:text-text-light-muted text-sm">
+        无子 ID（旧数据）
+      </div>
+    ) : (
+      <div className="w-full px-3 py-2 rounded-lg border dark:bg-bg-dark/50 dark:border-border-dark/50 dark:text-text-dark-muted light:bg-bg-light/50 light:border-border-light/50 light:text-text-light-muted text-sm">
+        （新建，保存后生成）
+      </div>
+    )}
+    <p className="mt-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+      标识该装备在当前角色背包中的唯一实例，由"角色 ID + 随机后缀"构成。只读。
+    </p>
+  </div>
+  <div>
+    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+      名称 *
+    </label>
+    <input
+      type="text"
+      value={formData.name}
+      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+      required
+      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+    />
+  </div>
           </div>
 
           {showQuantity && (
