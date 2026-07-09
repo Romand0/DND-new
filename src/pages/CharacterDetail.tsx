@@ -1349,6 +1349,11 @@ if (character) {
           </Section>
 
           <Section title="货币" icon={Coins}>
+            <ErrorBoundary fallback={
+    <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
+      货币区块渲染异常，请尝试重新同步角色数据
+    </div>
+  }>
             <div className="grid grid-cols-4 gap-3">
               {(['cp', 'sp', 'gp', 'pp'] as const).map((coin) => (
                 <div key={coin} className="text-center p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
@@ -1388,12 +1393,18 @@ if (character) {
                 </div>
               ))}
             </div>
+              </ErrorBoundary>
           </Section>
         </div>
 
         <div className="space-y-6">
           {characterStore.shouldShowSpellSlots(character) ? (
             <Section title="法术" icon={Sparkles}>
+              <ErrorBoundary fallback={
+    <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
+      法术区块渲染异常，请尝试重新同步角色数据
+    </div>
+  }>
               <div className="space-y-4">
                 {/* 施法者信息 */}
                 <div className="flex items-center justify-between">
@@ -1688,6 +1699,7 @@ if (character) {
                 </div>
               </div>
             </div>
+                </ErrorBoundary>
           </Section>
           ) : null}
 
