@@ -118,24 +118,31 @@ export default function EquipmentList() {
 
   // ---- 单条 CRUD（不变）----
   const handleSave = async (item: EquipmentItem) => {
-    if (!isDM) return;
-    setSaving(true);
-    setError('');
-    try {
-      if (editingItem) {
-        await updateEquipment(editingItem.id, item);
-      } else {
+  if (!isDM) return;
+  setSaving(true);
+  setError('');
+  try {
+    if (editingItem) {
+      if (item.id !== editingItem.id) {
+        // ID 已变更：先创建新装备，再删除旧装备
         await createEquipment(item);
+        await deleteEquipment(editingItem.id);
+      } else {
+        await updateEquipment(editingItem.id, item);
       }
-      setEditorOpen(false);
-      setEditingItem(undefined);
-      load();
-    } catch (e: any) {
-      setError(e.message || '保存失败');
-    } finally {
-      setSaving(false);
+    } else {
+      await createEquipment(item);
     }
-  };
+    setEditorOpen(false);
+    setEditingItem(undefined);
+    load();
+  } catch (e: any) {
+    setError(e.message || '保存失败');
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   const handleDelete = async (id: string) => {
     if (!isDM) return;
