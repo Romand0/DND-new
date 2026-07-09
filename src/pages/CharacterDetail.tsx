@@ -892,6 +892,11 @@ if (character) {
       </div>
 
       <Section title="属性值" icon={Zap}>
+        <ErrorBoundary fallback={
+    <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
+      属性值区块渲染异常，请尝试重新同步角色数据
+    </div>
+  }>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {(Object.keys(character.abilities || {}) as AbilityKey[]).map((ability) => (
             <div
@@ -936,6 +941,7 @@ if (character) {
             </div>
           ))}
         </div>
+          </ErrorBoundary>
       </Section>
 
       <div className="flex items-center justify-end gap-2 px-4 py-2 text-sm dark:text-text-dark-muted light:text-text-light-muted">
