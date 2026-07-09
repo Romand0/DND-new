@@ -1254,10 +1254,7 @@ if (character) {
   );
 })}
 
-
-
-
-                {character.equipment.length > 5 && (
+       {character.equipment.length > 5 && (
                   <>
                     <div className="absolute bottom-0 left-0 right-0 h-16 pointer-events-none bg-gradient-to-t from-transparent dark:from-card-dark light:from-card-light to-transparent" />
                     <button
