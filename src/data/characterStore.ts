@@ -508,16 +508,21 @@ function deleteAttack(charId: string, attackId: string): void {
 function addEquipment(charId: string, equipData: Partial<Equipment>): Equipment | null {
   const char = getCharacter(charId);
   if (!char) return null;
+  // 防御：防止编辑器透传的 childId(undefined) 覆盖
+  const safeData = { ...equipData };
+  delete (safeData as any).childId;
+  
   // 生成子ID：角色ID + 随机后缀
   const childId = charId + '-' + generateId();
   const newEquip: Equipment = {
-    id: equipData.id || generateId(),   // 保留装备库模板ID
-    childId,                             // 新增子ID
+    id: safeData.id || generateId(), // 保留装备库模板ID
+    childId, // 新增子ID
     name: '',
     quantity: 1,
     category: '杂项',
-    ...equipData,
+    ...safeData,
   };
+
   char.equipment.push(newEquip);
   saveCharacter(char as Character);
   return newEquip;
@@ -683,7 +688,6 @@ function calcPassivePerception(char: Character): number {
   return 10 + wisMod + prof + extra;
 }
 
-/** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
 /** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
 function recalculateArmorClass(char: Character): void {
   if (!char.equipment) char.equipment = [];
