@@ -65,12 +65,14 @@ export function useEquipmentActions(charId: string | undefined, refresh: () => v
         ...extractBaseFields({ ...formData, id: finalId }),
       });
     } else {
-      const equipId = (editingEquipment as any).childId || editingEquipment.id;
-      characterStore.updateEquipment(charId, equipId, {
-        quantity: formData.quantity,
-        ...extractBaseFields(formData),
-      });
-    }
+  const equipId = (editingEquipment as any).childId || editingEquipment.id;
+  characterStore.updateEquipment(charId, equipId, {
+    id: formData.id || editingEquipment.id,  // 保留用户修改的ID
+    quantity: formData.quantity,
+    ...extractBaseFields(formData),
+  });
+}
+
 
     refresh();
     onSuccess?.();
