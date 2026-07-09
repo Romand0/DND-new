@@ -64,12 +64,7 @@ export default function CharacterInventory({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0);
 
-  const {
-  handleAddEquipmentFromLibrary: hookHandleAddEquipmentFromLibrary,
-  handleSaveEquipment: hookHandleSaveEquipment,
-  handleDeleteEquipment: hookHandleDeleteEquipment,
-  handleUpdateEquipmentQuantity: hookHandleUpdateEquipmentQuantity,
-} = useEquipmentActions(id, reloadChar);
+  
 
   // 新增：视图模式
   const [viewMode, setViewMode] = useState<'inventory' | 'equipped'>('inventory');
@@ -82,6 +77,13 @@ export default function CharacterInventory({
     forceUpdate((n) => n + 1);
   };
 
+  const {
+  handleAddEquipmentFromLibrary: hookHandleAddEquipmentFromLibrary,
+  handleSaveEquipment: hookHandleSaveEquipment,
+  handleDeleteEquipment: hookHandleDeleteEquipment,
+  handleUpdateEquipmentQuantity: hookHandleUpdateEquipmentQuantity,
+} = useEquipmentActions(id, reloadChar);
+  
   if (!character) {
     return (
       <div className="max-w-4xl mx-auto p-6 text-center dark:text-text-dark-muted light:text-text-light-muted">
@@ -153,63 +155,6 @@ export default function CharacterInventory({
     setEquipmentEditorOpen(true);
   };
 
-  
-    const libraryItem: EquipmentItem = {
-      id: formData.id,
-      ...extractBaseFields(formData),
-      isCustom: false,
-    };
-
-    if (syncToLibrary) {
-      const token = localStorage.getItem('auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      try {
-        await apiFetch(`/equipments/${formData.id}`, {
-          method: 'PUT',
-          headers,
-          body: JSON.stringify(libraryItem),
-        });
-      } catch {
-        const finalId = formData.id.startsWith('temp-')
-          ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
-          : formData.id;
-        await apiFetch('/equipments', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ ...libraryItem, id: finalId }),
-        });
-      }
-    }
-
-    if (!editingEquipment) {
-      characterStore.addEquipment(id, {
-        quantity: formData.quantity || 1,
-        ...extractBaseFields(formData),
-      });
-    } else if (editingEquipment.id.startsWith('temp-')) {
-  const templateId = (editingEquipment as any).templateId || '';
-  const finalId = formData.id.startsWith('temp-') ? (templateId || undefined) : formData.id;
-  characterStore.addEquipment(id, {
-    id: finalId,
-    quantity: formData.quantity || 1,
-    ...extractBaseFields({ ...formData, id: finalId }),
-  });
-
-    } else if (editingEquipment) {
-  const equipId = (editingEquipment as any).childId || editingEquipment.id;
-  characterStore.updateEquipment(id, equipId, {
-    quantity: formData.quantity,
-    ...extractBaseFields(formData),
-  });
-}
-
-
-    reloadChar();
-    setEquipmentEditorOpen(false);
-    setEditingEquipment(null);
-  };
-
   const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
   if (!id) return;
   const temp = hookHandleAddEquipmentFromLibrary(item);
@@ -229,7 +174,7 @@ const handleDeleteEquipmentConfirm = () => {
 const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
   hookHandleUpdateEquipmentQuantity(equipId, delta);
 };
-
+ 
   // --- 穿戴管理相关函数 ---
   const handleWearSelect = (item: Equipment) => {
     if (!id || !selectingSlot) return;
