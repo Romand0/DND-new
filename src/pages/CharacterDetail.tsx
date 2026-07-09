@@ -944,146 +944,162 @@ if (character) {
 
       <Section title="技能与豁免" icon={Star}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {characterStore.getGroupedSkills(character || {} as Character).map((group) => (
-            <div
-              key={group.attribute}
-              className="p-3 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light"
+          
+          {(() => {
+  try {
+    const groups = characterStore.getGroupedSkills(character || {} as Character);
+    if (!Array.isArray(groups)) {
+      return <div className="text-sm text-danger col-span-full">技能数据异常，请重新同步角色</div>;
+    }
+    return groups.map((group) => (
+      <div
+        key={group.attribute}
+        className="p-3 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light"
+      >
+        <div className="flex items-center gap-2 mb-2 pb-2 border-b dark:border-border-dark light:border-border-light">
+          <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
+            {group.attributeLabel}
+          </span>
+          <span className="text-xs text-primary font-mono">
+            {group.save.modifier >= 0 ? `+${group.save.modifier}` : group.save.modifier}
+          </span>
+        </div>
+        
+        {/* 豁免 */}
+        <div
+          className={`flex items-center gap-2 p-1.5 rounded-lg mb-2 transition-colors ${
+            group.save.proficient
+              ? 'bg-accent/10'
+              : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
+          }`}
+        >
+          <button
+            onClick={() => {
+              if (group.save.proficient && id) {
+                characterStore.toggleSaveExpertise(id, group.save.key);
+                reloadChar();
+              }
+            }}
+            disabled={!group.save.proficient || !id}
+            className={`w-4 h-4 flex items-center justify-center ${
+              group.save.proficient
+                ? group.save.expertise
+                  ? 'text-accent'
+                  : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-accent'
+                : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+            }`}
+            title={group.save.proficient ? (group.save.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+          >
+            <Star className={`w-3.5 h-3.5 ${group.save.expertise ? 'fill-accent' : ''}`} />
+          </button>
+          <input
+            type="checkbox"
+            checked={group.save.proficient}
+            onChange={() => {
+              if (id) {
+                characterStore.toggleSaveProficiency(id, group.save.key);
+                reloadChar();
+              }
+            }}
+            className="w-4 h-4 accent-accent"
+          />
+          <span
+            className={`text-xs flex-1 ${
+              group.save.proficient
+                ? 'font-medium dark:text-text-dark light:text-text-light'
+                : 'dark:text-text-dark-muted light:text-text-light-muted'
+            }`}
+          >
+            {group.save.label}
+          </span>
+          <span
+            className={`text-xs font-mono font-bold w-8 text-right ${
+              group.save.proficient
+                ? 'dark:text-text-dark light:text-text-light'
+                : 'dark:text-text-dark-muted light:text-text-light-muted'
+            }`}
+          >
+            {group.save.bonus >= 0 ? `+${group.save.bonus}` : group.save.bonus}
+          </span>
+        </div>
+        
+        {/* 技能列表 */}
+        {group.skills.map((skill) => (
+          <div
+            key={skill.key}
+            className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors ${
+              skill.proficient
+                ? 'bg-primary/10'
+                : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
+            }`}
+          >
+            <button
+            onClick={() => {
+              if (skill.proficient && id) {
+                characterStore.toggleSkillExpertise(id, skill.key);
+                reloadChar();
+              }
+            }}
+            disabled={!skill.proficient || !id}
+            className={`w-4 h-4 flex items-center justify-center ${
+              skill.proficient
+                ? skill.expertise
+                  ? 'text-primary'
+                  : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+                : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+            }`}
+            title={skill.proficient ? (skill.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+          >
+            <Star className={`w-3.5 h-3.5 ${skill.expertise ? 'fill-primary' : ''}`} />
+          </button>
+          <input
+            type="checkbox"
+            checked={skill.proficient}
+            onChange={() => {
+              if (id) {
+                characterStore.toggleSkillProficiency(id, skill.key);
+                reloadChar();
+              }
+            }}
+            className="w-4 h-4 accent-primary"
+          />
+            <span
+              className={`text-xs flex-1 ${
+                skill.proficient
+                  ? 'font-medium dark:text-text-dark light:text-text-light'
+                  : 'dark:text-text-dark-muted light:text-text-light-muted'
+              }`}
             >
-              <div className="flex items-center gap-2 mb-2 pb-2 border-b dark:border-border-dark light:border-border-light">
-                <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
-                  {group.attributeLabel}
-                </span>
-                <span className="text-xs text-primary font-mono">
-                  {group.save.modifier >= 0 ? `+${group.save.modifier}` : group.save.modifier}
-                </span>
-              </div>
-              
-              {/* 豁免 */}
-              <div
-                className={`flex items-center gap-2 p-1.5 rounded-lg mb-2 transition-colors ${
-                  group.save.proficient
-                    ? 'bg-accent/10'
-                    : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
-                }`}
-              >
-                <button
-                  onClick={() => {
-                    if (group.save.proficient && id) {
-                      characterStore.toggleSaveExpertise(id, group.save.key);
-                      reloadChar();
-                    }
-                  }}
-                  disabled={!group.save.proficient || !id}
-                  className={`w-4 h-4 flex items-center justify-center ${
-                    group.save.proficient
-                      ? group.save.expertise
-                        ? 'text-accent'
-                        : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-accent'
-                      : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
-                  }`}
-                  title={group.save.proficient ? (group.save.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
-                >
-                  <Star className={`w-3.5 h-3.5 ${group.save.expertise ? 'fill-accent' : ''}`} />
-                </button>
-                <input
-                  type="checkbox"
-                  checked={group.save.proficient}
-                  onChange={() => {
-                    if (id) {
-                      characterStore.toggleSaveProficiency(id, group.save.key);
-                      reloadChar();
-                    }
-                  }}
-                  className="w-4 h-4 accent-accent"
-                />
-                <span
-                  className={`text-xs flex-1 ${
-                    group.save.proficient
-                      ? 'font-medium dark:text-text-dark light:text-text-light'
-                      : 'dark:text-text-dark-muted light:text-text-light-muted'
-                  }`}
-                >
-                  {group.save.label}
-                </span>
-                <span
-                  className={`text-xs font-mono font-bold w-8 text-right ${
-                    group.save.proficient
-                      ? 'dark:text-text-dark light:text-text-light'
-                      : 'dark:text-text-dark-muted light:text-text-light-muted'
-                  }`}
-                >
-                  {group.save.bonus >= 0 ? `+${group.save.bonus}` : group.save.bonus}
-                </span>
-              </div>
-              
-              {/* 技能列表 */}
-              {group.skills.map((skill) => (
-                <div
-                  key={skill.key}
-                  className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors ${
-                    skill.proficient
-                      ? 'bg-primary/10'
-                      : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
-                  }`}
-                >
-                  <button
-                  onClick={() => {
-                    if (skill.proficient && id) {
-                      characterStore.toggleSkillExpertise(id, skill.key);
-                      reloadChar();
-                    }
-                  }}
-                  disabled={!skill.proficient || !id}
-                  className={`w-4 h-4 flex items-center justify-center ${
-                    skill.proficient
-                      ? skill.expertise
-                        ? 'text-primary'
-                        : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
-                      : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
-                  }`}
-                  title={skill.proficient ? (skill.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
-                >
-                  <Star className={`w-3.5 h-3.5 ${skill.expertise ? 'fill-primary' : ''}`} />
-                </button>
-                <input
-                  type="checkbox"
-                  checked={skill.proficient}
-                  onChange={() => {
-                    if (id) {
-                      characterStore.toggleSkillProficiency(id, skill.key);
-                      reloadChar();
-                    }
-                  }}
-                  className="w-4 h-4 accent-primary"
-                />
-                  <span
-                    className={`text-xs flex-1 ${
-                      skill.proficient
-                        ? 'font-medium dark:text-text-dark light:text-text-light'
-                        : 'dark:text-text-dark-muted light:text-text-light-muted'
-                    }`}
-                  >
-                    {skill.label}
-                  </span>
-                  <span
-                    className={`text-xs font-mono font-bold w-8 text-right ${
-                      skill.proficient
-                        ? 'dark:text-text-dark light:text-text-light'
-                        : 'dark:text-text-dark-muted light:text-text-light-muted'
-                    }`}
-                  >
-                    {skill.bonus >= 0 ? `+${skill.bonus}` : skill.bonus}
-                  </span>
-                </div>
-              ))}
-              
-              {group.skills.length === 0 && (
-                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted text-center py-1">
-                  无关联技能
-                </div>
-              )}
-            </div>
-          ))}
+              {skill.label}
+            </span>
+            <span
+              className={`text-xs font-mono font-bold w-8 text-right ${
+                skill.proficient
+                  ? 'dark:text-text-dark light:text-text-light'
+                  : 'dark:text-text-dark-muted light:text-text-light-muted'
+              }`}
+            >
+              {skill.bonus >= 0 ? `+${skill.bonus}` : skill.bonus}
+            </span>
+          </div>
+        ))}
+        
+        {group.skills.length === 0 && (
+          <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted text-center py-1">
+            无关联技能
+          </div>
+        )}
+      </div>
+    ));
+  } catch (e) {
+    console.error('技能区块渲染错误:', e);
+    return <div className="text-sm text-danger col-span-full">技能区块渲染异常: {String(e)}</div>;
+  }
+})()}
+
+          
+                  
+  
         </div>
       </Section>
 
