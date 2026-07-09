@@ -1858,12 +1858,14 @@ if (character) {
 
       {equipmentEditorOpen && (
   <EquipmentEditor
-    item={editingEquipment ? {
-      id: editingEquipment.id,
-      ...extractBaseFields(editingEquipment),
-      isCustom: true,
-      quantity: editingEquipment.quantity,
-    } : undefined}
+    item={editingEquipment ? ({
+  id: editingEquipment.id,
+  childId: (editingEquipment as any).childId,
+  ...extractBaseFields(editingEquipment),
+  isCustom: true,
+  quantity: editingEquipment.quantity,
+} as any) : undefined}
+
     showQuantity={true}
     showSyncOption={true}
     onSave={(formData, syncToLibrary) => {
