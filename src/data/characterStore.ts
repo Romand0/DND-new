@@ -506,6 +506,8 @@ function deleteAttack(charId: string, attackId: string): void {
 
 // ---------- 装备 (Equipment) ----------
 function addEquipment(charId: string, equipData: Partial<Equipment>): Equipment | null {
+  console.log('addEquipment called', { charId, equipData });
+
   const char = getCharacter(charId);
   if (!char) return null;
   // 防御：防止编辑器透传的 childId(undefined) 覆盖
