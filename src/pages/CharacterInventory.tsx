@@ -389,7 +389,7 @@ export default function CharacterInventory({
   return (
     <CharacterEquipmentCard
       key={itemId}
-      item={item}
+      item={{ ...item, id: itemId, childId: (item as any).childId } as Equipment & { id: string }}
       characterId={id}
       onEdit={handleEditEquipment}
       onDelete={setDeleteConfirmId}
@@ -399,6 +399,7 @@ export default function CharacterInventory({
     />
   );
 })
+
 
               )}
             </div>
@@ -557,13 +558,14 @@ export default function CharacterInventory({
 
       {equipmentEditorOpen && (
         <EquipmentEditor
-          item={editingEquipment ? {
+          item={editingEquipment ? ({
   id: editingEquipment.id,
   childId: (editingEquipment as any).childId,
   ...extractBaseFields(editingEquipment),
   isCustom: true,
   quantity: editingEquipment.quantity,
-} : undefined}
+} as any) : undefined}
+
 
           showQuantity={true}
           showSyncOption={true}
