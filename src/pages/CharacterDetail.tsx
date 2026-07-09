@@ -135,7 +135,7 @@ export default function CharacterDetail({
 } = {}) {
 
   try {
-  throw new Error('测试错误');
+  
 
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
