@@ -32,6 +32,7 @@ import type { Equipment, Character } from '@/types/character';
 import type { EquipmentItem } from '@/types/equipment';
 import { extractBaseFields } from '@/data/equipmentFactory';
 import CharacterEquipmentCard from '@/components/CharacterEquipmentCard';
+import { useEquipmentActions } from '@/hooks/useEquipmentActions';
 
 const CATEGORIES = [
   { key: 'all', label: '所有', icon: Package },
@@ -62,6 +63,13 @@ export default function CharacterInventory({
   const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [, forceUpdate] = useState(0);
+
+  const {
+  handleAddEquipmentFromLibrary: hookHandleAddEquipmentFromLibrary,
+  handleSaveEquipment: hookHandleSaveEquipment,
+  handleDeleteEquipment: hookHandleDeleteEquipment,
+  handleUpdateEquipmentQuantity: hookHandleUpdateEquipmentQuantity,
+} = useEquipmentActions(id, reloadChar);
 
   // 新增：视图模式
   const [viewMode, setViewMode] = useState<'inventory' | 'equipped'>('inventory');
@@ -145,9 +153,7 @@ export default function CharacterInventory({
     setEquipmentEditorOpen(true);
   };
 
-  const handleSaveEquipment = async (formData: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => {
-    if (!id) return;
-
+  
     const libraryItem: EquipmentItem = {
       id: formData.id,
       ...extractBaseFields(formData),
@@ -204,36 +210,25 @@ export default function CharacterInventory({
     setEditingEquipment(null);
   };
 
-  const handleDeleteEquipmentConfirm = () => {
-    if (!id || !deleteConfirmId) return;
-    characterStore.deleteEquipment(id, deleteConfirmId);
-    reloadChar();
-    setDeleteConfirmId(null);
-  };
-
-  const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
-  if (!id) return;
-  const equip = character.equipment.find((e) => (e.childId || e.id) === equipId);
-  if (!equip) return;
-  const newQty = Math.max(1, (equip.quantity || 1) + delta);
-  characterStore.updateEquipment(id, equipId, { quantity: newQty });
-  reloadChar();
-};
-
-
   const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
   if (!id) return;
-  setEditingEquipment({
-    ...item,
-    id: 'temp-library-' + item.id,
-    templateId: item.id,
-    quantity: 1,
-  } as any);
-  setEquipmentEditorOpen(true);
-  setEquipmentPickerOpen(false);
+  const temp = hookHandleAddEquipmentFromLibrary(item);
+  if (temp) {
+    setEditingEquipment(temp);
+    setEquipmentEditorOpen(true);
+    setEquipmentPickerOpen(false);
+  }
 };
 
+const handleDeleteEquipmentConfirm = () => {
+  if (!deleteConfirmId) return;
+  hookHandleDeleteEquipment(deleteConfirmId);
+  setDeleteConfirmId(null);
+};
 
+const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
+  hookHandleUpdateEquipmentQuantity(equipId, delta);
+};
 
   // --- 穿戴管理相关函数 ---
   const handleWearSelect = (item: Equipment) => {
@@ -570,14 +565,20 @@ export default function CharacterInventory({
 
           showQuantity={true}
           showSyncOption={true}
-          onSave={handleSaveEquipment}
+          onSave={(formData, syncToLibrary) => {
+  hookHandleSaveEquipment(editingEquipment, formData, syncToLibrary, () => {
+    setEquipmentEditorOpen(false);
+    setEditingEquipment(null);
+  });
+}}
+
           onDelete={editingEquipment && !editingEquipment.id.startsWith('temp-') ? () => {
-            if (!id) return;
-            characterStore.deleteEquipment(id, editingEquipment.id);
-            reloadChar();
-            setEquipmentEditorOpen(false);
-            setEditingEquipment(null);
-          } : undefined}
+  const equipId = (editingEquipment as any).childId || editingEquipment.id;
+  hookHandleDeleteEquipment(equipId);
+  setEquipmentEditorOpen(false);
+  setEditingEquipment(null);
+} : undefined}
+
           onClose={() => {
             setEquipmentEditorOpen(false);
             setEditingEquipment(null);
