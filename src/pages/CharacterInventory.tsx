@@ -389,7 +389,7 @@ export default function CharacterInventory({
   return (
     <CharacterEquipmentCard
       key={itemId}
-      item={{ ...item, id: itemId, childId: (item as any).childId }}
+      item={item}
       characterId={id}
       onEdit={handleEditEquipment}
       onDelete={setDeleteConfirmId}
@@ -558,11 +558,13 @@ export default function CharacterInventory({
       {equipmentEditorOpen && (
         <EquipmentEditor
           item={editingEquipment ? {
-            id: editingEquipment.id,
-            ...extractBaseFields(editingEquipment),
-            isCustom: true,
-            quantity: editingEquipment.quantity,
-          } : undefined}
+  id: editingEquipment.id,
+  childId: (editingEquipment as any).childId,
+  ...extractBaseFields(editingEquipment),
+  isCustom: true,
+  quantity: editingEquipment.quantity,
+} : undefined}
+
           showQuantity={true}
           showSyncOption={true}
           onSave={handleSaveEquipment}
