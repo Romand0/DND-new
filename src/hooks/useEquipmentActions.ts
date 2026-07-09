@@ -1,11 +1,11 @@
 import { useCallback } from 'react';
-import { Equipment, EquipmentItem } from '@/types/character';
+import { Equipment } from '@/types/character';
 import { extractBaseFields } from '@/data/equipmentFactory';
 import { characterStore } from '@/data/characterStore';
-import { apiFetch } from '@/lib/api';
+import * as api from '@/lib/api';
 
 export function useEquipmentActions(charId: string | undefined, refresh: () => void) {
-  const handleAddEquipmentFromLibrary = useCallback((item: EquipmentItem) => {
+  const handleAddEquipmentFromLibrary = useCallback((item: any) => {
     if (!charId) return null;
     const tempEquipment: Equipment & { id: string; templateId?: string } = {
       id: `temp-${Date.now()}`,
@@ -18,15 +18,14 @@ export function useEquipmentActions(charId: string | undefined, refresh: () => v
 
   const handleSaveEquipment = useCallback(async (
     editingEquipment: (Equipment & { id: string }) | null,
-    formData: EquipmentItem & { quantity?: number },
+    formData: any,
     syncToLibrary?: boolean,
     onSuccess?: () => void,
   ) => {
     if (!charId) return;
 
-    // 同步到装备库（可选）
     if (syncToLibrary) {
-      const libraryItem: EquipmentItem = {
+      const libraryItem: any = {
         id: formData.id,
         ...extractBaseFields(formData),
         isCustom: false,
@@ -35,7 +34,7 @@ export function useEquipmentActions(charId: string | undefined, refresh: () => v
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
       try {
-        await apiFetch(`/equipments/${formData.id}`, {
+        await api.apiFetch(`/equipments/${formData.id}`, {
           method: 'PUT',
           headers,
           body: JSON.stringify(libraryItem),
@@ -44,7 +43,7 @@ export function useEquipmentActions(charId: string | undefined, refresh: () => v
         const finalId = formData.id.startsWith('temp-')
           ? formData.name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9\-]/g, '')
           : formData.id;
-        await apiFetch('/equipments', {
+        await api.apiFetch('/equipments', {
           method: 'POST',
           headers,
           body: JSON.stringify({ ...libraryItem, id: finalId }),
@@ -53,13 +52,11 @@ export function useEquipmentActions(charId: string | undefined, refresh: () => v
     }
 
     if (!editingEquipment) {
-      // 新增装备（无编辑源）
       characterStore.addEquipment(charId, {
         quantity: formData.quantity || 1,
         ...extractBaseFields(formData),
       });
     } else if (editingEquipment.id.startsWith('temp-')) {
-      // 从装备库添加的临时装备
       const templateId = (editingEquipment as any).templateId || '';
       const finalId = formData.id.startsWith('temp-') ? (templateId || undefined) : formData.id;
       characterStore.addEquipment(charId, {
@@ -68,7 +65,6 @@ export function useEquipmentActions(charId: string | undefined, refresh: () => v
         ...extractBaseFields({ ...formData, id: finalId }),
       });
     } else {
-      // 编辑已有装备
       const equipId = (editingEquipment as any).childId || editingEquipment.id;
       characterStore.updateEquipment(charId, equipId, {
         quantity: formData.quantity,
