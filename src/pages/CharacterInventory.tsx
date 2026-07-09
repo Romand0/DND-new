@@ -385,11 +385,11 @@ export default function CharacterInventory({
                 </div>
               ) : (
                 filteredEquipment.map((item) => {
-  const itemId = (item as any).childId || item.id;
+  const keyId = (item as any).childId || item.id;
   return (
     <CharacterEquipmentCard
-      key={itemId}
-      item={{ ...item, id: itemId, childId: (item as any).childId } as Equipment & { id: string }}
+      key={keyId}
+      item={item as Equipment & { id: string }}
       characterId={id}
       onEdit={handleEditEquipment}
       onDelete={setDeleteConfirmId}
@@ -399,6 +399,7 @@ export default function CharacterInventory({
     />
   );
 })
+
 
 
               )}
