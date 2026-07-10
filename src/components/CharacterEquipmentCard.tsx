@@ -174,10 +174,10 @@ export default function CharacterEquipmentCard({
 
         {/* 展开按钮行 */}
         <div className="flex items-center justify-between mt-2 pt-2 border-t dark:border-border-dark/50 light:border-border-light/50">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
-          >
+          <button data-readonly-keep
+  onClick={() => setExpanded(!expanded)}
+  className="flex items-center gap-1 text-xs text-primary hover:text-primary-dark transition-colors"
+            >
             {expanded ? (
               <>
                 <ChevronUp className="w-3.5 h-3.5" />
