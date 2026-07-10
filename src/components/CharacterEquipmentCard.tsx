@@ -150,9 +150,10 @@ export default function CharacterEquipmentCard({
                 >
                   <Minus className="w-3 h-3" />
                 </button>
-                <span className="w-6 text-center text-xs dark:text-text-dark light:text-text-light">
-                  ×{item.quantity || 1}
+                <span className="w-auto text-center text-xs dark:text-text-dark light:text-text-light">
+                  ×{item.quantity || 1}{item.unit || '个'}
                 </span>
+
                 <button
                   onClick={(e) => { e.stopPropagation(); onUpdateQuantity(itemId, 1); }}
                   className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/20 dark:hover:bg-white/10 dark:text-text-dark light:text-text-light"
