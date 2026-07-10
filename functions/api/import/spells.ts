@@ -185,16 +185,22 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       if ($font.length) notes = $font.text().trim();
 
       // description：从 mainHtml 剔已知块
-      let descHtml = mainHtml;
-      descHtml = descHtml.replace(/<em>[^<]*<\/em>\s*<br\s*\/?>/i, '');
-      descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<strong>施法距离：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<strong>持续时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<strong>升环施法。<\/strong>[\s\S]*?(?=<br\s*\/?><\/p>|<\/p>|$)/i, '');
-      descHtml = descHtml.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, '');
-      descHtml = descHtml.replace(/^(?:<br\s*\/?>)*/, '').replace(/(?:<br\s*\/?>)*<\/p>$/i, '');
-      const description = $(`<div>${descHtml}</div>`).text().trim();
+let descHtml = mainHtml;
+descHtml = descHtml.replace(/<em>[^<]*<\/em>\s*<br\s*\/?>/i, '');
+descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
+descHtml = descHtml.replace(/<strong>施法距离：<\/strong>[^<]*<br\s*\/?>/gi, '');
+descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi, '');
+descHtml = descHtml.replace(/<strong>持续时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
+descHtml = descHtml.replace(/<strong>升环施法。<\/strong>[\s\S]*?(?=<br\s*\/?><\/p>|<\/p>|$)/i, '');
+descHtml = descHtml.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, '');
+// 将 <br> 替换为两个换行符（空一行）
+descHtml = descHtml.replace(/<br\s*\/?>/gi, '\n\n');
+descHtml = descHtml.replace(/^(?:\n\n)*/, '').replace(/(?:\n\n)*$/i, '');
+const description = $(`<div>${descHtml}</div>`).text().trim();
+// 中英文之间加空格
+let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
+formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
+
 
       spells.push({
         id, name, level, school,
@@ -203,7 +209,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         components,
         materialInfo: materialInfo || undefined,
         duration: cleanText(duration),
-        description: cleanText(description),
+        description: formattedDesc,
         classes: mappedClasses,            // ← 用 mappedClasses
         notes: notes ? cleanText(notes) : undefined,
         hasHeightened: hasHeightened || undefined,
