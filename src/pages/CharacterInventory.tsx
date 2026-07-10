@@ -212,12 +212,11 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
   return (
     <div className={`min-h-screen flex dark:bg-bg-dark light:bg-bg-light-1 ${readOnly ? 'read-only-mode' : ''}`}>
       {/* 侧边栏 */}
-      {/* 侧边栏 */}
-<div className="w-14 md:w-16 border-r dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light flex flex-col items-center py-3 gap-1.5">
+<div className="w-16 md:w-20 border-r dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light flex flex-col items-center py-4 gap-2">
   {!readOnly ? (
     <button
       onClick={() => navigate(`/characters/${id}`)}
-      className="p-1.5 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-1"
+      className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-1"
       title="返回角色卡"
     >
       <ChevronLeft className="w-4 h-4" />
@@ -225,29 +224,29 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
   ) : (
     <Link
       to={`/player/${character?.id}`}
-      className="p-1.5 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-1"
+      className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-1"
       title="返回角色卡"
     >
       <ArrowLeft className="w-4 h-4" />
     </Link>
   )}
 
-  {/* 穿戴管理按钮 */}
+  {/* 状态栏按钮 */}
   <button
     data-readonly-keep
     onClick={() => {
       setViewMode(viewMode === 'equipped' ? 'inventory' : 'equipped');
       setSelectedCategory('all');
     }}
-    className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
+    className={`w-12 h-12 md:w-14 md:h-14 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
       viewMode === 'equipped'
         ? 'bg-primary/20 text-primary'
         : 'hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted'
     }`}
-    title="穿戴管理"
+    title="状态栏"
   >
-    <Shield className="w-4 h-4" />
-    <span className="text-[10px] leading-none">穿</span>
+    <Shield className="w-5 h-5" />
+    <span className="text-xs leading-none">状态栏</span>
   </button>
 
   {CATEGORIES.map((cat) => {
@@ -264,19 +263,20 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
           setSelectedCategory(cat.key);
           setViewMode('inventory');
         }}
-        className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
+        className={`w-12 h-12 md:w-14 md:h-14 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
           selectedCategory === cat.key
             ? 'bg-primary/20 text-primary'
             : 'hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted'
         }`}
         title={cat.label}
       >
-        <Icon className="w-4 h-4" />
-        <span className="text-[10px] leading-none">{count}</span>
+        <Icon className="w-5 h-5" />
+        <span className="text-xs leading-none">{count}</span>
       </button>
     );
   })}
 </div>
+
 
 
       {/* 主内容 */}
