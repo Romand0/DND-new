@@ -16,10 +16,6 @@ const RING_FILES: Record<string, string> = {
   '5': '5环', '6': '6环', '7': '7环', '8': '8环', '9': '9环',
 };
 
-function cleanHtmlTags(text: string): string {
-  return text.replace(/<[^>]+>/g, '').trim();
-}
-
 function parseComponents(compStr: string): { verbal: boolean; somatic: boolean; material: boolean } {
   const cleaned = compStr.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   return {
@@ -38,7 +34,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   const url = new URL(context.request.url);
   const method = context.request.method;
 
-  // POST：批量导入已确认的条目
+  // POST：批量导入
   if (method === 'POST') {
     const body = await context.request.json() as { items: Array<Record<string, any>> };
     const db = context.env.DB;
@@ -56,27 +52,15 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         const existing = await db.prepare(
           "SELECT id FROM spells WHERE json_extract(data, '$.id') = ?"
         ).bind(item.id).first();
-
         const data = JSON.stringify(item);
-
         if (existing) {
-          stmts.push(
-            db.prepare('UPDATE spells SET data = ? WHERE id = ?')
-              .bind(data, (existing as any).id)
-          );
+          stmts.push(db.prepare('UPDATE spells SET data = ? WHERE id = ?').bind(data, (existing as any).id));
         } else {
-          stmts.push(
-            db.prepare('INSERT INTO spells (id, data) VALUES (?, ?)')
-              .bind(item.id, data)
-          );
+          stmts.push(db.prepare('INSERT INTO spells (id, data) VALUES (?, ?)').bind(item.id, data));
         }
       } catch (e) {
-        return new Response(JSON.stringify({
-          error: '查询阶段失败，未写入任何数据',
-          detail: String(e)
-        }), {
-          status: 500,
-          headers: { 'Content-Type': 'application/json' }
+        return new Response(JSON.stringify({ error: '查询阶段失败', detail: String(e) }), {
+          status: 500, headers: { 'Content-Type': 'application/json' }
         });
       }
     }
@@ -85,22 +69,12 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       await db.batch(stmts);
       const verify = await db.prepare('SELECT COUNT(*) as cnt FROM spells').first();
       return new Response(JSON.stringify({
-        success: stmts.length,
-        fail: 0,
-        debug: {
-          stmtsCount: stmts.length,
-          totalAfter: (verify as any)?.cnt ?? null,
-        }
-      }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
+        success: stmts.length, fail: 0,
+        debug: { stmtsCount: stmts.length, totalAfter: (verify as any)?.cnt ?? null }
+      }), { headers: { 'Content-Type': 'application/json' } });
     } catch (e) {
-      return new Response(JSON.stringify({
-        error: '写入阶段失败，已全部回滚',
-        detail: String(e)
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
+      return new Response(JSON.stringify({ error: '写入阶段失败，已全部回滚', detail: String(e) }), {
+        status: 500, headers: { 'Content-Type': 'application/json' }
       });
     }
   }
@@ -110,10 +84,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   if (!ring || !RING_FILES[ring]) {
     return new Response(JSON.stringify({
       error: `不支持的环数: ${ring}。支持的环数: ${Object.keys(RING_FILES).join(', ')}`
-    }, null, 2), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    }, null, 2), { status: 400, headers: { 'Content-Type': 'application/json' } });
   }
 
   const fileName = RING_FILES[ring];
@@ -123,33 +94,21 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
   try {
     const response = await fetch(fileUrl);
-    if (!response.ok) {
-      return new Response(`GitHub 文件抓取失败: ${response.status}`, { status: 500 });
-    }
+    if (!response.ok) return new Response(`GitHub 文件抓取失败: ${response.status}`, { status: 500 });
 
     const buffer = await response.arrayBuffer();
-    const decoder = new TextDecoder('gbk');
-    const html = decoder.decode(buffer);
+    const html = new TextDecoder('gbk').decode(buffer);
     const $ = cheerio.load(html, { decodeEntities: false });
 
     const spells: Array<{
-      id: string;
-      name: string;
-      level: number;
-      school: string;
-      castingTime: string;
-      range: string;
+      id: string; name: string; level: number; school: string;
+      castingTime: string; range: string;
       components: { verbal: boolean; somatic: boolean; material: boolean };
       materialInfo?: string;
-      duration: string;
-      description: string;
-      classes: string[];
-      notes?: string;
-      hasHeightened?: boolean;
-      heightenedEffect?: string;
-      ritual?: boolean;
-      concentration?: boolean;
-      source: string;
+      duration: string; description: string;
+      classes: string[]; notes?: string;
+      hasHeightened?: boolean; heightenedEffect?: string;
+      ritual?: boolean; concentration?: boolean; source: string;
     }> = [];
 
     $('h4').each((_, el) => {
@@ -165,7 +124,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const mainHtml = $mainP.html() || '';
       const mainText = $mainP.text().trim();
 
-      // EM 行解析
+      // EM 行
       const emText = $mainP.find('em').text().trim();
       const levelMatch = emText.match(/^(戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)/);
       const level = levelMatch ? LEVEL_MAP[levelMatch[1]] : -1;
@@ -173,31 +132,24 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
       const schoolCn = emText.replace(/^(戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)\s*/, '').match(/^([^（]+)/);
       const school = schoolCn ? (SCHOOL_MAP[schoolCn[1].trim()] || schoolCn[1].trim()) : '未知';
-
       const isRitual = emText.includes('仪式');
-
       const classesMatch = emText.match(/（(.+?)）/);
       const classesStr = classesMatch ? classesMatch[1] : '';
       const classes = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
 
-      
-      // 4 个 STRONG 字段：正则从 mainHtml 提取（避开 cheerio 大写标签 + nextSibling 解析差异）
-let castingTime = '', rng = '', compStr = '', duration = '';
-const fieldRe = /<STRONG>(施法时间|施法距离|法术成分|持续时间)：<\/STRONG>([\s\S]*?)(?:<BR>|$)/g;
-let m: RegExpExecArray | null;
-while ((m = fieldRe.exec(mainHtml)) !== null) {
-  const label = m[1]; // "施法时间" / "施法距离" / "法术成分" / "持续时间"
-  let value = m[2]
-    .replace(/<[^>]+>/g, '') // 去掉值内部可能的子标签（如 M 的括号内容里无标签，安全）
-    .trim();
-  if (label === '施法时间') castingTime = value;
-  else if (label === '施法距离') rng = value;
-  else if (label === '法术成分') compStr = value;
-  else if (label === '持续时间') duration = value;
-}
+      // 4 字段：正则从小写标签 mainHtml 提取（cheerio 会转小写）
+      let castingTime = '', rng = '', compStr = '', duration = '';
+      const fieldRe = /<strong>(施法时间|施法距离|法术成分|持续时间)：<\/strong>([\s\S]*?)<br\s*\/?>/gi;
+      let fm: RegExpExecArray | null;
+      while ((fm = fieldRe.exec(mainHtml)) !== null) {
+        const label = fm[1];
+        const val = fm[2].replace(/<[^>]+>/g, '').trim();
+        if (label === '施法时间') castingTime = val;
+        else if (label === '施法距离') rng = val;
+        else if (label === '法术成分') compStr = val;
+        else if (label === '持续时间') duration = val;
+      }
 
-
-      // 从 compStr 解析 components 和 materialInfo（只声明一次）
       const components = parseComponents(compStr);
       const materialInfo = extractMaterialInfo(compStr);
       const isConcentration = duration.includes('专注');
@@ -205,7 +157,7 @@ while ((m = fieldRe.exec(mainHtml)) !== null) {
       // 升环段：主 P 内 + nextP 双位置
       let hasHeightened = false;
       let heightenedEffect = '';
-      const heightReg = /升环施法。([\s\S]*?)(?:<\/?(?:P|FONT|UL)[^>]*>|$)/;
+      const heightReg = /升环施法。([\s\S]*?)(?:<\/?(?:p|font|ul)[^>]*>|$)/i;
       const inMainMatch = mainHtml.match(heightReg);
       const $nextP = $mainP.next('p');
       const nextHtml = $nextP.length ? ($nextP.html() || '') : '';
@@ -213,39 +165,36 @@ while ((m = fieldRe.exec(mainHtml)) !== null) {
 
       if (inMainMatch || inNextMatch) {
         hasHeightened = true;
-        const effectText = (inMainMatch?.[1] || inNextMatch?.[1] || '').trim();
-        heightenedEffect = '升环施法。' + effectText;
+        heightenedEffect = '升环施法。' + ((inMainMatch?.[1] || inNextMatch?.[1] || '').trim());
       }
 
-      // notes：灰色备注
+      // notes
       let notes = '';
       const $font = $mainP.find('font[color="#808080"]');
-      if ($font.length) {
-        notes = $font.text().trim();
-      }
+      if ($font.length) notes = $font.text().trim();
 
-      // description：主 P 文本去掉升环段和 notes
-      let description = mainText;
-      if (heightenedEffect) {
-        description = description.replace(/升环施法。[\s\S]*/, '').trim();
-      }
-      if (notes) {
-        description = description.replace(notes, '').trim();
-      }
+      // description：从 mainHtml 剔已知块 → 转 text
+      let descHtml = mainHtml;
+      descHtml = descHtml.replace(/<em>[^<]*<\/em>\s*<br\s*\/?>/i, '');
+      descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<strong>施法距离：<\/strong>[^<]*<br\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<strong>持续时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
+      // 升环段（主 P 内）
+      descHtml = descHtml.replace(/<strong>升环施法。<\/strong>[\s\S]*?(?=<br\s*\/?><\/p>|<\/p>|$)/i, '');
+      // 独立 P 的升环段已由 inNextMatch 处理，主 P 内已清
+      // FONT 备注
+      descHtml = descHtml.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, '');
+      // 去掉首尾残余 BR / P 标签
+      descHtml = descHtml.replace(/^(?:<br\s*\/?>)*/, '').replace(/(?:<br\s*\/?>)*<\/p>$/i, '');
+      const description = $(`<div>${descHtml}</div>`).text().trim();
 
       spells.push({
-        id,
-        name,
-        level,
-        school,
-        castingTime,
-        range: rng,
-        components,
-        materialInfo: materialInfo || undefined,
-        duration,
-        description,
-        classes,
-        notes: notes || undefined,
+        id, name, level, school,
+        castingTime, range: rng,
+        components, materialInfo: materialInfo || undefined,
+        duration, description,
+        classes, notes: notes || undefined,
         hasHeightened: hasHeightened || undefined,
         heightenedEffect: heightenedEffect || undefined,
         ritual: isRitual || undefined,
@@ -257,9 +206,7 @@ while ((m = fieldRe.exec(mainHtml)) !== null) {
     return new Response(JSON.stringify({
       message: `成功解析 ${spells.length} 条 ${fileName} 法术数据`,
       data: spells
-    }, null, 2), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    }, null, 2), { headers: { 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
     return new Response(`处理出错: ${error.message}`, { status: 500 });
