@@ -197,23 +197,20 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
       // —— tableData 提取：BLOCKQUOTE 表格（animate-objects 等）——
       let tableData: { headers: string[]; rows: string[][] } | undefined;
-      const blockquoteMatch = mainHtml.match(/<BLOCKQUOTE[^>]*>([\s\S]*?)<\/BLOCKQUOTE>/i);
-      if (blockquoteMatch) {
-        const bqHtml = blockquoteMatch[1];
-        const $bq = $(`<div>${bqHtml}</div>`);
-        const lines: string[] = [];
-        $bq.find('p').each((_, p) => {
-          const text = $(p).text().trim();
-          if (text) lines.push(text);
-        });
-        if (lines.length >= 2) {
-          const headers = lines[0].split(/\s+/).filter(Boolean);
-          const rows = lines.slice(1).map(line => line.split(/\s+/).filter(Boolean));
-          if (headers.length > 0 && rows.every(row => row.length === headers.length)) {
-            tableData = { headers, rows };
-          }
-        }
-      }
+const blockquoteMatch = mainHtml.match(/<BLOCKQUOTE[^>]*>([\s\S]*?)<\/BLOCKQUOTE>/i);
+if (blockquoteMatch) {
+  const bqHtml = blockquoteMatch[1];
+  // 按 <BR> 分割行（兼容 <br/> 和 <BR>）
+  const lines = bqHtml.split(/<BR\s*\/?>/i).map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
+  if (lines.length >= 2) {
+    const headers = lines[0].split(/\s+/).filter(Boolean);
+    const rows = lines.slice(1).map(line => line.split(/\s+/).filter(Boolean));
+    if (headers.length > 0 && rows.every(row => row.length === headers.length)) {
+      tableData = { headers, rows };
+    }
+  }
+}
+
 
       // description：从 mainHtml 剔已知块
       let descHtml = mainHtml;
@@ -224,6 +221,8 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       descHtml = descHtml.replace(/<(STRONG|b)>持续时间：<\/\1>[^<]*<BR\s*\/?>/gi, '');
       descHtml = descHtml.replace(/<(STRONG|b)>升环施法。<\/\1>[\s\S]*?(?=<BR\s*\/?><\/P>|<\/P>|$)/i, '');
       descHtml = descHtml.replace(/<FONT[^>]*>[\s\S]*?<\/FONT>/gi, '');
+      descHtml = descHtml.replace(/<BLOCKQUOTE[^>]*>[\s\S]*?<\/BLOCKQUOTE>/gi, '');
+
       // 清除文本节点中的无意义换行
       descHtml = descHtml.replace(/\n/g, ' ');
       // 将 <BR> 替换为两个换行符（段落空行）
