@@ -30,7 +30,6 @@ function parseComponents(compStr: string): { verbal: boolean; somatic: boolean; 
 }
 
 function extractMaterialInfo(compStr: string): string {
-  // 匹配 M（...）或 M（...）或 M（...）
   const m = compStr.match(/M[（(](.+?)[)）]/);
   return m ? m[1].trim() : '';
 }
@@ -118,9 +117,9 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   }
 
   const fileName = RING_FILES[ring];
-  const BRANCH = 'main'; // DND5eChm 仓库默认分支
+  const BRANCH = 'main';
   const BASE_PATH = '玩家手册/魔法/法术详述';
-  const fileUrl = `https://raw.githubusercontent.com/DND5eChm/DND5e_chm/main/玩家手册/魔法/法术详述/${encodeURIComponent(fileName)}.html`;
+  const fileUrl = `https://raw.githubusercontent.com/DND5eChm/DND5e_chm/${BRANCH}/${BASE_PATH}/${encodeURIComponent(fileName)}.html`;
 
   try {
     const response = await fetch(fileUrl);
@@ -181,49 +180,43 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const classesStr = classesMatch ? classesMatch[1] : '';
       const classes = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
 
-      // 4 个 STRONG 字段
       // 4 个 STRONG 字段：直接按 STRONG 标签定位
-let castingTime = '', rng = '', compStr = '', duration = '';
-$mainP.find('strong').each((_, strongEl) => {
-  const $strong = $(strongEl);
-  const label = $strong.text().trim(); // "施法时间："、"施法距离："、...
-  // 取 STRONG 标签后的文本（直到下一个 BR 或标签为止）
-  let value = '';
-  let next = $strong[0].nextSibling;
-  while (next) {
-    if (next.nodeType === 3) { // 文本节点
-      value += next.textContent || '';
-    } else if (next.nodeType === 1) { // 元素节点
-      const tag = (next as Element).tagName.toLowerCase();
-      if (tag === 'br' || tag === 'strong' || tag === 'ul') break;
-      value += $(next).text();
-    }
-    next = next.nextSibling;
-  }
-  value = value.trim();
-  if (label.includes('施法时间：')) castingTime = value;
-  else if (label.includes('施法距离：')) rng = value;
-  else if (label.includes('法术成分：')) compStr = value;
-  else if (label.includes('持续时间：')) duration = value;
-});
+      let castingTime = '', rng = '', compStr = '', duration = '';
+      $mainP.find('strong').each((_, strongEl) => {
+        const $strong = $(strongEl);
+        const label = $strong.text().trim();
+        let value = '';
+        let next = $strong[0].nextSibling;
+        while (next) {
+          if (next.nodeType === 3) {
+            value += next.textContent || '';
+          } else if (next.nodeType === 1) {
+            const tag = (next as Element).tagName.toLowerCase();
+            if (tag === 'br' || tag === 'strong' || tag === 'ul') break;
+            value += $(next).text();
+          }
+          next = next.nextSibling;
+        }
+        value = value.trim();
+        if (label.includes('施法时间：')) castingTime = value;
+        else if (label.includes('施法距离：')) rng = value;
+        else if (label.includes('法术成分：')) compStr = value;
+        else if (label.includes('持续时间：')) duration = value;
+      });
 
-// 从 compStr 解析 components 和 materialInfo
-const components = parseComponents(compStr);
-const materialInfo = extractMaterialInfo(compStr);
-
-
+      // 从 compStr 解析 components 和 materialInfo（只声明一次）
       const components = parseComponents(compStr);
       const materialInfo = extractMaterialInfo(compStr);
       const isConcentration = duration.includes('专注');
 
-      // 升环段
+      // 升环段：主 P 内 + nextP 双位置
       let hasHeightened = false;
       let heightenedEffect = '';
       const heightReg = /升环施法。([\s\S]*?)(?:<\/?(?:P|FONT|UL)[^>]*>|$)/;
       const inMainMatch = mainHtml.match(heightReg);
       const $nextP = $mainP.next('p');
-      const nextText = $nextP.length ? ($nextP.html() || '') : '';
-      const inNextMatch = nextText.match(heightReg);
+      const nextHtml = $nextP.length ? ($nextP.html() || '') : '';
+      const inNextMatch = nextHtml.match(heightReg);
 
       if (inMainMatch || inNextMatch) {
         hasHeightened = true;
@@ -231,7 +224,7 @@ const materialInfo = extractMaterialInfo(compStr);
         heightenedEffect = '升环施法。' + effectText;
       }
 
-      // notes
+      // notes：灰色备注
       let notes = '';
       const $font = $mainP.find('font[color="#808080"]');
       if ($font.length) {
