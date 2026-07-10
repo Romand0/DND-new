@@ -26,9 +26,10 @@ function parseComponents(compStr: string): { verbal: boolean; somatic: boolean; 
 }
 
 function extractMaterialInfo(compStr: string): string {
-  const m = compStr.match(/M[（(](.+?)[)）]/);
+  const m = compStr.match(/M[（(]([\s\S]+?)[)）]/);
   return m ? m[1].trim() : '';
 }
+
 
 function cleanText(s: string): string {
   return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
