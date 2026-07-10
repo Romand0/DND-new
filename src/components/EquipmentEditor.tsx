@@ -6,6 +6,7 @@ interface EquipmentEditorProps {
   item?: EquipmentItem | (EquipmentItem & { quantity?: number });
   isStatic?: boolean;
   showQuantity?: boolean;
+  showPackSize?: boolean;   // 新增：控制"单位 + 每份基准数"显示（装备库模板用）
   showSyncOption?: boolean;
   loading?: boolean;
   onSave: (item: EquipmentItem & { quantity?: number }, syncToLibrary?: boolean) => void;
@@ -13,13 +14,17 @@ interface EquipmentEditorProps {
   onClose: () => void;
 }
 
+
 const CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 const PRICE_UNITS = ['gp', 'sp', 'cp'] as const;
 const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '远程', '弹药', '+2 AC', '单手', '双手'];
 const DAMAGE_TYPES = ['穿刺', '钝击', '挥砍', '火焰', '冰冻', '闪电', '光', '黯蚀', '心灵', '毒素', '力场', '声波', '神力'];
 
-export default function EquipmentEditor({ item, isStatic = false, showQuantity = false, showSyncOption = false, loading = false, onSave, onDelete, onClose }: EquipmentEditorProps) {
-   const [formData, setFormData] = useState<
+export default function EquipmentEditor({
+  item, isStatic = false, showQuantity = false, showPackSize = false,
+  showSyncOption = false, loading = false, onSave, onDelete, onClose
+}: EquipmentEditorProps) {
+const [formData, setFormData] = useState<
   Omit<EquipmentItem, 'isCustom'> & { quantity?: number } & { childId?: string }
 >({
   id: '',
@@ -245,19 +250,22 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
           </div>
 
           {showQuantity && (
-  <div className="grid grid-cols-3 gap-4">
-    <div>
-      <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-        数量
-      </label>
-      <input
-        type="number"
-        value={formData.quantity ?? 1}
-        onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-        min="1"
-        className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-      />
-    </div>
+  <div>
+    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+      数量
+    </label>
+    <input
+      type="number"
+      value={formData.quantity ?? 1}
+      onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+      min="1"
+      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+    />
+  </div>
+)}
+
+{showPackSize && (
+  <div className="grid grid-cols-2 gap-4">
     <div>
       <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
         单位
@@ -279,15 +287,16 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
         value={formData.packSize ?? ''}
         onChange={(e) => setFormData({ ...formData, packSize: e.target.value ? parseInt(e.target.value) : undefined })}
         min="1"
-        placeholder="如 50 发/袋"
+        placeholder="如 50（发/袋）"
         className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
       />
       <p className="mt-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-        留空表示不分装
+        选填
       </p>
     </div>
   </div>
 )}
+
 
 
 
