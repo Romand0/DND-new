@@ -506,10 +506,6 @@ function deleteAttack(charId: string, attackId: string): void {
 
 // ---------- 装备 (Equipment) ----------
 function addEquipment(charId: string, equipData: Partial<Equipment>): Equipment | null {
-  // 临时：把 equipData 显示在页面上
-  alert('addEquipment 收到:\n' + JSON.stringify(equipData, null, 2));
-  
-  
   const char = getCharacter(charId);
   if (!char) return null;
   // 防御：防止编辑器透传的 childId(undefined) 覆盖
@@ -522,7 +518,9 @@ function addEquipment(charId: string, equipData: Partial<Equipment>): Equipment 
     id: safeData.id || generateId(), // 保留装备库模板ID
     childId, // 新增子ID
     name: '',
-    quantity: 1,
+    quantity: safeData.quantity ?? safeData.packSize ?? 1, // 优先使用传入数量，其次 packSize，最后 1
+    packSize: safeData.packSize,
+    unit: safeData.unit,
     category: '杂项',
     ...safeData,
   };
@@ -531,6 +529,7 @@ function addEquipment(charId: string, equipData: Partial<Equipment>): Equipment 
   saveCharacter(char as Character);
   return newEquip;
 }
+
 
 
 function updateEquipment(charId: string, equipId: string, updatedData: Partial<Equipment>): Equipment | null {
