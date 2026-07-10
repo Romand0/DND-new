@@ -77,7 +77,7 @@ const [formData, setFormData] = useState<
   properties: item.properties || [],
   tags: [...(item.tags || [])],
   source: item.source || '',
-  quantity: (item as any).quantity,
+  quantity: (item as any).quantity ?? (item as any).packSize ?? 1,
   unit: (item as any).unit || '',
   packSize: (item as any).packSize,
 });
