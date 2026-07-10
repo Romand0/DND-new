@@ -184,7 +184,8 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const $font = $mainP.find('font[color="#808080"]');
       if ($font.length) notes = $font.text().trim();
 
-      // description：从 mainHtml 剔已知块
+      
+// description：从 mainHtml 剔已知块
 let descHtml = mainHtml;
 descHtml = descHtml.replace(/<em>[^<]*<\/em>\s*<br\s*\/?>/i, '');
 descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
@@ -193,9 +194,11 @@ descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi
 descHtml = descHtml.replace(/<strong>持续时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
 descHtml = descHtml.replace(/<strong>升环施法。<\/strong>[\s\S]*?(?=<br\s*\/?><\/p>|<\/p>|$)/i, '');
 descHtml = descHtml.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, '');
-// 将 <br> 替换为两个换行符（空一行）
+// 清除文本节点中的无意义换行（将 \n 替换为空格，保留单词间分隔）
+descHtml = descHtml.replace(/\n/g, ' ');
+// 将 <br> 替换为两个换行符（段落空行）
 descHtml = descHtml.replace(/<br\s*\/?>/gi, '\n\n');
-descHtml = descHtml.replace(/^(?:\n\n)*/, '').replace(/(?:\n\n)*$/i, '');
+descHtml = descHtml.replace(/^(?:\n\n)*/, '').replace(/(?:\n\n)*$/, '');
 const description = $(`<div>${descHtml}</div>`).text().trim();
 // 中英文之间加空格
 let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
