@@ -152,11 +152,16 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       // classes：魔契师→邪术师，删奇械师，仅剩奇械师则整项跳过
       const classesMatch = emText.match(/（(.+?)）/);
       const classesStr = classesMatch ? classesMatch[1] : '';
-      const rawClasses = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
-      const mappedClasses = rawClasses
-        .map(c => c === '魔契师' ? '邪术师' : c)
-        .filter(c => c !== '奇械师');
-      if (mappedClasses.length === 0) return;
+// 去掉"仪式；"前缀
+let cleaned = classesStr.replace(/^仪式；/, '');
+// 按分号分割（中文或英文），过滤掉包含"TCE："的部分
+const partsBySemicolon = cleaned.split(/[；;]/).map(s => s.trim()).filter(s => !s.includes('TCE：'));
+// 再按顿号分割
+const rawClasses = partsBySemicolon.join('、').split('、').filter(Boolean);
+const mappedClasses = rawClasses
+  .map(c => c === '魔契师' ? '邪术师' : c)
+  .filter(c => c !== '奇械师');
+if (mappedClasses.length === 0) return;
 
       // 4 字段：正则从 mainHtml 提取（源码标签大写，用 <STRONG>/<BR>）
       let castingTime = '', rng = '', compStr = '', duration = '';
