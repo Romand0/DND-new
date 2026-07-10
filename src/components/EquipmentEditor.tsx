@@ -39,6 +39,8 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   tags: [],
   source: '',
   quantity: showQuantity ? 1 : undefined,
+  unit: '',
+
 });
 
 
@@ -71,6 +73,8 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   tags: [...(item.tags || [])],
   source: item.source || '',
   quantity: (item as any).quantity,
+  unit: (item as any).unit || '',
+
 });
 
 
@@ -241,19 +245,34 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
           </div>
 
           {showQuantity && (
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                数量
-              </label>
-              <input
-                type="number"
-                value={formData.quantity ?? 1}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-                min="1"
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              />
-            </div>
-          )}
+  <div className="grid grid-cols-2 gap-4">
+    <div>
+      <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+        数量
+      </label>
+      <input
+        type="number"
+        value={formData.quantity ?? 1}
+        onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+        min="1"
+        className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+      />
+    </div>
+    <div>
+      <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+        单位
+      </label>
+      <input
+        type="text"
+        value={formData.unit || ''}
+        onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+        placeholder="如：发、oz、瓶"
+        className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+      />
+    </div>
+  </div>
+)}
+
 
           <div className="grid grid-cols-2 gap-4">
             <div>
