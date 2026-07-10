@@ -4,6 +4,10 @@ export interface EquipmentItem {
   category: string; // 分类：武器/护甲/药水/法器/工具/杂物/自定义
   subtype?: string; // 子分类：简易武器/军用武器/重甲/中甲/轻甲/盾牌
   weight: number; // 重量（数字，单位固定为"磅"）
+/** 每份默认包装所含个体数（如 50 发/袋、4 oz/瓶）。背包实例继承此值作为 packSize。 */
+  packSize?: number;
+/** 个体单位名称（如 "发"、"oz"、"瓶"）。背包实例继承此值作为 unit。 */
+  unit?: string;
   price: {
     amount: number; // 价格数值
     unit: 'gp' | 'sp' | 'cp'; // 单位：金币/银币/铜币
