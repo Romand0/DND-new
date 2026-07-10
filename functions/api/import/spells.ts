@@ -163,13 +163,14 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const fieldRe = /<(STRONG|b)>(施法时间|施法距离|法术成分|持续时间)：<\/\1>([\s\S]*?)<BR\s*\/?>/gi;
 let fm: RegExpExecArray | null;
       while ((fm = fieldRe.exec(mainHtml)) !== null) {
-        const label = fm[1];
-        const val = fm[2].replace(/<[^>]+>/g, '').trim();
-        if (label === '施法时间') castingTime = val;
-        else if (label === '施法距离') rng = val;
-        else if (label === '法术成分') compStr = val;
-        else if (label === '持续时间') duration = val;
-      }
+  const label = fm[2];  // 字段名：施法时间、施法距离、法术成分、持续时间
+  const val = fm[3].replace(/<[^>]+>/g, '').trim();  // 字段值
+  if (label === '施法时间') castingTime = val;
+  else if (label === '施法距离') rng = val;
+  else if (label === '法术成分') compStr = val;
+  else if (label === '持续时间') duration = val;
+}
+
 
       const components = parseComponents(compStr);
       const materialInfo = extractMaterialInfo(compStr);
