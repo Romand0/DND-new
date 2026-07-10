@@ -118,7 +118,9 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
     $('h4').each((_, el) => {
       const $h4 = $(el);
-      const id = $h4.attr('id') || '';
+      const rawId = $h4.attr('id') || '';
+      const id = rawId.toLowerCase().replace(/_/g, '-');
+
       const fullText = $h4.text().trim();
       const nameParts = fullText.split('｜');
       const name = nameParts.length > 1 ? nameParts[0].trim() : fullText;
@@ -136,6 +138,8 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       if (level === -1) return;
 
       const schoolCn = emText.replace(/^(戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)\s*/, '').match(/^([^（]+)/);
+      let schoolName = schoolCn ? schoolCn[1].trim() : '未知';
+      schoolName = schoolName.replace('惑控', '附魔');
       const school = schoolCn ? (SCHOOL_MAP[schoolCn[1].trim()] || schoolCn[1].trim()) : '未知';
       const isRitual = emText.includes('仪式');
 
@@ -206,7 +210,8 @@ formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
 
 
       spells.push({
-        id, name, level, school,
+        id, name, level, 
+        school: schoolName + '系',
         castingTime: cleanText(castingTime),
         range: cleanText(rng),
         components,
