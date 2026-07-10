@@ -116,7 +116,9 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   }
 
   const fileName = RING_FILES[ring];
-  const fileUrl = `https://raw.githubusercontent.com/DND5eChm/DND5e_chm/master/玩家手册/魔法/法术详解/${encodeURIComponent(fileName)}.html`;
+  const BRANCH = 'main'; // DND5eChm 仓库默认分支
+  const BASE_PATH = '玩家手册/魔法/法术详述';
+  const fileUrl = `https://raw.githubusercontent.com/DND5eChm/DND5e_chm/main/玩家手册/魔法/法术详述/${encodeURIComponent(fileName)}.html`;
 
   try {
     const response = await fetch(fileUrl);
