@@ -40,7 +40,7 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   source: '',
   quantity: showQuantity ? 1 : undefined,
   unit: '',
-
+  packSize: undefined,  
 });
 
 
@@ -74,7 +74,7 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
   source: item.source || '',
   quantity: (item as any).quantity,
   unit: (item as any).unit || '',
-
+  packSize: (item as any).packSize,
 });
 
 
@@ -245,7 +245,7 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
           </div>
 
           {showQuantity && (
-  <div className="grid grid-cols-2 gap-4">
+  <div className="grid grid-cols-3 gap-4">
     <div>
       <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
         数量
@@ -266,12 +266,29 @@ export default function EquipmentEditor({ item, isStatic = false, showQuantity =
         type="text"
         value={formData.unit || ''}
         onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-        placeholder="如：发、oz、瓶"
+        placeholder="如：发、小瓶、扁瓶"
         className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
       />
     </div>
+    <div>
+      <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+        每份默认值
+      </label>
+      <input
+        type="number"
+        value={formData.packSize ?? ''}
+        onChange={(e) => setFormData({ ...formData, packSize: e.target.value ? parseInt(e.target.value) : undefined })}
+        min="1"
+        placeholder="如 50 发/袋"
+        className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+      />
+      <p className="mt-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+        留空表示不分装
+      </p>
+    </div>
   </div>
 )}
+
 
 
           <div className="grid grid-cols-2 gap-4">
