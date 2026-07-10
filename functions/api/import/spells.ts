@@ -214,15 +214,16 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       // 中英文之间加空格
       let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
       formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
+      formattedDesc = formattedDesc.replace(/  +/g, ' '); // 压缩连续多个空格为单个
 
       spells.push({
         id, name, level,
         school: schoolName + '系',
-        castingTime: cleanText(castingTime),
-        range: cleanText(rng),
+        castingTime: cleanText(castingTime).replace(/(\d)([\u4e00-\u9fff])/g, '$1 $2').replace(/([\u4e00-\u9fff])(\d)/g, '$1 $2'),
+        range: cleanText(rng).replace(/(\d)([\u4e00-\u9fff])/g, '$1 $2').replace(/([\u4e00-\u9fff])(\d)/g, '$1 $2'),
+        materialInfo: materialInfo ? cleanText(materialInfo).replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2').replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2') : undefined,
+        duration: cleanText(duration).replace(/(\d)([\u4e00-\u9fff])/g, '$1 $2').replace(/([\u4e00-\u9fff])(\d)/g, '$1 $2'),
         components,
-        materialInfo: materialInfo || undefined,
-        duration: cleanText(duration),
         description: formattedDesc,
         classes: mappedClasses,
         notes: notes ? cleanText(notes) : undefined,
