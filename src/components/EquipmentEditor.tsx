@@ -360,7 +360,7 @@ const [formData, setFormData] = useState<
                   value={formData.weight}
                   onChange={(e) => setFormData({ ...formData, weight: parseFloat(e.target.value) || 0 })}
                   min="0"
-                  step="0.1"
+                  step="any"
                   className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                 />
                 <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">磅</span>
