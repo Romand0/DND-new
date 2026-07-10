@@ -113,7 +113,6 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       classes: string[]; notes?: string;
       hasHeightened?: boolean; heightenedEffect?: string;
       ritual?: boolean; concentration?: boolean; source: string;
-      tableData?: { headers: string[]; rows: string[][] };
     }> = [];
 
     $('h4').each((_, el) => {
@@ -195,23 +194,6 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const $font = $fullDiv.find('font[color="#808080"]');
       if ($font.length) notes = $font.text().trim();
 
-      // —— tableData 提取：BLOCKQUOTE 表格（animate-objects 等）——
-      let tableData: { headers: string[]; rows: string[][] } | undefined;
-const blockquoteMatch = mainHtml.match(/<BLOCKQUOTE[^>]*>([\s\S]*?)<\/BLOCKQUOTE>/i);
-if (blockquoteMatch) {
-  const bqHtml = blockquoteMatch[1];
-  // 按 <BR> 分割行（兼容 <br/> 和 <BR>）
-  const lines = bqHtml.split(/<BR\s*\/?>/i).map(s => s.replace(/<[^>]+>/g, '').trim()).filter(Boolean);
-  if (lines.length >= 2) {
-    const headers = lines[0].split(/\s+/).filter(Boolean);
-    const rows = lines.slice(1).map(line => line.split(/\s+/).filter(Boolean));
-    if (headers.length > 0 && rows.every(row => row.length === headers.length)) {
-      tableData = { headers, rows };
-    }
-  }
-}
-
-
       // description：从 mainHtml 剔已知块
       let descHtml = mainHtml;
       descHtml = descHtml.replace(/<EM[^>]*>[\s\S]*?<\/EM>\s*(?:<BR\s*\/?>)?/i, '');
@@ -222,7 +204,6 @@ if (blockquoteMatch) {
       descHtml = descHtml.replace(/<(STRONG|b)>升环施法。<\/\1>[\s\S]*?(?=<BR\s*\/?><\/P>|<\/P>|$)/i, '');
       descHtml = descHtml.replace(/<FONT[^>]*>[\s\S]*?<\/FONT>/gi, '');
       descHtml = descHtml.replace(/<BLOCKQUOTE[^>]*>[\s\S]*?<\/BLOCKQUOTE>/gi, '');
-
       // 清除文本节点中的无意义换行
       descHtml = descHtml.replace(/\n/g, ' ');
       // 将 <BR> 替换为两个换行符（段落空行）
@@ -235,25 +216,6 @@ if (blockquoteMatch) {
       let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
       formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
       formattedDesc = formattedDesc.replace(/  +/g, ' '); // 压缩连续多个空格
-
-      // —— tableData 提取：内联 d100 种族表（reincarnate 等）——
-      let inlineTable: { headers: string[]; rows: string[][] } | undefined;
-      const inlineTableRegex = /(?:d100\s+种族\s+d100\s+种族)\s+([\s\S]*?)(?:\n\n|$)/;
-      const inlineMatch = formattedDesc.match(inlineTableRegex);
-      if (inlineMatch) {
-        const bodyLines = inlineMatch[1].trim().split('\n').map(l => l.trim()).filter(Boolean);
-        const headers = ['d100', '种族', 'd100', '种族'];
-        const rows: string[][] = [];
-        for (const line of bodyLines) {
-          const parts = line.split(/\s+/);
-          if (parts.length >= 4) {
-            rows.push([parts[0], parts[1], parts[2], parts.slice(3).join(' ')]);
-          }
-        }
-        if (rows.length > 0) {
-          inlineTable = { headers, rows };
-        }
-      }
 
       spells.push({
         id, name, level,
@@ -271,7 +233,6 @@ if (blockquoteMatch) {
         ritual: isRitual || undefined,
         concentration: isConcentration || undefined,
         source: '玩家手册 2014',
-        tableData: inlineTable || tableData || undefined,
       });
     });
 
