@@ -30,6 +30,10 @@ function extractMaterialInfo(compStr: string): string {
   return m ? m[1].trim() : '';
 }
 
+function cleanText(s: string): string {
+  return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
 export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   const url = new URL(context.request.url);
   const method = context.request.method;
@@ -137,7 +141,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const classesStr = classesMatch ? classesMatch[1] : '';
       const classes = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
 
-      // 4 字段：正则从小写标签 mainHtml 提取（cheerio 会转小写）
+      // 4 字段：正则从小写标签 mainHtml 提取
       let castingTime = '', rng = '', compStr = '', duration = '';
       const fieldRe = /<strong>(施法时间|施法距离|法术成分|持续时间)：<\/strong>([\s\S]*?)<br\s*\/?>/gi;
       let fm: RegExpExecArray | null;
@@ -154,7 +158,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const materialInfo = extractMaterialInfo(compStr);
       const isConcentration = duration.includes('专注');
 
-      // 升环段：主 P 内 + nextP 双位置
+      // 升环段
       let hasHeightened = false;
       let heightenedEffect = '';
       const heightReg = /升环施法。([\s\S]*?)(?:<\/?(?:p|font|ul)[^>]*>|$)/i;
@@ -173,30 +177,30 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const $font = $mainP.find('font[color="#808080"]');
       if ($font.length) notes = $font.text().trim();
 
-      // description：从 mainHtml 剔已知块 → 转 text
+      // description：从 mainHtml 剔已知块
       let descHtml = mainHtml;
       descHtml = descHtml.replace(/<em>[^<]*<\/em>\s*<br\s*\/?>/i, '');
       descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
       descHtml = descHtml.replace(/<strong>施法距离：<\/strong>[^<]*<br\s*\/?>/gi, '');
       descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi, '');
       descHtml = descHtml.replace(/<strong>持续时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      // 升环段（主 P 内）
       descHtml = descHtml.replace(/<strong>升环施法。<\/strong>[\s\S]*?(?=<br\s*\/?><\/p>|<\/p>|$)/i, '');
-      // 独立 P 的升环段已由 inNextMatch 处理，主 P 内已清
-      // FONT 备注
       descHtml = descHtml.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, '');
-      // 去掉首尾残余 BR / P 标签
       descHtml = descHtml.replace(/^(?:<br\s*\/?>)*/, '').replace(/(?:<br\s*\/?>)*<\/p>$/i, '');
       const description = $(`<div>${descHtml}</div>`).text().trim();
 
       spells.push({
         id, name, level, school,
-        castingTime, range: rng,
-        components, materialInfo: materialInfo || undefined,
-        duration, description,
-        classes, notes: notes || undefined,
+        castingTime: cleanText(castingTime),
+        range: cleanText(rng),
+        components,
+        materialInfo: materialInfo || undefined,
+        duration: cleanText(duration),
+        description: cleanText(description),
+        classes,
+        notes: notes ? cleanText(notes) : undefined,
         hasHeightened: hasHeightened || undefined,
-        heightenedEffect: heightenedEffect || undefined,
+        heightenedEffect: heightenedEffect ? cleanText(heightenedEffect) : undefined,
         ritual: isRitual || undefined,
         concentration: isConcentration || undefined,
         source: 'PHB',
