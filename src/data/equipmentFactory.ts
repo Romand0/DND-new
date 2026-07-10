@@ -14,6 +14,8 @@ export function extractBaseFields(
     category: source.category ?? '杂项',
     subtype: source.subtype ?? '',
     weight: source.weight ?? 0,
+    packSize: source.packSize,
+    unit: source.unit,
     price: source.price?.amount != null
       ? source.price
       : { amount: 0, unit: 'gp' },
