@@ -179,9 +179,10 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const inNextMatch = nextHtml.match(heightReg);
 
       if (inMainMatch || inNextMatch) {
-        hasHeightened = true;
-        heightenedEffect = '升环施法。' + ((inMainMatch?.[1] || inNextMatch?.[1] || '').trim());
-      }
+  hasHeightened = true;
+  heightenedEffect = (inMainMatch?.[1] || inNextMatch?.[1] || '').trim();
+}
+
 
       // notes
       let notes = '';
