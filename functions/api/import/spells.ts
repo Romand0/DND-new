@@ -160,8 +160,8 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
       // 4 字段：正则从 mainHtml 提取（源码标签大写，用 <STRONG>/<BR>）
       let castingTime = '', rng = '', compStr = '', duration = '';
-      const fieldRe = /<STRONG>(施法时间|施法距离|法术成分|持续时间)：<\/STRONG>([\s\S]*?)<BR\s*\/?>/gi;
-      let fm: RegExpExecArray | null;
+      const fieldRe = /<(STRONG|b)>(施法时间|施法距离|法术成分|持续时间)：<\/\1>([\s\S]*?)<BR\s*\/?>/gi;
+let fm: RegExpExecArray | null;
       while ((fm = fieldRe.exec(mainHtml)) !== null) {
         const label = fm[1];
         const val = fm[2].replace(/<[^>]+>/g, '').trim();
@@ -197,11 +197,11 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       // description：从 mainHtml 剔已知块（源码标签大写）
       let descHtml = mainHtml;
       descHtml = descHtml.replace(/<EM[^>]*>[\s\S]*?<\/EM>\s*(?:<BR\s*\/?>)?/i, '');
-      descHtml = descHtml.replace(/<STRONG>施法时间：<\/STRONG>[^<]*<BR\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<STRONG>施法距离：<\/STRONG>[^<]*<BR\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<STRONG>法术成分：<\/STRONG>[^<]*<BR\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<STRONG>持续时间：<\/STRONG>[^<]*<BR\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<STRONG>升环施法。<\/STRONG>[\s\S]*?(?=<BR\s*\/?><\/P>|<\/P>|$)/i, '');
+      descHtml = descHtml.replace(/<(STRONG|b)>施法时间：<\/\1>[^<]*<BR\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<(STRONG|b)>施法距离：<\/\1>[^<]*<BR\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<(STRONG|b)>法术成分：<\/\1>[^<]*<BR\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<(STRONG|b)>持续时间：<\/\1>[^<]*<BR\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<(STRONG|b)>升环施法。<\/\1>[\s\S]*?(?=<BR\s*\/?><\/P>|<\/P>|$)/i, '');
       descHtml = descHtml.replace(/<FONT[^>]*>[\s\S]*?<\/FONT>/gi, '');
       // 清除文本节点中的无意义换行
       descHtml = descHtml.replace(/\n/g, ' ');
