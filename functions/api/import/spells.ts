@@ -113,6 +113,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       classes: string[]; notes?: string;
       hasHeightened?: boolean; heightenedEffect?: string;
       ritual?: boolean; concentration?: boolean; source: string;
+      tableData?: { headers: string[]; rows: string[][] };
     }> = [];
 
     $('h4').each((_, el) => {
@@ -124,7 +125,6 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const nameParts = fullText.split('｜');
       const name = nameParts.length > 1 ? nameParts[0].trim() : fullText;
 
-      // 收 h4 之后到下一个 h4 之前的所有兄弟（P、UL 等）
       const $blockNodes = $h4.nextUntil('h4');
       if (!$blockNodes.length) return;
       const mainHtml = $blockNodes.map((_, n) => $.html(n)).get().join('');
@@ -137,7 +137,6 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const emTokens = emText.split(/\s+/);
       let levelToken = '', schoolToken = '';
       for (const t of emTokens) {
-        // 清掉括号后缀再查 MAP（如"戏法（术士、法师、奇械师）"→"戏法"）
         const cleanT = t.replace(/[（(].*$/, '');
         if (LEVEL_MAP[cleanT] !== undefined) levelToken = cleanT;
         else if (SCHOOL_MAP[cleanT] !== undefined) schoolToken = cleanT;
@@ -149,33 +148,29 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
       const isRitual = emText.includes('仪式');
 
-      // classes：魔契师→邪术师，删奇械师，仅剩奇械师则整项跳过
+      // classes：魔契师→邪术师，删奇械师，TCE 分号段全弃
       const classesMatch = emText.match(/（(.+?)）/);
       const classesStr = classesMatch ? classesMatch[1] : '';
-// 去掉"仪式；"前缀
-let cleaned = classesStr.replace(/^仪式；/, '');
-// 按分号分割（中文或英文），过滤掉包含"TCE："的部分
-const partsBySemicolon = cleaned.split(/[；;]/).map(s => s.trim()).filter(s => !s.includes('TCE：'));
-// 再按顿号分割
-const rawClasses = partsBySemicolon.join('、').split('、').filter(Boolean);
-const mappedClasses = rawClasses
-  .map(c => c === '魔契师' ? '邪术师' : c)
-  .filter(c => c !== '奇械师');
-if (mappedClasses.length === 0) return;
+      let cleaned = classesStr.replace(/^仪式；/, '');
+      const partsBySemicolon = cleaned.split(/[；;]/).map(s => s.trim()).filter(s => !s.includes('TCE：'));
+      const rawClasses = partsBySemicolon.join('、').split('、').filter(Boolean);
+      const mappedClasses = rawClasses
+        .map(c => c === '魔契师' ? '邪术师' : c)
+        .filter(c => c !== '奇械师');
+      if (mappedClasses.length === 0) return;
 
-      // 4 字段：正则从 mainHtml 提取（源码标签大写，用 <STRONG>/<BR>）
+      // 4 字段：正则从 mainHtml 提取（兼容 <STRONG>/<b>）
       let castingTime = '', rng = '', compStr = '', duration = '';
       const fieldRe = /<(STRONG|b)>(施法时间|施法距离|法术成分|持续时间)：<\/\1>([\s\S]*?)<BR\s*\/?>/gi;
-let fm: RegExpExecArray | null;
+      let fm: RegExpExecArray | null;
       while ((fm = fieldRe.exec(mainHtml)) !== null) {
-  const label = fm[2];  // 字段名：施法时间、施法距离、法术成分、持续时间
-  const val = fm[3].replace(/<[^>]+>/g, '').trim();  // 字段值
-  if (label === '施法时间') castingTime = val;
-  else if (label === '施法距离') rng = val;
-  else if (label === '法术成分') compStr = val;
-  else if (label === '持续时间') duration = val;
-}
-
+        const label = fm[2];
+        const val = fm[3].replace(/<[^>]+>/g, '').trim();
+        if (label === '施法时间') castingTime = val;
+        else if (label === '施法距离') rng = val;
+        else if (label === '法术成分') compStr = val;
+        else if (label === '持续时间') duration = val;
+      }
 
       const components = parseComponents(compStr);
       const materialInfo = extractMaterialInfo(compStr);
@@ -200,7 +195,27 @@ let fm: RegExpExecArray | null;
       const $font = $fullDiv.find('font[color="#808080"]');
       if ($font.length) notes = $font.text().trim();
 
-      // description：从 mainHtml 剔已知块（源码标签大写）
+      // —— tableData 提取：BLOCKQUOTE 表格（animate-objects 等）——
+      let tableData: { headers: string[]; rows: string[][] } | undefined;
+      const blockquoteMatch = mainHtml.match(/<BLOCKQUOTE[^>]*>([\s\S]*?)<\/BLOCKQUOTE>/i);
+      if (blockquoteMatch) {
+        const bqHtml = blockquoteMatch[1];
+        const $bq = $(`<div>${bqHtml}</div>`);
+        const lines: string[] = [];
+        $bq.find('p').each((_, p) => {
+          const text = $(p).text().trim();
+          if (text) lines.push(text);
+        });
+        if (lines.length >= 2) {
+          const headers = lines[0].split(/\s+/).filter(Boolean);
+          const rows = lines.slice(1).map(line => line.split(/\s+/).filter(Boolean));
+          if (headers.length > 0 && rows.every(row => row.length === headers.length)) {
+            tableData = { headers, rows };
+          }
+        }
+      }
+
+      // description：从 mainHtml 剔已知块
       let descHtml = mainHtml;
       descHtml = descHtml.replace(/<EM[^>]*>[\s\S]*?<\/EM>\s*(?:<BR\s*\/?>)?/i, '');
       descHtml = descHtml.replace(/<(STRONG|b)>施法时间：<\/\1>[^<]*<BR\s*\/?>/gi, '');
@@ -220,7 +235,26 @@ let fm: RegExpExecArray | null;
       // 中英文之间加空格
       let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
       formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
-      formattedDesc = formattedDesc.replace(/  +/g, ' '); // 压缩连续多个空格为单个
+      formattedDesc = formattedDesc.replace(/  +/g, ' '); // 压缩连续多个空格
+
+      // —— tableData 提取：内联 d100 种族表（reincarnate 等）——
+      let inlineTable: { headers: string[]; rows: string[][] } | undefined;
+      const inlineTableRegex = /(?:d100\s+种族\s+d100\s+种族)\s+([\s\S]*?)(?:\n\n|$)/;
+      const inlineMatch = formattedDesc.match(inlineTableRegex);
+      if (inlineMatch) {
+        const bodyLines = inlineMatch[1].trim().split('\n').map(l => l.trim()).filter(Boolean);
+        const headers = ['d100', '种族', 'd100', '种族'];
+        const rows: string[][] = [];
+        for (const line of bodyLines) {
+          const parts = line.split(/\s+/);
+          if (parts.length >= 4) {
+            rows.push([parts[0], parts[1], parts[2], parts.slice(3).join(' ')]);
+          }
+        }
+        if (rows.length > 0) {
+          inlineTable = { headers, rows };
+        }
+      }
 
       spells.push({
         id, name, level,
@@ -238,6 +272,7 @@ let fm: RegExpExecArray | null;
         ritual: isRitual || undefined,
         concentration: isConcentration || undefined,
         source: '玩家手册 2014',
+        tableData: inlineTable || tableData || undefined,
       });
     });
 
