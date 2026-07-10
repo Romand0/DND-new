@@ -137,9 +137,15 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const schoolCn = emText.replace(/^(戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)\s*/, '').match(/^([^（]+)/);
       const school = schoolCn ? (SCHOOL_MAP[schoolCn[1].trim()] || schoolCn[1].trim()) : '未知';
       const isRitual = emText.includes('仪式');
+
+      // —— classes 解析：魔契师→邪术师，删奇械师，仅剩奇械师则跳过 ——
       const classesMatch = emText.match(/（(.+?)）/);
       const classesStr = classesMatch ? classesMatch[1] : '';
-      const classes = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
+      const rawClasses = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
+      const mappedClasses = rawClasses
+        .map(c => c === '魔契师' ? '邪术师' : c)
+        .filter(c => c !== '奇械师');
+      if (mappedClasses.length === 0) return;   // 原仅有奇械师，整项跳过
 
       // 4 字段：正则从小写标签 mainHtml 提取
       let castingTime = '', rng = '', compStr = '', duration = '';
@@ -158,7 +164,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const materialInfo = extractMaterialInfo(compStr);
       const isConcentration = duration.includes('专注');
 
-      // 升环段
+      // 升环段：主 P 内 + nextP 双位置
       let hasHeightened = false;
       let heightenedEffect = '';
       const heightReg = /升环施法。([\s\S]*?)(?:<\/?(?:p|font|ul)[^>]*>|$)/i;
@@ -197,13 +203,13 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         materialInfo: materialInfo || undefined,
         duration: cleanText(duration),
         description: cleanText(description),
-        classes,
+        classes: mappedClasses,            // ← 用 mappedClasses
         notes: notes ? cleanText(notes) : undefined,
         hasHeightened: hasHeightened || undefined,
         heightenedEffect: heightenedEffect ? cleanText(heightenedEffect) : undefined,
         ritual: isRitual || undefined,
         concentration: isConcentration || undefined,
-        source: 'PHB',
+        source: '玩家手册 2014',                  // ← PHB → 玩家手册 2014
       });
     });
 
