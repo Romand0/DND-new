@@ -5,16 +5,20 @@ import { characterStore } from '@/data/characterStore';
 import * as api from '@/lib/api';
 
 export function useEquipmentActions(charId: string | undefined, refresh: () => void) {
+  
   const handleAddEquipmentFromLibrary = useCallback((item: any) => {
-    if (!charId) return null;
-    const tempEquipment: Equipment & { id: string; templateId?: string } = {
-      id: `temp-${Date.now()}`,
-      templateId: item.id,
-      quantity: 1,
-      ...extractBaseFields(item),
-    };
-    return tempEquipment;
-  }, [charId]);
+  if (!charId) return null;
+  const tempEquipment: Equipment & { id: string; templateId?: string } = {
+    id: `temp-${Date.now()}`,
+    templateId: item.id,
+    quantity: 1,
+    packSize: item.packSize,
+    unit: item.unit,
+    ...extractBaseFields(item),
+  };
+  return tempEquipment;
+}, [charId]);
+
 
   const handleSaveEquipment = useCallback(async (
     editingEquipment: (Equipment & { id: string }) | null,
