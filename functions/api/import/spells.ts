@@ -44,14 +44,14 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     const db = context.env.DB;
     const stmts: D1PreparedStatement[] = [];
 
-    if (!body.items || body.entities?.length === 0) {
+    if (!body.items || (body as any).entities?.length === 0) {
       return new Response(JSON.stringify({ error: '导入列表为空', success: 0, fail: 0 }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    for (const item of (body.entities || body.items)) {
+    for (const item of ((body as any).entities || body.items)) {
       try {
         const existing = await db.prepare(
           "SELECT id FROM spells WHERE json_extract(data, '$.id') = ?"
@@ -124,7 +124,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const nameParts = fullText.split('｜');
       const name = nameParts.length > 1 ? nameParts[0].trim() : fullText;
 
-      // 收 h4 之后到下一个 h4 之前的所有兄弟（P、UL 等），戏法里 P→UL→P 结构能全覆盖
+      // 收 h4 之后到下一个 h4 之前的所有兄弟（P、UL 等）
       const $blockNodes = $h4.nextUntil('h4');
       if (!$blockNodes.length) return;
       const mainHtml = $blockNodes.map((_, n) => $.html(n)).get().join('');
@@ -132,15 +132,15 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       if (!$mainP.length) return;
       const mainText = $mainP.text().trim();
 
-      // EM 行：兼容两种顺序
-      //   1-9环："一环 防护（仪式；游侠、法师、奇械师）" → 环数在前
-      //   戏法：  "咒法 戏法（术士、法师、奇械师）"   → 学派在前
+      // EM 行：兼容两种顺序 + token 可能带括号后缀
       const emText = $mainP.find('em').text().trim();
       const emTokens = emText.split(/\s+/);
       let levelToken = '', schoolToken = '';
       for (const t of emTokens) {
-        if (LEVEL_MAP[t] !== undefined) levelToken = t;
-        else if (SCHOOL_MAP[t] !== undefined) schoolToken = t;
+        // 清掉括号后缀再查 MAP（如"戏法（术士、法师、奇械师）"→"戏法"）
+        const cleanT = t.replace(/[（(].*$/, '');
+        if (LEVEL_MAP[cleanT] !== undefined) levelToken = cleanT;
+        else if (SCHOOL_MAP[cleanT] !== undefined) schoolToken = cleanT;
       }
       const level = levelToken ? LEVEL_MAP[levelToken] : -1;
       if (level === -1) return;
@@ -158,9 +158,9 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
         .filter(c => c !== '奇械师');
       if (mappedClasses.length === 0) return;
 
-      // 4 字段：正则从 mainHtml 提取（已含全块：P+UL+P）
+      // 4 字段：正则从 mainHtml 提取（源码标签大写，用 <STRONG>/<BR>）
       let castingTime = '', rng = '', compStr = '', duration = '';
-      const fieldRe = /<strong>(施法时间|施法距离|法术成分|持续时间)：<\/strong>([\s\S]*?)<br\s*\/?>/gi;
+      const fieldRe = /<STRONG>(施法时间|施法距离|法术成分|持续时间)：<\/STRONG>([\s\S]*?)<BR\s*\/?>/gi;
       let fm: RegExpExecArray | null;
       while ((fm = fieldRe.exec(mainHtml)) !== null) {
         const label = fm[1];
@@ -175,10 +175,10 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const materialInfo = extractMaterialInfo(compStr);
       const isConcentration = duration.includes('专注');
 
-      // 升环段：主 P 内 + 后续 P 双位置（mainHtml 已含全块，nextP 兜底）
+      // 升环段
       let hasHeightened = false;
       let heightenedEffect = '';
-      const heightReg = /升环施法。([\s\S]*?)(?:<\/?(?:p|font|ul)[^>]*>|$)/i;
+      const heightReg = /升环施法。([\s\S]*?)(?:<\/?(?:P|FONT|UL)[^>]*>|$)/i;
       const inMainMatch = mainHtml.match(heightReg);
       const $nextP = $mainP.next('p');
       const nextHtml = $nextP.length ? ($nextP.html() || '') : '';
@@ -186,32 +186,31 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       if (inMainMatch || inNextMatch) {
         hasHeightened = true;
         heightenedEffect = (inMainMatch?.[1] || inNextMatch?.[1] || '').trim();
-        // 去掉前缀"升环施法。"（已在正则 capture 外，正文从 capture 1 取，这里已干净）
       }
 
-      // notes：从全块找（Prestidigitation 的 FONT 在 UL>LI 里，不在第一个 P）
+      // notes：从全块找
       const $fullDiv = $(`<div>${mainHtml}</div>`);
       let notes = '';
       const $font = $fullDiv.find('font[color="#808080"]');
       if ($font.length) notes = $font.text().trim();
 
-      // description：从 mainHtml 剔已知块
+      // description：从 mainHtml 剔已知块（源码标签大写）
       let descHtml = mainHtml;
-      descHtml = descHtml.replace(/<em[^>]*>[\s\S]*?<\/em>\s*(?:<br\s*\/?>)?/i, '');
-      descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<strong>施法距离：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<strong>持续时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
-      descHtml = descHtml.replace(/<strong>升环施法。<\/strong>[\s\S]*?(?=<br\s*\/?><\/p>|<\/p>|$)/i, '');
-      descHtml = descHtml.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, '');
+      descHtml = descHtml.replace(/<EM[^>]*>[\s\S]*?<\/EM>\s*(?:<BR\s*\/?>)?/i, '');
+      descHtml = descHtml.replace(/<STRONG>施法时间：<\/STRONG>[^<]*<BR\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<STRONG>施法距离：<\/STRONG>[^<]*<BR\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<STRONG>法术成分：<\/STRONG>[^<]*<BR\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<STRONG>持续时间：<\/STRONG>[^<]*<BR\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<STRONG>升环施法。<\/STRONG>[\s\S]*?(?=<BR\s*\/?><\/P>|<\/P>|$)/i, '');
+      descHtml = descHtml.replace(/<FONT[^>]*>[\s\S]*?<\/FONT>/gi, '');
       // 清除文本节点中的无意义换行
       descHtml = descHtml.replace(/\n/g, ' ');
-      // 将 <br> 替换为两个换行符（段落空行）
-      descHtml = descHtml.replace(/<br\s*\/?>/gi, '\n\n');
+      // 将 <BR> 替换为两个换行符（段落空行）
+      descHtml = descHtml.replace(/<BR\s*\/?>/gi, '\n\n');
       descHtml = descHtml.replace(/^(?:\n\n)*/, '').replace(/(?:\n\n)*$/, '');
       let description = $(`<div>${descHtml}</div>`).text().trim();
       // 兜底：纯文本形态残留的 EM 行
-      description = description.replace(/^(?:戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)\s*[^\n（]*（[^）]*）\s*\n*/, '');
+      description = description.replace(/^(?:戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)[^（（]*（[^））]*）\s*\n*/, '');
       // 中英文之间加空格
       let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
       formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
