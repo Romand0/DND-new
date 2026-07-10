@@ -303,7 +303,19 @@ export default function EquipmentList() {
       {filteredEquipments.length === 0 && (<div className="text-center py-12 dark:text-text-dark-muted light:text-text-light-muted">没有找到匹配的装备</div>)}
 
       {/* Editor 弹窗 */}
-      {editorOpen && (<EquipmentEditor item={editingItem} isStatic={true} onSave={handleSave} onDelete={editingItem ? () => handleDelete(editingItem.id) : undefined} onClose={() => { setEditorOpen(false); setEditingItem(undefined); }} loading={saving} />)}
+      {editorOpen && (
+      <EquipmentEditor
+  item={editingItem}
+  isStatic={true}
+  showQuantity={false}      
+  showPackSize={true}       
+  onSave={handleSave}
+  onDelete={editingItem ? () => handleDelete(editingItem.id) : undefined}
+  onClose={() => { setEditorOpen(false); setEditingItem(undefined); }}
+  loading={saving}
+/>
+
+    )}
 
       {/* 单删确认 */}
       {deleteConfirm && (
