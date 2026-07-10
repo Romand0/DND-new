@@ -23,12 +23,13 @@ function isWearable(item: { category?: string; subtype?: string }): boolean {
 interface Props {
   item: Equipment & { id: string };
   characterId?: string;
-  onEdit: (item: Equipment & { id: string }) => void;
-  onDelete: (itemId: string) => void;
+  onEdit?: (item: Equipment & { id: string }) => void;
+  onDelete?: (itemId: string) => void;
   onUpdateQuantity?: (itemId: string, delta: number) => void;
   onRefresh?: () => void;
   showQuantity?: boolean;
 }
+
 
 export default function CharacterEquipmentCard({
   item,
@@ -125,21 +126,26 @@ export default function CharacterEquipmentCard({
             )}
 
             <div className="flex items-center gap-1">
-              <button
-                onClick={() => onEdit(item)}
-                className="p-1.5 rounded hover:bg-primary/20 text-primary"
-                title="编辑"
-              >
-                <Edit2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onDelete(itemId)}
-                className="p-1.5 rounded hover:bg-danger/20 text-danger"
-                title="删除"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+  {onEdit && (
+    <button
+      onClick={() => onEdit(item)}
+      className="p-1.5 rounded hover:bg-primary/20 text-primary"
+      title="编辑"
+    >
+      <Edit2 className="w-4 h-4" />
+    </button>
+  )}
+  {onDelete && (
+    <button
+      onClick={() => onDelete(itemId)}
+      className="p-1.5 rounded hover:bg-danger/20 text-danger"
+      title="删除"
+    >
+      <Trash2 className="w-4 h-4" />
+    </button>
+  )}
+</div>
+
 
             {showQuantity && onUpdateQuantity && (
               <div className="flex items-center gap-0.5">
