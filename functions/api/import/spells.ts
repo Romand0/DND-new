@@ -180,29 +180,22 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const classesStr = classesMatch ? classesMatch[1] : '';
       const classes = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
 
-      // 4 个 STRONG 字段：直接按 STRONG 标签定位
-      let castingTime = '', rng = '', compStr = '', duration = '';
-      $mainP.find('strong').each((_, strongEl) => {
-        const $strong = $(strongEl);
-        const label = $strong.text().trim();
-        let value = '';
-        let next = $strong[0].nextSibling;
-        while (next) {
-          if (next.nodeType === 3) {
-            value += next.textContent || '';
-          } else if (next.nodeType === 1) {
-            const tag = (next as Element).tagName.toLowerCase();
-            if (tag === 'br' || tag === 'strong' || tag === 'ul') break;
-            value += $(next).text();
-          }
-          next = next.nextSibling;
-        }
-        value = value.trim();
-        if (label.includes('施法时间：')) castingTime = value;
-        else if (label.includes('施法距离：')) rng = value;
-        else if (label.includes('法术成分：')) compStr = value;
-        else if (label.includes('持续时间：')) duration = value;
-      });
+      
+      // 4 个 STRONG 字段：正则从 mainHtml 提取（避开 cheerio 大写标签 + nextSibling 解析差异）
+let castingTime = '', rng = '', compStr = '', duration = '';
+const fieldRe = /<STRONG>(施法时间|施法距离|法术成分|持续时间)：<\/STRONG>([\s\S]*?)(?:<BR>|$)/g;
+let m: RegExpExecArray | null;
+while ((m = fieldRe.exec(mainHtml)) !== null) {
+  const label = m[1]; // "施法时间" / "施法距离" / "法术成分" / "持续时间"
+  let value = m[2]
+    .replace(/<[^>]+>/g, '') // 去掉值内部可能的子标签（如 M 的括号内容里无标签，安全）
+    .trim();
+  if (label === '施法时间') castingTime = value;
+  else if (label === '施法距离') rng = value;
+  else if (label === '法术成分') compStr = value;
+  else if (label === '持续时间') duration = value;
+}
+
 
       // 从 compStr 解析 components 和 materialInfo（只声明一次）
       const components = parseComponents(compStr);
