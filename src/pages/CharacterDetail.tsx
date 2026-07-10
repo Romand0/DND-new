@@ -1872,6 +1872,7 @@ if (character) {
 } as any) : undefined}
 
     showQuantity={true}
+    showPackSize={true}
     showSyncOption={true}
     onSave={(formData, syncToLibrary) => {
   hookHandleSaveEquipment(editingEquipment, formData, syncToLibrary, () => {
