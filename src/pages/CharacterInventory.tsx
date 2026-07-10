@@ -521,6 +521,7 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
 
 
           showQuantity={true}
+          showPackSize={true}
           showSyncOption={true}
           onSave={(formData, syncToLibrary) => {
   hookHandleSaveEquipment(editingEquipment, formData, syncToLibrary, () => {
