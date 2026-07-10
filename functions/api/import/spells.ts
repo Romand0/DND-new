@@ -191,7 +191,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       
 // description：从 mainHtml 剔已知块
 let descHtml = mainHtml;
-descHtml = descHtml.replace(/<em>[^<]*<\/em>\s*<br\s*\/?>/i, '');
+descHtml = descHtml.replace(/<em[^>]*>[\s\S]*?<\/em>\s*(?:<br\s*\/?>)?/i, '');
 descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
 descHtml = descHtml.replace(/<strong>施法距离：<\/strong>[^<]*<br\s*\/?>/gi, '');
 descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi, '');
@@ -204,6 +204,10 @@ descHtml = descHtml.replace(/\n/g, ' ');
 descHtml = descHtml.replace(/<br\s*\/?>/gi, '\n\n');
 descHtml = descHtml.replace(/^(?:\n\n)*/, '').replace(/(?:\n\n)*$/, '');
 const description = $(`<div>${descHtml}</div>`).text().trim();
+
+ // 兜底：若 description 开头还残留 "X环 XX（...）" 这种 EM 行文本，清掉
+description = description.replace(/^(?:戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)\s*[^\n（]*（[^）]*）\s*\n*/, '');
+     
 // 中英文之间加空格
 let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
 formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
