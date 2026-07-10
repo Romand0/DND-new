@@ -21,15 +21,17 @@ function cleanHtmlTags(text: string): string {
 }
 
 function parseComponents(compStr: string): { verbal: boolean; somatic: boolean; material: boolean } {
+  const cleaned = compStr.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
   return {
-    verbal: compStr.includes('V'),
-    somatic: compStr.includes('S'),
-    material: compStr.includes('M'),
+    verbal: cleaned.includes('V'),
+    somatic: cleaned.includes('S'),
+    material: cleaned.includes('M'),
   };
 }
 
 function extractMaterialInfo(compStr: string): string {
-  const m = compStr.match(/M（(.+?)）/);
+  // 匹配 M（...）或 M（...）或 M（...）
+  const m = compStr.match(/M[（(](.+?)[)）]/);
   return m ? m[1].trim() : '';
 }
 
@@ -180,15 +182,35 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const classes = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
 
       // 4 个 STRONG 字段
-      let castingTime = '', rng = '', compStr = '', duration = '';
-      const brBlocks = mainHtml.split('<BR>');
-      for (const block of brBlocks) {
-        const cleanBlock = cleanHtmlTags(block);
-        if (cleanBlock.includes('施法时间：')) castingTime = cleanBlock.replace('施法时间：', '').trim();
-        if (cleanBlock.includes('施法距离：')) rng = cleanBlock.replace('施法距离：', '').trim();
-        if (cleanBlock.includes('法术成分：')) compStr = cleanBlock.replace('法术成分：', '').trim();
-        if (cleanBlock.includes('持续时间：')) duration = cleanBlock.replace('持续时间：', '').trim();
-      }
+      // 4 个 STRONG 字段：直接按 STRONG 标签定位
+let castingTime = '', rng = '', compStr = '', duration = '';
+$mainP.find('strong').each((_, strongEl) => {
+  const $strong = $(strongEl);
+  const label = $strong.text().trim(); // "施法时间："、"施法距离："、...
+  // 取 STRONG 标签后的文本（直到下一个 BR 或标签为止）
+  let value = '';
+  let next = $strong[0].nextSibling;
+  while (next) {
+    if (next.nodeType === 3) { // 文本节点
+      value += next.textContent || '';
+    } else if (next.nodeType === 1) { // 元素节点
+      const tag = (next as Element).tagName.toLowerCase();
+      if (tag === 'br' || tag === 'strong' || tag === 'ul') break;
+      value += $(next).text();
+    }
+    next = next.nextSibling;
+  }
+  value = value.trim();
+  if (label.includes('施法时间：')) castingTime = value;
+  else if (label.includes('施法距离：')) rng = value;
+  else if (label.includes('法术成分：')) compStr = value;
+  else if (label.includes('持续时间：')) duration = value;
+});
+
+// 从 compStr 解析 components 和 materialInfo
+const components = parseComponents(compStr);
+const materialInfo = extractMaterialInfo(compStr);
+
 
       const components = parseComponents(compStr);
       const materialInfo = extractMaterialInfo(compStr);
