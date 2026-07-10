@@ -212,72 +212,72 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
   return (
     <div className={`min-h-screen flex dark:bg-bg-dark light:bg-bg-light-1 ${readOnly ? 'read-only-mode' : ''}`}>
       {/* 侧边栏 */}
-      <div className="w-20 md:w-24 border-r dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light flex flex-col items-center py-4 gap-2">
-        {!readOnly ? (
-          <button
-            onClick={() => navigate(`/characters/${id}`)}
-            className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-2"
-            title="返回角色卡"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-        ) : (
-          <Link
-            to={`/player/${character?.id}`}
-            className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-2"
-            title="返回角色卡"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-        )}
+      {/* 侧边栏 */}
+<div className="w-14 md:w-16 border-r dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light flex flex-col items-center py-3 gap-1.5">
+  {!readOnly ? (
+    <button
+      onClick={() => navigate(`/characters/${id}`)}
+      className="p-1.5 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-1"
+      title="返回角色卡"
+    >
+      <ChevronLeft className="w-4 h-4" />
+    </button>
+  ) : (
+    <Link
+      to={`/player/${character?.id}`}
+      className="p-1.5 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light mb-1"
+      title="返回角色卡"
+    >
+      <ArrowLeft className="w-4 h-4" />
+    </Link>
+  )}
 
-        {/* 穿戴管理按钮 */}
-        <button
-          data-readonly-keep
-          onClick={() => {
-            setViewMode(viewMode === 'equipped' ? 'inventory' : 'equipped');
-            setSelectedCategory('all'); // 切到穿戴时重置分类为“所有”
-          }}
-          
-          className={`w-14 h-14 md:w-16 md:h-16 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
-            viewMode === 'equipped'
-              ? 'bg-primary/20 text-primary'
-              : 'hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted'
-          }`}
-          title="穿戴管理"
-        >
-          <Shield className="w-5 h-5" />
-          <span className="text-xs">穿戴</span>
-        </button>
+  {/* 穿戴管理按钮 */}
+  <button
+    data-readonly-keep
+    onClick={() => {
+      setViewMode(viewMode === 'equipped' ? 'inventory' : 'equipped');
+      setSelectedCategory('all');
+    }}
+    className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
+      viewMode === 'equipped'
+        ? 'bg-primary/20 text-primary'
+        : 'hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted'
+    }`}
+    title="穿戴管理"
+  >
+    <Shield className="w-4 h-4" />
+    <span className="text-[10px] leading-none">穿</span>
+  </button>
 
-        {CATEGORIES.map((cat) => {
-          const Icon = cat.icon;
-          const count =
-            cat.key === 'all'
-              ? character.equipment.length
-              : character.equipment.filter((e) => e.category === cat.key).length;
-          return (
-            <button
-              data-readonly-keep
-              key={cat.key}
-              onClick={() => {
-                setSelectedCategory(cat.key);
-                setViewMode('inventory'); // 点击分类时强制切回背包视图
-              }}
-              
-              className={`w-14 h-14 md:w-16 md:h-16 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
-                selectedCategory === cat.key
-                  ? 'bg-primary/20 text-primary'
-                  : 'hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted'
-              }`}
-              title={cat.label}
-            >
-              <Icon className="w-5 h-5" />
-              <span className="text-xs">{count}</span>
-            </button>
-          );
-        })}
-      </div>
+  {CATEGORIES.map((cat) => {
+    const Icon = cat.icon;
+    const count =
+      cat.key === 'all'
+        ? character.equipment.length
+        : character.equipment.filter((e) => e.category === cat.key).length;
+    return (
+      <button
+        data-readonly-keep
+        key={cat.key}
+        onClick={() => {
+          setSelectedCategory(cat.key);
+          setViewMode('inventory');
+        }}
+        className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex flex-col items-center justify-center gap-0.5 transition-colors ${
+          selectedCategory === cat.key
+            ? 'bg-primary/20 text-primary'
+            : 'hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted'
+        }`}
+        title={cat.label}
+      >
+        <Icon className="w-4 h-4" />
+        <span className="text-[10px] leading-none">{count}</span>
+      </button>
+    );
+  })}
+</div>
+
 
       {/* 主内容 */}
       <div className="flex-1 p-6 overflow-y-auto">
