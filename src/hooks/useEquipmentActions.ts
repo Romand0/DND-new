@@ -11,6 +11,7 @@ export function useEquipmentActions(charId: string | undefined, refresh: () => v
   const tempEquipment: Equipment & { id: string; templateId?: string } = {
     id: `temp-${Date.now()}`,
     templateId: item.id,
+    quantity: undefined,
     packSize: item.packSize,
     unit: item.unit,
     ...extractBaseFields(item),
