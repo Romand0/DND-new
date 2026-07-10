@@ -100,20 +100,32 @@ export default function CharacterInventory({
   }, [character.equipment, selectedCategory]);
 
   const totalWeight = character.equipment.reduce((sum, item) => {
-    return sum + (item.weight || 0) * (item.quantity || 1);
-  }, 0);
+  const qty = item.quantity || 1;
+  const weight = item.weight || 0;
+  if (item.packSize && item.packSize > 0) {
+    return sum + (weight / item.packSize) * qty;
+  }
+  return sum + weight * qty;
+}, 0);
 
-  const totalValue = character.equipment.reduce(
-    (sum, item) => {
-      const amount = item.price?.amount || 0;
-      const qty = item.quantity || 1;
-      if (item.price?.unit === 'gp') sum.gp += amount * qty;
-      else if (item.price?.unit === 'sp') sum.sp += amount * qty;
-      else if (item.price?.unit === 'cp') sum.cp += amount * qty;
-      return sum;
-    },
-    { gp: 0, sp: 0, cp: 0 }
-  );
+const totalValue = character.equipment.reduce(
+  (sum, item) => {
+    const amount = item.price?.amount || 0;
+    const qty = item.quantity || 1;
+    let effectiveAmount: number;
+    if (item.packSize && item.packSize > 0) {
+      effectiveAmount = (amount / item.packSize) * qty;
+    } else {
+      effectiveAmount = amount * qty;
+    }
+    if (item.price?.unit === 'gp') sum.gp += effectiveAmount;
+    else if (item.price?.unit === 'sp') sum.sp += effectiveAmount;
+    else if (item.price?.unit === 'cp') sum.cp += effectiveAmount;
+    return sum;
+  },
+  { gp: 0, sp: 0, cp: 0 }
+);
+
 
   const totalCp = totalValue.gp * 100 + totalValue.sp * 10 + totalValue.cp;
   const gp = Math.floor(totalCp / 100);
