@@ -30,7 +30,6 @@ function extractMaterialInfo(compStr: string): string {
   return m ? m[1].trim() : '';
 }
 
-
 function cleanText(s: string): string {
   return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
@@ -45,14 +44,14 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
     const db = context.env.DB;
     const stmts: D1PreparedStatement[] = [];
 
-    if (!body.items || body.items.length === 0) {
+    if (!body.items || body.entities?.length === 0) {
       return new Response(JSON.stringify({ error: '导入列表为空', success: 0, fail: 0 }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    for (const item of body.items) {
+    for (const item of (body.entities || body.items)) {
       try {
         const existing = await db.prepare(
           "SELECT id FROM spells WHERE json_extract(data, '$.id') = ?"
@@ -125,34 +124,41 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const nameParts = fullText.split('｜');
       const name = nameParts.length > 1 ? nameParts[0].trim() : fullText;
 
-      const $mainP = $h4.next('p');
+      // 收 h4 之后到下一个 h4 之前的所有兄弟（P、UL 等），戏法里 P→UL→P 结构能全覆盖
+      const $blockNodes = $h4.nextUntil('h4');
+      if (!$blockNodes.length) return;
+      const mainHtml = $blockNodes.map((_, n) => $.html(n)).get().join('');
+      const $mainP = $blockNodes.filter('p').first();
       if (!$mainP.length) return;
-
-      const mainHtml = $mainP.html() || '';
       const mainText = $mainP.text().trim();
 
-      // EM 行
+      // EM 行：兼容两种顺序
+      //   1-9环："一环 防护（仪式；游侠、法师、奇械师）" → 环数在前
+      //   戏法：  "咒法 戏法（术士、法师、奇械师）"   → 学派在前
       const emText = $mainP.find('em').text().trim();
-      const levelMatch = emText.match(/^(戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)/);
-      const level = levelMatch ? LEVEL_MAP[levelMatch[1]] : -1;
+      const emTokens = emText.split(/\s+/);
+      let levelToken = '', schoolToken = '';
+      for (const t of emTokens) {
+        if (LEVEL_MAP[t] !== undefined) levelToken = t;
+        else if (SCHOOL_MAP[t] !== undefined) schoolToken = t;
+      }
+      const level = levelToken ? LEVEL_MAP[levelToken] : -1;
       if (level === -1) return;
-
-      const schoolCn = emText.replace(/^(戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)\s*/, '').match(/^([^（]+)/);
-      let schoolName = schoolCn ? schoolCn[1].trim() : '未知';
+      let schoolName = schoolToken || '未知';
       schoolName = schoolName.replace('惑控', '附魔');
-      const school = schoolCn ? (SCHOOL_MAP[schoolCn[1].trim()] || schoolCn[1].trim()) : '未知';
+
       const isRitual = emText.includes('仪式');
 
-      // —— classes 解析：魔契师→邪术师，删奇械师，仅剩奇械师则跳过 ——
+      // classes：魔契师→邪术师，删奇械师，仅剩奇械师则整项跳过
       const classesMatch = emText.match(/（(.+?)）/);
       const classesStr = classesMatch ? classesMatch[1] : '';
       const rawClasses = classesStr.replace(/仪式；/, '').split('、').filter(Boolean);
       const mappedClasses = rawClasses
         .map(c => c === '魔契师' ? '邪术师' : c)
         .filter(c => c !== '奇械师');
-      if (mappedClasses.length === 0) return;   // 原仅有奇械师，整项跳过
+      if (mappedClasses.length === 0) return;
 
-      // 4 字段：正则从小写标签 mainHtml 提取
+      // 4 字段：正则从 mainHtml 提取（已含全块：P+UL+P）
       let castingTime = '', rng = '', compStr = '', duration = '';
       const fieldRe = /<strong>(施法时间|施法距离|法术成分|持续时间)：<\/strong>([\s\S]*?)<br\s*\/?>/gi;
       let fm: RegExpExecArray | null;
@@ -169,7 +175,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const materialInfo = extractMaterialInfo(compStr);
       const isConcentration = duration.includes('专注');
 
-      // 升环段：主 P 内 + nextP 双位置
+      // 升环段：主 P 内 + 后续 P 双位置（mainHtml 已含全块，nextP 兜底）
       let hasHeightened = false;
       let heightenedEffect = '';
       const heightReg = /升环施法。([\s\S]*?)(?:<\/?(?:p|font|ul)[^>]*>|$)/i;
@@ -177,44 +183,41 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
       const $nextP = $mainP.next('p');
       const nextHtml = $nextP.length ? ($nextP.html() || '') : '';
       const inNextMatch = nextHtml.match(heightReg);
-
       if (inMainMatch || inNextMatch) {
-  hasHeightened = true;
-  heightenedEffect = (inMainMatch?.[1] || inNextMatch?.[1] || '').trim();
-}
+        hasHeightened = true;
+        heightenedEffect = (inMainMatch?.[1] || inNextMatch?.[1] || '').trim();
+        // 去掉前缀"升环施法。"（已在正则 capture 外，正文从 capture 1 取，这里已干净）
+      }
 
-
-      // notes
+      // notes：从全块找（Prestidigitation 的 FONT 在 UL>LI 里，不在第一个 P）
+      const $fullDiv = $(`<div>${mainHtml}</div>`);
       let notes = '';
-      const $font = $mainP.find('font[color="#808080"]');
+      const $font = $fullDiv.find('font[color="#808080"]');
       if ($font.length) notes = $font.text().trim();
 
-      
-// description：从 mainHtml 剔已知块
-let descHtml = mainHtml;
-descHtml = descHtml.replace(/<em[^>]*>[\s\S]*?<\/em>\s*(?:<br\s*\/?>)?/i, '');
-descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
-descHtml = descHtml.replace(/<strong>施法距离：<\/strong>[^<]*<br\s*\/?>/gi, '');
-descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi, '');
-descHtml = descHtml.replace(/<strong>持续时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
-descHtml = descHtml.replace(/<strong>升环施法。<\/strong>[\s\S]*?(?=<br\s*\/?><\/p>|<\/p>|$)/i, '');
-descHtml = descHtml.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, '');
-// 清除文本节点中的无意义换行（将 \n 替换为空格，保留单词间分隔）
-descHtml = descHtml.replace(/\n/g, ' ');
-// 将 <br> 替换为两个换行符（段落空行）
-descHtml = descHtml.replace(/<br\s*\/?>/gi, '\n\n');
-descHtml = descHtml.replace(/^(?:\n\n)*/, '').replace(/(?:\n\n)*$/, '');
-let description = $(`<div>${descHtml}</div>`).text().trim();
-// 兜底：若 description 开头还残留 "X环 XX（...）" 这种 EM 行文本，清掉
-description = description.replace(/^(?:戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)\s*[^\n（]*（[^）]*）\s*\n*/, '');
-// 中英文之间加空格
-let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
-formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
-
- 
+      // description：从 mainHtml 剔已知块
+      let descHtml = mainHtml;
+      descHtml = descHtml.replace(/<em[^>]*>[\s\S]*?<\/em>\s*(?:<br\s*\/?>)?/i, '');
+      descHtml = descHtml.replace(/<strong>施法时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<strong>施法距离：<\/strong>[^<]*<br\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<strong>法术成分：<\/strong>[^<]*<br\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<strong>持续时间：<\/strong>[^<]*<br\s*\/?>/gi, '');
+      descHtml = descHtml.replace(/<strong>升环施法。<\/strong>[\s\S]*?(?=<br\s*\/?><\/p>|<\/p>|$)/i, '');
+      descHtml = descHtml.replace(/<font[^>]*>[\s\S]*?<\/font>/gi, '');
+      // 清除文本节点中的无意义换行
+      descHtml = descHtml.replace(/\n/g, ' ');
+      // 将 <br> 替换为两个换行符（段落空行）
+      descHtml = descHtml.replace(/<br\s*\/?>/gi, '\n\n');
+      descHtml = descHtml.replace(/^(?:\n\n)*/, '').replace(/(?:\n\n)*$/, '');
+      let description = $(`<div>${descHtml}</div>`).text().trim();
+      // 兜底：纯文本形态残留的 EM 行
+      description = description.replace(/^(?:戏法|一环|二环|三环|四环|五环|六环|七环|八环|九环)\s*[^\n（]*（[^）]*）\s*\n*/, '');
+      // 中英文之间加空格
+      let formattedDesc = description.replace(/([\u4e00-\u9fff])([a-zA-Z])/g, '$1 $2');
+      formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
 
       spells.push({
-        id, name, level, 
+        id, name, level,
         school: schoolName + '系',
         castingTime: cleanText(castingTime),
         range: cleanText(rng),
@@ -222,13 +225,13 @@ formattedDesc = formattedDesc.replace(/([a-zA-Z])([\u4e00-\u9fff])/g, '$1 $2');
         materialInfo: materialInfo || undefined,
         duration: cleanText(duration),
         description: formattedDesc,
-        classes: mappedClasses,            // ← 用 mappedClasses
+        classes: mappedClasses,
         notes: notes ? cleanText(notes) : undefined,
         hasHeightened: hasHeightened || undefined,
         heightenedEffect: heightenedEffect ? cleanText(heightenedEffect) : undefined,
         ritual: isRitual || undefined,
         concentration: isConcentration || undefined,
-        source: '玩家手册 2014',                  // ← PHB → 玩家手册 2014
+        source: '玩家手册 2014',
       });
     });
 
