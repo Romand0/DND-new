@@ -61,6 +61,10 @@ export interface Equipment {
   childId?: string;
   name: string;
   quantity: number;
+/** 每袋/每份所含个体数（如 50 发/袋、4 oz/瓶）。装备库继承，背包实例保留。 */
+  packSize?: number;
+/** 个体单位名称（如 "发"、"oz"、"瓶"）。装备库继承，背包实例保留。 */
+  unit?: string;
   category: string;
   weight?: number;
   damageDice?: string;
