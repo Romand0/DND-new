@@ -479,13 +479,6 @@ export default function CharacterDetail({
     hpPercentage > 60 ? 'bg-success' : hpPercentage > 30 ? 'bg-warning' : 'bg-danger';
 
   const carryCapacity = character ? character.abilities.strength.score * 15 : 0;
-  const totalWeight = character
-    ? character.equipment.reduce((sum, item) => {
-        const w = item.weight || 0;
-        const q = item.quantity || 1;
-        return sum + w * q;
-      }, 0)
-    : 0;
   const isOverloaded = totalWeight > carryCapacity;
   const effectiveSpeed = character
     ? isOverloaded
@@ -493,27 +486,38 @@ export default function CharacterDetail({
       : character.speed
     : 0;
 
-  const totalValue = character
-    ? character.equipment.reduce(
-        (acc, item) => {
-          if (!item.price) return acc;
-          const amount = item.price.amount * (item.quantity || 1);
-          if (item.price.unit === 'gp') acc.gp += amount;
-          else if (item.price.unit === 'sp') acc.sp += amount;
-          else if (item.price.unit === 'cp') acc.cp += amount;
-          return acc;
-        },
-        { gp: 0, sp: 0, cp: 0 }
-      )
-    : { gp: 0, sp: 0, cp: 0 };
-  const { gp, sp, cp } = (() => {
-    let totalCp = totalValue.gp * 100 + totalValue.sp * 10 + totalValue.cp;
-    const g = Math.floor(totalCp / 100);
-    totalCp %= 100;
-    const s = Math.floor(totalCp / 10);
-    const c = totalCp % 10;
-    return { gp: g, sp: s, cp: c };
-  })();
+  const totalWeight = character
+  ? character.equipment.reduce((sum, item) => {
+      const w = item.weight || 0;
+      const q = item.quantity || 1;
+      if (item.packSize && item.packSize > 0) {
+        return sum + (w / item.packSize) * q;
+      }
+      return sum + w * q;
+    }, 0)
+  : 0;
+
+const totalValue = character
+  ? character.equipment.reduce(
+      (acc, item) => {
+        if (!item.price) return acc;
+        const q = item.quantity || 1;
+        const amount = item.price.amount;
+        let effectiveAmount: number;
+        if (item.packSize && item.packSize > 0) {
+          effectiveAmount = (amount / item.packSize) * q;
+        } else {
+          effectiveAmount = amount * q;
+        }
+        if (item.price.unit === 'gp') acc.gp += effectiveAmount;
+        else if (item.price.unit === 'sp') acc.sp += effectiveAmount;
+        else if (item.price.unit === 'cp') acc.cp += effectiveAmount;
+        return acc;
+      },
+      { gp: 0, sp: 0, cp: 0 }
+    )
+  : { gp: 0, sp: 0, cp: 0 };
+
 
   if (loading) {
     return (
