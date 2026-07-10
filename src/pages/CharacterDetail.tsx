@@ -511,7 +511,12 @@ const totalValue = character
       { gp: 0, sp: 0, cp: 0 }
     )
   : { gp: 0, sp: 0, cp: 0 };
-    
+
+  const totalCp = totalValue.gp * 100 + totalValue.sp * 10 + totalValue.cp;
+  const gp = Math.floor(totalCp / 100);
+  const sp = Math.floor((totalCp % 100) / 10);
+  const cp = totalCp % 10;
+  
   const isOverloaded = totalWeight > carryCapacity;
   const effectiveSpeed = character
     ? isOverloaded
