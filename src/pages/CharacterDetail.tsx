@@ -479,14 +479,8 @@ export default function CharacterDetail({
     hpPercentage > 60 ? 'bg-success' : hpPercentage > 30 ? 'bg-warning' : 'bg-danger';
 
   const carryCapacity = character ? character.abilities.strength.score * 15 : 0;
-  const isOverloaded = totalWeight > carryCapacity;
-  const effectiveSpeed = character
-    ? isOverloaded
-      ? Math.max(0, character.speed - 10)
-      : character.speed
-    : 0;
 
-  const totalWeight = character
+    const totalWeight = character
   ? character.equipment.reduce((sum, item) => {
       const w = item.weight || 0;
       const q = item.quantity || 1;
@@ -517,6 +511,13 @@ const totalValue = character
       { gp: 0, sp: 0, cp: 0 }
     )
   : { gp: 0, sp: 0, cp: 0 };
+    
+  const isOverloaded = totalWeight > carryCapacity;
+  const effectiveSpeed = character
+    ? isOverloaded
+      ? Math.max(0, character.speed - 10)
+      : character.speed
+    : 0;
 
 
   if (loading) {
@@ -1300,10 +1301,10 @@ if (character) {
                     <span>总价值</span>
                   </div>
                   <span className="font-medium">
-                    {gp > 0 && <span>{gp} gp </span>}
-                    {sp > 0 && <span>{sp} sp </span>}
-                    {cp > 0 && <span>{cp} cp</span>}
-                    {gp === 0 && sp === 0 && cp === 0 && <span>0 cp</span>}
+                    {totalValue.gp > 0 && <span>{totalValue.gp} gp </span>}
+                    {totalValue.sp > 0 && <span>{totalValue.sp} sp </span>}
+                    {totalValue.cp > 0 && <span>{totalValue.cp} cp</span>}
+                    {totalValue.gp === 0 && totalValue.sp === 0 && totalValue.cp === 0 && <span>0 cp</span>}
                   </span>
                 </div>
               </div>
