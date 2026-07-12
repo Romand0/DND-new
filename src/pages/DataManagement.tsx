@@ -461,7 +461,7 @@ const confirmSpellImport = async () => {
       {/* ====== 区域一：从 5E 不全书导入 ====== */}
       <section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">
         <h2 className="text-base font-bold mb-4 dark:text-text-dark light:text-text-light">
-          从 5E 不全书导入
+          从 5E 不全书导入_装备
         </h2>
 
         {/* 品类选择 + 获取预览 */}
@@ -646,7 +646,7 @@ const confirmSpellImport = async () => {
       {/* ====== 法术导入区域 ====== */}
 <section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">
   <h2 className="text-base font-bold mb-4 dark:text-text-dark light:text-text-light">
-    从 5E 不全书导入法术
+    从 5E 不全书导入_法术
   </h2>
 
   <div className="flex items-center gap-3 mb-2">
