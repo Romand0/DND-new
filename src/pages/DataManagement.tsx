@@ -365,7 +365,7 @@ const confirmSpellImport = async () => {
 const saveSpellTable = async () => {
   setSpellTableSaveResult(null);
   try {
-    const res = await fetch('/api/update-spell-table', {
+    const res = await fetch('/api/spells/table', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
