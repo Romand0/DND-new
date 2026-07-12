@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { X, Search, Filter, Sparkles } from 'lucide-react';
 import type { Spell } from '@/types/spell';
-import { spellStore } from '@/data/spellStore';
 
 interface SpellPickerProps {
   isOpen: boolean;
@@ -42,19 +41,22 @@ export default function SpellPicker({
   const [classFilter, setClassFilter] = useState<string>(
     characterClass || 'all'
   );
-  const [allSpells, setAllSpells] = useState<Spell[]>(spellStore.getAll());
+  const [allSpells, setAllSpells] = useState<Spell[]>([]);
+  const [loading, setLoading] = useState(false);
 
+  // 从后端获取所有法术
   useEffect(() => {
-    const unsubscribe = spellStore.subscribe(() => {
-      setAllSpells(spellStore.getAll());
-    });
-    return unsubscribe;
-  }, []);
-
-  useEffect(() => {
-    if (isOpen) {
-      setAllSpells(spellStore.getAll());
-    }
+    if (!isOpen) return;
+    setLoading(true);
+    fetch('/api/spells')
+      .then(res => res.json())
+      .then(data => {
+        // 假设返回 { data: Spell[] } 或直接数组
+        const spells = Array.isArray(data) ? data : (data.data || []);
+        setAllSpells(spells);
+      })
+      .catch(err => console.error('获取法术列表失败', err))
+      .finally(() => setLoading(false));
   }, [isOpen]);
 
   const availableClasses = useMemo(() => {
@@ -63,7 +65,7 @@ export default function SpellPicker({
       spell.classes.forEach((cls) => classes.add(cls));
     });
     return Array.from(classes).sort();
-  }, []);
+  }, [allSpells]);
 
   const filteredSpells = useMemo(() => {
     return allSpells.filter((spell) => {
@@ -93,7 +95,7 @@ export default function SpellPicker({
 
       return true;
     });
-  }, [searchQuery, levelFilter, classFilter, selectedSpellIds, matchByName]);
+  }, [searchQuery, levelFilter, classFilter, selectedSpellIds, matchByName, allSpells]);
 
   const sortedSpells = [...filteredSpells].sort((a, b) => {
     if (a.level !== b.level) return a.level - b.level;
@@ -187,7 +189,11 @@ export default function SpellPicker({
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          {sortedSpells.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+              加载中...
+            </div>
+          ) : sortedSpells.length === 0 ? (
             <div className="text-center py-12 text-sm dark:text-text-dark-muted light:text-text-light-muted">
               暂无匹配的法术
             </div>
