@@ -83,7 +83,11 @@ const [spellBulkEditResult, setSpellBulkEditResult] = useState<{
   unknownFields: string[];
 } | null>(null);
 
-  
+  // ---- 法术表格编辑状态 ----
+const [spellTableIdentifier, setSpellTableIdentifier] = useState('');
+const [spellTableContent, setSpellTableContent] = useState('');
+const [spellTableSaveResult, setSpellTableSaveResult] = useState<{ success: boolean; message: string } | null>(null);
+
   // ---- 控制台状态 ----
   const [consoleInput, setConsoleInput] = useState('');
   const [consoleResult, setConsoleResult] = useState<{
@@ -357,7 +361,31 @@ const confirmSpellImport = async () => {
   setSpellImporting(false);
 };
 
-  
+  // ---- 法术表格编辑函数 ----
+const saveSpellTable = async () => {
+  setSpellTableSaveResult(null);
+  try {
+    const res = await fetch('/api/update-spell-table', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identifier: spellTableIdentifier,
+        table: spellTableContent,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setSpellTableSaveResult({ success: true, message: `已更新法术「${spellTableIdentifier}」` });
+      setSpellTableIdentifier('');
+      setSpellTableContent('');
+    } else {
+      setSpellTableSaveResult({ success: false, message: data.error || '保存失败' });
+    }
+  } catch (err) {
+    setSpellTableSaveResult({ success: false, message: String(err) });
+  }
+};
+
   // ---- 控制台函数 ----
   const executeConsole = async () => {
   let parsed: Array<{ name: string; [key: string]: any }>;
@@ -802,6 +830,40 @@ const confirmSpellImport = async () => {
       选择一个环数，点击"获取预览"查看可导入的法术
     </div>
   )}
+</section>
+{/* ====== 法术表格编辑 ====== */}
+<section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">
+  <h2 className="text-base font-bold mb-4 dark:text-text-dark light:text-text-light">
+    导入表格
+  </h2>
+  <div className="space-y-2">
+    <input
+      type="text"
+      placeholder="法术 ID 或名称（如 animate-objects / 活化物件）"
+      value={spellTableIdentifier}
+      onChange={(e) => setSpellTableIdentifier(e.target.value)}
+      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm"
+    />
+    <textarea
+      placeholder={`输入 Wikidot 表格语法，例如：\n|| 体型 || HP || AC || 攻击 || 力量 || 敏捷 ||\n| 微型 | 20 | 18 | 命中+8，伤害 1d4+4 | 4 | 18 |`}
+      value={spellTableContent}
+      onChange={(e) => setSpellTableContent(e.target.value)}
+      rows={6}
+      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none font-mono text-xs dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+    />
+    <button
+      onClick={saveSpellTable}
+      disabled={!spellTableIdentifier || !spellTableContent}
+      className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+    >
+      保存
+    </button>
+    {spellTableSaveResult && (
+      <div className={`text-xs ${spellTableSaveResult.success ? 'text-green-500' : 'text-red-500'}`}>
+        {spellTableSaveResult.message}
+      </div>
+    )}
+  </div>
 </section>
 
       {/* ====== 区域二：控制台 ====== */}
