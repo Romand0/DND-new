@@ -18,6 +18,30 @@ function renderWithDice(text: string): React.ReactNode[] {
   let match: RegExpExecArray | null;
   let key = 0;
 
+  function parseWikidotHeaders(wikidot: string): string[] {
+  const lines = wikidot.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  for (const line of lines) {
+    if (line.startsWith('||')) {
+      // 表头行：|| cell1 || cell2 ||
+      return line.slice(2, -2).split('||').map(c => c.trim());
+    }
+  }
+  return [];
+}
+
+function parseWikidotRows(wikidot: string): string[][] {
+  const lines = wikidot.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const rows: string[][] = [];
+  for (const line of lines) {
+    if (line.startsWith('|') && !line.startsWith('||')) {
+      // 数据行：| cell1 | cell2 |
+      const cells = line.slice(1, -1).split('|').map(c => c.trim());
+      rows.push(cells);
+    }
+  }
+  return rows;
+}
+
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
@@ -235,6 +259,34 @@ export default function SpellDetail() {
             </div>
           </div>
         </div>
+
+        {/* 表格（Wikidot 语法） */}
+{(spell as any).table && (
+  <div>
+    <h3 className="text-sm font-semibold mb-2 dark:text-text-dark light:text-text-light">表格</h3>
+    <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="dark:bg-card-dark light:bg-card-light font-bold">
+            {parseWikidotHeaders((spell as any).table).map((header, i) => (
+              <th key={i} className="px-3 py-2 text-left whitespace-nowrap">{header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {parseWikidotRows((spell as any).table).map((row, ri) => (
+            <tr key={ri} className={ri % 2 === 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-white dark:bg-transparent'}>
+              {row.map((cell, ci) => (
+                <td key={ci} className="px-3 py-2 border-t dark:border-border-dark/50 light:border-border-light/50">{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+)}
+
       </div>
 
       {/* SpellEditor 模态框 */}
