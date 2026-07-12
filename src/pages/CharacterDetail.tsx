@@ -147,7 +147,8 @@ export default function CharacterDetail({
   const [selectedSpellType, setSelectedSpellType] = useState<'cantrip' | 'spell'>('cantrip');
   const [expandedCantrips, setExpandedCantrips] = useState<Set<number>>(new Set());
   const [expandedSpells, setExpandedSpells] = useState<Set<number>>(new Set());
-  const [allSpells, setAllSpells] = useState<Spell[]>(spellStore.getAll());
+  const [allSpells, setAllSpells] = useState<Spell[]>([]);
+  const [spellsLoaded, setSpellsLoaded] = useState(false);
   const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
   const [equipmentEditorOpen, setEquipmentEditorOpen] = useState(false);
@@ -196,8 +197,14 @@ export default function CharacterDetail({
   };
 
   const getSpellByName = (name: string): Spell | undefined => {
-    return allSpells.find((s) => s.name === name);
-  };
+  let found = allSpells.find((s) => s.name === name);
+  if (!found && spellsLoaded) {
+    // D1 已加载完仍没命中，再试一次 spellStore 兜底（旧本地数据）
+    found = spellStore.getAll().find((s) => s.name === name);
+  }
+  return found;
+};
+
 
   const getSelectedSpellNames = (): string[] => {
     if (!character) return [];
@@ -252,11 +259,22 @@ export default function CharacterDetail({
   }, [id, externalCharacter]);
 
   useEffect(() => {
-    const unsubscribe = spellStore.subscribe(() => {
+  let cancelled = false;
+  fetch('/api/spells')
+    .then(res => res.json())
+    .then(data => {
+      if (cancelled) return;
+      const spells = Array.isArray(data) ? data : (data.data || []);
+      setAllSpells(spells);
+      setSpellsLoaded(true);
+    })
+    .catch(err => {
+      console.error('获取法术库失败，降级到 spellStore', err);
       setAllSpells(spellStore.getAll());
+      setSpellsLoaded(true);
     });
-    return unsubscribe;
-  }, []);
+  return () => { cancelled = true; };
+}, []);
 
   const reloadChar = () => {
     if (id) {
