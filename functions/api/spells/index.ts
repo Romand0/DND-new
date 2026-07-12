@@ -1,20 +1,7 @@
-import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now, verifyJwt } from '../../_utils';
+import { jsonResponse, errorResponse, handleOptions } from '../../_utils';
 
 export async function onRequestGet(context: any): Promise<Response> {
-  const { request, env } = context;
-
-  // 只验 JWT（不验 role，不验 DM_TOKEN）
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return errorResponse(401, 'Missing or invalid Authorization header');
-  }
-  const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-  try {
-    await verifyJwt(authHeader.slice(7), jwtSecret);
-  } catch {
-    return errorResponse(401, 'Invalid or expired token');
-  }
-
+  const { env } = context;
   try {
     const result = await env.DB
       .prepare('SELECT id, name, level, school, data, updated_at FROM spells ORDER BY level ASC, name ASC')
@@ -29,7 +16,6 @@ export async function onRequestGet(context: any): Promise<Response> {
 export async function onRequestPost(context: any): Promise<Response> {
   const { request, env } = context;
 
-  // 统一认证（JWT 优先，DM_TOKEN 兜底）+ 校验 DM 角色
   const auth = await authenticateRequest(request, env);
   if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
