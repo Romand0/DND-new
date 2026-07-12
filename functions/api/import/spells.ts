@@ -57,11 +57,17 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           "SELECT id FROM spells WHERE json_extract(data, '$.id') = ?"
         ).bind(item.id).first();
         const data = JSON.stringify(item);
-        if (existing) {
-          stmts.push(db.prepare('UPDATE spells SET data = ? WHERE id = ?').bind(data, (existing as any).id));
-        } else {
-          stmts.push(db.prepare('INSERT INTO spells (id, data) VALUES (?, ?)').bind(item.id, data));
-        }
+const now = Math.floor(Date.now() / 1000);
+if (existing) {
+  stmts.push(db.prepare(
+    'UPDATE spells SET data = ?, name = ?, level = ?, school = ?, updated_at = ? WHERE id = ?'
+  ).bind(data, item.name, item.level, item.school, now, (existing as any).id));
+} else {
+  stmts.push(db.prepare(
+    'INSERT INTO spells (id, name, level, school, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).bind(item.id, item.name, item.level, item.school, data, now, now));
+}
+
       } catch (e) {
         return new Response(JSON.stringify({ error: '查询阶段失败', detail: String(e) }), {
           status: 500, headers: { 'Content-Type': 'application/json' }
