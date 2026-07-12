@@ -10,6 +10,29 @@ const levelLabels: Record<number, string> = {
   0: '戏法', 1: '1环', 2: '2环', 3: '3环', 4: '4环',
   5: '5环', 6: '6环', 7: '7环', 8: '8环', 9: '9环',
 };
+// 解析 Wikidot 表格表头
+function parseWikidotHeaders(wikidot: string): string[] {
+  const lines = wikidot.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  for (const line of lines) {
+    if (line.startsWith('||')) {
+      return line.slice(2, -2).split('||').map(c => c.trim());
+    }
+  }
+  return [];
+}
+
+// 解析 Wikidot 表格数据行
+function parseWikidotRows(wikidot: string): string[][] {
+  const lines = wikidot.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+  const rows: string[][] = [];
+  for (const line of lines) {
+    if (line.startsWith('|') && !line.startsWith('||')) {
+      const cells = line.slice(1, -1).split('|').map(c => c.trim());
+      rows.push(cells);
+    }
+  }
+  return rows;
+}
 
 function renderWithDice(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -18,29 +41,6 @@ function renderWithDice(text: string): React.ReactNode[] {
   let match: RegExpExecArray | null;
   let key = 0;
 
-  function parseWikidotHeaders(wikidot: string): string[] {
-  const lines = wikidot.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  for (const line of lines) {
-    if (line.startsWith('||')) {
-      // 表头行：|| cell1 || cell2 ||
-      return line.slice(2, -2).split('||').map(c => c.trim());
-    }
-  }
-  return [];
-}
-
-function parseWikidotRows(wikidot: string): string[][] {
-  const lines = wikidot.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-  const rows: string[][] = [];
-  for (const line of lines) {
-    if (line.startsWith('|') && !line.startsWith('||')) {
-      // 数据行：| cell1 | cell2 |
-      const cells = line.slice(1, -1).split('|').map(c => c.trim());
-      rows.push(cells);
-    }
-  }
-  return rows;
-}
 
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) {
