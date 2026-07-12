@@ -67,6 +67,23 @@ export default function DataManagement() {
     unknownFields: string[];
   } | null>(null);
 
+  // ---- 法术导入状态 ----
+const [spellRing, setSpellRing] = useState('0');
+const [spellPreview, setSpellPreview] = useState<any[]>([]);
+const [spellSelected, setSpellSelected] = useState<Set<string>>(new Set());
+const [spellLoading, setSpellLoading] = useState(false);
+const [spellImporting, setSpellImporting] = useState(false);
+const [spellResult, setSpellResult] = useState<{ success: number; fail: number } | null>(null);
+const [showSpellBulkPanel, setShowSpellBulkPanel] = useState(false);
+const [spellBulkEditJson, setSpellBulkEditJson] = useState('');
+const [spellBulkEditResult, setSpellBulkEditResult] = useState<{
+  matched: number;
+  unmatched: string[];
+  typeErrors: string[];
+  unknownFields: string[];
+} | null>(null);
+
+  
   // ---- 控制台状态 ----
   const [consoleInput, setConsoleInput] = useState('');
   const [consoleResult, setConsoleResult] = useState<{
@@ -249,6 +266,98 @@ export default function DataManagement() {
     setImporting(false);
   };
 
+     // ---- 法术导入函数 ----
+const fetchSpellPreview = async () => {
+  setSpellLoading(true);
+  setSpellResult(null);
+  setSpellBulkEditResult(null);
+  try {
+    const res = await fetch(`/api/import/spells?ring=${spellRing}`);
+    const data = await res.json();
+    const items = data.data || [];
+    setSpellPreview(items);
+    setSpellSelected(new Set(items.map((i: any) => i.id)));
+  } catch (err) {
+    console.error('获取法术预览失败', err);
+  }
+  setSpellLoading(false);
+};
+
+const toggleSpell = (id: string) => {
+  setSpellSelected(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+  });
+};
+
+const applySpellBulkEdit = () => {
+  let parsed: Array<{ id?: string; name?: string; [key: string]: any }>;
+  try {
+    parsed = JSON.parse(spellBulkEditJson);
+  } catch (e) {
+    setSpellBulkEditResult({
+      matched: 0,
+      unmatched: [],
+      typeErrors: [`JSON 解析失败: ${String(e)}`],
+      unknownFields: [],
+    });
+    return;
+  }
+  if (!Array.isArray(parsed)) {
+    setSpellBulkEditResult({ matched: 0, unmatched: [], typeErrors: ['顶层必须是 JSON 数组'], unknownFields: [] });
+    return;
+  }
+  const matched: string[] = [];
+  const unmatched: string[] = [];
+  const typeErrors: string[] = [];
+  const unknownFields: string[] = [];
+  const updatedPreview = spellPreview.map(i => ({ ...i }));
+  parsed.forEach((entry, idx) => {
+    const keyField = entry.id || entry.name;
+    if (!keyField) {
+      unmatched.push(`第 ${idx + 1} 条: 缺 id 或 name`);
+      return;
+    }
+    const targetIdx = updatedPreview.findIndex(i => i.id === keyField || i.name === keyField);
+    if (targetIdx === -1) {
+      unmatched.push(String(keyField));
+      return;
+    }
+    Object.entries(entry).forEach(([key, val]) => {
+      if (key === 'id' || key === 'name') return;
+      if (['id', 'name', 'level', 'school'].includes(key)) {
+        typeErrors.push(`${keyField}.${key}: 受保护字段，跳过`);
+        return;
+      }
+      (updatedPreview[targetIdx] as any)[key] = val;
+    });
+    matched.push(keyField);
+  });
+  setSpellPreview(updatedPreview);
+  setSpellBulkEditResult({ matched: matched.length, unmatched, typeErrors, unknownFields });
+};
+
+const confirmSpellImport = async () => {
+  const itemsToImport = spellPreview.filter(i => spellSelected.has(i.id));
+  if (itemsToImport.length === 0) return;
+  setSpellImporting(true);
+  try {
+    const res = await fetch('/api/import/spells', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: itemsToImport }),
+    });
+    const result = await res.json();
+    setSpellResult({ success: result.success ?? 0, fail: result.fail ?? 0 });
+  } catch (err) {
+    setSpellResult({ success: 0, fail: itemsToImport.length });
+  }
+  setSpellImporting(false);
+};
+
+  
   // ---- 控制台函数 ----
   const executeConsole = async () => {
   let parsed: Array<{ name: string; [key: string]: any }>;
@@ -532,6 +641,168 @@ export default function DataManagement() {
           </div>
         )}
       </section>
+
+
+      {/* ====== 法术导入区域 ====== */}
+<section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">
+  <h2 className="text-base font-bold mb-4 dark:text-text-dark light:text-text-light">
+    从 5E 不全书导入法术
+  </h2>
+
+  <div className="flex items-center gap-3 mb-2">
+    <select
+      value={spellRing}
+      onChange={(e) => setSpellRing(e.target.value)}
+      className="px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+    >
+      {Object.entries({ '0': '戏法', '1': '1环', '2': '2环', '3': '3环', '4': '4环', '5': '5环', '6': '6环', '7': '7环', '8': '8环', '9': '9环' }).map(([k, v]) => (
+        <option key={k} value={k}>{v}</option>
+      ))}
+    </select>
+    <button
+      onClick={fetchSpellPreview}
+      disabled={spellLoading}
+      className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+    >
+      {spellLoading ? '加载中...' : '获取预览'}
+    </button>
+  </div>
+
+  {/* 批量编辑面板 */}
+  {spellPreview.length > 0 && (
+    <div className="mb-4 rounded-lg border dark:border-border-dark light:border-border-light">
+      <button
+        onClick={() => setShowSpellBulkPanel(!showSpellBulkPanel)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-left hover:opacity-80"
+      >
+        {showSpellBulkPanel ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        批量字段编辑（按 id 或 name 匹配覆盖）
+      </button>
+      {showSpellBulkPanel && (
+        <div className="p-3 border-t dark:border-border-dark/50 light:border-border-light/50 space-y-2">
+          <p className="text-xs opacity-60">
+            格式：<code>[{"{"}"id":"bless", "description":"..."{"}"}]</code>。id/name/level/school 受保护。
+          </p>
+          <textarea
+            value={spellBulkEditJson}
+            onChange={(e) => setSpellBulkEditJson(e.target.value)}
+            placeholder='[{"id":"bless", "description":"自定义描述..."}]'
+            className="w-full h-32 px-3 py-2 rounded-lg border bg-transparent outline-none font-mono text-xs dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+          />
+          <button
+            onClick={applySpellBulkEdit}
+            className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:opacity-90"
+          >
+            应用
+          </button>
+          {spellBulkEditResult && (
+            <div className="text-xs space-y-1">
+              <div className="text-green-500">匹配并更新: {spellBulkEditResult.matched} 条</div>
+              {spellBulkEditResult.unmatched.length > 0 && (
+                <div className="text-yellow-500">未匹配: {spellBulkEditResult.unmatched.join(', ')}</div>
+              )}
+              {spellBulkEditResult.typeErrors.length > 0 && (
+                <div className="text-red-500">类型/保护错误: {spellBulkEditResult.typeErrors.join('; ')}</div>
+              )}
+              {spellBulkEditResult.unknownFields.length > 0 && (
+                <div className="text-blue-500">未知字段: {spellBulkEditResult.unknownFields.join(', ')}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )}
+
+  {spellPreview.length > 0 && (
+    <>
+      <div className="mb-2 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+        共 {spellPreview.length} 条，已选 {spellSelected.size} 条
+      </div>
+      <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="dark:bg-card-dark light:bg-card-light">
+              <th className="p-2 text-left w-8">
+                <input
+                  type="checkbox"
+                  checked={spellSelected.size === spellPreview.length}
+                  onChange={() => {
+                    if (spellSelected.size === spellPreview.length) setSpellSelected(new Set());
+                    else setSpellSelected(new Set(spellPreview.map(i => i.id)));
+                  }}
+                />
+              </th>
+              <th className="p-2 text-left">名称</th>
+              <th className="p-2 text-left">环数</th>
+              <th className="p-2 text-left">学派</th>
+              <th className="p-2 text-left">施法时间</th>
+              <th className="p-2 text-left">距离</th>
+              <th className="p-2 text-left">持续时间</th>
+              <th className="p-2 text-left">职业</th>
+              <th className="p-2 text-left">描述</th>
+            </tr>
+          </thead>
+          <tbody>
+            {spellPreview.map((item) => (
+              <tr
+                key={item.id}
+                className="border-t dark:border-border-dark/50 light:border-border-light/50 hover:dark:bg-card-dark/50 hover:light:bg-card-light/50"
+              >
+                <td className="p-2">
+                  <input
+                    type="checkbox"
+                    checked={spellSelected.has(item.id)}
+                    onChange={() => toggleSpell(item.id)}
+                  />
+                </td>
+                <td className="p-2 font-medium">{item.name}</td>
+                <td className="p-2">{item.level}</td>
+                <td className="p-2">{item.school}</td>
+                <td className="p-2">{item.castingTime}</td>
+                <td className="p-2">{item.range}</td>
+                <td className="p-2">{item.duration}</td>
+                <td className="p-2 text-xs">{item.classes?.join(', ') || '—'}</td>
+                <td className="p-2 text-xs max-w-[200px] truncate" title={item.description}>
+                  {item.description || '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <button
+        onClick={confirmSpellImport}
+        disabled={spellImporting || spellSelected.size === 0}
+        className="mt-4 px-6 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 flex items-center gap-2"
+      >
+        <Download className="w-4 h-4" />
+        {spellImporting ? '导入中...' : `导入选中项 (${spellSelected.size})`}
+      </button>
+
+      {spellResult && (
+        <div className="mt-3 flex items-center gap-2 text-sm">
+          {(spellResult.fail ?? 0) === 0 ? (
+            <CheckCircle className="w-4 h-4 text-green-500" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-yellow-500" />
+          )}
+          <span>
+            成功 {spellResult.success ?? 0} 条
+            {(spellResult.fail ?? 0) > 0 ? `，失败 ${spellResult.fail} 条` : ''}
+          </span>
+        </div>
+      )}
+    </>
+  )}
+
+  {spellPreview.length === 0 && !spellLoading && (
+    <div className="text-center py-12 text-sm opacity-50">
+      选择一个环数，点击"获取预览"查看可导入的法术
+    </div>
+  )}
+</section>
 
       {/* ====== 区域二：控制台 ====== */}
       <section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">
