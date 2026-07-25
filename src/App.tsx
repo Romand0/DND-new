@@ -24,6 +24,7 @@ import PlayerHome from '@/pages/PlayerHome';
 import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 import DataManagement from '@/pages/DataManagement';
+import CombatList from '@/pages/CombatList';
 
 // 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
@@ -54,7 +55,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-
+             
             {/* 玩家端（精简导航栏）- 需要登录 */}
             <Route
               element={
@@ -87,6 +88,7 @@ export default function App() {
               <Route path="/equipment/:id" element={<EquipmentDetail />} />
               <Route path="/spells" element={<SpellList />} />
               <Route path="/spells/:id" element={<SpellDetail />} />
+              <Route path="/combat" element={<CombatList />} />
             </Route>
 
             {/* DM 端（完整导航栏）- 需要登录 + DM 角色 */}
