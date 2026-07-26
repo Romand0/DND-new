@@ -18,10 +18,31 @@ export default function CombatList() {
     return unsub;
   }, []);
 
-  const handleCreate = (title: string) => {
-    const newRecord = combatStore.create(title, []);
-    navigate(`/combat/${newRecord.id}`);
-  };
+  const handleCreate = () => {
+  const defaultTitle = `战斗记录 ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  const title = prompt('请输入战斗名称', defaultTitle);
+  if (!title?.trim()) {
+    alert('战斗名称不能为空');
+    return;
+  }
+  
+  try {
+    // combatStore.create 返回新创建的战斗记录，包含 id
+    const newRecord = combatStore.create(title.trim(), []);
+    
+    // ✅ 关键修复：创建成功后立即跳转
+    if (newRecord?.id) {
+      navigate(`/combat/${newRecord.id}`);
+    } else {
+      alert('创建战斗失败：未获取到战斗ID');
+      loadRecords(); // 兜底：重新加载列表
+    }
+  } catch (e) {
+    console.error('创建战斗失败:', e);
+    alert('创建战斗失败，请重试');
+  }
+};
+
 
   const handleExport = () => {
     const data = JSON.stringify(records, null, 2);
