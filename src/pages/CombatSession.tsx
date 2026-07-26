@@ -183,13 +183,13 @@ export default function CombatSession() {
 
   // 原内容：完全保留，一个字都没改（页面结构主体不变）
   return (
-    <div className="max-w-full mx-auto p-4 space-y-4 overflow-x-auto">
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <button onClick={() => navigate('/combat')} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
+    <div className="max-w-full mx-auto p-4 space-y-4">
+      <div className="flex items-center justify-between gap-2 sm:gap-4">
+        <div className="flex items-center gap-2 min-w-0">
+          <button onClick={() => navigate('/combat')} className="p-2 rounded-lg hover:bg-white/10 transition-colors shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-xl font-bold dark:text-text-dark light:text-text-light truncate">
+          <h1 className="text-base sm:text-xl font-bold dark:text-text-dark light:text-text-light truncate">
             {record.title}
           </h1>
         </div>
@@ -197,17 +197,17 @@ export default function CombatSession() {
           {/* ✅ 修改：点击打开角色选择弹窗，原有NPC逻辑通过弹窗按钮保留 */}
           <button
             onClick={() => setShowCharSelect(true)}
-            className="px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
+            className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
           >
             <Users className="w-4 h-4" />
-            添加参战者
+            <span className="hidden sm:inline">添加参战者</span>
           </button>
           <button
             onClick={handleAddRound}
-            className="px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors"
+            className="px-2 sm:px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            新增轮次
+            <span className="hidden sm:inline">新增轮次</span>
           </button>
         </div>
       </div>
