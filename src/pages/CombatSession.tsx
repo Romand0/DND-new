@@ -1,45 +1,39 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { characterStore } from '@/data/characterStore';
-import { combatStore } from '@/data/combatStore'; // 保留这行
+import { combatStore, type Combatant } from '@/data/combatStore';
 import { Swords, Plus, Minus, X, GripVertical } from 'lucide-react';
 
-// 定义本地类型，因为 combatStore 只导出了 Combatant 类型，且字段名为 isPc
-type LocalCombatant = {
+// 候选角色类型（从角色库同步）
+type CandidateCharacter = {
   id: string;
-  characterId: string;
   name: string;
-  initiative: number;
-  maxHp: number;
-  currentHp: number;
-  ac: number;
-  isPc: boolean; // combatStore 里叫 isPc，不是 isPlayer
+  race: string;
+  class: string;
+  dexMod: number;
 };
-
-// combatStore 返回的是 CombatRecord，不是 CombatSession
-type CombatRecord = ReturnType<typeof combatStore.get>;
-
 
 // 待输入先攻的临时数据类型
 type PendingInitiative = {
   characterId: string;
   name: string;
   dexMod: number;
-  d20Roll: number | ''; // d20掷骰结果
-  total: number; // 先攻总值 = 敏捷调整值 + d20Roll
+  d20Roll: number | '';
+  total: number;
 };
+
+// 战斗记录类型（对齐combatStore返回结构）
+type CombatRecord = ReturnType<typeof combatStore.get>;
 
 export default function CombatSession() {
   const { isDM } = useAuth();
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
 
-  // 类型改为 CombatRecord，且 CombatRecord 中没有 currentTurn
+  // 状态定义：CombatRecord无currentTurn字段，回合顺序由combatants数组顺序决定
   const [session, setSession] = useState<CombatRecord | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // 移除所有 currentTurn 相关状态，CombatRecord 自带 combatants 数组顺序即回合顺序
 
   // 角色选择弹窗状态
   const [showCharSelect, setShowCharSelect] = useState(false);
@@ -55,16 +49,16 @@ export default function CombatSession() {
   const [tieBreakCombatants, setTieBreakCombatants] = useState<Combatant[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-  // 【权限兜底】非DM直接跳回首页（战斗记录为DM专用工具）
+  // 权限兜底：非DM直接跳回首页
   if (!isDM) return <Navigate to="/" replace />;
 
-    useEffect(() => {
+  // 加载战斗数据与角色库同步
+  useEffect(() => {
     if (!sessionId) {
       navigate('/combat');
       return;
     }
     const loadData = () => {
-      // 改用 combatStore.get
       const currentSession = combatStore.get(sessionId);
       if (!currentSession) {
         navigate('/combat');
@@ -72,9 +66,9 @@ export default function CombatSession() {
       }
       setSession(currentSession);
 
+      // 过滤已参战的角色
       const allChars = characterStore.getAll() || [];
-      // CombatRecord 里拿 combatants
-      const existingCharIds = new Set(currentSession.combatants.map(c => c.characterId));
+      const existingCharIds = new Set(currentSession.combatants.map(c => c.characterId).filter(Boolean));
       const candidates: CandidateCharacter[] = allChars
         .filter(char => char.id && !existingCharIds.has(char.id))
         .map(char => ({
@@ -88,7 +82,8 @@ export default function CombatSession() {
       setLoading(false);
     };
     loadData();
-    
+
+    // 监听角色库更新，同步候选列表
     const onStorage = () => loadData();
     window.addEventListener('storage', onStorage);
     window.addEventListener('dm-token-change', onStorage);
@@ -98,13 +93,7 @@ export default function CombatSession() {
     };
   }, [sessionId, navigate]);
 
-  // 当前回合参战者
-  const currentCombatant = useMemo(() => {
-    if (!session || session.combatants.length === 0) return null;
-    return session.combatants[session.currentTurn];
-  }, [session]);
-
-  // ===== 角色选择逻辑 =====
+  // 角色选择逻辑
   const toggleCharSelect = useCallback((charId: string) => {
     setSelectedCharIds(prev => {
       const newSet = new Set(prev);
@@ -124,7 +113,6 @@ export default function CombatSession() {
 
   const confirmCharSelect = useCallback(() => {
     if (selectedCharIds.size === 0) return;
-    // 生成待输入先攻的临时数据
     const pending: PendingInitiative[] = candidateChars
       .filter(char => selectedCharIds.has(char.id))
       .map(char => ({
@@ -132,14 +120,14 @@ export default function CombatSession() {
         name: char.name,
         dexMod: char.dexMod,
         d20Roll: '',
-        total: char.dexMod
+        total: char.dexMod,
       }));
     setPendingInitiatives(pending);
     setShowCharSelect(false);
     setShowInitInput(true);
   }, [selectedCharIds, candidateChars]);
 
-  // ===== 先攻输入逻辑 =====
+  // 先攻输入逻辑
   const updateD20Roll = useCallback((charId: string, value: string) => {
     const numValue = value === '' ? '' : parseInt(value, 10);
     setPendingInitiatives(prev => prev.map(item => {
@@ -148,7 +136,7 @@ export default function CombatSession() {
         return {
           ...item,
           d20Roll: d20,
-          total: item.dexMod + (typeof d20 === 'number' ? d20 : 0)
+          total: item.dexMod + (typeof d20 === 'number' ? d20 : 0),
         };
       }
       return item;
@@ -156,73 +144,72 @@ export default function CombatSession() {
   }, []);
 
   const confirmInitInput = useCallback(() => {
-    // 校验所有d20结果已输入
     const hasEmpty = pendingInitiatives.some(item => item.d20Roll === '');
     if (hasEmpty) {
       alert('请为所有参战者输入d20掷骰结果（1-20）');
       return;
     }
 
-    // 按先攻总值分组，检测同先攻情况
+    // 按先攻总值分组，检测同先攻
     const initGroups: Record<number, PendingInitiative[]> = {};
     pendingInitiatives.forEach(item => {
       const total = item.total;
       if (!initGroups[total]) initGroups[total] = [];
       initGroups[total].push(item);
     });
-
-    // 存在同先攻组，进入拖拽排序流程
     const tieGroups = Object.values(initGroups).filter(group => group.length > 1);
+
     if (tieGroups.length > 0) {
-      const allTied: Combatant[] = pendingInitiatives.map(item => ({
-        id: crypto.randomUUID(),
-        characterId: item.characterId,
-        name: item.name,
-        initiative: item.total,
-        maxHp: 0,
-        currentHp: 0,
-        ac: 0,
-        conditions: [],
-        isPlayer: true
-      }));
+      // 同先攻：生成待排序的Combatant数组（手动生成id）
+      const allTied: Combatant[] = pendingInitiatives.map(item => {
+        const char = characterStore.get(item.characterId);
+        return {
+          id: crypto.randomUUID(),
+          characterId: item.characterId,
+          name: item.name,
+          initiative: item.total,
+          maxHp: char?.maxHp ?? 0,
+          currentHp: char?.currentHp ?? 0,
+          ac: char?.armorClass ?? 0,
+          isPc: !!char,
+          note: '',
+        };
+      });
       setTieBreakCombatants(allTied);
       setShowInitInput(false);
       setShowTieBreak(true);
     } else {
-      // 无同先攻，直接生成战斗参战者
-      const newCombatants = pendingInitiatives.map(item => {
-  const char = characterStore.get(item.characterId);
-  return {
-    characterId: item.characterId,
-    name: item.name,
-    initiative: item.total,
-    maxHp: char?.maxHp ?? 0,
-    currentHp: char?.currentHp ?? 0,
-    ac: char?.armorClass ?? 0,
-    isPc: !!char, // 关键修正：改为 isPc
-    // id 由 combatStore.create 或 update 内部处理，此处不传
-  };
-});
-
-      // 按先攻降序排序
-      newCombatants.sort((a, b) => b.initiative - a.initiative);
-      // 更新战斗会话并持久化
-      if (session) {
-        const updatedSession: CombatSession = {
-          ...session,
-          combatants: [...session.combatants, ...newCombatants],
-          updatedAt: Date.now()
+      // 无同先攻：构造新参战者，按先攻降序排序后更新
+      const newCombatants: Combatant[] = pendingInitiatives.map(item => {
+        const char = characterStore.get(item.characterId);
+        return {
+          id: crypto.randomUUID(),
+          characterId: item.characterId,
+          name: item.name,
+          initiative: item.total,
+          maxHp: char?.maxHp ?? 0,
+          currentHp: char?.currentHp ?? 0,
+          ac: char?.armorClass ?? 0,
+          isPc: !!char,
+          note: '',
         };
-        combatStore.saveSession(updatedSession);
+      });
+
+      if (session) {
+        const updatedSession: CombatRecord = {
+          ...session,
+          combatants: [...session.combatants, ...newCombatants].sort((a, b) => b.initiative - a.initiative),
+          updatedAt: Date.now(),
+        };
+        combatStore.update(updatedSession);
         setSession(updatedSession);
       }
-      // 重置临时状态
       setPendingInitiatives([]);
       setShowInitInput(false);
     }
   }, [pendingInitiatives, session]);
 
-  // ===== 同先攻拖拽排序逻辑 =====
+  // 同先攻拖拽排序逻辑
   const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -244,93 +231,52 @@ export default function CombatSession() {
   }, [draggedIndex, tieBreakCombatants]);
 
   const confirmTieBreak = useCallback(() => {
-    // 同步角色库基础数据（HP/AC等）
-    const finalCombatants: Combatant[] = tieBreakCombatants.map(combatant => {
-      const char = characterStore.get(combatant.characterId);
-      return {
-        ...combatant,
-        maxHp: char?.maxHp ?? combatant.maxHp,
-        currentHp: char?.currentHp ?? combatant.currentHp,
-        ac: char?.armorClass ?? combatant.ac,
-        isPlayer: !!char
-      };
-    });
-    // 更新战斗会话并持久化
     if (session) {
-      const updatedSession: CombatSession = {
+      const updatedSession: CombatRecord = {
         ...session,
-        combatants: [...session.combatants, ...finalCombatants],
-        updatedAt: Date.now()
+        combatants: [...session.combatants, ...tieBreakCombatants].sort((a, b) => b.initiative - a.initiative),
+        updatedAt: Date.now(),
       };
-      combatStore.saveSession(updatedSession);
+      combatStore.update(updatedSession);
       setSession(updatedSession);
     }
-    // 重置临时状态
     setTieBreakCombatants([]);
     setShowTieBreak(false);
   }, [tieBreakCombatants, session]);
 
-  // ===== 战斗操作逻辑 =====
-  // HP修改（角色联动：同步到本地角色库）
+  // 战斗操作逻辑
   const updateHp = useCallback((combatantId: string, delta: number) => {
     if (!session) return;
     const updatedCombatants = session.combatants.map(combatant => {
       if (combatant.id === combatantId) {
         const newHp = Math.max(0, Math.min(combatant.maxHp, combatant.currentHp + delta));
-        // 仅同步玩家角色的HP到角色库
-        if (combatant.isPlayer && combatant.characterId) {
+        // 仅同步PC角色的HP到角色库
+        if (combatant.isPc && combatant.characterId) {
           characterStore.update(combatant.characterId, { currentHp: newHp });
         }
         return { ...combatant, currentHp: newHp };
       }
       return combatant;
     });
-    const updatedSession: CombatSession = {
+
+    const updatedSession: CombatRecord = {
       ...session,
       combatants: updatedCombatants,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
-    combatStore.saveSession(updatedSession);
+    combatStore.update(updatedSession);
     setSession(updatedSession);
   }, [session]);
 
-  // 推进回合
-  const nextTurn = useCallback(() => {
-    if (!session || session.combatants.length === 0) return;
-    const nextTurn = (session.currentTurn + 1) % session.combatants.length;
-    const updatedSession: CombatSession = {
-      ...session,
-      currentTurn: nextTurn,
-      updatedAt: Date.now()
-    };
-    combatStore.saveSession(updatedSession);
-    setSession(updatedSession);
-  }, [session]);
-
-  // 重置战斗
-  const resetCombat = useCallback(() => {
-    if (!session) return;
-    const updatedSession: CombatSession = {
-      ...session,
-      currentTurn: 0,
-      combatants: session.combatants.map(c => ({ ...c, conditions: [] })),
-      updatedAt: Date.now()
-    };
-    combatStore.saveSession(updatedSession);
-    setSession(updatedSession);
-  }, [session]);
-
-  // 移除参战者
   const removeCombatant = useCallback((combatantId: string) => {
     if (!session) return;
     const updatedCombatants = session.combatants.filter(c => c.id !== combatantId);
-    const updatedSession: CombatSession = {
+    const updatedSession: CombatRecord = {
       ...session,
       combatants: updatedCombatants,
-      currentTurn: Math.min(session.currentTurn, updatedCombatants.length - 1),
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
     };
-    combatStore.saveSession(updatedSession);
+    combatStore.update(updatedSession);
     setSession(updatedSession);
   }, [session]);
 
@@ -344,7 +290,6 @@ export default function CombatSession() {
     );
   }
 
-  // 会话不存在跳转回战斗列表
   if (!session) {
     return <Navigate to="/combat" replace />;
   }
@@ -359,7 +304,7 @@ export default function CombatSession() {
             {session.name}
           </h1>
           <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-            当前回合：{currentCombatant?.name || '未开始'} | 参战者：{session.combatants.length}人
+            参战者：{session.combatants.length}人 | 顺序：按先攻降序排列，首位为当前回合
           </p>
         </div>
         <div className="flex gap-2">
@@ -369,21 +314,6 @@ export default function CombatSession() {
           >
             <Plus className="w-4 h-4" />
             添加参战者
-          </button>
-          <button
-            onClick={nextTurn}
-            disabled={session.combatants.length === 0}
-            className="px-4 py-2 bg-success hover:bg-success-dark text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50"
-          >
-            <ChevronDown className="w-4 h-4" />
-            下一回合
-          </button>
-          <button
-            onClick={resetCombat}
-            className="px-4 py-2 border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center gap-2"
-          >
-            <RotateCcw className="w-4 h-4" />
-            重置战斗
           </button>
         </div>
       </div>
@@ -400,7 +330,7 @@ export default function CombatSession() {
             <div
               key={combatant.id}
               className={`p-4 rounded-xl border transition-all ${
-                index === session.currentTurn
+                index === 0
                   ? 'border-primary bg-primary/5 shadow-md'
                   : 'dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light'
               }`}
@@ -416,14 +346,14 @@ export default function CombatSession() {
                       <span className="font-semibold dark:text-text-dark light:text-text-light truncate">
                         {combatant.name}
                       </span>
-                      {combatant.isPlayer && (
+                      {combatant.isPc && (
                         <span className="px-2 py-0.5 text-xs bg-blue-500/10 text-blue-500 rounded-full">
                           玩家
                         </span>
                       )}
                     </div>
                     <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                      AC {combatant.ac} | {combatant.conditions.length > 0 ? combatant.conditions.join(', ') : '无状态'}
+                      AC {combatant.ac} | {combatant.note || '无备注'}
                     </div>
                   </div>
                 </div>
@@ -459,7 +389,7 @@ export default function CombatSession() {
         </div>
       )}
 
-      {/* ===== 角色选择弹窗 ===== */}
+      {/* 角色选择弹窗 */}
       {showCharSelect && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="w-full max-w-2xl rounded-xl p-6 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light max-h-[80vh] overflow-hidden flex flex-col">
@@ -526,7 +456,7 @@ export default function CombatSession() {
         </div>
       )}
 
-      {/* ===== 先攻输入弹窗 ===== */}
+      {/* 先攻输入弹窗 */}
       {showInitInput && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="w-full max-w-lg rounded-xl p-6 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light max-h-[80vh] overflow-hidden flex flex-col">
@@ -580,7 +510,7 @@ export default function CombatSession() {
         </div>
       )}
 
-      {/* ===== 同先攻排序弹窗 ===== */}
+      {/* 同先攻排序弹窗 */}
       {showTieBreak && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="w-full max-w-lg rounded-xl p-6 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light max-h-[80vh] overflow-hidden flex flex-col">
@@ -591,7 +521,7 @@ export default function CombatSession() {
               </button>
             </div>
             <p className="mb-4 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-              以下角色先攻总值相同，拖拽卡片调整出场顺序：
+              以下角色先攻总值相同，拖拽卡片调整出场顺序（首位为当前回合）：
             </p>
             <div className="flex-1 overflow-y-auto space-y-2">
               {tieBreakCombatants.map((combatant, index) => (
