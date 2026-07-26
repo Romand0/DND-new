@@ -10,6 +10,7 @@ export interface Combatant {
   isPc?: boolean;
   characterId?: string;
   note?: string;
+  speed?: number;
 }
 
 export interface RoundAction {

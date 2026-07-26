@@ -157,12 +157,13 @@ export default function CombatSession() {
       id: newId,
       name: selectedPc.name,
       initiative,
-      ac: selectedPc.armorClass, // 对应设计文档的ac字段
-      maxHp: selectedPc.maxHp,   // 对应设计文档的maxHp字段
-      currentHp: selectedPc.currentHp, // 对应设计文档的currentHp字段
+      ac: selectedPc.armorClass,
+      maxHp: selectedPc.maxHp,
+      currentHp: selectedPc.currentHp,
       isDead: selectedPc.currentHp <= 0,
-      isPc: true, // 标记为PC，对应设计文档的isPc字段
-      characterId: selectedPc.id, // 关联角色ID，对应设计文档的characterId字段
+      isPc: true,
+      characterId: selectedPc.id,
+      speed: selectedPc.speed,
       note: '',
     };
     // 按先攻总值排序，符合设计文档的「快速建表」要求

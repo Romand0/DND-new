@@ -64,6 +64,30 @@ export default function Battleground({ sessionId, combatants }: Props) {
     return m;
   }, [bg?.tokens]);
 
+  // 选中棋子的最大移动范围（切比雪夫距离：8方向都算1格，5尺/格）
+  const moveRangeSet = useMemo(() => {
+    if (!selectedCombatantId) return new Set<string>();
+    const token = tokenMap.get(selectedCombatantId);
+    const combatant = combatantMap.get(selectedCombatantId);
+    if (!token || !combatant || !combatant.speed) return new Set<string>();
+    const range = Math.floor(combatant.speed / 5);
+    if (range <= 0) return new Set<string>();
+    const set = new Set<string>();
+    const preset = GRID_PRESETS[bg.size];
+    for (let dc = -range; dc <= range; dc++) {
+      for (let dr = -range; dr <= range; dr++) {
+        // 切比雪夫距离：max(|dc|,|dr|)
+        if (Math.max(Math.abs(dc), Math.abs(dr)) > range) continue;
+        const col = token.col + dc;
+        const row = token.row + dr;
+        if (col >= 0 && col < preset.cols && row >= 0 && row < preset.rows) {
+          set.add(`${col},${row}`);
+        }
+      }
+    }
+    return set;
+  }, [selectedCombatantId, tokenMap, combatantMap, bg.size]);
+
   if (!bg) return null;
 
   const preset = GRID_PRESETS[bg.size];
@@ -364,13 +388,16 @@ export default function Battleground({ sessionId, combatants }: Props) {
             const combatantId = cellToken.get(key);
             const combatant = combatantId ? combatantMap.get(combatantId) : null;
             const isHover = selectedCombatantId && !eraserMode;
+            const inMoveRange = moveRangeSet.has(key);
             return (
               <div
                 key={i}
                 onClick={() => handleCellClick(col, row)}
                 className={`border dark:border-border-dark/40 light:border-border-light/40 flex items-center justify-center cursor-pointer transition-colors ${
                   isHover ? 'hover:bg-primary/20' : ''
-                } ${eraserMode && combatantId ? 'hover:bg-danger/30' : ''}`}
+                } ${eraserMode && combatantId ? 'hover:bg-danger/30' : ''} ${
+                  inMoveRange ? 'bg-info/20' : ''
+                }`}
                 style={{ width: cellSize, height: cellSize }}
                 title={combatant ? combatant.name : `${col},${row}`}
               >
@@ -403,6 +430,10 @@ export default function Battleground({ sessionId, combatants }: Props) {
         <div className="flex items-center gap-1">
           <span className="w-3 h-3 rounded-full bg-danger" />
           NPC/敌人
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-3 border dark:border-border-dark/40 light:border-border-light/40 bg-info/20" />
+          移动范围
         </div>
       </div>
     </div>
