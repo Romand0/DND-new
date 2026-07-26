@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { combatStore } from '@/data/combatStore';
+import combatStore from '@/data/combatStore';
 import { characterStore } from '@/data/characterStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
 import type { Character } from '@/types/character';
@@ -88,7 +88,7 @@ export default function CombatSession() {
         id: crypto.randomUUID(),
         name: char.name,
         initiative, // 手动输入的先攻
-        ac: char.ac, // 从角色库读取AC
+        ac: char.armorClass, // 从角色库读取AC
         maxHp: char.maxHp, // 从角色库读取最大HP
         currentHp: char.currentHp, // 从角色库读取当前HP（仅展示，不回写）
         isDead: char.currentHp <= 0,
@@ -220,7 +220,7 @@ export default function CombatSession() {
                     className="p-3 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/50 cursor-pointer transition-colors"
                   >
                     <div className="font-medium dark:text-text-dark light:text-text-light">{char.name}</div>
-                    <div className="text-xs opacity-60">AC {char.ac} | HP {char.currentHp}/{char.maxHp}</div>
+                    <div className="text-xs opacity-60">AC {char.armorClass} | HP {char.currentHp}/{char.maxHp}</div>
                   </div>
                 ))}
               </div>
