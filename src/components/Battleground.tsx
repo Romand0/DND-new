@@ -68,35 +68,6 @@ export default function Battleground({ sessionId, combatants }: Props) {
 
   const preset = GRID_PRESETS[bg.size];
 
-  const handleCellClick = (col: number, row: number) => {
-    const existingCombatantId = cellToken.get(`${col},${row}`);
-    if (eraserMode) {
-      if (existingCombatantId) battlegroundStore.removeToken(sessionId, existingCombatantId);
-      return;
-    }
-    // 已选中参战者
-    if (selectedCombatantId) {
-      if (existingCombatantId === selectedCombatantId) {
-        // 点击的就是当前选中的棋子 → 取消选中
-        setSelectedCombatantId(null);
-        return;
-      }
-      if (existingCombatantId) {
-        // 目标格有其他棋子 → 选中那个棋子（不覆盖）
-        setSelectedCombatantId(existingCombatantId);
-        return;
-      }
-      // 目标格为空 → 移动/放置到该格
-      battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
-      setSelectedCombatantId(null);
-      return;
-    }
-    // 未选中参战者：点击有棋子的格 → 选中该棋子
-    if (existingCombatantId) {
-      setSelectedCombatantId(existingCombatantId);
-    }
-  };
-
   const handleSizeChange = (size: GridSize) => {
     battlegroundStore.setSize(sessionId, size);
   };
