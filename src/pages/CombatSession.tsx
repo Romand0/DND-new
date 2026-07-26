@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { characterStore } from '@/data/characterStore';
-import { combatStore } from '@/data/combatStore';
+import combatStore from '@/data/combatStore'; // ✅ 默认导入
 import type { CombatRecord, Combatant } from '@/types/combat';
 import { Swords, Plus, Minus, X, GripVertical } from 'lucide-react';
 
