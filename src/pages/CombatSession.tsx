@@ -42,7 +42,7 @@ export default function CombatSession() {
             ...c,
             currentHp: char.currentHp,
             maxHp: char.maxHp,
-            ac: char.ac, // 同步最新AC
+            ac: char.armorClass, // 同步最新AC
           };
         }
       }
@@ -99,7 +99,7 @@ export default function CombatSession() {
         id: crypto.randomUUID(),
         name: char.name,
         initiative, // 手动输入的先攻值
-        ac: char.ac, // 角色卡的AC字段（正确字段名）
+        ac: char.armorClass, // 角色卡的AC字段（正确字段名）
         maxHp: char.maxHp,
         currentHp: char.currentHp,
         isDead: char.currentHp <= 0,
@@ -267,7 +267,7 @@ export default function CombatSession() {
                     className="p-3 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/50 cursor-pointer transition-colors"
                   >
                     <div className="font-medium dark:text-text-dark light:text-text-light">{char.name}</div>
-                    <div className="text-xs opacity-60">AC {char.ac} | HP {char.currentHp}/{char.maxHp}</div>
+                    <div className="text-xs opacity-60">AC {char.armorClass} | HP {char.currentHp}/{char.maxHp}</div>
                   </div>
                 ))}
               </div>
