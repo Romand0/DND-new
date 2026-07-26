@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
+import battlegroundStore from '@/data/battlegroundStore';
 import type { CombatRecord } from '@/types/combat';
 import { Plus, Trash2, Download, Upload, FileJson } from 'lucide-react';
 
@@ -53,6 +54,7 @@ export default function CombatList() {
     console.log('[CombatList] 点击删除按钮，ID:', id);
     if (!window.confirm('确定删除该战斗记录？删除后不可恢复')) return;
     combatStore.delete(id);
+    battlegroundStore.delete(id); // 同步清理沙盘数据
   };
 
   // 导出战斗

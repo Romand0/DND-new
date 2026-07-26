@@ -11,6 +11,7 @@ import type { Character } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
 // ✅ 新增：导入角色选择弹窗需要的图标
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical } from 'lucide-react';
+import Battleground from '@/components/Battleground';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -722,6 +723,9 @@ export default function CombatSession() {
           </tbody>
         </table>
       </div>
+
+      {/* ✅ 新增：网格沙盘 —— 展示参战者位置与移动 */}
+      <Battleground sessionId={record.id} combatants={record.combatants} />
     </div>
   );
 }
