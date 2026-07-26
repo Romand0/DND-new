@@ -1,133 +1,96 @@
-// DM Toolkit - Application Router
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
-import Layout from '@/components/Layout';
-import PlayerLayout from '@/components/PlayerLayout';
+import { Toaster } from '@/components/ui/toaster';
+
+// 布局与保护组件
+import RoleShell from '@/components/layout/RoleShell';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+
+// 公共页面
 import Home from '@/pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
+import Login from '@/pages/Login';
+import Register from '@/pages/Register';
+
+// DM 页面
 import CharacterList from '@/pages/CharacterList';
 import CharacterDetail from '@/pages/CharacterDetail';
-import CharacterInventory from '@/pages/CharacterInventory';
-import SpellList from '@/pages/SpellList';
-import SpellDetail from '@/pages/SpellDetail';
-import Settings from '@/pages/Settings';
-import AdminAuth from '@/pages/AdminAuth';
-import MigrationBackup from '@/pages/MigrationBackup';
-import Placeholder from '@/pages/Placeholder';
-import InventoryPage from '@/pages/InventoryPage';
-import EquipmentList from '@/pages/EquipmentList';
-import EquipmentDetail from '@/pages/EquipmentDetail';
-import PlayerHome from '@/pages/PlayerHome';
-import PlayerView from '@/pages/PlayerView';
-import PlayerInventory from '@/pages/PlayerInventory';
-import DataManagement from '@/pages/DataManagement';
 import CombatList from '@/pages/CombatList';
-import CombatSession from '@/pages/CombatSession';
+import CombatSession from '@/pages/CombatSession'; // ✅ 确保导入了 CombatSession
+import NPCTracker from '@/pages/NPCTracker';
+import DiceRollerPage from '@/pages/DiceRollerPage';
+import RulesReference from '@/pages/RulesReference';
+import Settings from '@/pages/Settings';
 
-// 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
-function RoleShell() {
-  const { user } = useAuth();
-  // loading 由 ProtectedRoute 层吞掉，这里 user 一定已就绪
-  if (user?.role === 'player') {
-    return <Navigate to="/player/home" replace />;
-  }
-  return <Layout />;
-}
+// 玩家页面
+import PlayerHome from '@/pages/PlayerHome';
+import PlayerCharacters from '@/pages/PlayerCharacters';
+import PlayerDiceRoller from '@/pages/PlayerDiceRoller';
+import PlayerRules from '@/pages/PlayerRules';
+import PlayerSettings from '@/pages/PlayerSettings';
 
-export default function App() {
+// 其他
+import NotFound from '@/pages/NotFound';
+import './i18n'; // i18n 初始化
+
+function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <BrowserRouter>
-          <Routes>
-            {/* 公开路由（无需登录） */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
+    <AuthProvider>
+      <ThemeProvider>
+        <Routes>
+          {/* ====================================== */}
+          {/* 公开路由 (无需登录)                    */}
+          {/* ====================================== */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
 
-            {/* 独立页面（需要登录） */}
-            <Route
-              path="/characters/:id/inventory"
-              element={
-                <ProtectedRoute>
-                  <CharacterInventory />
-                </ProtectedRoute>
-              }
-            />
-             
-            {/* 玩家端（精简导航栏）- 需要登录 */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <PlayerLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/player/home" element={<PlayerHome />} />
-              <Route path="/player/:playerId" element={<PlayerView />} />
-              <Route path="/player/:playerId/inventory" element={<PlayerInventory />} />
-              <Route
-                path="/player/combat"
-                element={<Placeholder title="战斗记录" description="战斗追踪与回合管理功能即将上线" />}
-              />
-              <Route path="/player/inventory" element={<InventoryPage />} />
-              <Route path="/player/spells" element={<SpellList />} />
-              <Route path="/player/spells/:id" element={<SpellDetail />} />
-            </Route>
+          {/* ====================================== */}
+          {/* 受保护的主路由 (需要登录)              */}
+          {/* RoleShell 负责区分 DM/Player 的侧边栏   */}
+          {/* ====================================== */}
+          <Route path="/" element={<ProtectedRoute><RoleShell /></ProtectedRoute>}>
+            
+            {/* --- 默认首页 --- */}
+            <Route index element={<Home />} />
 
-            {/* 公共资料库：DM 和玩家都能访问，走 Layout（variant 按 isDM 推导） */}
-            <Route
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              <Route path="/equipment" element={<EquipmentList />} />
-              <Route path="/equipment/:id" element={<EquipmentDetail />} />
-              <Route path="/spells" element={<SpellList />} />
-              <Route path="/spells/:id" element={<SpellDetail />} />
-              <Route path="/combat" element={<CombatList />} />
-              <Route path="/combat/:id" element={<CombatSession />} />
-            </Route>
+            {/* ====================================== */}
+            {/* DM 专用路由                            */}
+            {/* ====================================== */}
+            {/* 注意：RoleShell 内部会检查 user.role === 'dm'，否则重定向 */}
+            <Route path="characters" element={<CharacterList />} />
+            <Route path="characters/:id" element={<CharacterDetail />} />
+            
+            {/* 战斗记录路由 */}
+            <Route path="combat" element={<CombatList />} />
+            {/* ✅ 关键修复：战斗会话路由 (必须放在 combat 下，且在 * 之前) */}
+            <Route path="combat/:sessionId" element={<CombatSession />} />
+            
+            <Route path="npcs" element={<NPCTracker />} />
+            <Route path="dice" element={<DiceRollerPage />} />
+            <Route path="rules" element={<RulesReference />} />
+            <Route path="settings" element={<Settings />} />
 
-            {/* DM 端（完整导航栏）- 需要登录 + DM 角色 */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute requireDM>
-                  <RoleShell />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Home />} />
-              <Route path="characters" element={<CharacterList />} />
-              <Route path="characters/:id" element={<CharacterDetail />} />
-              <Route
-                path="combat"
-                element={<Placeholder title="战斗记录" description="战斗追踪与回合管理功能即将上线" />}
-              />
-              <Route path="inventory" element={<InventoryPage />} />
-              {/* Settings 嵌套路由壳 */}
-              <Route path="settings" element={<Settings />}>
-                <Route index element={<Navigate to="/settings/admin" replace />} />
-                <Route path="admin" element={<AdminAuth />} />
-                <Route path="migration" element={<MigrationBackup />} />
-                <Route path="data" element={<DataManagement />} />
-              </Route>
-              {/* 旧路径重定向，保兼容 */}
-              <Route path="data-management" element={<Navigate to="/settings/data" replace />} />
-              <Route
-                path="notes"
-                element={<Placeholder title="剧情笔记" description="剧情记录与世界设定管理功能即将上线" />}
-              />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </ThemeProvider>
+            {/* ====================================== */}
+            {/* 玩家专用路由                          */}
+            {/* ====================================== */}
+            {/* RoleShell 内部会检查 user.role === 'player' */}
+            <Route path="player/home" element={<PlayerHome />} />
+            <Route path="player/characters" element={<PlayerCharacters />} />
+            <Route path="player/dice" element={<PlayerDiceRoller />} />
+            <Route path="player/rules" element={<PlayerRules />} />
+            <Route path="player/settings" element={<PlayerSettings />} />
+
+            {/* ====================================== */}
+            {/* 兜底路由 (404)                         */}
+            {/* 必须放在最后                            */}
+            {/* ====================================== */}
+            <Route path="*" element={<NotFound />} />
+          </Route>
+        </Routes>
+        <Toaster />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
+
+export default App;
