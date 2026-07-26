@@ -2,20 +2,24 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { characterStore } from '@/data/characterStore';
-import { combatStore, type CombatSession, type Combatant } from '@/data/combatStore';
-import { 
-  User, Swords, ArrowUpDown, Plus, Minus, ChevronUp, ChevronDown, 
-  X, GripVertical, RotateCcw 
-} from 'lucide-react';
+import { combatStore } from '@/data/combatStore'; // 保留这行
+import { Swords, Plus, Minus, X, GripVertical } from 'lucide-react';
 
-// 候选角色类型（从角色库同步）
-type CandidateCharacter = {
+// 定义本地类型，因为 combatStore 只导出了 Combatant 类型，且字段名为 isPc
+type LocalCombatant = {
   id: string;
+  characterId: string;
   name: string;
-  race: string;
-  class: string;
-  dexMod: number; // 敏捷调整值（先攻加值）
+  initiative: number;
+  maxHp: number;
+  currentHp: number;
+  ac: number;
+  isPc: boolean; // combatStore 里叫 isPc，不是 isPlayer
 };
+
+// combatStore 返回的是 CombatRecord，不是 CombatSession
+type CombatRecord = ReturnType<typeof combatStore.get>;
+
 
 // 待输入先攻的临时数据类型
 type PendingInitiative = {
@@ -31,9 +35,11 @@ export default function CombatSession() {
   const navigate = useNavigate();
   const { sessionId } = useParams<{ sessionId: string }>();
 
-  // 战斗核心状态
-  const [session, setSession] = useState<CombatSession | null>(null);
+  // 类型改为 CombatRecord，且 CombatRecord 中没有 currentTurn
+  const [session, setSession] = useState<CombatRecord | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // 移除所有 currentTurn 相关状态，CombatRecord 自带 combatants 数组顺序即回合顺序
 
   // 角色选择弹窗状态
   const [showCharSelect, setShowCharSelect] = useState(false);
@@ -52,23 +58,22 @@ export default function CombatSession() {
   // 【权限兜底】非DM直接跳回首页（战斗记录为DM专用工具）
   if (!isDM) return <Navigate to="/" replace />;
 
-  // 加载战斗数据和角色库
-  useEffect(() => {
+    useEffect(() => {
     if (!sessionId) {
       navigate('/combat');
       return;
     }
     const loadData = () => {
-      // 加载当前战斗会话
-      const currentSession = combatStore.getSession(sessionId);
+      // 改用 combatStore.get
+      const currentSession = combatStore.get(sessionId);
       if (!currentSession) {
         navigate('/combat');
         return;
       }
       setSession(currentSession);
 
-      // 加载本地角色库，过滤已参战的角色
       const allChars = characterStore.getAll() || [];
+      // CombatRecord 里拿 combatants
       const existingCharIds = new Set(currentSession.combatants.map(c => c.characterId));
       const candidates: CandidateCharacter[] = allChars
         .filter(char => char.id && !existingCharIds.has(char.id))
@@ -77,15 +82,13 @@ export default function CombatSession() {
           name: char.name || '未命名',
           race: char.race || '未知种族',
           class: char.class || '未知职业',
-          // 兜底处理：避免角色无敏捷属性时报错
-          dexMod: char.abilities?.dexterity?.modifier ?? 0
+          dexMod: char.abilities?.dexterity?.modifier ?? 0,
         }));
       setCandidateChars(candidates);
       setLoading(false);
     };
     loadData();
-
-    // 监听角色库更新，同步候选列表
+    
     const onStorage = () => loadData();
     window.addEventListener('storage', onStorage);
     window.addEventListener('dm-token-change', onStorage);
@@ -187,20 +190,20 @@ export default function CombatSession() {
       setShowTieBreak(true);
     } else {
       // 无同先攻，直接生成战斗参战者
-      const newCombatants: Combatant[] = pendingInitiatives.map(item => {
-        const char = characterStore.get(item.characterId);
-        return {
-          id: crypto.randomUUID(),
-          characterId: item.characterId,
-          name: item.name,
-          initiative: item.total,
-          maxHp: char?.maxHp ?? 0,
-          currentHp: char?.currentHp ?? 0,
-          ac: char?.armorClass ?? 0,
-          conditions: [],
-          isPlayer: !!char // 有角色数据则为玩家角色
-        };
-      });
+      const newCombatants = pendingInitiatives.map(item => {
+  const char = characterStore.get(item.characterId);
+  return {
+    characterId: item.characterId,
+    name: item.name,
+    initiative: item.total,
+    maxHp: char?.maxHp ?? 0,
+    currentHp: char?.currentHp ?? 0,
+    ac: char?.armorClass ?? 0,
+    isPc: !!char, // 关键修正：改为 isPc
+    // id 由 combatStore.create 或 update 内部处理，此处不传
+  };
+});
+
       // 按先攻降序排序
       newCombatants.sort((a, b) => b.initiative - a.initiative);
       // 更新战斗会话并持久化
