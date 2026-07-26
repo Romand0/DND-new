@@ -21,6 +21,12 @@ export default function CombatSession() {
   const [editingCell, setEditingCell] = useState<{ round: number; combatantId: string } | null>(null);
   // ✅ 新增：控制角色选择弹窗的显示状态（仅点击按钮触发，不影响加载逻辑）
   const [showCharSelect, setShowCharSelect] = useState(false);
+  // ✅ 新增：先攻编辑状态（先攻属于战斗临时数据，PC/NPC 均可编辑）
+  const [editingInitiative, setEditingInitiative] = useState<string | null>(null);
+  const [initiativeInput, setInitiativeInput] = useState('');
+  // ✅ 新增：批量删除状态
+  const [batchMode, setBatchMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -181,6 +187,49 @@ export default function CombatSession() {
     });
   };
 
+  // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）
+  const handleInitiativeSave = (combatantId: string) => {
+    const newInit = parseInt(initiativeInput, 10);
+    setEditingInitiative(null);
+    if (isNaN(newInit)) return;
+    const updatedCombatants = record.combatants
+      .map((c) => (c.id === combatantId ? { ...c, initiative: newInit } : c))
+      .sort((a, b) => b.initiative - a.initiative);
+    combatStore.update(record.id, {
+      combatants: updatedCombatants,
+      updatedAt: Date.now(),
+    });
+  };
+
+  // ✅ 新增：批量删除参战者（同时清理各回合对应行动记录）
+  const handleBatchDelete = () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确定删除选中的 ${selectedIds.size} 个参战者吗？`)) return;
+    const updatedCombatants = record.combatants.filter((c) => !selectedIds.has(c.id));
+    const updatedRounds = record.rounds.map((round) => {
+      const newRound = { ...round };
+      selectedIds.forEach((id) => delete newRound[id]);
+      return newRound;
+    });
+    combatStore.update(record.id, {
+      combatants: updatedCombatants,
+      rounds: updatedRounds,
+      updatedAt: Date.now(),
+    });
+    setSelectedIds(new Set());
+    setBatchMode(false);
+  };
+
+  // ✅ 新增：切换选中状态
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   // 原内容：完全保留，一个字都没改（页面结构主体不变）
   return (
     <div className="max-w-full mx-auto p-4 space-y-4">
@@ -194,21 +243,53 @@ export default function CombatSession() {
           </h1>
         </div>
         <div className="flex gap-2 shrink-0">
-          {/* ✅ 修改：点击打开角色选择弹窗，原有NPC逻辑通过弹窗按钮保留 */}
-          <button
-            onClick={() => setShowCharSelect(true)}
-            className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
-          >
-            <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">添加参战者</span>
-          </button>
-          <button
-            onClick={handleAddRound}
-            className="px-2 sm:px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">新增轮次</span>
-          </button>
+          {batchMode ? (
+            <>
+              <button
+                onClick={handleBatchDelete}
+                disabled={selectedIds.size === 0}
+                className="px-2 sm:px-3 py-2 rounded-lg bg-danger text-white text-sm flex items-center gap-1 hover:bg-danger/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">删除选中({selectedIds.size})</span>
+                <span className="sm:hidden">{selectedIds.size}</span>
+              </button>
+              <button
+                onClick={() => {
+                  setBatchMode(false);
+                  setSelectedIds(new Set());
+                }}
+                className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
+              >
+                <X className="w-4 h-4" />
+                <span className="hidden sm:inline">取消</span>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setShowCharSelect(true)}
+                className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden sm:inline">添加参战者</span>
+              </button>
+              <button
+                onClick={() => setBatchMode(true)}
+                className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span className="hidden sm:inline">批量删除</span>
+              </button>
+              <button
+                onClick={handleAddRound}
+                className="px-2 sm:px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">新增轮次</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -263,24 +344,63 @@ export default function CombatSession() {
               </th>
               {record.combatants.map((c) => (
                 <th key={c.id} className="p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group">
-                  <div className="font-medium truncate">{c.name}</div>
-                  <div className="text-xs opacity-60">先攻 {c.initiative}</div>
+                  <div className="flex items-center gap-1">
+                    {batchMode && (
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(c.id)}
+                        onChange={() => toggleSelect(c.id)}
+                        className="shrink-0 cursor-pointer"
+                      />
+                    )}
+                    {/* 名称：PC/NPC 均为只读，不可编辑（名称属于角色卡默认信息） */}
+                    <div className="font-medium truncate flex-1">{c.name}</div>
+                  </div>
+                  {/* 先攻：点击可编辑（先攻是战斗临时数据，不涉及角色卡默认信息） */}
+                  {editingInitiative === c.id ? (
+                    <input
+                      type="number"
+                      autoFocus
+                      value={initiativeInput}
+                      onChange={(e) => setInitiativeInput(e.target.value)}
+                      onBlur={() => handleInitiativeSave(c.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleInitiativeSave(c.id);
+                        if (e.key === 'Escape') setEditingInitiative(null);
+                      }}
+                      className="w-12 text-xs bg-transparent border-b border-primary outline-none dark:text-text-dark light:text-text-light"
+                    />
+                  ) : (
+                    <div
+                      className="text-xs opacity-60 cursor-text hover:opacity-100"
+                      onClick={() => {
+                        setEditingInitiative(c.id);
+                        setInitiativeInput(String(c.initiative));
+                      }}
+                      title="点击编辑先攻"
+                    >
+                      先攻 {c.initiative}
+                    </div>
+                  )}
                   {/* ✅ 新增：仅展示PC的HP，无任何修改/同步逻辑，符合你之前的要求 */}
                   {c.isPc && c.maxHp && (
                     <div className="text-xs opacity-60 mt-1">
                       HP {c.currentHp}/{c.maxHp}
                     </div>
                   )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveCombatant(c.id);
-                    }}
-                    className="absolute top-1 right-1 p-0.5 rounded hover:bg-danger/20 text-danger opacity-0 group-hover:opacity-100 transition-opacity"
-                    title="删除参战者"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+                  {/* 单个删除按钮：仅非批量模式显示 */}
+                  {!batchMode && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveCombatant(c.id);
+                      }}
+                      className="absolute top-1 right-1 p-0.5 rounded hover:bg-danger/20 text-danger opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="删除参战者"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  )}
                 </th>
               ))}
             </tr>
