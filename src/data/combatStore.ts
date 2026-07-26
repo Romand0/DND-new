@@ -21,18 +21,27 @@ function load(): CombatRecord[] {
     return records.map((r: any) => ({
       id: r.id,
       title: r.title ?? '未命名战斗',
-      combatants: (r.combatants ?? []).map((c: any) => ({
-        id: c.id ?? crypto.randomUUID(),
-        name: c.name ?? '未命名',
-        initiative: c.initiative ?? 0,
-        ac: c.ac ?? 0,
-        maxHp: c.maxHp ?? 0,
-        currentHp: c.currentHp ?? 0,
-        isDead: c.isDead ?? false,
-        isPc: c.isPc ?? false,
-        characterId: c.characterId,
-        note: c.note ?? '',
-      })),
+      combatants: (r.combatants ?? []).map((c: any) => {
+        // 兜底：旧数据缺少 speed 时，从角色库回填（PC 参战者通常带有 characterId）
+        let speed = c.speed;
+        if ((speed === undefined || speed === null) && c.characterId) {
+          const char = characterStore.get(c.characterId);
+          if (char?.speed) speed = char.speed;
+        }
+        return {
+          id: c.id ?? crypto.randomUUID(),
+          name: c.name ?? '未命名',
+          initiative: c.initiative ?? 0,
+          ac: c.ac ?? 0,
+          maxHp: c.maxHp ?? 0,
+          currentHp: c.currentHp ?? 0,
+          isDead: c.isDead ?? false,
+          isPc: c.isPc ?? false,
+          characterId: c.characterId,
+          note: c.note ?? '',
+          speed,
+        };
+      }),
       rounds: r.rounds ?? [],
       createdAt: r.createdAt ?? Date.now(),
       updatedAt: r.updatedAt ?? Date.now(),
