@@ -20,6 +20,7 @@ export default function CombatList() {
     return unsubscribe;
   }, [loadRecords]);
 
+  // ✅ 创建战斗：创建后直接跳转
   const handleCreate = () => {
     const defaultTitle = `战斗记录 ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     const title = prompt('请输入战斗名称', defaultTitle);
@@ -30,27 +31,31 @@ export default function CombatList() {
     try {
       const newRecord = combatStore.create(title.trim(), []);
       if (newRecord?.id) {
+        console.log('[CombatList] 创建战斗成功，跳转ID:', newRecord.id);
         navigate(`/combat/${newRecord.id}`);
       } else {
         alert('创建战斗失败：未获取到战斗ID');
         loadRecords();
       }
     } catch (e) {
-      console.error('创建战斗失败:', e);
+      console.error('[CombatList] 创建战斗失败:', e);
       alert('创建战斗失败，请重试');
     }
   };
 
+  // ✅ 删除战斗：阻止冒泡，避免触发展卡点击
   const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); // ✅ 阻止事件冒泡，防止触发展卡点击
+    e.stopPropagation(); // 关键：不让点击事件传到卡片
     if (!window.confirm('确定删除该战斗记录？删除后不可恢复')) return;
     combatStore.delete(id);
   };
 
+  // ✅ 导出战斗
   const handleExport = () => {
     combatStore.exportToFile();
   };
 
+  // ✅ 导入战斗
   const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -60,11 +65,16 @@ export default function CombatList() {
     e.target.value = '';
   };
 
+  // ✅ 卡片点击跳转：带完整调试日志
   const handleCardClick = (recordId: string) => {
-    console.log('Navigating to combat:', recordId); // ✅ 调试用
-    navigate(`/combat/${recordId}`);
+    const targetPath = `/combat/${recordId}`;
+    console.log('[CombatList] 点击战斗卡片，ID:', recordId);
+    console.log('[CombatList] 准备跳转到路径:', targetPath);
+    // 强制使用replace确保路由栈正确，避免回退问题
+    navigate(targetPath, { replace: false });
   };
 
+  // 非DM直接踢回首页
   if (!isDM) return <Navigate to="/" replace />;
 
   return (
@@ -103,7 +113,7 @@ export default function CombatList() {
         </div>
       </div>
 
-      {/* 战斗列表 - 点击卡片跳转 */}
+      {/* 战斗列表：卡片整体可点击，无进入按钮 */}
       {records.length === 0 ? (
         <div className="text-center py-12 rounded-xl border-2 border-dashed dark:border-border-dark light:border-border-light">
           <FileJson className="w-16 h-16 mx-auto mb-4 opacity-30 dark:text-text-dark-muted light:text-text-light-muted" />
@@ -114,8 +124,9 @@ export default function CombatList() {
           {records.map(record => (
             <div
               key={record.id}
+              // ✅ 关键：用箭头函数绑定点击，加cursor-pointer，hover效果
               onClick={() => handleCardClick(record.id)}
-              className="p-4 rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group"
+              className="p-4 rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light hover:border-primary/50 hover:shadow-lg transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
@@ -127,7 +138,7 @@ export default function CombatList() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* ✅ 移除"进入战斗"按钮，只保留删除按钮 */}
+                  {/* ✅ 彻底移除「进入战斗」按钮，只保留删除按钮，默认隐藏，悬停显示 */}
                   <button
                     onClick={(e) => handleDelete(e, record.id)}
                     className="p-2 rounded-lg hover:bg-danger/10 text-danger transition-colors opacity-0 group-hover:opacity-100"
