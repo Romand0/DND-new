@@ -1,208 +1,149 @@
-// src/pages/CombatList.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Sword, Trash2, Download, Upload } from 'lucide-react';
-import combatStore from '@/data/combatStore'; // ✅ 默认导入
+import { useAuth } from '@/contexts/AuthContext';
+import combatStore from '@/data/combatStore';
 import type { CombatRecord } from '@/types/combat';
+import { Plus, Trash2, Download, Upload, FileJson } from 'lucide-react';
 
 export default function CombatList() {
-  const [records, setRecords] = useState<CombatRecord[]>([]);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const { isDM } = useAuth();
   const navigate = useNavigate();
+  const [records, setRecords] = useState<CombatRecord[]>([]);
 
-  useEffect(() => {
+  // ✅ 关键修复：把 loadRecords 提到组件作用域
+  // 用 useCallback 包裹，符合 React Hooks 规范
+  const loadRecords = useCallback(() => {
     setRecords(combatStore.getAll());
-    const unsub = combatStore.subscribe(() => {
-      setRecords(combatStore.getAll());
-    });
-    return unsub;
   }, []);
 
-  const handleCreate = () => {
-  const defaultTitle = `战斗记录 ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-  const title = prompt('请输入战斗名称', defaultTitle);
-  if (!title?.trim()) {
-    alert('战斗名称不能为空');
-    return;
-  }
-  
-  try {
-    // combatStore.create 返回新创建的战斗记录，包含 id
-    const newRecord = combatStore.create(title.trim(), []);
-    
-    // ✅ 关键修复：创建成功后立即跳转
-    if (newRecord?.id) {
-      navigate(`/combat/${newRecord.id}`);
-    } else {
-      alert('创建战斗失败：未获取到战斗ID');
-      loadRecords(); // 兜底：重新加载列表
-    }
-  } catch (e) {
-    console.error('创建战斗失败:', e);
-    alert('创建战斗失败，请重试');
-  }
-};
+  // ✅ useEffect 里只负责调用和清理
+  useEffect(() => {
+    loadRecords(); // 初始加载
+    const unsubscribe = combatStore.subscribe(loadRecords); // 订阅更新
+    return unsubscribe;
+  }, [loadRecords]); // ✅ 依赖 loadRecords
 
+  // ✅ 修复后的 handleCreate：现在能正常访问 loadRecords 了
+  const handleCreate = () => {
+    const defaultTitle = `战斗记录 ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    const title = prompt('请输入战斗名称', defaultTitle);
+    if (!title?.trim()) {
+      alert('战斗名称不能为空');
+      return;
+    }
+    
+    try {
+      const newRecord = combatStore.create(title.trim(), []);
+      if (newRecord?.id) {
+        navigate(`/combat/${newRecord.id}`);
+      } else {
+        alert('创建战斗失败：未获取到战斗ID');
+        loadRecords(); // ✅ 兜底刷新列表
+      }
+    } catch (e) {
+      console.error('创建战斗失败:', e);
+      alert('创建战斗失败，请重试');
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    if (!window.confirm('确定删除该战斗记录？删除后不可恢复')) return;
+    combatStore.delete(id);
+    // loadRecords 会被 subscribe 自动触发，这里可以不写
+  };
 
   const handleExport = () => {
-    const data = JSON.stringify(records, null, 2);
-    const blob = new Blob([data], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'combat_records.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    combatStore.exportToFile();
   };
 
-  const handleImport = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        try {
-          const imported = JSON.parse(reader.result as string);
-          if (Array.isArray(imported)) {
-            // 合并导入：覆盖同名 id，新增不同 id
-            const existing = combatStore.getAll();
-            const merged = [...existing];
-            imported.forEach((rec: CombatRecord) => {
-              const idx = merged.findIndex((r) => r.id === rec.id);
-              if (idx >= 0) merged[idx] = rec;
-              else merged.push(rec);
-            });
-            localStorage.setItem('combat_records', JSON.stringify(merged));
-            combatStore.subscribe(() => setRecords(combatStore.getAll()))(); // 强制刷新
-            setRecords(combatStore.getAll());
-          }
-        } catch {
-          alert('导入文件格式错误');
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    combatStore.importFromFile(file)
+      .then(() => alert('导入成功'))
+      .catch(() => alert('导入失败，请检查文件格式'));
+    e.target.value = '';
   };
+
+  if (!isDM) return <Navigate to="/" replace />;
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">战斗记录</h1>
+    <div className="space-y-6">
+      {/* 顶部操作栏 */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-text-dark light:text-text-light">
+            <FileJson className="w-7 h-7 text-primary" />
+            战斗记录
+          </h1>
+          <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            共 {records.length} 场战斗记录，支持导入/导出备份
+          </p>
+        </div>
         <div className="flex gap-2">
           <button
             onClick={handleExport}
-            className="px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:opacity-80"
+            className="px-4 py-2 border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
+            导出全部
           </button>
-          <button
-            onClick={handleImport}
-            className="px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:opacity-80"
-          >
+          <label className="px-4 py-2 border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center gap-2 cursor-pointer">
             <Upload className="w-4 h-4" />
-          </button>
+            导入备份
+            <input type="file" accept=".json" className="hidden" onChange={handleImport} />
+          </label>
           <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium flex items-center gap-2"
+            onClick={handleCreate}
+            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
-            新建战斗
+            创建战斗
           </button>
         </div>
       </div>
 
+      {/* 战斗列表 */}
       {records.length === 0 ? (
-        <div className="text-center py-16 text-sm opacity-50">暂无战斗记录</div>
+        <div className="text-center py-12 rounded-xl border-2 border-dashed dark:border-border-dark light:border-border-light">
+          <FileJson className="w-16 h-16 mx-auto mb-4 opacity-30 dark:text-text-dark-muted light:text-text-light-muted" />
+          <p className="dark:text-text-dark-muted light:text-text-light-muted">暂无战斗记录，点击「创建战斗」开始</p>
+        </div>
       ) : (
-        <div className="space-y-2">
-          {records.map((record) => (
+        <div className="space-y-3">
+          {records.map(record => (
             <div
               key={record.id}
-              className="flex items-center justify-between p-4 rounded-lg border dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light cursor-pointer hover:opacity-80"
-              onClick={() => navigate(`/combat/${record.id}`)}
+              className="p-4 rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light hover:border-primary/30 transition-colors"
             >
-              <div>
-                <div className="font-medium dark:text-text-dark light:text-text-light">{record.title}</div>
-                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">
-                  {record.combatants.length} 人参战 · 已进行 {record.rounds.length} 轮 · 创建于 {new Date(record.createdAt).toLocaleString()}
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold dark:text-text-dark light:text-text-light truncate">
+                    {record.title}
+                  </h3>
+                  <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted mt-1">
+                    参战者：{record.combatants.length}人 | 创建于：{new Date(record.createdAt).toLocaleString()}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => navigate(`/combat/${record.id}`)}
+                    className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors"
+                  >
+                    进入战斗
+                  </button>
+                  <button
+                    onClick={() => handleDelete(record.id)}
+                    className="p-2 rounded-lg hover:bg-danger/10 text-danger transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  combatStore.delete(record.id);
-                }}
-                className="p-2 rounded hover:bg-danger/20 text-danger"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
             </div>
           ))}
         </div>
       )}
-
-      {showCreateModal && (
-        <CreateBattleModal
-          onClose={() => setShowCreateModal(false)}
-          onCreate={handleCreate}
-        />
-      )}
-    </div>
-  );
-}
-
-function CreateBattleModal({
-  onClose,
-  onCreate,
-}: {
-  onClose: () => void;
-  onCreate: (title: string) => void;
-}) {
-  const [title, setTitle] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (title.trim()) {
-      onCreate(title.trim());
-      onClose();
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6">
-        <h2 className="text-lg font-bold mb-4 dark:text-text-dark light:text-text-light">新建战斗</h2>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="战斗名称（如：地精洞穴遭遇战）"
-            className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
-            autoFocus
-          />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
-            >
-              取消
-            </button>
-            <button
-              type="submit"
-              className="flex-1 py-2 rounded-lg bg-primary text-white"
-            >
-              创建并进入
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }
