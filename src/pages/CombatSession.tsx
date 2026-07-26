@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { combatStore } from '@/data/combatStore';
+import combatStore from '@/data/combatStore';
 // ✅ 新增：导入角色库依赖（仅读取，绝对不修改）
-import characterStore from '@/data/characterStore';
+import { characterStore } from '@/data/characterStore';
 // ✅ 新增：导入角色类型，严格对齐设计文档
 import type { Character } from '@/types/character';
 // 原内容：完全保留，一个字都没改
