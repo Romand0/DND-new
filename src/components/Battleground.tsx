@@ -55,14 +55,27 @@ export default function Battleground({ sessionId, combatants }: Props) {
       if (existingCombatantId) battlegroundStore.removeToken(sessionId, existingCombatantId);
       return;
     }
-    if (!selectedCombatantId) {
-      // 未选中参战者：若格子有棋子则移除
-      if (existingCombatantId) battlegroundStore.removeToken(sessionId, existingCombatantId);
+    // 已选中参战者
+    if (selectedCombatantId) {
+      if (existingCombatantId === selectedCombatantId) {
+        // 点击的就是当前选中的棋子 → 取消选中
+        setSelectedCombatantId(null);
+        return;
+      }
+      if (existingCombatantId) {
+        // 目标格有其他棋子 → 选中那个棋子（不覆盖）
+        setSelectedCombatantId(existingCombatantId);
+        return;
+      }
+      // 目标格为空 → 移动/放置到该格
+      battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
+      setSelectedCombatantId(null);
       return;
     }
-    // 放置/移动选中的参战者
-    battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
-    setSelectedCombatantId(null); // 放置后取消选中
+    // 未选中参战者：点击有棋子的格 → 选中该棋子
+    if (existingCombatantId) {
+      setSelectedCombatantId(existingCombatantId);
+    }
   };
 
   const handleSizeChange = (size: GridSize) => {
@@ -75,6 +88,8 @@ export default function Battleground({ sessionId, combatants }: Props) {
 
   // 未放置的参战者（用于列表选择）
   const unplaced = combatants.filter((c) => !tokenMap.has(c.id));
+  // 已放置的参战者（用于回收框展示）
+  const placed = combatants.filter((c) => tokenMap.has(c.id));
 
   // 单元格尺寸：根据大小预设调整，保证整体可见
   const cellSize = bg.size === 'small' ? 28 : bg.size === 'medium' ? 22 : 18;
@@ -133,34 +148,82 @@ export default function Battleground({ sessionId, combatants }: Props) {
         </div>
       </div>
 
-      {/* 参战者选择条 */}
-      <div className="flex items-center gap-1.5 flex-wrap">
-        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
-          {selectedCombatantId ? '点击格子放置：' : eraserMode ? '橡皮模式：点击棋子移除' : '选择参战者放置，或点击已有棋子移除：'}
-        </span>
-        {unplaced.length === 0 && !selectedCombatantId && !eraserMode && (
-          <span className="text-xs italic dark:text-text-dark-muted light:text-text-light-muted">
-            所有参战者已放置
+      {/* 参战者选择条 —— 已放置（回收框）+ 未放置 */}
+      <div className="space-y-1.5">
+        {/* 已放置：回收框，点击选中的棋子可收回 */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">
+            沙盘上
           </span>
-        )}
-        {unplaced.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => {
-              setSelectedCombatantId(c.id === selectedCombatantId ? null : c.id);
-              setEraserMode(false);
-            }}
-            className={`px-2 py-1 text-xs rounded-full border transition-colors ${
-              selectedCombatantId === c.id
-                ? 'bg-primary text-white border-primary'
-                : c.isPc
-                ? 'border-info/50 text-info hover:bg-info/10'
-                : 'border-danger/50 text-danger hover:bg-danger/10'
-            }`}
-          >
-            {c.name}
-          </button>
-        ))}
+          {placed.length === 0 && (
+            <span className="text-xs italic dark:text-text-dark-muted light:text-text-light-muted">
+              无
+            </span>
+          )}
+          {placed.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                if (eraserMode) return;
+                if (selectedCombatantId === c.id) {
+                  // 已选中 → 点击回收框收回
+                  battlegroundStore.removeToken(sessionId, c.id);
+                  setSelectedCombatantId(null);
+                } else {
+                  setSelectedCombatantId(c.id);
+                }
+              }}
+              className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                selectedCombatantId === c.id
+                  ? 'bg-primary text-white border-primary animate-pulse'
+                  : c.isPc
+                  ? 'border-info/50 text-info hover:bg-info/10'
+                  : 'border-danger/50 text-danger hover:bg-danger/10'
+              } ${eraserMode ? 'opacity-40 cursor-not-allowed' : ''}`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        {/* 未放置：点击选中后到沙盘放置 */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">
+            未放置
+          </span>
+          {unplaced.length === 0 && !selectedCombatantId && !eraserMode && (
+            <span className="text-xs italic dark:text-text-dark-muted light:text-text-light-muted">
+              所有参战者已放置
+            </span>
+          )}
+          {unplaced.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => {
+                setSelectedCombatantId(c.id === selectedCombatantId ? null : c.id);
+                setEraserMode(false);
+              }}
+              className={`px-2 py-1 text-xs rounded-full border transition-colors ${
+                selectedCombatantId === c.id
+                  ? 'bg-primary text-white border-primary'
+                  : c.isPc
+                  ? 'border-info/50 text-info hover:bg-info/10'
+                  : 'border-danger/50 text-danger hover:bg-danger/10'
+              }`}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+        {/* 提示语 */}
+        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+          {eraserMode
+            ? '橡皮模式：点击棋子移除'
+            : selectedCombatantId
+            ? placed.find((c) => c.id === selectedCombatantId)
+              ? `已选中 ${combatantMap.get(selectedCombatantId)?.name}：点击空格移动，点击上方高亮框收回`
+              : `已选中 ${combatantMap.get(selectedCombatantId)?.name}：点击空格放置`
+            : '点击沙盘上的棋子选中，点击未放置的参战者后到沙盘放置'}
+        </div>
       </div>
 
       {/* 网格 */}
@@ -192,9 +255,9 @@ export default function Battleground({ sessionId, combatants }: Props) {
               >
                 {combatant && (
                   <div
-                    className={`rounded-full flex items-center justify-center font-bold text-white leading-none ${
+                    className={`rounded-full flex items-center justify-center font-bold text-white leading-none transition-all ${
                       combatant.isPc ? 'bg-info' : 'bg-danger'
-                    }`}
+                    } ${selectedCombatantId === combatant.id ? 'ring-2 ring-white scale-110' : ''}`}
                     style={{
                       width: cellSize - 6,
                       height: cellSize - 6,
