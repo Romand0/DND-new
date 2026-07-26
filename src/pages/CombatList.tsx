@@ -7,7 +7,6 @@ import { Plus, Trash2, Download, Upload, FileJson } from 'lucide-react';
 
 export default function CombatList() {
   const { isDM } = useAuth();
-  // ✅ 1. 必须在这里解构出 navigate 函数
   const navigate = useNavigate();
   const [records, setRecords] = useState<CombatRecord[]>([]);
 
@@ -31,7 +30,6 @@ export default function CombatList() {
     try {
       const newRecord = combatStore.create(title.trim(), []);
       if (newRecord?.id) {
-        // ✅ 2. 这里调用 navigate 函数
         navigate(`/combat/${newRecord.id}`);
       } else {
         alert('创建战斗失败：未获取到战斗ID');
@@ -43,7 +41,8 @@ export default function CombatList() {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation(); // ✅ 阻止事件冒泡，防止触发展卡点击
     if (!window.confirm('确定删除该战斗记录？删除后不可恢复')) return;
     combatStore.delete(id);
   };
@@ -59,6 +58,11 @@ export default function CombatList() {
       .then(() => alert('导入成功'))
       .catch(() => alert('导入失败，请检查文件格式'));
     e.target.value = '';
+  };
+
+  const handleCardClick = (recordId: string) => {
+    console.log('Navigating to combat:', recordId); // ✅ 调试用
+    navigate(`/combat/${recordId}`);
   };
 
   if (!isDM) return <Navigate to="/" replace />;
@@ -99,7 +103,7 @@ export default function CombatList() {
         </div>
       </div>
 
-      {/* 战斗列表 */}
+      {/* 战斗列表 - 点击卡片跳转 */}
       {records.length === 0 ? (
         <div className="text-center py-12 rounded-xl border-2 border-dashed dark:border-border-dark light:border-border-light">
           <FileJson className="w-16 h-16 mx-auto mb-4 opacity-30 dark:text-text-dark-muted light:text-text-light-muted" />
@@ -110,11 +114,12 @@ export default function CombatList() {
           {records.map(record => (
             <div
               key={record.id}
-              className="p-4 rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light hover:border-primary/30 transition-colors"
+              onClick={() => handleCardClick(record.id)}
+              className="p-4 rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group"
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold dark:text-text-dark light:text-text-light truncate">
+                  <h3 className="font-semibold dark:text-text-dark light:text-text-light truncate group-hover:text-primary transition-colors">
                     {record.title}
                   </h3>
                   <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted mt-1">
@@ -122,16 +127,11 @@ export default function CombatList() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* ✅ 3. 关键修复点：确保在 onClick 回调函数中调用 navigate */}
+                  {/* ✅ 移除"进入战斗"按钮，只保留删除按钮 */}
                   <button
-                    onClick={() => navigate(`/combat/${record.id}`)}
-                    className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors"
-                  >
-                    进入战斗
-                  </button>
-                  <button
-                    onClick={() => handleDelete(record.id)}
-                    className="p-2 rounded-lg hover:bg-danger/10 text-danger transition-colors"
+                    onClick={(e) => handleDelete(e, record.id)}
+                    className="p-2 rounded-lg hover:bg-danger/10 text-danger transition-colors opacity-0 group-hover:opacity-100"
+                    title="删除战斗记录"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
