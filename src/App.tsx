@@ -25,6 +25,7 @@ import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 import DataManagement from '@/pages/DataManagement';
 import CombatList from '@/pages/CombatList';
+import CombatSession from '@/pages/CombatSession';
 
 // 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
