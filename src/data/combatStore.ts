@@ -4,75 +4,79 @@ import { characterStore } from './characterStore';
 const STORAGE_KEY = 'dnd-combat-records';
 type Listener = () => void;
 
-interface CombatStore {
-  getAll(): CombatRecord[];
-  get(id: string): CombatRecord | null;
-  create(title: string, combatants: Omit<Combatant, 'id'>[]): CombatRecord;
-  update(id: string, partial: Partial<Omit<CombatRecord, 'id' | 'createdAt'>>): void;
-  delete(id: string): void;
-  clear(): void;
-  exportToFile(): void;
-  importFromFile(file: File): Promise<CombatRecord[]>;
-  subscribe(listener: Listener): () => void;
+// =======================
+// 内部状态（绝不暴露给外部）
+// =======================
+let listeners: Listener[] = [];
+
+function notify(): void {
+  listeners.forEach(listener => listener());
 }
 
-const combatStore: CombatStore & { _listeners: Listener[] } = {
-  // ✅ 显式初始化，避免 TS1011
-  _listeners: [],
+function load(): CombatRecord[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const records: unknown[] = JSON.parse(raw);
+    return records.map((r: any) => ({
+      id: r.id,
+      title: r.title ?? '未命名战斗',
+      combatants: (r.combatants ?? []).map((c: any) => ({
+        id: c.id ?? crypto.randomUUID(),
+        name: c.name ?? '未命名',
+        initiative: c.initiative ?? 0,
+        ac: c.ac ?? 0,
+        maxHp: c.maxHp ?? 0,
+        currentHp: c.currentHp ?? 0,
+        isDead: c.isDead ?? false,
+        isPc: c.isPc ?? false,
+        characterId: c.characterId,
+        note: c.note ?? '',
+      })),
+      rounds: r.rounds ?? [],
+      createdAt: r.createdAt ?? Date.now(),
+      updatedAt: r.updatedAt ?? Date.now(),
+    }));
+  } catch {
+    return [];
+  }
+}
 
-  _notify() {
-    this._listeners.forEach(listener => listener());
-  },
+function save(records: CombatRecord[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    notify();
+  } catch (e) {
+    console.error('战斗记录保存失败:', e);
+  }
+}
 
-  _load(): CombatRecord[] {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      const records: unknown[] = JSON.parse(raw);
-      return records.map((record: any) => ({
-        id: record.id,
-        title: record.title || '未命名战斗',
-        combatants: (record.combatants || []).map((c: any) => ({
-          id: c.id || crypto.randomUUID(),
-          name: c.name || '未命名',
-          initiative: c.initiative || 0,
-          ac: c.ac ?? 0,
-          maxHp: c.maxHp ?? 0,
-          currentHp: c.currentHp ?? 0,
-          isDead: c.isDead ?? false,
-          isPc: c.isPc ?? false,
-          characterId: c.characterId,
-          note: c.note || '',
-        })),
-        rounds: record.rounds || [],
-        createdAt: record.createdAt || Date.now(),
-        updatedAt: record.updatedAt || Date.now(),
-      }));
-    } catch {
-      return [];
-    }
-  },
-
-  _save(records: CombatRecord[]) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
-      this._notify();
-    } catch (e) {
-      console.error('战斗记录保存失败:', e);
-    }
-  },
-
+// =======================
+// 对外 API（严格对齐设计文档）
+// =======================
+const combatStore = {
+  /**
+   * 获取所有战斗记录（按更新时间倒序）
+   */
   getAll(): CombatRecord[] {
-    return this._load().sort((a, b) => b.updatedAt - a.updatedAt);
+    return load().sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
+  /**
+   * 根据ID获取单个战斗记录
+   */
   get(id: string): CombatRecord | null {
-    return this._load().find(r => r.id === id) || null;
+    return load().find(r => r.id === id) ?? null;
   },
 
+  /**
+   * 创建新战斗记录
+   * @param title 战斗名称
+   * @param combatants 参战者列表
+   */
   create(title: string, combatants: Omit<Combatant, 'id'>[]): CombatRecord {
     const now = Date.now();
-    const newRecord: CombatRecord = {
+    const record: CombatRecord = {
       id: crypto.randomUUID(),
       title: title.trim() || '未命名战斗',
       combatants: combatants.map(c => ({
@@ -85,14 +89,19 @@ const combatStore: CombatStore & { _listeners: Listener[] } = {
       createdAt: now,
       updatedAt: now,
     };
-    const records = this._load();
-    records.push(newRecord);
-    this._save(records);
-    return newRecord;
+    const records = load();
+    records.push(record);
+    save(records);
+    return record;
   },
 
-  update(id: string, partial: Partial<Omit<CombatRecord, 'id' | 'createdAt'>>) {
-    const records = this._load();
+  /**
+   * 更新战斗记录
+   * @param id 战斗记录ID
+   * @param partial 待更新的字段
+   */
+  update(id: string, partial: Partial<Omit<CombatRecord, 'id' | 'createdAt'>>): void {
+    const records = load();
     const index = records.findIndex(r => r.id === id);
     if (index === -1) return;
 
@@ -101,20 +110,29 @@ const combatStore: CombatStore & { _listeners: Listener[] } = {
       ...partial,
       updatedAt: Date.now(),
     };
-    this._save(records);
+    save(records);
   },
 
-  delete(id: string) {
-    const records = this._load().filter(r => r.id !== id);
-    this._save(records);
+  /**
+   * 删除战斗记录
+   */
+  delete(id: string): void {
+    const records = load().filter(r => r.id !== id);
+    save(records);
   },
 
-  clear() {
-    this._save([]);
+  /**
+   * 清空所有战斗记录
+   */
+  clear(): void {
+    save([]);
   },
 
-  exportToFile() {
-    const records = this._load();
+  /**
+   * 导出为JSON文件
+   */
+  exportToFile(): void {
+    const records = load();
     const blob = new Blob([JSON.stringify(records, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -124,6 +142,9 @@ const combatStore: CombatStore & { _listeners: Listener[] } = {
     URL.revokeObjectURL(url);
   },
 
+  /**
+   * 从JSON文件导入
+   */
   importFromFile(file: File): Promise<CombatRecord[]> {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -131,7 +152,7 @@ const combatStore: CombatStore & { _listeners: Listener[] } = {
         try {
           const records: CombatRecord[] = JSON.parse(e.target?.result as string);
           if (!Array.isArray(records)) throw new Error('导入文件格式错误');
-          this._save(records);
+          save(records);
           resolve(records);
         } catch (err) {
           reject(err);
@@ -141,10 +162,13 @@ const combatStore: CombatStore & { _listeners: Listener[] } = {
     });
   },
 
+  /**
+   * 订阅数据变更
+   */
   subscribe(listener: Listener): () => void {
-    this._listeners.push(listener);
+    listeners.push(listener);
     return () => {
-      this._listeners = this._listeners.filter(l => l !== listener);
+      listeners = listeners.filter(l => l !== listener);
     };
   },
 };
