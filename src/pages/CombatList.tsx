@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { combatStore } from '@/data/combatStore';
+import combatStore from '@/data/combatStore';
 import type { CombatRecord } from '@/types/combat';
 import { Plus, Trash2, Download, Upload, FileJson } from 'lucide-react';
 
