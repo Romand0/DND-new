@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Sword, Trash2, Download, Upload } from 'lucide-react';
-import { combatStore } from '@/data/combatStore';
+import combatStore from '@/data/combatStore'; // ✅ 默认导入
 import type { CombatRecord } from '@/types/combat';
 
 export default function CombatList() {
