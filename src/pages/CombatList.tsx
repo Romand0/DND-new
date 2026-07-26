@@ -65,7 +65,7 @@ export default function CombatList() {
     e.target.value = '';
   };
 
-  if (!isDM) return <Navigate to="/" replace />;
+  if (!isDM) return <navigate to="/" replace />;
 
   return (
     <div className="space-y-6">
