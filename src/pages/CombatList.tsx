@@ -7,23 +7,20 @@ import { Plus, Trash2, Download, Upload, FileJson } from 'lucide-react';
 
 export default function CombatList() {
   const { isDM } = useAuth();
+  // ✅ 1. 必须在这里解构出 navigate 函数
   const navigate = useNavigate();
   const [records, setRecords] = useState<CombatRecord[]>([]);
 
-  // ✅ 关键修复：把 loadRecords 提到组件作用域
-  // 用 useCallback 包裹，符合 React Hooks 规范
   const loadRecords = useCallback(() => {
     setRecords(combatStore.getAll());
   }, []);
 
-  // ✅ useEffect 里只负责调用和清理
   useEffect(() => {
-    loadRecords(); // 初始加载
-    const unsubscribe = combatStore.subscribe(loadRecords); // 订阅更新
+    loadRecords();
+    const unsubscribe = combatStore.subscribe(loadRecords);
     return unsubscribe;
-  }, [loadRecords]); // ✅ 依赖 loadRecords
+  }, [loadRecords]);
 
-  // ✅ 修复后的 handleCreate：现在能正常访问 loadRecords 了
   const handleCreate = () => {
     const defaultTitle = `战斗记录 ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     const title = prompt('请输入战斗名称', defaultTitle);
@@ -31,14 +28,14 @@ export default function CombatList() {
       alert('战斗名称不能为空');
       return;
     }
-    
     try {
       const newRecord = combatStore.create(title.trim(), []);
       if (newRecord?.id) {
+        // ✅ 2. 这里调用 navigate 函数
         navigate(`/combat/${newRecord.id}`);
       } else {
         alert('创建战斗失败：未获取到战斗ID');
-        loadRecords(); // ✅ 兜底刷新列表
+        loadRecords();
       }
     } catch (e) {
       console.error('创建战斗失败:', e);
@@ -49,7 +46,6 @@ export default function CombatList() {
   const handleDelete = (id: string) => {
     if (!window.confirm('确定删除该战斗记录？删除后不可恢复')) return;
     combatStore.delete(id);
-    // loadRecords 会被 subscribe 自动触发，这里可以不写
   };
 
   const handleExport = () => {
@@ -65,7 +61,7 @@ export default function CombatList() {
     e.target.value = '';
   };
 
-  if (!isDM) return <navigate to="/" replace />;
+  if (!isDM) return <Navigate to="/" replace />;
 
   return (
     <div className="space-y-6">
@@ -126,6 +122,7 @@ export default function CombatList() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* ✅ 3. 关键修复点：确保在 onClick 回调函数中调用 navigate */}
                   <button
                     onClick={() => navigate(`/combat/${record.id}`)}
                     className="px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-lg transition-colors"
