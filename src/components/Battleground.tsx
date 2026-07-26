@@ -64,6 +64,13 @@ export default function Battleground({ sessionId, combatants }: Props) {
     return m;
   }, [bg?.tokens]);
 
+  // 选中棋子的速度（用于悬浮标签显示）
+  const selectedSpeed = useMemo(() => {
+    if (!selectedCombatantId) return null;
+    const c = combatantMap.get(selectedCombatantId);
+    return c?.speed ?? null;
+  }, [selectedCombatantId, combatantMap]);
+
   // 选中棋子的最大移动范围（切比雪夫距离：8方向都算1格，5尺/格）
   const moveRangeSet = useMemo(() => {
     if (!bg || !selectedCombatantId) return new Set<string>();
@@ -76,7 +83,6 @@ export default function Battleground({ sessionId, combatants }: Props) {
     const preset = GRID_PRESETS[bg.size];
     for (let dc = -range; dc <= range; dc++) {
       for (let dr = -range; dr <= range; dr++) {
-        // 切比雪夫距离：max(|dc|,|dr|)
         if (Math.max(Math.abs(dc), Math.abs(dr)) > range) continue;
         const col = token.col + dc;
         const row = token.row + dr;
@@ -372,6 +378,12 @@ export default function Battleground({ sessionId, combatants }: Props) {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
       >
+        {/* 悬浮标签：移动距离 */}
+        {selectedSpeed != null && moveRangeSet.size > 0 && (
+          <div className="absolute top-2 left-2 z-10 px-2 py-1 text-xs rounded-md bg-info/80 text-white pointer-events-none shadow-md">
+            移动：{selectedSpeed}尺（{Math.floor(selectedSpeed / 5)}格）
+          </div>
+        )}
         <div
           className="grid origin-top-left"
           style={{
@@ -393,10 +405,12 @@ export default function Battleground({ sessionId, combatants }: Props) {
               <div
                 key={i}
                 onClick={() => handleCellClick(col, row)}
-                className={`border dark:border-border-dark/40 light:border-border-light/40 flex items-center justify-center cursor-pointer transition-colors ${
-                  isHover ? 'hover:bg-primary/20' : ''
-                } ${eraserMode && combatantId ? 'hover:bg-danger/30' : ''} ${
-                  inMoveRange ? 'bg-info/20' : ''
+                className={`border flex items-center justify-center cursor-pointer transition-colors ${
+                  inMoveRange
+                    ? 'bg-info/30 border-info/40'
+                    : 'dark:border-border-dark/40 light:border-border-light/40'
+                } ${isHover ? 'hover:bg-primary/20' : ''} ${
+                  eraserMode && combatantId ? 'hover:bg-danger/30' : ''
                 }`}
                 style={{ width: cellSize, height: cellSize }}
                 title={combatant ? combatant.name : `${col},${row}`}
@@ -432,7 +446,7 @@ export default function Battleground({ sessionId, combatants }: Props) {
           NPC/敌人
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-3 h-3 border dark:border-border-dark/40 light:border-border-light/40 bg-info/20" />
+          <span className="w-3 h-3 border border-info/40 bg-info/30" />
           移动范围
         </div>
       </div>
