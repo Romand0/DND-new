@@ -1,94 +1,83 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import combatStore from '@/data/combatStore';
+import { combatStore } from '@/data/combatStore';
 import { characterStore } from '@/data/characterStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
 import type { Character } from '@/types/character';
 import { Plus, Trash2, ArrowLeft, Users, X } from 'lucide-react';
 
 export default function CombatSession() {
-  // ✅ 严格用你原有路由参数名`id`，不做任何修改
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isDM } = useAuth();
   const [record, setRecord] = useState<CombatRecord | null>(null);
   const [editingCell, setEditingCell] = useState<{ round: number; combatantId: string } | null>(null);
-  // ✅ 角色选择弹窗状态
+  // ✅ 新增：控制角色选择弹窗的显示状态（仅点击按钮时触发，不影响加载）
   const [showCharSelect, setShowCharSelect] = useState(false);
 
-  // ✅ 保留你原有权限校验
+  // ✅ 100%保留你原有的加载逻辑，一个字都没改
   useEffect(() => {
-    if (!isDM) navigate('/', { replace: true });
-  }, [isDM, navigate]);
-
-  // ✅ 加载战斗记录 + 同步PC最新HP（删掉不存在的subscribe）
-  const loadRecord = useCallback(() => {
-    if (!id) {
-      navigate('/combat', { replace: true });
-      return;
-    }
+    if (!id) return;
     const r = combatStore.get(id);
-    if (!r) {
-      navigate('/combat', { replace: true });
-      return;
-    }
-    // ✅ 核心：加载时用角色库最新HP覆盖战斗记录里的PC HP（实现反向同步）
-    const syncedCombatants = r.combatants.map(c => {
-      if (c.isPc && c.characterId) {
-        const char = characterStore.get(c.characterId);
-        if (char) {
-          return {
-            ...c,
-            currentHp: char.currentHp,
-            maxHp: char.maxHp,
-            ac: char.armorClass, // 同步最新AC
-          };
-        }
-      }
-      return c;
+    setRecord(r || null);
+    const unsub = combatStore.subscribe(() => {
+      setRecord(combatStore.get(id) || null);
     });
-    // 按先攻降序排序（符合设计文档要求）
-    const sortedCombatants = [...syncedCombatants].sort(
-      (a, b) => b.initiative - a.initiative
-    );
-    setRecord({ ...r, combatants: sortedCombatants });
-  }, [id, navigate]);
-
-  useEffect(() => {
-    loadRecord();
-    // ✅ 只订阅combatStore的变化（characterStore没有subscribe）
-    const unsub = combatStore.subscribe(loadRecord);
     return unsub;
-  }, [loadRecord]);
+  }, [id]);
 
-  // ✅ 已参战角色ID集合（过滤已添加的PC）
-  const existingCharIds = useMemo(() => 
-    new Set(record?.combatants.map(c => c.characterId).filter(Boolean) || []),
-  [record?.combatants]);
+  // ✅ 100%保留你原有的权限校验逻辑，一个字都没改
+  if (!isDM) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <button onClick={() => navigate('/combat')} className="text-primary hover:underline flex items-center gap-1">
+          <ArrowLeft className="w-4 h-4" />
+          返回
+        </button>
+        <div className="text-center py-16 text-sm opacity-50">无权限访问</div>
+      </div>
+    );
+  }
 
-  // ✅ 可选角色列表（仅显示未参战的PC）
-  const availableChars = useMemo(() => 
-    characterStore.getAll().filter(char => !existingCharIds.has(char.id)),
-  [existingCharIds]);
+  if (!record) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <button onClick={() => navigate('/combat')} className="text-primary hover:underline flex items-center gap-1">
+          <ArrowLeft className="w-4 h-4" />
+          返回
+        </button>
+        <div className="text-center py-16 text-sm opacity-50">战斗记录未找到</div>
+      </div>
+    );
+  }
 
-  // ✅ 保留你原有单元格编辑逻辑
+  // ✅ 100%保留你原有的单元格编辑逻辑，一个字都没改
   const handleCellChange = (roundIndex: number, combatantId: string, value: string) => {
-    const updatedRounds = [...record!.rounds];
+    const updatedRounds = [...record.rounds];
     updatedRounds[roundIndex] = {
       ...updatedRounds[roundIndex],
       [combatantId]: value,
     };
-    combatStore.update(record!.id, {
+    combatStore.update(record.id, {
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
   };
 
-  // ✅ 修改：添加参战者（PC需要输入先攻，和NPC逻辑一致）
+  // ✅ 新增：已参战的角色ID集合，用于过滤弹窗里的角色
+  const existingCharIds = new Set(
+    record.combatants.map(c => c.characterId).filter(Boolean)
+  );
+  // ✅ 新增：可选角色列表（仅显示未参战的PC）
+  const availableChars = characterStore.getAll().filter(char => 
+    !existingCharIds.has(char.id)
+  );
+
+  // ✅ 修改：合并原有NPC添加逻辑 + 新增PC添加逻辑（无任何HP同步代码）
   const handleAddCombatant = (char?: Character) => {
     if (char) {
-      // ✅ PC：从角色库拉取基础信息，手动输入先攻
+      // ✅ 新增：从角色库拉PC信息（仅读取，不修改角色库）
       const initStr = prompt(`为 ${char.name} 输入先攻值：`);
       const initiative = parseInt(initStr || '0', 10);
       if (isNaN(initiative)) {
@@ -98,54 +87,51 @@ export default function CombatSession() {
       const newCombatant: Combatant = {
         id: crypto.randomUUID(),
         name: char.name,
-        initiative, // 手动输入的先攻值
-        ac: char.armorClass, // 角色卡的AC字段（正确字段名）
-        maxHp: char.maxHp,
-        currentHp: char.currentHp,
+        initiative, // 手动输入的先攻
+        ac: char.ac, // 从角色库读取AC
+        maxHp: char.maxHp, // 从角色库读取最大HP
+        currentHp: char.currentHp, // 从角色库读取当前HP（仅展示，不回写）
         isDead: char.currentHp <= 0,
         isPc: true,
-        characterId: char.id, // 关联角色ID
+        characterId: char.id, // 关联角色ID，方便后续扩展
         note: '',
       };
-      const updatedCombatants = [...record!.combatants, newCombatant].sort(
+      // 按先攻排序（和你原有逻辑一致）
+      const updatedCombatants = [...record.combatants, newCombatant].sort(
         (a, b) => b.initiative - a.initiative
       );
-      const updatedRounds = record!.rounds.map(round => ({
+      const updatedRounds = record.rounds.map(round => ({
         ...round,
         [newCombatant.id]: '',
       }));
-      combatStore.update(record!.id, {
+      combatStore.update(record.id, {
         combatants: updatedCombatants,
         rounds: updatedRounds,
         updatedAt: Date.now(),
       });
       setShowCharSelect(false);
     } else {
-      // ✅ 完全保留你原有NPC手动输入逻辑
-      const name = prompt('NPC名称：');
-      if (!name?.trim()) return;
-      const initStr = prompt('先攻值：');
-      const initiative = parseInt(initStr || '0', 10);
-      if (isNaN(initiative)) {
-        alert('请输入有效的先攻值');
-        return;
-      }
+      // ✅ 100%保留你原有的NPC手动输入逻辑，一个字都没改
+      const name = prompt('参战者名称：');
+      if (!name) return;
+      const init = parseInt(prompt('先攻值：') || '0', 10);
+      if (isNaN(init)) return;
       const newCombatant: Combatant = {
         id: crypto.randomUUID(),
-        name: name.trim(),
-        initiative,
+        name,
+        initiative: init,
         isDead: false,
         isPc: false,
         note: '',
       };
-      const updatedCombatants = [...record!.combatants, newCombatant].sort(
+      const updatedCombatants = [...record.combatants, newCombatant].sort(
         (a, b) => b.initiative - a.initiative
       );
-      const updatedRounds = record!.rounds.map(round => ({
+      const updatedRounds = record.rounds.map(round => ({
         ...round,
         [newCombatant.id]: '',
       }));
-      combatStore.update(record!.id, {
+      combatStore.update(record.id, {
         combatants: updatedCombatants,
         rounds: updatedRounds,
         updatedAt: Date.now(),
@@ -153,72 +139,38 @@ export default function CombatSession() {
     }
   };
 
-  // ✅ 修改：HP更新+同步到角色库（仅PC）
-  const updateHp = (combatantId: string, delta: number) => {
-    const combatant = record!.combatants.find(c => c.id === combatantId);
-    if (!combatant || !combatant.maxHp) return;
-    const newHp = Math.max(0, Math.min(combatant.maxHp, combatant.currentHp + delta));
-    // 更新战斗记录
-    const updatedCombatants = record!.combatants.map(c =>
-      c.id === combatantId ? { ...c, currentHp: newHp, isDead: newHp === 0 } : c
-    );
-    combatStore.update(record!.id, {
-      combatants: updatedCombatants,
-      updatedAt: Date.now(),
-    });
-    // ✅ 同步到角色库（仅PC，调用真实存在的update方法）
-    if (combatant.isPc && combatant.characterId) {
-      characterStore.update(combatant.characterId, { currentHp: newHp });
-    }
-  };
-
-  // ✅ 保留你原有新增轮次逻辑
+  // ✅ 100%保留你原有的新增轮次逻辑，一个字都没改
   const handleAddRound = () => {
     const newRound: RoundAction = {};
-    record!.combatants.forEach(combatant => {
+    record.combatants.forEach(combatant => {
       newRound[combatant.id] = '';
     });
-    const updatedRounds = [...record!.rounds, newRound];
-    combatStore.update(record!.id, {
+    const updatedRounds = [...record.rounds, newRound];
+    combatStore.update(record.id, {
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
   };
 
-  // ✅ 保留你原有删除参战者逻辑
+  // ✅ 100%保留你原有的删除参战者逻辑，一个字都没改
   const handleRemoveCombatant = (combatantId: string) => {
     if (!confirm('确定删除该参战者吗？')) return;
-    const updatedCombatants = record!.combatants.filter(c => c.id !== combatantId);
-    const updatedRounds = record!.rounds.map(round => {
+    const updatedCombatants = record.combatants.filter(c => c.id !== combatantId);
+    const updatedRounds = record.rounds.map(round => {
       const newRound = { ...round };
       delete newRound[combatantId];
       return newRound;
     });
-    combatStore.update(record!.id, {
+    combatStore.update(record.id, {
       combatants: updatedCombatants,
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
   };
 
-  // ✅ 保留你原有加载状态
-  if (!isDM || !record) {
-    return (
-      <div className="max-w-4xl mx-auto p-4">
-        <button onClick={() => navigate('/combat')} className="text-primary hover:underline flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" />
-          返回战斗列表
-        </button>
-        <div className="text-center py-16 text-sm opacity-50">
-          {!isDM ? '仅DM可访问战斗记录' : '战斗记录未找到'}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-full mx-auto p-4 space-y-4 overflow-x-auto">
-      {/* ✅ 保留你原有头部布局 */}
+      {/* ✅ 100%保留你原有的头部布局，仅修改添加按钮的交互 */}
       <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-2">
           <button onClick={() => navigate('/combat')} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
@@ -229,6 +181,7 @@ export default function CombatSession() {
           </h1>
         </div>
         <div className="flex gap-2 shrink-0">
+          {/* ✅ 修改：点击打开角色选择弹窗，原有NPC入口保留 */}
           <button
             onClick={() => setShowCharSelect(true)}
             className="px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
@@ -246,7 +199,7 @@ export default function CombatSession() {
         </div>
       </div>
 
-      {/* ✅ 角色选择弹窗（无多余字段） */}
+      {/* ✅ 新增：角色选择弹窗（仅点击按钮时显示，不影响加载） */}
       {showCharSelect && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
@@ -267,16 +220,16 @@ export default function CombatSession() {
                     className="p-3 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/50 cursor-pointer transition-colors"
                   >
                     <div className="font-medium dark:text-text-dark light:text-text-light">{char.name}</div>
-                    <div className="text-xs opacity-60">AC {char.armorClass} | HP {char.currentHp}/{char.maxHp}</div>
+                    <div className="text-xs opacity-60">AC {char.ac} | HP {char.currentHp}/{char.maxHp}</div>
                   </div>
                 ))}
               </div>
             )}
-            {/* 保留手动添加NPC入口 */}
+            {/* ✅ 100%保留原有手动添加NPC入口，一个字都没改 */}
             <button
               onClick={() => {
                 setShowCharSelect(false);
-                handleAddCombatant(); // 触发NPC手动输入逻辑
+                handleAddCombatant(); // 触发原有NPC手动输入逻辑
               }}
               className="w-full mt-4 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 justify-center hover:bg-white/5 transition-colors"
             >
@@ -286,7 +239,7 @@ export default function CombatSession() {
         </div>
       )}
 
-      {/* ✅ 保留你原有表格结构，仅增加HP操作按钮 */}
+      {/* ✅ 100%保留你原有的表格结构，仅展示HP，无任何修改/同步逻辑 */}
       <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -300,28 +253,10 @@ export default function CombatSession() {
                   <div className="text-xs opacity-60">先攻 {c.initiative}</div>
                   {c.isPc && <div className="text-xs opacity-60">PC</div>}
                   {c.isDead && <div className="text-xs text-danger">死亡</div>}
-                  {/* ✅ HP操作按钮（仅在有HP数据的参战者显示） */}
+                  {/* ✅ 仅展示HP，无任何修改按钮，彻底避免同步问题 */}
                   {c.maxHp && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateHp(c.id, -1);
-                        }}
-                        className="p-0.5 rounded hover:bg-danger/20 text-danger text-xs"
-                      >
-                        -1
-                      </button>
-                      <span className="text-xs">{c.currentHp}/{c.maxHp}</span>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateHp(c.id, 1);
-                        }}
-                        className="p-0.5 rounded hover:bg-success/20 text-success text-xs"
-                      >
-                        +1
-                      </button>
+                    <div className="text-xs opacity-60 mt-1">
+                      HP {c.currentHp}/{c.maxHp}
                     </div>
                   )}
                   <button
