@@ -191,7 +191,7 @@ export default function CombatSession() {
           </button>
           <h1 className="text-xl font-bold dark:text-text-dark light:text-text-light truncate">
             {record.title}
-          </hi>
+          </h1>
         </div>
         <div className="flex gap-2 shrink-0">
           {/* ✅ 修改：点击打开角色选择弹窗，原有NPC逻辑通过弹窗按钮保留 */}
