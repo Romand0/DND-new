@@ -89,6 +89,7 @@ export default function App() {
               <Route path="/spells" element={<SpellList />} />
               <Route path="/spells/:id" element={<SpellDetail />} />
               <Route path="/combat" element={<CombatList />} />
+              <Route path="/combat/:id" element={<CombatSession />} />
             </Route>
 
             {/* DM 端（完整导航栏）- 需要登录 + DM 角色 */}
