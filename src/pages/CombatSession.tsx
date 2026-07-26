@@ -27,6 +27,10 @@ export default function CombatSession() {
   // ✅ 新增：批量删除状态
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // ✅ 新增：先攻投掷弹窗（PC 参战用）
+  const [initiativeRollOpen, setInitiativeRollOpen] = useState(false);
+  const [selectedPc, setSelectedPc] = useState<Character | null>(null);
+  const [d20Input, setD20Input] = useState('');
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -92,42 +96,12 @@ export default function CombatSession() {
   // ✅ 修改：保留原有NPC逻辑，新增PC从角色库抓取的逻辑
   const handleAddCombatant = (char?: Character) => {
     if (char) {
-      // ✅ 新增：PC参战逻辑，完全对齐设计文档
-      // 角色卡没有先攻字段，所以先攻依然手动输入（和NPC逻辑一致）
-      const initStr = prompt(`为 ${char.name} 输入先攻值：`);
-      const initiative = parseInt(initStr || '0', 10);
-      if (isNaN(initiative)) {
-        alert('请输入有效的先攻值');
-        return;
-      }
-      // 从角色库读取数据，填充Combatant字段（完全对齐设计文档的Combatant定义）
-      const newCombatant: Combatant = {
-        id: crypto.randomUUID(),
-        name: char.name,
-        initiative,
-        ac: char.armorClass, // 对应设计文档的ac字段
-        maxHp: char.maxHp,   // 对应设计文档的maxHp字段
-        currentHp: char.currentHp, // 对应设计文档的currentHp字段
-        isDead: char.currentHp <= 0,
-        isPc: true, // 标记为PC，对应设计文档的isPc字段
-        characterId: char.id, // 关联角色ID，对应设计文档的characterId字段
-        note: '',
-      };
-      // 按先攻排序，符合设计文档的「快速建表」要求
-      const updatedCombatants = [...record.combatants, newCombatant].sort(
-        (a, b) => b.initiative - a.initiative
-      );
-      // 为新参战者初始化所有回合的行动记录
-      const updatedRounds = record.rounds.map(round => ({
-        ...round,
-        [newCombatant.id]: '',
-      }));
-      combatStore.update(record.id, {
-        combatants: updatedCombatants,
-        rounds: updatedRounds,
-        updatedAt: Date.now(),
-      });
+      // ✅ 新增：PC参战 —— 打开先攻投掷弹窗，而非直接 prompt
+      // 从角色卡读取敏捷调整值作为先攻加值
+      setSelectedPc(char);
+      setD20Input('');
       setShowCharSelect(false);
+      setInitiativeRollOpen(true);
       return;
     }
 
@@ -156,6 +130,48 @@ export default function CombatSession() {
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
+  };
+
+  // ✅ 新增：确认 PC 先攻并加入战斗（d20 + 敏捷调整值 = 先攻总值）
+  const handleConfirmInitiative = () => {
+    if (!selectedPc) return;
+    const d20 = parseInt(d20Input, 10);
+    if (isNaN(d20) || d20 < 1 || d20 > 20) {
+      alert('请输入 1-20 之间的 d20 数值');
+      return;
+    }
+    const dexMod = selectedPc.abilities?.dexterity?.modifier ?? 0;
+    const initiative = d20 + dexMod;
+    // 从角色库读取数据，填充Combatant字段（完全对齐设计文档的Combatant定义）
+    const newCombatant: Combatant = {
+      id: crypto.randomUUID(),
+      name: selectedPc.name,
+      initiative,
+      ac: selectedPc.armorClass, // 对应设计文档的ac字段
+      maxHp: selectedPc.maxHp,   // 对应设计文档的maxHp字段
+      currentHp: selectedPc.currentHp, // 对应设计文档的currentHp字段
+      isDead: selectedPc.currentHp <= 0,
+      isPc: true, // 标记为PC，对应设计文档的isPc字段
+      characterId: selectedPc.id, // 关联角色ID，对应设计文档的characterId字段
+      note: '',
+    };
+    // 按先攻总值排序，符合设计文档的「快速建表」要求
+    const updatedCombatants = [...record.combatants, newCombatant].sort(
+      (a, b) => b.initiative - a.initiative
+    );
+    // 为新参战者初始化所有回合的行动记录
+    const updatedRounds = record.rounds.map(round => ({
+      ...round,
+      [newCombatant.id]: '',
+    }));
+    combatStore.update(record.id, {
+      combatants: updatedCombatants,
+      rounds: updatedRounds,
+      updatedAt: Date.now(),
+    });
+    setInitiativeRollOpen(false);
+    setSelectedPc(null);
+    setD20Input('');
   };
 
   // 原内容：完全保留，一个字都没改（新增轮次逻辑不变）
@@ -330,6 +346,94 @@ export default function CombatSession() {
             >
               手动添加NPC
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ 新增：PC 先攻投掷弹窗 —— d20 输入 + 敏捷加值 + 自动计算先攻总值 */}
+      {initiativeRollOpen && selectedPc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">先攻投掷</h3>
+              <button
+                onClick={() => {
+                  setInitiativeRollOpen(false);
+                  setSelectedPc(null);
+                  setD20Input('');
+                }}
+                className="p-1 rounded hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm font-medium dark:text-text-dark light:text-text-light mb-1">
+                  {selectedPc.name}
+                </div>
+                <div className="text-xs opacity-60">
+                  敏捷调整值：
+                  <span className="text-primary font-bold ml-1">
+                    {(selectedPc.abilities?.dexterity?.modifier ?? 0) >= 0
+                      ? `+${selectedPc.abilities?.dexterity?.modifier ?? 0}`
+                      : selectedPc.abilities?.dexterity?.modifier ?? 0}
+                  </span>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5 block">
+                  输入 d20 结果（1-20）
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  autoFocus
+                  value={d20Input}
+                  onChange={(e) => setD20Input(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleConfirmInitiative();
+                    if (e.key === 'Escape') {
+                      setInitiativeRollOpen(false);
+                      setSelectedPc(null);
+                      setD20Input('');
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary transition-colors"
+                  placeholder="例如 12"
+                />
+              </div>
+              <div className="flex items-center justify-between py-3 px-4 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                  先攻总值
+                </div>
+                <div className="text-2xl font-bold dark:text-text-dark light:text-text-light">
+                  {isNaN(parseInt(d20Input, 10))
+                    ? '-'
+                    : (parseInt(d20Input, 10) + (selectedPc.abilities?.dexterity?.modifier ?? 0))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setInitiativeRollOpen(false);
+                    setSelectedPc(null);
+                    setD20Input('');
+                  }}
+                  className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleConfirmInitiative}
+                  disabled={isNaN(parseInt(d20Input, 10))}
+                  className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  确认加入
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
