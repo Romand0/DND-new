@@ -2,8 +2,20 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
 import { characterStore } from '@/data/characterStore';
-import { combatStore, type Combatant } from '@/data/combatStore';
+import { combatStore } from '@/data/combatStore';
 import { Swords, Plus, Minus, X, GripVertical } from 'lucide-react';
+
+type Combatant = {
+  id: string;
+  characterId: string;
+  name: string;
+  initiative: number;
+  maxHp: number;
+  currentHp: number;
+  ac: number;
+  isPc: boolean;
+  note?: string;
+};
 
 // 候选角色类型（从角色库同步）
 type CandidateCharacter = {
@@ -201,8 +213,11 @@ export default function CombatSession() {
           combatants: [...session.combatants, ...newCombatants].sort((a, b) => b.initiative - a.initiative),
           updatedAt: Date.now(),
         };
-        combatStore.update(updatedSession);
-        setSession(updatedSession);
+        combatStore.update(session.id, {
+  combatants: [...session.combatants, ...newCombatants].sort((a, b) => b.initiative - a.initiative),
+  updatedAt: Date.now(),
+});
+setSession(updatedSession);
       }
       setPendingInitiatives([]);
       setShowInitInput(false);
@@ -237,8 +252,11 @@ export default function CombatSession() {
         combatants: [...session.combatants, ...tieBreakCombatants].sort((a, b) => b.initiative - a.initiative),
         updatedAt: Date.now(),
       };
-      combatStore.update(updatedSession);
-      setSession(updatedSession);
+      combatStore.update(session.id, {
+  combatants: [...session.combatants, ...tieBreakCombatants].sort((a, b) => b.initiative - a.initiative),
+  updatedAt: Date.now(),
+});
+   setSession(updatedSession);
     }
     setTieBreakCombatants([]);
     setShowTieBreak(false);
@@ -264,7 +282,11 @@ export default function CombatSession() {
       combatants: updatedCombatants,
       updatedAt: Date.now(),
     };
-    combatStore.update(updatedSession);
+    combatStore.update(session.id, {
+  combatants: updatedCombatants,
+  updatedAt: Date.now(),
+});
+
     setSession(updatedSession);
   }, [session]);
 
@@ -276,7 +298,11 @@ export default function CombatSession() {
       combatants: updatedCombatants,
       updatedAt: Date.now(),
     };
-    combatStore.update(updatedSession);
+    combatStore.update(session.id, {
+  combatants: updatedCombatants,
+  updatedAt: Date.now(),
+});
+
     setSession(updatedSession);
   }, [session]);
 
