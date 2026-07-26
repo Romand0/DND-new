@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { combatStore } from '@/data/combatStore';
+import combatStore from '@/data/combatStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
 import { Plus, Trash2, ArrowLeft } from 'lucide-react';
 
