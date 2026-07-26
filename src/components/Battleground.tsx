@@ -66,7 +66,7 @@ export default function Battleground({ sessionId, combatants }: Props) {
 
   // 选中棋子的最大移动范围（切比雪夫距离：8方向都算1格，5尺/格）
   const moveRangeSet = useMemo(() => {
-    if (!selectedCombatantId) return new Set<string>();
+    if (!bg || !selectedCombatantId) return new Set<string>();
     const token = tokenMap.get(selectedCombatantId);
     const combatant = combatantMap.get(selectedCombatantId);
     if (!token || !combatant || !combatant.speed) return new Set<string>();
@@ -86,7 +86,7 @@ export default function Battleground({ sessionId, combatants }: Props) {
       }
     }
     return set;
-  }, [selectedCombatantId, tokenMap, combatantMap, bg.size]);
+  }, [selectedCombatantId, tokenMap, combatantMap, bg?.size]);
 
   if (!bg) return null;
 
