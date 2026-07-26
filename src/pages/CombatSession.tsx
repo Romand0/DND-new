@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, ArrowLeft, UserPlus } from 'lucide-react';
-import { combatStore } from '@/data/combatStore';
+import combatStore from '@/data/combatStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
 
 export default function CombatSession() {
