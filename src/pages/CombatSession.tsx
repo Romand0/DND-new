@@ -1,5 +1,5 @@
 // 原内容：完全保留，一个字都没改
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
@@ -10,7 +10,7 @@ import type { Character } from '@/types/character';
 // 原内容：完全保留，一个字都没改
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
 // ✅ 新增：导入角色选择弹窗需要的图标
-import { Plus, Trash2, ArrowLeft, Users, X } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, GripVertical } from 'lucide-react';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -31,6 +31,11 @@ export default function CombatSession() {
   const [initiativeRollOpen, setInitiativeRollOpen] = useState(false);
   const [selectedPc, setSelectedPc] = useState<Character | null>(null);
   const [d20Input, setD20Input] = useState('');
+  // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
+  const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
+  const [tiedOrder, setTiedOrder] = useState<Combatant[]>([]);
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -110,8 +115,9 @@ export default function CombatSession() {
     if (!name) return;
     const init = parseInt(prompt('先攻值：') || '0', 10);
     if (isNaN(init)) return;
+    const npcId = crypto.randomUUID();
     const newCombatant: Combatant = {
-      id: crypto.randomUUID(),
+      id: npcId,
       name,
       initiative: init,
       isDead: false,
@@ -130,6 +136,8 @@ export default function CombatSession() {
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
+    // ✅ 新增：检测先攻平局
+    checkTieAndOpen(npcId);
   };
 
   // ✅ 新增：确认 PC 先攻并加入战斗（d20 + 敏捷调整值 = 先攻总值）
@@ -142,9 +150,10 @@ export default function CombatSession() {
     }
     const dexMod = selectedPc.abilities?.dexterity?.modifier ?? 0;
     const initiative = d20 + dexMod;
+    const newId = crypto.randomUUID();
     // 从角色库读取数据，填充Combatant字段（完全对齐设计文档的Combatant定义）
     const newCombatant: Combatant = {
-      id: crypto.randomUUID(),
+      id: newId,
       name: selectedPc.name,
       initiative,
       ac: selectedPc.armorClass, // 对应设计文档的ac字段
@@ -172,6 +181,91 @@ export default function CombatSession() {
     setInitiativeRollOpen(false);
     setSelectedPc(null);
     setD20Input('');
+    // ✅ 新增：检测先攻平局
+    checkTieAndOpen(newId);
+  };
+
+  // ✅ 新增：检测先攻平局 —— 新参战者先攻与现有参战者相同时，打开排序弹窗
+  // latestId 为刚加入的参战者 ID；用 combatStore.get 取最新记录
+  const checkTieAndOpen = (latestId: string) => {
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
+    const target = latest.combatants.find((c) => c.id === latestId);
+    if (!target) return;
+    const tied = latest.combatants.filter((c) => c.initiative === target.initiative);
+    if (tied.length >= 2) {
+      setTiedOrder(tied);
+      setTiebreakerOpen(true);
+    }
+  };
+
+  // ✅ 新增：确认平局顺序 —— 只调整平局参战者的相对顺序，其他参战者位置不变
+  const handleConfirmTiebreaker = () => {
+    const latest = combatStore.get(record.id);
+    if (!latest) {
+      setTiebreakerOpen(false);
+      return;
+    }
+    // 平局组的先攻值
+    const tieInit = tiedOrder[0]?.initiative;
+    if (tieInit === undefined) {
+      setTiebreakerOpen(false);
+      return;
+    }
+    // 平局组的新顺序 ID 列表
+    const newTiedIds = tiedOrder.map((c) => c.id);
+    // 重建 combatants：遇到平局组的占位，按新顺序填入；非平局者原样保留
+    let tiedPtr = 0;
+    const updatedCombatants = latest.combatants.map((c) => {
+      if (c.initiative === tieInit) {
+        const replacement = latest.combatants.find((x) => x.id === newTiedIds[tiedPtr]);
+        tiedPtr++;
+        return replacement || c;
+      }
+      return c;
+    });
+    combatStore.update(record.id, {
+      combatants: updatedCombatants,
+      updatedAt: Date.now(),
+    });
+    setTiebreakerOpen(false);
+    setTiedOrder([]);
+  };
+
+  // ✅ 新增：触屏拖拽 —— pointer 事件同时兼容鼠标与触摸
+  const handleDragStart = (e: React.PointerEvent, index: number) => {
+    e.preventDefault();
+    setDraggingIndex(index);
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+  const handleDragMove = (e: React.PointerEvent) => {
+    if (draggingIndex === null) return;
+    // 用各卡片中点判断指针落在哪个卡片，跨越中点则交换
+    const pointerY = e.clientY;
+    let targetIndex = draggingIndex;
+    for (let i = 0; i < cardRefs.current.length; i++) {
+      const el = cardRefs.current[i];
+      if (!el) continue;
+      const rect = el.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (pointerY < midY) {
+        targetIndex = i;
+        break;
+      }
+      if (i === cardRefs.current.length - 1) targetIndex = i;
+    }
+    if (targetIndex !== draggingIndex) {
+      setTiedOrder((prev) => {
+        const next = [...prev];
+        const [moved] = next.splice(draggingIndex, 1);
+        next.splice(targetIndex, 0, moved);
+        return next;
+      });
+      setDraggingIndex(targetIndex);
+    }
+  };
+  const handleDragEnd = () => {
+    setDraggingIndex(null);
   };
 
   // 原内容：完全保留，一个字都没改（新增轮次逻辑不变）
@@ -433,6 +527,85 @@ export default function CombatSession() {
                   确认加入
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ 新增：先攻平局排序弹窗 —— 触屏拖拽重排平局参战者 */}
+      {tiebreakerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">先攻平局</h3>
+              <button
+                onClick={() => {
+                  setTiebreakerOpen(false);
+                  setTiedOrder([]);
+                }}
+                className="p-1 rounded hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
+              以下参战者先攻相同（{tiedOrder[0]?.initiative ?? '-'}），长按拖动调整行动顺序
+            </p>
+            <div
+              className="space-y-2 max-h-[60vh] overflow-y-auto touch-none select-none"
+              onPointerMove={handleDragMove}
+              onPointerUp={handleDragEnd}
+              onPointerCancel={handleDragEnd}
+            >
+              {tiedOrder.map((c, index) => {
+                // PC 查种族/职业；NPC 仅显示名称
+                const pc = c.characterId ? characterStore.get(c.characterId) : null;
+                const race = pc?.race;
+                const cls = pc?.class;
+                return (
+                  <div
+                    key={c.id}
+                    ref={(el) => { cardRefs.current[index] = el; }}
+                    onPointerDown={(e) => handleDragStart(e, index)}
+                    className={`flex items-center gap-2 p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-shadow ${
+                      draggingIndex === index
+                        ? 'border-primary shadow-lg scale-[1.02] opacity-90'
+                        : 'dark:border-border-dark light:border-border-light'
+                    } dark:bg-bg-dark light:bg-bg-light-2`}
+                    style={{ touchAction: 'none' }}
+                  >
+                    <GripVertical className="w-4 h-4 opacity-40 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate dark:text-text-dark light:text-text-light">
+                        {c.name}
+                      </div>
+                      <div className="text-xs opacity-60 truncate">
+                        {c.isPc
+                          ? [race, cls].filter(Boolean).join(' · ') || '玩家角色'
+                          : 'NPC'}
+                      </div>
+                    </div>
+                    <div className="text-xs font-bold text-primary shrink-0">#{index + 1}</div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setTiebreakerOpen(false);
+                  setTiedOrder([]);
+                }}
+                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleConfirmTiebreaker}
+                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
+              >
+                确认顺序
+              </button>
             </div>
           </div>
         </div>
