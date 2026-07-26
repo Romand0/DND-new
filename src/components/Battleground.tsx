@@ -1,6 +1,6 @@
 // 网格沙盘组件 —— 展示参战者位置与移动，支持三种大小预设
-import { useState, useEffect, useMemo } from 'react';
-import { Grid3x3, Eraser, Trash2 } from 'lucide-react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize } from '@/types/battleground';
@@ -15,6 +15,25 @@ export default function Battleground({ sessionId, combatants }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
+  // 缩放与平移状态
+  const [scale, setScale] = useState(1);
+  const [translate, setTranslate] = useState({ x: 0, y: 0 });
+  const touchState = useRef<{
+    pointers: Map<number, { x: number; y: number }>;
+    startPoints: Map<number, { x: number; y: number }>;
+    startTranslate: { x: number; y: number };
+    startScale: number;
+    startDist: number;
+    moved: boolean;
+  }>({
+    pointers: new Map(),
+    startPoints: new Map(),
+    startTranslate: { x: 0, y: 0 },
+    startScale: 1,
+    startDist: 0,
+    moved: false,
+  });
+  const gridWrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setBg(battlegroundStore.getOrCreate(sessionId));
@@ -86,6 +105,105 @@ export default function Battleground({ sessionId, combatants }: Props) {
     if (confirm('确定清空所有棋子吗？')) battlegroundStore.clearTokens(sessionId);
   };
 
+  // —— 手势处理：单指拖拽平移、双指捏合缩放 ——
+  const getDistance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    Math.hypot(a.x - b.x, a.y - b.y);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const ts = touchState.current;
+    const pt = { x: e.clientX, y: e.clientY };
+    ts.pointers.set(e.pointerId, pt);
+    ts.startPoints.set(e.pointerId, pt);
+    ts.moved = false;
+    if (ts.pointers.size === 1) {
+      ts.startTranslate = { ...translate };
+    }
+    if (ts.pointers.size === 2) {
+      const pts = Array.from(ts.pointers.values());
+      ts.startDist = getDistance(pts[0], pts[1]);
+      ts.startScale = scale;
+    }
+    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    const ts = touchState.current;
+    if (!ts.pointers.has(e.pointerId)) return;
+    ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ts.pointers.size === 1) {
+      // 单指平移：用按下时记录的起始位置做参照
+      const start = ts.startPoints.get(e.pointerId);
+      if (!start) return;
+      const deltaX = e.clientX - start.x;
+      const deltaY = e.clientY - start.y;
+      if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) ts.moved = true;
+      setTranslate({
+        x: ts.startTranslate.x + deltaX,
+        y: ts.startTranslate.y + deltaY,
+      });
+    }
+    if (ts.pointers.size === 2) {
+      // 双指缩放
+      ts.moved = true;
+      const pts = Array.from(ts.pointers.values());
+      const dist = getDistance(pts[0], pts[1]);
+      if (ts.startDist > 0) {
+        const newScale = Math.max(0.5, Math.min(3, ts.startScale * (dist / ts.startDist)));
+        setScale(newScale);
+      }
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    const ts = touchState.current;
+    ts.pointers.delete(e.pointerId);
+    ts.startPoints.delete(e.pointerId);
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+  };
+
+  // 点击格子：只有未发生拖拽时才触发
+  const handleCellClick = (col: number, row: number) => {
+    if (touchState.current.moved) {
+      touchState.current.moved = false;
+      return;
+    }
+    const existingCombatantId = cellToken.get(`${col},${row}`);
+    if (eraserMode) {
+      if (existingCombatantId) battlegroundStore.removeToken(sessionId, existingCombatantId);
+      return;
+    }
+    // 已选中参战者
+    if (selectedCombatantId) {
+      if (existingCombatantId === selectedCombatantId) {
+        // 点击的就是当前选中的棋子 → 取消选中
+        setSelectedCombatantId(null);
+        return;
+      }
+      if (existingCombatantId) {
+        // 目标格有其他棋子 → 选中那个棋子（不覆盖）
+        setSelectedCombatantId(existingCombatantId);
+        return;
+      }
+      // 目标格为空 → 移动/放置到该格
+      battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
+      setSelectedCombatantId(null);
+      return;
+    }
+    // 未选中参战者：点击有棋子的格 → 选中该棋子
+    if (existingCombatantId) {
+      setSelectedCombatantId(existingCombatantId);
+    }
+  };
+
+  // 缩放按钮
+  const handleZoom = (delta: number) => {
+    setScale((s) => Math.max(0.5, Math.min(3, s + delta)));
+  };
+  const handleResetView = () => {
+    setScale(1);
+    setTranslate({ x: 0, y: 0 });
+  };
+
   // 未放置的参战者（用于列表选择）
   const unplaced = combatants.filter((c) => !tokenMap.has(c.id));
   // 已放置的参战者（用于回收框展示）
@@ -145,6 +263,30 @@ export default function Battleground({ sessionId, combatants }: Props) {
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">清空</span>
           </button>
+          {/* 缩放控制 */}
+          <div className="flex items-center gap-1 ml-1">
+            <button
+              onClick={() => handleZoom(-0.2)}
+              className="px-1.5 py-1 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/5 transition-colors"
+              title="缩小"
+            >
+              <ZoomOut className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleResetView}
+              className="px-1.5 py-1 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/5 transition-colors min-w-[2.5rem] text-center"
+              title="重置视图"
+            >
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              onClick={() => handleZoom(0.2)}
+              className="px-1.5 py-1 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/5 transition-colors"
+              title="放大"
+            >
+              <ZoomIn className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -226,14 +368,22 @@ export default function Battleground({ sessionId, combatants }: Props) {
         </div>
       </div>
 
-      {/* 网格 */}
-      <div className="overflow-auto max-h-[70vh] rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2">
+      {/* 网格 —— 手势平移与缩放 */}
+      <div
+        ref={gridWrapRef}
+        className="relative overflow-hidden max-h-[70vh] rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 touch-none"
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
         <div
-          className="grid touch-none"
+          className="grid origin-top-left"
           style={{
             gridTemplateColumns: `repeat(${preset.cols}, ${cellSize}px)`,
             gridTemplateRows: `repeat(${preset.rows}, ${cellSize}px)`,
             width: 'max-content',
+            transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           }}
         >
           {Array.from({ length: preset.cols * preset.rows }).map((_, i) => {
