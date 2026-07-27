@@ -42,6 +42,10 @@ function migrateCharacter(char: any): Character {
       damageType: attack.damageType !== undefined ? attack.damageType : (attack.type || ''),
       range: attack.range || '',
       properties: attack.properties || [],
+      subtype: attack.subtype,
+      normalRange: attack.normalRange,
+      maxRange: attack.maxRange,
+      twoHandedDamage: attack.twoHandedDamage,
     }));
   }
   // 迁移：添加手持槽位
