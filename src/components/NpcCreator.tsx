@@ -276,7 +276,7 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
                     type="number"
                     min={1}
                     max={30}
-                    value={formData[ability as keyof typeof formData]}
+                    value={formData[ability as 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma']}
                     onChange={(e) => handleAbilityChange(ability, parseInt(e.target.value, 10) || 10)}
                     className="flex-1 px-2 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
                   />
