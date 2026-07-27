@@ -69,6 +69,19 @@ function expandWeaponSubtypes(subtype: string): string[] {
   if (subtype === '军用近战' || subtype === '军用远程') {
     result.add('军用武器');
   }
+  // 通用近战/远程：匹配所有对应父类（适用于第二部分为空的自定义武器）
+  if (subtype === '近战') {
+    result.add('简易武器');
+    result.add('军用武器');
+    result.add('简易近战');
+    result.add('军用近战');
+  }
+  if (subtype === '远程') {
+    result.add('简易武器');
+    result.add('军用武器');
+    result.add('简易远程');
+    result.add('军用远程');
+  }
   return Array.from(result);
 }
 
