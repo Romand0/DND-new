@@ -155,33 +155,20 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return ranges;
   };
 
-  const handleAttackSelect = (attackId: string) => {
-    setSelectedAttackId(prev => prev === attackId ? null : attackId);
-    if (selectedAttackId === attackId) {
-      setExpandedRangeAttackId(null);
-      setSelectedRangeIndex(null);
-    } else {
-      setExpandedRangeAttackId(attackId);
-      setSelectedRangeIndex(null);
-    }
-  };
-
-  const [selectedRangeIndex, setSelectedRangeIndex] = useState<number | null>(null);
-
-  const getNPCsInRange = (attack: Attack, rangeIndex: number | null = null): Combatant[] => {
+  const getNPCsInRange = (attack: Attack, rangeIndex: number | null): Combatant[] => {
     if (!tokenMap || !combatant.id) return [];
     const attackerPos = tokenMap.get(combatant.id);
     if (!attackerPos) return [];
 
     const rangeInfo = getRangeInfo(attack);
     let maxRangeFeet: number;
-    
-    if (rangeIndex !== null && rangeIndex < rangeInfo.length) {
+
+    if (rangeIndex !== null && rangeIndex >= 0 && rangeIndex < rangeInfo.length) {
       maxRangeFeet = rangeInfo[rangeIndex].feet;
     } else {
       maxRangeFeet = rangeInfo.length > 0 ? rangeInfo[rangeInfo.length - 1].feet : 5;
     }
-    
+
     const maxRangeCells = Math.max(1, Math.floor(maxRangeFeet / 5));
 
     return combatants.filter(c => {
@@ -193,6 +180,38 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
       return distance <= maxRangeCells;
     });
   };
+
+  const handleAttackSelect = (attackId: string) => {
+    if (selectedAttackId === attackId) {
+      // 取消选中
+      setSelectedAttackId(null);
+      setExpandedRangeAttackId(null);
+      setSelectedRangeIndex(null);
+      return;
+    }
+    setSelectedAttackId(attackId);
+    setExpandedRangeAttackId(attackId);
+    // 自动选中最小包含敌人的射程
+    const attack = attacks.find(a => a.id === attackId);
+    if (attack) {
+      const rangeInfo = getRangeInfo(attack);
+      let autoIdx: number | null = null;
+      for (let i = 0; i < rangeInfo.length; i++) {
+        const npcs = getNPCsInRange(attack, i);
+        if (npcs.length > 0) {
+          autoIdx = i;
+          break;
+        }
+      }
+      // 若所有射程都无敌人也选中第一个（让用户看到禁用状态）
+      if (autoIdx === null && rangeInfo.length > 0) autoIdx = 0;
+      setSelectedRangeIndex(autoIdx);
+    } else {
+      setSelectedRangeIndex(null);
+    }
+  };
+
+  const [selectedRangeIndex, setSelectedRangeIndex] = useState<number | null>(null);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -219,7 +238,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
             }`}
           >
-            信息
+            快捷
           </button>
           <button
             onClick={() => setActiveTab('status')}
@@ -285,6 +304,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       const rangeInfo = getRangeInfo(attack);
                       const currentRangeIdx = selected ? selectedRangeIndex : null;
                       const npcsInRange = selected ? getNPCsInRange(attack, currentRangeIdx) : [];
+                      // 计算各射程内的敌人数，用于禁用无敌人的按钮
+                      const rangeNpcCounts = selected ? rangeInfo.map((_, idx) => getNPCsInRange(attack, idx).length) : [];
 
                       return (
                         <div key={attack.id}>
@@ -326,19 +347,27 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             <div className="ml-2 mt-1 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
                               <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程信息</div>
                               <div className="flex flex-wrap gap-2">
-                                {rangeInfo.map((r, idx) => (
-                                  <button
-                                    key={idx}
-                                    onClick={() => setSelectedRangeIndex(idx)}
-                                    className={`text-xs px-2 py-1 rounded transition-colors ${
-                                      currentRangeIdx === idx
-                                        ? 'bg-info text-white'
-                                        : 'bg-info/10 text-info hover:bg-info/20'
-                                    }`}
-                                  >
-                                    {r.label}: {r.value}
-                                  </button>
-                                ))}
+                                {rangeInfo.map((r, idx) => {
+                                  const npcCount = rangeNpcCounts[idx] || 0;
+                                  const isDisabled = npcCount === 0;
+                                  const isActive = currentRangeIdx === idx;
+                                  return (
+                                    <button
+                                      key={idx}
+                                      disabled={isDisabled}
+                                      onClick={() => setSelectedRangeIndex(idx)}
+                                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                                        isActive
+                                          ? 'bg-info text-white'
+                                          : isDisabled
+                                          ? 'bg-gray-200/50 dark:bg-gray-700/50 text-gray-400 dark:text-gray-500 cursor-not-allowed'
+                                          : 'bg-info/10 text-info hover:bg-info/20'
+                                      }`}
+                                    >
+                                      {r.label}: {r.value}
+                                    </button>
+                                  );
+                                })}
                               </div>
                             </div>
                           )}
