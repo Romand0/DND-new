@@ -294,8 +294,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
               {attacks.length > 0 && (
                 <div>
-                  <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">攻击</div>
-                  <div className="space-y-1.5">
+                  <div className="text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">攻击</div>
+                  <div className="grid grid-cols-2 gap-2">
                     {attacks.map((attack) => {
                       const usable = isAttackUsable(attack);
                       const selected = selectedAttackId === attack.id;
@@ -304,14 +304,13 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       const rangeInfo = getRangeInfo(attack);
                       const currentRangeIdx = selected ? selectedRangeIndex : null;
                       const npcsInRange = selected ? getNPCsInRange(attack, currentRangeIdx) : [];
-                      // 计算各射程内的敌人数，用于禁用无敌人的按钮
                       const rangeNpcCounts = selected ? rangeInfo.map((_, idx) => getNPCsInRange(attack, idx).length) : [];
 
                       return (
-                        <div key={attack.id}>
+                        <div key={attack.id} className={`${selected ? 'col-span-2' : ''}`}>
                           <button
                             onClick={() => handleAttackSelect(attack.id!)}
-                            className={`w-full text-left p-2 rounded-lg text-xs transition-all ${
+                            className={`w-full text-left p-2.5 rounded-lg text-sm transition-all ${
                               selected
                                 ? 'ring-2 ring-primary dark:bg-primary/10 light:bg-primary/10'
                                 : usable
@@ -323,11 +322,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                               {attack.name}
                               {rangeInfo.length > 0 && (
                                 <span className="flex-shrink-0">
-                                  {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                  {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5">
+                            <div className="flex items-center gap-2 mt-1">
                               <span className={usable ? 'text-primary' : 'dark:text-text-dark-muted/60 light:text-text-light-muted/60'}>{attack.attackBonus || '—'}</span>
                               <span>·</span>
                               <span>{attack.damage || '—'}</span>
@@ -335,8 +334,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           </button>
 
                           {selected && rangeInfo.length > 0 && (
-                            <div className="ml-2 mt-1 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
-                              <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程信息</div>
+                            <div className="mt-1 p-2.5 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
+                              <div className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程信息</div>
                               <div className="flex flex-wrap gap-2">
                                 {rangeInfo.map((r, idx) => {
                                   const npcCount = rangeNpcCounts[idx] || 0;
@@ -347,7 +346,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                                       key={idx}
                                       disabled={isDisabled}
                                       onClick={() => setSelectedRangeIndex(idx)}
-                                      className={`text-xs px-2 py-1 rounded transition-colors ${
+                                      className={`text-sm px-2.5 py-1 rounded transition-colors ${
                                         isActive
                                           ? 'bg-info text-white'
                                           : isDisabled
@@ -364,11 +363,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           )}
 
                           {selected && npcsInRange.length > 0 && (
-                            <div className="ml-2 mt-1 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
-                              <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程内目标</div>
-                              <div className="flex flex-wrap gap-1">
+                            <div className="mt-1 p-2.5 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
+                              <div className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程内目标</div>
+                              <div className="flex flex-wrap gap-1.5">
                                 {npcsInRange.map(npc => (
-                                  <div key={npc.id} className="flex items-center gap-1 text-xs px-2 py-1 rounded dark:bg-danger/10 light:bg-danger/5 text-danger">
+                                  <div key={npc.id} className="flex items-center gap-1.5 text-sm px-2.5 py-1 rounded dark:bg-danger/10 light:bg-danger/5 text-danger">
                                     <span className="w-3 h-3 rounded-full bg-danger" />
                                     <span>{npc.name}</span>
                                   </div>
