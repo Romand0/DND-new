@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, Plus } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
 import type { Combatant } from '@/types/combat';
 import type { Character } from '@/types/character';
@@ -11,8 +11,16 @@ interface Props {
 
 export default function CombatantInfoPanel({ combatant, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'actions'>('info');
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setRefreshKey(k => k + 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const attacks = character?.attacks || [];
   const heldLeftId = character?.heldLeft?.equipmentId;
@@ -26,31 +34,37 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
     if (!character) return;
     const result = characterStore.holdItem(character.id, item.id!, hand);
     if (!result.success) alert(result.message);
+    setRefreshKey(k => k + 1);
   };
 
   const handleUnhold = (hand: 'left' | 'right' | 'both') => {
     if (!character) return;
     characterStore.unholdItem(character.id, hand);
+    setRefreshKey(k => k + 1);
   };
 
   const handleSetAction = (hand: 'left' | 'right' | 'both') => {
     if (!character) return;
     characterStore.setHandAction(character.id, hand);
+    setRefreshKey(k => k + 1);
   };
 
   const handleEndAction = (hand: 'left' | 'right' | 'both') => {
     if (!character) return;
     characterStore.endHandAction(character.id, hand);
+    setRefreshKey(k => k + 1);
   };
 
   const handleSetUnavailable = (hand: 'left' | 'right' | 'both') => {
     if (!character) return;
     characterStore.setHandUnavailable(character.id, hand);
+    setRefreshKey(k => k + 1);
   };
 
   const handleRestoreHand = (hand: 'left' | 'right' | 'both') => {
     if (!character) return;
     characterStore.restoreHand(character.id, hand);
+    setRefreshKey(k => k + 1);
   };
 
   const [selectingHand, setSelectingHand] = useState<'left' | 'right' | null>(null);
@@ -158,8 +172,8 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
 
               {attacks.length > 0 && (
                 <div>
-                  <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">可用攻击</div>
-                  <div className="space-y-1.5">
+                  <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">攻击</div>
+                  <div className="grid grid-cols-2 gap-1.5">
                     {attacks.map((attack) => {
                       const attackUsable = (() => {
                         const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
@@ -171,13 +185,13 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
                           key={attack.id}
                           className={`p-2 rounded-lg text-xs ${
                             attackUsable
-                              ? 'ring-1 ring-primary/60 dark:bg-primary/5 light:bg-primary/5'
-                              : 'dark:bg-bg-dark light:bg-bg-light-2'
+                              ? 'ring-1 ring-primary/60 dark:bg-primary/5 light:bg-primary/5 dark:text-text-dark light:text-text-light'
+                              : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted/60 light:text-text-light-muted/60 opacity-60'
                           }`}
                         >
-                          <div className="font-medium dark:text-text-dark light:text-text-light">{attack.name}</div>
-                          <div className="flex items-center gap-2 mt-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                            <span className="text-primary">{attack.attackBonus || '—'}</span>
+                          <div className="font-medium truncate">{attack.name}</div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className={attackUsable ? 'text-primary' : 'dark:text-text-dark-muted/60 light:text-text-light-muted/60'}>{attack.attackBonus || '—'}</span>
                             <span>·</span>
                             <span>{attack.damage || '—'}</span>
                           </div>
@@ -222,8 +236,8 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
                         ) : heldLeftItem ? (
                           <button onClick={() => handleUnhold('left')} className="px-1.5 py-0.5 text-xs rounded bg-danger/10 text-danger">放下</button>
                         ) : isReady && (
-                          <button onClick={() => setSelectingHand('left')} className="p-0.5 rounded bg-primary/10 text-primary">
-                            <X className="w-3 h-3" />
+                          <button onClick={() => setSelectingHand('left')} className="p-0.5 rounded bg-primary/10 text-primary" title="拿取装备">
+                            <Plus className="w-3 h-3" />
                           </button>
                         )}
                       </div>
@@ -267,8 +281,8 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
                         ) : heldRightItem ? (
                           <button onClick={() => handleUnhold('right')} className="px-1.5 py-0.5 text-xs rounded bg-danger/10 text-danger">放下</button>
                         ) : isReady && (
-                          <button onClick={() => setSelectingHand('right')} className="p-0.5 rounded bg-primary/10 text-primary">
-                            <X className="w-3 h-3" />
+                          <button onClick={() => setSelectingHand('right')} className="p-0.5 rounded bg-primary/10 text-primary" title="拿取装备">
+                            <Plus className="w-3 h-3" />
                           </button>
                         )}
                       </div>
@@ -307,31 +321,30 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
         </div>
 
         {selectingHand && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4">
-            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light p-3 w-full max-w-xs">
-              <div className="text-xs font-medium mb-2">选择装备</div>
-              <div className="flex gap-2 mb-2">
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectingHand(null)}>
+            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light p-4 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <div className="text-sm font-medium mb-3">选择装备</div>
+              <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => { handleSetAction(selectingHand); setSelectingHand(null); }}
-                  className="flex-1 py-1.5 text-xs rounded bg-accent/10 text-accent"
+                  className="flex-1 py-2 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
                 >动作</button>
                 <button
                   onClick={() => { handleSetUnavailable(selectingHand); setSelectingHand(null); }}
-                  className="flex-1 py-1.5 text-xs rounded bg-danger/10 text-danger"
+                  className="flex-1 py-2 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
                 >不可用</button>
               </div>
-              <div className="max-h-[150px] overflow-y-auto space-y-1">
+              <div className="max-h-[200px] overflow-y-auto space-y-1">
                 {holdableCandidates.map(item => (
                   <button
                     key={item.id}
                     onClick={() => handleHoldItemSelect(item)}
-                    className="w-full text-left p-2 text-xs rounded hover:bg-primary/10 dark:text-text-dark light:text-text-light"
+                    className="w-full text-left p-2.5 text-sm rounded hover:bg-primary/10 dark:text-text-dark light:text-text-light"
                   >
                     {item.name}
                   </button>
                 ))}
               </div>
-              <button onClick={() => setSelectingHand(null)} className="mt-2 w-full py-1.5 text-xs rounded border dark:border-border-dark light:border-border-light">取消</button>
             </div>
           </div>
         )}
