@@ -9,8 +9,9 @@ interface Props {
   templates?: NpcTemplate[];
 }
 
-const ABILITY_NAMES = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
-const ABILITY_LABELS: Record<string, string> = {
+const ABILITY_NAMES = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
+type AbilityKey = typeof ABILITY_NAMES[number];
+const ABILITY_LABELS: Record<AbilityKey, string> = {
   strength: '力量',
   dexterity: '敏捷',
   constitution: '体质',
@@ -23,8 +24,44 @@ const DAMAGE_TYPES = ['挥砍', '穿刺', '钝击', '火焰', '冰冻', '闪电'
 
 const WEAPON_PROPERTIES = ['灵巧', '重型', '轻型', '装填', '射程', '触及', '特殊', '双手', '投掷', '弹药', '多用'];
 
+/** 射程与投掷互斥 */
+const MUTUALLY_EXCLUSIVE: Record<string, string> = {
+  '射程': '投掷',
+  '投掷': '射程',
+};
+
 function calcModifier(score: number): number {
   return Math.floor((score - 10) / 2);
+}
+
+/** 数字输入辅助：允许编辑过程中为空字符串，blur 时回填 0 */
+function useNumberInput(initialValue: number) {
+  const [text, setText] = useState(String(initialValue));
+  const [value, setValue] = useState(initialValue);
+
+  const onChange = (s: string) => {
+    setText(s);
+    const n = parseInt(s, 10);
+    if (!isNaN(n)) setValue(n);
+  };
+
+  const onBlur = () => {
+    const n = parseInt(text, 10);
+    if (isNaN(n)) {
+      setText('0');
+      setValue(0);
+    } else {
+      setText(String(n));
+      setValue(n);
+    }
+  };
+
+  const setExternal = (n: number) => {
+    setText(String(n));
+    setValue(n);
+  };
+
+  return { text, value, onChange, onBlur, setExternal };
 }
 
 export default function NpcCreator({ onClose, onCreate, templates = [] }: Props) {
@@ -32,28 +69,39 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
   const [d20Input, setD20Input] = useState('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
 
-  const [formData, setFormData] = useState({
-    name: '',
-    strength: 10,
-    dexterity: 10,
-    constitution: 10,
-    intelligence: 10,
-    wisdom: 10,
-    charisma: 10,
-    maxHp: 10,
-    speed: 30,
-    ac: 10,
-    attacks: [] as NpcAttack[],
+  // 属性使用字符串状态，允许编辑过程中清空
+  const [abilityTexts, setAbilityTexts] = useState<Record<AbilityKey, string>>({
+    strength: '10',
+    dexterity: '10',
+    constitution: '10',
+    intelligence: '10',
+    wisdom: '10',
+    charisma: '10',
   });
 
-  const modifiers = {
-    strength: calcModifier(formData.strength),
-    dexterity: calcModifier(formData.dexterity),
-    constitution: calcModifier(formData.constitution),
-    intelligence: calcModifier(formData.intelligence),
-    wisdom: calcModifier(formData.wisdom),
-    charisma: calcModifier(formData.charisma),
+  const abilities: Record<AbilityKey, number> = {
+    strength: parseInt(abilityTexts.strength, 10) || 0,
+    dexterity: parseInt(abilityTexts.dexterity, 10) || 0,
+    constitution: parseInt(abilityTexts.constitution, 10) || 0,
+    intelligence: parseInt(abilityTexts.intelligence, 10) || 0,
+    wisdom: parseInt(abilityTexts.wisdom, 10) || 0,
+    charisma: parseInt(abilityTexts.charisma, 10) || 0,
   };
+
+  const modifiers: Record<AbilityKey, number> = {
+    strength: calcModifier(abilities.strength),
+    dexterity: calcModifier(abilities.dexterity),
+    constitution: calcModifier(abilities.constitution),
+    intelligence: calcModifier(abilities.intelligence),
+    wisdom: calcModifier(abilities.wisdom),
+    charisma: calcModifier(abilities.charisma),
+  };
+
+  const [name, setName] = useState('');
+  const hpInput = useNumberInput(10);
+  const speedInput = useNumberInput(30);
+  const acInput = useNumberInput(10);
+  const [attacks, setAttacks] = useState<NpcAttack[]>([]);
 
   const initiative = () => {
     const d20 = parseInt(d20Input, 10);
@@ -61,60 +109,76 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
     return d20 + modifiers.dexterity;
   };
 
-  const handleAbilityChange = (ability: string, value: number) => {
-    setFormData(prev => ({
-      ...prev,
-      [ability]: Math.max(1, Math.min(30, value)),
-    }));
+  const handleAbilityChange = (ability: AbilityKey, text: string) => {
+    setAbilityTexts(prev => ({ ...prev, [ability]: text }));
+  };
+
+  const handleAbilityBlur = (ability: AbilityKey) => {
+    const n = parseInt(abilityTexts[ability], 10);
+    if (isNaN(n)) {
+      setAbilityTexts(prev => ({ ...prev, [ability]: '0' }));
+    } else {
+      const clamped = Math.max(1, Math.min(30, n));
+      setAbilityTexts(prev => ({ ...prev, [ability]: String(clamped) }));
+    }
   };
 
   const addAttack = () => {
-    setFormData(prev => ({
-      ...prev,
-      attacks: [...prev.attacks, {
-        name: '',
-        attackBonus: '',
-        damage: '',
-        damageType: '挥砍',
-        range: '5 尺',
-        properties: [],
-      }],
-    }));
+    setAttacks(prev => [...prev, {
+      name: '',
+      attackBonus: '',
+      damage: '',
+      damageType: '挥砍',
+      range: '5 尺',
+      properties: [],
+    }]);
   };
 
   const removeAttack = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      attacks: prev.attacks.filter((_, i) => i !== index),
-    }));
+    setAttacks(prev => prev.filter((_, i) => i !== index));
   };
 
   const updateAttack = (index: number, field: keyof NpcAttack, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      attacks: prev.attacks.map((a, i) =>
-        i === index ? { ...a, [field]: value } : a
-      ),
-    }));
+    setAttacks(prev => prev.map((a, i) =>
+      i === index ? { ...a, [field]: value } : a
+    ));
   };
 
   const toggleAttackProperty = (index: number, prop: string) => {
-    setFormData(prev => ({
-      ...prev,
-      attacks: prev.attacks.map((a, i) => {
-        if (i !== index) return a;
-        return {
-          ...a,
-          properties: a.properties.includes(prop)
-            ? a.properties.filter(p => p !== prop)
-            : [...a.properties, prop],
-        };
-      }),
+    setAttacks(prev => prev.map((a, i) => {
+      if (i !== index) return a;
+      if (a.properties.includes(prop)) {
+        // 取消选中
+        return { ...a, properties: a.properties.filter(p => p !== prop) };
+      }
+      // 选中：移除互斥属性
+      const exclusive = MUTUALLY_EXCLUSIVE[prop];
+      let props = a.properties;
+      if (exclusive && props.includes(exclusive)) {
+        props = props.filter(p => p !== exclusive);
+      }
+      return { ...a, properties: [...props, prop] };
     }));
   };
 
+  // 攻击射程显示逻辑
+  const getAttackRangeDisplay = (attack: NpcAttack): {
+    showMelee: boolean;
+    showNormalMax: boolean;
+  } => {
+    const hasRange = attack.properties.includes('射程');
+    const hasThrown = attack.properties.includes('投掷');
+    const hasAmmo = attack.properties.includes('弹药');
+    // 射程属性 → 只显示常规/最大
+    if (hasRange) return { showMelee: false, showNormalMax: true };
+    // 投掷属性 → 显示近战 + 常规/最大
+    if (hasThrown || hasAmmo) return { showMelee: true, showNormalMax: true };
+    // 都没有 → 只显示近战射程
+    return { showMelee: true, showNormalMax: false };
+  };
+
   const handleCreate = () => {
-    if (!formData.name) {
+    if (!name) {
       alert('请输入 NPC 名称');
       return;
     }
@@ -124,31 +188,35 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
       return;
     }
 
+    const finalAbilities = {
+      strength: Math.max(1, Math.min(30, parseInt(abilityTexts.strength, 10) || 0)),
+      dexterity: Math.max(1, Math.min(30, parseInt(abilityTexts.dexterity, 10) || 0)),
+      constitution: Math.max(1, Math.min(30, parseInt(abilityTexts.constitution, 10) || 0)),
+      intelligence: Math.max(1, Math.min(30, parseInt(abilityTexts.intelligence, 10) || 0)),
+      wisdom: Math.max(1, Math.min(30, parseInt(abilityTexts.wisdom, 10) || 0)),
+      charisma: Math.max(1, Math.min(30, parseInt(abilityTexts.charisma, 10) || 0)),
+    };
+
     if (saveAsTemplate) {
       npcTemplateStore.create({
-        name: formData.name,
-        strength: formData.strength,
-        dexterity: formData.dexterity,
-        constitution: formData.constitution,
-        intelligence: formData.intelligence,
-        wisdom: formData.wisdom,
-        charisma: formData.charisma,
-        maxHp: formData.maxHp,
-        speed: formData.speed,
-        ac: formData.ac,
-        attacks: formData.attacks,
+        name,
+        ...finalAbilities,
+        maxHp: hpInput.value,
+        speed: speedInput.value,
+        ac: acInput.value,
+        attacks,
       });
     }
 
     onCreate({
-      name: formData.name,
-      initiative: d20 + modifiers.dexterity,
-      ac: formData.ac,
-      maxHp: formData.maxHp,
-      currentHp: formData.maxHp,
+      name,
+      initiative: d20 + calcModifier(finalAbilities.dexterity),
+      ac: acInput.value,
+      maxHp: hpInput.value,
+      currentHp: hpInput.value,
       isDead: false,
       isPc: false,
-      speed: formData.speed,
+      speed: speedInput.value,
       note: '',
     });
 
@@ -156,19 +224,19 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
   };
 
   const handleSelectTemplate = (template: NpcTemplate) => {
-    setFormData({
-      name: template.name,
-      strength: template.strength,
-      dexterity: template.dexterity,
-      constitution: template.constitution,
-      intelligence: template.intelligence,
-      wisdom: template.wisdom,
-      charisma: template.charisma,
-      maxHp: template.maxHp,
-      speed: template.speed,
-      ac: template.ac,
-      attacks: [...template.attacks],
+    setName(template.name);
+    setAbilityTexts({
+      strength: String(template.strength),
+      dexterity: String(template.dexterity),
+      constitution: String(template.constitution),
+      intelligence: String(template.intelligence),
+      wisdom: String(template.wisdom),
+      charisma: String(template.charisma),
     });
+    hpInput.setExternal(template.maxHp);
+    speedInput.setExternal(template.speed);
+    acInput.setExternal(template.ac);
+    setAttacks([...template.attacks]);
     setMode('create');
     setD20Input('');
   };
@@ -244,8 +312,8 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
             </label>
             <input
               type="text"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
               className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
               placeholder="例如：哥布林"
             />
@@ -263,19 +331,18 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
                   </label>
                   <input
                     type="number"
-                    min={1}
-                    max={30}
-                    value={formData[ability as 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma']}
-                    onChange={(e) => handleAbilityChange(ability, parseInt(e.target.value, 10) || 10)}
+                    value={abilityTexts[ability]}
+                    onChange={(e) => handleAbilityChange(ability, e.target.value)}
+                    onBlur={() => handleAbilityBlur(ability)}
                     className="flex-1 px-2 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
                   />
                   <span className={`text-xs font-bold w-6 text-center rounded ${
-                    modifiers[ability as keyof typeof modifiers] >= 0
+                    modifiers[ability] >= 0
                       ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                       : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                   }`}>
-                    {modifiers[ability as keyof typeof modifiers] >= 0 ? '+' : ''}
-                    {modifiers[ability as keyof typeof modifiers]}
+                    {modifiers[ability] >= 0 ? '+' : ''}
+                    {modifiers[ability]}
                   </span>
                 </div>
               ))}
@@ -289,9 +356,9 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
               </label>
               <input
                 type="number"
-                min={1}
-                value={formData.ac}
-                onChange={(e) => setFormData(prev => ({ ...prev, ac: parseInt(e.target.value, 10) || 10 }))}
+                value={acInput.text}
+                onChange={(e) => acInput.onChange(e.target.value)}
+                onBlur={acInput.onBlur}
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
               />
             </div>
@@ -301,9 +368,9 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
               </label>
               <input
                 type="number"
-                min={1}
-                value={formData.maxHp}
-                onChange={(e) => setFormData(prev => ({ ...prev, maxHp: parseInt(e.target.value, 10) || 10 }))}
+                value={hpInput.text}
+                onChange={(e) => hpInput.onChange(e.target.value)}
+                onBlur={hpInput.onBlur}
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
               />
             </div>
@@ -313,9 +380,9 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
               </label>
               <input
                 type="number"
-                min={1}
-                value={formData.speed}
-                onChange={(e) => setFormData(prev => ({ ...prev, speed: parseInt(e.target.value, 10) || 30 }))}
+                value={speedInput.text}
+                onChange={(e) => speedInput.onChange(e.target.value)}
+                onBlur={speedInput.onBlur}
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
               />
             </div>
@@ -325,87 +392,129 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
             <label className="block text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
               攻击方式
             </label>
-            {formData.attacks.length > 0 && (
+            {attacks.length > 0 && (
               <div className="space-y-3 mb-3">
-                {formData.attacks.map((attack, index) => (
-                  <div key={index} className="p-3 rounded-lg border dark:border-border-dark light:border-border-light">
-                    <div className="flex items-center justify-between mb-2">
-                      <input
-                        type="text"
-                        value={attack.name}
-                        onChange={(e) => updateAttack(index, 'name', e.target.value)}
-                        className="flex-1 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                        placeholder="攻击名称"
-                      />
-                      <button
-                        onClick={() => removeAttack(index)}
-                        className="ml-2 p-1 rounded text-danger hover:bg-danger/10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="dark:text-text-dark-muted light:text-text-light-muted">攻击加值</label>
+                {attacks.map((attack, index) => {
+                  const rangeDisplay = getAttackRangeDisplay(attack);
+                  return (
+                    <div key={index} className="p-3 rounded-lg border dark:border-border-dark light:border-border-light">
+                      <div className="flex items-center justify-between mb-2">
                         <input
                           type="text"
-                          value={attack.attackBonus}
-                          onChange={(e) => updateAttack(index, 'attackBonus', e.target.value)}
-                          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
-                          placeholder="+5"
+                          value={attack.name}
+                          onChange={(e) => updateAttack(index, 'name', e.target.value)}
+                          className="flex-1 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                          placeholder="攻击名称"
                         />
-                      </div>
-                      <div>
-                        <label className="dark:text-text-dark-muted light:text-text-light-muted">伤害</label>
-                        <input
-                          type="text"
-                          value={attack.damage}
-                          onChange={(e) => updateAttack(index, 'damage', e.target.value)}
-                          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
-                          placeholder="1d8+3"
-                        />
-                      </div>
-                      <div>
-                        <label className="dark:text-text-dark-muted light:text-text-light-muted">伤害类型</label>
-                        <select
-                          value={attack.damageType}
-                          onChange={(e) => updateAttack(index, 'damageType', e.target.value)}
-                          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
-                        >
-                          {DAMAGE_TYPES.map(t => (
-                            <option key={t} value={t}>{t}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="dark:text-text-dark-muted light:text-text-light-muted">射程</label>
-                        <input
-                          type="text"
-                          value={attack.range}
-                          onChange={(e) => updateAttack(index, 'range', e.target.value)}
-                          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
-                          placeholder="5 尺"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {WEAPON_PROPERTIES.map(prop => (
                         <button
-                          key={prop}
                           type="button"
-                          onClick={() => toggleAttackProperty(index, prop)}
-                          className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
-                            attack.properties.includes(prop)
-                              ? 'bg-primary/10 text-primary border-primary/30'
-                              : 'dark:border-border-dark dark:text-text-dark-muted light:border-border-light light:text-text-light-muted'
-                          }`}
+                          onClick={() => removeAttack(index)}
+                          className="ml-2 p-1 rounded text-danger hover:bg-danger/10"
                         >
-                          {prop}
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="dark:text-text-dark-muted light:text-text-light-muted">攻击加值</label>
+                          <input
+                            type="text"
+                            value={attack.attackBonus}
+                            onChange={(e) => updateAttack(index, 'attackBonus', e.target.value)}
+                            className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+                            placeholder="+5"
+                          />
+                        </div>
+                        <div>
+                          <label className="dark:text-text-dark-muted light:text-text-light-muted">伤害</label>
+                          <input
+                            type="text"
+                            value={attack.damage}
+                            onChange={(e) => updateAttack(index, 'damage', e.target.value)}
+                            className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+                            placeholder="1d8+3"
+                          />
+                        </div>
+                        <div>
+                          <label className="dark:text-text-dark-muted light:text-text-light-muted">伤害类型</label>
+                          <select
+                            value={attack.damageType}
+                            onChange={(e) => updateAttack(index, 'damageType', e.target.value)}
+                            className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+                          >
+                            {DAMAGE_TYPES.map(t => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                        {rangeDisplay.showMelee && (
+                          <div>
+                            <label className="dark:text-text-dark-muted light:text-text-light-muted">近战射程</label>
+                            <input
+                              type="text"
+                              value={attack.range}
+                              onChange={(e) => updateAttack(index, 'range', e.target.value)}
+                              className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+                              placeholder="5 尺"
+                            />
+                          </div>
+                        )}
+                      </div>
+                      {rangeDisplay.showNormalMax && (
+                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
+                          <div>
+                            <label className="dark:text-text-dark-muted light:text-text-light-muted">常规射程</label>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={attack.normalRange ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                                  updateAttack(index, 'normalRange', v);
+                                }}
+                                className="flex-1 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+                                placeholder="20"
+                              />
+                              <span className="dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
+                            </div>
+                          </div>
+                          <div>
+                            <label className="dark:text-text-dark-muted light:text-text-light-muted">最大射程</label>
+                            <div className="flex items-center gap-1">
+                              <input
+                                type="number"
+                                value={attack.maxRange ?? ''}
+                                onChange={(e) => {
+                                  const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                                  updateAttack(index, 'maxRange', v);
+                                }}
+                                className="flex-1 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+                                placeholder="60"
+                              />
+                              <span className="dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {WEAPON_PROPERTIES.map(prop => (
+                          <button
+                            key={prop}
+                            type="button"
+                            onClick={() => toggleAttackProperty(index, prop)}
+                            className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                              attack.properties.includes(prop)
+                                ? 'bg-primary/10 text-primary border-primary/30'
+                                : 'dark:border-border-dark dark:text-text-dark-muted light:border-border-light light:text-text-light-muted'
+                            }`}
+                          >
+                            {prop}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             <button
@@ -471,7 +580,7 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
             </button>
             <button
               onClick={handleCreate}
-              disabled={!formData.name || isNaN(parseInt(d20Input, 10))}
+              disabled={!name || isNaN(parseInt(d20Input, 10))}
               className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1"
             >
               <Save className="w-4 h-4" />

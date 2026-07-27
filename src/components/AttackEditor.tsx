@@ -151,12 +151,26 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
   };
 
   const toggleProperty = (prop: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      properties: prev.properties.includes(prop)
-        ? prev.properties.filter((p) => p !== prop)
-        : [...prev.properties, prop],
-    }));
+    setFormData((prev) => {
+      if (prev.properties.includes(prop)) {
+        // 取消选中
+        return {
+          ...prev,
+          properties: prev.properties.filter((p) => p !== prop),
+        };
+      }
+      // 选中：移除互斥属性（射程 ↔ 投掷）
+      let props = prev.properties;
+      if (prop === '射程' && props.includes('投掷')) {
+        props = props.filter((p) => p !== '投掷');
+      } else if (prop === '投掷' && props.includes('射程')) {
+        props = props.filter((p) => p !== '射程');
+      }
+      return {
+        ...prev,
+        properties: [...props, prop],
+      };
+    });
   };
 
   const addCustomProperty = () => {
@@ -324,6 +338,15 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
     const subtype = formData.subtype || originalSubtype || buildSubtype(weaponRangeType, weaponProfType);
     return subtype.includes('远程') || formData.properties.includes('远程');
   }, [formData.subtype, formData.properties, originalSubtype, weaponRangeType, weaponProfType]);
+
+  // 射程显示规则（基于属性）：
+  // 射程属性 → 只显示常规/最大射程
+  // 投掷属性 → 显示近战射程 + 常规/最大射程
+  // 都无 → 只显示近战射程（或远程武器子类型也只显示常规/最大）
+  const hasRangeProp = formData.properties.includes('射程');
+  const hasThrownProp = formData.properties.includes('投掷');
+  const showMeleeRange = !isRangedWeapon && !hasRangeProp;
+  const showNormalMaxRange = isRangedWeapon || hasRangeProp || hasThrownProp || formData.properties.includes('弹药');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -563,7 +586,7 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
                 />
               )}
             </div>
-            {!isRangedWeapon && (
+            {showMeleeRange && (
               <div>
                 <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
                   近战射程
@@ -579,8 +602,8 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
             )}
           </div>
 
-          {/* 远程武器/投掷/弹药 射程拆分编辑（常规/最大） */}
-          {(isRangedWeapon || formData.properties.includes('投掷') || formData.properties.includes('弹药')) && (
+          {/* 远程武器/射程/投掷/弹药 射程拆分编辑（常规/最大） */}
+          {showNormalMaxRange && (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
