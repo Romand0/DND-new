@@ -10,9 +10,10 @@ const DAMAGE_TYPES = [
 ];
 
 // 规则属性：灵巧、重型、轻型、装填、射程、触及、特殊、双手
-// 投掷、弹药、多用会在 parseWeaponData 中标准化为这几个基础属性，并拆分出射程/双手伤害
+// 加上从 Equipment.properties 解析出的：投掷、弹药、多用
 const WEAPON_PROPERTIES = [
-  '灵巧', '重型', '轻型', '装填', '射程', '触及', '特殊', '双手'
+  '灵巧', '重型', '轻型', '装填', '射程', '触及', '特殊', '双手',
+  '投掷', '弹药', '多用'
 ];
 
 interface AttackEditorProps {
