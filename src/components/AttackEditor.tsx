@@ -54,8 +54,14 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
   const [weaponRangeType, setWeaponRangeType] = useState<'melee' | 'ranged' | ''>('');
   // 自定义武器的分类：简易/军用/其他
   const [weaponProfType, setWeaponProfType] = useState<'simple' | 'martial' | ''>('');
-  // 原始武器 subtype（从装备抓取时如实展示用）
-  const [originalSubtype, setOriginalSubtype] = useState<string>('');
+  // 原始武器 subtype（从装备抓取时如实展示用，保存后重新打开时也用于判断来源）
+  const [originalSubtype, setOriginalSubtype] = useState<string>(attack?.subtype || '');
+
+  useEffect(() => {
+    if (attack?.subtype) {
+      setOriginalSubtype(attack.subtype);
+    }
+  }, [attack?.subtype]);
 
   // 将 weaponRangeType + weaponProfType 合成为 subtype（仅自定义武器用）
   const buildSubtype = (range: string, prof: string): string => {
@@ -314,6 +320,11 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
 
   const isCustomDamageType = !DAMAGE_TYPES.includes(formData.damageType);
 
+  const isRangedWeapon = useMemo(() => {
+    const subtype = formData.subtype || originalSubtype || buildSubtype(weaponRangeType, weaponProfType);
+    return subtype.includes('远程') || formData.properties.includes('远程');
+  }, [formData.subtype, formData.properties, originalSubtype, weaponRangeType, weaponProfType]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
@@ -356,14 +367,14 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
           </div>
 
           {/* 武器分类：从装备抓取时如实展示；自定义武器时拆分选择 */}
-          {selectedWeapon ? (
+          {originalSubtype ? (
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
                 武器分类
               </label>
               <div className="px-3 py-2 rounded-lg border bg-transparent dark:border-border-dark light:border-border-light">
                 <span className="text-sm dark:text-text-dark light:text-text-light">
-                  {originalSubtype || '未分类'}
+                  {originalSubtype}
                 </span>
               </div>
             </div>
@@ -552,22 +563,24 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
                 />
               )}
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                射程
-              </label>
-              <input
-                type="text"
-                value={formData.range}
-                onChange={(e) => setFormData({ ...formData, range: e.target.value })}
-                placeholder="5 尺"
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              />
-            </div>
+            {!isRangedWeapon && (
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  近战射程
+                </label>
+                <input
+                  type="text"
+                  value={formData.range}
+                  onChange={(e) => setFormData({ ...formData, range: e.target.value })}
+                  placeholder="5 尺"
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+              </div>
+            )}
           </div>
 
-          {/* 投掷/弹药 射程拆分编辑（常规/最大） */}
-          {(formData.properties.includes('投掷') || formData.properties.includes('弹药')) && (
+          {/* 远程武器/投掷/弹药 射程拆分编辑（常规/最大） */}
+          {(isRangedWeapon || formData.properties.includes('投掷') || formData.properties.includes('弹药')) && (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
