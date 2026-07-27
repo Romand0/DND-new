@@ -21,6 +21,7 @@ import {
   MoreHorizontal,
   Minus,
   ArrowLeft,
+  Hand,
 } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import EquipmentPicker from '@/components/EquipmentPicker';
@@ -70,6 +71,10 @@ export default function CharacterInventory({
   const [viewMode, setViewMode] = useState<'inventory' | 'equipped'>('inventory');
   // 新增：选择弹窗状态
   const [selectingSlot, setSelectingSlot] = useState<'armor' | 'outfit' | null>(null);
+  // 手持选择弹窗状态
+  const [selectingHand, setSelectingHand] = useState<'left' | 'right' | null>(null);
+  // 动作占位符标识
+  const ACTION_MARKER = '__action__';
 
   useEditorState(equipmentEditorOpen, equipmentPickerOpen);
 
@@ -208,6 +213,71 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
   const outfitItem = character.equipment.find(e => (e.childId || e.id) === character.wornOutfitId);
   const armorCandidates = character.equipment.filter(e => e.category === '护甲');
   const outfitCandidates = character.equipment.filter(e => e.category === '杂物' && e.subtype === '服装');
+
+  // 手持物品
+  const heldLeftItem = character.equipment.find(e => (e.childId || e.id) === character.heldLeftId);
+  const heldRightItem = character.equipment.find(e => (e.childId || e.id) === character.heldRightId);
+  const isLeftAction = character.heldLeftId === ACTION_MARKER;
+  const isRightAction = character.heldRightId === ACTION_MARKER;
+
+  // 判断是否为双手武器
+  const isTwoHandedWeapon = (item: Equipment): boolean => {
+    if (!item.properties) return false;
+    return item.properties.includes('双手');
+  };
+
+  // 可手持的装备候选（排除已穿戴的盔甲/服装，以及已在另一只手上的装备）
+  const holdableCandidates = useMemo(() => {
+    const otherHandId = selectingHand === 'left' ? character.heldRightId : character.heldLeftId;
+    return character.equipment.filter(item => {
+      const slotId = item.childId || item.id;
+      // 已穿戴的盔甲/服装不能手持
+      if (character.wornArmorId === slotId) return false;
+      if (character.wornOutfitId === slotId) return false;
+      // 如果另一只手是双手武器，不能再手持
+      if (otherHandId && otherHandId !== ACTION_MARKER) {
+        const otherItem = character.equipment.find(e => (e.childId || e.id) === otherHandId);
+        if (otherItem && isTwoHandedWeapon(otherItem)) return false;
+      }
+      // 如果当前装备是双手武器，需要两只手都空
+      if (isTwoHandedWeapon(item) && otherHandId && otherHandId !== slotId) return false;
+      return true;
+    });
+  }, [character.equipment, character.wornArmorId, character.wornOutfitId, character.heldLeftId, character.heldRightId, selectingHand]);
+
+  // 手持选择处理
+  const handleHoldSelect = (item: Equipment) => {
+    if (!id || !selectingHand) return;
+    const result = characterStore.holdItem(id, item.id!, selectingHand);
+    if (result.success) {
+      reloadChar();
+      setSelectingHand(null);
+    } else {
+      alert(result.message);
+    }
+  };
+
+  // 放下手持物品
+  const handleUnhold = (hand: 'left' | 'right' | 'both') => {
+    if (!id) return;
+    const result = characterStore.unholdItem(id, hand);
+    if (result.success) {
+      reloadChar();
+    } else {
+      alert(result.message);
+    }
+  };
+
+  // 设置动作占位符
+  const handleSetAction = (hand: 'left' | 'right' | 'both') => {
+    if (!id) return;
+    const result = characterStore.setActionPlaceholder(id, hand);
+    if (result.success) {
+      reloadChar();
+    } else {
+      alert(result.message);
+    }
+  };
 
   return (
     <div className={`min-h-screen flex dark:bg-bg-dark light:bg-bg-light-1 ${readOnly ? 'read-only-mode' : ''}`}>
@@ -463,6 +533,132 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
               )}
             </div>
 
+            {/* 手持槽 */}
+            <div className="rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Hand className="w-5 h-5 text-warning" />
+                  <span className="font-semibold dark:text-text-dark light:text-text-light">手持装备</span>
+                </div>
+                <div className="flex gap-2">
+                  {(heldLeftItem || isLeftAction || heldRightItem || isRightAction) && (
+                    <button
+                      onClick={() => handleUnhold('both')}
+                      className="px-3 py-1 text-xs rounded-lg bg-danger/10 text-danger hover:bg-danger/20"
+                    >
+                      全部放下
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {/* 左手 */}
+                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">左手</span>
+                    {!readOnly && (
+                      <div className="flex gap-1">
+                        {!heldLeftItem && !isLeftAction && (
+                          <button
+                            onClick={() => handleSetAction('left')}
+                            className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
+                            title="设置动作占位"
+                          >
+                            动作
+                          </button>
+                        )}
+                        {(heldLeftItem || isLeftAction) && (
+                          <button
+                            onClick={() => handleUnhold('left')}
+                            className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                          >
+                            放下
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {heldLeftItem ? (
+                    <button
+                      onClick={() => !readOnly && setSelectingHand('left')}
+                      className="w-full text-left"
+                    >
+                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{heldLeftItem.name}</div>
+                      {isTwoHandedWeapon(heldLeftItem) && (
+                        <div className="text-xs text-primary mt-1">双手武器</div>
+                      )}
+                    </button>
+                  ) : isLeftAction ? (
+                    <button
+                      onClick={() => !readOnly && handleUnhold('left')}
+                      className="w-full text-left"
+                    >
+                      <div className="text-sm font-medium text-accent">动作中...</div>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => !readOnly && setSelectingHand('left')}
+                      className="w-full text-left py-2 text-sm italic dark:text-text-dark-muted light:text-text-light-muted hover:text-primary"
+                    >
+                      + 选择装备
+                    </button>
+                  )}
+                </div>
+                {/* 右手 */}
+                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">右手</span>
+                    {!readOnly && (
+                      <div className="flex gap-1">
+                        {!heldRightItem && !isRightAction && (
+                          <button
+                            onClick={() => handleSetAction('right')}
+                            className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
+                            title="设置动作占位"
+                          >
+                            动作
+                          </button>
+                        )}
+                        {(heldRightItem || isRightAction) && (
+                          <button
+                            onClick={() => handleUnhold('right')}
+                            className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                          >
+                            放下
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  {heldRightItem ? (
+                    <button
+                      onClick={() => !readOnly && setSelectingHand('right')}
+                      className="w-full text-left"
+                    >
+                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{heldRightItem.name}</div>
+                      {isTwoHandedWeapon(heldRightItem) && (
+                        <div className="text-xs text-primary mt-1">双手武器</div>
+                      )}
+                    </button>
+                  ) : isRightAction ? (
+                    <button
+                      onClick={() => !readOnly && handleUnhold('right')}
+                      className="w-full text-left"
+                    >
+                      <div className="text-sm font-medium text-accent">动作中...</div>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => !readOnly && setSelectingHand('right')}
+                      className="w-full text-left py-2 text-sm italic dark:text-text-dark-muted light:text-text-light-muted hover:text-primary"
+                    >
+                      + 选择装备
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* 当前 AC */}
             <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">
               当前护甲等级：<span className="font-bold text-xl dark:text-text-dark light:text-text-light">{character.armorClass}</span>
@@ -498,6 +694,54 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
                   </div>
                   <button
                     onClick={() => setSelectingSlot(null)}
+                    className="mt-4 w-full py-2 text-sm rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+                  >
+                    取消
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 手持装备选择弹窗 */}
+            {selectingHand && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                <div className="absolute inset-0 bg-black/50" onClick={() => setSelectingHand(null)} />
+                <div className="relative w-full max-w-md rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6 max-h-[80vh] overflow-y-auto">
+                  <h3 className="text-lg font-bold mb-4 dark:text-text-dark light:text-text-light">
+                    选择{selectingHand === 'left' ? '左手' : '右手'}装备
+                  </h3>
+                  <div className="space-y-2">
+                    {holdableCandidates.length === 0 ? (
+                      <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
+                        背包中没有可手持的装备
+                      </div>
+                    ) : (
+                      holdableCandidates.map(item => {
+                        const keyId = item.childId || item.id;
+                        const twoHanded = isTwoHandedWeapon(item);
+                        return (
+                          <button
+                            key={keyId}
+                            onClick={() => handleHoldSelect(item)}
+                            className="w-full text-left p-3 rounded-lg hover:bg-primary/10 transition-colors dark:text-text-dark light:text-text-light"
+                          >
+                            <div className="font-medium flex items-center gap-2">
+                              {item.name}
+                              {twoHanded && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">双手</span>
+                              )}
+                            </div>
+                            <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                              {item.category || '—'}
+                              {item.subtype && ` · ${item.subtype}`}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setSelectingHand(null)}
                     className="mt-4 w-full py-2 text-sm rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
                   >
                     取消

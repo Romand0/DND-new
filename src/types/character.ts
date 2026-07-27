@@ -190,6 +190,10 @@ export interface Character {
   wornArmorId: string | null;
   /** 当前穿戴的服装引用 —— 优先存 childId，回退兼容 id */
   wornOutfitId: string | null;
+  /** 左手手持槽 —— 装备 childId 或 '__action__' 表示动作占位 */
+  heldLeftId: string | null;
+  /** 右手手持槽 —— 装备 childId 或 '__action__' 表示动作占位 */
+  heldRightId: string | null;
 }
 
 export type AbilityKey = keyof Abilities;

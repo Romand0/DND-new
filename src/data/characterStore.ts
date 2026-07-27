@@ -42,6 +42,9 @@ function migrateCharacter(char: any): Character {
       properties: attack.properties || [],
     }));
   }
+  // 迁移：添加手持槽位
+  if (char.heldLeftId === undefined) char.heldLeftId = null;
+  if (char.heldRightId === undefined) char.heldRightId = null;
   return char as Character;
 }
 
@@ -54,7 +57,8 @@ function migrateStore(chars: any[]): Character[] {
     const missingNewAttackFields = char.attacks?.some((a: any) =>
       !('attackBonus' in a) || !('damageType' in a) || !('range' in a) || !('properties' in a)
     );
-    if (hasOldAttackFields || missingNewAttackFields) {
+    const missingHeldSlots = char.heldLeftId === undefined || char.heldRightId === undefined;
+    if (hasOldAttackFields || missingNewAttackFields || missingHeldSlots) {
       migrated = true;
       return migrateCharacter(char);
     }
@@ -300,6 +304,8 @@ function createBlankCharacter(name?: string): Character {
     
     wornArmorId: null,
     wornOutfitId: null,
+    heldLeftId: null,
+    heldRightId: null,
 
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -561,6 +567,14 @@ function deleteEquipment(charId: string, equipId: string): void {
   if (char.wornOutfitId === removed.id || char.wornOutfitId === removed.childId) {
     char.wornOutfitId = null;
   }
+  // 如果被删除的装备正在手持，清槽位
+  const removedSlotId = removed.childId || removed.id;
+  if (char.heldLeftId === removedSlotId) {
+    char.heldLeftId = null;
+  }
+  if (char.heldRightId === removedSlotId) {
+    char.heldRightId = null;
+  }
   char.equipment.splice(index, 1);
   saveCharacter(char as Character);
 }
@@ -730,6 +744,172 @@ function recalculateArmorClass(char: Character): void {
 
   // 无护甲或找不到护甲 → 裸体 AC
   char.armorClass = 10 + dexMod;
+}
+
+// ============================================================
+// 手持装备管理
+// ============================================================
+
+/** 判断装备是否为双手武器 */
+function isTwoHandedWeapon(item: Equipment): boolean {
+  if (!item.properties) return false;
+  return item.properties.includes('双手') || item.properties.includes('重型') && item.properties.includes('双手');
+}
+
+/** 判断装备是否可以手持（已穿戴的盔甲/服装不能手持） */
+function canBeHeld(char: Character, item: Equipment): boolean {
+  const slotId = item.childId || item.id;
+  // 已穿戴的盔甲/服装不能手持
+  if (char.wornArmorId === slotId) return false;
+  if (char.wornOutfitId === slotId) return false;
+  return true;
+}
+
+/**
+ * 手持物品
+ * @param charId 角色 ID
+ * @param equipId 装备 ID（优先 childId，回退 id）
+ * @param hand 'left' | 'right' | 'auto' 优先放入的手，auto 表示自动选择
+ * @returns { success: boolean; message: string }
+ */
+function holdItem(
+  charId: string,
+  equipId: string,
+  hand: 'left' | 'right' | 'auto' = 'auto'
+): { success: boolean; message: string } {
+  const char = getCharacter(charId);
+  if (!char) return { success: false, message: '角色不存在' };
+
+  const equip = char.equipment.find(e => e.childId === equipId || e.id === equipId);
+  if (!equip) return { success: false, message: '装备不存在' };
+
+  if (!canBeHeld(char, equip)) {
+    return { success: false, message: '已穿戴的盔甲/服装不能手持' };
+  }
+
+  const slotId = equip.childId || equip.id;
+  const twoHanded = isTwoHandedWeapon(equip);
+
+  // 如果装备已经在某只手上，直接返回成功
+  if (char.heldLeftId === slotId || char.heldRightId === slotId) {
+    return { success: true, message: `${equip.name} 已在手中` };
+  }
+
+  if (twoHanded) {
+    // 双手武器需要同时占用两个槽
+    if (char.heldLeftId && char.heldLeftId !== slotId) {
+      return { success: false, message: '双手武器需要两只手都空闲' };
+    }
+    if (char.heldRightId && char.heldRightId !== slotId) {
+      return { success: false, message: '双手武器需要两只手都空闲' };
+    }
+    char.heldLeftId = slotId;
+    char.heldRightId = slotId;
+    saveCharacter(char as Character);
+    return { success: true, message: `${equip.name} 已双手握持` };
+  }
+
+  // 单手武器
+  if (hand === 'auto') {
+    // 自动选择：优先右手，其次左手
+    if (!char.heldRightId) {
+      char.heldRightId = slotId;
+      saveCharacter(char as Character);
+      return { success: true, message: `${equip.name} 已持于右手` };
+    } else if (!char.heldLeftId) {
+      char.heldLeftId = slotId;
+      saveCharacter(char as Character);
+      return { success: true, message: `${equip.name} 已持于左手` };
+    } else {
+      return { success: false, message: '两只手都已占用' };
+    }
+  } else if (hand === 'right') {
+    if (char.heldRightId) {
+      return { success: false, message: '右手已被占用' };
+    }
+    char.heldRightId = slotId;
+    saveCharacter(char as Character);
+    return { success: true, message: `${equip.name} 已持于右手` };
+  } else {
+    if (char.heldLeftId) {
+      return { success: false, message: '左手已被占用' };
+    }
+    char.heldLeftId = slotId;
+    saveCharacter(char as Character);
+    return { success: true, message: `${equip.name} 已持于左手` };
+  }
+}
+
+/**
+ * 放下手中的物品
+ * @param charId 角色 ID
+ * @param hand 'left' | 'right' | 'both' 要放下的手
+ * @returns { success: boolean; message: string }
+ */
+function unholdItem(
+  charId: string,
+  hand: 'left' | 'right' | 'both'
+): { success: boolean; message: string } {
+  const char = getCharacter(charId);
+  if (!char) return { success: false, message: '角色不存在' };
+
+  let count = 0;
+  if (hand === 'left' || hand === 'both') {
+    if (char.heldLeftId) {
+      char.heldLeftId = null;
+      count++;
+    }
+  }
+  if (hand === 'right' || hand === 'both') {
+    if (char.heldRightId) {
+      char.heldRightId = null;
+      count++;
+    }
+  }
+
+  if (count === 0) {
+    return { success: false, message: '手中没有物品' };
+  }
+
+  saveCharacter(char as Character);
+  return { success: true, message: `已放下 ${count} 件物品` };
+}
+
+/**
+ * 设置动作占位符（用于表达一些特殊情况）
+ * @param charId 角色 ID
+ * @param hand 'left' | 'right' | 'both' 要设置的手
+ * @returns { success: boolean; message: string }
+ */
+function setActionPlaceholder(
+  charId: string,
+  hand: 'left' | 'right' | 'both'
+): { success: boolean; message: string } {
+  const char = getCharacter(charId);
+  if (!char) return { success: false, message: '角色不存在' };
+
+  const ACTION_MARKER = '__action__';
+  let count = 0;
+
+  if (hand === 'left' || hand === 'both') {
+    if (!char.heldLeftId) {
+      char.heldLeftId = ACTION_MARKER;
+      count++;
+    }
+  }
+  if (hand === 'right' || hand === 'both') {
+    if (!char.heldRightId) {
+      char.heldRightId = ACTION_MARKER;
+      count++;
+    }
+  }
+
+  if (count === 0) {
+    return { success: false, message: '该手已被占用' };
+  }
+
+  saveCharacter(char as Character);
+  return { success: true, message: `已设置 ${count} 个动作占位` };
 }
 
 
@@ -1475,5 +1655,10 @@ export const characterStore = {
     // 穿戴/卸下
   wearEquipment,
   unwearEquipment,
+
+  // 手持/放下
+  holdItem,
+  unholdItem,
+  setActionPlaceholder,
 
 };
