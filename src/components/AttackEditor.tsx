@@ -41,17 +41,17 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
   const [finesseChoice, setFinesseChoice] = useState<'strength' | 'dexterity' | null>(null);
   // 用户是否手动编辑过 attackBonus（防止自动计算覆盖）
   const [hasManualEditedBonus, setHasManualEditedBonus] = useState(false);
+  // 用户是否手动编辑过 damageBonus
+  const [hasManualEditedDamageBonus, setHasManualEditedDamageBonus] = useState(false);
 
-  // 武器分类：近战/远程（必须选择）
-  const [weaponRangeType, setWeaponRangeType] = useState<'melee' | 'ranged' | ''>(
-    attack?.subtype?.includes('远程') ? 'ranged' : attack?.subtype?.includes('近战') ? 'melee' : ''
-  );
-  // 武器分类：简易/军用/空置
-  const [weaponProfType, setWeaponProfType] = useState<'simple' | 'martial' | ''>(
-    attack?.subtype?.includes('简易') ? 'simple' : attack?.subtype?.includes('军用') ? 'martial' : ''
-  );
+  // 自定义武器的分类：近战/远程（必须选择）
+  const [weaponRangeType, setWeaponRangeType] = useState<'melee' | 'ranged' | ''>('');
+  // 自定义武器的分类：简易/军用/空置
+  const [weaponProfType, setWeaponProfType] = useState<'simple' | 'martial' | ''>('');
+  // 原始武器 subtype（从装备抓取时如实展示用）
+  const [originalSubtype, setOriginalSubtype] = useState<string>('');
 
-  // 将 weaponRangeType + weaponProfType 合成为 subtype
+  // 将 weaponRangeType + weaponProfType 合成为 subtype（仅自定义武器用）
   const buildSubtype = (range: string, prof: string): string => {
     if (!range) return '';
     const rangeLabel = range === 'ranged' ? '远程' : '近战';
@@ -60,12 +60,25 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
     return profLabel + rangeLabel;
   };
 
+  // 解析武器子分类为 { range, prof } 两部分（仅自定义武器 UI 使用）
+  // 已知装备库的 subtype 取值: '简易武器' | '军用武器' | '远程武器' | '近战武器' | 其他自定义
+  const parseSubtypeForUI = (subtype: string): { range: 'melee' | 'ranged' | ''; prof: 'simple' | 'martial' | '' } => {
+    if (!subtype) return { range: '', prof: '' };
+    let range: 'melee' | 'ranged' | '' = '';
+    let prof: 'simple' | 'martial' | '' = '';
+    if (subtype.includes('远程')) range = 'ranged';
+    else if (subtype.includes('近战')) range = 'melee';
+    if (subtype.includes('简易')) prof = 'simple';
+    else if (subtype.includes('军用')) prof = 'martial';
+    return { range, prof };
+  };
+
   // 攻击加值预览（基于当前武器属性 + 角色）
   // 自定义武器：必须选定 weaponRangeType 才计算；从装备抓取：直接计算
   const attackBonusPreview = useMemo(() => {
     if (!character) return null;
     const isFromEquipment = !!selectedWeapon;
-    const subtype = formData.subtype || selectedWeapon?.subtype || buildSubtype(weaponRangeType, weaponProfType);
+    const subtype = formData.subtype || originalSubtype || buildSubtype(weaponRangeType, weaponProfType);
     // 自定义武器未选分类 → 不自动计算
     if (!isFromEquipment && !weaponRangeType) return null;
     const weapon = {
@@ -74,7 +87,7 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
       properties: formData.properties,
     };
     return calcAttackBonus(weapon, character, finesseChoice || undefined);
-  }, [character, selectedWeapon, formData.name, formData.subtype, formData.properties, weaponRangeType, weaponProfType, finesseChoice]);
+  }, [character, selectedWeapon, formData.name, formData.subtype, formData.properties, weaponRangeType, weaponProfType, finesseChoice, originalSubtype]);
 
   // 预览变化时同步 attackBonus 字段（仅在有 character 且用户未手动编辑时）
   useEffect(() => {
@@ -85,6 +98,36 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
       }));
     }
   }, [attackBonusPreview, hasManualEditedBonus]);
+
+  // 伤害骰拆解：基础伤害骰（如 1d4）+ 伤害加值（如 +2）
+  // 解析形如 "1d8+3" / "1d8 +3" / "1d8" / "2d6-1"
+  const parseDamage = (damage: string): { dice: string; bonus: number } => {
+    if (!damage) return { dice: '', bonus: 0 };
+    const match = damage.match(/^(\d+d\d+)\s*([+-]\s*\d+)?$/);
+    if (!match) return { dice: damage, bonus: 0 };
+    const dice = match[1];
+    const bonus = match[2] ? parseInt(match[2].replace(/\s/g, ''), 10) : 0;
+    return { dice, bonus };
+  };
+
+  const damageParts = useMemo(() => parseDamage(formData.damage), [formData.damage]);
+
+  // 伤害加值预览：复用 attackBonusPreview 的属性判定（灵巧与攻击加值同步）
+  const damageBonusPreview = useMemo(() => {
+    if (!character || !attackBonusPreview) return 0;
+    return attackBonusPreview.abilityMod;
+  }, [character, attackBonusPreview]);
+
+  // 伤害骰变化时同步 damage 字段（dice 优先保留原始值，bonus 由自动计算填入）
+  useEffect(() => {
+    if (damageBonusPreview !== 0 && !hasManualEditedDamageBonus && damageParts.dice) {
+      const sign = damageBonusPreview >= 0 ? '+' : '';
+      setFormData((prev) => ({
+        ...prev,
+        damage: damageParts.dice ? `${damageParts.dice}${sign}${damageBonusPreview}` : prev.damage,
+      }));
+    }
+  }, [damageBonusPreview, hasManualEditedDamageBonus, damageParts.dice]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,10 +245,12 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
     setFinesseChoice(null);
     // 重置手动编辑标记，允许自动计算覆盖
     setHasManualEditedBonus(false);
-    // 同步分类选择器状态
-    const st = parsed.subtype || '';
-    setWeaponRangeType(st.includes('远程') ? 'ranged' : st.includes('近战') ? 'melee' : '');
-    setWeaponProfType(st.includes('简易') ? 'simple' : st.includes('军用') ? 'martial' : '');
+    setHasManualEditedDamageBonus(false);
+    // 原始 subtype 如实保存（不拆分展示）
+    setOriginalSubtype(parsed.subtype || '');
+    // 自定义分类选择器清空（从装备抓取时不展示）
+    setWeaponRangeType('');
+    setWeaponProfType('');
     setFormData((prev) => ({
       ...prev,
       ...parsed,
@@ -256,50 +301,65 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
             />
           </div>
 
-          {/* 武器分类选择器 */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* 武器分类：从装备抓取时如实展示；自定义武器时拆分选择 */}
+          {selectedWeapon ? (
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                攻击距离 <span className="text-danger">*</span>
+                武器分类
               </label>
-              <select
-                value={weaponRangeType}
-                onChange={(e) => {
-                  const val = e.target.value as 'melee' | 'ranged' | '';
-                  setWeaponRangeType(val);
-                  setHasManualEditedBonus(false);
-                  // 同步更新 formData.subtype
-                  const newSubtype = buildSubtype(val, weaponProfType);
-                  setFormData((prev) => ({ ...prev, subtype: newSubtype || undefined }));
-                }}
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              >
-                <option value="">请选择</option>
-                <option value="melee">近战</option>
-                <option value="ranged">远程</option>
-              </select>
+              <div className="px-3 py-2 rounded-lg border bg-transparent dark:border-border-dark light:border-border-light">
+                <span className="text-sm dark:text-text-dark light:text-text-light">
+                  {originalSubtype || '未分类'}
+                </span>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                武器类别
-              </label>
-              <select
-                value={weaponProfType}
-                onChange={(e) => {
-                  const val = e.target.value as 'simple' | 'martial' | '';
-                  setWeaponProfType(val);
-                  setHasManualEditedBonus(false);
-                  const newSubtype = buildSubtype(weaponRangeType, val);
-                  setFormData((prev) => ({ ...prev, subtype: newSubtype || undefined }));
-                }}
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              >
-                <option value="">空置</option>
-                <option value="simple">简易</option>
-                <option value="martial">军用</option>
-              </select>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  攻击距离 <span className="text-danger">*</span>
+                </label>
+                <select
+                  value={weaponRangeType}
+                  onChange={(e) => {
+                    const val = e.target.value as 'melee' | 'ranged' | '';
+                    setWeaponRangeType(val);
+                    setHasManualEditedBonus(false);
+                    setHasManualEditedDamageBonus(false);
+                    // 同步更新 formData.subtype
+                    const newSubtype = buildSubtype(val, weaponProfType);
+                    setFormData((prev) => ({ ...prev, subtype: newSubtype || undefined }));
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="">请选择</option>
+                  <option value="melee">近战</option>
+                  <option value="ranged">远程</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  武器类别
+                </label>
+                <select
+                  value={weaponProfType}
+                  onChange={(e) => {
+                    const val = e.target.value as 'simple' | 'martial' | '';
+                    setWeaponProfType(val);
+                    setHasManualEditedBonus(false);
+                    setHasManualEditedDamageBonus(false);
+                    const newSubtype = buildSubtype(weaponRangeType, val);
+                    setFormData((prev) => ({ ...prev, subtype: newSubtype || undefined }));
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="">空置</option>
+                  <option value="simple">简易</option>
+                  <option value="martial">军用</option>
+                </select>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -337,7 +397,11 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
                           <button
                             key={ab}
                             type="button"
-                            onClick={() => setFinesseChoice(ab)}
+                            onClick={() => {
+                              setFinesseChoice(ab);
+                              // 灵巧切换需要重算伤害加值
+                              setHasManualEditedDamageBonus(false);
+                            }}
                             className={`px-2 py-0.5 text-xs rounded border transition-colors ${
                               active
                                 ? 'bg-primary/10 text-primary border-primary/40'
@@ -357,13 +421,45 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
                 伤害骰
               </label>
-              <input
-                type="text"
-                value={formData.damage}
-                onChange={(e) => setFormData({ ...formData, damage: e.target.value })}
-                placeholder="1d8+3"
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              />
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={damageParts.dice}
+                  onChange={(e) => {
+                    const newDice = e.target.value;
+                    const sign = damageParts.bonus >= 0 ? '+' : '';
+                    const newDamage = newDice
+                      ? (damageParts.bonus !== 0 ? `${newDice}${sign}${damageParts.bonus}` : newDice)
+                      : formData.damage;
+                    setFormData({ ...formData, damage: newDamage });
+                  }}
+                  placeholder="1d8"
+                  className="flex-1 min-w-0 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+                <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">+</span>
+                <input
+                  type="text"
+                  value={damageParts.bonus !== 0 ? (damageParts.bonus >= 0 ? `${damageParts.bonus}` : `${damageParts.bonus}`) : ''}
+                  onChange={(e) => {
+                    setHasManualEditedDamageBonus(true);
+                    const v = e.target.value;
+                    const num = v === '' ? 0 : parseInt(v, 10);
+                    if (isNaN(num) && v !== '' && v !== '-') return;
+                    const sign = num >= 0 ? '+' : '';
+                    const newDamage = damageParts.dice
+                      ? (num !== 0 ? `${damageParts.dice}${sign}${num}` : damageParts.dice)
+                      : '';
+                    setFormData({ ...formData, damage: newDamage });
+                  }}
+                  placeholder="0"
+                  className="w-16 px-2 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+              </div>
+              {damageBonusPreview !== 0 && (
+                <div className="mt-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  {attackBonusPreview?.abilityKey === 'strength' ? '力量' : '敏捷'}调整 {damageBonusPreview >= 0 ? `+${damageBonusPreview}` : damageBonusPreview}
+                </div>
+              )}
             </div>
           </div>
 
