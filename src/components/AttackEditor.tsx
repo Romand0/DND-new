@@ -120,14 +120,15 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
 
   // 伤害骰变化时同步 damage 字段（dice 优先保留原始值，bonus 由自动计算填入）
   useEffect(() => {
-    if (damageBonusPreview !== 0 && !hasManualEditedDamageBonus && damageParts.dice) {
+    if (attackBonusPreview && !hasManualEditedDamageBonus && damageParts.dice) {
       const sign = damageBonusPreview >= 0 ? '+' : '';
+      const bonusPart = damageBonusPreview !== 0 ? `${sign}${damageBonusPreview}` : '';
       setFormData((prev) => ({
         ...prev,
-        damage: damageParts.dice ? `${damageParts.dice}${sign}${damageBonusPreview}` : prev.damage,
+        damage: `${damageParts.dice}${bonusPart}`,
       }));
     }
-  }, [damageBonusPreview, hasManualEditedDamageBonus, damageParts.dice]);
+  }, [attackBonusPreview, damageBonusPreview, hasManualEditedDamageBonus, damageParts.dice]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,8 +162,8 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
       name: weapon.name,
       subtype: weapon.subtype,
       properties: [],
-      damage: '',
-      damageType: '挥砍',
+      damage: weapon.damageDice || '',
+      damageType: weapon.damageType || '挥砍',
       range: '5 尺',
       attackBonus: '',
     };
@@ -192,26 +193,29 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
 
     if (weapon.description) {
       const desc = weapon.description;
-      
-      const damageMatch = desc.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)\s*点(\S+?)伤害/);
-      if (damageMatch) {
-        result.damage = damageMatch[1].replace(/\s/g, '');
-        const dmgType = damageMatch[2];
-        const typeMap: Record<string, string> = {
-          '挥砍': '挥砍',
-          '穿刺': '穿刺',
-          '钝击': '钝击',
-          '火焰': '火焰',
-          '冰冻': '冰冻',
-          '闪电': '闪电',
-          '毒素': '毒素',
-          '雷鸣': '雷鸣',
-          '心灵': '心灵',
-          '光耀': '光耀',
-          '暗蚀': '暗蚀',
-          '力场': '力场',
-        };
-        result.damageType = typeMap[dmgType] || dmgType;
+
+      // 只有 Equipment 本身没有 damageDice 时才从 description 解析伤害骰
+      if (!weapon.damageDice) {
+        const damageMatch = desc.match(/(\d+d\d+(?:\s*[+-]\s*\d+)?)\s*点(\S+?)伤害/);
+        if (damageMatch) {
+          result.damage = damageMatch[1].replace(/\s/g, '');
+          const dmgType = damageMatch[2];
+          const typeMap: Record<string, string> = {
+            '挥砍': '挥砍',
+            '穿刺': '穿刺',
+            '钝击': '钝击',
+            '火焰': '火焰',
+            '冰冻': '冰冻',
+            '闪电': '闪电',
+            '毒素': '毒素',
+            '雷鸣': '雷鸣',
+            '心灵': '心灵',
+            '光耀': '光耀',
+            '暗蚀': '暗蚀',
+            '力场': '力场',
+          };
+          result.damageType = typeMap[dmgType] || dmgType;
+        }
       }
 
       const rangeDescMatch = desc.match(/普通射程\s*(\d+)\s*尺[^0-9]*(\d+)\s*尺/);
@@ -220,6 +224,7 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
       }
     }
 
+    // tags 优先级最高，可以覆盖前面的值
     if (weapon.tags && weapon.tags.length > 0) {
       for (const tag of weapon.tags) {
         if (tag.key === 'damage' && tag.value) {
@@ -455,9 +460,9 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
                   className="w-16 px-2 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                 />
               </div>
-              {damageBonusPreview !== 0 && (
+              {attackBonusPreview && (
                 <div className="mt-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                  {attackBonusPreview?.abilityKey === 'strength' ? '力量' : '敏捷'}调整 {damageBonusPreview >= 0 ? `+${damageBonusPreview}` : damageBonusPreview}
+                  {attackBonusPreview.abilityKey === 'strength' ? '力量' : '敏捷'}调整 {damageBonusPreview >= 0 ? `+${damageBonusPreview}` : damageBonusPreview}
                 </div>
               )}
             </div>
