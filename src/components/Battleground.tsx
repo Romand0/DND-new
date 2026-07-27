@@ -458,9 +458,11 @@ export default function Battleground({ sessionId, combatants }: Props) {
       {/* 双击棋子弹出信息窗口 */}
       {doubleClickedCombatant && (
         <CombatantInfoPanel
-          combatant={doubleClickedCombatant}
-          onClose={() => setDoubleClickedCombatant(null)}
-        />
+                  combatant={doubleClickedCombatant}
+                  onClose={() => setDoubleClickedCombatant(null)}
+                  combatants={combatants}
+                  tokenMap={tokenMap}
+                />
       )}
     </div>
   );

@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
-import { X, Plus } from 'lucide-react';
+import { X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
 import type { Combatant } from '@/types/combat';
-import type { Character } from '@/types/character';
+import type { Character, Attack } from '@/types/character';
 
 interface Props {
   combatant: Combatant;
   onClose: () => void;
+  combatants?: Combatant[];
+  tokenMap?: { get: (id: string) => { col: number; row: number } | undefined };
 }
 
-export default function CombatantInfoPanel({ combatant, onClose }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
+  const [expandedRangeAttackId, setExpandedRangeAttackId] = useState<string | null>(null);
 
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
 
@@ -91,6 +95,75 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
     return 'bg-red-500';
   };
 
+  const isAttackUsable = (attack: Attack): boolean => {
+    const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
+    const rightMatch = heldRightItem && heldRightItem.name === attack.name;
+    return (leftMatch && leftUsable) || (rightMatch && rightUsable);
+  };
+
+  const hasMultipleRanges = (attack: Attack): boolean => {
+    const meleeRange = attack.range && !attack.range.startsWith('-');
+    const hasNormal = attack.normalRange !== undefined && attack.normalRange > 0;
+    const hasMax = attack.maxRange !== undefined && attack.maxRange > 0;
+    let count = 0;
+    if (meleeRange) count++;
+    if (hasNormal) count++;
+    if (hasMax) count++;
+    return count > 1;
+  };
+
+  const getRangeInfo = (attack: Attack): { label: string; value: string }[] => {
+    const ranges: { label: string; value: string }[] = [];
+    const meleeRange = attack.range;
+    const hasNormal = attack.normalRange !== undefined && attack.normalRange > 0;
+    const hasMax = attack.maxRange !== undefined && attack.maxRange > 0;
+
+    if (meleeRange && !meleeRange.startsWith('-')) {
+      ranges.push({ label: '近战', value: meleeRange });
+    }
+    if (hasNormal) {
+      ranges.push({ label: '常规', value: `${attack.normalRange}尺` });
+    }
+    if (hasMax) {
+      ranges.push({ label: '最大', value: `${attack.maxRange}尺` });
+    }
+    return ranges;
+  };
+
+  const getMaxRangeFeet = (attack: Attack): number => {
+    const hasNormal = attack.normalRange !== undefined && attack.normalRange > 0;
+    const hasMax = attack.maxRange !== undefined && attack.maxRange > 0;
+    if (hasMax) return attack.maxRange!;
+    if (hasNormal) return attack.normalRange!;
+    const meleeMatch = attack.range?.match(/(\d+)/);
+    return meleeMatch ? parseInt(meleeMatch[1], 10) : 5;
+  };
+
+  const getNPCsInRange = (attack: Attack): Combatant[] => {
+    if (!tokenMap || !combatant.id) return [];
+    const attackerPos = tokenMap.get(combatant.id);
+    if (!attackerPos) return [];
+
+    const maxRangeFeet = getMaxRangeFeet(attack);
+    const maxRangeCells = Math.max(1, Math.floor(maxRangeFeet / 5));
+
+    return combatants.filter(c => {
+      if (c.id === combatant.id) return false;
+      if (c.isPc) return false;
+      const pos = tokenMap.get(c.id);
+      if (!pos) return false;
+      const distance = Math.max(Math.abs(pos.col - attackerPos.col), Math.abs(pos.row - attackerPos.row));
+      return distance <= maxRangeCells;
+    });
+  };
+
+  const handleAttackSelect = (attackId: string) => {
+    setSelectedAttackId(prev => prev === attackId ? null : attackId);
+    if (selectedAttackId !== attackId) {
+      setExpandedRangeAttackId(attackId);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="relative w-full max-w-sm rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl overflow-hidden">
@@ -140,7 +213,7 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
           </button>
         </div>
 
-        <div className="p-3 max-h-[40vh] overflow-y-auto">
+        <div className="p-3 max-h-[50vh] overflow-y-auto">
           {activeTab === 'info' && (
             <div className="space-y-3">
               <div>
@@ -173,28 +246,77 @@ export default function CombatantInfoPanel({ combatant, onClose }: Props) {
               {attacks.length > 0 && (
                 <div>
                   <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">攻击</div>
-                  <div className="grid grid-cols-2 gap-1.5">
+                  <div className="space-y-1.5">
                     {attacks.map((attack) => {
-                      const attackUsable = (() => {
-                        const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
-                        const rightMatch = heldRightItem && heldRightItem.name === attack.name;
-                        return (leftMatch && leftUsable) || (rightMatch && rightUsable);
-                      })();
+                      const usable = isAttackUsable(attack);
+                      const selected = selectedAttackId === attack.id;
+                      const hasMultiRange = hasMultipleRanges(attack);
+                      const expanded = expandedRangeAttackId === attack.id;
+                      const rangeInfo = getRangeInfo(attack);
+                      const npcsInRange = selected ? getNPCsInRange(attack) : [];
+
                       return (
-                        <div
-                          key={attack.id}
-                          className={`p-2 rounded-lg text-xs ${
-                            attackUsable
-                              ? 'ring-1 ring-primary/60 dark:bg-primary/5 light:bg-primary/5 dark:text-text-dark light:text-text-light'
-                              : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted/60 light:text-text-light-muted/60 opacity-60'
-                          }`}
-                        >
-                          <div className="font-medium truncate">{attack.name}</div>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className={attackUsable ? 'text-primary' : 'dark:text-text-dark-muted/60 light:text-text-light-muted/60'}>{attack.attackBonus || '—'}</span>
-                            <span>·</span>
-                            <span>{attack.damage || '—'}</span>
-                          </div>
+                        <div key={attack.id}>
+                          <button
+                            onClick={() => handleAttackSelect(attack.id!)}
+                            className={`w-full text-left p-2 rounded-lg text-xs transition-all ${
+                              selected
+                                ? 'ring-2 ring-primary dark:bg-primary/10 light:bg-primary/10'
+                                : usable
+                                ? 'dark:bg-bg-dark light:bg-bg-light-2'
+                                : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted/60 light:text-text-light-muted/60 opacity-60'
+                            }`}
+                          >
+                            <div className="font-medium truncate flex items-center gap-2">
+                              {attack.name}
+                              {hasMultiRange && (
+                                <span className="flex-shrink-0">
+                                  {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <span className={usable ? 'text-primary' : 'dark:text-text-dark-muted/60 light:text-text-light-muted/60'}>{attack.attackBonus || '—'}</span>
+                              <span>·</span>
+                              <span>{attack.damage || '—'}</span>
+                            </div>
+                            {!hasMultiRange && rangeInfo.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {rangeInfo.map((r, idx) => (
+                                  <span key={idx} className="text-xs px-1.5 py-0.5 rounded bg-info/10 text-info">
+                                    {r.label}: {r.value}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </button>
+
+                          {(selected || expanded) && hasMultiRange && (
+                            <div className="ml-2 mt-1 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
+                              <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程信息</div>
+                              <div className="flex flex-wrap gap-2">
+                                {rangeInfo.map((r, idx) => (
+                                  <span key={idx} className="text-xs px-2 py-1 rounded bg-info/10 text-info">
+                                    {r.label}: {r.value}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {selected && npcsInRange.length > 0 && (
+                            <div className="ml-2 mt-1 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
+                              <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程内目标</div>
+                              <div className="flex flex-wrap gap-1">
+                                {npcsInRange.map(npc => (
+                                  <div key={npc.id} className="flex items-center gap-1 text-xs px-2 py-1 rounded dark:bg-danger/10 light:bg-danger/5 text-danger">
+                                    <span className="w-3 h-3 rounded-full bg-danger" />
+                                    <span>{npc.name}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
