@@ -28,6 +28,10 @@ interface Props {
   onUpdateQuantity?: (itemId: string, delta: number) => void;
   onRefresh?: () => void;
   showQuantity?: boolean;
+  /** 手持状态：'L'=左手, 'R'=右手, null=未手持 */
+  heldHand?: 'L' | 'R' | null;
+  /** 点击手持标签的回调 */
+  onHeldLabelClick?: () => void;
 }
 
 
@@ -39,6 +43,8 @@ export default function CharacterEquipmentCard({
   onUpdateQuantity,
   onRefresh,
   showQuantity = false,
+  heldHand = null,
+  onHeldLabelClick,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
   const itemId = item.childId || item.id;
@@ -53,11 +59,23 @@ export default function CharacterEquipmentCard({
         {/* 主体行 */}
         <div className="flex items-start gap-2">
           <div className="flex-1 min-w-0">
-            {/* 名称 + 着装状态绿勾 */}
+            {/* 名称 + 着装状态绿勾 + 手持标签 */}
             <div className="text-sm font-medium dark:text-text-dark light:text-text-light flex items-center gap-2">
               <span className="truncate">{item.name || '未命名装备'}</span>
               {isWorn && (
                 <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+              )}
+              {heldHand && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onHeldLabelClick?.();
+                  }}
+                  className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded text-xs font-bold text-white bg-warning hover:bg-warning/80 transition-colors"
+                  title={`手持于${heldHand === 'L' ? '左手' : '右手'}，点击查看状态栏`}
+                >
+                  {heldHand}
+                </button>
               )}
             </div>
 

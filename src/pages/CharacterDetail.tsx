@@ -1182,10 +1182,27 @@ if (character) {
                   暂无攻击
                 </div>
               ) : (
-                (character.attacks || []).map((attack) => (
+                (character.attacks || []).map((attack) => {
+                  // 判断攻击是否"可用"：同名武器被手持且可用
+                  const attackUsable = (() => {
+                    const heldLeftId = character.heldLeft?.equipmentId;
+                    const heldRightId = character.heldRight?.equipmentId;
+                    const leftItem = heldLeftId ? character.equipment.find(e => (e.childId || e.id) === heldLeftId) : null;
+                    const rightItem = heldRightId ? character.equipment.find(e => (e.childId || e.id) === heldRightId) : null;
+                    const leftMatch = leftItem && leftItem.name === attack.name;
+                    const rightMatch = rightItem && rightItem.name === attack.name;
+                    if (leftMatch && characterStore.isWeaponUsable(character, 'left')) return true;
+                    if (rightMatch && characterStore.isWeaponUsable(character, 'right')) return true;
+                    return false;
+                  })();
+                  return (
                   <div
                     key={attack.id}
-                    className="flex items-center justify-between gap-3 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                    className={`flex items-center justify-between gap-3 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 transition-all ${
+                      attackUsable
+                        ? 'ring-2 ring-primary/60 shadow-[0_0_8px_rgba(99,102,241,0.3)]'
+                        : ''
+                    }`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-medium dark:text-text-dark light:text-text-light truncate">
@@ -1227,7 +1244,8 @@ if (character) {
                       </button>
                     </div>
                   </div>
-                ))
+                  );
+                })
               )}
               <button
                 onClick={handleAddAttack}
@@ -1268,6 +1286,9 @@ if (character) {
                 
               {(character.equipment || []).slice(0, 5).map((item) => {
   const itemId = (item as any).childId || item.id;
+  const heldHand: 'L' | 'R' | null =
+    character.heldLeft?.equipmentId === itemId ? 'L' :
+    character.heldRight?.equipmentId === itemId ? 'R' : null;
   return (
     <CharacterEquipmentCard
       key={itemId}
@@ -1278,6 +1299,8 @@ if (character) {
       onRefresh={reloadChar}
       onUpdateQuantity={handleUpdateEquipmentQuantity}
       showQuantity={true}
+      heldHand={heldHand}
+      onHeldLabelClick={() => navigate(readOnly ? `/player/${character.id}/inventory` : `/characters/${id}/inventory`)}
     />
   );
 })}

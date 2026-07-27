@@ -424,6 +424,9 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
               ) : (
                 filteredEquipment.map((item) => {
   const keyId = (item as any).childId || item.id;
+  const heldHand: 'L' | 'R' | null =
+    character.heldLeft.equipmentId === keyId ? 'L' :
+    character.heldRight.equipmentId === keyId ? 'R' : null;
   return (
     <CharacterEquipmentCard
       key={keyId}
@@ -434,6 +437,8 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
       onUpdateQuantity={handleUpdateEquipmentQuantity}
       onRefresh={reloadChar}
       showQuantity={true}
+      heldHand={heldHand}
+      onHeldLabelClick={() => setViewMode('equipped')}
     />
   );
 })
@@ -576,55 +581,39 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
                     }`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">左手</span>
-                        {!readOnly && !isUnavailable && (
+                        {!readOnly && (
                           <div className="flex gap-1">
-                            {isReady && !heldLeftItem && (
-                              <>
-                                <button
-                                  onClick={() => setSelectingHand('left')}
-                                  className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
-                                >
-                                  拿取
-                                </button>
-                                <button
-                                  onClick={() => handleSetAction('left')}
-                                  className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
-                                >
-                                  动作
-                                </button>
-                                <button
-                                  onClick={() => handleSetUnavailable('left')}
-                                  className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
-                                >
-                                  禁用
-                                </button>
-                              </>
-                            )}
-                            {isAction && (
+                            {isUnavailable ? (
+                              <button
+                                onClick={() => handleRestoreHand('left')}
+                                className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
+                              >
+                                恢复
+                              </button>
+                            ) : isAction ? (
                               <button
                                 onClick={() => handleEndAction('left')}
                                 className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
                               >
                                 结束
                               </button>
-                            )}
-                            {heldLeftItem && (
+                            ) : heldLeftItem ? (
                               <button
                                 onClick={() => handleUnhold('left')}
                                 className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
                               >
                                 放下
                               </button>
+                            ) : isReady && (
+                              <button
+                                onClick={() => setSelectingHand('left')}
+                                className="p-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
+                                title="拿取装备"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
                             )}
                           </div>
-                        )}
-                        {!readOnly && isUnavailable && (
-                          <button
-                            onClick={() => handleRestoreHand('left')}
-                            className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
-                          >
-                            恢复
-                          </button>
                         )}
                       </div>
                       {isUnavailable ? (
@@ -673,55 +662,39 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
                     }`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">右手</span>
-                        {!readOnly && !isUnavailable && (
+                        {!readOnly && (
                           <div className="flex gap-1">
-                            {isReady && !heldRightItem && (
-                              <>
-                                <button
-                                  onClick={() => setSelectingHand('right')}
-                                  className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
-                                >
-                                  拿取
-                                </button>
-                                <button
-                                  onClick={() => handleSetAction('right')}
-                                  className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
-                                >
-                                  动作
-                                </button>
-                                <button
-                                  onClick={() => handleSetUnavailable('right')}
-                                  className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
-                                >
-                                  禁用
-                                </button>
-                              </>
-                            )}
-                            {isAction && (
+                            {isUnavailable ? (
+                              <button
+                                onClick={() => handleRestoreHand('right')}
+                                className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
+                              >
+                                恢复
+                              </button>
+                            ) : isAction ? (
                               <button
                                 onClick={() => handleEndAction('right')}
                                 className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
                               >
                                 结束
                               </button>
-                            )}
-                            {heldRightItem && (
+                            ) : heldRightItem ? (
                               <button
                                 onClick={() => handleUnhold('right')}
                                 className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
                               >
                                 放下
                               </button>
+                            ) : isReady && (
+                              <button
+                                onClick={() => setSelectingHand('right')}
+                                className="p-1 rounded bg-primary/10 text-primary hover:bg-primary/20"
+                                title="拿取装备"
+                              >
+                                <Plus className="w-4 h-4" />
+                              </button>
                             )}
                           </div>
-                        )}
-                        {!readOnly && isUnavailable && (
-                          <button
-                            onClick={() => handleRestoreHand('right')}
-                            className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
-                          >
-                            恢复
-                          </button>
                         )}
                       </div>
                       {isUnavailable ? (
@@ -807,6 +780,22 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
                     选择{selectingHand === 'left' ? '左手' : '右手'}装备
                   </h3>
                   <div className="space-y-2">
+                    {/* 特殊占位选项 */}
+                    <div className="flex gap-2 pb-3 mb-1 border-b dark:border-border-dark light:border-border-light">
+                      <button
+                        onClick={() => { handleSetAction(selectingHand); setSelectingHand(null); }}
+                        className="flex-1 py-2 text-sm rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                      >
+                        动作
+                      </button>
+                      <button
+                        onClick={() => { handleSetUnavailable(selectingHand); setSelectingHand(null); }}
+                        className="flex-1 py-2 text-sm rounded-lg bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
+                      >
+                        不可用
+                      </button>
+                    </div>
+                    {/* 装备列表 */}
                     {holdableCandidates.length === 0 ? (
                       <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
                         背包中没有可手持的装备
