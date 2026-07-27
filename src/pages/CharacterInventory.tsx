@@ -73,8 +73,6 @@ export default function CharacterInventory({
   const [selectingSlot, setSelectingSlot] = useState<'armor' | 'outfit' | null>(null);
   // 手持选择弹窗状态
   const [selectingHand, setSelectingHand] = useState<'left' | 'right' | null>(null);
-  // 动作占位符标识
-  const ACTION_MARKER = '__action__';
 
   useEditorState(equipmentEditorOpen, equipmentPickerOpen);
 
@@ -215,35 +213,20 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
   const outfitCandidates = character.equipment.filter(e => e.category === '杂物' && e.subtype === '服装');
 
   // 手持物品
-  const heldLeftItem = character.equipment.find(e => (e.childId || e.id) === character.heldLeftId);
-  const heldRightItem = character.equipment.find(e => (e.childId || e.id) === character.heldRightId);
-  const isLeftAction = character.heldLeftId === ACTION_MARKER;
-  const isRightAction = character.heldRightId === ACTION_MARKER;
+  const heldLeftItem = character.equipment.find(e => (e.childId || e.id) === character.heldLeft.equipmentId);
+  const heldRightItem = character.equipment.find(e => (e.childId || e.id) === character.heldRight.equipmentId);
+  const leftUsable = characterStore.isWeaponUsable(character, 'left');
+  const rightUsable = characterStore.isWeaponUsable(character, 'right');
 
-  // 判断是否为双手武器
-  const isTwoHandedWeapon = (item: Equipment): boolean => {
-    if (!item.properties) return false;
-    return item.properties.includes('双手');
-  };
-
-  // 可手持的装备候选（排除已穿戴的盔甲/服装，以及已在另一只手上的装备）
+  // 可手持的装备候选（排除已穿戴的盔甲/服装）
   const holdableCandidates = useMemo(() => {
-    const otherHandId = selectingHand === 'left' ? character.heldRightId : character.heldLeftId;
     return character.equipment.filter(item => {
       const slotId = item.childId || item.id;
-      // 已穿戴的盔甲/服装不能手持
       if (character.wornArmorId === slotId) return false;
       if (character.wornOutfitId === slotId) return false;
-      // 如果另一只手是双手武器，不能再手持
-      if (otherHandId && otherHandId !== ACTION_MARKER) {
-        const otherItem = character.equipment.find(e => (e.childId || e.id) === otherHandId);
-        if (otherItem && isTwoHandedWeapon(otherItem)) return false;
-      }
-      // 如果当前装备是双手武器，需要两只手都空
-      if (isTwoHandedWeapon(item) && otherHandId && otherHandId !== slotId) return false;
       return true;
     });
-  }, [character.equipment, character.wornArmorId, character.wornOutfitId, character.heldLeftId, character.heldRightId, selectingHand]);
+  }, [character.equipment, character.wornArmorId, character.wornOutfitId]);
 
   // 手持选择处理
   const handleHoldSelect = (item: Equipment) => {
@@ -268,10 +251,43 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
     }
   };
 
-  // 设置动作占位符
+  // 设置动作占位
   const handleSetAction = (hand: 'left' | 'right' | 'both') => {
     if (!id) return;
-    const result = characterStore.setActionPlaceholder(id, hand);
+    const result = characterStore.setHandAction(id, hand);
+    if (result.success) {
+      reloadChar();
+    } else {
+      alert(result.message);
+    }
+  };
+
+  // 结束动作
+  const handleEndAction = (hand: 'left' | 'right' | 'both') => {
+    if (!id) return;
+    const result = characterStore.endHandAction(id, hand);
+    if (result.success) {
+      reloadChar();
+    } else {
+      alert(result.message);
+    }
+  };
+
+  // 设置不可用
+  const handleSetUnavailable = (hand: 'left' | 'right' | 'both') => {
+    if (!id) return;
+    const result = characterStore.setHandUnavailable(id, hand);
+    if (result.success) {
+      reloadChar();
+    } else {
+      alert(result.message);
+    }
+  };
+
+  // 恢复不可用的手
+  const handleRestoreHand = (hand: 'left' | 'right' | 'both') => {
+    if (!id) return;
+    const result = characterStore.restoreHand(id, hand);
     if (result.success) {
       reloadChar();
     } else {
@@ -540,122 +556,202 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
                   <Hand className="w-5 h-5 text-warning" />
                   <span className="font-semibold dark:text-text-dark light:text-text-light">手持装备</span>
                 </div>
-                <div className="flex gap-2">
-                  {(heldLeftItem || isLeftAction || heldRightItem || isRightAction) && (
-                    <button
-                      onClick={() => handleUnhold('both')}
-                      className="px-3 py-1 text-xs rounded-lg bg-danger/10 text-danger hover:bg-danger/20"
-                    >
-                      全部放下
-                    </button>
-                  )}
-                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 {/* 左手 */}
-                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">左手</span>
-                    {!readOnly && (
-                      <div className="flex gap-1">
-                        {!heldLeftItem && !isLeftAction && (
-                          <button
-                            onClick={() => handleSetAction('left')}
-                            className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
-                            title="设置动作占位"
-                          >
-                            动作
-                          </button>
+                {(() => {
+                  const slot = character.heldLeft;
+                  const isUnavailable = slot.state === 'unavailable';
+                  const isAction = slot.state === 'action';
+                  const isReady = slot.state === 'ready';
+                  const usable = leftUsable;
+                  const twoHanded = heldLeftItem && characterStore.isTwoHandedWeapon(heldLeftItem);
+                  return (
+                    <div className={`rounded-lg border p-3 ${
+                      isUnavailable
+                        ? 'border-danger/40 bg-danger/5'
+                        : isAction
+                        ? 'border-accent/40 bg-accent/5'
+                        : 'dark:border-border-dark light:border-border-light'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">左手</span>
+                        {!readOnly && !isUnavailable && (
+                          <div className="flex gap-1">
+                            {isReady && !heldLeftItem && (
+                              <>
+                                <button
+                                  onClick={() => setSelectingHand('left')}
+                                  className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
+                                >
+                                  拿取
+                                </button>
+                                <button
+                                  onClick={() => handleSetAction('left')}
+                                  className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
+                                >
+                                  动作
+                                </button>
+                                <button
+                                  onClick={() => handleSetUnavailable('left')}
+                                  className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                                >
+                                  禁用
+                                </button>
+                              </>
+                            )}
+                            {isAction && (
+                              <button
+                                onClick={() => handleEndAction('left')}
+                                className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
+                              >
+                                结束
+                              </button>
+                            )}
+                            {heldLeftItem && (
+                              <button
+                                onClick={() => handleUnhold('left')}
+                                className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                              >
+                                放下
+                              </button>
+                            )}
+                          </div>
                         )}
-                        {(heldLeftItem || isLeftAction) && (
+                        {!readOnly && isUnavailable && (
                           <button
-                            onClick={() => handleUnhold('left')}
-                            className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                            onClick={() => handleRestoreHand('left')}
+                            className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
                           >
-                            放下
+                            恢复
                           </button>
                         )}
                       </div>
-                    )}
-                  </div>
-                  {heldLeftItem ? (
-                    <button
-                      onClick={() => !readOnly && setSelectingHand('left')}
-                      className="w-full text-left"
-                    >
-                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{heldLeftItem.name}</div>
-                      {isTwoHandedWeapon(heldLeftItem) && (
-                        <div className="text-xs text-primary mt-1">双手武器</div>
+                      {isUnavailable ? (
+                        <div className="text-sm font-medium text-danger">不可用</div>
+                      ) : isAction ? (
+                        <div className="text-sm font-medium text-accent">动作中</div>
+                      ) : heldLeftItem ? (
+                        <div
+                          onClick={() => !readOnly && isReady && setSelectingHand('left')}
+                          className={!readOnly && isReady ? 'cursor-pointer' : ''}
+                        >
+                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{heldLeftItem.name}</div>
+                          <div className="flex gap-1 mt-1">
+                            {twoHanded && usable && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">双手可用</span>
+                            )}
+                            {twoHanded && !usable && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-warning/20 text-warning">仅拿持</span>
+                            )}
+                            {!twoHanded && usable && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">可用</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm italic dark:text-text-dark-muted light:text-text-light-muted">待用</div>
                       )}
-                    </button>
-                  ) : isLeftAction ? (
-                    <button
-                      onClick={() => !readOnly && handleUnhold('left')}
-                      className="w-full text-left"
-                    >
-                      <div className="text-sm font-medium text-accent">动作中...</div>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => !readOnly && setSelectingHand('left')}
-                      className="w-full text-left py-2 text-sm italic dark:text-text-dark-muted light:text-text-light-muted hover:text-primary"
-                    >
-                      + 选择装备
-                    </button>
-                  )}
-                </div>
+                    </div>
+                  );
+                })()}
                 {/* 右手 */}
-                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">右手</span>
-                    {!readOnly && (
-                      <div className="flex gap-1">
-                        {!heldRightItem && !isRightAction && (
-                          <button
-                            onClick={() => handleSetAction('right')}
-                            className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
-                            title="设置动作占位"
-                          >
-                            动作
-                          </button>
+                {(() => {
+                  const slot = character.heldRight;
+                  const isUnavailable = slot.state === 'unavailable';
+                  const isAction = slot.state === 'action';
+                  const isReady = slot.state === 'ready';
+                  const usable = rightUsable;
+                  const twoHanded = heldRightItem && characterStore.isTwoHandedWeapon(heldRightItem);
+                  return (
+                    <div className={`rounded-lg border p-3 ${
+                      isUnavailable
+                        ? 'border-danger/40 bg-danger/5'
+                        : isAction
+                        ? 'border-accent/40 bg-accent/5'
+                        : 'dark:border-border-dark light:border-border-light'
+                    }`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">右手</span>
+                        {!readOnly && !isUnavailable && (
+                          <div className="flex gap-1">
+                            {isReady && !heldRightItem && (
+                              <>
+                                <button
+                                  onClick={() => setSelectingHand('right')}
+                                  className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
+                                >
+                                  拿取
+                                </button>
+                                <button
+                                  onClick={() => handleSetAction('right')}
+                                  className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
+                                >
+                                  动作
+                                </button>
+                                <button
+                                  onClick={() => handleSetUnavailable('right')}
+                                  className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                                >
+                                  禁用
+                                </button>
+                              </>
+                            )}
+                            {isAction && (
+                              <button
+                                onClick={() => handleEndAction('right')}
+                                className="px-2 py-0.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
+                              >
+                                结束
+                              </button>
+                            )}
+                            {heldRightItem && (
+                              <button
+                                onClick={() => handleUnhold('right')}
+                                className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                              >
+                                放下
+                              </button>
+                            )}
+                          </div>
                         )}
-                        {(heldRightItem || isRightAction) && (
+                        {!readOnly && isUnavailable && (
                           <button
-                            onClick={() => handleUnhold('right')}
-                            className="px-2 py-0.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                            onClick={() => handleRestoreHand('right')}
+                            className="px-2 py-0.5 text-xs rounded bg-primary/10 text-primary hover:bg-primary/20"
                           >
-                            放下
+                            恢复
                           </button>
                         )}
                       </div>
-                    )}
-                  </div>
-                  {heldRightItem ? (
-                    <button
-                      onClick={() => !readOnly && setSelectingHand('right')}
-                      className="w-full text-left"
-                    >
-                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{heldRightItem.name}</div>
-                      {isTwoHandedWeapon(heldRightItem) && (
-                        <div className="text-xs text-primary mt-1">双手武器</div>
+                      {isUnavailable ? (
+                        <div className="text-sm font-medium text-danger">不可用</div>
+                      ) : isAction ? (
+                        <div className="text-sm font-medium text-accent">动作中</div>
+                      ) : heldRightItem ? (
+                        <div
+                          onClick={() => !readOnly && isReady && setSelectingHand('right')}
+                          className={!readOnly && isReady ? 'cursor-pointer' : ''}
+                        >
+                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{heldRightItem.name}</div>
+                          <div className="flex gap-1 mt-1">
+                            {twoHanded && usable && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">双手可用</span>
+                            )}
+                            {twoHanded && !usable && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-warning/20 text-warning">仅拿持</span>
+                            )}
+                            {!twoHanded && usable && (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">可用</span>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-sm italic dark:text-text-dark-muted light:text-text-light-muted">待用</div>
                       )}
-                    </button>
-                  ) : isRightAction ? (
-                    <button
-                      onClick={() => !readOnly && handleUnhold('right')}
-                      className="w-full text-left"
-                    >
-                      <div className="text-sm font-medium text-accent">动作中...</div>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => !readOnly && setSelectingHand('right')}
-                      className="w-full text-left py-2 text-sm italic dark:text-text-dark-muted light:text-text-light-muted hover:text-primary"
-                    >
-                      + 选择装备
-                    </button>
-                  )}
-                </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -718,7 +814,7 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
                     ) : (
                       holdableCandidates.map(item => {
                         const keyId = item.childId || item.id;
-                        const twoHanded = isTwoHandedWeapon(item);
+                        const twoHanded = characterStore.isTwoHandedWeapon(item);
                         return (
                           <button
                             key={keyId}
