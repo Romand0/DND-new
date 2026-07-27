@@ -181,8 +181,10 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
       return { normal: parseInt(m[1], 10), max: parseInt(m[2], 10) };
     };
 
+    // 收集属性（先不设置到 result，用于后续计算）
+    const weaponProps: string[] = [];
+
     if (weapon.properties && weapon.properties.length > 0) {
-      const weaponProps: string[] = [];
       for (const prop of weapon.properties) {
         // 投掷(射程A/B) → 投掷 + 射程拆分（支持全角括号）
         const thrownMatch = prop.match(/^投掷\s*[(（]([^)]+)[)）]$/i);
@@ -228,6 +230,14 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
         }
       }
       result.properties = weaponProps;
+    }
+
+    // 近战武器射程计算：默认 5 尺，有触及属性则 10 尺
+    // 这个射程不影响 normalRange/maxRange（仅用于投掷/弹药）
+    const subtype = weapon.subtype || '';
+    if (subtype.includes('近战') || subtype === '近战') {
+      const hasReach = weaponProps.includes('触及');
+      result.range = hasReach ? '10 尺' : '5 尺';
     }
 
     if (weapon.description) {
