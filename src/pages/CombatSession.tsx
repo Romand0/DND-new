@@ -3,15 +3,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
-// ✅ 新增：导入角色库依赖（仅读取，绝对不修改）
 import { characterStore } from '@/data/characterStore';
-// ✅ 新增：导入角色类型，严格对齐设计文档
+import npcTemplateStore from '@/data/npcTemplateStore';
 import type { Character } from '@/types/character';
-// 原内容：完全保留，一个字都没改
-import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
-// ✅ 新增：导入角色选择弹窗需要的图标
+import type { CombatRecord, Combatant, RoundAction, NpcTemplate } from '@/types/combat';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical } from 'lucide-react';
 import Battleground from '@/components/Battleground';
+import NpcCreator from '@/components/NpcCreator';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -32,6 +30,9 @@ export default function CombatSession() {
   const [initiativeRollOpen, setInitiativeRollOpen] = useState(false);
   const [selectedPc, setSelectedPc] = useState<Character | null>(null);
   const [d20Input, setD20Input] = useState('');
+  // ✅ 新增：NPC 创建器
+  const [npcCreatorOpen, setNpcCreatorOpen] = useState(false);
+  const [npcTemplates, setNpcTemplates] = useState<NpcTemplate[]>([]);
   // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
   const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
   const [tiedOrder, setTiedOrder] = useState<Combatant[]>([]);
@@ -57,6 +58,14 @@ export default function CombatSession() {
   const availableChars = characterStore.getAll().filter(char => 
     !existingCharIds.has(char.id)
   );
+
+  useEffect(() => {
+    setNpcTemplates(npcTemplateStore.getAll());
+    const unsub = npcTemplateStore.subscribe(() => {
+      setNpcTemplates(npcTemplateStore.getAll());
+    });
+    return unsub;
+  }, []);
 
   // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
   if (!isDM) {
@@ -99,11 +108,8 @@ export default function CombatSession() {
     });
   };
 
-  // ✅ 修改：保留原有NPC逻辑，新增PC从角色库抓取的逻辑
   const handleAddCombatant = (char?: Character) => {
     if (char) {
-      // ✅ 新增：PC参战 —— 打开先攻投掷弹窗，而非直接 prompt
-      // 从角色卡读取敏捷调整值作为先攻加值
       setSelectedPc(char);
       setD20Input('');
       setShowCharSelect(false);
@@ -111,19 +117,15 @@ export default function CombatSession() {
       return;
     }
 
-    // 原内容：完全保留，一个字都没改（NPC添加逻辑，和之前一模一样）
-    const name = prompt('参战者名称：');
-    if (!name) return;
-    const init = parseInt(prompt('先攻值：') || '0', 10);
-    if (isNaN(init)) return;
-    const npcId = crypto.randomUUID();
+    setShowCharSelect(false);
+    setNpcCreatorOpen(true);
+  };
+
+  const handleCreateNpc = (combatantData: Omit<Combatant, 'id'>) => {
+    const newId = crypto.randomUUID();
     const newCombatant: Combatant = {
-      id: npcId,
-      name,
-      initiative: init,
-      isDead: false,
-      isPc: false,
-      note: '',
+      ...combatantData,
+      id: newId,
     };
     const updatedCombatants = [...record.combatants, newCombatant].sort(
       (a, b) => b.initiative - a.initiative
@@ -137,8 +139,7 @@ export default function CombatSession() {
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
-    // ✅ 新增：检测先攻平局
-    checkTieAndOpen(npcId);
+    checkTieAndOpen(newId);
   };
 
   // ✅ 新增：确认 PC 先攻并加入战斗（d20 + 敏捷调整值 = 先攻总值）
@@ -432,15 +433,14 @@ export default function CombatSession() {
                 ))}
               </div>
             )}
-            {/* 原内容：保留手动添加NPC入口，原有逻辑完全不变 */}
             <button
               onClick={() => {
                 setShowCharSelect(false);
-                handleAddCombatant(); // 调用无参版本，走原有NPC添加逻辑
+                setNpcCreatorOpen(true);
               }}
               className="w-full mt-4 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 justify-center hover:bg-white/5 transition-colors"
             >
-              手动添加NPC
+              创建NPC
             </button>
           </div>
         </div>
@@ -727,6 +727,15 @@ export default function CombatSession() {
 
       {/* ✅ 新增：网格沙盘 —— 展示参战者位置与移动 */}
       <Battleground sessionId={record.id} combatants={record.combatants} />
+
+      {/* ✅ 新增：NPC 创建器 */}
+      {npcCreatorOpen && (
+        <NpcCreator
+          onClose={() => setNpcCreatorOpen(false)}
+          onCreate={handleCreateNpc}
+          templates={npcTemplates}
+        />
+      )}
     </div>
   );
 }
