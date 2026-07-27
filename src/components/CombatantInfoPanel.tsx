@@ -321,7 +321,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           >
                             <div className="font-medium truncate flex items-center gap-2">
                               {attack.name}
-                              {hasMultiRange && (
+                              {rangeInfo.length > 0 && (
                                 <span className="flex-shrink-0">
                                   {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                                 </span>
@@ -332,18 +332,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                               <span>·</span>
                               <span>{attack.damage || '—'}</span>
                             </div>
-                            {!hasMultiRange && rangeInfo.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {rangeInfo.map((r, idx) => (
-                                  <span key={idx} className="text-xs px-1.5 py-0.5 rounded bg-info/10 text-info">
-                                    {r.label}: {r.value}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
                           </button>
 
-                          {selected && hasMultiRange && (
+                          {selected && rangeInfo.length > 0 && (
                             <div className="ml-2 mt-1 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
                               <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程信息</div>
                               <div className="flex flex-wrap gap-2">
