@@ -48,39 +48,49 @@ function isFinesseWeapon(weapon: WeaponLike): boolean {
  * 处理 D&D 规则中的涵盖关系：
  *   - "简易武器" 涵盖 "简易近战" 与 "简易远程"
  *   - "军用武器" 涵盖 "军用近战" 与 "军用远程"
+ *   - "近战武器"/"远程武器" 是大类，涵盖所有对应子分类
  * 同时反向映射，便于与熟练项中的父类词条匹配。
  */
 function expandWeaponSubtypes(subtype: string): string[] {
   if (!subtype) return [];
   const result = new Set<string>();
   result.add(subtype);
+  // 简易/军用武器的子类扩展
   if (subtype === '简易武器') {
     result.add('简易近战');
     result.add('简易远程');
+    result.add('近战武器');
+    result.add('远程武器');
   }
   if (subtype === '军用武器') {
     result.add('军用近战');
     result.add('军用远程');
+    result.add('近战武器');
+    result.add('远程武器');
   }
   // 子类反向映射到父类
-  if (subtype === '简易近战' || subtype === '简易远程') {
+  if (subtype === '简易近战') {
     result.add('简易武器');
+    result.add('近战武器');
   }
-  if (subtype === '军用近战' || subtype === '军用远程') {
+  if (subtype === '简易远程') {
+    result.add('简易武器');
+    result.add('远程武器');
+  }
+  if (subtype === '军用近战') {
     result.add('军用武器');
+    result.add('近战武器');
   }
-  // 通用近战/远程：匹配所有对应父类（适用于第二部分为空的自定义武器）
+  if (subtype === '军用远程') {
+    result.add('军用武器');
+    result.add('远程武器');
+  }
+  // 通用近战/远程（适用于"其他"类自定义武器）：只匹配大类
   if (subtype === '近战') {
-    result.add('简易武器');
-    result.add('军用武器');
-    result.add('简易近战');
-    result.add('军用近战');
+    result.add('近战武器');
   }
   if (subtype === '远程') {
-    result.add('简易武器');
-    result.add('军用武器');
-    result.add('简易远程');
-    result.add('军用远程');
+    result.add('远程武器');
   }
   return Array.from(result);
 }

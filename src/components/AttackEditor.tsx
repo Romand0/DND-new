@@ -52,7 +52,7 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
 
   // 自定义武器的分类：近战/远程（必须选择）
   const [weaponRangeType, setWeaponRangeType] = useState<'melee' | 'ranged' | ''>('');
-  // 自定义武器的分类：简易/军用/空置
+  // 自定义武器的分类：简易/军用/其他
   const [weaponProfType, setWeaponProfType] = useState<'simple' | 'martial' | ''>('');
   // 原始武器 subtype（从装备抓取时如实展示用）
   const [originalSubtype, setOriginalSubtype] = useState<string>('');
@@ -184,8 +184,8 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
     if (weapon.properties && weapon.properties.length > 0) {
       const weaponProps: string[] = [];
       for (const prop of weapon.properties) {
-        // 投掷(A/B) → 投掷 + 射程拆分
-        const thrownMatch = prop.match(/^投掷\s*\(([^)]+)\)$/i);
+        // 投掷(射程A/B) → 投掷 + 射程拆分（支持全角括号）
+        const thrownMatch = prop.match(/^投掷\s*[(（]([^)]+)[)）]$/i);
         if (thrownMatch) {
           weaponProps.push('投掷');
           const r = parseRangePair(thrownMatch[1]);
@@ -195,8 +195,8 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
           }
           continue;
         }
-        // 弹药(A/B) → 弹药 + 射程拆分
-        const ammoMatch = prop.match(/^弹药\s*\(([^)]+)\)$/i);
+        // 弹药(射程A/B) → 弹药 + 射程拆分（支持全角括号）
+        const ammoMatch = prop.match(/^弹药\s*[(（]([^)]+)[)）]$/i);
         if (ammoMatch) {
           weaponProps.push('弹药');
           const r = parseRangePair(ammoMatch[1]);
@@ -206,8 +206,8 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
           }
           continue;
         }
-        // 多用(M) → 多用 + 双手伤害拆分
-        const versatileMatch = prop.match(/^多用\s*\(([^)]+)\)$/i);
+        // 多用(M) → 多用 + 双手伤害拆分（支持全角括号）
+        const versatileMatch = prop.match(/^多用\s*[(（]([^)]+)[)）]$/i);
         if (versatileMatch) {
           weaponProps.push('多用');
           result.twoHandedDamage = versatileMatch[1].trim();
@@ -397,7 +397,7 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
                   }}
                   className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                 >
-                  <option value="">空置</option>
+                  <option value="">其他</option>
                   <option value="simple">简易</option>
                   <option value="martial">军用</option>
                 </select>
