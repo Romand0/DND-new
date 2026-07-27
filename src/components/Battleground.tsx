@@ -1,6 +1,6 @@
 // 网格沙盘组件 —— 展示参战者位置与移动，支持三种大小预设
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut } from 'lucide-react';
+import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2 } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize } from '@/types/battleground';
@@ -208,6 +208,13 @@ export default function Battleground({ sessionId, combatants }: Props) {
     setTranslate({ x: 0, y: 0 });
   };
 
+  const handleUndo = () => {
+    battlegroundStore.undoMove(sessionId);
+    setSelectedCombatantId(null);
+  };
+
+  const undoCount = bg?.moveHistory?.length ?? 0;
+
   // 未放置的参战者（用于列表选择）
   const unplaced = combatants.filter((c) => !tokenMap.has(c.id));
   // 已放置的参战者（用于回收框展示）
@@ -259,6 +266,15 @@ export default function Battleground({ sessionId, combatants }: Props) {
           >
             <Eraser className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">橡皮</span>
+          </button>
+          <button
+            onClick={handleUndo}
+            disabled={undoCount === 0}
+            className="px-2 py-1 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-inherit"
+            title={`撤回（${undoCount}/5）`}
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">撤回{undoCount > 0 ? ` (${undoCount})` : ''}</span>
           </button>
           <button
             onClick={handleClear}
@@ -428,6 +444,7 @@ export default function Battleground({ sessionId, combatants }: Props) {
                       height: cellSize - 6,
                       fontSize: cellSize > 22 ? 11 : 9,
                     }}
+                    onPointerDown={(e) => e.stopPropagation()}
                     onDoubleClick={() => setDoubleClickedCombatant(combatant)}
                   >
                     {combatant.name.slice(0, 1)}

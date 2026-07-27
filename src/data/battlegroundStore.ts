@@ -27,6 +27,7 @@ function loadAll(): Battleground[] {
           }))
         : [],
       updatedAt: b.updatedAt ?? Date.now(),
+      moveHistory: Array.isArray(b.moveHistory) ? b.moveHistory : [],
     }));
   } catch {
     return [];
@@ -54,6 +55,7 @@ const battlegroundStore = {
         sessionId,
         size: 'medium', // 默认中型
         tokens: [],
+        moveHistory: [],
         updatedAt: Date.now(),
       };
       list.push(bg);
@@ -92,12 +94,17 @@ const battlegroundStore = {
     const preset = GRID_PRESETS[list[idx].size];
     // 越界保护
     if (token.col < 0 || token.col >= preset.cols || token.row < 0 || token.row >= preset.rows) return;
+    // 保存移动前快照到历史栈（最多 5 条）
+    const history = list[idx].moveHistory ?? [];
+    const snapshot = list[idx].tokens.map((t) => ({ ...t }));
+    history.push(snapshot);
+    if (history.length > 5) history.shift();
     // 移除该参战者的旧位置 + 移除目标格上的其他棋子
     const tokens = list[idx].tokens.filter(
       (t) => t.combatantId !== token.combatantId && !(t.col === token.col && t.row === token.row)
     );
     tokens.push(token);
-    list[idx] = { ...list[idx], tokens, updatedAt: Date.now() };
+    list[idx] = { ...list[idx], tokens, moveHistory: history, updatedAt: Date.now() };
     saveAll(list);
   },
 
@@ -106,12 +113,37 @@ const battlegroundStore = {
     const list = loadAll();
     const idx = list.findIndex((b) => b.sessionId === sessionId);
     if (idx === -1) return;
+    // 保存移除前快照到历史栈
+    const history = list[idx].moveHistory ?? [];
+    const snapshot = list[idx].tokens.map((t) => ({ ...t }));
+    history.push(snapshot);
+    if (history.length > 5) history.shift();
     list[idx] = {
       ...list[idx],
       tokens: list[idx].tokens.filter((t) => t.combatantId !== combatantId),
+      moveHistory: history,
       updatedAt: Date.now(),
     };
     saveAll(list);
+  },
+
+  /** 撤回上一次移动，返回 true 表示成功撤回 */
+  undoMove(sessionId: string): boolean {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return false;
+    const history = list[idx].moveHistory ?? [];
+    if (history.length === 0) return false;
+    const prevTokens = history.pop()!;
+    list[idx] = { ...list[idx], tokens: prevTokens, moveHistory: history, updatedAt: Date.now() };
+    saveAll(list);
+    return true;
+  },
+
+  /** 获取可撤回次数 */
+  getUndoCount(sessionId: string): number {
+    const bg = this.get(sessionId);
+    return bg?.moveHistory?.length ?? 0;
   },
 
   /** 清空所有棋子 */

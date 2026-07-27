@@ -28,4 +28,6 @@ export interface Battleground {
   size: GridSize;
   tokens: TokenPosition[];
   updatedAt: number;
+  /** 移动历史栈，最多保留 5 条，用于撤回 */
+  moveHistory?: TokenPosition[][];
 }
