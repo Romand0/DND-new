@@ -48,6 +48,18 @@ function migrateCharacter(char: any): Character {
       twoHandedDamage: attack.twoHandedDamage,
     }));
   }
+  // 迁移：为缺少 childId 的装备生成唯一实例 ID
+  if (char.equipment && Array.isArray(char.equipment)) {
+    char.equipment = char.equipment.map((eq: any) => {
+      if (!eq.childId) {
+        eq.childId = (char.id || 'char') + '-' + generateId();
+      }
+      if (!eq.id && eq.childId) {
+        eq.id = eq.childId;
+      }
+      return eq;
+    });
+  }
   // 迁移：添加手持槽位
   if (!char.heldLeft || typeof char.heldLeft === 'string') {
     // 兼容旧格式：heldLeftId 字符串 → 新 HandSlot 对象
@@ -73,8 +85,9 @@ function migrateStore(chars: any[]): Character[] {
     const missingNewAttackFields = char.attacks?.some((a: any) =>
       !('attackBonus' in a) || !('damageType' in a) || !('range' in a) || !('properties' in a)
     );
+    const missingChildId = char.equipment?.some((eq: any) => !eq.childId);
     const missingHeldSlots = !char.heldLeft || !char.heldRight || typeof char.heldLeft === 'string';
-    if (hasOldAttackFields || missingNewAttackFields || missingHeldSlots) {
+    if (hasOldAttackFields || missingNewAttackFields || missingHeldSlots || missingChildId) {
       migrated = true;
       return migrateCharacter(char);
     }

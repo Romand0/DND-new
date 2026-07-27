@@ -638,10 +638,9 @@ if (character) {
   if (character.wornArmorId === undefined) character.wornArmorId = null;
   if (character.wornOutfitId === undefined) character.wornOutfitId = null;
 
-  // 每个装备确保 id / childId 都有
+  // 每个装备确保 id 有值（childId 由 store 迁移保证唯一性）
   character.equipment = character.equipment.map(eq => {
     if (!eq.id && (eq as any).childId) eq.id = (eq as any).childId;
-    if (!(eq as any).childId && eq.id) (eq as any).childId = eq.id;
     return eq;
   });
 }

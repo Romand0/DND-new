@@ -107,7 +107,6 @@ export default function MigrationBackup() {
         eqCount = result.count;
         data.equipments.forEach((e: any) => {
           if (!e.id && e.childId) e.id = e.childId;
-          if (!e.childId && e.id) e.childId = e.id;
           equipmentStore.save(e);
         });
       }
@@ -127,7 +126,6 @@ export default function MigrationBackup() {
           if (merged.equipment) {
             merged.equipment = merged.equipment.map((eq: any) => {
               if (!eq.id && eq.childId) eq.id = eq.childId;
-              if (!eq.childId && eq.id) eq.childId = eq.id;
               return eq;
             });
           }
@@ -159,7 +157,6 @@ export default function MigrationBackup() {
 
       if (eqs.length > 0) eqs.forEach((e: any) => {
         if (!e.id && e.childId) e.id = e.childId;
-        if (!e.childId && e.id) e.childId = e.id;
         equipmentStore.save(e);
       });
       if (sps.length > 0) sps.forEach((s: any) => spellStore.save(s));
@@ -170,7 +167,6 @@ export default function MigrationBackup() {
           if (merged.equipment) {
             merged.equipment = merged.equipment.map((eq: any) => {
               if (!eq.id && eq.childId) eq.id = eq.childId;
-              if (!eq.childId && eq.id) eq.childId = eq.id;
               return eq;
             });
           }

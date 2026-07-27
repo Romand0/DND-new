@@ -231,7 +231,7 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
   // 手持选择处理
   const handleHoldSelect = (item: Equipment) => {
     if (!id || !selectingHand) return;
-    const result = characterStore.holdItem(id, item.id!, selectingHand);
+    const result = characterStore.holdItem(id, (item.childId || item.id)!, selectingHand);
     if (result.success) {
       reloadChar();
       setSelectingHand(null);

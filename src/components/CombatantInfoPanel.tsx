@@ -36,7 +36,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
   const handleHoldSelect = (item: any, hand: 'left' | 'right') => {
     if (!character) return;
-    const result = characterStore.holdItem(character.id, item.id!, hand);
+    const result = characterStore.holdItem(character.id, (item.childId || item.id)!, hand);
     if (!result.success) alert(result.message);
     setRefreshKey(k => k + 1);
   };
@@ -498,7 +498,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
               <div className="max-h-[200px] overflow-y-auto space-y-1">
                 {holdableCandidates.map(item => (
                   <button
-                    key={item.id}
+                    key={item.childId || item.id}
                     onClick={() => handleHoldItemSelect(item)}
                     className="w-full text-left p-2.5 text-sm rounded hover:bg-primary/10 dark:text-text-dark light:text-text-light"
                   >
