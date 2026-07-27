@@ -16,6 +16,7 @@ function load(): NpcTemplate[] {
     const templates: unknown[] = JSON.parse(raw);
     return templates.map((t: any) => ({
       id: t.id ?? crypto.randomUUID(),
+      templateId: t.templateId ?? t.id ?? crypto.randomUUID(),
       name: t.name ?? '未命名NPC',
       strength: t.strength ?? 10,
       dexterity: t.dexterity ?? 10,

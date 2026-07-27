@@ -68,6 +68,9 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
   const [mode, setMode] = useState<'create' | 'select'>('create');
   const [d20Input, setD20Input] = useState('');
   const [saveAsTemplate, setSaveAsTemplate] = useState(false);
+  const [templateId, setTemplateId] = useState('');
+  const [templateName, setTemplateName] = useState('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>(undefined);
 
   // 属性使用字符串状态，允许编辑过程中清空
   const [abilityTexts, setAbilityTexts] = useState<Record<AbilityKey, string>>({
@@ -197,16 +200,35 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
       charisma: Math.max(1, Math.min(30, parseInt(abilityTexts.charisma, 10) || 0)),
     };
 
+    let createdTemplateId: string | undefined = selectedTemplateId;
+
     if (saveAsTemplate) {
-      npcTemplateStore.create({
-        name,
+      if (!templateId.trim()) {
+        alert('请输入模板 ID');
+        return;
+      }
+      if (!templateName.trim()) {
+        alert('请输入模板名称');
+        return;
+      }
+      const existing = npcTemplateStore.getAll().find(t => t.templateId === templateId.trim());
+      if (existing) {
+        alert('该模板 ID 已存在，请使用其他 ID');
+        return;
+      }
+      const newTemplate = npcTemplateStore.create({
+        templateId: templateId.trim(),
+        name: templateName.trim(),
         ...finalAbilities,
         maxHp: hpInput.value,
         speed: speedInput.value,
         ac: acInput.value,
         attacks,
       });
+      createdTemplateId = newTemplate.templateId;
     }
+
+    const childId = createdTemplateId ? `${createdTemplateId}-${crypto.randomUUID().slice(0, 8)}` : undefined;
 
     onCreate({
       name,
@@ -218,6 +240,8 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
       isPc: false,
       speed: speedInput.value,
       note: '',
+      templateId: createdTemplateId,
+      childId,
     });
 
     onClose();
@@ -237,8 +261,12 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
     speedInput.setExternal(template.speed);
     acInput.setExternal(template.ac);
     setAttacks([...template.attacks]);
+    setSelectedTemplateId(template.templateId);
     setMode('create');
     setD20Input('');
+    setSaveAsTemplate(false);
+    setTemplateId('');
+    setTemplateName('');
   };
 
   if (mode === 'select') {
@@ -323,10 +351,10 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
             <label className="block text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
               六大属性（自动计算调整值）
             </label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-x-2 gap-y-2">
               {ABILITY_NAMES.map(ability => (
-                <div key={ability} className="flex items-center gap-2">
-                  <label className="text-xs w-12 dark:text-text-dark-muted light:text-text-light-muted">
+                <div key={ability} className="flex items-center gap-1">
+                  <label className="text-xs w-10 dark:text-text-dark-muted light:text-text-light-muted shrink-0">
                     {ABILITY_LABELS[ability]}
                   </label>
                   <input
@@ -334,9 +362,9 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
                     value={abilityTexts[ability]}
                     onChange={(e) => handleAbilityChange(ability, e.target.value)}
                     onBlur={() => handleAbilityBlur(ability)}
-                    className="flex-1 px-2 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                    className="w-16 px-2 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary text-center"
                   />
-                  <span className={`text-xs font-bold w-6 text-center rounded ${
+                  <span className={`text-xs font-bold w-5 text-center rounded shrink-0 ${
                     modifiers[ability] >= 0
                       ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
                       : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
@@ -461,38 +489,34 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
                         )}
                       </div>
                       {rangeDisplay.showNormalMax && (
-                        <div className="grid grid-cols-2 gap-2 text-xs mt-2">
-                          <div>
-                            <label className="dark:text-text-dark-muted light:text-text-light-muted">常规射程</label>
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                value={attack.normalRange ?? ''}
-                                onChange={(e) => {
-                                  const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
-                                  updateAttack(index, 'normalRange', v);
-                                }}
-                                className="flex-1 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
-                                placeholder="20"
-                              />
-                              <span className="dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
-                            </div>
+                        <div className="flex gap-2 text-xs mt-2">
+                          <div className="flex items-center gap-1">
+                            <label className="dark:text-text-dark-muted light:text-text-light-muted shrink-0">常规</label>
+                            <input
+                              type="number"
+                              value={attack.normalRange ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                                updateAttack(index, 'normalRange', v);
+                              }}
+                              className="w-14 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center"
+                              placeholder="20"
+                            />
+                            <span className="dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
                           </div>
-                          <div>
-                            <label className="dark:text-text-dark-muted light:text-text-light-muted">最大射程</label>
-                            <div className="flex items-center gap-1">
-                              <input
-                                type="number"
-                                value={attack.maxRange ?? ''}
-                                onChange={(e) => {
-                                  const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
-                                  updateAttack(index, 'maxRange', v);
-                                }}
-                                className="flex-1 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
-                                placeholder="60"
-                              />
-                              <span className="dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
-                            </div>
+                          <div className="flex items-center gap-1">
+                            <label className="dark:text-text-dark-muted light:text-text-light-muted shrink-0">最大</label>
+                            <input
+                              type="number"
+                              value={attack.maxRange ?? ''}
+                              onChange={(e) => {
+                                const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                                updateAttack(index, 'maxRange', v);
+                              }}
+                              className="w-14 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center"
+                              placeholder="60"
+                            />
+                            <span className="dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
                           </div>
                         </div>
                       )}
@@ -563,13 +587,48 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
             <input
               type="checkbox"
               checked={saveAsTemplate}
-              onChange={(e) => setSaveAsTemplate(e.target.checked)}
+              onChange={(e) => {
+                setSaveAsTemplate(e.target.checked);
+                if (!e.target.checked) {
+                  setTemplateId('');
+                  setTemplateName('');
+                }
+              }}
               className="rounded"
             />
             <label className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
               保存为模板（可多次使用）
             </label>
           </div>
+          {saveAsTemplate && (
+            <div className="space-y-3 p-3 rounded-lg border dark:border-border-dark light:border-border-light">
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">
+                  模板 ID
+                </label>
+                <input
+                  type="text"
+                  value={templateId}
+                  onChange={(e) => setTemplateId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                  placeholder="例如：goblin"
+                />
+                <p className="text-xs text-danger mt-1">仅允许字母、数字、下划线和连字符</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">
+                  模板名称
+                </label>
+                <input
+                  type="text"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                  placeholder="例如：哥布林"
+                />
+              </div>
+            </div>
+          )}
 
           <div className="flex gap-2 pt-2">
             <button

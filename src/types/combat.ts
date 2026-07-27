@@ -12,10 +12,17 @@ export interface Combatant {
   characterId?: string;
   note?: string;
   speed?: number;
+  /** NPC 实例子 ID，格式 `{templateId}-{random}`，从模板创建时自动生成 */
+  childId?: string;
+  /** 模板 ID 引用（从模板创建时带入） */
+  templateId?: string;
 }
 
 export interface NpcTemplate {
   id: string;
+  /** 用户自定义的模板唯一标识（如 "goblin"），用于识别同类 NPC */
+  templateId: string;
+  /** 模板显示名称（如 "哥布林"） */
   name: string;
   strength: number;
   dexterity: number;
