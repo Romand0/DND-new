@@ -2092,6 +2092,7 @@ if (character) {
         <AttackEditor
           attack={editingAttack || undefined}
           weapons={character.equipment.filter((e) => e.category === '武器')}
+          character={character}
           onSave={handleSaveAttack}
           onDelete={editingAttack ? handleDeleteAttack : undefined}
           onClose={() => {

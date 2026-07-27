@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Trash2, Package } from 'lucide-react';
 import type { Attack } from '@/types/character';
-import type { Equipment } from '@/types/character';
+import type { Equipment, Character } from '@/types/character';
+import { calcAttackBonus, formatAttackBonus } from '@/lib/attackBonus';
 
 const DAMAGE_TYPES = [
   '挥砍', '穿刺', '钝击', '火焰', '冰冻', '闪电',
@@ -15,12 +16,13 @@ const WEAPON_PROPERTIES = [
 interface AttackEditorProps {
   attack?: Attack;
   weapons?: Equipment[];
+  character?: Character;
   onSave: (attack: Attack) => void;
   onDelete?: () => void;
   onClose: () => void;
 }
 
-export default function AttackEditor({ attack, weapons = [], onSave, onDelete, onClose }: AttackEditorProps) {
+export default function AttackEditor({ attack, weapons = [], character, onSave, onDelete, onClose }: AttackEditorProps) {
   const [formData, setFormData] = useState<Omit<Attack, 'id'>>({
     name: attack?.name || '',
     attackBonus: attack?.attackBonus || '',
@@ -32,6 +34,30 @@ export default function AttackEditor({ attack, weapons = [], onSave, onDelete, o
   const [customDamageType, setCustomDamageType] = useState('');
   const [customProperty, setCustomProperty] = useState('');
   const [weaponPickerOpen, setWeaponPickerOpen] = useState(false);
+  // 保留最近抓取的武器引用（含 subtype），用于攻击加值自动计算
+  const [selectedWeapon, setSelectedWeapon] = useState<Equipment | null>(null);
+  // 灵巧武器的属性选择；null 表示使用默认（较高者）
+  const [finesseChoice, setFinesseChoice] = useState<'strength' | 'dexterity' | null>(null);
+
+  // 攻击加值预览（基于当前武器属性 + 角色）
+  const attackBonusPreview = useMemo(() => {
+    if (!character) return null;
+    // 优先使用 selectedWeapon（含 subtype），否则用 formData 重建
+    const weapon = selectedWeapon
+      ? { name: selectedWeapon.name, subtype: selectedWeapon.subtype, properties: formData.properties }
+      : { name: formData.name, subtype: undefined, properties: formData.properties };
+    return calcAttackBonus(weapon, character, finesseChoice || undefined);
+  }, [character, selectedWeapon, formData.name, formData.properties, finesseChoice]);
+
+  // 预览变化时同步 attackBonus 字段（仅在有 character 时）
+  useEffect(() => {
+    if (attackBonusPreview) {
+      setFormData((prev) => ({
+        ...prev,
+        attackBonus: formatAttackBonus(attackBonusPreview.bonus),
+      }));
+    }
+  }, [attackBonusPreview]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -142,6 +168,10 @@ export default function AttackEditor({ attack, weapons = [], onSave, onDelete, o
 
   const handleSelectWeapon = (weapon: Equipment) => {
     const parsed = parseWeaponData(weapon);
+    // 保留武器引用（含 subtype），用于攻击加值自动计算
+    setSelectedWeapon(weapon);
+    // 重置灵巧选择，使用默认（较高者）
+    setFinesseChoice(null);
     setFormData((prev) => ({
       ...prev,
       ...parsed,
@@ -204,6 +234,43 @@ export default function AttackEditor({ attack, weapons = [], onSave, onDelete, o
                 placeholder="+5"
                 className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
               />
+              {/* 攻击加值自动计算提示 */}
+              {attackBonusPreview && (
+                <div className="mt-1.5 space-y-1">
+                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                    {attackBonusPreview.breakdown}
+                    {!attackBonusPreview.isProficient && (
+                      <span className="ml-1 text-warning">（不熟练）</span>
+                    )}
+                  </div>
+                  {/* 灵巧武器属性选择 */}
+                  {attackBonusPreview.isFinesse && (
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">灵巧属性：</span>
+                      {(['strength', 'dexterity'] as const).map((ab) => {
+                        const mod = ab === 'strength'
+                          ? character?.abilities?.strength?.modifier ?? 0
+                          : character?.abilities?.dexterity?.modifier ?? 0;
+                        const active = (finesseChoice || attackBonusPreview.defaultFinesseChoice) === ab;
+                        return (
+                          <button
+                            key={ab}
+                            type="button"
+                            onClick={() => setFinesseChoice(ab)}
+                            className={`px-2 py-0.5 text-xs rounded border transition-colors ${
+                              active
+                                ? 'bg-primary/10 text-primary border-primary/40'
+                                : 'dark:border-border-dark dark:text-text-dark-muted light:border-border-light light:text-text-light-muted hover:border-primary/40'
+                            }`}
+                          >
+                            {ab === 'strength' ? '力量' : '敏捷'} ({mod >= 0 ? `+${mod}` : mod})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
