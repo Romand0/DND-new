@@ -6,6 +6,7 @@ export interface Combatant {
   ac?: number;
   maxHp?: number;
   currentHp?: number;
+  tempHp?: number;
   isDead?: boolean;
   isPc?: boolean;
   characterId?: string;

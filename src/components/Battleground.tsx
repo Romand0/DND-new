@@ -5,6 +5,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize } from '@/types/battleground';
 import type { Combatant } from '@/types/combat';
+import CombatantInfoPanel from './CombatantInfoPanel';
 
 interface Props {
   sessionId: string;
@@ -15,6 +16,8 @@ export default function Battleground({ sessionId, combatants }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
+  // 双击弹窗
+  const [doubleClickedCombatant, setDoubleClickedCombatant] = useState<Combatant | null>(null);
   // 缩放与平移状态
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
@@ -425,6 +428,7 @@ export default function Battleground({ sessionId, combatants }: Props) {
                       height: cellSize - 6,
                       fontSize: cellSize > 22 ? 11 : 9,
                     }}
+                    onDoubleClick={() => setDoubleClickedCombatant(combatant)}
                   >
                     {combatant.name.slice(0, 1)}
                   </div>
@@ -450,6 +454,14 @@ export default function Battleground({ sessionId, combatants }: Props) {
           移动范围
         </div>
       </div>
+
+      {/* 双击棋子弹出信息窗口 */}
+      {doubleClickedCombatant && (
+        <CombatantInfoPanel
+          combatant={doubleClickedCombatant}
+          onClose={() => setDoubleClickedCombatant(null)}
+        />
+      )}
     </div>
   );
 }
