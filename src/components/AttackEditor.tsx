@@ -9,8 +9,10 @@ const DAMAGE_TYPES = [
   '毒素', '雷鸣', '心灵', '光耀', '暗蚀', '力场'
 ];
 
+// 规则属性：灵巧、重型、轻型、装填、射程、触及、特殊、双手
+// 投掷、弹药、多用会在 parseWeaponData 中标准化为这几个基础属性，并拆分出射程/双手伤害
 const WEAPON_PROPERTIES = [
-  '灵巧', '轻型', '重型', '双手', '远程', '弹药', '掷射', '法术', '法器'
+  '灵巧', '重型', '轻型', '装填', '射程', '触及', '特殊', '双手'
 ];
 
 interface AttackEditorProps {
@@ -31,6 +33,9 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
     range: attack?.range || '',
     properties: attack?.properties || [],
     subtype: attack?.subtype,
+    normalRange: attack?.normalRange,
+    maxRange: attack?.maxRange,
+    twoHandedDamage: attack?.twoHandedDamage,
   });
   const [customDamageType, setCustomDamageType] = useState('');
   const [customProperty, setCustomProperty] = useState('');
@@ -168,23 +173,56 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
       attackBonus: '',
     };
 
+    // 解析 A/B 射程：支持 "20/60尺" / "20/60" / "20/60 尺" 等
+    const parseRangePair = (value: string): { normal: number; max: number } | null => {
+      const m = value.match(/(\d+)\s*\/\s*(\d+)\s*尺?/);
+      if (!m) return null;
+      return { normal: parseInt(m[1], 10), max: parseInt(m[2], 10) };
+    };
+
     if (weapon.properties && weapon.properties.length > 0) {
       const weaponProps: string[] = [];
       for (const prop of weapon.properties) {
-        const rangeMatch = prop.match(/^(\d+\/\d+)尺$/);
+        // 投掷(A/B) → 投掷 + 射程拆分
+        const thrownMatch = prop.match(/^投掷\s*\(([^)]+)\)$/i);
+        if (thrownMatch) {
+          weaponProps.push('投掷');
+          const r = parseRangePair(thrownMatch[1]);
+          if (r) {
+            result.normalRange = r.normal;
+            result.maxRange = r.max;
+          }
+          continue;
+        }
+        // 弹药(A/B) → 弹药 + 射程拆分
+        const ammoMatch = prop.match(/^弹药\s*\(([^)]+)\)$/i);
+        if (ammoMatch) {
+          weaponProps.push('弹药');
+          const r = parseRangePair(ammoMatch[1]);
+          if (r) {
+            result.normalRange = r.normal;
+            result.maxRange = r.max;
+          }
+          continue;
+        }
+        // 多用(M) → 多用 + 双手伤害拆分
+        const versatileMatch = prop.match(/^多用\s*\(([^)]+)\)$/i);
+        if (versatileMatch) {
+          weaponProps.push('多用');
+          result.twoHandedDamage = versatileMatch[1].trim();
+          continue;
+        }
+        // 纯射程 "20/60尺" → 远程 + 射程拆分
+        const rangeMatch = prop.match(/^(\d+)\s*\/\s*(\d+)\s*尺$/);
         if (rangeMatch) {
-          result.range = `${rangeMatch[1]} 尺`;
+          result.normalRange = parseInt(rangeMatch[1], 10);
+          result.maxRange = parseInt(rangeMatch[2], 10);
           weaponProps.push('远程');
           continue;
         }
-        if (['灵巧', '轻型', '重型', '双手', '远程', '弹药', '掷射', '法术', '法器', '多功能'].includes(prop)) {
+        // 保留规则基础属性
+        if (WEAPON_PROPERTIES.includes(prop)) {
           weaponProps.push(prop);
-          continue;
-        }
-        if (prop.includes('单手') || prop.includes('双手')) {
-          if (prop.includes('双手') && !weaponProps.includes('双手')) {
-            weaponProps.push('双手');
-          }
           continue;
         }
       }
@@ -516,6 +554,64 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
               />
             </div>
           </div>
+
+          {/* 投掷/弹药 射程拆分编辑（常规/最大） */}
+          {(formData.properties.includes('投掷') || formData.properties.includes('弹药')) && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  常规射程
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={formData.normalRange ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                      setFormData((prev) => ({ ...prev, normalRange: v }));
+                    }}
+                    placeholder="20"
+                    className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                  <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  最大射程
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    value={formData.maxRange ?? ''}
+                    onChange={(e) => {
+                      const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10);
+                      setFormData((prev) => ({ ...prev, maxRange: v }));
+                    }}
+                    placeholder="60"
+                    className="flex-1 px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                  <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 多用：双手伤害 */}
+          {formData.properties.includes('多用') && (
+            <div>
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                双手伤害
+              </label>
+              <input
+                type="text"
+                value={formData.twoHandedDamage || ''}
+                onChange={(e) => setFormData((prev) => ({ ...prev, twoHandedDamage: e.target.value }))}
+                placeholder="1d10"
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">

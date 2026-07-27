@@ -28,6 +28,12 @@ export interface Attack {
   range: string;
   properties: string[];
   subtype?: string;
+  /** 常规射程（单位：尺），用于“投掷”或“弹药”属性 */
+  normalRange?: number;
+  /** 最大射程（单位：尺），用于“投掷”或“弹药”属性 */
+  maxRange?: number;
+  /** 双手拿持状态下的伤害骰（“多用”属性） */
+  twoHandedDamage?: string;
 }
 
 export interface SpellSlots {
