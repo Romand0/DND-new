@@ -174,9 +174,9 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
       attackBonus: '',
     };
 
-    // 解析 A/B 射程：支持 "20/60尺" / "20/60" / "20/60 尺" 等
+    // 解析 A/B 射程：支持 "射程20/60" / "20/60尺" / "20/60" / "20/60 尺" 等
     const parseRangePair = (value: string): { normal: number; max: number } | null => {
-      const m = value.match(/(\d+)\s*\/\s*(\d+)\s*尺?/);
+      const m = value.match(/(?:射程)?\s*(\d+)\s*\/\s*(\d+)\s*尺?/);
       if (!m) return null;
       return { normal: parseInt(m[1], 10), max: parseInt(m[2], 10) };
     };
