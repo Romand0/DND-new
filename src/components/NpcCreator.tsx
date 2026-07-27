@@ -46,15 +46,6 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
     attacks: [] as NpcAttack[],
   });
 
-  const [newAttack, setNewAttack] = useState<Omit<NpcAttack, 'id' | 'subtype'>>({
-    name: '',
-    attackBonus: '',
-    damage: '',
-    damageType: '挥砍',
-    range: '5 尺',
-    properties: [],
-  });
-
   const modifiers = {
     strength: calcModifier(formData.strength),
     dexterity: calcModifier(formData.dexterity),
@@ -78,19 +69,17 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
   };
 
   const addAttack = () => {
-    if (!newAttack.name) return;
     setFormData(prev => ({
       ...prev,
-      attacks: [...prev.attacks, { ...newAttack }],
+      attacks: [...prev.attacks, {
+        name: '',
+        attackBonus: '',
+        damage: '',
+        damageType: '挥砍',
+        range: '5 尺',
+        properties: [],
+      }],
     }));
-    setNewAttack({
-      name: '',
-      attackBonus: '',
-      damage: '',
-      damageType: '挥砍',
-      range: '5 尺',
-      properties: [],
-    });
   };
 
   const removeAttack = (index: number) => {
@@ -420,6 +409,7 @@ export default function NpcCreator({ onClose, onCreate, templates = [] }: Props)
               </div>
             )}
             <button
+              type="button"
               onClick={addAttack}
               className="w-full py-2 rounded-lg border border-dashed dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:border-primary hover:text-primary transition-colors text-sm flex items-center justify-center gap-1"
             >
