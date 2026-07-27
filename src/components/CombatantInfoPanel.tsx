@@ -102,13 +102,24 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   };
 
   const isRangedWeapon = (attack: Attack): boolean => {
-    if (!attack.properties) return false;
-    return attack.properties.some(p => p.includes('远程') || p.includes('弹药'));
+    // 优先检查子分类
+    if (attack.subtype) {
+      if (attack.subtype.includes('远程') || attack.subtype.includes('弹药')) return true;
+    }
+    // 再检查常规/最大射程字段（有这两个字段的武器视为远程）
+    if (attack.normalRange !== undefined && attack.normalRange > 0) return true;
+    if (attack.maxRange !== undefined && attack.maxRange > 0) return true;
+    return false;
   };
 
   const isThrownWeapon = (attack: Attack): boolean => {
-    if (!attack.properties) return false;
-    return attack.properties.some(p => p.includes('投掷'));
+    // 优先检查子分类
+    if (attack.subtype && attack.subtype.includes('投掷')) return true;
+    // 再检查属性
+    if (attack.properties) {
+      return attack.properties.some(p => p.includes('投掷'));
+    }
+    return false;
   };
 
   const hasMultipleRanges = (attack: Attack): boolean => {

@@ -817,19 +817,55 @@ function holdItem(
     return { success: false, message: '已穿戴的盔甲/服装不能手持' };
   }
 
+  // 唯一标识：优先使用 childId，没有则使用 id
   const slotId = equip.childId || equip.id;
+  if (!slotId) {
+    return { success: false, message: '装备缺少唯一标识' };
+  }
 
-  // 如果装备已经在某只手上，不能再放到另一只手（除非是双手武器需要双手拿持）
+  const canHoldInHand = (h: HandSlot): boolean =>
+    h.state === 'ready' && h.equipmentId === null;
+
+  // 检查该装备是否已经在某只手上
   const alreadyInLeft = char.heldLeft.equipmentId === slotId;
   const alreadyInRight = char.heldRight.equipmentId === slotId;
   if (alreadyInLeft && alreadyInRight) {
     return { success: true, message: `${equip.name} 已在双手` };
   }
 
-  const canHoldInHand = (h: HandSlot): boolean =>
-    h.state === 'ready' && h.equipmentId === null;
+  // 如果已经在一只手上，且用户指定另一只手，允许添加（双手武器情况）
+  if ((alreadyInLeft || alreadyInRight) && hand !== 'auto') {
+    const targetSlot = hand === 'left' ? char.heldLeft : char.heldRight;
+    if (targetSlot.equipmentId === slotId) {
+      return { success: true, message: `${equip.name} 已在${hand === 'left' ? '左手' : '右手'}` };
+    }
+    // 另一只手已经有这个装备了，现在要放到这只手（双手武器）
+    if (canHoldInHand(targetSlot)) {
+      if (hand === 'left') {
+        char.heldLeft = { state: 'ready', equipmentId: slotId };
+      } else {
+        char.heldRight = { state: 'ready', equipmentId: slotId };
+      }
+      saveCharacter(char as Character);
+      return { success: true, message: `${equip.name} 已双手握持` };
+    } else {
+      return { success: false, message: `${hand === 'left' ? '左手' : '右手'}不可用` };
+    }
+  }
 
   if (hand === 'auto') {
+    // 自动选择：优先选择已有同装备的手（双手武器），否则选空手
+    if (alreadyInLeft && canHoldInHand(char.heldRight)) {
+      char.heldRight = { state: 'ready', equipmentId: slotId };
+      saveCharacter(char as Character);
+      return { success: true, message: `${equip.name} 已双手握持` };
+    }
+    if (alreadyInRight && canHoldInHand(char.heldLeft)) {
+      char.heldLeft = { state: 'ready', equipmentId: slotId };
+      saveCharacter(char as Character);
+      return { success: true, message: `${equip.name} 已双手握持` };
+    }
+    // 选择空手
     if (canHoldInHand(char.heldRight)) {
       char.heldRight = { state: 'ready', equipmentId: slotId };
       saveCharacter(char as Character);
