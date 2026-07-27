@@ -42,12 +42,13 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
   // 攻击加值预览（基于当前武器属性 + 角色）
   const attackBonusPreview = useMemo(() => {
     if (!character) return null;
-    // 优先使用 selectedWeapon（含 subtype），否则用 formData 重建
-    const weapon = selectedWeapon
-      ? { name: selectedWeapon.name, subtype: selectedWeapon.subtype, properties: formData.properties }
-      : { name: formData.name, subtype: undefined, properties: formData.properties };
+    const weapon = {
+      name: formData.name,
+      subtype: formData.subtype || selectedWeapon?.subtype,
+      properties: formData.properties,
+    };
     return calcAttackBonus(weapon, character, finesseChoice || undefined);
-  }, [character, selectedWeapon, formData.name, formData.properties, finesseChoice]);
+  }, [character, selectedWeapon?.subtype, formData.name, formData.subtype, formData.properties, finesseChoice]);
 
   // 预览变化时同步 attackBonus 字段（仅在有 character 时）
   useEffect(() => {
@@ -87,8 +88,9 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
   };
 
   const parseWeaponData = (weapon: Equipment) => {
-    const result: Partial<Omit<Attack, 'id'>> = {
+    const result: Partial<Omit<Attack, 'id'>> & { subtype?: string } = {
       name: weapon.name,
+      subtype: weapon.subtype,
       properties: [],
       damage: '',
       damageType: '挥砍',

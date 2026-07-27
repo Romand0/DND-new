@@ -27,6 +27,7 @@ export interface Attack {
   damageType: string;
   range: string;
   properties: string[];
+  subtype?: string;
 }
 
 export interface SpellSlots {
