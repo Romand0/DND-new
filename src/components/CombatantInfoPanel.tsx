@@ -101,50 +101,76 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return (leftMatch && leftUsable) || (rightMatch && rightUsable);
   };
 
+  const isRangedWeapon = (attack: Attack): boolean => {
+    if (!attack.properties) return false;
+    return attack.properties.some(p => p.includes('远程') || p.includes('弹药'));
+  };
+
+  const isThrownWeapon = (attack: Attack): boolean => {
+    if (!attack.properties) return false;
+    return attack.properties.some(p => p.includes('投掷'));
+  };
+
   const hasMultipleRanges = (attack: Attack): boolean => {
     const meleeRange = attack.range && !attack.range.startsWith('-');
     const hasNormal = attack.normalRange !== undefined && attack.normalRange > 0;
     const hasMax = attack.maxRange !== undefined && attack.maxRange > 0;
     let count = 0;
-    if (meleeRange) count++;
+    if (meleeRange && (!isRangedWeapon(attack) || isThrownWeapon(attack))) count++;
     if (hasNormal) count++;
     if (hasMax) count++;
     return count > 1;
   };
 
-  const getRangeInfo = (attack: Attack): { label: string; value: string }[] => {
-    const ranges: { label: string; value: string }[] = [];
+  const getRangeInfo = (attack: Attack): { label: string; value: string; feet: number }[] => {
+    const ranges: { label: string; value: string; feet: number }[] = [];
     const meleeRange = attack.range;
     const hasNormal = attack.normalRange !== undefined && attack.normalRange > 0;
     const hasMax = attack.maxRange !== undefined && attack.maxRange > 0;
+    const isRanged = isRangedWeapon(attack);
+    const isThrown = isThrownWeapon(attack);
 
-    if (meleeRange && !meleeRange.startsWith('-')) {
-      ranges.push({ label: '近战', value: meleeRange });
+    if (meleeRange && !meleeRange.startsWith('-') && (!isRanged || isThrown)) {
+      const meleeMatch = meleeRange.match(/(\d+)/);
+      const meleeFeet = meleeMatch ? parseInt(meleeMatch[1], 10) : 5;
+      ranges.push({ label: '近战', value: meleeRange, feet: meleeFeet });
     }
     if (hasNormal) {
-      ranges.push({ label: '常规', value: `${attack.normalRange}尺` });
+      ranges.push({ label: '常规', value: `${attack.normalRange}尺`, feet: attack.normalRange });
     }
     if (hasMax) {
-      ranges.push({ label: '最大', value: `${attack.maxRange}尺` });
+      ranges.push({ label: '最大', value: `${attack.maxRange}尺`, feet: attack.maxRange });
     }
     return ranges;
   };
 
-  const getMaxRangeFeet = (attack: Attack): number => {
-    const hasNormal = attack.normalRange !== undefined && attack.normalRange > 0;
-    const hasMax = attack.maxRange !== undefined && attack.maxRange > 0;
-    if (hasMax) return attack.maxRange!;
-    if (hasNormal) return attack.normalRange!;
-    const meleeMatch = attack.range?.match(/(\d+)/);
-    return meleeMatch ? parseInt(meleeMatch[1], 10) : 5;
+  const handleAttackSelect = (attackId: string) => {
+    setSelectedAttackId(prev => prev === attackId ? null : attackId);
+    if (selectedAttackId === attackId) {
+      setExpandedRangeAttackId(null);
+      setSelectedRangeIndex(null);
+    } else {
+      setExpandedRangeAttackId(attackId);
+      setSelectedRangeIndex(null);
+    }
   };
 
-  const getNPCsInRange = (attack: Attack): Combatant[] => {
+  const [selectedRangeIndex, setSelectedRangeIndex] = useState<number | null>(null);
+
+  const getNPCsInRange = (attack: Attack, rangeIndex: number | null = null): Combatant[] => {
     if (!tokenMap || !combatant.id) return [];
     const attackerPos = tokenMap.get(combatant.id);
     if (!attackerPos) return [];
 
-    const maxRangeFeet = getMaxRangeFeet(attack);
+    const rangeInfo = getRangeInfo(attack);
+    let maxRangeFeet: number;
+    
+    if (rangeIndex !== null && rangeIndex < rangeInfo.length) {
+      maxRangeFeet = rangeInfo[rangeIndex].feet;
+    } else {
+      maxRangeFeet = rangeInfo.length > 0 ? rangeInfo[rangeInfo.length - 1].feet : 5;
+    }
+    
     const maxRangeCells = Math.max(1, Math.floor(maxRangeFeet / 5));
 
     return combatants.filter(c => {
@@ -155,13 +181,6 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
       const distance = Math.max(Math.abs(pos.col - attackerPos.col), Math.abs(pos.row - attackerPos.row));
       return distance <= maxRangeCells;
     });
-  };
-
-  const handleAttackSelect = (attackId: string) => {
-    setSelectedAttackId(prev => prev === attackId ? null : attackId);
-    if (selectedAttackId !== attackId) {
-      setExpandedRangeAttackId(attackId);
-    }
   };
 
   return (
@@ -253,7 +272,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       const hasMultiRange = hasMultipleRanges(attack);
                       const expanded = expandedRangeAttackId === attack.id;
                       const rangeInfo = getRangeInfo(attack);
-                      const npcsInRange = selected ? getNPCsInRange(attack) : [];
+                      const currentRangeIdx = selected ? selectedRangeIndex : null;
+                      const npcsInRange = selected ? getNPCsInRange(attack, currentRangeIdx) : [];
 
                       return (
                         <div key={attack.id}>
@@ -291,14 +311,22 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             )}
                           </button>
 
-                          {(selected || expanded) && hasMultiRange && (
+                          {selected && hasMultiRange && (
                             <div className="ml-2 mt-1 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
                               <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程信息</div>
                               <div className="flex flex-wrap gap-2">
                                 {rangeInfo.map((r, idx) => (
-                                  <span key={idx} className="text-xs px-2 py-1 rounded bg-info/10 text-info">
+                                  <button
+                                    key={idx}
+                                    onClick={() => setSelectedRangeIndex(idx)}
+                                    className={`text-xs px-2 py-1 rounded transition-colors ${
+                                      currentRangeIdx === idx
+                                        ? 'bg-info text-white'
+                                        : 'bg-info/10 text-info hover:bg-info/20'
+                                    }`}
+                                  >
                                     {r.label}: {r.value}
-                                  </span>
+                                  </button>
                                 ))}
                               </div>
                             </div>

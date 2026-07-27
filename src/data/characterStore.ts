@@ -870,21 +870,12 @@ function unholdItem(
   let count = 0;
   if (hand === 'left' || hand === 'both') {
     if (char.heldLeft.equipmentId) {
-      // 如果是双手武器同时拿在两只手，需要同时清除另一只手
-      const eid = char.heldLeft.equipmentId;
-      if (char.heldRight.equipmentId === eid) {
-        char.heldRight = { ...EMPTY_HAND };
-      }
       char.heldLeft = { ...EMPTY_HAND };
       count++;
     }
   }
   if (hand === 'right' || hand === 'both') {
     if (char.heldRight.equipmentId) {
-      const eid = char.heldRight.equipmentId;
-      if (char.heldLeft.equipmentId === eid) {
-        char.heldLeft = { ...EMPTY_HAND };
-      }
       char.heldRight = { ...EMPTY_HAND };
       count++;
     }
