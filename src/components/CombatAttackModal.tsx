@@ -167,8 +167,12 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     const advantage: string[] = [];
     const disadvantage: string[] = [];
     const thrown = isThrownWeapon(attack);
-    // 当前是否按远程规则判定：纯远程武器 或 投掷武器选投掷模式
-    const treatAsRanged = isRangedWeapon(attack) || (thrown && usageMode === 'thrown');
+    // 当前是否按远程规则判定：
+    // - 纯远程武器（非投掷）→ 永远按远程
+    // - 投掷武器选投掷模式 → 按远程
+    // - 投掷武器选近战模式 / 未指定模式 → 按近战
+    const rangedOnly = isRangedWeapon(attack) && !thrown;
+    const treatAsRanged = rangedOnly || (thrown && usageMode === 'thrown');
 
     // —— 劣势：不熟练的护甲（仅 PC，穿戴护甲且不熟练）——
     if (character) {
