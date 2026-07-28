@@ -1,13 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
   Dices,
   X,
   RotateCcw,
   Sparkles,
-  BookOpen,
-  Clock,
-  Calendar,
 } from 'lucide-react';
 
 interface DiceProps {
@@ -22,227 +18,258 @@ function rollDie(max: number): number {
   return Math.floor(Math.random() * max) + 1;
 }
 
-/** 生成 SVG 骰子形状（立体投影风格） */
+/**
+ * 立体骰子 SVG 组件
+ * 每种骰子都绘制为多面可见面，通过不同渐变模拟光照
+ */
 function DiceShape({ type, size }: { type: number; size: number }) {
   const s = size;
-  const cx = s / 2;
-  const cy = s / 2;
+  const id = type; // 用于 gradient id 唯一化
 
-  // 根据骰子类型绘制不同的几何体轮廓
   switch (type) {
     case 4: {
-      // 四面体 (三角形底 + 三条可见棱)
-      const topY = s * 0.12;
-      const blX = s * 0.15;
-      const blY = s * 0.78;
-      const brX = s * 0.85;
-      const brY = s * 0.78;
-      // 右侧阴影面
+      // 四面体 — 三个可见面，从顶点向下展开
+      const apex = { x: s * 0.5, y: s * 0.1 };
+      const left = { x: s * 0.12, y: s * 0.82 };
+      const right = { x: s * 0.88, y: s * 0.82 };
+      const front = { x: s * 0.5, y: s * 0.55 };
       return (
         <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
           <defs>
-            <linearGradient id={`grad4a`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#e63946" />
-              <stop offset="100%" stopColor="#a8242f" />
+            <linearGradient id={`g${id}a`} x1="0%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stopColor="#ff6b6b" /><stop offset="100%" stopColor="#c92a2a" />
             </linearGradient>
-            <linearGradient id={`grad4b`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#c02a37" />
-              <stop offset="100%" stopColor="#7a1520" />
+            <linearGradient id={`g${id}b`} x1="100%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stopColor="#e63946" /><stop offset="100%" stopColor="#9d0208" />
+            </linearGradient>
+            <linearGradient id={`g${id}c`} x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stopColor="#c92a2a" /><stop offset="100%" stopColor="#6a040f" />
             </linearGradient>
           </defs>
-          {/* 左侧面 */}
-          <polygon points={`${cx},${topY} ${blX},${blY} ${cx},${cy + s * 0.08}`} fill={`url(#grad4a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 右侧面 */}
-          <polygon points={`${cx},${topY} ${brX},${brY} ${cx},${cy + s * 0.08}`} fill={`url(#grad4b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 左前面（亮） */}
+          <polygon points={`${apex.x},${apex.y} ${left.x},${left.y} ${front.x},${front.y}`} fill={`url(#g${id}a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 右前面（暗） */}
+          <polygon points={`${apex.x},${apex.y} ${right.x},${right.y} ${front.x},${front.y}`} fill={`url(#g${id}b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 底面（最暗） */}
+          <polygon points={`${left.x},${left.y} ${right.x},${right.y} ${front.x},${front.y}`} fill={`url(#g${id}c)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       );
     }
     case 6: {
-      // 立方体（三面可见）
-      const depth = s * 0.15;
-      const faceSize = s * 0.5;
-      const fx = cx - faceSize / 2 + depth * 0.5;
-      const fy = cy - faceSize / 2 - depth * 0.5;
+      // 立方体 — 三面可见
+      const depth = s * 0.16;
+      const faceSize = s * 0.52;
+      const fx = s * 0.5 - faceSize / 2 + depth * 0.3;
+      const fy = s * 0.5 - faceSize / 2 - depth * 0.3;
       return (
         <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
           <defs>
-            <linearGradient id={`grad6top`} x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#f4a261" />
-              <stop offset="100%" stopColor="#e76f51" />
+            <linearGradient id={`g${id}top`} x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#ffd93d" /><stop offset="100%" stopColor="#f4a261" />
             </linearGradient>
-            <linearGradient id={`grad6front`} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#e76f51" />
-              <stop offset="100%" stopColor="#d45a3e" />
+            <linearGradient id={`g${id}front`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#f4a261" /><stop offset="100%" stopColor="#e76f51" />
             </linearGradient>
-            <linearGradient id={`grad6side`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#c94e30" />
-              <stop offset="100%" stopColor="#8b3a22" />
+            <linearGradient id={`g${id}side`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#d45a3e" /><stop offset="100%" stopColor="#8b3a22" />
             </linearGradient>
           </defs>
           {/* 顶面 */}
           <polygon
             points={`${fx},${fy} ${fx + faceSize},${fy} ${fx + faceSize + depth},${fy - depth} ${fx + depth},${fy - depth}`}
-            fill={`url(#grad6top)`}
-            stroke="#1a1a2e"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
+            fill={`url(#g${id}top)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round"
           />
           {/* 正面 */}
           <polygon
             points={`${fx},${fy} ${fx + faceSize},${fy} ${fx + faceSize},${fy + faceSize} ${fx},${fy + faceSize}`}
-            fill={`url(#grad6front)`}
-            stroke="#1a1a2e"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
+            fill={`url(#g${id}front)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round"
           />
           {/* 右侧面 */}
           <polygon
             points={`${fx + faceSize},${fy} ${fx + faceSize + depth},${fy - depth} ${fx + faceSize + depth},${fy + faceSize - depth} ${fx + faceSize},${fy + faceSize}`}
-            fill={`url(#grad6side)`}
-            stroke="#1a1a2e"
-            strokeWidth="1.5"
-            strokeLinejoin="round"
+            fill={`url(#g${id}side)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round"
           />
         </svg>
       );
     }
     case 8: {
-      // 八面体
+      // 八面体 — 上下两个金字塔，四个可见面
+      const top = { x: s * 0.5, y: s * 0.08 };
+      const bottom = { x: s * 0.5, y: s * 0.92 };
+      const left = { x: s * 0.12, y: s * 0.5 };
+      const right = { x: s * 0.88, y: s * 0.5 };
+      const mid = { x: s * 0.5, y: s * 0.5 };
       return (
         <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
           <defs>
-            <linearGradient id={`grad8a`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#2a9d8f" />
-              <stop offset="100%" stopColor="#1d7266" />
+            <linearGradient id={`g${id}a`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#2dd4bf" /><stop offset="100%" stopColor="#0d9488" />
             </linearGradient>
-            <linearGradient id={`grad8b`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#21867a" />
-              <stop offset="100%" stopColor="#155c52" />
+            <linearGradient id={`g${id}b`} x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#14b8a6" /><stop offset="100%" stopColor="#0f766e" />
+            </linearGradient>
+            <linearGradient id={`g${id}c`} x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#0d9488" /><stop offset="100%" stopColor="#115e59" />
+            </linearGradient>
+            <linearGradient id={`g${id}d`} x1="100%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="#0f766e" /><stop offset="100%" stopColor="#134e4a" />
             </linearGradient>
           </defs>
-          {/* 上左 */}
-          <polygon points={`${cx},${s * 0.1} ${s * 0.15},${cy} ${cx},${cy}`} fill={`url(#grad8a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 上右 */}
-          <polygon points={`${cx},${s * 0.1} ${s * 0.85},${cy} ${cx},${cy}`} fill={`url(#grad8b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 下左 */}
-          <polygon points={`${cx},${s * 0.9} ${s * 0.15},${cy} ${cx},${cy}`} fill={`url(#grad8b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 下右 */}
-          <polygon points={`${cx},${s * 0.9} ${s * 0.85},${cy} ${cx},${cy}`} fill={`url(#grad8a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 上左面（最亮） */}
+          <polygon points={`${top.x},${top.y} ${left.x},${left.y} ${mid.x},${mid.y}`} fill={`url(#g${id}a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 上右面（次亮） */}
+          <polygon points={`${top.x},${top.y} ${right.x},${right.y} ${mid.x},${mid.y}`} fill={`url(#g${id}b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 下左面（次暗） */}
+          <polygon points={`${bottom.x},${bottom.y} ${left.x},${left.y} ${mid.x},${mid.y}`} fill={`url(#g${id}c)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 下右面（最暗） */}
+          <polygon points={`${bottom.x},${bottom.y} ${right.x},${right.y} ${mid.x},${mid.y}`} fill={`url(#g${id}d)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       );
     }
     case 10: {
-      // 十面体（菱形）
+      // 十面体 — 两个不对称五边形面上下拼接，模拟旋转的菱形
+      const top = { x: s * 0.5, y: s * 0.06 };
+      const bottom = { x: s * 0.5, y: s * 0.94 };
+      const upperL = { x: s * 0.1, y: s * 0.35 };
+      const upperR = { x: s * 0.9, y: s * 0.35 };
+      const lowerL = { x: s * 0.1, y: s * 0.65 };
+      const lowerR = { x: s * 0.9, y: s * 0.65 };
+      const mid = { x: s * 0.5, y: s * 0.5 };
       return (
         <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
           <defs>
-            <linearGradient id={`grad10a`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#9b5de5" />
-              <stop offset="100%" stopColor="#6a3aa8" />
+            <linearGradient id={`g${id}a`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#c084fc" /><stop offset="100%" stopColor="#7c3aed" />
             </linearGradient>
-            <linearGradient id={`grad10b`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#7f3dc7" />
-              <stop offset="100%" stopColor="#4d2185" />
+            <linearGradient id={`g${id}b`} x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#a855f7" /><stop offset="100%" stopColor="#6d28d9" />
+            </linearGradient>
+            <linearGradient id={`g${id}c`} x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#9333ea" /><stop offset="100%" stopColor="#581c87" />
+            </linearGradient>
+            <linearGradient id={`g${id}d`} x1="100%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stopColor="#7c3aed" /><stop offset="100%" stopColor="#4c1d95" />
             </linearGradient>
           </defs>
-          {/* 上半菱形 */}
-          <polygon points={`${cx},${s * 0.08} ${s * 0.25},${cy} ${cx},${cy}`} fill={`url(#grad10a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          <polygon points={`${cx},${s * 0.08} ${s * 0.75},${cy} ${cx},${cy}`} fill={`url(#grad10b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 下半菱形 */}
-          <polygon points={`${cx},${s * 0.92} ${s * 0.25},${cy} ${cx},${cy}`} fill={`url(#grad10b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          <polygon points={`${cx},${s * 0.92} ${s * 0.75},${cy} ${cx},${cy}`} fill={`url(#grad10a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 上左 */}
+          <polygon points={`${top.x},${top.y} ${upperL.x},${upperL.y} ${mid.x},${mid.y}`} fill={`url(#g${id}a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 上右 */}
+          <polygon points={`${top.x},${top.y} ${upperR.x},${upperR.y} ${mid.x},${mid.y}`} fill={`url(#g${id}b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 下左 */}
+          <polygon points={`${bottom.x},${bottom.y} ${lowerL.x},${lowerL.y} ${mid.x},${mid.y}`} fill={`url(#g${id}c)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 下右 */}
+          <polygon points={`${bottom.x},${bottom.y} ${lowerR.x},${lowerR.y} ${mid.x},${mid.y}`} fill={`url(#g${id}d)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 左侧连线 */}
+          <line x1={upperL.x} y1={upperL.y} x2={lowerL.x} y2={lowerL.y} stroke="#1a1a2e" strokeWidth="1.5" />
+          {/* 右侧连线 */}
+          <line x1={upperR.x} y1={upperR.y} x2={lowerR.x} y2={lowerR.y} stroke="#1a1a2e" strokeWidth="1.5" />
         </svg>
       );
     }
     case 12: {
-      // 十二面体（五边形近似）
+      // 十二面体 — 外五边形 + 内五边形 + 五个梯形侧面
+      const outerPts = [
+        { x: s * 0.5, y: s * 0.08 },
+        { x: s * 0.92, y: s * 0.38 },
+        { x: s * 0.76, y: s * 0.9 },
+        { x: s * 0.24, y: s * 0.9 },
+        { x: s * 0.08, y: s * 0.38 },
+      ];
+      const innerPts = [
+        { x: s * 0.5, y: s * 0.3 },
+        { x: s * 0.72, y: s * 0.46 },
+        { x: s * 0.63, y: s * 0.72 },
+        { x: s * 0.37, y: s * 0.72 },
+        { x: s * 0.28, y: s * 0.46 },
+      ];
       return (
         <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
           <defs>
-            <linearGradient id={`grad12a`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#f4d35e" />
-              <stop offset="100%" stopColor="#d4a017" />
+            <linearGradient id={`g${id}inner`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#fde047" /><stop offset="100%" stopColor="#ca8a04" />
             </linearGradient>
-            <linearGradient id={`grad12b`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#dcb23a" />
-              <stop offset="100%" stopColor="#b8870d" />
+            <linearGradient id={`g${id}side0`} x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stopColor="#facc15" /><stop offset="100%" stopColor="#a16207" />
+            </linearGradient>
+            <linearGradient id={`g${id}side1`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#eab308" /><stop offset="100%" stopColor="#854d0e" />
+            </linearGradient>
+            <linearGradient id={`g${id}side2`} x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#ca8a04" /><stop offset="100%" stopColor="#713f12" />
             </linearGradient>
           </defs>
-          {/* 五边形外轮廓 */}
+          {/* 五个梯形侧面 */}
+          {[0, 1, 2, 3, 4].map((i) => (
+            <polygon
+              key={i}
+              points={`${outerPts[i].x},${outerPts[i].y} ${outerPts[(i + 1) % 5].x},${outerPts[(i + 1) % 5].y} ${innerPts[(i + 1) % 5].x},${innerPts[(i + 1) % 5].y} ${innerPts[i].x},${innerPts[i].y}`}
+              fill={`url(#g${id}side${i % 3})`}
+              stroke="#1a1a2e"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+          ))}
+          {/* 内五边形（最亮，正面） */}
           <polygon
-            points={`${cx},${s * 0.1} ${s * 0.9},${s * 0.38} ${s * 0.72},${s * 0.88} ${s * 0.28},${s * 0.88} ${s * 0.1},${s * 0.38}`}
-            fill={`url(#grad12a)`}
+            points={innerPts.map(p => `${p.x},${p.y}`).join(' ')}
+            fill={`url(#g${id}inner)`}
             stroke="#1a1a2e"
             strokeWidth="1.5"
             strokeLinejoin="round"
           />
-          {/* 内五边形（立体效果） */}
-          <polygon
-            points={`${cx},${s * 0.28} ${s * 0.72},${s * 0.44} ${s * 0.6},${s * 0.72} ${s * 0.4},${s * 0.72} ${s * 0.28},${s * 0.44}`}
-            fill={`url(#grad12b)`}
-            stroke="#1a1a2e"
-            strokeWidth="1"
-            strokeLinejoin="round"
-          />
-          {/* 连接线 */}
-          <line x1={cx} y1={s * 0.28} x2={cx} y2={s * 0.1} stroke="#1a1a2e" strokeWidth="1" opacity="0.5" />
-          <line x1={s * 0.72} y1={s * 0.44} x2={s * 0.9} y2={s * 0.38} stroke="#1a1a2e" strokeWidth="1" opacity="0.5" />
-          <line x1={s * 0.6} y1={s * 0.72} x2={s * 0.72} y2={s * 0.88} stroke="#1a1a2e" strokeWidth="1" opacity="0.5" />
-          <line x1={s * 0.4} y1={s * 0.72} x2={s * 0.28} y2={s * 0.88} stroke="#1a1a2e" strokeWidth="1" opacity="0.5" />
-          <line x1={s * 0.28} y1={s * 0.44} x2={s * 0.1} y2={s * 0.38} stroke="#1a1a2e" strokeWidth="1" opacity="0.5" />
         </svg>
       );
     }
     case 20: {
-      // 二十面体（六边形 + 内部三角形线）
+      // 二十面体 — 六边形外轮廓 + 内部六个三角形面
+      const cx = s * 0.5;
+      const cy = s * 0.5;
+      const r = s * 0.44;
+      // 六边形顶点
+      const hex = Array.from({ length: 6 }, (_, i) => {
+        const angle = (i * 60 - 90) * (Math.PI / 180);
+        return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+      });
+      // 内部三角形的内顶点（稍偏向中心）
+      const innerR = r * 0.42;
+      const inner = Array.from({ length: 6 }, (_, i) => {
+        const angle = (i * 60 - 60) * (Math.PI / 180);
+        return { x: cx + innerR * Math.cos(angle), y: cy + innerR * Math.sin(angle) };
+      });
       return (
         <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
           <defs>
-            <linearGradient id={`grad20a`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#f72585" />
-              <stop offset="100%" stopColor="#b5179e" />
+            <linearGradient id={`g${id}a`} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#f472b6" /><stop offset="100%" stopColor="#db2777" />
             </linearGradient>
-            <linearGradient id={`grad20b`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#c71478" />
-              <stop offset="100%" stopColor="#88106b" />
+            <linearGradient id={`g${id}b`} x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#ec4899" /><stop offset="100%" stopColor="#be185d" />
+            </linearGradient>
+            <linearGradient id={`g${id}c`} x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#db2777" /><stop offset="100%" stopColor="#9d174d" />
+            </linearGradient>
+            <linearGradient id={`g${id}d`} x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stopColor="#f9a8d4" /><stop offset="100%" stopColor="#be185d" />
             </linearGradient>
           </defs>
-          {/* 六边形 */}
+          {/* 六个三角形面（交替明暗） */}
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <polygon
+              key={i}
+              points={`${hex[i].x},${hex[i].y} ${hex[(i + 1) % 6].x},${hex[(i + 1) % 6].y} ${inner[i].x},${inner[i].y}`}
+              fill={`url(#g${id}${i % 2 === 0 ? 'a' : 'b'})`}
+              stroke="#1a1a2e"
+              strokeWidth="1.2"
+              strokeLinejoin="round"
+            />
+          ))}
+          {/* 中心六边形 */}
           <polygon
-            points={`${cx},${s * 0.08} ${s * 0.88},${cy} ${cx},${s * 0.92} ${s * 0.12},${cy}`}
-            fill={`url(#grad20a)`}
+            points={inner.map(p => `${p.x},${p.y}`).join(' ')}
+            fill={`url(#g${id}d)`}
             stroke="#1a1a2e"
-            strokeWidth="1.5"
+            strokeWidth="1.2"
             strokeLinejoin="round"
-          />
-          {/* 内部三角形分割线（立体效果） */}
-          <polygon
-            points={`${cx},${s * 0.08} ${s * 0.88},${cy} ${cx},${cy}`}
-            fill={`url(#grad20b)`}
-            opacity="0.7"
-            stroke="#1a1a2e"
-            strokeWidth="1"
-          />
-          <polygon
-            points={`${cx},${s * 0.92} ${s * 0.12},${cy} ${cx},${cy}`}
-            fill={`url(#grad20b)`}
-            opacity="0.7"
-            stroke="#1a1a2e"
-            strokeWidth="1"
-          />
-          <polygon
-            points={`${cx},${s * 0.08} ${s * 0.12},${cy} ${cx},${cy}`}
-            fill="#c71478"
-            opacity="0.5"
-            stroke="#1a1a2e"
-            strokeWidth="1"
-          />
-          <polygon
-            points={`${cx},${s * 0.92} ${s * 0.88},${cy} ${cx},${cy}`}
-            fill="#c71478"
-            opacity="0.5"
-            stroke="#1a1a2e"
-            strokeWidth="1"
           />
         </svg>
       );
@@ -255,9 +282,9 @@ function DiceShape({ type, size }: { type: number; size: number }) {
 function Dice({ type, size = 100, onRoll, onBatchRequest, result }: DiceProps) {
   const longPressTimer = useRef<number | null>(null);
   const isLongPress = useRef(false);
+  const lastTap = useRef(0);
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
     isLongPress.current = false;
     longPressTimer.current = window.setTimeout(() => {
       isLongPress.current = true;
@@ -265,13 +292,20 @@ function Dice({ type, size = 100, onRoll, onBatchRequest, result }: DiceProps) {
     }, 500);
   };
 
-  const handlePointerUp = (e: React.PointerEvent) => {
+  const handlePointerUp = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
       longPressTimer.current = null;
     }
-    if (!isLongPress.current) {
+    if (isLongPress.current) return;
+
+    // 双击检测
+    const now = Date.now();
+    if (now - lastTap.current < 300) {
       onRoll(rollDie(type));
+      lastTap.current = 0;
+    } else {
+      lastTap.current = now;
     }
   };
 
@@ -290,14 +324,11 @@ function Dice({ type, size = 100, onRoll, onBatchRequest, result }: DiceProps) {
         onPointerUp={handlePointerUp}
         onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerLeave}
-        style={{ touchAction: 'none' }}
+        style={{ touchAction: 'pan-y' }}
       >
-        <div
-          className="rounded-2xl p-3 dark:bg-bg-dark-2 light:bg-bg-light-2 border dark:border-border-dark light:border-border-light transition-colors"
-        >
+        <div className="rounded-2xl p-3 dark:bg-bg-dark-2 light:bg-bg-light-2 border dark:border-border-dark light:border-border-light transition-colors">
           <DiceShape type={type} size={size} />
         </div>
-        <div className="absolute -inset-2 rounded-full pointer-events-none" />
       </div>
       <div className="text-center">
         <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">
@@ -459,29 +490,11 @@ export default function DicePage() {
   return (
     <div className="space-y-6 w-full max-w-full overflow-x-hidden">
       {/* 标题栏 */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Dices className="w-7 h-7 text-primary" />
-          <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">
-            线上骰子
-          </h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link
-            to="/clock"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
-          >
-            <Clock className="w-4 h-4" />
-            时钟
-          </Link>
-          <Link
-            to="/calendar"
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
-          >
-            <Calendar className="w-4 h-4" />
-            日历
-          </Link>
-        </div>
+      <div className="flex items-center gap-3">
+        <Dices className="w-7 h-7 text-primary" />
+        <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">
+          线上骰子
+        </h1>
       </div>
 
       {/* 骰子网格：每行两个 */}
@@ -503,7 +516,7 @@ export default function DicePage() {
           ))}
         </div>
         <p className="text-center text-xs dark:text-text-dark-muted light:text-text-light-muted mt-4">
-          单击骰子掷一次 · 长按骰子批量掷骰
+          双击骰子掷一次 · 长按骰子批量掷骰
         </p>
       </div>
 
