@@ -6,12 +6,13 @@ import combatStore from '@/data/combatStore';
 import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
-import type { Character } from '@/types/character';
-import type { CombatRecord, Combatant, RoundAction, NpcTemplate } from '@/types/combat';
+import type { Character, Attack } from '@/types/character';
+import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack } from '@/types/combat';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
+import CombatDamageModal from '@/components/CombatDamageModal';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -41,6 +42,13 @@ export default function CombatSession() {
     target: Combatant;
     attackerPos?: { col: number; row: number };
     targetPos?: { col: number; row: number };
+  } | null>(null);
+  // ✅ 新增：伤害结算弹窗（攻击命中后切换）
+  const [damageModal, setDamageModal] = useState<{
+    attacker: Combatant;
+    target: Combatant;
+    attack: Attack | NpcAttack;
+    disadvantage: boolean;
   } | null>(null);
   // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
   const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
@@ -333,6 +341,25 @@ export default function CombatSession() {
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
+  };
+
+  // ✅ 新增：应用伤害 —— 写入战斗参战者 HP，并同步至 PC 角色卡
+  const handleApplyDamage = (targetId: string, newHp: number) => {
+    const target = record.combatants.find(c => c.id === targetId);
+    if (!target) return;
+    const updatedCombatants = record.combatants.map(c =>
+      c.id === targetId
+        ? { ...c, currentHp: newHp, isDead: newHp <= 0 }
+        : c
+    );
+    combatStore.update(record.id, {
+      combatants: updatedCombatants,
+      updatedAt: Date.now(),
+    });
+    // 若是 PC，同步角色卡 currentHp
+    if (target.characterId) {
+      characterStore.update(target.characterId, { currentHp: newHp });
+    }
   };
 
   // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）
@@ -800,6 +827,30 @@ export default function CombatSession() {
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
           onClose={() => setAttackModal(null)}
+          onConfirmHit={(attack, disadvantage) => {
+            // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
+            setDamageModal({
+              attacker: attackModal.attacker,
+              target: attackModal.target,
+              attack,
+              disadvantage,
+            });
+            setAttackModal(null);
+          }}
+        />
+      )}
+
+      {/* ✅ 新增：伤害结算弹窗 —— 攻击命中后展示 */}
+      {damageModal && (
+        <CombatDamageModal
+          attacker={damageModal.attacker}
+          target={damageModal.target}
+          attack={damageModal.attack}
+          disadvantage={damageModal.disadvantage}
+          onApplyDamage={(damage, newHp) => {
+            handleApplyDamage(damageModal.target.id, newHp);
+          }}
+          onClose={() => setDamageModal(null)}
         />
       )}
     </div>

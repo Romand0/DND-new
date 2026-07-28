@@ -13,6 +13,8 @@ interface Props {
   // 攻击者与目标在沙盘上的格子坐标（从 tokenMap 获取）
   attackerPos?: { col: number; row: number };
   targetPos?: { col: number; row: number };
+  /** 命中确认：交由 main 切换至伤害弹窗 */
+  onConfirmHit?: (attack: Attack | NpcAttack, disadvantage: boolean) => void;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -20,7 +22,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit }: Props) {
   const [stage, setStage] = useState<Stage>('attacks');
   const [selectedAttack, setSelectedAttack] = useState<Attack | NpcAttack | null>(null);
   const [d20Value, setD20Value] = useState<string>('');
@@ -185,9 +187,12 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   // 确认结果
   const handleConfirmResult = () => {
     if (rollResult?.hit) {
-      // 命中：留接口给伤害弹窗，暂时回到沙盘
-      // TODO: 切换至伤害弹窗
-      onClose();
+      // 命中：交由 main 切换至伤害弹窗；若无回调则关闭
+      if (onConfirmHit && selectedAttack) {
+        onConfirmHit(selectedAttack, rollResult.disadvantage);
+      } else {
+        onClose();
+      }
     } else {
       // 未命中：回到沙盘
       onClose();
@@ -426,7 +431,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     onClick={handleConfirmResult}
                     className="w-full py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
                   >
-                    {rollResult.hit ? '确认命中' : '确认未命中'}
+                    {rollResult.hit ? '确认命中，进入伤害结算' : '确认未命中'}
                   </button>
                 </div>
               )}
