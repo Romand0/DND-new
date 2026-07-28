@@ -4,6 +4,8 @@ import {
   X,
   RotateCcw,
   Sparkles,
+  Sigma,
+  List,
 } from 'lucide-react';
 
 interface DiceProps {
@@ -24,11 +26,11 @@ function rollDie(max: number): number {
  */
 function DiceShape({ type, size }: { type: number; size: number }) {
   const s = size;
-  const id = type; // 用于 gradient id 唯一化
+  const id = type;
 
   switch (type) {
     case 4: {
-      // 四面体 — 三个可见面，从顶点向下展开
+      // 四面体 — 三个可见面
       const apex = { x: s * 0.5, y: s * 0.1 };
       const left = { x: s * 0.12, y: s * 0.82 };
       const right = { x: s * 0.88, y: s * 0.82 };
@@ -46,49 +48,45 @@ function DiceShape({ type, size }: { type: number; size: number }) {
               <stop offset="0%" stopColor="#c92a2a" /><stop offset="100%" stopColor="#6a040f" />
             </linearGradient>
           </defs>
-          {/* 左前面（亮） */}
           <polygon points={`${apex.x},${apex.y} ${left.x},${left.y} ${front.x},${front.y}`} fill={`url(#g${id}a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 右前面（暗） */}
           <polygon points={`${apex.x},${apex.y} ${right.x},${right.y} ${front.x},${front.y}`} fill={`url(#g${id}b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 底面（最暗） */}
           <polygon points={`${left.x},${left.y} ${right.x},${right.y} ${front.x},${front.y}`} fill={`url(#g${id}c)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       );
     }
     case 6: {
-      // 立方体 — 三面可见
-      const depth = s * 0.16;
-      const faceSize = s * 0.52;
-      const fx = s * 0.5 - faceSize / 2 + depth * 0.3;
-      const fy = s * 0.5 - faceSize / 2 - depth * 0.3;
+      // 立方体 — 顶角正对屏幕（六边形轮廓 + 三个菱形面）
+      const cx = s * 0.5;
+      const cy = s * 0.5;
+      const r = s * 0.42;
+      // 六边形顶点（尖朝上）
+      const v = [
+        { x: cx, y: cy - r },                              // 0 上
+        { x: cx + r * 0.866, y: cy - r * 0.5 },            // 1 右上
+        { x: cx + r * 0.866, y: cy + r * 0.5 },            // 2 右下
+        { x: cx, y: cy + r },                              // 3 下
+        { x: cx - r * 0.866, y: cy + r * 0.5 },            // 4 左下
+        { x: cx - r * 0.866, y: cy - r * 0.5 },            // 5 左上
+      ];
       return (
         <svg width={s} height={s} viewBox={`0 0 ${s} ${s}`}>
           <defs>
-            <linearGradient id={`g${id}top`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id={`g${id}a`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#ffd93d" /><stop offset="100%" stopColor="#f4a261" />
             </linearGradient>
-            <linearGradient id={`g${id}front`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#f4a261" /><stop offset="100%" stopColor="#e76f51" />
+            <linearGradient id={`g${id}b`} x1="100%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stopColor="#e76f51" /><stop offset="100%" stopColor="#d45a3e" />
             </linearGradient>
-            <linearGradient id={`g${id}side`} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#d45a3e" /><stop offset="100%" stopColor="#8b3a22" />
+            <linearGradient id={`g${id}c`} x1="50%" y1="0%" x2="50%" y2="100%">
+              <stop offset="0%" stopColor="#c94e30" /><stop offset="100%" stopColor="#8b3a22" />
             </linearGradient>
           </defs>
-          {/* 顶面 */}
-          <polygon
-            points={`${fx},${fy} ${fx + faceSize},${fy} ${fx + faceSize + depth},${fy - depth} ${fx + depth},${fy - depth}`}
-            fill={`url(#g${id}top)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round"
-          />
-          {/* 正面 */}
-          <polygon
-            points={`${fx},${fy} ${fx + faceSize},${fy} ${fx + faceSize},${fy + faceSize} ${fx},${fy + faceSize}`}
-            fill={`url(#g${id}front)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round"
-          />
-          {/* 右侧面 */}
-          <polygon
-            points={`${fx + faceSize},${fy} ${fx + faceSize + depth},${fy - depth} ${fx + faceSize + depth},${fy + faceSize - depth} ${fx + faceSize},${fy + faceSize}`}
-            fill={`url(#g${id}side)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round"
-          />
+          {/* 右上菱形面（亮） */}
+          <polygon points={`${cx},${cy} ${v[0].x},${v[0].y} ${v[1].x},${v[1].y} ${v[2].x},${v[2].y}`} fill={`url(#g${id}a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 下方菱形面（中） */}
+          <polygon points={`${cx},${cy} ${v[2].x},${v[2].y} ${v[3].x},${v[3].y} ${v[4].x},${v[4].y}`} fill={`url(#g${id}b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
+          {/* 左上菱形面（暗） */}
+          <polygon points={`${cx},${cy} ${v[4].x},${v[4].y} ${v[5].x},${v[5].y} ${v[0].x},${v[0].y}`} fill={`url(#g${id}c)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       );
     }
@@ -115,19 +113,16 @@ function DiceShape({ type, size }: { type: number; size: number }) {
               <stop offset="0%" stopColor="#0f766e" /><stop offset="100%" stopColor="#134e4a" />
             </linearGradient>
           </defs>
-          {/* 上左面（最亮） */}
           <polygon points={`${top.x},${top.y} ${left.x},${left.y} ${mid.x},${mid.y}`} fill={`url(#g${id}a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 上右面（次亮） */}
           <polygon points={`${top.x},${top.y} ${right.x},${right.y} ${mid.x},${mid.y}`} fill={`url(#g${id}b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 下左面（次暗） */}
           <polygon points={`${bottom.x},${bottom.y} ${left.x},${left.y} ${mid.x},${mid.y}`} fill={`url(#g${id}c)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 下右面（最暗） */}
           <polygon points={`${bottom.x},${bottom.y} ${right.x},${right.y} ${mid.x},${mid.y}`} fill={`url(#g${id}d)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
         </svg>
       );
     }
     case 10: {
-      // 十面体 — 两个不对称五边形面上下拼接，模拟旋转的菱形
+      // 十面体 — 两个不对称五边形上下拼接
+      // 先画底色背景填满整个区域，再画分面
       const top = { x: s * 0.5, y: s * 0.06 };
       const bottom = { x: s * 0.5, y: s * 0.94 };
       const upperL = { x: s * 0.1, y: s * 0.35 };
@@ -151,17 +146,22 @@ function DiceShape({ type, size }: { type: number; size: number }) {
               <stop offset="0%" stopColor="#7c3aed" /><stop offset="100%" stopColor="#4c1d95" />
             </linearGradient>
           </defs>
-          {/* 上左 */}
+          {/* 整体背景填充（防止缝隙透明） */}
+          <polygon
+            points={`${top.x},${top.y} ${upperR.x},${upperR.y} ${lowerR.x},${lowerR.y} ${bottom.x},${bottom.y} ${lowerL.x},${lowerL.y} ${upperL.x},${upperL.y}`}
+            fill="#7c3aed"
+            stroke="none"
+          />
+          {/* 上左面 */}
           <polygon points={`${top.x},${top.y} ${upperL.x},${upperL.y} ${mid.x},${mid.y}`} fill={`url(#g${id}a)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 上右 */}
+          {/* 上右面 */}
           <polygon points={`${top.x},${top.y} ${upperR.x},${upperR.y} ${mid.x},${mid.y}`} fill={`url(#g${id}b)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 下左 */}
+          {/* 下左面 */}
           <polygon points={`${bottom.x},${bottom.y} ${lowerL.x},${lowerL.y} ${mid.x},${mid.y}`} fill={`url(#g${id}c)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 下右 */}
+          {/* 下右面 */}
           <polygon points={`${bottom.x},${bottom.y} ${lowerR.x},${lowerR.y} ${mid.x},${mid.y}`} fill={`url(#g${id}d)`} stroke="#1a1a2e" strokeWidth="1.5" strokeLinejoin="round" />
-          {/* 左侧连线 */}
+          {/* 左右侧棱 */}
           <line x1={upperL.x} y1={upperL.y} x2={lowerL.x} y2={lowerL.y} stroke="#1a1a2e" strokeWidth="1.5" />
-          {/* 右侧连线 */}
           <line x1={upperR.x} y1={upperR.y} x2={lowerR.x} y2={lowerR.y} stroke="#1a1a2e" strokeWidth="1.5" />
         </svg>
       );
@@ -188,28 +188,34 @@ function DiceShape({ type, size }: { type: number; size: number }) {
             <linearGradient id={`g${id}inner`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#fde047" /><stop offset="100%" stopColor="#ca8a04" />
             </linearGradient>
-            <linearGradient id={`g${id}side0`} x1="50%" y1="0%" x2="50%" y2="100%">
+            <linearGradient id={`g${id}s0`} x1="50%" y1="0%" x2="50%" y2="100%">
               <stop offset="0%" stopColor="#facc15" /><stop offset="100%" stopColor="#a16207" />
             </linearGradient>
-            <linearGradient id={`g${id}side1`} x1="0%" y1="0%" x2="100%" y2="100%">
+            <linearGradient id={`g${id}s1`} x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor="#eab308" /><stop offset="100%" stopColor="#854d0e" />
             </linearGradient>
-            <linearGradient id={`g${id}side2`} x1="100%" y1="0%" x2="0%" y2="100%">
+            <linearGradient id={`g${id}s2`} x1="100%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#ca8a04" /><stop offset="100%" stopColor="#713f12" />
             </linearGradient>
           </defs>
+          {/* 背景填充 */}
+          <polygon
+            points={outerPts.map(p => `${p.x},${p.y}`).join(' ')}
+            fill="#ca8a04"
+            stroke="none"
+          />
           {/* 五个梯形侧面 */}
           {[0, 1, 2, 3, 4].map((i) => (
             <polygon
               key={i}
               points={`${outerPts[i].x},${outerPts[i].y} ${outerPts[(i + 1) % 5].x},${outerPts[(i + 1) % 5].y} ${innerPts[(i + 1) % 5].x},${innerPts[(i + 1) % 5].y} ${innerPts[i].x},${innerPts[i].y}`}
-              fill={`url(#g${id}side${i % 3})`}
+              fill={`url(#g${id}s${i % 3})`}
               stroke="#1a1a2e"
               strokeWidth="1.5"
               strokeLinejoin="round"
             />
           ))}
-          {/* 内五边形（最亮，正面） */}
+          {/* 内五边形 */}
           <polygon
             points={innerPts.map(p => `${p.x},${p.y}`).join(' ')}
             fill={`url(#g${id}inner)`}
@@ -221,16 +227,14 @@ function DiceShape({ type, size }: { type: number; size: number }) {
       );
     }
     case 20: {
-      // 二十面体 — 六边形外轮廓 + 内部六个三角形面
+      // 二十面体 — 六边形外轮廓 + 内部六个三角形面 + 中心六边形
       const cx = s * 0.5;
       const cy = s * 0.5;
       const r = s * 0.44;
-      // 六边形顶点
       const hex = Array.from({ length: 6 }, (_, i) => {
         const angle = (i * 60 - 90) * (Math.PI / 180);
         return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
       });
-      // 内部三角形的内顶点（稍偏向中心）
       const innerR = r * 0.42;
       const inner = Array.from({ length: 6 }, (_, i) => {
         const angle = (i * 60 - 60) * (Math.PI / 180);
@@ -245,14 +249,17 @@ function DiceShape({ type, size }: { type: number; size: number }) {
             <linearGradient id={`g${id}b`} x1="100%" y1="0%" x2="0%" y2="100%">
               <stop offset="0%" stopColor="#ec4899" /><stop offset="100%" stopColor="#be185d" />
             </linearGradient>
-            <linearGradient id={`g${id}c`} x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#db2777" /><stop offset="100%" stopColor="#9d174d" />
-            </linearGradient>
             <linearGradient id={`g${id}d`} x1="50%" y1="0%" x2="50%" y2="100%">
               <stop offset="0%" stopColor="#f9a8d4" /><stop offset="100%" stopColor="#be185d" />
             </linearGradient>
           </defs>
-          {/* 六个三角形面（交替明暗） */}
+          {/* 背景六边形填充（防止缝隙透明） */}
+          <polygon
+            points={hex.map(p => `${p.x},${p.y}`).join(' ')}
+            fill="#db2777"
+            stroke="none"
+          />
+          {/* 六个三角形面 */}
           {[0, 1, 2, 3, 4, 5].map((i) => (
             <polygon
               key={i}
@@ -344,6 +351,15 @@ function Dice({ type, size = 100, onRoll, onBatchRequest, result }: DiceProps) {
   );
 }
 
+type BatchMode = 'sum' | 'independent';
+
+interface BatchResult {
+  sides: number;
+  values: number[];
+  total: number;
+  mode: BatchMode;
+}
+
 function BatchRollModal({
   open,
   onClose,
@@ -352,33 +368,41 @@ function BatchRollModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onRoll: (count: number, sides: number) => void;
+  onRoll: (count: number, sides: number, mode: BatchMode) => void;
   defaultSides: number;
 }) {
   const [count, setCount] = useState(10);
   const [sides, setSides] = useState(defaultSides);
+  const [mode, setMode] = useState<BatchMode>('sum');
+  const [result, setResult] = useState<BatchResult | null>(null);
 
   useEffect(() => {
     if (open) {
       setSides(defaultSides);
       setCount(10);
+      setResult(null);
     }
   }, [open, defaultSides]);
 
   if (!open) return null;
 
-  const handleSubmit = () => {
+  const handleRoll = () => {
     const c = Math.max(1, Math.min(1000, count));
-    onRoll(c, sides);
-    onClose();
+    const values: number[] = [];
+    for (let i = 0; i < c; i++) {
+      values.push(rollDie(sides));
+    }
+    const total = values.reduce((a, b) => a + b, 0);
+    setResult({ sides, values, total, mode });
+    onRoll(c, sides, mode);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-sm mx-4 rounded-2xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-6 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md rounded-2xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-6 shadow-2xl max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold dark:text-text-dark light:text-text-light">
-            批量掷骰
+            批量掷骰 · d{sides}
           </h2>
           <button
             onClick={onClose}
@@ -389,27 +413,38 @@ function BatchRollModal({
         </div>
 
         <div className="space-y-4">
+          {/* 模式切换 */}
           <div>
             <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
-              骰子类型
+              掷骰模式
             </label>
-            <div className="grid grid-cols-6 gap-1.5">
-              {[4, 6, 8, 10, 12, 20].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSides(s)}
-                  className={`py-2 text-sm font-medium rounded-lg transition-colors ${
-                    sides === s
-                      ? 'bg-primary text-white'
-                      : 'dark:bg-bg-dark-2 light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-white/10'
-                  }`}
-                >
-                  d{s}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={() => setMode('sum')}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  mode === 'sum'
+                    ? 'bg-primary text-white'
+                    : 'dark:bg-bg-dark-2 light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-white/10'
+                }`}
+              >
+                <Sigma className="w-4 h-4" />
+                累加
+              </button>
+              <button
+                onClick={() => setMode('independent')}
+                className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  mode === 'independent'
+                    ? 'bg-primary text-white'
+                    : 'dark:bg-bg-dark-2 light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-white/10'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                独立
+              </button>
             </div>
           </div>
 
+          {/* 掷骰次数 */}
           <div>
             <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
               掷骰次数
@@ -424,13 +459,50 @@ function BatchRollModal({
             />
           </div>
 
+          {/* 掷骰按钮 */}
           <button
-            onClick={handleSubmit}
+            onClick={handleRoll}
             className="w-full py-3 rounded-lg bg-primary hover:bg-primary-dark text-white font-semibold transition-colors flex items-center justify-center gap-2"
           >
             <Sparkles className="w-4 h-4" />
-            掷 {count} 次 d{sides}
+            掷 {Math.max(1, Math.min(1000, count))}d{sides}
           </button>
+
+          {/* 结果就地显示 */}
+          {result && (
+            <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                  结果
+                </span>
+                {result.mode === 'sum' && (
+                  <span className="text-2xl font-bold text-primary">
+                    {result.total}
+                  </span>
+                )}
+              </div>
+              <div className={`flex flex-wrap gap-1.5 ${result.mode === 'independent' ? '' : ''}`}>
+                {result.values.map((v, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center justify-center min-w-[28px] h-7 px-1.5 rounded text-sm font-medium dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light border dark:border-border-dark light:border-border-light"
+                  >
+                    {v}
+                  </span>
+                ))}
+              </div>
+              {result.mode === 'sum' && result.values.length > 1 && (
+                <div className="flex flex-wrap items-center gap-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  {result.values.map((v, i) => (
+                    <span key={i}>
+                      {v}{i < result.values.length - 1 ? ' + ' : ''}
+                    </span>
+                  ))}
+                  <span className="font-bold text-primary ml-1">= {result.total}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -443,6 +515,7 @@ interface RollEntry {
   values: number[];
   total: number;
   time: string;
+  mode: BatchMode;
 }
 
 export default function DicePage() {
@@ -462,11 +535,12 @@ export default function DicePage() {
       values: [value],
       total: value,
       time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+      mode: 'independent',
     };
     setHistory((prev) => [entry, ...prev].slice(0, 20));
   };
 
-  const handleBatch = (count: number, sides: number) => {
+  const handleBatch = (count: number, sides: number, mode: BatchMode) => {
     const values: number[] = [];
     for (let i = 0; i < count; i++) {
       values.push(rollDie(sides));
@@ -479,6 +553,7 @@ export default function DicePage() {
       values,
       total,
       time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
+      mode,
     };
     setHistory((prev) => [entry, ...prev].slice(0, 20));
   };
@@ -558,7 +633,7 @@ export default function DicePage() {
                         {v}
                       </span>
                     ))}
-                    {entry.values.length > 1 && (
+                    {entry.values.length > 1 && entry.mode === 'sum' && (
                       <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
                         =
                       </span>
@@ -566,7 +641,7 @@ export default function DicePage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  {entry.values.length > 1 && (
+                  {entry.values.length > 1 && entry.mode === 'sum' && (
                     <span className="text-lg font-bold dark:text-text-dark light:text-text-light">
                       {entry.total}
                     </span>
