@@ -10,7 +10,7 @@ export default function Layout() {
   console.log('Layout render:', { user: user?.username, role: user?.role, isDM });
 
   return (
-    <div className="min-h-screen dark:bg-bg-dark light:bg-bg-light">
+    <div className="min-h-screen dark:bg-bg-dark light:bg-bg-light overflow-x-hidden">
       <Navbar variant={isDM ? 'dm' : 'player'} />
       <main className="pt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
