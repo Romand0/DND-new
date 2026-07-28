@@ -14,6 +14,7 @@ function notify(): void {
 export interface GameCalendar {
   dayOfYear: number; // 1-based, 1-365/366
   linkedToClock: boolean;
+  selected: boolean; // 是否有选中的日期（false 时不高亮任何日期）
 }
 
 function load(): GameCalendar {
@@ -23,6 +24,7 @@ function load(): GameCalendar {
       return {
         dayOfYear: getRealWorldDayOfYear(),
         linkedToClock: false,
+        selected: true,
       };
     }
     const t: any = JSON.parse(raw);
@@ -32,11 +34,13 @@ function load(): GameCalendar {
     return {
       dayOfYear,
       linkedToClock: !!t.linkedToClock,
+      selected: t.selected !== false,
     };
   } catch {
     return {
       dayOfYear: getRealWorldDayOfYear(),
       linkedToClock: false,
+      selected: true,
     };
   }
 }
@@ -103,13 +107,19 @@ const calendarStore = {
   },
 
   /** 设置日期（使用现实年份作为参考） */
-  setDate(year: number, dayOfYear: number): void {
+  setDate(year: number, dayOfYear: number, selected = true): void {
     const c = load();
     const refYear = new Date().getFullYear();
     const maxDays = getYearDays(refYear);
     const d = Math.max(1, Math.min(maxDays, dayOfYear));
-    save({ ...c, dayOfYear: d });
+    save({ ...c, dayOfYear: d, selected });
     initPrevTotalMinutes();
+  },
+
+  /** 仅设置选中状态 */
+  setSelected(selected: boolean): void {
+    const c = load();
+    save({ ...c, selected });
   },
 
   /** 加减天数 */

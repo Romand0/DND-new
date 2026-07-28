@@ -121,6 +121,15 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
   const startCustom = () => {
     setSelectedTemplate(null);
     setCustomMode(true);
+    const d20 = rollDice({ sides: 20, count: 1, mode: 'independent' }).values[0];
+    setEditState({
+      name: '',
+      abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
+      hp: 10, speed: 30, ac: 10, attacks: [],
+      d20, initiative: d20 + 0,
+    });
+    setStage('single-edit');
+    setManualD20(false);
   };
 
   const startSingle = () => {
@@ -687,6 +696,13 @@ function NpcEditor(props: NpcEditorProps) {
                         }`}>{prop}</button>
                     ))}
                   </div>
+                  {attack.properties.includes('多用') && (
+                    <div className="mt-2">
+                      <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted">双手伤害</label>
+                      <input type="text" value={attack.twoHandedDamage ?? ''} onChange={(e) => updateAttack(index, 'twoHandedDamage', e.target.value)}
+                        className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-xs" placeholder="1d10" />
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -68,11 +68,13 @@ export default function CalendarPage() {
   const monthGrid = getMonthGrid(viewMonth, refYear);
 
   const isCurrentDay = (day: number): boolean => {
+    if (!calendar.selected) return false;
     if (dateInfo.isFestival) return false;
     return dateInfo.month === viewMonth && dateInfo.day === day;
   };
 
   const isCurrentFestival = (festivalName?: string): boolean => {
+    if (!calendar.selected) return false;
     if (!dateInfo.isFestival || !festivalName) return false;
     return dateInfo.festivalName === festivalName;
   };
@@ -87,12 +89,25 @@ export default function CalendarPage() {
   };
 
   const selectDay = (day: number) => {
+    if (isCurrentDay(day)) {
+      calendarStore.setSelected(false);
+      return;
+    }
     const doy = dateToDayOfYear(viewMonth, day, refYear);
     calendarStore.setDate(refYear, doy);
   };
 
   const selectFestival = (festivalMonth: number) => {
     const doy = dateToDayOfYear(festivalMonth, 30, refYear) + 1;
+    const info = calendarStore.getDateInfo();
+    if (calendar.selected && info.isFestival) {
+      // 已选中该节日，取消选择
+      const festivalName = MONTHS[festivalMonth - 1].festival;
+      if (festivalName && info.festivalName === festivalName) {
+        calendarStore.setSelected(false);
+        return;
+      }
+    }
     calendarStore.setDate(refYear, doy);
   };
 
@@ -106,7 +121,6 @@ export default function CalendarPage() {
     const diff = now.getTime() - start.getTime();
     const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
     calendarStore.setDate(now.getFullYear(), dayOfYear);
-    gameTimeStore.set(now.getHours(), now.getMinutes());
   };
 
   const timeStr = `${String(gameTime.hour).padStart(2, '0')}:${String(gameTime.minute).padStart(2, '0')}`;
@@ -310,13 +324,17 @@ export default function CalendarPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
           {festivals.map((f) => {
             const Icon = festivalIcons[f.name] || Sun;
-            const isActive = dateInfo.isFestival && dateInfo.festivalName === f.name;
+            const isActive = calendar.selected && dateInfo.isFestival && dateInfo.festivalName === f.name;
             return (
               <button
                 key={f.name}
                 onClick={() => {
-                  setViewMonth(f.month);
-                  selectFestival(f.month);
+                  if (isActive) {
+                    calendarStore.setSelected(false);
+                  } else {
+                    setViewMonth(f.month);
+                    selectFestival(f.month);
+                  }
                 }}
                 className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg text-sm border transition-colors ${
                   isActive

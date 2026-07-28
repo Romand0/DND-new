@@ -50,6 +50,8 @@ export interface NpcAttack {
   subtype?: string;
   normalRange?: number;
   maxRange?: number;
+  /** 双手拿持状态下的伤害骰（"多用"属性） */
+  twoHandedDamage?: string;
 }
 
 export interface RoundAction {

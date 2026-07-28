@@ -1,12 +1,14 @@
 import GameClock from '@/components/GameClock';
 import gameTimeStore, { getTimeOfDay } from '@/data/gameTimeStore';
+import calendarStore from '@/data/calendarStore';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Clock, Minus, Plus, RotateCcw, Sun, Moon, Sunrise, Sunset, Coffee, Calendar } from 'lucide-react';
+import { Clock, Minus, Plus, RotateCcw, Sun, Moon, Sunrise, Sunset, Coffee, Calendar, Link2, Link2Off } from 'lucide-react';
 
 export default function GameClockPage() {
   const [hour, setHour] = useState(8);
   const [minute, setMinute] = useState(0);
+  const [linked, setLinked] = useState(false);
 
   useEffect(() => {
     const update = () => {
@@ -14,8 +16,15 @@ export default function GameClockPage() {
       setHour(t.hour);
       setMinute(t.minute);
     };
+    const updateCal = () => setLinked(calendarStore.get().linkedToClock);
     update();
-    return gameTimeStore.subscribe(update);
+    updateCal();
+    const unsubTime = gameTimeStore.subscribe(update);
+    const unsubCal = calendarStore.subscribe(updateCal);
+    return () => {
+      unsubTime();
+      unsubCal();
+    };
   }, []);
 
   const timeOfDay = getTimeOfDay(hour, minute);
@@ -46,23 +55,52 @@ export default function GameClockPage() {
     gameTimeStore.set(8, 0);
   };
 
+  const toggleLinked = () => {
+    calendarStore.setLinked(!linked);
+  };
+
+  const dateInfo = calendarStore.getDateInfo();
+  const dateDisplay = dateInfo.isFestival
+    ? `${['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'][dateInfo.month - 1]} · ${dateInfo.festivalName}`
+    : `${['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'][dateInfo.month - 1]} ${dateInfo.day}日`;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Clock className="w-7 h-7 text-primary" />
           <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">
             游戏时间
           </h1>
         </div>
-        <Link
-          to="/calendar"
-          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
-        >
-          <Calendar className="w-4 h-4" />
-          日历
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/calendar"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
+          >
+            <Calendar className="w-4 h-4" />
+            日历
+          </Link>
+          <button
+            onClick={toggleLinked}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-sm transition-colors ${
+              linked
+                ? 'border-primary text-primary bg-primary/10'
+                : 'dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5'
+            }`}
+          >
+            {linked ? <Link2 className="w-4 h-4" /> : <Link2Off className="w-4 h-4" />}
+            {linked ? '已挂钩' : '未挂钩'}
+          </button>
+        </div>
       </div>
+
+      {linked && (
+        <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-3 flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-primary" />
+          <span className="text-sm font-medium dark:text-text-dark light:text-text-light">{dateDisplay}</span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* 左侧：钟表 */}
@@ -142,7 +180,7 @@ export default function GameClockPage() {
               {quickTimes.map((qt) => (
                 <button
                   key={qt.label}
-                  onClick={() => gameTimeStore.set(qt.hour, qt.minute)}
+                  onClick={() => gameTimeStore.set(qt.hour, qt.minute + Math.floor(Math.random() * 10))}
                   className="px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-primary/10 hover:text-primary transition-colors text-sm"
                 >
                   {qt.label}
