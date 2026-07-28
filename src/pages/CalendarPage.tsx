@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import calendarStore from '@/data/calendarStore';
 import gameTimeStore from '@/data/gameTimeStore';
 import {
@@ -154,6 +155,13 @@ export default function CalendarPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            to="/clock"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
+          >
+            <Clock className="w-4 h-4" />
+            时钟
+          </Link>
           <button
             onClick={resetToToday}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"

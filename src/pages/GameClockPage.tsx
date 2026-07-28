@@ -1,7 +1,8 @@
 import GameClock from '@/components/GameClock';
 import gameTimeStore, { getTimeOfDay } from '@/data/gameTimeStore';
 import { useState, useEffect } from 'react';
-import { Clock, Minus, Plus, RotateCcw, Sun, Moon, Sunrise, Sunset, Coffee, Utensils } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Clock, Minus, Plus, RotateCcw, Sun, Moon, Sunrise, Sunset, Coffee, Calendar } from 'lucide-react';
 
 export default function GameClockPage() {
   const [hour, setHour] = useState(8);
@@ -47,11 +48,20 @@ export default function GameClockPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Clock className="w-7 h-7 text-primary" />
-        <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">
-          游戏时间
-        </h1>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Clock className="w-7 h-7 text-primary" />
+          <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">
+            游戏时间
+          </h1>
+        </div>
+        <Link
+          to="/calendar"
+          className="flex items-center gap-2 px-3 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
+        >
+          <Calendar className="w-4 h-4" />
+          日历
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
