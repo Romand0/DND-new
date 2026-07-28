@@ -36,6 +36,8 @@ export default function Battleground({ sessionId, combatants }: Props) {
   const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
   const dragLockRef = useRef<typeof dragLock>(null);
   dragLockRef.current = dragLock;
+  // 拖拽圆框位置用 ref + 直接 DOM 更新，避免每帧 setState 导致卡顿
+  const dragCircleRef = useRef<HTMLDivElement | null>(null);
 
   const touchState = useRef<{
     pointers: Map<number, { x: number; y: number }>;
@@ -156,12 +158,23 @@ export default function Battleground({ sessionId, combatants }: Props) {
     if (!ts.pointers.has(e.pointerId)) return;
     ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    // 拖拽锁定模式下：更新白色圆框位置并检测附近棋子
+    // 拖拽锁定模式：直接操作 DOM 更新圆框位置，避免每帧 setState
     if (dragLockRef.current) {
       e.preventDefault();
       const px = e.clientX;
       const py = e.clientY;
-      // 检测当前接触的棋子
+
+      // 直接更新圆框 DOM 位置（流畅，无 React 重渲染）
+      if (dragCircleRef.current) {
+        const rect = gridWrapRef.current?.getBoundingClientRect();
+        if (rect) {
+          const size = cellSize * scale;
+          dragCircleRef.current.style.left = `${px - rect.left - size / 2}px`;
+          dragCircleRef.current.style.top = `${py - rect.top - size / 2}px`;
+        }
+      }
+
+      // 检测接触的棋子（仅在必要时 setState）
       let hoveredId: string | null = null;
       const gridEl = gridWrapRef.current;
       if (gridEl) {
@@ -177,8 +190,27 @@ export default function Battleground({ sessionId, combatants }: Props) {
           }
         }
       }
-      setDragLock(prev => prev ? { ...prev, pointerX: px, pointerY: py, hoveredTargetId: hoveredId } : null);
+      // 仅当 hoveredTargetId 变化时才 setState，避免每帧重渲染
+      if (hoveredId !== dragLockRef.current.hoveredTargetId) {
+        setDragLock(prev => prev ? { ...prev, hoveredTargetId: hoveredId } : null);
+      }
+      ts.moved = true;
       return;
+    }
+
+    // 长按等待中：移动超过阈值则取消长按，继续执行平移
+    if (longPressTimer.current && longPressStartRef.current) {
+      const dx = e.clientX - longPressStartRef.current.x;
+      const dy = e.clientY - longPressStartRef.current.y;
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+        // 重置平移起始点，从当前位置开始平移
+        ts.startPoints.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        ts.startTranslate = { ...translate };
+      } else {
+        return; // 未超过阈值，不触发任何操作
+      }
     }
 
     if (ts.pointers.size === 1) {
@@ -206,6 +238,11 @@ export default function Battleground({ sessionId, combatants }: Props) {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    // 清除长按计时器
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
     // 拖拽锁定模式松手：确定目标
     if (dragLockRef.current) {
       const target = dragLockRef.current.hoveredTargetId;
@@ -512,14 +549,22 @@ export default function Battleground({ sessionId, combatants }: Props) {
                       width: cellSize - 6,
                       height: cellSize - 6,
                       fontSize: cellSize > 22 ? 11 : 9,
+                      touchAction: 'none',
                     }}
                     onPointerDown={(e) => {
-                      e.stopPropagation();
+                      // 不 stopPropagation，让网格容器收到事件并 setPointerCapture
                       // 启动长按计时器
                       if (longPressTimer.current) clearTimeout(longPressTimer.current);
                       longPressStartRef.current = { x: e.clientX, y: e.clientY };
                       longPressTimer.current = setTimeout(() => {
                         if (longPressStartRef.current) {
+                          // 长按触发：进入拖拽锁定模式，初始化圆框位置
+                          const rect = gridWrapRef.current?.getBoundingClientRect();
+                          const size = cellSize * scale;
+                          if (rect && dragCircleRef.current) {
+                            dragCircleRef.current.style.left = `${longPressStartRef.current.x - rect.left - size / 2}px`;
+                            dragCircleRef.current.style.top = `${longPressStartRef.current.y - rect.top - size / 2}px`;
+                          }
                           setDragLock({
                             sourceId: combatant.id,
                             pointerX: longPressStartRef.current.x,
@@ -528,23 +573,6 @@ export default function Battleground({ sessionId, combatants }: Props) {
                           });
                         }
                       }, 350);
-                    }}
-                    onPointerMove={(e) => {
-                      // 移动超过阈值则取消长按
-                      if (longPressTimer.current && longPressStartRef.current) {
-                        const dx = e.clientX - longPressStartRef.current.x;
-                        const dy = e.clientY - longPressStartRef.current.y;
-                        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
-                          clearTimeout(longPressTimer.current);
-                          longPressTimer.current = null;
-                        }
-                      }
-                    }}
-                    onPointerUp={() => {
-                      if (longPressTimer.current) {
-                        clearTimeout(longPressTimer.current);
-                        longPressTimer.current = null;
-                      }
                     }}
                     onDoubleClick={() => setDoubleClickedCombatant(combatant)}
                   >
@@ -556,25 +584,19 @@ export default function Battleground({ sessionId, combatants }: Props) {
           })}
         </div>
 
-        {/* 拖拽锁定时跟随指针的白色半透明圆框 */}
-        {dragLock && (() => {
-          const rect = gridWrapRef.current?.getBoundingClientRect();
-          if (!rect) return null;
-          const x = dragLock.pointerX - rect.left;
-          const y = dragLock.pointerY - rect.top;
-          const size = cellSize * scale;
-          return (
-            <div
-              className="absolute pointer-events-none z-20 rounded-full border-2 border-white/60 bg-white/15"
-              style={{
-                width: size,
-                height: size,
-                left: x - size / 2,
-                top: y - size / 2,
-              }}
-            />
-          );
-        })()}
+        {/* 拖拽锁定时跟随指针的白色半透明圆框（位置由 ref 直接更新，不触发重渲染） */}
+        {dragLock && (
+          <div
+            ref={dragCircleRef}
+            className="absolute pointer-events-none z-20 rounded-full border-2 border-white/60 bg-white/15"
+            style={{
+              width: cellSize * scale,
+              height: cellSize * scale,
+              left: 0,
+              top: 0,
+            }}
+          />
+        )}
 
         {/* 锁定选中后展开的交互按钮 + 叉按钮 */}
         {lockedTargetId && (() => {
