@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
-import type { Combatant } from '@/types/combat';
+import type { Combatant, NpcAttack } from '@/types/combat';
 import type { Character, Attack } from '@/types/character';
 
 interface Props {
@@ -26,7 +26,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return () => clearInterval(interval);
   }, []);
 
-  const attacks = character?.attacks || [];
+  const attacks: (Attack | NpcAttack)[] = character?.attacks || combatant.attacks || [];
   const heldLeftId = character?.heldLeft?.equipmentId;
   const heldRightId = character?.heldRight?.equipmentId;
   const heldLeftItem = heldLeftId ? character.equipment.find(e => (e.childId || e.id) === heldLeftId) : null;
@@ -95,13 +95,15 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return 'bg-red-500';
   };
 
-  const isAttackUsable = (attack: Attack): boolean => {
+  const isAttackUsable = (attack: Attack | NpcAttack): boolean => {
+    // NPC 没有手持状态，攻击默认可用
+    if (!character) return true;
     const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
     const rightMatch = heldRightItem && heldRightItem.name === attack.name;
     return (leftMatch && leftUsable) || (rightMatch && rightUsable);
   };
 
-  const isRangedWeapon = (attack: Attack): boolean => {
+  const isRangedWeapon = (attack: Attack | NpcAttack): boolean => {
     // 优先检查子分类
     if (attack.subtype) {
       if (attack.subtype.includes('远程') || attack.subtype.includes('弹药')) return true;
@@ -112,7 +114,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return false;
   };
 
-  const isThrownWeapon = (attack: Attack): boolean => {
+  const isThrownWeapon = (attack: Attack | NpcAttack): boolean => {
     // 优先检查子分类
     if (attack.subtype && attack.subtype.includes('投掷')) return true;
     // 再检查属性
@@ -122,7 +124,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return false;
   };
 
-  const hasMultipleRanges = (attack: Attack): boolean => {
+  const hasMultipleRanges = (attack: Attack | NpcAttack): boolean => {
     const meleeRange = attack.range && !attack.range.startsWith('-');
     const hasNormal = attack.normalRange !== undefined && attack.normalRange > 0;
     const hasMax = attack.maxRange !== undefined && attack.maxRange > 0;
@@ -133,7 +135,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return count > 1;
   };
 
-  const getRangeInfo = (attack: Attack): { label: string; value: string; feet: number }[] => {
+  const getRangeInfo = (attack: Attack | NpcAttack): { label: string; value: string; feet: number }[] => {
     const ranges: { label: string; value: string; feet: number }[] = [];
     const meleeRange = attack.range;
     const hasNormal = attack.normalRange !== undefined && attack.normalRange > 0;
@@ -155,7 +157,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return ranges;
   };
 
-  const getNPCsInRange = (attack: Attack, rangeIndex: number | null): Combatant[] => {
+  const getNPCsInRange = (attack: Attack | NpcAttack, rangeIndex: number | null): Combatant[] => {
     if (!tokenMap || !combatant.id) return [];
     const attackerPos = tokenMap.get(combatant.id);
     if (!attackerPos) return [];
@@ -181,18 +183,18 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     });
   };
 
-  const handleAttackSelect = (attackId: string) => {
-    if (selectedAttackId === attackId) {
+  const handleAttackSelect = (attackIdx: number) => {
+    if (selectedAttackId === String(attackIdx)) {
       // 取消选中
       setSelectedAttackId(null);
       setExpandedRangeAttackId(null);
       setSelectedRangeIndex(null);
       return;
     }
-    setSelectedAttackId(attackId);
-    setExpandedRangeAttackId(attackId);
+    setSelectedAttackId(String(attackIdx));
+    setExpandedRangeAttackId(String(attackIdx));
     // 自动选中最小包含敌人的射程
-    const attack = attacks.find(a => a.id === attackId);
+    const attack = attacks[attackIdx];
     if (attack) {
       const rangeInfo = getRangeInfo(attack);
       let autoIdx: number | null = null;
@@ -296,20 +298,20 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 <div>
                   <div className="text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">攻击</div>
                   <div className="grid grid-cols-2 gap-2">
-                    {attacks.map((attack) => {
+                    {attacks.map((attack, aIdx) => {
                       const usable = isAttackUsable(attack);
-                      const selected = selectedAttackId === attack.id;
+                      const selected = selectedAttackId === String(aIdx);
                       const hasMultiRange = hasMultipleRanges(attack);
-                      const expanded = expandedRangeAttackId === attack.id;
+                      const expanded = expandedRangeAttackId === String(aIdx);
                       const rangeInfo = getRangeInfo(attack);
                       const currentRangeIdx = selected ? selectedRangeIndex : null;
                       const npcsInRange = selected ? getNPCsInRange(attack, currentRangeIdx) : [];
                       const rangeNpcCounts = selected ? rangeInfo.map((_, idx) => getNPCsInRange(attack, idx).length) : [];
 
                       return (
-                        <div key={attack.id} className={`${selected ? 'col-span-2' : ''}`}>
+                        <div key={aIdx} className={`${selected ? 'col-span-2' : ''}`}>
                           <button
-                            onClick={() => handleAttackSelect(attack.id!)}
+                            onClick={() => handleAttackSelect(aIdx)}
                             className={`w-full text-left p-2.5 rounded-lg text-sm transition-all ${
                               selected
                                 ? 'ring-2 ring-primary dark:bg-primary/10 light:bg-primary/10'
@@ -382,9 +384,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 </div>
               )}
 
-              {!character && (
+              {attacks.length === 0 && (
                 <div className="text-xs text-center py-4 dark:text-text-dark-muted light:text-text-light-muted">
-                  非玩家角色，仅显示基础信息
+                  暂无攻击方式
                 </div>
               )}
             </div>
@@ -488,8 +490,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           )}
 
           {activeTab === 'status' && !character && (
-            <div className="text-xs text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
-              非玩家角色，无详细状态
+            <div className="space-y-3">
+              <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">手持状态</div>
+              <div className="text-xs text-center py-4 dark:text-text-dark-muted light:text-text-light-muted">
+                NPC 手持状态暂不支持
+              </div>
             </div>
           )}
 

@@ -648,11 +648,11 @@ export default function CombatSession() {
                 轮次
               </th>
               {record.combatants.map((c, idx) => (
-                <th key={c.id} className="p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group">
-                  <div className="absolute -top-2 -left-2 w-7 h-7 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center shadow-md z-10">
+                <th key={c.id} className="p-2 pt-7 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group">
+                  <div className="absolute top-1 left-1 w-6 h-6 rounded-full dark:bg-gray-600 dark:text-white light:bg-gray-300 light:text-black text-xs font-bold flex items-center justify-center">
                     {idx + 1}
                   </div>
-                  <div className="flex items-center gap-1 mt-3">
+                  <div className="flex items-center gap-1">
                     {batchMode && (
                       <input
                         type="checkbox"
@@ -690,8 +690,8 @@ export default function CombatSession() {
                       先攻 {c.initiative}
                     </div>
                   )}
-                  {/* ✅ 新增：仅展示PC的HP，无任何修改/同步逻辑，符合你之前的要求 */}
-                  {c.isPc && c.maxHp && (
+                  {/* 展示 HP（PC 和 NPC 均显示） */}
+                  {c.maxHp != null && c.maxHp > 0 && (
                     <div className="text-xs opacity-60 mt-1">
                       HP {c.currentHp}/{c.maxHp}
                     </div>

@@ -79,6 +79,7 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     note: '',
     templateId: state.templateId,
     childId: state.childId,
+    attacks: state.attacks,
   };
 }
 

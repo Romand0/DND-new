@@ -16,6 +16,8 @@ export interface Combatant {
   childId?: string;
   /** 模板 ID 引用（从模板创建时带入） */
   templateId?: string;
+  /** NPC 攻击方式（从模板带入） */
+  attacks?: NpcAttack[];
 }
 
 export interface NpcTemplate {
