@@ -15,8 +15,10 @@ import {
   Upload,
   Settings,
   Clock,
+  Calendar,
 } from 'lucide-react';
 import gameTimeStore from '@/data/gameTimeStore';
+import calendarStore from '@/data/calendarStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import { characterStore } from '@/data/characterStore';
 
@@ -39,16 +41,28 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [gameTime, setGameTime] = useState({ hour: 8, minute: 0 });
+  const [calendarDate, setCalendarDate] = useState('');
   const isPlayerPath = location.pathname.startsWith('/player/');
   const navItems = variant === 'player' || isPlayerPath ? playerNavItems : allNavItems;
 
   useEffect(() => {
-    const update = () => {
+    const updateTime = () => {
       const t = gameTimeStore.get();
       setGameTime({ hour: t.hour, minute: t.minute });
     };
-    update();
-    return gameTimeStore.subscribe(update);
+    const updateCalendar = () => {
+      const info = calendarStore.getDateInfo();
+      const m = ['一','二','三','四','五','六','七','八','九','十','十一','十二'][info.month - 1];
+      setCalendarDate(info.isFestival ? `${m}月·${info.festivalName}` : `${m}月${info.day}日`);
+    };
+    updateTime();
+    updateCalendar();
+    const unsubTime = gameTimeStore.subscribe(updateTime);
+    const unsubCal = calendarStore.subscribe(updateCalendar);
+    return () => {
+      unsubTime();
+      unsubCal();
+    };
   }, []);
 
   const timeStr = `${String(gameTime.hour).padStart(2, '0')}:${String(gameTime.minute).padStart(2, '0')}`;
@@ -139,6 +153,16 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
               <span className="hidden sm:inline">{timeStr}</span>
             </Link>
 
+            {/* 游戏日历 */}
+            <Link
+              to="/calendar"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-gray-300 hover:text-white hover:bg-white/10"
+              title="哈普托斯历"
+            >
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">{calendarDate}</span>
+            </Link>
+
             {/* 主题切换（DM 和玩家端都可用） */}
             <button
               onClick={toggleTheme}
@@ -173,6 +197,18 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
             >
               <Clock className="w-5 h-5" />
               游戏时间 ({timeStr})
+            </Link>
+            <Link
+              to="/calendar"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === '/calendar'
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Calendar className="w-5 h-5" />
+              游戏日历 ({calendarDate})
             </Link>
             {navItems.map((item) => {
               const Icon = item.icon;
