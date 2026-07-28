@@ -1,6 +1,6 @@
 // 网格沙盘组件 —— 展示参战者位置与移动，支持三种大小预设
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Move, Sword, Info, UserX } from 'lucide-react';
+import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize } from '@/types/battleground';
@@ -589,50 +589,34 @@ export default function Battleground({ sessionId, combatants }: Props) {
           const tokenSize = (cellSize - 6) * scale;
           const btnSize = Math.max(20, tokenSize * 0.7);
           const radius = tokenSize * 0.85 + btnSize * 0.7;
-          // 四个按钮：移动、攻击、信息、移除
+          // 四个占位按钮
           const actions = [
-            { icon: Move, label: '移动', angle: -90, color: 'bg-info' },
-            { icon: Sword, label: '攻击', angle: 0, color: 'bg-danger' },
-            { icon: Info, label: '信息', angle: 90, color: 'bg-primary' },
-            { icon: UserX, label: '移除', angle: 180, color: 'bg-warning' },
+            { angle: -90 },
+            { angle: 0 },
+            { angle: 90 },
+            { angle: 180 },
           ];
           return (
             <>
-              {/* 四个圆形交互按钮 */}
-              {actions.map((a) => {
+              {/* 四个圆形占位按钮 */}
+              {actions.map((a, i) => {
                 const rad = (a.angle * Math.PI) / 180;
                 const bx = cx + Math.cos(rad) * radius - btnSize / 2;
                 const by = cy + Math.sin(rad) * radius - btnSize / 2;
                 return (
                   <button
-                    key={a.label}
+                    key={i}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if (a.label === '移动') {
-                        setSelectedCombatantId(lockedTargetId);
-                        setLockedTargetId(null);
-                      } else if (a.label === '攻击') {
-                        setDoubleClickedCombatant(combatant);
-                        setLockedTargetId(null);
-                      } else if (a.label === '信息') {
-                        setDoubleClickedCombatant(combatant);
-                        setLockedTargetId(null);
-                      } else if (a.label === '移除') {
-                        battlegroundStore.removeToken(sessionId, lockedTargetId);
-                        setLockedTargetId(null);
-                      }
                     }}
-                    className={`absolute z-30 ${a.color} text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform`}
+                    className="absolute z-30 bg-primary text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
                     style={{
                       width: btnSize,
                       height: btnSize,
                       left: bx,
                       top: by,
                     }}
-                    title={a.label}
-                  >
-                    <a.icon style={{ width: btnSize * 0.5, height: btnSize * 0.5 }} />
-                  </button>
+                  />
                 );
               })}
               {/* 叉按钮：棋子下方 */}
