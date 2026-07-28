@@ -179,12 +179,14 @@ export default function Battleground({ sessionId, combatants }: Props) {
       const gridEl = gridWrapRef.current;
       if (gridEl) {
         const rect = gridEl.getBoundingClientRect();
+        // 识别半径与白圈本身一样大（2 倍棋子尺寸的一半）
+        const detectRadius = cellSize * scale;
         for (const token of bg.tokens) {
           if (token.combatantId === dragLockRef.current.sourceId) continue;
           const cellX = rect.left + translate.x + (token.col + 0.5) * cellSize * scale;
           const cellY = rect.top + translate.y + (token.row + 0.5) * cellSize * scale;
           const dist = Math.hypot(px - cellX, py - cellY);
-          if (dist < cellSize * scale * 0.6) {
+          if (dist < detectRadius) {
             hoveredId = token.combatantId;
             break;
           }
@@ -192,6 +194,8 @@ export default function Battleground({ sessionId, combatants }: Props) {
       }
       // 仅当 hoveredTargetId 变化时才 setState，避免每帧重渲染
       if (hoveredId !== dragLockRef.current.hoveredTargetId) {
+        // 切换半选中对象时震动
+        if (hoveredId && navigator.vibrate) navigator.vibrate(10);
         setDragLock(prev => prev ? { ...prev, hoveredTargetId: hoveredId } : null);
       }
       ts.moved = true;
@@ -599,6 +603,29 @@ export default function Battleground({ sessionId, combatants }: Props) {
           }}
         />
 
+        {/* 半选中框：右上角显示当前半选中棋子的样式和名字 */}
+        {dragLock?.hoveredTargetId && (() => {
+          const hoveredCombatant = combatantMap.get(dragLock.hoveredTargetId);
+          if (!hoveredCombatant) return null;
+          return (
+            <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-2 rounded-lg bg-black/70 text-white shadow-lg pointer-events-none animate-in fade-in slide-in-from-right duration-150">
+              <div
+                className={`rounded-full flex items-center justify-center font-bold text-white shrink-0 ${
+                  hoveredCombatant.isPc ? 'bg-info' : 'bg-danger'
+                }`}
+                style={{
+                  width: 28,
+                  height: 28,
+                  fontSize: 12,
+                }}
+              >
+                {hoveredCombatant.name.slice(0, 1)}
+              </div>
+              <span className="text-sm font-medium">{hoveredCombatant.name}</span>
+            </div>
+          );
+        })()}
+
         {/* 锁定选中后展开的交互按钮 + 叉按钮 */}
         {lockedTargetId && (() => {
           const token = tokenMap.get(lockedTargetId);
@@ -610,16 +637,16 @@ export default function Battleground({ sessionId, combatants }: Props) {
           const cx = translate.x + (token.col + 0.5) * cellSize * scale;
           const cy = translate.y + (token.row + 0.5) * cellSize * scale;
           const tokenSize = (cellSize - 6) * scale;
-          // 按钮大小：至少等于棋子大小
-          const btnSize = Math.max(tokenSize, tokenSize * 1.1);
-          // 按钮在上侧弧形排列，角度范围 -150° ~ -30°（上半圆）
+          // 按钮大小：1.5 倍棋子大小
+          const btnSize = tokenSize * 1.5;
+          // 按钮在上侧弧形排列，角度范围 -160° ~ -20°（上半圆展开更大）
           const actions = [
-            { angle: -150 },
-            { angle: -110 },
-            { angle: -70 },
-            { angle: -30 },
+            { angle: -160 },
+            { angle: -113 },
+            { angle: -67 },
+            { angle: -20 },
           ];
-          const radius = tokenSize * 0.6 + btnSize * 0.6;
+          const radius = tokenSize * 0.8 + btnSize * 0.8;
           return (
             <>
               {/* 四个上侧弧形占位按钮 */}
