@@ -1,6 +1,6 @@
 // 网格沙盘组件 —— 展示参战者位置与移动，支持三种大小预设
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2 } from 'lucide-react';
+import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Move, Sword, Info, UserX } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize } from '@/types/battleground';
@@ -21,6 +21,22 @@ export default function Battleground({ sessionId, combatants }: Props) {
   // 缩放与平移状态
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
+
+  // 长按拖拽锁定状态
+  const [dragLock, setDragLock] = useState<{
+    sourceId: string;          // 发起长按的棋子
+    pointerX: number;          // 当前指针屏幕坐标
+    pointerY: number;
+    hoveredTargetId: string | null;  // 当前接触的目标棋子
+  } | null>(null);
+  // 锁定选中状态（长按拖拽松手后选中）
+  const [lockedTargetId, setLockedTargetId] = useState<string | null>(null);
+
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
+  const dragLockRef = useRef<typeof dragLock>(null);
+  dragLockRef.current = dragLock;
+
   const touchState = useRef<{
     pointers: Map<number, { x: number; y: number }>;
     startPoints: Map<number, { x: number; y: number }>;
@@ -128,12 +144,43 @@ export default function Battleground({ sessionId, combatants }: Props) {
       ts.startScale = scale;
     }
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    // 进入拖拽锁定模式时禁止网格平移
+    if (dragLockRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
     const ts = touchState.current;
     if (!ts.pointers.has(e.pointerId)) return;
     ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // 拖拽锁定模式下：更新白色圆框位置并检测附近棋子
+    if (dragLockRef.current) {
+      e.preventDefault();
+      const px = e.clientX;
+      const py = e.clientY;
+      // 检测当前接触的棋子
+      let hoveredId: string | null = null;
+      const gridEl = gridWrapRef.current;
+      if (gridEl) {
+        const rect = gridEl.getBoundingClientRect();
+        for (const token of bg.tokens) {
+          if (token.combatantId === dragLockRef.current.sourceId) continue;
+          const cellX = rect.left + translate.x + (token.col + 0.5) * cellSize * scale;
+          const cellY = rect.top + translate.y + (token.row + 0.5) * cellSize * scale;
+          const dist = Math.hypot(px - cellX, py - cellY);
+          if (dist < cellSize * scale * 0.6) {
+            hoveredId = token.combatantId;
+            break;
+          }
+        }
+      }
+      setDragLock(prev => prev ? { ...prev, pointerX: px, pointerY: py, hoveredTargetId: hoveredId } : null);
+      return;
+    }
+
     if (ts.pointers.size === 1) {
       // 单指平移：用按下时记录的起始位置做参照
       const start = ts.startPoints.get(e.pointerId);
@@ -159,6 +206,19 @@ export default function Battleground({ sessionId, combatants }: Props) {
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    // 拖拽锁定模式松手：确定目标
+    if (dragLockRef.current) {
+      const target = dragLockRef.current.hoveredTargetId;
+      if (target) {
+        setLockedTargetId(target);
+      }
+      setDragLock(null);
+      dragLockRef.current = null;
+      const ts = touchState.current;
+      ts.pointers.delete(e.pointerId);
+      ts.startPoints.delete(e.pointerId);
+      return;
+    }
     const ts = touchState.current;
     ts.pointers.delete(e.pointerId);
     ts.startPoints.delete(e.pointerId);
@@ -396,6 +456,9 @@ export default function Battleground({ sessionId, combatants }: Props) {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onDoubleClick={() => {
+          if (lockedTargetId) setLockedTargetId(null);
+        }}
       >
         {/* 悬浮标签：移动距离 */}
         {selectedSpeed != null && moveRangeSet.size > 0 && (
@@ -420,6 +483,10 @@ export default function Battleground({ sessionId, combatants }: Props) {
             const combatant = combatantId ? combatantMap.get(combatantId) : null;
             const isHover = selectedCombatantId && !eraserMode;
             const inMoveRange = moveRangeSet.has(key);
+            // 拖拽锁定时被接触的棋子高亮白圈
+            const isDragHovered = dragLock?.hoveredTargetId === combatantId;
+            // 锁定选中的棋子
+            const isLocked = lockedTargetId === combatantId;
             return (
               <div
                 key={i}
@@ -436,15 +503,49 @@ export default function Battleground({ sessionId, combatants }: Props) {
               >
                 {combatant && (
                   <div
-                    className={`rounded-full flex items-center justify-center font-bold text-white leading-none transition-all ${
+                    className={`relative rounded-full flex items-center justify-center font-bold text-white leading-none transition-all ${
                       combatant.isPc ? 'bg-info' : 'bg-danger'
-                    } ${selectedCombatantId === combatant.id ? 'ring-2 ring-white scale-110' : ''}`}
+                    } ${selectedCombatantId === combatant.id ? 'ring-2 ring-white scale-110' : ''} ${
+                      isDragHovered ? 'ring-2 ring-white' : ''
+                    } ${isLocked ? 'ring-2 ring-yellow-400 scale-110' : ''}`}
                     style={{
                       width: cellSize - 6,
                       height: cellSize - 6,
                       fontSize: cellSize > 22 ? 11 : 9,
                     }}
-                    onPointerDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      // 启动长按计时器
+                      if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                      longPressStartRef.current = { x: e.clientX, y: e.clientY };
+                      longPressTimer.current = setTimeout(() => {
+                        if (longPressStartRef.current) {
+                          setDragLock({
+                            sourceId: combatant.id,
+                            pointerX: longPressStartRef.current.x,
+                            pointerY: longPressStartRef.current.y,
+                            hoveredTargetId: null,
+                          });
+                        }
+                      }, 350);
+                    }}
+                    onPointerMove={(e) => {
+                      // 移动超过阈值则取消长按
+                      if (longPressTimer.current && longPressStartRef.current) {
+                        const dx = e.clientX - longPressStartRef.current.x;
+                        const dy = e.clientY - longPressStartRef.current.y;
+                        if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+                          clearTimeout(longPressTimer.current);
+                          longPressTimer.current = null;
+                        }
+                      }
+                    }}
+                    onPointerUp={() => {
+                      if (longPressTimer.current) {
+                        clearTimeout(longPressTimer.current);
+                        longPressTimer.current = null;
+                      }
+                    }}
                     onDoubleClick={() => setDoubleClickedCombatant(combatant)}
                   >
                     {combatant.name.slice(0, 1)}
@@ -454,6 +555,106 @@ export default function Battleground({ sessionId, combatants }: Props) {
             );
           })}
         </div>
+
+        {/* 拖拽锁定时跟随指针的白色半透明圆框 */}
+        {dragLock && (() => {
+          const rect = gridWrapRef.current?.getBoundingClientRect();
+          if (!rect) return null;
+          const x = dragLock.pointerX - rect.left;
+          const y = dragLock.pointerY - rect.top;
+          const size = cellSize * scale;
+          return (
+            <div
+              className="absolute pointer-events-none z-20 rounded-full border-2 border-white/60 bg-white/15"
+              style={{
+                width: size,
+                height: size,
+                left: x - size / 2,
+                top: y - size / 2,
+              }}
+            />
+          );
+        })()}
+
+        {/* 锁定选中后展开的交互按钮 + 叉按钮 */}
+        {lockedTargetId && (() => {
+          const token = tokenMap.get(lockedTargetId);
+          const combatant = combatantMap.get(lockedTargetId);
+          if (!token || !combatant) return null;
+          const rect = gridWrapRef.current?.getBoundingClientRect();
+          if (!rect) return null;
+          // 棋子中心相对于网格容器的坐标
+          const cx = translate.x + (token.col + 0.5) * cellSize * scale;
+          const cy = translate.y + (token.row + 0.5) * cellSize * scale;
+          const tokenSize = (cellSize - 6) * scale;
+          const btnSize = Math.max(20, tokenSize * 0.7);
+          const radius = tokenSize * 0.85 + btnSize * 0.7;
+          // 四个按钮：移动、攻击、信息、移除
+          const actions = [
+            { icon: Move, label: '移动', angle: -90, color: 'bg-info' },
+            { icon: Sword, label: '攻击', angle: 0, color: 'bg-danger' },
+            { icon: Info, label: '信息', angle: 90, color: 'bg-primary' },
+            { icon: UserX, label: '移除', angle: 180, color: 'bg-warning' },
+          ];
+          return (
+            <>
+              {/* 四个圆形交互按钮 */}
+              {actions.map((a) => {
+                const rad = (a.angle * Math.PI) / 180;
+                const bx = cx + Math.cos(rad) * radius - btnSize / 2;
+                const by = cy + Math.sin(rad) * radius - btnSize / 2;
+                return (
+                  <button
+                    key={a.label}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (a.label === '移动') {
+                        setSelectedCombatantId(lockedTargetId);
+                        setLockedTargetId(null);
+                      } else if (a.label === '攻击') {
+                        setDoubleClickedCombatant(combatant);
+                        setLockedTargetId(null);
+                      } else if (a.label === '信息') {
+                        setDoubleClickedCombatant(combatant);
+                        setLockedTargetId(null);
+                      } else if (a.label === '移除') {
+                        battlegroundStore.removeToken(sessionId, lockedTargetId);
+                        setLockedTargetId(null);
+                      }
+                    }}
+                    className={`absolute z-30 ${a.color} text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform`}
+                    style={{
+                      width: btnSize,
+                      height: btnSize,
+                      left: bx,
+                      top: by,
+                    }}
+                    title={a.label}
+                  >
+                    <a.icon style={{ width: btnSize * 0.5, height: btnSize * 0.5 }} />
+                  </button>
+                );
+              })}
+              {/* 叉按钮：棋子下方 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLockedTargetId(null);
+                }}
+                className="absolute z-30 bg-gray-700 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                style={{
+                  width: Math.max(16, tokenSize * 0.55),
+                  height: Math.max(16, tokenSize * 0.55),
+                  left: cx - Math.max(16, tokenSize * 0.55) / 2,
+                  top: cy + tokenSize * 0.7,
+                }}
+                title="取消选中"
+              >
+                <X style={{ width: '60%', height: '60%' }} />
+              </button>
+            </>
+          );
+        })()}
       </div>
 
       {/* 图例 */}
