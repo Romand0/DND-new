@@ -343,10 +343,8 @@ export default function CombatSession() {
     });
   };
 
-  // ✅ 新增：应用伤害 —— 写入战斗参战者 HP，并同步至 PC 角色卡
+  // ✅ 新增：应用伤害 —— 仅写入战斗参战者 HP，不回传角色卡
   const handleApplyDamage = (targetId: string, newHp: number) => {
-    const target = record.combatants.find(c => c.id === targetId);
-    if (!target) return;
     const updatedCombatants = record.combatants.map(c =>
       c.id === targetId
         ? { ...c, currentHp: newHp, isDead: newHp <= 0 }
@@ -356,10 +354,6 @@ export default function CombatSession() {
       combatants: updatedCombatants,
       updatedAt: Date.now(),
     });
-    // 若是 PC，同步角色卡 currentHp
-    if (target.characterId) {
-      characterStore.update(target.characterId, { currentHp: newHp });
-    }
   };
 
   // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）

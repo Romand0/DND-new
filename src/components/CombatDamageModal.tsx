@@ -199,9 +199,9 @@ export default function CombatDamageModal({
                   输入各 d{parsed.sides} 结果
                 </label>
                 <button
-                  onClick={handleRollAll}
-                  className="px-2.5 py-1 rounded-lg bg-primary text-white flex items-center gap-1 hover:bg-primary/90 transition-colors text-xs shrink-0"
-                  title="一键摇骰"
+                  onDoubleClick={handleRollAll}
+                  className="px-2.5 py-1 rounded-lg bg-primary text-white flex items-center gap-1 hover:bg-primary/90 transition-colors text-xs shrink-0 select-none"
+                  title="双击摇骰"
                 >
                   <Dices className="w-3.5 h-3.5" />
                   <span>摇骰</span>

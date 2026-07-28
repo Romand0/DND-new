@@ -362,12 +362,12 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
                   />
                   <button
-                    onClick={() => {
+                    onDoubleClick={() => {
                       handleRollDice();
                       setRollResult(null);
                     }}
-                    className="px-3 py-2 rounded-lg bg-primary text-white flex items-center gap-1.5 hover:bg-primary/90 transition-colors shrink-0"
-                    title="摇骰"
+                    className="px-3 py-2 rounded-lg bg-primary text-white flex items-center gap-1.5 hover:bg-primary/90 transition-colors shrink-0 select-none"
+                    title="双击摇骰"
                   >
                     <Dices className="w-4 h-4" />
                     <span className="text-sm">摇骰</span>
