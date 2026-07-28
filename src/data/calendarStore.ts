@@ -1,9 +1,5 @@
 // 游戏日历状态管理 — 哈普托斯历（Harptos Calendar）
-import {
-  getYearDays,
-  dayOfYearToDate,
-  getRealWorldDayOfYear,
-} from './calendarData';
+import { getYearDays, dayOfYearToDate, getRealWorldDayOfYear, isLeapYear } from './calendarData';
 import gameTimeStore from './gameTimeStore';
 
 const STORAGE_KEY = 'dnd-game-calendar';
@@ -16,7 +12,6 @@ function notify(): void {
 }
 
 export interface GameCalendar {
-  year: number;
   dayOfYear: number; // 1-based, 1-365/366
   linkedToClock: boolean;
 }
@@ -26,24 +21,20 @@ function load(): GameCalendar {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
       return {
-        year: new Date().getFullYear(),
         dayOfYear: getRealWorldDayOfYear(),
         linkedToClock: false,
       };
     }
     const t: any = JSON.parse(raw);
-    const year = Number.isNaN(Number(t.year)) ? new Date().getFullYear() : Number(t.year);
     const dayOfYear = Number.isNaN(Number(t.dayOfYear))
       ? getRealWorldDayOfYear()
       : Math.max(1, Number(t.dayOfYear));
     return {
-      year,
       dayOfYear,
       linkedToClock: !!t.linkedToClock,
     };
   } catch {
     return {
-      year: new Date().getFullYear(),
       dayOfYear: getRealWorldDayOfYear(),
       linkedToClock: false,
     };
@@ -57,19 +48,6 @@ function save(calendar: GameCalendar): void {
   } catch (e) {
     console.error('游戏日历保存失败:', e);
   }
-}
-
-/** 标准化 dayOfYear 到有效范围 */
-function normalizeDayOfYear(dayOfYear: number, year: number): number {
-  const max = getYearDays(year);
-  let d = dayOfYear;
-  while (d > max) {
-    d -= max;
-  }
-  while (d < 1) {
-    d += max;
-  }
-  return d;
 }
 
 // 用于检测时间跨天的状态
@@ -93,20 +71,20 @@ function onTimeChange(): void {
     const dayDelta = currentDay - prevDay;
 
     if (dayDelta !== 0) {
+      // 用现实年份判断闰年
+      const refYear = new Date().getFullYear();
+      const maxDays = getYearDays(refYear);
       let newDayOfYear = c.dayOfYear + dayDelta;
-      let year = c.year;
-      const max = getYearDays(year);
+
       // 处理跨年
-      while (newDayOfYear > max) {
-        newDayOfYear -= max;
-        year++;
+      while (newDayOfYear > maxDays) {
+        newDayOfYear -= maxDays;
       }
       while (newDayOfYear < 1) {
-        year--;
-        newDayOfYear += getYearDays(year);
+        newDayOfYear += getYearDays(refYear);
       }
-      save({ ...c, year, dayOfYear: newDayOfYear });
-      // 更新 prevTotalMinutes 以反映新的日期基准
+
+      save({ ...c, dayOfYear: newDayOfYear });
       prevTotalMinutes = (newDayOfYear - 1) * 24 * 60 + t.hour * 60 + t.minute;
       return;
     }
@@ -124,45 +102,31 @@ const calendarStore = {
     return load();
   },
 
-  /** 设置日期 */
+  /** 设置日期（使用现实年份作为参考） */
   setDate(year: number, dayOfYear: number): void {
     const c = load();
-    const y = Number.isNaN(year) ? c.year : year;
-    const d = normalizeDayOfYear(dayOfYear, y);
-    save({ ...c, year: y, dayOfYear: d });
+    const refYear = new Date().getFullYear();
+    const maxDays = getYearDays(refYear);
+    const d = Math.max(1, Math.min(maxDays, dayOfYear));
+    save({ ...c, dayOfYear: d });
     initPrevTotalMinutes();
   },
 
-  /** 加减天数（处理闰年跨年） */
+  /** 加减天数 */
   addDays(days: number): void {
     const c = load();
-    let year = c.year;
+    const refYear = new Date().getFullYear();
     let dayOfYear = c.dayOfYear + days;
+    const maxDays = getYearDays(refYear);
 
-    while (dayOfYear > getYearDays(year)) {
-      dayOfYear -= getYearDays(year);
-      year++;
+    while (dayOfYear > maxDays) {
+      dayOfYear -= maxDays;
     }
     while (dayOfYear < 1) {
-      year--;
-      dayOfYear += getYearDays(year);
+      dayOfYear += maxDays;
     }
 
-    save({ ...c, year, dayOfYear });
-    initPrevTotalMinutes();
-  },
-
-  /** 推进到下一年的同一天 */
-  nextYear(): void {
-    const c = load();
-    save({ ...c, year: c.year + 1 });
-    initPrevTotalMinutes();
-  },
-
-  /** 回退到上一年的同一天 */
-  prevYear(): void {
-    const c = load();
-    save({ ...c, year: c.year - 1 });
+    save({ ...c, dayOfYear });
     initPrevTotalMinutes();
   },
 
@@ -174,10 +138,10 @@ const calendarStore = {
   },
 
   /** 获取当前日期的月/日/节日信息 */
-  getDateInfo(): ReturnType<typeof dayOfYearToDate> & { year: number } {
+  getDateInfo(): ReturnType<typeof dayOfYearToDate> {
     const c = load();
-    const date = dayOfYearToDate(c.dayOfYear, c.year);
-    return { ...date, year: c.year };
+    const refYear = new Date().getFullYear();
+    return dayOfYearToDate(c.dayOfYear, refYear);
   },
 
   subscribe(listener: Listener): () => void {

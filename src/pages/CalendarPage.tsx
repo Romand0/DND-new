@@ -6,12 +6,7 @@ import {
   getMonthGrid,
   dayOfYearToDate,
   dateToDayOfYear,
-  getYearDays,
   isLeapYear,
-  getTendayName,
-  formatDate,
-  formatFullDate,
-  type DateResult,
 } from '@/data/calendarData';
 import {
   Calendar as CalendarIcon,
@@ -23,8 +18,6 @@ import {
   RotateCcw,
   Sun,
   Sunrise,
-  Sunset,
-  Moon,
   Flower2,
   Wheat,
   PartyPopper,
@@ -46,12 +39,15 @@ export default function CalendarPage() {
   const [gameTime, setGameTime] = useState(gameTimeStore.get());
   const [viewMonth, setViewMonth] = useState(1);
 
+  // 用现实年份作为参考年份（仅用于判断闰年）
+  const refYear = new Date().getFullYear();
+  const isLeap = isLeapYear(refYear);
+
   // 订阅日历和时间变化
   useEffect(() => {
     const updateCalendar = () => {
       const c = calendarStore.get();
       setCalendar(c);
-      // 同步视图月份到当前月份
       const info = calendarStore.getDateInfo();
       if (!info.isFestival) {
         setViewMonth(info.month);
@@ -72,9 +68,7 @@ export default function CalendarPage() {
 
   const dateInfo = calendarStore.getDateInfo();
   const currentMonthInfo = MONTHS[viewMonth - 1];
-  const monthGrid = getMonthGrid(viewMonth, calendar.year);
-  const isLeap = isLeapYear(calendar.year);
-  const yearDays = getYearDays(calendar.year);
+  const monthGrid = getMonthGrid(viewMonth, refYear);
 
   // 判断某天是否为当前日期
   const isCurrentDay = (day: number): boolean => {
@@ -98,14 +92,13 @@ export default function CalendarPage() {
   };
 
   const selectDay = (day: number) => {
-    const doy = dateToDayOfYear(viewMonth, day, calendar.year);
-    calendarStore.setDate(calendar.year, doy);
+    const doy = dateToDayOfYear(viewMonth, day, refYear);
+    calendarStore.setDate(refYear, doy);
   };
 
   const selectFestival = (festivalMonth: number) => {
-    // 节日在某月之后，选节日就是选该月的下一天（即节日当天）
-    const doy = dateToDayOfYear(festivalMonth, 30, calendar.year) + 1;
-    calendarStore.setDate(calendar.year, doy);
+    const doy = dateToDayOfYear(festivalMonth, 30, refYear) + 1;
+    calendarStore.setDate(refYear, doy);
   };
 
   const toggleLinked = () => {
@@ -123,6 +116,21 @@ export default function CalendarPage() {
 
   const timeStr = `${String(gameTime.hour).padStart(2, '0')}:${String(gameTime.minute).padStart(2, '0')}`;
 
+  // 格式化当前日期显示
+  const currentDateDisplay = dateInfo.isFestival
+    ? `${MONTHS[dateInfo.month - 1].name} · ${dateInfo.festivalName}`
+    : `${MONTHS[dateInfo.month - 1].name} ${dateInfo.day}日`;
+
+  // 节日列表
+  const festivals = [
+    { name: '隆冬节', month: 1, afterDay: 30 },
+    { name: '绿草节', month: 4, afterDay: 30 },
+    { name: '仲夏节', month: 7, afterDay: 30 },
+    ...(isLeap ? [{ name: '盾会日', month: 7, afterDay: 30 }] : []),
+    { name: '丰收节', month: 9, afterDay: 30 },
+    { name: '月之盛宴', month: 11, afterDay: 30 },
+  ];
+
   return (
     <div className="space-y-6">
       {/* 标题栏 */}
@@ -132,6 +140,9 @@ export default function CalendarPage() {
           <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">
             哈普托斯历
           </h1>
+          <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            {isLeap ? '（闰年）' : ''}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -155,54 +166,18 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* 年份导航 + 当前日期概览 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* 年份导航 */}
-        <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => calendarStore.prevYear()}
-              className="p-2 rounded-lg hover:bg-white/5 transition-colors dark:text-text-dark light:text-text-light"
-            >
-              <ChevronLeft className="w-5 h-5" />
-            </button>
-            <div className="text-center">
-              <div className="text-2xl font-bold dark:text-text-dark light:text-text-light">
-                {calendar.year}年
-              </div>
-              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                {isLeap ? '闰年 · 366天' : '平年 · 365天'}
-              </div>
-            </div>
-            <button
-              onClick={() => calendarStore.nextYear()}
-              className="p-2 rounded-lg hover:bg-white/5 transition-colors dark:text-text-dark light:text-text-light"
-            >
-              <ChevronRight className="w-5 h-5" />
-            </button>
+      {/* 当前日期概览 */}
+      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="text-xl font-bold dark:text-text-dark light:text-text-light">
+            {currentDateDisplay}
           </div>
-        </div>
-
-        {/* 当前日期 */}
-        <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-4 md:col-span-2">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div>
-              <div className="text-lg font-bold dark:text-text-dark light:text-text-light">
-                {dateInfo.isFestival
-                  ? `${MONTHS[dateInfo.month - 1].name} · ${dateInfo.festivalName}`
-                  : formatFullDate(dateInfo.month, dateInfo.day, dateInfo.year)}
-              </div>
-              <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                年内第 {calendar.dayOfYear} / {yearDays} 天
-              </div>
+          {calendar.linkedToClock && (
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary">
+              <Clock className="w-4 h-4" />
+              <span className="font-mono font-medium">{timeStr}</span>
             </div>
-            {calendar.linkedToClock && (
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/10 text-primary">
-                <Clock className="w-4 h-4" />
-                <span className="font-mono font-medium">{timeStr}</span>
-              </div>
-            )}
-          </div>
+          )}
         </div>
       </div>
 
@@ -219,13 +194,7 @@ export default function CalendarPage() {
             {currentMonthInfo.name}
           </div>
           <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-            {currentMonthInfo.officialName} · {currentMonthInfo.days}天
-            {monthGrid.hasFestival && (
-              <span className="ml-2 text-primary">
-                + {monthGrid.festivalName}
-                {monthGrid.extraFestivalName && `、${monthGrid.extraFestivalName}`}
-              </span>
-            )}
+            {currentMonthInfo.officialName}
           </div>
         </div>
         <button
@@ -237,7 +206,7 @@ export default function CalendarPage() {
       </div>
 
       {/* 日历网格 */}
-      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-4">
+      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-3 sm:p-4">
         {/* 表头 */}
         <div
           className="grid gap-1 mb-2"
@@ -248,93 +217,68 @@ export default function CalendarPage() {
           {['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'].map((h) => (
             <div
               key={h}
-              className="text-center text-xs font-medium py-2 rounded dark:text-text-dark-muted light:text-text-light-muted dark:bg-bg-dark-2 light:bg-bg-light-2"
+              className="text-center text-xs font-medium py-1.5 rounded dark:text-text-dark-muted light:text-text-light-muted dark:bg-bg-dark-2 light:bg-bg-light-2"
             >
               {h}
             </div>
           ))}
           {monthGrid.hasFestival && (
-            <div className="text-center text-xs font-medium py-2 rounded dark:text-primary light:text-primary-dark dark:bg-primary/10 light:bg-primary/10">
+            <div className="text-center text-xs font-medium py-1.5 rounded dark:text-primary light:text-primary-dark dark:bg-primary/10 light:bg-primary/10">
               节日
             </div>
           )}
         </div>
 
-        {/* 第1个十天 */}
-        <div
-          className="grid gap-1 mb-1"
-          style={{
-            gridTemplateColumns: monthGrid.hasFestival ? 'repeat(11, 1fr)' : 'repeat(10, 1fr)',
-          }}
-        >
-          {monthGrid.days.slice(0, 10).map((cell) => (
-            <DayButton
-              key={cell.day}
-              day={cell.day}
-              tenday={cell.tenday}
-              isCurrent={isCurrentDay(cell.day)}
-              onClick={() => selectDay(cell.day)}
-            />
-          ))}
-          {monthGrid.hasFestival && <div />}
-        </div>
-
-        {/* 第2个十天 */}
-        <div
-          className="grid gap-1 mb-1"
-          style={{
-            gridTemplateColumns: monthGrid.hasFestival ? 'repeat(11, 1fr)' : 'repeat(10, 1fr)',
-          }}
-        >
-          {monthGrid.days.slice(10, 20).map((cell) => (
-            <DayButton
-              key={cell.day}
-              day={cell.day}
-              tenday={cell.tenday}
-              isCurrent={isCurrentDay(cell.day)}
-              onClick={() => selectDay(cell.day)}
-            />
-          ))}
-          {monthGrid.hasFestival && <div />}
-        </div>
-
-        {/* 第3个十天 + 节日 */}
-        <div
-          className="grid gap-1"
-          style={{
-            gridTemplateColumns: monthGrid.hasFestival ? 'repeat(11, 1fr)' : 'repeat(10, 1fr)',
-          }}
-        >
-          {monthGrid.days.slice(20, 30).map((cell) => (
-            <DayButton
-              key={cell.day}
-              day={cell.day}
-              tenday={cell.tenday}
-              isCurrent={isCurrentDay(cell.day)}
-              onClick={() => selectDay(cell.day)}
-            />
-          ))}
-          {monthGrid.hasFestival && (
-            <FestivalButton
-              name={monthGrid.festivalName!}
-              isCurrent={isCurrentFestival(monthGrid.festivalName)}
-              onClick={() => selectFestival(viewMonth)}
-            />
-          )}
-        </div>
+        {/* 三个十天 */}
+        {[0, 10, 20].map((start) => (
+          <div
+            key={start}
+            className="grid gap-1 mb-1"
+            style={{
+              gridTemplateColumns: monthGrid.hasFestival ? 'repeat(11, 1fr)' : 'repeat(10, 1fr)',
+            }}
+          >
+            {monthGrid.days.slice(start, start + 10).map((cell) => (
+              <button
+                key={cell.day}
+                onClick={() => selectDay(cell.day)}
+                className={`aspect-square rounded-lg text-sm font-medium transition-colors flex items-center justify-center ${
+                  isCurrentDay(cell.day)
+                    ? 'bg-primary text-white'
+                    : 'dark:text-text-dark light:text-text-light hover:bg-white/5 dark:bg-bg-dark-2/50 light:bg-bg-light-2/50'
+                }`}
+              >
+                {cell.day}
+              </button>
+            ))}
+            {monthGrid.hasFestival && start === 20 && (
+              <button
+                onClick={() => selectFestival(viewMonth)}
+                className={`aspect-square rounded-lg text-xs font-medium transition-colors flex items-center justify-center ${
+                  isCurrentFestival(monthGrid.festivalName)
+                    ? 'bg-primary text-white'
+                    : 'dark:text-primary light:text-primary-dark hover:bg-primary/10 border dark:border-primary/30 light:border-primary/30'
+                }`}
+              >
+                {monthGrid.festivalName}
+              </button>
+            )}
+            {monthGrid.hasFestival && start !== 20 && <div />}
+          </div>
+        ))}
 
         {/* 额外节日（盾会日） */}
         {monthGrid.extraFestivalName && (
           <div className="mt-2 flex justify-end">
             <button
               onClick={() => selectFestival(viewMonth)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm border transition-colors ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
                 isCurrentFestival(monthGrid.extraFestivalName)
                   ? 'border-primary bg-primary/20 text-primary'
                   : 'dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5'
               }`}
             >
-              <Shield className="w-4 h-4" />
+              <Shield className="w-3.5 h-3.5" />
               {monthGrid.extraFestivalName}
             </button>
           </div>
@@ -342,11 +286,8 @@ export default function CalendarPage() {
       </div>
 
       {/* 月份快捷导航 */}
-      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-4">
-        <h3 className="text-sm font-medium mb-3 dark:text-text-dark light:text-text-light">
-          月份导航
-        </h3>
-        <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
+      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-3 sm:p-4">
+        <div className="grid grid-cols-6 sm:grid-cols-12 gap-1.5 sm:gap-2">
           {MONTHS.map((m) => (
             <button
               key={m.index}
@@ -357,27 +298,20 @@ export default function CalendarPage() {
                   : 'dark:text-text-dark light:text-text-light hover:bg-white/5'
               }`}
             >
-              {m.name}
+              {m.name.replace('月', '')}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 节日列表 */}
-      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-4">
+      {/* 节日卡片 */}
+      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-3 sm:p-4">
         <h3 className="text-sm font-medium mb-3 dark:text-text-dark light:text-text-light">
           年度节日
         </h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-          {[
-            { name: '隆冬节', month: 1, icon: Sun },
-            { name: '绿草节', month: 4, icon: Flower2 },
-            { name: '仲夏节', month: 7, icon: Sunrise },
-            ...(isLeap ? [{ name: '盾会日', month: 7, icon: Shield }] : []),
-            { name: '丰收节', month: 9, icon: Wheat },
-            { name: '月之盛宴', month: 11, icon: PartyPopper },
-          ].map((f) => {
-            const Icon = f.icon;
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+          {festivals.map((f) => {
+            const Icon = festivalIcons[f.name] || Sun;
             const isActive = dateInfo.isFestival && dateInfo.festivalName === f.name;
             return (
               <button
@@ -386,74 +320,19 @@ export default function CalendarPage() {
                   setViewMonth(f.month);
                   selectFestival(f.month);
                 }}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors ${
+                className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg text-sm border transition-colors ${
                   isActive
                     ? 'border-primary bg-primary/20 text-primary'
                     : 'dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                {f.name}
+                <Icon className="w-5 h-5" />
+                <span>{f.name}</span>
               </button>
             );
           })}
         </div>
       </div>
     </div>
-  );
-}
-
-// 日期按钮组件
-function DayButton({
-  day,
-  tenday,
-  isCurrent,
-  onClick,
-}: {
-  day: number;
-  tenday: number;
-  isCurrent: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`relative aspect-square rounded-lg text-sm font-medium transition-colors flex flex-col items-center justify-center gap-0.5 ${
-        isCurrent
-          ? 'bg-primary text-white'
-          : 'dark:text-text-dark light:text-text-light hover:bg-white/5 dark:bg-bg-dark-2/50 light:bg-bg-light-2/50'
-      }`}
-    >
-      <span>{day}</span>
-      <span className={`text-[10px] ${isCurrent ? 'text-white/70' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
-        第{getTendayName(tenday)}十天
-      </span>
-    </button>
-  );
-}
-
-// 节日按钮组件
-function FestivalButton({
-  name,
-  isCurrent,
-  onClick,
-}: {
-  name: string;
-  isCurrent: boolean;
-  onClick: () => void;
-}) {
-  const Icon = festivalIcons[name] || Sun;
-  return (
-    <button
-      onClick={onClick}
-      className={`aspect-square rounded-lg text-xs font-medium transition-colors flex flex-col items-center justify-center gap-1 ${
-        isCurrent
-          ? 'bg-primary text-white'
-          : 'dark:text-primary light:text-primary-dark hover:bg-primary/10 border dark:border-primary/30 light:border-primary/30'
-      }`}
-    >
-      <Icon className="w-4 h-4" />
-      <span>{name}</span>
-    </button>
   );
 }
