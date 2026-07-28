@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
 import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
+import battlegroundStore from '@/data/battlegroundStore';
 import type { Character } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate } from '@/types/combat';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical } from 'lucide-react';
@@ -35,7 +36,12 @@ export default function CombatSession() {
   const [npcCreatorOpen, setNpcCreatorOpen] = useState(false);
   const [npcTemplates, setNpcTemplates] = useState<NpcTemplate[]>([]);
   // ✅ 新增：战斗攻击检定弹窗（在 main 上处理）
-  const [attackModal, setAttackModal] = useState<{ attacker: Combatant; target: Combatant } | null>(null);
+  const [attackModal, setAttackModal] = useState<{
+    attacker: Combatant;
+    target: Combatant;
+    attackerPos?: { col: number; row: number };
+    targetPos?: { col: number; row: number };
+  } | null>(null);
   // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
   const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
   const [tiedOrder, setTiedOrder] = useState<Combatant[]>([]);
@@ -761,7 +767,19 @@ export default function CombatSession() {
       <Battleground
         sessionId={record.id}
         combatants={record.combatants}
-        onRequestAttack={(attacker, target) => setAttackModal({ attacker, target })}
+        onRequestAttack={(attacker, target) => {
+          // main 上处理：从 battlegroundStore 读取坐标，一并传入攻击检定弹窗
+          const bg = record.id ? battlegroundStore.get(record.id) : null;
+          const tokens = bg?.tokens ?? [];
+          const attackerPos = tokens.find(t => t.combatantId === attacker.id);
+          const targetPos = tokens.find(t => t.combatantId === target.id);
+          setAttackModal({
+            attacker,
+            target,
+            attackerPos: attackerPos ? { col: attackerPos.col, row: attackerPos.row } : undefined,
+            targetPos: targetPos ? { col: targetPos.col, row: targetPos.row } : undefined,
+          });
+        }}
       />
 
       {/* ✅ 新增：NPC 创建器 */}
@@ -779,6 +797,8 @@ export default function CombatSession() {
         <CombatAttackModal
           attacker={attackModal.attacker}
           target={attackModal.target}
+          attackerPos={attackModal.attackerPos}
+          targetPos={attackModal.targetPos}
           onClose={() => setAttackModal(null)}
         />
       )}
