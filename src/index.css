@@ -110,6 +110,26 @@ textarea:focus::placeholder {
   opacity: 0;
 }
 
+/* 游戏时钟 SVG 主题变量 */
+.dark .game-clock-svg {
+  --clock-face: var(--color-bg-dark);
+  --clock-border: var(--color-border-dark);
+  --clock-tick: var(--color-border-dark);
+  --clock-num: var(--color-text-dark);
+  --clock-hour-hand: var(--color-text-dark);
+  --clock-minute-hand: var(--color-primary);
+  --clock-center: var(--color-text-dark);
+}
+.light .game-clock-svg {
+  --clock-face: var(--color-bg-light);
+  --clock-border: var(--color-border-light);
+  --clock-tick: var(--color-border-light);
+  --clock-num: var(--color-text-light);
+  --clock-hour-hand: var(--color-text-light);
+  --clock-minute-hand: var(--color-primary);
+  --clock-center: var(--color-text-light);
+}
+
 /* 只读模式（玩家端） */
 .read-only-mode input,
 .read-only-mode textarea,
