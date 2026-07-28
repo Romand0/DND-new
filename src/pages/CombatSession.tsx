@@ -647,9 +647,12 @@ export default function CombatSession() {
               <th className="p-2 border-r dark:border-border-dark light:border-border-light sticky left-0 dark:bg-card-dark light:bg-card-light z-10 w-16 text-center">
                 轮次
               </th>
-              {record.combatants.map((c) => (
+              {record.combatants.map((c, idx) => (
                 <th key={c.id} className="p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group">
-                  <div className="flex items-center gap-1">
+                  <div className="absolute -top-2 -left-2 w-7 h-7 rounded-full bg-primary text-white text-xs font-bold flex items-center justify-center shadow-md z-10">
+                    {idx + 1}
+                  </div>
+                  <div className="flex items-center gap-1 mt-3">
                     {batchMode && (
                       <input
                         type="checkbox"

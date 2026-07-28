@@ -96,10 +96,12 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
   const [customMode, setCustomMode] = useState(false);
 
   // 批量生成
-  const [batchCount, setBatchCount] = useState(5);
+  const [batchCountInput, setBatchCountInput] = useState('5');
   const [batchNpcs, setBatchNpcs] = useState<NpcEditState[]>([]);
   const [editingIndex, setEditingIndex] = useState(-1);
   const batchDiceValuesRef = useRef<number[]>([]);
+
+  const batchCount = Math.max(1, Math.min(50, parseInt(batchCountInput) || 1));
 
   // 单个编辑状态
   const [editState, setEditState] = useState<NpcEditState | null>(null);
@@ -139,7 +141,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
   const startBatch = () => {
     if (!selectedTemplate) return;
     setBatchNpcs([]);
-    setBatchCount(5);
+    setBatchCountInput('5');
     setStage('batch');
   };
 
@@ -337,8 +339,9 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
                 type="number"
                 min={1}
                 max={50}
-                value={batchCount}
-                onChange={(e) => setBatchCount(parseInt(e.target.value) || 1)}
+                value={batchCountInput}
+                onChange={(e) => setBatchCountInput(e.target.value)}
+                onBlur={() => setBatchCountInput(String(batchCount))}
                 className="w-20 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary text-center"
               />
               <button
@@ -529,17 +532,23 @@ function NpcEditor(props: NpcEditorProps) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">
-          NPC 名称
-        </label>
-        <input
-          type="text"
-          value={state.name}
-          onChange={(e) => setState(prev => prev ? { ...prev, name: e.target.value } : null)}
-          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-          placeholder="例如：哥布林"
-        />
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">
+            NPC 名称
+          </label>
+          <input
+            type="text"
+            value={state.name}
+            onChange={(e) => setState(prev => prev ? { ...prev, name: e.target.value } : null)}
+            className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+            placeholder="例如：哥布林"
+          />
+        </div>
+        <button onClick={handleSave} disabled={!state.name || state.d20 < 1 || state.d20 > 20}
+          className="px-4 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1 whitespace-nowrap">
+          <Save className="w-4 h-4" />{saveLabel}
+        </button>
       </div>
 
       <div>
@@ -772,14 +781,10 @@ function NpcEditor(props: NpcEditorProps) {
         </>
       )}
 
-      <div className="flex gap-2 pt-2">
+      <div className="pt-2">
         <button onClick={onCancel}
-          className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors">
+          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors">
           取消
-        </button>
-        <button onClick={handleSave} disabled={!state.name || state.d20 < 1 || state.d20 > 20}
-          className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1">
-          <Save className="w-4 h-4" />{saveLabel}
         </button>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
 import { editorState } from '@/data/editorState';
@@ -18,12 +19,16 @@ export default function SyncButton() {
   const [status, setStatus] = useState<SyncStatus>('idle');
   const [results, setResults] = useState<SyncResult[]>([]);
   const [editorOpen, setEditorOpen] = useState(editorState.get());
+  const location = useLocation();
 
   useEffect(() => {
     return editorState.subscribe(() => setEditorOpen(editorState.get()));
   }, []);
 
   if (editorOpen) return null;
+
+  // 战斗场景隐藏同步按钮
+  if (location.pathname.startsWith('/combat/')) return null;
 
   const handleSync = async () => {
     if (!hasToken()) {
