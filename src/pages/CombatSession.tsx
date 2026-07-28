@@ -344,12 +344,20 @@ export default function CombatSession() {
   };
 
   // ✅ 新增：应用伤害 —— 仅写入战斗参战者 HP，不回传角色卡
-  const handleApplyDamage = (targetId: string, newHp: number) => {
-    const updatedCombatants = record.combatants.map(c =>
-      c.id === targetId
-        ? { ...c, currentHp: newHp, isDead: newHp <= 0 }
-        : c
-    );
+  // status: 'unconscious' 昏迷 / 'dead' 死亡（NPC 致命伤害时附带）
+  const handleApplyDamage = (targetId: string, newHp: number, status?: 'unconscious' | 'dead') => {
+    const updatedCombatants = record.combatants.map(c => {
+      if (c.id !== targetId) return c;
+      // 致命伤害：根据状态决定写入 isUnconscious / isDead；非致命则清除倒下标记
+      if (newHp <= 0 && status === 'dead') {
+        return { ...c, currentHp: newHp, isDead: true, isUnconscious: false };
+      }
+      if (newHp <= 0 && status === 'unconscious') {
+        return { ...c, currentHp: newHp, isDead: false, isUnconscious: true };
+      }
+      // 非致命伤害：恢复后清除倒下状态
+      return { ...c, currentHp: newHp, isDead: false, isUnconscious: false };
+    });
     combatStore.update(record.id, {
       combatants: updatedCombatants,
       updatedAt: Date.now(),
@@ -677,10 +685,23 @@ export default function CombatSession() {
               <th className="p-2 border-r dark:border-border-dark light:border-border-light sticky left-0 dark:bg-card-dark light:bg-card-light z-10 w-16 text-center">
                 轮次
               </th>
-              {record.combatants.map((c, idx) => (
-                <th key={c.id} className="p-2 pt-7 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group">
+              {record.combatants.map((c, idx) => {
+                const downed = c.isDead || c.isUnconscious;
+                return (
+                <th key={c.id} className={`p-2 pt-7 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group ${downed ? 'opacity-40' : ''}`}>
                   <div className="absolute top-1 left-1 w-6 h-6 rounded-full dark:bg-gray-600 dark:text-white light:bg-gray-300 light:text-black text-xs font-bold flex items-center justify-center">
                     {idx + 1}
+                    {/* 死亡：在数字标记上打红叉 */}
+                    {c.isDead && (
+                      <svg
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                        viewBox="0 0 100 100"
+                        style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.6))' }}
+                      >
+                        <line x1="20" y1="20" x2="80" y2="80" stroke="#ef4444" strokeWidth="14" strokeLinecap="round" />
+                        <line x1="80" y1="20" x2="20" y2="80" stroke="#ef4444" strokeWidth="14" strokeLinecap="round" />
+                      </svg>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     {batchMode && (
@@ -740,7 +761,8 @@ export default function CombatSession() {
                     </button>
                   )}
                 </th>
-              ))}
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -841,8 +863,8 @@ export default function CombatSession() {
           target={damageModal.target}
           attack={damageModal.attack}
           disadvantage={damageModal.disadvantage}
-          onApplyDamage={(damage, newHp) => {
-            handleApplyDamage(damageModal.target.id, newHp);
+          onApplyDamage={(damage, newHp, status) => {
+            handleApplyDamage(damageModal.target.id, newHp, status);
           }}
           onClose={() => setDamageModal(null)}
         />

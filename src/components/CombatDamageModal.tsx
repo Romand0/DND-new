@@ -11,8 +11,8 @@ interface Props {
   attack: Attack | NpcAttack;
   /** 是否处于检定劣势（投掷武器处于最大射程段）—— 暂作展示提示 */
   disadvantage?: boolean;
-  /** 应用伤害：由 main 调用 combatStore.update 写入新 HP */
-  onApplyDamage: (damage: number, newHp: number) => void;
+  /** 应用伤害：由 main 调用 combatStore.update 写入新 HP；致命伤害（HP 归零）时附带状态决定 */
+  onApplyDamage: (damage: number, newHp: number, status?: 'unconscious' | 'dead') => void;
   onClose: () => void;
 }
 
@@ -79,6 +79,8 @@ export default function CombatDamageModal({
     Array.from({ length: parsed.count }).map(() => '')
   );
   const [calculated, setCalculated] = useState<number | null>(null);
+  // NPC 致命伤害时的状态决定：昏迷 / 死亡
+  const [downedStatus, setDownedStatus] = useState<'unconscious' | 'dead' | null>(null);
 
   // 计算总伤害
   const computeTotal = (): number => {
@@ -92,6 +94,7 @@ export default function CombatDamageModal({
 
   const handleCalc = () => {
     setCalculated(computeTotal());
+    setDownedStatus(null);
   };
 
   // 摇骰：一键摇全部骰子
@@ -104,6 +107,7 @@ export default function CombatDamageModal({
     });
     setDiceValues(result.values.map(String));
     setCalculated(null);
+    setDownedStatus(null);
   };
 
   const updateDie = (idx: number, val: string) => {
@@ -113,6 +117,7 @@ export default function CombatDamageModal({
       return next;
     });
     setCalculated(null);
+    setDownedStatus(null);
   };
 
   // HP 计算
@@ -121,6 +126,10 @@ export default function CombatDamageModal({
   const damage = calculated ?? 0;
   const newHp = Math.max(0, currentHp - damage);
   const actuallyLost = currentHp - newHp; // 实际扣血（不会超过当前血量）
+  // 致命伤害：伤害值 ≥ 当前剩余 HP（即新 HP 归零）
+  const isLethal = calculated !== null && damage >= currentHp && currentHp > 0;
+  // 仅 NPC 需要决定昏迷/死亡（角色机制暂不考虑）
+  const needDownedDecision = isLethal && !target.isPc;
 
   // HP 条颜色：依据剩余血量百分比
   const newHpPercent = maxHp > 0 ? (newHp / maxHp) * 100 : 0;
@@ -137,7 +146,9 @@ export default function CombatDamageModal({
   };
 
   const handleConfirm = () => {
-    onApplyDamage(damage, newHp);
+    // NPC 致命伤害必须先做状态决定；PC 致命伤害不附带状态（角色机制暂不考虑）
+    if (needDownedDecision && !downedStatus) return;
+    onApplyDamage(damage, newHp, needDownedDecision ? downedStatus! : undefined);
     onClose();
   };
 
@@ -200,7 +211,7 @@ export default function CombatDamageModal({
                 </label>
                 <button
                   onDoubleClick={handleRollAll}
-                  className="px-2.5 py-1 rounded-lg bg-primary text-white flex items-center gap-1 hover:bg-primary/90 transition-colors text-xs shrink-0 select-none"
+                  className="px-2.5 py-1 rounded-lg bg-primary text-white flex items-center gap-1 hover:bg-primary/90 active:scale-90 active:bg-primary/80 transition-all text-xs shrink-0 select-none"
                   title="双击摇骰"
                 >
                   <Dices className="w-3.5 h-3.5" />
@@ -307,12 +318,56 @@ export default function CombatDamageModal({
                 </div>
               </div>
 
-              {/* 确认按钮 */}
+              {/* NPC 致命伤害：昏迷 / 死亡 决定 */}
+              {needDownedDecision && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2 animate-in fade-in slide-in-from-bottom duration-200">
+                  <div className="text-sm font-medium text-amber-400">该 NPC 已倒下，请决定其状态</div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setDownedStatus('unconscious')}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                        downedStatus === 'unconscious'
+                          ? 'bg-amber-500 text-white ring-2 ring-amber-400'
+                          : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-amber-500/10'
+                      }`}
+                    >
+                      昏迷
+                    </button>
+                    <button
+                      onClick={() => setDownedStatus('dead')}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                        downedStatus === 'dead'
+                          ? 'bg-red-500 text-white ring-2 ring-red-400'
+                          : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-red-500/10'
+                      }`}
+                    >
+                      死亡
+                    </button>
+                  </div>
+                  {downedStatus === 'unconscious' && (
+                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      昏迷：先攻表格表头黯淡，棋子变灰，留在原地
+                    </div>
+                  )}
+                  {downedStatus === 'dead' && (
+                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      死亡：表头黯淡并在数字标记上打红叉，棋子变灰并打红叉，留在原地
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 确认按钮：NPC 致命伤害未决定时禁用 */}
               <button
                 onClick={handleConfirm}
-                className="w-full py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
+                disabled={needDownedDecision && !downedStatus}
+                className={`w-full py-2.5 rounded-lg font-medium transition-colors ${
+                  needDownedDecision && !downedStatus
+                    ? 'bg-gray-400/60 text-white/70 cursor-not-allowed'
+                    : 'bg-primary text-white hover:bg-primary/90'
+                }`}
               >
-                确认伤害
+                {needDownedDecision && !downedStatus ? '请先决定状态' : '确认伤害'}
               </button>
             </div>
           )}

@@ -366,7 +366,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                       handleRollDice();
                       setRollResult(null);
                     }}
-                    className="px-3 py-2 rounded-lg bg-primary text-white flex items-center gap-1.5 hover:bg-primary/90 transition-colors shrink-0 select-none"
+                    className="px-3 py-2 rounded-lg bg-primary text-white flex items-center gap-1.5 hover:bg-primary/90 active:scale-90 active:bg-primary/80 transition-all shrink-0 select-none"
                     title="双击摇骰"
                   >
                     <Dices className="w-4 h-4" />

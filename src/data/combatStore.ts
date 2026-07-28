@@ -37,6 +37,7 @@ function load(): CombatRecord[] {
           currentHp: c.currentHp ?? 0,
           tempHp: c.tempHp,
           isDead: c.isDead ?? false,
+          isUnconscious: c.isUnconscious ?? false,
           isPc: c.isPc ?? false,
           characterId: c.characterId,
           note: c.note ?? '',

@@ -8,6 +8,8 @@ export interface Combatant {
   currentHp?: number;
   tempHp?: number;
   isDead?: boolean;
+  /** 昏迷（HP 归零但未死亡）：表格表头黯淡，棋子变灰 */
+  isUnconscious?: boolean;
   isPc?: boolean;
   characterId?: string;
   note?: string;

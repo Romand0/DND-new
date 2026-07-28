@@ -483,8 +483,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
             </button>
           ))}
         </div>
-        {/* 提示语 */}
-        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+        {/* 提示语 —— 固定双行高度，避免选中状态切换导致沙盘整体位移 */}
+        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted min-h-[2rem] leading-4">
           {eraserMode
             ? '橡皮模式：点击棋子移除'
             : selectedCombatantId
@@ -551,13 +551,19 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
                 style={{ width: cellSize, height: cellSize }}
                 title={combatant ? combatant.name : `${col},${row}`}
               >
-                {combatant && (
+                {combatant && (() => {
+                  const downed = combatant.isDead || combatant.isUnconscious;
+                  return (
                   <div
-                    className={`relative rounded-full flex items-center justify-center font-bold text-white leading-none transition-all ${
-                      combatant.isPc ? 'bg-info' : 'bg-danger'
+                    className={`relative rounded-full flex items-center justify-center font-bold text-white leading-none transition-all select-none ${
+                      downed
+                        ? 'bg-gray-500'
+                        : combatant.isPc ? 'bg-info' : 'bg-danger'
                     } ${selectedCombatantId === combatant.id ? 'ring-2 ring-white scale-110' : ''} ${
                       isDragHovered ? 'ring-2 ring-white' : ''
-                    } ${isLocked ? 'ring-2 ring-yellow-400 scale-110' : ''}`}
+                    } ${isLocked ? 'ring-2 ring-yellow-400 scale-110' : ''} ${
+                      downed ? 'opacity-60' : ''
+                    }`}
                     style={{
                       width: cellSize - 6,
                       height: cellSize - 6,
@@ -592,8 +598,20 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
                     onDoubleClick={() => setDoubleClickedCombatant(combatant)}
                   >
                     {combatant.name.slice(0, 1)}
+                    {/* 死亡：红叉叠加 */}
+                    {combatant.isDead && (
+                      <svg
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                        viewBox="0 0 100 100"
+                        style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.6))' }}
+                      >
+                        <line x1="15" y1="15" x2="85" y2="85" stroke="#ef4444" strokeWidth="12" strokeLinecap="round" />
+                        <line x1="85" y1="15" x2="15" y2="85" stroke="#ef4444" strokeWidth="12" strokeLinecap="round" />
+                      </svg>
+                    )}
                   </div>
-                )}
+                  );
+                })()}
               </div>
             );
           })}
@@ -658,6 +676,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
           const radius = tokenSize * 0.8 + btnSize * 0.8;
           // 发起者（攻击者）= 长按源棋子；目标 = 锁定的棋子
           const attacker = lockedSourceId ? combatantMap.get(lockedSourceId) : null;
+          // 同队伍判定：均为 PC 或均为 NPC 时禁止攻击
+          const sameTeam = !!attacker && !!combatant && (attacker.isPc === combatant.isPc);
           return (
             <>
               {/* 四个上侧弧形按钮 */}
@@ -666,19 +686,26 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
                 const bx = cx + Math.cos(rad) * radius - btnSize / 2;
                 const by = cy + Math.sin(rad) * radius - btnSize / 2;
                 const isCombat = i === 0;
+                const combatDisabled = isCombat && sameTeam;
                 return (
                   <button
                     key={i}
+                    disabled={combatDisabled}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (combatDisabled) return;
                       if (isCombat && attacker && onRequestAttack) {
                         onRequestAttack(attacker, combatant);
                         setLockedTargetId(null);
                         setLockedSourceId(null);
                       }
                     }}
-                    className={`absolute z-30 rounded-full flex flex-col items-center justify-center shadow-lg hover:scale-110 transition-transform ${
-                      isCombat ? 'bg-danger text-white' : 'bg-primary text-white'
+                    className={`absolute z-30 rounded-full flex flex-col items-center justify-center shadow-lg transition-transform ${
+                      combatDisabled
+                        ? 'bg-gray-400/60 text-white/70 cursor-not-allowed'
+                        : isCombat
+                        ? 'bg-danger text-white hover:scale-110'
+                        : 'bg-primary text-white hover:scale-110'
                     }`}
                     style={{
                       width: btnSize,
@@ -686,6 +713,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
                       left: bx,
                       top: by,
                     }}
+                    title={combatDisabled ? '同队伍不可攻击' : undefined}
                   >
                     {isCombat ? (
                       <>
