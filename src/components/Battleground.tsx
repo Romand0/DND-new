@@ -168,7 +168,7 @@ export default function Battleground({ sessionId, combatants }: Props) {
       if (dragCircleRef.current) {
         const rect = gridWrapRef.current?.getBoundingClientRect();
         if (rect) {
-          const size = cellSize * scale;
+          const size = cellSize * scale * 2;
           dragCircleRef.current.style.left = `${px - rect.left - size / 2}px`;
           dragCircleRef.current.style.top = `${py - rect.top - size / 2}px`;
         }
@@ -558,13 +558,15 @@ export default function Battleground({ sessionId, combatants }: Props) {
                       longPressStartRef.current = { x: e.clientX, y: e.clientY };
                       longPressTimer.current = setTimeout(() => {
                         if (longPressStartRef.current) {
-                          // 长按触发：进入拖拽锁定模式，初始化圆框位置
+                          // 长按触发：先设置位置，再显示（避免闪烁）
                           const rect = gridWrapRef.current?.getBoundingClientRect();
-                          const size = cellSize * scale;
+                          const size = cellSize * scale * 2;
                           if (rect && dragCircleRef.current) {
                             dragCircleRef.current.style.left = `${longPressStartRef.current.x - rect.left - size / 2}px`;
                             dragCircleRef.current.style.top = `${longPressStartRef.current.y - rect.top - size / 2}px`;
                           }
+                          // 手机震动反馈
+                          if (navigator.vibrate) navigator.vibrate(15);
                           setDragLock({
                             sourceId: combatant.id,
                             pointerX: longPressStartRef.current.x,
@@ -584,19 +586,18 @@ export default function Battleground({ sessionId, combatants }: Props) {
           })}
         </div>
 
-        {/* 拖拽锁定时跟随指针的白色半透明圆框（位置由 ref 直接更新，不触发重渲染） */}
-        {dragLock && (
-          <div
-            ref={dragCircleRef}
-            className="absolute pointer-events-none z-20 rounded-full border-2 border-white/60 bg-white/15"
-            style={{
-              width: cellSize * scale,
-              height: cellSize * scale,
-              left: 0,
-              top: 0,
-            }}
-          />
-        )}
+        {/* 拖拽锁定时跟随指针的白色半透明圆框（始终在DOM中，用opacity控制显隐，避免闪烁） */}
+        <div
+          ref={dragCircleRef}
+          className="absolute pointer-events-none z-20 rounded-full border-2 border-white/60 bg-white/15 transition-opacity duration-100"
+          style={{
+            width: cellSize * scale * 2,
+            height: cellSize * scale * 2,
+            left: -9999,
+            top: -9999,
+            opacity: dragLock ? 1 : 0,
+          }}
+        />
 
         {/* 锁定选中后展开的交互按钮 + 叉按钮 */}
         {lockedTargetId && (() => {
@@ -609,18 +610,19 @@ export default function Battleground({ sessionId, combatants }: Props) {
           const cx = translate.x + (token.col + 0.5) * cellSize * scale;
           const cy = translate.y + (token.row + 0.5) * cellSize * scale;
           const tokenSize = (cellSize - 6) * scale;
-          const btnSize = Math.max(20, tokenSize * 0.7);
-          const radius = tokenSize * 0.85 + btnSize * 0.7;
-          // 四个占位按钮
+          // 按钮大小：至少等于棋子大小
+          const btnSize = Math.max(tokenSize, tokenSize * 1.1);
+          // 按钮在上侧弧形排列，角度范围 -150° ~ -30°（上半圆）
           const actions = [
-            { angle: -90 },
-            { angle: 0 },
-            { angle: 90 },
-            { angle: 180 },
+            { angle: -150 },
+            { angle: -110 },
+            { angle: -70 },
+            { angle: -30 },
           ];
+          const radius = tokenSize * 0.6 + btnSize * 0.6;
           return (
             <>
-              {/* 四个圆形占位按钮 */}
+              {/* 四个上侧弧形占位按钮 */}
               {actions.map((a, i) => {
                 const rad = (a.angle * Math.PI) / 180;
                 const bx = cx + Math.cos(rad) * radius - btnSize / 2;
@@ -641,7 +643,7 @@ export default function Battleground({ sessionId, combatants }: Props) {
                   />
                 );
               })}
-              {/* 叉按钮：棋子下方 */}
+              {/* 叉按钮：棋子下方，略小于棋子 */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
