@@ -19,9 +19,11 @@ function load(): GameTime {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return { hour: 8, minute: 0, updatedAt: Date.now() };
     const t: any = JSON.parse(raw);
+    const h = Number(t.hour);
+    const m = Number(t.minute);
     return {
-      hour: Math.max(0, Math.min(23, Number(t.hour) || 8)),
-      minute: Math.max(0, Math.min(59, Number(t.minute) || 0)),
+      hour: Math.max(0, Math.min(23, Number.isNaN(h) ? 8 : h)),
+      minute: Math.max(0, Math.min(59, Number.isNaN(m) ? 0 : m)),
       updatedAt: t.updatedAt ?? Date.now(),
     };
   } catch {

@@ -6,29 +6,52 @@ interface Props {
   interactive?: boolean;
 }
 
-export default function GameClock({ size = 240, interactive = true }: Props) {
-  const [hour, setHour] = useState(8);
-  const [minute, setMinute] = useState(0);
-  const clockRef = useRef<HTMLDivElement>(null);
-  const draggingRef = useRef<'hour' | 'minute' | null>(null);
-  const lastAngleRef = useRef<number | null>(null);
+/** 角度差归一化到 [-180, 180] */
+function angleDelta(current: number, last: number): number {
+  let diff = current - last;
+  if (diff > 180) diff -= 360;
+  if (diff < -180) diff += 360;
+  return diff;
+}
 
-  // 订阅时间变化
+const DAY_MINUTES = 24 * 60;
+
+export default function GameClock({ size = 240, interactive = true }: Props) {
+  // smoothTotalMinutes: 浮点总分钟数，用于流畅渲染
+  const [smoothTotalMinutes, setSmoothTotalMinutes] = useState(8 * 60);
+  const [draggingHand, setDraggingHand] = useState<'hour' | 'minute' | null>(null);
+  const clockRef = useRef<HTMLDivElement>(null);
+  const draggingHandRef = useRef<'hour' | 'minute' | null>(null);
+  const lastAngleRef = useRef(0);
+  const smoothRef = useRef(8 * 60);
+
+  /** 同时更新 ref 和 state */
+  const setSmooth = useCallback((val: number) => {
+    smoothRef.current = val;
+    setSmoothTotalMinutes(val);
+  }, []);
+
+  // 订阅 store 变化（拖拽时跳过，避免覆盖流畅值）
   useEffect(() => {
     const update = () => {
+      if (draggingHandRef.current) return;
       const t = gameTimeStore.get();
-      setHour(t.hour);
-      setMinute(t.minute);
+      setSmooth(t.hour * 60 + t.minute);
     };
     update();
     return gameTimeStore.subscribe(update);
-  }, []);
+  }, [setSmooth]);
 
-  // 计算指针角度
-  const minuteAngle = minute * 6; // 360/60 = 6
-  const hourAngle = ((hour % 12) * 30) + (minute * 0.5); // 360/12 = 30
+  // 渲染用的时/分（整数，用于显示和时段判断）
+  const totalMin = smoothTotalMinutes;
+  const renderHour = Math.floor(totalMin / 60) % 24;
+  const renderMinute = Math.floor(totalMin % 60);
 
-  // 获取鼠标/触摸在表盘上的角度（以12点方向为0度，顺时针）
+  // 指针角度（用浮点值实现流畅旋转）
+  const minuteAngle = (totalMin % 60) * 6; // 360/60 = 6°/min
+  const hourAngle = ((totalMin / 60) % 12) * 30; // 360/12 = 30°/hour
+
+  // 获取事件位置相对表盘中心的角度（12点方向 = 0°，顺时针为正）
   const getAngleFromEvent = useCallback((clientX: number, clientY: number): number => {
     if (!clockRef.current) return 0;
     const rect = clockRef.current.getBoundingClientRect();
@@ -36,75 +59,57 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
     const centerY = rect.top + rect.height / 2;
     const dx = clientX - centerX;
     const dy = clientY - centerY;
-    // atan2 返回弧度，0度在3点方向，顺时针为负，逆时针为正
-    // 转换为以12点方向为0度，顺时针为正
     let angle = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
     if (angle < 0) angle += 360;
     return angle;
   }, []);
 
-  // 处理拖拽
+  // 拖拽处理：角度增量驱动，两根指针联动
   const handlePointerMove = useCallback((e: PointerEvent) => {
-    if (!draggingRef.current) return;
+    const hand = draggingHandRef.current;
+    if (!hand) return;
     e.preventDefault();
+
     const angle = getAngleFromEvent(e.clientX, e.clientY);
-
-    if (draggingRef.current === 'minute') {
-      // 分针：角度 / 6 = 分钟数
-      const newMinute = Math.round(angle / 6) % 60;
-      gameTimeStore.set(hour, newMinute);
-    } else if (draggingRef.current === 'hour') {
-      // 时针：需要考虑跨越 12 点的情况
-      // 根据角度计算小时（12小时制）
-      let newHour12 = angle / 30;
-      newHour12 = newHour12 % 12;
-      if (newHour12 < 0) newHour12 += 12;
-
-      // 结合当前分钟的小时偏移，保持连续
-      const minuteOffset = (minute / 60) * 30;
-      // 更精确的小时值（含小数）
-      let preciseHour = (angle - minuteOffset) / 30;
-      preciseHour = ((preciseHour % 12) + 12) % 12;
-      const roundedHour = Math.round(preciseHour) % 12;
-
-      // 确定 AM/PM：保持与当前相同的上下午，除非跨越了 12 点
-      const isPm = hour >= 12;
-      let newHour = roundedHour + (isPm ? 12 : 0);
-      if (newHour === 24) newHour = 12; // 12 PM
-      if (newHour === 12 && !isPm) newHour = 0; // 12 AM
-
-      // 处理跨越 12 点的情况：通过角度变化方向判断
-      if (lastAngleRef.current != null) {
-        const diff = angle - lastAngleRef.current;
-        // 顺时针跨越 12 点
-        if (diff > 180) {
-          newHour = (newHour + 12) % 24;
-        }
-        // 逆时针跨越 12 点
-        if (diff < -180) {
-          newHour = (newHour + 12) % 24;
-        }
-      }
-
-      gameTimeStore.set(newHour, minute);
-    }
-
+    const delta = angleDelta(angle, lastAngleRef.current);
     lastAngleRef.current = angle;
-  }, [getAngleFromEvent, hour, minute]);
+
+    let total = smoothRef.current;
+    if (hand === 'minute') {
+      // 分针：1° ≈ 1/6 分钟
+      total += delta / 6;
+    } else {
+      // 时针：1° = 2 分钟（30° = 1h = 60min）
+      total += delta * 2;
+    }
+    // 归一化到 [0, DAY_MINUTES)
+    total = ((total % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES;
+
+    setSmooth(total);
+
+    // 写入 store（整数，持久化）
+    const h = Math.floor(total / 60) % 24;
+    const m = Math.floor(total % 60);
+    gameTimeStore.set(h, m);
+  }, [getAngleFromEvent, setSmooth]);
 
   const handlePointerUp = useCallback(() => {
-    draggingRef.current = null;
-    lastAngleRef.current = null;
+    draggingHandRef.current = null;
+    setDraggingHand(null);
     document.body.style.cursor = '';
     document.removeEventListener('pointermove', handlePointerMove);
     document.removeEventListener('pointerup', handlePointerUp);
-  }, [handlePointerMove]);
+    // 从 store 同步最终整数值
+    const t = gameTimeStore.get();
+    setSmooth(t.hour * 60 + t.minute);
+  }, [handlePointerMove, setSmooth]);
 
   const startDrag = (type: 'hour' | 'minute') => (e: React.PointerEvent) => {
     if (!interactive) return;
     e.preventDefault();
     e.stopPropagation();
-    draggingRef.current = type;
+    draggingHandRef.current = type;
+    setDraggingHand(type);
     lastAngleRef.current = getAngleFromEvent(e.clientX, e.clientY);
     document.body.style.cursor = 'grabbing';
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -112,8 +117,8 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
     document.addEventListener('pointerup', handlePointerUp);
   };
 
-  const timeOfDay = getTimeOfDay(hour, minute);
-  const timeStr = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+  const timeOfDay = getTimeOfDay(renderHour, renderMinute);
+  const timeStr = `${String(renderHour).padStart(2, '0')}:${String(renderMinute).padStart(2, '0')}`;
 
   const center = size / 2;
   const clockRadius = size * 0.48;
@@ -121,6 +126,15 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
   const minuteHandLength = size * 0.38;
   const hourHandWidth = size * 0.04;
   const minuteHandWidth = size * 0.025;
+
+  // 光圈样式
+  const glowStyle = (isActive: boolean): React.CSSProperties =>
+    isActive
+      ? {
+          boxShadow: `0 0 ${size * 0.05}px ${size * 0.02}px rgba(255,255,255,0.7)`,
+          filter: `drop-shadow(0 0 ${size * 0.015}px rgba(255,255,255,0.9))`,
+        }
+      : {};
 
   return (
     <div className="flex flex-col items-center gap-4">
@@ -133,7 +147,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
       >
         {/* 刻度 */}
         {Array.from({ length: 12 }).map((_, i) => {
-          const angle = i * 30; // 360/12 = 30
+          const angle = i * 30;
           const rad = (angle - 90) * (Math.PI / 180);
           const outerX = center + clockRadius * Math.cos(rad);
           const outerY = center + clockRadius * Math.sin(rad);
@@ -181,7 +195,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
         {/* 时针 */}
         <div
           onPointerDown={startDrag('hour')}
-          className={`absolute dark:bg-text-dark light:bg-text-light rounded-full ${
+          className={`absolute dark:bg-text-dark light:bg-text-light rounded-full transition-[box-shadow,filter] duration-150 ${
             interactive ? 'cursor-grab active:cursor-grabbing' : ''
           }`}
           style={{
@@ -191,13 +205,14 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
             top: center - hourHandLength + hourHandLength * 0.2,
             transform: `rotate(${hourAngle}deg)`,
             transformOrigin: `50% ${hourHandLength * 0.8}px`,
+            ...glowStyle(draggingHand === 'hour'),
           }}
         />
 
         {/* 分针 */}
         <div
           onPointerDown={startDrag('minute')}
-          className={`absolute dark:bg-primary light:bg-primary rounded-full ${
+          className={`absolute dark:bg-primary light:bg-primary rounded-full transition-[box-shadow,filter] duration-150 ${
             interactive ? 'cursor-grab active:cursor-grabbing' : ''
           }`}
           style={{
@@ -207,6 +222,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
             top: center - minuteHandLength + minuteHandLength * 0.2,
             transform: `rotate(${minuteAngle}deg)`,
             transformOrigin: `50% ${minuteHandLength * 0.8}px`,
+            ...glowStyle(draggingHand === 'minute'),
           }}
         />
 
