@@ -1,5 +1,5 @@
 // DM Toolkit - Navigation Bar Component
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Swords,
@@ -14,7 +14,9 @@ import {
   Download,
   Upload,
   Settings,
+  Clock,
 } from 'lucide-react';
+import gameTimeStore from '@/data/gameTimeStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import { characterStore } from '@/data/characterStore';
 
@@ -36,8 +38,20 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [gameTime, setGameTime] = useState({ hour: 8, minute: 0 });
   const isPlayerPath = location.pathname.startsWith('/player/');
   const navItems = variant === 'player' || isPlayerPath ? playerNavItems : allNavItems;
+
+  useEffect(() => {
+    const update = () => {
+      const t = gameTimeStore.get();
+      setGameTime({ hour: t.hour, minute: t.minute });
+    };
+    update();
+    return gameTimeStore.subscribe(update);
+  }, []);
+
+  const timeStr = `${String(gameTime.hour).padStart(2, '0')}:${String(gameTime.minute).padStart(2, '0')}`;
 
   const handleExport = () => {
     characterStore.exportAllWithConfirm();
@@ -115,6 +129,16 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
               </>
             )}
 
+            {/* 游戏时钟 */}
+            <Link
+              to="/clock"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-gray-300 hover:text-white hover:bg-white/10"
+              title="游戏时间"
+            >
+              <Clock className="w-4 h-4" />
+              <span className="hidden sm:inline">{timeStr}</span>
+            </Link>
+
             {/* 主题切换（DM 和玩家端都可用） */}
             <button
               onClick={toggleTheme}
@@ -138,6 +162,18 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-border-dark bg-bg-dark">
           <div className="px-4 py-3 space-y-1">
+            <Link
+              to="/clock"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === '/clock'
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Clock className="w-5 h-5" />
+              游戏时间 ({timeStr})
+            </Link>
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname.startsWith(item.path);

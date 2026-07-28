@@ -26,6 +26,7 @@ import PlayerInventory from '@/pages/PlayerInventory';
 import DataManagement from '@/pages/DataManagement';
 import CombatList from '@/pages/CombatList';
 import CombatSession from '@/pages/CombatSession';
+import GameClockPage from '@/pages/GameClockPage';
 
 // 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
@@ -121,6 +122,7 @@ export default function App() {
                 path="notes"
                 element={<Placeholder title="剧情笔记" description="剧情记录与世界设定管理功能即将上线" />}
               />
+              <Route path="clock" element={<GameClockPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
