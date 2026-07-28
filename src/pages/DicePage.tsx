@@ -7,6 +7,13 @@ import {
   Sigma,
   List,
 } from 'lucide-react';
+import {
+  rollDice,
+  broadcastDiceResult,
+  type DiceType,
+  type RollMode,
+  type DiceResult,
+} from '@/data/diceService';
 
 interface DiceProps {
   type: number;
@@ -19,6 +26,16 @@ interface DiceProps {
 function rollDie(max: number): number {
   return Math.floor(Math.random() * max) + 1;
 }
+
+/** 骰子结果颜色映射 */
+const DICE_COLORS: Record<number, string> = {
+  4: '#c92a2a',
+  6: '#e76f51',
+  8: '#0d9488',
+  10: '#7c3aed',
+  12: '#ca8a04',
+  20: '#db2777',
+};
 
 /**
  * 立体骰子 SVG 组件
@@ -290,6 +307,16 @@ function Dice({ type, size = 100, onRoll, onBatchRequest, result }: DiceProps) {
   const longPressTimer = useRef<number | null>(null);
   const isLongPress = useRef(false);
   const lastTap = useRef(0);
+  const [animKey, setAnimKey] = useState(0);
+  const prevResult = useRef<number | null>(null);
+
+  // 结果变化时触发动画
+  useEffect(() => {
+    if (result !== null && result !== prevResult.current) {
+      setAnimKey((k) => k + 1);
+      prevResult.current = result;
+    }
+  }, [result]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     isLongPress.current = false;
@@ -323,6 +350,8 @@ function Dice({ type, size = 100, onRoll, onBatchRequest, result }: DiceProps) {
     }
   };
 
+  const color = DICE_COLORS[type] || '#e63946';
+
   return (
     <div className="flex flex-col items-center gap-3">
       <div
@@ -337,13 +366,21 @@ function Dice({ type, size = 100, onRoll, onBatchRequest, result }: DiceProps) {
           <DiceShape type={type} size={size} />
         </div>
       </div>
-      <div className="text-center">
+      <div className="text-center relative h-10 flex items-center justify-center">
         <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">
           d{type}
         </div>
         {result !== null && (
-          <div className="mt-1 text-2xl font-bold dark:text-text-dark light:text-text-light">
-            {result}
+          <div
+            key={animKey}
+            className="dice-result-slide absolute inset-0 flex items-center justify-center"
+          >
+            <span
+              className="inline-flex items-center justify-center min-w-[36px] h-9 px-2 rounded-lg text-lg font-bold text-white shadow-lg"
+              style={{ backgroundColor: color }}
+            >
+              {result}
+            </span>
           </div>
         )}
       </div>
@@ -368,7 +405,7 @@ function BatchRollModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onRoll: (count: number, sides: number, mode: BatchMode) => void;
+  onRoll: (result: DiceResult) => void;
   defaultSides: number;
 }) {
   const [count, setCount] = useState(10);
@@ -388,13 +425,10 @@ function BatchRollModal({
 
   const handleRoll = () => {
     const c = Math.max(1, Math.min(1000, count));
-    const values: number[] = [];
-    for (let i = 0; i < c; i++) {
-      values.push(rollDie(sides));
-    }
-    const total = values.reduce((a, b) => a + b, 0);
-    setResult({ sides, values, total, mode });
-    onRoll(c, sides, mode);
+    const res = rollDice({ sides: sides as DiceType, count: c, mode: mode as RollMode });
+    setResult({ sides: res.sides, values: res.values, total: res.total, mode: res.mode });
+    onRoll(res);
+    broadcastDiceResult(res);
   };
 
   return (
@@ -538,22 +572,26 @@ export default function DicePage() {
       mode: 'independent',
     };
     setHistory((prev) => [entry, ...prev].slice(0, 20));
+    // 广播结构化结果供其他功能消费
+    broadcastDiceResult({
+      sides: type as DiceType,
+      values: [value],
+      count: 1,
+      mode: 'independent',
+      total: value,
+      timestamp: Date.now(),
+    });
   };
 
-  const handleBatch = (count: number, sides: number, mode: BatchMode) => {
-    const values: number[] = [];
-    for (let i = 0; i < count; i++) {
-      values.push(rollDie(sides));
-    }
-    setResults((prev) => ({ ...prev, [sides]: values[values.length - 1] }));
-    const total = values.reduce((a, b) => a + b, 0);
+  const handleBatch = (res: DiceResult) => {
+    setResults((prev) => ({ ...prev, [res.sides]: res.values[res.values.length - 1] }));
     const entry: RollEntry = {
       id: ++idCounter.current,
-      dice: `${count}d${sides}`,
-      values,
-      total,
+      dice: `${res.count}d${res.sides}`,
+      values: res.values,
+      total: res.total,
       time: new Date().toLocaleTimeString('zh-CN', { hour12: false }),
-      mode,
+      mode: res.mode as BatchMode,
     };
     setHistory((prev) => [entry, ...prev].slice(0, 20));
   };
