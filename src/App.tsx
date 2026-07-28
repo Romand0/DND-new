@@ -29,6 +29,7 @@ import CombatSession from '@/pages/CombatSession';
 import GameClockPage from '@/pages/GameClockPage';
 import CalendarPage from '@/pages/CalendarPage';
 import NotesPage from '@/pages/NotesPage';
+import DicePage from '@/pages/DicePage';
 
 // 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
@@ -123,6 +124,7 @@ export default function App() {
               <Route path="notes" element={<NotesPage />} />
               <Route path="clock" element={<GameClockPage />} />
               <Route path="calendar" element={<CalendarPage />} />
+              <Route path="dice" element={<DicePage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

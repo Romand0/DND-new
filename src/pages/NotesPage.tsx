@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Clock, Calendar, ChevronRight } from 'lucide-react';
+import { Clock, Calendar, ChevronRight, Dices } from 'lucide-react';
 import gameTimeStore from '@/data/gameTimeStore';
 import calendarStore from '@/data/calendarStore';
 import { useState, useEffect } from 'react';
@@ -138,7 +138,7 @@ export default function NotesPage() {
         <h2 className="text-lg font-semibold mb-4 dark:text-text-dark light:text-text-light">
           剧情工具
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex items-start gap-3">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
               <Clock className="w-5 h-5 text-primary" />
@@ -161,8 +161,36 @@ export default function NotesPage() {
               </p>
             </div>
           </div>
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <Dices className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-medium dark:text-text-dark light:text-text-light">线上骰子</h3>
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                d4~d20 六种骰子，支持单击掷骰和长按批量掷骰
+              </p>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* 骰子快捷入口 */}
+      <Link
+        to="/dice"
+        className="group rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-4 flex items-center gap-4 hover:border-primary/50 transition-colors"
+      >
+        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
+          <Dices className="w-7 h-7 text-white" />
+        </div>
+        <div className="flex-1">
+          <h3 className="font-semibold dark:text-text-dark light:text-text-light">打开线上骰子</h3>
+          <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            快速访问骰子掷骰工具
+          </p>
+        </div>
+        <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
+      </Link>
 
       {/* 占位内容：后续可扩展 */}
       <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-6">

@@ -18,6 +18,7 @@ import {
   Calendar,
   ChevronDown,
   BookOpen,
+  Dices,
 } from 'lucide-react';
 import gameTimeStore from '@/data/gameTimeStore';
 import calendarStore from '@/data/calendarStore';
@@ -172,7 +173,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
               <button
                 onClick={() => setToolsOpen(!toolsOpen)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  toolsOpen || location.pathname === '/clock' || location.pathname === '/calendar'
+                  toolsOpen || location.pathname === '/clock' || location.pathname === '/calendar' || location.pathname === '/dice'
                     ? 'bg-primary/20 text-primary'
                     : 'text-gray-300 hover:text-white hover:bg-white/10'
                 }`}
@@ -246,6 +247,28 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
                       <span className="text-xs text-gray-400">{calendarDate}</span>
                     </div>
                   </Link>
+
+                  {/* 分割线 */}
+                  <div className="border-t border-border-dark" />
+
+                  {/* 骰子入口 */}
+                  <Link
+                    to="/dice"
+                    onClick={() => setToolsOpen(false)}
+                    className={`flex items-center gap-3 p-3 transition-colors ${
+                      location.pathname === '/dice'
+                        ? 'bg-primary/10'
+                        : 'hover:bg-white/5'
+                    }`}
+                  >
+                    <div className="w-12 h-12 rounded-full border-2 border-border-dark bg-bg-dark-2 flex items-center justify-center flex-shrink-0">
+                      <Dices className="w-5 h-5 text-gray-300" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-gray-200">线上骰子</span>
+                      <span className="text-xs text-gray-400">d4 · d6 · d8 · d10 · d12 · d20</span>
+                    </div>
+                  </Link>
                 </div>
               )}
             </div>
@@ -300,6 +323,18 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
             >
               <Calendar className="w-5 h-5" />
               游戏日历 ({calendarDate})
+            </Link>
+            <Link
+              to="/dice"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
+                location.pathname === '/dice'
+                  ? 'bg-primary/20 text-primary'
+                  : 'text-gray-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Dices className="w-5 h-5" />
+              线上骰子
             </Link>
 
             {/* 主导航组 */}
