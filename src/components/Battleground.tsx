@@ -1,6 +1,6 @@
 // 网格沙盘组件 —— 展示参战者位置与移动，支持三种大小预设
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X } from 'lucide-react';
+import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize } from '@/types/battleground';
@@ -10,9 +10,11 @@ import CombatantInfoPanel from './CombatantInfoPanel';
 interface Props {
   sessionId: string;
   combatants: Combatant[];
+  // 战斗按钮触发：交由 main（CombatSession）处理攻击检定弹窗
+  onRequestAttack?: (attacker: Combatant, target: Combatant) => void;
 }
 
-export default function Battleground({ sessionId, combatants }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
@@ -31,6 +33,8 @@ export default function Battleground({ sessionId, combatants }: Props) {
   } | null>(null);
   // 锁定选中状态（长按拖拽松手后选中）
   const [lockedTargetId, setLockedTargetId] = useState<string | null>(null);
+  // 锁定选中时记录发起者（攻击者），用于战斗按钮
+  const [lockedSourceId, setLockedSourceId] = useState<string | null>(null);
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressStartRef = useRef<{ x: number; y: number } | null>(null);
@@ -249,9 +253,11 @@ export default function Battleground({ sessionId, combatants }: Props) {
     }
     // 拖拽锁定模式松手：确定目标
     if (dragLockRef.current) {
+      const source = dragLockRef.current.sourceId;
       const target = dragLockRef.current.hoveredTargetId;
       if (target) {
         setLockedTargetId(target);
+        setLockedSourceId(source);
       }
       setDragLock(null);
       dragLockRef.current = null;
@@ -498,7 +504,10 @@ export default function Battleground({ sessionId, combatants }: Props) {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onDoubleClick={() => {
-          if (lockedTargetId) setLockedTargetId(null);
+          if (lockedTargetId) {
+            setLockedTargetId(null);
+            setLockedSourceId(null);
+          }
         }}
       >
         {/* 悬浮标签：移动距离 */}
@@ -647,27 +656,44 @@ export default function Battleground({ sessionId, combatants }: Props) {
             { angle: -20 },
           ];
           const radius = tokenSize * 0.8 + btnSize * 0.8;
+          // 发起者（攻击者）= 长按源棋子；目标 = 锁定的棋子
+          const attacker = lockedSourceId ? combatantMap.get(lockedSourceId) : null;
           return (
             <>
-              {/* 四个上侧弧形占位按钮 */}
+              {/* 四个上侧弧形按钮 */}
               {actions.map((a, i) => {
                 const rad = (a.angle * Math.PI) / 180;
                 const bx = cx + Math.cos(rad) * radius - btnSize / 2;
                 const by = cy + Math.sin(rad) * radius - btnSize / 2;
+                const isCombat = i === 0;
                 return (
                   <button
                     key={i}
                     onClick={(e) => {
                       e.stopPropagation();
+                      if (isCombat && attacker && onRequestAttack) {
+                        onRequestAttack(attacker, combatant);
+                        setLockedTargetId(null);
+                        setLockedSourceId(null);
+                      }
                     }}
-                    className="absolute z-30 bg-primary text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                    className={`absolute z-30 rounded-full flex flex-col items-center justify-center shadow-lg hover:scale-110 transition-transform ${
+                      isCombat ? 'bg-danger text-white' : 'bg-primary text-white'
+                    }`}
                     style={{
                       width: btnSize,
                       height: btnSize,
                       left: bx,
                       top: by,
                     }}
-                  />
+                  >
+                    {isCombat ? (
+                      <>
+                        <Swords style={{ width: btnSize * 0.38, height: btnSize * 0.38 }} />
+                        <span style={{ fontSize: Math.max(8, btnSize * 0.16) }} className="font-medium leading-none mt-0.5">战斗</span>
+                      </>
+                    ) : null}
+                  </button>
                 );
               })}
               {/* 叉按钮：棋子下方，略小于棋子 */}
@@ -675,6 +701,7 @@ export default function Battleground({ sessionId, combatants }: Props) {
                 onClick={(e) => {
                   e.stopPropagation();
                   setLockedTargetId(null);
+                  setLockedSourceId(null);
                 }}
                 className="absolute z-30 bg-gray-700 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
                 style={{

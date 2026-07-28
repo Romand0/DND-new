@@ -10,6 +10,7 @@ import type { CombatRecord, Combatant, RoundAction, NpcTemplate } from '@/types/
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
+import CombatAttackModal from '@/components/CombatAttackModal';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -33,6 +34,8 @@ export default function CombatSession() {
   // ✅ 新增：NPC 创建器
   const [npcCreatorOpen, setNpcCreatorOpen] = useState(false);
   const [npcTemplates, setNpcTemplates] = useState<NpcTemplate[]>([]);
+  // ✅ 新增：战斗攻击检定弹窗（在 main 上处理）
+  const [attackModal, setAttackModal] = useState<{ attacker: Combatant; target: Combatant } | null>(null);
   // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
   const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
   const [tiedOrder, setTiedOrder] = useState<Combatant[]>([]);
@@ -755,7 +758,11 @@ export default function CombatSession() {
       </div>
 
       {/* ✅ 新增：网格沙盘 —— 展示参战者位置与移动 */}
-      <Battleground sessionId={record.id} combatants={record.combatants} />
+      <Battleground
+        sessionId={record.id}
+        combatants={record.combatants}
+        onRequestAttack={(attacker, target) => setAttackModal({ attacker, target })}
+      />
 
       {/* ✅ 新增：NPC 创建器 */}
       {npcCreatorOpen && (
@@ -764,6 +771,15 @@ export default function CombatSession() {
           onCreate={handleCreateNpc}
           onBatchCreate={handleBatchCreateNpc}
           templates={npcTemplates}
+        />
+      )}
+
+      {/* ✅ 新增：战斗攻击检定弹窗 —— 在 main 上处理 */}
+      {attackModal && (
+        <CombatAttackModal
+          attacker={attackModal.attacker}
+          target={attackModal.target}
+          onClose={() => setAttackModal(null)}
         />
       )}
     </div>
