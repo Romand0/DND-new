@@ -142,6 +142,32 @@ export default function CombatSession() {
     checkTieAndOpen(newId);
   };
 
+  const handleBatchCreateNpc = (combatantsData: Omit<Combatant, 'id'>[]) => {
+    const newCombatants: Combatant[] = combatantsData.map(data => ({
+      ...data,
+      id: crypto.randomUUID(),
+    }));
+    const updatedCombatants = [...record.combatants, ...newCombatants].sort(
+      (a, b) => b.initiative - a.initiative
+    );
+    const newRounds = newCombatants.reduce((acc, c) => {
+      record.rounds.forEach((_, idx) => {
+        if (!acc[idx]) acc[idx] = {};
+        acc[idx][c.id] = '';
+      });
+      return acc;
+    }, [] as Record<string, string>[]);
+    const updatedRounds = record.rounds.map((round, idx) => ({
+      ...round,
+      ...(newRounds[idx] || {}),
+    }));
+    combatStore.update(record.id, {
+      combatants: updatedCombatants,
+      rounds: updatedRounds,
+      updatedAt: Date.now(),
+    });
+  };
+
   // ✅ 新增：确认 PC 先攻并加入战斗（d20 + 敏捷调整值 = 先攻总值）
   const handleConfirmInitiative = () => {
     if (!selectedPc) return;
@@ -733,6 +759,7 @@ export default function CombatSession() {
         <NpcCreator
           onClose={() => setNpcCreatorOpen(false)}
           onCreate={handleCreateNpc}
+          onBatchCreate={handleBatchCreateNpc}
           templates={npcTemplates}
         />
       )}
