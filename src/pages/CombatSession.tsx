@@ -488,9 +488,22 @@ export default function CombatSession() {
       setExitPlaybackModalOpen(false);
       return;
     }
-    if (!preserveChanges && playbackSnapshotRef.current) {
-      battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
+    if (!preserveChanges) {
+      // 「丢弃，恢复原先状态」：完整还原 combatants / rounds / 沙盘 到进入放映模式时的快照
+      const init = rollbackSnapshotRef.current.initial;
+      if (init) {
+        combatStore.update(record.id, {
+          combatants: init.combatants.map(c => ({ ...c })),
+          rounds: init.rounds.map(r => ({ ...r })),
+          updatedAt: Date.now(),
+        });
+        battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
+      } else if (playbackSnapshotRef.current) {
+        // fallback：只恢复了沙盘
+        battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
+      }
     }
+    // 「保存并覆盖」分支：combatStore 中已是最新数据，无需额外还原
     setPlaybackStarted(false);
     setCurrentTurn(null);
     playbackSnapshotRef.current = null;
@@ -519,22 +532,10 @@ export default function CombatSession() {
     const firstTurn = findNextValidTurn(startRound, startCol);
     setCurrentTurn(firstTurn);
     setPlaybackStarted(true);
-    // 进入第一回合时立即拍快照（此时沙盘已重置、自动填充已完成）
+    // 进入第一回合时立即拍快照（takeTurnSnapshot 直接读 combatStore 最新值，无需等渲染）
     if (firstTurn) {
-      // 等一帧让自动填充写入完成后再拍
-      setTimeout(() => takeTurnSnapshot(firstTurn.round, firstTurn.combatantId), 0);
+      takeTurnSnapshot(firstTurn.round, firstTurn.combatantId);
     }
-  };
-
-  // 停止放映（切回模拟模式时调用）
-  const stopPlayback = () => {
-    if (!record) return;
-    // 恢复沙盘到快照
-    if (playbackSnapshotRef.current) {
-      battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
-    }
-    setPlaybackStarted(false);
-    setCurrentTurn(null);
   };
 
   // ✅ 给已昏迷/死亡角色在所有未填写的后续轮次中填入「昏迷」/「死亡」占位
@@ -566,13 +567,19 @@ export default function CombatSession() {
 
   // ✅ 找到下一个有效回合（跳过被突袭/昏迷/死亡）
   // 从指定位置（行、列）开始，向右→下一行扫描，遇到第一个非占位的格子
-  const findNextValidTurn = (fromRound: number, fromCol: number): { round: number; combatantIdx: number; combatantId: string } | null => {
+  // 可选传入 roundsOverride：当本帧刚 combatStore.update 新增了轮次、record 还没重新渲染时使用
+  const findNextValidTurn = (
+    fromRound: number,
+    fromCol: number,
+    roundsOverride?: RoundAction[]
+  ): { round: number; combatantIdx: number; combatantId: string } | null => {
     if (!record) return null;
-    for (let r = fromRound; r < record.rounds.length; r++) {
+    const rounds = roundsOverride ?? record.rounds;
+    for (let r = fromRound; r < rounds.length; r++) {
       const startCol = r === fromRound ? fromCol : 0;
       for (let i = startCol; i < record.combatants.length; i++) {
         const c = record.combatants[i];
-        const v = record.rounds[r][c.id];
+        const v = rounds[r][c.id];
         if (v === '被突袭' || v === '昏迷' || v === '死亡') continue;
         return { round: r, combatantIdx: i, combatantId: c.id };
       }
@@ -586,7 +593,7 @@ export default function CombatSession() {
     const next = findNextValidTurn(currentTurn.round, currentTurn.combatantIdx + 1);
     if (next) {
       setCurrentTurn(next);
-      setTimeout(() => takeTurnSnapshot(next.round, next.combatantId), 0);
+      takeTurnSnapshot(next.round, next.combatantId);
       return;
     }
     // 当前行结束 → 判断是否还有活着的角色可战斗
@@ -609,10 +616,11 @@ export default function CombatSession() {
       });
       const updatedRounds = [...record.rounds, newRound];
       combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
-      const firstInNew = findNextValidTurn(nextRound, 0);
+      // 用 updatedRounds 覆盖参数避免读到旧 record
+      const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
         setCurrentTurn(firstInNew);
-        setTimeout(() => takeTurnSnapshot(firstInNew.round, firstInNew.combatantId), 0);
+        takeTurnSnapshot(firstInNew.round, firstInNew.combatantId);
       } else {
         setCurrentTurn(null);
         setPlaybackStarted(false);
@@ -621,7 +629,7 @@ export default function CombatSession() {
       const firstInNext = findNextValidTurn(nextRound, 0);
       if (firstInNext) {
         setCurrentTurn(firstInNext);
-        setTimeout(() => takeTurnSnapshot(firstInNext.round, firstInNext.combatantId), 0);
+        takeTurnSnapshot(firstInNext.round, firstInNext.combatantId);
       } else {
         setCurrentTurn(null);
         setPlaybackStarted(false);
@@ -672,15 +680,19 @@ export default function CombatSession() {
 
   // ✅ 拍某回合的快照：记录此回合开始时的 combatants / rounds / 沙盘
   // 每次进入新回合（播放起始、确认完成回合后）调用一次
+  // 注意：直接从 combatStore 读取最新值，避免 record state 还未重新渲染导致读到旧数据
   const takeTurnSnapshot = (round: number, combatantId: string) => {
     if (!record) return;
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
     const bg = battlegroundStore.get(record.id);
     const snap: TurnSnapshot = {
-      combatants: record.combatants.map(c => ({ ...c })),
-      rounds: record.rounds.map(r => ({ ...r })),
+      combatants: latest.combatants.map(c => ({ ...c })),
+      rounds: latest.rounds.map(r => ({ ...r })),
       battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
     };
     const key = `${round}:${combatantId}`;
+    // 只在第一次拍（始终回到该回合最初状态）
     if (!rollbackSnapshotRef.current.snapshots[key]) {
       rollbackSnapshotRef.current.snapshots[key] = snap;
     }
@@ -689,7 +701,9 @@ export default function CombatSession() {
   // ✅ 回溯到指定回合开始：还原该回合及其之后所有记录为空，并把战斗数据整体还原到快照
   const applyRollback = (round: number, combatantIdx: number) => {
     if (!record) return;
-    const combatantId = record.combatants[combatantIdx]?.id;
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
+    const combatantId = latest.combatants[combatantIdx]?.id;
     if (!combatantId) return;
     const key = `${round}:${combatantId}`;
     const snap = rollbackSnapshotRef.current.snapshots[key] ?? rollbackSnapshotRef.current.initial;
@@ -697,36 +711,41 @@ export default function CombatSession() {
       alert('回溯失败：未找到该回合的快照，请先至少推进一个回合后再回溯');
       return;
     }
-    // 1) 还原 combatants
-    // 2) 还原 rounds：把该回合该列以及之后所有列之后所有格子清空为 '' / '被突袭' / '昏迷' / '死亡'
+    // 1) 还原 combatants（HP / 状态）到快照
+    const restoredCombatants = snap.combatants.map(c => ({ ...c }));
+    // 2) 还原 rounds：
+    //    - 从快照拿回合结构（避免保留放映期间自动新增的轮次）
+    //    - 然后把"目标格之后"的所有格子清空（保留 被突袭/昏迷/死亡 占位）
     const restoredRounds = snap.rounds.map(r => ({ ...r }));
-    // 3) 清空该回合该格及之后所有格子（按先攻顺序排序，当前位置之后的全部清空）
+    const totalCombatants = restoredCombatants.length;
     const totalRounds = restoredRounds.length;
     for (let r = 0; r < totalRounds; r++) {
-      for (let c = 0; c < record.combatants.length; c++) {
-        const cid = record.combatants[c].id;
+      for (let c = 0; c < totalCombatants; c++) {
+        const cid = restoredCombatants[c].id;
         const isAfter =
           r > round ||
           (r === round && c > combatantIdx);
         if (isAfter) {
           const cur = restoredRounds[r]?.[cid];
-          // 保持"被突袭/昏迷/死亡"占位，其余清空
           if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
             restoredRounds[r] = { ...restoredRounds[r], [cid]: '' };
           }
         }
       }
     }
-    // 4) 应用还原
+    // 3) 应用还原
     combatStore.update(record.id, {
-      combatants: snap.combatants,
+      combatants: restoredCombatants,
       rounds: restoredRounds,
       updatedAt: Date.now(),
     });
-    // 5) 还原沙盘
-    battlegroundStore.setTokens(record.id, snap.battleground);
-    // 6) 当前回合跳到此回合格
+    // 4) 还原沙盘
+    battlegroundStore.setTokens(record.id, snap.battleground.map(t => ({ ...t })));
+    // 5) 当前回合跳到此回合格
     setCurrentTurn({ round, combatantIdx, combatantId });
+    // 6) 此回合格在回溯后需要重新拍快照（旧的快照里此格"之后"已被清空，再次进入会重新写入）
+    //    清掉旧快照让下次进入时重拍
+    delete rollbackSnapshotRef.current.snapshots[key];
     setRewindModal(null);
   };
 
@@ -1299,9 +1318,13 @@ export default function CombatSession() {
                   // 放映模式判断
                   const isPlayback = record.mode === 'playback';
                   const isCurrentTurn = isPlayback && playbackStarted && currentTurn?.round === roundIndex && currentTurn?.combatantId === c.id;
-                  // 放映模式下：仅当前回合的格子可点击/编辑；其他格子只读
+                  // 放映模式下：
+                  // - 未开始放映：所有非被突袭格子可点击（用于选择放映起点）
+                  // - 已开始放映：当前回合格子可记录/手动输入；其它任何已发生或后续格子也允许点击（用于回溯）
                   const cellClickable = isPlayback
-                    ? isCurrentTurn && !isSurprised
+                    ? (!isSurprised && (
+                        !playbackStarted || true  // 已开始放映后允许点开任意格子查看并回溯
+                      ))
                     : true;
 
                   if (isSurprised) {
@@ -1325,16 +1348,11 @@ export default function CombatSession() {
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isEditing) return;
-                        // 放映模式：仅当前回合格子可点击
                         if (isPlayback) {
-                          if (!playbackStarted) {
-                            // 未开始放映 → 显示播放按钮
-                            setSelectedCell({ round: roundIndex, combatantId: c.id });
-                            setEditingCell(null);
-                          } else if (isCurrentTurn) {
-                            setSelectedCell({ round: roundIndex, combatantId: c.id });
-                            setEditingCell(null);
-                          }
+                          // 放映模式：所有非被突袭格子都可被点开
+                          // （未开始放映 → 显示播放按钮；已开始放映 → 当前回合显示记录/手动输入，其它显示回溯）
+                          setSelectedCell({ round: roundIndex, combatantId: c.id });
+                          setEditingCell(null);
                         } else {
                           setSelectedCell({ round: roundIndex, combatantId: c.id });
                           setEditingCell(null);
