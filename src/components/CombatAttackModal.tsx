@@ -54,6 +54,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const [usageMode, setUsageMode] = useState<UsageMode | null>(null);
   // 当前展开使用方式选择的攻击索引（投掷武器专用）
   const [expandedThrownIdx, setExpandedThrownIdx] = useState<number | null>(null);
+  // 自然 20 触发时被锁定的骰子索引（另一个空未填则锁定只读）
+  const [lockedDice, setLockedDice] = useState<Set<number>>(new Set());
 
   // 获取 PC 的角色卡数据（NPC 无 character）
   const character = useMemo(() => {
@@ -272,12 +274,50 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attacks, character, heldLeftItem, heldRightItem, attackerPos, targetPos]);
 
+  // 应用骰子值变化：优势/劣势下任一骰为自然 20 时直接命中，另一个空锁定只读
+  // 适用于手动输入与摇骰两条路径
+  const applyDiceValues = (newValues: string[]) => {
+    setD20Values(newValues);
+    if (!selectedAttack) {
+      setRollResult(null);
+      setLockedDice(new Set());
+      return;
+    }
+    const mode = computeRollMode(selectedAttack, usageMode ?? undefined);
+    if (mode !== 'none') {
+      // 任一骰为自然 20：无论另一骰是否填完或是否为自然 1，均直接命中
+      const idx20 = newValues.findIndex(v => {
+        const n = parseInt(v, 10);
+        return !isNaN(n) && n === 20;
+      });
+      if (idx20 !== -1) {
+        const otherIdx = idx20 === 0 ? 1 : 0;
+        const otherVal = newValues[otherIdx];
+        const otherEmpty = otherVal === '' || otherVal === undefined;
+        // 另一个空未填则锁定只读
+        setLockedDice(otherEmpty ? new Set([otherIdx]) : new Set());
+        const bonus = getAttackBonus(selectedAttack);
+        setRollResult({
+          d20: 20,
+          bonus,
+          total: 20 + bonus,
+          isNatural1: false,
+          isNatural20: true,
+          hit: true,
+          disadvantage: mode === 'disadvantage',
+        });
+        return;
+      }
+    }
+    setLockedDice(new Set());
+    setRollResult(null);
+  };
+
   // 骰子摇数：普通模式摇 1 个，优/劣势模式摇 2 个
   const handleRollDice = (mode: 'none' | 'advantage' | 'disadvantage') => {
     const count = mode === 'none' ? 1 : 2;
     const result = rollDice({ sides: 20, count, mode: 'independent' });
-    setD20Values(result.values.map(String));
-    setRollResult(null);
+    applyDiceValues(result.values.map(String));
   };
 
   // 确定检定 —— 不切换阶段，结果在下方原位弹出
@@ -290,14 +330,27 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     if (!allValid) return;
     if (mode !== 'none' && parsed.length < 2) return;
 
-    // 取较高（优势）/ 较低（劣势）/ 唯一（普通）
-    const d20 = mode === 'advantage' ? Math.max(...parsed) : mode === 'disadvantage' ? Math.min(...parsed) : parsed[0];
     const bonus = getAttackBonus(selectedAttack);
+    // 优势/劣势下任一骰为自然 20：直接命中（优先于自然 1 与取高/低规则）
+    const hasNatural20 = mode !== 'none' && parsed.some(n => n === 20);
+    let d20: number;
+    let isNatural1: boolean;
+    let isNatural20: boolean;
+    let hit: boolean;
+    if (hasNatural20) {
+      d20 = 20;
+      isNatural1 = false;
+      isNatural20 = true;
+      hit = true;
+    } else {
+      // 取较高（优势）/ 较低（劣势）/ 唯一（普通）
+      d20 = mode === 'advantage' ? Math.max(...parsed) : mode === 'disadvantage' ? Math.min(...parsed) : parsed[0];
+      isNatural1 = d20 === 1;
+      isNatural20 = d20 === 20;
+      const targetAc = target.ac || 0;
+      hit = isNatural20 ? true : isNatural1 ? false : d20 + bonus >= targetAc;
+    }
     const total = d20 + bonus;
-    const isNatural1 = d20 === 1;
-    const isNatural20 = d20 === 20;
-    const targetAc = target.ac || 0;
-    const hit = isNatural20 ? true : isNatural1 ? false : total >= targetAc;
     setRollResult({ d20, bonus, total, isNatural1, isNatural20, hit, disadvantage: mode === 'disadvantage' });
   };
 
@@ -349,6 +402,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                 onClick={() => {
                   setStage('attacks');
                   setRollResult(null);
+                  setLockedDice(new Set());
                 }}
                 className="p-1 rounded hover:bg-white/10"
               >
@@ -411,6 +465,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                   const autoMode = (a.length > 0 && d.length > 0) ? 'none' : (a.length > 0 ? 'advantage' : (d.length > 0 ? 'disadvantage' : 'none'));
                   setD20Values(autoMode === 'none' ? [''] : ['', '']);
                   setRollResult(null);
+                  setLockedDice(new Set());
                   setManualMode('none');
                   setShowAdvDisadvMenu(false);
                   setStage('roll');
@@ -608,6 +663,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                         setManualMode('none');
                         setD20Values(['']);
                         setRollResult(null);
+                        setLockedDice(new Set());
                         setShowAdvDisadvMenu(false);
                       }}
                       className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 ${manualMode === 'none' ? 'text-primary font-medium' : 'dark:text-text-dark light:text-text-light'}`}
@@ -619,6 +675,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                         setManualMode('advantage');
                         setD20Values(['', '']);
                         setRollResult(null);
+                        setLockedDice(new Set());
                         setShowAdvDisadvMenu(false);
                       }}
                       className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 ${manualMode === 'advantage' ? 'text-green-400 font-medium' : 'dark:text-text-dark light:text-text-light'}`}
@@ -630,6 +687,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                         setManualMode('disadvantage');
                         setD20Values(['', '']);
                         setRollResult(null);
+                        setLockedDice(new Set());
                         setShowAdvDisadvMenu(false);
                       }}
                       className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 ${manualMode === 'disadvantage' ? 'text-amber-400 font-medium' : 'dark:text-text-dark light:text-text-light'}`}
@@ -671,15 +729,15 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                         max={20}
                         value={v}
                         onChange={(e) => {
-                          setD20Values(prev => {
-                            const next = [...prev];
-                            next[idx] = e.target.value;
-                            return next;
-                          });
-                          setRollResult(null);
+                          const newValues = [...d20Values];
+                          newValues[idx] = e.target.value;
+                          applyDiceValues(newValues);
                         }}
-                        placeholder="输入 1-20"
-                        className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center"
+                        placeholder={lockedDice.has(idx) ? '已锁定（自然 20）' : '输入 1-20'}
+                        readOnly={lockedDice.has(idx)}
+                        className={`w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center ${
+                          lockedDice.has(idx) ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
                       />
                     </div>
                   ))}
