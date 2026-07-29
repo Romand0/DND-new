@@ -775,16 +775,16 @@ export default function CombatSession() {
 
       let text = '';
       if (!hit) {
-        text = `对 ${target.name} 的攻击未命中，用${manualAttackMethod}攻击落空（${roll} < AC ${target.ac}）`;
+        text = `对 ${target.name} 的攻击未命中，${manualAttackMethod}打偏了`;
       } else {
         const dmg = parseInt(manualDamage, 10);
         if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
-        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害（攻击检定${roll} ≥ AC ${target.ac}）`;
+        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害`;
         if (manualIsKill && target.currentHp !== undefined) {
           const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
           const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
           handleApplyDamage(target.id, newHp, status);
-          text += `，干掉了他`;
+          text += target.isPc ? `，将其击昏` : `，将其杀死`;
         } else if (target.currentHp !== undefined) {
           const newHp = Math.max(0, target.currentHp - dmg);
           handleApplyDamage(target.id, newHp);
@@ -1585,15 +1585,10 @@ export default function CombatSession() {
             setAttackModal(null);
           }}
           onAttackMiss={(missInfo) => {
-            // 未命中：写入先攻表格（保持与手动记录一致的格式）
+            // 未命中：写入先攻表格（简化格式）
             const cell = resolveWriteCell(attackModal.attacker.id);
             if (!cell) return;
-            const modeTag = missInfo.usageMode === 'thrown' ? '（投掷）' : missInfo.usageMode === 'melee' ? '（近战）' : '';
-            const rollText = missInfo.d20Rolled.length > 1
-              ? `[${missInfo.d20Rolled.join(',')}→${missInfo.d20Final}]+${missInfo.bonus}=${missInfo.total}`
-              : `${missInfo.d20Final}+${missInfo.bonus}=${missInfo.total}`;
-            const nat1Tag = missInfo.isNatural1 ? '（自然1）' : '';
-            const text = `对 ${attackModal.target.name} 的攻击未命中${nat1Tag}，用${missInfo.attackName}${modeTag}攻击落空（${rollText} < AC ${attackModal.target.ac || 0}）`;
+            const text = `对 ${attackModal.target.name} 的攻击未命中，${missInfo.attackName}打偏了`;
             appendRoundRecord(cell.round, cell.combatantId, text);
           }}
         />
@@ -1607,22 +1602,14 @@ export default function CombatSession() {
           attack={damageModal.attack}
           disadvantage={damageModal.disadvantage}
           isCritical={damageModal.isCritical}
-          onApplyDamage={({ damage, newHp, status, diceValues, damageBonus, isCritical }) => {
+          onApplyDamage={({ damage, newHp, status }) => {
             // 1. 应用 HP / 状态
             handleApplyDamage(damageModal.target.id, newHp, status);
-            // 2. 写入先攻表格（与手动记录同格式，附加过程信息）
+            // 2. 写入先攻表格（简化格式）
             const cell = resolveWriteCell(damageModal.attacker.id);
             if (cell) {
-              const modeTag = damageModal.usageMode === 'thrown' ? '（投掷）' : damageModal.usageMode === 'melee' ? '（近战）' : '';
-              const rollText = damageModal.d20Rolled.length > 1
-                ? `[${damageModal.d20Rolled.join(',')}→${damageModal.d20Final}]+${damageModal.d20Bonus}=${damageModal.d20Total}`
-                : `${damageModal.d20Final}+${damageModal.d20Bonus}=${damageModal.d20Total}`;
-              const criticalTag = isCritical ? '（重击）' : damageModal.d20Final === 20 ? '（自然20）' : '';
-              const dmgText = diceValues.length > 0
-                ? `${diceValues.join('+')}${damageBonus ? `+${damageBonus}` : ''}=${damage}点伤害`
-                : `${damage}点伤害`;
-              let text = `对 ${damageModal.target.name} 的攻击命中${criticalTag}，用${damageModal.attack.name}${modeTag}造成${dmgText}（攻击检定${rollText} ≥ AC ${damageModal.target.ac || 0}）`;
-              if (status === 'unconscious') text += '，使其昏迷';
+              let text = `对 ${damageModal.target.name} 的攻击命中，用${damageModal.attack.name}造成${damage}点伤害`;
+              if (status === 'unconscious') text += '，将其击昏';
               else if (status === 'dead') text += '，将其杀死';
               appendRoundRecord(cell.round, cell.combatantId, text);
             }
@@ -1875,11 +1862,11 @@ export default function CombatSession() {
                     if (!isNaN(roll)) autoHit = roll >= target.ac;
                   }
                   if (autoHit === false) {
-                    preview = `对 ${target.name} 的攻击未命中，用${manualAttackMethod || '???'}攻击落空`;
+                    preview = `对 ${target.name} 的攻击未命中，${manualAttackMethod || '???'}打偏了`;
                   } else if (autoHit === true) {
                     const dmg = parseInt(manualDamage, 10) || 0;
                     preview = `对 ${target.name} 的攻击命中，用${manualAttackMethod || '???'}造成${dmg}点伤害`;
-                    if (manualIsKill) preview += `，干掉了他`;
+                    if (manualIsKill) preview += target.isPc ? `，将其击昏` : `，将其杀死`;
                   } else {
                     preview = '请先填写攻击检定值';
                   }
