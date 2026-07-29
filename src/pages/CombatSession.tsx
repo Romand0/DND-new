@@ -13,6 +13,7 @@ import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
+import CombatSpellModal from '@/components/CombatSpellModal';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -56,6 +57,11 @@ export default function CombatSession() {
     d20Bonus: number;
     d20Total: number;
     usageMode?: 'melee' | 'thrown';
+  } | null>(null);
+  // ✅ 新增：法术施放弹窗（独立交互流程，与攻击检定解耦）
+  const [spellModal, setSpellModal] = useState<{
+    caster: Combatant;
+    target: Combatant;
   } | null>(null);
   // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
   const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
@@ -1548,6 +1554,10 @@ export default function CombatSession() {
             targetPos: targetPos ? { col: targetPos.col, row: targetPos.row } : undefined,
           });
         }}
+        onRequestSpell={(caster, target) => {
+          // 法术按钮：打开独立法术施放弹窗
+          setSpellModal({ caster, target });
+        }}
       />
 
       {/* ✅ 新增：NPC 创建器 */}
@@ -1615,6 +1625,30 @@ export default function CombatSession() {
             }
           }}
           onClose={() => setDamageModal(null)}
+        />
+      )}
+
+      {/* ✅ 新增：法术施放弹窗 —— 独立于攻击检定的交互流程 */}
+      {spellModal && (
+        <CombatSpellModal
+          caster={spellModal.caster}
+          target={spellModal.target}
+          onClose={() => setSpellModal(null)}
+          onCastResolved={(info) => {
+            // 1. 应用 HP / 状态（伤害扣血、治疗加血，handleApplyDamage 直接覆盖 newHp）
+            handleApplyDamage(spellModal.target.id, info.newHp, info.status);
+            // 2. 写入先攻表格：xxx 施展 xxx 成功/失败，对 xxx 造成 xxx 点伤害/恢复 xxx 点生命值
+            const cell = resolveWriteCell(spellModal.caster.id);
+            if (cell) {
+              let text = `${spellModal.caster.name} 施展 ${info.spellName}${info.success ? '成功' : '失败'}`;
+              if (info.success && info.amount > 0) {
+                text += `，对 ${spellModal.target.name}${info.effectType === 'damage' ? `造成${info.amount}点伤害` : `恢复${info.amount}点生命值`}`;
+                if (info.status === 'unconscious') text += '，将其击昏';
+                else if (info.status === 'dead') text += '，将其杀死';
+              }
+              appendRoundRecord(cell.round, cell.combatantId, text);
+            }
+          }}
         />
       )}
 

@@ -1,6 +1,6 @@
 // 网格沙盘组件 —— 展示参战者位置与移动，支持三种大小预设
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords } from 'lucide-react';
+import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize } from '@/types/battleground';
@@ -12,6 +12,8 @@ interface Props {
   combatants: Combatant[];
   // 战斗按钮触发：交由 main（CombatSession）处理攻击检定弹窗
   onRequestAttack?: (attacker: Combatant, target: Combatant) => void;
+  // 法术按钮触发：交由 main（CombatSession）处理法术施放弹窗
+  onRequestSpell?: (caster: Combatant, target: Combatant) => void;
   /** 放映模式：禁用所有沙盘操作（移动、放置、删除、橡皮） */
   readOnly?: boolean;
   /** 当前回合角色 ID（放映模式高亮） */
@@ -24,7 +26,7 @@ interface Props {
   playbackOnlyMovableId?: string | null;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
@@ -754,6 +756,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, r
                 const bx = cx + Math.cos(rad) * radius - btnSize / 2;
                 const by = cy + Math.sin(rad) * radius - btnSize / 2;
                 const isCombat = i === 0;
+                const isSpell = i === 1;
                 const combatDisabled = isCombat && sameTeam;
                 return (
                   <button
@@ -766,6 +769,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, r
                         onRequestAttack(attacker, combatant);
                         setLockedTargetId(null);
                         setLockedSourceId(null);
+                      } else if (isSpell && attacker && onRequestSpell) {
+                        onRequestSpell(attacker, combatant);
+                        setLockedTargetId(null);
+                        setLockedSourceId(null);
                       }
                     }}
                     className={`absolute z-30 rounded-full flex flex-col items-center justify-center shadow-lg transition-transform ${
@@ -773,6 +780,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, r
                         ? 'bg-gray-400/60 text-white/70 cursor-not-allowed'
                         : isCombat
                         ? 'bg-danger text-white hover:scale-110'
+                        : isSpell
+                        ? 'bg-primary text-white hover:scale-110'
                         : 'bg-primary text-white hover:scale-110'
                     }`}
                     style={{
@@ -781,12 +790,17 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, r
                       left: bx,
                       top: by,
                     }}
-                    title={combatDisabled ? '同队伍不可攻击' : undefined}
+                    title={combatDisabled ? '同队伍不可攻击' : isSpell ? '施放法术' : undefined}
                   >
                     {isCombat ? (
                       <>
                         <Swords style={{ width: btnSize * 0.38, height: btnSize * 0.38 }} />
                         <span style={{ fontSize: Math.max(8, btnSize * 0.16) }} className="font-medium leading-none mt-0.5">战斗</span>
+                      </>
+                    ) : isSpell ? (
+                      <>
+                        <BookOpen style={{ width: btnSize * 0.38, height: btnSize * 0.38 }} />
+                        <span style={{ fontSize: Math.max(8, btnSize * 0.16) }} className="font-medium leading-none mt-0.5">法术</span>
                       </>
                     ) : null}
                   </button>
