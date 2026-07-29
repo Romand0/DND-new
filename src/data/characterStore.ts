@@ -757,22 +757,32 @@ function recalculateArmorClass(char: Character): void {
       switch (subtype) {
         case '轻甲':
           char.armorClass = baseAc + dexMod;
-          return;
+          break;
         case '中甲':
           char.armorClass = baseAc + Math.min(dexMod, 2);
-          return;
+          break;
         case '重甲':
           char.armorClass = baseAc;
-          return;
+          break;
         default:
           char.armorClass = baseAc + dexMod;
-          return;
+          break;
       }
     }
+  } else {
+    // 无护甲或找不到护甲 → 裸体 AC
+    char.armorClass = 10 + dexMod;
   }
 
-  // 无护甲或找不到护甲 → 裸体 AC
-  char.armorClass = 10 + dexMod;
+  // 盾牌：手持盾牌时 AC +2
+  const heldIds = [char.heldLeft?.equipmentId, char.heldRight?.equipmentId].filter(Boolean);
+  const hasShield = heldIds.some(id => {
+    const eq = char.equipment.find(e => e.childId === id || e.id === id);
+    return eq?.subtype === '盾牌';
+  });
+  if (hasShield) {
+    char.armorClass += 2;
+  }
 }
 
 // ============================================================

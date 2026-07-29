@@ -71,6 +71,7 @@ export default function CombatSession() {
   const [manualIsKill, setManualIsKill] = useState(false);
   const [manualHealMethod, setManualHealMethod] = useState('');
   const [manualHealAmount, setManualHealAmount] = useState('');
+  const [manualAttackRoll, setManualAttackRoll] = useState('');
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -426,8 +427,17 @@ export default function CombatSession() {
       if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
       if (!target) { alert('请选择目标'); return; }
 
+      // 自动判定：如果填写了攻击检定值，根据 AC 自动判断命中
+      let effectiveHitResult = manualHitResult;
+      if (manualAttackRoll) {
+        const roll = parseInt(manualAttackRoll, 10);
+        if (!isNaN(roll) && target.ac !== undefined) {
+          effectiveHitResult = roll >= target.ac ? 'hit' : 'miss';
+        }
+      }
+
       let text = '';
-      if (manualHitResult === 'miss') {
+      if (effectiveHitResult === 'miss') {
         text = `对 ${target.name} 的攻击未命中，用${manualAttackMethod}攻击落空`;
       } else {
         const dmg = parseInt(manualDamage, 10);
@@ -463,7 +473,10 @@ export default function CombatSession() {
       const newHp = Math.min(tgt.maxHp ?? tgt.currentHp ?? 0, (tgt.currentHp ?? 0) + amount);
       handleApplyDamage(tgt.id, newHp);
 
-      const text = `用${manualHealMethod}恢复了${targetName} ${amount}点生命值`;
+      const isSelf = targetHpId === combatantId;
+      const text = isSelf
+        ? `用${manualHealMethod}恢复了自己${amount}点生命值`
+        : `用${manualHealMethod}恢复了${targetName} ${amount}点生命值`;
       handleCellChange(round, combatantId, text);
     }
 
@@ -477,6 +490,7 @@ export default function CombatSession() {
     setManualIsKill(false);
     setManualHealMethod('');
     setManualHealAmount('');
+    setManualAttackRoll('');
     setSelectedCell(null);
   };
 
@@ -491,6 +505,7 @@ export default function CombatSession() {
     setManualIsKill(false);
     setManualHealMethod('');
     setManualHealAmount('');
+    setManualAttackRoll('');
     setSelectedCell(null);
   };
 
@@ -899,13 +914,17 @@ export default function CombatSession() {
             {record.rounds.map((round, roundIndex) => (
               <tr key={roundIndex} className="border-t dark:border-border-dark/50 light:border-border-light/50">
                 <td className="p-2 border-r dark:border-border-dark light:border-border-light sticky left-0 dark:bg-bg-dark light:bg-bg-light font-medium text-center">
-                  <button
-                    onClick={() => openSurpriseAttackModal(roundIndex)}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-primary/10 text-primary transition-colors cursor-pointer"
-                    title="设置被突袭角色"
-                  >
-                    {roundIndex + 1}
-                  </button>
+                  {roundIndex === 0 ? (
+                    <button
+                      onClick={() => openSurpriseAttackModal(roundIndex)}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-primary/10 text-primary transition-colors cursor-pointer"
+                      title="设置被突袭角色"
+                    >
+                      {roundIndex + 1}
+                    </button>
+                  ) : (
+                    roundIndex + 1
+                  )}
                 </td>
                 {record.combatants.map((c) => {
                   const action = round[c.id] || '';
@@ -913,7 +932,6 @@ export default function CombatSession() {
                     editingCell?.round === roundIndex &&
                     editingCell?.combatantId === c.id;
                   const isSurprised = action === '被突袭';
-                  const isEmpty = !action && !isEditing;
                   const isSelected = selectedCell?.round === roundIndex && selectedCell?.combatantId === c.id;
 
                   if (isSurprised) {
@@ -931,18 +949,14 @@ export default function CombatSession() {
                   return (
                     <td
                       key={c.id}
-                      className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] transition-colors ${
+                      className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] transition-colors relative ${
                         isSelected ? 'bg-primary/10 ring-2 ring-inset ring-primary/30' : 'hover:bg-white/5'
-                      } ${isEmpty ? 'cursor-pointer' : 'cursor-text'}`}
+                      } cursor-pointer`}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (isEmpty) {
-                          setSelectedCell({ round: roundIndex, combatantId: c.id });
-                          setEditingCell(null);
-                        } else {
-                          setEditingCell({ round: roundIndex, combatantId: c.id });
-                          setSelectedCell(null);
-                        }
+                        if (isEditing) return;
+                        setSelectedCell({ round: roundIndex, combatantId: c.id });
+                        setEditingCell(null);
                       }}
                     >
                       {isEditing ? (
@@ -958,8 +972,20 @@ export default function CombatSession() {
                           rows={2}
                         />
                       ) : isSelected ? (
-                        <div className="flex flex-col items-center gap-1 py-1">
-                          <div className="whitespace-pre-wrap text-xs min-h-[2em] w-full text-center opacity-50 italic">空白记录</div>
+                        <div className="flex flex-col items-center gap-1 py-1 relative">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCell(null);
+                            }}
+                            className="absolute -top-1 -right-1 p-0.5 rounded-full bg-danger text-white hover:bg-danger/80 transition-colors z-10"
+                            title="取消"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                          <div className="whitespace-pre-wrap text-xs min-h-[2em] w-full text-center opacity-50 italic">
+                            {action || '空白记录'}
+                          </div>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -972,6 +998,7 @@ export default function CombatSession() {
                               setManualIsKill(false);
                               setManualHealMethod('');
                               setManualHealAmount('');
+                              setManualAttackRoll('');
                             }}
                             className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
                             title="手动记录"
@@ -979,27 +1006,18 @@ export default function CombatSession() {
                             <Pencil className="w-3 h-3" />
                             记录
                           </button>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedCell(null);
-                              }}
-                              className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors"
-                            >
-                              取消
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setEditingCell({ round: roundIndex, combatantId: c.id });
-                                setSelectedCell(null);
-                              }}
-                              className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors"
-                            >
-                              手动输入
-                            </button>
-                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingCell({ round: roundIndex, combatantId: c.id });
+                              setSelectedCell(null);
+                            }}
+                            className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors flex items-center gap-1"
+                            title="手动输入"
+                          >
+                            <Keyboard className="w-3 h-3" />
+                            手动输入
+                          </button>
                         </div>
                       ) : (
                         <div className="whitespace-pre-wrap text-xs min-h-[2em]">{action || ''}</div>
@@ -1181,7 +1199,10 @@ export default function CombatSession() {
                   </label>
                   <select
                     value={manualTargetId}
-                    onChange={(e) => setManualTargetId(e.target.value)}
+                    onChange={(e) => {
+                      setManualTargetId(e.target.value);
+                      setManualAttackRoll('');
+                    }}
                     className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
                   >
                     <option value="">选择目标...</option>
@@ -1191,12 +1212,63 @@ export default function CombatSession() {
                       </option>
                     ))}
                   </select>
+                  {/* 显示目标 AC */}
+                  {manualTargetId && (() => {
+                    const target = record.combatants.find(c => c.id === manualTargetId);
+                    if (!target || target.ac === undefined) return null;
+                    return (
+                      <div className="mt-1 text-xs text-primary font-medium">
+                        目标 AC：{target.ac}
+                      </div>
+                    );
+                  })()}
                 </div>
 
-                {/* 命中结果 */}
+                {/* 攻击检定 */}
                 <div>
                   <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    攻击结果
+                    攻击检定值
+                  </label>
+                  <input
+                    type="number"
+                    value={manualAttackRoll}
+                    onChange={(e) => setManualAttackRoll(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                    placeholder="填入攻击检定总值"
+                  />
+                  {/* 自动判定命中结果 */}
+                  {manualTargetId && manualAttackRoll && (() => {
+                    const target = record.combatants.find(c => c.id === manualTargetId);
+                    if (!target || target.ac === undefined) return null;
+                    const roll = parseInt(manualAttackRoll, 10);
+                    if (isNaN(roll)) return null;
+                    const hit = roll >= target.ac;
+                    return (
+                      <div className={`mt-1 text-xs font-medium ${hit ? 'text-green-500' : 'text-red-500'}`}>
+                        {roll} {hit ? '≥' : '<'} AC {target.ac} → {hit ? '命中' : '未命中'}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* 攻击方式 */}
+                <div>
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                    攻击方式
+                  </label>
+                  <input
+                    type="text"
+                    value={manualAttackMethod}
+                    onChange={(e) => setManualAttackMethod(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                    placeholder="例如：长剑挥砍"
+                  />
+                </div>
+
+                {/* 命中结果（可手动覆盖自动判定） */}
+                <div>
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                    命中结果{manualAttackRoll ? '（已根据检定值自动判定，可手动修改）' : ''}
                   </label>
                   <div className="flex gap-2">
                     <button
@@ -1220,20 +1292,6 @@ export default function CombatSession() {
                       ❌ 未命中
                     </button>
                   </div>
-                </div>
-
-                {/* 攻击方式 */}
-                <div>
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    攻击方式
-                  </label>
-                  <input
-                    type="text"
-                    value={manualAttackMethod}
-                    onChange={(e) => setManualAttackMethod(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                    placeholder="例如：长剑挥砍"
-                  />
                 </div>
 
                 {/* 伤害（仅命中时显示） */}

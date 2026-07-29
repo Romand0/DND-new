@@ -37,6 +37,7 @@ function load(): NpcTemplate[] {
         subtype: a.subtype,
         normalRange: a.normalRange,
         maxRange: a.maxRange,
+        twoHandedDamage: a.twoHandedDamage,
       })),
       createdAt: t.createdAt ?? Date.now(),
       updatedAt: t.updatedAt ?? Date.now(),
