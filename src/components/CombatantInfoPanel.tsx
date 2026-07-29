@@ -335,6 +335,19 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             </div>
                           </button>
 
+                          {selected && attack.properties && attack.properties.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {attack.properties.map((prop, pIdx) => (
+                                <span
+                                  key={pIdx}
+                                  className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20"
+                                >
+                                  {prop}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
                           {selected && rangeInfo.length > 0 && (
                             <div className="mt-1 p-2.5 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
                               <div className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted mb-2">射程信息</div>

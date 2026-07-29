@@ -8,7 +8,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack } from '@/types/combat';
-import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
@@ -80,6 +80,8 @@ export default function CombatSession() {
   const playbackSnapshotRef = useRef<{ col: number; row: number; combatantId: string }[] | null>(null);
   // 确认弹窗：完成回合
   const [confirmEndTurnOpen, setConfirmEndTurnOpen] = useState(false);
+  // 退出放映弹窗：保存 / 丢弃
+  const [exitPlaybackModalOpen, setExitPlaybackModalOpen] = useState(false);
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -445,7 +447,7 @@ export default function CombatSession() {
     }
   };
 
-  // ✅ 启动放映：重置沙盘到快照状态，跳到第一个回合
+  // ✅ 启动放映：重置沙盘到快照状态，从选中的格子开始扫描
   const startPlayback = () => {
     if (!record) return;
     // 1. 重置沙盘到进入放映模式时的快照
@@ -454,8 +456,15 @@ export default function CombatSession() {
     }
     // 2. 自动填充昏迷/死亡标记到后续所有轮次
     autoFillDownedMarkers();
-    // 3. 跳到第一个有效回合
-    const firstTurn = findNextValidTurn(0, 0);
+    // 3. 从用户点击的格子开始扫描（若未选中则从开头）
+    let startRound = 0;
+    let startCol = 0;
+    if (selectedCell) {
+      startRound = selectedCell.round;
+      const colIdx = record.combatants.findIndex(c => c.id === selectedCell.combatantId);
+      startCol = Math.max(0, colIdx);
+    }
+    const firstTurn = findNextValidTurn(startRound, startCol);
     setCurrentTurn(firstTurn);
     setPlaybackStarted(true);
   };
@@ -1150,7 +1159,7 @@ export default function CombatSession() {
                       key={c.id}
                       className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] transition-colors relative ${
                         isSelected ? 'bg-primary/10 ring-2 ring-inset ring-primary/30' : cellClickable ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60'
-                      }`}
+                      } ${isCurrentTurn ? 'ring-2 ring-yellow-400 dark:ring-yellow-300 animate-pulse bg-yellow-400/10 dark:bg-yellow-300/10' : ''}`}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isEditing) return;
@@ -1791,9 +1800,12 @@ export default function CombatSession() {
       {record.mode === 'playback' && (
         <button
           onClick={() => {
-            if (playbackStarted && !confirm('正在放映中，确定退出放映模式并恢复沙盘吗？')) return;
-            stopPlayback();
-            handleModeChange('simulation');
+            if (playbackStarted) {
+              setExitPlaybackModalOpen(true);
+            } else {
+              stopPlayback();
+              handleModeChange('simulation');
+            }
           }}
           className="fixed top-20 right-6 z-40 px-3 py-2 rounded-lg bg-card-dark/80 backdrop-blur border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/10 transition-colors flex items-center gap-1"
           title="退出放映模式"
@@ -1801,6 +1813,60 @@ export default function CombatSession() {
           <Pause className="w-4 h-4" />
           退出放映
         </button>
+      )}
+
+      {/* ✅ 退出放映弹窗：保存并覆盖 / 丢弃恢复 */}
+      {exitPlaybackModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">退出放映</h3>
+              <button
+                onClick={() => setExitPlaybackModalOpen(false)}
+                className="p-1 rounded hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
+              放映期间对沙盘的操作可以选择保存或丢弃。
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  // 保存并覆盖：保留当前沙盘状态，丢弃快照
+                  setPlaybackStarted(false);
+                  setCurrentTurn(null);
+                  playbackSnapshotRef.current = null;
+                  setExitPlaybackModalOpen(false);
+                  handleModeChange('simulation');
+                }}
+                className="w-full px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
+              >
+                <Check className="w-4 h-4" />
+                保存并覆盖原版本
+              </button>
+              <button
+                onClick={() => {
+                  // 丢弃恢复：恢复快照
+                  stopPlayback();
+                  setExitPlaybackModalOpen(false);
+                  handleModeChange('simulation');
+                }}
+                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors flex items-center justify-center gap-1"
+              >
+                <Undo2 className="w-4 h-4" />
+                丢弃，恢复原先状态
+              </button>
+              <button
+                onClick={() => setExitPlaybackModalOpen(false)}
+                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
