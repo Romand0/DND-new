@@ -1534,6 +1534,24 @@ function getSpellcastingAbility(char: Character): AbilityKey | null {
   return CLASS_SPELL_ABILITY[char.class] || null;
 }
 
+// 法术攻击加值 = 施法属性调整值 + 熟练加值
+function getSpellAttackBonus(char: Character): number | null {
+  const ability = getSpellcastingAbility(char);
+  if (!ability || !char.abilities) return null;
+  const mod = char.abilities[ability]?.modifier || 0;
+  const prof = char.proficiencyBonus || 2;
+  return mod + prof;
+}
+
+// 施法豁免 DC = 8 + 施法属性调整值 + 熟练加值
+function getSpellSaveDC(char: Character): number | null {
+  const ability = getSpellcastingAbility(char);
+  if (!ability || !char.abilities) return null;
+  const mod = char.abilities[ability]?.modifier || 0;
+  const prof = char.proficiencyBonus || 2;
+  return 8 + mod + prof;
+}
+
 function getCasterType(char: Character): string {
   if (!char || !char.class) return CASTER_TYPE.NONE;
   return CLASS_CASTER_TYPE[char.class] || CASTER_TYPE.NONE;
@@ -1792,6 +1810,8 @@ export const characterStore = {
   // 法术位系统
   hasSpellcasting,
   getSpellcastingAbility,
+  getSpellAttackBonus,
+  getSpellSaveDC,
   getCasterType,
   getCasterTypeLabel,
   getSpellSlotsByLevel,

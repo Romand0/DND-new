@@ -1,10 +1,13 @@
 // 战斗攻击检定弹窗 —— 从沙盘战斗按钮触发
 import { useState, useMemo } from 'react';
-import { X, Swords, Dices, ChevronLeft, MoreHorizontal } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { X, Swords, Dices, ChevronLeft, MoreHorizontal, BookOpen } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
+import { spellStore } from '@/data/spellStore';
 import type { Combatant, NpcAttack } from '@/types/combat';
 import type { Character, Attack } from '@/types/character';
+import type { Spell } from '@/types/spell';
 
 interface Props {
   attacker: Combatant;
@@ -41,6 +44,33 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
+// 法术描述中的骰子表达式高亮渲染（复用 CharacterDetail 的逻辑）
+function renderSpellDice(text: string): ReactNode[] {
+  const parts: ReactNode[] = [];
+  const regex = /(\d+)d(4|6|8|10|12|20)/gi;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(<span key={key++}>{text.slice(lastIndex, match.index)}</span>);
+    }
+    parts.push(
+      <span key={key++} className="inline-flex items-baseline mx-0.5">
+        <span className="text-primary font-bold">{match[1]}</span>
+        <span className="px-1 py-0 mx-0.5 rounded bg-accent/20 text-accent font-mono font-semibold">
+          d{match[2]}
+        </span>
+      </span>
+    );
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(<span key={key++}>{text.slice(lastIndex)}</span>);
+  }
+  return parts;
+}
+
 export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss }: Props) {
   const [stage, setStage] = useState<Stage>('attacks');
   const [selectedAttack, setSelectedAttack] = useState<Attack | NpcAttack | null>(null);
@@ -56,12 +86,46 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const [expandedThrownIdx, setExpandedThrownIdx] = useState<number | null>(null);
   // 自然 20 触发时被锁定的骰子索引（另一个空未填则锁定只读）
   const [lockedDice, setLockedDice] = useState<Set<number>>(new Set());
+  // 检定场景：武器攻击 / 法术攻击 / 目标豁免 / 自动命中
+  const [checkScene, setCheckScene] = useState<'weapon' | 'spellAttack' | 'savingThrow' | 'autoHit'>('weapon');
+  // 法术速查面板开关
+  const [showSpellReference, setShowSpellReference] = useState(false);
+  // 目标豁免属性（savingThrow 场景下由用户选择）
+  const [saveAttribute, setSaveAttribute] = useState<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'>('dex');
+  // 目标豁免加值（savingThrow 场景下手动填，由目标的属性调整值 + 熟练加值构成）
+  const [targetSaveBonus, setTargetSaveBonus] = useState<string>('');
 
   // 获取 PC 的角色卡数据（NPC 无 character）
   const character = useMemo(() => {
     if (attacker.characterId) return characterStore.get(attacker.characterId);
     return null;
   }, [attacker.characterId]);
+
+  // 施法派生数据：仅施法者有值（NPC 暂不支持施法速查）
+  const isSpellcaster = character ? characterStore.hasSpellcasting(character) : false;
+  const spellAbilityKey = character ? characterStore.getSpellcastingAbility(character) : null;
+  const spellAbilityLabel = spellAbilityKey
+    ? ({ strength: '力量', dexterity: '敏捷', constitution: '体质', intelligence: '智力', wisdom: '感知', charisma: '魅力' } as const)[spellAbilityKey]
+    : null;
+  const spellAttackBonus = character ? characterStore.getSpellAttackBonus(character) : null;
+  const spellSaveDC = character ? characterStore.getSpellSaveDC(character) : null;
+
+  // 法术速查：从角色卡 spells.cantrips/custom 按名称反查 spellStore
+  const knownSpells = useMemo<{ spell: Spell; isCantrip: boolean; level: number }[]>(() => {
+    if (!character) return [];
+    const all = spellStore.getAll();
+    const byName = (name: string) => all.find(s => s.name === name);
+    const result: { spell: Spell; isCantrip: boolean; level: number }[] = [];
+    (character.spells?.cantrips || []).forEach(name => {
+      const s = byName(name);
+      if (s) result.push({ spell: s, isCantrip: true, level: 0 });
+    });
+    (character.spells?.custom || []).forEach(name => {
+      const s = byName(name);
+      if (s) result.push({ spell: s, isCantrip: s.level === 0, level: s.level });
+    });
+    return result;
+  }, [character]);
 
   // PC 手持装备
   const heldLeftId = character?.heldLeft?.equipmentId;
@@ -274,8 +338,33 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attacks, character, heldLeftItem, heldRightItem, attackerPos, targetPos]);
 
+  // 从法术速查直接施放：构造临时 Attack 作为容器进入 roll 阶段
+  // 伤害与加值由检定场景切换器接管，不依赖法术描述解析
+  const handleCastSpell = (spell: Spell) => {
+    const fakeAttack: Attack = {
+      name: spell.name,
+      attackBonus: spellAttackBonus !== null ? `+${spellAttackBonus}` : '+0',
+      damage: '',
+      damageType: '',
+      range: spell.range || '',
+      properties: [],
+    };
+    setSelectedAttack(fakeAttack);
+    setUsageMode(null);
+    setD20Values(['']);
+    setRollResult(null);
+    setLockedDice(new Set());
+    setManualMode('none');
+    setShowAdvDisadvMenu(false);
+    setShowSpellReference(false);
+    // 默认法术攻击场景，用户可切到目标豁免 / 自动命中
+    setCheckScene(spellAttackBonus !== null ? 'spellAttack' : 'autoHit');
+    setStage('roll');
+  };
+
   // 应用骰子值变化：优势/劣势下任一骰为自然 20 时直接命中，另一个空锁定只读
-  // 适用于手动输入与摇骰两条路径
+  // 适用于手动输入与摇骰两条路径。仅 weapon / spellAttack 场景启用即时命中；
+  // savingThrow 场景的目标自然 20 是「抵抗」语义反转，不在此即时判定
   const applyDiceValues = (newValues: string[]) => {
     setD20Values(newValues);
     if (!selectedAttack) {
@@ -283,6 +372,28 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       setLockedDice(new Set());
       return;
     }
+    // autoHit 场景：不需要 d20，直接出命中结果
+    if (checkScene === 'autoHit') {
+      setLockedDice(new Set());
+      const bonus = getAttackBonus(selectedAttack);
+      setRollResult({
+        d20: 0,
+        bonus,
+        total: bonus,
+        isNatural1: false,
+        isNatural20: false,
+        hit: true,
+        disadvantage: false,
+      });
+      return;
+    }
+    // savingThrow 场景：等待用户填完目标豁免加值后点「确定」
+    if (checkScene === 'savingThrow') {
+      setLockedDice(new Set());
+      setRollResult(null);
+      return;
+    }
+    // weapon / spellAttack 场景：保留自然 20 即时命中逻辑
     const mode = computeRollMode(selectedAttack, usageMode ?? undefined);
     if (mode !== 'none') {
       // 任一骰为自然 20：无论另一骰是否填完或是否为自然 1，均直接命中
@@ -296,7 +407,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
         const otherEmpty = otherVal === '' || otherVal === undefined;
         // 另一个空未填则锁定只读
         setLockedDice(otherEmpty ? new Set([otherIdx]) : new Set());
-        const bonus = getAttackBonus(selectedAttack);
+        const bonus = checkScene === 'spellAttack' ? (spellAttackBonus ?? 0) : getAttackBonus(selectedAttack);
         setRollResult({
           d20: 20,
           bonus,
@@ -320,17 +431,84 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     applyDiceValues(result.values.map(String));
   };
 
+  // 切换检定场景：清空状态重新开始
+  const handleSceneChange = (scene: 'weapon' | 'spellAttack' | 'savingThrow' | 'autoHit') => {
+    setCheckScene(scene);
+    setD20Values(['']);
+    setRollResult(null);
+    setLockedDice(new Set());
+    setTargetSaveBonus('');
+  };
+
   // 确定检定 —— 不切换阶段，结果在下方原位弹出
   const handleConfirmRoll = () => {
     if (!selectedAttack) return;
     const mode = computeRollMode(selectedAttack, usageMode ?? undefined);
-    // 普通模式需要 1 个值，优/劣势需要 2 个值都填充
+
+    // autoHit 场景：无检定，直接命中
+    if (checkScene === 'autoHit') {
+      const bonus = getAttackBonus(selectedAttack);
+      setRollResult({
+        d20: 0,
+        bonus,
+        total: bonus,
+        isNatural1: false,
+        isNatural20: false,
+        hit: true,
+        disadvantage: false,
+      });
+      return;
+    }
+
+    // savingThrow 场景：目标掷 d20 + 豁免加值 vs 施法 DC
+    // 自然 20 = 抵抗（未命中），自然 1 = 失败（命中），语义与攻击检定相反
+    if (checkScene === 'savingThrow') {
+      if (spellSaveDC === null) return;
+      const parsed = d20Values.map(v => parseInt(v, 10));
+      const allValid = parsed.every(n => !isNaN(n) && n >= 1 && n <= 20);
+      if (!allValid) return;
+      if (mode !== 'none' && parsed.length < 2) return;
+      const saveBonusNum = parseInt(targetSaveBonus, 10);
+      const bonus = isNaN(saveBonusNum) ? 0 : saveBonusNum;
+      const hasNatural20 = mode !== 'none' && parsed.some(n => n === 20);
+      const hasNatural1 = mode !== 'none' && parsed.some(n => n === 1);
+      let d20: number;
+      let isNatural1: boolean;
+      let isNatural20: boolean;
+      let hit: boolean;
+      if (hasNatural20) {
+        // 目标自然 20 → 抵抗 → 未命中
+        d20 = 20;
+        isNatural1 = false;
+        isNatural20 = true;
+        hit = false;
+      } else if (hasNatural1) {
+        // 目标自然 1 → 失败 → 命中
+        d20 = 1;
+        isNatural1 = true;
+        isNatural20 = false;
+        hit = true;
+      } else {
+        // 优势取高（对目标有利=抵抗）、劣势取低（对目标不利=命中）
+        d20 = mode === 'advantage' ? Math.max(...parsed) : mode === 'disadvantage' ? Math.min(...parsed) : parsed[0];
+        isNatural1 = d20 === 1;
+        isNatural20 = d20 === 20;
+        const saveTotal = d20 + bonus;
+        // 豁免总值 ≥ DC = 抵抗（未命中）；< DC = 失败（命中）
+        hit = isNatural20 ? false : isNatural1 ? true : saveTotal < spellSaveDC;
+      }
+      const total = d20 + bonus;
+      setRollResult({ d20, bonus, total, isNatural1, isNatural20, hit, disadvantage: mode === 'disadvantage' });
+      return;
+    }
+
+    // weapon / spellAttack 场景：d20 + 攻击加值 vs 目标 AC
     const parsed = d20Values.map(v => parseInt(v, 10));
     const allValid = parsed.every(n => !isNaN(n) && n >= 1 && n <= 20);
     if (!allValid) return;
     if (mode !== 'none' && parsed.length < 2) return;
 
-    const bonus = getAttackBonus(selectedAttack);
+    const bonus = checkScene === 'spellAttack' ? (spellAttackBonus ?? 0) : getAttackBonus(selectedAttack);
     // 优势/劣势下任一骰为自然 20：直接命中（优先于自然 1 与取高/低规则）
     const hasNatural20 = mode !== 'none' && parsed.some(n => n === 20);
     let d20: number;
@@ -437,9 +615,90 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
           {/* 阶段1：攻击方式列表 */}
           {stage === 'attacks' && (
             <div className="space-y-2">
-              {sortedAttacks.length === 0 && (
+              {/* 施法者专属：法术速查入口 */}
+              {isSpellcaster && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <button
+                    onClick={() => setShowSpellReference(v => !v)}
+                    className="w-full flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      <span className="font-medium text-sm dark:text-text-dark light:text-text-light">施法速查</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                        {spellAbilityLabel} · 攻击 +{spellAttackBonus} · DC {spellSaveDC}
+                      </span>
+                    </div>
+                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      {showSpellReference ? '收起' : '展开'}（{knownSpells.length}）
+                    </span>
+                  </button>
+                  {showSpellReference && (
+                    <div className="mt-3 pt-3 border-t dark:border-border-dark/50 light:border-border-light/50 space-y-2 max-h-72 overflow-y-auto">
+                      {knownSpells.length === 0 && (
+                        <div className="text-center text-xs dark:text-text-dark-muted light:text-text-light-muted py-4">
+                          角色卡未配置法术
+                        </div>
+                      )}
+                      {knownSpells
+                        .slice()
+                        .sort((a, b) => a.level - b.level || a.spell.name.localeCompare(b.spell.name))
+                        .map(({ spell, isCantrip: _isCantrip, level }) => (
+                          <div
+                            key={spell.id}
+                            className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 p-2.5 border dark:border-border-dark/50 light:border-border-light/50"
+                          >
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-sm dark:text-text-dark light:text-text-light">{spell.name}</span>
+                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                                {level === 0 ? '戏法' : `${level}环`}
+                              </span>
+                              {spell.concentration && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">专注</span>
+                              )}
+                              {spell.ritual && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">仪式</span>
+                              )}
+                            </div>
+                            <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap gap-x-2">
+                              {spell.castingTime && <span>· {spell.castingTime}</span>}
+                              {spell.range && <span>· 射程 {spell.range}</span>}
+                              {spell.duration && <span>· {spell.duration}</span>}
+                              {spell.school && <span>· {spell.school}</span>}
+                            </div>
+                            {spell.description && (
+                              <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1.5 leading-relaxed whitespace-pre-line">
+                                {renderSpellDice(spell.description)}
+                              </div>
+                            )}
+                            {spell.heightenedEffect && (
+                              <div className="text-[11px] mt-1 text-purple-400">
+                                <span className="font-medium">升环：</span>{spell.heightenedEffect}
+                              </div>
+                            )}
+                            <button
+                              onClick={() => handleCastSpell(spell)}
+                              className="w-full mt-2 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
+                            >
+                              施放此法术 → 进入检定
+                            </button>
+                          </div>
+                        ))}
+                      <div className="text-[10px] text-center dark:text-text-dark-muted light:text-text-light-muted pt-1">
+                        提示：看法术后选择对应攻击方式进入检定，可在 roll 阶段切换为「法术攻击 / 目标豁免 / 自动命中」
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {sortedAttacks.length === 0 && !isSpellcaster && (
                 <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8">
                   暂无攻击方式
+                </div>
+              )}
+              {sortedAttacks.length === 0 && isSpellcaster && !showSpellReference && (
+                <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8">
+                  暂无武器攻击，可点击上方「施法速查」查看法术
                 </div>
               )}
               {sortedAttacks.map((attack, i) => {
@@ -468,6 +727,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                   setLockedDice(new Set());
                   setManualMode('none');
                   setShowAdvDisadvMenu(false);
+                  setCheckScene('weapon');
                   setStage('roll');
                 };
                 return (
@@ -638,7 +898,13 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                   )}
                 </div>
                 <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">
-                  攻击加值 {selectedAttack.attackBonus || '+0'}
+                  {checkScene === 'spellAttack'
+                    ? `法术攻击 +${spellAttackBonus ?? 0}（${spellAbilityLabel}）`
+                    : checkScene === 'savingThrow'
+                    ? `施法 DC ${spellSaveDC ?? '-'}（${spellAbilityLabel}）`
+                    : checkScene === 'autoHit'
+                    ? '自动命中 · 无需检定'
+                    : `攻击加值 ${selectedAttack.attackBonus || '+0'}`}
                   {attackerPos && targetPos && (
                     <span className="ml-2">距离 {distanceCells} 格（{distanceCells * 5}尺）</span>
                   )}
@@ -708,11 +974,71 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                 </div>
               )}
 
-              {/* d20 输入：普通模式 1 个，优/劣势模式 2 个 */}
+              {/* 检定场景切换器：施法者可切到法术攻击 / 目标豁免 / 自动命中 */}
+              {isSpellcaster && (
+                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
+                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5">检定场景</div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {([
+                      { key: 'weapon', label: '武器攻击', desc: 'd20+加值 vs AC' },
+                      { key: 'spellAttack', label: '法术攻击', desc: `d20+${spellAttackBonus ?? 0} vs AC` },
+                      { key: 'savingThrow', label: '目标豁免', desc: `目标 d20 vs DC ${spellSaveDC ?? '-'}` },
+                      { key: 'autoHit', label: '自动命中', desc: '无检定' },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.key}
+                        onClick={() => handleSceneChange(opt.key)}
+                        disabled={opt.key !== 'weapon' && opt.key !== 'autoHit' && (opt.key === 'spellAttack' ? spellAttackBonus === null : opt.key === 'savingThrow' ? spellSaveDC === null : false)}
+                        className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
+                          checkScene === opt.key
+                            ? 'bg-primary text-white ring-2 ring-primary'
+                            : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-primary/10 disabled:opacity-40 disabled:cursor-not-allowed'
+                        }`}
+                      >
+                        <div>{opt.label}</div>
+                        <div className="text-[10px] font-normal mt-0.5 opacity-80">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 目标豁免属性选择（仅 savingThrow 场景） */}
+              {checkScene === 'savingThrow' && spellSaveDC !== null && (
+                <div className="rounded-lg bg-amber-500/10 p-2.5 text-xs">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-amber-400 font-medium">目标豁免属性：</span>
+                    {([
+                      { key: 'str', label: '力量' },
+                      { key: 'dex', label: '敏捷' },
+                      { key: 'con', label: '体质' },
+                      { key: 'int', label: '智力' },
+                      { key: 'wis', label: '感知' },
+                      { key: 'cha', label: '魅力' },
+                    ] as const).map(opt => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setSaveAttribute(opt.key)}
+                        className={`px-2 py-0.5 rounded text-[11px] ${
+                          saveAttribute === opt.key
+                            ? 'bg-amber-500 text-white'
+                            : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-amber-500/20'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-amber-400/80 mt-1">提示：根据法术描述选择对应属性，由目标掷骰</div>
+                </div>
+              )}
+
+              {/* d20 输入：普通模式 1 个，优/劣势模式 2 个；autoHit 场景隐藏 */}
+              {checkScene !== 'autoHit' && (
               <div>
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium dark:text-text-dark light:text-text-light">
-                    d20 攻击骰{isDual ? '（双骰）' : ''}
+                    {checkScene === 'savingThrow' ? '目标豁免骰 d20' : 'd20 攻击骰'}{isDual ? '（双骰）' : ''}
                   </label>
                   {isDual && (
                     <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
@@ -741,6 +1067,20 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                       />
                     </div>
                   ))}
+                  {checkScene === 'savingThrow' ? (
+                    <div className="flex-1">
+                      <input
+                        type="number"
+                        value={targetSaveBonus}
+                        onChange={(e) => {
+                          setTargetSaveBonus(e.target.value);
+                          setRollResult(null);
+                        }}
+                        placeholder="目标豁免加值"
+                        className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center"
+                      />
+                    </div>
+                  ) : null}
                   <button
                     onDoubleClick={() => handleRollDice(rollMode)}
                     className="px-3 py-2 rounded-lg bg-primary text-white flex items-center gap-1.5 hover:bg-primary/90 active:scale-90 active:bg-primary/80 transition-all shrink-0 select-none"
@@ -751,61 +1091,119 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                   </button>
                 </div>
               </div>
+              )}
 
-              {/* 计算预览 */}
-              {previewD20 !== null && (
-                <div className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 p-3 text-center">
-                  <div className="flex items-center justify-center gap-2 text-lg font-bold flex-wrap">
-                    {isDual && (
-                      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                        ({parsedDice.join(rollMode === 'advantage' ? ' → 取高 → ' : ' → 取低 → ')})
-                      </span>
-                    )}
-                    <span className="dark:text-text-dark light:text-text-light">{previewD20}</span>
-                    <span className="dark:text-text-dark-muted light:text-text-light-muted">+</span>
-                    <span className="text-primary">{getAttackBonus(selectedAttack)}</span>
-                    <span className="dark:text-text-dark-muted light:text-text-light-muted">=</span>
-                    <span className="text-danger">{previewD20 + getAttackBonus(selectedAttack)}</span>
+              {/* 计算预览：根据场景显示不同加值与比对值 */}
+              {checkScene !== 'autoHit' && previewD20 !== null && (() => {
+                const sceneBonus = checkScene === 'spellAttack'
+                  ? (spellAttackBonus ?? 0)
+                  : checkScene === 'savingThrow'
+                  ? (parseInt(targetSaveBonus, 10) || 0)
+                  : getAttackBonus(selectedAttack);
+                const compareLabel = checkScene === 'savingThrow' ? 'DC' : 'AC';
+                const compareValue = checkScene === 'savingThrow' ? (spellSaveDC ?? 0) : (target.ac || 0);
+                return (
+                  <div className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 p-3 text-center">
+                    <div className="flex items-center justify-center gap-2 text-lg font-bold flex-wrap">
+                      {isDual && (
+                        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                          ({parsedDice.join(rollMode === 'advantage' ? ' → 取高 → ' : ' → 取低 → ')})
+                        </span>
+                      )}
+                      <span className="dark:text-text-dark light:text-text-light">{previewD20}</span>
+                      <span className="dark:text-text-dark-muted light:text-text-light-muted">+</span>
+                      <span className="text-primary">{sceneBonus}</span>
+                      <span className="dark:text-text-dark-muted light:text-text-light-muted">=</span>
+                      <span className={checkScene === 'savingThrow' ? 'text-amber-400' : 'text-danger'}>{previewD20 + sceneBonus}</span>
+                      <span className="dark:text-text-dark-muted light:text-text-light-muted text-sm">vs {compareLabel} {compareValue}</span>
+                    </div>
+                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">
+                      {checkScene === 'savingThrow' ? '目标豁免总值' : '攻击检定值'}
+                    </div>
                   </div>
-                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">攻击检定值</div>
+                );
+              })()}
+
+              {/* autoHit 场景提示 */}
+              {checkScene === 'autoHit' && !rollResult && (
+                <div className="rounded-lg bg-yellow-500/10 text-yellow-500 p-3 text-center text-sm">
+                  此法术自动命中，无需检定。点击「确定」进入伤害结算。
                 </div>
               )}
 
-              {/* 确定按钮：点击后在下方原位弹出检定结果 */}
-              <button
-                onClick={handleConfirmRoll}
-                disabled={!allFilled}
-                className="w-full py-2.5 rounded-lg bg-danger text-white font-medium hover:bg-danger/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                确定
-              </button>
+              {/* 确定按钮：autoHit 场景恒可点；savingThrow 需 d20 + 豁免加值都填 */}
+              {(() => {
+                const sceneCanConfirm = checkScene === 'autoHit'
+                  ? true
+                  : checkScene === 'savingThrow'
+                  ? allFilled && targetSaveBonus !== '' && !isNaN(parseInt(targetSaveBonus, 10))
+                  : allFilled;
+                return (
+                  <button
+                    onClick={handleConfirmRoll}
+                    disabled={!sceneCanConfirm}
+                    className="w-full py-2.5 rounded-lg bg-danger text-white font-medium hover:bg-danger/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    确定
+                  </button>
+                );
+              })()}
 
               {/* 检定结果：在同一个窗口页下方弹出 */}
               {rollResult && (
                 <div className="space-y-3 pt-2 border-t dark:border-border-dark light:border-border-light animate-in fade-in slide-in-from-bottom duration-200">
-                  {/* 对方 AC */}
+                  {/* 比对值：AC（攻击场景）或 DC（豁免场景）或 自动命中提示 */}
                   <div className="text-center pt-2">
-                    <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">对方 AC </span>
-                    <span className="text-lg font-bold text-danger">{target.ac || 0}</span>
+                    {checkScene === 'savingThrow' ? (
+                      <>
+                        <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">施法 DC </span>
+                        <span className="text-lg font-bold text-amber-400">{spellSaveDC}</span>
+                      </>
+                    ) : checkScene === 'autoHit' ? (
+                      <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">自动命中 · 无需比对</span>
+                    ) : (
+                      <>
+                        <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">对方 AC </span>
+                        <span className="text-lg font-bold text-danger">{target.ac || 0}</span>
+                      </>
+                    )}
                   </div>
 
-                  {/* 列式判定 */}
+                  {/* 列式判定：savingThrow 场景语义反转 */}
                   <div className={`rounded-lg p-4 text-center font-bold text-base sm:text-lg ${
-                    rollResult.isNatural1
-                      ? 'bg-red-900/30 text-red-400'
-                      : rollResult.isNatural20
-                      ? 'bg-yellow-500/20 text-yellow-500'
-                      : rollResult.hit
-                      ? 'bg-green-500/15 text-green-500'
-                      : 'bg-gray-500/15 text-gray-400'
+                    checkScene === 'savingThrow'
+                      ? (rollResult.isNatural20
+                        ? 'bg-blue-500/15 text-blue-400'          // 目标自然 20 = 抵抗
+                        : rollResult.isNatural1
+                        ? 'bg-yellow-500/20 text-yellow-500'      // 目标自然 1 = 失败命中
+                        : rollResult.hit
+                        ? 'bg-yellow-500/20 text-yellow-500'      // 命中
+                        : 'bg-blue-500/15 text-blue-400')         // 抵抗
+                      : (rollResult.isNatural1
+                        ? 'bg-red-900/30 text-red-400'
+                        : rollResult.isNatural20
+                        ? 'bg-yellow-500/20 text-yellow-500'
+                        : rollResult.hit
+                        ? 'bg-green-500/15 text-green-500'
+                        : 'bg-gray-500/15 text-gray-400')
                   }`}>
-                    {rollResult.isNatural1
-                      ? '自然 1，未命中敌人！'
-                      : rollResult.isNatural20
-                      ? '自然 20，重击敌人！'
-                      : rollResult.hit
-                      ? '攻击检定值≥AC，命中'
-                      : '攻击检定值＜AC，未命中'}
+                    {checkScene === 'savingThrow'
+                      ? (rollResult.isNatural20
+                        ? '目标自然 20，完全抵抗！'
+                        : rollResult.isNatural1
+                        ? '目标自然 1，法术命中！'
+                        : rollResult.hit
+                        ? '豁免失败，法术命中'
+                        : '豁免成功，法术未命中')
+                      : checkScene === 'autoHit'
+                      ? '法术自动命中'
+                      : (rollResult.isNatural1
+                        ? '自然 1，未命中敌人！'
+                        : rollResult.isNatural20
+                        ? '自然 20，重击敌人！'
+                        : rollResult.hit
+                        ? '攻击检定值≥AC，命中'
+                        : '攻击检定值＜AC，未命中')}
                   </div>
 
                   {/* 最底部的确认按钮：随检定结果出现 */}
