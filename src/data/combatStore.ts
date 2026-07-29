@@ -48,6 +48,7 @@ function load(): CombatRecord[] {
         };
       }),
       rounds: r.rounds ?? [],
+      mode: r.mode,
       createdAt: r.createdAt ?? Date.now(),
       updatedAt: r.updatedAt ?? Date.now(),
     }));

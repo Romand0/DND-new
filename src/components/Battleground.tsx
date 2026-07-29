@@ -12,9 +12,19 @@ interface Props {
   combatants: Combatant[];
   // 战斗按钮触发：交由 main（CombatSession）处理攻击检定弹窗
   onRequestAttack?: (attacker: Combatant, target: Combatant) => void;
+  /** 放映模式：禁用所有沙盘操作（移动、放置、删除、橡皮） */
+  readOnly?: boolean;
+  /** 当前回合角色 ID（放映模式高亮） */
+  activeTurnCombatantId?: string | null;
+  /**
+   * 放映模式下：仅该角色可以操作沙盘（移动/选中/攻击），
+   * 其他角色不可操作。未指定时所有角色都可操作。
+   * 单独传递以区别于 readOnly（readOnly 仍可控制全局锁定）。
+   */
+  playbackOnlyMovableId?: string | null;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
@@ -274,6 +284,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
 
   // 点击格子：只有未发生拖拽时才触发
   const handleCellClick = (col: number, row: number) => {
+    if (readOnly) return;
     if (touchState.current.moved) {
       touchState.current.moved = false;
       return;
@@ -283,7 +294,39 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
       if (existingCombatantId) battlegroundStore.removeToken(sessionId, existingCombatantId);
       return;
     }
-    // 已选中参战者
+    // 放映模式：检查是否只允许某个角色可操作
+    if (playbackOnlyMovableId) {
+      // 已选中参战者
+      if (selectedCombatantId) {
+        // 只有选中的就是允许的角色时，才能移动
+        if (selectedCombatantId !== playbackOnlyMovableId) {
+          setSelectedCombatantId(null);
+          return;
+        }
+        if (existingCombatantId === selectedCombatantId) {
+          setSelectedCombatantId(null);
+          return;
+        }
+        if (existingCombatantId) {
+          // 占用其他格子：允许切换选择（只能切换到允许的角色）
+          if (existingCombatantId !== playbackOnlyMovableId) {
+            return; // 不可选中其他角色
+          }
+          setSelectedCombatantId(existingCombatantId);
+          return;
+        }
+        // 空格 → 移动到该格
+        battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
+        setSelectedCombatantId(null);
+        return;
+      }
+      // 未选中：只能选中允许的角色
+      if (existingCombatantId === playbackOnlyMovableId) {
+        setSelectedCombatantId(existingCombatantId);
+      }
+      return;
+    }
+    // 已选中参战者（非放映模式）
     if (selectedCombatantId) {
       if (existingCombatantId === selectedCombatantId) {
         // 点击的就是当前选中的棋子 → 取消选中
@@ -362,21 +405,26 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
           </div>
           <button
             onClick={() => {
+              if (playbackOnlyMovableId) return; // 放映模式禁用橡皮
               setEraserMode((v) => !v);
               setSelectedCombatantId(null);
             }}
+            disabled={!!playbackOnlyMovableId}
             className={`px-2 py-1 text-xs rounded-lg border flex items-center gap-1 transition-colors ${
               eraserMode
                 ? 'bg-danger text-white border-danger'
                 : 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/5'
-            }`}
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             <Eraser className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">橡皮</span>
           </button>
           <button
-            onClick={handleUndo}
-            disabled={undoCount === 0}
+            onClick={() => {
+              if (playbackOnlyMovableId) return; // 放映模式禁用撤回
+              handleUndo();
+            }}
+            disabled={!!playbackOnlyMovableId || undoCount === 0}
             className="px-2 py-1 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-inherit"
             title={`撤回（${undoCount}/5）`}
           >
@@ -384,8 +432,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
             <span className="hidden sm:inline">撤回{undoCount > 0 ? ` (${undoCount})` : ''}</span>
           </button>
           <button
-            onClick={handleClear}
-            className="px-2 py-1 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-danger/10 hover:text-danger transition-colors flex items-center gap-1"
+            onClick={() => {
+              if (playbackOnlyMovableId) return; // 放映模式禁用清空
+              handleClear();
+            }}
+            disabled={!!playbackOnlyMovableId}
+            className="px-2 py-1 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-danger/10 hover:text-danger transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">清空</span>
@@ -429,11 +481,15 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
               无
             </span>
           )}
-          {placed.map((c) => (
+          {placed.map((c) => {
+            // 放映模式下：仅当前回合角色可被选中
+            const selectable = !playbackOnlyMovableId || c.id === playbackOnlyMovableId;
+            return (
             <button
               key={c.id}
               onClick={() => {
                 if (eraserMode) return;
+                if (!selectable) return;
                 if (selectedCombatantId === c.id) {
                   // 已选中 → 点击回收框收回
                   battlegroundStore.removeToken(sessionId, c.id);
@@ -448,11 +504,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
                   : c.isPc
                   ? 'border-info/50 text-info hover:bg-info/10'
                   : 'border-danger/50 text-danger hover:bg-danger/10'
-              } ${eraserMode ? 'opacity-40 cursor-not-allowed' : ''}`}
+              } ${eraserMode ? 'opacity-40 cursor-not-allowed' : !selectable ? 'opacity-30 cursor-not-allowed' : ''}`}
             >
               {c.name}
             </button>
-          ))}
+            );
+          })}
         </div>
         {/* 未放置：点击选中后到沙盘放置 */}
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -464,10 +521,13 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
               所有参战者已放置
             </span>
           )}
-          {unplaced.map((c) => (
+          {unplaced.map((c) => {
+            const selectable = !playbackOnlyMovableId || c.id === playbackOnlyMovableId;
+            return (
             <button
               key={c.id}
               onClick={() => {
+                if (!selectable) return;
                 setSelectedCombatantId(c.id === selectedCombatantId ? null : c.id);
                 setEraserMode(false);
               }}
@@ -477,15 +537,18 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
                   : c.isPc
                   ? 'border-info/50 text-info hover:bg-info/10'
                   : 'border-danger/50 text-danger hover:bg-danger/10'
-              }`}
+              } ${!selectable ? 'opacity-30 cursor-not-allowed' : ''}`}
             >
               {c.name}
             </button>
-          ))}
+            );
+          })}
         </div>
         {/* 提示语 —— 固定双行高度，避免选中状态切换导致沙盘整体位移 */}
         <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted min-h-[2rem] leading-4">
-          {eraserMode
+          {playbackOnlyMovableId
+            ? `放映模式：仅 ${combatantMap.get(playbackOnlyMovableId)?.name ?? '当前角色'} 可操作沙盘`
+            : eraserMode
             ? '橡皮模式：点击棋子移除'
             : selectedCombatantId
             ? placed.find((c) => c.id === selectedCombatantId)
@@ -537,6 +600,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
             const isDragHovered = dragLock?.hoveredTargetId === combatantId;
             // 锁定选中的棋子
             const isLocked = lockedTargetId === combatantId;
+            // 放映模式下当前回合角色
+            const isActiveTurn = activeTurnCombatantId === combatantId;
             return (
               <div
                 key={i}
@@ -563,7 +628,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
                       isDragHovered ? 'ring-2 ring-white' : ''
                     } ${isLocked ? 'ring-2 ring-yellow-400 scale-110' : ''} ${
                       downed ? 'opacity-60' : ''
-                    }`}
+                    } ${isActiveTurn ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''}`}
                     style={{
                       width: cellSize - 6,
                       height: cellSize - 6,
@@ -571,6 +636,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack }:
                       touchAction: 'none',
                     }}
                     onPointerDown={(e) => {
+                      if (readOnly) return;
+                      // 放映模式下：只允许当前回合角色长按
+                      if (playbackOnlyMovableId && combatant.id !== playbackOnlyMovableId) return;
                       // 不 stopPropagation，让网格容器收到事件并 setPointerCapture
                       // 启动长按计时器
                       if (longPressTimer.current) clearTimeout(longPressTimer.current);

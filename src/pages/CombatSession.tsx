@@ -8,7 +8,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack } from '@/types/combat';
-import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
@@ -72,6 +72,14 @@ export default function CombatSession() {
   const [manualHealMethod, setManualHealMethod] = useState('');
   const [manualHealAmount, setManualHealAmount] = useState('');
   const [manualAttackRoll, setManualAttackRoll] = useState('');
+  // ✅ 放映模式状态
+  const [playbackStarted, setPlaybackStarted] = useState(false);
+  // 当前回合：{ round: 行索引, combatantIdx: 列索引, combatantId }
+  const [currentTurn, setCurrentTurn] = useState<{ round: number; combatantIdx: number; combatantId: string } | null>(null);
+  // 沙盘快照：用于开始放映时重置
+  const playbackSnapshotRef = useRef<{ col: number; row: number; combatantId: string }[] | null>(null);
+  // 确认弹窗：完成回合
+  const [confirmEndTurnOpen, setConfirmEndTurnOpen] = useState(false);
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -414,6 +422,151 @@ export default function CombatSession() {
     });
     setSurpriseAttackOpen(false);
     setSurprisedCombatants(new Set());
+  };
+
+  // ✅ 模式切换
+  const handleModeChange = (mode: 'simulation' | 'playback') => {
+    if (!record) return;
+    if (record.mode === mode) return;
+    combatStore.update(record.id, { mode, updatedAt: Date.now() });
+    // 切换到放映模式时：快照沙盘状态（用户可在开始放映前自由调整）
+    if (mode === 'playback') {
+      const bg = battlegroundStore.get(record.id);
+      playbackSnapshotRef.current = (bg?.tokens ?? []).map(t => ({ ...t }));
+    }
+    // 切换到模拟模式时：重置放映状态并恢复沙盘到切换前的状态
+    if (mode === 'simulation') {
+      if (playbackSnapshotRef.current) {
+        battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
+      }
+      setPlaybackStarted(false);
+      setCurrentTurn(null);
+      playbackSnapshotRef.current = null;
+    }
+  };
+
+  // ✅ 启动放映：重置沙盘到快照状态，跳到第一个回合
+  const startPlayback = () => {
+    if (!record) return;
+    // 1. 重置沙盘到进入放映模式时的快照
+    if (playbackSnapshotRef.current) {
+      battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
+    }
+    // 2. 自动填充昏迷/死亡标记到后续所有轮次
+    autoFillDownedMarkers();
+    // 3. 跳到第一个有效回合
+    const firstTurn = findNextValidTurn(0, 0);
+    setCurrentTurn(firstTurn);
+    setPlaybackStarted(true);
+  };
+
+  // 停止放映（切回模拟模式时调用）
+  const stopPlayback = () => {
+    if (!record) return;
+    // 恢复沙盘到快照
+    if (playbackSnapshotRef.current) {
+      battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
+    }
+    setPlaybackStarted(false);
+    setCurrentTurn(null);
+  };
+
+  // ✅ 给已昏迷/死亡角色在所有未填写的后续轮次中填入「昏迷」/「死亡」占位
+  const autoFillDownedMarkers = () => {
+    if (!record) return;
+    let updatedRounds = record.rounds.map(r => ({ ...r }));
+    let changed = false;
+    record.combatants.forEach(c => {
+      if (!c.isDead && !c.isUnconscious) return;
+      const marker = c.isDead ? '死亡' : '昏迷';
+      updatedRounds = updatedRounds.map(round => {
+        const cur = round[c.id];
+        if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
+          // 已有有效记录的轮次不覆盖
+          return round;
+        }
+        // 没记录或就是「昏迷/死亡」占位的，更新为最新状态
+        if (cur !== marker) {
+          changed = true;
+          return { ...round, [c.id]: marker };
+        }
+        return round;
+      });
+    });
+    if (changed) {
+      combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
+    }
+  };
+
+  // ✅ 找到下一个有效回合（跳过被突袭/昏迷/死亡）
+  // 从指定位置（行、列）开始，向右→下一行扫描，遇到第一个非占位的格子
+  const findNextValidTurn = (fromRound: number, fromCol: number): { round: number; combatantIdx: number; combatantId: string } | null => {
+    if (!record) return null;
+    for (let r = fromRound; r < record.rounds.length; r++) {
+      const startCol = r === fromRound ? fromCol : 0;
+      for (let i = startCol; i < record.combatants.length; i++) {
+        const c = record.combatants[i];
+        const v = record.rounds[r][c.id];
+        if (v === '被突袭' || v === '昏迷' || v === '死亡') continue;
+        return { round: r, combatantIdx: i, combatantId: c.id };
+      }
+    }
+    return null;
+  };
+
+  // ✅ 推进到下一个回合
+  const advanceTurn = () => {
+    if (!currentTurn || !record) return;
+    const next = findNextValidTurn(currentTurn.round, currentTurn.combatantIdx + 1);
+    if (next) {
+      setCurrentTurn(next);
+      return;
+    }
+    // 当前行结束 → 判断是否还有活着的角色可战斗
+    const aliveCount = record.combatants.filter(c => !c.isDead && !c.isUnconscious).length;
+    if (aliveCount === 0) {
+      // 战斗结束
+      setCurrentTurn(null);
+      setPlaybackStarted(false);
+      alert('战斗已结束（所有参战者已倒地或死亡）。');
+      return;
+    }
+    // 检查是否需要新开一轮
+    const nextRound = currentTurn.round + 1;
+    if (nextRound >= record.rounds.length) {
+      // 自动新开一轮
+      const newRound: RoundAction = {};
+      record.combatants.forEach(c => {
+        // 倒地角色直接填占位
+        if (c.isDead) newRound[c.id] = '死亡';
+        else if (c.isUnconscious) newRound[c.id] = '昏迷';
+        else newRound[c.id] = '';
+      });
+      const updatedRounds = [...record.rounds, newRound];
+      combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
+      // 在新轮次中找第一个有效回合
+      const firstInNew = findNextValidTurn(nextRound, 0);
+      if (firstInNew) {
+        setCurrentTurn(firstInNew);
+      } else {
+        setCurrentTurn(null);
+        setPlaybackStarted(false);
+      }
+    } else {
+      const firstInNext = findNextValidTurn(nextRound, 0);
+      if (firstInNext) {
+        setCurrentTurn(firstInNext);
+      } else {
+        setCurrentTurn(null);
+        setPlaybackStarted(false);
+      }
+    }
+  };
+
+  // ✅ 确认完成回合
+  const confirmEndTurn = () => {
+    setConfirmEndTurnOpen(false);
+    advanceTurn();
   };
 
   // ✅ 手动记录：确认后写入表格并应用效果
@@ -822,6 +975,45 @@ export default function CombatSession() {
         </div>
       )}
 
+      {/* ✅ 模式切换栏 —— 模拟模式 / 放映模式 */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
+        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
+          战斗模式
+        </span>
+        <div className="flex rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">
+          <button
+            onClick={() => handleModeChange('simulation')}
+            disabled={playbackStarted}
+            className={`px-3 py-1.5 text-xs transition-colors ${
+              (record.mode ?? 'simulation') === 'simulation'
+                ? 'bg-primary text-white'
+                : 'dark:text-text-dark light:text-text-light hover:bg-white/5'
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            模拟模式
+          </button>
+          <button
+            onClick={() => handleModeChange('playback')}
+            className={`px-3 py-1.5 text-xs transition-colors ${
+              record.mode === 'playback'
+                ? 'bg-primary text-white'
+                : 'dark:text-text-dark light:text-text-light hover:bg-white/5'
+            }`}
+          >
+            放映模式
+          </button>
+        </div>
+        {record.mode === 'playback' && (
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+            {playbackStarted
+              ? currentTurn
+                ? `当前回合：${record.combatants[currentTurn.combatantIdx]?.name ?? '?'}（第 ${currentTurn.round + 1} 轮）`
+                : '放映已结束'
+              : '点击先攻表格的 ▶️ 开始放映'}
+          </span>
+        )}
+      </div>
+
       {/* 原内容：完全保留，一个字都没改（表格逻辑不变） */}
       <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
         <table className="w-full text-sm border-collapse">
@@ -933,6 +1125,13 @@ export default function CombatSession() {
                     editingCell?.combatantId === c.id;
                   const isSurprised = action === '被突袭';
                   const isSelected = selectedCell?.round === roundIndex && selectedCell?.combatantId === c.id;
+                  // 放映模式判断
+                  const isPlayback = record.mode === 'playback';
+                  const isCurrentTurn = isPlayback && playbackStarted && currentTurn?.round === roundIndex && currentTurn?.combatantId === c.id;
+                  // 放映模式下：仅当前回合的格子可点击/编辑；其他格子只读
+                  const cellClickable = isPlayback
+                    ? isCurrentTurn && !isSurprised
+                    : true;
 
                   if (isSurprised) {
                     return (
@@ -950,13 +1149,25 @@ export default function CombatSession() {
                     <td
                       key={c.id}
                       className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] transition-colors relative ${
-                        isSelected ? 'bg-primary/10 ring-2 ring-inset ring-primary/30' : 'hover:bg-white/5'
-                      } cursor-pointer`}
+                        isSelected ? 'bg-primary/10 ring-2 ring-inset ring-primary/30' : cellClickable ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60'
+                      }`}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (isEditing) return;
-                        setSelectedCell({ round: roundIndex, combatantId: c.id });
-                        setEditingCell(null);
+                        // 放映模式：仅当前回合格子可点击
+                        if (isPlayback) {
+                          if (!playbackStarted) {
+                            // 未开始放映 → 显示播放按钮
+                            setSelectedCell({ round: roundIndex, combatantId: c.id });
+                            setEditingCell(null);
+                          } else if (isCurrentTurn) {
+                            setSelectedCell({ round: roundIndex, combatantId: c.id });
+                            setEditingCell(null);
+                          }
+                        } else {
+                          setSelectedCell({ round: roundIndex, combatantId: c.id });
+                          setEditingCell(null);
+                        }
                       }}
                     >
                       {isEditing ? (
@@ -986,38 +1197,56 @@ export default function CombatSession() {
                           <div className="whitespace-pre-wrap text-xs min-h-[2em] w-full text-center opacity-50 italic">
                             {action || '空白记录'}
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setManualRecordType('attack');
-                              setManualRecordOpen(true);
-                              setManualTargetId('');
-                              setManualHitResult('hit');
-                              setManualAttackMethod('');
-                              setManualDamage('');
-                              setManualIsKill(false);
-                              setManualHealMethod('');
-                              setManualHealAmount('');
-                              setManualAttackRoll('');
-                            }}
-                            className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
-                            title="手动记录"
-                          >
-                            <Pencil className="w-3 h-3" />
-                            记录
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingCell({ round: roundIndex, combatantId: c.id });
-                              setSelectedCell(null);
-                            }}
-                            className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors flex items-center gap-1"
-                            title="手动输入"
-                          >
-                            <Keyboard className="w-3 h-3" />
-                            手动输入
-                          </button>
+                          {isPlayback && !playbackStarted ? (
+                            // 放映模式 + 未开始放映 → 显示播放按钮
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                startPlayback();
+                                setSelectedCell(null);
+                              }}
+                              className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
+                              title="从这里开始放映"
+                            >
+                              <Play className="w-3 h-3" />
+                              开始放映
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setManualRecordType('attack');
+                                  setManualRecordOpen(true);
+                                  setManualTargetId('');
+                                  setManualHitResult('hit');
+                                  setManualAttackMethod('');
+                                  setManualDamage('');
+                                  setManualIsKill(false);
+                                  setManualHealMethod('');
+                                  setManualHealAmount('');
+                                  setManualAttackRoll('');
+                                }}
+                                className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
+                                title="手动记录"
+                              >
+                                <Pencil className="w-3 h-3" />
+                                记录
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingCell({ round: roundIndex, combatantId: c.id });
+                                  setSelectedCell(null);
+                                }}
+                                className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors flex items-center gap-1"
+                                title="手动输入"
+                              >
+                                <Keyboard className="w-3 h-3" />
+                                手动输入
+                              </button>
+                            </>
+                          )}
                         </div>
                       ) : (
                         <div className="whitespace-pre-wrap text-xs min-h-[2em]">{action || ''}</div>
@@ -1035,6 +1264,16 @@ export default function CombatSession() {
       <Battleground
         sessionId={record.id}
         combatants={record.combatants}
+        playbackOnlyMovableId={
+          record.mode === 'playback' && playbackStarted && currentTurn
+            ? currentTurn.combatantId
+            : null
+        }
+        activeTurnCombatantId={
+          record.mode === 'playback' && playbackStarted && currentTurn
+            ? currentTurn.combatantId
+            : null
+        }
         onRequestAttack={(attacker, target) => {
           // main 上处理：从 battlegroundStore 读取坐标，一并传入攻击检定弹窗
           const bg = record.id ? battlegroundStore.get(record.id) : null;
@@ -1206,11 +1445,18 @@ export default function CombatSession() {
                     className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
                   >
                     <option value="">选择目标...</option>
-                    {record.combatants.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}（先攻 {c.initiative}）
-                      </option>
-                    ))}
+                    {record.combatants.map(c => {
+                      // 过滤掉同队角色（不允许对队友造成伤害）
+                      const attacker = selectedCell ? record.combatants.find(x => x.id === selectedCell.combatantId) : null;
+                      if (attacker && c.id !== attacker.id && c.isPc === attacker.isPc) {
+                        return null;
+                      }
+                      return (
+                        <option key={c.id} value={c.id}>
+                          {c.name}（先攻 {c.initiative}）
+                        </option>
+                      );
+                    })}
                   </select>
                   {/* 显示目标 AC */}
                   {manualTargetId && (() => {
@@ -1488,6 +1734,73 @@ export default function CombatSession() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ✅ 完成回合悬浮按钮 —— 放映模式已开始时显示 */}
+      {record.mode === 'playback' && playbackStarted && currentTurn && (
+        <button
+          onClick={() => setConfirmEndTurnOpen(true)}
+          className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-primary text-white font-medium shadow-2xl hover:bg-primary/90 transition-all hover:scale-105 flex items-center gap-2"
+          title="完成当前回合，进入下一个"
+        >
+          <SkipForward className="w-5 h-5" />
+          <span>完成回合</span>
+        </button>
+      )}
+
+      {/* ✅ 完成回合确认弹窗 */}
+      {confirmEndTurnOpen && currentTurn && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">完成回合</h3>
+              <button
+                onClick={() => setConfirmEndTurnOpen(false)}
+                className="p-1 rounded hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
+              确认完成 <span className="font-bold text-primary">
+                {record.combatants[currentTurn.combatantIdx]?.name ?? '?'}
+              </span> 的回合（第 {currentTurn.round + 1} 轮）？
+            </p>
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
+              系统将按先攻顺序推进到下一回合。若该轮已结束，将自动开启新一轮。
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmEndTurnOpen(false)}
+                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmEndTurn}
+                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
+              >
+                <SkipForward className="w-4 h-4" />完成
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ 退出放映按钮 —— 浮动在右上角（仅放映模式显示） */}
+      {record.mode === 'playback' && (
+        <button
+          onClick={() => {
+            if (playbackStarted && !confirm('正在放映中，确定退出放映模式并恢复沙盘吗？')) return;
+            stopPlayback();
+            handleModeChange('simulation');
+          }}
+          className="fixed top-20 right-6 z-40 px-3 py-2 rounded-lg bg-card-dark/80 backdrop-blur border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/10 transition-colors flex items-center gap-1"
+          title="退出放映模式"
+        >
+          <Pause className="w-4 h-4" />
+          退出放映
+        </button>
       )}
     </div>
   );

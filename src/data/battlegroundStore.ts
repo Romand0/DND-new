@@ -160,6 +160,15 @@ const battlegroundStore = {
     saveAll(loadAll().filter((b) => b.sessionId !== sessionId));
   },
 
+  /** 替换整张沙盘的棋子（放映模式重置用） */
+  setTokens(sessionId: string, tokens: TokenPosition[]): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    list[idx] = { ...list[idx], tokens, updatedAt: Date.now() };
+    saveAll(list);
+  },
+
   subscribe(listener: Listener): () => void {
     listeners.push(listener);
     return () => {

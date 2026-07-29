@@ -65,6 +65,8 @@ export interface CombatRecord {
   title: string;
   combatants: Combatant[];
   rounds: RoundAction[];
+  /** 战斗模式：'simulation' 模拟模式（无回合），'playback' 放映模式（有回合） */
+  mode?: 'simulation' | 'playback';
   createdAt: number;
   updatedAt: number;
 }
