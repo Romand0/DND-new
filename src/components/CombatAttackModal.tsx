@@ -13,8 +13,27 @@ interface Props {
   // 攻击者与目标在沙盘上的格子坐标（从 tokenMap 获取）
   attackerPos?: { col: number; row: number };
   targetPos?: { col: number; row: number };
-  /** 命中确认：交由 main 切换至伤害弹窗 */
-  onConfirmHit?: (attack: Attack | NpcAttack, disadvantage: boolean) => void;
+  /** 命中确认：交由 main 切换至伤害弹窗，附带 d20 过程信息用于先攻表格记录 */
+  onConfirmHit?: (attack: Attack | NpcAttack, info: {
+    d20Rolled: number[];      // 实际投掷的骰子序列（普通模式 1 个，优/劣势 2 个）
+    d20Final: number;         // 最终取用的 d20
+    bonus: number;            // 攻击加值
+    total: number;            // d20Final + bonus
+    disadvantage: boolean;    // 检定是否处于劣势
+    isNatural1: boolean;      // 自然 1
+    isNatural20: boolean;     // 自然 20（重击）
+    usageMode?: 'melee' | 'thrown';
+  }) => void;
+  /** 攻击未命中：回传主，写入先攻表格 */
+  onAttackMiss?: (info: {
+    attackName: string;
+    d20Rolled: number[];
+    d20Final: number;
+    bonus: number;
+    total: number;
+    isNatural1: boolean;
+    usageMode?: 'melee' | 'thrown';
+  }) => void;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -22,7 +41,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss }: Props) {
   const [stage, setStage] = useState<Stage>('attacks');
   const [selectedAttack, setSelectedAttack] = useState<Attack | NpcAttack | null>(null);
   // d20 投掷值：普通模式长度 1，优/劣势模式长度 2
@@ -284,15 +303,34 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
   // 确认结果
   const handleConfirmResult = () => {
-    if (rollResult?.hit) {
-      // 命中：交由 main 切换至伤害弹窗；若无回调则关闭
-      if (onConfirmHit && selectedAttack) {
-        onConfirmHit(selectedAttack, rollResult.disadvantage);
+    if (!rollResult || !selectedAttack) return;
+    const d20RolledNums = d20Values.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+    const infoBase = {
+      d20Rolled: d20RolledNums.length > 0 ? d20RolledNums : [rollResult.d20],
+      d20Final: rollResult.d20,
+      bonus: rollResult.bonus,
+      total: rollResult.total,
+      isNatural1: rollResult.isNatural1,
+      usageMode: usageMode ?? undefined,
+    };
+    if (rollResult.hit) {
+      if (onConfirmHit) {
+        onConfirmHit(selectedAttack, {
+          ...infoBase,
+          disadvantage: rollResult.disadvantage,
+          isNatural20: rollResult.isNatural20,
+        });
       } else {
         onClose();
       }
     } else {
-      // 未命中：回到沙盘
+      // 未命中：调用 onAttackMiss 回传主以写入先攻表格
+      if (onAttackMiss) {
+        onAttackMiss({
+          attackName: selectedAttack.name,
+          ...infoBase,
+        });
+      }
       onClose();
     }
   };

@@ -49,6 +49,13 @@ export default function CombatSession() {
     target: Combatant;
     attack: Attack | NpcAttack;
     disadvantage: boolean;
+    isCritical: boolean;
+    // 用于写入先攻表格的攻击检定过程信息
+    d20Rolled: number[];
+    d20Final: number;
+    d20Bonus: number;
+    d20Total: number;
+    usageMode?: 'melee' | 'thrown';
   } | null>(null);
   // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
   const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
@@ -65,7 +72,6 @@ export default function CombatSession() {
   const [manualRecordOpen, setManualRecordOpen] = useState(false);
   const [manualRecordType, setManualRecordType] = useState<'attack' | 'recovery' | null>(null);
   const [manualTargetId, setManualTargetId] = useState('');
-  const [manualHitResult, setManualHitResult] = useState<'hit' | 'miss'>('hit');
   const [manualAttackMethod, setManualAttackMethod] = useState('');
   const [manualDamage, setManualDamage] = useState('');
   const [manualIsKill, setManualIsKill] = useState(false);
@@ -572,10 +578,44 @@ export default function CombatSession() {
     }
   };
 
-  // ✅ 确认完成回合
-  const confirmEndTurn = () => {
-    setConfirmEndTurnOpen(false);
-    advanceTurn();
+  // 先攻顺序序号（按先攻高→低排序，同先攻保持原序）：返回圆形序号标记
+  const initiativeOrder = useMemo(() => {
+    if (!record) return new Map<string, number>();
+    const order = [...record.combatants]
+      .map((c, i) => ({ c, i }))
+      .sort((a, b) => (b.c.initiative - a.c.initiative) || (a.i - b.i));
+    const m = new Map<string, number>();
+    order.forEach((o, idx) => m.set(o.c.id, idx));
+    return m;
+  }, [record]);
+
+  const CIRCLE_NUMBERS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
+  const getInitiativeCircle = (combatantId: string): string => {
+    const idx = initiativeOrder.get(combatantId);
+    if (idx === undefined) return '';
+    if (idx < CIRCLE_NUMBERS.length) return CIRCLE_NUMBERS[idx];
+    return `㉑${idx + 1}`; // 超过 20 时简单 fallback
+  };
+
+  // ✅ 确定沙盘攻击写入先攻表格的 {round, combatantId} 坐标
+  // 放映模式 → 当前回合；模拟模式 → 最后一轮
+  const resolveWriteCell = (attackerId: string): { round: number; combatantId: string } | null => {
+    if (!record) return null;
+    if (record.mode === 'playback' && playbackStarted && currentTurn) {
+      // 放映模式下强制写入当前回合（保证回合正确归属）
+      return { round: currentTurn.round, combatantId: currentTurn.combatantId };
+    }
+    // 模拟模式：最后一轮（不存在则创建第一轮）
+    const round = Math.max(0, record.rounds.length - 1);
+    return { round, combatantId: attackerId };
+  };
+
+  // ✅ 写入先攻表格：支持追加（保留已有内容，另起一行）
+  const appendRoundRecord = (round: number, combatantId: string, newLine: string) => {
+    if (!record) return;
+    const existing = record.rounds[round]?.[combatantId] || '';
+    const finalText = existing ? `${existing}\n${newLine}` : newLine;
+    handleCellChange(round, combatantId, finalText);
   };
 
   // ✅ 手动记录：确认后写入表格并应用效果
@@ -588,23 +628,21 @@ export default function CombatSession() {
     if (manualRecordType === 'attack') {
       if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
       if (!target) { alert('请选择目标'); return; }
+      if (!manualAttackRoll) { alert('请填写攻击检定值'); return; }
 
-      // 自动判定：如果填写了攻击检定值，根据 AC 自动判断命中
-      let effectiveHitResult = manualHitResult;
-      if (manualAttackRoll) {
-        const roll = parseInt(manualAttackRoll, 10);
-        if (!isNaN(roll) && target.ac !== undefined) {
-          effectiveHitResult = roll >= target.ac ? 'hit' : 'miss';
-        }
-      }
+      // 自动判定：攻击检定值根据目标 AC 自动判断命中
+      const roll = parseInt(manualAttackRoll, 10);
+      if (isNaN(roll)) { alert('攻击检定值必须是数字'); return; }
+      if (target.ac === undefined) { alert('目标缺少 AC，无法判定命中'); return; }
+      const hit = roll >= target.ac;
 
       let text = '';
-      if (effectiveHitResult === 'miss') {
-        text = `对 ${target.name} 的攻击未命中，用${manualAttackMethod}攻击落空`;
+      if (!hit) {
+        text = `对 ${target.name} 的攻击未命中，用${manualAttackMethod}攻击落空（${roll} < AC ${target.ac}）`;
       } else {
         const dmg = parseInt(manualDamage, 10);
         if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
-        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害`;
+        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害（攻击检定${roll} ≥ AC ${target.ac}）`;
         if (manualIsKill && target.currentHp !== undefined) {
           const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
           const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
@@ -646,7 +684,6 @@ export default function CombatSession() {
     setManualRecordOpen(false);
     setManualRecordType(null);
     setManualTargetId('');
-    setManualHitResult('hit');
     setManualAttackMethod('');
     setManualDamage('');
     setManualIsKill(false);
@@ -661,7 +698,6 @@ export default function CombatSession() {
     setManualRecordOpen(false);
     setManualRecordType(null);
     setManualTargetId('');
-    setManualHitResult('hit');
     setManualAttackMethod('');
     setManualDamage('');
     setManualIsKill(false);
@@ -1228,7 +1264,6 @@ export default function CombatSession() {
                                   setManualRecordType('attack');
                                   setManualRecordOpen(true);
                                   setManualTargetId('');
-                                  setManualHitResult('hit');
                                   setManualAttackMethod('');
                                   setManualDamage('');
                                   setManualIsKill(false);
@@ -1316,15 +1351,33 @@ export default function CombatSession() {
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
           onClose={() => setAttackModal(null)}
-          onConfirmHit={(attack, disadvantage) => {
+          onConfirmHit={(attack, info) => {
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
             setDamageModal({
               attacker: attackModal.attacker,
               target: attackModal.target,
               attack,
-              disadvantage,
+              disadvantage: info.disadvantage,
+              isCritical: info.isNatural20,
+              d20Rolled: info.d20Rolled,
+              d20Final: info.d20Final,
+              d20Bonus: info.bonus,
+              d20Total: info.total,
+              usageMode: info.usageMode,
             });
             setAttackModal(null);
+          }}
+          onAttackMiss={(missInfo) => {
+            // 未命中：写入先攻表格（保持与手动记录一致的格式）
+            const cell = resolveWriteCell(attackModal.attacker.id);
+            if (!cell) return;
+            const modeTag = missInfo.usageMode === 'thrown' ? '（投掷）' : missInfo.usageMode === 'melee' ? '（近战）' : '';
+            const rollText = missInfo.d20Rolled.length > 1
+              ? `[${missInfo.d20Rolled.join(',')}→${missInfo.d20Final}]+${missInfo.bonus}=${missInfo.total}`
+              : `${missInfo.d20Final}+${missInfo.bonus}=${missInfo.total}`;
+            const nat1Tag = missInfo.isNatural1 ? '（自然1）' : '';
+            const text = `对 ${attackModal.target.name} 的攻击未命中${nat1Tag}，用${missInfo.attackName}${modeTag}攻击落空（${rollText} < AC ${attackModal.target.ac || 0}）`;
+            appendRoundRecord(cell.round, cell.combatantId, text);
           }}
         />
       )}
@@ -1336,8 +1389,26 @@ export default function CombatSession() {
           target={damageModal.target}
           attack={damageModal.attack}
           disadvantage={damageModal.disadvantage}
-          onApplyDamage={(damage, newHp, status) => {
+          isCritical={damageModal.isCritical}
+          onApplyDamage={({ damage, newHp, status, diceValues, damageBonus, isCritical }) => {
+            // 1. 应用 HP / 状态
             handleApplyDamage(damageModal.target.id, newHp, status);
+            // 2. 写入先攻表格（与手动记录同格式，附加过程信息）
+            const cell = resolveWriteCell(damageModal.attacker.id);
+            if (cell) {
+              const modeTag = damageModal.usageMode === 'thrown' ? '（投掷）' : damageModal.usageMode === 'melee' ? '（近战）' : '';
+              const rollText = damageModal.d20Rolled.length > 1
+                ? `[${damageModal.d20Rolled.join(',')}→${damageModal.d20Final}]+${damageModal.d20Bonus}=${damageModal.d20Total}`
+                : `${damageModal.d20Final}+${damageModal.d20Bonus}=${damageModal.d20Total}`;
+              const criticalTag = isCritical ? '（重击）' : damageModal.d20Final === 20 ? '（自然20）' : '';
+              const dmgText = diceValues.length > 0
+                ? `${diceValues.join('+')}${damageBonus ? `+${damageBonus}` : ''}=${damage}点伤害`
+                : `${damage}点伤害`;
+              let text = `对 ${damageModal.target.name} 的攻击命中${criticalTag}，用${damageModal.attack.name}${modeTag}造成${dmgText}（攻击检定${rollText} ≥ AC ${damageModal.target.ac || 0}）`;
+              if (status === 'unconscious') text += '，使其昏迷';
+              else if (status === 'dead') text += '，将其杀死';
+              appendRoundRecord(cell.round, cell.combatantId, text);
+            }
           }}
           onClose={() => setDamageModal(null)}
         />
@@ -1455,14 +1526,15 @@ export default function CombatSession() {
                   >
                     <option value="">选择目标...</option>
                     {record.combatants.map(c => {
-                      // 过滤掉同队角色（不允许对队友造成伤害）
                       const attacker = selectedCell ? record.combatants.find(x => x.id === selectedCell.combatantId) : null;
-                      if (attacker && c.id !== attacker.id && c.isPc === attacker.isPc) {
+                      // ✅ 禁止选择自己 + 禁止选择同队（PC 攻击 NPC / NPC 攻击 PC）
+                      if (attacker && (c.id === attacker.id || (c.id !== attacker.id && c.isPc === attacker.isPc))) {
                         return null;
                       }
+                      const circle = getInitiativeCircle(c.id);
                       return (
                         <option key={c.id} value={c.id}>
-                          {c.name}（先攻 {c.initiative}）
+                          {circle} {c.name}（先攻 {c.initiative}）
                         </option>
                       );
                     })}
@@ -1520,92 +1592,79 @@ export default function CombatSession() {
                   />
                 </div>
 
-                {/* 命中结果（可手动覆盖自动判定） */}
-                <div>
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    命中结果{manualAttackRoll ? '（已根据检定值自动判定，可手动修改）' : ''}
-                  </label>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setManualHitResult('hit')}
-                      className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                        manualHitResult === 'hit'
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'dark:border-border-dark light:border-border-light'
-                      }`}
-                    >
-                      ✅ 命中
-                    </button>
-                    <button
-                      onClick={() => setManualHitResult('miss')}
-                      className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                        manualHitResult === 'miss'
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'dark:border-border-dark light:border-border-light'
-                      }`}
-                    >
-                      ❌ 未命中
-                    </button>
-                  </div>
-                </div>
-
-                {/* 伤害（仅命中时显示） */}
-                {manualHitResult === 'hit' && (
-                  <>
-                    <div>
-                      <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                        伤害值（整数，不为0）
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        value={manualDamage}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          if (v === '' || (parseInt(v, 10) >= 1)) {
-                            setManualDamage(v);
-                          }
-                        }}
-                        className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                        placeholder="例如：15"
-                      />
-                    </div>
-
-                    {/* 干掉目标 */}
-                    {manualTargetId && (() => {
-                      const target = record.combatants.find(c => c.id === manualTargetId);
-                      if (!target || target.currentHp === undefined) return null;
-                      const dmg = parseInt(manualDamage, 10) || 0;
-                      const willKill = dmg > 0 && dmg >= (target.currentHp ?? 0);
-                      if (!willKill) return null;
-                      return (
-                        <label className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/30 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={manualIsKill}
-                            onChange={(e) => setManualIsKill(e.target.checked)}
-                            className="rounded"
-                          />
-                          <span className="text-xs text-red-500 dark:text-red-400">
-                            造成致命伤害，{target.isPc ? '使其昏迷' : '将其杀死'}
-                          </span>
+                {/* 伤害（根据攻击检定自动判定命中后显示） */}
+                {manualTargetId && manualAttackRoll && (() => {
+                  const tgt = record.combatants.find(c => c.id === manualTargetId);
+                  if (!tgt || tgt.ac === undefined) return null;
+                  const roll = parseInt(manualAttackRoll, 10);
+                  if (isNaN(roll)) return null;
+                  const hit = roll >= tgt.ac;
+                  if (!hit) return null;
+                  return (
+                    <>
+                      <div>
+                        <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                          伤害值（整数，不为0）
                         </label>
-                      );
-                    })()}
-                  </>
-                )}
+                        <input
+                          type="number"
+                          min={1}
+                          value={manualDamage}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            if (v === '' || (parseInt(v, 10) >= 1)) {
+                              setManualDamage(v);
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                          placeholder="例如：15"
+                        />
+                      </div>
+
+                      {/* 干掉目标 */}
+                      {manualTargetId && (() => {
+                        const target = record.combatants.find(c => c.id === manualTargetId);
+                        if (!target || target.currentHp === undefined) return null;
+                        const dmg = parseInt(manualDamage, 10) || 0;
+                        const willKill = dmg > 0 && dmg >= (target.currentHp ?? 0);
+                        if (!willKill) return null;
+                        return (
+                          <label className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/30 cursor-pointer mt-3">
+                            <input
+                              type="checkbox"
+                              checked={manualIsKill}
+                              onChange={(e) => setManualIsKill(e.target.checked)}
+                              className="rounded"
+                            />
+                            <span className="text-xs text-red-500 dark:text-red-400">
+                              造成致命伤害，{target.isPc ? '使其昏迷' : '将其杀死'}
+                            </span>
+                          </label>
+                        );
+                      })()}
+                    </>
+                  );
+                })()}
 
                 {/* 预览文本 */}
                 {manualTargetId && (() => {
                   const target = record.combatants.find(c => c.id === manualTargetId);
                   if (!target) return null;
                   let preview = '';
-                  if (manualHitResult === 'miss') {
+                  // 自动判定：攻击检定值根据 AC 自动判断
+                  let autoHit: boolean | null = null;
+                  if (manualAttackRoll && target.ac !== undefined) {
+                    const roll = parseInt(manualAttackRoll, 10);
+                    if (!isNaN(roll)) autoHit = roll >= target.ac;
+                  }
+                  if (autoHit === false) {
                     preview = `对 ${target.name} 的攻击未命中，用${manualAttackMethod || '???'}攻击落空`;
-                  } else {
+                  } else if (autoHit === true) {
                     const dmg = parseInt(manualDamage, 10) || 0;
                     preview = `对 ${target.name} 的攻击命中，用${manualAttackMethod || '???'}造成${dmg}点伤害`;
                     if (manualIsKill) preview += `，干掉了他`;
+                  } else {
+                    preview = '请先填写攻击检定值';
                   }
                   return (
                     <div className="p-2 rounded-lg bg-bg-dark/50 border border-border-dark text-xs dark:text-text-dark-muted light:text-text-light-muted">
@@ -1629,11 +1688,14 @@ export default function CombatSession() {
                     className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
                   >
                     <option value="">恢复自己</option>
-                    {record.combatants.map(c => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}（先攻 {c.initiative}）
-                      </option>
-                    ))}
+                    {record.combatants.map(c => {
+                      const circle = getInitiativeCircle(c.id);
+                      return (
+                        <option key={c.id} value={c.id}>
+                          {circle} {c.name}（先攻 {c.initiative}）
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -1696,7 +1758,6 @@ export default function CombatSession() {
                 onClick={() => {
                   setManualRecordType('attack');
                   setManualTargetId('');
-                  setManualHitResult('hit');
                   setManualAttackMethod('');
                   setManualDamage('');
                   setManualIsKill(false);

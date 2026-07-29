@@ -11,9 +11,19 @@ interface Props {
   attack: Attack | NpcAttack;
   /** 是否处于检定劣势（投掷武器处于最大射程段）—— 暂作展示提示 */
   disadvantage?: boolean;
-  /** 应用伤害：由 main 调用 combatStore.update 写入新 HP；致命伤害（HP 归零）时附带状态决定 */
-  onApplyDamage: (damage: number, newHp: number, status?: 'unconscious' | 'dead') => void;
+  /** 应用伤害：由 main 调用 combatStore.update 写入新 HP；致命伤害（HP 归零）时附带状态决定，
+   * 同时返回完整信息用于 main 写入先攻表格 */
+  onApplyDamage: (payload: {
+    damage: number;
+    newHp: number;
+    status?: 'unconscious' | 'dead';
+    diceValues: number[];   // 实际输入/摇出的各骰子值
+    damageBonus: number;    // 伤害加值
+    isCritical: boolean;    // 是否重击（由主方传入）
+  }) => void;
   onClose: () => void;
+  /** 由攻击检定阶段带入，决定是否为重击 */
+  isCritical?: boolean;
 }
 
 /** 解析伤害骰字符串，如 "1d6+2"、"2d8 + 3"、"d4"、"1d6" */
@@ -71,6 +81,7 @@ export default function CombatDamageModal({
   disadvantage,
   onApplyDamage,
   onClose,
+  isCritical = false,
 }: Props) {
   const parsed = useMemo(() => parseDamage(attack.damage || ''), [attack.damage]);
 
@@ -148,7 +159,15 @@ export default function CombatDamageModal({
   const handleConfirm = () => {
     // NPC 致命伤害必须先做状态决定；PC 致命伤害不附带状态（角色机制暂不考虑）
     if (needDownedDecision && !downedStatus) return;
-    onApplyDamage(damage, newHp, needDownedDecision ? downedStatus! : undefined);
+    const diceNums = diceValues.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+    onApplyDamage({
+      damage,
+      newHp,
+      status: needDownedDecision ? downedStatus! : undefined,
+      diceValues: diceNums,
+      damageBonus: parsed.bonus,
+      isCritical,
+    });
     onClose();
   };
 
@@ -165,6 +184,9 @@ export default function CombatDamageModal({
             <span className="font-bold dark:text-text-dark light:text-text-light">伤害结算</span>
             {disadvantage && (
               <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">检定劣势</span>
+            )}
+            {isCritical && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">重击</span>
             )}
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-white/10">
