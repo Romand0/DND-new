@@ -71,6 +71,68 @@ function renderSpellDice(text: string): ReactNode[] {
   return parts;
 }
 
+// 单张法术卡片渲染：attacks 与 roll 两个阶段共用
+function renderSpellCard(
+  spell: Spell,
+  level: number,
+  onCast?: (spell: Spell) => void,
+  activeSpellName?: string
+) {
+  const isActive = activeSpellName === spell.name;
+  return (
+    <div
+      className={`rounded-lg p-2.5 border ${
+        isActive
+          ? 'border-primary bg-primary/5'
+          : 'dark:bg-bg-dark light:bg-bg-light-2 dark:border-border-dark/50 light:border-border-light/50'
+      }`}
+    >
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="font-medium text-sm dark:text-text-dark light:text-text-light">{spell.name}</span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+          {level === 0 ? '戏法' : `${level}环`}
+        </span>
+        {spell.concentration && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">专注</span>
+        )}
+        {spell.ritual && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">仪式</span>
+        )}
+      </div>
+      <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap gap-x-2">
+        {spell.castingTime && <span>· {spell.castingTime}</span>}
+        {spell.range && <span>· 射程 {spell.range}</span>}
+        {spell.duration && <span>· {spell.duration}</span>}
+        {spell.school && <span>· {spell.school}</span>}
+      </div>
+      {spell.description && (
+        <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1.5 leading-relaxed whitespace-pre-line">
+          {renderSpellDice(spell.description)}
+        </div>
+      )}
+      {spell.heightenedEffect && (
+        <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1.5 flex items-start gap-1.5">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 shrink-0">升环</span>
+          <span className="leading-relaxed">{spell.heightenedEffect}</span>
+        </div>
+      )}
+      {onCast && (
+        <button
+          onClick={() => onCast(spell)}
+          disabled={isActive}
+          className={`w-full mt-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+            isActive
+              ? 'bg-primary/20 text-primary cursor-default'
+              : 'bg-primary/10 text-primary hover:bg-primary/20'
+          }`}
+        >
+          {isActive ? '当前施放中' : '施放此法术 → 进入检定'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss }: Props) {
   const [stage, setStage] = useState<Stage>('attacks');
   const [selectedAttack, setSelectedAttack] = useState<Attack | NpcAttack | null>(null);
@@ -86,8 +148,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const [expandedThrownIdx, setExpandedThrownIdx] = useState<number | null>(null);
   // 自然 20 触发时被锁定的骰子索引（另一个空未填则锁定只读）
   const [lockedDice, setLockedDice] = useState<Set<number>>(new Set());
-  // 检定场景：武器攻击 / 法术攻击 / 目标豁免 / 自动命中
-  const [checkScene, setCheckScene] = useState<'weapon' | 'spellAttack' | 'savingThrow' | 'autoHit'>('weapon');
+  // 检定场景：武器攻击 / 法术攻击 / 目标豁免 / 自动命中 / 治疗
+  const [checkScene, setCheckScene] = useState<'weapon' | 'spellAttack' | 'savingThrow' | 'autoHit' | 'heal'>('weapon');
   // 法术速查面板开关
   const [showSpellReference, setShowSpellReference] = useState(false);
   // 目标豁免属性（savingThrow 场景下由用户选择）
@@ -393,6 +455,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       setRollResult(null);
       return;
     }
+    // heal 场景：与法术攻击同语义（自然 20 满治疗、自然 1 失败），即时判定
     // weapon / spellAttack 场景：保留自然 20 即时命中逻辑
     const mode = computeRollMode(selectedAttack, usageMode ?? undefined);
     if (mode !== 'none') {
@@ -407,7 +470,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
         const otherEmpty = otherVal === '' || otherVal === undefined;
         // 另一个空未填则锁定只读
         setLockedDice(otherEmpty ? new Set([otherIdx]) : new Set());
-        const bonus = checkScene === 'spellAttack' ? (spellAttackBonus ?? 0) : getAttackBonus(selectedAttack);
+        const bonus = checkScene === 'spellAttack' || checkScene === 'heal' ? (spellAttackBonus ?? 0) : getAttackBonus(selectedAttack);
         setRollResult({
           d20: 20,
           bonus,
@@ -418,6 +481,30 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
           disadvantage: mode === 'disadvantage',
         });
         return;
+      }
+      // heal 场景下任一骰为自然 1：即时失败（不治疗）
+      if (checkScene === 'heal') {
+        const idx1 = newValues.findIndex(v => {
+          const n = parseInt(v, 10);
+          return !isNaN(n) && n === 1;
+        });
+        if (idx1 !== -1) {
+          const otherIdx = idx1 === 0 ? 1 : 0;
+          const otherVal = newValues[otherIdx];
+          const otherEmpty = otherVal === '' || otherVal === undefined;
+          setLockedDice(otherEmpty ? new Set([otherIdx]) : new Set());
+          const bonus = spellAttackBonus ?? 0;
+          setRollResult({
+            d20: 1,
+            bonus,
+            total: 1 + bonus,
+            isNatural1: true,
+            isNatural20: false,
+            hit: false,
+            disadvantage: mode === 'disadvantage',
+          });
+          return;
+        }
       }
     }
     setLockedDice(new Set());
@@ -432,7 +519,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   };
 
   // 切换检定场景：清空状态重新开始
-  const handleSceneChange = (scene: 'weapon' | 'spellAttack' | 'savingThrow' | 'autoHit') => {
+  const handleSceneChange = (scene: 'weapon' | 'spellAttack' | 'savingThrow' | 'autoHit' | 'heal') => {
     setCheckScene(scene);
     setD20Values(['']);
     setRollResult(null);
@@ -496,6 +583,42 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
         const saveTotal = d20 + bonus;
         // 豁免总值 ≥ DC = 抵抗（未命中）；< DC = 失败（命中）
         hit = isNatural20 ? false : isNatural1 ? true : saveTotal < spellSaveDC;
+      }
+      const total = d20 + bonus;
+      setRollResult({ d20, bonus, total, isNatural1, isNatural20, hit, disadvantage: mode === 'disadvantage' });
+      return;
+    }
+
+    // heal 场景：d20 + 法术攻击加值 vs 施法 DC，自然 20 自动成功、自然 1 自动失败
+    // 检定总值 ≥ DC = 治疗成功（hit=true），反之失败
+    if (checkScene === 'heal') {
+      if (spellSaveDC === null || spellAttackBonus === null) return;
+      const parsed = d20Values.map(v => parseInt(v, 10));
+      const allValid = parsed.every(n => !isNaN(n) && n >= 1 && n <= 20);
+      if (!allValid) return;
+      if (mode !== 'none' && parsed.length < 2) return;
+      const bonus = spellAttackBonus;
+      const hasNatural20 = mode !== 'none' && parsed.some(n => n === 20);
+      const hasNatural1 = mode !== 'none' && parsed.some(n => n === 1);
+      let d20: number;
+      let isNatural1: boolean;
+      let isNatural20: boolean;
+      let hit: boolean;
+      if (hasNatural20) {
+        d20 = 20;
+        isNatural1 = false;
+        isNatural20 = true;
+        hit = true;
+      } else if (hasNatural1) {
+        d20 = 1;
+        isNatural1 = true;
+        isNatural20 = false;
+        hit = false;
+      } else {
+        d20 = mode === 'advantage' ? Math.max(...parsed) : mode === 'disadvantage' ? Math.min(...parsed) : parsed[0];
+        isNatural1 = d20 === 1;
+        isNatural20 = d20 === 20;
+        hit = isNatural20 ? true : isNatural1 ? false : d20 + bonus >= spellSaveDC;
       }
       const total = d20 + bonus;
       setRollResult({ d20, bonus, total, isNatural1, isNatural20, hit, disadvantage: mode === 'disadvantage' });
@@ -643,47 +766,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                       {knownSpells
                         .slice()
                         .sort((a, b) => a.level - b.level || a.spell.name.localeCompare(b.spell.name))
-                        .map(({ spell, isCantrip: _isCantrip, level }) => (
-                          <div
-                            key={spell.id}
-                            className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 p-2.5 border dark:border-border-dark/50 light:border-border-light/50"
-                          >
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-sm dark:text-text-dark light:text-text-light">{spell.name}</span>
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                                {level === 0 ? '戏法' : `${level}环`}
-                              </span>
-                              {spell.concentration && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">专注</span>
-                              )}
-                              {spell.ritual && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">仪式</span>
-                              )}
-                            </div>
-                            <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap gap-x-2">
-                              {spell.castingTime && <span>· {spell.castingTime}</span>}
-                              {spell.range && <span>· 射程 {spell.range}</span>}
-                              {spell.duration && <span>· {spell.duration}</span>}
-                              {spell.school && <span>· {spell.school}</span>}
-                            </div>
-                            {spell.description && (
-                              <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1.5 leading-relaxed whitespace-pre-line">
-                                {renderSpellDice(spell.description)}
-                              </div>
-                            )}
-                            {spell.heightenedEffect && (
-                              <div className="text-[11px] mt-1 text-purple-400">
-                                <span className="font-medium">升环：</span>{spell.heightenedEffect}
-                              </div>
-                            )}
-                            <button
-                              onClick={() => handleCastSpell(spell)}
-                              className="w-full mt-2 py-1 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
-                            >
-                              施放此法术 → 进入检定
-                            </button>
-                          </div>
-                        ))}
+                        .map(({ spell, level }) => renderSpellCard(spell, level, handleCastSpell, selectedAttack?.name))}
                       <div className="text-[10px] text-center dark:text-text-dark-muted light:text-text-light-muted pt-1">
                         提示：看法术后选择对应攻击方式进入检定，可在 roll 阶段切换为「法术攻击 / 目标豁免 / 自动命中」
                       </div>
@@ -880,10 +963,33 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
               : (!isDual && parsedDice.length === 1 && !isNaN(parsedDice[0]) ? parsedDice[0] : null);
             return (
             <div className="space-y-4">
+              {/* 法术参考：roll 阶段同样展示，可滑动 */}
+              {isSpellcaster && knownSpells.length > 0 && (
+                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2">
+                  <div className="flex items-center justify-between mb-1.5 px-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5 text-primary" />
+                      <span className="text-xs font-medium dark:text-text-dark light:text-text-light">法术参考</span>
+                    </div>
+                    <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">滑动查看</span>
+                  </div>
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+                    {knownSpells
+                      .slice()
+                      .sort((a, b) => a.level - b.level || a.spell.name.localeCompare(b.spell.name))
+                      .map(({ spell, level }) => renderSpellCard(spell, level, handleCastSpell, selectedAttack.name))}
+                  </div>
+                </div>
+              )}
+
               {/* 选择的攻击方式 + 手动优劣势覆盖 */}
               <div className="relative rounded-lg border border-danger/30 bg-danger/5 p-3">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-medium text-sm dark:text-text-dark light:text-text-light">{selectedAttack.name}</span>
+                  {/* 标识当前是法术还是武器 */}
+                  {isSpellcaster && knownSpells.some(s => s.spell.name === selectedAttack.name) && checkScene !== 'weapon' && (
+                    <span className="text-xs px-1.5 py-0.5 rounded bg-primary/10 text-primary">法术</span>
+                  )}
                   {showMeleeTag && (
                     <span className="text-xs px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400">近战</span>
                   )}
@@ -904,6 +1010,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     ? `施法 DC ${spellSaveDC ?? '-'}（${spellAbilityLabel}）`
                     : checkScene === 'autoHit'
                     ? '自动命中 · 无需检定'
+                    : checkScene === 'heal'
+                    ? `治疗检定 +${spellAttackBonus ?? 0} vs DC ${spellSaveDC ?? '-'}（${spellAbilityLabel}）`
                     : `攻击加值 ${selectedAttack.attackBonus || '+0'}`}
                   {attackerPos && targetPos && (
                     <span className="ml-2">距离 {distanceCells} 格（{distanceCells * 5}尺）</span>
@@ -974,21 +1082,33 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                 </div>
               )}
 
-              {/* 检定场景切换器：施法者可切到法术攻击 / 目标豁免 / 自动命中 */}
-              {isSpellcaster && (
+              {/* 检定场景切换器：法术场景下隐藏武器攻击，加治疗场景 */}
+              {isSpellcaster && (() => {
+                // 当前选中的攻击是否来自法术速查（fakeAttack 命中已知法术名）
+                const selectedIsSpell = knownSpells.some(s => s.spell.name === selectedAttack.name);
+                const sceneOptions: { key: 'weapon' | 'spellAttack' | 'savingThrow' | 'autoHit' | 'heal'; label: string; desc: string; disabled?: boolean }[] = [];
+                if (!selectedIsSpell) {
+                  sceneOptions.push({ key: 'weapon', label: '武器攻击', desc: 'd20+加值 vs AC' });
+                }
+                sceneOptions.push(
+                  { key: 'spellAttack', label: '法术攻击', desc: `d20+${spellAttackBonus ?? 0} vs AC`, disabled: spellAttackBonus === null },
+                  { key: 'savingThrow', label: '目标豁免', desc: `目标 d20 vs DC ${spellSaveDC ?? '-'}`, disabled: spellSaveDC === null },
+                  { key: 'autoHit', label: '自动命中', desc: '无检定' },
+                  { key: 'heal', label: '恢复生命', desc: `d20+${spellAttackBonus ?? 0} ≥ DC ${spellSaveDC ?? '-'}`, disabled: spellSaveDC === null },
+                );
+                // 若切换到被隐藏的 weapon（不应发生，但兜底），自动切到 spellAttack
+                if (selectedIsSpell && checkScene === 'weapon') {
+                  setCheckScene('spellAttack');
+                }
+                return (
                 <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
                   <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5">检定场景</div>
                   <div className="grid grid-cols-2 gap-1.5">
-                    {([
-                      { key: 'weapon', label: '武器攻击', desc: 'd20+加值 vs AC' },
-                      { key: 'spellAttack', label: '法术攻击', desc: `d20+${spellAttackBonus ?? 0} vs AC` },
-                      { key: 'savingThrow', label: '目标豁免', desc: `目标 d20 vs DC ${spellSaveDC ?? '-'}` },
-                      { key: 'autoHit', label: '自动命中', desc: '无检定' },
-                    ] as const).map(opt => (
+                    {sceneOptions.map(opt => (
                       <button
                         key={opt.key}
                         onClick={() => handleSceneChange(opt.key)}
-                        disabled={opt.key !== 'weapon' && opt.key !== 'autoHit' && (opt.key === 'spellAttack' ? spellAttackBonus === null : opt.key === 'savingThrow' ? spellSaveDC === null : false)}
+                        disabled={opt.disabled}
                         className={`py-1.5 px-2 rounded-lg text-xs font-medium transition-all ${
                           checkScene === opt.key
                             ? 'bg-primary text-white ring-2 ring-primary'
@@ -1001,7 +1121,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     ))}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* 目标豁免属性选择（仅 savingThrow 场景） */}
               {checkScene === 'savingThrow' && spellSaveDC !== null && (
@@ -1038,7 +1159,11 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
               <div>
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium dark:text-text-dark light:text-text-light">
-                    {checkScene === 'savingThrow' ? '目标豁免骰 d20' : 'd20 攻击骰'}{isDual ? '（双骰）' : ''}
+                    {checkScene === 'savingThrow'
+                      ? '目标豁免骰 d20'
+                      : checkScene === 'heal'
+                      ? '治疗检定骰 d20'
+                      : 'd20 攻击骰'}{isDual ? '（双骰）' : ''}
                   </label>
                   {isDual && (
                     <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
@@ -1095,13 +1220,20 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
               {/* 计算预览：根据场景显示不同加值与比对值 */}
               {checkScene !== 'autoHit' && previewD20 !== null && (() => {
-                const sceneBonus = checkScene === 'spellAttack'
+                const sceneBonus = checkScene === 'spellAttack' || checkScene === 'heal'
                   ? (spellAttackBonus ?? 0)
                   : checkScene === 'savingThrow'
                   ? (parseInt(targetSaveBonus, 10) || 0)
                   : getAttackBonus(selectedAttack);
-                const compareLabel = checkScene === 'savingThrow' ? 'DC' : 'AC';
-                const compareValue = checkScene === 'savingThrow' ? (spellSaveDC ?? 0) : (target.ac || 0);
+                const compareLabel = checkScene === 'savingThrow' || checkScene === 'heal' ? 'DC' : 'AC';
+                const compareValue = checkScene === 'savingThrow' || checkScene === 'heal'
+                  ? (spellSaveDC ?? 0)
+                  : (target.ac || 0);
+                const totalColor = checkScene === 'savingThrow'
+                  ? 'text-amber-400'
+                  : checkScene === 'heal'
+                  ? 'text-green-400'
+                  : 'text-danger';
                 return (
                   <div className="rounded-lg dark:bg-bg-dark light:bg-bg-light-2 p-3 text-center">
                     <div className="flex items-center justify-center gap-2 text-lg font-bold flex-wrap">
@@ -1114,11 +1246,15 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                       <span className="dark:text-text-dark-muted light:text-text-light-muted">+</span>
                       <span className="text-primary">{sceneBonus}</span>
                       <span className="dark:text-text-dark-muted light:text-text-light-muted">=</span>
-                      <span className={checkScene === 'savingThrow' ? 'text-amber-400' : 'text-danger'}>{previewD20 + sceneBonus}</span>
+                      <span className={totalColor}>{previewD20 + sceneBonus}</span>
                       <span className="dark:text-text-dark-muted light:text-text-light-muted text-sm">vs {compareLabel} {compareValue}</span>
                     </div>
                     <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">
-                      {checkScene === 'savingThrow' ? '目标豁免总值' : '攻击检定值'}
+                      {checkScene === 'savingThrow'
+                        ? '目标豁免总值'
+                        : checkScene === 'heal'
+                        ? '治疗检定总值'
+                        : '攻击检定值'}
                     </div>
                   </div>
                 );
@@ -1152,12 +1288,14 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
               {/* 检定结果：在同一个窗口页下方弹出 */}
               {rollResult && (
                 <div className="space-y-3 pt-2 border-t dark:border-border-dark light:border-border-light animate-in fade-in slide-in-from-bottom duration-200">
-                  {/* 比对值：AC（攻击场景）或 DC（豁免场景）或 自动命中提示 */}
+                  {/* 比对值：AC（攻击场景）/ DC（豁免、治疗场景）/ 自动命中提示 */}
                   <div className="text-center pt-2">
-                    {checkScene === 'savingThrow' ? (
+                    {checkScene === 'savingThrow' || checkScene === 'heal' ? (
                       <>
-                        <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">施法 DC </span>
-                        <span className="text-lg font-bold text-amber-400">{spellSaveDC}</span>
+                        <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                          {checkScene === 'heal' ? '治疗 DC ' : '施法 DC '}
+                        </span>
+                        <span className={`text-lg font-bold ${checkScene === 'heal' ? 'text-green-400' : 'text-amber-400'}`}>{spellSaveDC}</span>
                       </>
                     ) : checkScene === 'autoHit' ? (
                       <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">自动命中 · 无需比对</span>
@@ -1169,7 +1307,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     )}
                   </div>
 
-                  {/* 列式判定：savingThrow 场景语义反转 */}
+                  {/* 列式判定 */}
                   <div className={`rounded-lg p-4 text-center font-bold text-base sm:text-lg ${
                     checkScene === 'savingThrow'
                       ? (rollResult.isNatural20
@@ -1179,6 +1317,14 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                         : rollResult.hit
                         ? 'bg-yellow-500/20 text-yellow-500'      // 命中
                         : 'bg-blue-500/15 text-blue-400')         // 抵抗
+                      : checkScene === 'heal'
+                      ? (rollResult.isNatural20
+                        ? 'bg-yellow-500/20 text-yellow-500'      // 自然 20 = 满治疗
+                        : rollResult.isNatural1
+                        ? 'bg-red-900/30 text-red-400'            // 自然 1 = 治疗失败
+                        : rollResult.hit
+                        ? 'bg-green-500/15 text-green-500'        // 治疗成功
+                        : 'bg-gray-500/15 text-gray-400')         // 治疗失败
                       : (rollResult.isNatural1
                         ? 'bg-red-900/30 text-red-400'
                         : rollResult.isNatural20
@@ -1195,6 +1341,14 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                         : rollResult.hit
                         ? '豁免失败，法术命中'
                         : '豁免成功，法术未命中')
+                      : checkScene === 'heal'
+                      ? (rollResult.isNatural20
+                        ? '自然 20，治疗满效！'
+                        : rollResult.isNatural1
+                        ? '自然 1，治疗失败！'
+                        : rollResult.hit
+                        ? '治疗检定值≥DC，治疗成功'
+                        : '治疗检定值＜DC，治疗失败')
                       : checkScene === 'autoHit'
                       ? '法术自动命中'
                       : (rollResult.isNatural1
@@ -1211,7 +1365,9 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     onClick={handleConfirmResult}
                     className="w-full py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
                   >
-                    {rollResult.hit ? '确认命中，进入伤害结算' : '确认未命中'}
+                    {checkScene === 'heal'
+                      ? (rollResult.hit ? '确认治疗成功，进入结算' : '确认治疗失败')
+                      : rollResult.hit ? '确认命中，进入伤害结算' : '确认未命中'}
                   </button>
                 </div>
               )}
