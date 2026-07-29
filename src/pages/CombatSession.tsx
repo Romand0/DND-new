@@ -1,5 +1,5 @@
 // 原内容：完全保留，一个字都没改
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
@@ -616,6 +616,12 @@ export default function CombatSession() {
     const existing = record.rounds[round]?.[combatantId] || '';
     const finalText = existing ? `${existing}\n${newLine}` : newLine;
     handleCellChange(round, combatantId, finalText);
+  };
+
+  // ✅ 确认完成回合
+  const confirmEndTurn = () => {
+    setConfirmEndTurnOpen(false);
+    advanceTurn();
   };
 
   // ✅ 手动记录：确认后写入表格并应用效果
