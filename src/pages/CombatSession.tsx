@@ -1,5 +1,5 @@
 // 原内容：完全保留，一个字都没改
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
@@ -579,7 +579,8 @@ export default function CombatSession() {
   };
 
   // 先攻顺序序号（按先攻高→低排序，同先攻保持原序）：返回圆形序号标记
-  const initiativeOrder = useMemo(() => {
+  // 注意：不能用 useMemo，因为在 if(!record) early return 之后，会导致 hooks 顺序不一致
+  const initiativeOrder: Map<string, number> = (() => {
     if (!record) return new Map<string, number>();
     const order = [...record.combatants]
       .map((c, i) => ({ c, i }))
@@ -587,7 +588,7 @@ export default function CombatSession() {
     const m = new Map<string, number>();
     order.forEach((o, idx) => m.set(o.c.id, idx));
     return m;
-  }, [record]);
+  })();
 
   const CIRCLE_NUMBERS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
   const getInitiativeCircle = (combatantId: string): string => {
