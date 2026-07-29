@@ -741,6 +741,16 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
                 </>
               )}
 
+              {/* 无检定场景：单独的「进入效果骰池」按钮 */}
+              {checkType === 'none' && !rollResult && (
+                <button
+                  onClick={handleConfirmCheck}
+                  className="w-full py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
+                >
+                  进入效果骰池
+                </button>
+              )}
+
               {/* 检定结果 */}
               {rollResult && (
                 <div className="space-y-3 pt-2 border-t dark:border-border-dark light:border-border-light animate-in fade-in slide-in-from-bottom duration-200">
