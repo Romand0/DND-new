@@ -8,7 +8,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack } from '@/types/combat';
-import { Plus, Trash2, ArrowLeft, Users, X, GripVertical } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
@@ -55,6 +55,22 @@ export default function CombatSession() {
   const [tiedOrder, setTiedOrder] = useState<Combatant[]>([]);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  // ✅ 突袭相关状态
+  const [surpriseAttackOpen, setSurpriseAttackOpen] = useState(false);
+  const [surpriseAttackRound, setSurpriseAttackRound] = useState(0);
+  const [surprisedCombatants, setSurprisedCombatants] = useState<Set<string>>(new Set());
+  // ✅ 手动记录相关状态
+  const [selectedCell, setSelectedCell] = useState<{ round: number; combatantId: string } | null>(null);
+  const [manualRecordOpen, setManualRecordOpen] = useState(false);
+  const [manualRecordType, setManualRecordType] = useState<'attack' | 'recovery' | null>(null);
+  const [manualTargetId, setManualTargetId] = useState('');
+  const [manualHitResult, setManualHitResult] = useState<'hit' | 'miss'>('hit');
+  const [manualAttackMethod, setManualAttackMethod] = useState('');
+  const [manualDamage, setManualDamage] = useState('');
+  const [manualIsKill, setManualIsKill] = useState(false);
+  const [manualHealMethod, setManualHealMethod] = useState('');
+  const [manualHealAmount, setManualHealAmount] = useState('');
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -348,20 +364,134 @@ export default function CombatSession() {
   const handleApplyDamage = (targetId: string, newHp: number, status?: 'unconscious' | 'dead') => {
     const updatedCombatants = record.combatants.map(c => {
       if (c.id !== targetId) return c;
-      // 致命伤害：根据状态决定写入 isUnconscious / isDead；非致命则清除倒下标记
       if (newHp <= 0 && status === 'dead') {
         return { ...c, currentHp: newHp, isDead: true, isUnconscious: false };
       }
       if (newHp <= 0 && status === 'unconscious') {
         return { ...c, currentHp: newHp, isDead: false, isUnconscious: true };
       }
-      // 非致命伤害：恢复后清除倒下状态
       return { ...c, currentHp: newHp, isDead: false, isUnconscious: false };
     });
     combatStore.update(record.id, {
       combatants: updatedCombatants,
       updatedAt: Date.now(),
     });
+  };
+
+  // ✅ 突袭：打开突袭选择窗口
+  const openSurpriseAttackModal = (round: number) => {
+    setSurpriseAttackRound(round);
+    // 初始化当前回合已标记为被突袭的角色
+    const existing = new Set<string>();
+    const roundData = record.rounds[round];
+    if (roundData) {
+      Object.entries(roundData).forEach(([id, val]) => {
+        if (val === '被突袭') existing.add(id);
+      });
+    }
+    setSurprisedCombatants(existing);
+    setSurpriseAttackOpen(true);
+  };
+
+  // ✅ 突袭：确认后写入被突袭标记
+  const confirmSurpriseAttack = () => {
+    const updatedRounds = [...record.rounds];
+    updatedRounds[surpriseAttackRound] = { ...updatedRounds[surpriseAttackRound] };
+    record.combatants.forEach(c => {
+      if (surprisedCombatants.has(c.id)) {
+        updatedRounds[surpriseAttackRound][c.id] = '被突袭';
+      } else {
+        // 不清除已有标记（避免误操作），仅在首次设置时处理
+        if (updatedRounds[surpriseAttackRound][c.id] === '被突袭' && !surprisedCombatants.has(c.id)) {
+          updatedRounds[surpriseAttackRound][c.id] = '';
+        }
+      }
+    });
+    combatStore.update(record.id, {
+      rounds: updatedRounds,
+      updatedAt: Date.now(),
+    });
+    setSurpriseAttackOpen(false);
+    setSurprisedCombatants(new Set());
+  };
+
+  // ✅ 手动记录：确认后写入表格并应用效果
+  const confirmManualRecord = () => {
+    if (!selectedCell) return;
+    const { round, combatantId } = selectedCell;
+    const target = record.combatants.find(c => c.id === manualTargetId);
+    const attacker = record.combatants.find(c => c.id === combatantId);
+
+    if (manualRecordType === 'attack') {
+      if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
+      if (!target) { alert('请选择目标'); return; }
+
+      let text = '';
+      if (manualHitResult === 'miss') {
+        text = `对 ${target.name} 的攻击未命中，用${manualAttackMethod}攻击落空`;
+      } else {
+        const dmg = parseInt(manualDamage, 10);
+        if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
+        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害`;
+        if (manualIsKill && target.currentHp !== undefined) {
+          const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
+          const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
+          handleApplyDamage(target.id, newHp, status);
+          text += `，干掉了他`;
+        } else if (target.currentHp !== undefined) {
+          const newHp = Math.max(0, target.currentHp - dmg);
+          handleApplyDamage(target.id, newHp);
+        }
+      }
+      handleCellChange(round, combatantId, text);
+    } else if (manualRecordType === 'recovery') {
+      if (!manualHealMethod.trim()) { alert('请填写恢复方式'); return; }
+      const amount = parseInt(manualHealAmount, 10);
+      if (isNaN(amount) || amount <= 0) { alert('请输入有效的恢复量（正整数）'); return; }
+      if (!attacker) return;
+
+      let targetHpId = manualTargetId;
+      let targetName = target?.name || '';
+      if (!target) {
+        // 如果没选目标，默认恢复自己
+        targetHpId = combatantId;
+        targetName = attacker.name;
+      }
+      const tgt = record.combatants.find(c => c.id === targetHpId);
+      if (!tgt) return;
+
+      const newHp = Math.min(tgt.maxHp ?? tgt.currentHp ?? 0, (tgt.currentHp ?? 0) + amount);
+      handleApplyDamage(tgt.id, newHp);
+
+      const text = `用${manualHealMethod}恢复了${targetName} ${amount}点生命值`;
+      handleCellChange(round, combatantId, text);
+    }
+
+    // 重置表单
+    setManualRecordOpen(false);
+    setManualRecordType(null);
+    setManualTargetId('');
+    setManualHitResult('hit');
+    setManualAttackMethod('');
+    setManualDamage('');
+    setManualIsKill(false);
+    setManualHealMethod('');
+    setManualHealAmount('');
+    setSelectedCell(null);
+  };
+
+  // ✅ 手动记录：关闭窗口
+  const cancelManualRecord = () => {
+    setManualRecordOpen(false);
+    setManualRecordType(null);
+    setManualTargetId('');
+    setManualHitResult('hit');
+    setManualAttackMethod('');
+    setManualDamage('');
+    setManualIsKill(false);
+    setManualHealMethod('');
+    setManualHealAmount('');
+    setSelectedCell(null);
   };
 
   // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）
@@ -769,18 +899,51 @@ export default function CombatSession() {
             {record.rounds.map((round, roundIndex) => (
               <tr key={roundIndex} className="border-t dark:border-border-dark/50 light:border-border-light/50">
                 <td className="p-2 border-r dark:border-border-dark light:border-border-light sticky left-0 dark:bg-bg-dark light:bg-bg-light font-medium text-center">
-                  {roundIndex + 1}
+                  <button
+                    onClick={() => openSurpriseAttackModal(roundIndex)}
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-primary/10 text-primary transition-colors cursor-pointer"
+                    title="设置被突袭角色"
+                  >
+                    {roundIndex + 1}
+                  </button>
                 </td>
                 {record.combatants.map((c) => {
                   const action = round[c.id] || '';
                   const isEditing =
                     editingCell?.round === roundIndex &&
                     editingCell?.combatantId === c.id;
+                  const isSurprised = action === '被突袭';
+                  const isEmpty = !action && !isEditing;
+                  const isSelected = selectedCell?.round === roundIndex && selectedCell?.combatantId === c.id;
+
+                  if (isSurprised) {
+                    return (
+                      <td
+                        key={c.id}
+                        className="p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] dark:bg-yellow-500/10 light:bg-yellow-100/50 text-center"
+                        title="被突袭：本回合被突袭，失去先攻"
+                      >
+                        <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">被突袭</span>
+                      </td>
+                    );
+                  }
+
                   return (
                     <td
                       key={c.id}
-                      className="p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] cursor-text hover:bg-white/5 transition-colors"
-                      onClick={() => setEditingCell({ round: roundIndex, combatantId: c.id })}
+                      className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] transition-colors ${
+                        isSelected ? 'bg-primary/10 ring-2 ring-inset ring-primary/30' : 'hover:bg-white/5'
+                      } ${isEmpty ? 'cursor-pointer' : 'cursor-text'}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isEmpty) {
+                          setSelectedCell({ round: roundIndex, combatantId: c.id });
+                          setEditingCell(null);
+                        } else {
+                          setEditingCell({ round: roundIndex, combatantId: c.id });
+                          setSelectedCell(null);
+                        }
+                      }}
                     >
                       {isEditing ? (
                         <textarea
@@ -794,6 +957,50 @@ export default function CombatSession() {
                           className="w-full bg-transparent outline-none resize-none text-xs"
                           rows={2}
                         />
+                      ) : isSelected ? (
+                        <div className="flex flex-col items-center gap-1 py-1">
+                          <div className="whitespace-pre-wrap text-xs min-h-[2em] w-full text-center opacity-50 italic">空白记录</div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setManualRecordType('attack');
+                              setManualRecordOpen(true);
+                              setManualTargetId('');
+                              setManualHitResult('hit');
+                              setManualAttackMethod('');
+                              setManualDamage('');
+                              setManualIsKill(false);
+                              setManualHealMethod('');
+                              setManualHealAmount('');
+                            }}
+                            className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
+                            title="手动记录"
+                          >
+                            <Pencil className="w-3 h-3" />
+                            记录
+                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCell(null);
+                              }}
+                              className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors"
+                            >
+                              取消
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingCell({ round: roundIndex, combatantId: c.id });
+                                setSelectedCell(null);
+                              }}
+                              className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors"
+                            >
+                              手动输入
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <div className="whitespace-pre-wrap text-xs min-h-[2em]">{action || ''}</div>
                       )}
@@ -868,6 +1075,361 @@ export default function CombatSession() {
           }}
           onClose={() => setDamageModal(null)}
         />
+      )}
+
+      {/* ✅ 突袭选择弹窗 */}
+      {surpriseAttackOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                突袭 · 第 {surpriseAttackRound + 1} 轮
+              </h3>
+              <button
+                onClick={() => {
+                  setSurpriseAttackOpen(false);
+                  setSurprisedCombatants(new Set());
+                }}
+                className="p-1 rounded hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-3">
+              选择在该轮被突袭的角色，被突袭角色在本回合失去先攻
+            </p>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {record.combatants.map(c => {
+                const isChecked = surprisedCombatants.has(c.id);
+                return (
+                  <label
+                    key={c.id}
+                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
+                      isChecked
+                        ? 'border-primary bg-primary/5'
+                        : 'dark:border-border-dark light:border-border-light hover:border-primary/50'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => {
+                        setSurprisedCombatants(prev => {
+                          const next = new Set(prev);
+                          if (next.has(c.id)) next.delete(c.id);
+                          else next.add(c.id);
+                          return next;
+                        });
+                      }}
+                      className="rounded"
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium text-sm dark:text-text-dark light:text-text-light">{c.name}</div>
+                      <div className="text-xs opacity-60">
+                        {c.isPc ? '玩家角色' : 'NPC'}
+                        {c.initiative ? ` · 先攻 ${c.initiative}` : ''}
+                      </div>
+                    </div>
+                    {c.isDead && <span className="text-xs text-danger">已死亡</span>}
+                  </label>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setSurpriseAttackOpen(false);
+                  setSurprisedCombatants(new Set());
+                }}
+                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmSurpriseAttack}
+                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
+              >
+                确定（{surprisedCombatants.size}）
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ 手动记录弹窗 */}
+      {manualRecordOpen && manualRecordType && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                {manualRecordType === 'attack' ? '攻击记录' : '恢复记录'}
+              </h3>
+              <button
+                onClick={cancelManualRecord}
+                className="p-1 rounded hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {manualRecordType === 'attack' && (
+              <div className="space-y-4">
+                {/* 目标选择 */}
+                <div>
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                    被攻击者
+                  </label>
+                  <select
+                    value={manualTargetId}
+                    onChange={(e) => setManualTargetId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">选择目标...</option>
+                    {record.combatants.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}（先攻 {c.initiative}）
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 命中结果 */}
+                <div>
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                    攻击结果
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setManualHitResult('hit')}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                        manualHitResult === 'hit'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'dark:border-border-dark light:border-border-light'
+                      }`}
+                    >
+                      ✅ 命中
+                    </button>
+                    <button
+                      onClick={() => setManualHitResult('miss')}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                        manualHitResult === 'miss'
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'dark:border-border-dark light:border-border-light'
+                      }`}
+                    >
+                      ❌ 未命中
+                    </button>
+                  </div>
+                </div>
+
+                {/* 攻击方式 */}
+                <div>
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                    攻击方式
+                  </label>
+                  <input
+                    type="text"
+                    value={manualAttackMethod}
+                    onChange={(e) => setManualAttackMethod(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                    placeholder="例如：长剑挥砍"
+                  />
+                </div>
+
+                {/* 伤害（仅命中时显示） */}
+                {manualHitResult === 'hit' && (
+                  <>
+                    <div>
+                      <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                        伤害值（整数，不为0）
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        value={manualDamage}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === '' || (parseInt(v, 10) >= 1)) {
+                            setManualDamage(v);
+                          }
+                        }}
+                        className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                        placeholder="例如：15"
+                      />
+                    </div>
+
+                    {/* 干掉目标 */}
+                    {manualTargetId && (() => {
+                      const target = record.combatants.find(c => c.id === manualTargetId);
+                      if (!target || target.currentHp === undefined) return null;
+                      const dmg = parseInt(manualDamage, 10) || 0;
+                      const willKill = dmg > 0 && dmg >= (target.currentHp ?? 0);
+                      if (!willKill) return null;
+                      return (
+                        <label className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/30 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={manualIsKill}
+                            onChange={(e) => setManualIsKill(e.target.checked)}
+                            className="rounded"
+                          />
+                          <span className="text-xs text-red-500 dark:text-red-400">
+                            造成致命伤害，{target.isPc ? '使其昏迷' : '将其杀死'}
+                          </span>
+                        </label>
+                      );
+                    })()}
+                  </>
+                )}
+
+                {/* 预览文本 */}
+                {manualTargetId && (() => {
+                  const target = record.combatants.find(c => c.id === manualTargetId);
+                  if (!target) return null;
+                  let preview = '';
+                  if (manualHitResult === 'miss') {
+                    preview = `对 ${target.name} 的攻击未命中，用${manualAttackMethod || '???'}攻击落空`;
+                  } else {
+                    const dmg = parseInt(manualDamage, 10) || 0;
+                    preview = `对 ${target.name} 的攻击命中，用${manualAttackMethod || '???'}造成${dmg}点伤害`;
+                    if (manualIsKill) preview += `，干掉了他`;
+                  }
+                  return (
+                    <div className="p-2 rounded-lg bg-bg-dark/50 border border-border-dark text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      <span className="opacity-60">预览：</span>{preview}
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {manualRecordType === 'recovery' && (
+              <div className="space-y-4">
+                {/* 恢复目标 */}
+                <div>
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                    恢复目标（可选，默认恢复自己）
+                  </label>
+                  <select
+                    value={manualTargetId}
+                    onChange={(e) => setManualTargetId(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                  >
+                    <option value="">恢复自己</option>
+                    {record.combatants.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}（先攻 {c.initiative}）
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 恢复方式 */}
+                <div>
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                    恢复方式
+                  </label>
+                  <input
+                    type="text"
+                    value={manualHealMethod}
+                    onChange={(e) => setManualHealMethod(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                    placeholder="例如：治疗术、治疗药水"
+                  />
+                </div>
+
+                {/* 恢复量 */}
+                <div>
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                    恢复量（正整数）
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={manualHealAmount}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === '' || (parseInt(v, 10) >= 1)) {
+                        setManualHealAmount(v);
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                    placeholder="例如：10"
+                  />
+                </div>
+
+                {/* 预览 */}
+                {(() => {
+                  const attacker = selectedCell ? record.combatants.find(c => c.id === selectedCell.combatantId) : null;
+                  const target = manualTargetId
+                    ? record.combatants.find(c => c.id === manualTargetId)
+                    : attacker;
+                  const amount = parseInt(manualHealAmount, 10) || 0;
+                  const method = manualHealMethod || '???';
+                  const tName = target?.name || '自己';
+                  return (
+                    <div className="p-2 rounded-lg bg-bg-dark/50 border border-border-dark text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      <span className="opacity-60">预览：</span>
+                      用{method}恢复了{tName} {amount}点生命值
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* 切换模板 */}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  setManualRecordType('attack');
+                  setManualTargetId('');
+                  setManualHitResult('hit');
+                  setManualAttackMethod('');
+                  setManualDamage('');
+                  setManualIsKill(false);
+                }}
+                className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                  manualRecordType === 'attack'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'dark:border-border-dark light:border-border-light'
+                }`}
+              >
+                <Swords className="w-4 h-4 inline mr-1" />攻击模板
+              </button>
+              <button
+                onClick={() => {
+                  setManualRecordType('recovery');
+                  setManualTargetId('');
+                  setManualHealMethod('');
+                  setManualHealAmount('');
+                }}
+                className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                  manualRecordType === 'recovery'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'dark:border-border-dark light:border-border-light'
+                }`}
+              >
+                <Heart className="w-4 h-4 inline mr-1" />恢复模板
+              </button>
+            </div>
+
+            {/* 操作按钮 */}
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={cancelManualRecord}
+                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+              >
+                取消
+              </button>
+              <button
+                onClick={confirmManualRecord}
+                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
+              >
+                <Check className="w-4 h-4" />确认
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

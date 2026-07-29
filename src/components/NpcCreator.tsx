@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Plus, Save, Keyboard, Users, User, ArrowLeft, Edit3, Check } from 'lucide-react';
+import { X, Plus, Save, Keyboard, Users, User, ArrowLeft, Edit3, Check, Pencil } from 'lucide-react';
 import type { NpcTemplate, NpcAttack, Combatant } from '@/types/combat';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import { rollDice } from '@/data/diceService';
@@ -91,10 +91,11 @@ interface Props {
 }
 
 export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates = [] }: Props) {
-  // 阶段: 'choose' 选择模板/自定义, 'single-edit' 单个编辑, 'batch' 批量列表, 'batch-edit' 批量中编辑单个
-  const [stage, setStage] = useState<'choose' | 'single-edit' | 'batch' | 'batch-edit'>('choose');
+  // 阶段: 'choose' 选择模板/自定义, 'single-edit' 单个编辑, 'batch' 批量列表, 'batch-edit' 批量中编辑单个, 'edit-template' 编辑模板
+  const [stage, setStage] = useState<'choose' | 'single-edit' | 'batch' | 'batch-edit' | 'edit-template'>('choose');
   const [selectedTemplate, setSelectedTemplate] = useState<NpcTemplate | null>(null);
   const [customMode, setCustomMode] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<NpcTemplate | null>(null);
 
   // 批量生成
   const [batchCountInput, setBatchCountInput] = useState('5');
@@ -116,6 +117,11 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
   const handleSelectTemplate = (template: NpcTemplate) => {
     setSelectedTemplate(template);
     setCustomMode(false);
+  };
+
+  const startEditTemplate = (template: NpcTemplate) => {
+    setEditingTemplate(template);
+    setStage('edit-template');
   };
 
   const startCustom = () => {
@@ -215,6 +221,9 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
       setStage('batch');
       setEditingIndex(-1);
       setEditState(null);
+    } else if (stage === 'edit-template') {
+      setStage('choose');
+      setEditingTemplate(null);
     }
   };
 
@@ -234,6 +243,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
               {stage === 'single-edit' && (customMode ? '自定义 NPC' : `${selectedTemplate?.name} · 单个`)}
               {stage === 'batch' && `${selectedTemplate?.name} · 批量生成`}
               {stage === 'batch-edit' && `编辑 ${selectedTemplate?.name}${editingIndex + 1}`}
+              {stage === 'edit-template' && `编辑模板`}
             </h3>
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted">
@@ -258,8 +268,9 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
 
             {/* 模板列表 */}
             <div>
-              <div className="text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
-                从模板创建
+              <div className="text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted flex items-center justify-between">
+                <span>从模板创建</span>
+                <span className="text-xs opacity-60">点击模板选择，点击笔图标编辑</span>
               </div>
               {templates.length === 0 ? (
                 <div className="text-center py-8 text-sm opacity-50 dark:text-text-dark-muted light:text-text-light-muted">
@@ -270,17 +281,29 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
                   {templates.map(t => (
                     <div
                       key={t.id}
-                      onClick={() => handleSelectTemplate(t)}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                      className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center gap-2 ${
                         selectedTemplate?.id === t.id
                           ? 'border-primary ring-2 ring-primary/30'
                           : 'dark:border-border-dark light:border-border-light hover:border-primary/50'
                       }`}
+                      onClick={() => handleSelectTemplate(t)}
                     >
-                      <div className="font-medium dark:text-text-dark light:text-text-light">{t.name}</div>
-                      <div className="text-xs opacity-60 dark:text-text-dark-muted light:text-text-light-muted">
-                        AC {t.ac} | HP {t.maxHp} | 速度 {t.speed}尺
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium dark:text-text-dark light:text-text-light truncate">{t.name}</div>
+                        <div className="text-xs opacity-60 dark:text-text-dark-muted light:text-text-light-muted">
+                          AC {t.ac} | HP {t.maxHp} | 速度 {t.speed}尺
+                        </div>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          startEditTemplate(t);
+                        }}
+                        className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors shrink-0"
+                        title="编辑模板"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -334,6 +357,22 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
               }
             }}
             saveLabel={stage === 'single-edit' ? '创建 NPC' : '保存修改'}
+          />
+        )}
+
+        {/* 阶段: 模板编辑 */}
+        {stage === 'edit-template' && editingTemplate && (
+          <TemplateEditor
+            template={editingTemplate}
+            onCancel={() => {
+              setEditingTemplate(null);
+              setStage('choose');
+            }}
+            onSave={(data) => {
+              npcTemplateStore.update(editingTemplate.id, data);
+              setEditingTemplate(null);
+              setStage('choose');
+            }}
           />
         )}
 
@@ -797,6 +836,298 @@ function NpcEditor(props: NpcEditorProps) {
           )}
         </>
       )}
+
+      <div className="pt-2">
+        <button onClick={onCancel}
+          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors">
+          取消
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface TemplateEditorProps {
+  template: NpcTemplate;
+  onCancel: () => void;
+  onSave: (data: Partial<Omit<NpcTemplate, 'id' | 'createdAt'>>) => void;
+}
+
+function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
+  const [name, setName] = useState(template.name);
+  const [abilities, setAbilities] = useState<Record<AbilityKey, string>>({
+    strength: String(template.strength),
+    dexterity: String(template.dexterity),
+    constitution: String(template.constitution),
+    intelligence: String(template.intelligence),
+    wisdom: String(template.wisdom),
+    charisma: String(template.charisma),
+  });
+  const [hp, setHp] = useState(template.maxHp);
+  const [speed, setSpeed] = useState(template.speed);
+  const [ac, setAc] = useState(template.ac);
+  const [attacks, setAttacks] = useState<NpcAttack[]>(template.attacks.map(a => ({ ...a })));
+
+  const modifiers: Record<AbilityKey, number> = {
+    strength: calcModifier(parseInt(abilities.strength, 10) || 0),
+    dexterity: calcModifier(parseInt(abilities.dexterity, 10) || 0),
+    constitution: calcModifier(parseInt(abilities.constitution, 10) || 0),
+    intelligence: calcModifier(parseInt(abilities.intelligence, 10) || 0),
+    wisdom: calcModifier(parseInt(abilities.wisdom, 10) || 0),
+    charisma: calcModifier(parseInt(abilities.charisma, 10) || 0),
+  };
+
+  const handleAbilityChange = (ability: AbilityKey, text: string) => {
+    setAbilities(prev => ({ ...prev, [ability]: text }));
+  };
+
+  const handleAbilityBlur = (ability: AbilityKey) => {
+    const n = parseInt(abilities[ability], 10);
+    if (isNaN(n)) {
+      setAbilities(prev => ({ ...prev, [ability]: '0' }));
+    } else {
+      const clamped = Math.max(1, Math.min(30, n));
+      setAbilities(prev => ({ ...prev, [ability]: String(clamped) }));
+    }
+  };
+
+  const addAttack = () => {
+    setAttacks(prev => [...prev, { name: '', attackBonus: '', damage: '', damageType: '挥砍', range: '5 尺', properties: [] }]);
+  };
+
+  const removeAttack = (index: number) => {
+    setAttacks(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateAttack = (index: number, field: keyof NpcAttack, value: any) => {
+    setAttacks(prev => prev.map((a, i) => i === index ? { ...a, [field]: value } : a));
+  };
+
+  const toggleAttackProperty = (index: number, prop: string) => {
+    setAttacks(prev => prev.map((a, i) => {
+      if (i !== index) return a;
+      if (a.properties.includes(prop)) {
+        return { ...a, properties: a.properties.filter(p => p !== prop) };
+      }
+      const exclusive = MUTUALLY_EXCLUSIVE[prop];
+      let props = a.properties;
+      if (exclusive && props.includes(exclusive)) {
+        props = props.filter(p => p !== exclusive);
+      }
+      return { ...a, properties: [...props, prop] };
+    }));
+  };
+
+  const getAttackRangeDisplay = (attack: NpcAttack) => {
+    const hasRange = attack.properties.includes('射程');
+    const hasThrown = attack.properties.includes('投掷');
+    const hasAmmo = attack.properties.includes('弹药');
+    if (hasRange) return { showMelee: false, showNormalMax: true };
+    if (hasThrown || hasAmmo) return { showMelee: true, showNormalMax: true };
+    return { showMelee: true, showNormalMax: false };
+  };
+
+  const handleSave = () => {
+    if (!name.trim()) { alert('请输入模板名称'); return; }
+    onSave({
+      name: name.trim(),
+      templateId: template.templateId,
+      strength: parseInt(abilities.strength, 10) || 10,
+      dexterity: parseInt(abilities.dexterity, 10) || 10,
+      constitution: parseInt(abilities.constitution, 10) || 10,
+      intelligence: parseInt(abilities.intelligence, 10) || 10,
+      wisdom: parseInt(abilities.wisdom, 10) || 10,
+      charisma: parseInt(abilities.charisma, 10) || 10,
+      maxHp: hp,
+      speed,
+      ac,
+      attacks,
+    });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">编辑模板</h3>
+        <button onClick={onCancel} className="p-1 rounded hover:bg-white/10">
+          <X className="w-5 h-5 dark:text-text-dark light:text-text-light" />
+        </button>
+      </div>
+
+      <div className="flex items-end gap-2">
+        <div className="flex-1">
+          <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">
+            模板名称
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+            placeholder="例如：哥布林"
+          />
+        </div>
+        <button
+          onClick={handleSave}
+          disabled={!name.trim()}
+          className="px-4 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1 whitespace-nowrap"
+        >
+          <Save className="w-4 h-4" />保存模板
+        </button>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
+          六大属性（自动计算调整值）
+        </label>
+        <div className="grid grid-cols-2 gap-x-2 gap-y-2">
+          {ABILITY_NAMES.map(ability => (
+            <div key={ability} className="flex items-center gap-1">
+              <label className="text-xs w-10 dark:text-text-dark-muted light:text-text-light-muted shrink-0">
+                {ABILITY_LABELS[ability]}
+              </label>
+              <input
+                type="number"
+                value={abilities[ability]}
+                onChange={(e) => handleAbilityChange(ability, e.target.value)}
+                onBlur={() => handleAbilityBlur(ability)}
+                className="w-16 px-2 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary text-center"
+              />
+              <span className={`text-xs font-bold w-5 text-center rounded shrink-0 ${
+                modifiers[ability] >= 0
+                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+              }`}>
+                {modifiers[ability] >= 0 ? '+' : ''}{modifiers[ability]}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">AC</label>
+          <input
+            type="number"
+            value={ac}
+            onChange={(e) => setAc(parseInt(e.target.value) || 0)}
+            className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">HP</label>
+          <input
+            type="number"
+            value={hp}
+            onChange={(e) => setHp(parseInt(e.target.value) || 0)}
+            className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">速度（尺）</label>
+          <input
+            type="number"
+            value={speed}
+            onChange={(e) => setSpeed(parseInt(e.target.value) || 0)}
+            className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
+          攻击方式
+        </label>
+        {attacks.length > 0 && (
+          <div className="space-y-3 mb-3">
+            {attacks.map((attack, index) => {
+              const rangeDisplay = getAttackRangeDisplay(attack);
+              return (
+                <div key={index} className="p-3 rounded-lg border dark:border-border-dark light:border-border-light">
+                  <div className="flex items-center justify-between mb-2">
+                    <input
+                      type="text"
+                      value={attack.name}
+                      onChange={(e) => updateAttack(index, 'name', e.target.value)}
+                      className="flex-1 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                      placeholder="攻击名称"
+                    />
+                    <button type="button" onClick={() => removeAttack(index)} className="ml-2 p-1 rounded text-danger hover:bg-danger/10">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <label className="dark:text-text-dark-muted light:text-text-light-muted">攻击加值</label>
+                      <input type="text" value={attack.attackBonus} onChange={(e) => updateAttack(index, 'attackBonus', e.target.value)}
+                        className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary" placeholder="+5" />
+                    </div>
+                    <div>
+                      <label className="dark:text-text-dark-muted light:text-text-light-muted">伤害</label>
+                      <input type="text" value={attack.damage} onChange={(e) => updateAttack(index, 'damage', e.target.value)}
+                        className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary" placeholder="1d8+3" />
+                    </div>
+                    <div>
+                      <label className="dark:text-text-dark-muted light:text-text-light-muted">伤害类型</label>
+                      <select value={attack.damageType} onChange={(e) => updateAttack(index, 'damageType', e.target.value)}
+                        className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary">
+                        {DAMAGE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </div>
+                    {rangeDisplay.showMelee && (
+                      <div>
+                        <label className="dark:text-text-dark-muted light:text-text-light-muted">近战射程</label>
+                        <input type="text" value={attack.range} onChange={(e) => updateAttack(index, 'range', e.target.value)}
+                          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary" placeholder="5 尺" />
+                      </div>
+                    )}
+                  </div>
+                  {rangeDisplay.showNormalMax && (
+                    <div className="flex gap-2 text-xs mt-2">
+                      <div className="flex items-center gap-1">
+                        <label className="dark:text-text-dark-muted light:text-text-light-muted shrink-0">常规</label>
+                        <input type="number" value={attack.normalRange ?? ''}
+                          onChange={(e) => { const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10); updateAttack(index, 'normalRange', v); }}
+                          className="w-14 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center" placeholder="20" />
+                        <span className="dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <label className="dark:text-text-dark-muted light:text-text-light-muted shrink-0">最大</label>
+                        <input type="number" value={attack.maxRange ?? ''}
+                          onChange={(e) => { const v = e.target.value === '' ? undefined : parseInt(e.target.value, 10); updateAttack(index, 'maxRange', v); }}
+                          className="w-14 px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center" placeholder="60" />
+                        <span className="dark:text-text-dark-muted light:text-text-light-muted whitespace-nowrap">尺</span>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {WEAPON_PROPERTIES.map(prop => (
+                      <button key={prop} type="button" onClick={() => toggleAttackProperty(index, prop)}
+                        className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                          attack.properties.includes(prop)
+                            ? 'bg-primary/10 text-primary border-primary/30'
+                            : 'dark:border-border-dark dark:text-text-dark-muted light:border-border-light light:text-text-light-muted'
+                        }`}>{prop}</button>
+                    ))}
+                  </div>
+                  {attack.properties.includes('多用') && (
+                    <div className="mt-2">
+                      <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted">双手伤害</label>
+                      <input type="text" value={attack.twoHandedDamage ?? ''} onChange={(e) => updateAttack(index, 'twoHandedDamage', e.target.value)}
+                        className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-xs" placeholder="1d10" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+        <button type="button" onClick={addAttack}
+          className="w-full py-2 rounded-lg border border-dashed dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:border-primary hover:text-primary transition-colors text-sm flex items-center justify-center gap-1">
+          <Plus className="w-4 h-4" />添加攻击方式
+        </button>
+      </div>
 
       <div className="pt-2">
         <button onClick={onCancel}
