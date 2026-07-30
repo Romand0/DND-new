@@ -66,6 +66,7 @@ export default function TradeModal({ characterId, onClose }: Props) {
   // 买入
   const [buySearch, setBuySearch] = useState('');
   const [buyCart, setBuyCart] = useState<BuyCartItem[]>([]);
+  const [buyDraftQty, setBuyDraftQty] = useState<Record<string, number>>({});
   // 卖出
   const [sellCart, setSellCart] = useState<SellCartItem[]>([]);
   // 分配
@@ -136,17 +137,25 @@ export default function TradeModal({ characterId, onClose }: Props) {
   const buyAffordable = character ? characterStore.canAfford(character.currency, buyTotalCp) : false;
 
   // 买入：添加/调整清单
-  const addBuyItem = (item: EquipmentItem) => {
+  const getDraftQty = (item: EquipmentItem): number => {
+    const draft = buyDraftQty[item.id];
+    if (draft !== undefined) return draft;
+    return item.packSize && item.packSize > 0 ? item.packSize : 1;
+  };
+  const setDraftQty = (itemId: string, val: number) => {
+    setBuyDraftQty(prev => ({ ...prev, [itemId]: Math.max(1, val) }));
+  };
+  const addBuyItem = (item: EquipmentItem, qty?: number) => {
+    const quantity = qty ?? getDraftQty(item);
     setBuyCart(prev => {
       const existing = prev.find(ci => ci.item.id === item.id);
       if (existing) {
-        return prev.map(ci => ci.item.id === item.id ? { ...ci, quantity: ci.quantity + (item.packSize && item.packSize > 0 ? item.packSize : 1) } : ci);
+        return prev.map(ci => ci.item.id === item.id ? { ...ci, quantity: ci.quantity + quantity } : ci);
       }
-      // 默认数量：有 packSize 则为 packSize（整份），否则 1
-      const defaultQty = item.packSize && item.packSize > 0 ? item.packSize : 1;
-      return [...prev, { item, quantity: defaultQty }];
+      return [...prev, { item, quantity }];
     });
   };
+  const addBuyItemWithDraft = (item: EquipmentItem) => addBuyItem(item, getDraftQty(item));
   const updateBuyQty = (itemId: string, delta: number) => {
     setBuyCart(prev => prev.map(ci => {
       if (ci.item.id !== itemId) return ci;
@@ -339,7 +348,7 @@ export default function TradeModal({ characterId, onClose }: Props) {
       characterStore.update(transferTarget.id, { currency: targetNewCurrency });
     }
 
-    setDoneMsg(`已分配给 ${transferTarget.name}：${transferEquip.length > 0 ? `${transferEquip.length} 件物资` : ''}${transferEquip.length > 0 && transferCpNum > 0 ? ' + ' : ''}${transferCpNum > 0 ? formatCopper(transferCpNum) : ''}`);
+    setDoneMsg(`已分配给 ${transferTarget.name}：${transferEquip.length > 0 ? `${transferEquip.length} 件物资` : ''}${transferEquip.length > 0 && transferCpNum > 0 ? ' + ' : ''}${transferCpNum > 0 ? formatCopper(transferCpNum) : ''}。可继续选择目标角色进行分配。`);
     setTransferEquip([]);
     setTransferCp('');
   };
@@ -458,27 +467,77 @@ export default function TradeModal({ characterId, onClose }: Props) {
                   ) : (
                     filteredLibrary.map(item => {
                       const inCart = buyCart.some(ci => ci.item.id === item.id);
+                      const cartItem = buyCart.find(ci => ci.item.id === item.id);
+                      const draft = getDraftQty(item);
+                      const step = item.packSize && item.packSize > 0 ? item.packSize : 1;
                       return (
-                        <div key={item.id} className="rounded-lg border dark:border-border-dark/50 light:border-border-light/50 dark:bg-bg-dark light:bg-bg-light-2 p-2.5 flex items-center justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-medium text-sm dark:text-text-dark light:text-text-light truncate">{item.name}</span>
-                              <span className="text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary">{item.category}</span>
-                              {item.subtype && <span className="text-[10px] px-1 py-0.5 rounded dark:bg-white/10 light:bg-white/60 dark:text-text-dark-muted light:text-text-light-muted">{item.subtype}</span>}
-                            </div>
-                            <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
-                              {item.price.amount}{item.price.unit} · {(item.weight || 0).toFixed(1)}磅
-                              {item.packSize && item.packSize > 0 ? ` · 每份${item.packSize}${item.unit || '个'}` : ''}
+                        <div key={item.id} className="rounded-lg border dark:border-border-dark/50 light:border-border-light/50 dark:bg-bg-dark light:bg-bg-light-2 p-2.5 space-y-2">
+                          {/* 物品信息 */}
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-medium text-sm dark:text-text-dark light:text-text-light truncate">{item.name}</span>
+                                <span className="text-[10px] px-1 py-0.5 rounded bg-primary/10 text-primary">{item.category}</span>
+                                {item.subtype && <span className="text-[10px] px-1 py-0.5 rounded dark:bg-white/10 light:bg-white/60 dark:text-text-dark-muted light:text-text-light-muted">{item.subtype}</span>}
+                              </div>
+                              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
+                                {item.price.amount}{item.price.unit} · {(item.weight || 0).toFixed(1)}磅
+                                {item.packSize && item.packSize > 0 ? ` · 每份${item.packSize}${item.unit || '个'}` : ''}
+                              </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => addBuyItem(item)}
-                            disabled={inCart}
-                            className={`shrink-0 p-1.5 rounded-lg ${inCart ? 'bg-green-500/20 text-green-500' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
-                            title={inCart ? '已加入清单' : '加入清单'}
-                          >
-                            {inCart ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                          </button>
+                          {/* 操作行 */}
+                          <div className="flex items-center justify-between gap-2">
+                            {!inCart ? (
+                              <>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    onClick={() => setDraftQty(item.id, draft - step)}
+                                    className="p-0.5 rounded hover:bg-white/10"
+                                  >
+                                    <Minus className="w-3.5 h-3.5 dark:text-text-dark light:text-text-light" />
+                                  </button>
+                                  <input
+                                    type="number"
+                                    value={draft}
+                                    onChange={e => setDraftQty(item.id, parseInt(e.target.value, 10) || step)}
+                                    className="w-14 px-1 py-0.5 text-center text-xs rounded border bg-transparent dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+                                  />
+                                  <button
+                                    onClick={() => setDraftQty(item.id, draft + step)}
+                                    className="p-0.5 rounded hover:bg-white/10"
+                                  >
+                                    <Plus className="w-3.5 h-3.5 dark:text-text-dark light:text-text-light" />
+                                  </button>
+                                  <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                    {item.packSize && item.packSize > 0 ? `${item.unit || '个'}/份` : '个'}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => addBuyItemWithDraft(item)}
+                                  className="shrink-0 px-2 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium flex items-center gap-1"
+                                >
+                                  <Plus className="w-3.5 h-3.5" /> 加入
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  <Check className="w-3.5 h-3.5 text-green-500" />
+                                  <span className="text-green-500">已在清单</span>
+                                  <span className="dark:text-text-dark-muted light:text-text-light-muted">
+                                    ×{cartItem?.quantity}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => removeBuyItem(item.id)}
+                                  className="shrink-0 px-2 py-1 rounded-lg text-xs text-danger hover:bg-danger/10"
+                                >
+                                  移除
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       );
                     })
