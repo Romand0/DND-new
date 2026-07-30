@@ -236,25 +236,25 @@ function restoreFromBackup(): Character[] {
 // ============================================================
 
 // ============ 货币换算工具 ============
-// 换算基准：1pp = 10gp = 100sp = 1000cp，统一折算成铜币做运算
+// 换算基准：1gp = 10sp = 100cp
+// 铂金币（pp）不参与换算：与 gp/sp/cp 并行存在，交易时只动 gp/sp/cp
 
-// 货币转铜币总数
+// 货币转铜币总数（仅 gp/sp/cp 参与，pp 不计入）
 function currencyToCopper(c: Currency): number {
-  return (c.cp || 0) + (c.sp || 0) * 10 + (c.gp || 0) * 100 + (c.pp || 0) * 1000;
+  return (c.cp || 0) + (c.sp || 0) * 10 + (c.gp || 0) * 100;
 }
 
-// 铜币总数按「gp 优先、sp 次之、cp 兜底、pp 不主动产生」规范化拆分
+// 铜币总数按「gp 优先、sp 次之、cp 兜底」规范化拆分，不主动产生 pp
 // 满足：sp ≤ 9, cp ≤ 9（题目要求铜、银不超过 10）
+// 注意：返回的 pp 字段为 0，调用方若需保留原 pp 请自行合并
 function copperToCurrency(totalCp: number): Currency {
   if (totalCp < 0) totalCp = 0;
-  const pp = Math.floor(totalCp / 1000);
-  totalCp -= pp * 1000;
   const gp = Math.floor(totalCp / 100);
   totalCp -= gp * 100;
   const sp = Math.floor(totalCp / 10);
   totalCp -= sp * 10;
   const cp = totalCp;
-  return { pp, gp, sp, cp };
+  return { pp: 0, gp, sp, cp };
 }
 
 // 物品价格转铜币
@@ -264,16 +264,17 @@ function priceToCopper(price: { amount: number; unit: 'gp' | 'sp' | 'cp' }): num
   return unit === 'gp' ? amount * 100 : unit === 'sp' ? amount * 10 : amount;
 }
 
-// 判断货币是否足以支付指定铜币数
+// 判断货币是否足以支付指定铜币数（仅看 gp/sp/cp，pp 不参与担负判断）
 function canAfford(c: Currency, totalCp: number): boolean {
   return currencyToCopper(c) >= totalCp;
 }
 
-// 扣款：返回扣除后的货币（已规范化），不足时原样返回
+// 扣款：从 gp/sp/cp 中扣除，pp 保持不变；不足时原样返回
 function deductCurrency(c: Currency, totalCp: number): Currency {
   const remain = currencyToCopper(c) - totalCp;
   if (remain < 0) return { ...c };
-  return copperToCurrency(remain);
+  // 只规范化 gp/sp/cp，pp 保留原值
+  return { ...copperToCurrency(remain), pp: c.pp || 0 };
 }
 
 // ============ 背包重量/价值工具 ============

@@ -254,9 +254,9 @@ export default function TradeModal({ characterId, onClose }: Props) {
   // 执行卖出
   const handleConfirmSell = () => {
     if (!character || sellCart.length === 0) return;
-    // 加款：现有货币 + 卖出所得，重新规范化
+    // 加款：现有 gp/sp/cp + 卖出所得，重新规范化（pp 保持不变）
     const currentCp = characterStore.currencyToCopper(character.currency);
-    const newCurrency = characterStore.copperToCurrency(currentCp + sellTotalCp);
+    const newCurrency = { ...characterStore.copperToCurrency(currentCp + sellTotalCp), pp: character.currency.pp || 0 };
     // 逐件扣减/删除
     sellCart.forEach(ci => {
       const key = ci.item.childId || ci.item.id || '';
@@ -339,11 +339,11 @@ export default function TradeModal({ characterId, onClose }: Props) {
       }
     });
 
-    // 转移现金
+    // 转移现金（仅 gp/sp/cp，pp 不参与转移）
     if (transferCpNum > 0) {
       const sourceNewCurrency = characterStore.deductCurrency(character.currency, transferCpNum);
       const targetCurrentCp = characterStore.currencyToCopper(transferTarget.currency);
-      const targetNewCurrency = characterStore.copperToCurrency(targetCurrentCp + transferCpNum);
+      const targetNewCurrency = { ...characterStore.copperToCurrency(targetCurrentCp + transferCpNum), pp: transferTarget.currency.pp || 0 };
       characterStore.update(character.id, { currency: sourceNewCurrency });
       characterStore.update(transferTarget.id, { currency: targetNewCurrency });
     }
