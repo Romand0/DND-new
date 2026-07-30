@@ -18,6 +18,7 @@ import AdminAuth from '@/pages/AdminAuth';
 import MigrationBackup from '@/pages/MigrationBackup';
 import Placeholder from '@/pages/Placeholder';
 import InventoryPage from '@/pages/InventoryPage';
+import TradePage from '@/pages/TradePage';
 import EquipmentList from '@/pages/EquipmentList';
 import EquipmentDetail from '@/pages/EquipmentDetail';
 import PlayerHome from '@/pages/PlayerHome';
@@ -112,6 +113,7 @@ export default function App() {
               <Route path="characters/:id" element={<CharacterDetail />} />
               {/* ✅ 修改2：删除旧占位符路由，战斗功能已实现，无需占位 */}
               <Route path="inventory" element={<InventoryPage />} />
+              <Route path="inventory/trade" element={<TradePage />} />
               {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />

@@ -1,9 +1,9 @@
 // 交易 / 物资分配弹窗
 // 三种模式：买入（从装备库选购入发起者背包）/ 卖出（从背包售出换货币）/ 分配（背包+现金转移给他人）
 import { useState, useMemo, useEffect } from 'react';
-import { X, Coins, ShoppingCart, TrendingDown, Share2, Plus, Minus, Search, Check, AlertTriangle } from 'lucide-react';
+import { X, Coins, ShoppingCart, TrendingDown, Share2, Plus, Minus, Search, Check, AlertTriangle, Loader2, RefreshCw } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
-import { equipmentStore } from '@/data/equipmentStore';
+import { fetchAllEquipments } from '@/lib/api';
 import type { Character, Equipment, Currency } from '@/types/character';
 import type { EquipmentItem } from '@/types/equipment';
 
@@ -85,17 +85,36 @@ export default function TradeModal({ characterId, onClose }: Props) {
     return characterStore.getAll().filter(c => c.id !== characterId);
   }, [characterId]);
 
-  // 装备库（买入用）
-  const allLibraryItems = useMemo(() => equipmentStore.getAll(), []);
+  // 装备库（买入用）：从 D1 数据库实时读取，仿照物资库页面（EquipmentList）实现
+  const [libraryItems, setLibraryItems] = useState<EquipmentItem[]>([]);
+  const [libraryLoading, setLibraryLoading] = useState(false);
+  const [libraryError, setLibraryError] = useState('');
+
+  const loadLibrary = async () => {
+    setLibraryLoading(true);
+    setLibraryError('');
+    try {
+      const data = await fetchAllEquipments<EquipmentItem[]>();
+      data.sort((a, b) => a.id.localeCompare(b.id));
+      setLibraryItems(data);
+    } catch (e: any) {
+      setLibraryError(e.message || '装备库加载失败');
+    } finally {
+      setLibraryLoading(false);
+    }
+  };
+
+  useEffect(() => { loadLibrary(); }, []);
+
   const filteredLibrary = useMemo(() => {
-    if (!buySearch) return allLibraryItems;
+    if (!buySearch) return libraryItems;
     const q = buySearch.toLowerCase();
-    return allLibraryItems.filter(i =>
+    return libraryItems.filter(i =>
       i.name.toLowerCase().includes(q) ||
       i.category.toLowerCase().includes(q) ||
       (i.subtype || '').toLowerCase().includes(q)
     );
-  }, [allLibraryItems, buySearch]);
+  }, [libraryItems, buySearch]);
 
   // ============ 买入清单计算 ============
   const buyTotalCp = useMemo(() => {
@@ -413,8 +432,28 @@ export default function TradeModal({ characterId, onClose }: Props) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 装备库列表 */}
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
-                  <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted px-1">装备库</div>
-                  {filteredLibrary.length === 0 ? (
+                  <div className="flex items-center justify-between px-1">
+                    <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">装备库</div>
+                    <button
+                      onClick={loadLibrary}
+                      disabled={libraryLoading}
+                      className="text-xs text-primary hover:underline disabled:opacity-50 flex items-center gap-1"
+                      title="从云端刷新"
+                    >
+                      {libraryLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+                      刷新
+                    </button>
+                  </div>
+                  {libraryError ? (
+                    <div className="text-center text-sm text-danger py-8 px-2">
+                      {libraryError}
+                      <button onClick={loadLibrary} className="ml-2 underline">重试</button>
+                    </div>
+                  ) : libraryLoading && libraryItems.length === 0 ? (
+                    <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" /> 加载装备库中...
+                    </div>
+                  ) : filteredLibrary.length === 0 ? (
                     <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8">无匹配物品</div>
                   ) : (
                     filteredLibrary.map(item => {
