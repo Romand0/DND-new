@@ -75,13 +75,10 @@ export default function TradeModal({ characterId, onClose }: Props) {
   // 完成提示
   const [doneMsg, setDoneMsg] = useState('');
 
-  // 订阅角色变化
+  // 交易完成后（doneMsg 变化）刷新角色数据
   useEffect(() => {
-    const unsub = characterStore.subscribe(() => {
-      setCharacter(characterStore.get(characterId));
-    });
-    return unsub;
-  }, [characterId]);
+    setCharacter(characterStore.get(characterId));
+  }, [characterId, doneMsg]);
 
   // 所有可选角色（除自己）
   const otherCharacters = useMemo(() => {

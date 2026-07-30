@@ -12,6 +12,7 @@ import type {
   AbilityKey,
   HandSlot,
   HandState,
+  Currency,
 } from '@/types/character';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
