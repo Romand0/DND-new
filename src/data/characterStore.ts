@@ -234,6 +234,75 @@ function restoreFromBackup(): Character[] {
 // 工具函数
 // ============================================================
 
+// ============ 货币换算工具 ============
+// 换算基准：1pp = 10gp = 100sp = 1000cp，统一折算成铜币做运算
+
+// 货币转铜币总数
+function currencyToCopper(c: Currency): number {
+  return (c.cp || 0) + (c.sp || 0) * 10 + (c.gp || 0) * 100 + (c.pp || 0) * 1000;
+}
+
+// 铜币总数按「gp 优先、sp 次之、cp 兜底、pp 不主动产生」规范化拆分
+// 满足：sp ≤ 9, cp ≤ 9（题目要求铜、银不超过 10）
+function copperToCurrency(totalCp: number): Currency {
+  if (totalCp < 0) totalCp = 0;
+  const pp = Math.floor(totalCp / 1000);
+  totalCp -= pp * 1000;
+  const gp = Math.floor(totalCp / 100);
+  totalCp -= gp * 100;
+  const sp = Math.floor(totalCp / 10);
+  totalCp -= sp * 10;
+  const cp = totalCp;
+  return { pp, gp, sp, cp };
+}
+
+// 物品价格转铜币
+function priceToCopper(price: { amount: number; unit: 'gp' | 'sp' | 'cp' }): number {
+  if (!price) return 0;
+  const { amount = 0, unit = 'gp' } = price;
+  return unit === 'gp' ? amount * 100 : unit === 'sp' ? amount * 10 : amount;
+}
+
+// 判断货币是否足以支付指定铜币数
+function canAfford(c: Currency, totalCp: number): boolean {
+  return currencyToCopper(c) >= totalCp;
+}
+
+// 扣款：返回扣除后的货币（已规范化），不足时原样返回
+function deductCurrency(c: Currency, totalCp: number): Currency {
+  const remain = currencyToCopper(c) - totalCp;
+  if (remain < 0) return { ...c };
+  return copperToCurrency(remain);
+}
+
+// ============ 背包重量/价值工具 ============
+
+// 计算单件装备重量：packSize 存在时按个体折算，否则 weight 视为单件重
+function getEquipmentWeight(item: Equipment): number {
+  const w = item.weight || 0;
+  const q = item.quantity || 1;
+  if (item.packSize && item.packSize > 0) {
+    return (w / item.packSize) * q;
+  }
+  return w * q;
+}
+
+// 计算背包总重量
+function getTotalWeight(char: Character): number {
+  return (char.equipment || []).reduce((sum, item) => sum + getEquipmentWeight(item), 0);
+}
+
+// 计算单件装备价值（铜币），按数量计
+function getEquipmentValueCopper(item: Equipment): number {
+  if (!item.price) return 0;
+  return priceToCopper(item.price) * (item.quantity || 1);
+}
+
+// 计算背包总价值（铜币）
+function getTotalValueCopper(char: Character): number {
+  return (char.equipment || []).reduce((sum, item) => sum + getEquipmentValueCopper(item), 0);
+}
+
 function generateId(): string {
   return Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 6);
 }
@@ -1806,6 +1875,19 @@ export const characterStore = {
   getNextLevelInfo,
   calculateLevelsForCharacters,
   canLevelUp,
+
+  // 货币换算工具
+  currencyToCopper,
+  copperToCurrency,
+  priceToCopper,
+  canAfford,
+  deductCurrency,
+
+  // 背包重量/价值工具
+  getEquipmentWeight,
+  getTotalWeight,
+  getEquipmentValueCopper,
+  getTotalValueCopper,
 
   // 法术位系统
   hasSpellcasting,

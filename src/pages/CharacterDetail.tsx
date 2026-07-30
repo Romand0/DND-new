@@ -42,6 +42,7 @@ import SyncButton from '@/components/SyncButton';
 import CharacterEquipmentCard from '@/components/CharacterEquipmentCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useEquipmentActions } from '@/hooks/useEquipmentActions';
+import TradeModal from '@/components/TradeModal';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -151,6 +152,7 @@ export default function CharacterDetail({
   const [spellsLoaded, setSpellsLoaded] = useState(false);
   const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
+  const [tradeOpen, setTradeOpen] = useState(false);
   const [equipmentEditorOpen, setEquipmentEditorOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -1402,6 +1404,13 @@ if (character) {
                 </div>
               ))}
             </div>
+            <button
+              onClick={() => setTradeOpen(true)}
+              className="w-full mt-3 py-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Coins className="w-4 h-4" />
+              交易 / 物资分配
+            </button>
               </ErrorBoundary>
           </Section>
         </div>
@@ -1903,6 +1912,13 @@ if (character) {
         <EquipmentPicker
           onSelect={handleAddEquipmentFromLibrary}
           onClose={() => setEquipmentPickerOpen(false)}
+        />
+      )}
+
+      {tradeOpen && id && (
+        <TradeModal
+          characterId={id}
+          onClose={() => setTradeOpen(false)}
         />
       )}
 
