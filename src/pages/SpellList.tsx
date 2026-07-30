@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEditorState } from '@/data/editorState';
-import { Sparkles, Plus, Edit2, Trash2, Search, Filter } from 'lucide-react';
+import { Sparkles, Plus, Edit2, Trash2, Search } from 'lucide-react';
 import type { Spell } from '@/types/spell';
 import SpellEditor from '@/components/SpellEditor';
 import { fetchAllSpells, createSpell, updateSpell, deleteSpell } from '@/lib/api';
@@ -12,12 +12,47 @@ const levelLabels: Record<number, string> = {
   5: '5环', 6: '6环', 7: '7环', 8: '8环', 9: '9环',
 };
 
+// 筛选状态持久化 key（跨导航保留，关标签页清空）
+const STORAGE_KEY_SEARCH = 'spellList.search';
+const STORAGE_KEY_LEVEL = 'spellList.level';
+const STORAGE_KEY_CLASSES = 'spellList.classes';
+const STORAGE_KEY_SCHOOL = 'spellList.school';
+const STORAGE_KEY_SCROLL = 'spellList.scroll';
+
+// 读取已保存的筛选状态；无效则返回默认值
+function loadSearchQuery(): string {
+  try { return sessionStorage.getItem(STORAGE_KEY_SEARCH) || ''; } catch { return ''; }
+}
+function loadLevelFilter(): number | 'all' {
+  try {
+    const v = sessionStorage.getItem(STORAGE_KEY_LEVEL);
+    if (v === null || v === 'all') return 'all';
+    const n = parseInt(v, 10);
+    return isNaN(n) ? 'all' : n;
+  } catch { return 'all'; }
+}
+function loadClassesFilter(): string[] {
+  try {
+    const v = sessionStorage.getItem(STORAGE_KEY_CLASSES);
+    return v ? JSON.parse(v) : [];
+  } catch { return []; }
+}
+function loadSchoolFilter(): string[] {
+  try {
+    const v = sessionStorage.getItem(STORAGE_KEY_SCHOOL);
+    return v ? JSON.parse(v) : [];
+  } catch { return []; }
+}
+
 export default function SpellList() {
   const navigate = useNavigate();
   const { isDM } = useAuth();
   const [spells, setSpells] = useState<Spell[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [levelFilter, setLevelFilter] = useState<number | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState(loadSearchQuery);
+  const [levelFilter, setLevelFilter] = useState<number | 'all'>(loadLevelFilter);
+  // 职业 / 学派筛选：多选，空数组 = 不筛
+  const [classesFilter, setClassesFilter] = useState<string[]>(loadClassesFilter);
+  const [schoolFilter, setSchoolFilter] = useState<string[]>(loadSchoolFilter);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingSpell, setEditingSpell] = useState<Spell | undefined>();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -26,6 +61,25 @@ export default function SpellList() {
   const [loading, setLoading] = useState(true);
 
   useEditorState(editorOpen);
+
+  // 筛选状态写入 sessionStorage
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_SEARCH, searchQuery); } catch {} }, [searchQuery]);
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_LEVEL, String(levelFilter)); } catch {} }, [levelFilter]);
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_CLASSES, JSON.stringify(classesFilter)); } catch {} }, [classesFilter]);
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_SCHOOL, JSON.stringify(schoolFilter)); } catch {} }, [schoolFilter]);
+
+  // 滚动位置保存（窗口滚动）+ 返回时恢复
+  useEffect(() => {
+    const onScroll = () => { try { sessionStorage.setItem(STORAGE_KEY_SCROLL, String(window.scrollY)); } catch {} };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    // 恢复
+    const saved = sessionStorage.getItem(STORAGE_KEY_SCROLL);
+    if (saved) {
+      const top = parseInt(saved, 10);
+      if (!isNaN(top)) requestAnimationFrame(() => { window.scrollTo(0, top); });
+    }
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [loading]);
 
   const load = async () => {
     setLoading(true);
@@ -42,15 +96,40 @@ export default function SpellList() {
 
   useEffect(() => { load(); }, []);
 
+  // 派生：所有出现过的职业 / 学派（用于筛选标签）
+  const allClasses = useMemo(() => {
+    const set = new Set<string>();
+    spells.forEach(s => s.classes?.forEach(c => set.add(c)));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  }, [spells]);
+  const allSchools = useMemo(() => {
+    const set = new Set<string>();
+    spells.forEach(s => s.school && set.add(s.school));
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'));
+  }, [spells]);
+
   const filteredSpells = useMemo(() => {
     return spells.filter(spell => {
       const matchesSearch =
         spell.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         spell.school.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesLevel = levelFilter === 'all' || spell.level === levelFilter;
-      return matchesSearch && matchesLevel;
+      const matchesClass = classesFilter.length === 0 || classesFilter.some(c => spell.classes?.includes(c));
+      const matchesSchool = schoolFilter.length === 0 || schoolFilter.includes(spell.school);
+      return matchesSearch && matchesLevel && matchesClass && matchesSchool;
     });
-  }, [spells, searchQuery, levelFilter]);
+  }, [spells, searchQuery, levelFilter, classesFilter, schoolFilter]);
+
+  // 标签切换工具
+  const toggleTag = (list: string[], value: string): string[] =>
+    list.includes(value) ? list.filter(v => v !== value) : [...list, value];
+  const clearAllFilters = () => {
+    setLevelFilter('all');
+    setClassesFilter([]);
+    setSchoolFilter([]);
+    setSearchQuery('');
+  };
+  const hasAnyFilter = levelFilter !== 'all' || classesFilter.length > 0 || schoolFilter.length > 0 || searchQuery !== '';
 
   const sortedSpells = useMemo(() => {
     return [...filteredSpells].sort((a, b) => {
@@ -135,22 +214,66 @@ export default function SpellList() {
 
       {error && <div className="p-3 rounded-lg bg-danger/20 text-danger text-sm">{error}</div>}
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
-          <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            placeholder="搜索法术名称或学派..."
-            className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary" />
+      {/* 搜索框 */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+        <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+          placeholder="搜索法术名称或学派..."
+          className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary" />
+      </div>
+
+      {/* 筛选区：环级 / 职业 / 学派 三组标签，可叠加 */}
+      <div className="space-y-2.5 rounded-xl border p-3 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light">
+        {/* 环级 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">环级</span>
+          <button
+            onClick={() => setLevelFilter('all')}
+            className={`px-2.5 py-1 rounded-full text-xs transition-colors ${levelFilter === 'all' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+          >全部</button>
+          {[0,1,2,3,4,5,6,7,8,9].map(l => (
+            <button
+              key={l}
+              onClick={() => setLevelFilter(levelFilter === l ? 'all' : l)}
+              className={`px-2.5 py-1 rounded-full text-xs transition-colors ${levelFilter === l ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+            >{levelLabels[l]}</button>
+          ))}
         </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
-          <select value={levelFilter}
-            onChange={e => setLevelFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))}
-            className="pl-10 pr-8 py-2 rounded-lg border bg-transparent outline-none appearance-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary">
-            <option value="all" className="dark:bg-bg-dark light:bg-bg-light">全部环级</option>
-            {[0,1,2,3,4,5,6,7,8,9].map(l => <option key={l} value={l} className="dark:bg-bg-dark light:bg-bg-light">{levelLabels[l]}</option>)}
-          </select>
-        </div>
+        {/* 职业 */}
+        {allClasses.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">职业</span>
+            {allClasses.map(cls => (
+              <button
+                key={cls}
+                onClick={() => setClassesFilter(prev => toggleTag(prev, cls))}
+                className={`px-2.5 py-1 rounded-full text-xs transition-colors ${classesFilter.includes(cls) ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+              >{cls}</button>
+            ))}
+          </div>
+        )}
+        {/* 学派 */}
+        {allSchools.length > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">学派</span>
+            {allSchools.map(sch => (
+              <button
+                key={sch}
+                onClick={() => setSchoolFilter(prev => toggleTag(prev, sch))}
+                className={`px-2.5 py-1 rounded-full text-xs transition-colors ${schoolFilter.includes(sch) ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+              >{sch}</button>
+            ))}
+          </div>
+        )}
+        {/* 清空 */}
+        {hasAnyFilter && (
+          <div className="pt-1">
+            <button
+              onClick={clearAllFilters}
+              className="text-xs text-danger hover:underline"
+            >清空所有筛选</button>
+          </div>
+        )}
       </div>
 
       {/* Desktop table */}
