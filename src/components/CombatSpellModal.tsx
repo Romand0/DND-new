@@ -146,7 +146,13 @@ function SpellCard({ spell, level, active, onPick }: { spell: Spell; level: numb
   );
 }
 
-export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter, targetCombatInventory }: Props) {
+export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory }: Props) {
+  // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
+  const targetCharacter = useMemo<Character | null>(() => {
+    if (propTargetCharacter !== undefined && propTargetCharacter !== null) return propTargetCharacter;
+    if (target.characterId) return characterStore.get(target.characterId);
+    return null;
+  }, [propTargetCharacter, target.characterId]);
   // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
   const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('list');
@@ -175,12 +181,6 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
     if (caster.characterId) return characterStore.get(caster.characterId);
     return null;
   }, [caster.characterId]);
-
-  // 目标角色卡：用于自动填入豁免加值
-  const targetCharacter = useMemo<Character | null>(() => {
-    if (target.characterId) return characterStore.get(target.characterId);
-    return null;
-  }, [target.characterId]);
 
   // 豁免属性短写 → AbilityKey 全称映射
   const SAVE_ATTR_MAP: Record<string, AbilityKey> = {
