@@ -23,7 +23,7 @@ function isWearable(item: { category?: string; subtype?: string }): boolean {
 
 /** 判断装备是否可手持（盾牌、武器 或 法器） */
 function isHoldable(item: { category?: string; subtype?: string }): boolean {
-  return item.subtype === '盾牌' || item.subtype === '法器' || item.category === '武器';
+  return item.subtype === '盾牌' || item.category === '法器' || item.category === '武器';
 }
 
 interface Props {

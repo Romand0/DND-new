@@ -22,6 +22,7 @@ import {
   Minus,
   ArrowLeft,
   Hand,
+  X,
 } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import EquipmentPicker from '@/components/EquipmentPicker';
@@ -775,10 +776,20 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
             {selectingHand && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                 <div className="absolute inset-0 bg-black/50" onClick={() => setSelectingHand(null)} />
-                <div className="relative w-full max-w-md rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6 max-h-[80vh] overflow-y-auto">
-                  <h3 className="text-lg font-bold mb-4 dark:text-text-dark light:text-text-light">
-                    选择{selectingHand === 'left' ? '左手' : '右手'}装备
-                  </h3>
+                <div className="relative w-full max-w-md rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl flex flex-col max-h-[80vh]">
+                  <div className="flex items-center justify-between p-4 border-b dark:border-border-dark light:border-border-light shrink-0">
+                    <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                      选择{selectingHand === 'left' ? '左手' : '右手'}装备
+                    </h3>
+                    <button
+                      onClick={() => setSelectingHand(null)}
+                      className="p-1 rounded hover:bg-danger/10 text-danger transition-colors"
+                      title="关闭"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="p-6 overflow-y-auto">
                   <div className="space-y-2">
                     {/* 特殊占位选项 */}
                     <div className="flex gap-2 pb-3 mb-1 border-b dark:border-border-dark light:border-border-light">
@@ -831,6 +842,7 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
                   >
                     取消
                   </button>
+                  </div>
                 </div>
               </div>
             )}
