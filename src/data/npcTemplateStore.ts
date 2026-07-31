@@ -5,11 +5,23 @@ type Listener = () => void;
 
 let listeners: Listener[] = [];
 
+// 进程内缓存：避免每次读都全量 parse localStorage。
+// 所有写操作都必须经过 save()，否则缓存不会失效。
+let templateCache: NpcTemplate[] | null = null;
+
+// 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) templateCache = null;
+  });
+}
+
 function notify(): void {
   listeners.forEach(listener => listener());
 }
 
 function load(): NpcTemplate[] {
+  if (templateCache) return templateCache;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -48,6 +60,7 @@ function load(): NpcTemplate[] {
 }
 
 function save(templates: NpcTemplate[]): void {
+  templateCache = templates;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
     notify();
@@ -58,11 +71,14 @@ function save(templates: NpcTemplate[]): void {
 
 const npcTemplateStore = {
   getAll(): NpcTemplate[] {
-    return load().sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...load()].sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
   get(id: string): NpcTemplate | null {
-    return load().find(t => t.id === id) ?? null;
+    const found = load().find(t => t.id === id) ?? null;
+    if (!found) return null;
+    // 浅拷贝：防止调用方 mutate 污染内存缓存
+    return { ...found, attacks: [...(found.attacks ?? [])] };
   },
 
   create(template: Omit<NpcTemplate, 'id' | 'createdAt' | 'updatedAt'>): NpcTemplate {

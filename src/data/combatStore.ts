@@ -10,6 +10,17 @@ type Listener = () => void;
 // =======================
 let listeners: Listener[] = [];
 
+// 进程内缓存：避免每次读都全量 parse localStorage。
+// 所有写操作都必须经过 save()，否则缓存不会失效。
+let recordsCache: CombatRecord[] | null = null;
+
+// 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) recordsCache = null;
+  });
+}
+
 function notify(): void {
   listeners.forEach(listener => listener());
 }
@@ -344,6 +355,7 @@ export function applyEquipmentChange(
 }
 
 function load(): CombatRecord[] {
+  if (recordsCache) return recordsCache;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -390,6 +402,7 @@ function load(): CombatRecord[] {
 }
 
 function save(records: CombatRecord[]): void {
+  recordsCache = records;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
     notify();
@@ -406,14 +419,17 @@ const combatStore = {
    * 获取所有战斗记录（按更新时间倒序）
    */
   getAll(): CombatRecord[] {
-    return load().sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...load()].sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
   /**
    * 根据ID获取单个战斗记录
    */
   get(id: string): CombatRecord | null {
-    return load().find(r => r.id === id) ?? null;
+    const found = load().find(r => r.id === id) ?? null;
+    if (!found) return null;
+    // 浅拷贝：防止调用方 mutate 污染内存缓存（原实现每次 parse 天然隔离）
+    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds] };
   },
 
   /**

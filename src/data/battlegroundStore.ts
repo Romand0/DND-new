@@ -7,11 +7,23 @@ type Listener = () => void;
 
 let listeners: Listener[] = [];
 
+// 进程内缓存：避免每次读都全量 parse localStorage。
+// 所有写操作都必须经过 saveAll()，否则缓存不会失效。
+let battlegroundCache: Battleground[] | null = null;
+
+// 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) battlegroundCache = null;
+  });
+}
+
 function notify(): void {
   listeners.forEach((l) => l());
 }
 
 function loadAll(): Battleground[] {
+  if (battlegroundCache) return battlegroundCache;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -43,6 +55,7 @@ function loadAll(): Battleground[] {
 }
 
 function saveAll(list: Battleground[]): void {
+  battlegroundCache = list;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
     notify();
@@ -70,12 +83,16 @@ const battlegroundStore = {
       list.push(bg);
       saveAll(list);
     }
-    return bg;
+    // 浅拷贝：防止调用方 mutate 污染内存缓存
+    return { ...bg, tokens: [...bg.tokens], itemTokens: [...(bg.itemTokens ?? [])], moveHistory: [...(bg.moveHistory ?? [])] };
   },
 
   /** 直接获取（不创建） */
   get(sessionId: string): Battleground | null {
-    return loadAll().find((b) => b.sessionId === sessionId) ?? null;
+    const found = loadAll().find((b) => b.sessionId === sessionId) ?? null;
+    if (!found) return null;
+    // 浅拷贝：防止调用方 mutate 污染内存缓存
+    return { ...found, tokens: [...found.tokens], itemTokens: [...(found.itemTokens ?? [])], moveHistory: [...(found.moveHistory ?? [])] };
   },
 
   /** 切换沙盘大小，超出新边界的棋子会被裁掉 */

@@ -1,5 +1,5 @@
 // 原内容：完全保留，一个字都没改
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -150,7 +150,7 @@ export default function CombatSession() {
     const changes = record.equipmentChanges?.[c.id];
     let character: Character | null = null;
     if (c.characterId) character = characterStore.get(c.characterId);
-    const combatInventory = getCombatInventory(record, c);
+    const combatInventory = combatInventories[c.id];
     if (character) return computeCombatantAc(c, character, combatInventory);
     return c.ac ?? 0;
   };
@@ -162,6 +162,19 @@ export default function CombatSession() {
     });
     return unsub;
   }, []);
+
+  // 战斗背包记忆化：按 record 引用缓存全部参战者的战斗背包映射。
+  // store 每次更新会生成新 record 引用，此处自然失效；渲染热路径（每秒定时刷新等）
+  // 不会重跑，避免每个参战者重复走 parse + 派生计算。
+  const combatInventories = useMemo(() => {
+    if (!record) return {} as Record<string, any[]>;
+    const result: Record<string, any[]> = {};
+    for (const c of record.combatants) {
+      result[c.id] = getCombatInventory(record, c);
+    }
+    return result;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record]);
 
   // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
   if (!isDM) {
@@ -1749,14 +1762,7 @@ export default function CombatSession() {
       <Battleground
         sessionId={record.id}
         combatants={record.combatants}
-        combatInventories={(() => {
-          // 计算所有参战者的战斗背包（用 IIFE 立即求值）
-          const result: Record<string, any[]> = {};
-          for (const c of record.combatants) {
-            result[c.id] = getCombatInventory(record, c);
-          }
-          return result;
-        })()}
+        combatInventories={combatInventories}
         equipmentChangesMap={record.equipmentChanges}
         onUpdateChanges={(combatantId, changes) => {
           combatStore.update(record.id, {

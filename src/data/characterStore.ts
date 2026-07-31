@@ -29,6 +29,17 @@ const STORAGE_KEY = 'DND';
 const BACKUP_KEY = 'dm-characters-backup';
 const BACKUP_INTERVAL = 30000;
 
+// 进程内缓存：避免每次读都全量 parse localStorage。
+// 所有写操作都必须经过 saveStore()/saveCharacter()，否则缓存不会失效。
+let charactersCache: Character[] | null = null;
+
+// 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_KEY) charactersCache = null;
+  });
+}
+
 // ============================================================
 // 存储层
 // ============================================================
@@ -101,6 +112,7 @@ function migrateStore(chars: any[]): Character[] {
 }
 
 function getStore(): Character[] {
+  if (charactersCache) return charactersCache;
   try {
     const data = localStorage.getItem(STORAGE_KEY);
     const chars = data ? JSON.parse(data) : [];
@@ -111,6 +123,7 @@ function getStore(): Character[] {
 }
 
 function saveStore(store: Character[]): void {
+  charactersCache = store;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
   scheduleBackup();
 }
@@ -121,7 +134,10 @@ function getAllCharacters(): Character[] {
 
 function getCharacter(charId: string): Character | null {
   const chars = getStore();
-  return chars.find((c) => c.id === charId) || null;
+  const found = chars.find((c) => c.id === charId) || null;
+  if (!found) return null;
+  // 浅拷贝：防止调用方 mutate 污染内存缓存（原实现每次 parse 天然隔离）
+  return { ...found, equipment: [...(found.equipment ?? [])], attacks: [...(found.attacks ?? [])] };
 }
 
 function saveCharacter(charData: Character): Character {
