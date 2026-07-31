@@ -73,6 +73,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     startTranslate: { x: number; y: number };
     startScale: number;
     startDist: number;
+    // 双指按下时的中点（屏幕坐标）和对应的容器内坐标，
+    // 用于以双指中心为锚点缩放（而非默认的左上角）
+    startMidScreen: { x: number; y: number };
     moved: boolean;
   }>({
     pointers: new Map(),
@@ -80,6 +83,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     startTranslate: { x: 0, y: 0 },
     startScale: 1,
     startDist: 0,
+    startMidScreen: { x: 0, y: 0 },
     moved: false,
   });
   const gridWrapRef = useRef<HTMLDivElement | null>(null);
@@ -217,6 +221,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       const pts = Array.from(ts.pointers.values());
       ts.startDist = getDistance(pts[0], pts[1]);
       ts.startScale = scale;
+      // 记录双指中点（屏幕坐标），作为缩放锚点
+      ts.startMidScreen = {
+        x: (pts[0].x + pts[1].x) / 2,
+        y: (pts[0].y + pts[1].y) / 2,
+      };
     }
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
     // 进入拖拽锁定模式时禁止网格平移
@@ -352,12 +361,33 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       });
     }
     if (ts.pointers.size === 2) {
-      // 双指缩放
+      // 双指缩放：以实时双指中点为锚点（而非默认的左上角），
+      // 这样滑动两指时，"指头下面的那块地图"始终在指头下面。
       ts.moved = true;
       const pts = Array.from(ts.pointers.values());
       const dist = getDistance(pts[0], pts[1]);
       if (ts.startDist > 0) {
         const newScale = Math.max(0.5, Math.min(3, ts.startScale * (dist / ts.startDist)));
+        // 实时双指中点（屏幕坐标）相对于容器左上角的偏移
+        const rect = gridWrapRef.current?.getBoundingClientRect();
+        if (rect) {
+          // 用按下时的中点做锚点参照，确保缩放手势中锚点不抖动：
+          //   按下时锚点屏幕位置 = rect.left + startTranslate + startScale * startMidOffset
+          //   令 newTranslate 使按下时的锚点屏幕位置 = rect.left + newTranslate + newScale * startMidOffset
+          //   → newTranslate = startTranslate + (startScale - newScale) * startMidOffset
+          // 同时叠加按下后双指中点的移动量（startMid → 当前 mid），实现"跟着指头走"
+          const startMidX = ts.startMidScreen.x - rect.left;
+          const startMidY = ts.startMidScreen.y - rect.top;
+          const curMidX = ((pts[0].x + pts[1].x) / 2) - rect.left;
+          const curMidY = ((pts[0].y + pts[1].y) / 2) - rect.top;
+          const midDeltaX = curMidX - startMidX;
+          const midDeltaY = curMidY - startMidY;
+          const ratio = ts.startScale - newScale;
+          setTranslate({
+            x: ts.startTranslate.x + ratio * startMidX + midDeltaX,
+            y: ts.startTranslate.y + ratio * startMidY + midDeltaY,
+          });
+        }
         setScale(newScale);
       }
     }
