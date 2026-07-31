@@ -13,7 +13,7 @@ import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack } from '@/types/combat';
+import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
 import Battleground from '@/components/Battleground';
@@ -113,6 +113,7 @@ export default function CombatSession() {
     combatants: Combatant[];   // 所有角色 HP / 状态
     rounds: RoundAction[];     // 先攻表（回合开始时的内容，回溯时把此格及之后清空恢复到此）
     battleground: any[];       // 沙盘 tokens 快照
+    equipmentChanges?: Record<string, EquipmentChanges>; // 装备变更漏斗快照
   };
   const rollbackSnapshotRef = useRef<{
     initial: TurnSnapshot | null;
@@ -659,12 +660,21 @@ export default function CombatSession() {
     commitModeChange(mode);
     if (mode === 'playback') {
       const bg = battlegroundStore.get(record.id);
+      const latestForSnapshot = combatStore.get(record.id);
       playbackSnapshotRef.current = (bg?.tokens ?? []).map(t => ({ ...t }));
       rollbackSnapshotRef.current = {
         initial: {
           combatants: record.combatants.map(c => ({ ...c })),
           rounds: record.rounds.map(r => ({ ...r })),
           battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
+          equipmentChanges: latestForSnapshot?.equipmentChanges
+            ? Object.fromEntries(
+                Object.entries(latestForSnapshot.equipmentChanges).map(([k, v]) => [
+                  k,
+                  { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
+                ]),
+              )
+            : undefined,
         },
         snapshots: {},
       };
@@ -678,12 +688,20 @@ export default function CombatSession() {
       return;
     }
     if (!preserveChanges) {
-      // 「丢弃，恢复原先状态」：完整还原 combatants / rounds / 沙盘 到进入放映模式时的快照
+      // 「丢弃，恢复原先状态」：完整还原 combatants / rounds / 装备变更 / 沙盘 到进入放映模式时的快照
       const init = rollbackSnapshotRef.current.initial;
       if (init) {
         combatStore.update(record.id, {
           combatants: init.combatants.map(c => ({ ...c })),
           rounds: init.rounds.map(r => ({ ...r })),
+          equipmentChanges: init.equipmentChanges
+            ? Object.fromEntries(
+                Object.entries(init.equipmentChanges).map(([k, v]) => [
+                  k,
+                  { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
+                ]),
+              )
+            : undefined,
           updatedAt: Date.now(),
         });
         battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
@@ -879,6 +897,14 @@ export default function CombatSession() {
       combatants: latest.combatants.map(c => ({ ...c })),
       rounds: latest.rounds.map(r => ({ ...r })),
       battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
+      equipmentChanges: latest.equipmentChanges
+        ? Object.fromEntries(
+            Object.entries(latest.equipmentChanges).map(([k, v]) => [
+              k,
+              { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
+            ]),
+          )
+        : undefined,
     };
     const key = `${round}:${combatantId}`;
     // 只在第一次拍（始终回到该回合最初状态）
@@ -926,6 +952,14 @@ export default function CombatSession() {
     combatStore.update(record.id, {
       combatants: restoredCombatants,
       rounds: restoredRounds,
+      equipmentChanges: snap.equipmentChanges
+        ? Object.fromEntries(
+            Object.entries(snap.equipmentChanges).map(([k, v]) => [
+              k,
+              { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
+            ]),
+          )
+        : undefined,
       updatedAt: Date.now(),
     });
     // 4) 还原沙盘
