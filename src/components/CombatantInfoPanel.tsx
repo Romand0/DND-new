@@ -42,25 +42,39 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   }, []);
 
   const attacks: (Attack | NpcAttack)[] = character?.attacks || combatant.attacks || [];
-  const heldLeftId = character?.heldLeft?.equipmentId;
-  const heldRightId = character?.heldRight?.equipmentId;
+  const rawHeldLeftId = character?.heldLeft?.equipmentId ?? null;
+  const rawHeldRightId = character?.heldRight?.equipmentId ?? null;
   // 手持物品：仅从战斗背包查找（战斗场景下），物品被消耗后自然为 null
-  const heldLeftItem = heldLeftId
+  const heldLeftItem = rawHeldLeftId
     ? (combatInventory
-      ? combatInventory.find(e => (e.childId || e.id) === heldLeftId) ?? null
-      : character?.equipment.find(e => (e.childId || e.id) === heldLeftId) ?? null)
+      ? combatInventory.find(e => (e.childId || e.id) === rawHeldLeftId) ?? null
+      : character?.equipment.find(e => (e.childId || e.id) === rawHeldLeftId) ?? null)
     : null;
-  const heldRightItem = heldRightId
+  const heldRightItem = rawHeldRightId
     ? (combatInventory
-      ? combatInventory.find(e => (e.childId || e.id) === heldRightId) ?? null
-      : character?.equipment.find(e => (e.childId || e.id) === heldRightId) ?? null)
+      ? combatInventory.find(e => (e.childId || e.id) === rawHeldRightId) ?? null
+      : character?.equipment.find(e => (e.childId || e.id) === rawHeldRightId) ?? null)
     : null;
+  // 有效手持 ID：物品已不在战斗背包（被消耗/移除）时视为空手，避免 holdItem 报"手不可用"
+  const heldLeftId = heldLeftItem ? rawHeldLeftId : null;
+  const heldRightId = heldRightItem ? rawHeldRightId : null;
   // 可用性：物品不存在于战斗背包时视为不可用
   const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left', combatInventory) : false;
   const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right', combatInventory) : false;
 
   const handleHoldSelect = (item: Equipment, hand: 'left' | 'right') => {
     if (!character) return;
+    // 若目标手仍持有已不在战斗背包中的物品（悬空引用），先清空，避免 holdItem 报"手不可用"
+    const rawSlot = hand === 'left' ? character.heldLeft : character.heldRight;
+    const rawId = rawSlot?.equipmentId ?? null;
+    const stillExists = rawId
+      ? (combatInventory
+        ? combatInventory.some(e => (e.childId || e.id) === rawId)
+        : character.equipment.some(e => (e.childId || e.id) === rawId))
+      : false;
+    if (rawId && !stillExists) {
+      characterStore.unholdItem(character.id, hand);
+    }
     const result = characterStore.holdItem(character.id, (item.childId || item.id)!, hand, combatInventory);
     if (!result.success) alert(result.message);
     setRefreshKey(k => k + 1);
