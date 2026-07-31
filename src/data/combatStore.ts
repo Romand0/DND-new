@@ -22,35 +22,33 @@ export function emptyEquipmentChanges(): EquipmentChanges {
 }
 
 /**
- * 合并同类物品（按 name + category 判断）。
- * 自动整理战斗背包时调用。
+ * 整理背包排序（与角色背包"整理背包"逻辑一致）：
+ *   按分类顺序 ['武器','护甲','法器','工具','药水','杂物'] 排序，
+ *   同分类内按名称 localeCompare 排序。
+ *   每个不同 childId 的装备都是独立的，**不合并**。
  */
-function mergeEquipmentsByName(list: Equipment[]): Equipment[] {
-  const map = new Map<string, Equipment>();
-  for (const eq of list) {
-    const key = `${eq.category || '杂项'}::${eq.name || '未命名'}`;
-    const prev = map.get(key);
-    if (!prev) {
-      map.set(key, { ...eq, quantity: (eq.quantity ?? 1) });
-    } else {
-      // 合并数量，保留先出现那条的 childId（作为代表）
-      const mergedQty = (prev.quantity ?? 1) + (eq.quantity ?? 1);
-      map.set(key, { ...prev, quantity: mergedQty });
-    }
-  }
-  return Array.from(map.values());
+function sortInventory(list: Equipment[]): Equipment[] {
+  const categoryOrder = ['武器', '护甲', '法器', '工具', '药水', '杂物'];
+  return [...list].sort((a, b) => {
+    const aIndex = categoryOrder.indexOf(a.category || '');
+    const bIndex = categoryOrder.indexOf(b.category || '');
+    const aRank = aIndex === -1 ? categoryOrder.length : aIndex;
+    const bRank = bIndex === -1 ? categoryOrder.length : bIndex;
+    if (aRank !== bRank) return aRank - bRank;
+    return (a.name || '').localeCompare(b.name || '', 'zh-CN');
+  });
 }
 
 /**
  * 派生战斗背包：
- *   战斗背包 = 角色背包（源） + 应用变更信息（漏斗） + 自动整理（同名合并）
+ *   战斗背包 = 角色背包（源） + 应用变更信息（漏斗） + 自动整理（排序，不合并）
  *
- * 规则（以 childId 为唯一主键）：
+ * 规则（以 childId 为唯一主键，每个 childId 独立存在）：
  *   1. 复制角色源装备
  *   2. 应用 quantityDeltas（数量加减，减到 0 或以下 → 视为移除）
  *   3. 过滤 removedChildIds（完全移除）
  *   4. 追加 added（战斗中新增物品，保留新增的 childId）
- *   5. 自动整理：同名同分类合并数量
+ *   5. 自动整理：按分类+名称排序（不合并同名，每个 childId 独立）
  */
 export function deriveCombatInventory(
   character: Character | null | undefined,
@@ -98,13 +96,13 @@ export function deriveCombatInventory(
     mergedRaw.push(newEq);
   }
 
-  // 5：自动整理（同名合并）
-  return mergeEquipmentsByName(mergedRaw);
+  // 5：自动整理（排序，不合并）
+  return sortInventory(mergedRaw);
 }
 
 /**
- * 派生战斗背包（未合并版本）：
- *   与 deriveCombatInventory 相同，但**不做同名合并**。
+ * 派生战斗背包（未排序版本）：
+ *   与 deriveCombatInventory 相同，但**不做排序**。
  *   用于需要精确 childId 的场景（如投掷消耗：必须找到具体的 childId 才能正确移除）。
  */
 export function deriveCombatInventoryRaw(
@@ -149,11 +147,11 @@ export function deriveCombatInventoryRaw(
     afterSource.push(newEq);
   }
 
-  return afterSource; // 不合并
+  return afterSource; // 不排序
 }
 
 /**
- * 便捷函数：从战斗记录 + combatantId 计算出战斗背包（未合并）。
+ * 便捷函数：从战斗记录 + combatantId 计算出战斗背包（未排序）。
  */
 export function getCombatInventoryRaw(
   record: CombatRecord | null | undefined,
