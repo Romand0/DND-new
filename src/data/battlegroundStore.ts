@@ -1,5 +1,5 @@
 // 网格沙盘本地存储 —— 按 sessionId 索引，独立于战斗记录
-import type { Battleground, GridSize, TokenPosition } from '@/types/battleground';
+import type { Battleground, GridSize, TokenPosition, ItemToken } from '@/types/battleground';
 import { GRID_PRESETS } from '@/types/battleground';
 
 const STORAGE_KEY = 'dnd-battlegrounds';
@@ -28,6 +28,14 @@ function loadAll(): Battleground[] {
         : [],
       updatedAt: b.updatedAt ?? Date.now(),
       moveHistory: Array.isArray(b.moveHistory) ? b.moveHistory : [],
+      itemTokens: Array.isArray(b.itemTokens) ? b.itemTokens.map((t: any) => ({
+        id: t.id,
+        col: Number(t.col) || 0,
+        row: Number(t.row) || 0,
+        name: t.name || '物品',
+        equipmentData: t.equipmentData || {},
+        droppedBy: t.droppedBy,
+      })) : [],
     }));
   } catch {
     return [];
@@ -55,6 +63,7 @@ const battlegroundStore = {
         sessionId,
         size: 'medium', // 默认中型
         tokens: [],
+        itemTokens: [],
         moveHistory: [],
         updatedAt: Date.now(),
       };
@@ -144,6 +153,32 @@ const battlegroundStore = {
   getUndoCount(sessionId: string): number {
     const bg = this.get(sessionId);
     return bg?.moveHistory?.length ?? 0;
+  },
+
+  /** 放置掉落物品 token（投掷武器落地等） */
+  placeItemToken(sessionId: string, token: ItemToken): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    const preset = GRID_PRESETS[list[idx].size];
+    if (token.col < 0 || token.col >= preset.cols || token.row < 0 || token.row >= preset.rows) return;
+    if (!list[idx].itemTokens) list[idx].itemTokens = [];
+    list[idx].itemTokens!.push(token);
+    list[idx] = { ...list[idx], updatedAt: Date.now() };
+    saveAll(list);
+  },
+
+  /** 移除掉落物品 token（拾起后） */
+  removeItemToken(sessionId: string, tokenId: string): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    list[idx] = {
+      ...list[idx],
+      itemTokens: (list[idx].itemTokens || []).filter((t) => t.id !== tokenId),
+      updatedAt: Date.now(),
+    };
+    saveAll(list);
   },
 
   /** 清空所有棋子 */

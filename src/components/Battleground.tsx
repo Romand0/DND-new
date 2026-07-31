@@ -1,9 +1,9 @@
 // 网格沙盘组件 —— 展示参战者位置与移动，支持三种大小预设
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen } from 'lucide-react';
+import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, MoreHorizontal, Package } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
-import type { Battleground as BG, GridSize } from '@/types/battleground';
+import type { Battleground as BG, GridSize, ItemToken } from '@/types/battleground';
 import type { Combatant } from '@/types/combat';
 import CombatantInfoPanel from './CombatantInfoPanel';
 
@@ -14,6 +14,8 @@ interface Props {
   onRequestAttack?: (attacker: Combatant, target: Combatant) => void;
   // 法术按钮触发：交由 main（CombatSession）处理法术施放弹窗
   onRequestSpell?: (caster: Combatant, target: Combatant) => void;
+  /** 拾起掉落物品：交由 main 处理（体型/智力检查 + 加入背包 + 移除 token） */
+  onPickupItem?: (itemToken: ItemToken, picker: Combatant) => void;
   /** 放映模式：禁用所有沙盘操作（移动、放置、删除、橡皮） */
   readOnly?: boolean;
   /** 当前回合角色 ID（放映模式高亮） */
@@ -26,7 +28,7 @@ interface Props {
   playbackOnlyMovableId?: string | null;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
@@ -100,6 +102,23 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     bg?.tokens.forEach((t) => m.set(`${t.col},${t.row}`, t.combatantId));
     return m;
   }, [bg?.tokens]);
+
+  // 格子 -> 掉落物品 token 列表 反向索引
+  const cellItemTokens = useMemo(() => {
+    const m = new Map<string, ItemToken[]>(); // "col,row" -> ItemToken[]
+    (bg?.itemTokens || []).forEach((t) => {
+      const key = `${t.col},${t.row}`;
+      const arr = m.get(key) || [];
+      arr.push(t);
+      m.set(key, arr);
+    });
+    return m;
+  }, [bg?.itemTokens]);
+
+  // 实体选择对话框：当格子有多个实体时展示
+  const [entityPickerCell, setEntityPickerCell] = useState<string | null>(null); // "col,row"
+  // 锁定的物品 token id（光圈选中物品时）
+  const [lockedItemTokenId, setLockedItemTokenId] = useState<string | null>(null);
 
   // 选中棋子的速度（用于悬浮标签显示）
   const selectedSpeed = useMemo(() => {
@@ -596,6 +615,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             const key = `${col},${row}`;
             const combatantId = cellToken.get(key);
             const combatant = combatantId ? combatantMap.get(combatantId) : null;
+            const itemsHere = cellItemTokens.get(key) || [];
+            const hasMultiple = (combatant ? 1 : 0) + itemsHere.length > 1;
             const isHover = selectedCombatantId && !eraserMode;
             const inMoveRange = moveRangeSet.has(key);
             // 拖拽锁定时被接触的棋子高亮白圈
@@ -608,7 +629,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
               <div
                 key={i}
                 onClick={() => handleCellClick(col, row)}
-                className={`border flex items-center justify-center cursor-pointer transition-colors ${
+                className={`border flex items-center justify-center cursor-pointer transition-colors relative ${
                   inMoveRange
                     ? 'bg-info/30 border-info/40'
                     : 'dark:border-border-dark/40 light:border-border-light/40'
@@ -616,13 +637,57 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   eraserMode && combatantId ? 'hover:bg-danger/30' : ''
                 }`}
                 style={{ width: cellSize, height: cellSize }}
-                title={combatant ? combatant.name : `${col},${row}`}
+                title={combatant ? combatant.name : itemsHere.length > 0 ? itemsHere.map(t => t.name).join(', ') : `${col},${row}`}
               >
+                {/* 掉落物品 token：武器图标，位于角色下层 */}
+                {itemsHere.length > 0 && !hasMultiple && (() => {
+                  const item = itemsHere[0];
+                  const isItemLocked = lockedItemTokenId === item.id;
+                  return (
+                    <div
+                      className={`absolute rounded-lg flex items-center justify-center transition-all select-none bg-amber-600/80 ${
+                        isItemLocked ? 'ring-2 ring-yellow-400 scale-110 z-10' : 'z-0'
+                      }`}
+                      style={{
+                        width: cellSize - 8,
+                        height: cellSize - 8,
+                        touchAction: 'none',
+                      }}
+                      onPointerDown={(e) => {
+                        if (readOnly) return;
+                        e.stopPropagation();
+                        if (longPressTimer.current) clearTimeout(longPressTimer.current);
+                        longPressStartRef.current = { x: e.clientX, y: e.clientY };
+                        longPressTimer.current = setTimeout(() => {
+                          if (longPressStartRef.current) {
+                            if (navigator.vibrate) navigator.vibrate(15);
+                            // 锁定物品 token：显示拾起按钮
+                            setLockedItemTokenId(item.id);
+                            setLockedTargetId(null);
+                            setLockedSourceId(null);
+                          }
+                        }, 350);
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (readOnly) return;
+                        // 点击物品 token：直接锁定以显示拾起按钮
+                        setLockedItemTokenId(item.id);
+                        setLockedTargetId(null);
+                        setLockedSourceId(null);
+                      }}
+                    >
+                      <Package style={{ width: cellSize * 0.45, height: cellSize * 0.45 }} className="text-white" />
+                    </div>
+                  );
+                })()}
+
+                {/* 多实体共存：角色棋子在上层 */}
                 {combatant && (() => {
                   const downed = combatant.isDead || combatant.isUnconscious;
                   return (
                   <div
-                    className={`relative rounded-full flex items-center justify-center font-bold text-white leading-none transition-all select-none ${
+                    className={`relative rounded-full flex items-center justify-center font-bold text-white leading-none transition-all select-none z-10 ${
                       downed
                         ? 'bg-gray-500'
                         : combatant.isPc ? 'bg-info' : 'bg-danger'
@@ -682,6 +747,26 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   </div>
                   );
                 })()}
+
+                {/* 多实体共存的 "..." 按钮 */}
+                {hasMultiple && !readOnly && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEntityPickerCell(entityPickerCell === key ? null : key);
+                    }}
+                    className={`absolute top-0 right-0 z-20 rounded-full flex items-center justify-center bg-gray-800 text-white shadow-lg transition-transform hover:scale-110 ${
+                      entityPickerCell === key ? 'ring-2 ring-yellow-400' : ''
+                    }`}
+                    style={{
+                      width: Math.max(14, cellSize * 0.4),
+                      height: Math.max(14, cellSize * 0.4),
+                    }}
+                    title="该格有多个实体"
+                  >
+                    <MoreHorizontal style={{ width: '70%', height: '70%' }} />
+                  </button>
+                )}
               </div>
             );
           })}
@@ -827,6 +912,139 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             </>
           );
         })()}
+
+        {/* 锁定物品 token 后的拾起按钮 */}
+        {lockedItemTokenId && (() => {
+          const itemToken = (bg?.itemTokens || []).find(t => t.id === lockedItemTokenId);
+          if (!itemToken) return null;
+          const rect = gridWrapRef.current?.getBoundingClientRect();
+          if (!rect) return null;
+          const cx = translate.x + (itemToken.col + 0.5) * cellSize * scale;
+          const cy = translate.y + (itemToken.row + 0.5) * cellSize * scale;
+          const tokenSize = (cellSize - 8) * scale;
+          const btnSize = tokenSize * 1.5;
+          return (
+            <>
+              {/* 拾起按钮：物品上方 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // 拾起：需要选中一个角色作为拾取者
+                  // 优先使用当前选中的角色，否则提示选择
+                  if (selectedCombatantId) {
+                    const picker = combatantMap.get(selectedCombatantId);
+                    if (picker && onPickupItem) {
+                      onPickupItem(itemToken, picker);
+                    }
+                  } else {
+                    // 没有选中角色时，使用当前回合角色
+                    const pickerId = activeTurnCombatantId || selectedCombatantId;
+                    if (pickerId) {
+                      const picker = combatantMap.get(pickerId);
+                      if (picker && onPickupItem) {
+                        onPickupItem(itemToken, picker);
+                      }
+                    } else {
+                      alert('请先选中一个角色再拾起物品');
+                    }
+                  }
+                  setLockedItemTokenId(null);
+                }}
+                className="absolute z-30 rounded-full flex flex-col items-center justify-center shadow-lg transition-transform bg-amber-600 text-white hover:scale-110"
+                style={{
+                  width: btnSize,
+                  height: btnSize,
+                  left: cx - btnSize / 2,
+                  top: cy - tokenSize * 0.7 - btnSize,
+                }}
+                title="拾起物品"
+              >
+                <Package style={{ width: btnSize * 0.38, height: btnSize * 0.38 }} />
+                <span style={{ fontSize: Math.max(8, btnSize * 0.16) }} className="font-medium leading-none mt-0.5">拾起</span>
+              </button>
+              {/* 取消选中按钮 */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setLockedItemTokenId(null);
+                }}
+                className="absolute z-30 bg-gray-700 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                style={{
+                  width: Math.max(16, tokenSize * 0.55),
+                  height: Math.max(16, tokenSize * 0.55),
+                  left: cx - Math.max(16, tokenSize * 0.55) / 2,
+                  top: cy + tokenSize * 0.7,
+                }}
+                title="取消选中"
+              >
+                <X style={{ width: '60%', height: '60%' }} />
+              </button>
+            </>
+          );
+        })()}
+
+        {/* 实体选择对话框：当格子有多个实体且 "..." 被点击时展示 */}
+        {entityPickerCell && (() => {
+          const combatantId = cellToken.get(entityPickerCell);
+          const combatant = combatantId ? combatantMap.get(combatantId) : null;
+          const itemsHere = cellItemTokens.get(entityPickerCell) || [];
+          const [ec, er] = entityPickerCell.split(',').map(Number);
+          const rect = gridWrapRef.current?.getBoundingClientRect();
+          if (!rect) return null;
+          const cx = translate.x + (ec + 0.5) * cellSize * scale;
+          const cy = translate.y + (er + 0.5) * cellSize * scale;
+          return (
+            <div
+              className="absolute z-40 rounded-lg shadow-2xl p-2 min-w-[120px]"
+              style={{
+                left: cx + cellSize * scale,
+                top: cy - cellSize * scale,
+                background: 'rgba(0,0,0,0.85)',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-white text-xs font-medium mb-1.5 text-center">该格有多个实体</div>
+              <div className="flex flex-col gap-1">
+                {combatant && (
+                  <button
+                    onClick={() => {
+                      setLockedTargetId(combatant.id);
+                      setLockedItemTokenId(null);
+                      setEntityPickerCell(null);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors"
+                  >
+                    <span className={`w-3 h-3 rounded-full ${combatant.isPc ? 'bg-info' : 'bg-danger'}`} />
+                    {combatant.name}
+                  </button>
+                )}
+                {itemsHere.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setLockedItemTokenId(item.id);
+                      setLockedTargetId(null);
+                      setLockedSourceId(null);
+                      setEntityPickerCell(null);
+                    }}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors"
+                  >
+                    <span className="w-3 h-3 rounded bg-amber-600 flex items-center justify-center">
+                      <Package style={{ width: 8, height: 8 }} className="text-white" />
+                    </span>
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => setEntityPickerCell(null)}
+                className="w-full mt-1.5 px-2 py-1 rounded text-white/70 text-xs hover:bg-white/10 transition-colors"
+              >
+                关闭
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 图例 */}
@@ -842,6 +1060,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         <div className="flex items-center gap-1">
           <span className="w-3 h-3 border border-info/40 bg-info/30" />
           移动范围
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded bg-amber-600/80" />
+          掉落物品
         </div>
       </div>
 

@@ -156,7 +156,8 @@ export default function CharacterEquipmentCard({
               <button
                 onClick={() => {
                   if (isHeld) {
-                    const result = characterStore.unholdItem(characterId, itemId);
+                    const hand = heldHand === 'L' ? 'left' : 'right';
+                    const result = characterStore.unholdItem(characterId, hand);
                     if (!result.success) alert(result.message);
                   } else {
                     const result = characterStore.holdItem(characterId, itemId, 'auto');

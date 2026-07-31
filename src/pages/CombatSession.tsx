@@ -8,6 +8,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack } from '@/types/combat';
+import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
@@ -416,6 +417,155 @@ export default function CombatSession() {
       combatants: updatedCombatants,
       updatedAt: Date.now(),
     });
+  };
+
+  // ============ 投掷武器掉落机制 ============
+  // 切比雪夫距离（格）
+  const chebyDist = (a: { col: number; row: number }, b: { col: number; row: number }) =>
+    Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row));
+
+  // 计算投掷武器掉落位置
+  // hit=true: 敌人5尺（1格）内最靠近玩家的3格中随机一格
+  // hit=false: 以玩家为圆心、本次射程为半径 和 以敌人为圆心、敌人速度为半径 的交集区域随机一格
+  const calcThrownDropPos = (
+    attackerPos: { col: number; row: number },
+    targetPos: { col: number; row: number },
+    hit: boolean,
+    rangeUsedFeet: number,
+    targetSpeed: number,
+    gridCols: number,
+    gridRows: number,
+  ): { col: number; row: number } => {
+    if (hit) {
+      // 敌人周围8格，按到玩家的切比雪夫距离排序，取前3格随机选一
+      const candidates: { col: number; row: number; d: number }[] = [];
+      for (let dc = -1; dc <= 1; dc++) {
+        for (let dr = -1; dr <= 1; dr++) {
+          if (dc === 0 && dr === 0) continue; // 跳过敌人自身格
+          const c = targetPos.col + dc;
+          const r = targetPos.row + dr;
+          if (c < 0 || c >= gridCols || r < 0 || r >= gridRows) continue;
+          candidates.push({ col: c, row: r, d: chebyDist({ col: c, row: r }, attackerPos) });
+        }
+      }
+      candidates.sort((a, b) => a.d - b.d);
+      const top = candidates.slice(0, Math.min(3, candidates.length));
+      if (top.length === 0) return { col: targetPos.col, row: targetPos.row };
+      return top[Math.floor(Math.random() * top.length)];
+    } else {
+      // 未命中：两个圆形区域的交集
+      const rangeCells = Math.floor(rangeUsedFeet / 5);
+      const speedCells = Math.floor(targetSpeed / 5);
+      const candidates: { col: number; row: number }[] = [];
+      for (let c = 0; c < gridCols; c++) {
+        for (let r = 0; r < gridRows; r++) {
+          const dPlayer = chebyDist({ col: c, row: r }, attackerPos);
+          const dEnemy = chebyDist({ col: c, row: r }, targetPos);
+          if (dPlayer <= rangeCells && dEnemy <= speedCells) {
+            candidates.push({ col: c, row: r });
+          }
+        }
+      }
+      if (candidates.length === 0) {
+        // 交集为空时退回到玩家与敌人连线中点
+        return {
+          col: Math.round((attackerPos.col + targetPos.col) / 2),
+          row: Math.round((attackerPos.row + targetPos.row) / 2),
+        };
+      }
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    }
+  };
+
+  // 执行投掷武器掉落：从攻击者背包移除武器，在网格上生成物品 token
+  const executeThrownDrop = (
+    attacker: Combatant,
+    target: Combatant,
+    attack: Attack | NpcAttack,
+    attackerPos: { col: number; row: number },
+    targetPos: { col: number; row: number },
+    hit: boolean,
+    usageMode?: 'melee' | 'thrown',
+  ) => {
+    if (usageMode !== 'thrown') return;
+    if (!record) return;
+    const bg = battlegroundStore.get(record.id);
+    if (!bg) return;
+
+    // 确定本次使用的射程（常规或最大）
+    let rangeUsedFeet = attack.normalRange || 20;
+    const distanceFeet = chebyDist(attackerPos, targetPos) * 5;
+    if (attack.maxRange && distanceFeet > (attack.normalRange || 0)) {
+      rangeUsedFeet = attack.maxRange;
+    }
+    const targetSpeed = target.speed || 30;
+
+    const gridCols = bg.size === 'small' ? 12 : bg.size === 'medium' ? 24 : 36;
+    const gridRows = bg.size === 'small' ? 18 : bg.size === 'medium' ? 36 : 54;
+
+    const dropPos = calcThrownDropPos(attackerPos, targetPos, hit, rangeUsedFeet, targetSpeed, gridCols, gridRows);
+
+    // 构造装备快照数据
+    let equipData: Record<string, unknown> = {
+      name: attack.name,
+      category: '武器',
+      subtype: attack.subtype,
+      damageDice: attack.damage,
+      damageType: attack.damageType,
+      properties: attack.properties,
+      normalRange: attack.normalRange,
+      maxRange: attack.maxRange,
+      range: attack.range,
+      quantity: 1,
+    };
+
+    // PC：从背包中找到对应武器并删除，用真实装备数据做快照
+    if (attacker.characterId) {
+      const char = characterStore.get(attacker.characterId);
+      if (char) {
+        const heldLeftId = char.heldLeft?.equipmentId;
+        const heldRightId = char.heldRight?.equipmentId;
+        // 优先找手持的匹配武器
+        let foundEquip = null;
+        for (const eq of char.equipment) {
+          const slotId = eq.childId || eq.id;
+          if (slotId === heldLeftId || slotId === heldRightId) {
+            if (eq.name === attack.name) {
+              foundEquip = eq;
+              break;
+            }
+          }
+        }
+        // 若手持未找到，按名称查找
+        if (!foundEquip) {
+          foundEquip = char.equipment.find(e => e.name === attack.name) || null;
+        }
+        if (foundEquip) {
+          equipData = { ...foundEquip, quantity: 1 };
+          // 如果数量大于1，减少数量；否则删除
+          const slotId = foundEquip.childId || foundEquip.id || '';
+          if ((foundEquip.quantity || 1) > 1) {
+            characterStore.updateEquipment(attacker.characterId, slotId, {
+              quantity: (foundEquip.quantity || 1) - 1,
+            });
+          } else {
+            characterStore.deleteEquipment(attacker.characterId, slotId);
+          }
+        }
+      }
+    }
+
+    // 生成唯一 token id
+    const tokenId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+    const itemToken: ItemToken = {
+      id: tokenId,
+      col: dropPos.col,
+      row: dropPos.row,
+      name: attack.name,
+      equipmentData: equipData,
+      droppedBy: attacker.id,
+    };
+    battlegroundStore.placeItemToken(record.id, itemToken);
   };
 
   // ✅ 突袭：打开突袭选择窗口
@@ -1558,6 +1708,64 @@ export default function CombatSession() {
           // 法术按钮：打开独立法术施放弹窗
           setSpellModal({ caster, target });
         }}
+        onPickupItem={(itemToken, picker) => {
+          // 拾起掉落物品：体型小型及以上 + 智力4以上 + 5格内
+          if (!record) return;
+          const bg = battlegroundStore.get(record.id);
+          if (!bg) return;
+          const pickerToken = bg.tokens.find(t => t.combatantId === picker.id);
+          if (!pickerToken) {
+            alert('拾取者不在沙盘上');
+            return;
+          }
+          // 距离检查：5格内
+          const dist = Math.max(
+            Math.abs(pickerToken.col - itemToken.col),
+            Math.abs(pickerToken.row - itemToken.row),
+          );
+          if (dist > 5) {
+            alert(`距离过远（${dist * 5}尺），需在5格（25尺）内才能拾起`);
+            return;
+          }
+          // 体型检查：小型及以上
+          let size = '中型';
+          let intelligence = 10;
+          if (picker.characterId) {
+            const char = characterStore.get(picker.characterId);
+            if (char) {
+              size = char.size || '中型';
+              intelligence = char.abilities?.intelligence?.score || 10;
+            }
+          } else if (picker.templateId) {
+            const template = npcTemplateStore.getAll().find(t => t.templateId === picker.templateId);
+            if (template) {
+              intelligence = template.intelligence || 10;
+            }
+          }
+          const validSizes = ['微型', '小型', '中型', '大型', '巨型', '超巨型'];
+          if (!validSizes.includes(size)) size = '中型';
+          const sizeIdx = validSizes.indexOf(size);
+          if (sizeIdx < 1) { // 小型 = index 1
+            alert(`${picker.name} 体型为${size}，需小型及以上才能拾起`);
+            return;
+          }
+          // 智力检查：4以上
+          if (intelligence < 4) {
+            alert(`${picker.name} 智力为${intelligence}，需4以上才能拾起`);
+            return;
+          }
+          // 加入拾取者背包（仅 PC 有背包）
+          if (picker.characterId) {
+            characterStore.addEquipment(picker.characterId, itemToken.equipmentData as any);
+          }
+          // 从网格移除物品 token
+          battlegroundStore.removeItemToken(record.id, itemToken.id);
+          // 写入先攻表格
+          const cell = resolveWriteCell(picker.id);
+          if (cell) {
+            appendRoundRecord(cell.round, cell.combatantId, `${picker.name} 拾起了 ${itemToken.name}`);
+          }
+        }}
       />
 
       {/* ✅ 新增：NPC 创建器 */}
@@ -1600,6 +1808,15 @@ export default function CombatSession() {
             if (!cell) return;
             const text = `对 ${attackModal.target.name} 的攻击未命中，${missInfo.attackName}打偏了`;
             appendRoundRecord(cell.round, cell.combatantId, text);
+            // 投掷武器掉落：未命中也掉落
+            if (attackModal.attackerPos && attackModal.targetPos) {
+              executeThrownDrop(
+                attackModal.attacker, attackModal.target,
+                missInfo.attack,
+                attackModal.attackerPos, attackModal.targetPos,
+                false, missInfo.usageMode,
+              );
+            }
           }}
         />
       )}
@@ -1622,6 +1839,21 @@ export default function CombatSession() {
               if (status === 'unconscious') text += '，将其击昏';
               else if (status === 'dead') text += '，将其杀死';
               appendRoundRecord(cell.round, cell.combatantId, text);
+            }
+            // 3. 投掷武器掉落：命中也掉落
+            const bg = record ? battlegroundStore.get(record.id) : null;
+            if (bg) {
+              const attackerToken = bg.tokens.find(t => t.combatantId === damageModal.attacker.id);
+              const targetToken = bg.tokens.find(t => t.combatantId === damageModal.target.id);
+              if (attackerToken && targetToken) {
+                executeThrownDrop(
+                  damageModal.attacker, damageModal.target,
+                  damageModal.attack,
+                  { col: attackerToken.col, row: attackerToken.row },
+                  { col: targetToken.col, row: targetToken.row },
+                  true, damageModal.usageMode,
+                );
+              }
             }
           }}
           onClose={() => setDamageModal(null)}

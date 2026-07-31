@@ -27,6 +27,7 @@ interface Props {
   /** 攻击未命中：回传主，写入先攻表格 */
   onAttackMiss?: (info: {
     attackName: string;
+    attack: Attack | NpcAttack;
     d20Rolled: number[];
     d20Final: number;
     bonus: number;
@@ -381,6 +382,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       if (onAttackMiss) {
         onAttackMiss({
           attackName: selectedAttack.name,
+          attack: selectedAttack,
           ...infoBase,
         });
       }

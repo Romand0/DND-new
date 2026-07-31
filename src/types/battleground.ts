@@ -22,11 +22,25 @@ export interface TokenPosition {
   row: number;
 }
 
+/** 掉落物品 token（如投掷武器落地后） */
+export interface ItemToken {
+  id: string;              // 唯一 token id
+  col: number;
+  row: number;
+  name: string;            // 物品名称
+  /** 装备快照数据，拾起时用于加入背包 */
+  equipmentData: Record<string, unknown>;
+  /** 掉落者 combatantId */
+  droppedBy?: string;
+}
+
 /** 单场战斗的沙盘数据 */
 export interface Battleground {
   sessionId: string;
   size: GridSize;
   tokens: TokenPosition[];
+  /** 掉落物品 token 列表（可与角色 token 同格） */
+  itemTokens?: ItemToken[];
   updatedAt: number;
   /** 移动历史栈，最多保留 5 条，用于撤回 */
   moveHistory?: TokenPosition[][];
