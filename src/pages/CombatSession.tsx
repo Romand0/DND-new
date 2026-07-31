@@ -1806,20 +1806,48 @@ export default function CombatSession() {
             return;
           }
           
-          // 写入变更信息（漏斗）：新增物品
-          const newChildId = `combat-${picker.id}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+          // 拾取物品：优先复用源 childId（"丢出去的匕首捡回来还是同一把"），
+          // 避免生成新 childId 导致同名武器被识别为不同实体（武器定制化越强，数据丢失越严重）；
+          // 仅 NPC 掉落物（无源 childId）才生成新的临时 childId。
+          const sourceChildId = (itemToken.equipmentData?.childId as string | undefined)
+            || (itemToken.equipmentData?.id as string | undefined);
+          const fallbackChildId = `combat-${picker.id}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+          const childIdToUse = sourceChildId || fallbackChildId;
+
+          // 判断拾取者是否为该 childId 的源拥有者：
+          //   是 → 拾取 = 撤销当初的"丢失"操作（removedChildIds 或 quantityDeltas），
+          //        否则 added 会被 removedChildIds 强制置 0，导致"捡不回来"
+          //   否 → 当作新增物品写入 added
+          const pickerChar = picker.characterId ? characterStore.get(picker.characterId) : null;
+          const pickerSrcList = (pickerChar?.equipment as any[] | undefined) || [];
+          const isInPickerSrc = sourceChildId
+            ? pickerSrcList.some(e => (e.childId || e.id) === sourceChildId)
+            : false;
+
           const equipSnapshot: Record<string, unknown> = {
             ...(itemToken.equipmentData || {}),
             name: (itemToken.equipmentData?.name as string) || itemToken.name || '未命名物品',
             category: (itemToken.equipmentData?.category as string) || '杂项',
             quantity: 1,
+            childId: childIdToUse,
           };
           const currentChanges = record?.equipmentChanges?.[picker.id];
           const newChanges = applyEquipmentChange(currentChanges, (ch) => {
-            ch.added.push({
-              childId: newChildId,
-              equipment: equipSnapshot,
-            });
+            if (isInPickerSrc && ch.removedChildIds.includes(childIdToUse)) {
+              // 当初源数量=1，整件被 removed → 撤销 removed，combatQty 自然回到 srcQty
+              ch.removedChildIds = ch.removedChildIds.filter(c => c !== childIdToUse);
+            } else if (isInPickerSrc && (ch.quantityDeltas[childIdToUse] || 0) < 0) {
+              // 当初源数量>1，quantityDeltas -1 → +1 抵消
+              const next = (ch.quantityDeltas[childIdToUse] || 0) + 1;
+              if (next === 0) delete ch.quantityDeltas[childIdToUse];
+              else ch.quantityDeltas[childIdToUse] = next;
+            } else {
+              // 非源拥有者，或源拥有者从未丢失此物（捡到同名同 childId 的他人掉落物）：当作新增
+              ch.added.push({
+                childId: childIdToUse,
+                equipment: equipSnapshot,
+              });
+            }
           });
           combatStore.update(record.id, {
             equipmentChanges: {
