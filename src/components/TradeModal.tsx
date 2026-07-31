@@ -67,8 +67,11 @@ export default function TradeModal({ characterId, onClose }: Props) {
   const [buySearch, setBuySearch] = useState('');
   const [buyCart, setBuyCart] = useState<BuyCartItem[]>([]);
   const [buyDraftQty, setBuyDraftQty] = useState<Record<string, number>>({});
+  const [buyCategory, setBuyCategory] = useState<string>(''); // 装备分类筛选
   // 卖出
   const [sellCart, setSellCart] = useState<SellCartItem[]>([]);
+  const [sellSearch, setSellSearch] = useState('');
+  const [sellCategory, setSellCategory] = useState<string>(''); // 装备分类筛选
   // 分配
   const [transferTargetId, setTransferTargetId] = useState<string>('');
   const [transferEquip, setTransferEquip] = useState<TransferEquipItem[]>([]);
@@ -107,15 +110,26 @@ export default function TradeModal({ characterId, onClose }: Props) {
 
   useEffect(() => { loadLibrary(); }, []);
 
+  // 装备库可选分类列表
+  const buyCategories = useMemo(() => {
+    const set = new Set<string>();
+    libraryItems.forEach(i => { if (i.category) set.add(i.category); });
+    return Array.from(set).sort();
+  }, [libraryItems]);
+
   const filteredLibrary = useMemo(() => {
-    if (!buySearch) return libraryItems;
-    const q = buySearch.toLowerCase();
-    return libraryItems.filter(i =>
-      i.name.toLowerCase().includes(q) ||
-      i.category.toLowerCase().includes(q) ||
-      (i.subtype || '').toLowerCase().includes(q)
-    );
-  }, [libraryItems, buySearch]);
+    let list = libraryItems;
+    if (buyCategory) list = list.filter(i => i.category === buyCategory);
+    if (buySearch) {
+      const q = buySearch.toLowerCase();
+      list = list.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.category.toLowerCase().includes(q) ||
+        (i.subtype || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [libraryItems, buySearch, buyCategory]);
 
   // ============ 买入清单计算 ============
   const buyTotalCp = useMemo(() => {
@@ -212,6 +226,27 @@ export default function TradeModal({ characterId, onClose }: Props) {
     if (!character) return [];
     return character.equipment.filter(e => e.price && e.price.amount > 0);
   }, [character]);
+
+  // 背包可选分类列表
+  const sellCategories = useMemo(() => {
+    const set = new Set<string>();
+    sellableItems.forEach(i => { if (i.category) set.add(i.category); });
+    return Array.from(set).sort();
+  }, [sellableItems]);
+
+  const filteredSellableItems = useMemo(() => {
+    let list = sellableItems;
+    if (sellCategory) list = list.filter(i => i.category === sellCategory);
+    if (sellSearch) {
+      const q = sellSearch.toLowerCase();
+      list = list.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        i.category.toLowerCase().includes(q) ||
+        (i.subtype || '').toLowerCase().includes(q)
+      );
+    }
+    return list;
+  }, [sellableItems, sellSearch, sellCategory]);
 
   const sellTotalCp = useMemo(() => {
     return sellCart.reduce((sum, ci) => sum + ci.unitPriceCp * ci.quantity, 0);
@@ -438,6 +473,25 @@ export default function TradeModal({ characterId, onClose }: Props) {
                 />
               </div>
 
+              {/* 分类筛选 */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setBuyCategory('')}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${buyCategory === '' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-black/5 dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10 hover:text-primary'}`}
+                >
+                  全部
+                </button>
+                {buyCategories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setBuyCategory(cat === buyCategory ? '' : cat)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${buyCategory === cat ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-black/5 dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10 hover:text-primary'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 装备库列表 */}
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
@@ -620,14 +674,47 @@ export default function TradeModal({ characterId, onClose }: Props) {
                 售价规则：武器/护甲/杂物按半价；杂物子分类为「宝石」「珠宝」「艺术品」按原价
               </div>
 
+              {/* 搜索 */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+                <input
+                  type="text"
+                  value={sellSearch}
+                  onChange={e => setSellSearch(e.target.value)}
+                  placeholder="搜索背包物品..."
+                  className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+              </div>
+
+              {/* 分类筛选 */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  onClick={() => setSellCategory('')}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${sellCategory === '' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-black/5 dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10 hover:text-primary'}`}
+                >
+                  全部
+                </button>
+                {sellCategories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setSellCategory(cat === sellCategory ? '' : cat)}
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${sellCategory === cat ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-black/5 dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10 hover:text-primary'}`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* 可售物品 */}
                 <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
                   <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted px-1">背包物品（有定价）</div>
                   {sellableItems.length === 0 ? (
                     <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8">无可售物品</div>
+                  ) : filteredSellableItems.length === 0 ? (
+                    <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8">无匹配物品</div>
                   ) : (
-                    sellableItems.map(item => {
+                    filteredSellableItems.map(item => {
                       const key = item.childId || item.id || '';
                       const inCart = sellCart.some(ci => (ci.item.childId || ci.item.id || '') === key);
                       const baseCp = characterStore.priceToCopper(item.price!);
