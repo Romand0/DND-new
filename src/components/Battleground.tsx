@@ -172,11 +172,29 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     return set;
   }, [selectedCombatantId, tokenMap, combatantMap, bg?.size]);
 
-  // 实体选择对话框仅由 "..." 按钮手动触发，不再自动弹出。
-  // 原因：白圈锁定（lockedTargetId / lockedItemTokenId）已是用户明确选中的目标，
-  // 自动弹框会打断"白圈进入 → 直接展示交互按钮"的体验；
-  // 而点击方式进入多实体格时，handleCellClick 已直接选中角色并展开移动范围。
-  // 多实体格的 "..." 按钮始终可用，用户可主动调出对话框切换锁定对象。
+  // 白圈锁定多实体格时自动展开实体选择对话框（"..." 的等价行为）。
+  // 触发条件：lockedTargetId 或 lockedItemTokenId 被设置（白圈松手锁定后）。
+  // 对话框中的实体与棋盘上等价：角色 → setSelectedCombatantId（展开移动范围），
+  // 物品 → setLockedItemTokenId（显示拾起按钮）。
+  useEffect(() => {
+    if (!bg) return;
+    let targetCol = -1;
+    let targetRow = -1;
+    if (lockedTargetId) {
+      const token = tokenMap.get(lockedTargetId);
+      if (token) { targetCol = token.col; targetRow = token.row; }
+    } else if (lockedItemTokenId) {
+      const itemT = (bg.itemTokens || []).find(t => t.id === lockedItemTokenId);
+      if (itemT) { targetCol = itemT.col; targetRow = itemT.row; }
+    }
+    if (targetCol < 0) return;
+    const key = `${targetCol},${targetRow}`;
+    const combatantsHere = cellToken.get(key) ? 1 : 0;
+    const itemsHere = cellItemTokens.get(key)?.length || 0;
+    if (combatantsHere + itemsHere > 1) {
+      setEntityPickerCell(key);
+    }
+  }, [lockedTargetId, lockedItemTokenId, bg, tokenMap, cellToken, cellItemTokens]);
 
   if (!bg) return null;
 
@@ -1209,12 +1227,18 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                 {combatant && (
                   <button
                     onClick={() => {
-                      setLockedTargetId(combatant.id);
+                      // 角色：等价于棋盘上单击选中 → 展开移动范围
+                      // 清空 dragLock/locked 状态，避免与白圈交互按钮冲突
+                      setDragLock(null);
+                      dragLockRef.current = null;
+                      setLockedTargetId(null);
+                      setLockedSourceId(null);
                       setLockedItemTokenId(null);
+                      setSelectedCombatantId(combatant.id);
                       setEntityPickerCell(null);
                     }}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors ${
-                      lockedTargetId === combatant.id ? 'bg-white/25 ring-1 ring-yellow-400' : ''
+                      selectedCombatantId === combatant.id ? 'bg-white/25 ring-1 ring-yellow-400' : ''
                     }`}
                   >
                     <span className={`w-3 h-3 rounded-full ${combatant.isPc ? 'bg-info' : 'bg-danger'}`} />
@@ -1225,9 +1249,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   <button
                     key={item.id}
                     onClick={() => {
-                      setLockedItemTokenId(item.id);
+                      // 物品：等价于棋盘上锁定物品 → 显示拾起按钮
+                      setDragLock(null);
+                      dragLockRef.current = null;
                       setLockedTargetId(null);
                       setLockedSourceId(null);
+                      setLockedItemTokenId(item.id);
                       setEntityPickerCell(null);
                     }}
                     className={`flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors ${
