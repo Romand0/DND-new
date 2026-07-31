@@ -21,9 +21,9 @@ function isWearable(item: { category?: string; subtype?: string }): boolean {
   return item.category === '护甲' || (item.category === '杂项' && item.subtype === '服装');
 }
 
-/** 判断装备是否可手持（盾牌 或 武器） */
+/** 判断装备是否可手持（盾牌、武器 或 法器） */
 function isHoldable(item: { category?: string; subtype?: string }): boolean {
-  return item.subtype === '盾牌' || item.category === '武器';
+  return item.subtype === '盾牌' || item.subtype === '法器' || item.category === '武器';
 }
 
 interface Props {
@@ -151,7 +151,7 @@ export default function CharacterEquipmentCard({
               </button>
             )}
 
-            {/* 手持/取消手持按钮（盾牌/武器 + 有 characterId 时显示） */}
+            {/* 手持/取消手持按钮（盾牌/武器/法器 + 有 characterId 时显示） */}
             {holdable && characterId && (
               <button
                 onClick={() => {
@@ -168,7 +168,7 @@ export default function CharacterEquipmentCard({
                 className={`w-full text-xs px-2 py-1 rounded transition-colors ${
                   isHeld
                     ? 'bg-danger/10 text-danger hover:bg-danger/20'
-                    : 'bg-warning/10 text-warning hover:bg-warning/20'
+                    : 'bg-danger/10 text-danger hover:bg-danger/20'
                 }`}
               >
                 {isHeld ? '取消手持' : '手持'}

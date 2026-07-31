@@ -67,6 +67,23 @@ export interface CombatRecord {
   rounds: RoundAction[];
   /** 战斗模式：'simulation' 模拟模式（无回合），'playback' 放映模式（有回合） */
   mode?: 'simulation' | 'playback';
+  /** 战斗背包：记录战斗期间获得的物品（拾取等），key 为 combatantId */
+  combatInventories?: Record<string, CombatInventoryItem[]>;
   createdAt: number;
   updatedAt: number;
+}
+
+/** 战斗背包物品：简化版装备信息 */
+export interface CombatInventoryItem {
+  id: string;
+  name: string;
+  category: string;
+  subtype?: string;
+  quantity: number;
+  /** 原始装备快照（用于战斗结束后写入角色卡） */
+  equipmentData: Record<string, unknown>;
+  /** 获得时间 */
+  obtainedAt: number;
+  /** 来源：'picked' | 'thrown_drop' 等 */
+  source?: string;
 }

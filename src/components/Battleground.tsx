@@ -238,7 +238,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         }
       }
 
-      // 检测接触的棋子（仅在必要时 setState）
+      // 检测接触的棋子或物品（仅在必要时 setState）
       let hoveredId: string | null = null;
       let hoveredItemId: string | null = null;
       const gridEl = gridWrapRef.current;
@@ -246,26 +246,54 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         const rect = gridEl.getBoundingClientRect();
         // 识别半径与白圈本身一样大（2 倍棋子尺寸的一半）
         const detectRadius = cellSize * scale;
-        // 优先检测角色棋子
-        for (const token of bg.tokens) {
-          if (token.combatantId === dragLockRef.current.sourceId) continue;
-          const cellX = rect.left + translate.x + (token.col + 0.5) * cellSize * scale;
-          const cellY = rect.top + translate.y + (token.row + 0.5) * cellSize * scale;
-          const dist = Math.hypot(px - cellX, py - cellY);
-          if (dist < detectRadius) {
-            hoveredId = token.combatantId;
-            break;
-          }
-        }
-        // 若未接触角色，则检测掉落物品
-        if (!hoveredId) {
-          for (const itemToken of bg.itemTokens || []) {
-            const cellX = rect.left + translate.x + (itemToken.col + 0.5) * cellSize * scale;
-            const cellY = rect.top + translate.y + (itemToken.row + 0.5) * cellSize * scale;
+        // 根据发起者类型决定检测顺序
+        const fromItem = !dragLockRef.current.sourceId; // sourceId 为空表示从物品发起
+        if (fromItem) {
+          // 从物品发起：优先检测角色棋子
+          for (const token of bg.tokens) {
+            const cellX = rect.left + translate.x + (token.col + 0.5) * cellSize * scale;
+            const cellY = rect.top + translate.y + (token.row + 0.5) * cellSize * scale;
             const dist = Math.hypot(px - cellX, py - cellY);
             if (dist < detectRadius) {
-              hoveredItemId = itemToken.id;
+              hoveredId = token.combatantId;
               break;
+            }
+          }
+          // 若未接触角色，则检测其他物品
+          if (!hoveredId) {
+            for (const itemToken of bg.itemTokens || []) {
+              if (itemToken.id === dragLockRef.current.hoveredItemTokenId) continue; // 跳过自身
+              const cellX = rect.left + translate.x + (itemToken.col + 0.5) * cellSize * scale;
+              const cellY = rect.top + translate.y + (itemToken.row + 0.5) * cellSize * scale;
+              const dist = Math.hypot(px - cellX, py - cellY);
+              if (dist < detectRadius) {
+                hoveredItemId = itemToken.id;
+                break;
+              }
+            }
+          }
+        } else {
+          // 从角色发起：按原逻辑检测
+          for (const token of bg.tokens) {
+            if (token.combatantId === dragLockRef.current.sourceId) continue;
+            const cellX = rect.left + translate.x + (token.col + 0.5) * cellSize * scale;
+            const cellY = rect.top + translate.y + (token.row + 0.5) * cellSize * scale;
+            const dist = Math.hypot(px - cellX, py - cellY);
+            if (dist < detectRadius) {
+              hoveredId = token.combatantId;
+              break;
+            }
+          }
+          // 若未接触角色，则检测掉落物品
+          if (!hoveredId) {
+            for (const itemToken of bg.itemTokens || []) {
+              const cellX = rect.left + translate.x + (itemToken.col + 0.5) * cellSize * scale;
+              const cellY = rect.top + translate.y + (itemToken.row + 0.5) * cellSize * scale;
+              const dist = Math.hypot(px - cellX, py - cellY);
+              if (dist < detectRadius) {
+                hoveredItemId = itemToken.id;
+                break;
+              }
             }
           }
         }
@@ -337,15 +365,33 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       const source = dragLockRef.current.sourceId;
       const target = dragLockRef.current.hoveredTargetId;
       const hoveredItem = dragLockRef.current.hoveredItemTokenId;
-      if (target) {
-        setLockedTargetId(target);
-        setLockedSourceId(source);
-        setLockedItemTokenId(null);
-      } else if (hoveredItem) {
-        // 选中掉落物：锁定物品 token，清空角色锁定
-        setLockedItemTokenId(hoveredItem);
-        setLockedTargetId(null);
-        setLockedSourceId(null);
+      const fromItem = !source; // 从物品发起
+      
+      if (fromItem) {
+        // 从物品发起的白圈：
+        // - 若 hover 到角色：锁定角色（但无攻击者 sourceId）
+        // - 若未 hover：锁定物品自己（用于拾起）
+        if (target) {
+          setLockedTargetId(target);
+          setLockedSourceId(null); // 无攻击者
+          setLockedItemTokenId(null);
+        } else {
+          // 锁定物品自己
+          setLockedItemTokenId(dragLockRef.current.hoveredItemTokenId);
+          setLockedTargetId(null);
+          setLockedSourceId(null);
+        }
+      } else {
+        // 从角色发起的白圈（原逻辑）
+        if (target) {
+          setLockedTargetId(target);
+          setLockedSourceId(source);
+          setLockedItemTokenId(null);
+        } else if (hoveredItem) {
+          setLockedItemTokenId(hoveredItem);
+          setLockedTargetId(null);
+          setLockedSourceId(null);
+        }
       }
       setDragLock(null);
       dragLockRef.current = null;
@@ -697,14 +743,16 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                 title={combatant ? combatant.name : itemsHere.length > 0 ? itemsHere.map(t => t.name).join(', ') : `${col},${row}`}
               >
                 {/* 掉落物品 token：武器图标，位于角色下层 */}
-                {itemsHere.length > 0 && !hasMultiple && (() => {
+                {itemsHere.length > 0 && (() => {
                   const item = itemsHere[0];
                   const isItemLocked = lockedItemTokenId === item.id;
+                  // 多实体格：物品渲染但不显示（用于白圈检测），单实体格正常显示
+                  const isHidden = hasMultiple;
                   return (
                     <div
                       className={`absolute rounded-lg flex items-center justify-center transition-all select-none bg-amber-600/80 ${
                         isItemLocked ? 'ring-2 ring-yellow-400 scale-110 z-10' : 'z-0'
-                      }`}
+                      } ${isHidden ? 'opacity-0 pointer-events-none' : ''}`}
                       style={{
                         width: cellSize - 8,
                         height: cellSize - 8,
@@ -717,11 +765,22 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                         longPressStartRef.current = { x: e.clientX, y: e.clientY };
                         longPressTimer.current = setTimeout(() => {
                           if (longPressStartRef.current) {
+                            // 设置白圈位置
+                            const rect = gridWrapRef.current?.getBoundingClientRect();
+                            const size = cellSize * scale * 2;
+                            if (rect && dragCircleRef.current) {
+                              dragCircleRef.current.style.left = `${longPressStartRef.current.x - rect.left - size / 2}px`;
+                              dragCircleRef.current.style.top = `${longPressStartRef.current.y - rect.top - size / 2}px`;
+                            }
                             if (navigator.vibrate) navigator.vibrate(15);
-                            // 锁定物品 token：显示拾起按钮
-                            setLockedItemTokenId(item.id);
-                            setLockedTargetId(null);
-                            setLockedSourceId(null);
+                            // 物品 token 启动白圈（sourceId 为空表示物品发起，用于区分）
+                            setDragLock({
+                              sourceId: '', // 空字符串表示从物品发起
+                              pointerX: longPressStartRef.current.x,
+                              pointerY: longPressStartRef.current.y,
+                              hoveredTargetId: null,
+                              hoveredItemTokenId: item.id,
+                            });
                           }
                         }, 350);
                       }}

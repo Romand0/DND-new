@@ -7,7 +7,7 @@ import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack } from '@/types/combat';
+import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, CombatInventoryItem } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
 import Battleground from '@/components/Battleground';
@@ -1754,10 +1754,41 @@ export default function CombatSession() {
             alert(`${picker.name} 智力为${intelligence}，需4以上才能拾起`);
             return;
           }
-          // 加入拾取者背包（仅 PC 有背包）
-          if (picker.characterId) {
-            characterStore.addEquipment(picker.characterId, itemToken.equipmentData as any);
+          
+          // 加入战斗背包（而不是角色卡）
+          const combatItem: CombatInventoryItem = {
+            id: `combat-item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+            name: (itemToken.equipmentData?.name as string) || itemToken.name || '未命名物品',
+            category: (itemToken.equipmentData?.category as string) || '杂项',
+            subtype: itemToken.equipmentData?.subtype as string | undefined,
+            quantity: 1,
+            equipmentData: itemToken.equipmentData || {},
+            obtainedAt: Date.now(),
+            source: 'picked',
+          };
+          
+          // 自动整理战斗背包：相同名称的物品合并数量
+          const inventories = record.combatInventories || {};
+          const existingItems = inventories[picker.id] || [];
+          
+          // 查找是否已有同名物品
+          const existingIdx = existingItems.findIndex(i => i.name === combatItem.name);
+          if (existingIdx >= 0) {
+            // 合并数量
+            existingItems[existingIdx].quantity += 1;
+          } else {
+            // 新增物品
+            existingItems.push(combatItem);
           }
+          
+          // 更新战斗记录
+          combatStore.update(record.id, {
+            combatInventories: {
+              ...inventories,
+              [picker.id]: existingItems,
+            },
+          });
+          
           // 从网格移除物品 token
           battlegroundStore.removeItemToken(record.id, itemToken.id);
           // 写入先攻表格
