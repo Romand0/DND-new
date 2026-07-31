@@ -1706,6 +1706,15 @@ export default function CombatSession() {
           }
           return result;
         })()}
+        equipmentChangesMap={record.equipmentChanges}
+        onUpdateChanges={(combatantId, changes) => {
+          combatStore.update(record.id, {
+            equipmentChanges: {
+              ...(record.equipmentChanges || {}),
+              [combatantId]: changes,
+            },
+          });
+        }}
         playbackOnlyMovableId={
           record.mode === 'playback' && playbackStarted && currentTurn
             ? currentTurn.combatantId

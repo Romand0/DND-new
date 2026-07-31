@@ -4,7 +4,7 @@ import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, M
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken } from '@/types/battleground';
-import type { Combatant } from '@/types/combat';
+import type { Combatant, EquipmentChanges } from '@/types/combat';
 import type { Equipment } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
 
@@ -31,9 +31,13 @@ interface Props {
   combatInventories?: Record<string, Equipment[]>;
   /** 从战斗背包删除物品（通过变更信息漏斗） */
   onRemoveItem?: (combatantId: string, item: Equipment) => void;
+  /** 各参战者的装备变更信息（漏斗），key 为 combatantId */
+  equipmentChangesMap?: Record<string, EquipmentChanges>;
+  /** 直接更新某参战者的变更信息（变更信息编辑弹窗用） */
+  onUpdateChanges?: (combatantId: string, changes: EquipmentChanges) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
@@ -1235,6 +1239,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   tokenMap={tokenMap}
                   combatInventory={combatInventories?.[doubleClickedCombatant.id]}
                   onRemoveItem={onRemoveItem ? (item) => onRemoveItem(doubleClickedCombatant.id, item) : undefined}
+                  equipmentChanges={equipmentChangesMap?.[doubleClickedCombatant.id]}
+                  onUpdateChanges={onUpdateChanges ? (changes) => onUpdateChanges(doubleClickedCombatant.id, changes) : undefined}
                 />
       )}
     </div>

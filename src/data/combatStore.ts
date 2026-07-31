@@ -80,16 +80,14 @@ export function deriveCombatInventory(
   const mergedRaw: Equipment[] = [...afterSource];
   for (const a of addedList) {
     const data = (a.equipment || {}) as Partial<Equipment>;
-    // 基本字段兜底
+    // 先展开快照数据，再用 a.childId 强制覆盖，避免快照内残留的 childId/id 覆盖漏斗主键
     const newEq: Equipment = {
+      ...(data as any),
       id: (data.id as string) || a.childId,
       childId: a.childId,
       name: (data.name as string) || '未命名物品',
       quantity: (data.quantity as number) ?? 1,
-      packSize: data.packSize,
-      unit: data.unit,
       category: (data.category as string) || '杂项',
-      ...(data as any),
     };
     if (!newEq.quantity || newEq.quantity <= 0) newEq.quantity = 1;
     if (!newEq.name) newEq.name = '未命名物品';
@@ -133,14 +131,12 @@ export function deriveCombatInventoryRaw(
   for (const a of addedList) {
     const data = (a.equipment || {}) as Partial<Equipment>;
     const newEq: Equipment = {
+      ...(data as any),
       id: (data.id as string) || a.childId,
       childId: a.childId,
       name: (data.name as string) || '未命名物品',
       quantity: (data.quantity as number) ?? 1,
-      packSize: data.packSize,
-      unit: data.unit,
       category: (data.category as string) || '杂项',
-      ...(data as any),
     };
     if (!newEq.quantity || newEq.quantity <= 0) newEq.quantity = 1;
     if (!newEq.name) newEq.name = '未命名物品';

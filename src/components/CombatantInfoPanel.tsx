@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand } from 'lucide-react';
+import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
-import type { Combatant, NpcAttack } from '@/types/combat';
+import type { Combatant, NpcAttack, EquipmentChanges } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
 
 interface Props {
@@ -13,9 +13,13 @@ interface Props {
   combatInventory?: Equipment[];
   /** 战斗场景下：从战斗背包删除物品（通过变更信息漏斗） */
   onRemoveItem?: (item: Equipment) => void;
+  /** 该参战者的装备变更信息（漏斗） */
+  equipmentChanges?: EquipmentChanges;
+  /** 直接更新该参战者的变更信息（变更信息编辑弹窗用） */
+  onUpdateChanges?: (changes: EquipmentChanges) => void;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -93,6 +97,117 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   };
 
   const [selectingHand, setSelectingHand] = useState<'left' | 'right' | null>(null);
+  // 变更信息编辑弹窗
+  const [showChangesEditor, setShowChangesEditor] = useState(false);
+
+  // 变更信息条目（文字化 + 可编辑）
+  // 获得的物品：added 列表 + 正向 quantityDeltas
+  // 失去的物品：removedChildIds + 负向 quantityDeltas
+  type ChangeEntry =
+    | { kind: 'gained-added'; childId: string; name: string; quantity: number; category?: string }
+    | { kind: 'gained-delta'; childId: string; name: string; quantity: number }
+    | { kind: 'lost-removed'; childId: string; name: string }
+    | { kind: 'lost-delta'; childId: string; name: string; quantity: number };
+
+  // 通过 childId 从角色源装备查名称
+  const nameByChildId = (cid: string): string => {
+    const src = character?.equipment.find(e => (e.childId || e.id) === cid);
+    return src?.name || '未知物品';
+  };
+
+  const changeEntries: ChangeEntry[] = (() => {
+    if (!equipmentChanges) return [];
+    const entries: ChangeEntry[] = [];
+    for (const a of equipmentChanges.added) {
+      const data = (a.equipment || {}) as Partial<Equipment>;
+      entries.push({
+        kind: 'gained-added',
+        childId: a.childId,
+        name: (data.name as string) || '未命名物品',
+        quantity: (data.quantity as number) ?? 1,
+        category: (data.category as string) || '杂项',
+      });
+    }
+    for (const [cid, delta] of Object.entries(equipmentChanges.quantityDeltas)) {
+      if (delta > 0) {
+        entries.push({ kind: 'gained-delta', childId: cid, name: nameByChildId(cid), quantity: delta });
+      } else if (delta < 0) {
+        entries.push({ kind: 'lost-delta', childId: cid, name: nameByChildId(cid), quantity: -delta });
+      }
+    }
+    for (const cid of equipmentChanges.removedChildIds) {
+      entries.push({ kind: 'lost-removed', childId: cid, name: nameByChildId(cid) });
+    }
+    return entries;
+  })();
+
+  // 编辑操作：基于当前 equipmentChanges 派生新对象并回调
+  const commitChanges = (next: EquipmentChanges) => {
+    onUpdateChanges?.({
+      added: next.added,
+      removedChildIds: next.removedChildIds,
+      quantityDeltas: next.quantityDeltas,
+    });
+  };
+
+  // 调整 added 物品数量
+  const setAddedQty = (childId: string, qty: number) => {
+    if (!equipmentChanges) return;
+    const q = Math.max(1, Math.floor(qty) || 1);
+    const next: EquipmentChanges = {
+      ...equipmentChanges,
+      added: equipmentChanges.added.map(a =>
+        a.childId === childId
+          ? { ...a, equipment: { ...a.equipment, quantity: q } }
+          : a
+      ),
+    };
+    commitChanges(next);
+  };
+  // 删除 added 条目
+  const removeAdded = (childId: string) => {
+    if (!equipmentChanges) return;
+    commitChanges({
+      ...equipmentChanges,
+      added: equipmentChanges.added.filter(a => a.childId !== childId),
+    });
+  };
+  // 调整 quantityDeltas（正数获得 / 负数失去）
+  const setDelta = (childId: string, qty: number, isGained: boolean) => {
+    if (!equipmentChanges) return;
+    const q = Math.max(0, Math.floor(qty) || 0);
+    const newDelta = isGained ? q : -q;
+    const next: EquipmentChanges = {
+      ...equipmentChanges,
+      quantityDeltas: { ...equipmentChanges.quantityDeltas },
+    };
+    if (q === 0) {
+      delete next.quantityDeltas[childId];
+    } else {
+      next.quantityDeltas[childId] = newDelta;
+    }
+    commitChanges(next);
+  };
+  // 移除 quantityDelta 条目
+  const removeDelta = (childId: string) => {
+    if (!equipmentChanges) return;
+    const next: EquipmentChanges = {
+      ...equipmentChanges,
+      quantityDeltas: { ...equipmentChanges.quantityDeltas },
+    };
+    delete next.quantityDeltas[childId];
+    commitChanges(next);
+  };
+  // 移除 removedChildId 条目（恢复物品）
+  const removeRemoved = (childId: string) => {
+    if (!equipmentChanges) return;
+    commitChanges({
+      ...equipmentChanges,
+      removedChildIds: equipmentChanges.removedChildIds.filter(c => c !== childId),
+    });
+  };
+
+  const hasAnyChanges = changeEntries.length > 0;
   // 手持候选列表：优先使用战斗背包，否则回退到角色背包
   const holdableCandidates = (() => {
     const list = inventoryForSelection;
@@ -552,6 +667,16 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
           {activeTab === 'inventory' && combatInventory && (
             <div className="space-y-3">
+              {/* 变更信息按钮 */}
+              {onUpdateChanges && (
+                <button
+                  onClick={() => setShowChangesEditor(true)}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                >
+                  <ScrollText className="w-3.5 h-3.5" />
+                  变更信息{hasAnyChanges ? `（${changeEntries.length}）` : ''}
+                </button>
+              )}
               {/* 药丸筛选标签 */}
               <div className="flex flex-wrap gap-1.5">
                 {['全部', ...Array.from(new Set(combatInventory.map(e => e.category || '杂项')))].map(cat => (
@@ -738,6 +863,167 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   className="w-full py-2 text-sm rounded bg-bg-dark-dark light:bg-bg-light-3 dark:text-text-dark light:text-text-light hover:bg-danger/10 hover:text-danger transition-colors"
                 >
                   取消
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 变更信息编辑弹窗 */}
+        {showChangesEditor && equipmentChanges && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-10" onClick={() => setShowChangesEditor(false)}>
+            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light w-full max-w-sm relative flex flex-col max-h-[80%]" onClick={(e) => e.stopPropagation()}>
+              {/* 头部 */}
+              <div className="flex items-center justify-between p-3 border-b dark:border-border-dark light:border-border-light shrink-0">
+                <div className="text-sm font-medium flex items-center gap-1.5">
+                  <ScrollText className="w-4 h-4 text-accent" />
+                  变更信息
+                </div>
+                <button
+                  onClick={() => setShowChangesEditor(false)}
+                  className="p-1 rounded hover:bg-danger/10 text-danger transition-colors"
+                  title="关闭"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 内容区 */}
+              <div className="flex-1 overflow-y-auto p-3 space-y-3">
+                {!hasAnyChanges && (
+                  <div className="text-xs text-center py-6 dark:text-text-dark-muted light:text-text-light-muted">
+                    暂无变更信息
+                  </div>
+                )}
+
+                {/* 获得的物品 */}
+                {changeEntries.filter(e => e.kind === 'gained-added' || e.kind === 'gained-delta').length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-success mb-1.5">获得的物品</div>
+                    <div className="space-y-1.5">
+                      {changeEntries.filter(e => e.kind === 'gained-added' || e.kind === 'gained-delta').map(entry => {
+                        const isAdded = entry.kind === 'gained-added';
+                        return (
+                          <div key={`g-${entry.childId}`} className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
+                            <span className="text-xs text-success shrink-0">+</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium dark:text-text-dark light:text-text-light truncate">{entry.name}</div>
+                              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                                {isAdded ? (entry as any).category || '新增' : '数量增加'}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">获得了</span>
+                              <button
+                                onClick={() => {
+                                  const cur = entry.quantity;
+                                  const next = cur - 1;
+                                  if (isAdded) setAddedQty(entry.childId, next);
+                                  else setDelta(entry.childId, next, true);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-danger/10 text-danger"
+                                title="减少"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="w-6 text-center text-sm font-medium dark:text-text-dark light:text-text-light">{entry.quantity}</span>
+                              <button
+                                onClick={() => {
+                                  const next = entry.quantity + 1;
+                                  if (isAdded) setAddedQty(entry.childId, next);
+                                  else setDelta(entry.childId, next, true);
+                                }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-primary/10 text-primary"
+                                title="增加"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (!confirm(`删除「${entry.name}」的获得记录？`)) return;
+                                  if (isAdded) removeAdded(entry.childId);
+                                  else removeDelta(entry.childId);
+                                }}
+                                className="ml-1 p-1 rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
+                                title="删除"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 失去的物品 */}
+                {changeEntries.filter(e => e.kind === 'lost-removed' || e.kind === 'lost-delta').length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-danger mb-1.5">失去的物品</div>
+                    <div className="space-y-1.5">
+                      {changeEntries.filter(e => e.kind === 'lost-removed' || e.kind === 'lost-delta').map(entry => {
+                        const isRemoved = entry.kind === 'lost-removed';
+                        const qty = isRemoved ? 0 : (entry as any).quantity;
+                        return (
+                          <div key={`l-${entry.childId}-${entry.kind}`} className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light">
+                            <span className="text-xs text-danger shrink-0">−</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium dark:text-text-dark light:text-text-light truncate">{entry.name}</div>
+                              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                                {isRemoved ? '全部失去' : '数量减少'}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">失去了</span>
+                              {isRemoved ? (
+                                <span className="px-1 text-xs italic dark:text-text-dark-muted light:text-text-light-muted">全部</span>
+                              ) : (
+                                <>
+                                  <button
+                                    onClick={() => setDelta(entry.childId, qty - 1, false)}
+                                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-danger/10 text-danger"
+                                    title="减少"
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="w-6 text-center text-sm font-medium dark:text-text-dark light:text-text-light">{qty}</span>
+                                  <button
+                                    onClick={() => setDelta(entry.childId, qty + 1, false)}
+                                    className="w-5 h-5 flex items-center justify-center rounded hover:bg-primary/10 text-primary"
+                                    title="增加"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </>
+                              )}
+                              <button
+                                onClick={() => {
+                                  if (!confirm(`删除「${entry.name}」的失去记录？（物品将恢复）`)) return;
+                                  if (isRemoved) removeRemoved(entry.childId);
+                                  else removeDelta(entry.childId);
+                                }}
+                                className="ml-1 p-1 rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
+                                title="删除记录"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 底部关闭按钮 */}
+              <div className="p-3 border-t dark:border-border-dark light:border-border-light shrink-0">
+                <button
+                  onClick={() => setShowChangesEditor(false)}
+                  className="w-full py-2 text-sm rounded bg-bg-dark-dark light:bg-bg-light-3 dark:text-text-dark light:text-text-light hover:bg-danger/10 hover:text-danger transition-colors"
+                >
+                  关闭
                 </button>
               </div>
             </div>
