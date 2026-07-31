@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { X, Swords, Dices, ChevronLeft, MoreHorizontal } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
+import { computeCombatantAc } from '@/data/combatStore';
 import type { Combatant, NpcAttack } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
 
@@ -35,8 +36,12 @@ interface Props {
     isNatural1: boolean;
     usageMode?: 'melee' | 'thrown';
   }) => void;
-  /** 可选：战斗背包（传入后，手持显示/可用性判定读它；否则回退角色卡） */
+  /** 可选：攻击者战斗背包（传入后，手持显示/可用性判定读它；否则回退角色卡） */
   combatInventory?: Equipment[];
+  /** 可选：目标角色（PC 时传入，用于基于目标战斗背包重算 AC） */
+  targetCharacter?: Character | null;
+  /** 可选：目标战斗背包（基于目标的 equipmentChanges 派生，用于重算目标 AC） */
+  targetCombatInventory?: Equipment[];
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -44,7 +49,9 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory }: Props) {
+  // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
+  const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('attacks');
   const [selectedAttack, setSelectedAttack] = useState<Attack | NpcAttack | null>(null);
   // d20 投掷值：普通模式长度 1，优/劣势模式长度 2
@@ -359,8 +366,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       d20 = mode === 'advantage' ? Math.max(...parsed) : mode === 'disadvantage' ? Math.min(...parsed) : parsed[0];
       isNatural1 = d20 === 1;
       isNatural20 = d20 === 20;
-      const targetAc = target.ac || 0;
-      hit = isNatural20 ? true : isNatural1 ? false : d20 + bonus >= targetAc;
+      hit = isNatural20 ? true : isNatural1 ? false : d20 + bonus >= effectiveTargetAc;
     }
     const total = d20 + bonus;
     setRollResult({ d20, bonus, total, isNatural1, isNatural20, hit, disadvantage: mode === 'disadvantage' });
@@ -443,7 +449,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
             <div className="flex items-center gap-1.5">
               <span className="dark:text-text-dark-muted light:text-text-light-muted">目标</span>
               <span className="font-medium dark:text-text-dark light:text-text-light">{target.name}</span>
-              <span className="px-1.5 py-0.5 rounded bg-danger/10 text-danger">AC {target.ac || 0}</span>
+              <span className="px-1.5 py-0.5 rounded bg-danger/10 text-danger">AC {effectiveTargetAc || 0}</span>
             </div>
           </div>
 
@@ -799,7 +805,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                   {/* 对方 AC */}
                   <div className="text-center pt-2">
                     <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">对方 AC </span>
-                    <span className="text-lg font-bold text-danger">{target.ac || 0}</span>
+                    <span className="text-lg font-bold text-danger">{effectiveTargetAc || 0}</span>
                   </div>
 
                   {/* 列式判定 */}

@@ -6,6 +6,7 @@ import {
   getCombatInventory,
   getCombatInventoryRaw,
   applyEquipmentChange,
+  computeCombatantAc,
 } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { characterStore } from '@/data/characterStore';
@@ -137,6 +138,21 @@ export default function CombatSession() {
   const availableChars = characterStore.getAll().filter(char => 
     !existingCharIds.has(char.id)
   );
+
+  /**
+   * 基于战斗背包实际装备，获取该 combatant 的有效 AC。
+   * PC 角色：护甲/盾牌被移除或数量=0时，不参与加值；不存在于战斗背包的装备不加值。
+   * NPC：直接用 combatant.ac。
+   */
+  const getEffectiveAc = (c: Combatant): number => {
+    if (!record) return c.ac ?? 0;
+    const changes = record.equipmentChanges?.[c.id];
+    let character: Character | null = null;
+    if (c.characterId) character = characterStore.get(c.characterId);
+    const combatInventory = getCombatInventory(record, c);
+    if (character) return computeCombatantAc(c, character, combatInventory);
+    return c.ac ?? 0;
+  };
 
   useEffect(() => {
     setNpcTemplates(npcTemplateStore.getAll());
@@ -943,8 +959,9 @@ export default function CombatSession() {
       // 自动判定：攻击检定值根据目标 AC 自动判断命中
       const roll = parseInt(manualAttackRoll, 10);
       if (isNaN(roll)) { alert('攻击检定值必须是数字'); return; }
-      if (target.ac === undefined) { alert('目标缺少 AC，无法判定命中'); return; }
-      const hit = roll >= target.ac;
+      const tgtAc = getEffectiveAc(target);
+      if (!tgtAc && tgtAc !== 0) { alert('目标缺少 AC，无法判定命中'); return; }
+      const hit = roll >= tgtAc;
 
       let text = '';
       if (!hit) {
@@ -1865,6 +1882,8 @@ export default function CombatSession() {
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
           combatInventory={getCombatInventory(record, attackModal.attacker)}
+          targetCharacter={attackModal.target.characterId ? characterStore.get(attackModal.target.characterId) : null}
+          targetCombatInventory={getCombatInventory(record, attackModal.target)}
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
@@ -1945,6 +1964,8 @@ export default function CombatSession() {
         <CombatSpellModal
           caster={spellModal.caster}
           target={spellModal.target}
+          targetCharacter={spellModal.target.characterId ? characterStore.get(spellModal.target.characterId) : null}
+          targetCombatInventory={getCombatInventory(record, spellModal.target)}
           onClose={() => setSpellModal(null)}
           onCastResolved={(info) => {
             // 1. 应用 HP / 状态（伤害扣血、治疗加血，handleApplyDamage 直接覆盖 newHp）
@@ -2092,10 +2113,12 @@ export default function CombatSession() {
                   {/* 显示目标 AC */}
                   {manualTargetId && (() => {
                     const target = record.combatants.find(c => c.id === manualTargetId);
-                    if (!target || target.ac === undefined) return null;
+                    if (!target) return null;
+                    const effAc = getEffectiveAc(target);
+                    if (!effAc && effAc !== 0) return null;
                     return (
                       <div className="mt-1 text-xs text-primary font-medium">
-                        目标 AC：{target.ac}
+                        目标 AC：{effAc}
                       </div>
                     );
                   })()}
@@ -2116,13 +2139,15 @@ export default function CombatSession() {
                   {/* 自动判定命中结果 */}
                   {manualTargetId && manualAttackRoll && (() => {
                     const target = record.combatants.find(c => c.id === manualTargetId);
-                    if (!target || target.ac === undefined) return null;
+                    if (!target) return null;
+                    const effAc = getEffectiveAc(target);
+                    if (!effAc && effAc !== 0) return null;
                     const roll = parseInt(manualAttackRoll, 10);
                     if (isNaN(roll)) return null;
-                    const hit = roll >= target.ac;
+                    const hit = roll >= effAc;
                     return (
                       <div className={`mt-1 text-xs font-medium ${hit ? 'text-green-500' : 'text-red-500'}`}>
-                        {roll} {hit ? '≥' : '<'} AC {target.ac} → {hit ? '命中' : '未命中'}
+                        {roll} {hit ? '≥' : '<'} AC {effAc} → {hit ? '命中' : '未命中'}
                       </div>
                     );
                   })()}
@@ -2145,10 +2170,12 @@ export default function CombatSession() {
                 {/* 伤害（根据攻击检定自动判定命中后显示） */}
                 {manualTargetId && manualAttackRoll && (() => {
                   const tgt = record.combatants.find(c => c.id === manualTargetId);
-                  if (!tgt || tgt.ac === undefined) return null;
+                  if (!tgt) return null;
+                  const effAc = getEffectiveAc(tgt);
+                  if (!effAc && effAc !== 0) return null;
                   const roll = parseInt(manualAttackRoll, 10);
                   if (isNaN(roll)) return null;
-                  const hit = roll >= tgt.ac;
+                  const hit = roll >= effAc;
                   if (!hit) return null;
                   return (
                     <>
@@ -2203,9 +2230,10 @@ export default function CombatSession() {
                   let preview = '';
                   // 自动判定：攻击检定值根据 AC 自动判断
                   let autoHit: boolean | null = null;
-                  if (manualAttackRoll && target.ac !== undefined) {
+                  if (manualAttackRoll) {
+                    const effAc = getEffectiveAc(target);
                     const roll = parseInt(manualAttackRoll, 10);
-                    if (!isNaN(roll)) autoHit = roll >= target.ac;
+                    if (!isNaN(roll)) autoHit = roll >= effAc;
                   }
                   if (autoHit === false) {
                     preview = `对 ${target.name} 的攻击未命中，${manualAttackMethod || '???'}打偏了`;

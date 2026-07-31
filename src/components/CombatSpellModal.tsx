@@ -5,8 +5,9 @@ import { X, BookOpen, Dices, Calculator, ChevronLeft, MoreHorizontal } from 'luc
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
+import { computeCombatantAc } from '@/data/combatStore';
 import type { Combatant } from '@/types/combat';
-import type { Character, AbilityKey } from '@/types/character';
+import type { Character, AbilityKey, Equipment } from '@/types/character';
 import type { Spell } from '@/types/spell';
 
 type Stage = 'list' | 'cast';
@@ -21,6 +22,10 @@ interface Props {
   caster: Combatant;        // 施法者（攻击者位）
   target: Combatant;        // 目标
   onClose: () => void;
+  /** 可选：目标角色（PC 时传入，用于基于目标战斗背包重算 AC） */
+  targetCharacter?: Character | null;
+  /** 可选：目标战斗背包，用于重算目标 AC */
+  targetCombatInventory?: Equipment[];
   /** 施放完成：回传完整信息由 main 写入先攻表格与应用 HP 变化 */
   onCastResolved: (info: {
     spellName: string;
@@ -141,7 +146,9 @@ function SpellCard({ spell, level, active, onPick }: { spell: Spell; level: numb
   );
 }
 
-export default function CombatSpellModal({ caster, target, onClose, onCastResolved }: Props) {
+export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter, targetCombatInventory }: Props) {
+  // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
+  const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('list');
   const [selectedSpell, setSelectedSpell] = useState<Spell | null>(null);
 
@@ -349,7 +356,7 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
       let isNatural1: boolean;
       let isNatural20: boolean;
       let success: boolean;
-      const targetAc = target.ac || 0;
+      const targetAc = effectiveTargetAc || 0;
       // 优先级：自然 20 > 自然 1 > 普通比对
       if (isDual && parsed.some(n => n === 20)) {
         d20 = 20; isNatural1 = false; isNatural20 = true; success = true;
@@ -795,7 +802,7 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
                     ) : (
                       <>
                         <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">对方 AC </span>
-                        <span className="text-lg font-bold text-danger">{target.ac || 0}</span>
+                        <span className="text-lg font-bold text-danger">{effectiveTargetAc || 0}</span>
                       </>
                     )}
                   </div>
