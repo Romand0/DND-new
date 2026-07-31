@@ -26,6 +26,10 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
   const draggingHandRef = useRef<'hour' | 'minute' | null>(null);
   const lastAngleRef = useRef(0);
   const smoothRef = useRef(8 * 60);
+  // rAF 节流：避免每次 pointermove 都触发 React setState
+  const rafIdRef = useRef<number | null>(null);
+  // 拖拽期间累积的总分钟数，用 ref 读取避免闭包过期
+  const pendingTotalRef = useRef(0);
 
   const setSmooth = useCallback((val: number) => {
     smoothRef.current = val;
@@ -42,6 +46,13 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
     update();
     return gameTimeStore.subscribe(update);
   }, [setSmooth]);
+
+  // 卸载时清理 rAF
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, []);
 
   // --- 渲染值 ---
   const totalMin = smoothTotalMinutes;
@@ -84,7 +95,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
     svgRef.current?.setPointerCapture(e.pointerId);
   };
 
-  // --- 指针移动：角度增量驱动，两根指针自动联动 ---
+  // --- 指针移动：角度增量驱动，rAF 节流 + 拖拽期间不写 store ---
   const handlePointerMove = (e: React.PointerEvent) => {
     const hand = draggingHandRef.current;
     if (!hand) return;
@@ -101,16 +112,18 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
       total += delta * 2; // 30°/hour = 60min → 1° = 2min
     }
     total = ((total % DAY_MINUTES) + DAY_MINUTES) % DAY_MINUTES;
+    pendingTotalRef.current = total;
 
-    setSmooth(total);
-
-    // 写入 store（整数，持久化 + 通知导航栏等其他订阅者）
-    const h = Math.floor(total / 60) % 24;
-    const m = Math.floor(total % 60);
-    gameTimeStore.set(h, m);
+    // rAF 节流：合并同一帧内的多次 pointermove 为一次 setState
+    if (rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(() => {
+        rafIdRef.current = null;
+        setSmooth(pendingTotalRef.current);
+      });
+    }
   };
 
-  // --- 指针抬起 ---
+  // --- 指针抬起：拖拽结束时一次性写入 store（持久化 + 通知其他订阅者） ---
   const handlePointerUp = (e: React.PointerEvent) => {
     if (!draggingHandRef.current) return;
     e.preventDefault();
@@ -121,9 +134,18 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
     } catch {
       // pointerId 可能已释放，忽略
     }
-    // 同步最终整数值
-    const t = gameTimeStore.get();
-    setSmooth(t.hour * 60 + t.minute);
+    // 取消可能残留的 rAF
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    // 确保最终浮点值已同步
+    setSmooth(pendingTotalRef.current);
+    // 一次性写入 store（localStorage + 通知导航栏等其他订阅者）
+    const total = pendingTotalRef.current;
+    const h = Math.floor(total / 60) % 24;
+    const m = Math.floor(total % 60);
+    gameTimeStore.set(h, m);
   };
 
   const timeOfDay = getTimeOfDay(renderHour, renderMinute);
@@ -224,7 +246,9 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
           pointerEvents="none"
           style={{
             filter: glowFilter(draggingHand === 'hour'),
-            transition: draggingHand === 'hour' ? 'none' : 'filter 0.2s',
+            transition: draggingHand === 'hour'
+              ? 'none'
+              : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s',
           }}
         />
 
@@ -254,7 +278,9 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
           pointerEvents="none"
           style={{
             filter: glowFilter(draggingHand === 'minute'),
-            transition: draggingHand === 'minute' ? 'none' : 'filter 0.2s',
+            transition: draggingHand === 'minute'
+              ? 'none'
+              : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s',
           }}
         />
 
