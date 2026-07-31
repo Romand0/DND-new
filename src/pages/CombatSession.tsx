@@ -1810,6 +1810,32 @@ export default function CombatSession() {
             appendRoundRecord(cell.round, cell.combatantId, `${picker.name} 拾起了 ${itemToken.name}`);
           }
         }}
+        onRemoveItem={(combatantId, item) => {
+          // 从战斗背包删除物品：通过变更信息漏斗
+          if (!record) return;
+          const slotId = item.childId || item.id;
+          if (!slotId) return;
+          const currentChanges = record.equipmentChanges?.[combatantId];
+          const newChanges = applyEquipmentChange(currentChanges, (ch) => {
+            // 判断该 childId 是源装备还是战斗中新增的
+            const isInAdded = ch.added.some(a => a.childId === slotId);
+            if (isInAdded) {
+              // 战斗中新增的：直接从 added 移除
+              ch.added = ch.added.filter(a => a.childId !== slotId);
+            } else {
+              // 源装备：加入 removedChildIds
+              if (!ch.removedChildIds.includes(slotId)) {
+                ch.removedChildIds.push(slotId);
+              }
+            }
+          });
+          combatStore.update(record.id, {
+            equipmentChanges: {
+              ...(record.equipmentChanges || {}),
+              [combatantId]: newChanges,
+            },
+          });
+        }}
       />
 
       {/* ✅ 新增：NPC 创建器 */}

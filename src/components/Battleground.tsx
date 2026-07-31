@@ -29,9 +29,11 @@ interface Props {
   playbackOnlyMovableId?: string | null;
   /** 战斗背包（外部传入，key 为 combatantId）—— 信息面板 / 手持选择等将优先读取它 */
   combatInventories?: Record<string, Equipment[]>;
+  /** 从战斗背包删除物品（通过变更信息漏斗） */
+  onRemoveItem?: (combatantId: string, item: Equipment) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
@@ -1232,6 +1234,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   combatants={combatants}
                   tokenMap={tokenMap}
                   combatInventory={combatInventories?.[doubleClickedCombatant.id]}
+                  onRemoveItem={onRemoveItem ? (item) => onRemoveItem(doubleClickedCombatant.id, item) : undefined}
                 />
       )}
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
 import type { Combatant, NpcAttack } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
@@ -11,9 +11,11 @@ interface Props {
   tokenMap?: { get: (id: string) => { col: number; row: number } | undefined };
   /** 可选：战斗背包（当在战斗场景下传入时，手持候选列表读它） */
   combatInventory?: Equipment[];
+  /** 战斗场景下：从战斗背包删除物品（通过变更信息漏斗） */
+  onRemoveItem?: (item: Equipment) => void;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -577,6 +579,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     const isHeldRight = heldRightId === slotId;
                     const isWornArmor = character?.wornArmorId === slotId;
                     const isWornOutfit = character?.wornOutfitId === slotId;
+                    // 判断是否可手持
+                    const isHoldable = !isWornArmor && !isWornOutfit;
                     return (
                       <div
                         key={slotId}
@@ -592,11 +596,44 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             {(item.quantity ?? 1) > 1 ? ` ×${item.quantity}` : ''}
                           </div>
                         </div>
-                        <div className="flex gap-1 shrink-0">
+                        <div className="flex gap-1 shrink-0 items-center">
                           {isHeldLeft && <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">左手</span>}
                           {isHeldRight && <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">右手</span>}
                           {isWornArmor && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">盔甲</span>}
                           {isWornOutfit && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">服装</span>}
+                          {/* 手持按钮：可手持且当前未手持时显示 */}
+                          {character && isHoldable && !isHeldLeft && !isHeldRight && (
+                            <button
+                              onClick={() => {
+                                // 优先放空手，否则放另一只手
+                                const hand = !heldLeftId ? 'left' : !heldRightId ? 'right' : null;
+                                if (hand) {
+                                  handleHoldSelect(item, hand);
+                                } else {
+                                  // 两手都有，弹出选择
+                                  setSelectingHand('left');
+                                }
+                              }}
+                              className="p-1 rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
+                              title="手持"
+                            >
+                              <Hand className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {/* 删除按钮：通过变更信息漏斗移除 */}
+                          {onRemoveItem && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`确定从战斗背包中移除「${item.name || '未命名物品'}」？`)) {
+                                  onRemoveItem(item);
+                                }
+                              }}
+                              className="p-1 rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
+                              title="删除"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -619,34 +656,40 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
         {selectingHand && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectingHand(null)}>
-            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light p-4 w-full max-w-sm relative" onClick={(e) => e.stopPropagation()}>
-              {/* 叉状退出按钮 */}
-              <button
-                onClick={() => setSelectingHand(null)}
-                className="absolute top-2 right-2 p-1 rounded hover:bg-danger/10 text-danger transition-colors"
-                title="关闭"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <div className="text-sm font-medium mb-3 pr-6">选择装备（{selectingHand === 'left' ? '左手' : '右手'}）</div>
-              <div className="flex gap-2 mb-3">
+            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light w-full max-w-sm relative flex flex-col max-h-[80%]" onClick={(e) => e.stopPropagation()}>
+              {/* 头部 */}
+              <div className="flex items-center justify-between p-3 border-b dark:border-border-dark light:border-border-light shrink-0">
+                <div className="text-sm font-medium">选择装备（{selectingHand === 'left' ? '左手' : '右手'}）</div>
+                <button
+                  onClick={() => setSelectingHand(null)}
+                  className="p-1 rounded hover:bg-danger/10 text-danger transition-colors"
+                  title="关闭"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 操作按钮区 */}
+              <div className="flex gap-2 p-3 shrink-0">
                 <button
                   onClick={() => { handleSetAction(selectingHand); setSelectingHand(null); }}
-                  className="flex-1 py-2 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20"
+                  className="flex-1 py-1.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
                 >动作</button>
                 <button
                   onClick={() => { handleSetUnavailable(selectingHand); setSelectingHand(null); }}
-                  className="flex-1 py-2 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
+                  className="flex-1 py-1.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
                 >不可用</button>
-                {/* 取消手持按钮：当前手已有物品时显示 */}
                 {((selectingHand === 'left' && heldLeftItem) || (selectingHand === 'right' && heldRightItem)) && (
                   <button
                     onClick={() => { handleUnhold(selectingHand); setSelectingHand(null); }}
-                    className="flex-1 py-2 text-xs rounded bg-warning/10 text-warning hover:bg-warning/20"
+                    className="flex-1 py-1.5 text-xs rounded bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
                   >放下</button>
                 )}
               </div>
-              <div className="max-h-[200px] overflow-y-auto space-y-1">
+
+              {/* 物品列表 */}
+              <div className="flex-1 overflow-y-auto px-3 pb-3 space-y-1">
+                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1">选择手持装备：</div>
                 {holdableCandidates.length === 0 && (
                   <div className="text-xs text-center py-4 dark:text-text-dark-muted light:text-text-light-muted">
                     无可手持的装备
@@ -660,7 +703,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     <button
                       key={slotId}
                       onClick={() => handleHoldItemSelect(item)}
-                      className={`w-full text-left p-2.5 text-sm rounded transition-colors ${
+                      className={`w-full text-left p-2 text-sm rounded transition-colors ${
                         isHeldThis
                           ? 'bg-primary/20 text-primary'
                           : isHeldOther
@@ -686,6 +729,16 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     </button>
                   );
                 })}
+              </div>
+
+              {/* 底部取消按钮 */}
+              <div className="p-3 border-t dark:border-border-dark light:border-border-light shrink-0">
+                <button
+                  onClick={() => setSelectingHand(null)}
+                  className="w-full py-2 text-sm rounded bg-bg-dark-dark light:bg-bg-light-3 dark:text-text-dark light:text-text-light hover:bg-danger/10 hover:text-danger transition-colors"
+                >
+                  取消
+                </button>
               </div>
             </div>
           </div>
