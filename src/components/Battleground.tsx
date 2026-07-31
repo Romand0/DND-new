@@ -87,6 +87,14 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     moved: false,
   });
   const gridWrapRef = useRef<HTMLDivElement | null>(null);
+  // 同步最新 translate/scale 到 ref，避免 pointerup 闭包拿到陈旧的 state
+  // （双指→单指切换时若用旧 startTranslate，会导致剩余手指突然跳变）
+  const latestTranslate = useRef(translate);
+  latestTranslate.current = translate;
+  const updateTranslate = (next: { x: number; y: number }) => {
+    latestTranslate.current = next; // 同步刷新，保证 pointerup 拿到最新值
+    setTranslate(next);
+  };
 
   useEffect(() => {
     setBg(battlegroundStore.getOrCreate(sessionId));
@@ -355,7 +363,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       const deltaX = e.clientX - start.x;
       const deltaY = e.clientY - start.y;
       if (Math.abs(deltaX) > 4 || Math.abs(deltaY) > 4) ts.moved = true;
-      setTranslate({
+      updateTranslate({
         x: ts.startTranslate.x + deltaX,
         y: ts.startTranslate.y + deltaY,
       });
@@ -383,7 +391,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           const midDeltaX = curMidX - startMidX;
           const midDeltaY = curMidY - startMidY;
           const ratio = ts.startScale - newScale;
-          setTranslate({
+          updateTranslate({
             x: ts.startTranslate.x + ratio * startMidX + midDeltaX,
             y: ts.startTranslate.y + ratio * startMidY + midDeltaY,
           });
@@ -444,6 +452,20 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     ts.pointers.delete(e.pointerId);
     ts.startPoints.delete(e.pointerId);
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    // 双指 → 单指切换的关键修复：
+    //   双指捏合过程中 ts.startTranslate / ts.startPoints 一直停留在"双指按下瞬间"的值，
+    //   若不重置，松开一指后剩余手指继续移动会按"按下时的旧起点"计算 delta，
+    //   导致画面突然跳变（动作越快、单指位移越大，跳变越明显）。
+    //   修复：把剩余那根手指的 startPoints 重置为"当前"位置，
+    //   并把 startTranslate 同步为"当前"实际 translate（通过 ref 取最新值，避免闭包陈旧）。
+    if (ts.pointers.size === 1) {
+      const remainingId = Array.from(ts.pointers.keys())[0];
+      const cur = ts.pointers.get(remainingId);
+      if (cur) {
+        ts.startPoints.set(remainingId, { x: cur.x, y: cur.y });
+        ts.startTranslate = { ...latestTranslate.current };
+      }
+    }
   };
 
   // 点击格子：只有未发生拖拽时才触发
