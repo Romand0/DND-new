@@ -23,8 +23,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
 
-  // 手持候选列表：优先使用战斗背包，否则回退到角色背包
-  const inventoryForSelection: Equipment[] = (combatInventory && combatInventory.length > 0)
+  // 手持候选列表：战斗场景下（combatInventory 已传入）强制使用战斗背包；否则回退角色背包
+  const inventoryForSelection: Equipment[] = combatInventory
     ? combatInventory
     : ((character?.equipment as Equipment[] | undefined) || []);
 
@@ -91,12 +91,16 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   };
 
   const [selectingHand, setSelectingHand] = useState<'left' | 'right' | null>(null);
-  const holdableCandidates = inventoryForSelection.filter(item => {
-    const slotId = item.childId || item.id;
-    if (character && character.wornArmorId === slotId) return false;
-    if (character && character.wornOutfitId === slotId) return false;
-    return true;
-  }) || [];
+  // 手持候选列表：优先使用战斗背包，否则回退到角色背包
+  const holdableCandidates = (() => {
+    const list = inventoryForSelection;
+    return list.filter(item => {
+      const slotId = item.childId || item.id;
+      if (character && character.wornArmorId === slotId) return false;
+      if (character && character.wornOutfitId === slotId) return false;
+      return true;
+    });
+  })();
 
   const handleHoldItemSelect = (item: Equipment) => {
     if (!selectingHand) return;
@@ -624,7 +628,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
               >
                 <X className="w-4 h-4" />
               </button>
-              <div className="text-sm font-medium mb-3 pr-6">选择装备</div>
+              <div className="text-sm font-medium mb-3 pr-6">选择装备（{selectingHand === 'left' ? '左手' : '右手'}）</div>
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => { handleSetAction(selectingHand); setSelectingHand(null); }}
@@ -634,17 +638,54 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   onClick={() => { handleSetUnavailable(selectingHand); setSelectingHand(null); }}
                   className="flex-1 py-2 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20"
                 >不可用</button>
+                {/* 取消手持按钮：当前手已有物品时显示 */}
+                {((selectingHand === 'left' && heldLeftItem) || (selectingHand === 'right' && heldRightItem)) && (
+                  <button
+                    onClick={() => { handleUnhold(selectingHand); setSelectingHand(null); }}
+                    className="flex-1 py-2 text-xs rounded bg-warning/10 text-warning hover:bg-warning/20"
+                  >放下</button>
+                )}
               </div>
               <div className="max-h-[200px] overflow-y-auto space-y-1">
-                {holdableCandidates.map(item => (
-                  <button
-                    key={item.childId || item.id}
-                    onClick={() => handleHoldItemSelect(item)}
-                    className="w-full text-left p-2.5 text-sm rounded hover:bg-primary/10 dark:text-text-dark light:text-text-light"
-                  >
-                    {item.name}
-                  </button>
-                ))}
+                {holdableCandidates.length === 0 && (
+                  <div className="text-xs text-center py-4 dark:text-text-dark-muted light:text-text-light-muted">
+                    无可手持的装备
+                  </div>
+                )}
+                {holdableCandidates.map(item => {
+                  const slotId = item.childId || item.id;
+                  const isHeldThis = (selectingHand === 'left' && heldLeftId === slotId) || (selectingHand === 'right' && heldRightId === slotId);
+                  const isHeldOther = (selectingHand === 'left' && heldRightId === slotId) || (selectingHand === 'right' && heldLeftId === slotId);
+                  return (
+                    <button
+                      key={slotId}
+                      onClick={() => handleHoldItemSelect(item)}
+                      className={`w-full text-left p-2.5 text-sm rounded transition-colors ${
+                        isHeldThis
+                          ? 'bg-primary/20 text-primary'
+                          : isHeldOther
+                            ? 'bg-warning/10 text-warning'
+                            : 'hover:bg-primary/10 dark:text-text-dark light:text-text-light'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>{item.name || '未命名物品'}</span>
+                        <div className="flex items-center gap-1">
+                          {(item.quantity ?? 1) > 1 && (
+                            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">×{item.quantity}</span>
+                          )}
+                          {isHeldThis && <span className="text-xs">当前</span>}
+                          {isHeldOther && <span className="text-xs">另手</span>}
+                        </div>
+                      </div>
+                      {(item.category || item.subtype) && (
+                        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
+                          {item.category || '杂项'}{item.subtype ? ` · ${item.subtype}` : ''}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
