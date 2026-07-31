@@ -6,7 +6,7 @@ import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
 import type { Combatant } from '@/types/combat';
-import type { Character } from '@/types/character';
+import type { Character, AbilityKey } from '@/types/character';
 import type { Spell } from '@/types/spell';
 
 type Stage = 'list' | 'cast';
@@ -168,6 +168,30 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
     if (caster.characterId) return characterStore.get(caster.characterId);
     return null;
   }, [caster.characterId]);
+
+  // 目标角色卡：用于自动填入豁免加值
+  const targetCharacter = useMemo<Character | null>(() => {
+    if (target.characterId) return characterStore.get(target.characterId);
+    return null;
+  }, [target.characterId]);
+
+  // 豁免属性短写 → AbilityKey 全称映射
+  const SAVE_ATTR_MAP: Record<string, AbilityKey> = {
+    str: 'strength', dex: 'dexterity', con: 'constitution',
+    int: 'intelligence', wis: 'wisdom', cha: 'charisma',
+  };
+
+  // 自动填入目标豁免加值：选择豁免属性、切换到 save 模式、或目标角色变化时触发
+  // 用户仍可手动覆盖输入框中的值
+  useEffect(() => {
+    if (checkType !== 'save') return;
+    if (!targetCharacter) return;
+    const abilityKey = SAVE_ATTR_MAP[saveAttribute];
+    if (!abilityKey) return;
+    const bonus = characterStore.getSaveBonus(targetCharacter, abilityKey);
+    setTargetSaveBonus(String(bonus));
+    setRollResult(null);
+  }, [checkType, saveAttribute, targetCharacter]);
 
   const spellAbilityKey = character ? characterStore.getSpellcastingAbility(character) : null;
   const spellAbilityLabel = spellAbilityKey
@@ -714,9 +738,14 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
                             type="number"
                             value={targetSaveBonus}
                             onChange={(e) => { setTargetSaveBonus(e.target.value); setRollResult(null); }}
-                            placeholder="目标豁免加值"
+                            placeholder={targetCharacter ? '目标豁免加值' : '目标无角色卡，请手填'}
                             className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center"
                           />
+                          {targetCharacter && (
+                            <div className="text-[10px] text-center dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
+                              已从角色卡自动填入，可修改
+                            </div>
+                          )}
                         </div>
                       )}
                       <button

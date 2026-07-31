@@ -291,7 +291,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
               <div className="flex justify-between text-xs">
                 <span className="dark:text-text-dark-muted light:text-text-light-muted">AC</span>
-                <span className="font-medium dark:text-text-dark light:text-text-light">{combatant.ac || '—'}</span>
+                <span className="font-medium dark:text-text-dark light:text-text-light">
+                  {character?.armorClass ?? combatant.ac ?? '—'}
+                </span>
               </div>
 
               {attacks.length > 0 && (

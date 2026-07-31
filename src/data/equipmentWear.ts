@@ -2,8 +2,9 @@
 import { characterStore } from './characterStore';
 import type { Character } from '@/types/character';
 
-/** 判断装备是否可穿戴（护甲或服装） */
+/** 判断装备是否可穿戴（护甲或服装）；盾牌走手持槽，不算穿戴 */
 function isWearable(item: { category?: string; subtype?: string }): boolean {
+  if (item.subtype === '盾牌') return false;
   return item.category === '护甲' || (item.category === '杂物' && item.subtype === '服装');
 }
 

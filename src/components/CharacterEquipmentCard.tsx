@@ -15,9 +15,15 @@ import {
 import { characterStore } from '@/data/characterStore';
 import type { Equipment } from '@/types/character';
 
-/** 判断装备是否可穿戴（护甲 或 杂项-服装） */
+/** 判断装备是否可穿戴（护甲 或 服装）；盾牌走手持槽，不算穿戴 */
 function isWearable(item: { category?: string; subtype?: string }): boolean {
+  if (item.subtype === '盾牌') return false;
   return item.category === '护甲' || (item.category === '杂项' && item.subtype === '服装');
+}
+
+/** 判断装备是否可手持（盾牌 或 武器） */
+function isHoldable(item: { category?: string; subtype?: string }): boolean {
+  return item.subtype === '盾牌' || item.category === '武器';
 }
 
 interface Props {
@@ -51,7 +57,9 @@ export default function CharacterEquipmentCard({
 
 
   const wearable = isWearable(item);
+  const holdable = isHoldable(item);
   const isWorn = item.tags?.some(t => t.key === '着装状态' && t.value === '已穿戴');
+  const isHeld = heldHand === 'L' || heldHand === 'R';
 
   return (
     <div className="rounded-lg border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
@@ -140,6 +148,29 @@ export default function CharacterEquipmentCard({
                 }`}
               >
                 {isWorn ? '卸下' : '穿戴'}
+              </button>
+            )}
+
+            {/* 手持/取消手持按钮（盾牌/武器 + 有 characterId 时显示） */}
+            {holdable && characterId && (
+              <button
+                onClick={() => {
+                  if (isHeld) {
+                    const result = characterStore.unholdItem(characterId, itemId);
+                    if (!result.success) alert(result.message);
+                  } else {
+                    const result = characterStore.holdItem(characterId, itemId, 'auto');
+                    if (!result.success) alert(result.message);
+                  }
+                  onRefresh?.();
+                }}
+                className={`w-full text-xs px-2 py-1 rounded transition-colors ${
+                  isHeld
+                    ? 'bg-danger/10 text-danger hover:bg-danger/20'
+                    : 'bg-warning/10 text-warning hover:bg-warning/20'
+                }`}
+              >
+                {isHeld ? '取消手持' : '手持'}
               </button>
             )}
 
