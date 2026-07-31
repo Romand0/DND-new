@@ -54,6 +54,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     pointerY: number;
     hoveredTargetId: string | null;   // 当前接触的目标棋子
     hoveredItemTokenId: string | null; // 当前接触的掉落物品 token
+    hoveredEllipsisCell: string | null; // 当前接触的多实体格 "..."（"col,row"）
   } | null>(null);
   // 锁定选中状态（长按拖拽松手后选中）
   const [lockedTargetId, setLockedTargetId] = useState<string | null>(null);
@@ -137,10 +138,21 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     return m;
   }, [bg?.itemTokens]);
 
-  // 实体选择对话框：当格子有多个实体时展示
-  const [entityPickerCell, setEntityPickerCell] = useState<string | null>(null); // "col,row"
   // 锁定的物品 token id（光圈选中物品时）
   const [lockedItemTokenId, setLockedItemTokenId] = useState<string | null>(null);
+
+  // 白圈悬浮"..."格时展开的掉落物对话框。
+  // 仅由白圈（拖拽长按）触发；只展示掉落物词条，不含同格角色。
+  // 悬浮词条时生成第二白圈框选该词条，松手即选中该掉落物。
+  const dropDialogCell = dragLock?.hoveredEllipsisCell ?? null;
+  // 对话框内掉落物词条的 DOM ref（用于白圈接触检测）
+  const dialogItemRefs = useRef<Map<string, HTMLButtonElement | null>>(new Map());
+  const setDialogItemRef = (id: string) => (el: HTMLButtonElement | null) => {
+    if (el) dialogItemRefs.current.set(id, el);
+    else dialogItemRefs.current.delete(id);
+  };
+  // 掉落物对话框容器 ref（用于白圈"保持展开"区域检测）
+  const dropDialogRef = useRef<HTMLDivElement | null>(null);
 
   // 选中棋子的速度（用于悬浮标签显示）
   const selectedSpeed = useMemo(() => {
@@ -171,30 +183,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     }
     return set;
   }, [selectedCombatantId, tokenMap, combatantMap, bg?.size]);
-
-  // 白圈锁定多实体格时自动展开实体选择对话框（"..." 的等价行为）。
-  // 触发条件：lockedTargetId 或 lockedItemTokenId 被设置（白圈松手锁定后）。
-  // 对话框中的实体与棋盘上等价：角色 → setSelectedCombatantId（展开移动范围），
-  // 物品 → setLockedItemTokenId（显示拾起按钮）。
-  useEffect(() => {
-    if (!bg) return;
-    let targetCol = -1;
-    let targetRow = -1;
-    if (lockedTargetId) {
-      const token = tokenMap.get(lockedTargetId);
-      if (token) { targetCol = token.col; targetRow = token.row; }
-    } else if (lockedItemTokenId) {
-      const itemT = (bg.itemTokens || []).find(t => t.id === lockedItemTokenId);
-      if (itemT) { targetCol = itemT.col; targetRow = itemT.row; }
-    }
-    if (targetCol < 0) return;
-    const key = `${targetCol},${targetRow}`;
-    const combatantsHere = cellToken.get(key) ? 1 : 0;
-    const itemsHere = cellItemTokens.get(key)?.length || 0;
-    if (combatantsHere + itemsHere > 1) {
-      setEntityPickerCell(key);
-    }
-  }, [lockedTargetId, lockedItemTokenId, bg, tokenMap, cellToken, cellItemTokens]);
 
   if (!bg) return null;
 
@@ -260,14 +248,29 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         }
       }
 
-      // 检测接触的棋子或物品（仅在必要时 setState）
+      // 检测接触的实体（仅在必要时 setState）
       let hoveredId: string | null = null;
       let hoveredItemId: string | null = null;
+      let hoveredEllipsisCell: string | null = null;
       const gridEl = gridWrapRef.current;
       if (gridEl) {
         const rect = gridEl.getBoundingClientRect();
         // 识别半径与白圈本身一样大（2 倍棋子尺寸的一半）
         const detectRadius = cellSize * scale;
+        // 对话框保持区域：白圈当前在对话框内时，保持该对话框展开（避免移到词条上就闪退）
+        const currentDialogCell = dragLockRef.current.hoveredEllipsisCell;
+        if (currentDialogCell) {
+          const dialogEl = dropDialogRef.current;
+          if (dialogEl) {
+            const dr = dialogEl.getBoundingClientRect();
+            if (
+              px >= dr.left - 12 && px <= dr.right + 12 &&
+              py >= dr.top - 12 && py <= dr.bottom + 12
+            ) {
+              hoveredEllipsisCell = currentDialogCell;
+            }
+          }
+        }
         // 根据发起者类型决定检测顺序
         const fromItem = !dragLockRef.current.sourceId; // sourceId 为空表示从物品发起
         if (fromItem) {
@@ -295,19 +298,41 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             }
           }
         } else {
-          // 从角色发起：按原逻辑检测
+          // 从角色发起：优先检测多实体格的 "..."（白圈悬浮时展开掉落物对话框）
           for (const token of bg.tokens) {
             if (token.combatantId === dragLockRef.current.sourceId) continue;
+            const key = `${token.col},${token.row}`;
+            // 仅多实体格（角色 + 掉落物 或 多角色共存）有 "..." 指示
+            const combatantsHere = 1;
+            const itemsHere = cellItemTokens.get(key)?.length || 0;
+            const multiHere = combatantsHere + itemsHere > 1;
+            if (!multiHere) continue;
             const cellX = rect.left + translate.x + (token.col + 0.5) * cellSize * scale;
             const cellY = rect.top + translate.y + (token.row + 0.5) * cellSize * scale;
-            const dist = Math.hypot(px - cellX, py - cellY);
-            if (dist < detectRadius) {
-              hoveredId = token.combatantId;
+            // "..." 在单元格右上角外侧，检测圆心偏向右上角
+            const ex = cellX + cellSize * scale * 0.35;
+            const ey = cellY - cellSize * scale * 0.35;
+            const dist = Math.hypot(px - ex, py - ey);
+            if (dist < detectRadius * 0.8) {
+              hoveredEllipsisCell = key;
               break;
             }
           }
+          // 若未接触 "..."，则检测角色棋子
+          if (!hoveredEllipsisCell) {
+            for (const token of bg.tokens) {
+              if (token.combatantId === dragLockRef.current.sourceId) continue;
+              const cellX = rect.left + translate.x + (token.col + 0.5) * cellSize * scale;
+              const cellY = rect.top + translate.y + (token.row + 0.5) * cellSize * scale;
+              const dist = Math.hypot(px - cellX, py - cellY);
+              if (dist < detectRadius) {
+                hoveredId = token.combatantId;
+                break;
+              }
+            }
+          }
           // 若未接触角色，则检测掉落物品
-          if (!hoveredId) {
+          if (!hoveredId && !hoveredEllipsisCell) {
             for (const itemToken of bg.itemTokens || []) {
               const cellX = rect.left + translate.x + (itemToken.col + 0.5) * cellSize * scale;
               const cellY = rect.top + translate.y + (itemToken.row + 0.5) * cellSize * scale;
@@ -320,17 +345,45 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           }
         }
       }
+      // 白圈接触 "..." 时展开掉落物对话框，且词条接触检测优先于普通实体
+      if (hoveredEllipsisCell) {
+        // 检测对话框内掉落物词条（在对话框展开时）
+        const dialogItems = cellItemTokens.get(hoveredEllipsisCell) || [];
+        if (dialogItems.length > 0) {
+          let hoveredDialogItemId: string | null = null;
+          for (const itemToken of dialogItems) {
+            const el = dialogItemRefs.current.get(itemToken.id);
+            if (!el) continue;
+            const r = el.getBoundingClientRect();
+            // 词条中心
+            const itemCx = r.left + r.width / 2;
+            const itemCy = r.top + r.height / 2;
+            const dist = Math.hypot(px - itemCx, py - itemCy);
+            // 词条较小，用更小的半径（词条半高）进行检测
+            if (dist < Math.max(12, Math.min(r.width, r.height) * 0.6)) {
+              hoveredDialogItemId = itemToken.id;
+              break;
+            }
+          }
+          if (hoveredDialogItemId) {
+            hoveredItemId = hoveredDialogItemId;
+            hoveredId = null;
+          }
+        }
+      }
       // 仅当 hovered 对象变化时才 setState，避免每帧重渲染
       if (
         hoveredId !== dragLockRef.current.hoveredTargetId ||
-        hoveredItemId !== dragLockRef.current.hoveredItemTokenId
+        hoveredItemId !== dragLockRef.current.hoveredItemTokenId ||
+        hoveredEllipsisCell !== dragLockRef.current.hoveredEllipsisCell
       ) {
         // 切换半选中对象时震动
-        if ((hoveredId || hoveredItemId) && navigator.vibrate) navigator.vibrate(10);
+        if ((hoveredId || hoveredItemId || hoveredEllipsisCell) && navigator.vibrate) navigator.vibrate(10);
         setDragLock(prev => prev ? {
           ...prev,
           hoveredTargetId: hoveredId,
           hoveredItemTokenId: hoveredItemId,
+          hoveredEllipsisCell: hoveredEllipsisCell,
         } : null);
       }
       ts.moved = true;
@@ -408,13 +461,25 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       const source = dragLockRef.current.sourceId;
       const target = dragLockRef.current.hoveredTargetId;
       const hoveredItem = dragLockRef.current.hoveredItemTokenId;
+      const hoveredEllipsis = dragLockRef.current.hoveredEllipsisCell;
       const fromItem = !source; // 从物品发起
       // 标记本次长按是否"落空"（没锁定到任何目标）
       // 落空时需重置 moved，否则后续 click 会被 handleCellClick 的 moved 检查吞掉，
       // 导致多实体格"长按超时 → 点击无法选中棋子移动"的问题。
       let dragLockMissed = false;
 
-      if (fromItem) {
+      if (hoveredEllipsis) {
+        // 白圈悬浮 "..."（多实体格）：
+        // - 若悬浮了对话框内的掉落物词条 → 选中该掉落物，弹出拾起按钮
+        // - 否则视为落空（白圈仅是"路过"该格，不锁定任何实体）
+        if (hoveredItem) {
+          setLockedItemTokenId(hoveredItem);
+          setLockedTargetId(null);
+          setLockedSourceId(source || null); // 保留发起者作为拾取者
+        } else {
+          dragLockMissed = true;
+        }
+      } else if (fromItem) {
         // 从物品发起的白圈：
         // - 若 hover 到角色：锁定角色（但无攻击者 sourceId）
         // - 若未 hover：锁定物品自己（用于拾起）
@@ -848,6 +913,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                               pointerY: longPressStartRef.current.y,
                               hoveredTargetId: null,
                               hoveredItemTokenId: item.id,
+                              hoveredEllipsisCell: null,
                             });
                           }
                         }, 350);
@@ -935,6 +1001,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                             pointerY: longPressStartRef.current.y,
                             hoveredTargetId: null,
                             hoveredItemTokenId: null,
+                            hoveredEllipsisCell: null,
                           });
                         }
                       }, 350);
@@ -957,15 +1024,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   );
                 })()}
 
-                {/* 多实体共存的 "..." 按钮 —— 推到单元格右上角外侧，减少对棋子遮挡 */}
+                {/* 多实体共存的 "..." 指示 —— 纯视觉标记，不拦截指针事件。
+                    白圈（拖拽长按）靠近该格时按坐标检测并展开掉落物对话框。 */}
                 {hasMultiple && !readOnly && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEntityPickerCell(entityPickerCell === key ? null : key);
-                    }}
-                    className={`absolute z-20 rounded-full flex items-center justify-center bg-gray-800 text-white shadow-lg transition-transform hover:scale-110 ${
-                      entityPickerCell === key ? 'ring-2 ring-yellow-400' : ''
+                  <div
+                    className={`absolute z-20 rounded-full flex items-center justify-center bg-gray-800 text-white shadow-lg pointer-events-none transition-transform ${
+                      dragLock?.hoveredEllipsisCell === key ? 'ring-2 ring-yellow-400 scale-110' : ''
                     }`}
                     style={{
                       width: Math.max(14, cellSize * 0.4),
@@ -976,17 +1040,18 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                     title="该格有多个实体"
                   >
                     <MoreHorizontal style={{ width: '70%', height: '70%' }} />
-                  </button>
+                  </div>
                 )}
               </div>
             );
           })}
         </div>
 
-        {/* 拖拽锁定时跟随指针的白色半透明圆框（始终在DOM中，用opacity控制显隐，避免闪烁） */}
+        {/* 拖拽锁定时跟随指针的白色半透明圆框（始终在DOM中，用opacity控制显隐，避免闪烁）。
+            z-50：浮在掉落物对话框之上，白圈不被对话框遮挡。 */}
         <div
           ref={dragCircleRef}
-          className="absolute pointer-events-none z-20 rounded-full border-2 border-white/60 bg-white/15 transition-opacity duration-100"
+          className="absolute pointer-events-none z-50 rounded-full border-2 border-white/60 bg-white/15 transition-opacity duration-100"
           style={{
             width: cellSize * scale * 2,
             height: cellSize * scale * 2,
@@ -1030,6 +1095,47 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             );
           }
           return null;
+        })()}
+
+        {/* 白圈悬浮 "..." 时展开的掉落物对话框：只展示掉落物词条，不含同格角色。
+            词条 ref 用于白圈接触检测（悬浮词条 → 白圈框选该词条，松手即选中）。 */}
+        {dropDialogCell && (() => {
+          const itemsHere = cellItemTokens.get(dropDialogCell) || [];
+          if (itemsHere.length === 0) return null;
+          const [ec, er] = dropDialogCell.split(',').map(Number);
+          const rect = gridWrapRef.current?.getBoundingClientRect();
+          if (!rect) return null;
+          const cx = translate.x + (ec + 0.5) * cellSize * scale;
+          const cy = translate.y + (er + 0.5) * cellSize * scale;
+          return (
+            <div
+              ref={dropDialogRef}
+              className="absolute z-40 rounded-lg shadow-2xl p-2 min-w-[120px] pointer-events-none"
+              style={{
+                left: cx + cellSize * scale,
+                top: cy - cellSize * scale,
+                background: 'rgba(0,0,0,0.85)',
+              }}
+            >
+              <div className="text-white text-xs font-medium mb-1.5 text-center">掉落物</div>
+              <div className="flex flex-col gap-1">
+                {itemsHere.map(item => (
+                  <button
+                    key={item.id}
+                    ref={setDialogItemRef(item.id)}
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs transition-colors ${
+                      dragLock?.hoveredItemTokenId === item.id ? 'bg-white/25 ring-1 ring-yellow-400' : ''
+                    }`}
+                  >
+                    <span className="w-3 h-3 rounded bg-amber-600 flex items-center justify-center">
+                      <Package style={{ width: 8, height: 8 }} className="text-white" />
+                    </span>
+                    {item.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
         })()}
 
         {/* 锁定选中后展开的交互按钮 + 叉按钮 */}
@@ -1202,81 +1308,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           );
         })()}
 
-        {/* 实体选择对话框：当格子有多个实体且 "..." 被点击时展示 */}
-        {entityPickerCell && (() => {
-          const combatantId = cellToken.get(entityPickerCell);
-          const combatant = combatantId ? combatantMap.get(combatantId) : null;
-          const itemsHere = cellItemTokens.get(entityPickerCell) || [];
-          const [ec, er] = entityPickerCell.split(',').map(Number);
-          const rect = gridWrapRef.current?.getBoundingClientRect();
-          if (!rect) return null;
-          const cx = translate.x + (ec + 0.5) * cellSize * scale;
-          const cy = translate.y + (er + 0.5) * cellSize * scale;
-          return (
-            <div
-              className="absolute z-40 rounded-lg shadow-2xl p-2 min-w-[120px]"
-              style={{
-                left: cx + cellSize * scale,
-                top: cy - cellSize * scale,
-                background: 'rgba(0,0,0,0.85)',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="text-white text-xs font-medium mb-1.5 text-center">该格有多个实体</div>
-              <div className="flex flex-col gap-1">
-                {combatant && (
-                  <button
-                    onClick={() => {
-                      // 角色：等价于棋盘上单击选中 → 展开移动范围
-                      // 清空 dragLock/locked 状态，避免与白圈交互按钮冲突
-                      setDragLock(null);
-                      dragLockRef.current = null;
-                      setLockedTargetId(null);
-                      setLockedSourceId(null);
-                      setLockedItemTokenId(null);
-                      setSelectedCombatantId(combatant.id);
-                      setEntityPickerCell(null);
-                    }}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors ${
-                      selectedCombatantId === combatant.id ? 'bg-white/25 ring-1 ring-yellow-400' : ''
-                    }`}
-                  >
-                    <span className={`w-3 h-3 rounded-full ${combatant.isPc ? 'bg-info' : 'bg-danger'}`} />
-                    {combatant.name}
-                  </button>
-                )}
-                {itemsHere.map(item => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      // 物品：等价于棋盘上锁定物品 → 显示拾起按钮
-                      setDragLock(null);
-                      dragLockRef.current = null;
-                      setLockedTargetId(null);
-                      setLockedSourceId(null);
-                      setLockedItemTokenId(item.id);
-                      setEntityPickerCell(null);
-                    }}
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors ${
-                      lockedItemTokenId === item.id ? 'bg-white/25 ring-1 ring-yellow-400' : ''
-                    }`}
-                  >
-                    <span className="w-3 h-3 rounded bg-amber-600 flex items-center justify-center">
-                      <Package style={{ width: 8, height: 8 }} className="text-white" />
-                    </span>
-                    {item.name}
-                  </button>
-                ))}
-              </div>
-              <button
-                onClick={() => setEntityPickerCell(null)}
-                className="w-full mt-1.5 px-2 py-1 rounded text-white/70 text-xs hover:bg-white/10 transition-colors"
-              >
-                关闭
-              </button>
-            </div>
-          );
-        })()}
       </div>
 
       {/* 图例 */}
