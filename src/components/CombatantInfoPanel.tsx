@@ -2,22 +2,29 @@ import { useState, useEffect } from 'react';
 import { X, Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
 import type { Combatant, NpcAttack } from '@/types/combat';
-import type { Character, Attack } from '@/types/character';
+import type { Character, Attack, Equipment } from '@/types/character';
 
 interface Props {
   combatant: Combatant;
   onClose: () => void;
   combatants?: Combatant[];
   tokenMap?: { get: (id: string) => { col: number; row: number } | undefined };
+  /** 可选：战斗背包（当在战斗场景下传入时，手持候选列表读它） */
+  combatInventory?: Equipment[];
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
   const [expandedRangeAttackId, setExpandedRangeAttackId] = useState<string | null>(null);
 
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+
+  // 手持候选列表：优先使用战斗背包，否则回退到角色背包
+  const inventoryForSelection: Equipment[] = (combatInventory && combatInventory.length > 0)
+    ? combatInventory
+    : ((character?.equipment as Equipment[] | undefined) || []);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -29,12 +36,21 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   const attacks: (Attack | NpcAttack)[] = character?.attacks || combatant.attacks || [];
   const heldLeftId = character?.heldLeft?.equipmentId;
   const heldRightId = character?.heldRight?.equipmentId;
-  const heldLeftItem = heldLeftId ? character.equipment.find(e => (e.childId || e.id) === heldLeftId) : null;
-  const heldRightItem = heldRightId ? character.equipment.find(e => (e.childId || e.id) === heldRightId) : null;
+  // 手持物品：优先从战斗背包查找（战斗场景下），再回退角色背包
+  const heldLeftItem = heldLeftId
+    ? (
+      combatInventory?.find(e => (e.childId || e.id) === heldLeftId) ||
+      character?.equipment.find(e => (e.childId || e.id) === heldLeftId)
+    ) : null;
+  const heldRightItem = heldRightId
+    ? (
+      combatInventory?.find(e => (e.childId || e.id) === heldRightId) ||
+      character?.equipment.find(e => (e.childId || e.id) === heldRightId)
+    ) : null;
   const leftUsable = character ? characterStore.isWeaponUsable(character, 'left') : false;
   const rightUsable = character ? characterStore.isWeaponUsable(character, 'right') : false;
 
-  const handleHoldSelect = (item: any, hand: 'left' | 'right') => {
+  const handleHoldSelect = (item: Equipment, hand: 'left' | 'right') => {
     if (!character) return;
     const result = characterStore.holdItem(character.id, (item.childId || item.id)!, hand);
     if (!result.success) alert(result.message);
@@ -72,14 +88,14 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   };
 
   const [selectingHand, setSelectingHand] = useState<'left' | 'right' | null>(null);
-  const holdableCandidates = character?.equipment.filter(item => {
+  const holdableCandidates = inventoryForSelection.filter(item => {
     const slotId = item.childId || item.id;
-    if (character.wornArmorId === slotId) return false;
-    if (character.wornOutfitId === slotId) return false;
+    if (character && character.wornArmorId === slotId) return false;
+    if (character && character.wornOutfitId === slotId) return false;
     return true;
   }) || [];
 
-  const handleHoldItemSelect = (item: any) => {
+  const handleHoldItemSelect = (item: Equipment) => {
     if (!selectingHand) return;
     handleHoldSelect(item, selectingHand);
     setSelectingHand(null);

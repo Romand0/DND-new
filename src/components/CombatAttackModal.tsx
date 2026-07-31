@@ -4,7 +4,7 @@ import { X, Swords, Dices, ChevronLeft, MoreHorizontal } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import type { Combatant, NpcAttack } from '@/types/combat';
-import type { Character, Attack } from '@/types/character';
+import type { Character, Attack, Equipment } from '@/types/character';
 
 interface Props {
   attacker: Combatant;
@@ -35,6 +35,8 @@ interface Props {
     isNatural1: boolean;
     usageMode?: 'melee' | 'thrown';
   }) => void;
+  /** 可选：战斗背包（传入后，手持显示/可用性判定读它；否则回退角色卡） */
+  combatInventory?: Equipment[];
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -42,7 +44,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory }: Props) {
   const [stage, setStage] = useState<Stage>('attacks');
   const [selectedAttack, setSelectedAttack] = useState<Attack | NpcAttack | null>(null);
   // d20 投掷值：普通模式长度 1，优/劣势模式长度 2
@@ -64,11 +66,19 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     return null;
   }, [attacker.characterId]);
 
-  // PC 手持装备
+  // PC 手持装备：优先从战斗背包读取，再回退角色背包
   const heldLeftId = character?.heldLeft?.equipmentId;
   const heldRightId = character?.heldRight?.equipmentId;
-  const heldLeftItem = heldLeftId ? character!.equipment.find(e => (e.childId || e.id) === heldLeftId) : null;
-  const heldRightItem = heldRightId ? character!.equipment.find(e => (e.childId || e.id) === heldRightId) : null;
+  const heldLeftItem = heldLeftId
+    ? (
+      (combatInventory?.find(e => (e.childId || e.id) === heldLeftId)) ||
+      character?.equipment.find(e => (e.childId || e.id) === heldLeftId)
+    ) : null;
+  const heldRightItem = heldRightId
+    ? (
+      (combatInventory?.find(e => (e.childId || e.id) === heldRightId)) ||
+      character?.equipment.find(e => (e.childId || e.id) === heldRightId)
+    ) : null;
   const leftUsable = character ? characterStore.isWeaponUsable(character, 'left') : false;
   const rightUsable = character ? characterStore.isWeaponUsable(character, 'right') : false;
 

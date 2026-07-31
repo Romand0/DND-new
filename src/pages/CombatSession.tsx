@@ -2,12 +2,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import {
+  getCombatInventory,
+  applyEquipmentChange,
+} from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, CombatInventoryItem } from '@/types/combat';
+import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
 import Battleground from '@/components/Battleground';
@@ -519,39 +523,51 @@ export default function CombatSession() {
       quantity: 1,
     };
 
-    // PC：从背包中找到对应武器并删除，用真实装备数据做快照
+    // PC：从"战斗背包"查找对应武器（角色背包 + 变更信息合并），将消耗写入变更信息（而非直接修改角色卡）
     if (attacker.characterId) {
+      const combatInventory = getCombatInventory(record, attacker);
+      // 手持 id 从角色卡拿（手持的引用指向角色源装备）
       const char = characterStore.get(attacker.characterId);
-      if (char) {
-        const heldLeftId = char.heldLeft?.equipmentId;
-        const heldRightId = char.heldRight?.equipmentId;
-        // 优先找手持的匹配武器
-        let foundEquip = null;
-        for (const eq of char.equipment) {
-          const slotId = eq.childId || eq.id;
-          if (slotId === heldLeftId || slotId === heldRightId) {
-            if (eq.name === attack.name) {
-              foundEquip = eq;
-              break;
+      const heldLeftId = char?.heldLeft?.equipmentId;
+      const heldRightId = char?.heldRight?.equipmentId;
+      // 优先找手持的匹配武器
+      let foundEquip = null;
+      for (const eq of combatInventory) {
+        const slotId = eq.childId || eq.id;
+        if (slotId === heldLeftId || slotId === heldRightId) {
+          if (eq.name === attack.name) {
+            foundEquip = eq;
+            break;
+          }
+        }
+      }
+      // 若手持未找到，按名称查找
+      if (!foundEquip) {
+        foundEquip = combatInventory.find(e => e.name === attack.name) || null;
+      }
+      if (foundEquip) {
+        equipData = { ...(foundEquip as any), quantity: 1 };
+        // 写入变更信息漏斗：数量 > 1 → -1，否则 → 移除该 childId
+        const slotId = foundEquip.childId || foundEquip.id || '';
+        // 判断源装备的真实数量
+        const qty = (foundEquip.quantity || 1);
+        const currentChanges = record?.equipmentChanges?.[attacker.id];
+        const newChanges = applyEquipmentChange(currentChanges, (ch) => {
+          if (qty > 1) {
+            ch.quantityDeltas[slotId] = (ch.quantityDeltas[slotId] || 0) - 1;
+          } else {
+            // 数量已经是 1（或 0），直接移除
+            if (!ch.removedChildIds.includes(slotId)) {
+              ch.removedChildIds.push(slotId);
             }
           }
-        }
-        // 若手持未找到，按名称查找
-        if (!foundEquip) {
-          foundEquip = char.equipment.find(e => e.name === attack.name) || null;
-        }
-        if (foundEquip) {
-          equipData = { ...foundEquip, quantity: 1 };
-          // 如果数量大于1，减少数量；否则删除
-          const slotId = foundEquip.childId || foundEquip.id || '';
-          if ((foundEquip.quantity || 1) > 1) {
-            characterStore.updateEquipment(attacker.characterId, slotId, {
-              quantity: (foundEquip.quantity || 1) - 1,
-            });
-          } else {
-            characterStore.deleteEquipment(attacker.characterId, slotId);
-          }
-        }
+        });
+        combatStore.update(record.id, {
+          equipmentChanges: {
+            ...(record?.equipmentChanges || {}),
+            [attacker.id]: newChanges,
+          },
+        });
       }
     }
 
@@ -1681,6 +1697,14 @@ export default function CombatSession() {
       <Battleground
         sessionId={record.id}
         combatants={record.combatants}
+        combatInventories={(() => {
+          // 计算所有参战者的战斗背包（用 IIFE 立即求值）
+          const result: Record<string, any[]> = {};
+          for (const c of record.combatants) {
+            result[c.id] = getCombatInventory(record, c);
+          }
+          return result;
+        })()}
         playbackOnlyMovableId={
           record.mode === 'playback' && playbackStarted && currentTurn
             ? currentTurn.combatantId
@@ -1755,40 +1779,28 @@ export default function CombatSession() {
             return;
           }
           
-          // 加入战斗背包（而不是角色卡）
-          const combatItem: CombatInventoryItem = {
-            id: `combat-item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          // 写入变更信息（漏斗）：新增物品
+          const newChildId = `combat-${picker.id}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+          const equipSnapshot: Record<string, unknown> = {
+            ...(itemToken.equipmentData || {}),
             name: (itemToken.equipmentData?.name as string) || itemToken.name || '未命名物品',
             category: (itemToken.equipmentData?.category as string) || '杂项',
-            subtype: itemToken.equipmentData?.subtype as string | undefined,
             quantity: 1,
-            equipmentData: itemToken.equipmentData || {},
-            obtainedAt: Date.now(),
-            source: 'picked',
           };
-          
-          // 自动整理战斗背包：相同名称的物品合并数量
-          const inventories = record.combatInventories || {};
-          const existingItems = inventories[picker.id] || [];
-          
-          // 查找是否已有同名物品
-          const existingIdx = existingItems.findIndex(i => i.name === combatItem.name);
-          if (existingIdx >= 0) {
-            // 合并数量
-            existingItems[existingIdx].quantity += 1;
-          } else {
-            // 新增物品
-            existingItems.push(combatItem);
-          }
-          
-          // 更新战斗记录
+          const currentChanges = record?.equipmentChanges?.[picker.id];
+          const newChanges = applyEquipmentChange(currentChanges, (ch) => {
+            ch.added.push({
+              childId: newChildId,
+              equipment: equipSnapshot,
+            });
+          });
           combatStore.update(record.id, {
-            combatInventories: {
-              ...inventories,
-              [picker.id]: existingItems,
+            equipmentChanges: {
+              ...(record?.equipmentChanges || {}),
+              [picker.id]: newChanges,
             },
           });
-          
+
           // 从网格移除物品 token
           battlegroundStore.removeItemToken(record.id, itemToken.id);
           // 写入先攻表格
@@ -1816,6 +1828,7 @@ export default function CombatSession() {
           target={attackModal.target}
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
+          combatInventory={getCombatInventory(record, attackModal.attacker)}
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗

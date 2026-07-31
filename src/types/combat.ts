@@ -67,23 +67,43 @@ export interface CombatRecord {
   rounds: RoundAction[];
   /** 战斗模式：'simulation' 模拟模式（无回合），'playback' 放映模式（有回合） */
   mode?: 'simulation' | 'playback';
-  /** 战斗背包：记录战斗期间获得的物品（拾取等），key 为 combatantId */
-  combatInventories?: Record<string, CombatInventoryItem[]>;
+  /**
+   * 装备变更信息（战斗期间的"漏斗"，不直接修改角色卡）
+   * key 为 combatantId
+   */
+  equipmentChanges?: Record<string, EquipmentChanges>;
   createdAt: number;
   updatedAt: number;
 }
 
-/** 战斗背包物品：简化版装备信息 */
+/**
+ * 单个参战者的装备变更信息（"漏斗"）
+ * 规则：以子ID (childId) 作为唯一主键
+ * - 角色背包 = 信息源（character.equipment）
+ * - 变更信息 = 战斗期间 +/- 记录
+ * - 战斗背包 = 角色背包 + 应用变更 + 自动合并同名数量
+ */
+export interface EquipmentChanges {
+  /** 战斗中新增物品（例如：拾取）。childId 用于唯一区分，按 childId 去重，自动整理时按名称合并数量 */
+  added: Array<{
+    childId: string;
+    equipment: Record<string, unknown>; // Equipment 序列化快照
+  }>;
+  /** 战斗中失去物品（例如：投掷/消耗）的 childId 列表 */
+  removedChildIds: string[];
+  /** 战斗中数量变化：childId -> 数量 delta（正数=增加，负数=减少） */
+  quantityDeltas: Record<string, number>;
+}
+
+/** 已废除的旧结构（保留兼容读取，不再使用） */
+/** @deprecated 请使用 equipmentChanges + 派生战斗背包 */
 export interface CombatInventoryItem {
   id: string;
   name: string;
   category: string;
   subtype?: string;
   quantity: number;
-  /** 原始装备快照（用于战斗结束后写入角色卡） */
   equipmentData: Record<string, unknown>;
-  /** 获得时间 */
   obtainedAt: number;
-  /** 来源：'picked' | 'thrown_drop' 等 */
   source?: string;
 }

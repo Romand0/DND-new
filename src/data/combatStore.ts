@@ -1,5 +1,6 @@
-import type { Combatant, CombatRecord, RoundAction } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges } from '@/types/combat';
 import { characterStore } from './characterStore';
+import type { Equipment, Character } from '@/types/character';
 
 const STORAGE_KEY = 'dnd-combat-records';
 type Listener = () => void;
@@ -11,6 +12,127 @@ let listeners: Listener[] = [];
 
 function notify(): void {
   listeners.forEach(listener => listener());
+}
+
+/**
+ * 空变更信息（每次操作前确保有默认值）
+ */
+export function emptyEquipmentChanges(): EquipmentChanges {
+  return { added: [], removedChildIds: [], quantityDeltas: {} };
+}
+
+/**
+ * 合并同类物品（按 name + category 判断）。
+ * 自动整理战斗背包时调用。
+ */
+function mergeEquipmentsByName(list: Equipment[]): Equipment[] {
+  const map = new Map<string, Equipment>();
+  for (const eq of list) {
+    const key = `${eq.category || '杂项'}::${eq.name || '未命名'}`;
+    const prev = map.get(key);
+    if (!prev) {
+      map.set(key, { ...eq, quantity: (eq.quantity ?? 1) });
+    } else {
+      // 合并数量，保留先出现那条的 childId（作为代表）
+      const mergedQty = (prev.quantity ?? 1) + (eq.quantity ?? 1);
+      map.set(key, { ...prev, quantity: mergedQty });
+    }
+  }
+  return Array.from(map.values());
+}
+
+/**
+ * 派生战斗背包：
+ *   战斗背包 = 角色背包（源） + 应用变更信息（漏斗） + 自动整理（同名合并）
+ *
+ * 规则（以 childId 为唯一主键）：
+ *   1. 复制角色源装备
+ *   2. 应用 quantityDeltas（数量加减，减到 0 或以下 → 视为移除）
+ *   3. 过滤 removedChildIds（完全移除）
+ *   4. 追加 added（战斗中新增物品，保留新增的 childId）
+ *   5. 自动整理：同名同分类合并数量
+ */
+export function deriveCombatInventory(
+  character: Character | null | undefined,
+  changes?: EquipmentChanges | null,
+): Equipment[] {
+  const source: Equipment[] = (character?.equipment as Equipment[] | undefined) || [];
+  const removedSet = new Set(changes?.removedChildIds || []);
+  const qtyDeltas = changes?.quantityDeltas || {};
+  const addedList = changes?.added || [];
+
+  // 1 + 2 + 3：源装备应用数量变化，并过滤移除项
+  const afterSource: Equipment[] = [];
+  for (const rawEq of source) {
+    const eq: Equipment = { ...rawEq };
+    const cid = eq.childId || eq.id;
+    if (!cid) continue;
+    if (removedSet.has(cid)) continue; // 明确标记移除
+    const delta = qtyDeltas[cid] || 0;
+    if (delta !== 0) {
+      const oldQty = (eq.quantity ?? 1);
+      const newQty = oldQty + delta;
+      if (newQty <= 0) continue; // 减到 0 → 视为完全移除
+      eq.quantity = newQty;
+    }
+    afterSource.push(eq);
+  }
+
+  // 4：追加 added 列表（拾取/奖励物品）
+  const mergedRaw: Equipment[] = [...afterSource];
+  for (const a of addedList) {
+    const data = (a.equipment || {}) as Partial<Equipment>;
+    // 基本字段兜底
+    const newEq: Equipment = {
+      id: (data.id as string) || a.childId,
+      childId: a.childId,
+      name: (data.name as string) || '未命名物品',
+      quantity: (data.quantity as number) ?? 1,
+      packSize: data.packSize,
+      unit: data.unit,
+      category: (data.category as string) || '杂项',
+      ...(data as any),
+    };
+    if (!newEq.quantity || newEq.quantity <= 0) newEq.quantity = 1;
+    if (!newEq.name) newEq.name = '未命名物品';
+    mergedRaw.push(newEq);
+  }
+
+  // 5：自动整理（同名合并）
+  return mergeEquipmentsByName(mergedRaw);
+}
+
+/**
+ * 便捷函数：从战斗记录 + combatantId 计算出战斗背包。
+ * 若 combatant 是 PC（有 characterId），则从 characterStore 取源。
+ * NPC 没有 character.equipment，因此战斗背包 = added 中新增的物品。
+ */
+export function getCombatInventory(
+  record: CombatRecord | null | undefined,
+  combatant: Combatant | null | undefined,
+): Equipment[] {
+  if (!record || !combatant) return [];
+  const changes = record.equipmentChanges?.[combatant.id];
+  let character: Character | null = null;
+  if (combatant.characterId) character = characterStore.get(combatant.characterId);
+  return deriveCombatInventory(character, changes);
+}
+
+/**
+ * 记录"装备变更"——以函数式方式更新 changes。
+ * 写操作统一通过本接口，保持数据结构一致。
+ */
+export function applyEquipmentChange(
+  changes: EquipmentChanges | undefined,
+  update: (ch: EquipmentChanges) => void,
+): EquipmentChanges {
+  const target = changes ? {
+    added: [...changes.added],
+    removedChildIds: [...changes.removedChildIds],
+    quantityDeltas: { ...changes.quantityDeltas },
+  } : emptyEquipmentChanges();
+  update(target);
+  return target;
 }
 
 function load(): CombatRecord[] {

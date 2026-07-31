@@ -5,6 +5,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken } from '@/types/battleground';
 import type { Combatant } from '@/types/combat';
+import type { Equipment } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
 
 interface Props {
@@ -26,9 +27,11 @@ interface Props {
    * 单独传递以区别于 readOnly（readOnly 仍可控制全局锁定）。
    */
   playbackOnlyMovableId?: string | null;
+  /** 战斗背包（外部传入，key 为 combatantId）—— 信息面板 / 手持选择等将优先读取它 */
+  combatInventories?: Record<string, Equipment[]>;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
@@ -1232,6 +1235,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onClose={() => setDoubleClickedCombatant(null)}
                   combatants={combatants}
                   tokenMap={tokenMap}
+                  combatInventory={combatInventories?.[doubleClickedCombatant.id]}
                 />
       )}
     </div>
