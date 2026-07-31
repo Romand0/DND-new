@@ -780,8 +780,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
         </div>
 
         {selectingHand && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectingHand(null)}>
-            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light w-full max-w-sm relative flex flex-col max-h-[80%]" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setSelectingHand(null)}>
+            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light w-full max-w-sm relative flex flex-col max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
               {/* 头部 */}
               <div className="flex items-center justify-between p-3 border-b dark:border-border-dark light:border-border-light shrink-0">
                 <div className="text-sm font-medium">选择装备（{selectingHand === 'left' ? '左手' : '右手'}）</div>
@@ -871,8 +871,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
         {/* 变更信息编辑弹窗 */}
         {showChangesEditor && equipmentChanges && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4 z-10" onClick={() => setShowChangesEditor(false)}>
-            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light w-full max-w-sm relative flex flex-col max-h-[80%]" onClick={(e) => e.stopPropagation()}>
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={() => setShowChangesEditor(false)}>
+            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light w-full max-w-sm relative flex flex-col max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
               {/* 头部 */}
               <div className="flex items-center justify-between p-3 border-b dark:border-border-dark light:border-border-light shrink-0">
                 <div className="text-sm font-medium flex items-center gap-1.5">
