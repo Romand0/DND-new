@@ -391,7 +391,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       const target = dragLockRef.current.hoveredTargetId;
       const hoveredItem = dragLockRef.current.hoveredItemTokenId;
       const fromItem = !source; // 从物品发起
-      
+      // 标记本次长按是否"落空"（没锁定到任何目标）
+      // 落空时需重置 moved，否则后续 click 会被 handleCellClick 的 moved 检查吞掉，
+      // 导致多实体格"长按超时 → 点击无法选中棋子移动"的问题。
+      let dragLockMissed = false;
+
       if (fromItem) {
         // 从物品发起的白圈：
         // - 若 hover 到角色：锁定角色（但无攻击者 sourceId）
@@ -400,11 +404,13 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           setLockedTargetId(target);
           setLockedSourceId(null); // 无攻击者
           setLockedItemTokenId(null);
-        } else {
+        } else if (hoveredItem) {
           // 锁定物品自己
           setLockedItemTokenId(dragLockRef.current.hoveredItemTokenId);
           setLockedTargetId(null);
           setLockedSourceId(null);
+        } else {
+          dragLockMissed = true;
         }
       } else {
         // 从角色发起的白圈（原逻辑）
@@ -417,6 +423,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           setLockedItemTokenId(hoveredItem);
           setLockedTargetId(null);
           setLockedSourceId(source); // 关键：保留发起者 ID，用于拾取时确定 picker
+        } else {
+          dragLockMissed = true;
         }
       }
       setDragLock(null);
@@ -424,6 +432,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       const ts = touchState.current;
       ts.pointers.delete(e.pointerId);
       ts.startPoints.delete(e.pointerId);
+      // 长按落空：重置 moved，让随后的 click 能正常进入 handleCellClick 选中棋子
+      if (dragLockMissed) ts.moved = false;
       return;
     }
     const ts = touchState.current;
