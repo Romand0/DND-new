@@ -163,7 +163,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         className="game-clock-svg select-none"
-        style={{ touchAction: draggingHand ? 'none' : 'auto' }}
+        style={{ touchAction: interactive ? 'none' : 'auto' }}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
@@ -231,7 +231,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
           strokeLinecap="round"
           transform={`rotate(${hourAngle} ${center} ${center})`}
           onPointerDown={handleHandDown('hour')}
-          style={{ cursor: interactive ? 'grab' : 'default', touchAction: draggingHand ? 'none' : 'auto' }}
+          style={{ cursor: interactive ? 'grab' : 'default', touchAction: interactive ? 'none' : 'auto' }}
         />
         {/* 时针 — 可见 */}
         <line
@@ -263,7 +263,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
           strokeLinecap="round"
           transform={`rotate(${minuteAngle} ${center} ${center})`}
           onPointerDown={handleHandDown('minute')}
-          style={{ cursor: interactive ? 'grab' : 'default', touchAction: draggingHand ? 'none' : 'auto' }}
+          style={{ cursor: interactive ? 'grab' : 'default', touchAction: interactive ? 'none' : 'auto' }}
         />
         {/* 分针 — 可见 */}
         <line
