@@ -951,19 +951,21 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   );
                 })()}
 
-                {/* 多实体共存的 "..." 按钮 */}
+                {/* 多实体共存的 "..." 按钮 —— 推到单元格右上角外侧，减少对棋子遮挡 */}
                 {hasMultiple && !readOnly && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setEntityPickerCell(entityPickerCell === key ? null : key);
                     }}
-                    className={`absolute top-0 right-0 z-20 rounded-full flex items-center justify-center bg-gray-800 text-white shadow-lg transition-transform hover:scale-110 ${
+                    className={`absolute z-20 rounded-full flex items-center justify-center bg-gray-800 text-white shadow-lg transition-transform hover:scale-110 ${
                       entityPickerCell === key ? 'ring-2 ring-yellow-400' : ''
                     }`}
                     style={{
                       width: Math.max(14, cellSize * 0.4),
                       height: Math.max(14, cellSize * 0.4),
+                      top: -4,
+                      right: -4,
                     }}
                     title="该格有多个实体"
                   >

@@ -1760,7 +1760,7 @@ export default function CombatSession() {
           setSpellModal({ caster, target });
         }}
         onPickupItem={(itemToken, picker) => {
-          // 拾起掉落物品：体型小型及以上 + 智力4以上 + 5格内
+          // 拾起掉落物品：体型小型及以上 + 智力4以上 + 5尺内（1格）
           if (!record) return;
           const bg = battlegroundStore.get(record.id);
           if (!bg) return;
@@ -1769,13 +1769,13 @@ export default function CombatSession() {
             alert('拾取者不在沙盘上');
             return;
           }
-          // 距离检查：5格内
+          // 距离检查：5尺内（切比雪夫距离 ≤ 1格）
           const dist = Math.max(
             Math.abs(pickerToken.col - itemToken.col),
             Math.abs(pickerToken.row - itemToken.row),
           );
-          if (dist > 5) {
-            alert(`距离过远（${dist * 5}尺），需在5格（25尺）内才能拾起`);
+          if (dist > 1) {
+            alert(`距离过远（${dist * 5}尺），需在5尺（1格）内才能拾起`);
             return;
           }
           // 体型检查：小型及以上
