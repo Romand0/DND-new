@@ -174,6 +174,9 @@ export interface Character {
   skills: Skills;
   proficiencies: Proficiencies;
   saveExpertise?: AbilityKey[]; // 豁免专精列表
+  // 豁免加值覆盖：NPC 的某属性豁免加值通常等于属性调整值，
+  // 个别情况下需要单独设定；若该属性未设置（undefined），则回退到属性调整值+熟练加值
+  saveBonusOverride?: Partial<Record<AbilityKey, number>>;
 
   features: Feature[];
 

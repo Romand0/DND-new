@@ -1217,7 +1217,7 @@ for (const [attrKey, config] of Object.entries(SKILL_GROUP_CONFIG)) {
 function getGroupedSkills(char: Character): {
   attribute: AbilityKey;
   attributeLabel: string;
-  save: { key: AbilityKey; label: string; proficient: boolean; expertise: boolean; bonus: number; modifier: number };
+  save: { key: AbilityKey; label: string; proficient: boolean; expertise: boolean; bonus: number; modifier: number; overridden: boolean };
   skills: { key: SkillKey; label: string; proficient: boolean; expertise: boolean; bonus: number; extra: number }[];
 }[] {
   if (!char) return [];
@@ -1232,6 +1232,7 @@ function getGroupedSkills(char: Character): {
   };
   const saveProfs = char.proficiencies?.savingThrows || [];
   const saveExpertiseList = char.saveExpertise || [];
+  const saveOverrideMap = char.saveBonusOverride || {};
   const skills = char.skills || {};
   const profBonus = char.proficiencyBonus || 2;
 
@@ -1242,7 +1243,11 @@ function getGroupedSkills(char: Character): {
     const isSaveExpertise = saveExpertiseList.includes(key);
     // 专精时熟练加值翻倍
     const saveProfBonus = isSaveProficient ? (isSaveExpertise ? profBonus * 2 : profBonus) : 0;
-    const saveBonus = saveMod + saveProfBonus;
+    const defaultSaveBonus = saveMod + saveProfBonus;
+    // 覆盖值优先：未设置（undefined）则用默认计算值
+    const overrideVal = saveOverrideMap[key];
+    const isOverridden = typeof overrideVal === 'number' && !isNaN(overrideVal);
+    const saveBonus = isOverridden ? overrideVal : defaultSaveBonus;
 
     const skillList = config.skills.map((skillKey) => {
       const skillData = skills[skillKey] || { proficient: false, extra: 0, expertise: false };
@@ -1271,6 +1276,7 @@ function getGroupedSkills(char: Character): {
         expertise: isSaveExpertise,
         bonus: saveBonus,
         modifier: saveMod,
+        overridden: isOverridden,
       },
       skills: skillList,
     });
@@ -1292,9 +1298,14 @@ function getSkillBonus(char: Character, skillKey: SkillKey): number {
 
 function getSaveBonus(char: Character, saveKey: AbilityKey): number {
   if (!char || !char.abilities) return 0;
+  // 覆盖值优先：NPC 个别属性的豁免加值可单独设定
+  const override = char.saveBonusOverride?.[saveKey];
+  if (typeof override === 'number' && !isNaN(override)) return override;
+  // 默认：属性调整值 + 熟练加值
   const abilityMod = char.abilities?.[saveKey]?.modifier || 0;
   const isProficient = char.proficiencies?.savingThrows?.includes(saveKey) || false;
-  const profBonus = isProficient ? (char.proficiencyBonus || 2) : 0;
+  const isExpertise = char.saveExpertise?.includes(saveKey) || false;
+  const profBonus = isProficient ? (isExpertise ? (char.proficiencyBonus || 2) * 2 : (char.proficiencyBonus || 2)) : 0;
   return abilityMod + profBonus;
 }
 
@@ -1375,6 +1386,24 @@ function toggleSaveExpertise(charId: string, saveKey: AbilityKey): void {
     char.saveExpertise.push(saveKey);
   } else {
     char.saveExpertise.splice(index, 1);
+  }
+  saveCharacter(char as Character);
+}
+
+// 设置/清除某属性的豁免加值覆盖值
+// 传入 null 或 undefined 清除覆盖，回退到默认计算（属性调整值+熟练加值）
+function setSaveBonusOverride(charId: string, saveKey: AbilityKey, value: number | null): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+  if (!char.saveBonusOverride) char.saveBonusOverride = {};
+  if (value === null || value === undefined || isNaN(value)) {
+    delete char.saveBonusOverride[saveKey];
+    // 若覆盖表已空，移除字段保持数据整洁
+    if (Object.keys(char.saveBonusOverride).length === 0) {
+      delete char.saveBonusOverride;
+    }
+  } else {
+    char.saveBonusOverride[saveKey] = value;
   }
   saveCharacter(char as Character);
 }
@@ -1872,6 +1901,7 @@ export const characterStore = {
   toggleSaveProficiency,
   toggleSkillExpertise,
   toggleSaveExpertise,
+  setSaveBonusOverride,
   setSkillProficiencies,
   getLevelFromExp,
   getNextLevelInfo,

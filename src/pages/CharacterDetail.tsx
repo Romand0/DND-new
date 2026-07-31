@@ -175,6 +175,8 @@ export default function CharacterDetail({
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
   const [attackEditorOpen, setAttackEditorOpen] = useState(false);
   const [editingAttack, setEditingAttack] = useState<(Attack & { id: string }) | null>(null);
+  const [editingSaveKey, setEditingSaveKey] = useState<string | null>(null);
+  const [saveBonusInput, setSaveBonusInput] = useState('');
 
   useEditorState(spellPickerOpen, equipmentPickerOpen, equipmentEditorOpen, statsEditorOpen, genderPickerOpen, attackEditorOpen);
 
@@ -1008,15 +1010,61 @@ if (character) {
           >
             {group.save.label}
           </span>
-          <span
-            className={`text-xs font-mono font-bold w-8 text-right ${
-              group.save.proficient
-                ? 'dark:text-text-dark light:text-text-light'
-                : 'dark:text-text-dark-muted light:text-text-light-muted'
-            }`}
-          >
-            {group.save.bonus >= 0 ? `+${group.save.bonus}` : group.save.bonus}
-          </span>
+          {editingSaveKey === group.save.key ? (
+            <input
+              type="number"
+              autoFocus
+              value={saveBonusInput}
+              onChange={e => setSaveBonusInput(e.target.value)}
+              onBlur={() => {
+                if (id) {
+                  const raw = saveBonusInput.trim();
+                  if (raw === '') {
+                    // 清空 = 清除覆盖，回退到默认计算值
+                    characterStore.setSaveBonusOverride(id, group.save.key, null);
+                  } else {
+                    const n = parseInt(raw, 10);
+                    if (!isNaN(n)) {
+                      characterStore.setSaveBonusOverride(id, group.save.key, n);
+                    }
+                  }
+                  reloadChar();
+                }
+                setEditingSaveKey(null);
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  (e.target as HTMLInputElement).blur();
+                } else if (e.key === 'Escape') {
+                  setEditingSaveKey(null);
+                }
+              }}
+              placeholder={`${group.save.bonus >= 0 ? '+' : ''}${group.save.bonus}`}
+              title="留空回退到属性调整值+熟练加值，Esc 取消"
+              className="w-14 px-1.5 py-0.5 text-xs text-center font-mono rounded border bg-transparent outline-none dark:border-accent light:border-accent dark:text-text-dark light:text-text-light focus:border-accent"
+            />
+          ) : (
+            <button
+              onClick={() => {
+                if (!id) return;
+                setEditingSaveKey(group.save.key);
+                setSaveBonusInput(
+                  group.save.overridden ? String(group.save.bonus) : ''
+                );
+              }}
+              disabled={!id}
+              className={`text-xs font-mono font-bold w-14 text-right rounded px-1 py-0.5 transition-colors ${
+                group.save.overridden
+                  ? 'text-accent dark:bg-accent/10 light:bg-accent/10'
+                  : group.save.proficient
+                    ? 'dark:text-text-dark light:text-text-light hover:bg-white/5'
+                    : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/5'
+              }`}
+              title={group.save.overridden ? '已自定义豁免加值，点击编辑（留空恢复默认）' : '点击自定义豁免加值'}
+            >
+              {group.save.bonus >= 0 ? `+${group.save.bonus}` : group.save.bonus}
+            </button>
+          )}
         </div>
         
         {/* 技能列表 */}
