@@ -246,7 +246,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
           pointerEvents="none"
           style={{
             filter: glowFilter(draggingHand === 'hour'),
-            transition: draggingHand === 'hour'
+            transition: draggingHand !== null
               ? 'none'
               : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s',
           }}
@@ -278,7 +278,7 @@ export default function GameClock({ size = 240, interactive = true }: Props) {
           pointerEvents="none"
           style={{
             filter: glowFilter(draggingHand === 'minute'),
-            transition: draggingHand === 'minute'
+            transition: draggingHand !== null
               ? 'none'
               : 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), filter 0.2s',
           }}
