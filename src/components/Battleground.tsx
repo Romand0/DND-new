@@ -391,9 +391,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           setLockedSourceId(source);
           setLockedItemTokenId(null);
         } else if (hoveredItem) {
+          // 选中掉落物：锁定物品 token，保留发起者作为拾取者
           setLockedItemTokenId(hoveredItem);
           setLockedTargetId(null);
-          setLockedSourceId(null);
+          setLockedSourceId(source); // 关键：保留发起者 ID，用于拾取时确定 picker
         }
       }
       setDragLock(null);
@@ -1086,26 +1087,21 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  // 拾起：需要选中一个角色作为拾取者
-                  // 优先使用当前选中的角色，否则提示选择
-                  if (selectedCombatantId) {
-                    const picker = combatantMap.get(selectedCombatantId);
+                  // 拾起：确定拾取者优先级：
+                  // 1. lockedSourceId（白圈发起者）
+                  // 2. selectedCombatantId（单击选中的角色）
+                  // 3. activeTurnCombatantId（放映模式当前回合角色）
+                  const pickerId = lockedSourceId || selectedCombatantId || activeTurnCombatantId;
+                  if (pickerId) {
+                    const picker = combatantMap.get(pickerId);
                     if (picker && onPickupItem) {
                       onPickupItem(itemToken, picker);
                     }
                   } else {
-                    // 没有选中角色时，使用当前回合角色
-                    const pickerId = activeTurnCombatantId || selectedCombatantId;
-                    if (pickerId) {
-                      const picker = combatantMap.get(pickerId);
-                      if (picker && onPickupItem) {
-                        onPickupItem(itemToken, picker);
-                      }
-                    } else {
-                      alert('请先选中一个角色再拾起物品');
-                    }
+                    alert('请先选中一个角色再拾起物品');
                   }
                   setLockedItemTokenId(null);
+                  setLockedSourceId(null);
                 }}
                 className="absolute z-30 rounded-full flex flex-col items-center justify-center shadow-lg transition-transform bg-amber-600 text-white hover:scale-110"
                 style={{

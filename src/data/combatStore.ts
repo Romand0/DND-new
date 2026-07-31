@@ -103,6 +103,70 @@ export function deriveCombatInventory(
 }
 
 /**
+ * 派生战斗背包（未合并版本）：
+ *   与 deriveCombatInventory 相同，但**不做同名合并**。
+ *   用于需要精确 childId 的场景（如投掷消耗：必须找到具体的 childId 才能正确移除）。
+ */
+export function deriveCombatInventoryRaw(
+  character: Character | null | undefined,
+  changes?: EquipmentChanges | null,
+): Equipment[] {
+  const source: Equipment[] = (character?.equipment as Equipment[] | undefined) || [];
+  const removedSet = new Set(changes?.removedChildIds || []);
+  const qtyDeltas = changes?.quantityDeltas || {};
+  const addedList = changes?.added || [];
+
+  const afterSource: Equipment[] = [];
+  for (const rawEq of source) {
+    const eq: Equipment = { ...rawEq };
+    const cid = eq.childId || eq.id;
+    if (!cid) continue;
+    if (removedSet.has(cid)) continue;
+    const delta = qtyDeltas[cid] || 0;
+    if (delta !== 0) {
+      const oldQty = (eq.quantity ?? 1);
+      const newQty = oldQty + delta;
+      if (newQty <= 0) continue;
+      eq.quantity = newQty;
+    }
+    afterSource.push(eq);
+  }
+
+  for (const a of addedList) {
+    const data = (a.equipment || {}) as Partial<Equipment>;
+    const newEq: Equipment = {
+      id: (data.id as string) || a.childId,
+      childId: a.childId,
+      name: (data.name as string) || '未命名物品',
+      quantity: (data.quantity as number) ?? 1,
+      packSize: data.packSize,
+      unit: data.unit,
+      category: (data.category as string) || '杂项',
+      ...(data as any),
+    };
+    if (!newEq.quantity || newEq.quantity <= 0) newEq.quantity = 1;
+    if (!newEq.name) newEq.name = '未命名物品';
+    afterSource.push(newEq);
+  }
+
+  return afterSource; // 不合并
+}
+
+/**
+ * 便捷函数：从战斗记录 + combatantId 计算出战斗背包（未合并）。
+ */
+export function getCombatInventoryRaw(
+  record: CombatRecord | null | undefined,
+  combatant: Combatant | null | undefined,
+): Equipment[] {
+  if (!record || !combatant) return [];
+  const changes = record.equipmentChanges?.[combatant.id];
+  let character: Character | null = null;
+  if (combatant.characterId) character = characterStore.get(combatant.characterId);
+  return deriveCombatInventoryRaw(character, changes);
+}
+
+/**
  * 便捷函数：从战斗记录 + combatantId 计算出战斗背包。
  * 若 combatant 是 PC（有 characterId），则从 characterStore 取源。
  * NPC 没有 character.equipment，因此战斗背包 = added 中新增的物品。
@@ -171,6 +235,8 @@ function load(): CombatRecord[] {
       }),
       rounds: r.rounds ?? [],
       mode: r.mode,
+      // 关键：必须映射 equipmentChanges，否则 save 写入后 load 读取会丢失变更信息
+      equipmentChanges: r.equipmentChanges as Record<string, EquipmentChanges> | undefined,
       createdAt: r.createdAt ?? Date.now(),
       updatedAt: r.updatedAt ?? Date.now(),
     }));

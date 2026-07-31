@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   getCombatInventory,
+  getCombatInventoryRaw,
   applyEquipmentChange,
 } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
@@ -523,16 +524,16 @@ export default function CombatSession() {
       quantity: 1,
     };
 
-    // PC：从"战斗背包"查找对应武器（角色背包 + 变更信息合并），将消耗写入变更信息（而非直接修改角色卡）
+    // PC：从"战斗背包"查找对应武器（未合并版本，确保 childId 精确匹配）
     if (attacker.characterId) {
-      const combatInventory = getCombatInventory(record, attacker);
+      const combatInventoryRaw = getCombatInventoryRaw(record, attacker);
       // 手持 id 从角色卡拿（手持的引用指向角色源装备）
       const char = characterStore.get(attacker.characterId);
       const heldLeftId = char?.heldLeft?.equipmentId;
       const heldRightId = char?.heldRight?.equipmentId;
-      // 优先找手持的匹配武器
+      // 优先找手持的匹配武器（在未合并列表中按 childId 精确匹配）
       let foundEquip = null;
-      for (const eq of combatInventory) {
+      for (const eq of combatInventoryRaw) {
         const slotId = eq.childId || eq.id;
         if (slotId === heldLeftId || slotId === heldRightId) {
           if (eq.name === attack.name) {
@@ -541,15 +542,15 @@ export default function CombatSession() {
           }
         }
       }
-      // 若手持未找到，按名称查找
+      // 若手持未找到，按名称查找（取第一个匹配的）
       if (!foundEquip) {
-        foundEquip = combatInventory.find(e => e.name === attack.name) || null;
+        foundEquip = combatInventoryRaw.find(e => e.name === attack.name) || null;
       }
       if (foundEquip) {
         equipData = { ...(foundEquip as any), quantity: 1 };
         // 写入变更信息漏斗：数量 > 1 → -1，否则 → 移除该 childId
         const slotId = foundEquip.childId || foundEquip.id || '';
-        // 判断源装备的真实数量
+        // 未合并列表中每条的数量是源装备的原始数量（已应用 delta）
         const qty = (foundEquip.quantity || 1);
         const currentChanges = record?.equipmentChanges?.[attacker.id];
         const newChanges = applyEquipmentChange(currentChanges, (ch) => {
