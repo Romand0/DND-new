@@ -56,12 +56,12 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
       : character?.equipment.find(e => (e.childId || e.id) === heldRightId) ?? null)
     : null;
   // 可用性：物品不存在于战斗背包时视为不可用
-  const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left') : false;
-  const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right') : false;
+  const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left', combatInventory) : false;
+  const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right', combatInventory) : false;
 
   const handleHoldSelect = (item: Equipment, hand: 'left' | 'right') => {
     if (!character) return;
-    const result = characterStore.holdItem(character.id, (item.childId || item.id)!, hand);
+    const result = characterStore.holdItem(character.id, (item.childId || item.id)!, hand, combatInventory);
     if (!result.success) alert(result.message);
     setRefreshKey(k => k + 1);
   };
@@ -109,9 +109,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     | { kind: 'lost-removed'; childId: string; name: string }
     | { kind: 'lost-delta'; childId: string; name: string; quantity: number };
 
-  // 通过 childId 从角色源装备查名称
+  // 通过 childId 查名称：战斗场景下优先查战斗背包（含拾取物），否则回退角色源背包
   const nameByChildId = (cid: string): string => {
-    const src = character?.equipment.find(e => (e.childId || e.id) === cid);
+    const src = combatInventory?.find(e => (e.childId || e.id) === cid)
+      ?? character?.equipment.find(e => (e.childId || e.id) === cid);
     return src?.name || '未知物品';
   };
 

@@ -824,14 +824,16 @@ function calcPassivePerception(char: Character): number {
 }
 
 /** 根据角色当前穿戴状态和敏捷值重新计算护甲等级 */
-function recalculateArmorClass(char: Character): void {
+function recalculateArmorClass(char: Character, combatInventory?: Equipment[]): void {
   if (!char.equipment) char.equipment = [];
+  // 战斗场景下使用战斗背包作为查找源（含拾取物），否则用角色源背包
+  const source = combatInventory ?? char.equipment;
 
   // 悬空引用防护：槽位指着的装备已不在背包里，清掉（兼容 childId）
-  if (char.wornArmorId && !char.equipment.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId)) {
+  if (char.wornArmorId && !source.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId)) {
     char.wornArmorId = null;
   }
-  if (char.wornOutfitId && !char.equipment.find(e => e.id === char.wornOutfitId || e.childId === char.wornOutfitId)) {
+  if (char.wornOutfitId && !source.find(e => e.id === char.wornOutfitId || e.childId === char.wornOutfitId)) {
     char.wornOutfitId = null;
   }
 
@@ -839,7 +841,7 @@ function recalculateArmorClass(char: Character): void {
   const dexMod = calcModifier(dexScore);
 
   if (char.wornArmorId) {
-    const armor = char.equipment.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId);
+    const armor = source.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId);
     if (armor?.acBase) {
       const baseAc = Number(armor.acBase);
       const subtype = armor.subtype || '轻甲';
@@ -866,7 +868,7 @@ function recalculateArmorClass(char: Character): void {
   // 盾牌：手持盾牌时 AC +2
   const heldIds = [char.heldLeft?.equipmentId, char.heldRight?.equipmentId].filter(Boolean);
   const hasShield = heldIds.some(id => {
-    const eq = char.equipment.find(e => e.childId === id || e.id === id);
+    const eq = source.find(e => e.childId === id || e.id === id);
     return eq?.subtype === '盾牌';
   });
   if (hasShield) {
@@ -899,11 +901,13 @@ function canBeHeld(char: Character, item: Equipment): boolean {
  * 判断某只手上拿持的武器是否"可用"（可用于攻击）
  * - 单手武器：拿持即可用
  * - 双手武器：仅双手拿持时可用
+ * @param combatInventory 战斗场景下传入战斗背包（含拾取物），不传则用角色源背包
  */
-function isWeaponUsable(char: Character, hand: 'left' | 'right'): boolean {
+function isWeaponUsable(char: Character, hand: 'left' | 'right', combatInventory?: Equipment[]): boolean {
   const slot = hand === 'left' ? char.heldLeft : char.heldRight;
   if (slot.state !== 'ready' || !slot.equipmentId) return false;
-  const equip = char.equipment.find(e => (e.childId || e.id) === slot.equipmentId);
+  const source = combatInventory ?? char.equipment;
+  const equip = source.find(e => (e.childId || e.id) === slot.equipmentId);
   if (!equip) return false;
   if (isTwoHandedWeapon(equip)) {
     // 双手武器需要两只手都拿持才可用
@@ -917,16 +921,19 @@ function isWeaponUsable(char: Character, hand: 'left' | 'right'): boolean {
  * 手持物品
  * - 只有 state=ready 且 equipmentId=null 的手才能拿持
  * - 双手武器可以单手拿持，但只有双手拿持时才"可用"
+ * @param combatInventory 战斗场景下传入战斗背包（含拾取物），不传则用角色源背包
  */
 function holdItem(
   charId: string,
   equipId: string,
-  hand: 'left' | 'right' | 'auto' = 'auto'
+  hand: 'left' | 'right' | 'auto' = 'auto',
+  combatInventory?: Equipment[]
 ): { success: boolean; message: string } {
   const char = getCharacter(charId);
   if (!char) return { success: false, message: '角色不存在' };
 
-  const equip = char.equipment.find(e => e.childId === equipId || e.id === equipId);
+  const source = combatInventory ?? char.equipment;
+  const equip = source.find(e => e.childId === equipId || e.id === equipId);
   if (!equip) return { success: false, message: '装备不存在' };
 
   if (!canBeHeld(char, equip)) {

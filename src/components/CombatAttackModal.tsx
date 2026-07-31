@@ -80,8 +80,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       : character?.equipment.find(e => (e.childId || e.id) === heldRightId) ?? null)
     : null;
   // 可用性：物品不存在于战斗背包时视为不可用
-  const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left') : false;
-  const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right') : false;
+  const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left', combatInventory) : false;
+  const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right', combatInventory) : false;
 
   // 攻击列表
   const attacks: (Attack | NpcAttack)[] = character?.attacks || attacker.attacks || [];
