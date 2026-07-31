@@ -14,10 +14,12 @@ interface Props {
 }
 
 export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory }: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'status' | 'actions'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
   const [expandedRangeAttackId, setExpandedRangeAttackId] = useState<string | null>(null);
+  // 战斗背包筛选：分类药丸
+  const [invFilter, setInvFilter] = useState<string>('全部');
 
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
 
@@ -36,19 +38,20 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   const attacks: (Attack | NpcAttack)[] = character?.attacks || combatant.attacks || [];
   const heldLeftId = character?.heldLeft?.equipmentId;
   const heldRightId = character?.heldRight?.equipmentId;
-  // 手持物品：优先从战斗背包查找（战斗场景下），再回退角色背包
+  // 手持物品：仅从战斗背包查找（战斗场景下），物品被消耗后自然为 null
   const heldLeftItem = heldLeftId
-    ? (
-      combatInventory?.find(e => (e.childId || e.id) === heldLeftId) ||
-      character?.equipment.find(e => (e.childId || e.id) === heldLeftId)
-    ) : null;
+    ? (combatInventory
+      ? combatInventory.find(e => (e.childId || e.id) === heldLeftId) ?? null
+      : character?.equipment.find(e => (e.childId || e.id) === heldLeftId) ?? null)
+    : null;
   const heldRightItem = heldRightId
-    ? (
-      combatInventory?.find(e => (e.childId || e.id) === heldRightId) ||
-      character?.equipment.find(e => (e.childId || e.id) === heldRightId)
-    ) : null;
-  const leftUsable = character ? characterStore.isWeaponUsable(character, 'left') : false;
-  const rightUsable = character ? characterStore.isWeaponUsable(character, 'right') : false;
+    ? (combatInventory
+      ? combatInventory.find(e => (e.childId || e.id) === heldRightId) ?? null
+      : character?.equipment.find(e => (e.childId || e.id) === heldRightId) ?? null)
+    : null;
+  // 可用性：物品不存在于战斗背包时视为不可用
+  const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left') : false;
+  const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right') : false;
 
   const handleHoldSelect = (item: Equipment, hand: 'left' | 'right') => {
     if (!character) return;
@@ -268,6 +271,18 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           >
             状态
           </button>
+          {combatInventory && combatInventory.length > 0 && (
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                activeTab === 'inventory'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+              }`}
+            >
+              背包
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('actions')}
             className={`flex-1 py-2 text-xs font-medium transition-colors ${
@@ -529,6 +544,68 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
             </div>
           )}
 
+          {activeTab === 'inventory' && combatInventory && (
+            <div className="space-y-3">
+              {/* 药丸筛选标签 */}
+              <div className="flex flex-wrap gap-1.5">
+                {['全部', ...Array.from(new Set(combatInventory.map(e => e.category || '杂项')))].map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setInvFilter(cat)}
+                    className={`px-2.5 py-0.5 rounded-full text-xs font-medium transition-colors ${
+                      invFilter === cat
+                        ? 'bg-primary text-white'
+                        : 'dark:bg-bg-dark-dark light:bg-bg-light-3 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+
+              {/* 物品列表 */}
+              <div className="space-y-1.5">
+                {combatInventory
+                  .filter(e => invFilter === '全部' || (e.category || '杂项') === invFilter)
+                  .map(item => {
+                    const slotId = item.childId || item.id;
+                    const isHeldLeft = heldLeftId === slotId;
+                    const isHeldRight = heldRightId === slotId;
+                    const isWornArmor = character?.wornArmorId === slotId;
+                    const isWornOutfit = character?.wornOutfitId === slotId;
+                    return (
+                      <div
+                        key={slotId}
+                        className="flex items-center gap-2 p-2 rounded-lg dark:bg-bg-dark-dark light:bg-bg-light-3 border dark:border-border-dark light:border-border-light"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium dark:text-text-dark light:text-text-light truncate">
+                            {item.name || '未命名物品'}
+                          </div>
+                          <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                            {item.category || '杂项'}
+                            {item.subtype ? ` · ${item.subtype}` : ''}
+                            {(item.quantity ?? 1) > 1 ? ` ×${item.quantity}` : ''}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 shrink-0">
+                          {isHeldLeft && <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">左手</span>}
+                          {isHeldRight && <span className="text-xs px-1.5 py-0.5 rounded bg-primary/20 text-primary">右手</span>}
+                          {isWornArmor && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">盔甲</span>}
+                          {isWornOutfit && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">服装</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                {combatInventory.filter(e => invFilter === '全部' || (e.category || '杂项') === invFilter).length === 0 && (
+                  <div className="text-xs text-center py-4 dark:text-text-dark-muted light:text-text-light-muted">
+                    无此类物品
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {activeTab === 'actions' && (
             <div className="text-xs text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
               暂无操作
@@ -538,8 +615,16 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
         {selectingHand && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-4" onClick={() => setSelectingHand(null)}>
-            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light p-4 w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
-              <div className="text-sm font-medium mb-3">选择装备</div>
+            <div className="bg-white dark:bg-bg-dark rounded-lg border dark:border-border-dark light:border-border-light p-4 w-full max-w-sm relative" onClick={(e) => e.stopPropagation()}>
+              {/* 叉状退出按钮 */}
+              <button
+                onClick={() => setSelectingHand(null)}
+                className="absolute top-2 right-2 p-1 rounded hover:bg-danger/10 text-danger transition-colors"
+                title="关闭"
+              >
+                <X className="w-4 h-4" />
+              </button>
+              <div className="text-sm font-medium mb-3 pr-6">选择装备</div>
               <div className="flex gap-2 mb-3">
                 <button
                   onClick={() => { handleSetAction(selectingHand); setSelectingHand(null); }}

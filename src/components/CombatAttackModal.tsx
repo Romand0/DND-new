@@ -66,21 +66,22 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     return null;
   }, [attacker.characterId]);
 
-  // PC 手持装备：优先从战斗背包读取，再回退角色背包
+  // PC 手持装备：仅从战斗背包查找（战斗场景下），物品被消耗后自然为 null
   const heldLeftId = character?.heldLeft?.equipmentId;
   const heldRightId = character?.heldRight?.equipmentId;
   const heldLeftItem = heldLeftId
-    ? (
-      (combatInventory?.find(e => (e.childId || e.id) === heldLeftId)) ||
-      character?.equipment.find(e => (e.childId || e.id) === heldLeftId)
-    ) : null;
+    ? (combatInventory
+      ? combatInventory.find(e => (e.childId || e.id) === heldLeftId) ?? null
+      : character?.equipment.find(e => (e.childId || e.id) === heldLeftId) ?? null)
+    : null;
   const heldRightItem = heldRightId
-    ? (
-      (combatInventory?.find(e => (e.childId || e.id) === heldRightId)) ||
-      character?.equipment.find(e => (e.childId || e.id) === heldRightId)
-    ) : null;
-  const leftUsable = character ? characterStore.isWeaponUsable(character, 'left') : false;
-  const rightUsable = character ? characterStore.isWeaponUsable(character, 'right') : false;
+    ? (combatInventory
+      ? combatInventory.find(e => (e.childId || e.id) === heldRightId) ?? null
+      : character?.equipment.find(e => (e.childId || e.id) === heldRightId) ?? null)
+    : null;
+  // 可用性：物品不存在于战斗背包时视为不可用
+  const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left') : false;
+  const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right') : false;
 
   // 攻击列表
   const attacks: (Attack | NpcAttack)[] = character?.attacks || attacker.attacks || [];
