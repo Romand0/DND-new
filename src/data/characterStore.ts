@@ -615,21 +615,39 @@ function addEquipment(charId: string, equipData: Partial<Equipment>): Equipment 
   const char = getCharacter(charId);
   if (!char) return null;
   // 防御：防止编辑器透传的 childId(undefined) 覆盖
-  const safeData = { ...equipData };
+  const safeData: Partial<Equipment> = { ...equipData };
   delete (safeData as any).childId;
-  
+
+  // 必填字段兜底：防止空 name / 空 category / 无效 quantity
+  if (typeof safeData.name !== 'string' || safeData.name.trim() === '') {
+    safeData.name = '未命名物品';
+  }
+  if (typeof safeData.category !== 'string' || safeData.category.trim() === '') {
+    safeData.category = '杂项';
+  }
+  if (typeof safeData.quantity !== 'number' || isNaN(safeData.quantity) || safeData.quantity <= 0) {
+    safeData.quantity =
+      typeof safeData.packSize === 'number' && safeData.packSize > 0
+        ? safeData.packSize
+        : 1;
+  }
+
   // 生成子ID：角色ID + 随机后缀
   const childId = charId + '-' + generateId();
   const newEquip: Equipment = {
     id: safeData.id || generateId(), // 保留装备库模板ID
     childId, // 新增子ID
-    name: '',
-    quantity: safeData.quantity ?? safeData.packSize ?? 1, // 优先使用传入数量，其次 packSize，最后 1
+    name: safeData.name,
+    quantity: safeData.quantity,
     packSize: safeData.packSize,
     unit: safeData.unit,
-    category: '杂项',
+    category: safeData.category,
     ...safeData,
   };
+  // 最终兜底：确保必填字段始终有值（即使 spread 后被意外覆盖）
+  if (!newEquip.name) newEquip.name = '未命名物品';
+  if (!newEquip.category) newEquip.category = '杂项';
+  if (typeof newEquip.quantity !== 'number' || newEquip.quantity <= 0) newEquip.quantity = 1;
 
   char.equipment.push(newEquip);
   saveCharacter(char as Character);

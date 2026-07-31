@@ -43,7 +43,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     sourceId: string;          // 发起长按的棋子
     pointerX: number;          // 当前指针屏幕坐标
     pointerY: number;
-    hoveredTargetId: string | null;  // 当前接触的目标棋子
+    hoveredTargetId: string | null;   // 当前接触的目标棋子
+    hoveredItemTokenId: string | null; // 当前接触的掉落物品 token
   } | null>(null);
   // 锁定选中状态（长按拖拽松手后选中）
   const [lockedTargetId, setLockedTargetId] = useState<string | null>(null);
@@ -150,6 +151,34 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     return set;
   }, [selectedCombatantId, tokenMap, combatantMap, bg?.size]);
 
+  // 锁定角色或物品后：若所在格有多个实体，自动展开实体选择对话框
+  useEffect(() => {
+    if (!bg) return;
+    let targetCol = -1;
+    let targetRow = -1;
+    if (lockedTargetId) {
+      const token = tokenMap.get(lockedTargetId);
+      if (token) {
+        targetCol = token.col;
+        targetRow = token.row;
+      }
+    } else if (lockedItemTokenId) {
+      const itemT = (bg.itemTokens || []).find(t => t.id === lockedItemTokenId);
+      if (itemT) {
+        targetCol = itemT.col;
+        targetRow = itemT.row;
+      }
+    }
+    if (targetCol >= 0 && targetRow >= 0) {
+      const key = `${targetCol},${targetRow}`;
+      const combatantsHere = cellToken.get(key) ? 1 : 0;
+      const itemsHere = cellItemTokens.get(key)?.length || 0;
+      if (combatantsHere + itemsHere > 1) {
+        setEntityPickerCell(key);
+      }
+    }
+  }, [lockedTargetId, lockedItemTokenId, bg, tokenMap, cellToken, cellItemTokens]);
+
   if (!bg) return null;
 
   const preset = GRID_PRESETS[bg.size];
@@ -211,11 +240,13 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
 
       // 检测接触的棋子（仅在必要时 setState）
       let hoveredId: string | null = null;
+      let hoveredItemId: string | null = null;
       const gridEl = gridWrapRef.current;
       if (gridEl) {
         const rect = gridEl.getBoundingClientRect();
         // 识别半径与白圈本身一样大（2 倍棋子尺寸的一半）
         const detectRadius = cellSize * scale;
+        // 优先检测角色棋子
         for (const token of bg.tokens) {
           if (token.combatantId === dragLockRef.current.sourceId) continue;
           const cellX = rect.left + translate.x + (token.col + 0.5) * cellSize * scale;
@@ -226,12 +257,31 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             break;
           }
         }
+        // 若未接触角色，则检测掉落物品
+        if (!hoveredId) {
+          for (const itemToken of bg.itemTokens || []) {
+            const cellX = rect.left + translate.x + (itemToken.col + 0.5) * cellSize * scale;
+            const cellY = rect.top + translate.y + (itemToken.row + 0.5) * cellSize * scale;
+            const dist = Math.hypot(px - cellX, py - cellY);
+            if (dist < detectRadius) {
+              hoveredItemId = itemToken.id;
+              break;
+            }
+          }
+        }
       }
-      // 仅当 hoveredTargetId 变化时才 setState，避免每帧重渲染
-      if (hoveredId !== dragLockRef.current.hoveredTargetId) {
+      // 仅当 hovered 对象变化时才 setState，避免每帧重渲染
+      if (
+        hoveredId !== dragLockRef.current.hoveredTargetId ||
+        hoveredItemId !== dragLockRef.current.hoveredItemTokenId
+      ) {
         // 切换半选中对象时震动
-        if (hoveredId && navigator.vibrate) navigator.vibrate(10);
-        setDragLock(prev => prev ? { ...prev, hoveredTargetId: hoveredId } : null);
+        if ((hoveredId || hoveredItemId) && navigator.vibrate) navigator.vibrate(10);
+        setDragLock(prev => prev ? {
+          ...prev,
+          hoveredTargetId: hoveredId,
+          hoveredItemTokenId: hoveredItemId,
+        } : null);
       }
       ts.moved = true;
       return;
@@ -286,9 +336,16 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     if (dragLockRef.current) {
       const source = dragLockRef.current.sourceId;
       const target = dragLockRef.current.hoveredTargetId;
+      const hoveredItem = dragLockRef.current.hoveredItemTokenId;
       if (target) {
         setLockedTargetId(target);
         setLockedSourceId(source);
+        setLockedItemTokenId(null);
+      } else if (hoveredItem) {
+        // 选中掉落物：锁定物品 token，清空角色锁定
+        setLockedItemTokenId(hoveredItem);
+        setLockedTargetId(null);
+        setLockedSourceId(null);
       }
       setDragLock(null);
       dragLockRef.current = null;
@@ -671,7 +728,31 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                       onClick={(e) => {
                         e.stopPropagation();
                         if (readOnly) return;
-                        // 点击物品 token：直接锁定以显示拾起按钮
+                        // 若当前已有选中的角色（待移动状态）：优先将角色移到物品所在格（同格共存）
+                        if (selectedCombatantId && !playbackOnlyMovableId) {
+                          battlegroundStore.placeToken(sessionId, {
+                            combatantId: selectedCombatantId,
+                            col,
+                            row,
+                          });
+                          setSelectedCombatantId(null);
+                          return;
+                        }
+                        // 放映模式下：只允许指定操作的角色移动
+                        if (
+                          selectedCombatantId &&
+                          playbackOnlyMovableId &&
+                          selectedCombatantId === playbackOnlyMovableId
+                        ) {
+                          battlegroundStore.placeToken(sessionId, {
+                            combatantId: selectedCombatantId,
+                            col,
+                            row,
+                          });
+                          setSelectedCombatantId(null);
+                          return;
+                        }
+                        // 未选中待移动角色：直接锁定物品以显示拾起按钮
                         setLockedItemTokenId(item.id);
                         setLockedTargetId(null);
                         setLockedSourceId(null);
@@ -726,6 +807,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                             pointerX: longPressStartRef.current.x,
                             pointerY: longPressStartRef.current.y,
                             hoveredTargetId: null,
+                            hoveredItemTokenId: null,
                           });
                         }
                       }, 350);
@@ -786,26 +868,39 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         />
 
         {/* 半选中框：右上角显示当前半选中棋子的样式和名字 */}
-        {dragLock?.hoveredTargetId && (() => {
-          const hoveredCombatant = combatantMap.get(dragLock.hoveredTargetId);
-          if (!hoveredCombatant) return null;
-          return (
-            <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-2 rounded-lg bg-black/70 text-white shadow-lg pointer-events-none animate-in fade-in slide-in-from-right duration-150">
-              <div
-                className={`rounded-full flex items-center justify-center font-bold text-white shrink-0 ${
-                  hoveredCombatant.isPc ? 'bg-info' : 'bg-danger'
-                }`}
-                style={{
-                  width: 28,
-                  height: 28,
-                  fontSize: 12,
-                }}
-              >
-                {hoveredCombatant.name.slice(0, 1)}
+        {(dragLock?.hoveredTargetId || dragLock?.hoveredItemTokenId) && (() => {
+          if (dragLock?.hoveredTargetId) {
+            const hoveredCombatant = combatantMap.get(dragLock.hoveredTargetId);
+            if (!hoveredCombatant) return null;
+            return (
+              <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-2 rounded-lg bg-black/70 text-white shadow-lg pointer-events-none animate-in fade-in slide-in-from-right duration-150">
+                <div
+                  className={`rounded-full flex items-center justify-center font-bold text-white shrink-0 ${
+                    hoveredCombatant.isPc ? 'bg-info' : 'bg-danger'
+                  }`}
+                  style={{ width: 28, height: 28, fontSize: 12 }}
+                >
+                  {hoveredCombatant.name.slice(0, 1)}
+                </div>
+                <span className="text-sm font-medium">{hoveredCombatant.name}</span>
               </div>
-              <span className="text-sm font-medium">{hoveredCombatant.name}</span>
-            </div>
-          );
+            );
+          } else if (dragLock?.hoveredItemTokenId) {
+            const itemToken = (bg?.itemTokens || []).find(t => t.id === dragLock.hoveredItemTokenId);
+            if (!itemToken) return null;
+            return (
+              <div className="absolute top-2 right-2 z-20 flex items-center gap-2 px-3 py-2 rounded-lg bg-black/70 text-white shadow-lg pointer-events-none animate-in fade-in slide-in-from-right duration-150">
+                <div
+                  className="rounded bg-amber-600 flex items-center justify-center shrink-0"
+                  style={{ width: 28, height: 28 }}
+                >
+                  <Package style={{ width: 16, height: 16 }} className="text-white" />
+                </div>
+                <span className="text-sm font-medium">{itemToken.name}</span>
+              </div>
+            );
+          }
+          return null;
         })()}
 
         {/* 锁定选中后展开的交互按钮 + 叉按钮 */}
@@ -1012,7 +1107,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                       setLockedItemTokenId(null);
                       setEntityPickerCell(null);
                     }}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors"
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors ${
+                      lockedTargetId === combatant.id ? 'bg-white/25 ring-1 ring-yellow-400' : ''
+                    }`}
                   >
                     <span className={`w-3 h-3 rounded-full ${combatant.isPc ? 'bg-info' : 'bg-danger'}`} />
                     {combatant.name}
@@ -1027,7 +1124,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                       setLockedSourceId(null);
                       setEntityPickerCell(null);
                     }}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors"
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded text-white text-xs hover:bg-white/20 transition-colors ${
+                      lockedItemTokenId === item.id ? 'bg-white/25 ring-1 ring-yellow-400' : ''
+                    }`}
                   >
                     <span className="w-3 h-3 rounded bg-amber-600 flex items-center justify-center">
                       <Package style={{ width: 8, height: 8 }} className="text-white" />
