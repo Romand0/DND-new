@@ -15,6 +15,7 @@ import SpellList from '@/pages/SpellList';
 import SpellDetail from '@/pages/SpellDetail';
 import Settings from '@/pages/Settings';
 import AdminAuth from '@/pages/AdminAuth';
+import AdminAccounts from '@/pages/AdminAccounts';
 import MigrationBackup from '@/pages/MigrationBackup';
 import Placeholder from '@/pages/Placeholder';
 import InventoryPage from '@/pages/InventoryPage';
@@ -118,6 +119,7 @@ export default function App() {
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />
                 <Route path="admin" element={<AdminAuth />} />
+                <Route path="accounts" element={<AdminAccounts />} />
                 <Route path="migration" element={<MigrationBackup />} />
                 <Route path="data" element={<DataManagement />} />
               </Route>

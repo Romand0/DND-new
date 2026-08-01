@@ -229,3 +229,38 @@ export async function deleteEquipments(ids: string[]): Promise<void> {
   await Promise.all(ids.map(id => deleteEquipment(id)));
 }
 
+// ============ 账号一览（仅 DM Token 管理端点）============
+// 管理端点只认 DM_TOKEN，显式传 DM Token 头覆盖默认的 JWT 优先逻辑
+
+function adminAuthHeaders(): Record<string, string> {
+  const dmToken = getDmToken();
+  return dmToken ? { Authorization: `Bearer ${dmToken}` } : {};
+}
+
+export async function fetchAdminUsers<T = any>(): Promise<T> {
+  return apiFetch<T>('/admin/users', { headers: adminAuthHeaders() });
+}
+
+export async function updateUserRole<T = any>(id: string, role: 'player' | 'dm'): Promise<T> {
+  return apiFetch<T>(`/admin/users/${id}`, {
+    method: 'PATCH',
+    headers: adminAuthHeaders(),
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function deleteAdminUser<T = any>(id: string): Promise<T> {
+  return apiFetch<T>(`/admin/users/${id}`, {
+    method: 'DELETE',
+    headers: adminAuthHeaders(),
+  });
+}
+
+export async function resetUserPassword<T = any>(id: string, password: string): Promise<T> {
+  return apiFetch<T>(`/admin/users/${id}/password`, {
+    method: 'POST',
+    headers: adminAuthHeaders(),
+    body: JSON.stringify({ password }),
+  });
+}
+

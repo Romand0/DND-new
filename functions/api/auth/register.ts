@@ -60,6 +60,21 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   // 生成 JWT
   const token = await signJwt({ sub: userId, role: finalRole }, jwtSecret);
 
+  // 记录会话：用于账号一览页的登录状态推算（过期时间与 signJwt 的 7 天一致）
+  try {
+    const exp = Date.now() + 604800 * 1000;
+    const encoder = new TextEncoder();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(token));
+    const tokenHash = Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    await env.DB.prepare(
+      'INSERT OR REPLACE INTO sessions (user_id, token_hash, exp, updated_at) VALUES (?, ?, ?, ?)'
+    )
+      .bind(userId, tokenHash, exp, Date.now())
+      .run();
+  } catch (e) {
+    console.error('write session failed:', e);
+  }
+
   return jsonResponse({
     token,
     user: { id: userId, username: username.trim(), role: finalRole },

@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Settings as SettingsIcon, ShieldCheck, Database, Upload, ChevronRight } from 'lucide-react';
+import { Settings as SettingsIcon, ShieldCheck, Database, Upload, ChevronRight, Users } from 'lucide-react';
 
 const TOKEN_KEY = 'dm_token';
 const VERIFIED_KEY = 'dm_token_verified';
@@ -10,6 +10,12 @@ const NAV_ITEMS = [
     icon: ShieldCheck,
     label: '管理员认证',
     description: '配置并验证 DM Token，获取编辑权限',
+  },
+  {
+    path: '/settings/accounts',
+    icon: Users,
+    label: '账号一览',
+    description: '查看并管理全部注册账号',
   },
   {
     path: '/settings/migration',
