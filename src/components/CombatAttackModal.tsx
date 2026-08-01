@@ -301,7 +301,10 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       }
 
       const handUsable = (leftMatch && leftUsable) || (rightMatch && rightUsable);
-      if (!handUsable) return { usable: false, reason: '手部不可用' };
+      // 装填武器跳过 handUsable 检查（装备层面的双手判定会被 isWeaponUsable 拦截）
+      if (!handUsable && !isLoadingWeapon(attack)) {
+        return { usable: false, reason: '手部不可用' };
+      }
 
       // 弹药属性武器：检查战斗背包中弹药数量 > 0
       if (isAmmoWeapon(attack)) {
