@@ -293,9 +293,9 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
       if (!isHeld) return { usable: false, reason: '未手持' };
 
-      // 双手武器检查
+      // 双手武器检查（装填属性与双手并存时，装填覆盖双手规则）
       const isTwoHanded = attack.properties?.includes('双手');
-      if (isTwoHanded) {
+      if (isTwoHanded && !isLoadingWeapon(attack)) {
         const bothHands = leftMatch && rightMatch;
         if (!bothHands) return { usable: false, reason: '未双手握持' };
       }
