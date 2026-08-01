@@ -1953,6 +1953,17 @@ export default function CombatSession() {
           combatInventory={getCombatInventory(record, attackModal.attacker)}
           targetCharacter={attackModal.target.characterId ? characterStore.get(attackModal.target.characterId) : null}
           targetCombatInventory={getCombatInventory(record, attackModal.target)}
+          loadedWeapons={record?.loadedWeapons}
+          onLoadedChange={(key, loaded) => {
+            if (!record) return;
+            combatStore.update(record.id, {
+              loadedWeapons: {
+                ...(record.loadedWeapons || {}),
+                [key]: loaded,
+              },
+              updatedAt: Date.now(),
+            });
+          }}
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗

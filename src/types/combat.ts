@@ -54,6 +54,8 @@ export interface NpcAttack {
   maxRange?: number;
   /** 双手拿持状态下的伤害骰（"多用"属性） */
   twoHandedDamage?: string;
+  /** 武器是否已装填（"装填"属性：当前弹匣状态，true=已装填可射击，false=需装填） */
+  loaded?: boolean;
 }
 
 export interface RoundAction {
@@ -71,9 +73,13 @@ export interface CombatRecord {
    * 装备变更信息（战斗期间的"漏斗"，不直接修改角色卡）
    * key 为 combatantId
    */
-  equipmentChanges?: Record<string, EquipmentChanges>;
-  createdAt: number;
-  updatedAt: number;
+   equipmentChanges?: Record<string, EquipmentChanges>;
+   /**
+    * 装填武器状态：key 为 "{combatantId}:{attackId}" 或 "{combatantId}:{attackName}", value=true 已装填
+    */
+   loadedWeapons?: Record<string, boolean>;
+   createdAt: number;
+   updatedAt: number;
 }
 
 /**

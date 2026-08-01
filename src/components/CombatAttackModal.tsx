@@ -47,6 +47,10 @@ interface Props {
   targetCharacter?: Character | null;
   /** 可选：目标战斗背包（基于目标的 equipmentChanges 派生，用于重算目标 AC） */
   targetCombatInventory?: Equipment[];
+  /** 装填武器状态：key 为 "{combatantId}:{attackName}", value=true 已装填 */
+  loadedWeapons?: Record<string, boolean>;
+  /** 装填状态变更回调（在装填/射击后更新） */
+  onLoadedChange?: (key: string, loaded: boolean) => void;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -54,7 +58,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange }: Props) {
   // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
   const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('attacks');
@@ -186,6 +190,48 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     return !!ammo && ammo.currentQty > 0;
   };
 
+  // ========= 装填属性武器 =========
+  /** 攻击是否为装填属性武器（必须有"装填"属性且同时为弹药属性） */
+  const isLoadingWeapon = (attack: Attack | NpcAttack): boolean => {
+    if (!attack.properties) return false;
+    // 装填必须与弹药属性搭配
+    if (!attack.properties.some(p => p.includes('装填'))) return false;
+    if (!attack.properties.some(p => p.includes('弹药'))) return false;
+    return true;
+  };
+
+  /** 获取装填武器的装填状态 key */
+  const getLoadedKey = (attack: Attack | NpcAttack): string => `${attacker.id}:${attack.name}`;
+
+  /** 获取装填武器的当前装填状态 */
+  const getWeaponLoaded = (attack: Attack | NpcAttack): boolean => {
+    if (!isLoadingWeapon(attack)) return false;
+    const key = getLoadedKey(attack);
+    // attack.loaded 为 true 表示已装填（持久化值）
+    // loadedWeapons 覆盖（战斗期间动态变更）
+    if (loadedWeapons && key in loadedWeapons) return loadedWeapons[key]!;
+    return attack.loaded ?? false;
+  };
+
+  /** 检测另一只手是否为空或持有对应弹药（用于未装填装填武器的装填检查） */
+  const isOtherHandReady = (attack: Attack | NpcAttack): boolean => {
+    if (!character) return false;
+    const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
+    const rightMatch = heldRightItem && heldRightItem.name === attack.name;
+    let otherItem: Equipment | null = null;
+    if (leftMatch) {
+      otherItem = heldRightItem ?? null;
+    } else if (rightMatch) {
+      otherItem = heldLeftItem ?? null;
+    } else {
+      return false;
+    }
+    if (!otherItem || !otherItem.name) return true; // 另一只手为空
+    // 另一只手持有对应弹药
+    const ammoNames = getAmmoNames(attack);
+    return ammoNames.length > 0 && ammoNames.includes(otherItem.name);
+  };
+
   // 投掷武器在选定使用方式下的射程段列表
   const getRangeInfo = (attack: Attack | NpcAttack, usageMode?: UsageMode): { label: string; value: string; feet: number }[] => {
     const ranges: { label: string; value: string; feet: number }[] = [];
@@ -262,6 +308,21 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
         const ammo = findAmmoInInventory(attack);
         if (!ammo) return { usable: false, reason: '无弹药' };
         if (ammo.currentQty <= 0) return { usable: false, reason: '弹药已耗尽' };
+      }
+
+      // 装填属性武器：检查装填状态和另一只手
+      if (isLoadingWeapon(attack)) {
+        const loaded = getWeaponLoaded(attack);
+        if (!loaded) {
+          // 未装填：需要另一只手为空或持有对应弹药，且弹药 > 0
+          if (!isOtherHandReady(attack)) {
+            return { usable: false, reason: '需空出一只手装填' };
+          }
+          const ammo = findAmmoInInventory(attack);
+          if (!ammo || ammo.currentQty <= 0) {
+            return { usable: false, reason: '弹药已耗尽' };
+          }
+        }
       }
     }
 
@@ -473,6 +534,13 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       isTwoHandedWield: isVersatileWeapon(selectedAttack) ? isTwoHandedWield : undefined,
       ammoConsumed: ammoInfo,
     };
+
+    // 装填属性武器：射击后变为未装填（已装填/未装填都执行此操作）
+    if (isLoadingWeapon(selectedAttack) && onLoadedChange) {
+      const key = getLoadedKey(selectedAttack);
+      onLoadedChange(key, false);
+    }
+
     if (rollResult.hit) {
       if (onConfirmHit) {
         onConfirmHit(selectedAttack, {
@@ -621,6 +689,14 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                           {hasDisadv && (
                             <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">检定劣势</span>
                           )}
+                          {isLoadingWeapon(attack) && (() => {
+                            const loaded = getWeaponLoaded(attack);
+                            return loaded ? (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">已装填</span>
+                            ) : (
+                              <span className="text-xs px-1.5 py-0.5 rounded bg-orange-500/10 text-orange-400">未装填</span>
+                            );
+                          })()}
                         </div>
                         <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap gap-x-3">
                           <span>加值 {attack.attackBonus || '+0'}</span>

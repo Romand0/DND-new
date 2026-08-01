@@ -34,6 +34,8 @@ export interface Attack {
   maxRange?: number;
   /** 双手拿持状态下的伤害骰（“多用”属性） */
   twoHandedDamage?: string;
+  /** 武器是否已装填（"装填"属性：当前弹匣状态，true=已装填可射击，false=需装填） */
+  loaded?: boolean;
 }
 
 export interface SpellSlots {
