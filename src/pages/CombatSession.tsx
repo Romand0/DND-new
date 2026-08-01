@@ -64,6 +64,7 @@ export default function CombatSession() {
     d20Bonus: number;
     d20Total: number;
     usageMode?: 'melee' | 'thrown';
+    isTwoHandedWield?: boolean;
   } | null>(null);
   // ✅ 新增：法术施放弹窗（独立交互流程，与攻击检定解耦）
   const [spellModal, setSpellModal] = useState<{
@@ -1966,6 +1967,7 @@ export default function CombatSession() {
               d20Bonus: info.bonus,
               d20Total: info.total,
               usageMode: info.usageMode,
+              isTwoHandedWield: info.isTwoHandedWield,
             });
             setAttackModal(null);
           }}
@@ -1996,6 +1998,7 @@ export default function CombatSession() {
           attack={damageModal.attack}
           disadvantage={damageModal.disadvantage}
           isCritical={damageModal.isCritical}
+          isTwoHandedWield={damageModal.isTwoHandedWield}
           onApplyDamage={({ damage, newHp, status }) => {
             // 1. 应用 HP / 状态
             handleApplyDamage(damageModal.target.id, newHp, status);

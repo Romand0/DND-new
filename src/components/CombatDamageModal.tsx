@@ -24,6 +24,8 @@ interface Props {
   onClose: () => void;
   /** 由攻击检定阶段带入，决定是否为重击 */
   isCritical?: boolean;
+  /** 多用武器：是否双手握持（由攻击检定阶段带入，可在伤害阶段切换） */
+  isTwoHandedWield?: boolean;
 }
 
 /** 解析伤害骰字符串，如 "1d6+2"、"2d8 + 3"、"d4"、"1d6" */
@@ -82,8 +84,18 @@ export default function CombatDamageModal({
   onApplyDamage,
   onClose,
   isCritical = false,
+  isTwoHandedWield = false,
 }: Props) {
-  const parsed = useMemo(() => parseDamage(attack.damage || ''), [attack.damage]);
+  // 多用武器：是否有 twoHandedDamage
+  const hasTwoHandedDamage = !!attack.twoHandedDamage;
+
+  // 根据手持状态选择伤害骰字符串（左右手为同一武器时用双手伤害骰）
+  const damageStr = useMemo(() => {
+    if (hasTwoHandedDamage && isTwoHandedWield) return attack.twoHandedDamage!;
+    return attack.damage || '';
+  }, [attack.damage, attack.twoHandedDamage, hasTwoHandedDamage, isTwoHandedWield]);
+
+  const parsed = useMemo(() => parseDamage(damageStr), [damageStr]);
 
   // n 个骰子输入框，默认空字符串
   const [diceValues, setDiceValues] = useState<string[]>(() =>
@@ -212,8 +224,13 @@ export default function CombatDamageModal({
           <div className="rounded-lg border border-danger/30 bg-danger/5 p-3">
             <div className="font-medium text-sm dark:text-text-dark light:text-text-light">{attack.name}</div>
             <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap gap-x-3">
-              <span>伤害骰 {attack.damage || '-'}</span>
+              <span>伤害骰 {damageStr}</span>
               {attack.damageType && <span>{attack.damageType}</span>}
+              {hasTwoHandedDamage && (
+                <span className="text-blue-500">
+                  {isTwoHandedWield ? '双手握持' : '单手握持'}
+                </span>
+              )}
             </div>
           </div>
 

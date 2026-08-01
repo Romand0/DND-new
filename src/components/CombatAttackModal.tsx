@@ -24,6 +24,7 @@ interface Props {
     isNatural1: boolean;      // 自然 1
     isNatural20: boolean;     // 自然 20（重击）
     usageMode?: 'melee' | 'thrown';
+    isTwoHandedWield?: boolean; // 多用武器是否双手握持
   }) => void;
   /** 攻击未命中：回传主，写入先攻表格 */
   onAttackMiss?: (info: {
@@ -66,6 +67,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const [expandedThrownIdx, setExpandedThrownIdx] = useState<number | null>(null);
   // 自然 20 触发时被锁定的骰子索引（另一个空未填则锁定只读）
   const [lockedDice, setLockedDice] = useState<Set<number>>(new Set());
+  // 多用武器：是否双手握持（影响伤害骰）
+  const [isTwoHandedWield, setIsTwoHandedWield] = useState(false);
 
   // 获取 PC 的角色卡数据（NPC 无 character）
   const character = useMemo(() => {
@@ -111,6 +114,21 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       return attack.properties.some(p => p.includes('投掷'));
     }
     return false;
+  };
+
+  // 多用武器：有"多用"属性且有 twoHandedDamage 字段
+  const isVersatileWeapon = (attack: Attack | NpcAttack): boolean => {
+    if (!attack.properties) return false;
+    return attack.properties.some(p => p.includes('多用')) && !!attack.twoHandedDamage;
+  };
+
+  // 检测 PC 当前是否双手握持多用武器
+  const isWieldingTwoHanded = (attack: Attack | NpcAttack): boolean => {
+    if (!character) return false;
+    if (!isVersatileWeapon(attack)) return false;
+    const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
+    const rightMatch = heldRightItem && heldRightItem.name === attack.name;
+    return !!(leftMatch && rightMatch);
   };
 
   // 投掷武器在选定使用方式下的射程段列表
@@ -383,6 +401,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       total: rollResult.total,
       isNatural1: rollResult.isNatural1,
       usageMode: usageMode ?? undefined,
+      isTwoHandedWield: isVersatileWeapon(selectedAttack) ? isTwoHandedWield : undefined,
     };
     if (rollResult.hit) {
       if (onConfirmHit) {
@@ -480,6 +499,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                   if (!status.usable) return;
                   setSelectedAttack(attack);
                   setUsageMode(mode ?? null);
+                  // 多用武器：自动检测当前是否双手握持
+                  setIsTwoHandedWield(isWieldingTwoHanded(attack));
                   const { advantage: a, disadvantage: d } = getAttackAdvantageDisadvantage(attack, mode);
                   const autoMode = (a.length > 0 && d.length > 0) ? 'none' : (a.length > 0 ? 'advantage' : (d.length > 0 ? 'disadvantage' : 'none'));
                   setD20Values(autoMode === 'none' ? [''] : ['', '']);
@@ -726,6 +747,26 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                   <span>{modeReasons.join('；')}</span>
                 </div>
               )}
+
+              {/* 多用武器：自动检测握持方式（左右手为同一武器时双手，否则单手） */}
+              {isVersatileWeapon(selectedAttack) && (() => {
+                const autoTwoHanded = isWieldingTwoHanded(selectedAttack);
+                return (
+                  <div className="rounded-lg border border-blue-500/30 bg-blue-500/5 p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs">
+                        <span className="font-medium dark:text-text-dark light:text-text-light">握持方式</span>
+                        <span className="dark:text-text-dark-muted light:text-text-light-muted ml-1">
+                          {autoTwoHanded ? '双手握持' : '单手握持'}
+                        </span>
+                      </div>
+                      <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                        {autoTwoHanded ? selectedAttack.twoHandedDamage : selectedAttack.damage}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* d20 输入：普通模式 1 个，优/劣势模式 2 个 */}
               <div>
