@@ -25,6 +25,8 @@ interface Props {
     isNatural20: boolean;     // 自然 20（重击）
     usageMode?: 'melee' | 'thrown';
     isTwoHandedWield?: boolean; // 多用武器是否双手握持
+    /** 弹药消耗信息（弹药属性武器攻击时自动计算） */
+    ammoConsumed?: { ammoChildId: string; ammoName: string };
   }) => void;
   /** 攻击未命中：回传主，写入先攻表格 */
   onAttackMiss?: (info: {
@@ -36,6 +38,8 @@ interface Props {
     total: number;
     isNatural1: boolean;
     usageMode?: 'melee' | 'thrown';
+    /** 弹药消耗信息（弹药属性武器攻击时自动计算） */
+    ammoConsumed?: { ammoChildId: string; ammoName: string };
   }) => void;
   /** 可选：攻击者战斗背包（传入后，手持显示/可用性判定读它；否则回退角色卡） */
   combatInventory?: Equipment[];
@@ -109,6 +113,9 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   };
 
   const isThrownWeapon = (attack: Attack | NpcAttack): boolean => {
+    // 弹药属性与投掷属性互斥：有弹药属性的武器不显示投掷使用方式
+    if (attack.properties && attack.properties.some(p => p.includes('弹药'))) return false;
+    if (attack.subtype && attack.subtype.includes('弹药')) return false;
     if (attack.subtype && attack.subtype.includes('投掷')) return true;
     if (attack.properties) {
       return attack.properties.some(p => p.includes('投掷'));
@@ -129,6 +136,54 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
     const rightMatch = heldRightItem && heldRightItem.name === attack.name;
     return !!(leftMatch && rightMatch);
+  };
+
+  // ========= 弹药属性武器 =========
+  // 弹药类型映射：武器名称 → 对应弹药名称（中英文都匹配）
+  const AMMO_MAP: Record<string, string[]> = {
+    '短弓': ['箭矢', 'Arrows'],
+    '长弓': ['箭矢', 'Arrows'],
+    '轻弩': ['弩矢', 'Bolts'],
+    '手弩': ['弩矢', 'Bolts'],
+    '重弩': ['弩矢', 'Bolts'],
+    '投石索': ['投石索弹丸', 'Sling Bullets'],
+    '吹箭筒': ['吹箭针', 'Blowgun Needles'],
+  };
+
+  /** 攻击是否为弹药属性武器 */
+  const isAmmoWeapon = (attack: Attack | NpcAttack): boolean => {
+    if (!attack.properties) return false;
+    if (!attack.properties.some(p => p.includes('弹药'))) return false;
+    // 弹药属性与投掷属性互斥
+    if (attack.properties.some(p => p.includes('投掷'))) return false;
+    if (attack.subtype && attack.subtype.includes('投掷')) return false;
+    return true;
+  };
+
+  /** 获取该攻击对应的弹药名称列表（弹药属性武器适用） */
+  const getAmmoNames = (attack: Attack | NpcAttack): string[] => {
+    return AMMO_MAP[attack.name] || [];
+  };
+
+  /** 在战斗背包中查找弹药装备及其当前数量 */
+  const findAmmoInInventory = (attack: Attack | NpcAttack): { equipment: Equipment; childId: string; currentQty: number } | null => {
+    if (!combatInventory || combatInventory.length === 0) return null;
+    const ammoNames = getAmmoNames(attack);
+    if (ammoNames.length === 0) return null;
+    for (const eq of combatInventory) {
+      if (ammoNames.some(name => eq.name === name)) {
+        const cid = eq.childId || eq.id || '';
+        if (!cid) continue;
+        return { equipment: eq, childId: cid, currentQty: eq.quantity || 1 };
+      }
+    }
+    return null;
+  };
+
+  /** 弹药属性武器：检查战斗背包中弹药数量是否 > 0 */
+  const checkAmmoAvailable = (attack: Attack | NpcAttack): boolean => {
+    const ammo = findAmmoInInventory(attack);
+    return !!ammo && ammo.currentQty > 0;
   };
 
   // 投掷武器在选定使用方式下的射程段列表
@@ -201,6 +256,13 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
       const handUsable = (leftMatch && leftUsable) || (rightMatch && rightUsable);
       if (!handUsable) return { usable: false, reason: '手部不可用' };
+
+      // 弹药属性武器：检查战斗背包中弹药数量 > 0
+      if (isAmmoWeapon(attack)) {
+        const ammo = findAmmoInInventory(attack);
+        if (!ammo) return { usable: false, reason: '无弹药' };
+        if (ammo.currentQty <= 0) return { usable: false, reason: '弹药已耗尽' };
+      }
     }
 
     // 射程检查：仅当攻击者与目标都已放置在沙盘上时才判定
@@ -394,6 +456,13 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const handleConfirmResult = () => {
     if (!rollResult || !selectedAttack) return;
     const d20RolledNums = d20Values.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+    // 弹药属性武器：计算弹药消耗信息（无论命中/未命中都消耗）
+    const ammoInfo = isAmmoWeapon(selectedAttack)
+      ? (() => {
+          const ammo = findAmmoInInventory(selectedAttack);
+          return ammo ? { ammoChildId: ammo.childId, ammoName: ammo.equipment.name } : undefined;
+        })()
+      : undefined;
     const infoBase = {
       d20Rolled: d20RolledNums.length > 0 ? d20RolledNums : [rollResult.d20],
       d20Final: rollResult.d20,
@@ -402,6 +471,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       isNatural1: rollResult.isNatural1,
       usageMode: usageMode ?? undefined,
       isTwoHandedWield: isVersatileWeapon(selectedAttack) ? isTwoHandedWield : undefined,
+      ammoConsumed: ammoInfo,
     };
     if (rollResult.hit) {
       if (onConfirmHit) {

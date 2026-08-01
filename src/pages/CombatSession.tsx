@@ -3,10 +3,10 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
-  getCombatInventory,
-  getCombatInventoryRaw,
   applyEquipmentChange,
   computeCombatantAc,
+  getCombatInventory,
+  getCombatInventoryRaw,
 } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { characterStore } from '@/data/characterStore';
@@ -1956,6 +1956,32 @@ export default function CombatSession() {
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
+            // 弹药属性武器：消耗弹药（无论命中/未命中）
+            if (info.ammoConsumed && record) {
+              const currentChanges = record.equipmentChanges?.[attackModal.attacker.id];
+              const newChanges = applyEquipmentChange(currentChanges, (ch) => {
+                const ammoId = info.ammoConsumed!.ammoChildId;
+                const prevDelta = ch.quantityDeltas[ammoId] || 0;
+                // 若源弹药数量-1 后 ≤0 则加入 removedChildIds（整件移除）
+                const srcQty = (() => {
+                  const pc = attackModal.attacker.characterId ? characterStore.get(attackModal.attacker.characterId) : null;
+                  const eq = pc?.equipment.find(e => (e.childId || e.id) === ammoId);
+                  return eq ? (eq.quantity || 1) + prevDelta : 0;
+                })();
+                if (srcQty <= 1) {
+                  if (!ch.removedChildIds.includes(ammoId)) ch.removedChildIds.push(ammoId);
+                } else {
+                  ch.quantityDeltas[ammoId] = prevDelta - 1;
+                }
+              });
+              combatStore.update(record.id, {
+                equipmentChanges: {
+                  ...(record.equipmentChanges || {}),
+                  [attackModal.attacker.id]: newChanges,
+                },
+                updatedAt: Date.now(),
+              });
+            }
             setDamageModal({
               attacker: attackModal.attacker,
               target: attackModal.target,
@@ -1973,6 +1999,31 @@ export default function CombatSession() {
           }}
           onAttackMiss={(missInfo) => {
             // 未命中：写入先攻表格（简化格式）
+            // 弹药属性武器：消耗弹药（无论命中/未命中）
+            if (missInfo.ammoConsumed && record) {
+              const currentChanges = record.equipmentChanges?.[attackModal.attacker.id];
+              const newChanges = applyEquipmentChange(currentChanges, (ch) => {
+                const ammoId = missInfo.ammoConsumed!.ammoChildId;
+                const prevDelta = ch.quantityDeltas[ammoId] || 0;
+                const srcQty = (() => {
+                  const pc = attackModal.attacker.characterId ? characterStore.get(attackModal.attacker.characterId) : null;
+                  const eq = pc?.equipment.find(e => (e.childId || e.id) === ammoId);
+                  return eq ? (eq.quantity || 1) + prevDelta : 0;
+                })();
+                if (srcQty <= 1) {
+                  if (!ch.removedChildIds.includes(ammoId)) ch.removedChildIds.push(ammoId);
+                } else {
+                  ch.quantityDeltas[ammoId] = prevDelta - 1;
+                }
+              });
+              combatStore.update(record.id, {
+                equipmentChanges: {
+                  ...(record.equipmentChanges || {}),
+                  [attackModal.attacker.id]: newChanges,
+                },
+                updatedAt: Date.now(),
+              });
+            }
             const cell = resolveWriteCell(attackModal.attacker.id);
             if (!cell) return;
             const text = `对 ${attackModal.target.name} 的攻击未命中，${missInfo.attackName}打偏了`;
