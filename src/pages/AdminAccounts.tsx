@@ -43,6 +43,8 @@ export default function AdminAccounts() {
   const [pendingRole, setPendingRole] = useState<'player' | 'dm'>('player');
   const [newPassword, setNewPassword] = useState('');
   const [modalError, setModalError] = useState('');
+  // 当前展开完整 ID 的账号
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // 当前浏览者是否为已通过验证的 DM Token 持有者
   const isVerifiedAdmin = localStorage.getItem(VERIFIED_KEY) === 'true';
@@ -196,14 +198,14 @@ export default function AdminAccounts() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="text-left dark:text-text-dark-muted light:text-text-light-muted border-b dark:border-border-dark light:border-border-light">
-                  <th className="py-2 pr-4 font-medium">名称</th>
-                  <th className="py-2 pr-4 font-medium">ID</th>
-                  <th className="py-2 pr-4 font-medium">权限</th>
-                  <th className="py-2 pr-4 font-medium">身份</th>
-                  <th className="py-2 pr-4 font-medium">登录状态</th>
+                  <th className="py-2 pr-6 font-medium">名称</th>
+                  <th className="py-2 pr-6 font-medium">ID</th>
+                  <th className="py-2 pr-6 font-medium">权限</th>
+                  <th className="py-2 pr-6 font-medium">身份</th>
+                  <th className="py-2 pr-6 font-medium">登录状态</th>
                   <th className="py-2 font-medium">操作</th>
                 </tr>
               </thead>
@@ -211,12 +213,13 @@ export default function AdminAccounts() {
                 {users.map((u) => {
                   const self = isSelf(u.id);
                   const admin = self && isVerifiedAdmin;
+                  const expanded = expandedId === u.id;
                   return (
                     <tr
                       key={u.id}
                       className="border-b dark:border-border-dark/40 light:border-border-light/40 hover:bg-white/5"
                     >
-                      <td className="py-2 pr-4 font-medium dark:text-text-dark light:text-text-light">
+                      <td className="py-2 pr-6 font-medium dark:text-text-dark light:text-text-light whitespace-nowrap">
                         {u.username}
                         {self && (
                           <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-primary/15 text-primary">
@@ -224,10 +227,16 @@ export default function AdminAccounts() {
                           </span>
                         )}
                       </td>
-                      <td className="py-2 pr-4 dark:text-text-dark-muted light:text-text-light-muted font-mono text-xs">
-                        {u.id}
+                      <td className="py-2 pr-6 whitespace-nowrap">
+                        <button
+                          onClick={() => setExpandedId(expanded ? null : u.id)}
+                          className="dark:text-text-dark-muted light:text-text-light-muted font-mono text-xs hover:text-primary transition-colors text-left"
+                          title={expanded ? '点击折叠 ID' : '点击展开完整 ID'}
+                        >
+                          {expanded ? u.id : `${u.id.slice(0, Math.ceil(u.id.length / 2))}…`}
+                        </button>
                       </td>
-                      <td className="py-2 pr-4">
+                      <td className="py-2 pr-6">
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs ${
                             u.role === 'dm'
@@ -238,7 +247,7 @@ export default function AdminAccounts() {
                           {u.role === 'dm' ? 'DM' : '玩家'}
                         </span>
                       </td>
-                      <td className="py-2 pr-4">
+                      <td className="py-2 pr-6">
                         <span
                           className={`px-2 py-0.5 rounded-full text-xs ${
                             admin
@@ -249,7 +258,7 @@ export default function AdminAccounts() {
                           {admin ? '管理员' : '成员'}
                         </span>
                       </td>
-                      <td className="py-2 pr-4">
+                      <td className="py-2 pr-6">
                         <span
                           className={`inline-flex items-center gap-1.5 text-xs ${
                             u.online ? 'text-success' : 'dark:text-text-dark-muted light:text-text-light-muted'
@@ -262,7 +271,7 @@ export default function AdminAccounts() {
                         </span>
                       </td>
                       <td className="py-2">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
                           <button
                             onClick={() => {
                               setPendingRole(u.role);
