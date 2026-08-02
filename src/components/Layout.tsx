@@ -1,10 +1,17 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import SyncButton from './SyncButton';
 import { useAuth } from '@/contexts/AuthContext';
 
+const HIDE_SYNC_BUTTON_PATHS: RegExp[] = [
+  /\/inventory\/treasures\/[^/]+\/distribute$/,
+];
+
 export default function Layout() {
   const { user, isDM } = useAuth();
+  const location = useLocation();
+
+  const hideSyncButton = HIDE_SYNC_BUTTON_PATHS.some((re) => re.test(location.pathname));
 
   // 调试：确认 AuthContext 状态
   console.log('Layout render:', { user: user?.username, role: user?.role, isDM });
@@ -17,7 +24,7 @@ export default function Layout() {
           <Outlet />
         </div>
       </main>
-      <SyncButton />
+      {!hideSyncButton && <SyncButton />}
     </div>
   );
 }
