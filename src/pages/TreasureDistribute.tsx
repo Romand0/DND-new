@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ChevronLeft,
@@ -33,6 +33,8 @@ interface DistributionItem {
   name: string;
   quantity: number;
   unitPrice?: TreasurePrice;
+  /** 动画 key（每次分配新物品生成 UUID，确保滑入动画播放） */
+  animKey?: string;
 }
 
 interface CharacterDistribution {
@@ -71,9 +73,8 @@ function treasureCurrencyToCharacter(c: TreasureCurrency) {
   };
 }
 
-/** 宝藏物品单价 → 角色装备价格（装备价格不支持铂金币，pp 按 1pp=10gp 折算） */
-function treasurePriceToEquipmentPrice(p: TreasurePrice): { amount: number; unit: 'gp' | 'sp' | 'cp' } {
-  if (p.unit === 'pp') return { amount: p.amount * 10, unit: 'gp' };
+/** 宝藏物品单价 → 角色装备价格（装备价格已原生支持 pp/gp/sp/cp，直接透传） */
+function treasurePriceToEquipmentPrice(p: TreasurePrice): { amount: number; unit: 'pp' | 'gp' | 'sp' | 'cp' } {
   return { amount: p.amount, unit: p.unit };
 }
 
@@ -91,8 +92,13 @@ export default function TreasureDistribute() {
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedCurrencyKey, setSelectedCurrencyKey] = useState<CurrencyKey | null>(null);
+  /** 长按数量选择后记录的待分配数量（仅物品卡生效；undefined=全量，数字=部分） */
+  const [selectedQty, setSelectedQty] = useState<number | undefined>(undefined);
 
   const [distributions, setDistributions] = useState<CharacterDistribution[]>([]);
+
+  /** 角色分配卡片 DOM ref 映射（触发脉冲动画） */
+  const cardRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // 角色选择弹窗
   const [showCharPicker, setShowCharPicker] = useState(false);
@@ -138,11 +144,27 @@ export default function TreasureDistribute() {
   const selectItemCard = useCallback((itemId: string) => {
     setSelectedCardId(itemId);
     setSelectedCurrencyKey(null);
+    setSelectedQty(undefined); // 切换物品卡时清空上次的数量选择
   }, []);
 
   const selectCurrencyCard = useCallback((key: CurrencyKey) => {
     setSelectedCurrencyKey(key);
     setSelectedCardId(null);
+    setSelectedQty(undefined);
+  }, []);
+
+  /** 角色卡片脉冲动画（接收物品时的视觉反馈） */
+  const triggerReceiveAnim = useCallback((charId: string) => {
+    const el = cardRefs.current.get(charId);
+    if (!el || typeof (el as any).animate !== 'function') return;
+    (el as any).animate(
+      [
+        { boxShadow: '0 0 0 0 rgba(99,102,241,0.45)', transform: 'scale(1)' },
+        { boxShadow: '0 0 0 10px rgba(99,102,241,0)', transform: 'scale(1.03)' },
+        { boxShadow: '0 0 0 0 rgba(99,102,241,0)', transform: 'scale(1)' },
+      ],
+      { duration: 600, easing: 'cubic-bezier(0.34, 1.56, 0.64, 1)' }
+    );
   }, []);
 
   /* ─── 长按处理 ─── */
@@ -224,6 +246,7 @@ export default function TreasureDistribute() {
           )
         );
         setSelectedCurrencyKey(null);
+        triggerReceiveAnim(charId);
         return;
       }
 
@@ -232,11 +255,30 @@ export default function TreasureDistribute() {
       const itemIndex = remainingItems.findIndex((it) => it.id === selectedCardId);
       if (itemIndex === -1) return;
       const item = remainingItems[itemIndex];
-      const qty = item.quantity;
+      // 有选中数量时用选中数量，否则全量
+      const fullQty = item.quantity;
+      const useQty =
+        typeof selectedQty === 'number'
+          ? Math.max(1, Math.min(selectedQty, fullQty))
+          : fullQty;
 
-      setRemainingItems((prev) => prev.filter((_, i) => i !== itemIndex));
+      // 扣减 remainingItems
+      if (useQty >= fullQty) {
+        setRemainingItems((prev) => prev.filter((_, i) => i !== itemIndex));
+      } else {
+        setRemainingItems((prev) =>
+          prev.map((it, i) =>
+            i === itemIndex ? { ...it, quantity: it.quantity - useQty } : it
+          )
+        );
+      }
       setSelectedCardId(null);
+      setSelectedQty(undefined);
 
+      // 仅定向分配给目标 charId + 生成 animKey 确保滑入动画播放
+      const animKey = (crypto as any).randomUUID
+        ? (crypto as any).randomUUID()
+        : `anim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       setDistributions((prev) =>
         prev.map((d) =>
           d.characterId === charId
@@ -247,20 +289,26 @@ export default function TreasureDistribute() {
                   {
                     id: item.id,
                     name: item.name,
-                    quantity: qty,
+                    quantity: useQty,
                     unitPrice: item.unitPrice,
+                    animKey,
                   },
                 ],
               }
             : d
         )
       );
+      triggerReceiveAnim(charId);
     },
-    [selectedCardId, selectedCurrencyKey, remainingItems, remainingCurrency]
+    [selectedCardId, selectedCurrencyKey, selectedQty, remainingItems, remainingCurrency, triggerReceiveAnim]
   );
 
   /* ─── 数量选择后分配 ─── */
 
+  /**
+   * 长按数量滑块确认：只更新选中数量+保持卡片选中，
+   * 然后需要用户再点击某个角色卡片来完成定向分配。
+   */
   const confirmSliderDistribution = useCallback(
     (qty: number) => {
       if (!sliderData) return;
@@ -268,54 +316,12 @@ export default function TreasureDistribute() {
       const itemIndex = remainingItems.findIndex((it) => it.id === itemId);
       if (itemIndex === -1) return;
       const item = remainingItems[itemIndex];
+      const safeQty = Math.max(1, Math.min(qty, item.quantity));
 
-      if (qty >= item.quantity) {
-        // 全部分配
-        setRemainingItems((prev) => prev.filter((_, i) => i !== itemIndex));
-        setDistributions((prev) =>
-          prev.map((d) =>
-            d.characterId
-              ? {
-                  ...d,
-                  items: [
-                    ...d.items,
-                    {
-                      id: item.id,
-                      name: item.name,
-                      quantity: item.quantity,
-                      unitPrice: item.unitPrice,
-                    },
-                  ],
-                }
-              : d
-          )
-        );
-      } else {
-        // 部分分配：减少剩余数量，添加分配
-        setRemainingItems((prev) =>
-          prev.map((it, i) =>
-            i === itemIndex ? { ...it, quantity: it.quantity - qty } : it
-          )
-        );
-        setDistributions((prev) =>
-          prev.map((d) =>
-            d.characterId
-              ? {
-                  ...d,
-                  items: [
-                    ...d.items,
-                    {
-                      id: item.id,
-                      name: item.name,
-                      quantity: qty,
-                      unitPrice: item.unitPrice,
-                    },
-                  ],
-                }
-              : d
-          )
-        );
-      }
+      // 只记录待分配数量 + 保持选中卡片
+      setSelectedQty(safeQty);
+      setSelectedCardId(itemId);
+      setSelectedCurrencyKey(null);
       setSliderData(null);
     },
     [sliderData, remainingItems]
@@ -622,6 +628,10 @@ export default function TreasureDistribute() {
           {distributions.map((dist) => (
             <div
               key={dist.characterId}
+              ref={(el) => {
+                if (el) cardRefs.current.set(dist.characterId, el);
+                else cardRefs.current.delete(dist.characterId);
+              }}
               onClick={() => {
                 if (selectedCardId || selectedCurrencyKey) {
                   distributeToCharacter(dist.characterId);
@@ -693,12 +703,15 @@ export default function TreasureDistribute() {
                   <div className="space-y-1">
                     {dist.items.map((item, idx) => (
                       <button
-                        key={`${item.id}-${idx}`}
+                        key={item.animKey ? `${item.id}-${item.animKey}` : `${item.id}-${idx}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           returnItemToTreasure(dist.characterId, idx);
                         }}
-                        className="w-full text-left px-2 py-1.5 rounded text-sm dark:bg-white/5 light:bg-black/5 dark:text-text-dark light:text-text-light hover:bg-primary/10 transition-colors flex items-center justify-between group"
+                        className={
+                          `w-full text-left px-2 py-1.5 rounded text-sm dark:bg-white/5 light:bg-black/5 dark:text-text-dark light:text-text-light hover:bg-primary/10 transition-colors flex items-center justify-between group ` +
+                          (item.animKey ? 'treasure-item-enter ' : '')
+                        }
                       >
                         <span className="truncate">
                           {item.name} ×{item.quantity}

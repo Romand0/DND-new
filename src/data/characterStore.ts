@@ -273,11 +273,14 @@ function copperToCurrency(totalCp: number): Currency {
   return { pp: 0, gp, sp, cp };
 }
 
-// 物品价格转铜币
-function priceToCopper(price: { amount: number; unit: 'gp' | 'sp' | 'cp' }): number {
+// 物品价格转铜币（D&D 5e 标准：1pp=1000cp, 1gp=100cp, 1sp=10cp）
+function priceToCopper(price: { amount: number; unit: 'pp' | 'gp' | 'sp' | 'cp' }): number {
   if (!price) return 0;
   const { amount = 0, unit = 'gp' } = price;
-  return unit === 'gp' ? amount * 100 : unit === 'sp' ? amount * 10 : amount;
+  if (unit === 'pp') return amount * 1000;
+  if (unit === 'gp') return amount * 100;
+  if (unit === 'sp') return amount * 10;
+  return amount;
 }
 
 // 判断货币是否足以支付指定铜币数（仅看 gp/sp/cp，pp 不参与担负判断）

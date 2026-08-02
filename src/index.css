@@ -130,6 +130,26 @@ textarea:focus::placeholder {
   animation: dice-slide-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
+/* 宝藏分配：物品滑入卡片动画 */
+@keyframes treasure-item-enter {
+  0% {
+    opacity: 0;
+    transform: translateX(-14px) scale(0.85);
+  }
+  60% {
+    opacity: 1;
+    transform: translateX(2px) scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.treasure-item-enter {
+  animation: treasure-item-enter 0.38s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 /* 游戏时钟 SVG 主题变量 */
 .dark .game-clock-svg {
   --clock-face: var(--color-bg-dark);
