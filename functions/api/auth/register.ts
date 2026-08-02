@@ -77,6 +77,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   return jsonResponse({
     token,
-    user: { id: userId, username: username.trim(), role: finalRole },
+    user: { id: userId, username: username.trim(), role: finalRole, avatar: null },
   });
 };

@@ -32,6 +32,7 @@ import GameClockPage from '@/pages/GameClockPage';
 import CalendarPage from '@/pages/CalendarPage';
 import NotesPage from '@/pages/NotesPage';
 import DicePage from '@/pages/DicePage';
+import UserProfile from '@/pages/UserProfile';
 
 // 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
@@ -81,6 +82,7 @@ export default function App() {
               <Route path="/player/inventory" element={<InventoryPage />} />
               <Route path="/player/spells" element={<SpellList />} />
               <Route path="/player/spells/:id" element={<SpellDetail />} />
+              <Route path="/player/account" element={<UserProfile />} />
             </Route>
 
             {/* 公共资料库：DM 和玩家都能访问，走 Layout（variant 按 isDM 推导） */}
@@ -129,6 +131,7 @@ export default function App() {
               <Route path="clock" element={<GameClockPage />} />
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="dice" element={<DicePage />} />
+              <Route path="account" element={<UserProfile />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>

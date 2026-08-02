@@ -4,6 +4,7 @@ interface User {
   id: string;
   username: string;
   role: 'dm' | 'player';
+  avatar?: string | null;
 }
 
 interface AuthContextType {
@@ -14,6 +15,8 @@ interface AuthContextType {
   loading: boolean;
   login: (token: string, user: User) => Promise<void>;
   logout: () => void;
+  /** 更新当前用户信息（合并字段），同步到 localStorage */
+  updateUser: (partial: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -81,6 +84,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.removeItem('auth_user');
   };
 
+  const updateUser = (partial: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...partial };
+      localStorage.setItem('auth_user', JSON.stringify(next));
+      return next;
+    });
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -91,6 +103,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         loading,
         login,
         logout,
+        updateUser,
       }}
     >
       {children}

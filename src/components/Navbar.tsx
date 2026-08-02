@@ -1,6 +1,6 @@
 // DM Toolkit - Navigation Bar Component
 import { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Swords,
   Users,
@@ -11,19 +11,18 @@ import {
   X,
   Sun,
   Moon,
-  Download,
-  Upload,
   Settings,
   Clock,
   Calendar,
   ChevronDown,
   BookOpen,
   Dices,
+  UserCircle,
 } from 'lucide-react';
 import gameTimeStore from '@/data/gameTimeStore';
 import calendarStore from '@/data/calendarStore';
 import { useTheme } from '@/contexts/ThemeContext';
-import { characterStore } from '@/data/characterStore';
+import { useAuth } from '@/contexts/AuthContext';
 
 const allNavItems = [
   { path: '/characters', label: '角色卡库', icon: Users },
@@ -42,6 +41,8 @@ const playerNavItems = [
 export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
   const [gameTime, setGameTime] = useState({ hour: 8, minute: 0 });
@@ -92,18 +93,6 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
   // 迷你时针角度（12小时制）
   const miniHourAngle = ((gameTime.hour % 12) * 30 + gameTime.minute * 0.5);
 
-  const handleExport = () => {
-    characterStore.exportAllWithConfirm();
-  };
-
-  const handleImport = async () => {
-    const results = await characterStore.createImportDialog();
-    if (results.length > 0) {
-      alert(`成功导入 ${results.length} 张角色卡`);
-      window.location.reload();
-    }
-  };
-
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-md bg-bg-dark/90 border-border-dark">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -141,31 +130,37 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
           </div>
 
           <div className="flex items-center gap-2">
-            {/* DM 专属工具栏：设置 + 导入 + 导出 */}
+            {/* DM 专属工具栏：设置 */}
             {variant === 'dm' && (
-              <>
-                <Link
-                  to="/settings"
-                  className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
-                  title="设置"
-                >
-                  <Settings className="w-5 h-5" />
-                </Link>
-                <button
-                  onClick={handleImport}
-                  className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
-                  title="导入数据"
-                >
-                  <Upload className="w-5 h-5" />
-                </button>
-                <button
-                  onClick={handleExport}
-                  className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
-                  title="导出数据"
-                >
-                  <Download className="w-5 h-5" />
-                </button>
-              </>
+              <Link
+                to="/settings"
+                className="p-2 rounded-lg transition-colors hover:bg-white/10 text-gray-300 hover:text-white"
+                title="设置"
+              >
+                <Settings className="w-5 h-5" />
+              </Link>
+            )}
+
+            {/* 用户信息入口：头像 + 用户名，点击进入账号页 */}
+            {user && (
+              <button
+                onClick={() => navigate(variant === 'dm' ? '/account' : '/player/account')}
+                className="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-lg transition-colors hover:bg-white/10"
+                title="账号设置"
+              >
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt={user.username}
+                    className="w-7 h-7 rounded-full object-cover border border-border-dark"
+                  />
+                ) : (
+                  <UserCircle className="w-7 h-7 text-gray-300" />
+                )}
+                <span className="hidden sm:inline text-sm font-medium text-gray-200 max-w-[120px] truncate">
+                  {user.username}
+                </span>
+              </button>
             )}
 
             {/* 剧情工具统合下拉 */}

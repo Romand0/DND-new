@@ -264,3 +264,45 @@ export async function resetUserPassword<T = any>(id: string, password: string): 
   });
 }
 
+// ============ 用户账号页 ============
+
+/** 更新当前用户资料（用户名/头像） */
+export async function updateProfile<T = any>(data: { username?: string; avatar?: string }): Promise<T> {
+  return apiFetch<T>('/auth/me', {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/** 修改密码（成功后后端清除会话） */
+export async function changePassword<T = any>(oldPassword: string, newPassword: string): Promise<T> {
+  return apiFetch<T>('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ oldPassword, newPassword }),
+  });
+}
+
+/** 退出登录：清除后端会话记录 */
+export async function logoutUser<T = any>(): Promise<T> {
+  return apiFetch<T>('/auth/logout', { method: 'POST' });
+}
+
+/** 上传头像到 R2，返回公开 URL */
+export async function uploadAvatar<T = { url: string }>(file: Blob): Promise<T> {
+  const res = await fetch(`${API_BASE}/upload/avatar`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+  let data: any = {};
+  try {
+    data = await res.json();
+  } catch {
+    data = {};
+  }
+  if (!res.ok) {
+    throw new Error(data.error || `上传失败: ${res.status}`);
+  }
+  return data as T;
+}
+

@@ -27,9 +27,9 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // 查找用户
-  const user = await env.DB.prepare('SELECT id, username, password_hash, role FROM users WHERE username = ?')
+  const user = await env.DB.prepare('SELECT id, username, password_hash, role, avatar FROM users WHERE username = ?')
     .bind(username.trim())
-    .first<{ id: string; username: string; password_hash: string; role: string }>();
+    .first<{ id: string; username: string; password_hash: string; role: string; avatar: string | null }>();
 
   if (!user) {
     return errorResponse(401, 'Invalid username or password');
@@ -76,6 +76,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   return jsonResponse({
     token,
-    user: { id: user.id, username: user.username, role: user.role },
+    user: { id: user.id, username: user.username, role: user.role, avatar: user.avatar || null },
   });
 };
