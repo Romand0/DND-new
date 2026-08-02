@@ -18,9 +18,11 @@ interface Props {
   equipmentChanges?: EquipmentChanges;
   /** 直接更新该参战者的变更信息（变更信息编辑弹窗用） */
   onUpdateChanges?: (changes: EquipmentChanges) => void;
+  /** 当前可用动作数（放映模式显示，模拟模式不显示） */
+  actions?: number;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -763,8 +765,16 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           )}
 
           {activeTab === 'actions' && (
-            <div className="text-xs text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
-              暂无操作
+            <div className="space-y-2">
+              {/* 动作计数行 */}
+              <div className="flex items-center justify-between rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
+                <span className="text-xs font-medium dark:text-text-dark light:text-text-light">动作</span>
+                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  {typeof actions === 'number' ? `${Math.max(0, actions)} 次可用` : '无限'}
+                </span>
+              </div>
+
+              {/* 操作按钮区域 */}
             </div>
           )}
         </div>

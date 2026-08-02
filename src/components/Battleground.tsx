@@ -35,9 +35,13 @@ interface Props {
   equipmentChangesMap?: Record<string, EquipmentChanges>;
   /** 直接更新某参战者的变更信息（变更信息编辑弹窗用） */
   onUpdateChanges?: (combatantId: string, changes: EquipmentChanges) => void;
+  /** 战斗模式：'simulation' 模拟模式（无回合，动作无限），'playback' 放映模式（有回合，动作有限） */
+  mode?: 'simulation' | 'playback';
+  /** 各参战者当前可用动作数，key 为 combatantId（仅放映模式使用） */
+  actionsMap?: Record<string, number>;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', actionsMap = {} }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
@@ -1341,6 +1345,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onRemoveItem={onRemoveItem ? (item) => onRemoveItem(doubleClickedCombatant.id, item) : undefined}
                   equipmentChanges={equipmentChangesMap?.[doubleClickedCombatant.id]}
                   onUpdateChanges={onUpdateChanges ? (changes) => onUpdateChanges(doubleClickedCombatant.id, changes) : undefined}
+                  actions={doubleClickedCombatant.actions}
                 />
       )}
     </div>
