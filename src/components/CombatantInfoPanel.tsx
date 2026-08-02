@@ -3,6 +3,7 @@ import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from
 import { characterStore } from '@/data/characterStore';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import type { Combatant, NpcAttack, EquipmentChanges } from '@/types/combat';
+import { ACTION_LABELS, ALL_ACTIONS } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
 
 interface Props {
@@ -765,16 +766,47 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           )}
 
           {activeTab === 'actions' && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {/* 动作计数行 */}
               <div className="flex items-center justify-between rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
                 <span className="text-xs font-medium dark:text-text-dark light:text-text-light">动作</span>
-                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                  {typeof actions === 'number' ? `${Math.max(0, actions)} 次可用` : '无限'}
+                <span className="text-sm font-semibold dark:text-text-dark light:text-text-light">
+                  {Math.max(0, typeof actions === 'number' ? actions : (typeof combatant.actions === 'number' ? combatant.actions : 1))}
                 </span>
               </div>
-
-              {/* 操作按钮区域 */}
+              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                可用动作数
+              </div>
+              {/* 动作类型列表（攻击/施法已实现，其余为预留接口占位） */}
+              <div>
+                <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
+                  可执行动作
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {ALL_ACTIONS.map((type) => (
+                    <div
+                      key={type}
+                      className={`flex items-center justify-between px-2 py-1.5 rounded text-xs ${
+                        type === 'attack' || type === 'cast'
+                          ? 'dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light'
+                          : 'dark:bg-bg-dark-2/50 light:bg-gray-50 dark:text-text-dark-muted light:text-text-light-muted opacity-70'
+                      }`}
+                    >
+                      <span>{ACTION_LABELS[type]}</span>
+                      {type !== 'attack' && type !== 'cast' && (
+                        <span className="text-[10px] opacity-60">预留</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+>>>>>>> 8c68078 (feat: 完善动作机制——放映模式每回合1动作/模拟模式无限，攻击与1动作施法消耗，操作面板显示可用动作数)
             </div>
           )}
         </div>

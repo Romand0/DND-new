@@ -389,6 +389,7 @@ function load(): CombatRecord[] {
           childId: c.childId,
           templateId: c.templateId,
           attacks: c.attacks,
+          actions,
         };
       }),
       rounds: r.rounds ?? [],
@@ -449,6 +450,7 @@ const combatStore = {
         id: crypto.randomUUID(),
         isDead: false,
         isPc: c.isPc ?? false,
+        actions: typeof c.actions === 'number' && c.actions >= 0 ? c.actions : 1,
       })),
       rounds: [],
       createdAt: now,
@@ -535,6 +537,45 @@ const combatStore = {
     return () => {
       listeners = listeners.filter(l => l !== listener);
     };
+  },
+
+  /**
+   * 消耗 1 个可用动作。
+   * - 模拟模式：动作无限，扣减后若归 0 立即重置为 1（永远可动作）
+   * - 放映模式：扣减后可为 0（降为 0 不再允许发起动作，直到下回合开始恢复）
+   * @returns 扣减后的可用动作数；找不到参战者时返回 null
+   */
+  consumeAction(recordId: string, combatantId: string, mode: 'simulation' | 'playback'): number | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return null;
+    const cur = typeof record.combatants[idx].actions === 'number' && (record.combatants[idx].actions as number) >= 0
+      ? (record.combatants[idx].actions as number)
+      : 1;
+    let next = Math.max(0, cur - 1);
+    if (mode === 'simulation' && next === 0) next = 1;
+    record.combatants[idx] = { ...record.combatants[idx], actions: next };
+    record.updatedAt = Date.now();
+    save(records);
+    return next;
+  },
+
+  /**
+   * 重置某参战者的可用动作数为 1（放映模式每回合开始时调用）。
+   * @returns 重置后的可用动作数（恒为 1）；找不到参战者时返回 null
+   */
+  resetActions(recordId: string, combatantId: string): number | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return null;
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1 };
+    record.updatedAt = Date.now();
+    save(records);
+    return 1;
   },
 };
 

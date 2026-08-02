@@ -14,6 +14,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges } from '@/types/combat';
+import { isOneActionCast } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
 import Battleground from '@/components/Battleground';
@@ -236,6 +237,7 @@ export default function CombatSession() {
     const newCombatant: Combatant = {
       ...combatantData,
       id: newId,
+      actions: typeof combatantData.actions === 'number' && combatantData.actions >= 0 ? combatantData.actions : 1,
     };
     const updatedCombatants = [...record.combatants, newCombatant].sort(
       (a, b) => b.initiative - a.initiative
@@ -256,6 +258,7 @@ export default function CombatSession() {
     const newCombatants: Combatant[] = combatantsData.map(data => ({
       ...data,
       id: crypto.randomUUID(),
+      actions: typeof data.actions === 'number' && data.actions >= 0 ? data.actions : 1,
     }));
     const updatedCombatants = [...record.combatants, ...newCombatants].sort(
       (a, b) => b.initiative - a.initiative
@@ -302,6 +305,7 @@ export default function CombatSession() {
       characterId: selectedPc.id,
       speed: selectedPc.speed,
       note: '',
+      actions: 1,
     };
     // 按先攻总值排序，符合设计文档的「快速建表」要求
     const updatedCombatants = [...record.combatants, newCombatant].sort(
@@ -453,6 +457,33 @@ export default function CombatSession() {
       combatants: updatedCombatants,
       updatedAt: Date.now(),
     });
+  };
+
+  // ============ 动作机制 ============
+  // 当前战斗模式：playback=放映（有回合，每回合 1 动作），否则 simulation=模拟（动作无限）
+  const currentMode = (): 'simulation' | 'playback' =>
+    record?.mode === 'playback' ? 'playback' : 'simulation';
+
+  // 该参战者当前是否还能发起动作（模拟模式恒可；放映模式 0 时禁止）
+  const canUseAction = (combatantId: string): boolean => {
+    if (!record) return false;
+    if (currentMode() === 'simulation') return true;
+    const c = record.combatants.find(x => x.id === combatantId);
+    if (!c) return false;
+    return (typeof c.actions === 'number' ? c.actions : 1) > 0;
+  };
+
+  // 消耗 1 个动作（写入 store，订阅机制自动刷新 UI）
+  const consumeCombatantAction = (combatantId: string) => {
+    if (!record) return;
+    combatStore.consumeAction(record.id, combatantId, currentMode());
+  };
+
+  // 放映模式回合开始：恢复该参战者可用动作为 1
+  const resetCombatantActions = (combatantId: string) => {
+    if (!record) return;
+    if (record.mode !== 'playback') return;
+    combatStore.resetActions(record.id, combatantId);
   };
 
   // ============ 投掷武器掉落机制 ============
@@ -755,6 +786,8 @@ export default function CombatSession() {
     setPlaybackStarted(true);
     // 进入第一回合时立即拍快照（takeTurnSnapshot 直接读 combatStore 最新值，无需等渲染）
     if (firstTurn) {
+      // 放映模式：回合开始恢复该参战者可用动作为 1
+      resetCombatantActions(firstTurn.combatantId);
       takeTurnSnapshot(firstTurn.round, firstTurn.combatantId);
     }
   };
@@ -814,6 +847,7 @@ export default function CombatSession() {
     const next = findNextValidTurn(currentTurn.round, currentTurn.combatantIdx + 1);
     if (next) {
       setCurrentTurn(next);
+      resetCombatantActions(next.combatantId);
       takeTurnSnapshot(next.round, next.combatantId);
       return;
     }
@@ -841,6 +875,7 @@ export default function CombatSession() {
       const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
         setCurrentTurn(firstInNew);
+        resetCombatantActions(firstInNew.combatantId);
         takeTurnSnapshot(firstInNew.round, firstInNew.combatantId);
       } else {
         setCurrentTurn(null);
@@ -850,6 +885,7 @@ export default function CombatSession() {
       const firstInNext = findNextValidTurn(nextRound, 0);
       if (firstInNext) {
         setCurrentTurn(firstInNext);
+        resetCombatantActions(firstInNext.combatantId);
         takeTurnSnapshot(firstInNext.round, firstInNext.combatantId);
       } else {
         setCurrentTurn(null);
@@ -1000,6 +1036,10 @@ export default function CombatSession() {
     const attacker = record.combatants.find(c => c.id === combatantId);
 
     if (manualRecordType === 'attack') {
+      if (!canUseAction(combatantId)) {
+        alert('该参战者本回合已没有可用动作');
+        return;
+      }
       if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
       if (!target) { alert('请选择目标'); return; }
       if (!manualAttackRoll) { alert('请填写攻击检定值'); return; }
@@ -1029,6 +1069,8 @@ export default function CombatSession() {
         }
       }
       handleCellChange(round, combatantId, text);
+      // 攻击（无论命中/未命中）消耗 1 个动作
+      consumeCombatantAction(combatantId);
     } else if (manualRecordType === 'recovery') {
       if (!manualHealMethod.trim()) { alert('请填写恢复方式'); return; }
       const amount = parseInt(manualHealAmount, 10);
@@ -1784,6 +1826,11 @@ export default function CombatSession() {
             : null
         }
         onRequestAttack={(attacker, target) => {
+          // 动作校验：放映模式可用动作耗尽时禁止发起攻击
+          if (!canUseAction(attacker.id)) {
+            alert('该参战者本回合已没有可用动作');
+            return;
+          }
           // main 上处理：从 battlegroundStore 读取坐标，一并传入攻击检定弹窗
           const bg = record.id ? battlegroundStore.get(record.id) : null;
           const tokens = bg?.tokens ?? [];
@@ -1797,6 +1844,11 @@ export default function CombatSession() {
           });
         }}
         onRequestSpell={(caster, target) => {
+          // 动作校验：放映模式可用动作耗尽时禁止施法
+          if (!canUseAction(caster.id)) {
+            alert('该参战者本回合已没有可用动作');
+            return;
+          }
           // 法术按钮：打开独立法术施放弹窗
           setSpellModal({ caster, target });
         }}
@@ -1966,6 +2018,8 @@ export default function CombatSession() {
           }}
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
+            // 攻击（无论是否命中）消耗 1 个动作
+            consumeCombatantAction(attackModal.attacker.id);
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
             // 弹药属性武器：消耗弹药（无论命中/未命中）
             if (info.ammoConsumed && record) {
@@ -2009,6 +2063,8 @@ export default function CombatSession() {
             setAttackModal(null);
           }}
           onAttackMiss={(missInfo) => {
+            // 攻击（无论是否命中）消耗 1 个动作
+            consumeCombatantAction(attackModal.attacker.id);
             // 未命中：写入先攻表格（简化格式）
             // 弹药属性武器：消耗弹药（无论命中/未命中）
             if (missInfo.ammoConsumed && record) {
@@ -2101,6 +2157,10 @@ export default function CombatSession() {
           targetCombatInventory={getCombatInventory(record, spellModal.target)}
           onClose={() => setSpellModal(null)}
           onCastResolved={(info) => {
+            // 施法时间 = "1 动作" 的法术消耗 1 个动作（无论是否命中/被豁免）
+            if (isOneActionCast(info.castingTime)) {
+              consumeCombatantAction(spellModal.caster.id);
+            }
             // 1. 应用 HP / 状态（伤害扣血、治疗加血，handleApplyDamage 直接覆盖 newHp）
             handleApplyDamage(spellModal.target.id, info.newHp, info.status);
             // 2. 写入先攻表格：xxx 施展 xxx 成功/失败，对 xxx 造成 xxx 点伤害/恢复 xxx 点生命值

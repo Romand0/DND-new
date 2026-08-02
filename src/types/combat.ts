@@ -64,6 +64,58 @@ export interface RoundAction {
   [combatantId: string]: string;
 }
 
+/**
+ * 动作类型：攻击/施法 已实现（消耗动作）；
+ * 疾走/撤离/回避/协助/躲藏/预备/搜索 为预留接口（尚无对应机制，仅留占位）。
+ */
+export type CombatActionType =
+  | 'attack'
+  | 'cast'
+  | 'dash'
+  | 'disengage'
+  | 'dodge'
+  | 'help'
+  | 'hide'
+  | 'ready'
+  | 'search';
+
+/** 动作类型显示标签 */
+export const ACTION_LABELS: Record<CombatActionType, string> = {
+  attack: '攻击',
+  cast: '施法',
+  dash: '疾走',
+  disengage: '撤离',
+  dodge: '回避',
+  help: '协助',
+  hide: '躲藏',
+  ready: '预备',
+  search: '搜索',
+};
+
+/** 全部动作类型（用于操作面板展示 / 预留接口枚举） */
+export const ALL_ACTIONS: CombatActionType[] = [
+  'attack',
+  'cast',
+  'dash',
+  'disengage',
+  'dodge',
+  'help',
+  'hide',
+  'ready',
+  'search',
+];
+
+/**
+ * 施法时间是否为「1 动作」。
+ * castingTime 是自由文本（如 "1 动作" / "1个动作" / "1 个动作"），
+ * 附赠动作 / 反应 不计入「1 动作」。
+ */
+export function isOneActionCast(castingTime?: string): boolean {
+  if (!castingTime) return false;
+  if (castingTime.includes('附赠') || castingTime.includes('反应')) return false;
+  return castingTime.includes('动作');
+}
+
 export interface CombatRecord {
   id: string;
   title: string;

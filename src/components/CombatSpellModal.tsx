@@ -29,6 +29,8 @@ interface Props {
   /** 施放完成：回传完整信息由 main 写入先攻表格与应用 HP 变化 */
   onCastResolved: (info: {
     spellName: string;
+    /** 施法时间原文（如 "1 动作"），用于动作机制判定 */
+    castingTime?: string;
     success: boolean;              // 检定是否成功（无检定场景恒 true）
     effectType: EffectType;        // 伤害 / 治疗
     amount: number;                // 最终数值
@@ -467,6 +469,7 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
     const diceNums = effectDiceValues.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
     onCastResolved({
       spellName: selectedSpell.name,
+      castingTime: selectedSpell.castingTime,
       success: rollResult.success,
       effectType,
       amount,
