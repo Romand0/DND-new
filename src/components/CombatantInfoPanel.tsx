@@ -535,9 +535,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                                   </div>
                                 ))}
                               </div>
-                            </div>
-                          )}
-                        </div>
+            </div>
+          )}
+        </div>
                       );
                     })}
                   </div>
@@ -800,13 +800,6 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   ))}
                 </div>
               </div>
-            </div>
-          )}
-                    </div>
-                  ))}
-                </div>
-              </div>
->>>>>>> 8c68078 (feat: 完善动作机制——放映模式每回合1动作/模拟模式无限，攻击与1动作施法消耗，操作面板显示可用动作数)
             </div>
           )}
         </div>
