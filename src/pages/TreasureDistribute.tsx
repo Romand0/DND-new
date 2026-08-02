@@ -21,6 +21,7 @@ import type {
 import type { Character, Equipment } from '@/types/character';
 import treasureStore from '@/data/treasureStore';
 import { characterStore } from '@/data/characterStore';
+import { sortInventory } from '@/data/combatStore';
 
 /* ─── 类型 ─── */
 
@@ -49,37 +50,7 @@ const CURRENCY_META: { key: CurrencyKey; label: string; color: string }[] = [
   { key: 'cp', label: 'CP', color: 'text-orange-300 bg-orange-900/20 border-orange-700/30' },
 ];
 
-const CATEGORY_ORDER: string[] = [
-  '武器',
-  '护甲',
-  '盾牌',
-  '服装',
-  '饰品',
-  '工具',
-  '医疗',
-  '魔法',
-  '卷轴',
-  '药水',
-  '材料',
-  '食物',
-  '杂项',
-];
-
 /* ─── 辅助函数 ─── */
-
-function getCategoryIndex(category: string): number {
-  const idx = CATEGORY_ORDER.indexOf(category);
-  return idx === -1 ? CATEGORY_ORDER.length : idx;
-}
-
-function sortEquipmentByCategory(equipment: Equipment[]): Equipment[] {
-  return [...equipment].sort((a, b) => {
-    const idxA = getCategoryIndex(a.category);
-    const idxB = getCategoryIndex(b.category);
-    if (idxA !== idxB) return idxA - idxB;
-    return a.name.localeCompare(b.name);
-  });
-}
 
 function formatCurrencyShort(c: TreasureCurrency): string {
   const parts: string[] = [];
@@ -446,8 +417,8 @@ export default function TreasureDistribute() {
         updatedEquipment.push(newEquip);
       });
 
-      // 3. 按类型排序整理背包
-      updatedEquipment = sortEquipmentByCategory(updatedEquipment);
+      // 3. 按类型排序整理背包（复用 combatStore.sortInventory 统一逻辑）
+      updatedEquipment = sortInventory(updatedEquipment);
 
       characterStore.update(dist.characterId, {
         currency: newCurrency,
