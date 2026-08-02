@@ -7,6 +7,12 @@ export interface TreasureItem {
   quantity: number;
   /** 单价（货币单位：铜币） */
   unitPrice?: number;
+  /** 分类（用于背包整理，如武器/护甲/法器/工具/药水/杂物） */
+  category?: string;
+  /** 子分类（装备库细分类别） */
+  subCategory?: string;
+  /** 重量（磅） */
+  weight?: number;
   /** 从装备库引入的装备快照（自定义物品时可为空） */
   equipmentSnapshot?: Equipment;
 }

@@ -1,7 +1,7 @@
 // 宝藏编辑页
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Trash2, Save, X, Search, Package } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Save, X, Search, Package, Edit3 } from 'lucide-react';
 import treasureStore from '@/data/treasureStore';
 import { characterStore } from '@/data/characterStore';
 import type { Treasure, TreasureItem, TreasureCurrency } from '@/types/treasure';
@@ -32,8 +32,16 @@ export default function TreasureEdit() {
   const [items, setItems] = useState<TreasureItem[]>([]);
   const [showEquipPicker, setShowEquipPicker] = useState(false);
   const [equipSearch, setEquipSearch] = useState('');
+  // 自定义物品表单状态
+  const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState('');
   const [customQty, setCustomQty] = useState(1);
+  const [customCategory, setCustomCategory] = useState('杂物');
+  const [customSubCategory, setCustomSubCategory] = useState('');
+  const [customUnitPrice, setCustomUnitPrice] = useState('');
+  const [customWeight, setCustomWeight] = useState('');
+  // 物品编辑状态
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
   // 加载已有宝藏
   useEffect(() => {
@@ -84,10 +92,24 @@ export default function TreasureEdit() {
       id: crypto.randomUUID(),
       name: customName.trim(),
       quantity: Math.max(1, customQty),
+      category: customCategory || '杂物',
+      subCategory: customSubCategory.trim() || undefined,
+      unitPrice: customUnitPrice ? parseFloat(customUnitPrice) || undefined : undefined,
+      weight: customWeight ? parseFloat(customWeight) || undefined : undefined,
     };
     setItems(prev => [...prev, newItem]);
+    // 重置表单
     setCustomName('');
     setCustomQty(1);
+    setCustomCategory('杂物');
+    setCustomSubCategory('');
+    setCustomUnitPrice('');
+    setCustomWeight('');
+    setShowCustomForm(false);
+  };
+
+  const updateItemField = (itemId: string, field: keyof TreasureItem, value: unknown) => {
+    setItems(prev => prev.map(it => it.id === itemId ? { ...it, [field]: value } : it));
   };
 
   const removeItem = (itemId: string) => {
@@ -173,27 +195,100 @@ export default function TreasureEdit() {
         </div>
 
         {/* 自定义物品添加 */}
-        <div className="flex gap-2 mb-3">
-          <input
-            type="text"
-            value={customName}
-            onChange={e => setCustomName(e.target.value)}
-            placeholder="自定义物品名称..."
-            className="flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-          />
-          <input
-            type="number"
-            min={1}
-            value={customQty}
-            onChange={e => setCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-20 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-          />
-          <button
-            onClick={addCustomItem}
-            className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-          </button>
+        <div className="mb-3">
+          {!showCustomForm ? (
+            <button
+              onClick={() => setShowCustomForm(true)}
+              className="w-full py-2 rounded-lg border border-dashed dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted text-sm hover:border-primary hover:text-primary transition-colors"
+            >
+              <Plus className="w-4 h-4 inline mr-1" />
+              添加自定义物品
+            </button>
+          ) : (
+            <div className="space-y-2 p-3 rounded-lg border dark:border-border-dark light:border-border-light">
+              {/* 名称 + 数量 */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={customName}
+                  onChange={e => setCustomName(e.target.value)}
+                  placeholder="物品名称 *"
+                  className="flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  value={customQty}
+                  onChange={e => setCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-20 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+              </div>
+              {/* 分类 + 子分类 */}
+              <div className="flex gap-2">
+                <select
+                  value={customCategory}
+                  onChange={e => setCustomCategory(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="武器">武器</option>
+                  <option value="护甲">护甲</option>
+                  <option value="法器">法器</option>
+                  <option value="工具">工具</option>
+                  <option value="药水">药水</option>
+                  <option value="杂物">杂物</option>
+                </select>
+                <input
+                  type="text"
+                  value={customSubCategory}
+                  onChange={e => setCustomSubCategory(e.target.value)}
+                  placeholder="子分类（可选）"
+                  className="flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+              </div>
+              {/* 单价 + 重量 */}
+              <div className="flex gap-2">
+                <div className="flex-1 flex items-center gap-1">
+                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">单价</span>
+                  <input
+                    type="number"
+                    min={0}
+                    value={customUnitPrice}
+                    onChange={e => setCustomUnitPrice(e.target.value)}
+                    placeholder="铜币"
+                    className="flex-1 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                </div>
+                <div className="flex-1 flex items-center gap-1">
+                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">重量</span>
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.1"
+                    value={customWeight}
+                    onChange={e => setCustomWeight(e.target.value)}
+                    placeholder="磅"
+                    className="flex-1 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                </div>
+              </div>
+              {/* 按钮 */}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={() => setShowCustomForm(false)}
+                  className="flex-1 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={addCustomItem}
+                  disabled={!customName.trim()}
+                  className="flex-1 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-40"
+                >
+                  添加
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 物品卡片 */}
@@ -203,39 +298,108 @@ export default function TreasureEdit() {
           </div>
         ) : (
           <div className="space-y-2">
-            {items.map(it => (
-              <div
-                key={it.id}
-                className="flex items-center gap-3 p-3 rounded-lg border dark:border-border-dark light:border-border-light"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium dark:text-text-dark light:text-text-light">
-                    {it.name}
-                    {it.equipmentSnapshot && (
-                      <span className="text-xs ml-1 dark:text-text-dark-muted light:text-text-light-muted">
-                        (装备库)
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">x</span>
-                  <input
-                    type="number"
-                    min={1}
-                    value={it.quantity}
-                    onChange={e => updateItemQty(it.id, parseInt(e.target.value) || 1)}
-                    className="w-14 px-1 py-0.5 rounded border bg-transparent outline-none text-sm text-center dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                  />
-                </div>
-                <button
-                  onClick={() => removeItem(it.id)}
-                  className="p-1.5 rounded hover:bg-danger/10 text-danger transition-colors"
+            {items.map(it => {
+              const isEditing = editingItemId === it.id;
+              return (
+                <div
+                  key={it.id}
+                  className="rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-3 p-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light flex items-center gap-1.5">
+                        <span className="truncate">{it.name}</span>
+                        {it.equipmentSnapshot && (
+                          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
+                            (装备库)
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5 flex flex-wrap gap-x-2">
+                        {it.category && <span>{it.category}</span>}
+                        {it.subCategory && <span>· {it.subCategory}</span>}
+                        {it.unitPrice !== undefined && <span>· {it.unitPrice}cp</span>}
+                        {it.weight !== undefined && <span>· {it.weight}lb</span>}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">x</span>
+                      <input
+                        type="number"
+                        min={1}
+                        value={it.quantity}
+                        onChange={e => updateItemQty(it.id, parseInt(e.target.value) || 1)}
+                        className="w-14 px-1 py-0.5 rounded border bg-transparent outline-none text-sm text-center dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setEditingItemId(isEditing ? null : it.id)}
+                      className="p-1.5 rounded hover:bg-accent/10 text-accent transition-colors"
+                      title="编辑属性"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => removeItem(it.id)}
+                      className="p-1.5 rounded hover:bg-danger/10 text-danger transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {/* 展开编辑面板 */}
+                  {isEditing && (
+                    <div className="px-3 pb-3 space-y-2 border-t dark:border-border-dark light:border-border-light">
+                      <div className="flex gap-2 pt-2">
+                        <select
+                          value={it.category || '杂物'}
+                          onChange={e => updateItemField(it.id, 'category', e.target.value)}
+                          className="flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                        >
+                          <option value="武器">武器</option>
+                          <option value="护甲">护甲</option>
+                          <option value="法器">法器</option>
+                          <option value="工具">工具</option>
+                          <option value="药水">药水</option>
+                          <option value="杂物">杂物</option>
+                        </select>
+                        <input
+                          type="text"
+                          value={it.subCategory || ''}
+                          onChange={e => updateItemField(it.id, 'subCategory', e.target.value || undefined)}
+                          placeholder="子分类"
+                          className="flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <div className="flex-1 flex items-center gap-1">
+                          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">单价</span>
+                          <input
+                            type="number"
+                            min={0}
+                            value={it.unitPrice ?? ''}
+                            onChange={e => updateItemField(it.id, 'unitPrice', e.target.value ? parseFloat(e.target.value) || undefined : undefined)}
+                            placeholder="铜币"
+                            className="flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                          />
+                        </div>
+                        <div className="flex-1 flex items-center gap-1">
+                          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">重量</span>
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.1"
+                            value={it.weight ?? ''}
+                            onChange={e => updateItemField(it.id, 'weight', e.target.value ? parseFloat(e.target.value) || undefined : undefined)}
+                            placeholder="磅"
+                            className="flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
