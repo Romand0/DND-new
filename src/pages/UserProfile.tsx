@@ -18,8 +18,8 @@ import { useAuth } from '@/contexts/AuthContext';
 const VERIFIED_KEY = 'dm_token_verified';
 const MAX_AVATAR_SIZE = 256;
 
-/** 将图片压缩到 MAX_AVATAR_SIZE 内，返回压缩后的 Blob */
-async function compressImage(file: File): Promise<Blob> {
+/** 将图片压缩到 MAX_AVATAR_SIZE 内，返回 base64 data URL */
+async function compressImage(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, MAX_AVATAR_SIZE / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
@@ -28,16 +28,18 @@ async function compressImage(file: File): Promise<Blob> {
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d');
-  if (!ctx) return file;
+  if (!ctx) {
+    bitmap.close();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close();
-  return new Promise<Blob>((resolve) => {
-    canvas.toBlob(
-      (blob) => resolve(blob || file),
-      file.type.includes('png') ? 'image/png' : 'image/jpeg',
-      0.85,
-    );
-  });
+  return canvas.toDataURL(file.type.includes('png') ? 'image/png' : 'image/jpeg', 0.85);
 }
 
 export default function UserProfile() {
@@ -81,9 +83,8 @@ export default function UserProfile() {
       return;
     }
     try {
-      const compressed = await compressImage(file);
-      const url = URL.createObjectURL(compressed);
-      setAvatarDraft(url);
+      const dataUrl = await compressImage(file);
+      setAvatarDraft(dataUrl);
       setEditError('');
     } catch {
       setEditError('图片处理失败');
@@ -111,10 +112,9 @@ export default function UserProfile() {
         if (avatarDraft === null) {
           // 移除头像：显式置空
           payload.avatar = '';
-        } else if (avatarDraft.startsWith('blob:')) {
-          // 新上传文件：先上传到 R2 拿公开 URL
-          const blob = await fetch(avatarDraft).then((r) => r.blob());
-          const res = await api.uploadAvatar<{ url: string }>(blob);
+        } else if (avatarDraft.startsWith('data:')) {
+          // 新上传图片：先经上传端点校验，拿回 data URL 再随资料写入
+          const res = await api.uploadAvatar<{ url: string }>(avatarDraft);
           payload.avatar = res.url;
         } else {
           payload.avatar = avatarDraft;

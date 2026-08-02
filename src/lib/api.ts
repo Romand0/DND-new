@@ -287,22 +287,11 @@ export async function logoutUser<T = any>(): Promise<T> {
   return apiFetch<T>('/auth/logout', { method: 'POST' });
 }
 
-/** 上传头像到 R2，返回公开 URL */
-export async function uploadAvatar<T = { url: string }>(file: Blob): Promise<T> {
-  const res = await fetch(`${API_BASE}/upload/avatar`, {
+/** 上传头像：传压缩后的 base64 data URL，后端校验后返回（由 PATCH /auth/me 写入） */
+export async function uploadAvatar<T = { url: string }>(dataUrl: string): Promise<T> {
+  return apiFetch<T>('/upload/avatar', {
     method: 'POST',
-    headers: { ...authHeaders(), 'Content-Type': file.type || 'application/octet-stream' },
-    body: file,
+    body: JSON.stringify({ dataUrl }),
   });
-  let data: any = {};
-  try {
-    data = await res.json();
-  } catch {
-    data = {};
-  }
-  if (!res.ok) {
-    throw new Error(data.error || `上传失败: ${res.status}`);
-  }
-  return data as T;
 }
 

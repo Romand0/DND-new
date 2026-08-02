@@ -95,9 +95,12 @@ export async function onRequestPatch(context: any): Promise<Response> {
       }
     }
 
-    // 头像 URL 校验：仅允许 http(s)，防止脚本注入
-    if (finalAvatar && !/^https?:\/\//.test(finalAvatar)) {
+    // 头像校验：仅允许 http(s) 或 data:image base64，防止脚本注入
+    if (finalAvatar && !/^(https?:\/\/|data:image\/)/.test(finalAvatar)) {
       return errorResponse(400, '头像地址格式错误');
+    }
+    if (finalAvatar && finalAvatar.length > 800_000) {
+      return errorResponse(400, '头像数据过大');
     }
 
     await env.DB.prepare('UPDATE users SET username = ?, avatar = ? WHERE id = ?')
