@@ -27,7 +27,12 @@ function load(): Treasure[] {
         id: it.id || '',
         name: it.name || '',
         quantity: typeof it.quantity === 'number' ? it.quantity : 1,
-        unitPrice: it.unitPrice,
+        unitPrice:
+          it.unitPrice == null
+            ? undefined
+            : typeof it.unitPrice === 'number'
+              ? { amount: it.unitPrice, unit: 'cp' }
+              : { amount: it.unitPrice.amount ?? 0, unit: it.unitPrice.unit ?? 'cp' },
         equipmentSnapshot: it.equipmentSnapshot,
       })),
       createdAt: t.createdAt ?? Date.now(),

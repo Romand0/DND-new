@@ -1,12 +1,20 @@
 // 宝藏系统类型定义
 import type { Equipment } from './character';
 
+/** 单价可选的货币单位（与宝藏钱币口径一致，含铂金币） */
+export type TreasurePriceUnit = 'pp' | 'gp' | 'sp' | 'cp';
+
+export interface TreasurePrice {
+  amount: number;
+  unit: TreasurePriceUnit;
+}
+
 export interface TreasureItem {
   id: string;
   name: string;
   quantity: number;
-  /** 单价（货币单位：铜币） */
-  unitPrice?: number;
+  /** 单价（含货币单位，如 2gp / 50cp） */
+  unitPrice?: TreasurePrice;
   /** 分类（用于背包整理，如武器/护甲/法器/工具/药水/杂物） */
   category?: string;
   /** 子分类（装备库细分类别） */

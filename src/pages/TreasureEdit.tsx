@@ -1,26 +1,14 @@
 // 宝藏编辑页
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, Trash2, Save, X, Search, Package, Edit3 } from 'lucide-react';
+import { ChevronLeft, Plus, Trash2, Save, Package, Edit3 } from 'lucide-react';
 import treasureStore from '@/data/treasureStore';
-import { characterStore } from '@/data/characterStore';
-import type { Treasure, TreasureItem, TreasureCurrency } from '@/types/treasure';
-import type { Equipment } from '@/types/character';
+import { extractBaseFields } from '@/data/equipmentFactory';
+import EquipmentPicker from '@/components/EquipmentPicker';
+import type { Treasure, TreasureItem, TreasurePriceUnit } from '@/types/treasure';
+import type { EquipmentItem } from '@/types/equipment';
 
-// 从角色库收集所有装备模板（用于装备库选择）
-function getAllEquipmentTemplates(): Equipment[] {
-  const chars = characterStore.getAll();
-  const map = new Map<string, Equipment>();
-  for (const char of chars) {
-    for (const eq of char.equipment || []) {
-      const key = eq.name;
-      if (!map.has(key)) {
-        map.set(key, { ...eq, childId: undefined });
-      }
-    }
-  }
-  return Array.from(map.values());
-}
+const PRICE_UNITS: TreasurePriceUnit[] = ['pp', 'gp', 'sp', 'cp'];
 
 export default function TreasureEdit() {
   const { id } = useParams<{ id: string }>();
@@ -28,10 +16,9 @@ export default function TreasureEdit() {
   const isNew = !id;
 
   const [title, setTitle] = useState('');
-  const [currency, setCurrency] = useState<TreasureCurrency>({ pp: 0, gp: 0, sp: 0, cp: 0 });
+  const [currency, setCurrency] = useState<{ pp: number; gp: number; sp: number; cp: number }>({ pp: 0, gp: 0, sp: 0, cp: 0 });
   const [items, setItems] = useState<TreasureItem[]>([]);
   const [showEquipPicker, setShowEquipPicker] = useState(false);
-  const [equipSearch, setEquipSearch] = useState('');
   // 自定义物品表单状态
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [customName, setCustomName] = useState('');
@@ -39,6 +26,7 @@ export default function TreasureEdit() {
   const [customCategory, setCustomCategory] = useState('杂物');
   const [customSubCategory, setCustomSubCategory] = useState('');
   const [customUnitPrice, setCustomUnitPrice] = useState('');
+  const [customUnitPriceUnit, setCustomUnitPriceUnit] = useState<TreasurePriceUnit>('cp');
   const [customWeight, setCustomWeight] = useState('');
   // 物品编辑状态
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -56,13 +44,6 @@ export default function TreasureEdit() {
     setItems(t.items.map(it => ({ ...it })));
   }, [id, navigate]);
 
-  const allEquips = useMemo(() => getAllEquipmentTemplates(), []);
-  const filteredEquips = useMemo(() => {
-    if (!equipSearch) return allEquips;
-    const q = equipSearch.toLowerCase();
-    return allEquips.filter(e => e.name.toLowerCase().includes(q));
-  }, [allEquips, equipSearch]);
-
   const handleSave = () => {
     if (isNew) {
       const t = treasureStore.create(title);
@@ -74,13 +55,16 @@ export default function TreasureEdit() {
     }
   };
 
-  const addEquipment = (eq: Equipment) => {
+  const addEquipment = (item: EquipmentItem) => {
     const newItem: TreasureItem = {
       id: crypto.randomUUID(),
-      name: eq.name,
+      name: item.name,
       quantity: 1,
       unitPrice: undefined,
-      equipmentSnapshot: { ...eq },
+      category: item.category,
+      subCategory: item.subtype || undefined,
+      weight: item.weight,
+      equipmentSnapshot: { id: item.id, quantity: 1, ...extractBaseFields(item) },
     };
     setItems(prev => [...prev, newItem]);
     setShowEquipPicker(false);
@@ -94,7 +78,9 @@ export default function TreasureEdit() {
       quantity: Math.max(1, customQty),
       category: customCategory || '杂物',
       subCategory: customSubCategory.trim() || undefined,
-      unitPrice: customUnitPrice ? parseFloat(customUnitPrice) || undefined : undefined,
+      unitPrice: customUnitPrice
+        ? { amount: parseFloat(customUnitPrice) || 0, unit: customUnitPriceUnit }
+        : undefined,
       weight: customWeight ? parseFloat(customWeight) || undefined : undefined,
     };
     setItems(prev => [...prev, newItem]);
@@ -104,6 +90,7 @@ export default function TreasureEdit() {
     setCustomCategory('杂物');
     setCustomSubCategory('');
     setCustomUnitPrice('');
+    setCustomUnitPriceUnit('cp');
     setCustomWeight('');
     setShowCustomForm(false);
   };
@@ -179,7 +166,7 @@ export default function TreasureEdit() {
 
       {/* 物品列表 */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
           <label className="text-sm font-medium dark:text-text-dark light:text-text-light">
             物品 ({items.length})
           </label>
@@ -213,22 +200,22 @@ export default function TreasureEdit() {
                   value={customName}
                   onChange={e => setCustomName(e.target.value)}
                   placeholder="物品名称 *"
-                  className="flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  className="flex-1 min-w-0 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                 />
                 <input
                   type="number"
                   min={1}
                   value={customQty}
                   onChange={e => setCustomQty(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-20 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  className="w-20 shrink-0 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                 />
               </div>
               {/* 分类 + 子分类 */}
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <select
                   value={customCategory}
                   onChange={e => setCustomCategory(e.target.value)}
-                  className="flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  className="sm:flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                 >
                   <option value="武器">武器</option>
                   <option value="护甲">护甲</option>
@@ -242,23 +229,30 @@ export default function TreasureEdit() {
                   value={customSubCategory}
                   onChange={e => setCustomSubCategory(e.target.value)}
                   placeholder="子分类（可选）"
-                  className="flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  className="sm:flex-1 px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                 />
               </div>
               {/* 单价 + 重量 */}
-              <div className="flex gap-2">
-                <div className="flex-1 flex items-center gap-1">
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="sm:flex-1 flex items-center gap-1 min-w-0">
                   <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">单价</span>
                   <input
                     type="number"
                     min={0}
                     value={customUnitPrice}
                     onChange={e => setCustomUnitPrice(e.target.value)}
-                    placeholder="铜币"
-                    className="flex-1 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    placeholder="金额"
+                    className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                   />
+                  <select
+                    value={customUnitPriceUnit}
+                    onChange={e => setCustomUnitPriceUnit(e.target.value as TreasurePriceUnit)}
+                    className="shrink-0 px-1.5 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  >
+                    {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
                 </div>
-                <div className="flex-1 flex items-center gap-1">
+                <div className="sm:flex-1 flex items-center gap-1 min-w-0">
                   <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">重量</span>
                   <input
                     type="number"
@@ -267,7 +261,7 @@ export default function TreasureEdit() {
                     value={customWeight}
                     onChange={e => setCustomWeight(e.target.value)}
                     placeholder="磅"
-                    className="flex-1 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                   />
                 </div>
               </div>
@@ -318,11 +312,11 @@ export default function TreasureEdit() {
                       <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5 flex flex-wrap gap-x-2">
                         {it.category && <span>{it.category}</span>}
                         {it.subCategory && <span>· {it.subCategory}</span>}
-                        {it.unitPrice !== undefined && <span>· {it.unitPrice}cp</span>}
+                        {it.unitPrice !== undefined && <span>· {it.unitPrice.amount}{it.unitPrice.unit}</span>}
                         {it.weight !== undefined && <span>· {it.weight}lb</span>}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">x</span>
                       <input
                         type="number"
@@ -334,14 +328,14 @@ export default function TreasureEdit() {
                     </div>
                     <button
                       onClick={() => setEditingItemId(isEditing ? null : it.id)}
-                      className="p-1.5 rounded hover:bg-accent/10 text-accent transition-colors"
+                      className="p-1.5 rounded hover:bg-accent/10 text-accent transition-colors shrink-0"
                       title="编辑属性"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => removeItem(it.id)}
-                      className="p-1.5 rounded hover:bg-danger/10 text-danger transition-colors"
+                      className="p-1.5 rounded hover:bg-danger/10 text-danger transition-colors shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -349,11 +343,11 @@ export default function TreasureEdit() {
                   {/* 展开编辑面板 */}
                   {isEditing && (
                     <div className="px-3 pb-3 space-y-2 border-t dark:border-border-dark light:border-border-light">
-                      <div className="flex gap-2 pt-2">
+                      <div className="flex flex-col sm:flex-row gap-2 pt-2">
                         <select
                           value={it.category || '杂物'}
                           onChange={e => updateItemField(it.id, 'category', e.target.value)}
-                          className="flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                          className="sm:flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                         >
                           <option value="武器">武器</option>
                           <option value="护甲">护甲</option>
@@ -367,23 +361,30 @@ export default function TreasureEdit() {
                           value={it.subCategory || ''}
                           onChange={e => updateItemField(it.id, 'subCategory', e.target.value || undefined)}
                           placeholder="子分类"
-                          className="flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                          className="sm:flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                         />
                       </div>
-                      <div className="flex gap-2">
-                        <div className="flex-1 flex items-center gap-1">
-                          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">单价</span>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="sm:flex-1 flex items-center gap-1 min-w-0">
+                          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">单价</span>
                           <input
                             type="number"
                             min={0}
-                            value={it.unitPrice ?? ''}
-                            onChange={e => updateItemField(it.id, 'unitPrice', e.target.value ? parseFloat(e.target.value) || undefined : undefined)}
-                            placeholder="铜币"
-                            className="flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                            value={it.unitPrice?.amount ?? ''}
+                            onChange={e => updateItemField(it.id, 'unitPrice', e.target.value ? { amount: parseFloat(e.target.value) || 0, unit: it.unitPrice?.unit ?? 'cp' } : undefined)}
+                            placeholder="金额"
+                            className="flex-1 min-w-0 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                           />
+                          <select
+                            value={it.unitPrice?.unit ?? 'cp'}
+                            onChange={e => updateItemField(it.id, 'unitPrice', { amount: it.unitPrice?.amount ?? 0, unit: e.target.value as TreasurePriceUnit })}
+                            className="shrink-0 px-1 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                          >
+                            {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
                         </div>
-                        <div className="flex-1 flex items-center gap-1">
-                          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">重量</span>
+                        <div className="sm:flex-1 flex items-center gap-1 min-w-0">
+                          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">重量</span>
                           <input
                             type="number"
                             min={0}
@@ -391,7 +392,7 @@ export default function TreasureEdit() {
                             value={it.weight ?? ''}
                             onChange={e => updateItemField(it.id, 'weight', e.target.value ? parseFloat(e.target.value) || undefined : undefined)}
                             placeholder="磅"
-                            className="flex-1 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                            className="flex-1 min-w-0 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                           />
                         </div>
                       </div>
@@ -404,55 +405,12 @@ export default function TreasureEdit() {
         )}
       </div>
 
-      {/* 装备库选择弹窗 */}
+      {/* 装备库选择弹窗（D1 系统装备库） */}
       {showEquipPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="dark:bg-card-dark light:bg-card-light rounded-xl w-full max-w-md max-h-[80vh] flex flex-col">
-            {/* 头部 */}
-            <div className="flex items-center justify-between p-3 border-b dark:border-border-dark light:border-border-light shrink-0">
-              <h3 className="font-bold text-sm dark:text-text-dark light:text-text-light">从装备库选择</h3>
-              <button onClick={() => setShowEquipPicker(false)} className="p-1 rounded hover:bg-danger/10 text-danger">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            {/* 搜索 */}
-            <div className="p-3 shrink-0">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
-                <input
-                  type="text"
-                  value={equipSearch}
-                  onChange={e => setEquipSearch(e.target.value)}
-                  placeholder="搜索装备..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                />
-              </div>
-            </div>
-            {/* 列表 */}
-            <div className="flex-1 overflow-y-auto px-3 pb-3">
-              {filteredEquips.length === 0 ? (
-                <div className="text-center py-6 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                  无匹配装备
-                </div>
-              ) : (
-                <div className="space-y-1">
-                  {filteredEquips.map(eq => (
-                    <button
-                      key={eq.name}
-                      onClick={() => addEquipment(eq)}
-                      className="w-full text-left p-2.5 rounded-lg text-sm dark:text-text-dark light:text-text-light hover:bg-primary/10 transition-colors border dark:border-border-dark/50 light:border-border-light/50"
-                    >
-                      <div className="font-medium">{eq.name}</div>
-                      <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
-                        {eq.category} · {(eq.weight || 0)}lb
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <EquipmentPicker
+          onSelect={addEquipment}
+          onClose={() => setShowEquipPicker(false)}
+        />
       )}
     </div>
   );

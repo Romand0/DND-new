@@ -16,6 +16,7 @@ import type {
   Treasure,
   TreasureItem,
   TreasureCurrency,
+  TreasurePrice,
   DistributionRecord,
 } from '@/types/treasure';
 import type { Character, Equipment } from '@/types/character';
@@ -31,7 +32,7 @@ interface DistributionItem {
   id: string; // 宝藏中的 item.id
   name: string;
   quantity: number;
-  unitPrice?: number;
+  unitPrice?: TreasurePrice;
 }
 
 interface CharacterDistribution {
@@ -68,6 +69,12 @@ function treasureCurrencyToCharacter(c: TreasureCurrency) {
     gp: c.gp,
     pp: c.pp,
   };
+}
+
+/** 宝藏物品单价 → 角色装备价格（装备价格不支持铂金币，pp 按 1pp=10gp 折算） */
+function treasurePriceToEquipmentPrice(p: TreasurePrice): { amount: number; unit: 'gp' | 'sp' | 'cp' } {
+  if (p.unit === 'pp') return { amount: p.amount * 10, unit: 'gp' };
+  return { amount: p.amount, unit: p.unit };
 }
 
 /* ─── 主组件 ─── */
@@ -411,7 +418,7 @@ export default function TreasureDistribute() {
           category: treasure.items.find((t) => t.id === item.id)?.equipmentSnapshot?.category || '杂项',
           weight: treasure.items.find((t) => t.id === item.id)?.equipmentSnapshot?.weight,
           price: item.unitPrice
-            ? { amount: Math.floor(item.unitPrice / 100), unit: 'gp' }
+            ? treasurePriceToEquipmentPrice(item.unitPrice)
             : undefined,
         };
         updatedEquipment.push(newEquip);
@@ -569,7 +576,7 @@ export default function TreasureDistribute() {
                     ×{item.quantity}
                     {item.unitPrice !== undefined && (
                       <span className="ml-1 opacity-70">
-                        ({Math.floor(item.unitPrice / 100)}gp)
+                        ({item.unitPrice.amount}{item.unitPrice.unit})
                       </span>
                     )}
                   </div>
