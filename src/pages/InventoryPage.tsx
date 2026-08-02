@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Package, ChevronRight, ShoppingCart } from 'lucide-react';
+import { Package, ChevronRight, ShoppingCart, Gem } from 'lucide-react';
 
 export default function InventoryPage() {
   return (
@@ -48,6 +48,29 @@ export default function InventoryPage() {
                 </h2>
                 <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
                   选择角色进行买入、卖出与物资分配
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
+          </div>
+        </Link>
+
+        {/* 宝藏板块 */}
+        <Link
+          to="/inventory/treasures"
+          className="block p-6 rounded-xl border transition-all hover:scale-[1.02] dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary group"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-lg bg-yellow-500/10">
+                <Gem className="w-6 h-6 text-yellow-500" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
+                  宝藏
+                </h2>
+                <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                  创建和管理宝藏，手动分配给角色
                 </p>
               </div>
             </div>

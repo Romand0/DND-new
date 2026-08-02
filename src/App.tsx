@@ -33,6 +33,9 @@ import CalendarPage from '@/pages/CalendarPage';
 import NotesPage from '@/pages/NotesPage';
 import DicePage from '@/pages/DicePage';
 import UserProfile from '@/pages/UserProfile';
+import TreasureList from '@/pages/TreasureList';
+import TreasureEdit from '@/pages/TreasureEdit';
+import TreasureDistribute from '@/pages/TreasureDistribute';
 
 // 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
@@ -117,6 +120,10 @@ export default function App() {
               {/* ✅ 修改2：删除旧占位符路由，战斗功能已实现，无需占位 */}
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="inventory/trade" element={<TradePage />} />
+              <Route path="inventory/treasures" element={<TreasureList />} />
+              <Route path="inventory/treasures/new" element={<TreasureEdit />} />
+              <Route path="inventory/treasures/:id/edit" element={<TreasureEdit />} />
+              <Route path="inventory/treasures/:id/distribute" element={<TreasureDistribute />} />
               {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />
