@@ -365,6 +365,8 @@ function load(): CombatRecord[] {
       title: r.title ?? '未命名战斗',
       combatants: (r.combatants ?? []).map((c: any) => {
         // 兜底：旧数据缺少 speed 时，从角色库回填（PC 参战者通常带有 characterId）
+        let actions = c.actions ?? 1;
+        if (typeof actions !== 'number' || actions < 0) actions = 1;
         let speed = c.speed;
         if ((speed === undefined || speed === null) && c.characterId) {
           const char = characterStore.get(c.characterId);

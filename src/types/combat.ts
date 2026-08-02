@@ -20,6 +20,8 @@ export interface Combatant {
   templateId?: string;
   /** NPC 攻击方式（从模板带入） */
   attacks?: NpcAttack[];
+  /** 当前可用动作数（放映模式每回合恢复，模拟模式无限） */
+  actions?: number;
 }
 
 export interface NpcTemplate {
