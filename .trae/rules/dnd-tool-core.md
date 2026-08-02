@@ -159,7 +159,7 @@ npm run build
 - ❌ **严禁**：`git add .` 不加区分地暂存所有改动
 - ❌ **严禁**：直接在 main 分支上 `git commit`（例外见 §8.4）
 
-### 8.3 推送 main 前：必须先编译通过
+### 8.3 推送 main 前：必须先编译通过 → **通过后默认自动 push，无需用户提醒**
 
 ```
 功能分支提交 → npx tsc --noEmit && npm run build  ✅通过
@@ -168,11 +168,13 @@ npm run build
     ↓
 main 上再次 npx tsc --noEmit && npm run build  ✅通过
     ↓
-git push origin main
+git push origin main   ← ✅ 默认自动执行，不用等用户说「推送到 main」
 ```
 
+- ✅ **默认行为（用户不说话就执行）**：main 上 build 通过后立即 `git push origin main`，不额外提醒、不等待用户确认
 - ❌ **严禁**：跳过 build 直接 push 到 main
 - ❌ **严禁**：功能分支 build 失败仍合并到 main
+- ⚠️ **仅当用户明确说过「不要立即编辑 main」或「这次不要 push」时**：停在本地 main 合并完成的状态，等待下一步指令
 
 ### 8.4 可以直接在 main 上操作的**唯一三种例外**
 
@@ -180,7 +182,7 @@ git push origin main
 2. 纯文档类修改：只改 AGENTS.md / README.md 等 `.md` 文件，不碰 `.ts/.tsx/.sql/.json` 等代码文件
 3. 紧急线上修复且用户已明确确认
 
-**即使是例外场景，§8.1（编辑前同步远程）和 §8.3（推送前编译通过）两条仍然强制生效。**
+**即使是例外场景，§8.1（编辑前同步远程）和 §8.3（推送前编译通过 + 默认自动 push）两条仍然强制生效。**
 
 ---
 

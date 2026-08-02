@@ -501,9 +501,9 @@ git commit -m "feat: 描述本次提交的具体变更内容"   # 用 convention
 # 3. 反复迭代修改：提交 → 验证（见 §8）→ 再提交
 ```
 
-### 9.3 改动后：编译通过 → 推送 → 合入 main
+### 9.3 改动后：编译通过 → **默认自动 push main（无需用户提醒）** → 合入完成
 
-功能分支上的改动**必须先通过编译验证**，才能合并入 main 并推送：
+功能分支上的改动**必须先通过编译验证**，才能合并入 main 并推送；**只要 main 上 build 通过，就立即 push origin/main，不等待用户指令**：
 
 ```bash
 # 1. 在功能分支上跑完整验证（见 §8）
@@ -517,15 +517,25 @@ git pull origin main
 git merge --no-ff feature/your-feature-name
 
 # 4. 再次在 main 上构建验证（合并后可能有冲突后新引入的问题）
-npx tsc --noEmit && npm run build
+npx tsc --noEmit && npm run build   ✅通过 → 立即执行下一步，不等用户说「push」
 
-# 5. 验证通过后推送到远程 main
+# 5. 验证通过后推送到远程 main（默认自动执行，用户不说话就推）
 git push origin main
 
 # 6. 清理已合并的功能分支（可选但推荐）
 git branch -d feature/your-feature-name
 git push origin --delete feature/your-feature-name   # 如果推送过远程分支
 ```
+
+#### 9.3.1 push 行为规则（用户没明确说就按默认）
+
+| 场景 | 行为 |
+|------|------|
+| main 上 `tsc + build` 都通过 | ✅ **默认自动执行** `git push origin main`，不询问、不等用户确认 |
+| 功能分支 build 失败 | ❌ 不合并到 main，报错误摘要等用户处理 |
+| main 合并后 build 失败 | ❌ 不 push，报错误摘要等用户处理 |
+| 用户之前/当前对话说过「不要立即编辑 main」或「这次不要 push」 | ⚠️ 停在「本地 main 合并完成 + build 通过」的状态，不 push |
+| 用户明确说「推送到 main」 | 同上（本来就默认做），直接执行 |
 
 ### 9.4 例外情形（仅在以下情况可以直接在 main 上操作）
 
