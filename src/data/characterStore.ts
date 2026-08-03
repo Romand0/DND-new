@@ -1876,9 +1876,12 @@ function resetSpellSlots(charId: string): void {
     for (let i = 0; i < slotArray.length; i++) {
       const levelNum = i + 1;
       const levelKey = ('level' + levelNum) as SpellSlotLevel;
+      const maxForLevel = slotArray[i] || 0;
       if (!char.spells.spellSlots[levelKey]) {
         char.spells.spellSlots[levelKey] = { max: 0, used: 0 };
       }
+      // 长休恢复至该环位最大值：同步 max 到标准表，used 归零
+      char.spells.spellSlots[levelKey].max = maxForLevel;
       char.spells.spellSlots[levelKey].used = 0;
     }
   }
@@ -1886,9 +1889,12 @@ function resetSpellSlots(charId: string): void {
   if (casterType === CASTER_TYPE.WARLOCK) {
     const slotLevel = config.slotLevel || 1;
     const levelKey = ('level' + slotLevel) as SpellSlotLevel;
+    const maxForLevel = config.slots[0] || 0;
     if (!char.spells.spellSlots[levelKey]) {
       char.spells.spellSlots[levelKey] = { max: 0, used: 0 };
     }
+    // 长休恢复至该环位最大值：同步 max 到标准表，used 归零
+    char.spells.spellSlots[levelKey].max = maxForLevel;
     char.spells.spellSlots[levelKey].used = 0;
   }
 
