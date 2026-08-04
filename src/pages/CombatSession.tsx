@@ -509,6 +509,11 @@ export default function CombatSession() {
         }
       }
     }
+    // 放映模式下昏迷/死亡状态变化后，自动填充后续轮次的占位标记
+    // （非放映模式没有轮次概念，不需要填）
+    if (record.mode === 'playback') {
+      autoFillDownedMarkers();
+    }
     // HP 变化后统一清理已失效的死亡豁免待办
     combatStore.cleanupDeathSaveTodos(record.id);
   };
@@ -847,11 +852,15 @@ export default function CombatSession() {
   };
 
   // ✅ 给已昏迷/死亡角色在所有未填写的后续轮次中填入「昏迷」/「死亡」占位
+  // 注意：必须从 combatStore.get 读取最新数据，因为调用方（如 handleApplyDamage）
+  // 可能刚刚写入 store 但 React state（record）尚未异步更新，闭包里的 record 是旧快照
   const autoFillDownedMarkers = () => {
     if (!record) return;
-    let updatedRounds = record.rounds.map(r => ({ ...r }));
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
+    let updatedRounds = latest.rounds.map(r => ({ ...r }));
     let changed = false;
-    record.combatants.forEach(c => {
+    latest.combatants.forEach(c => {
       if (!c.isDead && !c.isUnconscious) return;
       const marker = c.isDead ? '死亡' : '昏迷';
       updatedRounds = updatedRounds.map(round => {
