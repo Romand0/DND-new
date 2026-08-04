@@ -19,15 +19,6 @@ function calcModifier(score: number): number {
   return Math.floor((score - 10) / 2);
 }
 
-function useNumberInput(initialValue: number) {
-  const [text, setText] = useState(String(initialValue));
-  const [value, setValue] = useState(initialValue);
-  const onChange = (s: string) => { setText(s); const n = parseInt(s, 10); if (!isNaN(n)) setValue(n); };
-  const onBlur = () => { const n = parseInt(text, 10); if (isNaN(n)) { setText('0'); setValue(0); } else { setText(String(n)); setValue(n); } };
-  const setExternal = (n: number) => { setText(String(n)); setValue(n); };
-  return { text, value, onChange, onBlur, setExternal };
-}
-
 /** 单个NPC的可编辑状态 */
 interface NpcEditState {
   name: string;

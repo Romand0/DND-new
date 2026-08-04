@@ -10,6 +10,10 @@ export interface Combatant {
   isDead?: boolean;
   /** 昏迷（HP 归零但未死亡）：表格表头黯淡，棋子变灰 */
   isUnconscious?: boolean;
+  /** 死亡豁免失败次数（D&D 5e：累计 3 次即死亡） */
+  deathSaveFailures?: number;
+  /** 死亡豁免成功次数（D&D 5e：累计 3 次即稳定） */
+  deathSaveSuccesses?: number;
   isPc?: boolean;
   characterId?: string;
   note?: string;

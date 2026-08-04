@@ -382,6 +382,8 @@ function load(): CombatRecord[] {
           tempHp: c.tempHp,
           isDead: c.isDead ?? false,
           isUnconscious: c.isUnconscious ?? false,
+          deathSaveFailures: typeof c.deathSaveFailures === 'number' ? c.deathSaveFailures : 0,
+          deathSaveSuccesses: typeof c.deathSaveSuccesses === 'number' ? c.deathSaveSuccesses : 0,
           isPc: c.isPc ?? false,
           characterId: c.characterId,
           note: c.note ?? '',
@@ -635,6 +637,111 @@ const combatStore = {
     );
     record.updatedAt = Date.now();
     save(records);
+  },
+
+  /**
+   * 清理已完成使命的死亡豁免待办。终止条件（D&D 5e）：
+   *   - HP > 0       → 已恢复（用户指定的终止条件）
+   *   - isDead       → 已死亡（3 次失败命中后由 applyDeathSaveResult 设置）
+   *   - 成功 ≥ 3     → 稳定（无需再掷骰，仍昏迷）
+   * 在 HP 变更 / 死亡豁免结算后调用。
+   */
+  cleanupDeathSaveTodos(recordId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record || !record.turnTodos) return;
+    const before = record.turnTodos.length;
+    record.turnTodos = record.turnTodos.filter(t => {
+      if (t.type !== 'death_save') return true;
+      const c = record.combatants.find(x => x.id === t.combatantId);
+      if (!c) return false; // 参战者已删除
+      if ((c.currentHp ?? 0) > 0) return false;
+      if (c.isDead) return false;
+      if ((c.deathSaveSuccesses ?? 0) >= 3) return false;
+      return true;
+    });
+    if (record.turnTodos.length === before) return; // 无变化不触发额外渲染
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /**
+   * 应用死亡豁免 d20 掷骰结果到适用者：
+   *   1     → 失败 +2
+   *   2-9   → 失败 +1
+   *   10-19 → 成功 +1
+   *   20    → HP=1、解除昏迷（终止条件命中，外部随后会调用 cleanupDeathSaveTodos）
+   * 同时把对应待办标记为已执行。
+   * 返回更新后的 combatant（供 UI 展示结果），找不到返回 null。
+   */
+  applyDeathSaveResult(
+    recordId: string,
+    todoId: string,
+    roll: number,
+  ): { combatant: Combatant; outcome: 'crit_fail' | 'fail' | 'success' | 'revive' } | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const todo = record.turnTodos?.find(t => t.id === todoId);
+    if (!todo) return null;
+    const idx = record.combatants.findIndex(c => c.id === todo.combatantId);
+    if (idx === -1) return null;
+    const c = record.combatants[idx];
+
+    let outcome: 'crit_fail' | 'fail' | 'success' | 'revive';
+    let failures = c.deathSaveFailures ?? 0;
+    let successes = c.deathSaveSuccesses ?? 0;
+    let nextHp = c.currentHp ?? 0;
+    let nextUnconscious = c.isUnconscious ?? false;
+    let nextDead = c.isDead ?? false;
+
+    if (roll === 1) {
+      failures += 2;
+      outcome = 'crit_fail';
+    } else if (roll <= 9) {
+      failures += 1;
+      outcome = 'fail';
+    } else if (roll <= 19) {
+      successes += 1;
+      outcome = 'success';
+    } else {
+      // roll === 20：HP=1、解除昏迷
+      nextHp = 1;
+      nextUnconscious = false;
+      outcome = 'revive';
+    }
+    // D&D 5e：3 次失败 → 死亡
+    if (failures >= 3) {
+      nextDead = true;
+      nextUnconscious = false;
+      nextHp = 0;
+    }
+    // 3 次成功 → 稳定（仍昏迷，但不再需要掷骰；保留待办由 DM 手动结束或被 cleanup 跳过）
+    // 注意：稳定状态 HP 仍 = 0，不触发 cleanup；此处不做特殊处理，留给 DM 判定。
+
+    record.combatants[idx] = {
+      ...c,
+      currentHp: nextHp,
+      isUnconscious: nextUnconscious,
+      isDead: nextDead,
+      deathSaveFailures: failures,
+      deathSaveSuccesses: successes,
+    };
+    // 标记待办已执行（下一轮 reset 时若仍昏迷且 HP=0 会复活）
+    if (record.turnTodos) {
+      record.turnTodos = record.turnTodos.map(t =>
+        t.id === todoId ? { ...t, executed: true } : t
+      );
+    }
+    // 复活 / 死亡 / 稳定 → 待办使命结束，立即清理（避免遗留 executed=true 的死待办）
+    const shouldClean =
+      nextHp > 0 || nextDead || successes >= 3;
+    if (shouldClean && record.turnTodos) {
+      record.turnTodos = record.turnTodos.filter(t => t.id !== todoId);
+    }
+    record.updatedAt = Date.now();
+    save(records);
+    return { combatant: record.combatants[idx], outcome };
   },
 };
 

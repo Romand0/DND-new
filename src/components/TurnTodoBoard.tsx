@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react';
-import { Plus, X, Trash2, Check } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Plus, X, Trash2, Check, Dices } from 'lucide-react';
 import combatStore from '@/data/combatStore';
+import { useNumberInput, useTextInput } from '@/hooks/useInput';
 import type { CombatRecord, Combatant, TurnTodo, TurnTodoType } from '@/types/combat';
 import { TURN_TODO_TYPE_LABELS } from '@/types/combat';
 
@@ -24,16 +25,40 @@ const TYPE_LABELS_WITH_OTHER: Record<string, string> = {
   other: '其他',
 };
 
+/** 各类型待办的默认名称（用户留空时使用） */
+const DEFAULT_NAME_BY_TYPE: Partial<Record<TurnTodoType, string>> = {
+  death_save: '死亡豁免',
+};
+
 export default function TurnTodoBoard({ record, currentTurn, combatants }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [activeTodo, setActiveTodo] = useState<TurnTodo | null>(null);
+  // 死亡豁免弹窗的 d20 输入值（空串=未输入）
+  const [deathRollInput, setDeathRollInput] = useState('');
+  // 上一次死亡豁免结算结果（用于在弹窗内回显）
+  const [deathResult, setDeathResult] = useState<{ roll: number; outcome: string } | null>(null);
 
-  // 创建表单
+  // 创建表单：用 useNumberInput / useTextInput 分离"输入态字符串"与"业务值"
+  // 这样用户清空输入框时不会被立刻填回默认值（onChange 不兜底，onBlur 时才补全）
   const [formCombatantId, setFormCombatantId] = useState('');
-  const [formName, setFormName] = useState('');
+  const formNameInput = useTextInput('');
   const [formType, setFormType] = useState<TurnTodoType | 'other'>('other');
-  const [formStartRound, setFormStartRound] = useState(0);
-  const [formEndRound, setFormEndRound] = useState(-1);
+  const formStartRoundInput = useNumberInput(0);
+  const formEndRoundInput = useNumberInput(-1);
+
+  // 类型切换时：若用户没自定义名称，自动同步默认名称
+  useEffect(() => {
+    if (formType !== 'other' && DEFAULT_NAME_BY_TYPE[formType]) {
+      // 仅在用户未输入或上次自动填的名称属于其他类型默认值时覆盖
+      const isAutoOrEmpty =
+        !formNameInput.text ||
+        Object.values(DEFAULT_NAME_BY_TYPE).includes(formNameInput.text);
+      if (isAutoOrEmpty) {
+        formNameInput.setExternal(DEFAULT_NAME_BY_TYPE[formType]!);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formType]);
 
   const activeTodos = useMemo(() => {
     if (!currentTurn || !record.turnTodos) return [];
@@ -50,20 +75,27 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
 
   const handleCreate = () => {
     if (!formCombatantId) return;
-    if (formEndRound !== -1 && formStartRound > formEndRound) return;
+    // 提交前先取 onBlur 规范化后的业务值（hook 内部处理空值兜底）
+    const startRound = formStartRoundInput.value ?? 0;
+    const endRound = formEndRoundInput.value ?? -1;
+    if (endRound !== -1 && startRound > endRound) return;
+    const fallbackName =
+      formType !== 'other' && DEFAULT_NAME_BY_TYPE[formType]
+        ? DEFAULT_NAME_BY_TYPE[formType]!
+        : '';
     combatStore.addTurnTodo(record.id, {
       combatantId: formCombatantId,
-      name: formName.trim(),
+      name: formNameInput.value.trim() || fallbackName,
       type: formType === 'other' ? null : formType,
-      startRound: formStartRound,
-      endRound: formEndRound,
+      startRound,
+      endRound,
     });
     setShowCreate(false);
     setFormCombatantId('');
-    setFormName('');
+    formNameInput.reset();
     setFormType('other');
-    setFormStartRound(0);
-    setFormEndRound(-1);
+    formStartRoundInput.reset();
+    formEndRoundInput.reset();
   };
 
   const handleClickTodo = (todo: TurnTodo) => {
@@ -72,6 +104,8 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
       combatStore.toggleTurnTodo(record.id, todo.id);
     } else {
       setActiveTodo(todo);
+      setDeathRollInput('');
+      setDeathResult(null);
     }
   };
 
@@ -79,6 +113,51 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
     if (!activeTodo) return;
     combatStore.toggleTurnTodo(record.id, activeTodo.id);
     setActiveTodo(null);
+  };
+
+  // 死亡豁免掷骰结算
+  const handleDeathSaveRoll = (autoRoll?: number) => {
+    if (!activeTodo) return;
+    const roll = autoRoll ?? parseInt(deathRollInput, 10);
+    if (isNaN(roll) || roll < 1 || roll > 20) {
+      alert('请输入 1-20 之间的 d20 数值');
+      return;
+    }
+    const result = combatStore.applyDeathSaveResult(record.id, activeTodo.id, roll);
+    if (!result) {
+      setActiveTodo(null);
+      return;
+    }
+    // 描述结果
+    const cName = combatants.find(c => c.id === activeTodo.combatantId)?.name ?? '?';
+    let outcomeText: string;
+    if (result.outcome === 'crit_fail') {
+      outcomeText = `掷出 ${roll}：两次失败的豁免（失败 ${result.combatant.deathSaveFailures}/3）`;
+    } else if (result.outcome === 'fail') {
+      outcomeText = `掷出 ${roll}：一次失败的豁免（失败 ${result.combatant.deathSaveFailures}/3）`;
+    } else if (result.outcome === 'success') {
+      outcomeText = `掷出 ${roll}：一次成功的豁免（成功 ${result.combatant.deathSaveSuccesses}/3）`;
+    } else {
+      outcomeText = `掷出 ${roll}：${cName} HP 恢复至 1，结束昏迷`;
+    }
+    // 死亡（3 次失败）
+    if (result.combatant.isDead) {
+      outcomeText += `，累计 3 次失败，${cName} 已死亡`;
+    }
+    // 稳定（3 次成功）
+    if (!result.combatant.isDead && (result.combatant.deathSaveSuccesses ?? 0) >= 3) {
+      outcomeText += `，累计 3 次成功，${cName} 已稳定`;
+    }
+    setDeathResult({ roll, outcome: outcomeText });
+    setDeathRollInput('');
+    // 已复活 / 死亡 / 稳定 → applyDeathSaveResult 已自动清理待办，关闭弹窗
+    if (
+      result.outcome === 'revive' ||
+      result.combatant.isDead ||
+      (result.combatant.deathSaveSuccesses ?? 0) >= 3
+    ) {
+      setActiveTodo(null);
+    }
   };
 
   return (
@@ -91,7 +170,7 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
           onClick={() => {
             if (currentTurn) {
               setFormCombatantId(currentTurn.combatantId);
-              setFormStartRound(currentTurn.round);
+              formStartRoundInput.setExternal(currentTurn.round);
             }
             setShowCreate(true);
           }}
@@ -109,7 +188,11 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
       ) : (
         <div className="flex flex-wrap gap-2">
           {activeTodos.map(todo => {
-            const name = todo.name || `任务 ${++taskCounter}`;
+            const fallback =
+              todo.type && DEFAULT_NAME_BY_TYPE[todo.type]
+                ? DEFAULT_NAME_BY_TYPE[todo.type]!
+                : `任务 ${++taskCounter}`;
+            const name = todo.name || fallback;
             const typeLabel = todo.type ? TYPE_LABELS_WITH_OTHER[todo.type] : null;
             return (
               <div
@@ -184,9 +267,10 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
                 <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted block mb-1">名称（可选）</label>
                 <input
                   type="text"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
-                  placeholder="留空则自动编号"
+                  value={formNameInput.text}
+                  onChange={e => formNameInput.onChange(e.target.value)}
+                  onBlur={formNameInput.onBlur}
+                  placeholder="留空则按类型自动命名"
                   className="w-full px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light"
                 />
               </div>
@@ -207,8 +291,9 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
                   <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted block mb-1">起始回合（0-indexed）</label>
                   <input
                     type="number"
-                    value={formStartRound}
-                    onChange={e => setFormStartRound(parseInt(e.target.value) || 0)}
+                    value={formStartRoundInput.text}
+                    onChange={e => formStartRoundInput.onChange(e.target.value)}
+                    onBlur={formStartRoundInput.onBlur}
                     className="w-full px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light"
                   />
                 </div>
@@ -216,13 +301,14 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
                   <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted block mb-1">终止回合（-1=无限期）</label>
                   <input
                     type="number"
-                    value={formEndRound}
-                    onChange={e => setFormEndRound(parseInt(e.target.value) || -1)}
+                    value={formEndRoundInput.text}
+                    onChange={e => formEndRoundInput.onChange(e.target.value)}
+                    onBlur={formEndRoundInput.onBlur}
                     className="w-full px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light"
                   />
                 </div>
               </div>
-              {formEndRound !== -1 && formStartRound > formEndRound && (
+              {(formEndRoundInput.value ?? -1) !== -1 && (formStartRoundInput.value ?? 0) > (formEndRoundInput.value ?? -1) && (
                 <p className="text-xs text-red-500">起始回合不能大于终止回合</p>
               )}
             </div>
@@ -235,7 +321,7 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
               </button>
               <button
                 onClick={handleCreate}
-                disabled={!formCombatantId || (formEndRound !== -1 && formStartRound > formEndRound)}
+                disabled={!formCombatantId || ((formEndRoundInput.value ?? -1) !== -1 && (formStartRoundInput.value ?? 0) > (formEndRoundInput.value ?? -1))}
                 className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 创建
@@ -245,8 +331,21 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
         </div>
       )}
 
-      {/* 任务弹窗（预留接口） */}
-      {activeTodo && (
+      {/* 死亡豁免专用弹窗 */}
+      {activeTodo && activeTodo.type === 'death_save' && (
+        <DeathSaveDialog
+          todo={activeTodo}
+          combatant={combatants.find(c => c.id === activeTodo.combatantId) ?? null}
+          rollInput={deathRollInput}
+          setRollInput={setDeathRollInput}
+          result={deathResult}
+          onRoll={handleDeathSaveRoll}
+          onClose={() => setActiveTodo(null)}
+        />
+      )}
+
+      {/* 其他类型任务弹窗（预留接口） */}
+      {activeTodo && activeTodo.type !== 'death_save' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
           <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
             <div className="flex items-center justify-between mb-4">
@@ -286,6 +385,136 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// =======================
+// 死亡豁免弹窗子组件
+// =======================
+interface DeathSaveDialogProps {
+  todo: TurnTodo;
+  combatant: Combatant | null;
+  rollInput: string;
+  setRollInput: (v: string) => void;
+  result: { roll: number; outcome: string } | null;
+  onRoll: (autoRoll?: number) => void;
+  onClose: () => void;
+}
+
+function DeathSaveDialog({
+  todo,
+  combatant,
+  rollInput,
+  setRollInput,
+  result,
+  onRoll,
+  onClose,
+}: DeathSaveDialogProps) {
+  const failures = combatant?.deathSaveFailures ?? 0;
+  const successes = combatant?.deathSaveSuccesses ?? 0;
+  const cName = combatant?.name ?? '?';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">死亡豁免</h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-white/10"
+          >
+            <X className="w-5 h-5 dark:text-text-dark light:text-text-light" />
+          </button>
+        </div>
+
+        <p className="text-sm dark:text-text-dark light:text-text-light mb-1">
+          {cName} · HP {combatant?.currentHp ?? 0}/{combatant?.maxHp ?? 0}
+        </p>
+
+        {/* 失败 / 成功进度（D&D 5e：3 次失败死亡、3 次成功稳定） */}
+        <div className="flex gap-4 mb-3 text-xs">
+          <div className="flex items-center gap-1">
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">失败</span>
+            <div className="flex gap-0.5">
+              {[0, 1, 2].map(i => (
+                <span
+                  key={i}
+                  className={`w-3 h-3 rounded-full border ${
+                    i < failures
+                      ? 'bg-red-500 border-red-500'
+                      : 'dark:border-border-dark light:border-border-light'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">成功</span>
+            <div className="flex gap-0.5">
+              {[0, 1, 2].map(i => (
+                <span
+                  key={i}
+                  className={`w-3 h-3 rounded-full border ${
+                    i < successes
+                      ? 'bg-emerald-500 border-emerald-500'
+                      : 'dark:border-border-dark light:border-border-light'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-3">
+          d20 掷骰：1=两次失败；2-9=一次失败；10-19=一次成功；20=HP 恢复至 1 并解除昏迷。
+        </p>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={rollInput}
+            onChange={e => setRollInput(e.target.value)}
+            placeholder="手动输入 d20 (1-20)"
+            className="flex-1 px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light"
+          />
+          <button
+            onClick={() => onRoll(Math.floor(Math.random() * 20) + 1)}
+            className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center gap-1"
+            title="自动掷骰"
+          >
+            <Dices className="w-4 h-4" />
+            掷骰
+          </button>
+        </div>
+
+        <button
+          onClick={() => onRoll()}
+          disabled={!rollInput}
+          className="w-full px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mb-3"
+        >
+          提交结果
+        </button>
+
+        {result && (
+          <div className="px-2 py-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 border dark:border-border-dark light:border-border-light mb-3">
+            <p className="text-xs dark:text-text-dark light:text-text-light">
+              {result.outcome}
+            </p>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
