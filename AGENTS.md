@@ -433,6 +433,42 @@ newTranslate = startTranslate + (startScale - newScale) × startMid + (curMid - 
 
 **做新的状态触发型待办时**（比如「中毒每回合扣血」「断魂术每回合检定」）：复用这套模式——在 HP / 状态变更点（`handleApplyDamage` 或类似入口）调 `addTurnTodo` + `cleanupXxxTodos`，让待办与角色状态绑定，而不是让 DM 手动管理生命周期。
 
+### 5.10 受控输入 hook：`useNumberInput` / `useTextInput`（`hooks/useInput.ts`）
+
+**为什么用**：原生 number input 最常见的写法是 `onChange={e => setX(parseInt(e.target.value) || 0)}`，这会导致用户清空输入框时立刻被填回 0，无法删除全部数字重新输入（典型痛点：把 100 改成 50 必须先删成 "10" 再改 "5"，不能清空再输 "50"）。把"输入态字符串"和"业务态数值"分离后，onChange 只更新字符串、不立即兜底，onBlur 时才按 fallback 补全占位——这就是用户期望的「光标闪烁时可清空，光标消失时按需补全」。
+
+**核心 API**：
+```ts
+const r = useNumberInput(initialValue, { fallback?: number; allowEmpty?: boolean; parse?: (s) => number });
+// r.text   —— input 的 value（输入态字符串，可能为空或 "-"）
+// r.value  —— 业务数值（输入无效时为上一个有效值；allowEmpty=true 时可能 undefined）
+// r.onChange(s) —— 接 e.target.value，不兜底
+// r.onBlur()    —— 失焦时按 fallback 补全 + 规范化显示
+// r.setExternal(n) —— 父组件外部重置（如选中不同 record 时）
+// r.reset() —— 重置到 initialValue
+
+const t = useTextInput(initialValue, { fallback?: string; trimOnBlur?: boolean });
+// 同构 API：onChange 不 trim 不补全，onBlur 时按需 trim 和补 fallback
+```
+
+**与 §5.1 equipmentFactory 同属"统一入口消除重复"思路**：所有数字/文本输入都走这两个 hook，兜底值由 options 显式声明，不在每个 onChange 里散写 `|| N`。改造前项目里有 21+ 处 `parseInt(e.target.value) || N` 散落在 8+ 个文件，兜底值 0 / 1 / 2 / -1 / 10 随场景各异；改造后调用方写 `useNumberInput(0, { fallback: -1 })`，意图一目了然。
+
+**典型用法**（参考 `TurnTodoBoard.tsx`）：
+```tsx
+const formStartRoundInput = useNumberInput(0);
+const formEndRoundInput = useNumberInput(-1);
+// ...
+<input
+  type="number"
+  value={formStartRoundInput.text}
+  onChange={e => formStartRoundInput.onChange(e.target.value)}
+  onBlur={formStartRoundInput.onBlur}
+/>
+// 提交时取 formStartRoundInput.value（已是 onBlur 规范化后的业务值）
+```
+
+**做新表单 / 新弹窗输入框时**：优先用这两个 hook，不要在 onChange 里直接 `parseInt(...) || N`。如果字段是可选的（如 TreasureEdit 的 normalRange/maxRange），用 `allowEmpty: true` 让 value 类型变为 `number | undefined`。
+
 ---
 
 ## 6. 命名与编码约定
