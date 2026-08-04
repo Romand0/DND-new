@@ -444,20 +444,67 @@ export default function CombatSession() {
   // ✅ 新增：应用伤害 —— 仅写入战斗参战者 HP，不回传角色卡
   // status: 'unconscious' 昏迷 / 'dead' 死亡（NPC 致命伤害时附带）
   const handleApplyDamage = (targetId: string, newHp: number, status?: 'unconscious' | 'dead') => {
+    const target = record.combatants.find(c => c.id === targetId);
+    const wasUnconscious = target?.isUnconscious ?? false;
     const updatedCombatants = record.combatants.map(c => {
       if (c.id !== targetId) return c;
       if (newHp <= 0 && status === 'dead') {
         return { ...c, currentHp: newHp, isDead: true, isUnconscious: false };
       }
       if (newHp <= 0 && status === 'unconscious') {
-        return { ...c, currentHp: newHp, isDead: false, isUnconscious: true };
+        // 首次进入昏迷时重置死亡豁免计数（D&D 5e：每次倒下重新计数）
+        const firstDown = !wasUnconscious;
+        return {
+          ...c,
+          currentHp: newHp,
+          isDead: false,
+          isUnconscious: true,
+          deathSaveFailures: firstDown ? 0 : (c.deathSaveFailures ?? 0),
+          deathSaveSuccesses: firstDown ? 0 : (c.deathSaveSuccesses ?? 0),
+        };
       }
-      return { ...c, currentHp: newHp, isDead: false, isUnconscious: false };
+      // HP > 0：恢复清醒，同时清零死亡豁免计数
+      return {
+        ...c,
+        currentHp: newHp,
+        isDead: false,
+        isUnconscious: false,
+        deathSaveFailures: 0,
+        deathSaveSuccesses: 0,
+      };
     });
     combatStore.update(record.id, {
       combatants: updatedCombatants,
       updatedAt: Date.now(),
     });
+
+    // ✅ 死亡豁免待办自动生命周期：
+    //   1) PC 首次进入昏迷（HP=0 & unconscious）→ 自动创建待办
+    //   2) HP 恢复 / 死亡 / 稳定 → 自动清理
+    // 仅放映模式下创建（待办依赖回合系统）
+    if (record.mode === 'playback' && target?.isPc) {
+      const nowDown = newHp <= 0 && status === 'unconscious';
+      if (nowDown) {
+        const existing = combatStore.get(record.id)?.turnTodos?.some(
+          t => t.type === 'death_save' && t.combatantId === targetId
+        );
+        if (!existing) {
+          // 起始回合 = 当前回合（"当前回合后满足触发条件的第一个属于适用者的回合"）。
+          // findNextValidTurn 会让带未执行死亡豁免待办的昏迷 PC 的回合照常推进，
+          // activeTodos 的 startRound <= round 判定会确保只在 PC 的回合显示。
+          const startRound = currentTurn ? currentTurn.round : 0;
+          combatStore.addTurnTodo(record.id, {
+            combatantId: targetId,
+            name: '死亡豁免',
+            type: 'death_save',
+            startRound,
+            endRound: -1, // 由 cleanupDeathSaveTodos 按 HP 状态终止
+          });
+        }
+      }
+    }
+    // HP 变化后统一清理已失效的死亡豁免待办
+    combatStore.cleanupDeathSaveTodos(record.id);
   };
 
   // ============ 动作机制 ============
@@ -823,6 +870,7 @@ export default function CombatSession() {
   // ✅ 找到下一个有效回合（跳过被突袭/昏迷/死亡）
   // 从指定位置（行、列）开始，向右→下一行扫描，遇到第一个非占位的格子
   // 可选传入 roundsOverride：当本帧刚 combatStore.update 新增了轮次、record 还没重新渲染时使用
+  // 例外：昏迷角色若有未执行且在当前回合有效的死亡豁免待办，仍保留回合（D&D 5e：昏迷角色需做死亡豁免）
   const findNextValidTurn = (
     fromRound: number,
     fromCol: number,
@@ -830,12 +878,26 @@ export default function CombatSession() {
   ): { round: number; combatantIdx: number; combatantId: string } | null => {
     if (!record) return null;
     const rounds = roundsOverride ?? record.rounds;
+    // 读最新 turnTodos：handleApplyDamage 等刚写入 store 后 record.turnTodos 可能未刷新
+    const latestTodos = combatStore.get(record.id)?.turnTodos ?? record.turnTodos ?? [];
+    const hasActiveDeathSave = (combatantId: string, round: number) =>
+      latestTodos.some(t =>
+        t.type === 'death_save' &&
+        t.combatantId === combatantId &&
+        !t.executed &&
+        t.startRound <= round &&
+        (t.endRound === -1 || t.endRound >= round)
+      );
     for (let r = fromRound; r < rounds.length; r++) {
       const startCol = r === fromRound ? fromCol : 0;
       for (let i = startCol; i < record.combatants.length; i++) {
         const c = record.combatants[i];
         const v = rounds[r][c.id];
-        if (v === '被突袭' || v === '昏迷' || v === '死亡') continue;
+        if (v === '被突袭' || v === '死亡') continue;
+        if (v === '昏迷') {
+          // 昏迷默认跳过；但有未执行的死亡豁免待办时仍需推进到该回合
+          if (!hasActiveDeathSave(c.id, r)) continue;
+        }
         return { round: r, combatantIdx: i, combatantId: c.id };
       }
     }
