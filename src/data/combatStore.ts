@@ -441,7 +441,7 @@ const combatStore = {
     const found = load().find(r => r.id === id) ?? null;
     if (!found) return null;
     // 浅拷贝：防止调用方 mutate 污染内存缓存（原实现每次 parse 天然隔离）
-    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds] };
+    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds], turnTodos: found.turnTodos ? [...found.turnTodos] : undefined };
   },
 
   /**
@@ -597,11 +597,11 @@ const combatStore = {
     if (!record) return;
     if (!record.turnTodos) record.turnTodos = [];
     const rand6 = Math.random().toString(36).slice(2, 8);
-    record.turnTodos.push({
+    record.turnTodos = [...record.turnTodos, {
       ...todo,
       id: `${todo.combatantId}-todo-${Date.now()}-${rand6}`,
       executed: false,
-    });
+    }];
     record.updatedAt = Date.now();
     save(records);
   },
