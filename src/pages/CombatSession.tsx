@@ -443,15 +443,21 @@ export default function CombatSession() {
 
   // ✅ 新增：应用伤害 —— 仅写入战斗参战者 HP，不回传角色卡
   // status: 'unconscious' 昏迷 / 'dead' 死亡（NPC 致命伤害时附带）
+  // PC HP 归零未显式指定 status 时，按 D&D 5e 规则自动判定为昏迷（不直接死亡）
   const handleApplyDamage = (targetId: string, newHp: number, status?: 'unconscious' | 'dead') => {
     const target = record.combatants.find(c => c.id === targetId);
     const wasUnconscious = target?.isUnconscious ?? false;
+    const isPc = target?.isPc ?? false;
+    // PC HP≤0 且未显式指定状态 → 自动昏迷（D&D 5e：PC 不会因伤害直接死亡，先进入昏迷）
+    const effectiveStatus: 'unconscious' | 'dead' | undefined =
+      status ?? (newHp <= 0 && isPc ? 'unconscious' : undefined);
+
     const updatedCombatants = record.combatants.map(c => {
       if (c.id !== targetId) return c;
-      if (newHp <= 0 && status === 'dead') {
+      if (newHp <= 0 && effectiveStatus === 'dead') {
         return { ...c, currentHp: newHp, isDead: true, isUnconscious: false };
       }
-      if (newHp <= 0 && status === 'unconscious') {
+      if (newHp <= 0 && effectiveStatus === 'unconscious') {
         // 首次进入昏迷时重置死亡豁免计数（D&D 5e：每次倒下重新计数）
         const firstDown = !wasUnconscious;
         return {
@@ -482,8 +488,8 @@ export default function CombatSession() {
     //   1) PC 首次进入昏迷（HP=0 & unconscious）→ 自动创建待办
     //   2) HP 恢复 / 死亡 / 稳定 → 自动清理
     // 仅放映模式下创建（待办依赖回合系统）
-    if (record.mode === 'playback' && target?.isPc) {
-      const nowDown = newHp <= 0 && status === 'unconscious';
+    if (record.mode === 'playback' && isPc) {
+      const nowDown = newHp <= 0 && effectiveStatus === 'unconscious';
       if (nowDown) {
         const existing = combatStore.get(record.id)?.turnTodos?.some(
           t => t.type === 'death_save' && t.combatantId === targetId
