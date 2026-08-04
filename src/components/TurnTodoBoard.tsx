@@ -150,14 +150,12 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
     }
     setDeathResult({ roll, outcome: outcomeText });
     setDeathRollInput('');
-    // 已复活 / 死亡 / 稳定 → applyDeathSaveResult 已自动清理待办，关闭弹窗
-    if (
-      result.outcome === 'revive' ||
-      result.combatant.isDead ||
-      (result.combatant.deathSaveSuccesses ?? 0) >= 3
-    ) {
+    // 每回合只能骰一次：结算完成后无论结果都关闭弹窗。
+    // 计数已写入 combatant（失败/成功圆点在弹窗打开时也能看到），待办已标记 executed=true（列表中灰色划线）。
+    // 下一轮 resetTurnTodosForRound 会把死亡豁免待办重置为未执行，允许继续骰。
+    setTimeout(() => {
       setActiveTodo(null);
-    }
+    }, 1200);
   };
 
   return (
@@ -478,11 +476,13 @@ function DeathSaveDialog({
             value={rollInput}
             onChange={e => setRollInput(e.target.value)}
             placeholder="手动输入 d20 (1-20)"
-            className="flex-1 px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light"
+            disabled={!!result}
+            className="flex-1 px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light disabled:opacity-40 disabled:cursor-not-allowed"
           />
           <button
             onClick={() => onRoll(Math.floor(Math.random() * 20) + 1)}
-            className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center gap-1"
+            disabled={!!result}
+            className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
             title="自动掷骰"
           >
             <Dices className="w-4 h-4" />
@@ -492,7 +492,7 @@ function DeathSaveDialog({
 
         <button
           onClick={() => onRoll()}
-          disabled={!rollInput}
+          disabled={!rollInput || !!result}
           className="w-full px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mb-3"
         >
           提交结果
