@@ -684,6 +684,8 @@ const combatStore = {
     if (!record) return null;
     const todo = record.turnTodos?.find(t => t.id === todoId);
     if (!todo) return null;
+    // 每回合只能骰一次：已执行过的待办直接拒绝，避免重复累加
+    if (todo.executed) return null;
     const idx = record.combatants.findIndex(c => c.id === todo.combatantId);
     if (idx === -1) return null;
     const c = record.combatants[idx];
