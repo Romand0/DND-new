@@ -91,7 +91,7 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
           onClick={() => {
             if (currentTurn) {
               setFormCombatantId(currentTurn.combatantId);
-              setFormStartRound(currentTurn.round + 1);
+              setFormStartRound(currentTurn.round);
             }
             setShowCreate(true);
           }}
