@@ -114,11 +114,11 @@ export default function CharacterInventory({
 
 const totalValue = character.equipment.reduce(
   (sum, item) => {
-    const amount = item.price?.amount || 0;
-    const qty = item.quantity || 1;
+    const amount = Math.floor(item.price?.amount || 0);
+    const qty = Math.floor(item.quantity || 1);
     let effectiveAmount: number;
     if (item.packSize && item.packSize > 0) {
-      effectiveAmount = (amount / item.packSize) * qty;
+      effectiveAmount = Math.floor((amount / item.packSize) * qty);
     } else {
       effectiveAmount = amount * qty;
     }
@@ -131,7 +131,7 @@ const totalValue = character.equipment.reduce(
 );
 
 
-  const totalCp = totalValue.gp * 100 + totalValue.sp * 10 + totalValue.cp;
+  const totalCp = Math.floor(totalValue.gp) * 100 + Math.floor(totalValue.sp) * 10 + Math.floor(totalValue.cp);
   const gp = Math.floor(totalCp / 100);
   const sp = Math.floor((totalCp % 100) / 10);
   const cp = totalCp % 10;
@@ -466,10 +466,10 @@ const handleUpdateEquipmentQuantity = (equipId: string, delta: number) => {
                   <span>总价值</span>
                 </div>
                 <span className="font-medium dark:text-text-dark light:text-text-light">
-                  {gp > 0 && <span>{gp} gp </span>}
-                  {sp > 0 && <span>{sp} sp </span>}
-                  {cp > 0 && <span>{cp} cp</span>}
-                  {gp === 0 && sp === 0 && cp === 0 && <span>0 cp</span>}
+                  {totalValue.gp > 0 && <span>{totalValue.gp} gp </span>}
+                  {totalValue.sp > 0 && <span>{totalValue.sp} sp </span>}
+                  {totalValue.cp > 0 && <span>{totalValue.cp} cp</span>}
+                  {totalValue.gp === 0 && totalValue.sp === 0 && totalValue.cp === 0 && <span>0 cp</span>}
                 </span>
               </div>
             </div>

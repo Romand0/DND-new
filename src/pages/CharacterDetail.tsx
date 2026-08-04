@@ -517,11 +517,11 @@ const totalValue = character
   ? character.equipment.reduce(
       (acc, item) => {
         if (!item.price) return acc;
-        const q = item.quantity || 1;
-        const amount = item.price.amount;
+        const q = Math.floor(item.quantity || 1);
+        const amount = Math.floor(item.price.amount);
         let effectiveAmount: number;
         if (item.packSize && item.packSize > 0) {
-          effectiveAmount = (amount / item.packSize) * q;
+          effectiveAmount = Math.floor((amount / item.packSize) * q);
         } else {
           effectiveAmount = amount * q;
         }
@@ -534,7 +534,7 @@ const totalValue = character
     )
   : { gp: 0, sp: 0, cp: 0 };
 
-  const totalCp = totalValue.gp * 100 + totalValue.sp * 10 + totalValue.cp;
+  const totalCp = Math.floor(totalValue.gp) * 100 + Math.floor(totalValue.sp) * 10 + Math.floor(totalValue.cp);
   const gp = Math.floor(totalCp / 100);
   const sp = Math.floor((totalCp % 100) / 10);
   const cp = totalCp % 10;
@@ -1396,10 +1396,10 @@ if (character) {
                     <span>总价值</span>
                   </div>
                   <span className="font-medium">
-                    {totalValue.gp > 0 && <span>{totalValue.gp} gp </span>}
-                    {totalValue.sp > 0 && <span>{totalValue.sp} sp </span>}
-                    {totalValue.cp > 0 && <span>{totalValue.cp} cp</span>}
-                    {totalValue.gp === 0 && totalValue.sp === 0 && totalValue.cp === 0 && <span>0 cp</span>}
+                    {gp > 0 && <span>{gp} gp </span>}
+                    {sp > 0 && <span>{sp} sp </span>}
+                    {cp > 0 && <span>{cp} cp</span>}
+                    {gp === 0 && sp === 0 && cp === 0 && <span>0 cp</span>}
                   </span>
                 </div>
               </div>
@@ -1439,7 +1439,7 @@ if (character) {
                           characterStore.update(id!, {
                             currency: {
                               ...character!.currency,
-                              [coin]: num,
+                              [coin]: Math.floor(num),
                             },
                           });
                           reloadChar();
