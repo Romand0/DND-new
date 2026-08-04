@@ -414,12 +414,24 @@ newTranslate = startTranslate + (startScale - newScale) × startMid + (curMid - 
 - `removeTurnTodo(recordId, todoId)`：删除一条
 - `toggleTurnTodo(recordId, todoId)`：切换 `executed` 状态
 - `resetTurnTodosForRound(recordId, round)`：进入新回合时把所有待办 `executed` 重置为 false（DM 每回合重新处理一遍持续效果）
+- `cleanupDeathSaveTodos(recordId)`：扫描所有 `type==='death_save'` 待办，按终止条件（HP>0 / isDead / 成功≥3）移除已结束的死亡豁免。在 HP 变更 / 死亡豁免结算后调用
+- `applyDeathSaveResult(recordId, todoId, roll)`：把 d20 结果落到 combatant（更新 `deathSaveFailures / deathSaveSuccesses / HP / isUnconscious / isDead`），标记 todo `executed=true`，并在复活/死亡/稳定时自动移除 todo。返回更新后的 combatant 与 outcome（`crit_fail | fail | success | revive`）
 
-**组件**：`components/TurnTodoBoard.tsx` 渲染看板 UI，调用上述接口读写 combatStore，本身不持有路由也不直连 API，符合「组件只通过 props / store 订阅」的约定。
+**组件**：`components/TurnTodoBoard.tsx` 渲染看板 UI，调用上述接口读写 combatStore，本身不持有路由也不直连 API，符合「组件只通过 props / store 订阅」的约定。死亡豁免类型有独立弹窗（`DeathSaveDialog` 子组件，含 d20 手动输入 + 一键掷骰按钮 + 失败/成功进度回显）。
 
 **触发条件**：仅在「放映模式（projection）」+「已开始放映」时显示。备战/编辑态下不展示，避免 DM 在编排参战者时被待办干扰。
 
 **做新的「跨回合持续效果」类功能时**（比如新增专注法术、再生体质）：优先走这套 TurnTodo 机制，把效果注册成一条待办并设定每回合重置，不要在 CombatSession 里另起一套独立的 effect 追踪数组。
+
+### 5.9 状态驱动待办自动生命周期：`death_save` 模式
+
+**为什么用**：死亡豁免（D&D 5e 标准规则）是「状态触发型」待办——PC HP 归零进入昏迷的瞬间就应该开始提醒，HP 恢复或死亡时自动结束。靠 DM 手动 add/remove 待办极易漏。把触发条件编码到 `handleApplyDamage` 里：检测到 `target.isPc && newHp<=0 && status==='unconscious'` 时自动 `addTurnTodo`，HP 变化后调 `cleanupDeathSaveTodos` 让待办随状态结束。
+
+**终止条件编码在 store 而非 todo 字段**：用户需求里写「终止条件：HP>0」是**业务规则**，不是 todo 数据结构里的 `endRound`。`TurnTodo.endRound=-1`（无限期）+ `cleanupDeathSaveTodos` 的状态扫描一起实现「状态终止」。这样 `resetTurnTodosForRound` 的回合重置逻辑不会误清状态型待办，待办只在 `cleanup` 显式判定终止时移除。
+
+**昏迷 PC 仍要推进回合**：`findNextValidTurn` 默认跳过 `昏迷` 单元格（昏迷角色不能行动），但带未执行 `death_save` 待办的昏迷 PC 例外——D&D 5e 规定昏迷角色在自己回合开始时做死亡豁免。所以 `findNextValidTurn` 增加例外分支：`昏迷` 单元格若对应 combatant 有 active death_save todo（`!executed && startRound<=round && endRound=-1||>=round`），仍返回该回合。掷骰后 `executed=true`，本回合后续扫描自然跳过；下一回合 `resetTurnTodosForRound` 重置为 false，PC 回合再次推进。
+
+**做新的状态触发型待办时**（比如「中毒每回合扣血」「断魂术每回合检定」）：复用这套模式——在 HP / 状态变更点（`handleApplyDamage` 或类似入口）调 `addTurnTodo` + `cleanupXxxTodos`，让待办与角色状态绑定，而不是让 DM 手动管理生命周期。
 
 ---
 
