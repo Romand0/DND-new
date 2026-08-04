@@ -158,7 +158,9 @@ function saveCharacter(charData: Character): Character {
   }
   
   saveStore(chars);
-  syncCharacterToBackend(charWithTimestamps).catch(() => {});
+  syncCharacterToBackend(charWithTimestamps).catch((err) => {
+    console.error('[characterStore] 同步到后端失败:', err);
+  });
   return charWithTimestamps;
 }
 
@@ -179,24 +181,37 @@ async function syncCharacterToBackend(char: Character): Promise<void> {
       body: JSON.stringify(char),
       headers,
     });
-  } catch {
-    // PUT 失败（可能是新角色 404 或网络问题），尝试 POST 创建
-    await api.apiFetch('/characters', {
-      method: 'POST',
-      body: JSON.stringify(char),
-      headers,
-    });
+  } catch (err: any) {
+    // 仅当角色不存在（404）时才 POST 创建，避免网络错误导致重复创建
+    if (err?.message?.includes('404') || err?.message?.includes('不存在')) {
+      await api.apiFetch('/characters', {
+        method: 'POST',
+        body: JSON.stringify(char),
+        headers,
+      });
+    } else {
+      throw err;
+    }
   }
 }
 
-
-// 从后端加载所有角色（覆盖本地缓存）
+// 从后端加载所有角色
 async function loadAllFromBackend(): Promise<Character[]> {
   if (!api.hasToken()) {
-    // 玩家端也通过公开接口读取
-    return await api.fetchAllCharacters<Character[]>();
+    return [];
   }
   return await api.fetchAllCharacters<Character[]>();
+}
+
+// 从后端加载所有角色并替换本地缓存（不触发反向同步）
+async function replaceAllFromBackend(): Promise<Character[]> {
+  const chars = await loadAllFromBackend();
+  const migrated = chars.map((c: any) => migrateCharacter(c));
+  // 直接写入 localStorage 并更新缓存，不触发 syncCharacterToBackend
+  charactersCache = migrated;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+  scheduleBackup();
+  return migrated;
 }
 
 // ============================================================
@@ -2013,6 +2028,7 @@ export const characterStore = {
   // 后端 API
   syncCharacterToBackend,
   loadAllFromBackend,
+  replaceAllFromBackend,
 
     // 穿戴/卸下
   wearEquipment,

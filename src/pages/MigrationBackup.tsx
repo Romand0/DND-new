@@ -105,16 +105,25 @@ export default function MigrationBackup() {
       if (data.equipments && Array.isArray(data.equipments) && data.equipments.length > 0) {
         const result = await api.batchUpsertEquipments(data.equipments);
         eqCount = result.count;
+        // 修复：saveToCache 接收数组，逐个处理会覆盖缓存。合并到本地缓存
+        const existing = equipmentStore.getAll();
+        const eqMap = new Map(existing.map((e: any) => [e.id, e]));
         data.equipments.forEach((e: any) => {
           if (!e.id && e.childId) e.id = e.childId;
-          equipmentStore.save(e);
+          eqMap.set(e.id, { ...eqMap.get(e.id), ...e });
         });
+        equipmentStore.save(Array.from(eqMap.values()));
       }
 
       if (data.spells && Array.isArray(data.spells) && data.spells.length > 0) {
         const result = await api.batchUpsertSpells(data.spells);
         spCount = result.count;
-        data.spells.forEach((s: any) => spellStore.save(s));
+        const existing = spellStore.getAll();
+        const spMap = new Map(existing.map((s: any) => [s.id, s]));
+        data.spells.forEach((s: any) => {
+          spMap.set(s.id, { ...spMap.get(s.id), ...s });
+        });
+        spellStore.save(Array.from(spMap.values()));
       }
 
       if (data.characters && Array.isArray(data.characters) && data.characters.length > 0) {
@@ -155,23 +164,28 @@ export default function MigrationBackup() {
         api.fetchAllCharacters(),
       ]);
 
-      if (eqs.length > 0) eqs.forEach((e: any) => {
-        if (!e.id && e.childId) e.id = e.childId;
-        equipmentStore.save(e);
-      });
-      if (sps.length > 0) sps.forEach((s: any) => spellStore.save(s));
-      if (chars.length > 0) {
-        const blank = characterStore.createBlank();
-        chars.forEach((c: any) => {
-          const merged = { ...blank, ...c };
-          if (merged.equipment) {
-            merged.equipment = merged.equipment.map((eq: any) => {
-              if (!eq.id && eq.childId) eq.id = eq.childId;
-              return eq;
-            });
-          }
-          characterStore.save(merged);
+      // 装备：合并到本地缓存（save 接收数组）
+      if (eqs.length > 0) {
+        const eqMap = new Map(equipmentStore.getAll().map((e: any) => [e.id, e]));
+        eqs.forEach((e: any) => {
+          if (!e.id && e.childId) e.id = e.childId;
+          eqMap.set(e.id, { ...eqMap.get(e.id), ...e });
         });
+        equipmentStore.save(Array.from(eqMap.values()));
+      }
+
+      // 法术：合并到本地缓存（save 接收数组）
+      if (sps.length > 0) {
+        const spMap = new Map(spellStore.getAll().map((s: any) => [s.id, s]));
+        sps.forEach((s: any) => {
+          spMap.set(s.id, { ...spMap.get(s.id), ...s });
+        });
+        spellStore.save(Array.from(spMap.values()));
+      }
+
+      // 角色：使用 replaceAllFromBackend 一次性替换本地缓存，避免逐个 save 触发反向同步
+      if (chars.length > 0) {
+        await characterStore.replaceAllFromBackend();
       }
 
       setMigrateResult({
