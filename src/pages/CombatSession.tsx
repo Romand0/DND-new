@@ -22,6 +22,7 @@ import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
+import TurnTodoBoard from '@/components/TurnTodoBoard';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -846,6 +847,10 @@ export default function CombatSession() {
     if (!currentTurn || !record) return;
     const next = findNextValidTurn(currentTurn.round, currentTurn.combatantIdx + 1);
     if (next) {
+      // 进入新轮时重置待办执行状态
+      if (next.round > currentTurn.round) {
+        combatStore.resetTurnTodosForRound(record.id, next.round);
+      }
       setCurrentTurn(next);
       resetCombatantActions(next.combatantId);
       takeTurnSnapshot(next.round, next.combatantId);
@@ -871,6 +876,8 @@ export default function CombatSession() {
       });
       const updatedRounds = [...record.rounds, newRound];
       combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
+      // 新轮重置待办执行状态
+      combatStore.resetTurnTodosForRound(record.id, nextRound);
       // 用 updatedRounds 覆盖参数避免读到旧 record
       const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
@@ -882,6 +889,8 @@ export default function CombatSession() {
         setPlaybackStarted(false);
       }
     } else {
+      // 新轮重置待办执行状态
+      combatStore.resetTurnTodosForRound(record.id, nextRound);
       const firstInNext = findNextValidTurn(nextRound, 0);
       if (firstInNext) {
         setCurrentTurn(firstInNext);
@@ -1483,6 +1492,15 @@ export default function CombatSession() {
           </span>
         )}
       </div>
+
+      {/* ✅ 回合待办展示板 —— 仅放映模式 + 已开始放映时显示 */}
+      {record.mode === 'playback' && playbackStarted && currentTurn && (
+        <TurnTodoBoard
+          record={record}
+          currentTurn={currentTurn}
+          combatants={record.combatants}
+        />
+      )}
 
       {/* 原内容：完全保留，一个字都没改（表格逻辑不变） */}
       <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">

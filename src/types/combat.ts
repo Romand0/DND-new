@@ -116,6 +116,34 @@ export function isOneActionCast(castingTime?: string): boolean {
   return castingTime.includes('动作');
 }
 
+/** 预设任务类型：决定点击跳转的弹窗种类；null = 其他（无跳转） */
+export type TurnTodoType =
+  | 'save_throw'
+  | 'damage_roll'
+  | 'condition_check'
+  | 'concentration_check'
+  | 'death_save';
+
+/** 任务类型标签映射 */
+export const TURN_TODO_TYPE_LABELS: Record<TurnTodoType, string> = {
+  save_throw: '豁免检定',
+  damage_roll: '持续伤害',
+  condition_check: '状态检查',
+  concentration_check: '专注检定',
+  death_save: '死亡豁免',
+};
+
+/** 回合待办事项 */
+export interface TurnTodo {
+  id: string;
+  combatantId: string;
+  name: string;
+  type: TurnTodoType | null;
+  startRound: number;
+  endRound: number; // -1 = 无限期
+  executed: boolean;
+}
+
 export interface CombatRecord {
   id: string;
   title: string;
@@ -123,6 +151,8 @@ export interface CombatRecord {
   rounds: RoundAction[];
   /** 战斗模式：'simulation' 模拟模式（无回合），'playback' 放映模式（有回合） */
   mode?: 'simulation' | 'playback';
+  /** 回合待办列表（放映模式专用） */
+  turnTodos?: TurnTodo[];
   /**
    * 装备变更信息（战斗期间的"漏斗"，不直接修改角色卡）
    * key 为 combatantId

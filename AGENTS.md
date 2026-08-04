@@ -17,6 +17,7 @@
 | 改角色装备操作（增删、手持、穿戴） | `src/hooks/useEquipmentActions.ts` + `src/data/characterStore.ts` + `src/data/equipmentWear.ts` | 三者协作，不要只改其一 |
 | 改战斗逻辑（背包派生、AC、动作、弹药、装填） | `src/data/combatStore.ts` + `src/pages/CombatSession.tsx` | combatStore 是纯计算层，CombatSession 是交互层，分离要保持 |
 | 改攻击检定弹窗（射程、弹药、装填检查） | `src/components/CombatAttackModal.tsx` | 可用性检查统一走 `getAttackStatus`，不要在按钮里硬加判断 |
+| 改回合待办（持续效果提醒） | `src/components/TurnTodoBoard.tsx` + `src/data/combatStore.ts` 的 `addTurnTodo / removeTurnTodo / toggleTurnTodo / resetTurnTodosForRound` | 待办数据内嵌在 CombatRecord，与 equipmentChanges 同层级；只在放映模式 + 已开始放映时显示 |
 | 改沙盘交互（双指缩放、白圈、拾取） | `src/components/Battleground.tsx` | 触摸事件链（pointerdown→move→up→click）脆弱，改之前先通读一遍 |
 | 改云 API 接口 | `functions/api/**/*.ts` + `src/lib/api.ts` | 改后端必须同步改前端 api 客户端；D1 操作在 SQL 里，别丢 WHERE |
 | 改登录 / 权限 | `src/contexts/AuthContext.tsx` + `functions/_utils.ts` | AuthContext 里 user/isDM/isAuthenticated 是三大派生，不要加冲突的局部判断 |
@@ -152,9 +153,9 @@ src/
 │   ├── equipments.json / spells.json   预置种子数据
 │   └── calendarData.ts       月份/星期常量
 │
-├── components/          23 个可复用组件（无路由、无 store CRUD API 直写）
+├── components/          24 个可复用组件（无路由、无 store CRUD API 直写）
 │   ├── Layout.tsx / PlayerLayout.tsx   两套导航壳（DM/玩家）
-│   ├── Navbar.tsx       顶栏（variant = 'dm' | 'player'）
+│   ├── Navbar.tsx       顶栏（variant = 'dm' | 'player')
 │   ├── ProtectedRoute.tsx   路由守卫（登录 / DM 检查）
 │   │
 │   ├── Battle**核心三件套**：
@@ -162,7 +163,8 @@ src/
 │   │   ├── CombatDamageModal.tsx    伤害结算（暴击/抗性 → HP 扣减）
 │   │   ├── CombatSpellModal.tsx     法术施放（施法时间判定 → 动作消耗）
 │   │   ├── CombatantInfoPanel.tsx   参战者详情（动作面板 / 手部状态 / 变更信息编辑）
-│   │   └── Battleground.tsx         🌟 沙盘（双指缩放锚点 / 白圈拖拽锁定 / 距离拾取）
+│   │   ├── Battleground.tsx         🌟 沙盘（双指缩放锚点 / 白圈拖拽锁定 / 距离拾取）
+│   │   └── TurnTodoBoard.tsx        回合待办看板（持续效果跨回合提醒，仅放映模式显示）
 │   │
 │   ├── 编辑器三件套：
 │   │   ├── EquipmentEditor.tsx    装备模板编辑（连 equipmentFactory）
@@ -401,6 +403,24 @@ newTranslate = startTranslate + (startScale - newScale) × startMid + (curMid - 
 
 **新增武器属性时**（比如「双持」「反冲」）：先加进 `WEAPON_PROPERTIES` 数组（`AttackEditor.tsx` L14-17），再扩展 `parseWeaponData`。
 
+### 5.8 回合待办（TurnTodo）：`combatStore` + `TurnTodoBoard.tsx`
+
+**为什么用**：D&D 战斗里大量持续效果（中毒、祝福、专注法术、再生、昏迷豁免……）需要跨多个回合提醒 DM「轮到这个参战者时要处理什么」。靠 DM 脑记极易漏，记在便签上又脱离战斗上下文。把待办项挂在 `CombatRecord` 上、按回合重置已执行状态，能保证每回合开始时自动恢复「未完成」清单，DM 勾掉一项才算处理过。
+
+**存储模式**：待办数据内嵌在 `CombatRecord` 里（与 `equipmentChanges` 同层级），是「战斗临时数据」而非角色源数据——战斗结束随 CombatRecord 一起保留/丢弃，不污染角色卡。这跟 §5.3 变更漏斗是同一种「战斗副本」思想：临时状态挂在 CombatRecord 上，不写回源。
+
+**核心接口**（`data/combatStore.ts`）：
+- `addTurnTodo(recordId, todo)`：新增一条待办（自动生成 id，`executed=false`）
+- `removeTurnTodo(recordId, todoId)`：删除一条
+- `toggleTurnTodo(recordId, todoId)`：切换 `executed` 状态
+- `resetTurnTodosForRound(recordId, round)`：进入新回合时把所有待办 `executed` 重置为 false（DM 每回合重新处理一遍持续效果）
+
+**组件**：`components/TurnTodoBoard.tsx` 渲染看板 UI，调用上述接口读写 combatStore，本身不持有路由也不直连 API，符合「组件只通过 props / store 订阅」的约定。
+
+**触发条件**：仅在「放映模式（projection）」+「已开始放映」时显示。备战/编辑态下不展示，避免 DM 在编排参战者时被待办干扰。
+
+**做新的「跨回合持续效果」类功能时**（比如新增专注法术、再生体质）：优先走这套 TurnTodo 机制，把效果注册成一条待办并设定每回合重置，不要在 CombatSession 里另起一套独立的 effect 追踪数组。
+
 ---
 
 ## 6. 命名与编码约定
@@ -584,7 +604,7 @@ git push origin --delete feature/your-feature-name   # 如果推送过远程分�
 ### 10.3 更新原则
 
 1. **就近更新**：只改对应章节，不要重写整篇
-2. **保持架构图同步**：§2.2 目录速查里的文件计数（如 "9 个 store"、"23 个组件"、"39 个页面"）必须与实际一致——新增/删除后立即改数字
+2. **保持架构图同步**：§2.2 目录速查里的文件计数（如 "9 个 store"、"24 个组件"、"39 个页面"）必须与实际一致——新增/删除后立即改数字
 3. **新增模式必须写 why**：§5 每个小节的"为什么用"是核心价值，不要只写"怎么用"
 4. **踩坑清单追加式**：§7 发现新的高危坑点就追加，不删旧的（除非旧坑已通过重构彻底消除）
 5. **不要把临时性 hack 写进文档**：只记录**有意为之的设计决策**；临时绕过方案应写在代码注释里并标注 TODO

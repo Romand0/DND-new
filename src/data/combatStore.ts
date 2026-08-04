@@ -1,4 +1,4 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo } from '@/types/combat';
 import { characterStore } from './characterStore';
 import type { Equipment, Character } from '@/types/character';
 
@@ -394,6 +394,15 @@ function load(): CombatRecord[] {
       }),
       rounds: r.rounds ?? [],
       mode: r.mode,
+      turnTodos: (r.turnTodos || []).map((t: any) => ({
+        id: t.id ?? crypto.randomUUID(),
+        combatantId: t.combatantId ?? '',
+        name: t.name ?? '',
+        type: t.type ?? null,
+        startRound: typeof t.startRound === 'number' ? t.startRound : 0,
+        endRound: typeof t.endRound === 'number' ? t.endRound : -1,
+        executed: t.executed ?? false,
+      })),
       // 关键：必须映射 equipmentChanges，否则 save 写入后 load 读取会丢失变更信息
       equipmentChanges: r.equipmentChanges as Record<string, EquipmentChanges> | undefined,
       createdAt: r.createdAt ?? Date.now(),
@@ -576,6 +585,56 @@ const combatStore = {
     record.updatedAt = Date.now();
     save(records);
     return 1;
+  },
+
+  // =======================
+  // 回合待办（TurnTodo）CRUD
+  // =======================
+
+  addTurnTodo(recordId: string, todo: Omit<TurnTodo, 'id' | 'executed'>): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    if (!record.turnTodos) record.turnTodos = [];
+    const rand6 = Math.random().toString(36).slice(2, 8);
+    record.turnTodos.push({
+      ...todo,
+      id: `${todo.combatantId}-todo-${Date.now()}-${rand6}`,
+      executed: false,
+    });
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  removeTurnTodo(recordId: string, todoId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record || !record.turnTodos) return;
+    record.turnTodos = record.turnTodos.filter(t => t.id !== todoId);
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  toggleTurnTodo(recordId: string, todoId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record || !record.turnTodos) return;
+    record.turnTodos = record.turnTodos.map(t =>
+      t.id === todoId ? { ...t, executed: !t.executed } : t
+    );
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  resetTurnTodosForRound(recordId: string, round: number): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record || !record.turnTodos) return;
+    record.turnTodos = record.turnTodos.map(t =>
+      (t.endRound === -1 || t.endRound >= round) ? { ...t, executed: false } : t
+    );
+    record.updatedAt = Date.now();
+    save(records);
   },
 };
 
