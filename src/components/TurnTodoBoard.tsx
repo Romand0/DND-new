@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Plus, X, Trash2, Check, Dices } from 'lucide-react';
 import combatStore from '@/data/combatStore';
+import { useNumberInput, useTextInput } from '@/hooks/useInput';
 import type { CombatRecord, Combatant, TurnTodo, TurnTodoType } from '@/types/combat';
 import { TURN_TODO_TYPE_LABELS } from '@/types/combat';
 
@@ -37,25 +38,27 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
   // 上一次死亡豁免结算结果（用于在弹窗内回显）
   const [deathResult, setDeathResult] = useState<{ roll: number; outcome: string } | null>(null);
 
-  // 创建表单
+  // 创建表单：用 useNumberInput / useTextInput 分离"输入态字符串"与"业务值"
+  // 这样用户清空输入框时不会被立刻填回默认值（onChange 不兜底，onBlur 时才补全）
   const [formCombatantId, setFormCombatantId] = useState('');
-  const [formName, setFormName] = useState('');
+  const formNameInput = useTextInput('');
   const [formType, setFormType] = useState<TurnTodoType | 'other'>('other');
-  const [formStartRound, setFormStartRound] = useState(0);
-  const [formEndRound, setFormEndRound] = useState(-1);
+  const formStartRoundInput = useNumberInput(0);
+  const formEndRoundInput = useNumberInput(-1);
 
   // 类型切换时：若用户没自定义名称，自动同步默认名称
   useEffect(() => {
     if (formType !== 'other' && DEFAULT_NAME_BY_TYPE[formType]) {
       // 仅在用户未输入或上次自动填的名称属于其他类型默认值时覆盖
       const isAutoOrEmpty =
-        !formName ||
-        Object.values(DEFAULT_NAME_BY_TYPE).includes(formName);
+        !formNameInput.text ||
+        Object.values(DEFAULT_NAME_BY_TYPE).includes(formNameInput.text);
       if (isAutoOrEmpty) {
-        setFormName(DEFAULT_NAME_BY_TYPE[formType]!);
+        formNameInput.setExternal(DEFAULT_NAME_BY_TYPE[formType]!);
       }
     }
-  }, [formType, formName]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formType]);
 
   const activeTodos = useMemo(() => {
     if (!currentTurn || !record.turnTodos) return [];
@@ -72,24 +75,27 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
 
   const handleCreate = () => {
     if (!formCombatantId) return;
-    if (formEndRound !== -1 && formStartRound > formEndRound) return;
+    // 提交前先取 onBlur 规范化后的业务值（hook 内部处理空值兜底）
+    const startRound = formStartRoundInput.value ?? 0;
+    const endRound = formEndRoundInput.value ?? -1;
+    if (endRound !== -1 && startRound > endRound) return;
     const fallbackName =
       formType !== 'other' && DEFAULT_NAME_BY_TYPE[formType]
         ? DEFAULT_NAME_BY_TYPE[formType]!
         : '';
     combatStore.addTurnTodo(record.id, {
       combatantId: formCombatantId,
-      name: formName.trim() || fallbackName,
+      name: formNameInput.value.trim() || fallbackName,
       type: formType === 'other' ? null : formType,
-      startRound: formStartRound,
-      endRound: formEndRound,
+      startRound,
+      endRound,
     });
     setShowCreate(false);
     setFormCombatantId('');
-    setFormName('');
+    formNameInput.reset();
     setFormType('other');
-    setFormStartRound(0);
-    setFormEndRound(-1);
+    formStartRoundInput.reset();
+    formEndRoundInput.reset();
   };
 
   const handleClickTodo = (todo: TurnTodo) => {
@@ -164,7 +170,7 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
           onClick={() => {
             if (currentTurn) {
               setFormCombatantId(currentTurn.combatantId);
-              setFormStartRound(currentTurn.round);
+              formStartRoundInput.setExternal(currentTurn.round);
             }
             setShowCreate(true);
           }}
@@ -261,8 +267,9 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
                 <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted block mb-1">名称（可选）</label>
                 <input
                   type="text"
-                  value={formName}
-                  onChange={e => setFormName(e.target.value)}
+                  value={formNameInput.text}
+                  onChange={e => formNameInput.onChange(e.target.value)}
+                  onBlur={formNameInput.onBlur}
                   placeholder="留空则按类型自动命名"
                   className="w-full px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light"
                 />
@@ -284,8 +291,9 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
                   <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted block mb-1">起始回合（0-indexed）</label>
                   <input
                     type="number"
-                    value={formStartRound}
-                    onChange={e => setFormStartRound(parseInt(e.target.value) || 0)}
+                    value={formStartRoundInput.text}
+                    onChange={e => formStartRoundInput.onChange(e.target.value)}
+                    onBlur={formStartRoundInput.onBlur}
                     className="w-full px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light"
                   />
                 </div>
@@ -293,13 +301,14 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
                   <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted block mb-1">终止回合（-1=无限期）</label>
                   <input
                     type="number"
-                    value={formEndRound}
-                    onChange={e => setFormEndRound(parseInt(e.target.value) || -1)}
+                    value={formEndRoundInput.text}
+                    onChange={e => formEndRoundInput.onChange(e.target.value)}
+                    onBlur={formEndRoundInput.onBlur}
                     className="w-full px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light"
                   />
                 </div>
               </div>
-              {formEndRound !== -1 && formStartRound > formEndRound && (
+              {(formEndRoundInput.value ?? -1) !== -1 && (formStartRoundInput.value ?? 0) > (formEndRoundInput.value ?? -1) && (
                 <p className="text-xs text-red-500">起始回合不能大于终止回合</p>
               )}
             </div>
@@ -312,7 +321,7 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
               </button>
               <button
                 onClick={handleCreate}
-                disabled={!formCombatantId || (formEndRound !== -1 && formStartRound > formEndRound)}
+                disabled={!formCombatantId || ((formEndRoundInput.value ?? -1) !== -1 && (formStartRoundInput.value ?? 0) > (formEndRoundInput.value ?? -1))}
                 className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 创建
