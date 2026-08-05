@@ -631,10 +631,16 @@ const combatStore = {
   resetTurnTodosForRound(recordId: string, round: number): void {
     const records = load();
     const record = records.find(r => r.id === recordId);
-    if (!record || !record.turnTodos) return;
-    record.turnTodos = record.turnTodos.map(t =>
-      (t.endRound === -1 || t.endRound >= round) ? { ...t, executed: false } : t
-    );
+    if (!record) return;
+    if (record.turnTodos) {
+      record.turnTodos = record.turnTodos.map(t =>
+        (t.endRound === -1 || t.endRound >= round) ? { ...t, executed: false } : t
+      );
+    }
+    // 新回合重置装填武器攻击标记
+    if (record.loadingAttackedThisRound) {
+      record.loadingAttackedThisRound = {};
+    }
     record.updatedAt = Date.now();
     save(records);
   },

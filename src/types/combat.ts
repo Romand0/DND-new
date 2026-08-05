@@ -166,6 +166,12 @@ export interface CombatRecord {
     * 装填武器状态：key 为 "{combatantId}:{attackId}" 或 "{combatantId}:{attackName}", value=true 已装填
     */
    loadedWeapons?: Record<string, boolean>;
+   /**
+    * 放映模式：本回合已用过装填武器攻击的参战者（key=combatantId）。
+    * 装填武器每回合只能攻击一次，优先级高于额外动作机制。
+    * 新回合由 resetTurnTodosForRound 清空。
+    */
+   loadingAttackedThisRound?: Record<string, boolean>;
    createdAt: number;
    updatedAt: number;
 }
