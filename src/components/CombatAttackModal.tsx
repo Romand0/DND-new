@@ -217,7 +217,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     return attack.loaded ?? false;
   };
 
-  /** 检测另一只手是否为空或持有对应弹药（用于未装填装填武器的装填检查） */
+  /** 检测另一只手是否满足未装填装填武器的装填条件：
+   *  1) 另一手空；2) 另一手是对应弹药；3) 另一手是武器自身（与双手规则兼容） */
   const isOtherHandReady = (attack: Attack | NpcAttack): boolean => {
     if (!character) return false;
     const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
@@ -231,6 +232,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       return false;
     }
     if (!otherItem || !otherItem.name) return true; // 另一只手为空
+    // 另一只手持有同一把武器（双手+装填兼容）
+    if (otherItem.name === attack.name) return true;
     // 另一只手持有对应弹药
     const ammoNames = getAmmoNames(attack);
     return ammoNames.length > 0 && ammoNames.includes(otherItem.name);
@@ -297,9 +300,9 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
       if (!isHeld) return { usable: false, reason: '未手持' };
 
-      // 双手武器检查（装填属性与双手并存时，装填覆盖双手规则）
+      // 双手武器检查（双手+装填并存时，双手优先于装填：另一手必须为同一把武器）
       const isTwoHanded = attack.properties?.includes('双手');
-      if (isTwoHanded && !isLoadingWeapon(attack)) {
+      if (isTwoHanded) {
         const bothHands = leftMatch && rightMatch;
         if (!bothHands) return { usable: false, reason: '未双手握持' };
       }
