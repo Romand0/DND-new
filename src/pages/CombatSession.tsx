@@ -538,6 +538,20 @@ export default function CombatSession() {
     combatStore.consumeAction(record.id, combatantId, currentMode());
   };
 
+  // 放映模式：标记本回合已用过装填武器攻击（每回合只能攻击一次，优先级高于额外动作）
+  const markLoadingAttacked = (combatantId: string) => {
+    if (!record || currentMode() !== 'playback') return;
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
+    combatStore.update(record.id, {
+      loadingAttackedThisRound: {
+        ...(latest.loadingAttackedThisRound || {}),
+        [combatantId]: true,
+      },
+      updatedAt: Date.now(),
+    });
+  };
+
   // 放映模式回合开始：恢复该参战者可用动作为 1
   const resetCombatantActions = (combatantId: string) => {
     if (!record) return;
@@ -2101,6 +2115,8 @@ export default function CombatSession() {
           targetCharacter={attackModal.target.characterId ? characterStore.get(attackModal.target.characterId) : null}
           targetCombatInventory={getCombatInventory(record, attackModal.target)}
           loadedWeapons={record?.loadedWeapons}
+          loadingAttackedThisRound={record?.loadingAttackedThisRound}
+          combatMode={currentMode()}
           onLoadedChange={(key, loaded) => {
             if (!record) return;
             combatStore.update(record.id, {
@@ -2115,6 +2131,10 @@ export default function CombatSession() {
           onConfirmHit={(attack, info) => {
             // 攻击（无论是否命中）消耗 1 个动作
             consumeCombatantAction(attackModal.attacker.id);
+            // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
+            if (attack.properties?.some(p => p.includes('装填'))) {
+              markLoadingAttacked(attackModal.attacker.id);
+            }
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
             // 弹药属性武器：消耗弹药（无论命中/未命中）
             if (info.ammoConsumed && record) {
@@ -2160,6 +2180,10 @@ export default function CombatSession() {
           onAttackMiss={(missInfo) => {
             // 攻击（无论是否命中）消耗 1 个动作
             consumeCombatantAction(attackModal.attacker.id);
+            // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
+            if (missInfo.attack.properties?.some(p => p.includes('装填'))) {
+              markLoadingAttacked(attackModal.attacker.id);
+            }
             // 未命中：写入先攻表格（简化格式）
             // 弹药属性武器：消耗弹药（无论命中/未命中）
             if (missInfo.ammoConsumed && record) {

@@ -51,6 +51,10 @@ interface Props {
   loadedWeapons?: Record<string, boolean>;
   /** 装填状态变更回调（在装填/射击后更新） */
   onLoadedChange?: (key: string, loaded: boolean) => void;
+  /** 放映模式：本回合已用过装填武器攻击的参战者（key=combatantId） */
+  loadingAttackedThisRound?: Record<string, boolean>;
+  /** 战斗模式：playback=放映（装填武器每回合只能攻击一次），simulation=模拟（无限制） */
+  combatMode?: 'simulation' | 'playback';
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -58,7 +62,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode }: Props) {
   // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
   const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('attacks');
@@ -315,6 +319,10 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
       // 装填属性武器：检查装填状态和另一只手
       if (isLoadingWeapon(attack)) {
+        // 放映模式：每回合只能用装填武器攻击一次，优先级高于额外动作
+        if (combatMode === 'playback' && loadingAttackedThisRound?.[attacker.id]) {
+          return { usable: false, reason: '本回合已用过装填武器攻击' };
+        }
         const loaded = getWeaponLoaded(attack);
         if (!loaded) {
           // 未装填：需要另一只手为空或持有对应弹药，且弹药 > 0
