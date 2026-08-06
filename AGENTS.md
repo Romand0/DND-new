@@ -44,6 +44,12 @@
 │           editorState（编辑态恢复）                         │
 │           diceService（骰子投掷）                           │
 │           attackBonus（攻击加值计算）                       │
+│  Hooks 子域（React，按功能独立封装）：                      │
+│    hooks/combat/*  9 个战斗聚合 hook：                      │
+│      useCombatInventories / useActions / useThrownDrop      │
+│      useSurprise / useInitiative / useDamageAndHp          │
+│      useRoundTurn / useManualRecord / usePlayback           │
+│    聚合 Hook：useEquipmentActions（装备增改删手持穿戴）     │
 ├─────────────────────────────────────────────────────────────┤
 │  后端（Cloudflare Pages Functions + D1 SQL 数据库）         │
 │  functions/api/*：auth(登录注册) / admin(账号管理) /        │
@@ -153,10 +159,20 @@ src/
 │   ├── equipments.json / spells.json   预置种子数据
 │   └── calendarData.ts       月份/星期常量
 │
-├── components/          24 个可复用组件（无路由、无 store CRUD API 直写）
+├── components/          32 个可复用组件（无路由、无 store CRUD API 直写）
 │   ├── Layout.tsx / PlayerLayout.tsx   两套导航壳（DM/玩家）
 │   ├── Navbar.tsx       顶栏（variant = 'dm' | 'player')
 │   ├── ProtectedRoute.tsx   路由守卫（登录 / DM 检查）
+│   │
+│   ├── combat/          ⭐ 战斗场景 8 个专属子组件（从 CombatSession 拆分）
+│   │   ├── InitiativeRollDialog.tsx      先攻投掷（选 PC + 填 d20）
+│   │   ├── InitiativeTiebreakerDialog.tsx  先攻平局排序（拖拽卡片）
+│   │   ├── SurpriseAttackDialog.tsx      突袭标记批量设置
+│   │   ├── RewindDialog.tsx              放映模式回合回滚确认
+│   │   ├── ManualRecordDialog.tsx        手动记录（攻击/恢复两类）
+│   │   ├── PlaybackToolbar.tsx           放映模式工具条
+│   │   ├── CombatantList.tsx             参战者列表（HP/AC/先攻/批量）
+│   │   └── InitiativeTable.tsx           先攻行动表格（行=角色，列=回合）
 │   │
 │   ├── Battle**核心三件套**：
 │   │   ├── CombatAttackModal.tsx    攻击检定（射程/弹药/装填检查 → 命中/未命中 → 弹药扣减）
@@ -180,8 +196,19 @@ src/
 │   ├── GameClock.tsx                游戏时钟显示组件
 │   └── ErrorBoundary.tsx            React 错误边界
 │
-├── hooks/
-│   └── useEquipmentActions.ts   🌟 角色装备操作聚合 hook（增/改/删/手持/穿戴，连 characterStore + api）
+├── hooks/             Hooks 层（React，只接收 props，不直连路由/云 API）
+│   ├── useEquipmentActions.ts   🌟 角色装备操作聚合 hook（增/改/删/手持/穿戴
+│   │                               连 characterStore + api）
+│   └── combat/          9 个战斗聚合 hook（从 CombatSession 拆分，按子域独立）
+│       ├── useCombatInventories  背包派生（装备变更应用
+│       ├── useActions           动作重置 / 额外动作 / 装填武器单次攻击
+│       ├── useThrownDrop          投掷武器掉落 + 拾取
+│       ├── useSurprise         突袭回合标记
+│       ├── useInitiative       先攻投掷 / 平局 / 编辑
+│       ├── useDamageAndHp      HP扣减/死亡豁免/回血
+│       ├── useRoundTurn        回合切换 / 放映快照
+│       ├── useManualRecord       手动记录攻击/恢复
+│       └── usePlayback         放映模式（开始/结束/回溯/还原）
 │
 ├── lib/
 │   ├── api.ts              🌟 所有云 API 的前端客户端（双轨认证头）
