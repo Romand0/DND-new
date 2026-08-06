@@ -96,8 +96,8 @@ export default function CombatSession() {
   const [manualAttackRoll, setManualAttackRoll] = useState('');
   // ✅ 放映模式状态
   const [playbackStarted, setPlaybackStarted] = useState(false);
-  // 当前回合：{ round: 行索引, combatantIdx: 列索引, combatantId }
-  const [currentTurn, setCurrentTurn] = useState<{ round: number; combatantIdx: number; combatantId: string } | null>(null);
+  // 当前回合：{ round: 行索引, combatantId }
+  const [currentTurn, setCurrentTurn] = useState<{ round: number; combatantId: string } | null>(null);
   // 沙盘快照：用于开始放映时重置
   const playbackSnapshotRef = useRef<{ col: number; row: number; combatantId: string }[] | null>(null);
   // 确认弹窗：完成回合
@@ -957,7 +957,7 @@ export default function CombatSession() {
     fromRound: number,
     fromCol: number,
     roundsOverride?: RoundAction[]
-  ): { round: number; combatantIdx: number; combatantId: string } | null => {
+  ): { round: number; combatantId: string } | null => {
     if (!record) return null;
     const rounds = roundsOverride ?? record.rounds;
     // 读最新 turnTodos：handleApplyDamage 等刚写入 store 后 record.turnTodos 可能未刷新
@@ -980,7 +980,7 @@ export default function CombatSession() {
           // 昏迷默认跳过；但有未执行的死亡豁免待办时仍需推进到该回合
           if (!hasActiveDeathSave(c.id, r)) continue;
         }
-        return { round: r, combatantIdx: i, combatantId: c.id };
+        return { round: r, combatantId: c.id };
       }
     }
     return null;
@@ -989,7 +989,8 @@ export default function CombatSession() {
   // ✅ 推进到下一个回合
   const advanceTurn = () => {
     if (!currentTurn || !record) return;
-    const next = findNextValidTurn(currentTurn.round, currentTurn.combatantIdx + 1);
+    const currentIdx = record.combatants.findIndex(c => c.id === currentTurn.combatantId);
+    const next = findNextValidTurn(currentTurn.round, currentIdx + 1);
     if (next) {
       // 进入新轮时重置待办执行状态
       if (next.round > currentTurn.round) {
@@ -1168,7 +1169,7 @@ export default function CombatSession() {
     // 4) 还原沙盘
     battlegroundStore.setTokens(record.id, snap.battleground.map(t => ({ ...t })));
     // 5) 当前回合跳到此回合格
-    setCurrentTurn({ round, combatantIdx, combatantId });
+    setCurrentTurn({ round, combatantId });
     // 6) 此回合格在回溯后需要重新拍快照（旧的快照里此格"之后"已被清空，再次进入会重新写入）
     //    清掉旧快照让下次进入时重拍
     delete rollbackSnapshotRef.current.snapshots[key];
@@ -1280,8 +1281,12 @@ export default function CombatSession() {
   // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）
   const handleInitiativeSave = (combatantId: string) => {
     const newInit = parseInt(initiativeInput, 10);
+    if (isNaN(newInit)) {
+      alert('请输入有效的先攻数值');
+      setEditingInitiative(null);
+      return;
+    }
     setEditingInitiative(null);
-    if (isNaN(newInit)) return;
     const updatedCombatants = record.combatants
       .map((c) => (c.id === combatantId ? { ...c, initiative: newInit } : c))
       .sort((a, b) => b.initiative - a.initiative);
@@ -1630,7 +1635,7 @@ export default function CombatSession() {
           <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
             {playbackStarted
               ? currentTurn
-                ? `当前回合：${record.combatants[currentTurn.combatantIdx]?.name ?? '?'}（第 ${currentTurn.round + 1} 轮）`
+                ? `当前回合：${record.combatants.find(c => c.id === currentTurn.combatantId)?.name ?? '?'}（第 ${currentTurn.round + 1} 轮）`
                 : '放映已结束'
               : '点击先攻表格的 ▶️ 开始放映'}
           </span>
@@ -1850,7 +1855,7 @@ export default function CombatSession() {
                               {(isCurrentTurn ||
                                 roundIndex < (currentTurn?.round ?? Infinity) ||
                                 (roundIndex === (currentTurn?.round ?? -1) &&
-                                  (record.combatants.findIndex(x => x.id === c.id)) < (currentTurn?.combatantIdx ?? Infinity))
+                                  (record.combatants.findIndex(x => x.id === c.id)) < (record.combatants.findIndex(x => x.id === currentTurn?.combatantId) ?? Infinity))
                               ) ? (
                                 <>
                                   <button
@@ -2776,7 +2781,7 @@ export default function CombatSession() {
             </div>
             <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
               确认完成 <span className="font-bold text-primary">
-                {record.combatants[currentTurn.combatantIdx]?.name ?? '?'}
+                {record.combatants.find(c => c.id === currentTurn.combatantId)?.name ?? '?'}
               </span> 的回合（第 {currentTurn.round + 1} 轮）？
             </p>
             <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
