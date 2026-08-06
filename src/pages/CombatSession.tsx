@@ -1,2937 +1,711 @@
-// 原内容：完全保留，一个字都没改
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import {
-  applyEquipmentChange,
-  computeCombatantAc,
-  getCombatInventory,
-  getCombatInventoryRaw,
-} from '@/data/combatStore';
-import combatStore from '@/data/combatStore';
+// 战斗场景主页面（拆分后）—— 仅负责：路由 + 布局 + hooks 接线 + 组件组合
+// 行数目标：<600 行。任何独立子域请迁移到 @/hooks/combat/* 或 @/components/combat/*
+import { useState, useRef, useEffect, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { characterStore } from '@/data/characterStore';
-import npcTemplateStore from '@/data/npcTemplateStore';
+import type { Character, Attack, Equipment } from '@/types/character';
 import battlegroundStore from '@/data/battlegroundStore';
-import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges } from '@/types/combat';
-import { isOneActionCast } from '@/types/combat';
+import combatStore, { applyEquipmentChange } from '@/data/combatStore';
+import type {
+  CombatRecord, Combatant, RoundAction, EquipmentChanges, NpcAttack,
+} from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
-import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
+
+// —— 子 hooks（9 个独立子域）——
+import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
+import { useActions } from '@/hooks/combat/useActions';
+import { useThrownDrop, chebyDist, calcThrownDropPos } from '@/hooks/combat/useThrownDrop';
+import { useSurprise } from '@/hooks/combat/useSurprise';
+import { useInitiative } from '@/hooks/combat/useInitiative';
+import { useDamageAndHp } from '@/hooks/combat/useDamageAndHp';
+import { useRoundTurn, TurnSnapshot } from '@/hooks/combat/useRoundTurn';
+import { useManualRecord } from '@/hooks/combat/useManualRecord';
+import { usePlayback } from '@/hooks/combat/usePlayback';
+
+// —— 子组件（8 个战斗专属）——
+import InitiativeRollDialog from '@/components/combat/InitiativeRollDialog';
+import InitiativeTiebreakerDialog from '@/components/combat/InitiativeTiebreakerDialog';
+import SurpriseAttackDialog from '@/components/combat/SurpriseAttackDialog';
+import RewindDialog from '@/components/combat/RewindDialog';
+import ManualRecordDialog from '@/components/combat/ManualRecordDialog';
+import PlaybackToolbar from '@/components/combat/PlaybackToolbar';
+import CombatantList from '@/components/combat/CombatantList';
+import InitiativeTable from '@/components/combat/InitiativeTable';
+
+// —— 复用组件（既有）——
 import Battleground from '@/components/Battleground';
-import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
-import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
+import CombatDamageModal from '@/components/CombatDamageModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
+import NpcCreator from '@/components/NpcCreator';
 
 export default function CombatSession() {
-  // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
-  const { sessionId } = useParams<{ sessionId: string }>();
-  const navigate = useNavigate();
-  const { isDM } = useAuth();
+  const { id = '' } = useParams<{ id: string }>();
+
+  // ========= 1. 顶层共享 state =========
   const [record, setRecord] = useState<CombatRecord | null>(null);
-  const [editingCell, setEditingCell] = useState<{ round: number; combatantId: string } | null>(null);
-  // ✅ 新增：控制角色选择弹窗的显示状态（仅点击按钮触发，不影响加载逻辑）
-  const [showCharSelect, setShowCharSelect] = useState(false);
-  // ✅ 新增：先攻编辑状态（先攻属于战斗临时数据，PC/NPC 均可编辑）
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [_, forceRender] = useState(0);
+  const rerender = () => forceRender((n) => n + 1);
+
   const [editingInitiative, setEditingInitiative] = useState<string | null>(null);
   const [initiativeInput, setInitiativeInput] = useState('');
-  // ✅ 新增：批量删除状态
-  const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // ✅ 新增：先攻投掷弹窗（PC 参战用）
-  const [initiativeRollOpen, setInitiativeRollOpen] = useState(false);
-  const [selectedPc, setSelectedPc] = useState<Character | null>(null);
-  const [d20Input, setD20Input] = useState('');
-  // ✅ 新增：NPC 创建器
-  const [npcCreatorOpen, setNpcCreatorOpen] = useState(false);
-  const [npcTemplates, setNpcTemplates] = useState<NpcTemplate[]>([]);
-  // ✅ 新增：战斗攻击检定弹窗（在 main 上处理）
-  const [attackModal, setAttackModal] = useState<{
-    attacker: Combatant;
-    target: Combatant;
-    attackerPos?: { col: number; row: number };
-    targetPos?: { col: number; row: number };
-  } | null>(null);
-  // ✅ 新增：伤害结算弹窗（攻击命中后切换）
-  const [damageModal, setDamageModal] = useState<{
-    attacker: Combatant;
-    target: Combatant;
-    attack: Attack | NpcAttack;
-    disadvantage: boolean;
-    isCritical: boolean;
-    // 用于写入先攻表格的攻击检定过程信息
-    d20Rolled: number[];
-    d20Final: number;
-    d20Bonus: number;
-    d20Total: number;
-    usageMode?: 'melee' | 'thrown';
-    isTwoHandedWield?: boolean;
-  } | null>(null);
-  // ✅ 新增：法术施放弹窗（独立交互流程，与攻击检定解耦）
-  const [spellModal, setSpellModal] = useState<{
-    caster: Combatant;
-    target: Combatant;
-  } | null>(null);
-  // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
-  const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
-  const [tiedOrder, setTiedOrder] = useState<Combatant[]>([]);
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
-
-  // ✅ 突袭相关状态
-  const [surpriseAttackOpen, setSurpriseAttackOpen] = useState(false);
-  const [surpriseAttackRound, setSurpriseAttackRound] = useState(0);
-  const [surprisedCombatants, setSurprisedCombatants] = useState<Set<string>>(new Set());
-  // ✅ 手动记录相关状态
+  const [batchMode, setBatchMode] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{ round: number; combatantId: string } | null>(null);
-  const [manualRecordOpen, setManualRecordOpen] = useState(false);
-  const [manualRecordType, setManualRecordType] = useState<'attack' | 'recovery' | null>(null);
-  const [manualTargetId, setManualTargetId] = useState('');
-  const [manualAttackMethod, setManualAttackMethod] = useState('');
-  const [manualDamage, setManualDamage] = useState('');
-  const [manualIsKill, setManualIsKill] = useState(false);
-  const [manualHealMethod, setManualHealMethod] = useState('');
-  const [manualHealAmount, setManualHealAmount] = useState('');
-  const [manualAttackRoll, setManualAttackRoll] = useState('');
-  // ✅ 放映模式状态
-  const [playbackStarted, setPlaybackStarted] = useState(false);
-  // 当前回合：{ round: 行索引, combatantId }
-  const [currentTurn, setCurrentTurn] = useState<{ round: number; combatantId: string } | null>(null);
-  // 沙盘快照：用于开始放映时重置
-  const playbackSnapshotRef = useRef<{ col: number; row: number; combatantId: string }[] | null>(null);
-  // 确认弹窗：完成回合
-  const [confirmEndTurnOpen, setConfirmEndTurnOpen] = useState(false);
-  // 退出放映弹窗：保存 / 丢弃
-  const [exitPlaybackModalOpen, setExitPlaybackModalOpen] = useState(false);
-  // ✅ 回溯弹窗：放映模式下删除先攻表格记录用（清空该格之后所有内容 + 还原生命值/沙盘）
-  const [rewindModal, setRewindModal] = useState<{
-    round: number;
-    combatantId: string;
-    combatantIdx: number;
-    firstClickDone: boolean;
-  } | null>(null);
-  // 回合快照集合（key = `${round}:${combatantId}`）
-  type TurnSnapshot = {
-    combatants: Combatant[];   // 所有角色 HP / 状态
-    rounds: RoundAction[];     // 先攻表（回合开始时的内容，回溯时把此格及之后清空恢复到此）
-    battleground: any[];       // 沙盘 tokens 快照
-    equipmentChanges?: Record<string, EquipmentChanges>; // 装备变更漏斗快照
-  };
+
   const rollbackSnapshotRef = useRef<{
     initial: TurnSnapshot | null;
     snapshots: Record<string, TurnSnapshot>;
   }>({ initial: null, snapshots: {} });
+  const playbackSnapshotRef = useRef<any>(null);
 
-  // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
+  const [addNpcOpen, setAddNpcOpen] = useState(false);
+  const [attackModal, setAttackModal] = useState<{
+    attacker: Combatant; target: Combatant;
+    attackerPos?: { col: number; row: number };
+    targetPos?: { col: number; row: number };
+  } | null>(null);
+  const [spellModal, setSpellModal] = useState<{
+    caster: Combatant; target: Combatant;
+  } | null>(null);
+  const [damageModal, setDamageModal] = useState<{
+    attacker: Combatant; target: Combatant; attack: Attack | NpcAttack;
+    disadvantage?: boolean; isCritical?: boolean;
+  } | null>(null);
+
+  const [loadedWeapons, setLoadedWeapons] = useState<Record<string, boolean>>({});
+  const [rewindModalOpen, setRewindModalOpen] = useState(false);
+
+  // ========= 2. store 订阅 =========
   useEffect(() => {
-    if (!sessionId) return;
-    const r = combatStore.get(sessionId);
-    setRecord(r || null);
+    setCharacters(characterStore.getAll());
+    setRecord(combatStore.get(id) ?? null);
     const unsub = combatStore.subscribe(() => {
-      setRecord(combatStore.get(sessionId) || null);
+      setRecord(combatStore.get(id) ?? null);
+      rerender();
     });
-    return unsub;
-  }, [sessionId]);
+    const unsubBg = battlegroundStore.subscribe(() => rerender());
+    return () => { unsub(); unsubBg(); };
+  }, [id]);
 
-  // ✅ 新增：过滤已参战的角色，避免重复添加（完全不影响原有逻辑）
-  const existingCharIds = record
-    ? new Set(record.combatants.map(c => c.characterId).filter(Boolean))
-    : new Set<string>();
-  // ✅ 新增：从角色库读取未参战的PC（仅读取，不修改）
-  const availableChars = characterStore.getAll().filter(char => 
-    !existingCharIds.has(char.id)
-  );
+  // ========= 3. hooks 调用（依赖顺序严格） =========
+  const { combatInventories, getEffectiveAc } = useCombatInventories(record);
 
-  /**
-   * 基于战斗背包实际装备，获取该 combatant 的有效 AC。
-   * PC 角色：护甲/盾牌被移除或数量=0时，不参与加值；不存在于战斗背包的装备不加值。
-   * NPC：直接用 combatant.ac。
-   */
-  const getEffectiveAc = (c: Combatant): number => {
-    if (!record) return c.ac ?? 0;
-    const changes = record.equipmentChanges?.[c.id];
-    let character: Character | null = null;
-    if (c.characterId) character = characterStore.get(c.characterId);
-    const combatInventory = combatInventories[c.id];
-    if (character) return computeCombatantAc(c, character, combatInventory);
-    return c.ac ?? 0;
+  const {
+    currentMode, canUseAction, consumeCombatantAction,
+    markLoadingAttacked, resetCombatantActions,
+  } = useActions(record);
+
+  const { executeThrownDrop } = useThrownDrop(record ? record.id : null);
+
+  const surprise = useSurprise(record);
+  const {
+    surpriseAttackOpen, surprisedCombatants, setSurprisedCombatants,
+    openSurpriseAttackModal, confirmSurpriseAttack,
+  } = surprise;
+
+  const playbackMode = currentMode() === 'playback';
+  // 先实例化一次占位（currentTurn 此时为 null），后面 roundTurn.currentTurn 可用后再覆盖
+  const _damageHpStub = useDamageAndHp(record, { currentTurn: null, playbackMode });
+  void _damageHpStub;
+
+  const roundTurn = useRoundTurn(record, {
+    autoFillDownedMarkers: _damageHpStub.autoFillDownedMarkers,
+    resetCombatantActions,
+    rollbackSnapshotRef,
+  });
+  const {
+    currentTurn, playbackStarted, handleCellChange,
+    appendRoundRecord, findNextValidTurn, takeTurnSnapshot, applyRollback,
+    confirmEndTurn, resolveWriteCell, setCurrentTurn, setPlaybackStarted,
+    confirmEndTurnOpen, setConfirmEndTurnOpen,
+  } = roundTurn;
+
+  const playback = usePlayback(record, {
+    playbackStarted, setPlaybackStarted,
+    currentTurn, setCurrentTurn,
+    rollbackSnapshotRef, playbackSnapshotRef,
+    findNextValidTurn, resetCombatantActions, takeTurnSnapshot,
+    autoFillDownedMarkers: _damageHpStub.autoFillDownedMarkers,
+    selectedCell,
+  });
+  const {
+    exitPlaybackModalOpen, setExitPlaybackModalOpen,
+    handleModeChange, finalizeExitPlayback, startPlayback,
+  } = playback;
+
+  // 带 currentTurn 的最终 useDamageAndHp 实例（实际使用的）
+  const damageHp = useDamageAndHp(record, { currentTurn, playbackMode });
+
+  // onAddXxx / onRemoveXxx callbacks（useInitiative 注入）
+  const onAddCombatant = (char?: Character) => {
+    initiativeRefs.setInitiativeRollOpen(true);
+    initiativeRefs.setSelectedPc(char ?? null);
+    initiativeRefs.setD20Input('');
+  };
+  const onRemoveCombatant = (combatantId: string) => {
+    if (!record) return;
+    if (!confirm('确定移除该参战者吗？')) return;
+    const updatedCombatants = record.combatants.filter(c => c.id !== combatantId);
+    const updatedRounds = record.rounds.map(r => {
+      const nr = { ...r }; delete nr[combatantId]; return nr;
+    });
+    combatStore.update(record.id, { combatants: updatedCombatants, rounds: updatedRounds, updatedAt: Date.now() });
+  };
+  const onAddNpc = (c: Omit<Combatant, 'id'>) => {
+    if (!record) return;
+    const newId = crypto.randomUUID();
+    const newCombatant: Combatant = {
+      ...c, id: newId, isPc: false, actions: 1,
+      currentHp: c.currentHp ?? c.maxHp ?? 0,
+      isDead: (c.currentHp ?? c.maxHp ?? 1) <= 0,
+    };
+    const updatedCombatants = [...record.combatants, newCombatant].sort((a, b) => b.initiative - a.initiative);
+    const updatedRounds = record.rounds.map(r => ({ ...r, [newId]: '' }));
+    combatStore.update(record.id, { combatants: updatedCombatants, rounds: updatedRounds, updatedAt: Date.now() });
+    initiativeRefs.checkTieAndOpen(newId);
+    setAddNpcOpen(false);
+  };
+  const onBatchAddNpc = (list: Omit<Combatant, 'id'>[]) => {
+    if (!record) return;
+    const newCombatants: Combatant[] = list.map((c, i) => ({
+      ...c,
+      id: `${crypto.randomUUID()}-${i}`,
+      isPc: false, actions: 1,
+      currentHp: c.currentHp ?? c.maxHp ?? 0,
+      isDead: (c.currentHp ?? c.maxHp ?? 1) <= 0,
+    }));
+    const updatedCombatants = [...record.combatants, ...newCombatants].sort((a, b) => b.initiative - a.initiative);
+    const updatedRounds = record.rounds.map(r => {
+      const nr = { ...r };
+      newCombatants.forEach(nc => { nr[nc.id] = ''; });
+      return nr;
+    });
+    combatStore.update(record.id, { combatants: updatedCombatants, rounds: updatedRounds, updatedAt: Date.now() });
+    setAddNpcOpen(false);
   };
 
-  useEffect(() => {
-    setNpcTemplates(npcTemplateStore.getAll());
-    const unsub = npcTemplateStore.subscribe(() => {
-      setNpcTemplates(npcTemplateStore.getAll());
-    });
-    return unsub;
-  }, []);
+  const initiativeRefs = useInitiative(record, {
+    editingInitiative, setEditingInitiative,
+    initiativeInput, setInitiativeInput,
+    selectedIds, setSelectedIds, batchMode, setBatchMode,
+    onAddCombatant, onRemoveCombatant, onAddNpc, onBatchAddNpc,
+  });
+  const {
+    getInitiativeCircle,
+    handleConfirmInitiative, handleConfirmTiebreaker,
+    handleDragStart, handleDragMove, handleDragEnd,
+    handleAddRound, handleInitiativeSave, handleBatchDelete,
+    toggleSelect, cardRefs,
+    initiativeRollOpen, setInitiativeRollOpen,
+    selectedPc, setSelectedPc, d20Input, setD20Input,
+    tiebreakerOpen, setTiebreakerOpen,
+    tiedOrder, setTiedOrder, draggingIndex,
+  } = initiativeRefs;
 
-  // 战斗背包记忆化：按 record 引用缓存全部参战者的战斗背包映射。
-  // store 每次更新会生成新 record 引用，此处自然失效；渲染热路径（每秒定时刷新等）
-  // 不会重跑，避免每个参战者重复走 parse + 派生计算。
-  const combatInventories = useMemo(() => {
-    if (!record) return {} as Record<string, any[]>;
-    const result: Record<string, any[]> = {};
-    for (const c of record.combatants) {
-      result[c.id] = getCombatInventory(record, c);
-    }
-    return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const manRec = useManualRecord(record, {
+    selectedCell, setSelectedCell,
+    canUseAction, consumeCombatantAction,
+    getEffectiveAc,
+    handleApplyDamage: damageHp.handleApplyDamage,
+    handleCellChange,
+  });
+  const {
+    manualRecordOpen, setManualRecordOpen,
+    manualRecordType, setManualRecordType,
+    manualTargetId, setManualTargetId,
+    manualAttackMethod, setManualAttackMethod,
+    manualDamage, setManualDamage,
+    manualIsKill, setManualIsKill,
+    manualHealMethod, setManualHealMethod,
+    manualHealAmount, setManualHealAmount,
+    manualAttackRoll, setManualAttackRoll,
+    confirmManualRecord, cancelManualRecord,
+  } = manRec;
+
+  // ========= 4. 统一 helper：通过 applyEquipmentChange 写入 record =========
+  const updateCombatantEquipment = (
+    combatantId: string,
+    mutator: (ch: EquipmentChanges) => void,
+  ) => {
+    if (!record) return;
+    const latest = combatStore.get(record.id) ?? record;
+    const cur = latest?.equipmentChanges?.[combatantId];
+    const newChanges = applyEquipmentChange(cur, mutator);
+    const newEquipmentChanges = {
+      ...(latest?.equipmentChanges ?? {}),
+      [combatantId]: newChanges,
+    };
+    combatStore.update(record.id, { equipmentChanges: newEquipmentChanges, updatedAt: Date.now() });
+  };
+
+  // ========= 5. 攻击/法术/接线流程 =========
+  const bg = useMemo(() => record ? battlegroundStore.get(record.id) : null, [record, _]);
+  const tokenMap = useMemo(() => {
+    const m = new Map<string, { col: number; row: number }>();
+    if (bg) bg.tokens.forEach(t => { m.set(t.combatantId, { col: t.col, row: t.row }); });
+    return m;
+  }, [bg]);
+  const actionsMap = useMemo(() => {
+    const m: Record<string, number> = {};
+    if (record) record.combatants.forEach(c => { m[c.id] = c.actions ?? 1; });
+    return m;
   }, [record]);
 
-  // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
-  if (!isDM) {
-    return (
-      <div className="max-w-4xl mx-auto p-4">
-        <button onClick={() => navigate('/combat')} className="text-primary hover:underline flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" />
-          返回
-        </button>
-        <div className="text-center py-16 text-sm opacity-50">无权限访问</div>
-      </div>
-    );
-  }
+  const handleRequestAttack = (attacker: Combatant, target: Combatant) => {
+    if (playbackMode && currentTurn && playbackStarted) {
+      if (currentTurn.combatantId !== attacker.id) {
+        const currentName = record?.combatants.find(c => c.id === currentTurn.combatantId)?.name ?? '';
+        alert(`当前轮到 ${currentName} 的行动，无法使用 ${attacker.name} 发动攻击`);
+        return;
+      }
+    }
+    setAttackModal({
+      attacker, target,
+      attackerPos: tokenMap.get(attacker.id),
+      targetPos: tokenMap.get(target.id),
+    });
+  };
+  const handleRequestSpell = (caster: Combatant, target: Combatant) => {
+    if (playbackMode && currentTurn && playbackStarted && currentTurn.combatantId !== caster.id) {
+      alert(`当前不是 ${caster.name} 的行动回合`);
+      return;
+    }
+    setSpellModal({ caster, target });
+  };
+  const handlePickupItem = (item: ItemToken, picker: Combatant) => {
+    if (!record || !bg) return;
+    if (item.equipmentData && Object.keys(item.equipmentData).length > 0) {
+      const childId = `combat-${picker.id}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      updateCombatantEquipment(picker.id, (ch) => {
+        ch.added.push({ childId, equipment: item.equipmentData });
+      });
+    } else {
+      alert('此掉落物无法直接加入背包');
+      return;
+    }
+    const nextItemTokens = (bg.itemTokens ?? []).filter(t => t.id !== item.id);
+    if (nextItemTokens.length !== (bg.itemTokens ?? []).length) {
+      // 逐个移除（battlegroundStore.removeItemToken 有 notify）
+      for (const oldT of bg.itemTokens ?? []) {
+        if (!nextItemTokens.some(nt => nt.id === oldT.id)) {
+          battlegroundStore.removeItemToken(record.id, oldT.id);
+        }
+      }
+    }
+  };
 
-  // 原内容：完全保留，一个字都没改（未找到逻辑不变）
+  // 攻击命中 -> 打开伤害弹窗
+  const onConfirmHit = (attack: Attack | NpcAttack, info: any) => {
+    if (!attackModal || !record) return;
+    const { attacker, target } = attackModal;
+    const write = resolveWriteCell(attacker.id);
+    if (write) {
+      const line = `对 ${target.name} 的攻击命中，用${info.usageMode === 'thrown' ? '投掷' : '近战'}${attack.name}（${info.d20Final}+${info.bonus}=${info.total}${info.isNatural20 ? '💥重击' : ''}${info.isNatural1 ? '💩自然1' : ''}）造成伤害`;
+      appendRoundRecord(write.round, write.combatantId, line);
+    }
+    if (info.ammoConsumed) {
+      updateCombatantEquipment(attacker.id, (ch) => {
+        ch.quantityDeltas[info.ammoConsumed.ammoChildId] =
+          (ch.quantityDeltas[info.ammoConsumed.ammoChildId] ?? 0) - 1;
+      });
+      const w2 = resolveWriteCell(attacker.id);
+      if (w2) appendRoundRecord(w2.round, w2.combatantId, `消耗 1 发${info.ammoConsumed.ammoName}`);
+    }
+    if (info.usageMode === 'thrown' && attackModal.attackerPos && attackModal.targetPos && bg) {
+      const dist = chebyDist(attackModal.attackerPos, attackModal.targetPos);
+      const gridCols = bg.size === 'small' ? 12 : bg.size === 'medium' ? 24 : 36;
+      const gridRows = bg.size === 'small' ? 18 : bg.size === 'medium' ? 36 : 54;
+      const dropPos = calcThrownDropPos(
+        attackModal.attackerPos,
+        attackModal.targetPos,
+        true,
+        dist * 5,
+        target.speed ?? 30,
+        gridCols,
+        gridRows,
+      );
+      const latest = combatStore.get(record.id) ?? record;
+      executeThrownDrop(
+        attacker, target, attack,
+        attackModal.attackerPos, attackModal.targetPos,
+        true, latest, 'thrown',
+      );
+      void dropPos;
+    }
+    if (playbackMode) markLoadingAttacked(attacker.id);
+    if (playbackMode) consumeCombatantAction(attacker.id);
+    setDamageModal({
+      attacker, target, attack,
+      disadvantage: info.disadvantage,
+      isCritical: info.isNatural20,
+    });
+    setAttackModal(null);
+  };
+
+  const onAttackMiss = (info: any) => {
+    if (!attackModal || !record) return;
+    const { attacker, target } = attackModal;
+    const write = resolveWriteCell(attacker.id);
+    if (write) {
+      const line = `对 ${target.name} 的攻击未命中，${info.attackName}（${info.d20Final}+${info.bonus}=${info.total}${info.isNatural1 ? '💩自然1' : ''}）打偏了`;
+      appendRoundRecord(write.round, write.combatantId, line);
+    }
+    if (info.ammoConsumed) {
+      updateCombatantEquipment(attacker.id, (ch) => {
+        ch.quantityDeltas[info.ammoConsumed.ammoChildId] =
+          (ch.quantityDeltas[info.ammoConsumed.ammoChildId] ?? 0) - 1;
+      });
+      const w2 = resolveWriteCell(attacker.id);
+      if (w2) appendRoundRecord(w2.round, w2.combatantId, `消耗 1 发${info.ammoConsumed.ammoName}`);
+    }
+    if (playbackMode) markLoadingAttacked(attacker.id);
+    if (playbackMode) consumeCombatantAction(attacker.id);
+    setAttackModal(null);
+  };
+
+  const onApplyDamage = (payload: any) => {
+    if (!damageModal || !record) return;
+    const { attacker, target } = damageModal;
+    damageHp.handleApplyDamage(target.id, payload.newHp, payload.status);
+    const crit = damageModal.isCritical || payload.isCritical ? '（重击！）' : '';
+    const write = resolveWriteCell(attacker.id);
+    if (write) {
+      const parts = (payload.diceValues ?? []).join(' + ');
+      appendRoundRecord(write.round, write.combatantId,
+        `造成 ${payload.damage} 点伤害${crit}[${parts} + ${payload.damageBonus}]`);
+      if (payload.status === 'dead') appendRoundRecord(write.round, write.combatantId, `击杀 ${target.name}！`);
+      else if (payload.status === 'unconscious') appendRoundRecord(write.round, write.combatantId, `${target.name} 被击昏！`);
+    }
+    setDamageModal(null);
+  };
+
+  const onLoadedChange = (k: string, v: boolean) =>
+    setLoadedWeapons(lw => ({ ...lw, [k]: v }));
+
+  const onCastResolved = (info: any) => {
+    if (!spellModal || !record) return;
+    const { caster, target } = spellModal;
+    damageHp.handleApplyDamage(target.id, info.newHp, info.status);
+    const write = resolveWriteCell(caster.id);
+    if (write) {
+      let line = `施放 ${info.spellName}`;
+      if (info.success === false && info.checkType !== 'none') {
+        line += `，${target.name} 成功闪避（检定失败）`;
+      } else {
+        line += `对 ${target.name} ${info.effectType === 'damage' ? '造成' : '恢复'} ${info.amount} 点`;
+        if (info.status === 'dead') line += `，击杀！`;
+        else if (info.status === 'unconscious') line += `，击昏！`;
+      }
+      appendRoundRecord(write.round, write.combatantId, line);
+    }
+    if (playbackMode) consumeCombatantAction(caster.id);
+    setSpellModal(null);
+  };
+
+  // ========= 6. 主渲染 =========
   if (!record) {
     return (
-      <div className="max-w-4xl mx-auto p-4">
-        <button onClick={() => navigate('/combat')} className="text-primary hover:underline flex items-center gap-1">
-          <ArrowLeft className="w-4 h-4" />
-          返回
-        </button>
-        <div className="text-center py-16 text-sm opacity-50">
-          战斗记录未找到（sessionId: {sessionId || '空'}）
-        </div>
+      <div className="min-h-screen bg-gray-50 p-8 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-300">未找到战斗记录。正在加载…</p>
       </div>
     );
   }
 
-  // 原内容：完全保留，一个字都没改（单元格编辑逻辑不变）
-  const handleCellChange = (roundIndex: number, combatantId: string, value: string) => {
-    const updatedRounds = [...record.rounds];
-    updatedRounds[roundIndex] = {
-      ...updatedRounds[roundIndex],
-      [combatantId]: value,
-    };
-    combatStore.update(record.id, {
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-  };
+  const currentTurnCombatant = currentTurn
+    ? record.combatants.find(c => c.id === currentTurn.combatantId)
+    : null;
+  const currentTurnText = currentTurn
+    ? `回合 ${currentTurn.round + 1} · ${currentTurnCombatant?.name ?? '—'}`
+    : '未开始';
+  const manRecTarget = manualTargetId ? record.combatants.find(c => c.id === manualTargetId) : null;
 
-  const handleAddCombatant = (char?: Character) => {
-    if (char) {
-      setSelectedPc(char);
-      setD20Input('');
-      setShowCharSelect(false);
-      setInitiativeRollOpen(true);
-      return;
-    }
-
-    setShowCharSelect(false);
-    setNpcCreatorOpen(true);
-  };
-
-  const handleCreateNpc = (combatantData: Omit<Combatant, 'id'>) => {
-    const newId = crypto.randomUUID();
-    const newCombatant: Combatant = {
-      ...combatantData,
-      id: newId,
-      actions: typeof combatantData.actions === 'number' && combatantData.actions >= 0 ? combatantData.actions : 1,
-    };
-    const updatedCombatants = [...record.combatants, newCombatant].sort(
-      (a, b) => b.initiative - a.initiative
+  const toggleTodoExecuted = (todoId: string) => {
+    const latest = combatStore.get(record.id);
+    if (!latest?.turnTodos) return;
+    const updated = latest.turnTodos.map(t =>
+      t.id === todoId ? { ...t, executed: !t.executed } : t,
     );
-    const updatedRounds = record.rounds.map(round => ({
-      ...round,
-      [newCombatant.id]: '',
-    }));
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-    checkTieAndOpen(newId);
+    combatStore.update(record.id, { turnTodos: updated, updatedAt: Date.now() });
   };
 
-  const handleBatchCreateNpc = (combatantsData: Omit<Combatant, 'id'>[]) => {
-    const newCombatants: Combatant[] = combatantsData.map(data => ({
-      ...data,
-      id: crypto.randomUUID(),
-      actions: typeof data.actions === 'number' && data.actions >= 0 ? data.actions : 1,
-    }));
-    const updatedCombatants = [...record.combatants, ...newCombatants].sort(
-      (a, b) => b.initiative - a.initiative
-    );
-    const newRounds = newCombatants.reduce((acc, c) => {
-      record.rounds.forEach((_, idx) => {
-        if (!acc[idx]) acc[idx] = {};
-        acc[idx][c.id] = '';
-      });
-      return acc;
-    }, [] as Record<string, string>[]);
-    const updatedRounds = record.rounds.map((round, idx) => ({
-      ...round,
-      ...(newRounds[idx] || {}),
-    }));
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-  };
+  const surpriseTargetsArr = record.combatants.filter(c => surprisedCombatants.has(c.id));
 
-  // ✅ 新增：确认 PC 先攻并加入战斗（d20 + 敏捷调整值 = 先攻总值）
-  const handleConfirmInitiative = () => {
-    if (!selectedPc) return;
-    const d20 = parseInt(d20Input, 10);
-    if (isNaN(d20) || d20 < 1 || d20 > 20) {
-      alert('请输入 1-20 之间的 d20 数值');
-      return;
-    }
-    const dexMod = selectedPc.abilities?.dexterity?.modifier ?? 0;
-    const initiative = d20 + dexMod;
-    const newId = crypto.randomUUID();
-    // 从角色库读取数据，填充Combatant字段（完全对齐设计文档的Combatant定义）
-    const newCombatant: Combatant = {
-      id: newId,
-      name: selectedPc.name,
-      initiative,
-      ac: selectedPc.armorClass,
-      maxHp: selectedPc.maxHp,
-      currentHp: selectedPc.currentHp,
-      isDead: selectedPc.currentHp <= 0,
-      isPc: true,
-      characterId: selectedPc.id,
-      speed: selectedPc.speed,
-      note: '',
-      actions: 1,
-    };
-    // 按先攻总值排序，符合设计文档的「快速建表」要求
-    const updatedCombatants = [...record.combatants, newCombatant].sort(
-      (a, b) => b.initiative - a.initiative
-    );
-    // 为新参战者初始化所有回合的行动记录
-    const updatedRounds = record.rounds.map(round => ({
-      ...round,
-      [newCombatant.id]: '',
-    }));
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-    setInitiativeRollOpen(false);
-    setSelectedPc(null);
-    setD20Input('');
-    // ✅ 新增：检测先攻平局
-    checkTieAndOpen(newId);
-  };
-
-  // ✅ 新增：检测先攻平局 —— 新参战者先攻与现有参战者相同时，打开排序弹窗
-  // latestId 为刚加入的参战者 ID；用 combatStore.get 取最新记录
-  const checkTieAndOpen = (latestId: string) => {
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    const target = latest.combatants.find((c) => c.id === latestId);
-    if (!target) return;
-    const tied = latest.combatants.filter((c) => c.initiative === target.initiative);
-    if (tied.length >= 2) {
-      setTiedOrder(tied);
-      setTiebreakerOpen(true);
-    }
-  };
-
-  // ✅ 新增：确认平局顺序 —— 只调整平局参战者的相对顺序，其他参战者位置不变
-  const handleConfirmTiebreaker = () => {
-    const latest = combatStore.get(record.id);
-    if (!latest) {
-      setTiebreakerOpen(false);
-      return;
-    }
-    // 平局组的先攻值
-    const tieInit = tiedOrder[0]?.initiative;
-    if (tieInit === undefined) {
-      setTiebreakerOpen(false);
-      return;
-    }
-    // 平局组的新顺序 ID 列表
-    const newTiedIds = tiedOrder.map((c) => c.id);
-    // 重建 combatants：遇到平局组的占位，按新顺序填入；非平局者原样保留
-    let tiedPtr = 0;
-    const updatedCombatants = latest.combatants.map((c) => {
-      if (c.initiative === tieInit) {
-        const replacement = latest.combatants.find((x) => x.id === newTiedIds[tiedPtr]);
-        tiedPtr++;
-        return replacement || c;
-      }
-      return c;
-    });
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      updatedAt: Date.now(),
-    });
-    setTiebreakerOpen(false);
-    setTiedOrder([]);
-  };
-
-  // ✅ 新增：触屏拖拽 —— pointer 事件同时兼容鼠标与触摸
-  const handleDragStart = (e: React.PointerEvent, index: number) => {
-    e.preventDefault();
-    setDraggingIndex(index);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-  };
-  const handleDragMove = (e: React.PointerEvent) => {
-    if (draggingIndex === null) return;
-    // 用各卡片中点判断指针落在哪个卡片，跨越中点则交换
-    const pointerY = e.clientY;
-    let targetIndex = draggingIndex;
-    for (let i = 0; i < cardRefs.current.length; i++) {
-      const el = cardRefs.current[i];
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      if (pointerY < midY) {
-        targetIndex = i;
-        break;
-      }
-      if (i === cardRefs.current.length - 1) targetIndex = i;
-    }
-    if (targetIndex !== draggingIndex) {
-      setTiedOrder((prev) => {
-        const next = [...prev];
-        const [moved] = next.splice(draggingIndex, 1);
-        next.splice(targetIndex, 0, moved);
-        return next;
-      });
-      setDraggingIndex(targetIndex);
-    }
-  };
-  const handleDragEnd = () => {
-    setDraggingIndex(null);
-  };
-
-  // 原内容：完全保留，一个字都没改（新增轮次逻辑不变）
-  const handleAddRound = () => {
-    const newRound: RoundAction = {};
-    record.combatants.forEach(combatant => {
-      newRound[combatant.id] = '';
-    });
-    const updatedRounds = [...record.rounds, newRound];
-    combatStore.update(record.id, {
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-  };
-
-  // 原内容：完全保留，一个字都没改（删除参战者逻辑不变）
-  const handleRemoveCombatant = (combatantId: string) => {
-    if (!confirm('确定删除该参战者吗？')) return;
-    const updatedCombatants = record.combatants.filter(c => c.id !== combatantId);
-    const updatedRounds = record.rounds.map(round => {
-      const newRound = { ...round };
-      delete newRound[combatantId];
-      return newRound;
-    });
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-  };
-
-  // ✅ 新增：应用伤害 —— 仅写入战斗参战者 HP，不回传角色卡
-  // status: 'unconscious' 昏迷 / 'dead' 死亡（NPC 致命伤害时附带）
-  // PC HP 归零未显式指定 status 时，按 D&D 5e 规则自动判定为昏迷（不直接死亡）
-  const handleApplyDamage = (targetId: string, newHp: number, status?: 'unconscious' | 'dead') => {
-    const target = record.combatants.find(c => c.id === targetId);
-    const wasUnconscious = target?.isUnconscious ?? false;
-    const isPc = target?.isPc ?? false;
-    // PC HP≤0 且未显式指定状态 → 自动昏迷（D&D 5e：PC 不会因伤害直接死亡，先进入昏迷）
-    const effectiveStatus: 'unconscious' | 'dead' | undefined =
-      status ?? (newHp <= 0 && isPc ? 'unconscious' : undefined);
-
-    const updatedCombatants = record.combatants.map(c => {
-      if (c.id !== targetId) return c;
-      if (newHp <= 0 && effectiveStatus === 'dead') {
-        return { ...c, currentHp: newHp, isDead: true, isUnconscious: false };
-      }
-      if (newHp <= 0 && effectiveStatus === 'unconscious') {
-        // 首次进入昏迷时重置死亡豁免计数（D&D 5e：每次倒下重新计数）
-        const firstDown = !wasUnconscious;
-        return {
-          ...c,
-          currentHp: newHp,
-          isDead: false,
-          isUnconscious: true,
-          deathSaveFailures: firstDown ? 0 : (c.deathSaveFailures ?? 0),
-          deathSaveSuccesses: firstDown ? 0 : (c.deathSaveSuccesses ?? 0),
-        };
-      }
-      // HP > 0：恢复清醒，同时清零死亡豁免计数
-      return {
-        ...c,
-        currentHp: newHp,
-        isDead: false,
-        isUnconscious: false,
-        deathSaveFailures: 0,
-        deathSaveSuccesses: 0,
-      };
-    });
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      updatedAt: Date.now(),
-    });
-
-    // ✅ 死亡豁免待办自动生命周期：
-    //   1) PC 首次进入昏迷（HP=0 & unconscious）→ 自动创建待办
-    //   2) HP 恢复 / 死亡 / 稳定 → 自动清理
-    // 仅放映模式下创建（待办依赖回合系统）
-    if (record.mode === 'playback' && isPc) {
-      const nowDown = newHp <= 0 && effectiveStatus === 'unconscious';
-      if (nowDown) {
-        const existing = combatStore.get(record.id)?.turnTodos?.some(
-          t => t.type === 'death_save' && t.combatantId === targetId
-        );
-        if (!existing) {
-          // 起始回合 = 当前回合（"当前回合后满足触发条件的第一个属于适用者的回合"）。
-          // findNextValidTurn 会让带未执行死亡豁免待办的昏迷 PC 的回合照常推进，
-          // activeTodos 的 startRound <= round 判定会确保只在 PC 的回合显示。
-          const startRound = currentTurn ? currentTurn.round : 0;
-          combatStore.addTurnTodo(record.id, {
-            combatantId: targetId,
-            name: '死亡豁免',
-            type: 'death_save',
-            startRound,
-            endRound: -1, // 由 cleanupDeathSaveTodos 按 HP 状态终止
-          });
-        }
-      }
-    }
-    // 放映模式下昏迷/死亡状态变化后，自动填充后续轮次的占位标记
-    // （非放映模式没有轮次概念，不需要填）
-    if (record.mode === 'playback') {
-      autoFillDownedMarkers();
-    }
-    // HP 变化后统一清理已失效的死亡豁免待办
-    combatStore.cleanupDeathSaveTodos(record.id);
-  };
-
-  // ============ 动作机制 ============
-  // 当前战斗模式：playback=放映（有回合，每回合 1 动作），否则 simulation=模拟（动作无限）
-  const currentMode = (): 'simulation' | 'playback' =>
-    record?.mode === 'playback' ? 'playback' : 'simulation';
-
-  // 该参战者当前是否还能发起动作（模拟模式恒可；放映模式 0 时禁止）
-  const canUseAction = (combatantId: string): boolean => {
-    if (!record) return false;
-    if (currentMode() === 'simulation') return true;
-    const c = record.combatants.find(x => x.id === combatantId);
-    if (!c) return false;
-    return (typeof c.actions === 'number' ? c.actions : 1) > 0;
-  };
-
-  // 消耗 1 个动作（写入 store，订阅机制自动刷新 UI）
-  const consumeCombatantAction = (combatantId: string) => {
-    if (!record) return;
-    combatStore.consumeAction(record.id, combatantId, currentMode());
-  };
-
-  // 放映模式：标记本回合已用过装填武器攻击（每回合只能攻击一次，优先级高于额外动作）
-  const markLoadingAttacked = (combatantId: string) => {
-    if (!record || currentMode() !== 'playback') return;
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    combatStore.update(record.id, {
-      loadingAttackedThisRound: {
-        ...(latest.loadingAttackedThisRound || {}),
-        [combatantId]: true,
-      },
-      updatedAt: Date.now(),
-    });
-  };
-
-  // 放映模式回合开始：恢复该参战者可用动作为 1
-  const resetCombatantActions = (combatantId: string) => {
-    if (!record) return;
-    if (record.mode !== 'playback') return;
-    combatStore.resetActions(record.id, combatantId);
-  };
-
-  // ============ 投掷武器掉落机制 ============
-  // 切比雪夫距离（格）
-  const chebyDist = (a: { col: number; row: number }, b: { col: number; row: number }) =>
-    Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row));
-
-  // 计算投掷武器掉落位置
-  // hit=true: 敌人5尺（1格）内最靠近玩家的3格中随机一格
-  // hit=false: 以玩家为圆心、本次射程为半径 和 以敌人为圆心、敌人速度为半径 的交集区域随机一格
-  const calcThrownDropPos = (
-    attackerPos: { col: number; row: number },
-    targetPos: { col: number; row: number },
-    hit: boolean,
-    rangeUsedFeet: number,
-    targetSpeed: number,
-    gridCols: number,
-    gridRows: number,
-  ): { col: number; row: number } => {
-    if (hit) {
-      // 敌人周围8格，按到玩家的切比雪夫距离排序，取前3格随机选一
-      const candidates: { col: number; row: number; d: number }[] = [];
-      for (let dc = -1; dc <= 1; dc++) {
-        for (let dr = -1; dr <= 1; dr++) {
-          if (dc === 0 && dr === 0) continue; // 跳过敌人自身格
-          const c = targetPos.col + dc;
-          const r = targetPos.row + dr;
-          if (c < 0 || c >= gridCols || r < 0 || r >= gridRows) continue;
-          candidates.push({ col: c, row: r, d: chebyDist({ col: c, row: r }, attackerPos) });
-        }
-      }
-      candidates.sort((a, b) => a.d - b.d);
-      const top = candidates.slice(0, Math.min(3, candidates.length));
-      if (top.length === 0) return { col: targetPos.col, row: targetPos.row };
-      return top[Math.floor(Math.random() * top.length)];
-    } else {
-      // 未命中：两个圆形区域的交集
-      const rangeCells = Math.floor(rangeUsedFeet / 5);
-      const speedCells = Math.floor(targetSpeed / 5);
-      const candidates: { col: number; row: number }[] = [];
-      for (let c = 0; c < gridCols; c++) {
-        for (let r = 0; r < gridRows; r++) {
-          const dPlayer = chebyDist({ col: c, row: r }, attackerPos);
-          const dEnemy = chebyDist({ col: c, row: r }, targetPos);
-          if (dPlayer <= rangeCells && dEnemy <= speedCells) {
-            candidates.push({ col: c, row: r });
-          }
-        }
-      }
-      if (candidates.length === 0) {
-        // 交集为空时退回到玩家与敌人连线中点
-        return {
-          col: Math.round((attackerPos.col + targetPos.col) / 2),
-          row: Math.round((attackerPos.row + targetPos.row) / 2),
-        };
-      }
-      return candidates[Math.floor(Math.random() * candidates.length)];
-    }
-  };
-
-  // 执行投掷武器掉落：从攻击者背包移除武器，在网格上生成物品 token
-  const executeThrownDrop = (
-    attacker: Combatant,
-    target: Combatant,
-    attack: Attack | NpcAttack,
-    attackerPos: { col: number; row: number },
-    targetPos: { col: number; row: number },
-    hit: boolean,
-    usageMode?: 'melee' | 'thrown',
-  ) => {
-    if (usageMode !== 'thrown') return;
-    if (!record) return;
-    const bg = battlegroundStore.get(record.id);
-    if (!bg) return;
-
-    // 确定本次使用的射程（常规或最大）
-    let rangeUsedFeet = attack.normalRange || 20;
-    const distanceFeet = chebyDist(attackerPos, targetPos) * 5;
-    if (attack.maxRange && distanceFeet > (attack.normalRange || 0)) {
-      rangeUsedFeet = attack.maxRange;
-    }
-    const targetSpeed = target.speed || 30;
-
-    const gridCols = bg.size === 'small' ? 12 : bg.size === 'medium' ? 24 : 36;
-    const gridRows = bg.size === 'small' ? 18 : bg.size === 'medium' ? 36 : 54;
-
-    const dropPos = calcThrownDropPos(attackerPos, targetPos, hit, rangeUsedFeet, targetSpeed, gridCols, gridRows);
-
-    // 构造装备快照数据
-    let equipData: Record<string, unknown> = {
-      name: attack.name,
-      category: '武器',
-      subtype: attack.subtype,
-      damageDice: attack.damage,
-      damageType: attack.damageType,
-      properties: attack.properties,
-      normalRange: attack.normalRange,
-      maxRange: attack.maxRange,
-      range: attack.range,
-      quantity: 1,
-    };
-
-    // PC：从"战斗背包"查找对应武器（未合并版本，确保 childId 精确匹配）
-    if (attacker.characterId) {
-      const combatInventoryRaw = getCombatInventoryRaw(record, attacker);
-      // 手持 id 从角色卡拿（手持的引用指向角色源装备）
-      const char = characterStore.get(attacker.characterId);
-      const heldLeftId = char?.heldLeft?.equipmentId;
-      const heldRightId = char?.heldRight?.equipmentId;
-      // 优先找手持的匹配武器（在未合并列表中按 childId 精确匹配）
-      let foundEquip = null;
-      for (const eq of combatInventoryRaw) {
-        const slotId = eq.childId || eq.id;
-        if (slotId === heldLeftId || slotId === heldRightId) {
-          if (eq.name === attack.name) {
-            foundEquip = eq;
-            break;
-          }
-        }
-      }
-      // 若手持未找到，按名称查找（取第一个匹配的）
-      if (!foundEquip) {
-        foundEquip = combatInventoryRaw.find(e => e.name === attack.name) || null;
-      }
-      if (foundEquip) {
-        equipData = { ...(foundEquip as any), quantity: 1 };
-        // 写入变更信息漏斗：数量 > 1 → -1，否则 → 移除该 childId
-        const slotId = foundEquip.childId || foundEquip.id || '';
-        // 未合并列表中每条的数量是源装备的原始数量（已应用 delta）
-        const qty = (foundEquip.quantity || 1);
-        const currentChanges = record?.equipmentChanges?.[attacker.id];
-        const newChanges = applyEquipmentChange(currentChanges, (ch) => {
-          if (qty > 1) {
-            ch.quantityDeltas[slotId] = (ch.quantityDeltas[slotId] || 0) - 1;
-          } else {
-            // 数量已经是 1（或 0），直接移除
-            if (!ch.removedChildIds.includes(slotId)) {
-              ch.removedChildIds.push(slotId);
-            }
-          }
-        });
-        combatStore.update(record.id, {
-          equipmentChanges: {
-            ...(record?.equipmentChanges || {}),
-            [attacker.id]: newChanges,
-          },
-        });
-      }
-    }
-
-    // 生成唯一 token id
-    const tokenId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-    const itemToken: ItemToken = {
-      id: tokenId,
-      col: dropPos.col,
-      row: dropPos.row,
-      name: attack.name,
-      equipmentData: equipData,
-      droppedBy: attacker.id,
-    };
-    battlegroundStore.placeItemToken(record.id, itemToken);
-  };
-
-  // ✅ 突袭：打开突袭选择窗口
-  const openSurpriseAttackModal = (round: number) => {
-    setSurpriseAttackRound(round);
-    // 初始化当前回合已标记为被突袭的角色
-    const existing = new Set<string>();
-    const roundData = record.rounds[round];
-    if (roundData) {
-      Object.entries(roundData).forEach(([id, val]) => {
-        if (val === '被突袭') existing.add(id);
-      });
-    }
-    setSurprisedCombatants(existing);
-    setSurpriseAttackOpen(true);
-  };
-
-  // ✅ 突袭：确认后写入被突袭标记
-  const confirmSurpriseAttack = () => {
-    const updatedRounds = [...record.rounds];
-    updatedRounds[surpriseAttackRound] = { ...updatedRounds[surpriseAttackRound] };
-    record.combatants.forEach(c => {
-      if (surprisedCombatants.has(c.id)) {
-        updatedRounds[surpriseAttackRound][c.id] = '被突袭';
-      } else {
-        // 不清除已有标记（避免误操作），仅在首次设置时处理
-        if (updatedRounds[surpriseAttackRound][c.id] === '被突袭' && !surprisedCombatants.has(c.id)) {
-          updatedRounds[surpriseAttackRound][c.id] = '';
-        }
-      }
-    });
-    combatStore.update(record.id, {
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-    setSurpriseAttackOpen(false);
-    setSurprisedCombatants(new Set());
-  };
-
-  // ✅ 模式切换（真正的写入，不弹确认窗）
-  const commitModeChange = (mode: 'simulation' | 'playback') => {
-    if (!record) return;
-    combatStore.update(record.id, { mode, updatedAt: Date.now() });
-  };
-
-  // ✅ 模式切换（对外入口：放映→模拟时弹出确认窗，其他情况直接提交）
-  const handleModeChange = (mode: 'simulation' | 'playback') => {
-    if (!record) return;
-    if (record.mode === mode) return;
-    // 放映模式 → 模拟模式：弹窗
-    if (record.mode === 'playback' && mode === 'simulation') {
-      if (playbackStarted || playbackSnapshotRef.current) {
-        setExitPlaybackModalOpen(true);
-        return;
-      }
-    }
-    // 其他情况：直接切换
-    commitModeChange(mode);
-    if (mode === 'playback') {
-      const bg = battlegroundStore.get(record.id);
-      const latestForSnapshot = combatStore.get(record.id);
-      playbackSnapshotRef.current = (bg?.tokens ?? []).map(t => ({ ...t }));
-      rollbackSnapshotRef.current = {
-        initial: {
-          combatants: record.combatants.map(c => ({ ...c })),
-          rounds: record.rounds.map(r => ({ ...r })),
-          battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
-          equipmentChanges: latestForSnapshot?.equipmentChanges
-            ? Object.fromEntries(
-                Object.entries(latestForSnapshot.equipmentChanges).map(([k, v]) => [
-                  k,
-                  { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
-                ]),
-              )
-            : undefined,
-        },
-        snapshots: {},
-      };
-    }
-  };
-
-  // ✅ 退出放映：保存覆盖 or 丢弃恢复（由 exit modal 按钮调用）
-  const finalizeExitPlayback = (preserveChanges: boolean) => {
-    if (record?.mode !== 'playback') {
-      setExitPlaybackModalOpen(false);
-      return;
-    }
-    if (!preserveChanges) {
-      // 「丢弃，恢复原先状态」：完整还原 combatants / rounds / 装备变更 / 沙盘 到进入放映模式时的快照
-      const init = rollbackSnapshotRef.current.initial;
-      if (init) {
-        combatStore.update(record.id, {
-          combatants: init.combatants.map(c => ({ ...c })),
-          rounds: init.rounds.map(r => ({ ...r })),
-          equipmentChanges: init.equipmentChanges
-            ? Object.fromEntries(
-                Object.entries(init.equipmentChanges).map(([k, v]) => [
-                  k,
-                  { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
-                ]),
-              )
-            : undefined,
-          updatedAt: Date.now(),
-        });
-        battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
-      } else if (playbackSnapshotRef.current) {
-        // fallback：只恢复了沙盘
-        battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
-      }
-    }
-    // 「保存并覆盖」分支：combatStore 中已是最新数据，无需额外还原
-    setPlaybackStarted(false);
-    setCurrentTurn(null);
-    playbackSnapshotRef.current = null;
-    rollbackSnapshotRef.current = { initial: null, snapshots: {} };
-    setExitPlaybackModalOpen(false);
-    commitModeChange('simulation');
-  };
-
-  // ✅ 启动放映：从初始快照还原，从选中的格子开始扫描
-  // 从非最新回合处开始放映 ≡ 回溯：清空选中格之后的所有记录
-  const startPlayback = () => {
-    if (!record) return;
-    const init = rollbackSnapshotRef.current.initial;
-
-    // 1. 从初始快照还原 combatants / rounds / 装备变更
-    const restoredCombatants = init
-      ? init.combatants.map(c => ({ ...c }))
-      : record.combatants.map(c => ({ ...c }));
-    let restoredRounds = init
-      ? init.rounds.map(r => ({ ...r }))
-      : record.rounds.map(r => ({ ...r }));
-    const restoredEquipmentChanges = init?.equipmentChanges
-      ? Object.fromEntries(
-          Object.entries(init.equipmentChanges).map(([k, v]) => [
-            k,
-            { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
-          ]),
-        )
-      : undefined;
-
-    // 2. 从非最新回合开始放映 ≡ 回溯：清空选中格之后的所有记录
-    if (selectedCell) {
-      const selRound = selectedCell.round;
-      const selColIdx = restoredCombatants.findIndex(c => c.id === selectedCell.combatantId);
-      restoredRounds = restoredRounds.map(r => ({ ...r }));
-      for (let r = 0; r < restoredRounds.length; r++) {
-        for (let c = 0; c < restoredCombatants.length; c++) {
-          const cid = restoredCombatants[c].id;
-          const isAfter = r > selRound || (r === selRound && c > selColIdx);
-          if (isAfter) {
-            const cur = restoredRounds[r]?.[cid];
-            if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
-              restoredRounds[r] = { ...restoredRounds[r], [cid]: '' };
-            }
-          }
-        }
-      }
-    }
-
-    // 3. 应用还原
-    combatStore.update(record.id, {
-      combatants: restoredCombatants,
-      rounds: restoredRounds,
-      equipmentChanges: restoredEquipmentChanges,
-      updatedAt: Date.now(),
-    });
-
-    // 4. 沙盘还原
-    if (init) {
-      battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
-    } else if (playbackSnapshotRef.current) {
-      battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
-    }
-
-    // 5. 清理无效的死亡豁免待办（恢复 HP 后可能不再昏迷）
-    combatStore.cleanupDeathSaveTodos(record.id);
-
-    // 6. 自动填充昏迷/死亡标记
-    autoFillDownedMarkers();
-
-    // 7. 从用户点击的格子开始扫描（findNextValidTurn 闭包里 record 是旧快照，用 roundsOverride 传入）
-    let startRound = 0;
-    let startCol = 0;
-    if (selectedCell) {
-      startRound = selectedCell.round;
-      const colIdx = restoredCombatants.findIndex(c => c.id === selectedCell.combatantId);
-      startCol = Math.max(0, colIdx);
-    }
-    const firstTurn = findNextValidTurn(startRound, startCol, restoredRounds);
-    setCurrentTurn(firstTurn);
-    setPlaybackStarted(true);
-    if (firstTurn) {
-      // 重置起始回合的待办执行状态 + 装填武器攻击标记
-      combatStore.resetTurnTodosForRound(record.id, firstTurn.round);
-      resetCombatantActions(firstTurn.combatantId);
-      takeTurnSnapshot(firstTurn.round, firstTurn.combatantId);
-    }
-  };
-
-  // ✅ 给已昏迷/死亡角色在所有未填写的后续轮次中填入「昏迷」/「死亡」占位
-  // 注意：必须从 combatStore.get 读取最新数据，因为调用方（如 handleApplyDamage）
-  // 可能刚刚写入 store 但 React state（record）尚未异步更新，闭包里的 record 是旧快照
-  const autoFillDownedMarkers = () => {
-    if (!record) return;
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    let updatedRounds = latest.rounds.map(r => ({ ...r }));
-    let changed = false;
-    latest.combatants.forEach(c => {
-      if (!c.isDead && !c.isUnconscious) return;
-      const marker = c.isDead ? '死亡' : '昏迷';
-      updatedRounds = updatedRounds.map(round => {
-        const cur = round[c.id];
-        if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
-          // 已有有效记录的轮次不覆盖
-          return round;
-        }
-        // 没记录或就是「昏迷/死亡」占位的，更新为最新状态
-        if (cur !== marker) {
-          changed = true;
-          return { ...round, [c.id]: marker };
-        }
-        return round;
-      });
-    });
-    if (changed) {
-      combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
-    }
-  };
-
-  // ✅ 找到下一个有效回合（跳过被突袭/昏迷/死亡）
-  // 从指定位置（行、列）开始，向右→下一行扫描，遇到第一个非占位的格子
-  // 可选传入 roundsOverride：当本帧刚 combatStore.update 新增了轮次、record 还没重新渲染时使用
-  // 例外：昏迷角色若有未执行且在当前回合有效的死亡豁免待办，仍保留回合（D&D 5e：昏迷角色需做死亡豁免）
-  const findNextValidTurn = (
-    fromRound: number,
-    fromCol: number,
-    roundsOverride?: RoundAction[]
-  ): { round: number; combatantId: string } | null => {
-    if (!record) return null;
-    const rounds = roundsOverride ?? record.rounds;
-    // 读最新 turnTodos：handleApplyDamage 等刚写入 store 后 record.turnTodos 可能未刷新
-    const latestTodos = combatStore.get(record.id)?.turnTodos ?? record.turnTodos ?? [];
-    const hasActiveDeathSave = (combatantId: string, round: number) =>
-      latestTodos.some(t =>
-        t.type === 'death_save' &&
-        t.combatantId === combatantId &&
-        !t.executed &&
-        t.startRound <= round &&
-        (t.endRound === -1 || t.endRound >= round)
-      );
-    for (let r = fromRound; r < rounds.length; r++) {
-      const startCol = r === fromRound ? fromCol : 0;
-      for (let i = startCol; i < record.combatants.length; i++) {
-        const c = record.combatants[i];
-        const v = rounds[r][c.id];
-        if (v === '被突袭' || v === '死亡') continue;
-        if (v === '昏迷') {
-          // 昏迷默认跳过；但有未执行的死亡豁免待办时仍需推进到该回合
-          if (!hasActiveDeathSave(c.id, r)) continue;
-        }
-        return { round: r, combatantId: c.id };
-      }
-    }
-    return null;
-  };
-
-  // ✅ 推进到下一个回合
-  const advanceTurn = () => {
-    if (!currentTurn || !record) return;
-    const currentIdx = record.combatants.findIndex(c => c.id === currentTurn.combatantId);
-    const next = findNextValidTurn(currentTurn.round, currentIdx + 1);
-    if (next) {
-      // 进入新轮时重置待办执行状态
-      if (next.round > currentTurn.round) {
-        combatStore.resetTurnTodosForRound(record.id, next.round);
-      }
-      setCurrentTurn(next);
-      resetCombatantActions(next.combatantId);
-      takeTurnSnapshot(next.round, next.combatantId);
-      return;
-    }
-    // 当前行结束 → 判断是否还有活着的角色可战斗
-    const aliveCount = record.combatants.filter(c => !c.isDead && !c.isUnconscious).length;
-    if (aliveCount === 0) {
-      setCurrentTurn(null);
-      setPlaybackStarted(false);
-      alert('战斗已结束（所有参战者已倒地或死亡）。');
-      return;
-    }
-    // 检查是否需要新开一轮
-    const nextRound = currentTurn.round + 1;
-    if (nextRound >= record.rounds.length) {
-      // 自动新开一轮
-      const newRound: RoundAction = {};
-      record.combatants.forEach(c => {
-        if (c.isDead) newRound[c.id] = '死亡';
-        else if (c.isUnconscious) newRound[c.id] = '昏迷';
-        else newRound[c.id] = '';
-      });
-      const updatedRounds = [...record.rounds, newRound];
-      combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
-      // 新轮重置待办执行状态
-      combatStore.resetTurnTodosForRound(record.id, nextRound);
-      // 用 updatedRounds 覆盖参数避免读到旧 record
-      const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
-      if (firstInNew) {
-        setCurrentTurn(firstInNew);
-        resetCombatantActions(firstInNew.combatantId);
-        takeTurnSnapshot(firstInNew.round, firstInNew.combatantId);
-      } else {
-        setCurrentTurn(null);
-        setPlaybackStarted(false);
-      }
-    } else {
-      // 新轮重置待办执行状态
-      combatStore.resetTurnTodosForRound(record.id, nextRound);
-      const firstInNext = findNextValidTurn(nextRound, 0);
-      if (firstInNext) {
-        setCurrentTurn(firstInNext);
-        resetCombatantActions(firstInNext.combatantId);
-        takeTurnSnapshot(firstInNext.round, firstInNext.combatantId);
-      } else {
-        setCurrentTurn(null);
-        setPlaybackStarted(false);
-      }
-    }
-  };
-
-  // 先攻顺序序号（按先攻高→低排序，同先攻保持原序）：返回圆形序号标记
-  // 注意：不能用 useMemo，因为在 if(!record) early return 之后，会导致 hooks 顺序不一致
-  const initiativeOrder: Map<string, number> = (() => {
-    if (!record) return new Map<string, number>();
-    const order = [...record.combatants]
-      .map((c, i) => ({ c, i }))
-      .sort((a, b) => (b.c.initiative - a.c.initiative) || (a.i - b.i));
-    const m = new Map<string, number>();
-    order.forEach((o, idx) => m.set(o.c.id, idx));
-    return m;
-  })();
-
-  const CIRCLE_NUMBERS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
-  const getInitiativeCircle = (combatantId: string): string => {
-    const idx = initiativeOrder.get(combatantId);
-    if (idx === undefined) return '';
-    if (idx < CIRCLE_NUMBERS.length) return CIRCLE_NUMBERS[idx];
-    return `㉑${idx + 1}`; // 超过 20 时简单 fallback
-  };
-
-  // ✅ 确定沙盘攻击写入先攻表格的 {round, combatantId} 坐标
-  // 放映模式 → 当前回合；模拟模式 → 最后一轮
-  const resolveWriteCell = (attackerId: string): { round: number; combatantId: string } | null => {
-    if (!record) return null;
-    if (record.mode === 'playback' && playbackStarted && currentTurn) {
-      // 放映模式下强制写入当前回合（保证回合正确归属）
-      return { round: currentTurn.round, combatantId: currentTurn.combatantId };
-    }
-    // 模拟模式：最后一轮（不存在则创建第一轮）
-    const round = Math.max(0, record.rounds.length - 1);
-    return { round, combatantId: attackerId };
-  };
-
-  // ✅ 写入先攻表格：支持追加（保留已有内容，另起一行）
-  const appendRoundRecord = (round: number, combatantId: string, newLine: string) => {
-    if (!record) return;
-    const existing = record.rounds[round]?.[combatantId] || '';
-    const finalText = existing ? `${existing}\n${newLine}` : newLine;
-    handleCellChange(round, combatantId, finalText);
-  };
-
-  // ✅ 拍某回合的快照：记录此回合开始时的 combatants / rounds / 沙盘
-  // 每次进入新回合（播放起始、确认完成回合后）调用一次
-  // 注意：直接从 combatStore 读取最新值，避免 record state 还未重新渲染导致读到旧数据
-  const takeTurnSnapshot = (round: number, combatantId: string) => {
-    if (!record) return;
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    const bg = battlegroundStore.get(record.id);
-    const snap: TurnSnapshot = {
-      combatants: latest.combatants.map(c => ({ ...c })),
-      rounds: latest.rounds.map(r => ({ ...r })),
-      battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
-      equipmentChanges: latest.equipmentChanges
-        ? Object.fromEntries(
-            Object.entries(latest.equipmentChanges).map(([k, v]) => [
-              k,
-              { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
-            ]),
-          )
-        : undefined,
-    };
-    const key = `${round}:${combatantId}`;
-    // 只在第一次拍（始终回到该回合最初状态）
-    if (!rollbackSnapshotRef.current.snapshots[key]) {
-      rollbackSnapshotRef.current.snapshots[key] = snap;
-    }
-  };
-
-  // ✅ 回溯到指定回合开始：还原该回合及其之后所有记录为空，并把战斗数据整体还原到快照
-  const applyRollback = (round: number, combatantIdx: number) => {
-    if (!record) return;
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    const combatantId = latest.combatants[combatantIdx]?.id;
-    if (!combatantId) return;
-    const key = `${round}:${combatantId}`;
-    const snap = rollbackSnapshotRef.current.snapshots[key] ?? rollbackSnapshotRef.current.initial;
-    if (!snap) {
-      alert('回溯失败：未找到该回合的快照，请先至少推进一个回合后再回溯');
-      return;
-    }
-    // 1) 还原 combatants（HP / 状态）到快照
-    const restoredCombatants = snap.combatants.map(c => ({ ...c }));
-    // 2) 还原 rounds：
-    //    - 从快照拿回合结构（避免保留放映期间自动新增的轮次）
-    //    - 然后把"目标格之后"的所有格子清空（保留 被突袭/昏迷/死亡 占位）
-    const restoredRounds = snap.rounds.map(r => ({ ...r }));
-    const totalCombatants = restoredCombatants.length;
-    const totalRounds = restoredRounds.length;
-    for (let r = 0; r < totalRounds; r++) {
-      for (let c = 0; c < totalCombatants; c++) {
-        const cid = restoredCombatants[c].id;
-        const isAfter =
-          r > round ||
-          (r === round && c > combatantIdx);
-        if (isAfter) {
-          const cur = restoredRounds[r]?.[cid];
-          if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
-            restoredRounds[r] = { ...restoredRounds[r], [cid]: '' };
-          }
-        }
-      }
-    }
-    // 3) 应用还原
-    combatStore.update(record.id, {
-      combatants: restoredCombatants,
-      rounds: restoredRounds,
-      equipmentChanges: snap.equipmentChanges
-        ? Object.fromEntries(
-            Object.entries(snap.equipmentChanges).map(([k, v]) => [
-              k,
-              { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
-            ]),
-          )
-        : undefined,
-      updatedAt: Date.now(),
-    });
-    // 4) 还原沙盘
-    battlegroundStore.setTokens(record.id, snap.battleground.map(t => ({ ...t })));
-    // 5) 当前回合跳到此回合格
-    setCurrentTurn({ round, combatantId });
-    // 6) 此回合格在回溯后需要重新拍快照（旧的快照里此格"之后"已被清空，再次进入会重新写入）
-    //    清掉旧快照让下次进入时重拍
-    delete rollbackSnapshotRef.current.snapshots[key];
-    setRewindModal(null);
-  };
-
-  // ✅ 确认完成回合
-  const confirmEndTurn = () => {
-    setConfirmEndTurnOpen(false);
-    advanceTurn();
-  };
-
-  // ✅ 手动记录：确认后写入表格并应用效果
-  const confirmManualRecord = () => {
-    if (!selectedCell) return;
-    const { round, combatantId } = selectedCell;
-    const target = record.combatants.find(c => c.id === manualTargetId);
-    const attacker = record.combatants.find(c => c.id === combatantId);
-
-    if (manualRecordType === 'attack') {
-      if (!canUseAction(combatantId)) {
-        alert('该参战者本回合已没有可用动作');
-        return;
-      }
-      if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
-      if (!target) { alert('请选择目标'); return; }
-      if (!manualAttackRoll) { alert('请填写攻击检定值'); return; }
-
-      // 自动判定：攻击检定值根据目标 AC 自动判断命中
-      const roll = parseInt(manualAttackRoll, 10);
-      if (isNaN(roll)) { alert('攻击检定值必须是数字'); return; }
-      const tgtAc = getEffectiveAc(target);
-      if (!tgtAc && tgtAc !== 0) { alert('目标缺少 AC，无法判定命中'); return; }
-      const hit = roll >= tgtAc;
-
-      let text = '';
-      if (!hit) {
-        text = `对 ${target.name} 的攻击未命中，${manualAttackMethod}打偏了`;
-      } else {
-        const dmg = parseInt(manualDamage, 10);
-        if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
-        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害`;
-        if (manualIsKill && target.currentHp !== undefined) {
-          const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
-          const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
-          handleApplyDamage(target.id, newHp, status);
-          text += target.isPc ? `，将其击昏` : `，将其杀死`;
-        } else if (target.currentHp !== undefined) {
-          const newHp = Math.max(0, target.currentHp - dmg);
-          handleApplyDamage(target.id, newHp);
-        }
-      }
-      handleCellChange(round, combatantId, text);
-      // 攻击（无论命中/未命中）消耗 1 个动作
-      consumeCombatantAction(combatantId);
-    } else if (manualRecordType === 'recovery') {
-      if (!manualHealMethod.trim()) { alert('请填写恢复方式'); return; }
-      const amount = parseInt(manualHealAmount, 10);
-      if (isNaN(amount) || amount <= 0) { alert('请输入有效的恢复量（正整数）'); return; }
-      if (!attacker) return;
-
-      let targetHpId = manualTargetId;
-      let targetName = target?.name || '';
-      if (!target) {
-        // 如果没选目标，默认恢复自己
-        targetHpId = combatantId;
-        targetName = attacker.name;
-      }
-      const tgt = record.combatants.find(c => c.id === targetHpId);
-      if (!tgt) return;
-
-      const newHp = Math.min(tgt.maxHp ?? tgt.currentHp ?? 0, (tgt.currentHp ?? 0) + amount);
-      handleApplyDamage(tgt.id, newHp);
-
-      const isSelf = targetHpId === combatantId;
-      const text = isSelf
-        ? `用${manualHealMethod}恢复了自己${amount}点生命值`
-        : `用${manualHealMethod}恢复了${targetName} ${amount}点生命值`;
-      handleCellChange(round, combatantId, text);
-    }
-
-    // 重置表单
-    setManualRecordOpen(false);
-    setManualRecordType(null);
-    setManualTargetId('');
-    setManualAttackMethod('');
-    setManualDamage('');
-    setManualIsKill(false);
-    setManualHealMethod('');
-    setManualHealAmount('');
-    setManualAttackRoll('');
-    setSelectedCell(null);
-  };
-
-  // ✅ 手动记录：关闭窗口
-  const cancelManualRecord = () => {
-    setManualRecordOpen(false);
-    setManualRecordType(null);
-    setManualTargetId('');
-    setManualAttackMethod('');
-    setManualDamage('');
-    setManualIsKill(false);
-    setManualHealMethod('');
-    setManualHealAmount('');
-    setManualAttackRoll('');
-    setSelectedCell(null);
-  };
-
-  // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）
-  const handleInitiativeSave = (combatantId: string) => {
-    const newInit = parseInt(initiativeInput, 10);
-    if (isNaN(newInit)) {
-      alert('请输入有效的先攻数值');
-      setEditingInitiative(null);
-      return;
-    }
-    setEditingInitiative(null);
-    const updatedCombatants = record.combatants
-      .map((c) => (c.id === combatantId ? { ...c, initiative: newInit } : c))
-      .sort((a, b) => b.initiative - a.initiative);
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      updatedAt: Date.now(),
-    });
-  };
-
-  // ✅ 新增：批量删除参战者（同时清理各回合对应行动记录）
-  const handleBatchDelete = () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`确定删除选中的 ${selectedIds.size} 个参战者吗？`)) return;
-    const updatedCombatants = record.combatants.filter((c) => !selectedIds.has(c.id));
-    const updatedRounds = record.rounds.map((round) => {
-      const newRound = { ...round };
-      selectedIds.forEach((id) => delete newRound[id]);
-      return newRound;
-    });
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-    setSelectedIds(new Set());
-    setBatchMode(false);
-  };
-
-  // ✅ 新增：切换选中状态
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  // 原内容：完全保留，一个字都没改（页面结构主体不变）
   return (
-    <div className="max-w-full mx-auto p-4 space-y-4">
-      <div className="flex items-center justify-between gap-2 sm:gap-4">
-        <div className="flex items-center gap-2 min-w-0">
-          <button onClick={() => navigate('/combat')} className="p-2 rounded-lg hover:bg-white/10 transition-colors shrink-0">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="text-base sm:text-xl font-bold dark:text-text-dark light:text-text-light truncate">
-            {record.title}
-          </h1>
-        </div>
-        <div className="flex gap-2 shrink-0">
-          {/* 放映模式不提供批量删除，强制隐藏 batchMode UI（如果切换时还在批量模式则关掉） */}
-          {(batchMode && record.mode !== 'playback') ? (
-            <>
-              <button
-                type="button"
-                onClick={handleBatchDelete}
-                disabled={selectedIds.size === 0}
-                className="px-2 sm:px-3 py-2 rounded-lg bg-danger text-white text-sm flex items-center gap-1 hover:bg-danger/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span className="hidden sm:inline">删除选中({selectedIds.size})</span>
-                <span className="sm:hidden">{selectedIds.size}</span>
-              </button>
-              <button
-                onClick={() => {
-                  setBatchMode(false);
-                  setSelectedIds(new Set());
-                }}
-                className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
-              >
-                <X className="w-4 h-4" />
-                <span className="hidden sm:inline">取消</span>
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowCharSelect(true)}
-                className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
-              >
-                <Users className="w-4 h-4" />
-                <span className="hidden sm:inline">添加参战者</span>
-              </button>
-              {/* 批量删除：放映模式下不提供（放映模式用回溯代替） */}
-              {record.mode !== 'playback' && (
-                <button
-                  type="button"
-                  onClick={() => setBatchMode(true)}
-                  className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                  <span className="hidden sm:inline">批量删除</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleAddRound}
-                className="px-2 sm:px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">新增轮次</span>
-              </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* ✅ 新增：角色选择弹窗（仅点击按钮时显示，完全不影响加载逻辑） */}
-      {showCharSelect && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">选择PC参战</h3>
-              <button onClick={() => setShowCharSelect(false)} className="p-1 rounded hover:bg-white/10">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {availableChars.length === 0 ? (
-              <div className="text-center py-8 text-sm opacity-50">无可用PC，请先在角色库添加</div>
-            ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {availableChars.map(char => (
-                  <div
-                    key={char.id}
-                    onClick={() => handleAddCombatant(char)}
-                    className="p-3 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/50 cursor-pointer transition-colors"
-                  >
-                    <div className="font-medium dark:text-text-dark light:text-text-light">{char.name}</div>
-                    {/* 展示角色库的AC和HP，完全对齐设计文档字段 */}
-                    <div className="text-xs opacity-60">AC {char.armorClass} | HP {char.currentHp}/{char.maxHp}</div>
-                  </div>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={() => {
-                setShowCharSelect(false);
-                setNpcCreatorOpen(true);
-              }}
-              className="w-full mt-4 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 justify-center hover:bg-white/5 transition-colors"
-            >
-              创建NPC
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ 新增：PC 先攻投掷弹窗 —— d20 输入 + 敏捷加值 + 自动计算先攻总值 */}
-      {initiativeRollOpen && selectedPc && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">先攻投掷</h3>
-              <button
-                onClick={() => {
-                  setInitiativeRollOpen(false);
-                  setSelectedPc(null);
-                  setD20Input('');
-                }}
-                className="p-1 rounded hover:bg-white/10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <div className="text-sm font-medium dark:text-text-dark light:text-text-light mb-1">
-                  {selectedPc.name}
-                </div>
-                <div className="text-xs opacity-60">
-                  敏捷调整值：
-                  <span className="text-primary font-bold ml-1">
-                    {(selectedPc.abilities?.dexterity?.modifier ?? 0) >= 0
-                      ? `+${selectedPc.abilities?.dexterity?.modifier ?? 0}`
-                      : selectedPc.abilities?.dexterity?.modifier ?? 0}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5 block">
-                  输入 d20 结果（1-20）
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={20}
-                  autoFocus
-                  value={d20Input}
-                  onChange={(e) => setD20Input(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleConfirmInitiative();
-                    if (e.key === 'Escape') {
-                      setInitiativeRollOpen(false);
-                      setSelectedPc(null);
-                      setD20Input('');
-                    }
-                  }}
-                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary transition-colors"
-                  placeholder="例如 12"
-                />
-              </div>
-              <div className="flex items-center justify-between py-3 px-4 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
-                <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                  先攻总值
-                </div>
-                <div className="text-2xl font-bold dark:text-text-dark light:text-text-light">
-                  {isNaN(parseInt(d20Input, 10))
-                    ? '-'
-                    : (parseInt(d20Input, 10) + (selectedPc.abilities?.dexterity?.modifier ?? 0))}
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setInitiativeRollOpen(false);
-                    setSelectedPc(null);
-                    setD20Input('');
-                  }}
-                  className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
-                >
-                  取消
-                </button>
-                <button
-                  onClick={handleConfirmInitiative}
-                  disabled={isNaN(parseInt(d20Input, 10))}
-                  className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  确认加入
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ 新增：先攻平局排序弹窗 —— 触屏拖拽重排平局参战者 */}
-      {tiebreakerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">先攻平局</h3>
-              <button
-                onClick={() => {
-                  setTiebreakerOpen(false);
-                  setTiedOrder([]);
-                }}
-                className="p-1 rounded hover:bg-white/10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
-              以下参战者先攻相同（{tiedOrder[0]?.initiative ?? '-'}），长按拖动调整行动顺序
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <div className="mx-auto max-w-[1600px] p-4 lg:p-6">
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">⚔️ 战斗：{record.title ?? record.id.slice(0, 8)}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              参战者 {record.combatants.length} · 回合 {record.rounds.length}
+              {record.mode === 'playback' && <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-medium text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-200">放映模式</span>}
             </p>
-            <div
-              className="space-y-2 max-h-[60vh] overflow-y-auto touch-none select-none"
-              onPointerMove={handleDragMove}
-              onPointerUp={handleDragEnd}
-              onPointerCancel={handleDragEnd}
-            >
-              {tiedOrder.map((c, index) => {
-                // PC 查种族/职业；NPC 仅显示名称
-                const pc = c.characterId ? characterStore.get(c.characterId) : null;
-                const race = pc?.race;
-                const cls = pc?.class;
-                return (
-                  <div
-                    key={c.id}
-                    ref={(el) => { cardRefs.current[index] = el; }}
-                    onPointerDown={(e) => handleDragStart(e, index)}
-                    className={`flex items-center gap-2 p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-shadow ${
-                      draggingIndex === index
-                        ? 'border-primary shadow-lg scale-[1.02] opacity-90'
-                        : 'dark:border-border-dark light:border-border-light'
-                    } dark:bg-bg-dark light:bg-bg-light-2`}
-                    style={{ touchAction: 'none' }}
-                  >
-                    <GripVertical className="w-4 h-4 opacity-40 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate dark:text-text-dark light:text-text-light">
-                        {c.name}
-                      </div>
-                      <div className="text-xs opacity-60 truncate">
-                        {c.isPc
-                          ? [race, cls].filter(Boolean).join(' · ') || '玩家角色'
-                          : 'NPC'}
-                      </div>
-                    </div>
-                    <div className="text-xs font-bold text-primary shrink-0">#{index + 1}</div>
-                  </div>
-                );
-              })}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-lg border border-gray-300 bg-white p-0.5 dark:border-gray-600 dark:bg-gray-800">
+              <button
+                onClick={() => handleModeChange('simulation')}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  record.mode !== 'playback' ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >🧪 模拟模式</button>
+              <button
+                onClick={() => handleModeChange('playback')}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${
+                  record.mode === 'playback' ? 'bg-blue-600 text-white'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >🎬 放映模式</button>
             </div>
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => {
-                  setTiebreakerOpen(false);
-                  setTiedOrder([]);
-                }}
-                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleConfirmTiebreaker}
-                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
-              >
-                确认顺序
-              </button>
+            <button onClick={handleAddRound} className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">＋ 添加回合</button>
+            <button onClick={() => onAddCombatant()} className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">➕ 添加角色</button>
+            <button onClick={() => setAddNpcOpen(true)} className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">👹 添加敌人</button>
+            <button
+              onClick={() => openSurpriseAttackModal(Math.max(0, record.rounds.length - 1))}
+              className="rounded-lg border border-red-400 bg-red-50 px-3 py-1.5 text-sm text-red-700 hover:bg-red-100 dark:border-red-700 dark:bg-red-900/30 dark:text-red-200 dark:hover:bg-red-900/50"
+            >🐉 突袭！</button>
+          </div>
+        </header>
+
+        {record.mode === 'playback' && (
+          <PlaybackToolbar
+            playbackStarted={playbackStarted}
+            onStartPlayback={startPlayback}
+            onConfirmEndTurn={() => setConfirmEndTurnOpen(true)}
+            currentTurnText={currentTurnText}
+            onExitPlayback={() => handleModeChange('simulation')}
+            onRewind={() => setRewindModalOpen(true)}
+            onOpenManual={() => {
+              if (!currentTurn) { alert('请先点击「开始放映」'); return; }
+              setSelectedCell({ round: currentTurn.round, combatantId: currentTurn.combatantId });
+              setManualRecordOpen(true);
+              setManualRecordType(null);
+            }}
+          />
+        )}
+
+        {confirmEndTurnOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800">
+              <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">确认结束当前回合？</h2>
+              <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">完成 {currentTurnText}，切到下一参战者。</p>
+              <div className="flex justify-end gap-3">
+                <button onClick={() => setConfirmEndTurnOpen(false)} className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">取消</button>
+                <button onClick={confirmEndTurn} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">确认结束</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid gap-4 lg:grid-cols-5">
+          <div className="lg:col-span-3 space-y-4">
+            <Battleground
+              sessionId={record.id}
+              combatants={record.combatants}
+              onRequestAttack={handleRequestAttack}
+              onRequestSpell={handleRequestSpell}
+              onPickupItem={handlePickupItem}
+              activeTurnCombatantId={record.mode === 'playback' ? (currentTurn?.combatantId ?? null) : null}
+              playbackOnlyMovableId={record.mode === 'playback' && playbackStarted ? (currentTurn?.combatantId ?? null) : null}
+              combatInventories={combatInventories}
+              equipmentChangesMap={record.equipmentChanges}
+              onUpdateChanges={(cid, changes) => {
+                if (!record) return;
+                const latest = combatStore.get(record.id) ?? record;
+                combatStore.update(record.id, {
+                  equipmentChanges: { ...(latest.equipmentChanges ?? {}), [cid]: changes },
+                  updatedAt: Date.now(),
+                });
+              }}
+              onRemoveItem={(cid, item) => updateCombatantEquipment(cid, (ch) => {
+                const sid = item.childId || item.id;
+                if (!ch.removedChildIds.includes(sid)) ch.removedChildIds.push(sid);
+              })}
+              mode={record.mode === 'playback' ? 'playback' : 'simulation'}
+              actionsMap={actionsMap}
+            />
+            {record.mode === 'playback' && (
+              <TurnTodoBoard record={record} currentTurn={currentTurn} combatants={record.combatants} />
+            )}
+          </div>
+          <div className="lg:col-span-2 space-y-4">
+            <CombatantList
+              combatants={record.combatants}
+              turnTodos={record.turnTodos}
+              getEffectiveAc={getEffectiveAc}
+              batchMode={batchMode}
+              selectedIds={selectedIds}
+              onToggleSelect={toggleSelect}
+              onSelectAll={(checked) => setSelectedIds(checked ? new Set(record.combatants.map(c => c.id)) : new Set())}
+              onSetBatchMode={setBatchMode}
+              onBatchDelete={handleBatchDelete}
+              editingInitiative={editingInitiative}
+              initiativeInput={initiativeInput}
+              onInitiativeInputChange={setInitiativeInput}
+              onStartEditInitiative={(cid) => {
+                const c = record.combatants.find(x => x.id === cid);
+                if (!c) return;
+                setEditingInitiative(cid);
+                setInitiativeInput(String(c.initiative));
+              }}
+              onSaveInitiative={handleInitiativeSave}
+              onCancelEditInitiative={() => setEditingInitiative(null)}
+              onRemoveCombatant={onRemoveCombatant}
+              currentTurnId={currentTurn?.combatantId ?? null}
+              currentTurnRound={currentTurn?.round ?? 0}
+            />
+            <InitiativeTable
+              combatants={record.combatants}
+              rounds={record.rounds}
+              selectedCell={selectedCell}
+              onCellClick={(r, cid) => {
+                if (record.mode === 'playback') {
+                  setSelectedCell({ round: r, combatantId: cid });
+                  setManualRecordOpen(true);
+                  setManualRecordType(null);
+                  return;
+                }
+                setSelectedCell(sel =>
+                  (sel && sel.round === r && sel.combatantId === cid) ? null : { round: r, combatantId: cid });
+              }}
+              onCellChange={handleCellChange}
+              currentTurnId={currentTurn?.combatantId ?? null}
+              currentTurnRound={currentTurn?.round ?? 0}
+              getInitiativeCircle={getInitiativeCircle}
+              turnTodos={record.turnTodos}
+              onToggleTodo={toggleTodoExecuted}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* 弹窗层 */}
+      <InitiativeRollDialog
+        open={initiativeRollOpen}
+        characters={characters}
+        selectedPc={selectedPc}
+        onSelectPc={setSelectedPc}
+        d20Input={d20Input}
+        onD20Change={setD20Input}
+        onConfirm={handleConfirmInitiative}
+        onClose={() => { setInitiativeRollOpen(false); setSelectedPc(null); setD20Input(''); }}
+      />
+      <InitiativeTiebreakerDialog
+        open={tiebreakerOpen}
+        tiedOrder={tiedOrder}
+        cardRefs={cardRefs}
+        draggingIndex={draggingIndex}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onChangeOrder={setTiedOrder}
+        onConfirm={handleConfirmTiebreaker}
+        onClose={() => { setTiebreakerOpen(false); setTiedOrder([]); }}
+      />
+      <SurpriseAttackDialog
+        open={surpriseAttackOpen}
+        combatants={surpriseTargetsArr}
+        onConfirm={confirmSurpriseAttack}
+        onClose={() => { void setSurprisedCombatants; surprise.setSurpriseAttackOpen(false); }}
+      />
+      <RewindDialog
+        open={rewindModalOpen}
+        onRewind={() => {
+          if (!currentTurn) return;
+          const combatantIdx = record.combatants.findIndex(c => c.id === currentTurn.combatantId);
+          applyRollback(currentTurn.round, combatantIdx);
+          setRewindModalOpen(false);
+        }}
+        onCancel={() => setRewindModalOpen(false)}
+      />
+      <ManualRecordDialog
+        open={manualRecordOpen}
+        recordType={manualRecordType}
+        combatants={record.combatants}
+        attackerName={selectedCell ? (record.combatants.find(c => c.id === selectedCell.combatantId)?.name ?? '—') : '—'}
+        onSetType={setManualRecordType}
+        targetId={manualTargetId}
+        onTargetIdChange={setManualTargetId}
+        attackMethod={manualAttackMethod}
+        onAttackMethodChange={setManualAttackMethod}
+        attackRoll={manualAttackRoll}
+        onAttackRollChange={setManualAttackRoll}
+        damage={manualDamage}
+        onDamageChange={setManualDamage}
+        isKill={manualIsKill}
+        onIsKillChange={setManualIsKill}
+        targetAc={manRecTarget ? getEffectiveAc(manRecTarget) : null}
+        healMethod={manualHealMethod}
+        onHealMethodChange={setManualHealMethod}
+        healAmount={manualHealAmount}
+        onHealAmountChange={setManualHealAmount}
+        actionsLeft={selectedCell ? (record.combatants.find(c => c.id === selectedCell.combatantId)?.actions ?? -1) : -1}
+        onConfirm={confirmManualRecord}
+        onCancel={cancelManualRecord}
+      />
+      {exitPlaybackModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800">
+            <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">退出放映模式</h2>
+            <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">放映期间的改动是否保留？</p>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => finalizeExitPlayback(true)} className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700">✅ 保留所有改动</button>
+              <button onClick={() => finalizeExitPlayback(false)} className="rounded-lg border border-orange-400 bg-orange-50 px-4 py-2 text-sm font-medium text-orange-800 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-100">⏪ 还原至放映前快照</button>
+              <button onClick={() => setExitPlaybackModalOpen(false)} className="mt-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">取消</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* ✅ 模式切换栏 —— 模拟模式 / 放映模式 */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
-        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
-          战斗模式
-        </span>
-        <div className="flex rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">
-          <button
-            onClick={() => handleModeChange('simulation')}
-            disabled={playbackStarted}
-            className={`px-3 py-1.5 text-xs transition-colors ${
-              (record.mode ?? 'simulation') === 'simulation'
-                ? 'bg-primary text-white'
-                : 'dark:text-text-dark light:text-text-light hover:bg-white/5'
-            } disabled:opacity-40 disabled:cursor-not-allowed`}
-          >
-            模拟模式
-          </button>
-          <button
-            onClick={() => handleModeChange('playback')}
-            className={`px-3 py-1.5 text-xs transition-colors ${
-              record.mode === 'playback'
-                ? 'bg-primary text-white'
-                : 'dark:text-text-dark light:text-text-light hover:bg-white/5'
-            }`}
-          >
-            放映模式
-          </button>
-        </div>
-        {record.mode === 'playback' && (
-          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-            {playbackStarted
-              ? currentTurn
-                ? `当前回合：${record.combatants.find(c => c.id === currentTurn.combatantId)?.name ?? '?'}（第 ${currentTurn.round + 1} 轮）`
-                : '放映已结束'
-              : '点击先攻表格的 ▶️ 开始放映'}
-          </span>
-        )}
-      </div>
-
-      {/* ✅ 回合待办展示板 —— 仅放映模式 + 已开始放映时显示 */}
-      {record.mode === 'playback' && playbackStarted && currentTurn && (
-        <TurnTodoBoard
-          record={record}
-          currentTurn={currentTurn}
-          combatants={record.combatants}
-        />
-      )}
-
-      {/* 原内容：完全保留，一个字都没改（表格逻辑不变） */}
-      <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="dark:bg-card-dark light:bg-card-light">
-              <th className="p-2 border-r dark:border-border-dark light:border-border-light sticky left-0 dark:bg-card-dark light:bg-card-light z-10 w-16 text-center">
-                轮次
-              </th>
-              {record.combatants.map((c, idx) => {
-                const downed = c.isDead || c.isUnconscious;
-                return (
-                <th key={c.id} className={`p-2 pt-7 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group ${downed ? 'opacity-40' : ''}`}>
-                  <div className="absolute top-1 left-1 w-6 h-6 rounded-full dark:bg-gray-600 dark:text-white light:bg-gray-300 light:text-black text-xs font-bold flex items-center justify-center">
-                    {idx + 1}
-                    {/* 死亡：在数字标记上打红叉 */}
-                    {c.isDead && (
-                      <svg
-                        className="absolute inset-0 w-full h-full pointer-events-none"
-                        viewBox="0 0 100 100"
-                        style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.6))' }}
-                      >
-                        <line x1="20" y1="20" x2="80" y2="80" stroke="#ef4444" strokeWidth="14" strokeLinecap="round" />
-                        <line x1="80" y1="20" x2="20" y2="80" stroke="#ef4444" strokeWidth="14" strokeLinecap="round" />
-                      </svg>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    {batchMode && (
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(c.id)}
-                        onChange={() => toggleSelect(c.id)}
-                        className="shrink-0 cursor-pointer"
-                      />
-                    )}
-                    {/* 名称：PC/NPC 均为只读，不可编辑（名称属于角色卡默认信息） */}
-                    <div className="font-medium truncate flex-1">{c.name}</div>
-                  </div>
-                  {/* 先攻：点击可编辑（先攻是战斗临时数据，不涉及角色卡默认信息） */}
-                  {editingInitiative === c.id ? (
-                    <input
-                      type="number"
-                      autoFocus
-                      value={initiativeInput}
-                      onChange={(e) => setInitiativeInput(e.target.value)}
-                      onBlur={() => handleInitiativeSave(c.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleInitiativeSave(c.id);
-                        if (e.key === 'Escape') setEditingInitiative(null);
-                      }}
-                      className="w-12 text-xs bg-transparent border-b border-primary outline-none dark:text-text-dark light:text-text-light"
-                    />
-                  ) : (
-                    <div
-                      className="text-xs opacity-60 cursor-text hover:opacity-100"
-                      onClick={() => {
-                        setEditingInitiative(c.id);
-                        setInitiativeInput(String(c.initiative));
-                      }}
-                      title="点击编辑先攻"
-                    >
-                      先攻 {c.initiative}
-                    </div>
-                  )}
-                  {/* 展示 HP（PC 和 NPC 均显示） */}
-                  {c.maxHp != null && c.maxHp > 0 && (
-                    <div className="text-xs opacity-60 mt-1">
-                      HP {c.currentHp}/{c.maxHp}
-                    </div>
-                  )}
-                  {/* 单个删除按钮：仅非批量模式显示 */}
-                  {!batchMode && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemoveCombatant(c.id);
-                      }}
-                      className="absolute top-1 right-1 p-0.5 rounded hover:bg-danger/20 text-danger opacity-0 group-hover:opacity-100 transition-opacity"
-                      title="删除参战者"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
-                </th>
-                );
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {record.rounds.map((round, roundIndex) => (
-              <tr key={roundIndex} className="border-t dark:border-border-dark/50 light:border-border-light/50">
-                <td className="p-2 border-r dark:border-border-dark light:border-border-light sticky left-0 dark:bg-bg-dark light:bg-bg-light font-medium text-center">
-                  {roundIndex === 0 ? (
-                    <button
-                      onClick={() => openSurpriseAttackModal(roundIndex)}
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-primary/10 text-primary transition-colors cursor-pointer"
-                      title="设置被突袭角色"
-                    >
-                      {roundIndex + 1}
-                    </button>
-                  ) : (
-                    roundIndex + 1
-                  )}
-                </td>
-                {record.combatants.map((c) => {
-                  const action = round[c.id] || '';
-                  const isEditing =
-                    editingCell?.round === roundIndex &&
-                    editingCell?.combatantId === c.id;
-                  const isSurprised = action === '被突袭';
-                  const isSelected = selectedCell?.round === roundIndex && selectedCell?.combatantId === c.id;
-                  // 放映模式判断
-                  const isPlayback = record.mode === 'playback';
-                  const isCurrentTurn = isPlayback && playbackStarted && currentTurn?.round === roundIndex && currentTurn?.combatantId === c.id;
-                  // 放映模式下：
-                  // - 未开始放映：所有非被突袭格子可点击（用于选择放映起点）
-                  // - 已开始放映：当前回合格子可记录/手动输入；其它任何已发生或后续格子也允许点击（用于回溯）
-                  const cellClickable = isPlayback
-                    ? (!isSurprised && (
-                        !playbackStarted || true  // 已开始放映后允许点开任意格子查看并回溯
-                      ))
-                    : true;
-
-                  if (isSurprised) {
-                    return (
-                      <td
-                        key={c.id}
-                        className="p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] dark:bg-yellow-500/10 light:bg-yellow-100/50 text-center"
-                        title="被突袭：本回合被突袭，失去先攻"
-                      >
-                        <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">被突袭</span>
-                      </td>
-                    );
-                  }
-
-                  return (
-                    <td
-                      key={c.id}
-                      className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] transition-colors relative ${
-                        isSelected ? 'bg-primary/10 ring-2 ring-inset ring-primary/30' : cellClickable ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60'
-                      } ${isCurrentTurn ? 'ring-2 ring-yellow-400 dark:ring-yellow-300 animate-pulse bg-yellow-400/10 dark:bg-yellow-300/10' : ''}`}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isEditing) return;
-                        if (isPlayback) {
-                          // 放映模式：所有非被突袭格子都可被点开
-                          // （未开始放映 → 显示播放按钮；已开始放映 → 当前回合显示记录/手动输入，其它显示回溯）
-                          setSelectedCell({ round: roundIndex, combatantId: c.id });
-                          setEditingCell(null);
-                        } else {
-                          setSelectedCell({ round: roundIndex, combatantId: c.id });
-                          setEditingCell(null);
-                        }
-                      }}
-                    >
-                      {isEditing ? (
-                        <textarea
-                          autoFocus
-                          value={action}
-                          onChange={(e) => handleCellChange(roundIndex, c.id, e.target.value)}
-                          onBlur={() => setEditingCell(null)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') setEditingCell(null);
-                          }}
-                          className="w-full bg-transparent outline-none resize-none text-xs"
-                          rows={2}
-                        />
-                      ) : isSelected ? (
-                        <div className="flex flex-col items-center gap-1 py-1 relative">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedCell(null);
-                            }}
-                            className="absolute -top-1 -right-1 p-0.5 rounded-full bg-danger text-white hover:bg-danger/80 transition-colors z-10"
-                            title="取消"
-                            type="button"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                          <div className="whitespace-pre-wrap text-xs min-h-[2em] w-full text-center opacity-50 italic">
-                            {action || '空白记录'}
-                          </div>
-                          {isPlayback && !playbackStarted ? (
-                            // 放映模式 + 未开始放映 → 显示播放按钮（放映模式不要手动记录按钮）
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                startPlayback();
-                                setSelectedCell(null);
-                              }}
-                              className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
-                              title="从这里开始放映"
-                            >
-                              <Play className="w-3 h-3" />
-                              开始放映
-                            </button>
-                          ) : isPlayback && playbackStarted ? (
-                            // 放映模式 + 已开始放映：仅当前回合/之前的回合格支持「手动记录/手动输入」，所有回合格都支持「回溯」
-                            <>
-                              {(isCurrentTurn ||
-                                roundIndex < (currentTurn?.round ?? Infinity) ||
-                                (roundIndex === (currentTurn?.round ?? -1) &&
-                                  (record.combatants.findIndex(x => x.id === c.id)) < (record.combatants.findIndex(x => x.id === currentTurn?.combatantId) ?? Infinity))
-                              ) ? (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setManualRecordType('attack');
-                                      setManualRecordOpen(true);
-                                      setManualTargetId('');
-                                      setManualAttackMethod('');
-                                      setManualDamage('');
-                                      setManualIsKill(false);
-                                      setManualHealMethod('');
-                                      setManualHealAmount('');
-                                      setManualAttackRoll('');
-                                    }}
-                                    className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
-                                    title="手动记录"
-                                  >
-                                    <Pencil className="w-3 h-3" />
-                                    记录
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setEditingCell({ round: roundIndex, combatantId: c.id });
-                                      setSelectedCell(null);
-                                    }}
-                                    className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors flex items-center gap-1"
-                                    title="手动输入"
-                                  >
-                                    <Keyboard className="w-3 h-3" />
-                                    手动输入
-                                  </button>
-                                </>
-                              ) : null}
-                              {/* 放映模式：任何已过/当前/后续回合格都提供回溯（只要不是纯占位符） */}
-                              {action !== '被突袭' && action !== '昏迷' && action !== '死亡' && (() => {
-                                const cidx = record.combatants.findIndex(x => x.id === c.id);
-                                return (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // 打开回溯确认弹窗：第一次点击 firstClickDone，第二次确认
-                                      setRewindModal({
-                                        round: roundIndex,
-                                        combatantId: c.id,
-                                        combatantIdx: cidx,
-                                        firstClickDone: false,
-                                      });
-                                    }}
-                                    className="text-xs px-2 py-0.5 rounded border border-amber-500/40 text-amber-500 hover:bg-amber-500/10 transition-colors flex items-center gap-1"
-                                    title="回溯到此回合（之后所有记录清空并还原生命值/沙盘）"
-                                  >
-                                    <Undo2 className="w-3 h-3" />
-                                    回溯到此
-                                  </button>
-                                );
-                              })()}
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setManualRecordType('attack');
-                                  setManualRecordOpen(true);
-                                  setManualTargetId('');
-                                  setManualAttackMethod('');
-                                  setManualDamage('');
-                                  setManualIsKill(false);
-                                  setManualHealMethod('');
-                                  setManualHealAmount('');
-                                  setManualAttackRoll('');
-                                }}
-                                className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
-                                title="手动记录"
-                              >
-                                <Pencil className="w-3 h-3" />
-                                记录
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setEditingCell({ round: roundIndex, combatantId: c.id });
-                                  setSelectedCell(null);
-                                }}
-                                className="text-xs px-2 py-0.5 rounded border dark:border-border-dark light:border-border-light hover:bg-white/5 transition-colors flex items-center gap-1"
-                                title="手动输入"
-                              >
-                                <Keyboard className="w-3 h-3" />
-                                手动输入
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="whitespace-pre-wrap text-xs min-h-[2em]">{action || ''}</div>
-                      )}
-                    </td>
-                  );
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ✅ 新增：网格沙盘 —— 展示参战者位置与移动 */}
-      <Battleground
-        sessionId={record.id}
-        combatants={record.combatants}
-        combatInventories={combatInventories}
-        equipmentChangesMap={record.equipmentChanges}
-        onUpdateChanges={(combatantId, changes) => {
-          combatStore.update(record.id, {
-            equipmentChanges: {
-              ...(record.equipmentChanges || {}),
-              [combatantId]: changes,
-            },
-          });
-        }}
-        playbackOnlyMovableId={
-          record.mode === 'playback' && playbackStarted && currentTurn
-            ? currentTurn.combatantId
-            : null
-        }
-        activeTurnCombatantId={
-          record.mode === 'playback' && playbackStarted && currentTurn
-            ? currentTurn.combatantId
-            : null
-        }
-        onRequestAttack={(attacker, target) => {
-          // 动作校验：放映模式可用动作耗尽时禁止发起攻击
-          if (!canUseAction(attacker.id)) {
-            alert('该参战者本回合已没有可用动作');
-            return;
-          }
-          // main 上处理：从 battlegroundStore 读取坐标，一并传入攻击检定弹窗
-          const bg = record.id ? battlegroundStore.get(record.id) : null;
-          const tokens = bg?.tokens ?? [];
-          const attackerPos = tokens.find(t => t.combatantId === attacker.id);
-          const targetPos = tokens.find(t => t.combatantId === target.id);
-          setAttackModal({
-            attacker,
-            target,
-            attackerPos: attackerPos ? { col: attackerPos.col, row: attackerPos.row } : undefined,
-            targetPos: targetPos ? { col: targetPos.col, row: targetPos.row } : undefined,
-          });
-        }}
-        onRequestSpell={(caster, target) => {
-          // 动作校验：放映模式可用动作耗尽时禁止施法
-          if (!canUseAction(caster.id)) {
-            alert('该参战者本回合已没有可用动作');
-            return;
-          }
-          // 法术按钮：打开独立法术施放弹窗
-          setSpellModal({ caster, target });
-        }}
-        onPickupItem={(itemToken, picker) => {
-          // 拾起掉落物品：体型小型及以上 + 智力4以上 + 5尺内（1格）
-          if (!record) return;
-          const bg = battlegroundStore.get(record.id);
-          if (!bg) return;
-          const pickerToken = bg.tokens.find(t => t.combatantId === picker.id);
-          if (!pickerToken) {
-            alert('拾取者不在沙盘上');
-            return;
-          }
-          // 距离检查：5尺内（切比雪夫距离 ≤ 1格）
-          const dist = Math.max(
-            Math.abs(pickerToken.col - itemToken.col),
-            Math.abs(pickerToken.row - itemToken.row),
-          );
-          if (dist > 1) {
-            alert(`距离过远（${dist * 5}尺），需在5尺（1格）内才能拾起`);
-            return;
-          }
-          // 体型检查：小型及以上
-          let size = '中型';
-          let intelligence = 10;
-          if (picker.characterId) {
-            const char = characterStore.get(picker.characterId);
-            if (char) {
-              size = char.size || '中型';
-              intelligence = char.abilities?.intelligence?.score || 10;
-            }
-          } else if (picker.templateId) {
-            const template = npcTemplateStore.getAll().find(t => t.templateId === picker.templateId);
-            if (template) {
-              intelligence = template.intelligence || 10;
-            }
-          }
-          const validSizes = ['微型', '小型', '中型', '大型', '巨型', '超巨型'];
-          if (!validSizes.includes(size)) size = '中型';
-          const sizeIdx = validSizes.indexOf(size);
-          if (sizeIdx < 1) { // 小型 = index 1
-            alert(`${picker.name} 体型为${size}，需小型及以上才能拾起`);
-            return;
-          }
-          // 智力检查：4以上
-          if (intelligence < 4) {
-            alert(`${picker.name} 智力为${intelligence}，需4以上才能拾起`);
-            return;
-          }
-          
-          // 拾取物品：优先复用源 childId（"丢出去的匕首捡回来还是同一把"），
-          // 避免生成新 childId 导致同名武器被识别为不同实体（武器定制化越强，数据丢失越严重）；
-          // 仅 NPC 掉落物（无源 childId）才生成新的临时 childId。
-          const sourceChildId = (itemToken.equipmentData?.childId as string | undefined)
-            || (itemToken.equipmentData?.id as string | undefined);
-          const fallbackChildId = `combat-${picker.id}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-          const childIdToUse = sourceChildId || fallbackChildId;
-
-          // 判断拾取者是否为该 childId 的源拥有者：
-          //   是 → 拾取 = 撤销当初的"丢失"操作（removedChildIds 或 quantityDeltas），
-          //        否则 added 会被 removedChildIds 强制置 0，导致"捡不回来"
-          //   否 → 当作新增物品写入 added
-          const pickerChar = picker.characterId ? characterStore.get(picker.characterId) : null;
-          const pickerSrcList = (pickerChar?.equipment as any[] | undefined) || [];
-          const isInPickerSrc = sourceChildId
-            ? pickerSrcList.some(e => (e.childId || e.id) === sourceChildId)
-            : false;
-
-          const equipSnapshot: Record<string, unknown> = {
-            ...(itemToken.equipmentData || {}),
-            name: (itemToken.equipmentData?.name as string) || itemToken.name || '未命名物品',
-            category: (itemToken.equipmentData?.category as string) || '杂项',
-            quantity: 1,
-            childId: childIdToUse,
-          };
-          const currentChanges = record?.equipmentChanges?.[picker.id];
-          const newChanges = applyEquipmentChange(currentChanges, (ch) => {
-            if (isInPickerSrc && ch.removedChildIds.includes(childIdToUse)) {
-              // 当初源数量=1，整件被 removed → 撤销 removed，combatQty 自然回到 srcQty
-              ch.removedChildIds = ch.removedChildIds.filter(c => c !== childIdToUse);
-            } else if (isInPickerSrc && (ch.quantityDeltas[childIdToUse] || 0) < 0) {
-              // 当初源数量>1，quantityDeltas -1 → +1 抵消
-              const next = (ch.quantityDeltas[childIdToUse] || 0) + 1;
-              if (next === 0) delete ch.quantityDeltas[childIdToUse];
-              else ch.quantityDeltas[childIdToUse] = next;
-            } else {
-              // 非源拥有者，或源拥有者从未丢失此物（捡到同名同 childId 的他人掉落物）：当作新增
-              ch.added.push({
-                childId: childIdToUse,
-                equipment: equipSnapshot,
-              });
-            }
-          });
-          combatStore.update(record.id, {
-            equipmentChanges: {
-              ...(record?.equipmentChanges || {}),
-              [picker.id]: newChanges,
-            },
-          });
-
-          // 从网格移除物品 token
-          battlegroundStore.removeItemToken(record.id, itemToken.id);
-          // 写入先攻表格
-          const cell = resolveWriteCell(picker.id);
-          if (cell) {
-            appendRoundRecord(cell.round, cell.combatantId, `${picker.name} 拾起了 ${itemToken.name}`);
-          }
-        }}
-        onRemoveItem={(combatantId, item) => {
-          // 从战斗背包删除物品：通过变更信息漏斗
-          if (!record) return;
-          const slotId = item.childId || item.id;
-          if (!slotId) return;
-          const currentChanges = record.equipmentChanges?.[combatantId];
-          const newChanges = applyEquipmentChange(currentChanges, (ch) => {
-            // 判断该 childId 是源装备还是战斗中新增的
-            const isInAdded = ch.added.some(a => a.childId === slotId);
-            if (isInAdded) {
-              // 战斗中新增的：直接从 added 移除
-              ch.added = ch.added.filter(a => a.childId !== slotId);
-            } else {
-              // 源装备：加入 removedChildIds
-              if (!ch.removedChildIds.includes(slotId)) {
-                ch.removedChildIds.push(slotId);
-              }
-            }
-          });
-          combatStore.update(record.id, {
-            equipmentChanges: {
-              ...(record.equipmentChanges || {}),
-              [combatantId]: newChanges,
-            },
-          });
-        }}
-      />
-
-      {/* ✅ 新增：NPC 创建器 */}
-      {npcCreatorOpen && (
+      {addNpcOpen && (
         <NpcCreator
-          onClose={() => setNpcCreatorOpen(false)}
-          onCreate={handleCreateNpc}
-          onBatchCreate={handleBatchCreateNpc}
-          templates={npcTemplates}
+          onClose={() => setAddNpcOpen(false)}
+          onCreate={onAddNpc}
+          onBatchCreate={onBatchAddNpc}
         />
       )}
-
-      {/* ✅ 新增：战斗攻击检定弹窗 —— 在 main 上处理 */}
       {attackModal && (
         <CombatAttackModal
           attacker={attackModal.attacker}
           target={attackModal.target}
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
-          combatInventory={getCombatInventory(record, attackModal.attacker)}
-          targetCharacter={attackModal.target.characterId ? characterStore.get(attackModal.target.characterId) : null}
-          targetCombatInventory={getCombatInventory(record, attackModal.target)}
-          loadedWeapons={record?.loadedWeapons}
-          loadingAttackedThisRound={record?.loadingAttackedThisRound}
-          combatMode={currentMode()}
-          onLoadedChange={(key, loaded) => {
-            if (!record) return;
-            combatStore.update(record.id, {
-              loadedWeapons: {
-                ...(record.loadedWeapons || {}),
-                [key]: loaded,
-              },
-              updatedAt: Date.now(),
-            });
-          }}
           onClose={() => setAttackModal(null)}
-          onConfirmHit={(attack, info) => {
-            // 攻击（无论是否命中）消耗 1 个动作
-            consumeCombatantAction(attackModal.attacker.id);
-            // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
-            if (attack.properties?.some(p => p.includes('装填'))) {
-              markLoadingAttacked(attackModal.attacker.id);
-            }
-            // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
-            // 弹药属性武器：消耗弹药（无论命中/未命中）
-            if (info.ammoConsumed && record) {
-              const currentChanges = record.equipmentChanges?.[attackModal.attacker.id];
-              const newChanges = applyEquipmentChange(currentChanges, (ch) => {
-                const ammoId = info.ammoConsumed!.ammoChildId;
-                const prevDelta = ch.quantityDeltas[ammoId] || 0;
-                // 若源弹药数量-1 后 ≤0 则加入 removedChildIds（整件移除）
-                const srcQty = (() => {
-                  const pc = attackModal.attacker.characterId ? characterStore.get(attackModal.attacker.characterId) : null;
-                  const eq = pc?.equipment.find(e => (e.childId || e.id) === ammoId);
-                  return eq ? (eq.quantity || 1) + prevDelta : 0;
-                })();
-                if (srcQty <= 1) {
-                  if (!ch.removedChildIds.includes(ammoId)) ch.removedChildIds.push(ammoId);
-                } else {
-                  ch.quantityDeltas[ammoId] = prevDelta - 1;
-                }
-              });
-              combatStore.update(record.id, {
-                equipmentChanges: {
-                  ...(record.equipmentChanges || {}),
-                  [attackModal.attacker.id]: newChanges,
-                },
-                updatedAt: Date.now(),
-              });
-            }
-            setDamageModal({
-              attacker: attackModal.attacker,
-              target: attackModal.target,
-              attack,
-              disadvantage: info.disadvantage,
-              isCritical: info.isNatural20,
-              d20Rolled: info.d20Rolled,
-              d20Final: info.d20Final,
-              d20Bonus: info.bonus,
-              d20Total: info.total,
-              usageMode: info.usageMode,
-              isTwoHandedWield: info.isTwoHandedWield,
-            });
-            setAttackModal(null);
-          }}
-          onAttackMiss={(missInfo) => {
-            // 攻击（无论是否命中）消耗 1 个动作
-            consumeCombatantAction(attackModal.attacker.id);
-            // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
-            if (missInfo.attack.properties?.some(p => p.includes('装填'))) {
-              markLoadingAttacked(attackModal.attacker.id);
-            }
-            // 未命中：写入先攻表格（简化格式）
-            // 弹药属性武器：消耗弹药（无论命中/未命中）
-            if (missInfo.ammoConsumed && record) {
-              const currentChanges = record.equipmentChanges?.[attackModal.attacker.id];
-              const newChanges = applyEquipmentChange(currentChanges, (ch) => {
-                const ammoId = missInfo.ammoConsumed!.ammoChildId;
-                const prevDelta = ch.quantityDeltas[ammoId] || 0;
-                const srcQty = (() => {
-                  const pc = attackModal.attacker.characterId ? characterStore.get(attackModal.attacker.characterId) : null;
-                  const eq = pc?.equipment.find(e => (e.childId || e.id) === ammoId);
-                  return eq ? (eq.quantity || 1) + prevDelta : 0;
-                })();
-                if (srcQty <= 1) {
-                  if (!ch.removedChildIds.includes(ammoId)) ch.removedChildIds.push(ammoId);
-                } else {
-                  ch.quantityDeltas[ammoId] = prevDelta - 1;
-                }
-              });
-              combatStore.update(record.id, {
-                equipmentChanges: {
-                  ...(record.equipmentChanges || {}),
-                  [attackModal.attacker.id]: newChanges,
-                },
-                updatedAt: Date.now(),
-              });
-            }
-            const cell = resolveWriteCell(attackModal.attacker.id);
-            if (!cell) return;
-            const text = `对 ${attackModal.target.name} 的攻击未命中，${missInfo.attackName}打偏了`;
-            appendRoundRecord(cell.round, cell.combatantId, text);
-            // 投掷武器掉落：未命中也掉落
-            if (attackModal.attackerPos && attackModal.targetPos) {
-              executeThrownDrop(
-                attackModal.attacker, attackModal.target,
-                missInfo.attack,
-                attackModal.attackerPos, attackModal.targetPos,
-                false, missInfo.usageMode,
-              );
-            }
-          }}
+          onConfirmHit={onConfirmHit}
+          onAttackMiss={onAttackMiss}
+          combatInventory={combatInventories[attackModal.attacker.id]}
+          targetCharacter={attackModal.target.characterId
+            ? (characterStore.get(attackModal.target.characterId) ?? null)
+            : null}
+          targetCombatInventory={combatInventories[attackModal.target.id]}
+          loadedWeapons={loadedWeapons}
+          onLoadedChange={onLoadedChange}
+          loadingAttackedThisRound={record.loadingAttackedThisRound ?? {}}
+          combatMode={record.mode === 'playback' ? 'playback' : 'simulation'}
         />
       )}
-
-      {/* ✅ 新增：伤害结算弹窗 —— 攻击命中后展示 */}
+      {spellModal && (
+        <CombatSpellModal
+          caster={spellModal.caster}
+          target={spellModal.target}
+          onClose={() => setSpellModal(null)}
+          onCastResolved={onCastResolved}
+          targetCombatInventory={combatInventories[spellModal.target.id]}
+        />
+      )}
       {damageModal && (
         <CombatDamageModal
           attacker={damageModal.attacker}
           target={damageModal.target}
           attack={damageModal.attack}
           disadvantage={damageModal.disadvantage}
-          isCritical={damageModal.isCritical}
-          isTwoHandedWield={damageModal.isTwoHandedWield}
-          onApplyDamage={({ damage, newHp, status }) => {
-            // 1. 应用 HP / 状态
-            handleApplyDamage(damageModal.target.id, newHp, status);
-            // 2. 写入先攻表格（简化格式）
-            const cell = resolveWriteCell(damageModal.attacker.id);
-            if (cell) {
-              let text = `对 ${damageModal.target.name} 的攻击命中，用${damageModal.attack.name}造成${damage}点伤害`;
-              if (status === 'unconscious') text += '，将其击昏';
-              else if (status === 'dead') text += '，将其杀死';
-              appendRoundRecord(cell.round, cell.combatantId, text);
-            }
-            // 3. 投掷武器掉落：命中也掉落
-            const bg = record ? battlegroundStore.get(record.id) : null;
-            if (bg) {
-              const attackerToken = bg.tokens.find(t => t.combatantId === damageModal.attacker.id);
-              const targetToken = bg.tokens.find(t => t.combatantId === damageModal.target.id);
-              if (attackerToken && targetToken) {
-                executeThrownDrop(
-                  damageModal.attacker, damageModal.target,
-                  damageModal.attack,
-                  { col: attackerToken.col, row: attackerToken.row },
-                  { col: targetToken.col, row: targetToken.row },
-                  true, damageModal.usageMode,
-                );
-              }
-            }
-          }}
+          onApplyDamage={onApplyDamage}
           onClose={() => setDamageModal(null)}
         />
       )}
-
-      {/* ✅ 新增：法术施放弹窗 —— 独立于攻击检定的交互流程 */}
-      {spellModal && (
-        <CombatSpellModal
-          caster={spellModal.caster}
-          target={spellModal.target}
-          targetCharacter={spellModal.target.characterId ? characterStore.get(spellModal.target.characterId) : null}
-          targetCombatInventory={getCombatInventory(record, spellModal.target)}
-          onClose={() => setSpellModal(null)}
-          onCastResolved={(info) => {
-            // 施法时间 = "1 动作" 的法术消耗 1 个动作（无论是否命中/被豁免）
-            if (isOneActionCast(info.castingTime)) {
-              consumeCombatantAction(spellModal.caster.id);
-            }
-            // 1. 应用 HP / 状态（伤害扣血、治疗加血，handleApplyDamage 直接覆盖 newHp）
-            handleApplyDamage(spellModal.target.id, info.newHp, info.status);
-            // 2. 写入先攻表格：xxx 施展 xxx 成功/失败，对 xxx 造成 xxx 点伤害/恢复 xxx 点生命值
-            const cell = resolveWriteCell(spellModal.caster.id);
-            if (cell) {
-              let text = `${spellModal.caster.name} 施展 ${info.spellName}${info.success ? '成功' : '失败'}`;
-              if (info.success && info.amount > 0) {
-                text += `，对 ${spellModal.target.name}${info.effectType === 'damage' ? `造成${info.amount}点伤害` : `恢复${info.amount}点生命值`}`;
-                if (info.status === 'unconscious') text += '，将其击昏';
-                else if (info.status === 'dead') text += '，将其杀死';
-              }
-              appendRoundRecord(cell.round, cell.combatantId, text);
-            }
-          }}
-        />
-      )}
-
-      {/* ✅ 突袭选择弹窗 */}
-      {surpriseAttackOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
-                突袭 · 第 {surpriseAttackRound + 1} 轮
-              </h3>
-              <button
-                onClick={() => {
-                  setSurpriseAttackOpen(false);
-                  setSurprisedCombatants(new Set());
-                }}
-                className="p-1 rounded hover:bg-white/10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-3">
-              选择在该轮被突袭的角色，被突袭角色在本回合失去先攻
-            </p>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {record.combatants.map(c => {
-                const isChecked = surprisedCombatants.has(c.id);
-                return (
-                  <label
-                    key={c.id}
-                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
-                      isChecked
-                        ? 'border-primary bg-primary/5'
-                        : 'dark:border-border-dark light:border-border-light hover:border-primary/50'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {
-                        setSurprisedCombatants(prev => {
-                          const next = new Set(prev);
-                          if (next.has(c.id)) next.delete(c.id);
-                          else next.add(c.id);
-                          return next;
-                        });
-                      }}
-                      className="rounded"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-sm dark:text-text-dark light:text-text-light">{c.name}</div>
-                      <div className="text-xs opacity-60">
-                        {c.isPc ? '玩家角色' : 'NPC'}
-                        {c.initiative ? ` · 先攻 ${c.initiative}` : ''}
-                      </div>
-                    </div>
-                    {c.isDead && <span className="text-xs text-danger">已死亡</span>}
-                  </label>
-                );
-              })}
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => {
-                  setSurpriseAttackOpen(false);
-                  setSurprisedCombatants(new Set());
-                }}
-                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={confirmSurpriseAttack}
-                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
-              >
-                确定（{surprisedCombatants.size}）
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ 手动记录弹窗 */}
-      {manualRecordOpen && manualRecordType && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
-                {manualRecordType === 'attack' ? '攻击记录' : '恢复记录'}
-              </h3>
-              <button
-                onClick={cancelManualRecord}
-                className="p-1 rounded hover:bg-white/10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {manualRecordType === 'attack' && (
-              <div className="space-y-4">
-                {/* 目标选择 */}
-                <div>
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    被攻击者
-                  </label>
-                  <select
-                    value={manualTargetId}
-                    onChange={(e) => {
-                      setManualTargetId(e.target.value);
-                      setManualAttackRoll('');
-                    }}
-                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                  >
-                    <option value="">选择目标...</option>
-                    {record.combatants.map(c => {
-                      const attacker = selectedCell ? record.combatants.find(x => x.id === selectedCell.combatantId) : null;
-                      // ✅ 禁止选择自己 + 禁止选择同队（PC 攻击 NPC / NPC 攻击 PC）
-                      if (attacker && (c.id === attacker.id || (c.id !== attacker.id && c.isPc === attacker.isPc))) {
-                        return null;
-                      }
-                      const circle = getInitiativeCircle(c.id);
-                      return (
-                        <option key={c.id} value={c.id}>
-                          {circle} {c.name}（先攻 {c.initiative}）
-                        </option>
-                      );
-                    })}
-                  </select>
-                  {/* 显示目标 AC */}
-                  {manualTargetId && (() => {
-                    const target = record.combatants.find(c => c.id === manualTargetId);
-                    if (!target) return null;
-                    const effAc = getEffectiveAc(target);
-                    if (!effAc && effAc !== 0) return null;
-                    return (
-                      <div className="mt-1 text-xs text-primary font-medium">
-                        目标 AC：{effAc}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* 攻击检定 */}
-                <div>
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    攻击检定值
-                  </label>
-                  <input
-                    type="number"
-                    value={manualAttackRoll}
-                    onChange={(e) => setManualAttackRoll(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                    placeholder="填入攻击检定总值"
-                  />
-                  {/* 自动判定命中结果 */}
-                  {manualTargetId && manualAttackRoll && (() => {
-                    const target = record.combatants.find(c => c.id === manualTargetId);
-                    if (!target) return null;
-                    const effAc = getEffectiveAc(target);
-                    if (!effAc && effAc !== 0) return null;
-                    const roll = parseInt(manualAttackRoll, 10);
-                    if (isNaN(roll)) return null;
-                    const hit = roll >= effAc;
-                    return (
-                      <div className={`mt-1 text-xs font-medium ${hit ? 'text-green-500' : 'text-red-500'}`}>
-                        {roll} {hit ? '≥' : '<'} AC {effAc} → {hit ? '命中' : '未命中'}
-                      </div>
-                    );
-                  })()}
-                </div>
-
-                {/* 攻击方式 */}
-                <div>
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    攻击方式
-                  </label>
-                  <input
-                    type="text"
-                    value={manualAttackMethod}
-                    onChange={(e) => setManualAttackMethod(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                    placeholder="例如：长剑挥砍"
-                  />
-                </div>
-
-                {/* 伤害（根据攻击检定自动判定命中后显示） */}
-                {manualTargetId && manualAttackRoll && (() => {
-                  const tgt = record.combatants.find(c => c.id === manualTargetId);
-                  if (!tgt) return null;
-                  const effAc = getEffectiveAc(tgt);
-                  if (!effAc && effAc !== 0) return null;
-                  const roll = parseInt(manualAttackRoll, 10);
-                  if (isNaN(roll)) return null;
-                  const hit = roll >= effAc;
-                  if (!hit) return null;
-                  return (
-                    <>
-                      <div>
-                        <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                          伤害值（整数，不为0）
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={manualDamage}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            if (v === '' || (parseInt(v, 10) >= 1)) {
-                              setManualDamage(v);
-                            }
-                          }}
-                          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                          placeholder="例如：15"
-                        />
-                      </div>
-
-                      {/* 干掉目标 */}
-                      {manualTargetId && (() => {
-                        const target = record.combatants.find(c => c.id === manualTargetId);
-                        if (!target || target.currentHp === undefined) return null;
-                        const dmg = parseInt(manualDamage, 10) || 0;
-                        const willKill = dmg > 0 && dmg >= (target.currentHp ?? 0);
-                        if (!willKill) return null;
-                        return (
-                          <label className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/30 cursor-pointer mt-3">
-                            <input
-                              type="checkbox"
-                              checked={manualIsKill}
-                              onChange={(e) => setManualIsKill(e.target.checked)}
-                              className="rounded"
-                            />
-                            <span className="text-xs text-red-500 dark:text-red-400">
-                              造成致命伤害，{target.isPc ? '使其昏迷' : '将其杀死'}
-                            </span>
-                          </label>
-                        );
-                      })()}
-                    </>
-                  );
-                })()}
-
-                {/* 预览文本 */}
-                {manualTargetId && (() => {
-                  const target = record.combatants.find(c => c.id === manualTargetId);
-                  if (!target) return null;
-                  let preview = '';
-                  // 自动判定：攻击检定值根据 AC 自动判断
-                  let autoHit: boolean | null = null;
-                  if (manualAttackRoll) {
-                    const effAc = getEffectiveAc(target);
-                    const roll = parseInt(manualAttackRoll, 10);
-                    if (!isNaN(roll)) autoHit = roll >= effAc;
-                  }
-                  if (autoHit === false) {
-                    preview = `对 ${target.name} 的攻击未命中，${manualAttackMethod || '???'}打偏了`;
-                  } else if (autoHit === true) {
-                    const dmg = parseInt(manualDamage, 10) || 0;
-                    preview = `对 ${target.name} 的攻击命中，用${manualAttackMethod || '???'}造成${dmg}点伤害`;
-                    if (manualIsKill) preview += target.isPc ? `，将其击昏` : `，将其杀死`;
-                  } else {
-                    preview = '请先填写攻击检定值';
-                  }
-                  return (
-                    <div className="p-2 rounded-lg bg-bg-dark/50 border border-border-dark text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                      <span className="opacity-60">预览：</span>{preview}
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {manualRecordType === 'recovery' && (
-              <div className="space-y-4">
-                {/* 恢复目标 */}
-                <div>
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    恢复目标（可选，默认恢复自己）
-                  </label>
-                  <select
-                    value={manualTargetId}
-                    onChange={(e) => setManualTargetId(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                  >
-                    <option value="">恢复自己</option>
-                    {record.combatants.map(c => {
-                      const circle = getInitiativeCircle(c.id);
-                      return (
-                        <option key={c.id} value={c.id}>
-                          {circle} {c.name}（先攻 {c.initiative}）
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                {/* 恢复方式 */}
-                <div>
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    恢复方式
-                  </label>
-                  <input
-                    type="text"
-                    value={manualHealMethod}
-                    onChange={(e) => setManualHealMethod(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                    placeholder="例如：治疗术、治疗药水"
-                  />
-                </div>
-
-                {/* 恢复量 */}
-                <div>
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
-                    恢复量（正整数）
-                  </label>
-                  <input
-                    type="number"
-                    min={1}
-                    value={manualHealAmount}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (v === '' || (parseInt(v, 10) >= 1)) {
-                        setManualHealAmount(v);
-                      }
-                    }}
-                    className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
-                    placeholder="例如：10"
-                  />
-                </div>
-
-                {/* 预览 */}
-                {(() => {
-                  const attacker = selectedCell ? record.combatants.find(c => c.id === selectedCell.combatantId) : null;
-                  const target = manualTargetId
-                    ? record.combatants.find(c => c.id === manualTargetId)
-                    : attacker;
-                  const amount = parseInt(manualHealAmount, 10) || 0;
-                  const method = manualHealMethod || '???';
-                  const tName = target?.name || '自己';
-                  return (
-                    <div className="p-2 rounded-lg bg-bg-dark/50 border border-border-dark text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                      <span className="opacity-60">预览：</span>
-                      用{method}恢复了{tName} {amount}点生命值
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-
-            {/* 切换模板 */}
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => {
-                  setManualRecordType('attack');
-                  setManualTargetId('');
-                  setManualAttackMethod('');
-                  setManualDamage('');
-                  setManualIsKill(false);
-                }}
-                className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                  manualRecordType === 'attack'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'dark:border-border-dark light:border-border-light'
-                }`}
-              >
-                <Swords className="w-4 h-4 inline mr-1" />攻击模板
-              </button>
-              <button
-                onClick={() => {
-                  setManualRecordType('recovery');
-                  setManualTargetId('');
-                  setManualHealMethod('');
-                  setManualHealAmount('');
-                }}
-                className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                  manualRecordType === 'recovery'
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'dark:border-border-dark light:border-border-light'
-                }`}
-              >
-                <Heart className="w-4 h-4 inline mr-1" />恢复模板
-              </button>
-            </div>
-
-            {/* 操作按钮 */}
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={cancelManualRecord}
-                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={confirmManualRecord}
-                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
-              >
-                <Check className="w-4 h-4" />确认
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ 完成回合悬浮按钮 —— 放映模式已开始时显示 */}
-      {record.mode === 'playback' && playbackStarted && currentTurn && (
-        <button
-          onClick={() => setConfirmEndTurnOpen(true)}
-          className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-primary text-white font-medium shadow-2xl hover:bg-primary/90 transition-all hover:scale-105 flex items-center gap-2"
-          title="完成当前回合，进入下一个"
-        >
-          <SkipForward className="w-5 h-5" />
-          <span>完成回合</span>
-        </button>
-      )}
-
-      {/* ✅ 完成回合确认弹窗 */}
-      {confirmEndTurnOpen && currentTurn && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">完成回合</h3>
-              <button
-                onClick={() => setConfirmEndTurnOpen(false)}
-                className="p-1 rounded hover:bg-white/10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
-              确认完成 <span className="font-bold text-primary">
-                {record.combatants.find(c => c.id === currentTurn.combatantId)?.name ?? '?'}
-              </span> 的回合（第 {currentTurn.round + 1} 轮）？
-            </p>
-            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
-              系统将按先攻顺序推进到下一回合。若该轮已结束，将自动开启新一轮。
-            </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setConfirmEndTurnOpen(false)}
-                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={confirmEndTurn}
-                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
-              >
-                <SkipForward className="w-4 h-4" />完成
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ 退出放映按钮 —— 浮动在右上角（仅放映模式显示） */}
-      {record.mode === 'playback' && (
-        <button
-          onClick={() => setExitPlaybackModalOpen(true)}
-          className="fixed top-20 right-6 z-40 px-3 py-2 rounded-lg bg-card-dark/80 backdrop-blur border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/10 transition-colors flex items-center gap-1"
-          title="退出放映模式"
-          type="button"
-        >
-          <Pause className="w-4 h-4" />
-          退出放映
-        </button>
-      )}
-
-      {/* ✅ 退出放映弹窗：保存并覆盖 / 丢弃恢复 / 取消 */}
-      {exitPlaybackModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onMouseDown={e => e.stopPropagation()}>
-          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">退出放映</h3>
-              <button
-                type="button"
-                onClick={() => setExitPlaybackModalOpen(false)}
-                className="p-1 rounded hover:bg-white/10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
-              放映期间对先攻表、生命值、沙盘的操作可以选择保存或丢弃。
-            </p>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => finalizeExitPlayback(true)}
-                className="w-full px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
-              >
-                <Check className="w-4 h-4" />
-                保存并覆盖原版本
-              </button>
-              <button
-                type="button"
-                onClick={() => finalizeExitPlayback(false)}
-                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors flex items-center justify-center gap-1"
-              >
-                <Undo2 className="w-4 h-4" />
-                丢弃，恢复原先状态
-              </button>
-              <button
-                type="button"
-                onClick={() => setExitPlaybackModalOpen(false)}
-                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
-              >
-                取消
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ✅ 回溯确认弹窗：放映模式下双击确认才生效 */}
-      {rewindModal && (() => {
-        const rewindC = record.combatants.find(c => c.id === rewindModal.combatantId);
-        return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-            <div className="w-full max-w-md rounded-xl p-5 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">回溯回合</h3>
-                  <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">
-                    第 {rewindModal.round + 1} 轮 · {rewindC?.name ?? '未知角色'}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setRewindModal(null)}
-                  className="p-1 rounded hover:bg-white/10"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 mb-4">
-                <div className="text-sm font-semibold text-amber-500 mb-1">⚠️ 此操作具有破坏性</div>
-                <ul className="text-xs text-amber-400/90 space-y-1 list-disc pl-4">
-                  <li>当前回合格以及之后所有先攻表格格子的内容将被清空</li>
-                  <li>所有参战者的生命值、昏迷/死亡状态将还原到此回合开始时的快照</li>
-                  <li>战斗沙盘上所有棋子的位置将被还原</li>
-                  <li>后续自动新增的轮次也将一并删除</li>
-                </ul>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {!rewindModal.firstClickDone ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setRewindModal({ ...rewindModal, firstClickDone: true })
-                    }
-                    className={`w-full px-4 py-3 rounded-lg text-white text-sm font-medium transition-all ${
-                      rewindModal.firstClickDone
-                        ? 'bg-amber-600 hover:bg-amber-700 animate-pulse'
-                        : 'bg-danger hover:bg-danger/90'
-                    }`}
-                  >
-                    我已了解，请继续（再次点击确认回溯）
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => applyRollback(rewindModal.round, rewindModal.combatantIdx)}
-                    className="w-full px-4 py-3 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition-all ring-2 ring-amber-400 animate-pulse"
-                  >
-                    🔴 再次点击以确认回溯到此回合
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setRewindModal(null)}
-                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
-                >
-                  取消
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
