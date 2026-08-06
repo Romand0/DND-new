@@ -330,7 +330,9 @@ export default xxxStore;
 CombatAttackModal 打开
   ├─ getAttackStatus() 可用性检查
   │    · 必须手持 → 弹药武器在 combatInventory 找弹药（AMMO_MAP）
-  │    · 装填武器：未装填需另一只手空/持弹药 + 弹药>0
+  │    · 双手武器（含双手+装填并存）：双手优先于装填，另一手必须为同一把武器
+  │    · 装填武器：已装填→只要一手持有即可击发；未装填→另一手满足三条件之一（空/对应弹药/武器自身）+ 弹药>0
+  │    · 放映模式：装填武器每回合只能攻击一次（loadingAttackedThisRound），优先级高于额外动作
   │    · 射程（切比雪夫距离 vs normalRange/maxRange）
   ├─ 玩家填 d20 结果 → 命中判定
   └─ handleConfirmResult()
@@ -339,6 +341,7 @@ CombatAttackModal 打开
   ↓（onConfirmHit / onAttackMiss 回调到 CombatSession）
 CombatSession
   ├─ consumeCombatantAction()：扣 1 动作（simulation 模式扣到 0 立即回 1）
+  ├─ 装填武器攻击（命中/未命中）→ markLoadingAttacked()：放映模式标记本回合已用过装填武器
   ├─ 弹药扣减（命中 / 未命中都扣）：
   │    · quantityDeltas[ammoChildId] -= 1
   │    · 最后一发 → removedChildIds 整件移除
@@ -469,6 +472,32 @@ const formEndRoundInput = useNumberInput(-1);
 
 **做新表单 / 新弹窗输入框时**：优先用这两个 hook，不要在 onChange 里直接 `parseInt(...) || N`。如果字段是可选的（如 TreasureEdit 的 normalRange/maxRange），用 `allowEmpty: true` 让 value 类型变为 `number | undefined`。
 
+### 5.11 放映模式回溯：`startPlayback` 从非最新回合开始 ≡ 回溯
+
+**为什么用**：DM 在放映过程中可能想"如果这一回合换一种打法会怎样"——从先攻表格中间某格重新开始放映。如果只重置沙盘而不还原战斗数据（HP/状态/装备变更/回合记录），之前放映的结果会残留，导致状态不一致。所以从非最新回合开始放映必须等同于回溯：完整还原到初始快照 + 清空选中格之后的所有记录。
+
+**`startPlayback` 流程**（`pages/CombatSession.tsx`）：
+1. 从 `rollbackSnapshotRef.current.initial`（进入放映模式时拍的快照）还原 combatants / rounds / 装备变更
+2. 若有 `selectedCell`：清空选中格之后的所有回合记录（保留「被突袭/昏迷/死亡」占位）
+3. 还原沙盘到初始快照
+4. `cleanupDeathSaveTodos`（HP 恢复后可能不再昏迷，待办自动移除）
+5. `resetTurnTodosForRound`（重置起始回合的待办执行状态 + 装填武器攻击标记）
+6. 用 `roundsOverride` 将还原后的 rounds 传入 `findNextValidTurn`，避免读到旧快照
+
+**从最新回合开始放映时**：选中格之后无数据可清空，行为等同 no-op，与原来一致。
+
+### 5.12 `currentTurn` 纯 `combatantId` 设计（消除 `combatantIdx` 缓存偏移）
+
+**为什么用**：`currentTurn` 原来缓存了 `combatantIdx`（参战者在数组中的下标），但先攻值编辑或平局重排后数组顺序变化，缓存的 `combatantIdx` 就会偏移，导致回合标记跳到错误的列。改为只保留 `{ round, combatantId }`，在需要下标时通过 `findIndex` 实时计算，排序/删除后自动适应。
+
+**影响范围**（`pages/CombatSession.tsx`）：
+- `currentTurn` 类型：`{ round: number; combatantId: string }`（无 `combatantIdx`）
+- `findNextValidTurn` 返回类型：`{ round: number; combatantId: string }`（无 `combatantIdx`）
+- `advanceTurn`：`const currentIdx = record.combatants.findIndex(c => c.id === currentTurn.combatantId)`
+- `resolveWriteCell` 返回类型：`{ round: number; combatantId: string }`（无 `combatantIdx`）
+- UI 中比较"当前回合之前的格子"：用 `findIndex` 实时计算，不读 `currentTurn.combatantIdx`
+- `rewindModal` 和 `applyRollback` 仍保留 `combatantIdx`（在点击时通过 `findIndex` 实时计算传入，不缓存）
+
 ---
 
 ## 6. 命名与编码约定
@@ -494,6 +523,13 @@ const formEndRoundInput = useNumberInput(-1);
 - ✅ **永远走 `EquipmentChanges` 三件套** → `applyEquipmentChange` → `combatStore.update(record.id, { equipmentChanges: {...} })`
 - ❌ 不要直接改 `character.equipment[i].quantity`
 - ❌ 不要直接改 `combatant` 的任何东西（除 actions / hp / status）：装备状态存在 combatRecord 里，不在 combatant 身上
+
+### 回合推进与 currentTurn
+- ✅ `currentTurn` 只有 `{ round, combatantId }`，需要下标时用 `findIndex` 实时计算
+- ❌ 不要往 `currentTurn` 里加 `combatantIdx` 缓存——先攻编辑/平局重排后数组顺序变，缓存下标会偏移导致回合标记跳列
+- ✅ 放映模式从非最新回合开始放映 ≡ 回溯（`startPlayback` 会还原初始快照 + 清空选中格之后的记录）
+- ✅ `findNextValidTurn` 返回类型也只有 `{ round, combatantId }`，调用方不要 `.combatantIdx`
+- ✅ initiative 输入需 `isNaN` 校验（`handleInitiativeSave`），非法值 `alert('请输入有效的先攻数值')` 而非静默丢弃
 
 ### 改沙盘触摸事件
 - 通读 `handlePointerDown / Move / Up` 整链条再动
