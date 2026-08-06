@@ -837,29 +837,82 @@ export default function CombatSession() {
     commitModeChange('simulation');
   };
 
-  // ✅ 启动放映：重置沙盘到快照状态，从选中的格子开始扫描
+  // ✅ 启动放映：从初始快照还原，从选中的格子开始扫描
+  // 从非最新回合处开始放映 ≡ 回溯：清空选中格之后的所有记录
   const startPlayback = () => {
     if (!record) return;
-    // 1. 重置沙盘到进入放映模式时的快照
-    if (playbackSnapshotRef.current) {
+    const init = rollbackSnapshotRef.current.initial;
+
+    // 1. 从初始快照还原 combatants / rounds / 装备变更
+    const restoredCombatants = init
+      ? init.combatants.map(c => ({ ...c }))
+      : record.combatants.map(c => ({ ...c }));
+    let restoredRounds = init
+      ? init.rounds.map(r => ({ ...r }))
+      : record.rounds.map(r => ({ ...r }));
+    const restoredEquipmentChanges = init?.equipmentChanges
+      ? Object.fromEntries(
+          Object.entries(init.equipmentChanges).map(([k, v]) => [
+            k,
+            { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
+          ]),
+        )
+      : undefined;
+
+    // 2. 从非最新回合开始放映 ≡ 回溯：清空选中格之后的所有记录
+    if (selectedCell) {
+      const selRound = selectedCell.round;
+      const selColIdx = restoredCombatants.findIndex(c => c.id === selectedCell.combatantId);
+      restoredRounds = restoredRounds.map(r => ({ ...r }));
+      for (let r = 0; r < restoredRounds.length; r++) {
+        for (let c = 0; c < restoredCombatants.length; c++) {
+          const cid = restoredCombatants[c].id;
+          const isAfter = r > selRound || (r === selRound && c > selColIdx);
+          if (isAfter) {
+            const cur = restoredRounds[r]?.[cid];
+            if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
+              restoredRounds[r] = { ...restoredRounds[r], [cid]: '' };
+            }
+          }
+        }
+      }
+    }
+
+    // 3. 应用还原
+    combatStore.update(record.id, {
+      combatants: restoredCombatants,
+      rounds: restoredRounds,
+      equipmentChanges: restoredEquipmentChanges,
+      updatedAt: Date.now(),
+    });
+
+    // 4. 沙盘还原
+    if (init) {
+      battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
+    } else if (playbackSnapshotRef.current) {
       battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
     }
-    // 2. 自动填充昏迷/死亡标记到后续所有轮次
+
+    // 5. 清理无效的死亡豁免待办（恢复 HP 后可能不再昏迷）
+    combatStore.cleanupDeathSaveTodos(record.id);
+
+    // 6. 自动填充昏迷/死亡标记
     autoFillDownedMarkers();
-    // 3. 从用户点击的格子开始扫描（若未选中则从开头）
+
+    // 7. 从用户点击的格子开始扫描（findNextValidTurn 闭包里 record 是旧快照，用 roundsOverride 传入）
     let startRound = 0;
     let startCol = 0;
     if (selectedCell) {
       startRound = selectedCell.round;
-      const colIdx = record.combatants.findIndex(c => c.id === selectedCell.combatantId);
+      const colIdx = restoredCombatants.findIndex(c => c.id === selectedCell.combatantId);
       startCol = Math.max(0, colIdx);
     }
-    const firstTurn = findNextValidTurn(startRound, startCol);
+    const firstTurn = findNextValidTurn(startRound, startCol, restoredRounds);
     setCurrentTurn(firstTurn);
     setPlaybackStarted(true);
-    // 进入第一回合时立即拍快照（takeTurnSnapshot 直接读 combatStore 最新值，无需等渲染）
     if (firstTurn) {
-      // 放映模式：回合开始恢复该参战者可用动作为 1
+      // 重置起始回合的待办执行状态 + 装填武器攻击标记
+      combatStore.resetTurnTodosForRound(record.id, firstTurn.round);
       resetCombatantActions(firstTurn.combatantId);
       takeTurnSnapshot(firstTurn.round, firstTurn.combatantId);
     }
