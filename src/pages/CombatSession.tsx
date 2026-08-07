@@ -23,7 +23,7 @@ import type {} from '@/components/combat/PlaybackToolbar';
 import type {} from '@/components/combat/RewindDialog';
 import type {} from '@/components/combat/SurpriseAttackDialog';
 import type {} from '@/components/CombatantInfoPanel';
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import * as snapDb from '@/lib/combatSnapshots';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1143,7 +1143,7 @@ export default function CombatSession() {
   // 每次进入新回合（播放起始、确认完成回合后）调用一次
   // 注意：直接从 combatStore 读取最新值，避免 record state 还未重新渲染导致读到旧数据
   // 双写：内存 useRef（同步快读）+ IndexedDB（刷新/关闭页面后仍可回溯）
-  const takeTurnSnapshot = useCallback((round: number, combatantId: string) => {
+  function takeTurnSnapshot(round: number, combatantId: string) {
     if (!record) return;
     const latest = combatStore.get(record.id);
     if (!latest) return;
@@ -1168,13 +1168,13 @@ export default function CombatSession() {
     }
     // 异步写入 IndexedDB，不阻塞主线程
     snapDb.putTurnSnapshot(record.id, round, combatantId, snap).catch(e => console.warn('写入回合快照失败', e));
-  }, [record]);
+  }
 
   // ✅ 回溯到指定回合开始：还原该回合及其之后所有记录为空，并把战斗数据整体还原到快照
   // 查找优先级：内存 useRef（exact key）→ IndexedDB exact key → IndexedDB 近似 key（≤目标 round 的最大 round）→ initial
   // 关键修复：snap.rounds 是"拍快照那一瞬间"的短数组，若当时还没 push 到目标 round 长度，
   // 用 currentStoreRounds 在 snap.rounds 末尾补长度，避免"目标回合格子不存在就不做清空"。
-  const applyRollback = useCallback(async (round: number, combatantIdx: number) => {
+  async function applyRollback(round: number, combatantIdx: number) {
     if (!record) return;
     const latest = combatStore.get(record.id);
     if (!latest) return;
@@ -1275,7 +1275,7 @@ export default function CombatSession() {
     // 下帧立即为当前"回到此回合"拍新快照（避免回到后再回溯找不到）
     setTimeout(() => takeTurnSnapshot(round, combatantId), 0);
     setRewindModal(null);
-  }, [record, takeTurnSnapshot]);
+  }
 
   // ✅ 确认完成回合
   const confirmEndTurn = () => {
