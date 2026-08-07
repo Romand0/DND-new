@@ -147,6 +147,9 @@ export default function CombatSession() {
     snapshots: Record<string, TurnSnapshot>;
   }>({ initial: null, snapshots: {} });
 
+  // ✅ 自动推进锁：防止昏迷角色回合 setTimeout 递归
+  const autoAdvanceRef = useRef(false);
+
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
     if (!sessionId) return;
@@ -947,9 +950,6 @@ export default function CombatSession() {
     return null;
   };
 
-  // ✅ 自动推进锁：防止 useEffect 递归推进
-  const autoAdvanceRef = useRef(false);
-
   // ✅ 处理单个昏迷角色回合（NPC 自动掷骰，PC 稳定后直接跳过）
   // 返回 true 表示该回合无需用户操作（系统已自动处理）
   const handleComatoseTurn = (combatant: Combatant, round: number): boolean => {
@@ -1020,6 +1020,7 @@ export default function CombatSession() {
       setCurrentTurn(next);
       resetCombatantActions(next.combatantId);
       takeTurnSnapshot(next.round, next.combatantId);
+      checkAndAutoAdvance(next);
       return;
     }
     // 当前行结束 → 判断是否还有活着的角色可战斗
@@ -1047,6 +1048,7 @@ export default function CombatSession() {
         setCurrentTurn(firstInNew);
         resetCombatantActions(firstInNew.combatantId);
         takeTurnSnapshot(firstInNew.round, firstInNew.combatantId);
+        checkAndAutoAdvance(firstInNew);
       } else {
         setCurrentTurn(null);
         setPlaybackStarted(false);
@@ -1058,6 +1060,7 @@ export default function CombatSession() {
         setCurrentTurn(firstInNext);
         resetCombatantActions(firstInNext.combatantId);
         takeTurnSnapshot(firstInNext.round, firstInNext.combatantId);
+        checkAndAutoAdvance(firstInNext);
       } else {
         setCurrentTurn(null);
         setPlaybackStarted(false);
@@ -1065,24 +1068,20 @@ export default function CombatSession() {
     }
   };
 
-  // ✅ 切换到 new currentTurn 时：处理昏迷角色（NPC自动骰/PC稳定跳过）→ 短暂停留 → 自动推进
-  useEffect(() => {
-    if (!record || !currentTurn || record.mode !== 'playback' || !playbackStarted) return;
+  // ✅ 切换回合后检查：若当前是昏迷角色且无需用户操作（NPC/稳定PC），自动处理并延迟推进
+  const checkAndAutoAdvance = (turn: { round: number; combatantIdx: number; combatantId: string } | null) => {
+    if (!record || !turn || record.mode !== 'playback' || !playbackStarted) return;
     if (autoAdvanceRef.current) return;
-    const c = record.combatants[currentTurn.combatantIdx];
-    if (!c || !c.isUnconscious) return; // 非昏迷，正常等待用户操作
-    if (c.isDead) return;
-    // 只在 handleComatoseTurn 返回 true（系统已处理，无需用户操作）时才自动推进
-    const handled = handleComatoseTurn(c, currentTurn.round);
+    const c = record.combatants[turn.combatantIdx];
+    if (!c || !c.isUnconscious || c.isDead) return;
+    const handled = handleComatoseTurn(c, turn.round);
     if (!handled) return;
     autoAdvanceRef.current = true;
-    const t = setTimeout(() => {
+    setTimeout(() => {
       autoAdvanceRef.current = false;
       advanceTurn();
-    }, 750); // 短暂停留让用户看到轮到该角色
-    return () => { clearTimeout(t); autoAdvanceRef.current = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentTurn?.round, currentTurn?.combatantId]);
+    }, 750);
+  };
 
   // 先攻顺序序号（按先攻高→低排序，同先攻保持原序）：返回圆形序号标记
   // 注意：不能用 useMemo，因为在 if(!record) early return 之后，会导致 hooks 顺序不一致
