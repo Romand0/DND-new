@@ -133,7 +133,7 @@ export function usePlayback(record: CombatRecord | null, props: UsePlaybackProps
           const isAfter = r > selRound || (r === selRound && c > selColIdx);
           if (isAfter) {
             const cur = restoredRounds[r]?.[cid];
-            if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
+            if (cur && cur !== '被突袭' && cur !== '昏迷中，无法行动' && cur !== '死亡') {
               restoredRounds[r] = { ...restoredRounds[r], [cid]: '' };
             }
           }

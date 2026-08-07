@@ -270,7 +270,7 @@ export default function InitiativeTable(props: Props) {
                               </>
                             ) : null}
                             {/* 放映模式：任何已过/当前/后续回合格都提供回溯（只要不是纯占位符） */}
-                            {action !== '被突袭' && action !== '昏迷' && action !== '死亡' && (() => {
+                            {action !== '被突袭' && action !== '昏迷中，无法行动' && action !== '死亡' && (() => {
                               const cidx = combatants.findIndex(x => x.id === c.id);
                               return (
                                 <button

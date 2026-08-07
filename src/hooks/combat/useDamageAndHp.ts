@@ -89,10 +89,10 @@ export function useDamageAndHp(
     let changed = false;
     latest.combatants.forEach(c => {
       if (!c.isDead && !c.isUnconscious) return;
-      const marker = c.isDead ? '死亡' : '昏迷';
+      const marker = c.isDead ? '死亡' : '昏迷中，无法行动';
       updatedRounds = updatedRounds.map(round => {
         const cur = round[c.id];
-        if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') return round;
+        if (cur && cur !== '被突袭' && cur !== '昏迷中，无法行动' && cur !== '死亡') return round;
         if (cur !== marker) { changed = true; return { ...round, [c.id]: marker }; }
         return round;
       });

@@ -65,7 +65,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
         const c = record.combatants[i];
         const v = rounds[r][c.id];
         if (v === '被突袭' || v === '死亡') continue;
-        if (v === '昏迷') {
+        if (v === '昏迷中，无法行动') {
           if (!hasActiveDeathSave(c.id, r)) continue;
         }
         return { round: r, combatantId: c.id };
@@ -120,7 +120,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
         const isAfter = r > round || (r === round && c > combatantIdx);
         if (isAfter) {
           const cur = restoredRounds[r]?.[cid];
-          if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
+          if (cur && cur !== '被突袭' && cur !== '昏迷中，无法行动' && cur !== '死亡') {
             restoredRounds[r] = { ...restoredRounds[r], [cid]: '' };
           }
         }
@@ -167,7 +167,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       const newRound: RoundAction = {};
       record.combatants.forEach(c => {
         if (c.isDead) newRound[c.id] = '死亡';
-        else if (c.isUnconscious) newRound[c.id] = '昏迷';
+        else if (c.isUnconscious) newRound[c.id] = '昏迷中，无法行动';
         else newRound[c.id] = '';
       });
       const updatedRounds = [...record.rounds, newRound];

@@ -150,6 +150,20 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
     }
     setDeathResult({ roll, outcome: outcomeText });
     setDeathRollInput('');
+
+    // 将死亡豁免结果写入先攻表格对应回合格子
+    if (currentTurn) {
+      const latestRec = combatStore.get(record.id);
+      if (latestRec) {
+        const roundIdx = currentTurn.round;
+        const cellText = `死亡豁免：${outcomeText}`;
+        const updatedRounds = latestRec.rounds.map((r, i) =>
+          i === roundIdx ? { ...r, [activeTodo.combatantId]: cellText } : r
+        );
+        combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
+      }
+    }
+
     // 每回合只能骰一次：结算完成后无论结果都关闭弹窗。
     // 计数已写入 combatant（失败/成功圆点在弹窗打开时也能看到），待办已标记 executed=true（列表中灰色划线）。
     // 下一轮 resetTurnTodosForRound 会把死亡豁免待办重置为未执行，允许继续骰。

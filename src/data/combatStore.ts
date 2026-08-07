@@ -791,6 +791,64 @@ const combatStore = {
     save(records);
     return { combatant: record.combatants[idx], outcome };
   },
+
+  /**
+   * NPC 自动死亡豁免掷骰（不依赖待办，直接掷骰并更新状态）。
+   * 每轮昏迷 NPC 的回合被跳过时由系统调用。
+   * 返回掷骰结果供调用方记录到先攻表格。
+   */
+  autoNpcDeathSave(
+    recordId: string,
+    combatantId: string,
+  ): { roll: number; outcome: 'crit_fail' | 'fail' | 'success' | 'revive'; combatant: Combatant } | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return null;
+    const c = record.combatants[idx];
+    if (!c.isUnconscious || c.isDead) return null;
+
+    const roll = Math.floor(Math.random() * 20) + 1;
+    let failures = c.deathSaveFailures ?? 0;
+    let successes = c.deathSaveSuccesses ?? 0;
+    let nextHp = c.currentHp ?? 0;
+    let nextUnconscious = c.isUnconscious ?? false;
+    let nextDead = c.isDead ?? false;
+    let outcome: 'crit_fail' | 'fail' | 'success' | 'revive';
+
+    if (roll === 1) {
+      failures += 2;
+      outcome = 'crit_fail';
+    } else if (roll <= 9) {
+      failures += 1;
+      outcome = 'fail';
+    } else if (roll <= 19) {
+      successes += 1;
+      outcome = 'success';
+    } else {
+      nextHp = 1;
+      nextUnconscious = false;
+      outcome = 'revive';
+    }
+    if (failures >= 3) {
+      nextDead = true;
+      nextUnconscious = false;
+      nextHp = 0;
+    }
+
+    record.combatants[idx] = {
+      ...c,
+      currentHp: nextHp,
+      isUnconscious: nextUnconscious,
+      isDead: nextDead,
+      deathSaveFailures: failures,
+      deathSaveSuccesses: successes,
+    };
+    record.updatedAt = Date.now();
+    save(records);
+    return { roll, outcome, combatant: record.combatants[idx] };
+  },
 };
 
 export default combatStore;

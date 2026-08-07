@@ -900,10 +900,10 @@ export default function CombatSession() {
     let changed = false;
     latest.combatants.forEach(c => {
       if (!c.isDead && !c.isUnconscious) return;
-      const marker = c.isDead ? '死亡' : '昏迷';
+      const marker = c.isDead ? '死亡' : '昏迷中，无法行动';
       updatedRounds = updatedRounds.map(round => {
         const cur = round[c.id];
-        if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
+        if (cur && cur !== '被突袭' && cur !== '昏迷中，无法行动' && cur !== '死亡') {
           // 已有有效记录的轮次不覆盖
           return round;
         }
@@ -947,7 +947,7 @@ export default function CombatSession() {
         const c = record.combatants[i];
         const v = rounds[r][c.id];
         if (v === '被突袭' || v === '死亡') continue;
-        if (v === '昏迷') {
+        if (v === '昏迷中，无法行动') {
           // 昏迷默认跳过；但有未执行的死亡豁免待办时仍需推进到该回合
           if (!hasActiveDeathSave(c.id, r)) continue;
         }
@@ -957,11 +957,63 @@ export default function CombatSession() {
     return null;
   };
 
+  // ✅ 自动为被跳过的昏迷 NPC 进行死亡豁免掷骰
+  // 扫描从 from 位置到 to 位置（不含）之间的所有昏迷 NPC，为每个自动掷骰并写入先攻表格
+  const processNpcDeathSaves = (
+    fromRound: number,
+    fromIdx: number,
+    toRound: number | null,
+    toIdx: number | null,
+  ) => {
+    if (!record || record.mode !== 'playback') return;
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
+    let updatedRounds = latest.rounds.map(r => ({ ...r }));
+    let changed = false;
+    const endRound = toRound ?? (latest.rounds.length - 1);
+    for (let r = fromRound; r <= endRound; r++) {
+      const startIdx = r === fromRound ? fromIdx : 0;
+      const endIdx = r === toRound && toIdx !== null ? toIdx : latest.combatants.length;
+      for (let i = startIdx; i < endIdx; i++) {
+        const c = latest.combatants[i];
+        if (c.isPc || !c.isUnconscious || c.isDead) continue;
+        const result = combatStore.autoNpcDeathSave(latest.id, c.id);
+        if (!result) continue;
+        let text: string;
+        if (result.outcome === 'revive') {
+          text = `死亡豁免：掷出 ${result.roll}，苏醒，HP 恢复至 1`;
+        } else if (result.combatant.isDead) {
+          text = `死亡豁免：掷出 ${result.roll}，失败 ${result.combatant.deathSaveFailures}/3，已死亡`;
+        } else if ((result.combatant.deathSaveSuccesses ?? 0) >= 3) {
+          text = `死亡豁免：掷出 ${result.roll}，成功 ${result.combatant.deathSaveSuccesses}/3，已稳定`;
+        } else if (result.outcome === 'crit_fail') {
+          text = `死亡豁免：掷出 ${result.roll}，两次失败（${result.combatant.deathSaveFailures}/3）`;
+        } else if (result.outcome === 'fail') {
+          text = `死亡豁免：掷出 ${result.roll}，一次失败（${result.combatant.deathSaveFailures}/3）`;
+        } else {
+          text = `死亡豁免：掷出 ${result.roll}，一次成功（${result.combatant.deathSaveSuccesses}/3）`;
+        }
+        updatedRounds = updatedRounds.map((round, idx) =>
+          idx === r ? { ...round, [c.id]: text } : round
+        );
+        changed = true;
+      }
+    }
+    if (changed) {
+      combatStore.update(latest.id, { rounds: updatedRounds, updatedAt: Date.now() });
+    }
+  };
+
   // ✅ 推进到下一个回合
   const advanceTurn = () => {
     if (!currentTurn || !record) return;
     const next = findNextValidTurn(currentTurn.round, currentTurn.combatantIdx + 1);
     if (next) {
+      // 自动为被跳过的昏迷 NPC 进行死亡豁免
+      processNpcDeathSaves(
+        currentTurn.round, currentTurn.combatantIdx + 1,
+        next.round, next.combatantIdx,
+      );
       // 进入新轮时重置待办执行状态
       if (next.round > currentTurn.round) {
         combatStore.resetTurnTodosForRound(record.id, next.round);
@@ -974,6 +1026,8 @@ export default function CombatSession() {
     // 当前行结束 → 判断是否还有活着的角色可战斗
     const aliveCount = record.combatants.filter(c => !c.isDead && !c.isUnconscious).length;
     if (aliveCount === 0) {
+      // 仍有昏迷 NPC 需要处理死亡豁免
+      processNpcDeathSaves(currentTurn.round, currentTurn.combatantIdx + 1, null, null);
       setCurrentTurn(null);
       setPlaybackStarted(false);
       alert('战斗已结束（所有参战者已倒地或死亡）。');
@@ -986,13 +1040,15 @@ export default function CombatSession() {
       const newRound: RoundAction = {};
       record.combatants.forEach(c => {
         if (c.isDead) newRound[c.id] = '死亡';
-        else if (c.isUnconscious) newRound[c.id] = '昏迷';
+        else if (c.isUnconscious) newRound[c.id] = '昏迷中，无法行动';
         else newRound[c.id] = '';
       });
       const updatedRounds = [...record.rounds, newRound];
       combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
       // 新轮重置待办执行状态
       combatStore.resetTurnTodosForRound(record.id, nextRound);
+      // 处理当前行剩余的昏迷 NPC 死亡豁免
+      processNpcDeathSaves(currentTurn.round, currentTurn.combatantIdx + 1, null, null);
       // 用 updatedRounds 覆盖参数避免读到旧 record
       const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
@@ -1006,6 +1062,8 @@ export default function CombatSession() {
     } else {
       // 新轮重置待办执行状态
       combatStore.resetTurnTodosForRound(record.id, nextRound);
+      // 处理当前行剩余的昏迷 NPC 死亡豁免
+      processNpcDeathSaves(currentTurn.round, currentTurn.combatantIdx + 1, nextRound, 0);
       const firstInNext = findNextValidTurn(nextRound, 0);
       if (firstInNext) {
         setCurrentTurn(firstInNext);
@@ -1116,7 +1174,7 @@ export default function CombatSession() {
           (r === round && c > combatantIdx);
         if (isAfter) {
           const cur = restoredRounds[r]?.[cid];
-          if (cur && cur !== '被突袭' && cur !== '昏迷' && cur !== '死亡') {
+          if (cur && cur !== '被突袭' && cur !== '昏迷中，无法行动' && cur !== '死亡') {
             restoredRounds[r] = { ...restoredRounds[r], [cid]: '' };
           }
         }
@@ -1860,7 +1918,7 @@ export default function CombatSession() {
                                 </>
                               ) : null}
                               {/* 放映模式：任何已过/当前/后续回合格都提供回溯（只要不是纯占位符） */}
-                              {action !== '被突袭' && action !== '昏迷' && action !== '死亡' && (() => {
+                              {action !== '被突袭' && action !== '昏迷中，无法行动' && action !== '死亡' && (() => {
                                 const cidx = record.combatants.findIndex(x => x.id === c.id);
                                 return (
                                   <button
