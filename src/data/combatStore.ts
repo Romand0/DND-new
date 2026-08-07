@@ -358,60 +358,100 @@ function load(): CombatRecord[] {
   if (recordsCache) return recordsCache;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      recordsCache = [];
+      return recordsCache;
+    }
     const records: unknown[] = JSON.parse(raw);
-    return records.map((r: any) => ({
-      id: r.id,
-      title: r.title ?? '未命名战斗',
-      combatants: (r.combatants ?? []).map((c: any) => {
-        // 兜底：旧数据缺少 speed 时，从角色库回填（PC 参战者通常带有 characterId）
+    const normalized = records.map((r: any) => {
+      // 旧数据没有 equipmentChanges → 置 {}；字段结构不兼容则重建每个参战者的三件套
+      const equipmentChangesRaw = r.equipmentChanges;
+      const equipmentChanges: Record<string, EquipmentChanges> = {};
+      if (equipmentChangesRaw && typeof equipmentChangesRaw === 'object') {
+        for (const key of Object.keys(equipmentChangesRaw)) {
+          const v: any = (equipmentChangesRaw as any)[key];
+          if (!v || typeof v !== 'object') continue;
+          const added = Array.isArray(v.added)
+            ? v.added.filter((a: any) => a && typeof a === 'object' && typeof a.childId === 'string')
+            : [];
+          equipmentChanges[key] = {
+            added,
+            removedChildIds: Array.isArray(v.removedChildIds)
+              ? v.removedChildIds.filter((x: any) => typeof x === 'string')
+              : [],
+            quantityDeltas: (() => {
+            const src = v.quantityDeltas;
+            const out: Record<string, number> = {};
+            if (src && typeof src === 'object') {
+              for (const [k, vv] of Object.entries(src as Record<string, unknown>)) {
+                if (typeof vv === 'number' && Number.isFinite(vv)) out[k] = vv;
+              }
+            }
+            return out;
+          })(),
+          };
+        }
+      }
+      const combatants = (r.combatants ?? []).map((c: any) => {
         let actions = c.actions ?? 1;
-        if (typeof actions !== 'number' || actions < 0) actions = 1;
+        if (typeof actions !== 'number' || actions < 0 || !Number.isFinite(actions)) actions = 1;
         let speed = c.speed;
         if ((speed === undefined || speed === null) && c.characterId) {
-          const char = characterStore.get(c.characterId);
-          if (char?.speed) speed = char.speed;
+          try {
+            const char = characterStore.get(c.characterId);
+            if (char?.speed) speed = char.speed;
+          } catch {
+            // 角色库加载失败，不要连累战斗记录加载
+          }
         }
         return {
           id: c.id ?? crypto.randomUUID(),
           name: c.name ?? '未命名',
-          initiative: c.initiative ?? 0,
-          ac: c.ac ?? 0,
-          maxHp: c.maxHp ?? 0,
-          currentHp: c.currentHp ?? 0,
-          tempHp: c.tempHp,
-          isDead: c.isDead ?? false,
-          isUnconscious: c.isUnconscious ?? false,
-          deathSaveFailures: typeof c.deathSaveFailures === 'number' ? c.deathSaveFailures : 0,
-          deathSaveSuccesses: typeof c.deathSaveSuccesses === 'number' ? c.deathSaveSuccesses : 0,
-          isPc: c.isPc ?? false,
-          characterId: c.characterId,
-          note: c.note ?? '',
+          initiative: Number(c.initiative) || 0,
+          ac: Number(c.ac) || 0,
+          maxHp: Number(c.maxHp) || 0,
+          currentHp: Number(c.currentHp) || 0,
+          tempHp: typeof c.tempHp === 'number' && Number.isFinite(c.tempHp) ? c.tempHp : undefined,
+          isDead: !!c.isDead,
+          isUnconscious: !!c.isUnconscious,
+          deathSaveFailures: typeof c.deathSaveFailures === 'number' && Number.isFinite(c.deathSaveFailures) ? Math.max(0, Math.trunc(c.deathSaveFailures)) : 0,
+          deathSaveSuccesses: typeof c.deathSaveSuccesses === 'number' && Number.isFinite(c.deathSaveSuccesses) ? Math.max(0, Math.trunc(c.deathSaveSuccesses)) : 0,
+          isPc: !!c.isPc,
+          characterId: c.characterId ?? undefined,
+          note: typeof c.note === 'string' ? c.note : '',
           speed,
-          childId: c.childId,
-          templateId: c.templateId,
-          attacks: c.attacks,
+          childId: c.childId ?? undefined,
+          templateId: c.templateId ?? undefined,
+          attacks: Array.isArray(c.attacks) ? c.attacks : undefined,
           actions,
         };
-      }),
-      rounds: r.rounds ?? [],
-      mode: r.mode,
-      turnTodos: (r.turnTodos || []).map((t: any) => ({
-        id: t.id ?? crypto.randomUUID(),
-        combatantId: t.combatantId ?? '',
-        name: t.name ?? '',
-        type: t.type ?? null,
-        startRound: typeof t.startRound === 'number' ? t.startRound : 0,
-        endRound: typeof t.endRound === 'number' ? t.endRound : -1,
-        executed: t.executed ?? false,
-      })),
-      // 关键：必须映射 equipmentChanges，否则 save 写入后 load 读取会丢失变更信息
-      equipmentChanges: r.equipmentChanges as Record<string, EquipmentChanges> | undefined,
-      createdAt: r.createdAt ?? Date.now(),
-      updatedAt: r.updatedAt ?? Date.now(),
-    }));
-  } catch {
-    return [];
+      });
+      return {
+        id: r.id,
+        title: r.title ?? '未命名战斗',
+        combatants,
+        rounds: r.rounds ?? [],
+        mode: r.mode,
+        turnTodos: (r.turnTodos || []).map((t: any) => ({
+          id: t.id ?? crypto.randomUUID(),
+          combatantId: t.combatantId ?? '',
+          name: t.name ?? '',
+          type: t.type ?? null,
+          startRound: typeof t.startRound === 'number' && Number.isFinite(t.startRound) ? t.startRound : 0,
+          endRound: typeof t.endRound === 'number' && Number.isFinite(t.endRound) ? t.endRound : -1,
+          executed: !!t.executed,
+        })),
+        equipmentChanges,
+        createdAt: Number(r.createdAt) || Date.now(),
+        updatedAt: Number(r.updatedAt) || Date.now(),
+      };
+    });
+    recordsCache = normalized;
+    return normalized;
+  } catch (e) {
+    console.error('战斗记录加载失败，返回空列表：', e);
+    recordsCache = [];
+    return recordsCache;
   }
 }
 
