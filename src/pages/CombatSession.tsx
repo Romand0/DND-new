@@ -41,7 +41,7 @@ import TurnTodoBoard from '@/components/TurnTodoBoard';
 import NpcCreator from '@/components/NpcCreator';
 
 export default function CombatSession() {
-  const { id = '' } = useParams<{ id: string }>();
+  const { sessionId: id = '' } = useParams<{ sessionId?: string }>();
 
   // ========= 1. 顶层共享 state =========
   const [record, setRecord] = useState<CombatRecord | null>(null);
