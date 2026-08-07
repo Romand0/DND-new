@@ -23,7 +23,8 @@ import type {} from '@/components/combat/PlaybackToolbar';
 import type {} from '@/components/combat/RewindDialog';
 import type {} from '@/components/combat/SurpriseAttackDialog';
 import type {} from '@/components/CombatantInfoPanel';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import * as snapDb from '@/lib/combatSnapshots';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -37,7 +38,7 @@ import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges } from '@/types/combat';
+import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
@@ -136,12 +137,7 @@ export default function CombatSession() {
     firstClickDone: boolean;
   } | null>(null);
   // 回合快照集合（key = `${round}:${combatantId}`）
-  type TurnSnapshot = {
-    combatants: Combatant[];   // 所有角色 HP / 状态
-    rounds: RoundAction[];     // 先攻表（回合开始时的内容，回溯时把此格及之后清空恢复到此）
-    battleground: any[];       // 沙盘 tokens 快照
-    equipmentChanges?: Record<string, EquipmentChanges>; // 装备变更漏斗快照
-  };
+  // （TurnSnapshot 是 @/types/combat 导出的全局 interface，已在上面 import）
   const rollbackSnapshotRef = useRef<{
     initial: TurnSnapshot | null;
     snapshots: Record<string, TurnSnapshot>;
@@ -169,6 +165,23 @@ export default function CombatSession() {
   const availableChars = characterStore.getAll().filter(char => 
     !existingCharIds.has(char.id)
   );
+
+  // ✅ 修复：刷新/关闭页面后再次进入战斗，把 IndexedDB 中的快照回灌到内存 useRef
+  // 触发条件：record 已加载且当前是放映模式 playbackStarted=true 但内存 initial 为空
+  useEffect(() => {
+    if (!record || record.mode !== 'playback') return;
+    if (!playbackStarted) return;
+    if (rollbackSnapshotRef.current.initial && Object.keys(rollbackSnapshotRef.current.snapshots).length > 0) return;
+    (async () => {
+      try {
+        const init = await snapDb.getInitialSnapshot(record.id);
+        if (init && !rollbackSnapshotRef.current.initial) {
+          rollbackSnapshotRef.current.initial = init;
+        }
+      } catch { /* ignore */ }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.id, record?.mode, playbackStarted]);
 
   /**
    * 基于战斗背包实际装备，获取该 combatant 的有效 AC。
@@ -807,22 +820,22 @@ export default function CombatSession() {
       const bg = battlegroundStore.get(record.id);
       const latestForSnapshot = combatStore.get(record.id);
       playbackSnapshotRef.current = (bg?.tokens ?? []).map(t => ({ ...t }));
-      rollbackSnapshotRef.current = {
-        initial: {
-          combatants: record.combatants.map(c => ({ ...c })),
-          rounds: record.rounds.map(r => ({ ...r })),
-          battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
-          equipmentChanges: latestForSnapshot?.equipmentChanges
-            ? Object.fromEntries(
-                Object.entries(latestForSnapshot.equipmentChanges).map(([k, v]) => [
-                  k,
-                  { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
-                ]),
-              )
-            : undefined,
-        },
-        snapshots: {},
+      const initialSnap: TurnSnapshot = {
+        combatants: record.combatants.map(c => ({ ...c })),
+        rounds: record.rounds.map(r => ({ ...r })),
+        battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
+        equipmentChanges: latestForSnapshot?.equipmentChanges
+          ? Object.fromEntries(
+              Object.entries(latestForSnapshot.equipmentChanges).map(([k, v]) => [
+                k,
+                { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
+              ]),
+            )
+          : undefined,
       };
+      rollbackSnapshotRef.current = { initial: initialSnap, snapshots: {} };
+      // 同步写入 IndexedDB：刷新/关闭页面后恢复可用
+      snapDb.putInitialSnapshot(record.id, initialSnap).catch(e => console.warn('写入初始快照失败', e));
     }
   };
 
@@ -860,6 +873,8 @@ export default function CombatSession() {
     setCurrentTurn(null);
     playbackSnapshotRef.current = null;
     rollbackSnapshotRef.current = { initial: null, snapshots: {} };
+    // 退出放映模式清理 IndexedDB 快照（避免磁盘长期堆积）
+    if (record) snapDb.deleteSessionSnapshots(record.id).catch(() => {});
     setExitPlaybackModalOpen(false);
     commitModeChange('simulation');
   };
@@ -1127,7 +1142,8 @@ export default function CombatSession() {
   // ✅ 拍某回合的快照：记录此回合开始时的 combatants / rounds / 沙盘
   // 每次进入新回合（播放起始、确认完成回合后）调用一次
   // 注意：直接从 combatStore 读取最新值，避免 record state 还未重新渲染导致读到旧数据
-  const takeTurnSnapshot = (round: number, combatantId: string) => {
+  // 双写：内存 useRef（同步快读）+ IndexedDB（刷新/关闭页面后仍可回溯）
+  const takeTurnSnapshot = useCallback((round: number, combatantId: string) => {
     if (!record) return;
     const latest = combatStore.get(record.id);
     if (!latest) return;
@@ -1145,22 +1161,35 @@ export default function CombatSession() {
           )
         : undefined,
     };
-    const key = `${round}:${combatantId}`;
+    const memKey = `${round}:${combatantId}`;
     // 只在第一次拍（始终回到该回合最初状态）
-    if (!rollbackSnapshotRef.current.snapshots[key]) {
-      rollbackSnapshotRef.current.snapshots[key] = snap;
+    if (!rollbackSnapshotRef.current.snapshots[memKey]) {
+      rollbackSnapshotRef.current.snapshots[memKey] = snap;
     }
-  };
+    // 异步写入 IndexedDB，不阻塞主线程
+    snapDb.putTurnSnapshot(record.id, round, combatantId, snap).catch(e => console.warn('写入回合快照失败', e));
+  }, [record]);
 
   // ✅ 回溯到指定回合开始：还原该回合及其之后所有记录为空，并把战斗数据整体还原到快照
-  const applyRollback = (round: number, combatantIdx: number) => {
+  // 查找优先级：内存 useRef（exact key）→ IndexedDB exact key → IndexedDB 近似 key（≤目标 round 的最大 round）→ initial
+  // 关键修复：snap.rounds 是"拍快照那一瞬间"的短数组，若当时还没 push 到目标 round 长度，
+  // 用 currentStoreRounds 在 snap.rounds 末尾补长度，避免"目标回合格子不存在就不做清空"。
+  const applyRollback = useCallback(async (round: number, combatantIdx: number) => {
     if (!record) return;
     const latest = combatStore.get(record.id);
     if (!latest) return;
     const combatantId = latest.combatants[combatantIdx]?.id;
     if (!combatantId) return;
-    const key = `${round}:${combatantId}`;
-    const snap = rollbackSnapshotRef.current.snapshots[key] ?? rollbackSnapshotRef.current.initial;
+    const memKey = `${round}:${combatantId}`;
+    let snap: TurnSnapshot | null =
+      rollbackSnapshotRef.current.snapshots[memKey] ?? rollbackSnapshotRef.current.initial ?? null;
+    let exact = !!snap;
+    if (!snap) {
+      try {
+        const best = await snapDb.getBestTurnSnapshot(record.id, round, combatantId);
+        if (best) { snap = best.snapshot; exact = best.exact; }
+      } catch { /* ignore */ }
+    }
     if (!snap) {
       alert('回溯失败：未找到该回合的快照，请先至少推进一个回合后再回溯');
       return;
@@ -1168,11 +1197,35 @@ export default function CombatSession() {
     // 1) 还原 combatants（HP / 状态）到快照
     const restoredCombatants = snap.combatants.map(c => ({ ...c }));
     // 2) 还原 rounds：
-    //    - 从快照拿回合结构（避免保留放映期间自动新增的轮次）
-    //    - 然后把"目标格之后"的所有格子清空（保留 被突袭/昏迷/死亡 占位）
-    const restoredRounds = snap.rounds.map(r => ({ ...r }));
+    //   - 如果快照 rounds 还没"发展到"目标 round 长度，用 latest 的 rounds 片段 pad 补全
+    //     （关键修复：第一次进入某回合格时，之前的"回合开始拍快照"可能还没执行——此时 snap.rounds
+    //      是在更早些的时刻拍的，长度 < round + 1。之前会因为 restoredRounds[round] 是 undefined
+    //      而跳过此轮清空操作，导致"之后"的老记录仍旧保留，看起来像是回溯没效果）
+    //   - 然后把"目标格之后"的所有格子清空（保留 被突袭/昏迷/死亡 占位）
+    const needRounds = Math.max(round + 1, snap.rounds.length);
+    const snapRounds = snap.rounds.map(r => ({ ...r }));
+    const latestRounds = latest.rounds;
+    const paddedRounds: RoundAction[] = [];
+    for (let r = 0; r < needRounds; r++) {
+      if (r < snapRounds.length) paddedRounds.push(snapRounds[r]);
+      else paddedRounds.push({ ...(latestRounds[r] ?? {}) });
+    }
+    // 非 exact 的回退（用了较旧的 snapshot）：保留 snapshot 到目标 round 之间 rounds 已有的"被突袭/昏迷/死亡"占位
+    if (!exact && latest.rounds.length > snap.rounds.length) {
+      for (let r = snap.rounds.length; r < paddedRounds.length; r++) {
+        if (latest.rounds[r]) {
+          const cur = paddedRounds[r];
+          for (const c of restoredCombatants) {
+            const v = latest.rounds[r][c.id];
+            if (v === '被突袭' || v === '昏迷中，无法行动' || v === '死亡') {
+              cur[c.id] = v;
+            }
+          }
+        }
+      }
+    }
     const totalCombatants = restoredCombatants.length;
-    const totalRounds = restoredRounds.length;
+    const totalRounds = paddedRounds.length;
     for (let r = 0; r < totalRounds; r++) {
       for (let c = 0; c < totalCombatants; c++) {
         const cid = restoredCombatants[c].id;
@@ -1180,9 +1233,9 @@ export default function CombatSession() {
           r > round ||
           (r === round && c > combatantIdx);
         if (isAfter) {
-          const cur = restoredRounds[r]?.[cid];
+          const cur = paddedRounds[r]?.[cid];
           if (cur && cur !== '被突袭' && cur !== '昏迷中，无法行动' && cur !== '死亡') {
-            restoredRounds[r] = { ...restoredRounds[r], [cid]: '' };
+            paddedRounds[r] = { ...paddedRounds[r], [cid]: '' };
           }
         }
       }
@@ -1190,7 +1243,7 @@ export default function CombatSession() {
     // 3) 应用还原
     combatStore.update(record.id, {
       combatants: restoredCombatants,
-      rounds: restoredRounds,
+      rounds: paddedRounds,
       equipmentChanges: snap.equipmentChanges
         ? Object.fromEntries(
             Object.entries(snap.equipmentChanges).map(([k, v]) => [
@@ -1205,11 +1258,14 @@ export default function CombatSession() {
     battlegroundStore.setTokens(record.id, snap.battleground.map(t => ({ ...t })));
     // 5) 当前回合跳到此回合格
     setCurrentTurn({ round, combatantIdx, combatantId });
-    // 6) 此回合格在回溯后需要重新拍快照（旧的快照里此格"之后"已被清空，再次进入会重新写入）
-    //    清掉旧快照让下次进入时重拍
-    delete rollbackSnapshotRef.current.snapshots[key];
+    // 6) 此回合格在回溯后需要重新拍快照：清掉内存+IDB 中旧快照，下次进入重拍
+    const memKey2 = `${round}:${combatantId}`;
+    delete rollbackSnapshotRef.current.snapshots[memKey2];
+    snapDb.getTurnSnapshot(record.id, round, combatantId).then(() => {}); // 热身连接
+    // 下帧立即为当前"回到此回合"拍新快照（避免回到后再回溯找不到）
+    setTimeout(() => takeTurnSnapshot(round, combatantId), 0);
     setRewindModal(null);
-  };
+  }, [record, takeTurnSnapshot]);
 
   // ✅ 确认完成回合
   const confirmEndTurn = () => {

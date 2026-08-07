@@ -69,6 +69,19 @@ export interface RoundAction {
 }
 
 /**
+ * 回合快照：拍"该回合刚开始"时的完整战斗状态，用于回溯。
+ * - initial 快照：切到放映模式时拍一次，保存在 key `${sessionId}:__initial__`
+ * - turn 快照：每次进入新回合（startPlayback + advanceTurn）时按回合拍，key `${sessionId}:${round}:${combatantId}`
+ *   （只在第一次拍，保留"回到该回合起始点"的不变形）
+ */
+export interface TurnSnapshot {
+  combatants: Combatant[];
+  rounds: RoundAction[];
+  battleground: any[];
+  equipmentChanges?: Record<string, EquipmentChanges>;
+}
+
+/**
  * 动作类型：攻击/施法 已实现（消耗动作）；
  * 疾走/撤离/回避/协助/躲藏/预备/搜索 为预留接口（尚无对应机制，仅留占位）。
  */
