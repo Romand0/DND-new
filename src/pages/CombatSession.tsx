@@ -1197,11 +1197,8 @@ export default function CombatSession() {
     // 1) 还原 combatants（HP / 状态）到快照
     const restoredCombatants = snap.combatants.map(c => ({ ...c }));
     // 2) 还原 rounds：
-    //   - 如果快照 rounds 还没"发展到"目标 round 长度，用 latest 的 rounds 片段 pad 补全
-    //     （关键修复：第一次进入某回合格时，之前的"回合开始拍快照"可能还没执行——此时 snap.rounds
-    //      是在更早些的时刻拍的，长度 < round + 1。之前会因为 restoredRounds[round] 是 undefined
-    //      而跳过此轮清空操作，导致"之后"的老记录仍旧保留，看起来像是回溯没效果）
-    //   - 然后把"目标格之后"的所有格子清空（保留 被突袭/昏迷/死亡 占位）
+    //   - 先将 snap.rounds 与 latest.rounds 对齐补全到目标 round + 1 长度（避免快照拍得太早导致缺少目标轮）
+    //   - 然后直接截断到 round + 1，移除当前轮数之后的所有整行
     const needRounds = Math.max(round + 1, snap.rounds.length);
     const snapRounds = snap.rounds.map(r => ({ ...r }));
     const latestRounds = latest.rounds;
@@ -1224,36 +1221,31 @@ export default function CombatSession() {
         }
       }
     }
+    // 当前轮内：目标格之后的单元格清空（同一轮内的后续角色不删除整行）
     const totalCombatants = restoredCombatants.length;
-    const totalRounds = paddedRounds.length;
-    for (let r = 0; r < totalRounds; r++) {
-      for (let c = 0; c < totalCombatants; c++) {
-        const cid = restoredCombatants[c].id;
-        const isAfter =
-          r > round ||
-          (r === round && c > combatantIdx);
-        if (isAfter) {
-          // 先全部清空（包括昏迷/死亡标记），下面再根据 snap 时刻角色状态重新填入
-          paddedRounds[r] = { ...paddedRounds[r], [cid]: '' };
-        }
+    for (let c = 0; c < totalCombatants; c++) {
+      const cid = restoredCombatants[c].id;
+      const isAfterInRound = c > combatantIdx;
+      if (isAfterInRound) {
+        paddedRounds[round] = { ...paddedRounds[round], [cid]: '' };
       }
     }
-    // 根据 snap 时刻角色状态，在 isAfter 格子重新填入昏迷/死亡占位（不覆盖被突袭）
+    // 当前轮内目标格之后：根据 snap 时刻角色状态重新填入昏迷/死亡占位（不覆盖被突袭）
     restoredCombatants.forEach((c, idx) => {
       if (!c.isDead && !c.isUnconscious) return;
       const marker = c.isDead ? '死亡' : '昏迷中，无法行动';
-      for (let r = 0; r < paddedRounds.length; r++) {
-        const isAfter = r > round || (r === round && idx > combatantIdx);
-        if (!isAfter) continue;
-        const cur = paddedRounds[r]?.[c.id];
-        if (cur === '被突袭') continue;
-        paddedRounds[r] = { ...paddedRounds[r], [c.id]: marker };
-      }
+      const isAfterInRound = idx > combatantIdx;
+      if (!isAfterInRound) return;
+      const cur = paddedRounds[round]?.[c.id];
+      if (cur === '被突袭') return;
+      paddedRounds[round] = { ...paddedRounds[round], [c.id]: marker };
     });
+    // 关键修改：截断到 round + 1，移除当前轮数之后的所有整行（而非仅清空单元格）
+    const truncatedRounds = paddedRounds.slice(0, round + 1);
     // 3) 应用还原
     combatStore.update(record.id, {
       combatants: restoredCombatants,
-      rounds: paddedRounds,
+      rounds: truncatedRounds,
       equipmentChanges: snap.equipmentChanges
         ? Object.fromEntries(
             Object.entries(snap.equipmentChanges).map(([k, v]) => [
