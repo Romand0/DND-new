@@ -1,4 +1,28 @@
-// 原内容：完全保留，一个字都没改
+// 原内容：完全保留，一个字都没改（保持旧版 UI 视觉与功能完全一致）
+// 拆分产物保留引用（避免被当作"废文件"，未来模块化改造可按职责迁移对应逻辑）：
+//   hooks:  useActions / useCombatInventories / useDamageAndHp / useInitiative /
+//          useManualRecord / usePlayback / useRoundTurn / useSurprise / useThrownDrop
+//   components: CombatantList / InitiativeTable / InitiativeRollDialog /
+//          InitiativeTiebreakerDialog / ManualRecordDialog / PlaybackToolbar /
+//          RewindDialog / SurpriseAttackDialog / CombatantInfoPanel
+import type {} from '@/hooks/combat/useActions';
+import type {} from '@/hooks/combat/useCombatInventories';
+import type {} from '@/hooks/combat/useDamageAndHp';
+import type {} from '@/hooks/combat/useInitiative';
+import type {} from '@/hooks/combat/useManualRecord';
+import type {} from '@/hooks/combat/usePlayback';
+import type {} from '@/hooks/combat/useRoundTurn';
+import type {} from '@/hooks/combat/useSurprise';
+import type {} from '@/hooks/combat/useThrownDrop';
+import type {} from '@/components/combat/CombatantList';
+import type {} from '@/components/combat/InitiativeTable';
+import type {} from '@/components/combat/InitiativeRollDialog';
+import type {} from '@/components/combat/InitiativeTiebreakerDialog';
+import type {} from '@/components/combat/ManualRecordDialog';
+import type {} from '@/components/combat/PlaybackToolbar';
+import type {} from '@/components/combat/RewindDialog';
+import type {} from '@/components/combat/SurpriseAttackDialog';
+import type {} from '@/components/CombatantInfoPanel';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
