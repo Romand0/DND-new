@@ -1,4 +1,6 @@
+import { GripVertical, X } from 'lucide-react';
 import type { Combatant } from '@/types/combat';
+import { characterStore } from '@/data/characterStore';
 
 interface Props {
   open: boolean;
@@ -8,7 +10,6 @@ interface Props {
   onDragStart: (e: React.PointerEvent, index: number) => void;
   onDragMove: (e: React.PointerEvent) => void;
   onDragEnd: () => void;
-  onChangeOrder: (next: Combatant[]) => void;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -16,71 +17,79 @@ interface Props {
 export default function InitiativeTiebreakerDialog(props: Props) {
   const {
     open, tiedOrder, cardRefs, draggingIndex,
-    onDragStart, onDragMove, onDragEnd, onChangeOrder,
-    onConfirm, onClose,
+    onDragStart, onDragMove, onDragEnd, onConfirm, onClose,
   } = props;
 
   if (!open) return null;
 
-  const initiative = tiedOrder[0]?.initiative ?? 0;
+  const initiative = tiedOrder[0]?.initiative ?? '-';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">先攻平局排序</h2>
-        <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
-          有 {tiedOrder.length} 个参战者先攻值相同（先攻值：<span className="font-bold">{initiative}</span>），请上下拖动卡片决定出手顺序，从上到下为先。
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">先攻平局</h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-white/10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
+          以下参战者先攻相同（{initiative}），长按拖动调整行动顺序
         </p>
         <div
-          className="mb-4 space-y-2"
+          className="space-y-2 max-h-[60vh] overflow-y-auto touch-none select-none"
           onPointerMove={onDragMove}
           onPointerUp={onDragEnd}
           onPointerCancel={onDragEnd}
         >
-          {tiedOrder.map((c, idx) => (
-            <div
-              key={c.id}
-              ref={(el) => { cardRefs.current[idx] = el; }}
-              onPointerDown={(e) => onDragStart(e, idx)}
-              className={`flex cursor-move items-center gap-3 rounded-lg border-2 p-3 transition ${
-                draggingIndex === idx
-                  ? 'border-blue-500 bg-blue-50 opacity-80 dark:bg-blue-900/30'
-                  : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-700'
-              }`}
-            >
-              <span className="font-mono text-lg text-gray-500 dark:text-gray-300">{idx + 1}.</span>
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{c.name}</span>
-              <span className="ml-auto text-xs text-gray-500 dark:text-gray-300">
-                {c.isPc ? '玩家' : '敌人'} 先攻：{c.initiative}
-              </span>
-            </div>
-          ))}
+          {tiedOrder.map((c, index) => {
+            const pc = c.characterId ? characterStore.get(c.characterId) : null;
+            const race = pc?.race;
+            const cls = pc?.class;
+            return (
+              <div
+                key={c.id}
+                ref={(el) => { cardRefs.current[index] = el; }}
+                onPointerDown={(e) => onDragStart(e, index)}
+                className={`flex items-center gap-2 p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-shadow ${
+                  draggingIndex === index
+                    ? 'border-primary shadow-lg scale-[1.02] opacity-90'
+                    : 'dark:border-border-dark light:border-border-light'
+                } dark:bg-bg-dark light:bg-bg-light-2`}
+                style={{ touchAction: 'none' }}
+              >
+                <GripVertical className="w-4 h-4 opacity-40 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate dark:text-text-dark light:text-text-light">
+                    {c.name}
+                  </div>
+                  <div className="text-xs opacity-60 truncate">
+                    {c.isPc
+                      ? [race, cls].filter(Boolean).join(' · ') || '玩家角色'
+                      : 'NPC'}
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-primary shrink-0">#{index + 1}</div>
+              </div>
+            );
+          })}
         </div>
-        <div className="mb-4 flex justify-center gap-2">
-          <button
-            onClick={() => {
-              const arr = [...tiedOrder].reverse();
-              onChangeOrder(arr);
-            }}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-          >↕ 反转顺序</button>
-          <button
-            onClick={() => {
-              const arr = [...tiedOrder].sort((a, b) => a.name.localeCompare(b.name));
-              onChangeOrder(arr);
-            }}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-          >A→Z 排序</button>
-        </div>
-        <div className="flex justify-end gap-3">
+        <div className="flex gap-2 mt-4">
           <button
             onClick={onClose}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-          >取消</button>
+            className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+          >
+            取消
+          </button>
           <button
             onClick={onConfirm}
-            className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-          >确认顺序</button>
+            className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
+          >
+            确认顺序
+          </button>
         </div>
       </div>
     </div>

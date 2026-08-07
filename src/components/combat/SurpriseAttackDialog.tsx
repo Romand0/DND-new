@@ -1,41 +1,79 @@
+import { X } from 'lucide-react';
 import type { Combatant } from '@/types/combat';
 
 interface Props {
   open: boolean;
+  round: number;
   combatants: Combatant[];
+  surprisedCombatants: Set<string>;
+  onToggleSurprised: (id: string) => void;
   onConfirm: () => void;
   onClose: () => void;
 }
 
 export default function SurpriseAttackDialog(props: Props) {
-  const { open, combatants, onConfirm, onClose } = props;
+  const { open, round, combatants, surprisedCombatants, onToggleSurprised, onConfirm, onClose } = props;
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800">
-        <h2 className="mb-2 text-xl font-semibold text-gray-900 dark:text-gray-100">🐉 突袭！</h2>
-        <p className="mb-4 text-sm text-gray-600 dark:text-gray-300">
-          根据 D&amp;D 5e 规则，以下参战者在第一回合无法行动，将自动填入「被突袭」：
-        </p>
-        <ul className="mb-4 list-disc space-y-1 rounded-lg border border-gray-200 p-3 text-sm pl-6 dark:border-gray-700">
-          {combatants.map(c => (
-            <li key={c.id} className="text-gray-800 dark:text-gray-100">
-              <span className="font-medium">{c.name}</span>
-              <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-                （先攻 {c.initiative}{c.isPc ? '，玩家' : '，敌人'}）
-              </span>
-            </li>
-          ))}
-        </ul>
-        <div className="flex justify-end gap-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+            突袭 · 第 {round + 1} 轮
+          </h3>
           <button
             onClick={onClose}
-            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
-          >取消</button>
+            className="p-1 rounded hover:bg-white/10"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-3">
+          选择在该轮被突袭的角色，被突袭角色在本回合失去先攻
+        </p>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {combatants.map(c => {
+            const isChecked = surprisedCombatants.has(c.id);
+            return (
+              <label
+                key={c.id}
+                className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors ${
+                  isChecked
+                    ? 'border-primary bg-primary/5'
+                    : 'dark:border-border-dark light:border-border-light hover:border-primary/50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={() => onToggleSurprised(c.id)}
+                  className="rounded"
+                />
+                <div className="flex-1">
+                  <div className="font-medium text-sm dark:text-text-dark light:text-text-light">{c.name}</div>
+                  <div className="text-xs opacity-60">
+                    {c.isPc ? '玩家角色' : 'NPC'}
+                    {c.initiative ? ` · 先攻 ${c.initiative}` : ''}
+                  </div>
+                </div>
+                {c.isDead && <span className="text-xs text-danger">已死亡</span>}
+              </label>
+            );
+          })}
+        </div>
+        <div className="flex gap-2 mt-4">
+          <button
+            onClick={onClose}
+            className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+          >
+            取消
+          </button>
           <button
             onClick={onConfirm}
-            className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
-          >确认突袭</button>
+            className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
+          >
+            确定（{surprisedCombatants.size}）
+          </button>
         </div>
       </div>
     </div>

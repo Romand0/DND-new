@@ -1,52 +1,81 @@
+import { SkipForward, Pause } from 'lucide-react';
+
 interface Props {
+  mode: 'simulation' | 'playback';
   playbackStarted: boolean;
-  onStartPlayback: () => void;
-  onConfirmEndTurn: () => void;
   currentTurnText: string;
+  onModeChange: (mode: 'simulation' | 'playback') => void;
+  onConfirmEndTurn: () => void;
   onExitPlayback: () => void;
-  onRewind: () => void;
-  onOpenManual: () => void;
 }
 
 export default function PlaybackToolbar(props: Props) {
   const {
-    playbackStarted, onStartPlayback, onConfirmEndTurn,
-    currentTurnText, onExitPlayback, onRewind, onOpenManual,
+    mode, playbackStarted, currentTurnText,
+    onModeChange, onConfirmEndTurn, onExitPlayback,
   } = props;
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 p-3 dark:border-indigo-900 dark:bg-indigo-950/40">
-      <span className="rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white">🎬 放映模式</span>
-      {!playbackStarted ? (
-        <button
-          onClick={onStartPlayback}
-          className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-green-700"
-        >▶️ 开始放映</button>
-      ) : (
-        <>
-          <span className="text-sm font-medium text-indigo-800 dark:text-indigo-100">
-            当前回合：{currentTurnText}
+    <>
+      {/* 模式切换栏 —— 模拟模式 / 放映模式 */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
+        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
+          战斗模式
+        </span>
+        <div className="flex rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">
+          <button
+            onClick={() => onModeChange('simulation')}
+            disabled={playbackStarted}
+            className={`px-3 py-1.5 text-xs transition-colors ${
+              mode === 'simulation'
+                ? 'bg-primary text-white'
+                : 'dark:text-text-dark light:text-text-light hover:bg-white/5'
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            模拟模式
+          </button>
+          <button
+            onClick={() => onModeChange('playback')}
+            className={`px-3 py-1.5 text-xs transition-colors ${
+              mode === 'playback'
+                ? 'bg-primary text-white'
+                : 'dark:text-text-dark light:text-text-light hover:bg-white/5'
+            }`}
+          >
+            放映模式
+          </button>
+        </div>
+        {mode === 'playback' && (
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+            {currentTurnText}
           </span>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <button
-              onClick={onOpenManual}
-              className="rounded-lg border border-indigo-300 bg-white px-3 py-1.5 text-sm text-indigo-700 hover:bg-indigo-100 dark:border-indigo-700 dark:bg-gray-800 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
-            >✍️ 手动记录</button>
-            <button
-              onClick={onRewind}
-              className="rounded-lg border border-orange-300 bg-white px-3 py-1.5 text-sm text-orange-700 hover:bg-orange-100 dark:border-orange-700 dark:bg-gray-800 dark:text-orange-200 dark:hover:bg-orange-900/30"
-            >⏪ 回滚回合</button>
-            <button
-              onClick={onConfirmEndTurn}
-              className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white shadow hover:bg-green-700"
-            >➡️ 结束回合</button>
-          </div>
-        </>
+        )}
+      </div>
+
+      {/* 完成回合悬浮按钮 —— 放映模式已开始时显示 */}
+      {mode === 'playback' && playbackStarted && (
+        <button
+          onClick={onConfirmEndTurn}
+          className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-primary text-white font-medium shadow-2xl hover:bg-primary/90 transition-all hover:scale-105 flex items-center gap-2"
+          title="完成当前回合，进入下一个"
+        >
+          <SkipForward className="w-5 h-5" />
+          <span>完成回合</span>
+        </button>
       )}
-      <button
-        onClick={onExitPlayback}
-        className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-      >退出放映</button>
-    </div>
+
+      {/* 退出放映按钮 —— 浮动在右上角（仅放映模式显示） */}
+      {mode === 'playback' && (
+        <button
+          onClick={onExitPlayback}
+          className="fixed top-20 right-6 z-40 px-3 py-2 rounded-lg bg-card-dark/80 backdrop-blur border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/10 transition-colors flex items-center gap-1"
+          title="退出放映模式"
+          type="button"
+        >
+          <Pause className="w-4 h-4" />
+          退出放映
+        </button>
+      )}
+    </>
   );
 }

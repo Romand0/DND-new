@@ -38,13 +38,13 @@ export default function CombatantList(props: Props) {
     );
 
   return (
-    <div className="mb-4 rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800">
-      <div className="flex items-center justify-between border-b border-gray-200 p-3 dark:border-gray-700">
-        <h3 className="font-semibold text-gray-900 dark:text-gray-100">
+    <div className="mb-4 rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
+      <div className="flex items-center justify-between border-b dark:border-border-dark light:border-border-light p-3">
+        <h3 className="font-semibold dark:text-text-dark light:text-text-light">
           参战者（{combatants.length}）
         </h3>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1.5 text-xs text-gray-600 dark:text-gray-300">
+          <label className="flex items-center gap-1.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
             <input
               type="checkbox"
               checked={batchMode}
@@ -57,22 +57,22 @@ export default function CombatantList(props: Props) {
             <>
               <button
                 onClick={() => onSelectAll(true)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                className="rounded border dark:border-border-dark light:border-border-light px-2 py-1 text-xs dark:text-text-dark light:text-text-light dark:hover:bg-bg-dark light:hover:bg-bg-light-2"
               >全选</button>
               <button
                 onClick={() => onSelectAll(false)}
-                className="rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                className="rounded border dark:border-border-dark light:border-border-light px-2 py-1 text-xs dark:text-text-dark light:text-text-light dark:hover:bg-bg-dark light:hover:bg-bg-light-2"
               >取消</button>
               <button
                 onClick={onBatchDelete}
                 disabled={selectedIds.size === 0}
-                className="rounded bg-red-600 px-2 py-1 text-xs font-medium text-white hover:bg-red-700 disabled:bg-gray-400"
+                className="rounded bg-danger px-2 py-1 text-xs font-medium text-white hover:bg-danger/90 disabled:bg-gray-400"
               >删除选中</button>
             </>
           )}
         </div>
       </div>
-      <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[440px] overflow-y-auto">
+      <div className="divide-y dark:divide-border-dark light:divide-border-light max-h-[440px] overflow-y-auto">
         {combatants.map(c => {
           const effAc = getEffectiveAc(c);
           const maxHp = c.maxHp ?? 0;
@@ -97,9 +97,9 @@ export default function CombatantList(props: Props) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className={`font-semibold text-sm ${
-                    c.isDead ? 'text-red-600 line-through dark:text-red-400' :
+                    c.isDead ? 'text-danger line-through' :
                     c.isUnconscious ? 'text-orange-600 dark:text-orange-300' :
-                    'text-gray-900 dark:text-gray-100'
+                    'dark:text-text-dark light:text-text-light'
                   }`}>
                     {c.name}
                   </span>
@@ -119,16 +119,16 @@ export default function CombatantList(props: Props) {
                     </span>
                   )}
                 </div>
-                <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-300">
+                <div className="mt-1 grid grid-cols-2 gap-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                   <div className="flex items-center gap-1">
-                    <span className="font-semibold text-gray-500 dark:text-gray-400">先攻：</span>
+                    <span className="font-semibold dark:text-text-dark-muted light:text-text-light-muted">先攻：</span>
                     {editingInitiative === c.id ? (
                       <>
                         <input
                           type="number"
                           value={initiativeInput}
                           onChange={(e) => onInitiativeInputChange(e.target.value)}
-                          className="w-16 rounded border border-gray-300 px-1 py-0.5 text-xs dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                          className="w-16 rounded border dark:border-border-dark light:border-border-light px-1 py-0.5 text-xs dark:bg-bg-dark dark:text-text-dark"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') onSaveInitiative(c.id);
                             else if (e.key === 'Escape') onCancelEditInitiative();
@@ -137,7 +137,7 @@ export default function CombatantList(props: Props) {
                         />
                         <button
                           onClick={() => onSaveInitiative(c.id)}
-                          className="rounded bg-blue-600 px-1.5 py-0.5 text-[10px] text-white"
+                          className="rounded bg-primary px-1.5 py-0.5 text-[10px] text-white"
                         >✔</button>
                         <button
                           onClick={onCancelEditInitiative}
@@ -151,15 +151,15 @@ export default function CombatantList(props: Props) {
                     )}
                   </div>
                   <div>
-                    <span className="font-semibold text-gray-500 dark:text-gray-400">AC：</span>
+                    <span className="font-semibold dark:text-text-dark-muted light:text-text-light-muted">AC：</span>
                     <span className="font-mono">{c.ac ?? '—'}{effAc !== null && effAc !== undefined && effAc !== (c.ac ?? 0) ? `(+装备${effAc})` : ''}</span>
                   </div>
                   <div className="col-span-2">
                     <div className="flex items-center justify-between">
-                      <span className="font-semibold text-gray-500 dark:text-gray-400">HP：</span>
+                      <span className="font-semibold dark:text-text-dark-muted light:text-text-light-muted">HP：</span>
                       <span className="font-mono">{curHp} / {maxHp || '—'}</span>
                     </div>
-                    <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full dark:bg-bg-dark light:bg-bg-light-2">
                       <div
                         className={`h-full rounded-full transition ${
                           hpPct > 50 ? 'bg-green-500' :
@@ -175,7 +175,7 @@ export default function CombatantList(props: Props) {
                 <button
                   onClick={() => onRemoveCombatant(c.id)}
                   title="移除参战者"
-                  className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/30"
+                  className="rounded p-1 dark:text-text-dark-muted light:text-text-light-muted hover:bg-danger/10 hover:text-danger"
                 >
                   🗑
                 </button>
@@ -184,7 +184,7 @@ export default function CombatantList(props: Props) {
           );
         })}
         {combatants.length === 0 && (
-          <div className="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+          <div className="p-6 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">
             尚未添加参战者。点击上方「添加角色」或「添加敌人」开始。
           </div>
         )}
