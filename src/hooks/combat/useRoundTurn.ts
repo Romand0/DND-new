@@ -50,24 +50,13 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
   ): { round: number; combatantId: string } | null => {
     if (!record) return null;
     const rounds = roundsOverride ?? record.rounds;
-    const latestTodos = combatStore.get(record.id)?.turnTodos ?? record.turnTodos ?? [];
-    const hasActiveDeathSave = (combatantId: string, round: number) =>
-      latestTodos.some(t =>
-        t.type === 'death_save' &&
-        t.combatantId === combatantId &&
-        !t.executed &&
-        t.startRound <= round &&
-        (t.endRound === -1 || t.endRound >= round)
-      );
     for (let r = fromRound; r < rounds.length; r++) {
       const startCol = r === fromRound ? fromCol : 0;
       for (let i = startCol; i < record.combatants.length; i++) {
         const c = record.combatants[i];
         const v = rounds[r][c.id];
         if (v === '被突袭' || v === '死亡') continue;
-        if (v === '昏迷中，无法行动') {
-          if (!hasActiveDeathSave(c.id, r)) continue;
-        }
+        // 昏迷中，无法行动：不再跳过，保证视觉可见性；进入回合后再分别处理
         return { round: r, combatantId: c.id };
       }
     }

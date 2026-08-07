@@ -920,10 +920,13 @@ export default function CombatSession() {
     }
   };
 
-  // ✅ 找到下一个有效回合（跳过被突袭/昏迷/死亡）
-  // 从指定位置（行、列）开始，向右→下一行扫描，遇到第一个非占位的格子
+  // ✅ 找到下一个有效回合（跳过被突袭/死亡，不跳过昏迷）
+  // 从指定位置（行、列）开始，向右→下一行扫描
   // 可选传入 roundsOverride：当本帧刚 combatStore.update 新增了轮次、record 还没重新渲染时使用
-  // 例外：昏迷角色若有未执行且在当前回合有效的死亡豁免待办，仍保留回合（D&D 5e：昏迷角色需做死亡豁免）
+  // 说明：昏迷角色一律不跳过——进入回合后再根据 PC/NPC/稳定 分别处理
+  //   - PC：显示待办板让用户做死亡豁免
+  //   - NPC：系统自动掷骰并推进
+  //   - 稳定（成功≥3）：显示状态后手动/自动推进
   const findNextValidTurn = (
     fromRound: number,
     fromCol: number,
@@ -931,90 +934,86 @@ export default function CombatSession() {
   ): { round: number; combatantIdx: number; combatantId: string } | null => {
     if (!record) return null;
     const rounds = roundsOverride ?? record.rounds;
-    // 读最新 turnTodos：handleApplyDamage 等刚写入 store 后 record.turnTodos 可能未刷新
-    const latestTodos = combatStore.get(record.id)?.turnTodos ?? record.turnTodos ?? [];
-    const hasActiveDeathSave = (combatantId: string, round: number) =>
-      latestTodos.some(t =>
-        t.type === 'death_save' &&
-        t.combatantId === combatantId &&
-        !t.executed &&
-        t.startRound <= round &&
-        (t.endRound === -1 || t.endRound >= round)
-      );
     for (let r = fromRound; r < rounds.length; r++) {
       const startCol = r === fromRound ? fromCol : 0;
       for (let i = startCol; i < record.combatants.length; i++) {
         const c = record.combatants[i];
         const v = rounds[r][c.id];
         if (v === '被突袭' || v === '死亡') continue;
-        if (v === '昏迷中，无法行动') {
-          // 昏迷默认跳过；但有未执行的死亡豁免待办时仍需推进到该回合
-          if (!hasActiveDeathSave(c.id, r)) continue;
-        }
+        // 昏迷中，无法行动：不再跳过，保证视觉可见性
         return { round: r, combatantIdx: i, combatantId: c.id };
       }
     }
     return null;
   };
 
-  // ✅ 自动为被跳过的昏迷 NPC 进行死亡豁免掷骰
-  // 扫描从 from 位置到 to 位置（不含）之间的所有昏迷 NPC，为每个自动掷骰并写入先攻表格
-  const processNpcDeathSaves = (
-    fromRound: number,
-    fromIdx: number,
-    toRound: number | null,
-    toIdx: number | null,
-  ) => {
-    if (!record || record.mode !== 'playback') return;
+  // ✅ 自动推进锁：防止 useEffect 递归推进
+  const autoAdvanceRef = useRef(false);
+
+  // ✅ 处理单个昏迷角色回合（NPC 自动掷骰，PC 稳定后直接跳过）
+  // 返回 true 表示该回合无需用户操作（系统已自动处理）
+  const handleComatoseTurn = (combatant: Combatant, round: number): boolean => {
+    if (!record || record.mode !== 'playback') return false;
+    if (!combatant.isUnconscious || combatant.isDead) return false;
     const latest = combatStore.get(record.id);
-    if (!latest) return;
-    let updatedRounds = latest.rounds.map(r => ({ ...r }));
-    let changed = false;
-    const endRound = toRound ?? (latest.rounds.length - 1);
-    for (let r = fromRound; r <= endRound; r++) {
-      const startIdx = r === fromRound ? fromIdx : 0;
-      const endIdx = r === toRound && toIdx !== null ? toIdx : latest.combatants.length;
-      for (let i = startIdx; i < endIdx; i++) {
-        const c = latest.combatants[i];
-        if (c.isPc || !c.isUnconscious || c.isDead) continue;
-        const result = combatStore.autoNpcDeathSave(latest.id, c.id);
-        if (!result) continue;
-        let text: string;
-        if (result.outcome === 'revive') {
-          text = `死亡豁免：掷出 ${result.roll}，苏醒，HP 恢复至 1`;
-        } else if (result.combatant.isDead) {
-          text = `死亡豁免：掷出 ${result.roll}，失败 ${result.combatant.deathSaveFailures}/3，已死亡`;
-        } else if ((result.combatant.deathSaveSuccesses ?? 0) >= 3) {
-          text = `死亡豁免：掷出 ${result.roll}，成功 ${result.combatant.deathSaveSuccesses}/3，已稳定`;
-        } else if (result.outcome === 'crit_fail') {
-          text = `死亡豁免：掷出 ${result.roll}，两次失败（${result.combatant.deathSaveFailures}/3）`;
-        } else if (result.outcome === 'fail') {
-          text = `死亡豁免：掷出 ${result.roll}，一次失败（${result.combatant.deathSaveFailures}/3）`;
-        } else {
-          text = `死亡豁免：掷出 ${result.roll}，一次成功（${result.combatant.deathSaveSuccesses}/3）`;
+    if (!latest) return false;
+
+    // PC：有未执行的 death_save 待办 → 需要用户操作（返回 false）
+    if (combatant.isPc) {
+      const hasActiveTodo = (latest.turnTodos ?? []).some(t =>
+        t.type === 'death_save' &&
+        t.combatantId === combatant.id &&
+        !t.executed &&
+        t.startRound <= round &&
+        (t.endRound === -1 || t.endRound >= round)
+      );
+      // 无待办 → 稳定状态，直接跳过
+      if (!hasActiveTodo) {
+        // 稳定后的回合写入明确文字
+        const roundContent = latest.rounds[round]?.[combatant.id] ?? '';
+        if (roundContent === '昏迷中，无法行动') {
+          const updatedRounds = latest.rounds.map((r, idx) =>
+            idx === round ? { ...r, [combatant.id]: '昏迷中，伤势稳定（无需再掷骰）' } : r
+          );
+          combatStore.update(latest.id, { rounds: updatedRounds, updatedAt: Date.now() });
         }
-        updatedRounds = updatedRounds.map((round, idx) =>
-          idx === r ? { ...round, [c.id]: text } : round
-        );
-        changed = true;
+        return true;
       }
+      return false; // PC 有 death_save 待办 → 等用户操作
     }
-    if (changed) {
-      combatStore.update(latest.id, { rounds: updatedRounds, updatedAt: Date.now() });
+
+    // NPC：自动死亡豁免掷骰 + 写入先攻表格
+    const result = combatStore.autoNpcDeathSave(latest.id, combatant.id);
+    if (!result) return true; // 已死亡或非昏迷，跳过
+    let text: string;
+    if (result.outcome === 'revive') {
+      text = `死亡豁免：掷出 ${result.roll}，苏醒，HP 恢复至 1`;
+    } else if (result.combatant.isDead) {
+      text = `死亡豁免：掷出 ${result.roll}，失败 ${result.combatant.deathSaveFailures}/3，已死亡`;
+    } else if ((result.combatant.deathSaveSuccesses ?? 0) >= 3) {
+      text = `死亡豁免：掷出 ${result.roll}，成功 ${result.combatant.deathSaveSuccesses}/3，已稳定`;
+    } else if (result.outcome === 'crit_fail') {
+      text = `死亡豁免：掷出 ${result.roll}，两次失败（${result.combatant.deathSaveFailures}/3）`;
+    } else if (result.outcome === 'fail') {
+      text = `死亡豁免：掷出 ${result.roll}，一次失败（${result.combatant.deathSaveFailures}/3）`;
+    } else {
+      text = `死亡豁免：掷出 ${result.roll}，一次成功（${result.combatant.deathSaveSuccesses}/3）`;
     }
+    const afterLatest = combatStore.get(latest.id);
+    if (afterLatest) {
+      const updatedRounds = afterLatest.rounds.map((r, idx) =>
+        idx === round ? { ...r, [combatant.id]: text } : r
+      );
+      combatStore.update(afterLatest.id, { rounds: updatedRounds, updatedAt: Date.now() });
+    }
+    return true;
   };
 
-  // ✅ 推进到下一个回合
+  // ✅ 推进到下一个回合（用户点击"完成回合"时）
   const advanceTurn = () => {
     if (!currentTurn || !record) return;
     const next = findNextValidTurn(currentTurn.round, currentTurn.combatantIdx + 1);
     if (next) {
-      // 自动为被跳过的昏迷 NPC 进行死亡豁免
-      processNpcDeathSaves(
-        currentTurn.round, currentTurn.combatantIdx + 1,
-        next.round, next.combatantIdx,
-      );
-      // 进入新轮时重置待办执行状态
       if (next.round > currentTurn.round) {
         combatStore.resetTurnTodosForRound(record.id, next.round);
       }
@@ -1026,8 +1025,6 @@ export default function CombatSession() {
     // 当前行结束 → 判断是否还有活着的角色可战斗
     const aliveCount = record.combatants.filter(c => !c.isDead && !c.isUnconscious).length;
     if (aliveCount === 0) {
-      // 仍有昏迷 NPC 需要处理死亡豁免
-      processNpcDeathSaves(currentTurn.round, currentTurn.combatantIdx + 1, null, null);
       setCurrentTurn(null);
       setPlaybackStarted(false);
       alert('战斗已结束（所有参战者已倒地或死亡）。');
@@ -1036,7 +1033,6 @@ export default function CombatSession() {
     // 检查是否需要新开一轮
     const nextRound = currentTurn.round + 1;
     if (nextRound >= record.rounds.length) {
-      // 自动新开一轮
       const newRound: RoundAction = {};
       record.combatants.forEach(c => {
         if (c.isDead) newRound[c.id] = '死亡';
@@ -1045,11 +1041,7 @@ export default function CombatSession() {
       });
       const updatedRounds = [...record.rounds, newRound];
       combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
-      // 新轮重置待办执行状态
       combatStore.resetTurnTodosForRound(record.id, nextRound);
-      // 处理当前行剩余的昏迷 NPC 死亡豁免
-      processNpcDeathSaves(currentTurn.round, currentTurn.combatantIdx + 1, null, null);
-      // 用 updatedRounds 覆盖参数避免读到旧 record
       const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
         setCurrentTurn(firstInNew);
@@ -1060,10 +1052,7 @@ export default function CombatSession() {
         setPlaybackStarted(false);
       }
     } else {
-      // 新轮重置待办执行状态
       combatStore.resetTurnTodosForRound(record.id, nextRound);
-      // 处理当前行剩余的昏迷 NPC 死亡豁免
-      processNpcDeathSaves(currentTurn.round, currentTurn.combatantIdx + 1, nextRound, 0);
       const firstInNext = findNextValidTurn(nextRound, 0);
       if (firstInNext) {
         setCurrentTurn(firstInNext);
@@ -1075,6 +1064,25 @@ export default function CombatSession() {
       }
     }
   };
+
+  // ✅ 切换到 new currentTurn 时：处理昏迷角色（NPC自动骰/PC稳定跳过）→ 短暂停留 → 自动推进
+  useEffect(() => {
+    if (!record || !currentTurn || record.mode !== 'playback' || !playbackStarted) return;
+    if (autoAdvanceRef.current) return;
+    const c = record.combatants[currentTurn.combatantIdx];
+    if (!c || !c.isUnconscious) return; // 非昏迷，正常等待用户操作
+    if (c.isDead) return;
+    // 只在 handleComatoseTurn 返回 true（系统已处理，无需用户操作）时才自动推进
+    const handled = handleComatoseTurn(c, currentTurn.round);
+    if (!handled) return;
+    autoAdvanceRef.current = true;
+    const t = setTimeout(() => {
+      autoAdvanceRef.current = false;
+      advanceTurn();
+    }, 750); // 短暂停留让用户看到轮到该角色
+    return () => { clearTimeout(t); autoAdvanceRef.current = false; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentTurn?.round, currentTurn?.combatantId]);
 
   // 先攻顺序序号（按先攻高→低排序，同先攻保持原序）：返回圆形序号标记
   // 注意：不能用 useMemo，因为在 if(!record) early return 之后，会导致 hooks 顺序不一致
