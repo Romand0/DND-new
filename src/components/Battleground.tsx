@@ -576,7 +576,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           setSelectedCombatantId(existingCombatantId);
           return;
         }
-        // 空格 → 移动到该格
+        // 空格 → 移动到该格（昏迷/死亡角色不能移动）
+        const selCombatant = combatantMap.get(selectedCombatantId);
+        if (selCombatant?.isUnconscious || selCombatant?.isDead) {
+          setSelectedCombatantId(null);
+          return;
+        }
         battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
         setSelectedCombatantId(null);
         return;
@@ -589,6 +594,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     }
     // 已选中参战者（非放映模式）
     if (selectedCombatantId) {
+      // 昏迷/死亡角色不能移动
+      const selCombatant2 = combatantMap.get(selectedCombatantId);
+      if (selCombatant2?.isUnconscious || selCombatant2?.isDead) {
+        setSelectedCombatantId(null);
+        return;
+      }
       if (existingCombatantId === selectedCombatantId) {
         // 点击的就是当前选中的棋子 → 取消选中
         setSelectedCombatantId(null);
@@ -927,6 +938,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                         if (readOnly) return;
                         // 若当前已有选中的角色（待移动状态）：优先将角色移到物品所在格（同格共存）
                         if (selectedCombatantId && !playbackOnlyMovableId) {
+                          // 昏迷/死亡角色不能移动
+                          const selC = combatantMap.get(selectedCombatantId);
+                          if (selC?.isUnconscious || selC?.isDead) {
+                            setSelectedCombatantId(null);
+                            return;
+                          }
                           battlegroundStore.placeToken(sessionId, {
                             combatantId: selectedCombatantId,
                             col,
@@ -982,6 +999,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                     }}
                     onPointerDown={(e) => {
                       if (readOnly) return;
+                      // 昏迷/死亡角色不能被拖拽移动
+                      if (combatant.isUnconscious || combatant.isDead) return;
                       // 放映模式下：只允许当前回合角色长按
                       if (playbackOnlyMovableId && combatant.id !== playbackOnlyMovableId) return;
                       // 不 stopPropagation，让网格容器收到事件并 setPointerCapture

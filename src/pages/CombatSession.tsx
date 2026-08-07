@@ -1233,13 +1233,23 @@ export default function CombatSession() {
           r > round ||
           (r === round && c > combatantIdx);
         if (isAfter) {
-          const cur = paddedRounds[r]?.[cid];
-          if (cur && cur !== '被突袭' && cur !== '昏迷中，无法行动' && cur !== '死亡') {
-            paddedRounds[r] = { ...paddedRounds[r], [cid]: '' };
-          }
+          // 先全部清空（包括昏迷/死亡标记），下面再根据 snap 时刻角色状态重新填入
+          paddedRounds[r] = { ...paddedRounds[r], [cid]: '' };
         }
       }
     }
+    // 根据 snap 时刻角色状态，在 isAfter 格子重新填入昏迷/死亡占位（不覆盖被突袭）
+    restoredCombatants.forEach((c, idx) => {
+      if (!c.isDead && !c.isUnconscious) return;
+      const marker = c.isDead ? '死亡' : '昏迷中，无法行动';
+      for (let r = 0; r < paddedRounds.length; r++) {
+        const isAfter = r > round || (r === round && idx > combatantIdx);
+        if (!isAfter) continue;
+        const cur = paddedRounds[r]?.[c.id];
+        if (cur === '被突袭') continue;
+        paddedRounds[r] = { ...paddedRounds[r], [c.id]: marker };
+      }
+    });
     // 3) 应用还原
     combatStore.update(record.id, {
       combatants: restoredCombatants,
