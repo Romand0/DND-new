@@ -1,4 +1,4 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource } from '@/types/combat';
 import { characterStore } from './characterStore';
 import type { Equipment, Character } from '@/types/character';
 
@@ -425,6 +425,9 @@ function load(): CombatRecord[] {
           attacks: Array.isArray(c.attacks) ? c.attacks : undefined,
           actions,
           movementUsed: typeof c.movementUsed === 'number' && Number.isFinite(c.movementUsed) ? Math.max(0, Math.trunc(c.movementUsed)) : 0,
+          pendingAdvantageSources: Array.isArray(c.pendingAdvantageSources) ? c.pendingAdvantageSources.filter(
+            (s: any) => s && typeof s === 'object' && typeof s.id === 'string'
+          ) : [],
         };
       });
       return {
@@ -742,6 +745,74 @@ const combatStore = {
     }
     record.updatedAt = Date.now();
     save(records);
+  },
+
+  // =======================
+  // 待消费优劣势标记（PendingAdvantageSource）CRUD
+  // =======================
+
+  /** 添加待消费优劣势标记（发起者赋予他人的一次性优劣势来源） */
+  addPendingAdvantage(recordId: string, combatantId: string, source: Omit<PendingAdvantageSource, 'id' | 'consumed'>): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const combatant = record.combatants[idx];
+    const full: PendingAdvantageSource = {
+      ...source,
+      id: crypto.randomUUID(),
+      consumed: false,
+    };
+    record.combatants[idx] = {
+      ...combatant,
+      pendingAdvantageSources: [...(combatant.pendingAdvantageSources || []), full],
+    };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 批量消费待消费标记（检定确认后调用，置 consumed=true） */
+  consumePendingAdvantage(recordId: string, combatantId: string, sourceIds: string[]): void {
+    if (!sourceIds || sourceIds.length === 0) return;
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const combatant = record.combatants[idx];
+    const list = combatant.pendingAdvantageSources || [];
+    const idSet = new Set(sourceIds);
+    let changed = false;
+    const next = list.map(s => {
+      if (idSet.has(s.id) && !s.consumed) { changed = true; return { ...s, consumed: true }; }
+      return s;
+    });
+    if (!changed) return;
+    record.combatants[idx] = { ...combatant, pendingAdvantageSources: next };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 清理过期待消费标记（回合推进时调用） */
+  clearExpiredAdvantage(recordId: string, combatantId: string, currentRound: number): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const combatant = record.combatants[idx];
+    const list = combatant.pendingAdvantageSources || [];
+    const next = list.filter(s => s.expireRound === -1 || s.expireRound >= currentRound);
+    if (next.length === list.length) return;
+    record.combatants[idx] = { ...combatant, pendingAdvantageSources: next };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 读取未消费的待消费标记列表（只读） */
+  getPendingAdvantages(combatant: Combatant): PendingAdvantageSource[] {
+    return (combatant.pendingAdvantageSources || []).filter(s => !s.consumed);
   },
 
   /**
