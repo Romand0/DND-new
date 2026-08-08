@@ -2144,13 +2144,13 @@ export default function CombatSession() {
           });
         }}
         playbackOnlyMovableId={
-          record.mode === 'playback' && playbackStarted && currentTurn
-            ? currentTurn.combatantId
+          isPlaybackActive()
+            ? currentTurn!.combatantId
             : null
         }
         activeTurnCombatantId={
-          record.mode === 'playback' && playbackStarted && currentTurn
-            ? currentTurn.combatantId
+          isPlaybackActive()
+            ? currentTurn!.combatantId
             : null
         }
         onRequestAttack={(attacker, target) => {
