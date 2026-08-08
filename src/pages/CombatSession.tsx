@@ -48,6 +48,7 @@ import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
+import CombatantInfoPanel from '@/components/CombatantInfoPanel';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -140,6 +141,8 @@ export default function CombatSession() {
     combatantIdx: number;
     firstClickDone: boolean;
   } | null>(null);
+  // ✅ 参战者信息面板（点击表头名称按钮打开，等价沙盘双击弹窗）
+  const [infoPanelCombatant, setInfoPanelCombatant] = useState<Combatant | null>(null);
   // 回合快照集合（key = `${round}:${combatantId}`）
   // （TurnSnapshot 是 @/types/combat 导出的全局 interface，已在上面 import）
   const rollbackSnapshotRef = useRef<{
@@ -1846,35 +1849,31 @@ export default function CombatSession() {
                         className="shrink-0 cursor-pointer"
                       />
                     )}
-                    {/* 名称：PC/NPC 均为只读，不可编辑（名称属于角色卡默认信息） */}
-                    <div className="font-medium truncate flex-1">{c.name}</div>
-                  </div>
-                  {/* 先攻：点击可编辑（先攻是战斗临时数据，不涉及角色卡默认信息） */}
-                  {editingInitiative === c.id ? (
-                    <input
-                      type="number"
-                      autoFocus
-                      value={initiativeInput}
-                      onChange={(e) => setInitiativeInput(e.target.value)}
-                      onBlur={() => handleInitiativeSave(c.id)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleInitiativeSave(c.id);
-                        if (e.key === 'Escape') setEditingInitiative(null);
-                      }}
-                      className="w-12 text-xs bg-transparent border-b border-primary outline-none dark:text-text-dark light:text-text-light"
-                    />
-                  ) : (
-                    <div
-                      className="text-xs opacity-60 cursor-text hover:opacity-100"
-                      onClick={() => {
-                        setEditingInitiative(c.id);
-                        setInitiativeInput(String(c.initiative));
-                      }}
-                      title="点击编辑先攻"
+                    {/* 名称：参战者信息按钮，点击展开「双击弹窗」（CombatantInfoPanel，等价沙盘双击棋子） */}
+                    <button
+                      type="button"
+                      onClick={() => setInfoPanelCombatant(c)}
+                      className="font-medium truncate flex-1 text-left px-1.5 py-0.5 rounded-md border border-transparent
+                                 dark:text-text-dark light:text-text-light
+                                 dark:hover:border-primary/40 dark:hover:bg-primary/10
+                                 light:hover:border-primary/40 light:hover:bg-primary/10
+                                 transition-colors focus:outline-none focus:ring-1 focus:ring-primary/60
+                                 hover:underline hover:underline-offset-2 hover:decoration-primary/70"
+                      title="点击查看参战者详情 / 编辑信息"
                     >
-                      先攻 {c.initiative}
-                    </div>
-                  )}
+                      <span className="inline-flex items-center gap-1">
+                        <Pencil className="w-3 h-3 opacity-50 shrink-0" />
+                        <span>{c.name}</span>
+                      </span>
+                    </button>
+                  </div>
+                  {/* 先攻：只读显示（不可再点击编辑） */}
+                  <div
+                    className="text-xs opacity-60 select-none"
+                    title={`先攻：${c.initiative}（只读）`}
+                  >
+                    先攻 {c.initiative}
+                  </div>
                   {/* 展示 HP（PC 和 NPC 均显示） */}
                   {c.maxHp != null && c.maxHp > 0 && (
                     <div className="text-xs opacity-60 mt-1">
@@ -3119,6 +3118,55 @@ export default function CombatSession() {
               </div>
             </div>
           </div>
+        );
+      })()}
+
+      {/* ✅ 参战者信息面板（点击表头名称按钮打开，等价沙盘双击弹窗） */}
+      {infoPanelCombatant && (() => {
+        const bg = record?.id ? battlegroundStore.get(record.id) : null;
+        const tokens = bg?.tokens ?? [];
+        const tokenMap: { get: (id: string) => { col: number; row: number } | undefined } = {
+          get: (id: string) => {
+            const t = tokens.find(x => x.combatantId === id);
+            return t ? { col: t.col, row: t.row } : undefined;
+          },
+        };
+        return (
+          <CombatantInfoPanel
+            combatant={infoPanelCombatant}
+            onClose={() => setInfoPanelCombatant(null)}
+            combatants={record?.combatants ?? []}
+            tokenMap={tokenMap}
+            combatInventory={combatInventories?.[infoPanelCombatant.id]}
+            onRemoveItem={(item) => {
+              if (!record) return;
+              // 从战斗背包移除：写 EquipmentChanges.removedChildIds
+              const childId = item.childId || item.id;
+              const prev = record.equipmentChanges?.[infoPanelCombatant.id];
+              const removed = Array.from(new Set([...(prev?.removedChildIds ?? []), childId]));
+              combatStore.update(record.id, {
+                equipmentChanges: {
+                  ...(record.equipmentChanges || {}),
+                  [infoPanelCombatant.id]: {
+                    added: prev?.added ?? [],
+                    removedChildIds: removed,
+                    quantityDeltas: prev?.quantityDeltas ?? {},
+                  },
+                },
+              });
+            }}
+            equipmentChanges={record?.equipmentChanges?.[infoPanelCombatant.id]}
+            onUpdateChanges={(changes) => {
+              if (!record) return;
+              combatStore.update(record.id, {
+                equipmentChanges: {
+                  ...(record.equipmentChanges || {}),
+                  [infoPanelCombatant.id]: changes,
+                },
+              });
+            }}
+            actions={infoPanelCombatant.actions}
+          />
         );
       })()}
     </div>
