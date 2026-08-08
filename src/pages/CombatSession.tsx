@@ -1807,9 +1807,8 @@ export default function CombatSession() {
         );
       })()}
 
-      {/* ✅ 左下角悬浮块：当前角色的可用动作 + 剩余移动力（尺）实时展示（仿显示框设计） */}
+      {/* ✅ 左下角状态栏：可用动作 + 移动力 + 完成回合按钮（合并，避免窄屏重叠） */}
       {(() => {
-        // 展示对象的优先级：放映活跃 → 当前回合角色；否则 → 沙盘单击选中的角色；都没有就不展示
         const playbackMode = record.mode === 'playback';
         let hudId: string | null = null;
         if (isPlaybackActive() && currentTurn) {
@@ -1823,31 +1822,38 @@ export default function CombatSession() {
         const actions = typeof c.actions === 'number' && c.actions >= 0 ? c.actions : 1;
         const totalSpeed = c.speed ?? 0;
         const remaining = combatStore.getRemainingMovement(c, playbackMode ? 'playback' : 'simulation', isPlaybackActive());
-        const actionText =
-          playbackMode && playbackStarted && !playbackPaused
-            ? (actions <= 0 ? '0' : `${actions}`)
-            : '∞';
-        const moveText = totalSpeed > 0
-          ? (playbackMode && playbackStarted && !playbackPaused
-            ? `${remaining}/${totalSpeed}`
-            : `${totalSpeed}`)
-          : '—';
-        // 仿显示框：黑底 + 绿色等宽字体 + 内嵌微光
         const active = playbackMode && playbackStarted && !playbackPaused;
+        const actionText = active ? (actions <= 0 ? '0' : `${actions}`) : '∞';
+        const moveText = totalSpeed > 0
+          ? (active ? `${remaining}/${totalSpeed}` : `${totalSpeed}`)
+          : '—';
+        const showEndTurn = active && !!currentTurn;
         return (
-          <div className="fixed bottom-6 left-6 z-30 px-4 py-3 rounded-lg bg-black/85 backdrop-blur shadow-lg border border-green-500/20 max-w-[calc(100vw-7rem)] font-mono">
-            <div className="text-xs text-green-500/60 mb-1.5 tracking-wider">STATUS</div>
-            <div className="flex items-center gap-3 text-sm">
-              <span className="text-green-400 font-semibold whitespace-nowrap">{c.name}</span>
-              <span className="text-green-500/30">|</span>
-              <span className={`whitespace-nowrap ${active ? (actions <= 0 ? 'text-red-400' : 'text-green-400') : 'text-green-500/50'}`}>
-                ACT <span className="font-bold">{actionText}</span>
-              </span>
-              <span className="text-green-500/30">|</span>
-              <span className={`whitespace-nowrap ${active ? (remaining <= 0 ? 'text-red-400' : 'text-green-400') : 'text-green-500/50'}`}>
-                MOV <span className="font-bold">{moveText}</span>ft
-              </span>
-            </div>
+          <div className="fixed bottom-6 left-6 z-30 flex items-center gap-2 px-4 py-2 rounded-lg backdrop-blur shadow-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark/90 light:bg-card-light/90 max-w-[calc(100vw-3rem)]">
+            <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
+              active
+                ? (actions <= 0 ? 'bg-danger/20 text-danger' : 'bg-primary/20 text-primary')
+                : 'dark:bg-white/5 light:bg-black/5 dark:text-text-dark-muted light:text-text-light-muted'
+            }`}>
+              动作 {actionText}
+            </span>
+            <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
+              active
+                ? (remaining <= 0 ? 'bg-danger/20 text-danger' : 'bg-info/20 text-info')
+                : 'dark:bg-white/5 light:bg-black/5 dark:text-text-dark-muted light:text-text-light-muted'
+            }`}>
+              移动 {moveText}尺
+            </span>
+            {showEndTurn && (
+              <button
+                onClick={() => setConfirmEndTurnOpen(true)}
+                className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1 whitespace-nowrap"
+                title="完成当前回合，进入下一个"
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+                完成回合
+              </button>
+            )}
           </div>
         );
       })()}
@@ -2982,18 +2988,6 @@ export default function CombatSession() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* ✅ 完成回合悬浮按钮 —— 放映模式已开始 + 未暂停 + 当前回合存在时显示（暂停状态不显示） */}
-      {record.mode === 'playback' && playbackStarted && !playbackPaused && currentTurn && (
-        <button
-          onClick={() => setConfirmEndTurnOpen(true)}
-          className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-primary text-white font-medium shadow-2xl hover:bg-primary/90 transition-all hover:scale-105 flex items-center gap-2"
-          title="完成当前回合，进入下一个"
-        >
-          <SkipForward className="w-5 h-5" />
-          <span>完成回合</span>
-        </button>
       )}
 
       {/* ✅ 完成回合确认弹窗 */}
