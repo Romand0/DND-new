@@ -1807,7 +1807,7 @@ export default function CombatSession() {
         );
       })()}
 
-      {/* ✅ 左上悬浮块：当前角色的可用动作 + 剩余移动力（尺）实时展示 */}
+      {/* ✅ 左下角悬浮块：当前角色的可用动作 + 剩余移动力（尺）实时展示（仿显示框设计） */}
       {(() => {
         // 展示对象的优先级：放映活跃 → 当前回合角色；否则 → 沙盘单击选中的角色；都没有就不展示
         const playbackMode = record.mode === 'playback';
@@ -1832,29 +1832,22 @@ export default function CombatSession() {
             ? `${remaining}/${totalSpeed}`
             : `${totalSpeed}`)
           : '—';
-        // 与"当前回合"悬浮块一致的基础样式（深色底 + 边框 + backdrop-blur）
-        const topOffset = record.mode === 'playback' ? 'top-36' : 'top-20';
+        // 仿显示框：黑底 + 绿色等宽字体 + 内嵌微光
+        const active = playbackMode && playbackStarted && !playbackPaused;
         return (
-          <div className={`fixed left-6 z-30 ${topOffset} px-4 py-2 rounded-lg backdrop-blur shadow-md border dark:border-border-dark light:border-border-light dark:bg-card-dark/80 light:bg-card-light/80 max-w-[calc(100vw-7rem)] flex items-center gap-2`}>
-            <span className="text-sm font-medium dark:text-text-dark light:text-text-light whitespace-nowrap">{c.name}</span>
-            <span
-              className={`px-1.5 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
-                playbackMode && playbackStarted && !playbackPaused
-                  ? (actions <= 0 ? 'bg-danger/20 text-danger' : 'bg-primary/20 text-primary')
-                  : 'bg-gray-500/20 text-gray-400'
-              }`}
-            >
-              动作 {actionText}
-            </span>
-            <span
-              className={`px-1.5 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
-                playbackMode && playbackStarted && !playbackPaused
-                  ? (remaining <= 0 ? 'bg-danger/20 text-danger' : 'bg-info/20 text-info')
-                  : 'bg-gray-500/20 text-gray-400'
-              }`}
-            >
-              移动 {moveText}尺
-            </span>
+          <div className="fixed bottom-6 left-6 z-30 px-4 py-3 rounded-lg bg-black/85 backdrop-blur shadow-lg border border-green-500/20 max-w-[calc(100vw-7rem)] font-mono">
+            <div className="text-xs text-green-500/60 mb-1.5 tracking-wider">STATUS</div>
+            <div className="flex items-center gap-3 text-sm">
+              <span className="text-green-400 font-semibold whitespace-nowrap">{c.name}</span>
+              <span className="text-green-500/30">|</span>
+              <span className={`whitespace-nowrap ${active ? (actions <= 0 ? 'text-red-400' : 'text-green-400') : 'text-green-500/50'}`}>
+                ACT <span className="font-bold">{actionText}</span>
+              </span>
+              <span className="text-green-500/30">|</span>
+              <span className={`whitespace-nowrap ${active ? (remaining <= 0 ? 'text-red-400' : 'text-green-400') : 'text-green-500/50'}`}>
+                MOV <span className="font-bold">{moveText}</span>ft
+              </span>
+            </div>
           </div>
         );
       })()}
