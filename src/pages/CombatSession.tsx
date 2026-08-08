@@ -2630,7 +2630,7 @@ export default function CombatSession() {
           c => c.id !== from.id && c.isPc === from.isPc && !c.isDead,
         );
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setHelpModal(null)}>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={() => setHelpModal(null)}>
             <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
