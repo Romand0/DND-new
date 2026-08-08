@@ -1741,8 +1741,8 @@ export default function CombatSession() {
         </div>
       )}
 
-      {/* ✅ 模式切换栏 —— 模拟模式 / 放映模式 */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
+      {/* ✅ 模式切换栏 —— 模拟模式 / 放映模式（仅切换按钮，不挤其他信息） */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light w-fit">
         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
           战斗模式
         </span>
@@ -1769,42 +1769,38 @@ export default function CombatSession() {
             放映模式
           </button>
         </div>
-        {record.mode === 'playback' && (
-          <div className="flex items-center gap-3 ml-auto">
-            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-              {playbackStarted
-                ? playbackPaused
-                  ? `⏸ 放映已暂停（脱离回合格）`
-                  : currentTurn
-                    ? `当前回合：${record.combatants[currentTurn.combatantIdx]?.name ?? '?'}（第 ${currentTurn.round + 1} 轮）`
-                    : '放映已结束'
-                : '点击先攻表格的 ▶️ 开始放映'}
-            </span>
-            {/* 暂停/恢复按钮：仅放映已开始时显示 */}
-            {playbackStarted && (
-              playbackPaused ? (
-                <button
-                  onClick={resumePlayback}
-                  className="px-2.5 py-1 rounded-md border border-green-500/50 text-green-500 hover:bg-green-500/10 transition-colors text-xs flex items-center gap-1"
-                  title="恢复放映，回到暂停前的回合"
-                >
-                  <PlayCircle className="w-3.5 h-3.5" />
-                  恢复放映
-                </button>
-              ) : (
-                <button
-                  onClick={pausePlayback}
-                  className="px-2.5 py-1 rounded-md border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors text-xs flex items-center gap-1"
-                  title="暂停放映，临时脱离回合进行全局编辑"
-                >
-                  <PauseCircle className="w-3.5 h-3.5" />
-                  暂停放映
-                </button>
-              )
-            )}
-          </div>
-        )}
       </div>
+
+      {/* ✅ 当前回合信息悬浮块（左上角，放映模式时显示） */}
+      {record.mode === 'playback' && (() => {
+        let label = '';
+        let tone: 'muted' | 'info' | 'warn' | 'danger' = 'muted';
+        if (!playbackStarted) {
+          label = '点击先攻表格的 ▶️ 开始放映';
+          tone = 'muted';
+        } else if (playbackPaused) {
+          label = '⏸ 放映已暂停（脱离回合格）';
+          tone = 'warn';
+        } else if (currentTurn) {
+          const name = record.combatants[currentTurn.combatantIdx]?.name ?? '?';
+          label = `当前回合：${name}（第 ${currentTurn.round + 1} 轮）`;
+          tone = 'info';
+        } else {
+          label = '放映已结束';
+          tone = 'muted';
+        }
+        const toneCls =
+          tone === 'warn'
+            ? 'border-amber-500/50 text-amber-500 bg-amber-500/5'
+            : tone === 'info'
+              ? 'border-primary/40 bg-primary/5 dark:text-text-dark light:text-text-light'
+              : 'border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted dark:bg-card-dark/80 light:bg-card-light/80';
+        return (
+          <div className={`fixed top-20 left-6 z-40 px-4 py-2 rounded-lg backdrop-blur shadow-md ${toneCls}`}>
+            <span className="text-sm font-medium whitespace-nowrap">{label}</span>
+          </div>
+        );
+      })()}
 
       {/* ✅ 回合待办展示板 —— 仅放映模式 + 已开始 + 未暂停 + 当前回合存在时显示（暂停状态不显示） */}
       {record.mode === 'playback' && playbackStarted && !playbackPaused && currentTurn && (
@@ -2971,17 +2967,44 @@ export default function CombatSession() {
         </div>
       )}
 
-      {/* ✅ 退出放映按钮 —— 浮动在右上角（仅放映模式显示） */}
+      {/* ✅ 右上角按钮组：暂停/恢复放映 + 退出放映（悬浮按钮，统一风格） */}
       {record.mode === 'playback' && (
-        <button
-          onClick={() => setExitPlaybackModalOpen(true)}
-          className="fixed top-20 right-6 z-40 px-3 py-2 rounded-lg bg-card-dark/80 backdrop-blur border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/10 transition-colors flex items-center gap-1"
-          title="退出放映模式"
-          type="button"
-        >
-          <Pause className="w-4 h-4" />
-          退出放映
-        </button>
+        <div className="fixed top-20 right-6 z-40 flex flex-col gap-2 items-end">
+          {/* 暂停放映 / 恢复放映：仅放映已开始时显示 */}
+          {playbackStarted && (
+            playbackPaused ? (
+              <button
+                onClick={resumePlayback}
+                className="px-3 py-2 rounded-lg bg-green-500/10 backdrop-blur border border-green-500/50 text-green-500 hover:bg-green-500/20 transition-colors text-sm flex items-center gap-1"
+                title="恢复放映，回到暂停前的回合"
+                type="button"
+              >
+                <PlayCircle className="w-4 h-4" />
+                恢复放映
+              </button>
+            ) : (
+              <button
+                onClick={pausePlayback}
+                className="px-3 py-2 rounded-lg bg-amber-500/10 backdrop-blur border border-amber-500/50 text-amber-500 hover:bg-amber-500/20 transition-colors text-sm flex items-center gap-1.5"
+                title="暂停放映，临时脱离回合进行全局编辑"
+                type="button"
+              >
+                <span className="leading-none" aria-hidden="true">⏸</span>
+                暂停放映
+              </button>
+            )
+          )}
+          {/* 退出放映 */}
+          <button
+            onClick={() => setExitPlaybackModalOpen(true)}
+            className="px-3 py-2 rounded-lg bg-card-dark/80 backdrop-blur border dark:border-border-dark light:border-border-light text-sm dark:text-text-dark light:text-text-light hover:bg-white/10 transition-colors flex items-center gap-1"
+            title="退出放映模式"
+            type="button"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            退出放映
+          </button>
+        </div>
       )}
 
       {/* ✅ 退出放映弹窗：保存并覆盖 / 丢弃恢复 / 取消 */}
