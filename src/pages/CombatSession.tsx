@@ -38,7 +38,7 @@ import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
+import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, CheckScene } from '@/types/combat';
 import { isOneActionCast } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2, PlayCircle, PauseCircle } from 'lucide-react';
@@ -99,6 +99,8 @@ export default function CombatSession() {
     caster: Combatant;
     target: Combatant;
   } | null>(null);
+  // ✅ 新增：协助（Help）动作弹窗 —— 选择友方 → 挂 pending 优劣势标记
+  const [helpModal, setHelpModal] = useState<{ from: Combatant } | null>(null);
   // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
   const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
   const [tiedOrder, setTiedOrder] = useState<Combatant[]>([]);
@@ -227,6 +229,19 @@ export default function CombatSession() {
     return result;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record]);
+
+  // 所有参战者沙盘位置字典（用于跨参战者距离判定：协助动作 5 尺约束等）
+  const combatantPositions = useMemo(() => {
+    if (!record?.id) return null;
+    const bg = battlegroundStore.get(record.id);
+    if (!bg?.tokens) return null;
+    const map: Record<string, { col: number; row: number }> = {};
+    for (const t of bg.tokens) {
+      if (!t.combatantId) continue;
+      map[t.combatantId] = { col: t.col, row: t.row };
+    }
+    return map;
+  }, [record?.id, record?.combatants.length, record?.updatedAt]);
 
   // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
   if (!isDM) {
@@ -2410,6 +2425,7 @@ export default function CombatSession() {
           target={attackModal.target}
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
+          combatantPositions={combatantPositions}
           combatInventory={getCombatInventory(record, attackModal.attacker)}
           targetCharacter={attackModal.target.characterId ? characterStore.get(attackModal.target.characterId) : null}
           targetCombatInventory={getCombatInventory(record, attackModal.target)}
@@ -2574,6 +2590,7 @@ export default function CombatSession() {
           target={spellModal.target}
           targetCharacter={spellModal.target.characterId ? characterStore.get(spellModal.target.characterId) : null}
           targetCombatInventory={getCombatInventory(record, spellModal.target)}
+          combatantPositions={combatantPositions}
           onClose={() => setSpellModal(null)}
           onCastResolved={(info) => {
             // 施法时间 = "1 动作" 的法术消耗 1 个动作（无论是否命中/被豁免）
@@ -2596,6 +2613,102 @@ export default function CombatSession() {
           }}
         />
       )}
+
+      {/* ✅ 协助（Help）动作弹窗 */}
+      {helpModal && record && (() => {
+        const from = helpModal.from;
+        // 友方：同阵营（isPc === from.isPc），未死亡，非自己
+        const friendlies = record.combatants.filter(
+          c => c.id !== from.id && c.isPc === from.isPc && !c.isDead,
+        );
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setHelpModal(null)}>
+            <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                  协助动作
+                </h3>
+                <button onClick={() => setHelpModal(null)} className="p-1 rounded hover:bg-white/10">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-2">
+                发出者：<span className="font-medium dark:text-text-dark light:text-text-light">{from.name}</span>
+              </p>
+              <ul className="text-xs dark:text-text-dark-muted light:text-text-light-muted space-y-0.5 mb-4 list-disc pl-5">
+                <li>效果：优势</li>
+                <li>类型：一次性</li>
+                <li>有效期：{from.name} 的下一个回合前</li>
+                <li>生效场景：
+                  <ul className="list-[circle] pl-4">
+                    <li>属性检定 / 技能检定（无条件）</li>
+                    <li>攻击检定（近战/远程/投掷/法术）：仅当对方攻击目标在 {from.name} 5 尺内</li>
+                  </ul>
+                </li>
+              </ul>
+              <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
+                选择协助对象（友方 · {friendlies.length}）
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {friendlies.length === 0 && (
+                  <div className="text-xs opacity-60 text-center py-6">当前没有可选择的友方</div>
+                )}
+                {friendlies.map(f => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => {
+                      if (!record) return;
+                      const scenes: { scene: CheckScene | 'any'; reason: string; distance: boolean }[] = [
+                        { scene: 'ability_check', reason: `${from.name} 协助：属性检定优势`, distance: false },
+                        { scene: 'skill_check', reason: `${from.name} 协助：技能检定优势`, distance: false },
+                        { scene: 'attack_melee', reason: `${from.name} 协助：近战攻击优势（目标须在其 5 尺内）`, distance: true },
+                        { scene: 'attack_ranged', reason: `${from.name} 协助：远程攻击优势（目标须在其 5 尺内）`, distance: true },
+                        { scene: 'attack_thrown', reason: `${from.name} 协助：投掷攻击优势（目标须在其 5 尺内）`, distance: true },
+                        { scene: 'spell_attack', reason: `${from.name} 协助：法术攻击优势（目标须在其 5 尺内）`, distance: true },
+                      ];
+                      const curRound = currentTurn?.round ?? 0;
+                      for (const s of scenes) {
+                        combatStore.addPendingAdvantage(record.id, f.id, {
+                          fromId: from.id,
+                          fromName: from.name,
+                          scene: s.scene,
+                          mode: 'advantage',
+                          reason: s.reason,
+                          kind: 'action',
+                          targetId: undefined,
+                          requireTargetNearFromId: s.distance,
+                          expireOnCombatantId: from.id,
+                          createdRound: curRound,
+                          expireRound: curRound + 999, // 实际由 expireOnCombatantId 先清理
+                        });
+                      }
+                      // 消耗 1 个动作
+                      consumeCombatantAction(from.id);
+                      // 写入回合记录
+                      if (currentTurn) {
+                        appendRoundRecord(
+                          currentTurn.round,
+                          from.id,
+                          `${from.name} 对 ${f.name} 使用「协助」：${f.name} 的属性/技能检定获得优势；攻击检定在攻击目标位于 ${from.name} 5 尺内时获得优势（下回合前有效）。`,
+                        );
+                      }
+                      setHelpModal(null);
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/60 hover:bg-primary/5 transition-colors"
+                  >
+                    <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{f.name}</div>
+                    <div className="text-xs opacity-60">
+                      {f.isPc ? '玩家角色' : 'NPC'}
+                      {f.initiative ? ` · 先攻 ${f.initiative}` : ''}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ✅ 突袭选择弹窗 */}
       {surpriseAttackOpen && (
@@ -3235,6 +3348,47 @@ export default function CombatSession() {
               });
             }}
             actions={infoPanelCombatant.actions}
+            onHelpClick={() => {
+              if (!record) return;
+              setHelpModal({ from: infoPanelCombatant });
+            }}
+            onAttackClick={() => {
+              if (!record) return;
+              // 攻击需要目标，若已有上次选中的敌人优先；否则关闭面板等手动选择
+              const potentialTarget = record.combatants.find(
+                c => c.id !== infoPanelCombatant.id && !c.isDead,
+              );
+              if (potentialTarget) {
+                const bg = battlegroundStore.get(record.id);
+                const tokens = bg?.tokens ?? [];
+                const aPos = tokens.find(t => t.combatantId === infoPanelCombatant.id);
+                const tPos = tokens.find(t => t.combatantId === potentialTarget.id);
+                setAttackModal({
+                  attacker: infoPanelCombatant,
+                  target: potentialTarget,
+                  attackerPos: aPos ? { col: aPos.col, row: aPos.row } : undefined,
+                  targetPos: tPos ? { col: tPos.col, row: tPos.row } : undefined,
+                });
+                setInfoPanelCombatant(null);
+              } else {
+                setInfoPanelCombatant(null);
+              }
+            }}
+            onCastClick={() => {
+              if (!record) return;
+              const potentialTarget = record.combatants.find(
+                c => c.id !== infoPanelCombatant.id && !c.isDead,
+              );
+              if (potentialTarget) {
+                setSpellModal({
+                  caster: infoPanelCombatant,
+                  target: potentialTarget,
+                });
+                setInfoPanelCombatant(null);
+              } else {
+                setInfoPanelCombatant(null);
+              }
+            }}
           />
         );
       })()}

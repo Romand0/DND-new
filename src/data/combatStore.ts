@@ -427,7 +427,21 @@ function load(): CombatRecord[] {
           movementUsed: typeof c.movementUsed === 'number' && Number.isFinite(c.movementUsed) ? Math.max(0, Math.trunc(c.movementUsed)) : 0,
           pendingAdvantageSources: Array.isArray(c.pendingAdvantageSources) ? c.pendingAdvantageSources.filter(
             (s: any) => s && typeof s === 'object' && typeof s.id === 'string'
-          ) : [],
+          ).map((s: any) => ({
+            id: s.id,
+            fromId: typeof s.fromId === 'string' ? s.fromId : undefined,
+            fromName: typeof s.fromName === 'string' ? s.fromName : undefined,
+            scene: s.scene ?? 'any',
+            mode: s.mode === 'disadvantage' ? 'disadvantage' : 'advantage',
+            reason: typeof s.reason === 'string' ? s.reason : '未命名效果',
+            kind: s.kind ?? 'pending',
+            targetId: typeof s.targetId === 'string' ? s.targetId : undefined,
+            requireTargetNearFromId: !!s.requireTargetNearFromId,
+            expireOnCombatantId: typeof s.expireOnCombatantId === 'string' ? s.expireOnCombatantId : undefined,
+            consumed: !!s.consumed,
+            createdRound: typeof s.createdRound === 'number' && Number.isFinite(s.createdRound) ? s.createdRound : 0,
+            expireRound: typeof s.expireRound === 'number' && Number.isFinite(s.expireRound) ? s.expireRound : -1,
+          })) : [],
         };
       });
       return {
@@ -806,6 +820,29 @@ const combatStore = {
     const next = list.filter(s => s.expireRound === -1 || s.expireRound >= currentRound);
     if (next.length === list.length) return;
     record.combatants[idx] = { ...combatant, pendingAdvantageSources: next };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /**
+   * 按 expireOnCombatantId 全局清理：
+   *   当 combatantId 回合开始时，扫描 ALL 参战者的 pending 标记，
+   *   所有 expireOnCombatantId === combatantId 的标记移除。
+   *   用于「发出者的下一个回合前过期」（如协助动作）。
+   */
+  clearAdvantageByExpireCombatant(recordId: string, combatantId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    let changed = false;
+    const nextCombatants = record.combatants.map(c => {
+      const list = c.pendingAdvantageSources || [];
+      const filtered = list.filter(s => s.expireOnCombatantId !== combatantId);
+      if (filtered.length !== list.length) { changed = true; return { ...c, pendingAdvantageSources: filtered }; }
+      return c;
+    });
+    if (!changed) return;
+    record.combatants = nextCombatants;
     record.updatedAt = Date.now();
     save(records);
   },

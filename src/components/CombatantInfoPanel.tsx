@@ -21,9 +21,15 @@ interface Props {
   onUpdateChanges?: (changes: EquipmentChanges) => void;
   /** 当前可用动作数（放映模式显示，模拟模式不显示） */
   actions?: number;
+  /** 点击「协助」动作时回调（由 CombatSession 实现友方选择 + pending 标记） */
+  onHelpClick?: () => void;
+  /** 点击「攻击」动作时回调（用于替代 info 面板内按钮，保持动作面板入口统一） */
+  onAttackClick?: () => void;
+  /** 点击「施法」动作时回调 */
+  onCastClick?: () => void;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, onHelpClick, onAttackClick, onCastClick }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -783,21 +789,38 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   可执行动作
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
-                  {ALL_ACTIONS.map((type) => (
-                    <div
-                      key={type}
-                      className={`flex items-center justify-between px-2 py-1.5 rounded text-xs ${
-                        type === 'attack' || type === 'cast'
-                          ? 'dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light'
-                          : 'dark:bg-bg-dark-2/50 light:bg-gray-50 dark:text-text-dark-muted light:text-text-light-muted opacity-70'
-                      }`}
-                    >
-                      <span>{ACTION_LABELS[type]}</span>
-                      {type !== 'attack' && type !== 'cast' && (
-                        <span className="text-[10px] opacity-60">预留</span>
-                      )}
-                    </div>
-                  ))}
+                  {ALL_ACTIONS.map((type) => {
+                    const clickable =
+                      (type === 'help' && !!onHelpClick) ||
+                      (type === 'attack' && !!onAttackClick) ||
+                      (type === 'cast' && !!onCastClick);
+                    const implemented =
+                      type === 'attack' || type === 'cast' || type === 'help';
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => {
+                          if (type === 'help') onHelpClick?.();
+                          else if (type === 'attack') onAttackClick?.();
+                          else if (type === 'cast') onCastClick?.();
+                        }}
+                        disabled={!clickable}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded text-xs text-left transition-colors ${
+                          clickable
+                            ? 'dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light hover:bg-primary/15 active:scale-[0.98]'
+                            : implemented
+                              ? 'dark:bg-bg-dark-2/50 light:bg-gray-50 dark:text-text-dark light:text-text-light opacity-80 cursor-default'
+                              : 'dark:bg-bg-dark-2/50 light:bg-gray-50 dark:text-text-dark-muted light:text-text-light-muted opacity-70 cursor-not-allowed'
+                        }`}
+                      >
+                        <span>{ACTION_LABELS[type]}</span>
+                        {!implemented && (
+                          <span className="text-[10px] opacity-60">预留</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>

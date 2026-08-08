@@ -69,6 +69,8 @@ interface Props {
   recordId?: string;
   /** 当前回合数（用于 pending 过期判定） */
   currentRound?: number;
+  /** 所有参战者沙盘位置字典（跨参战者距离判定，如协助动作 5 尺内约束） */
+  combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -76,7 +78,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions }: Props) {
   // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
   const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('attacks');
@@ -390,6 +392,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       attackerPos: attackerPos ?? null,
       targetPos: targetPos ?? null,
       distanceCells,
+      combatantPositions,
     };
   };
 

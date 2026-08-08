@@ -139,8 +139,10 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     const next = findNextValidTurn(currentTurn.round, currentIdx + 1);
     if (next) {
       if (next.round > currentTurn.round) combatStore.resetTurnTodosForRound(record.id, next.round);
-      // 进入新参战者回合时清理其过期待消费优劣势标记
+      // 进入新参战者回合时清理：(1) 该参战者本身 expireRound 过期
       combatStore.clearExpiredAdvantage(record.id, next.combatantId, next.round);
+      // (2) 所有以该参战者回合锚点过期的 pending（如协助动作：发出者下回合前）
+      combatStore.clearAdvantageByExpireCombatant(record.id, next.combatantId);
       setCurrentTurn(next);
       resetCombatantActions(next.combatantId);
       takeTurnSnapshot(next.round, next.combatantId);
@@ -166,8 +168,9 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       combatStore.resetTurnTodosForRound(record.id, nextRound);
       const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
-        // 进入新回合首位参战者，清理其过期待消费优劣势标记
+        // 进入新回合首位参战者：清理过期 + 回合锚点过期
         combatStore.clearExpiredAdvantage(record.id, firstInNew.combatantId, firstInNew.round);
+        combatStore.clearAdvantageByExpireCombatant(record.id, firstInNew.combatantId);
         setCurrentTurn(firstInNew);
         resetCombatantActions(firstInNew.combatantId);
         takeTurnSnapshot(firstInNew.round, firstInNew.combatantId);
@@ -179,8 +182,9 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       combatStore.resetTurnTodosForRound(record.id, nextRound);
       const firstInNext = findNextValidTurn(nextRound, 0);
       if (firstInNext) {
-        // 进入新回合首位参战者，清理其过期待消费优劣势标记
+        // 进入新回合首位参战者：清理过期 + 回合锚点过期
         combatStore.clearExpiredAdvantage(record.id, firstInNext.combatantId, firstInNext.round);
+        combatStore.clearAdvantageByExpireCombatant(record.id, firstInNext.combatantId);
         setCurrentTurn(firstInNext);
         resetCombatantActions(firstInNext.combatantId);
         takeTurnSnapshot(firstInNext.round, firstInNext.combatantId);

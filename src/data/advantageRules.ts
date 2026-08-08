@@ -28,6 +28,10 @@ export interface AdvantageContext {
   targetPos?: { col: number; row: number } | null;
   distanceCells?: number;
   saveAbility?: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
+  /** 所有参战者沙盘位置映射（combatantId → 坐标）。
+   *  跨参战者相对距离判定（如协助：攻击对象在发出者 5 尺内）时需要；
+   *  未传入时 requireTargetNearFromId 标记将无法命中。 */
+  combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
 }
 
 export type AdvantageDetector = (ctx: AdvantageContext) => AdvantageResult;
@@ -160,12 +164,22 @@ function detectPending(ctx: AdvantageContext): AdvantageResult {
   const currentRound = ctx.currentRound;
   for (const s of sources) {
     if (s.consumed) continue;
-    // 过期检查
+    // 过期检查（expireRound 与 expireOnCombatantId 任一命中即跳过；
+    // expireOnCombatantId 过期由 useRoundTurn 在回合推进时清理，此处兜底避免未清理时误命中）
     if (s.expireRound !== -1 && currentRound !== undefined && currentRound > s.expireRound) continue;
     // 场景匹配
     if (s.scene !== 'any' && s.scene !== ctx.scene) continue;
-    // 目标限制
+    // 目标限制（仅针对指定目标生效）
     if (s.targetId && ctx.target && s.targetId !== ctx.target.id) continue;
+    // requireTargetNearFromId：必须 ctx.target 与 fromId（发出者）切比雪夫距离 ≤ 1
+    if (s.requireTargetNearFromId) {
+      if (!s.fromId || !ctx.target) continue;
+      const fromPos = ctx.combatantPositions?.[s.fromId] ?? null;
+      const toPos = ctx.targetPos ?? ctx.combatantPositions?.[ctx.target.id] ?? null;
+      if (!fromPos || !toPos) continue;
+      const dist = Math.max(Math.abs(fromPos.col - toPos.col), Math.abs(fromPos.row - toPos.row));
+      if (dist > 1) continue;
+    }
     const reason: AdvantageReason = {
       kind: 'pending',
       label: s.fromName ? `${s.reason}（来自 ${s.fromName}）` : s.reason,

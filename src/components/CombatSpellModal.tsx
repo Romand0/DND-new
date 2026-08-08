@@ -32,6 +32,8 @@ interface Props {
   recordId?: string;
   /** 当前回合数（用于 pending 过期判定） */
   currentRound?: number;
+  /** 所有参战者沙盘位置字典（跨参战者距离判定，如协助动作 5 尺内约束） */
+  combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
   /** 施放完成：回传完整信息由 main 写入先攻表格与应用 HP 变化 */
   onCastResolved: (info: {
     spellName: string;
@@ -154,7 +156,7 @@ function SpellCard({ spell, level, active, onPick }: { spell: Spell; level: numb
   );
 }
 
-export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory, recordId, currentRound }: Props) {
+export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory, recordId, currentRound, combatantPositions }: Props) {
   // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
   const targetCharacter = useMemo<Character | null>(() => {
     if (propTargetCharacter !== undefined && propTargetCharacter !== null) return propTargetCharacter;
@@ -280,6 +282,7 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
     attackerCharacter: character,
     targetCharacter: targetCharacter ?? null,
     saveAbility: checkType === 'save' ? SAVE_ATTR_MAP[saveAttribute] : undefined,
+    combatantPositions,
   };
   const autoResult: AdvantageResult = checkType === 'none' ? { advantage: [], disadvantage: [] } : detectAdvantage(advantageContext);
   const { mode: rollMode, reasons: modeReasons } = resolveRollMode(manualMode, autoResult);

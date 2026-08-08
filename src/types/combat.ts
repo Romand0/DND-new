@@ -236,7 +236,8 @@ export type CheckScene =
   | 'attack_thrown'     // 投掷武器投掷模式（介于近战远程之间）
   | 'spell_attack'      // 法术攻击检定（法术命中判定）
   | 'saving_throw'      // 豁免检定（目标方）
-  | 'skill_check'       // 技能检定（预留，本次不实现弹窗）
+  | 'ability_check'     // 属性检定（D&D 5e：纯能力检定，不含技能）
+  | 'skill_check'       // 技能检定（含技能熟练加值的能力检定子集）
   | 'damage';           // 伤害结算（仅展示用，不参与检定判定）
 
 /** 优劣势来源类型标签（用于 UI 颜色区分 + 日志分类） */
@@ -285,10 +286,16 @@ export interface PendingAdvantageSource {
   kind: AdvantageSourceKind;
   /** 目标限制：仅对特定目标生效（如协助动作指定攻击 C 时）；不限制则对所有目标生效 */
   targetId?: string;
+  /** 是否仅在 ctx.target 与 fromId 指定的施加者距离 ≤ 1 格（5 尺切比雪夫）时生效；
+   *  例如协助动作的「攻击检定仅攻击对象在发出者 5 尺内」。无 fromId / 无 targetPos 时不命中 */
+  requireTargetNearFromId?: boolean;
+  /** 以「另一参战者回合开始」作为过期锚点，优先级高于 expireRound（两者任一即过期）。
+   *  例如协助动作「发出者的下一个回合前过期」= expireOnCombatantId = fromId */
+  expireOnCombatantId?: string;
   /** 是否已消费（检定确认后置 true） */
   consumed: boolean;
   /** 创建回合（用于过期判定） */
   createdRound: number;
-  /** 过期回合（含）；-1 = 永久直到消费 */
+  /** 过期回合（含）；-1 = 永久直到消费（与 expireOnCombatantId 任一命中即过期） */
   expireRound: number;
 }
