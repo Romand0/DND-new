@@ -143,6 +143,8 @@ export default function CombatSession() {
   } | null>(null);
   // ✅ 参战者信息面板（点击表头名称按钮打开，等价沙盘双击弹窗）
   const [infoPanelCombatant, setInfoPanelCombatant] = useState<Combatant | null>(null);
+  // ✅ 沙盘最近单击选中的参战者 ID（用于左上 HUD 展示；若放映中有当前回合则以当前回合角色优先覆盖）
+  const [sandboxSelectedId, setSandboxSelectedId] = useState<string | null>(null);
   // 回合快照集合（key = `${round}:${combatantId}`）
   // （TurnSnapshot 是 @/types/combat 导出的全局 interface，已在上面 import）
   const rollbackSnapshotRef = useRef<{
@@ -1805,6 +1807,107 @@ export default function CombatSession() {
         );
       })()}
 
+      {/* ✅ 左上悬浮块：当前角色的可用动作 + 剩余移动力（尺）实时展示 */}
+      {(() => {
+        // 展示对象的优先级：放映活跃 → 当前回合角色；否则 → 沙盘单击选中的角色；都没有就不展示
+        const playbackMode = record.mode === 'playback';
+        let hudId: string | null = null;
+        let hudSource: 'currentTurn' | 'sandbox' = 'sandbox';
+        if (isPlaybackActive() && currentTurn) {
+          hudId = currentTurn.combatantId;
+          hudSource = 'currentTurn';
+        } else if (sandboxSelectedId) {
+          hudId = sandboxSelectedId;
+        }
+        if (!hudId) return null;
+        const c = record.combatants.find(x => x.id === hudId) ?? null;
+        if (!c) return null;
+        const actions = typeof c.actions === 'number' && c.actions >= 0 ? c.actions : 1;
+        const actionLabel =
+          playbackMode && playbackStarted && !playbackPaused
+            ? (actions <= 0 ? '0（已用完）' : `${actions}`)
+            : '∞（模拟/暂停不消耗）';
+        const actionTone =
+          playbackMode && playbackStarted && !playbackPaused
+            ? (actions <= 0
+              ? 'border-danger/40 text-danger bg-danger/5'
+              : actions <= 1
+                ? 'border-primary/40 bg-primary/5 dark:text-text-dark light:text-text-light'
+                : 'border-success/40 bg-success/5 text-success')
+            : 'border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light';
+        const totalSpeed = c.speed ?? 0;
+        const remaining = combatStore.getRemainingMovement(c, playbackMode ? 'playback' : 'simulation', isPlaybackActive());
+        const used = Math.max(0, totalSpeed - remaining);
+        const speedLabel = playbackMode && playbackStarted && !playbackPaused
+          ? totalSpeed > 0
+            ? `${remaining} / ${totalSpeed}尺（已移动${used}尺）`
+            : `0尺（速度未设置）`
+          : totalSpeed > 0
+            ? `${totalSpeed}尺（模拟/暂停，全程可用）`
+            : `0尺（速度未设置）`;
+        const speedCells = Math.floor(remaining / 5);
+        const totalCells = totalSpeed > 0 ? Math.floor(totalSpeed / 5) : 0;
+        const speedTone =
+          playbackMode && playbackStarted && !playbackPaused
+            ? (remaining <= 0
+              ? 'border-danger/40 text-danger bg-danger/5'
+              : remaining < totalSpeed
+                ? 'border-info/40 bg-info/5 text-info'
+                : 'border-success/40 bg-success/5 text-success')
+            : 'border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light';
+        const topOffset = record.mode === 'playback' ? 'top-36' : 'top-20';
+        return (
+          <div className={`fixed left-6 z-40 ${topOffset} w-64 space-y-2`}>
+            <div className="px-3 py-2 rounded-lg backdrop-blur shadow-md bg-card-dark/80 light:bg-card-light/80 border dark:border-border-dark light:border-border-light">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  {hudSource === 'currentTurn' ? '当前回合角色' : '沙盘选中角色'}
+                </div>
+                <div className="text-xs font-medium dark:text-text-dark light:text-text-light opacity-80">
+                  {c.isPc ? '玩家角色' : 'NPC/敌人'}
+                </div>
+              </div>
+              <div className="text-base font-bold dark:text-text-dark light:text-text-light truncate mb-3">
+                {c.name}
+              </div>
+              {/* 可用动作数 */}
+              <div className={`px-3 py-2 rounded-md border mb-2 ${actionTone}`}>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs opacity-80 flex items-center gap-1">
+                    <Swords className="w-3.5 h-3.5" />
+                    可用动作
+                  </span>
+                  <span className="text-sm font-semibold">{actionLabel}</span>
+                </div>
+              </div>
+              {/* 移动力（尺） */}
+              <div className={`px-3 py-2 rounded-md border ${speedTone}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs opacity-80 flex items-center gap-1">
+                    <span className="w-3.5 h-3.5 inline-flex items-center justify-center text-base leading-none">🦶</span>
+                    剩余移动力
+                  </span>
+                  <span className="text-sm font-semibold">{remaining}尺 / {totalSpeed}尺</span>
+                </div>
+                <div className="text-[11px] opacity-75 mb-1.5">
+                  {playbackMode && playbackStarted && !playbackPaused
+                    ? `格子：${speedCells} / ${totalCells}（每格 5 尺，切比雪夫距离）`
+                    : `格子：${totalCells}（模拟/暂停不限量）`}
+                </div>
+                {totalSpeed > 0 && (
+                  <div className="h-1.5 w-full rounded-full dark:bg-black/30 light:bg-black/10 overflow-hidden">
+                    <div
+                      className="h-full bg-info transition-all"
+                      style={{ width: `${Math.min(100, Math.max(0, (remaining / totalSpeed) * 100))}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ✅ 回合待办展示板 —— 仅放映模式 + 已开始 + 未暂停 + 当前回合存在时显示（暂停状态不显示） */}
       {record.mode === 'playback' && playbackStarted && !playbackPaused && currentTurn && (
         <TurnTodoBoard
@@ -2152,6 +2255,28 @@ export default function CombatSession() {
             ? currentTurn!.combatantId
             : null
         }
+        mode={record.mode}
+        playbackActive={isPlaybackActive()}
+        remainingMovementMap={(() => {
+          const m: Record<string, number> = {};
+          const active = isPlaybackActive();
+          for (const c of record.combatants) {
+            m[c.id] = combatStore.getRemainingMovement(c, record.mode, active);
+          }
+          return m;
+        })()}
+        onConsumeMovement={(combatantId, feet) => {
+          if (!record.id) return false;
+          const got = combatStore.consumeMovement(record.id, combatantId, feet, record.mode, isPlaybackActive());
+          return got >= feet;
+        }}
+        onRefundMovement={(combatantId, feet) => {
+          if (!record.id) return;
+          combatStore.refundMovement(record.id, combatantId, feet, record.mode, isPlaybackActive());
+        }}
+        onSelectionChange={(id) => {
+          setSandboxSelectedId(id);
+        }}
         onRequestAttack={(attacker, target) => {
           // 动作校验：放映模式可用动作耗尽时禁止发起攻击
           if (!canUseAction(attacker.id)) {

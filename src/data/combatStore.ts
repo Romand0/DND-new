@@ -424,6 +424,7 @@ function load(): CombatRecord[] {
           templateId: c.templateId ?? undefined,
           attacks: Array.isArray(c.attacks) ? c.attacks : undefined,
           actions,
+          movementUsed: typeof c.movementUsed === 'number' && Number.isFinite(c.movementUsed) ? Math.max(0, Math.trunc(c.movementUsed)) : 0,
         };
       });
       return {
@@ -615,6 +616,7 @@ const combatStore = {
 
   /**
    * 重置某参战者的可用动作数为 1（放映模式每回合开始时调用）。
+   * 同时将 movementUsed 归零（D&D 5e：每回合开始恢复完整移动力）。
    * @returns 重置后的可用动作数（恒为 1）；找不到参战者时返回 null
    */
   resetActions(recordId: string, combatantId: string): number | null {
@@ -623,10 +625,67 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1 };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, movementUsed: 0 };
     record.updatedAt = Date.now();
     save(records);
     return 1;
+  },
+
+  /**
+   * 消耗某参战者的移动力（feet 尺），按 D&D 5e 每回合总 speed 上限。
+   * 放映暂停 / 模拟模式下不会真扣（直接返回传入的 distanceFeet，表示允许移动）。
+   * @returns 实际消耗的移动力（≤ distanceFeet），0 表示移动力不足，调用方应阻止此次移动
+   */
+  consumeMovement(recordId: string, combatantId: string, distanceFeet: number, mode: 'simulation' | 'playback', playbackActive: boolean): number {
+    if (distanceFeet <= 0) return 0;
+    // 模拟模式 / 放映暂停：不扣减，返回全部距离
+    if (mode !== 'playback' || !playbackActive) return distanceFeet;
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return distanceFeet;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return distanceFeet;
+    const combatant = record.combatants[idx];
+    const speed = combatant.speed ?? 0;
+    if (speed <= 0) return distanceFeet;
+    const used = combatant.movementUsed ?? 0;
+    const remaining = Math.max(0, speed - used);
+    const allowed = Math.min(remaining, distanceFeet);
+    if (allowed <= 0) return 0;
+    record.combatants[idx] = { ...combatant, movementUsed: used + allowed };
+    record.updatedAt = Date.now();
+    save(records);
+    return allowed;
+  },
+
+  /**
+   * 恢复某参战者的移动力（撤回移动时调用）。与 consumeMovement 对称：
+   * 仅放映模式且放映中才真正回退 movementUsed，其他模式 no-op。
+   */
+  refundMovement(recordId: string, combatantId: string, feet: number, mode: 'simulation' | 'playback', playbackActive: boolean): void {
+    if (feet <= 0) return;
+    if (mode !== 'playback' || !playbackActive) return;
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const combatant = record.combatants[idx];
+    const used = combatant.movementUsed ?? 0;
+    record.combatants[idx] = { ...combatant, movementUsed: Math.max(0, used - feet) };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /**
+   * 获取某参战者的剩余移动力（尺）。
+   * 模拟模式 / 放映暂停 / 未设置 speed 时，返回 speed (表示完整移动力可用)；
+   * 否则返回 Math.max(0, speed - movementUsed)。
+   */
+  getRemainingMovement(combatant: Combatant, mode?: 'simulation' | 'playback', playbackActive?: boolean): number {
+    const speed = combatant.speed ?? 0;
+    if (!mode || mode === 'simulation' || !playbackActive) return speed;
+    return Math.max(0, speed - (combatant.movementUsed ?? 0));
   },
 
   // =======================
