@@ -2696,7 +2696,7 @@ export default function CombatSession() {
                         appendRoundRecord(
                           currentTurn.round,
                           from.id,
-                          `${from.name} 对 ${f.name} 使用「协助」：${f.name} 的属性/技能检定获得优势；攻击检定在攻击目标位于 ${from.name} 5 尺内时获得优势（下回合前有效）。`,
+                          `对 ${f.name} 的行动展开协助`,
                         );
                       }
                       setHelpModal(null);
