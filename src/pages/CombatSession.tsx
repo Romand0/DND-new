@@ -125,11 +125,11 @@ export default function CombatSession() {
   // ✅ 放映模式状态
   const [playbackStarted, setPlaybackStarted] = useState(false);
   // 当前回合：{ round: 行索引, combatantIdx: 列索引, combatantId }
-  const [currentTurn, setCurrentTurn] = useState<{ round: number; combatantIdx: number; combatantId: string } | null>(null);
+  const [currentTurn, setCurrentTurn] = useState<{ round: number; combatantId: string } | null>(null);
   // ✅ 暂停放映：true 时不处于任何参战者的回合，操作按模拟模式处理（不消耗动作、不计入当前回合）
   const [playbackPaused, setPlaybackPaused] = useState(false);
   // 暂停时临时保存的回合位置，恢复放映时回到该处
-  const pausedTurnRef = useRef<{ round: number; combatantIdx: number; combatantId: string } | null>(null);
+  const pausedTurnRef = useRef<{ round: number; combatantId: string } | null>(null);
   // 沙盘快照：用于开始放映时重置
   const playbackSnapshotRef = useRef<{ col: number; row: number; combatantId: string }[] | null>(null);
   // 确认弹窗：完成回合
@@ -928,8 +928,7 @@ export default function CombatSession() {
     // 暂停期间用户可能把 rounds 截断或新增了轮次：若保存位置仍有效则直接用，否则重新扫描
     if (savedTurn
       && savedTurn.round < record.rounds.length
-      && savedTurn.combatantIdx < record.combatants.length
-      && record.combatants[savedTurn.combatantIdx]?.id === savedTurn.combatantId) {
+      && record.combatants.findIndex(c => c.id === savedTurn.combatantId) >= 0) {
       setCurrentTurn(savedTurn);
       checkAndAutoAdvance(savedTurn);
     } else {
@@ -1019,7 +1018,7 @@ export default function CombatSession() {
     fromRound: number,
     fromCol: number,
     roundsOverride?: RoundAction[]
-  ): { round: number; combatantIdx: number; combatantId: string } | null => {
+  ): { round: number; combatantId: string } | null => {
     if (!record) return null;
     const rounds = roundsOverride ?? record.rounds;
     for (let r = fromRound; r < rounds.length; r++) {
@@ -1029,7 +1028,7 @@ export default function CombatSession() {
         const v = rounds[r][c.id];
         if (v === '被突袭' || v === '死亡') continue;
         // 昏迷中，无法行动：不再跳过，保证视觉可见性
-        return { round: r, combatantIdx: i, combatantId: c.id };
+        return { round: r, combatantId: c.id };
       }
     }
     return null;
@@ -1097,7 +1096,8 @@ export default function CombatSession() {
   // ✅ 推进到下一个回合（用户点击"完成回合"时）
   const advanceTurn = () => {
     if (!currentTurn || !record) return;
-    const next = findNextValidTurn(currentTurn.round, currentTurn.combatantIdx + 1);
+    const currentIdx = record.combatants.findIndex(c => c.id === currentTurn.combatantId);
+    const next = findNextValidTurn(currentTurn.round, currentIdx + 1);
     if (next) {
       if (next.round > currentTurn.round) {
         combatStore.resetTurnTodosForRound(record.id, next.round);
@@ -1154,10 +1154,10 @@ export default function CombatSession() {
   };
 
   // ✅ 切换回合后检查：若当前是昏迷角色且无需用户操作（NPC/稳定PC），自动处理并延迟推进
-  const checkAndAutoAdvance = (turn: { round: number; combatantIdx: number; combatantId: string } | null) => {
+  const checkAndAutoAdvance = (turn: { round: number; combatantId: string } | null) => {
     if (!record || !turn || record.mode !== 'playback' || !playbackStarted) return;
     if (autoAdvanceRef.current) return;
-    const c = record.combatants[turn.combatantIdx];
+    const c = record.combatants.find(x => x.id === turn.combatantId);
     if (!c || !c.isUnconscious || c.isDead) return;
     const handled = handleComatoseTurn(c, turn.round);
     if (!handled) return;
@@ -1328,7 +1328,7 @@ export default function CombatSession() {
     // 4) 还原沙盘
     battlegroundStore.setTokens(record.id, snap.battleground.map(t => ({ ...t })));
     // 5) 当前回合跳到此回合格
-    setCurrentTurn({ round, combatantIdx, combatantId });
+    setCurrentTurn({ round, combatantId });
     // 6) 此回合格在回溯后需要重新拍快照：清掉内存+IDB 中旧快照，下次进入重拍
     const memKey2 = `${round}:${combatantId}`;
     delete rollbackSnapshotRef.current.snapshots[memKey2];
@@ -1443,8 +1443,12 @@ export default function CombatSession() {
   // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）
   const handleInitiativeSave = (combatantId: string) => {
     const newInit = parseInt(initiativeInput, 10);
+    if (isNaN(newInit)) {
+      alert('请输入有效的先攻数值');
+      setEditingInitiative(null);
+      return;
+    }
     setEditingInitiative(null);
-    if (isNaN(newInit)) return;
     const updatedCombatants = record.combatants
       .map((c) => (c.id === combatantId ? { ...c, initiative: newInit } : c))
       .sort((a, b) => b.initiative - a.initiative);
@@ -1802,7 +1806,7 @@ export default function CombatSession() {
           label = '⏸ 放映已暂停（脱离回合格）';
           tone = 'warn';
         } else if (currentTurn) {
-          const name = record.combatants[currentTurn.combatantIdx]?.name ?? '?';
+          const name = record.combatants.find(c => c.id === currentTurn.combatantId)?.name ?? '?';
           label = `当前回合：${name}（第 ${currentTurn.round + 1} 轮）`;
           tone = 'info';
         } else {
@@ -2089,7 +2093,7 @@ export default function CombatSession() {
                               {(isCurrentTurn ||
                                 roundIndex < (currentTurn?.round ?? Infinity) ||
                                 (roundIndex === (currentTurn?.round ?? -1) &&
-                                  (record.combatants.findIndex(x => x.id === c.id)) < (currentTurn?.combatantIdx ?? Infinity))
+                                  (record.combatants.findIndex(x => x.id === c.id)) < (record.combatants.findIndex(x => x.id === currentTurn?.combatantId) ?? Infinity))
                               ) ? (
                                 <>
                                   <button
@@ -3134,7 +3138,7 @@ export default function CombatSession() {
             </div>
             <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
               确认完成 <span className="font-bold text-primary">
-                {record.combatants[currentTurn.combatantIdx]?.name ?? '?'}
+                {record.combatants.find(c => c.id === currentTurn.combatantId)?.name ?? '?'}
               </span> 的回合（第 {currentTurn.round + 1} 轮）？
             </p>
             <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
