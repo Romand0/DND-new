@@ -1,10 +1,14 @@
 // 战斗攻击检定弹窗 —— 从沙盘战斗按钮触发
 import { useState, useMemo } from 'react';
-import { X, Swords, Dices, ChevronLeft, MoreHorizontal } from 'lucide-react';
+import { X, Swords, Dices, ChevronLeft } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import { computeCombatantAc } from '@/data/combatStore';
-import type { Combatant, NpcAttack } from '@/types/combat';
+import combatStore from '@/data/combatStore';
+import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
+import AdvDisadvToggle from './AdvDisadvToggle';
+import type { Combatant, NpcAttack, CheckScene } from '@/types/combat';
+import type { AdvantageReason, AdvantageResult } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
 
 interface Props {
@@ -61,6 +65,10 @@ interface Props {
    * 不填则默认回退为 combatMode === 'playback'（保持向后兼容）。
    */
   playbackTurnActive?: boolean;
+  /** 战斗记录 ID（用于消费 pending 标记） */
+  recordId?: string;
+  /** 当前回合数（用于 pending 过期判定） */
+  currentRound?: number;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -68,7 +76,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound }: Props) {
   // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
   const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('attacks');
@@ -78,7 +86,6 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const [rollResult, setRollResult] = useState<{ d20: number; bonus: number; total: number; isNatural1: boolean; isNatural20: boolean; hit: boolean; disadvantage: boolean } | null>(null);
   // 手动决定的检定模式（与自动检测的优劣势合并；优势/劣势互斥）
   const [manualMode, setManualMode] = useState<'none' | 'advantage' | 'disadvantage'>('none');
-  const [showAdvDisadvMenu, setShowAdvDisadvMenu] = useState(false);
   // 投掷武器的使用方式：近战 / 投掷（选择攻击方式后确定）
   const [usageMode, setUsageMode] = useState<UsageMode | null>(null);
   // 当前展开使用方式选择的攻击索引（投掷武器专用）
@@ -363,64 +370,49 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     return isNaN(bonus) ? 0 : bonus;
   };
 
-  // ========= 优势 / 劣势 检测 =========
-  // 返回自动检测到的优劣势原因列表（已实现的机制适配）
-  // usageMode 决定投掷武器按近战还是投掷规则判定
-  const getAttackAdvantageDisadvantage = (attack: Attack | NpcAttack, usageMode?: UsageMode): { advantage: string[]; disadvantage: string[] } => {
-    const advantage: string[] = [];
-    const disadvantage: string[] = [];
+  // ========= 优势 / 劣势 检测（接入 advantageRules 引擎） =========
+  // 构造优劣势上下文（供引擎检测）
+  const buildAdvantageContext = (attack: Attack | NpcAttack, usageMode?: UsageMode): AdvantageContext => {
     const thrown = isThrownWeapon(attack);
-    // 当前是否按远程规则判定：
-    // - 纯远程武器（非投掷）→ 永远按远程
-    // - 投掷武器选投掷模式 → 按远程
-    // - 投掷武器选近战模式 / 未指定模式 → 按近战
     const rangedOnly = isRangedWeapon(attack) && !thrown;
     const treatAsRanged = rangedOnly || (thrown && usageMode === 'thrown');
-
-    // —— 劣势：不熟练的护甲（仅 PC，穿戴护甲且不熟练）——
-    if (character) {
-      const armorId = character.wornArmorId;
-      if (armorId) {
-        const armor = character.equipment.find(e => (e.childId || e.id) === armorId);
-        if (armor && armor.subtype) {
-          const profs = character.proficiencies?.armor || [];
-          if (!profs.includes(armor.subtype)) {
-            disadvantage.push('不熟练的护甲');
-          }
-        }
-      }
-    }
-
-    // —— 劣势：从 5 尺距离发动远程攻击（远程/投掷模式下且目标相邻 = 1 格 = 5 尺）——
-    if (treatAsRanged && attackerPos && targetPos && distanceCells === 1) {
-      disadvantage.push('从 5 尺距离发动远程攻击');
-    }
-
-    // —— 劣势：投掷武器处于最大射程段（投掷模式下且目标在最大射程段）——
-    if (thrown && usageMode === 'thrown' && attackerPos && targetPos && getRangeTier(attack, usageMode) === 'max') {
-      disadvantage.push('投掷武器处于最大射程段');
-    }
-
-    return { advantage, disadvantage };
+    const scene: CheckScene = thrown && usageMode === 'thrown'
+      ? 'attack_thrown'
+      : treatAsRanged ? 'attack_ranged' : 'attack_melee';
+    return {
+      scene,
+      currentRound,
+      attacker,
+      target,
+      attackerCharacter: character,
+      attack,
+      usageMode,
+      attackerPos: attackerPos ?? null,
+      targetPos: targetPos ?? null,
+      distanceCells,
+    };
   };
 
-  // 最终检定模式：手动优先，否则自动检测（优劣势互相抵消）
+  // 计算最终检定模式（手动优先 > 自动检测，优劣势互斥抵消）
   const computeRollMode = (attack: Attack | NpcAttack, usageMode?: UsageMode): 'none' | 'advantage' | 'disadvantage' => {
-    if (manualMode !== 'none') return manualMode;
-    const { advantage, disadvantage } = getAttackAdvantageDisadvantage(attack, usageMode);
-    // D&D 5e：同时存在优劣势则互相抵消
-    if (advantage.length > 0 && disadvantage.length > 0) return 'none';
-    if (advantage.length > 0) return 'advantage';
-    if (disadvantage.length > 0) return 'disadvantage';
-    return 'none';
+    const ctx = buildAdvantageContext(attack, usageMode);
+    const auto = detectAdvantage(ctx);
+    return resolveRollMode(manualMode, auto).mode;
   };
 
-  // 获取当前模式下的原因列表（用于展示效果来源）
-  const getRollModeReasons = (attack: Attack | NpcAttack, mode: 'none' | 'advantage' | 'disadvantage', usageMode?: UsageMode): string[] => {
+  // 获取当前模式下的原因列表
+  const getRollModeReasons = (attack: Attack | NpcAttack, mode: 'none' | 'advantage' | 'disadvantage', usageMode?: UsageMode): AdvantageReason[] => {
     if (mode === 'none') return [];
-    const { advantage, disadvantage } = getAttackAdvantageDisadvantage(attack, usageMode);
-    if (mode === 'advantage') return manualMode === 'advantage' ? ['手动指定'] : advantage;
-    return manualMode === 'disadvantage' ? ['手动指定'] : disadvantage;
+    const ctx = buildAdvantageContext(attack, usageMode);
+    const auto = detectAdvantage(ctx);
+    return resolveRollMode(manualMode, auto).reasons;
+  };
+
+  // 获取待消费的 pending 标记 ID（检定确认后消费）
+  const getPendingIds = (attack: Attack | NpcAttack, usageMode?: UsageMode): string[] => {
+    const ctx = buildAdvantageContext(attack, usageMode);
+    const auto = detectAdvantage(ctx);
+    return getMatchedPendingSourceIds(auto);
   };
 
   // 为投掷武器选择默认使用方式：
@@ -563,6 +555,14 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       onLoadedChange(key, false);
     }
 
+    // 消费本次检定命中的 pending 标记（无论命中/未命中，检定已完成）
+    if (recordId) {
+      const pendingIds = getPendingIds(selectedAttack, usageMode ?? undefined);
+      if (pendingIds.length > 0) {
+        combatStore.consumePendingAdvantage(recordId, attacker.id, pendingIds);
+      }
+    }
+
     if (rollResult.hit) {
       if (onConfirmHit) {
         onConfirmHit(selectedAttack, {
@@ -651,23 +651,22 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                 // 投掷模式标签：仅在投掷模式下且非常规近战时显示
                 const tier = attackerPos && targetPos ? getRangeTier(attack, previewMode) : 'melee';
                 const showThrownTag = thrown && previewMode === 'thrown';
-                // 优势/劣势标签（基于预览模式）
-                const { advantage: advReasons, disadvantage: disadvReasons } = getAttackAdvantageDisadvantage(attack, previewMode);
-                const hasAdv = advReasons.length > 0;
-                const hasDisadv = disadvReasons.length > 0;
+                // 优势/劣势标签（基于预览模式，走引擎自动检测）
+                const previewAuto = detectAdvantage(buildAdvantageContext(attack, previewMode));
+                const hasAdv = previewAuto.advantage.length > 0;
+                const hasDisadv = previewAuto.disadvantage.length > 0;
                 const handleEnterRoll = (mode?: UsageMode) => {
                   if (!status.usable) return;
                   setSelectedAttack(attack);
                   setUsageMode(mode ?? null);
                   // 多用武器：自动检测当前是否双手握持
                   setIsTwoHandedWield(isWieldingTwoHanded(attack));
-                  const { advantage: a, disadvantage: d } = getAttackAdvantageDisadvantage(attack, mode);
-                  const autoMode = (a.length > 0 && d.length > 0) ? 'none' : (a.length > 0 ? 'advantage' : (d.length > 0 ? 'disadvantage' : 'none'));
+                  // 仅按自动检测决定初始骰数（手动模式刚重置为 none）
+                  const autoMode = resolveRollMode('none', detectAdvantage(buildAdvantageContext(attack, mode ?? undefined))).mode;
                   setD20Values(autoMode === 'none' ? [''] : ['', '']);
                   setRollResult(null);
                   setLockedDice(new Set());
                   setManualMode('none');
-                  setShowAdvDisadvMenu(false);
                   setStage('roll');
                 };
                 return (
@@ -788,7 +787,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                             if (reasons.length === 0) return null;
                             return (
                               <div className={`mt-2 text-xs ${m === 'advantage' ? 'text-green-400' : 'text-amber-400'}`}>
-                                {m === 'advantage' ? '优势' : '劣势'}来源：{reasons.join('；')}
+                                {m === 'advantage' ? '优势' : '劣势'}来源：{reasons.map(r => r.label).join('；')}
                               </div>
                             );
                           })()}
@@ -851,59 +850,20 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     <span className="ml-2">距离 {distanceCells} 格（{distanceCells * 5}尺）</span>
                   )}
                 </div>
-                {/* 手动优劣势覆盖按钮 */}
-                <button
-                  onClick={() => setShowAdvDisadvMenu(v => !v)}
-                  className={`absolute bottom-2 right-2 p-1 rounded transition-colors ${
-                    showAdvDisadvMenu || manualMode !== 'none'
-                      ? 'bg-primary/20 text-primary'
-                      : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/10'
-                  }`}
-                  title="手动决定优/劣势"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </button>
-                {/* 手动覆盖菜单 */}
-                {showAdvDisadvMenu && (
-                  <div className="absolute bottom-9 right-2 z-10 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light shadow-xl py-1 w-28">
-                    <button
-                      onClick={() => {
-                        setManualMode('none');
-                        setD20Values(['']);
-                        setRollResult(null);
-                        setLockedDice(new Set());
-                        setShowAdvDisadvMenu(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 ${manualMode === 'none' ? 'text-primary font-medium' : 'dark:text-text-dark light:text-text-light'}`}
-                    >
-                      正常
-                    </button>
-                    <button
-                      onClick={() => {
-                        setManualMode('advantage');
-                        setD20Values(['', '']);
-                        setRollResult(null);
-                        setLockedDice(new Set());
-                        setShowAdvDisadvMenu(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 ${manualMode === 'advantage' ? 'text-green-400 font-medium' : 'dark:text-text-dark light:text-text-light'}`}
-                    >
-                      优势
-                    </button>
-                    <button
-                      onClick={() => {
-                        setManualMode('disadvantage');
-                        setD20Values(['', '']);
-                        setRollResult(null);
-                        setLockedDice(new Set());
-                        setShowAdvDisadvMenu(false);
-                      }}
-                      className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 ${manualMode === 'disadvantage' ? 'text-amber-400 font-medium' : 'dark:text-text-dark light:text-text-light'}`}
-                    >
-                      劣势
-                    </button>
-                  </div>
-                )}
+                {/* 手动优劣势覆盖（公共组件，菜单状态内部管理） */}
+                <div className="absolute bottom-2 right-2">
+                  <AdvDisadvToggle
+                    manualMode={manualMode}
+                    onChange={(m) => {
+                      setManualMode(m);
+                      setD20Values(m === 'none' ? [''] : ['', '']);
+                      setRollResult(null);
+                      setLockedDice(new Set());
+                    }}
+                    mode={rollMode}
+                    reasons={modeReasons}
+                  />
+                </div>
               </div>
 
               {/* 优劣势效果来源说明（标签后陈述原因） */}
@@ -912,7 +872,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                   rollMode === 'advantage' ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'
                 }`}>
                   <span className="font-medium shrink-0">{rollMode === 'advantage' ? '优势来源' : '劣势来源'}</span>
-                  <span>{modeReasons.join('；')}</span>
+                  <span>{modeReasons.map(r => r.label).join('；')}</span>
                 </div>
               )}
 

@@ -2,7 +2,7 @@
 import { useState, useMemo, Fragment } from 'react';
 import { X, Swords, Dices, Calculator } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
-import type { Combatant, NpcAttack } from '@/types/combat';
+import type { Combatant, NpcAttack, AdvantageReason } from '@/types/combat';
 import type { Attack } from '@/types/character';
 
 interface Props {
@@ -11,6 +11,10 @@ interface Props {
   attack: Attack | NpcAttack;
   /** 是否处于检定劣势（投掷武器处于最大射程段）—— 暂作展示提示 */
   disadvantage?: boolean;
+  /** 检定模式（优先于 disadvantage prop） */
+  rollMode?: 'none' | 'advantage' | 'disadvantage';
+  /** 优劣势来源列表（展示用） */
+  reasons?: AdvantageReason[];
   /** 应用伤害：由 main 调用 combatStore.update 写入新 HP；致命伤害（HP 归零）时附带状态决定，
    * 同时返回完整信息用于 main 写入先攻表格 */
   onApplyDamage: (payload: {
@@ -81,11 +85,16 @@ export default function CombatDamageModal({
   target,
   attack,
   disadvantage,
+  rollMode,
+  reasons,
   onApplyDamage,
   onClose,
   isCritical = false,
   isTwoHandedWield = false,
 }: Props) {
+  // 优先使用 rollMode，回退到 disadvantage prop（向后兼容）
+  const effectiveMode: 'none' | 'advantage' | 'disadvantage' =
+    rollMode ?? (disadvantage ? 'disadvantage' : 'none');
   // 多用武器：是否有 twoHandedDamage
   const hasTwoHandedDamage = !!attack.twoHandedDamage;
 
@@ -194,7 +203,10 @@ export default function CombatDamageModal({
           <div className="flex items-center gap-2">
             <Swords className="w-5 h-5 text-danger" />
             <span className="font-bold dark:text-text-dark light:text-text-light">伤害结算</span>
-            {disadvantage && (
+            {effectiveMode === 'advantage' && (
+              <span className="text-xs px-1.5 py-0.5 rounded bg-green-500/10 text-green-400">检定优势</span>
+            )}
+            {effectiveMode === 'disadvantage' && (
               <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">检定劣势</span>
             )}
             {isCritical && (
@@ -208,6 +220,15 @@ export default function CombatDamageModal({
 
         {/* 内容区 */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {/* 优劣势来源列表 */}
+          {reasons && reasons.length > 0 && (
+            <div className={`rounded-lg p-2 text-xs flex items-start gap-2 ${
+              effectiveMode === 'advantage' ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'
+            }`}>
+              <span className="font-medium shrink-0">{effectiveMode === 'advantage' ? '优势来源' : '劣势来源'}</span>
+              <span>{reasons.map(r => r.label).join('；')}</span>
+            </div>
+          )}
           {/* 攻击者/目标信息 */}
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1.5">

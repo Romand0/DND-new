@@ -1,12 +1,14 @@
 // 法术施放弹窗 —— 与攻击检定完全独立的交互流程
 // 从沙盘「法术」按钮触发：浏览法术 → 选定 → 选检定方式 → 检定 → 骰效果骰池
 import { useState, useMemo, Fragment, useEffect, type ReactNode } from 'react';
-import { X, BookOpen, Dices, Calculator, ChevronLeft, MoreHorizontal } from 'lucide-react';
+import { X, BookOpen, Dices, Calculator, ChevronLeft } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
-import { computeCombatantAc } from '@/data/combatStore';
-import type { Combatant } from '@/types/combat';
+import combatStore, { computeCombatantAc } from '@/data/combatStore';
+import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
+import AdvDisadvToggle from './AdvDisadvToggle';
+import type { Combatant, CheckScene, AdvantageReason, AdvantageResult } from '@/types/combat';
 import type { Character, AbilityKey, Equipment } from '@/types/character';
 import type { Spell } from '@/types/spell';
 
@@ -26,6 +28,10 @@ interface Props {
   targetCharacter?: Character | null;
   /** 可选：目标战斗背包，用于重算目标 AC */
   targetCombatInventory?: Equipment[];
+  /** 战斗记录 ID（用于消费 pending 标记） */
+  recordId?: string;
+  /** 当前回合数（用于 pending 过期判定） */
+  currentRound?: number;
   /** 施放完成：回传完整信息由 main 写入先攻表格与应用 HP 变化 */
   onCastResolved: (info: {
     spellName: string;
@@ -148,7 +154,7 @@ function SpellCard({ spell, level, active, onPick }: { spell: Spell; level: numb
   );
 }
 
-export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory }: Props) {
+export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory, recordId, currentRound }: Props) {
   // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
   const targetCharacter = useMemo<Character | null>(() => {
     if (propTargetCharacter !== undefined && propTargetCharacter !== null) return propTargetCharacter;
@@ -169,7 +175,6 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
   const [rollResult, setRollResult] = useState<{ d20: number; bonus: number; total: number; isNatural1: boolean; isNatural20: boolean; success: boolean } | null>(null);
   const [lockedDice, setLockedDice] = useState<Set<number>>(new Set());
   const [manualMode, setManualMode] = useState<'none' | 'advantage' | 'disadvantage'>('none');
-  const [showAdvDisadjMenu, setShowAdvDisadjMenu] = useState(false);
 
   // 效果骰池：用户手动输入表达式
   const [diceExpr, setDiceExpr] = useState<string>('');
@@ -266,8 +271,18 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
     setDownedStatus(null);
   };
 
-  // 优劣势模式
-  const rollMode: 'none' | 'advantage' | 'disadvantage' = manualMode;
+  // 优劣势模式：法术攻击走 spell_attack 场景，豁免走 saving_throw 场景
+  const advantageContext: AdvantageContext = {
+    scene: checkType === 'save' ? 'saving_throw' : 'spell_attack',
+    currentRound,
+    attacker: caster,
+    target,
+    attackerCharacter: character,
+    targetCharacter: targetCharacter ?? null,
+    saveAbility: checkType === 'save' ? SAVE_ATTR_MAP[saveAttribute] : undefined,
+  };
+  const autoResult: AdvantageResult = checkType === 'none' ? { advantage: [], disadvantage: [] } : detectAdvantage(advantageContext);
+  const { mode: rollMode, reasons: modeReasons } = resolveRollMode(manualMode, autoResult);
   const isDual = rollMode !== 'none';
 
   // 应用 d20 输入变化：自然 20 即时成功、自然 1 即时失败
@@ -371,6 +386,11 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
         success = isNatural20 ? true : isNatural1 ? false : d20 + bonus >= targetAc;
       }
       setRollResult({ d20, bonus, total: d20 + bonus, isNatural1, isNatural20, success });
+      // 消费 pending 优劣势标记
+      if (recordId) {
+        const pendingIds = getMatchedPendingSourceIds(autoResult);
+        if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, caster.id, pendingIds);
+      }
       return;
     }
 
@@ -394,6 +414,11 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
         success = isNatural20 ? false : isNatural1 ? true : saveTotal < spellSaveDC;
       }
       setRollResult({ d20, bonus, total: d20 + bonus, isNatural1, isNatural20, success });
+      // 消费 pending 优劣势标记
+      if (recordId) {
+        const pendingIds = getMatchedPendingSourceIds(autoResult);
+        if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, caster.id, pendingIds);
+      }
       return;
     }
   };
@@ -675,39 +700,29 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
               {/* 检定阶段：d20 输入 */}
               {checkType !== 'none' && !rollResult && (
                 <>
-                  {/* 手动优劣势 */}
-                  <div className="relative rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
+                  {/* 检定优劣势（手动 + 自动引擎） */}
+                  <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">检定优劣势</span>
-                      <button
-                        onClick={() => setShowAdvDisadjMenu(v => !v)}
-                        className={`p-1 rounded transition-colors ${showAdvDisadjMenu || manualMode !== 'none' ? 'bg-primary/20 text-primary' : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/10'}`}
-                        title="手动决定优/劣势"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
-                      {showAdvDisadjMenu && (
-                        <div className="absolute right-2 top-9 z-10 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light shadow-xl py-1 w-28">
-                          {(['none', 'advantage', 'disadvantage'] as const).map(m => (
-                            <button
-                              key={m}
-                              onClick={() => {
-                                setManualMode(m);
-                                setD20Values(m === 'none' ? [''] : ['', '']);
-                                setRollResult(null);
-                                setLockedDice(new Set());
-                                setShowAdvDisadjMenu(false);
-                              }}
-                              className={`w-full text-left px-3 py-1.5 text-xs hover:bg-white/10 ${manualMode === m ? 'text-primary font-medium' : 'dark:text-text-dark light:text-text-light'}`}
-                            >
-                              {m === 'none' ? '普通' : m === 'advantage' ? '优势' : '劣势'}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      <AdvDisadvToggle
+                        manualMode={manualMode}
+                        onChange={(m) => {
+                          setManualMode(m);
+                          setD20Values(m === 'none' ? [''] : ['', '']);
+                          setRollResult(null);
+                          setLockedDice(new Set());
+                        }}
+                        mode={rollMode}
+                        reasons={modeReasons}
+                      />
                     </div>
-                    {manualMode !== 'none' && (
-                      <span className="text-xs ml-2 text-primary">{manualMode === 'advantage' ? '优势' : '劣势'}（取{manualMode === 'advantage' ? '高' : '低'}）</span>
+                    {modeReasons.length > 0 && (
+                      <div className={`mt-1.5 rounded p-1.5 text-xs flex items-start gap-1.5 ${
+                        rollMode === 'advantage' ? 'bg-green-500/10 text-green-400' : 'bg-amber-500/10 text-amber-400'
+                      }`}>
+                        <span className="font-medium shrink-0">{rollMode === 'advantage' ? '优势来源' : '劣势来源'}</span>
+                        <span>{modeReasons.map(r => r.label).join('；')}</span>
+                      </div>
                     )}
                   </div>
 

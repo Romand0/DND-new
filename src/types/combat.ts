@@ -28,6 +28,8 @@ export interface Combatant {
   attacks?: NpcAttack[];
   /** 当前可用动作数（放映模式每回合恢复，模拟模式无限） */
   actions?: number;
+  /** 待消费的优劣势标记列表（发起者赋予此参战者的一次性优劣势来源，如协助/法术效果） */
+  pendingAdvantageSources?: PendingAdvantageSource[];
 }
 
 export interface NpcTemplate {
@@ -221,4 +223,72 @@ export interface CombatInventoryItem {
   equipmentData: Record<string, unknown>;
   obtainedAt: number;
   source?: string;
+}
+
+// =======================
+// 优劣势接口类型（advantageRules 引擎用）
+// =======================
+
+/** 检定场景类型 —— 引擎据此选择适用的检测器 */
+export type CheckScene =
+  | 'attack_melee'      // 近战攻击检定
+  | 'attack_ranged'     // 远程攻击检定（含投掷远程模式）
+  | 'attack_thrown'     // 投掷武器投掷模式（介于近战远程之间）
+  | 'spell_attack'      // 法术攻击检定（法术命中判定）
+  | 'saving_throw'      // 豁免检定（目标方）
+  | 'skill_check'       // 技能检定（预留，本次不实现弹窗）
+  | 'damage';           // 伤害结算（仅展示用，不参与检定判定）
+
+/** 优劣势来源类型标签（用于 UI 颜色区分 + 日志分类） */
+export type AdvantageSourceKind =
+  | 'equipment'    // 装备相关（不熟练护甲、stealthDisadvantage）
+  | 'positional'   // 位置相关（5 尺远程、射程段）
+  | 'pending'      // 待消费标记（协助动作、法术效果等一次性来源）
+  | 'action'       // 动作相关（dodge/hide 等，本次仅预留）
+  | 'condition'    // 状态相关（中毒/束缚等，本次仅预留）
+  | 'manual';      // DM 手动覆盖
+
+/** 优劣势原因条目 */
+export interface AdvantageReason {
+  /** 来源类型 */
+  kind: AdvantageSourceKind;
+  /** 具体来源描述（如"不熟练的护甲"、"协助（来自 队友A）"） */
+  label: string;
+  /** 关联的 pendingSourceId（如来自待消费标记） */
+  pendingSourceId?: string;
+}
+
+/** 优劣势检测结果 */
+export interface AdvantageResult {
+  advantage: AdvantageReason[];
+  disadvantage: AdvantageReason[];
+}
+
+/** 手动模式 */
+export type ManualMode = 'none' | 'advantage' | 'disadvantage';
+
+/** 待消费的优劣势标记（发起者赋予他人的一次性优劣势来源） */
+export interface PendingAdvantageSource {
+  /** 唯一实例 ID（crypto.randomUUID()） */
+  id: string;
+  /** 施加者 combatantId（可为空，表示环境/法术效果） */
+  fromId?: string;
+  /** 施加者名称（用于 UI 展示，避免 fromId 失效后丢失信息） */
+  fromName?: string;
+  /** 适用场景：'any' = 所有检定场景；或指定具体 scene */
+  scene: CheckScene | 'any';
+  /** 优势或劣势 */
+  mode: 'advantage' | 'disadvantage';
+  /** 原因说明（如"协助"、"祝福术"、"妖火"） */
+  reason: string;
+  /** 来源分类（用于 AdvantageReason.kind 映射） */
+  kind: AdvantageSourceKind;
+  /** 目标限制：仅对特定目标生效（如协助动作指定攻击 C 时）；不限制则对所有目标生效 */
+  targetId?: string;
+  /** 是否已消费（检定确认后置 true） */
+  consumed: boolean;
+  /** 创建回合（用于过期判定） */
+  createdRound: number;
+  /** 过期回合（含）；-1 = 永久直到消费 */
+  expireRound: number;
 }

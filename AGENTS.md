@@ -17,6 +17,8 @@
 | 改角色装备操作（增删、手持、穿戴） | `src/hooks/useEquipmentActions.ts` + `src/data/characterStore.ts` + `src/data/equipmentWear.ts` | 三者协作，不要只改其一 |
 | 改战斗逻辑（背包派生、AC、动作、弹药、装填） | `src/data/combatStore.ts` + `src/pages/CombatSession.tsx` | combatStore 是纯计算层，CombatSession 是交互层，分离要保持 |
 | 改攻击检定弹窗（射程、弹药、装填检查） | `src/components/CombatAttackModal.tsx` | 可用性检查统一走 `getAttackStatus`，不要在按钮里硬加判断 |
+| 改优劣势判定（检定 / 豁免 / 伤害展示） | `src/data/advantageRules.ts`（注册式引擎）+ `src/types/combat.ts` 的 `PendingAdvantageSource` | 不要在 `CombatAttackModal` / `CombatSpellModal` 里硬编码判定分支，新特性一律 `registerDetector` 或 `addPendingAdvantage`；手动覆盖优先级最高，优劣势互斥抵消 |
+| 改手动优劣势菜单 UI | `src/components/AdvDisadvToggle.tsx` | 被 `CombatAttackModal` / `CombatSpellModal` 共用，改一个组件即同步两处 |
 | 改回合待办（持续效果提醒） | `src/components/TurnTodoBoard.tsx` + `src/data/combatStore.ts` 的 `addTurnTodo / removeTurnTodo / toggleTurnTodo / resetTurnTodosForRound` | 待办数据内嵌在 CombatRecord，与 equipmentChanges 同层级；只在放映模式 + 已开始放映时显示 |
 | 改沙盘交互（双指缩放、白圈、拾取） | `src/components/Battleground.tsx` | 触摸事件链（pointerdown→move→up→click）脆弱，改之前先通读一遍 |
 | 改云 API 接口 | `functions/api/**/*.ts` + `src/lib/api.ts` | 改后端必须同步改前端 api 客户端；D1 操作在 SQL 里，别丢 WHERE |
@@ -135,6 +137,7 @@ src/
 │   ├── character.ts     Character · Attack · Equipment · HandSlot · Currency · Ability 等
 │   ├── combat.ts        CombatRecord · Combatant · RoundAction · EquipmentChanges
 │   │                    CombatActionType · NpcAttack · isOneActionCast()
+│   │                    CheckScene · AdvantageReason · PendingAdvantageSource · ManualMode
 │   ├── battleground.ts  ItemToken · Battleground · CombatantTokenPos
 │   ├── equipment.ts     EquipmentItem（装备库模板，不同于角色装备）
 │   ├── spell.ts         Spell（法术库）
@@ -153,6 +156,7 @@ src/
 │   │
 │   ├── equipmentFactory.ts   🌟 extractBaseFields()：字段标准化工厂
 │   ├── equipmentWear.ts      🌟 recalculateArmorClass()：穿戴后 AC 重算
+│   ├── advantageRules.ts     🌟 注册式优劣势引擎（detectAdvantage / resolveRollMode / registerDetector）
 │   ├── editorState.ts        编辑草稿（页间恢复）
 │   ├── diceService.ts        骰子投掷
 │   ├── attackBonus.ts        攻击加值/熟练/属性加成计算
@@ -180,6 +184,7 @@ src/
 │   │   ├── CombatSpellModal.tsx     法术施放（施法时间判定 → 动作消耗）
 │   │   ├── CombatantInfoPanel.tsx   参战者详情（动作面板 / 手部状态 / 变更信息编辑）
 │   │   ├── Battleground.tsx         🌟 沙盘（双指缩放锚点 / 白圈拖拽锁定 / 距离拾取）
+│   │   ├── AdvDisadvToggle.tsx      🌟 公共手动优劣势菜单（CombatAttackModal / CombatSpellModal 共用）
 │   │   └── TurnTodoBoard.tsx        回合待办看板（持续效果跨回合提醒，仅放映模式显示）
 │   │
 │   ├── 编辑器三件套：
@@ -524,6 +529,66 @@ const formEndRoundInput = useNumberInput(-1);
 - `resolveWriteCell` 返回类型：`{ round: number; combatantId: string }`（无 `combatantIdx`）
 - UI 中比较"当前回合之前的格子"：用 `findIndex` 实时计算，不读 `currentTurn.combatantIdx`
 - `rewindModal` 和 `applyRollback` 仍保留 `combatantIdx`（在点击时通过 `findIndex` 实时计算传入，不缓存）
+
+### 5.13 注册式优劣势引擎：`advantageRules.ts` + 待消费标记 `PendingAdvantageSource`
+
+**为什么用**：D&D 5e 的优劣势来源极多——装备（不熟练护甲 stealthDisadvantage）、位置（5 尺远程干扰、最大射程段）、动作（协助 Help、回避 Dodge、躲藏 Hide）、状态（中毒、束缚、隐形、妖火）、法术（祝福术、诅咒术）等。如果每加一个特性都去改 `CombatAttackModal` / `CombatSpellModal` 的硬编码判定分支，会让弹窗组件膨胀且难以跨场景复用（攻击检定 / 法术攻击 / 豁免检定都要重写一遍）。
+
+引擎设计为**纯函数 + 注册式检测器**，所有场景（attack_melee / attack_ranged / attack_thrown / spell_attack / saving_throw / damage）共用一份 `detectAdvantage(ctx)` 入口，新特性只需 `registerDetector(name, fn)` 注册一个返回 `AdvantageResult` 的纯函数，无需改引擎核心或弹窗组件。
+
+**核心抽象**（`data/advantageRules.ts`）：
+
+```ts
+// 上下文：所有检定场景共用
+interface AdvantageContext {
+  scene: CheckScene;            // attack_melee / spell_attack / saving_throw / damage ...
+  currentRound?: number;
+  attacker?: Combatant | null;  // 攻击者 / 施法者 / 待检定方
+  target?: Combatant | null;    // 目标（被攻击 / 被施法方）
+  attackerCharacter?: Character | null;
+  targetCharacter?: Character | null;
+  attack?: Attack | NpcAttack | null;
+  usageMode?: 'melee' | 'thrown';
+  attackerPos?: { col: number; row: number } | null;
+  targetPos?: { col: number; row: number } | null;
+  distanceCells?: number;
+  saveAbility?: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
+}
+
+// 检测器签名：纯函数，无副作用
+type AdvantageDetector = (ctx: AdvantageContext) => AdvantageResult;
+
+// 引擎入口
+detectAdvantage(ctx): AdvantageResult              // 执行所有已注册检测器并合并结果（只读）
+resolveRollMode(manual, auto): { mode, reasons }   // 手动优先 > 自动；优劣势互斥抵消（D&D 5e）
+getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消费的 pending 标记 ID
+```
+
+**三种来源（覆盖场景）**：
+1. **自动检测器**（`registerDetector`）：装备不熟练 / 5 尺远程干扰 / 射程段劣势。返回 `kind: 'equipment' | 'positional'`
+2. **待消费标记**（`PendingAdvantageSource`）：发起者赋予他人一次性优劣势——协助动作、法术效果（祝福术 / 妖光）。挂在被赋予者 `combatant.pendingAdvantageSources[]`，含 `scene` / `targetId` / `expireRound` 限制，**检定确认后才消费**（`combatStore.consumePendingAdvantage`）
+3. **手动覆盖**（`ManualMode`）：DM 在弹窗用 `AdvDisadvToggle` 临时指定，优先级最高，覆盖一切自动检测
+
+**合并规则**（D&D 5e 标准）：
+- 手动 ≠ 'none' → 用手动模式，原因显示「手动指定」
+- 自动优劣势同时存在 → 互相抵消，最终 mode='none'
+- 否则取自动检测结果
+
+**消费时机**（关键）：pending 标记是**纯只读**的，引擎检测时不修改 consumed 状态；调用方在检定确认（弹窗 `handleConfirm`）后用 `getMatchedPendingSourceIds(auto)` 取命中 ID，再调 `combatStore.consumePendingAdvantage(recordId, combatantId, ids)` 标记已消费。这样**未确认的检定不会误消费**（DM 关掉弹窗重来时还能再用）。
+
+**过期清理**：回合推进时（`useRoundTurn.advanceTurn`）对进入回合的参战者调 `combatStore.clearExpiredAdvantage(recordId, combatantId, currentRound)`，移除 `expireRound < currentRound` 的标记（`expireRound=-1` 表示永久直到消费）。
+
+**UI 复用**：`components/AdvDisadvToggle.tsx` 是公共手动菜单组件，被 `CombatAttackModal` / `CombatSpellModal` 复用，统一了「点 ⋯ 弹菜单 → 选正常 / 优势 / 劣势」交互。`CombatDamageModal` 通过 `rollMode` + `reasons` props 接收已结算的模式做展示（不再独立判定）。
+
+**做新的优劣势特性时**：
+- **持久 / 自动型**（如新装备属性、新位置规则）：写一个 detector 函数 → `registerDetector('myFeature', fn)` → 函数内根据 `ctx` 返回 `{ advantage: [], disadvantage: [...] }`。检测器只在模块加载时注册一次（顶层 `registerDetector(...)` 调用）
+- **一次性 / 赋予型**（如协助动作、新法术效果）：在动作 / 法术结算处调 `combatStore.addPendingAdvantage(recordId, targetId, { scene, mode, reason, kind, targetId?, expireRound })`，引擎的 `pending` 检测器会自动扫描未消费标记并返回
+- **新检定场景**：扩展 `CheckScene` 类型 + 在新弹窗构造 `AdvantageContext` → 调 `detectAdvantage` + `resolveRollMode` + `getMatchedPendingSourceIds`
+
+**❌ 严禁**：
+- 在 `CombatAttackModal` / `CombatSpellModal` 里硬编码优劣势判定分支（应改为注册 detector）
+- 在引擎检测时修改 `pendingAdvantageSources[i].consumed`（应只读，由调用方在 confirm 后消费）
+- 让弹窗组件直接读 `combatant.pendingAdvantageSources` 自行筛选（应通过 `detectPending` detector 统一返回）
 
 ---
 

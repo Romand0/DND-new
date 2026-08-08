@@ -139,6 +139,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     const next = findNextValidTurn(currentTurn.round, currentIdx + 1);
     if (next) {
       if (next.round > currentTurn.round) combatStore.resetTurnTodosForRound(record.id, next.round);
+      // 进入新参战者回合时清理其过期待消费优劣势标记
+      combatStore.clearExpiredAdvantage(record.id, next.combatantId, next.round);
       setCurrentTurn(next);
       resetCombatantActions(next.combatantId);
       takeTurnSnapshot(next.round, next.combatantId);
@@ -164,6 +166,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       combatStore.resetTurnTodosForRound(record.id, nextRound);
       const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
+        // 进入新回合首位参战者，清理其过期待消费优劣势标记
+        combatStore.clearExpiredAdvantage(record.id, firstInNew.combatantId, firstInNew.round);
         setCurrentTurn(firstInNew);
         resetCombatantActions(firstInNew.combatantId);
         takeTurnSnapshot(firstInNew.round, firstInNew.combatantId);
@@ -175,6 +179,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       combatStore.resetTurnTodosForRound(record.id, nextRound);
       const firstInNext = findNextValidTurn(nextRound, 0);
       if (firstInNext) {
+        // 进入新回合首位参战者，清理其过期待消费优劣势标记
+        combatStore.clearExpiredAdvantage(record.id, firstInNext.combatantId, firstInNext.round);
         setCurrentTurn(firstInNext);
         resetCombatantActions(firstInNext.combatantId);
         takeTurnSnapshot(firstInNext.round, firstInNext.combatantId);
