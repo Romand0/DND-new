@@ -41,7 +41,7 @@ import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
-import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2 } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2, PlayCircle, PauseCircle } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
@@ -123,6 +123,10 @@ export default function CombatSession() {
   const [playbackStarted, setPlaybackStarted] = useState(false);
   // 当前回合：{ round: 行索引, combatantIdx: 列索引, combatantId }
   const [currentTurn, setCurrentTurn] = useState<{ round: number; combatantIdx: number; combatantId: string } | null>(null);
+  // ✅ 暂停放映：true 时不处于任何参战者的回合，操作按模拟模式处理（不消耗动作、不计入当前回合）
+  const [playbackPaused, setPlaybackPaused] = useState(false);
+  // 暂停时临时保存的回合位置，恢复放映时回到该处
+  const pausedTurnRef = useRef<{ round: number; combatantIdx: number; combatantId: string } | null>(null);
   // 沙盘快照：用于开始放映时重置
   const playbackSnapshotRef = useRef<{ col: number; row: number; combatantId: string }[] | null>(null);
   // 确认弹窗：完成回合
@@ -563,24 +567,31 @@ export default function CombatSession() {
   const currentMode = (): 'simulation' | 'playback' =>
     record?.mode === 'playback' ? 'playback' : 'simulation';
 
-  // 该参战者当前是否还能发起动作（模拟模式恒可；放映模式 0 时禁止）
+  // 是否处于"有效放映回合中"：放映模式 + 已开始 + 未暂停 + 有当前回合
+  // （暂停期间所有动作判定按模拟模式处理：不消耗动作、不写当前回合格）
+  const isPlaybackActive = (): boolean =>
+    currentMode() === 'playback' && playbackStarted && !playbackPaused && !!currentTurn;
+
+  // 该参战者当前是否还能发起动作（模拟模式/放映暂停恒可；放映模式 0 时禁止）
   const canUseAction = (combatantId: string): boolean => {
     if (!record) return false;
-    if (currentMode() === 'simulation') return true;
+    if (!isPlaybackActive()) return true;
     const c = record.combatants.find(x => x.id === combatantId);
     if (!c) return false;
     return (typeof c.actions === 'number' ? c.actions : 1) > 0;
   };
 
-  // 消耗 1 个动作（写入 store，订阅机制自动刷新 UI）
+  // 消耗 1 个动作（写入 store，订阅机制自动刷新 UI）；暂停期间不消耗
   const consumeCombatantAction = (combatantId: string) => {
     if (!record) return;
-    combatStore.consumeAction(record.id, combatantId, currentMode());
+    if (!isPlaybackActive()) return;
+    combatStore.consumeAction(record.id, combatantId, 'playback');
   };
 
   // 放映模式：标记本回合已用过装填武器攻击（每回合只能攻击一次，优先级高于额外动作）
+  // 暂停期间不做标记，暂停解除前的操作不计入回合限制
   const markLoadingAttacked = (combatantId: string) => {
-    if (!record || currentMode() !== 'playback') return;
+    if (!isPlaybackActive()) return;
     const latest = combatStore.get(record.id);
     if (!latest) return;
     combatStore.update(record.id, {
@@ -870,6 +881,8 @@ export default function CombatSession() {
     }
     // 「保存并覆盖」分支：combatStore 中已是最新数据，无需额外还原
     setPlaybackStarted(false);
+    setPlaybackPaused(false);
+    pausedTurnRef.current = null;
     setCurrentTurn(null);
     playbackSnapshotRef.current = null;
     rollbackSnapshotRef.current = { initial: null, snapshots: {} };
@@ -877,6 +890,40 @@ export default function CombatSession() {
     if (record) snapDb.deleteSessionSnapshots(record.id).catch(() => {});
     setExitPlaybackModalOpen(false);
     commitModeChange('simulation');
+  };
+
+  // ✅ 暂停放映：清空 currentTurn，保存回合位置以便恢复
+  const pausePlayback = () => {
+    if (!record || !playbackStarted || playbackPaused) return;
+    pausedTurnRef.current = currentTurn;
+    setPlaybackPaused(true);
+    // 这里不清空 actions：只是"临时脱离"，恢复放映时仍保持原动作计数不变
+    // （暂停期间操作不消耗动作，恢复后按原状态继续）
+  };
+
+  // ✅ 恢复放映：回到暂停前保存的回合位置
+  const resumePlayback = () => {
+    if (!record || !playbackStarted || !playbackPaused) return;
+    const savedTurn = pausedTurnRef.current;
+    // 暂停期间用户可能把 rounds 截断或新增了轮次：若保存位置仍有效则直接用，否则重新扫描
+    if (savedTurn
+      && savedTurn.round < record.rounds.length
+      && savedTurn.combatantIdx < record.combatants.length
+      && record.combatants[savedTurn.combatantIdx]?.id === savedTurn.combatantId) {
+      setCurrentTurn(savedTurn);
+      checkAndAutoAdvance(savedTurn);
+    } else {
+      // 保存位置已失效（暂停期间做过回溯/截断等）：重新从头部扫描有效回合
+      const firstTurn = findNextValidTurn(0, 0);
+      setCurrentTurn(firstTurn);
+      if (firstTurn) {
+        resetCombatantActions(firstTurn.combatantId);
+        takeTurnSnapshot(firstTurn.round, firstTurn.combatantId);
+        checkAndAutoAdvance(firstTurn);
+      }
+    }
+    pausedTurnRef.current = null;
+    setPlaybackPaused(false);
   };
 
   // ✅ 启动放映：重置沙盘到快照状态，从选中的格子开始扫描
@@ -897,6 +944,8 @@ export default function CombatSession() {
       startCol = Math.max(0, colIdx);
     }
     const firstTurn = findNextValidTurn(startRound, startCol);
+    setPlaybackPaused(false);
+    pausedTurnRef.current = null;
     setCurrentTurn(firstTurn);
     setPlaybackStarted(true);
     // 进入第一回合时立即拍快照（takeTurnSnapshot 直接读 combatStore 最新值，无需等渲染）
@@ -904,6 +953,7 @@ export default function CombatSession() {
       // 放映模式：回合开始恢复该参战者可用动作为 1
       resetCombatantActions(firstTurn.combatantId);
       takeTurnSnapshot(firstTurn.round, firstTurn.combatantId);
+      checkAndAutoAdvance(firstTurn);
     }
   };
 
@@ -1119,14 +1169,13 @@ export default function CombatSession() {
   };
 
   // ✅ 确定沙盘攻击写入先攻表格的 {round, combatantId} 坐标
-  // 放映模式 → 当前回合；模拟模式 → 最后一轮
+  // 有效放映回合 → 当前回合（写入当前角色列）；模拟模式/暂停放映 → 最后一轮（写入攻击者本人列）
   const resolveWriteCell = (attackerId: string): { round: number; combatantId: string } | null => {
     if (!record) return null;
-    if (record.mode === 'playback' && playbackStarted && currentTurn) {
-      // 放映模式下强制写入当前回合（保证回合正确归属）
-      return { round: currentTurn.round, combatantId: currentTurn.combatantId };
+    if (isPlaybackActive()) {
+      return { round: currentTurn!.round, combatantId: currentTurn!.combatantId };
     }
-    // 模拟模式：最后一轮（不存在则创建第一轮）
+    // 模拟模式 / 暂停放映：最后一轮（不存在则创建第一轮），写入攻击者本人列
     const round = Math.max(0, record.rounds.length - 1);
     return { round, combatantId: attackerId };
   };
@@ -1721,18 +1770,44 @@ export default function CombatSession() {
           </button>
         </div>
         {record.mode === 'playback' && (
-          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-            {playbackStarted
-              ? currentTurn
-                ? `当前回合：${record.combatants[currentTurn.combatantIdx]?.name ?? '?'}（第 ${currentTurn.round + 1} 轮）`
-                : '放映已结束'
-              : '点击先攻表格的 ▶️ 开始放映'}
-          </span>
+          <div className="flex items-center gap-3 ml-auto">
+            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+              {playbackStarted
+                ? playbackPaused
+                  ? `⏸ 放映已暂停（脱离回合格）`
+                  : currentTurn
+                    ? `当前回合：${record.combatants[currentTurn.combatantIdx]?.name ?? '?'}（第 ${currentTurn.round + 1} 轮）`
+                    : '放映已结束'
+                : '点击先攻表格的 ▶️ 开始放映'}
+            </span>
+            {/* 暂停/恢复按钮：仅放映已开始时显示 */}
+            {playbackStarted && (
+              playbackPaused ? (
+                <button
+                  onClick={resumePlayback}
+                  className="px-2.5 py-1 rounded-md border border-green-500/50 text-green-500 hover:bg-green-500/10 transition-colors text-xs flex items-center gap-1"
+                  title="恢复放映，回到暂停前的回合"
+                >
+                  <PlayCircle className="w-3.5 h-3.5" />
+                  恢复放映
+                </button>
+              ) : (
+                <button
+                  onClick={pausePlayback}
+                  className="px-2.5 py-1 rounded-md border border-amber-500/50 text-amber-500 hover:bg-amber-500/10 transition-colors text-xs flex items-center gap-1"
+                  title="暂停放映，临时脱离回合进行全局编辑"
+                >
+                  <PauseCircle className="w-3.5 h-3.5" />
+                  暂停放映
+                </button>
+              )
+            )}
+          </div>
         )}
       </div>
 
-      {/* ✅ 回合待办展示板 —— 仅放映模式 + 已开始放映时显示 */}
-      {record.mode === 'playback' && playbackStarted && currentTurn && (
+      {/* ✅ 回合待办展示板 —— 仅放映模式 + 已开始 + 未暂停 + 当前回合存在时显示（暂停状态不显示） */}
+      {record.mode === 'playback' && playbackStarted && !playbackPaused && currentTurn && (
         <TurnTodoBoard
           record={record}
           currentTurn={currentTurn}
@@ -1853,7 +1928,8 @@ export default function CombatSession() {
                   const isSelected = selectedCell?.round === roundIndex && selectedCell?.combatantId === c.id;
                   // 放映模式判断
                   const isPlayback = record.mode === 'playback';
-                  const isCurrentTurn = isPlayback && playbackStarted && currentTurn?.round === roundIndex && currentTurn?.combatantId === c.id;
+                  // 暂停放映：不高亮任何回合格（因为不处于任何参战者的回合）
+                  const isCurrentTurn = isPlayback && playbackStarted && !playbackPaused && currentTurn?.round === roundIndex && currentTurn?.combatantId === c.id;
                   // 放映模式下：
                   // - 未开始放映：所有非被突袭格子可点击（用于选择放映起点）
                   // - 已开始放映：当前回合格子可记录/手动输入；其它任何已发生或后续格子也允许点击（用于回溯）
@@ -2264,6 +2340,7 @@ export default function CombatSession() {
           loadedWeapons={record?.loadedWeapons}
           loadingAttackedThisRound={record?.loadingAttackedThisRound}
           combatMode={currentMode()}
+          playbackTurnActive={isPlaybackActive()}
           onLoadedChange={(key, loaded) => {
             if (!record) return;
             combatStore.update(record.id, {
@@ -2843,8 +2920,8 @@ export default function CombatSession() {
         </div>
       )}
 
-      {/* ✅ 完成回合悬浮按钮 —— 放映模式已开始时显示 */}
-      {record.mode === 'playback' && playbackStarted && currentTurn && (
+      {/* ✅ 完成回合悬浮按钮 —— 放映模式已开始 + 未暂停 + 当前回合存在时显示（暂停状态不显示） */}
+      {record.mode === 'playback' && playbackStarted && !playbackPaused && currentTurn && (
         <button
           onClick={() => setConfirmEndTurnOpen(true)}
           className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-primary text-white font-medium shadow-2xl hover:bg-primary/90 transition-all hover:scale-105 flex items-center gap-2"

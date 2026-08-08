@@ -55,6 +55,12 @@ interface Props {
   loadingAttackedThisRound?: Record<string, boolean>;
   /** 战斗模式：playback=放映（装填武器每回合只能攻击一次），simulation=模拟（无限制） */
   combatMode?: 'simulation' | 'playback';
+  /**
+   * 是否处于"有效放映回合中"（放映+已开始+未暂停+有当前回合）。
+   * 暂停放映或非放映模式下为 false，此时不应用回合动作限制（不消耗动作、不检查装填武器每回合一次）。
+   * 不填则默认回退为 combatMode === 'playback'（保持向后兼容）。
+   */
+  playbackTurnActive?: boolean;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -62,7 +68,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive }: Props) {
   // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
   const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('attacks');
@@ -322,8 +328,10 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
       // 装填属性武器：检查装填状态和另一只手
       if (isLoadingWeapon(attack)) {
-        // 放映模式：每回合只能用装填武器攻击一次，优先级高于额外动作
-        if (combatMode === 'playback' && loadingAttackedThisRound?.[attacker.id]) {
+        // 有效放映回合中：每回合只能用装填武器攻击一次，优先级高于额外动作
+        // 暂停放映下 playbackTurnActive=false，不应用本回合限制
+        const turnActive = playbackTurnActive ?? (combatMode === 'playback');
+        if (turnActive && loadingAttackedThisRound?.[attacker.id]) {
           return { usable: false, reason: '本回合已用过装填武器攻击' };
         }
         const loaded = getWeaponLoaded(attack);
