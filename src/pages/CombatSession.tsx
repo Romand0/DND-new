@@ -2254,14 +2254,16 @@ export default function CombatSession() {
             alert('该参战者本回合已没有可用动作');
             return;
           }
-          // main 上处理：从 battlegroundStore 读取坐标，一并传入攻击检定弹窗
+          // 从最新 record 重取对象（pendingAdvantageSources 必须是协助后最新状态，不能用闭包 capture 的旧 snapshot）
+          const latestAttacker = record.combatants.find(c => c.id === attacker.id) ?? attacker;
+          const latestTarget = record.combatants.find(c => c.id === target.id) ?? target;
           const bg = record.id ? battlegroundStore.get(record.id) : null;
           const tokens = bg?.tokens ?? [];
           const attackerPos = tokens.find(t => t.combatantId === attacker.id);
           const targetPos = tokens.find(t => t.combatantId === target.id);
           setAttackModal({
-            attacker,
-            target,
+            attacker: latestAttacker,
+            target: latestTarget,
             attackerPos: attackerPos ? { col: attackerPos.col, row: attackerPos.row } : undefined,
             targetPos: targetPos ? { col: targetPos.col, row: targetPos.row } : undefined,
           });
@@ -2272,8 +2274,10 @@ export default function CombatSession() {
             alert('该参战者本回合已没有可用动作');
             return;
           }
+          const latestCaster = record.combatants.find(c => c.id === caster.id) ?? caster;
+          const latestTarget = record.combatants.find(c => c.id === target.id) ?? target;
           // 法术按钮：打开独立法术施放弹窗
-          setSpellModal({ caster, target });
+          setSpellModal({ caster: latestCaster, target: latestTarget });
         }}
         onPickupItem={(itemToken, picker) => {
           // 拾起掉落物品：体型小型及以上 + 智力4以上 + 5尺内（1格）
