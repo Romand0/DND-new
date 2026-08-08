@@ -240,6 +240,11 @@ export type CheckScene =
   | 'skill_check'       // 技能检定（含技能熟练加值的能力检定子集）
   | 'damage';           // 伤害结算（仅展示用，不参与检定判定）
 
+/** 场景通配组 —— PendingAdvantageSource.scene 可用，引擎内按 sceneMatches 前缀匹配 */
+export type CheckSceneGroup =
+  | 'attack'      // 通配所有攻击检定：attack_melee / attack_ranged / attack_thrown / spell_attack
+  | 'check';      // 通配属性+技能检定：ability_check / skill_check
+
 /** 优劣势来源类型标签（用于 UI 颜色区分 + 日志分类） */
 export type AdvantageSourceKind =
   | 'equipment'    // 装备相关（不熟练护甲、stealthDisadvantage）
@@ -276,8 +281,8 @@ export interface PendingAdvantageSource {
   fromId?: string;
   /** 施加者名称（用于 UI 展示，避免 fromId 失效后丢失信息） */
   fromName?: string;
-  /** 适用场景：'any' = 所有检定场景；或指定具体 scene */
-  scene: CheckScene | 'any';
+  /** 适用场景：'any' = 所有检定场景；'attack'/'check' = 通配组；或指定具体 scene */
+  scene: CheckScene | CheckSceneGroup | 'any';
   /** 优势或劣势 */
   mode: 'advantage' | 'disadvantage';
   /** 原因说明（如"协助"、"祝福术"、"妖火"） */

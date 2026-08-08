@@ -786,6 +786,28 @@ const combatStore = {
     save(records);
   },
 
+  /** 批量添加待消费优劣势标记（原子写入，一次 save + notify） */
+  addPendingAdvantages(recordId: string, combatantId: string, sources: Omit<PendingAdvantageSource, 'id' | 'consumed'>[]): void {
+    if (!sources || sources.length === 0) return;
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const combatant = record.combatants[idx];
+    const fulls: PendingAdvantageSource[] = sources.map(s => ({
+      ...s,
+      id: crypto.randomUUID(),
+      consumed: false,
+    }));
+    record.combatants[idx] = {
+      ...combatant,
+      pendingAdvantageSources: [...(combatant.pendingAdvantageSources || []), ...fulls],
+    };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
   /** 批量消费待消费标记（检定确认后调用，置 consumed=true） */
   consumePendingAdvantage(recordId: string, combatantId: string, sourceIds: string[]): void {
     if (!sourceIds || sourceIds.length === 0) return;

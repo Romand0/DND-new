@@ -38,7 +38,7 @@ import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, CheckScene } from '@/types/combat';
+import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2, PlayCircle, PauseCircle } from 'lucide-react';
@@ -2659,30 +2659,36 @@ export default function CombatSession() {
                     type="button"
                     onClick={() => {
                       if (!record) return;
-                      const scenes: { scene: CheckScene | 'any'; reason: string; distance: boolean }[] = [
-                        { scene: 'ability_check', reason: `${from.name} 协助：属性检定优势`, distance: false },
-                        { scene: 'skill_check', reason: `${from.name} 协助：技能检定优势`, distance: false },
-                        { scene: 'attack_melee', reason: `${from.name} 协助：近战攻击优势（目标须在其 5 尺内）`, distance: true },
-                        { scene: 'attack_ranged', reason: `${from.name} 协助：远程攻击优势（目标须在其 5 尺内）`, distance: true },
-                        { scene: 'attack_thrown', reason: `${from.name} 协助：投掷攻击优势（目标须在其 5 尺内）`, distance: true },
-                        { scene: 'spell_attack', reason: `${from.name} 协助：法术攻击优势（目标须在其 5 尺内）`, distance: true },
-                      ];
                       const curRound = currentTurn?.round ?? 0;
-                      for (const s of scenes) {
-                        combatStore.addPendingAdvantage(record.id, f.id, {
+                      // 场景通配 + 批量写入：3 条标记覆盖全部场景
+                      // - 'check' 通配 ability_check + skill_check（无条件）
+                      // - 'attack' 通配 4 类攻击检定（requireTargetNearFromId 限制 5 尺内）
+                      combatStore.addPendingAdvantages(record.id, f.id, [
+                        {
                           fromId: from.id,
                           fromName: from.name,
-                          scene: s.scene,
+                          scene: 'check',
                           mode: 'advantage',
-                          reason: s.reason,
+                          reason: `${from.name} 协助：属性/技能检定优势`,
                           kind: 'action',
-                          targetId: undefined,
-                          requireTargetNearFromId: s.distance,
+                          requireTargetNearFromId: false,
                           expireOnCombatantId: from.id,
                           createdRound: curRound,
-                          expireRound: curRound + 999, // 实际由 expireOnCombatantId 先清理
-                        });
-                      }
+                          expireRound: -1,
+                        },
+                        {
+                          fromId: from.id,
+                          fromName: from.name,
+                          scene: 'attack',
+                          mode: 'advantage',
+                          reason: `${from.name} 协助：攻击检定优势（目标须在其 5 尺内）`,
+                          kind: 'action',
+                          requireTargetNearFromId: true,
+                          expireOnCombatantId: from.id,
+                          createdRound: curRound,
+                          expireRound: -1,
+                        },
+                      ]);
                       // 消耗 1 个动作
                       consumeCombatantAction(from.id);
                       // 写入回合记录

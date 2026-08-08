@@ -4,12 +4,36 @@ import type {
   Combatant,
   NpcAttack,
   CheckScene,
+  CheckSceneGroup,
   AdvantageReason,
   AdvantageResult,
   ManualMode,
   PendingAdvantageSource,
 } from '@/types/combat';
 import type { Attack, Character } from '@/types/character';
+
+// =======================
+// 场景匹配（通配组 → 具体场景）
+// =======================
+
+const SCENE_GROUPS: Record<CheckSceneGroup, CheckScene[]> = {
+  attack: ['attack_melee', 'attack_ranged', 'attack_thrown', 'spell_attack'],
+  check: ['ability_check', 'skill_check'],
+};
+
+/** 判断 sourceScene（可能是通配组/any/具体场景）是否命中当前 ctx.scene */
+export function sceneMatches(
+  sourceScene: CheckScene | CheckSceneGroup | 'any',
+  ctxScene: CheckScene,
+): boolean {
+  if (sourceScene === 'any') return true;
+  if (sourceScene === ctxScene) return true;
+  // 通配组匹配
+  if (sourceScene in SCENE_GROUPS) {
+    return SCENE_GROUPS[sourceScene].includes(ctxScene);
+  }
+  return false;
+}
 
 // =======================
 // 上下文 & 检测器类型
@@ -167,8 +191,8 @@ function detectPending(ctx: AdvantageContext): AdvantageResult {
     // 过期检查（expireRound 与 expireOnCombatantId 任一命中即跳过；
     // expireOnCombatantId 过期由 useRoundTurn 在回合推进时清理，此处兜底避免未清理时误命中）
     if (s.expireRound !== -1 && currentRound !== undefined && currentRound > s.expireRound) continue;
-    // 场景匹配
-    if (s.scene !== 'any' && s.scene !== ctx.scene) continue;
+    // 场景匹配（支持通配组 'attack'/'check' + 'any' + 精确匹配）
+    if (!sceneMatches(s.scene, ctx.scene)) continue;
     // 目标限制（仅针对指定目标生效）
     if (s.targetId && ctx.target && s.targetId !== ctx.target.id) continue;
     // requireTargetNearFromId：必须 ctx.target 与 fromId（发出者）切比雪夫距离 ≤ 1
