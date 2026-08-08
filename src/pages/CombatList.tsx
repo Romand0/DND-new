@@ -3,13 +3,15 @@ import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
 import battlegroundStore from '@/data/battlegroundStore';
-import type { CombatRecord } from '@/types/combat';
-import { Plus, Trash2, Download, Upload, FileJson } from 'lucide-react';
+import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
+import { Plus, Zap, Trash2, Download, Upload, FileJson } from 'lucide-react';
+import QuickCreateCombatDialog, { type QuickCreateResult } from '@/components/combat/QuickCreateCombatDialog';
 
 export default function CombatList() {
   const { isDM } = useAuth();
   const navigate = useNavigate();
   const [records, setRecords] = useState<CombatRecord[]>([]);
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
   // 加载战斗记录
   const loadRecords = useCallback(() => {
@@ -23,6 +25,54 @@ export default function CombatList() {
     const unsubscribe = combatStore.subscribe(loadRecords);
     return unsubscribe;
   }, [loadRecords]);
+
+  // 快速创建战斗：弹窗填名称 + 选 PC + 填先攻 → 自动建表 + 第一轮 + 跳转
+  const handleQuickCreateConfirm = (result: QuickCreateResult) => {
+    try {
+      // 1) 构造 combatants（按先攻高→低排序，同先攻保持输入顺序）
+      const combatantBases: Omit<Combatant, 'id'>[] = result.combatants.map(c => ({
+        name: c.name,
+        initiative: c.initiative,
+        ac: c.ac,
+        maxHp: c.maxHp,
+        currentHp: c.currentHp,
+        isPc: true,
+        characterId: c.characterId,
+        speed: c.speed,
+        note: '',
+        actions: 1,
+      }));
+      // 按先攻降序，稳定排序（index 作为 tiebreaker 保持原序）
+      combatantBases.sort((a, b) => b.initiative - a.initiative);
+
+      // 2) 创建战斗记录（第一轮 rounds 为空，下面再补）
+      const newRecord = combatStore.create(result.title, combatantBases);
+      if (!newRecord?.id) {
+        alert('创建失败：未获取到战斗ID');
+        loadRecords();
+        setQuickCreateOpen(false);
+        return;
+      }
+
+      // 3) 补充第一轮 RoundAction：每个参战者一个空字符串格子
+      const firstRound: RoundAction = {};
+      newRecord.combatants.forEach(c => { firstRound[c.id] = ''; });
+      combatStore.update(newRecord.id, {
+        rounds: [firstRound],
+        updatedAt: Date.now(),
+      });
+
+      // 4) 初始化对应沙盘：getOrCreate 若不存在则按 medium 尺寸创建
+      battlegroundStore.getOrCreate(newRecord.id);
+
+      console.log('[CombatList] 快速创建战斗成功，ID:', newRecord.id);
+      setQuickCreateOpen(false);
+      navigate(`/combat/${newRecord.id}`);
+    } catch (e) {
+      console.error('[CombatList] 快速创建战斗失败:', e);
+      alert('创建失败，请重试');
+    }
+  };
 
   // 创建战斗（创建后自动跳转）
   const handleCreate = () => {
@@ -113,6 +163,13 @@ export default function CombatList() {
             <input type="file" accept=".json" className="hidden" onChange={handleImport} />
           </label>
           <button
+            onClick={() => setQuickCreateOpen(true)}
+            className="px-4 py-2 border border-primary text-primary hover:bg-primary/10 rounded-lg transition-colors flex items-center gap-2"
+          >
+            <Zap className="w-4 h-4" />
+            快速创建
+          </button>
+          <button
             onClick={handleCreate}
             className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-2"
           >
@@ -161,6 +218,13 @@ export default function CombatList() {
           ))}
         </div>
       )}
+
+      {/* 快速创建战斗弹窗 */}
+      <QuickCreateCombatDialog
+        open={quickCreateOpen}
+        onClose={() => setQuickCreateOpen(false)}
+        onConfirm={handleQuickCreateConfirm}
+      />
     </div>
   );
 }
