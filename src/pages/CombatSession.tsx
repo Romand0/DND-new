@@ -1807,7 +1807,7 @@ export default function CombatSession() {
         );
       })()}
 
-      {/* ✅ 左下角状态栏：可用动作 + 移动力 + 完成回合按钮（合并，避免窄屏重叠） */}
+      {/* ✅ 左下角仿显示屏状态栏：可用动作 + 移动力 + 完成回合按钮（深蓝偏紫底 + 白字等宽字体） */}
       {(() => {
         const playbackMode = record.mode === 'playback';
         let hudId: string | null = null;
@@ -1828,31 +1828,37 @@ export default function CombatSession() {
           ? (active ? `${remaining}/${totalSpeed}` : `${totalSpeed}`)
           : '—';
         const showEndTurn = active && !!currentTurn;
+        // 仿显示屏：深蓝偏紫底 + 白字 + 等宽字体
+        const screenBg = 'bg-indigo-950/90';
+        const screenBorder = 'border border-indigo-400/20';
+        const labelCls = (isZero: boolean) =>
+          active
+            ? (isZero ? 'text-red-400' : 'text-white')
+            : 'text-indigo-300/60';
         return (
-          <div className="fixed bottom-6 left-6 z-30 flex items-center gap-2 px-4 py-2 rounded-lg backdrop-blur shadow-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark/90 light:bg-card-light/90 max-w-[calc(100vw-3rem)]">
-            <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-              active
-                ? (actions <= 0 ? 'bg-danger/20 text-danger' : 'bg-primary/20 text-primary')
-                : 'dark:bg-white/5 light:bg-black/5 dark:text-text-dark-muted light:text-text-light-muted'
-            }`}>
-              动作 {actionText}
-            </span>
-            <span className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap ${
-              active
-                ? (remaining <= 0 ? 'bg-danger/20 text-danger' : 'bg-info/20 text-info')
-                : 'dark:bg-white/5 light:bg-black/5 dark:text-text-dark-muted light:text-text-light-muted'
-            }`}>
-              移动 {moveText}尺
-            </span>
+          <div className={`fixed bottom-6 left-6 z-30 flex items-center gap-3 px-4 py-3 rounded-lg backdrop-blur shadow-lg ${screenBorder} ${screenBg} font-mono max-w-[calc(100vw-3rem)]`}>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-indigo-300/50 tracking-wider">ACT</span>
+              <span className={`text-sm font-bold ${labelCls(actions <= 0)}`}>{actionText}</span>
+            </div>
+            <span className="text-indigo-400/30">|</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-indigo-300/50 tracking-wider">MOV</span>
+              <span className={`text-sm font-bold ${labelCls(remaining <= 0)}`}>{moveText}</span>
+              <span className="text-[10px] text-indigo-300/50">ft</span>
+            </div>
             {showEndTurn && (
-              <button
-                onClick={() => setConfirmEndTurnOpen(true)}
-                className="px-3 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:bg-primary/90 transition-colors flex items-center gap-1 whitespace-nowrap"
-                title="完成当前回合，进入下一个"
-              >
-                <SkipForward className="w-3.5 h-3.5" />
-                完成回合
-              </button>
+              <>
+                <span className="text-indigo-400/30">|</span>
+                <button
+                  onClick={() => setConfirmEndTurnOpen(true)}
+                  className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap"
+                  title="完成当前回合，进入下一个"
+                >
+                  <SkipForward className="w-3.5 h-3.5" />
+                  完成回合
+                </button>
+              </>
             )}
           </div>
         );
