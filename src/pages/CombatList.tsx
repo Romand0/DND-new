@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
-import { Plus, Zap, Trash2, Download, Upload, FileJson } from 'lucide-react';
+import { Zap, Trash2, Download, Upload, FileJson } from 'lucide-react';
 import QuickCreateCombatDialog, { type QuickCreateResult } from '@/components/combat/QuickCreateCombatDialog';
 
 export default function CombatList() {
@@ -70,30 +70,6 @@ export default function CombatList() {
       navigate(`/combat/${newRecord.id}`);
     } catch (e) {
       console.error('[CombatList] 快速创建战斗失败:', e);
-      alert('创建失败，请重试');
-    }
-  };
-
-  // 创建战斗（创建后自动跳转）
-  const handleCreate = () => {
-    const defaultTitle = `战斗记录 ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    const title = prompt('请输入战斗名称', defaultTitle);
-    if (!title?.trim()) {
-      alert('战斗名称不能为空');
-      return;
-    }
-    try {
-      const newRecord = combatStore.create(title.trim(), []);
-      if (newRecord?.id) {
-        console.log('[CombatList] 创建战斗成功，ID:', newRecord.id);
-        // 强制跳转，不带多余参数，确保路由栈正确
-        navigate(`/combat/${newRecord.id}`);
-      } else {
-        alert('创建失败：未获取到战斗ID');
-        loadRecords();
-      }
-    } catch (e) {
-      console.error('[CombatList] 创建战斗失败:', e);
       alert('创建失败，请重试');
     }
   };
@@ -164,17 +140,10 @@ export default function CombatList() {
           </label>
           <button
             onClick={() => setQuickCreateOpen(true)}
-            className="px-4 py-2 border border-primary text-primary hover:bg-primary/10 rounded-lg transition-colors flex items-center gap-2"
+            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-2"
           >
             <Zap className="w-4 h-4" />
             快速创建
-          </button>
-          <button
-            onClick={handleCreate}
-            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            创建战斗
           </button>
         </div>
       </div>
@@ -183,7 +152,7 @@ export default function CombatList() {
       {records.length === 0 ? (
         <div className="text-center py-12 rounded-xl border-2 border-dashed dark:border-border-dark light:border-border-light">
           <FileJson className="w-16 h-16 mx-auto mb-4 opacity-30 dark:text-text-dark-muted light:text-text-light-muted" />
-          <p className="dark:text-text-dark-muted light:text-text-light-muted">暂无战斗记录，点击「创建战斗」开始</p>
+          <p className="dark:text-text-dark-muted light:text-text-light-muted">暂无战斗记录，点击「快速创建」开始</p>
         </div>
       ) : (
         <div className="space-y-3">
