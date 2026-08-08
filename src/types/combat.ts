@@ -18,7 +18,9 @@ export interface Combatant {
   characterId?: string;
   note?: string;
   speed?: number;
-  /** NPC 实例子 ID，格式 `{templateId}-{random}`，从模板创建时自动生成 */
+  /** 本回合已移动尺数（D&D 5e：每回合开始归零，移动后累加，达到 speed 后不能再走）；仅放映模式下使用，模拟模式始终视为 0 */
+  movementUsed?: number;
+  /** NPC 实例子 ID，格式 `{templateId}-{random}`，从模板创建时自动带入 */
   childId?: string;
   /** 模板 ID 引用（从模板创建时带入） */
   templateId?: string;

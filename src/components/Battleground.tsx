@@ -37,13 +37,30 @@ interface Props {
   onUpdateChanges?: (combatantId: string, changes: EquipmentChanges) => void;
   /** 战斗模式：'simulation' 模拟模式（无回合，动作无限），'playback' 放映模式（有回合，动作有限） */
   mode?: 'simulation' | 'playback';
+  /** 是否处于有效放映回合（放映中且未暂停）；移动消耗判定依赖此值 */
+  playbackActive?: boolean;
   /** 各参战者当前可用动作数，key 为 combatantId（仅放映模式使用） */
   actionsMap?: Record<string, number>;
+  /** 各参战者剩余移动力（尺），key 为 combatantId；沙盘展示范围 / 合法性校验均以它为准 */
+  remainingMovementMap?: Record<string, number>;
+  /** 某次移动实际生效后：要求父层扣掉 movementUsed（放映中按 D&D 5e 扣减，模拟/暂停不扣）。
+   *  返回 true 表示允许本次移动，false 表示移动力不足要拒绝。 */
+  onConsumeMovement?: (combatantId: string, feet: number) => boolean;
+  /** 撤回上一次移动时：把对应距离还给参战者 movementUsed。距离根据本组件内部栈读取。 */
+  onRefundMovement?: (combatantId: string, feet: number) => void;
+  /** 选中参战者变更（沙盘单击棋子触发）—— 父层用它同步左上角 HUD */
+  onSelectionChange?: (combatantId: string | null) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', actionsMap = {} }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange }: Props) {
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
+  // 同步选中状态到父层
+  useEffect(() => {
+    onSelectionChange?.(selectedCombatantId);
+  }, [selectedCombatantId, onSelectionChange]);
+  // 记录每次成功 placeToken 的位移距离（与 sandbox moveHistory 对齐，最多 5 条），用于撤回时 onRefundMovement 回退
+  const lastMoveDistanceStack = useRef<Array<{ combatantId: string; feet: number }>>([]);
   const [eraserMode, setEraserMode] = useState(false);
   // 双击弹窗
   const [doubleClickedCombatant, setDoubleClickedCombatant] = useState<Combatant | null>(null);
@@ -158,20 +175,24 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   // 掉落物对话框容器 ref（用于白圈"保持展开"区域检测）
   const dropDialogRef = useRef<HTMLDivElement | null>(null);
 
-  // 选中棋子的速度（用于悬浮标签显示）
-  const selectedSpeed = useMemo(() => {
+  // 选中棋子的剩余移动力（用于悬浮标签 / 移动范围覆盖）
+  const selectedRemainingMovement = useMemo(() => {
     if (!selectedCombatantId) return null;
     const c = combatantMap.get(selectedCombatantId);
-    return c?.speed ?? null;
-  }, [selectedCombatantId, combatantMap]);
+    if (!c) return null;
+    const speed = c.speed ?? 0;
+    const remaining = remainingMovementMap?.[selectedCombatantId];
+    return typeof remaining === 'number' ? Math.max(0, Math.min(remaining, speed)) : speed;
+  }, [selectedCombatantId, combatantMap, remainingMovementMap]);
 
   // 选中棋子的最大移动范围（切比雪夫距离：8方向都算1格，5尺/格）
   const moveRangeSet = useMemo(() => {
     if (!bg || !selectedCombatantId) return new Set<string>();
     const token = tokenMap.get(selectedCombatantId);
     const combatant = combatantMap.get(selectedCombatantId);
-    if (!token || !combatant || !combatant.speed) return new Set<string>();
-    const range = Math.floor(combatant.speed / 5);
+    if (!token || !combatant) return new Set<string>();
+    const remaining = selectedRemainingMovement ?? combatant.speed ?? 0;
+    const range = Math.floor(remaining / 5);
     if (range <= 0) return new Set<string>();
     const set = new Set<string>();
     const preset = GRID_PRESETS[bg.size];
@@ -186,7 +207,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       }
     }
     return set;
-  }, [selectedCombatantId, tokenMap, combatantMap, bg?.size]);
+  }, [selectedCombatantId, tokenMap, combatantMap, bg?.size, selectedRemainingMovement]);
 
   if (!bg) return null;
 
@@ -555,6 +576,31 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       if (existingCombatantId) battlegroundStore.removeToken(sessionId, existingCombatantId);
       return;
     }
+    // 公共：执行移动前的移动力合法性校验 + 消耗回调。返回 true 允许执行 placeToken
+    const attemptMove = (moverId: string, from: { col: number; row: number }, to: { col: number; row: number }): boolean => {
+      const distCells = Math.max(Math.abs(to.col - from.col), Math.abs(to.row - from.row));
+      if (distCells <= 0) {
+        return true; // 原地不动：允许（当作选中操作）
+      }
+      const feet = distCells * 5;
+      const combatant = combatantMap.get(moverId);
+      const speed = combatant?.speed ?? 0;
+      // 剩余移动力不足：禁止（仅当我们确实追踪剩余力时才禁止；未传 remainingMovementMap 则允许）
+      if (Object.keys(remainingMovementMap || {}).length > 0 && speed > 0) {
+        const remaining = remainingMovementMap?.[moverId] ?? speed;
+        if (remaining < feet) {
+          alert(`移动力不足：需要 ${feet} 尺，但只剩 ${remaining} 尺`);
+          return false;
+        }
+      }
+      const allow = onConsumeMovement ? onConsumeMovement(moverId, feet) : true;
+      if (allow) {
+        // 记录到撤回栈（最多 5 条）
+        lastMoveDistanceStack.current.push({ combatantId: moverId, feet });
+        if (lastMoveDistanceStack.current.length > 5) lastMoveDistanceStack.current.shift();
+      }
+      return allow;
+    };
     // 放映模式：检查是否只允许某个角色可操作
     if (playbackOnlyMovableId) {
       // 已选中参战者
@@ -582,6 +628,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           setSelectedCombatantId(null);
           return;
         }
+        const src = tokenMap.get(selectedCombatantId);
+        if (src && !attemptMove(selectedCombatantId, src, { col, row })) return;
         battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
         setSelectedCombatantId(null);
         return;
@@ -611,6 +659,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         return;
       }
       // 目标格为空 → 移动/放置到该格
+      const src = tokenMap.get(selectedCombatantId);
+      if (src && !attemptMove(selectedCombatantId, src, { col, row })) return;
       battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
       setSelectedCombatantId(null);
       return;
@@ -631,7 +681,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   };
 
   const handleUndo = () => {
-    battlegroundStore.undoMove(sessionId);
+    const ok = battlegroundStore.undoMove(sessionId);
+    if (ok) {
+      const last = lastMoveDistanceStack.current.pop();
+      if (last) onRefundMovement?.(last.combatantId, last.feet);
+    }
     setSelectedCombatantId(null);
   };
 
@@ -845,10 +899,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           }
         }}
       >
-        {/* 悬浮标签：移动距离 */}
-        {selectedSpeed != null && moveRangeSet.size > 0 && (
+        {/* 悬浮标签：移动距离（显示剩余移动力） */}
+        {selectedRemainingMovement != null && moveRangeSet.size > 0 && (
           <div className="absolute top-2 left-2 z-10 px-2 py-1 text-xs rounded-md bg-info/80 text-white pointer-events-none shadow-md">
-            移动：{selectedSpeed}尺（{Math.floor(selectedSpeed / 5)}格）
+            剩余移动：{selectedRemainingMovement}尺（{Math.floor(selectedRemainingMovement / 5)}格）
           </div>
         )}
         <div
