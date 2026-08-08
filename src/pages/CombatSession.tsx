@@ -156,6 +156,8 @@ export default function CombatSession() {
 
   // ✅ 自动推进锁：防止昏迷角色回合 setTimeout 递归
   const autoAdvanceRef = useRef(false);
+  // ✅ 自动推进定时器 ID：手动推进时清除，防止竞态
+  const autoAdvanceTimerRef = useRef<number | null>(null);
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -907,7 +909,11 @@ export default function CombatSession() {
     playbackSnapshotRef.current = null;
     rollbackSnapshotRef.current = { initial: null, snapshots: {} };
     // 退出放映模式清理 IndexedDB 快照（避免磁盘长期堆积）
-    if (record) snapDb.deleteSessionSnapshots(record.id).catch(() => {});
+    if (record) {
+      snapDb.deleteSessionSnapshots(record.id).catch((e) => {
+        console.warn('[CombatSession] 清理快照失败（磁盘满/QuotaExceeded/IDB损坏）:', e);
+      });
+    }
     setExitPlaybackModalOpen(false);
     commitModeChange('simulation');
   };
@@ -1095,6 +1101,12 @@ export default function CombatSession() {
 
   // ✅ 推进到下一个回合（用户点击"完成回合"时）
   const advanceTurn = () => {
+    // 手动推进时清除自动推进定时器，防止与 checkAndAutoAdvance 的 setTimeout 竞态
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+      autoAdvanceRef.current = false;
+    }
     if (!currentTurn || !record) return;
     const currentIdx = record.combatants.findIndex(c => c.id === currentTurn.combatantId);
     const next = findNextValidTurn(currentTurn.round, currentIdx + 1);
@@ -1162,8 +1174,9 @@ export default function CombatSession() {
     const handled = handleComatoseTurn(c, turn.round);
     if (!handled) return;
     autoAdvanceRef.current = true;
-    setTimeout(() => {
+    autoAdvanceTimerRef.current = window.setTimeout(() => {
       autoAdvanceRef.current = false;
+      autoAdvanceTimerRef.current = null;
       advanceTurn();
     }, 750);
   };
@@ -1332,7 +1345,10 @@ export default function CombatSession() {
     // 6) 此回合格在回溯后需要重新拍快照：清掉内存+IDB 中旧快照，下次进入重拍
     const memKey2 = `${round}:${combatantId}`;
     delete rollbackSnapshotRef.current.snapshots[memKey2];
-    snapDb.getTurnSnapshot(record.id, round, combatantId).then(() => {}); // 热身连接
+    // 同步清理 IndexedDB 中的旧快照，防止回溯后重新操作时读到过期快照
+    snapDb.deleteTurnSnapshot(record.id, round, combatantId).catch((e) => {
+      console.warn('[CombatSession] 清理旧快照失败:', e);
+    });
     // 下帧立即为当前"回到此回合"拍新快照（避免回到后再回溯找不到）
     setTimeout(() => takeTurnSnapshot(round, combatantId), 0);
     setRewindModal(null);

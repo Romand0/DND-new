@@ -159,5 +159,12 @@ export async function getBestTurnSnapshot(
   return best ? { ...best, exact: false } : null;
 }
 
+/** 删除指定回合快照（清理回溯后的旧快照，防止读到过期数据） */
+export async function deleteTurnSnapshot(
+  sessionId: string, round: number, combatantId: string,
+): Promise<void> {
+  await tx('readwrite', s => s.delete(turnKey(sessionId, round, combatantId)));
+}
+
 // 防御性导出：TypeScript 类型检查
 export type { Combatant };
