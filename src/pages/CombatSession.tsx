@@ -1821,25 +1821,40 @@ export default function CombatSession() {
         const c = record.combatants.find(x => x.id === hudId) ?? null;
         if (!c) return null;
         const actions = typeof c.actions === 'number' && c.actions >= 0 ? c.actions : 1;
-        const actionText =
-          playbackMode && playbackStarted && !playbackPaused
-            ? (actions <= 0 ? '动作 0（已用完）' : `动作 ${actions}`)
-            : '动作 ∞';
         const totalSpeed = c.speed ?? 0;
         const remaining = combatStore.getRemainingMovement(c, playbackMode ? 'playback' : 'simulation', isPlaybackActive());
+        const actionText =
+          playbackMode && playbackStarted && !playbackPaused
+            ? (actions <= 0 ? '0' : `${actions}`)
+            : '∞';
         const moveText = totalSpeed > 0
           ? (playbackMode && playbackStarted && !playbackPaused
-            ? `移动 ${remaining}/${totalSpeed}尺`
-            : `移动 ${totalSpeed}尺`)
-          : '移动 —（未设置速度）';
+            ? `${remaining}/${totalSpeed}`
+            : `${totalSpeed}`)
+          : '—';
+        // 与"当前回合"悬浮块一致的基础样式（深色底 + 边框 + backdrop-blur）
         const topOffset = record.mode === 'playback' ? 'top-36' : 'top-20';
         return (
-          <div className={`fixed left-6 z-30 ${topOffset} px-3 py-2 rounded-lg bg-gray-900/90 text-gray-100 text-xs shadow-md max-w-[calc(100vw-7rem)]`}>
-            <span className="font-medium">{c.name}</span>
-            <span className="opacity-60 mx-1.5">·</span>
-            <span>{actionText}</span>
-            <span className="opacity-60 mx-1.5">·</span>
-            <span>{moveText}</span>
+          <div className={`fixed left-6 z-30 ${topOffset} px-4 py-2 rounded-lg backdrop-blur shadow-md border dark:border-border-dark light:border-border-light dark:bg-card-dark/80 light:bg-card-light/80 max-w-[calc(100vw-7rem)] flex items-center gap-2`}>
+            <span className="text-sm font-medium dark:text-text-dark light:text-text-light whitespace-nowrap">{c.name}</span>
+            <span
+              className={`px-1.5 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
+                playbackMode && playbackStarted && !playbackPaused
+                  ? (actions <= 0 ? 'bg-danger/20 text-danger' : 'bg-primary/20 text-primary')
+                  : 'bg-gray-500/20 text-gray-400'
+              }`}
+            >
+              动作 {actionText}
+            </span>
+            <span
+              className={`px-1.5 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
+                playbackMode && playbackStarted && !playbackPaused
+                  ? (remaining <= 0 ? 'bg-danger/20 text-danger' : 'bg-info/20 text-info')
+                  : 'bg-gray-500/20 text-gray-400'
+              }`}
+            >
+              移动 {moveText}尺
+            </span>
           </div>
         );
       })()}
