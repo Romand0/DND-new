@@ -460,6 +460,15 @@ function load(): CombatRecord[] {
           executed: !!t.executed,
         })),
         equipmentChanges,
+        loadedWeapons: r.loadedWeapons && typeof r.loadedWeapons === 'object' ? { ...r.loadedWeapons } : undefined,
+        loadingAttackedThisRound: r.loadingAttackedThisRound && typeof r.loadingAttackedThisRound === 'object' ? { ...r.loadingAttackedThisRound } : undefined,
+        playbackState: r.playbackState && typeof r.playbackState === 'object' ? {
+          started: !!r.playbackState.started,
+          paused: !!r.playbackState.paused,
+          currentTurn: r.playbackState.currentTurn && typeof r.playbackState.currentTurn === 'object' && typeof r.playbackState.currentTurn.round === 'number' && typeof r.playbackState.currentTurn.combatantId === 'string'
+            ? { round: r.playbackState.currentTurn.round, combatantId: r.playbackState.currentTurn.combatantId }
+            : null,
+        } : undefined,
         createdAt: Number(r.createdAt) || Date.now(),
         updatedAt: Number(r.updatedAt) || Date.now(),
       };

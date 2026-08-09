@@ -195,6 +195,49 @@ export default function CombatSession() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.id, record?.mode, playbackStarted]);
 
+  const lastSavedPlaybackState = useRef<string>('');
+
+  // ✅ 放映状态持久化与自动恢复
+  // 1. 放映状态变化时自动保存到 combatStore（避免每次渲染都写入，使用 ref 缓存上次的值）
+  useEffect(() => {
+    if (!record || record.mode !== 'playback') return;
+    const key = JSON.stringify({
+      started: playbackStarted,
+      paused: playbackPaused,
+      currentTurn,
+    });
+    if (key === lastSavedPlaybackState.current) return;
+    lastSavedPlaybackState.current = key;
+    combatStore.update(record.id, {
+      playbackState: {
+        started: playbackStarted,
+        paused: playbackPaused,
+        currentTurn,
+      },
+      updatedAt: Date.now(),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.id, record?.mode, playbackStarted, playbackPaused, currentTurn?.round, currentTurn?.combatantId]);
+
+  // 2. 刷新后自动恢复到当前回合并暂停
+  useEffect(() => {
+    if (!record || record.mode !== 'playback') return;
+    if (playbackStarted) return; // 已经在放映中，无需恢复
+    const ps = record.playbackState;
+    if (!ps || !ps.started) return;
+    // 恢复放映状态到当前回合并暂停
+    if (ps.currentTurn && ps.currentTurn.combatantId) {
+      setCurrentTurn(ps.currentTurn);
+      setPlaybackStarted(true);
+      setPlaybackPaused(true);
+      pausedTurnRef.current = ps.currentTurn;
+      // 恢复 actions 并拍快照（恢复放映后的标准流程）
+      resetCombatantActions(ps.currentTurn.combatantId);
+      takeTurnSnapshot(ps.currentTurn.round, ps.currentTurn.combatantId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.id, record?.mode]);
+
   /**
    * 基于战斗背包实际装备，获取该 combatant 的有效 AC。
    * PC 角色：护甲/盾牌被移除或数量=0时，不参与加值；不存在于战斗背包的装备不加值。

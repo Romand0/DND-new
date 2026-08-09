@@ -180,17 +180,23 @@ export interface CombatRecord {
    */
    equipmentChanges?: Record<string, EquipmentChanges>;
    /**
-    * 装填武器状态：key 为 "{combatantId}:{attackId}" 或 "{combatantId}:{attackName}", value=true 已装填
-    */
-   loadedWeapons?: Record<string, boolean>;
-   /**
-    * 放映模式：本回合已用过装填武器攻击的参战者（key=combatantId）。
-    * 装填武器每回合只能攻击一次，优先级高于额外动作机制。
-    * 新回合由 resetTurnTodosForRound 清空。
-    */
-   loadingAttackedThisRound?: Record<string, boolean>;
-   createdAt: number;
-   updatedAt: number;
+     * 装填武器状态：key 为 "{combatantId}:{attackId}" 或 "{combatantId}:{attackName}", value=true 已装填
+     */
+    loadedWeapons?: Record<string, boolean>;
+    /**
+     * 放映模式：本回合已用过装填武器攻击的参战者（key=combatantId）。
+     * 装填武器每回合只能攻击一次，优先级高于额外动作机制。
+     * 新回合由 resetTurnTodosForRound 清空。
+     */
+    loadingAttackedThisRound?: Record<string, boolean>;
+    /** 放映状态持久化：刷新后自动恢复到当前回合并暂停 */
+    playbackState?: {
+      started: boolean;
+      paused: boolean;
+      currentTurn: { round: number; combatantId: string } | null;
+    };
+    createdAt: number;
+    updatedAt: number;
 }
 
 /**
