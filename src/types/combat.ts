@@ -24,6 +24,13 @@ export interface Combatant {
   speedModifier?: number;
   /** 疾走额外移动力（疾走动作获得的额外可用移动力，不累加到速度，只增加可用移动力池）；每回合开始归零 */
   dashExtraMovement?: number;
+  /** 六大属性值（仅 NPC 参战者携带，用于计算豁免加值；PC 参战者通过 characterId 引用角色卡获取属性） */
+  strength?: number;
+  dexterity?: number;
+  constitution?: number;
+  intelligence?: number;
+  wisdom?: number;
+  charisma?: number;
   /** NPC 实例子 ID，格式 `{templateId}-{random}`，从模板创建时自动带入 */
   childId?: string;
   /** 模板 ID 引用（从模板创建时带入） */
