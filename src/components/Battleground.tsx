@@ -113,9 +113,43 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   // （双指→单指切换时若用旧 startTranslate，会导致剩余手指突然跳变）
   const latestTranslate = useRef(translate);
   latestTranslate.current = translate;
+  const PAN_MARGIN = 150;
   const updateTranslate = (next: { x: number; y: number }) => {
-    latestTranslate.current = next; // 同步刷新，保证 pointerup 拿到最新值
-    setTranslate(next);
+    const rect = gridWrapRef.current?.getBoundingClientRect();
+    if (!rect || !bg) {
+      latestTranslate.current = next;
+      setTranslate(next);
+      return;
+    }
+    const gridW = preset.cols * cellSize * scale;
+    const gridH = preset.rows * cellSize * scale;
+    const containerW = rect.width;
+    const containerH = rect.height;
+
+    let minX: number, maxX: number;
+    if (gridW > containerW) {
+      minX = containerW - gridW - PAN_MARGIN;
+      maxX = PAN_MARGIN;
+    } else {
+      minX = -PAN_MARGIN;
+      maxX = containerW - gridW + PAN_MARGIN;
+    }
+
+    let minY: number, maxY: number;
+    if (gridH > containerH) {
+      minY = containerH - gridH - PAN_MARGIN;
+      maxY = PAN_MARGIN;
+    } else {
+      minY = -PAN_MARGIN;
+      maxY = containerH - gridH + PAN_MARGIN;
+    }
+
+    const clamped = {
+      x: Math.max(minX, Math.min(maxX, next.x)),
+      y: Math.max(minY, Math.min(maxY, next.y)),
+    };
+    latestTranslate.current = clamped;
+    setTranslate(clamped);
   };
 
   useEffect(() => {
@@ -676,7 +710,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   };
   const handleResetView = () => {
     setScale(1);
-    setTranslate({ x: 0, y: 0 });
+    updateTranslate({ x: 0, y: 0 });
   };
 
   const handleUndo = () => {
