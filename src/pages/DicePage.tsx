@@ -665,25 +665,25 @@ export default function DicePage() {
                   <span className="px-2 py-1 rounded bg-primary/10 text-primary text-xs font-medium">
                     {entry.dice}
                   </span>
-                  <div className="flex flex-wrap gap-1">
-                    {entry.values.length > 1 && entry.values.map((v, i) => (
-                      <span key={i} className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                        {v}
-                      </span>
-                    ))}
-                    {entry.values.length > 1 && entry.mode === 'sum' && (
-                      <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                        =
-                      </span>
-                    )}
-                  </div>
+                  {entry.values.length > 1 && (
+                    <div className="flex flex-wrap gap-1">
+                      {entry.values.map((v, i) => (
+                        <span key={i} className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                          {v}
+                        </span>
+                      ))}
+                      {entry.mode === 'sum' && (
+                        <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                          =
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-3">
-                  {entry.values.length > 1 && entry.mode === 'sum' && (
-                    <span className="text-lg font-bold dark:text-text-dark light:text-text-light">
-                      {entry.total}
-                    </span>
-                  )}
+                  <span className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                    {entry.total}
+                  </span>
                   <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
                     {entry.time}
                   </span>
