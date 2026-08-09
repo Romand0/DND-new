@@ -169,7 +169,13 @@ export function usePlayback(record: CombatRecord | null, props: UsePlaybackProps
     setPlaybackStarted(true);
     if (firstTurn) {
       combatStore.resetTurnTodosForRound(record.id, firstTurn.round);
-      resetCombatantActions(firstTurn.combatantId);
+      const combatant = restoredCombatants.find(c => c.id === firstTurn.combatantId);
+      const isFreshTurn = !combatant
+        || ((typeof combatant.actions === 'number' ? combatant.actions : 1) >= 1
+            && (combatant.movementUsed ?? 0) === 0);
+      if (isFreshTurn) {
+        resetCombatantActions(firstTurn.combatantId);
+      }
       takeTurnSnapshot(firstTurn.round, firstTurn.combatantId);
     }
   };
