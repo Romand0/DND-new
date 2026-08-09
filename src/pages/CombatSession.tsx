@@ -3465,6 +3465,28 @@ export default function CombatSession() {
                 setInfoPanelCombatant(null);
               }
             }}
+            onDashClick={() => {
+              if (!record || !infoPanelCombatant) return;
+              // 检查是否有动作可用
+              if (!canUseAction(infoPanelCombatant.id)) {
+                alert('该参战者本回合已没有可用动作');
+                return;
+              }
+              // 计算移动力：疾走 = 当前速度（本回合额外获得等于当前速度的移动力）
+              const c = record.combatants.find(x => x.id === infoPanelCombatant.id);
+              if (!c) return;
+              const speed = c.speed ?? 30;
+              // 消耗 1 个动作
+              consumeCombatantAction(infoPanelCombatant.id);
+              // 写入先攻表格
+              const cell = resolveWriteCell(infoPanelCombatant.id);
+              if (cell) {
+                appendRoundRecord(cell.round, cell.combatantId, `${infoPanelCombatant.name} 专注于疾跑，获得额外移动力`);
+              }
+              // 显示结果弹窗
+              alert(`使用"疾走"成功，消耗 1 动作，获得 ${speed} 尺移动力`);
+              setInfoPanelCombatant(null);
+            }}
           />
         );
       })()}

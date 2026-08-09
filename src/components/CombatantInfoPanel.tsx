@@ -27,9 +27,11 @@ interface Props {
   onAttackClick?: () => void;
   /** 点击「施法」动作时回调 */
   onCastClick?: () => void;
+  /** 点击「疾走」动作时回调 */
+  onDashClick?: () => void;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, onHelpClick, onAttackClick, onCastClick }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, onHelpClick, onAttackClick, onCastClick, onDashClick }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -793,9 +795,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     const clickable =
                       (type === 'help' && !!onHelpClick) ||
                       (type === 'attack' && !!onAttackClick) ||
-                      (type === 'cast' && !!onCastClick);
+                      (type === 'cast' && !!onCastClick) ||
+                      (type === 'dash' && !!onDashClick);
                     const implemented =
-                      type === 'attack' || type === 'cast' || type === 'help';
+                      type === 'attack' || type === 'cast' || type === 'help' || type === 'dash';
                     return (
                       <button
                         key={type}
@@ -804,6 +807,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           if (type === 'help') onHelpClick?.();
                           else if (type === 'attack') onAttackClick?.();
                           else if (type === 'cast') onCastClick?.();
+                          else if (type === 'dash') onDashClick?.();
                         }}
                         disabled={!clickable}
                         className={`flex items-center justify-between px-2 py-1.5 rounded text-xs text-left transition-colors ${
