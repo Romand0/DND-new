@@ -425,6 +425,7 @@ function load(): CombatRecord[] {
           attacks: Array.isArray(c.attacks) ? c.attacks : undefined,
           actions,
           movementUsed: typeof c.movementUsed === 'number' && Number.isFinite(c.movementUsed) ? Math.max(0, Math.trunc(c.movementUsed)) : 0,
+          speedModifier: typeof c.speedModifier === 'number' && Number.isFinite(c.speedModifier) ? Math.trunc(c.speedModifier) : 0,
           pendingAdvantageSources: Array.isArray(c.pendingAdvantageSources) ? c.pendingAdvantageSources.filter(
             (s: any) => s && typeof s === 'object' && typeof s.id === 'string'
           ).map((s: any) => ({
@@ -651,7 +652,7 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1, movementUsed: 0 };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, movementUsed: 0, speedModifier: 0 };
     record.updatedAt = Date.now();
     save(records);
     return 1;
@@ -672,7 +673,7 @@ const combatStore = {
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return distanceFeet;
     const combatant = record.combatants[idx];
-    const speed = combatant.speed ?? 0;
+    const speed = (combatant.speed ?? 0) + (combatant.speedModifier ?? 0);
     if (speed <= 0) return distanceFeet;
     const used = combatant.movementUsed ?? 0;
     const remaining = Math.max(0, speed - used);
@@ -705,13 +706,13 @@ const combatStore = {
 
   /**
    * 获取某参战者的剩余移动力（尺）。
-   * 模拟模式 / 放映暂停 / 未设置 speed 时，返回 speed (表示完整移动力可用)；
-   * 否则返回 Math.max(0, speed - movementUsed)。
+   * 模拟模式 / 放映暂停 / 未设置 speed 时，返回可用移动力 (speed + speedModifier)；
+   * 否则返回 Math.max(0, speed + speedModifier - movementUsed)。
    */
   getRemainingMovement(combatant: Combatant, mode?: 'simulation' | 'playback', playbackActive?: boolean): number {
-    const speed = combatant.speed ?? 0;
-    if (!mode || mode === 'simulation' || !playbackActive) return speed;
-    return Math.max(0, speed - (combatant.movementUsed ?? 0));
+    const availableMovement = (combatant.speed ?? 0) + (combatant.speedModifier ?? 0);
+    if (!mode || mode === 'simulation' || !playbackActive) return availableMovement;
+    return Math.max(0, availableMovement - (combatant.movementUsed ?? 0));
   },
 
   // =======================

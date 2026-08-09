@@ -3472,10 +3472,20 @@ export default function CombatSession() {
                 alert('该参战者本回合已没有可用动作');
                 return;
               }
-              // 计算移动力：疾走 = 当前速度（本回合额外获得等于当前速度的移动力）
+              // 计算基础速度
               const c = record.combatants.find(x => x.id === infoPanelCombatant.id);
               if (!c) return;
-              const speed = c.speed ?? 30;
+              const baseSpeed = c.speed ?? 30;
+              // 更新 speedModifier：疾走 = 可用移动力翻倍（speedModifier += baseSpeed）
+              const newModifier = (c.speedModifier ?? 0) + baseSpeed;
+              combatStore.update(record.id, {
+                combatants: record.combatants.map(x =>
+                  x.id === infoPanelCombatant.id
+                    ? { ...x, speedModifier: newModifier }
+                    : x
+                ),
+                updatedAt: Date.now(),
+              });
               // 消耗 1 个动作
               consumeCombatantAction(infoPanelCombatant.id);
               // 写入先攻表格
@@ -3484,7 +3494,8 @@ export default function CombatSession() {
                 appendRoundRecord(cell.round, cell.combatantId, `${infoPanelCombatant.name} 专注于疾跑，获得额外移动力`);
               }
               // 显示结果弹窗
-              alert(`使用"疾走"成功，消耗 1 动作，获得 ${speed} 尺移动力`);
+              const availableMovement = baseSpeed + newModifier;
+              alert(`使用"疾走"成功，消耗 1 动作，获得 ${baseSpeed} 尺额外移动力，本回合可用移动力为 ${availableMovement} 尺`);
               setInfoPanelCombatant(null);
             }}
           />
