@@ -426,6 +426,7 @@ function load(): CombatRecord[] {
           actions,
           movementUsed: typeof c.movementUsed === 'number' && Number.isFinite(c.movementUsed) ? Math.max(0, Math.trunc(c.movementUsed)) : 0,
           speedModifier: typeof c.speedModifier === 'number' && Number.isFinite(c.speedModifier) ? Math.trunc(c.speedModifier) : 0,
+          dashExtraMovement: typeof c.dashExtraMovement === 'number' && Number.isFinite(c.dashExtraMovement) ? Math.max(0, Math.trunc(c.dashExtraMovement)) : 0,
           pendingAdvantageSources: Array.isArray(c.pendingAdvantageSources) ? c.pendingAdvantageSources.filter(
             (s: any) => s && typeof s === 'object' && typeof s.id === 'string'
           ).map((s: any) => ({
@@ -652,7 +653,7 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1, movementUsed: 0, speedModifier: 0 };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0 };
     record.updatedAt = Date.now();
     save(records);
     return 1;
@@ -673,10 +674,12 @@ const combatStore = {
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return distanceFeet;
     const combatant = record.combatants[idx];
-    const speed = (combatant.speed ?? 0) + (combatant.speedModifier ?? 0);
-    if (speed <= 0) return distanceFeet;
+    const battleSpeed = (combatant.speed ?? 0) + (combatant.speedModifier ?? 0);
+    const dashExtra = combatant.dashExtraMovement ?? 0;
+    const totalAvailable = battleSpeed + dashExtra;
+    if (totalAvailable <= 0) return distanceFeet;
     const used = combatant.movementUsed ?? 0;
-    const remaining = Math.max(0, speed - used);
+    const remaining = Math.max(0, totalAvailable - used);
     const allowed = Math.min(remaining, distanceFeet);
     if (allowed <= 0) return 0;
     record.combatants[idx] = { ...combatant, movementUsed: used + allowed };
@@ -706,11 +709,11 @@ const combatStore = {
 
   /**
    * 获取某参战者的剩余移动力（尺）。
-   * 模拟模式 / 放映暂停 / 未设置 speed 时，返回可用移动力 (speed + speedModifier)；
-   * 否则返回 Math.max(0, speed + speedModifier - movementUsed)。
+   * 模拟模式 / 放映暂停 / 未设置 speed 时，返回可用移动力 (speed + speedModifier + dashExtraMovement)；
+   * 否则返回 Math.max(0, battleSpeed + dashExtraMovement - movementUsed)。
    */
   getRemainingMovement(combatant: Combatant, mode?: 'simulation' | 'playback', playbackActive?: boolean): number {
-    const availableMovement = (combatant.speed ?? 0) + (combatant.speedModifier ?? 0);
+    const availableMovement = (combatant.speed ?? 0) + (combatant.speedModifier ?? 0) + (combatant.dashExtraMovement ?? 0);
     if (!mode || mode === 'simulation' || !playbackActive) return availableMovement;
     return Math.max(0, availableMovement - (combatant.movementUsed ?? 0));
   },

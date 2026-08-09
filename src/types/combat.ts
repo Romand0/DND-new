@@ -20,8 +20,10 @@ export interface Combatant {
   speed?: number;
   /** 本回合已移动尺数（D&D 5e：每回合开始归零，移动后累加，达到 speed 后不能再走）；仅放映模式下使用，模拟模式始终视为 0 */
   movementUsed?: number;
-  /** 速度调整值（因各种效应获得的加值/减值，如疾走效果）；每回合开始归零 */
+  /** 速度调整值（因各种效应对速度的影响，如加速/减速法术）；与疾走无关；每回合开始归零 */
   speedModifier?: number;
+  /** 疾走额外移动力（疾走动作获得的额外可用移动力，不累加到速度，只增加可用移动力池）；每回合开始归零 */
+  dashExtraMovement?: number;
   /** NPC 实例子 ID，格式 `{templateId}-{random}`，从模板创建时自动带入 */
   childId?: string;
   /** 模板 ID 引用（从模板创建时带入） */
