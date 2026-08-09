@@ -176,14 +176,13 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   const dropDialogRef = useRef<HTMLDivElement | null>(null);
 
   // 选中棋子的剩余移动力（用于悬浮标签 / 移动范围覆盖）
+  // 注意：这里不再限制在固有速度内，因为疾走会增加 dashExtraMovement，
+  // 总可用移动力 = battleSpeed + dashExtraMovement，应该完整显示
   const selectedRemainingMovement = useMemo(() => {
     if (!selectedCombatantId) return null;
-    const c = combatantMap.get(selectedCombatantId);
-    if (!c) return null;
-    const speed = c.speed ?? 0;
     const remaining = remainingMovementMap?.[selectedCombatantId];
-    return typeof remaining === 'number' ? Math.max(0, Math.min(remaining, speed)) : speed;
-  }, [selectedCombatantId, combatantMap, remainingMovementMap]);
+    return typeof remaining === 'number' ? Math.max(0, remaining) : null;
+  }, [selectedCombatantId, remainingMovementMap]);
 
   // 选中棋子的最大移动范围（切比雪夫距离：8方向都算1格，5尺/格）
   const moveRangeSet = useMemo(() => {
