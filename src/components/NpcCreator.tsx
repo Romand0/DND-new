@@ -71,6 +71,13 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     templateId: state.templateId,
     childId: state.childId,
     attacks: state.attacks,
+    // 携带属性值用于豁免检定自动计算
+    strength: parseInt(state.abilities.strength, 10) || 10,
+    dexterity: parseInt(state.abilities.dexterity, 10) || 10,
+    constitution: parseInt(state.abilities.constitution, 10) || 10,
+    intelligence: parseInt(state.abilities.intelligence, 10) || 10,
+    wisdom: parseInt(state.abilities.wisdom, 10) || 10,
+    charisma: parseInt(state.abilities.charisma, 10) || 10,
   };
 }
 

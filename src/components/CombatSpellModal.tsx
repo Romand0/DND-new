@@ -201,13 +201,24 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
   // 用户仍可手动覆盖输入框中的值
   useEffect(() => {
     if (checkType !== 'save') return;
-    if (!targetCharacter) return;
     const abilityKey = SAVE_ATTR_MAP[saveAttribute];
     if (!abilityKey) return;
-    const bonus = characterStore.getSaveBonus(targetCharacter, abilityKey);
+    
+    let bonus = 0;
+    if (targetCharacter) {
+      // PC：从角色卡获取豁免加值
+      bonus = characterStore.getSaveBonus(targetCharacter, abilityKey);
+    } else {
+      // NPC：从 Combatant 属性值计算调整值（非特殊说明时，豁免加值 = 属性调整值）
+      const abilityScore = target[abilityKey as keyof Combatant] as number | undefined;
+      if (typeof abilityScore === 'number') {
+        bonus = Math.floor((abilityScore - 10) / 2);
+      }
+    }
+    
     setTargetSaveBonus(String(bonus));
     setRollResult(null);
-  }, [checkType, saveAttribute, targetCharacter]);
+  }, [checkType, saveAttribute, targetCharacter, target]);
 
   const spellAbilityKey = character ? characterStore.getSpellcastingAbility(character) : null;
   const spellAbilityLabel = spellAbilityKey

@@ -427,6 +427,13 @@ function load(): CombatRecord[] {
           movementUsed: typeof c.movementUsed === 'number' && Number.isFinite(c.movementUsed) ? Math.max(0, Math.trunc(c.movementUsed)) : 0,
           speedModifier: typeof c.speedModifier === 'number' && Number.isFinite(c.speedModifier) ? Math.trunc(c.speedModifier) : 0,
           dashExtraMovement: typeof c.dashExtraMovement === 'number' && Number.isFinite(c.dashExtraMovement) ? Math.max(0, Math.trunc(c.dashExtraMovement)) : 0,
+          // 属性值兜底（老数据兼容）
+          strength: typeof c.strength === 'number' && Number.isFinite(c.strength) ? Math.max(1, Math.min(30, Math.trunc(c.strength))) : undefined,
+          dexterity: typeof c.dexterity === 'number' && Number.isFinite(c.dexterity) ? Math.max(1, Math.min(30, Math.trunc(c.dexterity))) : undefined,
+          constitution: typeof c.constitution === 'number' && Number.isFinite(c.constitution) ? Math.max(1, Math.min(30, Math.trunc(c.constitution))) : undefined,
+          intelligence: typeof c.intelligence === 'number' && Number.isFinite(c.intelligence) ? Math.max(1, Math.min(30, Math.trunc(c.intelligence))) : undefined,
+          wisdom: typeof c.wisdom === 'number' && Number.isFinite(c.wisdom) ? Math.max(1, Math.min(30, Math.trunc(c.wisdom))) : undefined,
+          charisma: typeof c.charisma === 'number' && Number.isFinite(c.charisma) ? Math.max(1, Math.min(30, Math.trunc(c.charisma))) : undefined,
           pendingAdvantageSources: Array.isArray(c.pendingAdvantageSources) ? c.pendingAdvantageSources.filter(
             (s: any) => s && typeof s === 'object' && typeof s.id === 'string'
           ).map((s: any) => ({
