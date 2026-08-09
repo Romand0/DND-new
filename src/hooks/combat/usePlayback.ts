@@ -169,10 +169,11 @@ export function usePlayback(record: CombatRecord | null, props: UsePlaybackProps
     setPlaybackStarted(true);
     if (firstTurn) {
       combatStore.resetTurnTodosForRound(record.id, firstTurn.round);
-      const combatant = restoredCombatants.find(c => c.id === firstTurn.combatantId);
-      const isFreshTurn = !combatant
-        || ((typeof combatant.actions === 'number' ? combatant.actions : 1) >= 1
-            && (combatant.movementUsed ?? 0) === 0);
+      const freshRecord = combatStore.get(record.id);
+      const freshCombatant = freshRecord?.combatants.find(c => c.id === firstTurn.combatantId);
+      const isFreshTurn = !freshCombatant
+        || ((typeof freshCombatant.actions === 'number' ? freshCombatant.actions : 1) >= 1
+            && (freshCombatant.movementUsed ?? 0) === 0);
       if (isFreshTurn) {
         resetCombatantActions(firstTurn.combatantId);
       }
