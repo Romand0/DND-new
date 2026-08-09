@@ -232,7 +232,14 @@ export default function CombatSession() {
       setPlaybackPaused(true);
       pausedTurnRef.current = ps.currentTurn;
       // 恢复 actions 并拍快照（恢复放映后的标准流程）
-      resetCombatantActions(ps.currentTurn.combatantId);
+      const freshRecord = combatStore.get(record.id);
+      const freshCombatant = freshRecord?.combatants.find(c => c.id === ps.currentTurn!.combatantId);
+      const isFreshTurn = !freshCombatant
+        || ((typeof freshCombatant.actions === 'number' ? freshCombatant.actions : 1) >= 1
+            && (freshCombatant.movementUsed ?? 0) === 0);
+      if (isFreshTurn) {
+        resetCombatantActions(ps.currentTurn.combatantId);
+      }
       takeTurnSnapshot(ps.currentTurn.round, ps.currentTurn.combatantId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
