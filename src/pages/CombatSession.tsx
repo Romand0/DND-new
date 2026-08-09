@@ -180,11 +180,10 @@ export default function CombatSession() {
   );
 
   // ✅ 修复：刷新/关闭页面后再次进入战斗，把 IndexedDB 中的快照回灌到内存 useRef
-  // 触发条件：record 已加载且当前是放映模式 playbackStarted=true 但内存 initial 为空
+  // 触发条件：record 已加载且当前是放映模式但内存 initial 为空
   useEffect(() => {
     if (!record || record.mode !== 'playback') return;
-    if (!playbackStarted) return;
-    if (rollbackSnapshotRef.current.initial && Object.keys(rollbackSnapshotRef.current.snapshots).length > 0) return;
+    if (rollbackSnapshotRef.current.initial) return;
     (async () => {
       try {
         const init = await snapDb.getInitialSnapshot(record.id);
@@ -954,8 +953,12 @@ export default function CombatSession() {
   // ✅ 启动放映：重置沙盘到快照状态，从选中的格子开始扫描
   const startPlayback = () => {
     if (!record) return;
-    // 1. 重置沙盘到进入放映模式时的快照
-    if (playbackSnapshotRef.current) {
+    // 1. 重置沙盘到进入放映模式时的快照（从 initial 快照读取，刷新后也能正确恢复）
+    const init = rollbackSnapshotRef.current.initial;
+    if (init) {
+      battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
+    } else if (playbackSnapshotRef.current) {
+      // fallback：兼容旧逻辑
       battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
     }
     // 2. 自动填充昏迷/死亡标记到后续所有轮次
