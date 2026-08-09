@@ -3478,12 +3478,14 @@ export default function CombatSession() {
               const baseSpeed = c.speed ?? 30;
               const currentModifier = c.speedModifier ?? 0;
               const battleSpeed = baseSpeed + currentModifier;
-              // 疾走：额外获得等于战斗速度的可用移动力（speedModifier += battleSpeed）
-              const newModifier = currentModifier + battleSpeed;
+              // 疾走：额外获得等于战斗速度的可用移动力（dashExtraMovement += battleSpeed）
+              // 注意：疾走不改变 speedModifier，只增加 dashExtraMovement
+              const currentDashExtra = c.dashExtraMovement ?? 0;
+              const newDashExtra = currentDashExtra + battleSpeed;
               combatStore.update(record.id, {
                 combatants: record.combatants.map(x =>
                   x.id === infoPanelCombatant.id
-                    ? { ...x, speedModifier: newModifier }
+                    ? { ...x, dashExtraMovement: newDashExtra }
                     : x
                 ),
                 updatedAt: Date.now(),
@@ -3493,11 +3495,11 @@ export default function CombatSession() {
               // 写入先攻表格
               const cell = resolveWriteCell(infoPanelCombatant.id);
               if (cell) {
-                appendRoundRecord(cell.round, cell.combatantId, `${infoPanelCombatant.name} 专注于疾跑，获得额外移动力`);
+                appendRoundRecord(cell.round, cell.combatantId, `${infoPanelCombatant.name} 使用疾走，获得额外 ${battleSpeed} 尺移动力`);
               }
               // 显示结果弹窗
               const movementUsed = c.movementUsed ?? 0;
-              const availableMovement = baseSpeed + newModifier - movementUsed;
+              const availableMovement = battleSpeed + newDashExtra - movementUsed;
               alert(`使用"疾走"成功，消耗 1 动作，获得 ${battleSpeed} 尺额外移动力，本回合可用移动力为 ${availableMovement} 尺`);
               setInfoPanelCombatant(null);
             }}
