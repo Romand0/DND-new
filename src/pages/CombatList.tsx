@@ -125,24 +125,24 @@ export default function CombatList() {
             共 {records.length} 场战斗记录，支持导入/导出备份
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <button
             onClick={handleExport}
-            className="px-4 py-2 border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center gap-2"
+            className="px-3 py-2 text-sm border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             导出全部
           </button>
-          <label className="px-4 py-2 border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center gap-2 cursor-pointer">
-            <Upload className="w-4 h-4" />
+          <label className="px-3 py-2 text-sm border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap">
+            <Upload className="w-3.5 h-3.5" />
             导入备份
             <input type="file" accept=".json" className="hidden" onChange={handleImport} />
           </label>
           <button
             onClick={() => setQuickCreateOpen(true)}
-            className="px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-2"
+            className="px-3 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
-            <Zap className="w-4 h-4" />
+            <Zap className="w-3.5 h-3.5" />
             快速创建
           </button>
         </div>

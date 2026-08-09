@@ -113,26 +113,26 @@ export default function CharacterList() {
             管理你的所有角色卡片
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleImport}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text:text-light light:hover:bg-card-light"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light whitespace-nowrap"
           >
-            <Upload className="w-4 h-4" />
+            <Upload className="w-3.5 h-3.5" />
             导入
           </button>
           <button
             onClick={handleExportAll}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text:text-light light:hover:bg-card-light"
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light whitespace-nowrap"
           >
-            <Download className="w-4 h-4" />
+            <Download className="w-3.5 h-3.5" />
             导出全部
           </button>
           <button
             onClick={handleAddCharacter}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm bg-primary hover:bg-primary-dark text-white font-medium rounded-lg transition-colors whitespace-nowrap"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-4 h-4" />
             新建角色
           </button>
         </div>
