@@ -3476,8 +3476,10 @@ export default function CombatSession() {
               const c = record.combatants.find(x => x.id === infoPanelCombatant.id);
               if (!c) return;
               const baseSpeed = c.speed ?? 30;
-              // 更新 speedModifier：疾走 = 可用移动力翻倍（speedModifier += baseSpeed）
-              const newModifier = (c.speedModifier ?? 0) + baseSpeed;
+              const currentModifier = c.speedModifier ?? 0;
+              const battleSpeed = baseSpeed + currentModifier;
+              // 疾走：额外获得等于战斗速度的可用移动力（speedModifier += battleSpeed）
+              const newModifier = currentModifier + battleSpeed;
               combatStore.update(record.id, {
                 combatants: record.combatants.map(x =>
                   x.id === infoPanelCombatant.id
@@ -3494,8 +3496,9 @@ export default function CombatSession() {
                 appendRoundRecord(cell.round, cell.combatantId, `${infoPanelCombatant.name} 专注于疾跑，获得额外移动力`);
               }
               // 显示结果弹窗
-              const availableMovement = baseSpeed + newModifier;
-              alert(`使用"疾走"成功，消耗 1 动作，获得 ${baseSpeed} 尺额外移动力，本回合可用移动力为 ${availableMovement} 尺`);
+              const movementUsed = c.movementUsed ?? 0;
+              const availableMovement = baseSpeed + newModifier - movementUsed;
+              alert(`使用"疾走"成功，消耗 1 动作，获得 ${battleSpeed} 尺额外移动力，本回合可用移动力为 ${availableMovement} 尺`);
               setInfoPanelCombatant(null);
             }}
           />
