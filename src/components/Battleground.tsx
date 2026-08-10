@@ -675,7 +675,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         }
         // 空格 → 移动到该格（昏迷/死亡角色不能移动）
         const selCombatant = combatantMap.get(selectedCombatantId);
-        if (selCombatant?.isUnconscious || selCombatant?.isDead) {
+        if (selCombatant?.isUnconscious || selCombatant?.isDead || selCombatant?.isIncapacitated) {
           setSelectedCombatantId(null);
           return;
         }
@@ -699,7 +699,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     if (selectedCombatantId) {
       // 昏迷/死亡角色不能移动
       const selCombatant2 = combatantMap.get(selectedCombatantId);
-      if (selCombatant2?.isUnconscious || selCombatant2?.isDead) {
+      if (selCombatant2?.isUnconscious || selCombatant2?.isDead || selCombatant2?.isIncapacitated) {
         setSelectedCombatantId(null);
         return;
       }
@@ -1124,7 +1124,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                       isDragHovered ? 'ring-2 ring-white' : ''
                     } ${isLocked ? 'ring-2 ring-yellow-400 scale-110' : ''} ${
                       downed ? 'opacity-60' : ''
-                    } ${isActiveTurn ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''}`}
+                    } ${isActiveTurn ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''} ${
+                      combatant.isIncapacitated ? 'opacity-50 ring-2 ring-purple-400' : ''
+                    }`}
                     style={{
                       width: cellSize - 6,
                       height: cellSize - 6,
@@ -1133,8 +1135,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                     }}
                     onPointerDown={(e) => {
                       if (readOnly) return;
-                      // 昏迷/死亡角色不能被拖拽移动
-                      if (combatant.isUnconscious || combatant.isDead) return;
+                      // 昏迷/死亡/失能角色不能被拖拽移动
+                      if (combatant.isUnconscious || combatant.isDead || combatant.isIncapacitated) return;
                       // 放映模式下：只允许当前回合角色长按
                       if (playbackOnlyMovableId && combatant.id !== playbackOnlyMovableId) return;
                       // 不 stopPropagation，让网格容器收到事件并 setPointerCapture

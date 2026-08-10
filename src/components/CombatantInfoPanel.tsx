@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from 'lucide-react';
 import { characterStore } from '@/data/characterStore';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
+import combatStore from '@/data/combatStore';
 import type { Combatant, NpcAttack, EquipmentChanges } from '@/types/combat';
 import { ACTION_LABELS, ALL_ACTIONS } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
@@ -40,6 +41,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   const [invFilter, setInvFilter] = useState<string>('全部');
 
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+
+  // 失能切换所需：反查该参战者所属战斗记录（本组件无 record prop，通过 combatStore 获取）
+  const record = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id)) ?? null;
 
   // 手持候选列表：战斗场景下（combatInventory 已传入）强制使用战斗背包；否则回退角色背包
   const inventoryForSelection: Equipment[] = combatInventory
@@ -775,6 +779,17 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
           {activeTab === 'actions' && (
             <div className="space-y-3">
+              {/* 失能切换 */}
+              <button
+                onClick={() => record && combatStore.toggleIncapacitated(record.id, combatant.id)}
+                className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
+                  combatant.isIncapacitated
+                    ? 'bg-purple-600 text-white border-purple-600'
+                    : 'border-purple-500/50 text-purple-500 hover:bg-purple-500/10'
+                }`}
+              >
+                失能
+              </button>
               {/* 动作计数行 */}
               <div className="flex items-center justify-between rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
                 <span className="text-xs font-medium dark:text-text-dark light:text-text-light">动作</span>

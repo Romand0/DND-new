@@ -414,6 +414,7 @@ function load(): CombatRecord[] {
           tempHp: typeof c.tempHp === 'number' && Number.isFinite(c.tempHp) ? c.tempHp : undefined,
           isDead: !!c.isDead,
           isUnconscious: !!c.isUnconscious,
+          isIncapacitated: !!c.isIncapacitated,
           deathSaveFailures: typeof c.deathSaveFailures === 'number' && Number.isFinite(c.deathSaveFailures) ? Math.max(0, Math.trunc(c.deathSaveFailures)) : 0,
           deathSaveSuccesses: typeof c.deathSaveSuccesses === 'number' && Number.isFinite(c.deathSaveSuccesses) ? Math.max(0, Math.trunc(c.deathSaveSuccesses)) : 0,
           isPc: !!c.isPc,
@@ -762,6 +763,19 @@ const combatStore = {
     );
     record.updatedAt = Date.now();
     save(records);
+  },
+
+  toggleIncapacitated(sessionId: string, combatantId: string): void {
+    const list = load();
+    const idx = list.findIndex((b) => b.id === sessionId);
+    if (idx === -1) return;
+    const combatants = list[idx].combatants.map(c =>
+      c.id === combatantId
+        ? { ...c, isIncapacitated: !c.isIncapacitated }
+        : c
+    );
+    list[idx] = { ...list[idx], combatants, updatedAt: Date.now() };
+    save(list);
   },
 
   resetTurnTodosForRound(recordId: string, round: number): void {
