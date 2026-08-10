@@ -48,6 +48,9 @@ function loadAll(): Battleground[] {
         equipmentData: t.equipmentData || {},
         droppedBy: t.droppedBy,
       })) : [],
+      paintedCells: Array.isArray(b.paintedCells)
+        ? b.paintedCells.filter((s: any) => typeof s === 'string')
+        : [],
     }));
   } catch {
     return [];
@@ -77,6 +80,7 @@ const battlegroundStore = {
         size: 'medium', // 默认中型
         tokens: [],
         itemTokens: [],
+        paintedCells: [],
         moveHistory: [],
         updatedAt: Date.now(),
       };
@@ -84,7 +88,7 @@ const battlegroundStore = {
       saveAll(list);
     }
     // 浅拷贝：防止调用方 mutate 污染内存缓存
-    return { ...bg, tokens: [...bg.tokens], itemTokens: [...(bg.itemTokens ?? [])], moveHistory: [...(bg.moveHistory ?? [])] };
+    return { ...bg, tokens: [...bg.tokens], itemTokens: [...(bg.itemTokens ?? [])], paintedCells: [...(bg.paintedCells ?? [])], moveHistory: [...(bg.moveHistory ?? [])] };
   },
 
   /** 直接获取（不创建） */
@@ -92,7 +96,7 @@ const battlegroundStore = {
     const found = loadAll().find((b) => b.sessionId === sessionId) ?? null;
     if (!found) return null;
     // 浅拷贝：防止调用方 mutate 污染内存缓存
-    return { ...found, tokens: [...found.tokens], itemTokens: [...(found.itemTokens ?? [])], moveHistory: [...(found.moveHistory ?? [])] };
+    return { ...found, tokens: [...found.tokens], itemTokens: [...(found.itemTokens ?? [])], paintedCells: [...(found.paintedCells ?? [])], moveHistory: [...(found.moveHistory ?? [])] };
   },
 
   /** 切换沙盘大小，超出新边界的棋子会被裁掉 */
@@ -107,6 +111,10 @@ const battlegroundStore = {
       tokens: list[idx].tokens.filter(
         (t) => t.col < preset.cols && t.row < preset.rows
       ),
+      paintedCells: (list[idx].paintedCells || []).filter((s) => {
+        const [c, r] = s.split(',').map(Number);
+        return c < preset.cols && r < preset.rows;
+      }),
       updatedAt: Date.now(),
     };
     saveAll(list);
@@ -195,6 +203,27 @@ const battlegroundStore = {
       itemTokens: (list[idx].itemTokens || []).filter((t) => t.id !== tokenId),
       updatedAt: Date.now(),
     };
+    saveAll(list);
+  },
+
+  /** 切换某个格子的涂白状态 */
+  togglePaintedCell(sessionId: string, cell: string): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    const cells = new Set(list[idx].paintedCells || []);
+    if (cells.has(cell)) cells.delete(cell);
+    else cells.add(cell);
+    list[idx] = { ...list[idx], paintedCells: [...cells], updatedAt: Date.now() };
+    saveAll(list);
+  },
+
+  /** 清除所有涂白格子 */
+  clearPaintedCells(sessionId: string): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    list[idx] = { ...list[idx], paintedCells: [], updatedAt: Date.now() };
     saveAll(list);
   },
 
