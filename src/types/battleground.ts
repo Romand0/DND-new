@@ -41,6 +41,8 @@ export interface Battleground {
   tokens: TokenPosition[];
   /** 掉落物品 token 列表（可与角色 token 同格） */
   itemTokens?: ItemToken[];
+  /** 被涂白的格子（边界墙），格式为 "col,row" */
+  paintedCells?: string[];
   updatedAt: number;
   /** 移动历史栈，最多保留 5 条，用于撤回 */
   moveHistory?: TokenPosition[][];

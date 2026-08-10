@@ -1,6 +1,6 @@
 // 网格沙盘组件 —— 展示参战者位置与移动，支持三种大小预设
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, MoreHorizontal, Package } from 'lucide-react';
+import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, MoreHorizontal, Package, Pencil } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken } from '@/types/battleground';
@@ -61,7 +61,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   }, [selectedCombatantId, onSelectionChange]);
   // 记录每次成功 placeToken 的位移距离（与 sandbox moveHistory 对齐，最多 5 条），用于撤回时 onRefundMovement 回退
   const lastMoveDistanceStack = useRef<Array<{ combatantId: string; feet: number }>>([]);
+  const paintDragRef = useRef<{ active: boolean; cells: Set<string> } | null>(null);
   const [eraserMode, setEraserMode] = useState(false);
+  const [paintMode, setPaintMode] = useState(false);
   // 双击弹窗
   const [doubleClickedCombatant, setDoubleClickedCombatant] = useState<Combatant | null>(null);
   // 缩放与平移状态
@@ -181,6 +183,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     return m;
   }, [bg?.tokens]);
 
+  const paintedSet = useMemo(() => {
+    return new Set(bg?.paintedCells || []);
+  }, [bg?.paintedCells]);
+
   // 格子 -> 掉落物品 token 列表 反向索引
   const cellItemTokens = useMemo(() => {
     const m = new Map<string, ItemToken[]>(); // "col,row" -> ItemToken[]
@@ -251,6 +257,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   };
 
   const handleClear = () => {
+    if (paintMode) {
+      if (confirm('确定清空所有涂白格子吗？')) battlegroundStore.clearPaintedCells(sessionId);
+      return;
+    }
     if (confirm('确定清空所有棋子吗？')) battlegroundStore.clearTokens(sessionId);
   };
 
@@ -259,6 +269,25 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     Math.hypot(a.x - b.x, a.y - b.y);
 
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (paintMode) {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = gridWrapRef.current?.getBoundingClientRect();
+      if (rect) {
+        const col = Math.floor((e.clientX - rect.left - translate.x) / (cellSize * scale));
+        const row = Math.floor((e.clientY - rect.top - translate.y) / (cellSize * scale));
+        if (col >= 0 && col < preset.cols && row >= 0 && row < preset.rows) {
+          const key = `${col},${row}`;
+          const isPainted = paintedSet.has(key);
+          paintDragRef.current = { active: true, cells: new Set<string>() };
+          if (!isPainted) {
+            battlegroundStore.togglePaintedCell(sessionId, key);
+            paintDragRef.current.cells.add(key);
+          }
+        }
+      }
+      return;
+    }
     const ts = touchState.current;
     const pt = { x: e.clientX, y: e.clientY };
     ts.pointers.set(e.pointerId, pt);
@@ -286,6 +315,22 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    if (paintMode && paintDragRef.current?.active) {
+      e.preventDefault();
+      const rect = gridWrapRef.current?.getBoundingClientRect();
+      if (rect) {
+        const col = Math.floor((e.clientX - rect.left - translate.x) / (cellSize * scale));
+        const row = Math.floor((e.clientY - rect.top - translate.y) / (cellSize * scale));
+        if (col >= 0 && col < preset.cols && row >= 0 && row < preset.rows) {
+          const key = `${col},${row}`;
+          if (!paintDragRef.current.cells.has(key) && !paintedSet.has(key)) {
+            battlegroundStore.togglePaintedCell(sessionId, key);
+            paintDragRef.current.cells.add(key);
+          }
+        }
+      }
+      return;
+    }
     const ts = touchState.current;
     if (!ts.pointers.has(e.pointerId)) return;
     ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -509,6 +554,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    if (paintDragRef.current?.active) {
+      paintDragRef.current = null;
+      return;
+    }
     // 清除长按计时器
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
@@ -600,6 +649,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   // 点击格子：只有未发生拖拽时才触发
   const handleCellClick = (col: number, row: number) => {
     if (readOnly) return;
+    if (paintMode) {
+      const key = `${col},${row}`;
+      battlegroundStore.togglePaintedCell(sessionId, key);
+      return;
+    }
     if (touchState.current.moved) {
       touchState.current.moved = false;
       return;
@@ -766,6 +820,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             onClick={() => {
               if (playbackOnlyMovableId) return; // 放映模式禁用橡皮
               setEraserMode((v) => !v);
+              setPaintMode(false);
               setSelectedCombatantId(null);
             }}
             disabled={!!playbackOnlyMovableId}
@@ -777,6 +832,23 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           >
             <Eraser className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">橡皮</span>
+          </button>
+          <button
+            onClick={() => {
+              if (playbackOnlyMovableId) return;
+              setPaintMode((v) => !v);
+              setEraserMode(false);
+              setSelectedCombatantId(null);
+            }}
+            disabled={!!playbackOnlyMovableId}
+            className={`px-2 py-1 text-xs rounded-lg border flex items-center gap-1 transition-colors ${
+              paintMode
+                ? 'bg-primary text-white border-primary'
+                : 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/5'
+            } disabled:opacity-40 disabled:cursor-not-allowed`}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">填格</span>
           </button>
           <button
             onClick={() => {
@@ -951,6 +1023,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             const col = i % preset.cols;
             const row = Math.floor(i / preset.cols);
             const key = `${col},${row}`;
+            const isPainted = paintedSet.has(`${col},${row}`);
             const combatantId = cellToken.get(key);
             const combatant = combatantId ? combatantMap.get(combatantId) : null;
             const itemsHere = cellItemTokens.get(key) || [];
@@ -973,7 +1046,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                     : 'dark:border-border-dark/40 light:border-border-light/40'
                 } ${isHover ? 'hover:bg-primary/20' : ''} ${
                   eraserMode && combatantId ? 'hover:bg-danger/30' : ''
-                }`}
+                } ${isPainted ? 'bg-white dark:bg-white/90 border-gray-300 dark:border-gray-500' : ''}`}
                 style={{ width: cellSize, height: cellSize }}
                 title={combatant ? combatant.name : itemsHere.length > 0 ? itemsHere.map(t => t.name).join(', ') : `${col},${row}`}
               >
