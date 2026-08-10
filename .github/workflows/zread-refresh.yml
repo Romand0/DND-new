@@ -1,0 +1,35 @@
+name: Zread Auto Refresh
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Trigger Zread re-index
+        id: submit
+        continue-on-error: true
+        run: |
+          echo "正在通知 Zread 服务端重新索引 Romand0/DND-new ..."
+          HTTP_CODE=$(curl -s -o response.json -w "%{http_code}" \
+            -X POST "https://zread.ai/api/v1/public/repo/submit" \
+            -H "Content-Type: application/json" \
+            -d '{"repo":"Romand0/DND-new"}')
+          echo "HTTP 状态码: $HTTP_CODE"
+          echo "响应内容:"
+          cat response.json
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "submit 成功，Zread 已收到索引请求"
+          else
+            echo "submit 返回非 2xx，但 workflow 不会因此失败"
+          fi
+
+      - name: 完成
+        run: echo "Workflow 执行完毕"
