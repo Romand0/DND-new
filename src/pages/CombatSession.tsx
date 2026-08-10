@@ -3507,7 +3507,7 @@ export default function CombatSession() {
               // 显示结果弹窗
               const movementUsed = c.movementUsed ?? 0;
               const availableMovement = battleSpeed + newDashExtra - movementUsed;
-              alert(`使用"疾走"成功，消耗 1 动作，获得 ${battleSpeed} 尺额外移动力，本回合可用移动力为 ${availableMovement} 尺`);
+              alert(`专注于疾跑，获得 ${battleSpeed} 尺额外移动力`);
               setInfoPanelCombatant(null);
             }}
           />
