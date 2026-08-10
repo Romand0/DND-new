@@ -187,6 +187,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     return new Set(bg?.paintedCells || []);
   }, [bg?.paintedCells]);
 
+  // 放映模式下：边界格（涂白格）不可放置棋子
+  const isCellBlocked = (col: number, row: number): boolean => {
+    if (!playbackActive && !playbackOnlyMovableId) return false;
+    return paintedSet.has(`${col},${row}`);
+  };
+
   // 格子 -> 掉落物品 token 列表 反向索引
   const cellItemTokens = useMemo(() => {
     const m = new Map<string, ItemToken[]>(); // "col,row" -> ItemToken[]
@@ -555,6 +561,17 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (paintDragRef.current?.active) {
+      // 仅涂了 0 格（未拖拽移动）：视为单击，toggle 当前格
+      if (paintDragRef.current.cells.size === 0) {
+        const rect = gridWrapRef.current?.getBoundingClientRect();
+        if (rect) {
+          const col = Math.floor((e.clientX - rect.left - translate.x) / (cellSize * scale));
+          const row = Math.floor((e.clientY - rect.top - translate.y) / (cellSize * scale));
+          if (col >= 0 && col < preset.cols && row >= 0 && row < preset.rows) {
+            battlegroundStore.togglePaintedCell(sessionId, `${col},${row}`);
+          }
+        }
+      }
       paintDragRef.current = null;
       return;
     }
@@ -649,18 +666,19 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   // 点击格子：只有未发生拖拽时才触发
   const handleCellClick = (col: number, row: number) => {
     if (readOnly) return;
-    if (paintMode) {
-      const key = `${col},${row}`;
-      battlegroundStore.togglePaintedCell(sessionId, key);
-      return;
-    }
     if (touchState.current.moved) {
       touchState.current.moved = false;
       return;
     }
     const existingCombatantId = cellToken.get(`${col},${row}`);
     if (eraserMode) {
-      if (existingCombatantId) battlegroundStore.removeToken(sessionId, existingCombatantId);
+      const key = `${col},${row}`;
+      if (existingCombatantId) {
+        battlegroundStore.removeToken(sessionId, existingCombatantId);
+      }
+      if (paintedSet.has(key)) {
+        battlegroundStore.togglePaintedCell(sessionId, key);
+      }
       return;
     }
     // 公共：执行移动前的移动力合法性校验 + 消耗回调。返回 true 允许执行 placeToken
@@ -716,6 +734,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           return;
         }
         const src = tokenMap.get(selectedCombatantId);
+        if (isCellBlocked(col, row)) {
+          alert('不能将棋子放置在边界格上');
+          return;
+        }
         if (src && !attemptMove(selectedCombatantId, src, { col, row })) return;
         battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
         setSelectedCombatantId(null);
@@ -746,6 +768,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         return;
       }
       // 目标格为空 → 移动/放置到该格
+      if (isCellBlocked(col, row)) {
+        alert('不能将棋子放置在边界格上');
+        return;
+      }
       const src = tokenMap.get(selectedCombatantId);
       if (src && !attemptMove(selectedCombatantId, src, { col, row })) return;
       battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
@@ -782,6 +808,17 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   const unplaced = combatants.filter((c) => !tokenMap.has(c.id));
   // 已放置的参战者（用于回收框展示）
   const placed = combatants.filter((c) => tokenMap.has(c.id));
+
+  // 沙盘操作提示语（按模式优先级显示）
+  const modeHint = paintMode
+    ? '填格笔模式：点击或拖拽涂白格子，再次点击取消；棋子不可交互'
+    : playbackOnlyMovableId
+    ? `放映模式：仅 ${combatantMap.get(playbackOnlyMovableId)?.name ?? '当前角色'} 可操作沙盘`
+    : eraserMode
+    ? '橡皮模式：点击棋子移除，点击边界格擦除'
+    : selectedCombatantId
+    ? '点击沙盘上的格子放置选中棋子'
+    : '点击沙盘上的棋子选中，点击未放置的参战者后到沙盘放置';
 
   // 单元格尺寸：根据大小预设调整，保证整体可见
   const cellSize = bg.size === 'small' ? 28 : bg.size === 'medium' ? 22 : 18;
@@ -919,6 +956,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             <button
               key={c.id}
               onClick={() => {
+                if (paintMode) return;
                 if (eraserMode) return;
                 if (!selectable) return;
                 if (selectedCombatantId === c.id) {
@@ -935,7 +973,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   : c.isPc
                   ? 'border-info/50 text-info hover:bg-info/10'
                   : 'border-danger/50 text-danger hover:bg-danger/10'
-              } ${eraserMode ? 'opacity-40 cursor-not-allowed' : !selectable ? 'opacity-30 cursor-not-allowed' : ''}`}
+              } ${eraserMode ? 'opacity-40 cursor-not-allowed' : !selectable ? 'opacity-30 cursor-not-allowed' : ''} ${
+                paintMode ? 'opacity-30 cursor-not-allowed' : ''
+              }`}
             >
               {c.name}
             </button>
@@ -958,6 +998,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             <button
               key={c.id}
               onClick={() => {
+                if (paintMode) return;
                 if (!selectable) return;
                 setSelectedCombatantId(c.id === selectedCombatantId ? null : c.id);
                 setEraserMode(false);
@@ -968,7 +1009,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   : c.isPc
                   ? 'border-info/50 text-info hover:bg-info/10'
                   : 'border-danger/50 text-danger hover:bg-danger/10'
-              } ${!selectable ? 'opacity-30 cursor-not-allowed' : ''}`}
+              } ${!selectable ? 'opacity-30 cursor-not-allowed' : ''} ${
+                paintMode ? 'opacity-30 cursor-not-allowed' : ''
+              }`}
             >
               {c.name}
             </button>
@@ -977,15 +1020,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         </div>
         {/* 提示语 —— 固定双行高度，避免选中状态切换导致沙盘整体位移 */}
         <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted min-h-[2rem] leading-4">
-          {playbackOnlyMovableId
-            ? `放映模式：仅 ${combatantMap.get(playbackOnlyMovableId)?.name ?? '当前角色'} 可操作沙盘`
-            : eraserMode
-            ? '橡皮模式：点击棋子移除'
-            : selectedCombatantId
-            ? placed.find((c) => c.id === selectedCombatantId)
-              ? `已选中 ${combatantMap.get(selectedCombatantId)?.name}：点击空格移动，点击上方高亮框收回`
-              : `已选中 ${combatantMap.get(selectedCombatantId)?.name}：点击空格放置`
-            : '点击沙盘上的棋子选中，点击未放置的参战者后到沙盘放置'}
+          {modeHint}
         </div>
       </div>
 
@@ -1046,7 +1081,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                     : 'dark:border-border-dark/40 light:border-border-light/40'
                 } ${isHover ? 'hover:bg-primary/20' : ''} ${
                   eraserMode && combatantId ? 'hover:bg-danger/30' : ''
-                } ${isPainted ? 'bg-white dark:bg-white/90 border-gray-300 dark:border-gray-500' : ''}`}
+                } ${eraserMode && paintedSet.has(key) ? 'hover:bg-danger/30' : ''} ${
+                  isPainted ? 'bg-white dark:bg-white/90 border-gray-300 dark:border-gray-500' : ''
+                }`}
                 style={{ width: cellSize, height: cellSize }}
                 title={combatant ? combatant.name : itemsHere.length > 0 ? itemsHere.map(t => t.name).join(', ') : `${col},${row}`}
               >
@@ -1060,7 +1097,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                     <div
                       className={`absolute rounded-lg flex items-center justify-center transition-all select-none bg-amber-600/80 ${
                         isItemLocked ? 'ring-2 ring-yellow-400 scale-110 z-10' : 'z-0'
-                      } ${isHidden ? 'opacity-0 pointer-events-none' : ''}`}
+                      } ${isHidden ? 'opacity-0 pointer-events-none' : ''} ${
+                        paintMode ? 'opacity-30 pointer-events-none' : ''
+                      }`}
                       style={{
                         width: cellSize - 8,
                         height: cellSize - 8,
@@ -1104,6 +1143,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                             setSelectedCombatantId(null);
                             return;
                           }
+                          if (isCellBlocked(col, row)) {
+                            alert('不能将棋子放置在边界格上');
+                            return;
+                          }
                           battlegroundStore.placeToken(sessionId, {
                             combatantId: selectedCombatantId,
                             col,
@@ -1118,6 +1161,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                           playbackOnlyMovableId &&
                           selectedCombatantId === playbackOnlyMovableId
                         ) {
+                          if (isCellBlocked(col, row)) {
+                            alert('不能将棋子放置在边界格上');
+                            return;
+                          }
                           battlegroundStore.placeToken(sessionId, {
                             combatantId: selectedCombatantId,
                             col,
@@ -1150,7 +1197,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                       isDragHovered ? 'ring-2 ring-white' : ''
                     } ${isLocked ? 'ring-2 ring-yellow-400 scale-110' : ''} ${
                       downed ? 'opacity-60' : ''
-                    } ${isActiveTurn ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''}`}
+                    } ${isActiveTurn ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''} ${
+                      paintMode ? 'opacity-30 pointer-events-none' : ''
+                    }`}
                     style={{
                       width: cellSize - 6,
                       height: cellSize - 6,
@@ -1213,7 +1262,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   <div
                     className={`absolute z-20 rounded-full flex items-center justify-center bg-gray-800 text-white shadow-lg pointer-events-none transition-transform ${
                       dragLock?.hoveredEllipsisCell === key ? 'ring-2 ring-yellow-400 scale-110' : ''
-                    }`}
+                    } ${paintMode ? 'hidden' : ''}`}
                     style={{
                       width: Math.max(14, cellSize * 0.4),
                       height: Math.max(14, cellSize * 0.4),
