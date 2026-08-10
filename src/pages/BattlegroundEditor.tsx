@@ -7,12 +7,13 @@ import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG } from '@/types/battleground';
 import type { Combatant } from '@/types/combat';
 
+type Tool = 'brush' | 'eraser' | 'hand';
+
 export default function BattlegroundEditor() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
 
   // 工具选择
-  type Tool = 'brush' | 'eraser' | 'hand';
   const [tool, setTool] = useState<Tool>('brush');
 
   // 草稿涂白格子
@@ -43,18 +44,29 @@ export default function BattlegroundEditor() {
     return unsub;
   }, [sessionId]);
 
-  // === 派生量与空值保护 ===
-  if (!bg) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center text-sm opacity-50">
-        加载中...
-      </div>
-    );
-  }
-  const preset = GRID_PRESETS[bg.size];
-  const cellSize = bg.size === 'small' ? 28 : bg.size === 'medium' ? 22 : 18;
+  // —— 所有 refs 必须在 early return 之前声明 ——
+  const gridWrapRef = useRef<HTMLDivElement | null>(null);
+  const latestTranslate = useRef(translate);
+  const touchState = useRef<{
+    pointers: Map<number, { x: number; y: number }>;
+    startPoints: Map<number, { x: number; y: number }>;
+    startTranslate: { x: number; y: number };
+    startScale: number;
+    startDist: number;
+    startMidScreen: { x: number; y: number };
+    moved: boolean;
+  }>({
+    pointers: new Map(), startPoints: new Map(),
+    startTranslate: { x: 0, y: 0 }, startScale: 1, startDist: 0,
+    startMidScreen: { x: 0, y: 0 }, moved: false,
+  });
+  const paintDragRef = useRef<{
+    active: boolean;
+    cells: Set<string>;
+    mode: 'paint' | 'erase';
+  } | null>(null);
 
-  // 从战斗记录读取参战者（只读展示用）
+  // —— 所有 useMemo 必须在 early return 之前调用 ——
   const combatants = useMemo(() => {
     if (!sessionId) return [];
     return combatStore.get(sessionId)?.combatants ?? [];
@@ -68,9 +80,23 @@ export default function BattlegroundEditor() {
 
   const cellToken = useMemo(() => {
     const m = new Map<string, string>();
-    bg?.tokens.forEach(t => m.set(`${t.col},${t.row}`, t.combatantId));
+    if (bg?.tokens) bg.tokens.forEach(t => m.set(`${t.col},${t.row}`, t.combatantId));
     return m;
   }, [bg?.tokens]);
+
+  // —— early return 放在所有 hooks 之后 ——
+  if (!bg) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center text-sm opacity-50">
+        加载中...
+      </div>
+    );
+  }
+
+  // 派生量（非 hook，放在 early return 之后，保证 bg 非 null）
+  const preset = GRID_PRESETS[bg.size];
+  const cellSize = bg.size === 'small' ? 28 : bg.size === 'medium' ? 22 : 18;
+  latestTranslate.current = translate;
 
   const getDistance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
     Math.hypot(a.x - b.x, a.y - b.y);
@@ -100,30 +126,6 @@ export default function BattlegroundEditor() {
     latestTranslate.current = clamped;
     setTranslate(clamped);
   };
-
-  const gridWrapRef = useRef<HTMLDivElement | null>(null);
-  const latestTranslate = useRef(translate);
-  latestTranslate.current = translate;
-
-  const touchState = useRef<{
-    pointers: Map<number, { x: number; y: number }>;
-    startPoints: Map<number, { x: number; y: number }>;
-    startTranslate: { x: number; y: number };
-    startScale: number;
-    startDist: number;
-    startMidScreen: { x: number; y: number };
-    moved: boolean;
-  }>({
-    pointers: new Map(), startPoints: new Map(),
-    startTranslate: { x: 0, y: 0 }, startScale: 1, startDist: 0,
-    startMidScreen: { x: 0, y: 0 }, moved: false,
-  });
-
-  const paintDragRef = useRef<{
-    active: boolean;
-    cells: Set<string>;
-    mode: 'paint' | 'erase';
-  } | null>(null);
 
   const applyPaint = (key: string, mode: 'paint' | 'erase') => {
     setDraftCells(prev => {
