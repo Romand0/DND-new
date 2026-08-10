@@ -218,6 +218,15 @@ const battlegroundStore = {
     saveAll(list);
   },
 
+  /** 批量设置涂白格子 */
+  setPaintedCells(sessionId: string, cells: string[]): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    list[idx] = { ...list[idx], paintedCells: [...new Set(cells)], updatedAt: Date.now() };
+    saveAll(list);
+  },
+
   /** 清除所有涂白格子 */
   clearPaintedCells(sessionId: string): void {
     const list = loadAll();
