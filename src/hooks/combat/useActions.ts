@@ -7,9 +7,10 @@ export function useActions(record: CombatRecord | null) {
 
   const canUseAction = (combatantId: string): boolean => {
     if (!record) return false;
-    if (currentMode() === 'simulation') return true;
     const c = record.combatants.find(x => x.id === combatantId);
     if (!c) return false;
+    if (c.isIncapacitated || c.isUnconscious || c.isDead) return false;
+    if (currentMode() === 'simulation') return true;
     return (typeof c.actions === 'number' ? c.actions : 1) > 0;
   };
 
@@ -40,6 +41,11 @@ export function useActions(record: CombatRecord | null) {
   return {
     currentMode,
     canUseAction,
+    isIncapacitated: (combatantId: string): boolean => {
+      if (!record) return false;
+      const c = record.combatants.find(x => x.id === combatantId);
+      return !!c?.isIncapacitated;
+    },
     consumeCombatantAction,
     markLoadingAttacked,
     resetCombatantActions,

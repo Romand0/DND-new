@@ -10,6 +10,8 @@ export interface Combatant {
   isDead?: boolean;
   /** 昏迷（HP 归零但未死亡）：表格表头黯淡，棋子变灰 */
   isUnconscious?: boolean;
+  /** 失能（Incapacitated）：无法执行任何动作或反应，actions 视为 0；模拟模式下同样生效 */
+  isIncapacitated?: boolean;
   /** 死亡豁免失败次数（D&D 5e：累计 3 次即死亡） */
   deathSaveFailures?: number;
   /** 死亡豁免成功次数（D&D 5e：累计 3 次即稳定） */
