@@ -8,6 +8,7 @@ import { spellStore } from '@/data/spellStore';
 import combatStore, { computeCombatantAc } from '@/data/combatStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
 import AdvDisadvToggle from './AdvDisadvToggle';
+import { isBonusActionCast } from '@/types/combat';
 import type { Combatant, CheckScene, AdvantageReason, AdvantageResult } from '@/types/combat';
 import type { Character, AbilityKey, Equipment } from '@/types/character';
 import type { Spell } from '@/types/spell';
@@ -34,6 +35,8 @@ interface Props {
   currentRound?: number;
   /** 所有参战者沙盘位置字典（跨参战者距离判定，如协助动作 5 尺内约束） */
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /** 施法者是否还有可用附赠动作次数（附赠动作施法时间法术需要消耗） */
+  canUseBonusAction?: boolean;
   /** 施放完成：回传完整信息由 main 写入先攻表格与应用 HP 变化 */
   onCastResolved: (info: {
     spellName: string;
@@ -156,7 +159,7 @@ function SpellCard({ spell, level, active, onPick }: { spell: Spell; level: numb
   );
 }
 
-export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory, recordId, currentRound, combatantPositions }: Props) {
+export default function CombatSpellModal({ caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory, recordId, currentRound, combatantPositions, canUseBonusAction }: Props) {
   // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
   const targetCharacter = useMemo<Character | null>(() => {
     if (propTargetCharacter !== undefined && propTargetCharacter !== null) return propTargetCharacter;
@@ -252,6 +255,11 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
     // 言语成分校验：若法术需要 V 成分而施法者无法言语，则阻止施放
     if (spell.components?.verbal && caster.canSpeak === false) {
       alert(`无法施放「${spell.name}」：该法术需要言语成分（V），但你当前无法说话或发出声音。`);
+      return;
+    }
+    // 附赠动作施法时间校验：施法时间为「1 附赠动作」的法术消耗附赠动作次数，不足时阻止
+    if (isBonusActionCast(spell.castingTime) && canUseBonusAction === false) {
+      alert(`无法施放「${spell.name}」：该法术施法时间为附赠动作，但施法者本回合可用附赠动作次数已耗尽。`);
       return;
     }
     setSelectedSpell(spell);

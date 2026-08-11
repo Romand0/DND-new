@@ -651,8 +651,31 @@ const combatStore = {
   },
 
   /**
+   * 消耗某参战者的可用附赠动作数。
+   * 放映模式：扣 1，到 0 为止；模拟模式：无限（扣到 0 立即回 1）。
+   * @returns 消耗后的剩余附赠动作数；找不到参战者时返回 null
+   */
+  consumeBonusAction(recordId: string, combatantId: string, mode: 'simulation' | 'playback'): number | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return null;
+    const cur = typeof record.combatants[idx].bonusActions === 'number' && (record.combatants[idx].bonusActions as number) >= 0
+      ? (record.combatants[idx].bonusActions as number)
+      : 1;
+    let next = Math.max(0, cur - 1);
+    if (mode === 'simulation' && next === 0) next = 1;
+    record.combatants[idx] = { ...record.combatants[idx], bonusActions: next };
+    record.updatedAt = Date.now();
+    save(records);
+    return next;
+  },
+
+  /**
    * 重置某参战者的可用动作数为 1（放映模式每回合开始时调用）。
    * 同时将 movementUsed 归零（D&D 5e：每回合开始恢复完整移动力）。
+   * 附赠动作也恢复为 1（D&D 5e：每回合开始恢复附赠动作）。
    * @returns 重置后的可用动作数（恒为 1）；找不到参战者时返回 null
    */
   resetActions(recordId: string, combatantId: string): number | null {
@@ -661,7 +684,7 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0, canSpeak: true };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0, canSpeak: true };
     record.updatedAt = Date.now();
     save(records);
     return 1;

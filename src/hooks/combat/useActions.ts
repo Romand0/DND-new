@@ -14,9 +14,25 @@ export function useActions(record: CombatRecord | null) {
     return (typeof c.actions === 'number' ? c.actions : 1) > 0;
   };
 
+  /** 附赠动作可用性：放映模式下检查次数，模拟模式无限 */
+  const canUseBonusAction = (combatantId: string): boolean => {
+    if (!record) return false;
+    const c = record.combatants.find(x => x.id === combatantId);
+    if (!c) return false;
+    if (c.isIncapacitated || c.isUnconscious || c.isDead) return false;
+    if (currentMode() === 'simulation') return true;
+    return (typeof c.bonusActions === 'number' ? c.bonusActions : 1) > 0;
+  };
+
   const consumeCombatantAction = (combatantId: string) => {
     if (!record) return;
     combatStore.consumeAction(record.id, combatantId, currentMode());
+  };
+
+  /** 消耗附赠动作 */
+  const consumeCombatantBonusAction = (combatantId: string) => {
+    if (!record) return;
+    combatStore.consumeBonusAction(record.id, combatantId, currentMode());
   };
 
   const markLoadingAttacked = (combatantId: string) => {
@@ -41,12 +57,14 @@ export function useActions(record: CombatRecord | null) {
   return {
     currentMode,
     canUseAction,
+    canUseBonusAction,
     isIncapacitated: (combatantId: string): boolean => {
       if (!record) return false;
       const c = record.combatants.find(x => x.id === combatantId);
       return !!c?.isIncapacitated;
     },
     consumeCombatantAction,
+    consumeCombatantBonusAction,
     markLoadingAttacked,
     resetCombatantActions,
   };
