@@ -1,5 +1,5 @@
 on:
-  workflow_dispatch: # 只允许手动触发，方便测试
+  workflow_dispatch:
 
 jobs:
   update:
@@ -16,19 +16,24 @@ jobs:
       - name: 💣 暴力清空所有残留
         run: |
           echo "正在彻底清理环境..."
-          rm -rf openwiki .openwiki .last-update.json
+          rm -rf openwiki .openwiki .last-update.json debug.log
           echo "清理完成"
 
-      - name: 🔍 强制重新生成（无DEBUG参数）
+      - name: 🔍 运行并记录详细日志(写入文件)
         run: openwiki code --update --print --force
         env:
+          # 关键环境变量：把详细日志写入 debug.log 文件
+          DEBUG: openwiki
           OPENWIKI_PROVIDER: openai-compatible
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OPENAI_COMPATIBLE_BASE_URL: https://open.bigmodel.cn/api/paas/v4/
           OPENWIKI_MODEL_ID: glm-4-flash
           MCP_DISABLED: "true"
 
-      - name: 📂 检查最终产出
+      - name: 📂 检查产出和日志
         run: |
-          echo "=== 最终生成的 openwiki 目录内容 ==="
+          echo "=== 1. openwiki 目录内容 ==="
           ls -la openwiki/
+          echo ""
+          echo "=== 2. 程序运行详细日志 (debug.log) ==="
+          cat debug.log || echo "日志文件为空"
