@@ -199,6 +199,8 @@ export interface Character {
   heldLeft: HandSlot;
   /** 右手手持槽 */
   heldRight: HandSlot;
+  /** 言语能力：能否说话或发出声音（true=可以，false=不可以）。默认为 true，某些状态可剥夺 */
+  canSpeak?: boolean;
 }
 
 /** 手持槽状态 */
