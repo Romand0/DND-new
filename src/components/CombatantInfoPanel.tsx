@@ -358,6 +358,18 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     }
   };
 
+  // 状态管理
+  const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set());
+
+  const toggleStatusExpand = (statusKey: string) => {
+    setExpandedStatuses(prev => {
+      const next = new Set(prev);
+      if (next.has(statusKey)) next.delete(statusKey);
+      else next.add(statusKey);
+      return next;
+    });
+  };
+
   const [selectedRangeIndex, setSelectedRangeIndex] = useState<number | null>(null);
 
   return (
@@ -367,6 +379,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           <h3 className="font-bold text-sm dark:text-text-dark light:text-text-light">
             {combatant.name}
             {combatant.isPc && <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-info/20 text-info">PC</span>}
+            {combatant.isIncapacitated && (
+              <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-600/20 text-purple-400">失能</span>
+            )}
           </h3>
           <button
             onClick={onClose}
@@ -661,12 +676,55 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
             </div>
           )}
 
-          {activeTab === 'status' && !character && (
+          {activeTab === 'status' && (
             <div className="space-y-3">
-              <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">手持状态</div>
-              <div className="text-xs text-center py-4 dark:text-text-dark-muted light:text-text-light-muted">
-                NPC 手持状态暂不支持
-              </div>
+              {/* 状态卡片：失能 */}
+              {combatant.isIncapacitated && (
+                <div className="rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">
+                  <button
+                    onClick={() => toggleStatusExpand('incapacitated')}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium dark:text-text-dark light:text-text-light">失能</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-purple-600/20 text-purple-400">生效中</span>
+                    </div>
+                    {expandedStatuses.has('incapacitated') ? (
+                      <ChevronUp className="w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+                    )}
+                  </button>
+                  {expandedStatuses.has('incapacitated') && (
+                    <div className="px-3 pb-3 space-y-1.5 border-t dark:border-border-dark light:border-border-light pt-2">
+                      <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">该参战者正处于失能状态，受到以下影响：</p>
+                      <ul className="space-y-1">
+                        <li className="text-xs flex items-start gap-1.5">
+                          <span className="text-purple-400 mt-0.5">•</span>
+                          <span className="dark:text-text-dark light:text-text-light">无法行动</span>
+                        </li>
+                        <li className="text-xs flex items-start gap-1.5">
+                          <span className="text-purple-400 mt-0.5">•</span>
+                          <span className="dark:text-text-dark light:text-text-light">无法专注</span>
+                        </li>
+                        <li className="text-xs flex items-start gap-1.5">
+                          <span className="text-purple-400 mt-0.5">•</span>
+                          <span className="dark:text-text-dark light:text-text-light">无法说话</span>
+                        </li>
+                        <li className="text-xs flex items-start gap-1.5">
+                          <span className="text-purple-400 mt-0.5">•</span>
+                          <span className="dark:text-text-dark light:text-text-light">先攻投掷劣势</span>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!combatant.isIncapacitated && (
+                <div className="text-center py-8 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  当前无状态效果
+                </div>
+              )}
             </div>
           )}
 
@@ -779,17 +837,6 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
           {activeTab === 'actions' && (
             <div className="space-y-3">
-              {/* 失能切换 */}
-              <button
-                onClick={() => record && combatStore.toggleIncapacitated(record.id, combatant.id)}
-                className={`px-2 py-1 text-xs rounded-lg border transition-colors ${
-                  combatant.isIncapacitated
-                    ? 'bg-purple-600 text-white border-purple-600'
-                    : 'border-purple-500/50 text-purple-500 hover:bg-purple-500/10'
-                }`}
-              >
-                失能
-              </button>
               {/* 动作计数行 */}
               <div className="flex items-center justify-between rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
                 <span className="text-xs font-medium dark:text-text-dark light:text-text-light">动作</span>
