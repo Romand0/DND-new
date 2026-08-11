@@ -5,6 +5,7 @@ on:
     - cron: "0 8 * * *"
   push:
     branches: [main, master]
+  workflow_dispatch:
 
 jobs:
   update:
@@ -27,10 +28,18 @@ jobs:
       - name: Run OpenWiki
         run: openwiki code --update --print
         env:
+          # 基础配置
           OPENWIKI_PROVIDER: openai-compatible
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OPENAI_COMPATIBLE_BASE_URL: https://open.bigmodel.cn/api/paas/v4/
           OPENWIKI_MODEL_ID: glm-4.7-flash
+          
+          # 👇 新增：增加重试次数和超时时间，对抗 429 错误
+          OPENWIKI_PROVIDER_RETRY_ATTEMPTS: 5
+          OPENWIKI_PROVIDER_RETRY_DELAY: 2000
+          
+          # 👇 新增：延长单次 API 调用的超时时间（毫秒）
+          OPENWIKI_PROVIDER_TIMEOUT: 120000
       
       - name: Create OpenWiki update pull request
         uses: peter-evans/create-pull-request@v7
