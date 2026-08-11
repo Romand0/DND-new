@@ -4,10 +4,10 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
-    # 👇 关键修复：必须拉取完整 git 历史，否则 openwiki 会找不到文件
-    fetch-depth: 0 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -15,7 +15,7 @@ jobs:
 
       - run: npm install --global openwiki
 
-      - name: 🔄 重置 OpenWiki 状态（关键步骤）
+      - name: 🔄 重置 OpenWiki 状态
         run: |
           echo "删除状态锁文件，强制重新扫描..."
           rm -f openwiki/.last-update.json
@@ -23,7 +23,6 @@ jobs:
       - name: 🚀 运行 OpenWiki
         run: openwiki code --update --print
         env:
-          # 👇 确保环境变量正确传递
           OPENWIKI_PROVIDER: openai-compatible
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OPENAI_COMPATIBLE_BASE_URL: https://open.bigmodel.cn/api/paas/v4/
