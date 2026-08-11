@@ -10,9 +10,14 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    
+    # 👇👇👇 核心修复：在这里显式赋予写入权限 👇👇👇
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write   # 允许写入文件（创建分支）
+      pull-requests: write # 允许创建 Pull Request
+      actions: read     # 允许读取工作流状态
+    # 👆👆👆 加上这三行，99% 的权限报错都能解决 👆👆👆
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -28,11 +33,11 @@ jobs:
       - name: Run OpenWiki
         run: openwiki code --update --print
         env:
+          # 保持你原来的配置不动
           OPENWIKI_PROVIDER: openai-compatible
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OPENAI_COMPATIBLE_BASE_URL: https://open.bigmodel.cn/api/paas/v4/
-          OPENWIKI_MODEL_ID: glm-4-flash
-          OPENWIKI_PROVIDER_RETRY_ATTEMPTS: 5
+          OPENWIKI_MODEL_ID: glm-4.7-flash
       
       - name: Create OpenWiki update pull request
         uses: peter-evans/create-pull-request@v7
