@@ -7,8 +7,8 @@ jobs:
     
     steps:
       - uses: actions/checkout@v4
-        with: 
-            fetch-depth: 0
+        with:
+          fetch-depth: 0
           
       - uses: actions/setup-node@v4
         with:
@@ -16,23 +16,17 @@ jobs:
 
       - run: npm install --global openwiki
 
-      - name: 🔄 强制重置状态
-        run: |
-          rm -rf openwiki
-          mkdir -p openwiki
-
-      - name: 🚀 运行 OpenWiki（开启全量调试）
+      - name: 🚀 运行 OpenWiki（强制纯本地模式）
         run: openwiki code --update --print
         env:
-          # 👇 开启这个，能看到它到底卡在哪里
-          DEBUG: openwiki
+          # === 核心配置 ===
           OPENWIKI_PROVIDER: openai-compatible
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OPENAI_COMPATIBLE_BASE_URL: https://open.bigmodel.cn/api/paas/v4/
           OPENWIKI_MODEL_ID: glm-4-flash
-          MCP_DISABLED: "true"
-
-      - name: 📂 检查最终结果
-        run: |
-          echo "=== 最终目录结构 ==="
-          ls -R openwiki/
+          
+          # 👇👉 关键！强制彻底禁用 MCP 连接器，防止它去连 Notion 导致报错
+          MCP_DISABLED: "1"
+          
+          # 👇 可选：如果你之前设置了重试，可以保留，不保留也没关系
+          # OPENWIKI_PROVIDER_RETRY_ATTEMPTS: 3
