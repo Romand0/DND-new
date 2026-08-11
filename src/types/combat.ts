@@ -41,6 +41,8 @@ export interface Combatant {
   attacks?: NpcAttack[];
   /** 当前可用动作数（放映模式每回合恢复，模拟模式无限） */
   actions?: number;
+  /** 当前可用附赠动作数（放映模式每回合恢复为 1，模拟模式无限） */
+  bonusActions?: number;
   /** 待消费的优劣势标记列表（发起者赋予此参战者的一次性优劣势来源，如协助/法术效果） */
   pendingAdvantageSources?: PendingAdvantageSource[];
   /** 言语能力：能否说话或发出声音（true=可以，false=不可以）。默认真，某些状态可剥夺 */
@@ -150,6 +152,65 @@ export function isOneActionCast(castingTime?: string): boolean {
   if (!castingTime) return false;
   if (castingTime.includes('附赠') || castingTime.includes('反应')) return false;
   return castingTime.includes('动作');
+}
+
+/**
+ * 施法时间是否为「1 附赠动作」。
+ * castingTime 自由文本中含"附赠"即判定。
+ */
+export function isBonusActionCast(castingTime?: string): boolean {
+  if (!castingTime) return false;
+  return castingTime.includes('附赠');
+}
+
+// ============ 附赠动作连带触发关系 ============
+// D&D 5e 中，有些动作/法术完成后会「无缝衔接」一个附赠动作触发。
+// 例如：武僧「疾风连击」——攻击动作完成后自动附带一次无武技的徒手打击（附赠动作）。
+// 另一些触发器的效果是使一个原本需要用动作来实现的效果转而用附赠动作来实现。
+// 例如：某些专长允许「以附赠动作施展原本需要 1 动作的法术」。
+// 这里定义类型接口，供后续特性/专长/法术注册使用。
+
+/**
+ * 连带触发类型：
+ * - chain: 动作完成后无缝衔接一个附赠动作效果（被动触发）
+ * - convert: 将原本需要动作的效果转为附赠动作实现（主动转换）
+ */
+export type BonusActionTriggerType = 'chain' | 'convert';
+
+/**
+ * 附赠动作连带触发定义
+ * 描述「什么动作完成后 → 触发什么附赠动作效果」或「什么动作可以转为附赠动作施展」
+ */
+export interface BonusActionTrigger {
+  /** 唯一标识 */
+  id: string;
+  /** 触发类型：chain=连带衔接 / convert=动作转附赠 */
+  type: BonusActionTriggerType;
+  /** 触发条件：描述什么动作/法术/特性完成后触发（如 attack / spell:healing_word / feature:flurry_of_blows） */
+  sourceAction: string;
+  /** 触发后的附赠动作效果描述（如 "unarmed_strike" / "cast_spell:bonus" / "dash"） */
+  triggeredBonusAction: string;
+  /** 可读的效果名称（UI 展示用） */
+  label?: string;
+  /** 是否每回合只能触发一次（默认 true，符合 D&D 5e 大多数连带触发） */
+  oncePerRound?: boolean;
+  /** 前置条件描述（如 "仅限武僧" / "需消耗 1 气点"），用于 UI 提示 */
+  prerequisite?: string;
+}
+
+/**
+ * 动作→附赠动作转换规则
+ * 某些特性允许将特定动作转为附赠动作施展（如「敏捷施法者」专长允许以附赠动作施法）
+ */
+export interface ActionToBonusConversion {
+  /** 唯一标识 */
+  id: string;
+  /** 被转换的动作标识（如 spell:xxx / action:dash） */
+  sourceActionId: string;
+  /** 转换后的描述（如 "以附赠动作施展" / "以附赠动作冲刺"） */
+  convertedLabel: string;
+  /** 前置条件（如 "需有 XX 特性" / "本回合未施放附赠动作法术"） */
+  prerequisite?: string;
 }
 
 /** 预设任务类型：决定点击跳转的弹窗种类；null = 其他（无跳转） */

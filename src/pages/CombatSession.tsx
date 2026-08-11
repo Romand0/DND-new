@@ -39,7 +39,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
-import { isOneActionCast } from '@/types/combat';
+import { isOneActionCast, isBonusActionCast } from '@/types/combat';
 import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2, PlayCircle, PauseCircle } from 'lucide-react';
 import Battleground from '@/components/Battleground';
@@ -657,6 +657,22 @@ export default function CombatSession() {
     if (!record) return;
     if (!isPlaybackActive()) return;
     combatStore.consumeAction(record.id, combatantId, 'playback');
+  };
+
+  // 该参战者当前是否还有可用附赠动作次数（模拟模式/放映暂停恒可；放映模式 0 时禁止）
+  const canUseBonusAction = (combatantId: string): boolean => {
+    if (!record) return false;
+    if (!isPlaybackActive()) return true;
+    const c = record.combatants.find(x => x.id === combatantId);
+    if (!c) return false;
+    return (typeof c.bonusActions === 'number' ? c.bonusActions : 1) > 0;
+  };
+
+  // 消耗 1 个附赠动作（写入 store，订阅机制自动刷新 UI）；暂停期间不消耗
+  const consumeCombatantBonusAction = (combatantId: string) => {
+    if (!record) return;
+    if (!isPlaybackActive()) return;
+    combatStore.consumeBonusAction(record.id, combatantId, 'playback');
   };
 
   // 放映模式：标记本回合已用过装填武器攻击（每回合只能攻击一次，优先级高于额外动作）
@@ -2668,11 +2684,16 @@ export default function CombatSession() {
           targetCharacter={spellModal.target.characterId ? characterStore.get(spellModal.target.characterId) : null}
           targetCombatInventory={getCombatInventory(record, spellModal.target)}
           combatantPositions={combatantPositions}
+          canUseBonusAction={canUseBonusAction(spellModal.caster.id)}
           onClose={() => setSpellModal(null)}
           onCastResolved={(info) => {
             // 施法时间 = "1 动作" 的法术消耗 1 个动作（无论是否命中/被豁免）
             if (isOneActionCast(info.castingTime)) {
               consumeCombatantAction(spellModal.caster.id);
+            }
+            // 施法时间 = "1 附赠动作" 的法术消耗 1 个附赠动作
+            if (isBonusActionCast(info.castingTime)) {
+              consumeCombatantBonusAction(spellModal.caster.id);
             }
             // 1. 应用 HP / 状态（伤害扣血、治疗加血，handleApplyDamage 直接覆盖 newHp）
             handleApplyDamage(spellModal.target.id, info.newHp, info.status);
