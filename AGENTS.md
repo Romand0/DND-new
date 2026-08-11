@@ -26,6 +26,7 @@
 | 改样式 / 主题 | Tailwind class（内联）+ `public/css/main.css`（全局 token） | 不要手写 CSS 文件，尽量用 Tailwind；暗黑模式 class 后缀 `-dark` |
 | 加新功能页面 | 建 `src/pages/Xxx.tsx` → 在 `src/App.tsx` 注册路由 → 在 `Layout` / `PlayerLayout` 对应菜单里加入口 | |
 | 改数据库表结构 | `migrations/NNNN_name.sql`（新建迁移文件，不要改旧的）+ `functions/_utils.ts` 对应类型 | 迁移文件追加式，D1 手动 apply |
+| 侦查 / 定位代码模块（先读文档再读源码） | `docs/generated/src/**`（按源码路径镜像的 .md 概述文档，见 §5.14） | 文档是路由表不是唯一事实源，关键判断仍以 `src/` 源码为准；改代码后需重新触发 docs workflow 更新文档 |
 
 ---
 
@@ -589,6 +590,17 @@ getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消�
 - 在 `CombatAttackModal` / `CombatSpellModal` 里硬编码优劣势判定分支（应改为注册 detector）
 - 在引擎检测时修改 `pendingAdvantageSources[i].consumed`（应只读，由调用方在 confirm 后消费）
 - 让弹窗组件直接读 `combatant.pendingAdvantageSources` 自行筛选（应通过 `detectPending` detector 统一返回）
+
+### 5.14 文档路由：侦查先读 `docs/generated` 再读源码
+
+**为什么用**：跨模块侦查（理解战斗/装备/交易等模块后做改动）是长任务额度大头——反复通读大文件叠加 `Read` 工具的 200 行分段限制，每次读取都烧大量输入 token。`docs/generated/` 下的 Markdown 由 GitHub Actions 用智谱 API 按源码路径镜像生成（`scripts/generate-code-docs.mjs` + workflow `docs-generate.yml`），把全部 `src/` 压缩约 6.3x（84% 上下文削减）：`CombatSession.tsx` 163KB 压到 2KB，`characterStore.ts` 64KB 压到 15KB。
+
+**核心约定**：
+- 侦查先读 `docs/generated/src/<对应路径>.md` 定位模块职责 / 导出接口 / 核心逻辑，再按需读源码关键段，不要盲目通读大文件
+- 文档是路由表，不是唯一事实源：LLM 生成的概述可能有遗漏，关键判断（类型、分支、状态流）仍以源码为准
+- 文档幂等生成（`.code-docs-manifest.json` 记源文件 sha，未变化跳过），维护成本≈0；改代码后重新触发 `Generate Code Docs (curl)` workflow 即自动更新
+
+**做新的跨模块侦查时**：先并行读相关 `.md`（每个 2–15KB 一次读完），基于文档列出的函数 / 文件清单决定要精读的 1–2 个源码文件，而非逐个通读。
 
 ---
 
