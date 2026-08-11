@@ -58,22 +58,21 @@ export default function InitiativeTable(props: Props) {
             {combatants.map((c, idx) => {
               const downed = c.isDead || c.isUnconscious;
               return (
-              <th key={c.id} className={`p-2 pt-7 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group ${downed ? 'opacity-40' : ''}`}>
-                <div className="absolute top-1 left-1 w-6 h-6 rounded-full dark:bg-gray-600 dark:text-white light:bg-gray-300 light:text-black text-xs font-bold flex items-center justify-center">
-                  {idx + 1}
-                  {/* 死亡：在数字标记上打红叉 */}
-                  {c.isDead && (
-                    <svg
-                      className="absolute inset-0 w-full h-full pointer-events-none"
-                      viewBox="0 0 100 100"
-                      style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.6))' }}
-                    >
-                      <line x1="20" y1="20" x2="80" y2="80" stroke="#ef4444" strokeWidth="14" strokeLinecap="round" />
-                      <line x1="80" y1="20" x2="20" y2="80" stroke="#ef4444" strokeWidth="14" strokeLinecap="round" />
-                    </svg>
-                  )}
-                </div>
+              <th key={c.id} className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group ${downed ? 'opacity-40' : ''}`}>
                 <div className="flex items-center gap-1">
+                  <div className="shrink-0 w-6 h-6 rounded-full dark:bg-gray-600 dark:text-white light:bg-gray-300 light:text-black text-xs font-bold flex items-center justify-center relative">
+                    {idx + 1}
+                    {c.isDead && (
+                      <svg
+                        className="absolute inset-0 w-full h-full pointer-events-none"
+                        viewBox="0 0 100 100"
+                        style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.6))' }}
+                      >
+                        <line x1="20" y1="20" x2="80" y2="80" stroke="#ef4444" strokeWidth="14" strokeLinecap="round" />
+                        <line x1="80" y1="20" x2="20" y2="80" stroke="#ef4444" strokeWidth="14" strokeLinecap="round" />
+                      </svg>
+                    )}
+                  </div>
                   {batchMode && (
                     <input
                       type="checkbox"
@@ -121,7 +120,7 @@ export default function InitiativeTable(props: Props) {
                       e.stopPropagation();
                       onRemoveCombatant(c.id);
                     }}
-                    className="absolute top-1 right-1 p-0.5 rounded hover:bg-danger/20 text-danger opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-2 right-1 p-0.5 rounded hover:bg-danger/20 text-danger opacity-0 group-hover:opacity-100 transition-opacity"
                     title="删除参战者"
                   >
                     <Trash2 className="w-3 h-3" />
