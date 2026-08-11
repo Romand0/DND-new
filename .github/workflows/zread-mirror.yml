@@ -1,0 +1,56 @@
+name: Zread Mirror（消耗品模式）
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "镜像标签（留空自动用时间戳）"
+        required: false
+        default: ""
+
+jobs:
+  create-mirror:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 生成唯一镜像仓库名
+        id: naming
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(date +%Y%m%d-%H%M%S)
+          fi
+          REPO_NAME="dnd-new-zread-$TAG"
+          echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
+          echo "zread_url=https://zread.ai/${{ github.repository_owner }}/$REPO_NAME" >> $GITHUB_OUTPUT
+
+      - name: 创建新仓库（API）
+        run: |
+          REPO_NAME="${{ steps.naming.outputs.repo_name }}"
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.ZREAD_MIRROR_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/user/repos \
+            -d "{\"name\":\"$REPO_NAME\",\"private\":false,\"auto_init\":false}"
+
+      - name: 推送代码到新镜像
+        run: |
+          REPO_NAME="${{ steps.naming.outputs.repo_name }}"
+          # 关键：清除默认 GITHUB_TOKEN 的 header，否则 PAT 会被忽略
+          git config --local --unset-all "http.https://github.com/.extraheader"
+          git remote add mirror https://x-access-token:${{ secrets.ZREAD_MIRROR_TOKEN }}@github.com/${{ github.repository_owner }}/$REPO_NAME.git
+          git push mirror main --force
+
+      - name: 输出 Zread 链接
+        run: |
+          echo "## 🪞 Zread 镜像已创建" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**镜像仓库**: \`${{ steps.naming.outputs.repo_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Zread 链接**: ${{ steps.naming.outputs.zread_url }}" >> $GITHUB_STEP_SUMMARY
