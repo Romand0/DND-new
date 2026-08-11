@@ -133,7 +133,7 @@ src/
 ├── App.tsx              路由总入口（唯一）
 ├── main.tsx             ReactDOM.createRoot
 ├── index.css            Tailwind 入口 + 全局覆盖
-├──
+│
 ├── types/               6 个独立类型文件（一个领域一个）
 │   ├── character.ts     Character · Attack · Equipment · HandSlot · Currency · Ability 等
 │   ├── combat.ts        CombatRecord · Combatant · RoundAction · EquipmentChanges
@@ -155,9 +155,9 @@ src/
 │   ├── calendarStore.ts      日历
 │   ├── gameTimeStore.ts      游戏时间
 │   │
-│   ├── equipmentFactory.ts   🌟 extractBaseFields()：字段标准化工厂
-│   ├── equipmentWear.ts      🌟 recalculateArmorClass()：穿戴后 AC 重算
-│   ├── advantageRules.ts     🌟 注册式优劣势引擎（detectAdvantage / resolveRollMode / registerDetector）
+│   ├── equipmentFactory.ts   extractBaseFields()：字段标准化工厂
+│   ├── equipmentWear.ts      recalculateArmorClass()：穿戴后 AC 重算
+│   ├── advantageRules.ts     注册式优劣势引擎（detectAdvantage / resolveRollMode / registerDetector）
 │   ├── editorState.ts        编辑草稿（页间恢复）
 │   ├── diceService.ts        骰子投掷
 │   ├── attackBonus.ts        攻击加值/熟练/属性加成计算
@@ -169,7 +169,7 @@ src/
 │   ├── Navbar.tsx       顶栏（variant = 'dm' | 'player')
 │   ├── ProtectedRoute.tsx   路由守卫（登录 / DM 检查）
 │   │
-│   ├── combat/          ⭐ 战斗场景 8 个专属子组件（从 CombatSession 拆分）
+│   ├── combat/          战斗场景 8 个专属子组件（从 CombatSession 拆分）
 │   │   ├── InitiativeRollDialog.tsx      先攻投掷（选 PC + 填 d20）
 │   │   ├── InitiativeTiebreakerDialog.tsx  先攻平局排序（拖拽卡片）
 │   │   ├── SurpriseAttackDialog.tsx      突袭标记批量设置
@@ -184,14 +184,14 @@ src/
 │   │   ├── CombatDamageModal.tsx    伤害结算（暴击/抗性 → HP 扣减）
 │   │   ├── CombatSpellModal.tsx     法术施放（施法时间判定 → 动作消耗）
 │   │   ├── CombatantInfoPanel.tsx   参战者详情（动作面板 / 手部状态 / 变更信息编辑）
-│   │   ├── Battleground.tsx         🌟 沙盘（双指缩放锚点 / 白圈拖拽锁定 / 距离拾取）
-│   │   ├── AdvDisadvToggle.tsx      🌟 公共手动优劣势菜单（CombatAttackModal / CombatSpellModal 共用）
+│   │   ├── Battleground.tsx         沙盘（双指缩放锚点 / 白圈拖拽锁定 / 距离拾取）
+│   │   ├── AdvDisadvToggle.tsx      公共手动优劣势菜单（CombatAttackModal / CombatSpellModal 共用）
 │   │   └── TurnTodoBoard.tsx        回合待办看板（持续效果跨回合提醒，仅放映模式显示）
 │   │
 │   ├── 编辑器三件套：
 │   │   ├── EquipmentEditor.tsx    装备模板编辑（连 equipmentFactory）
 │   │   ├── SpellEditor.tsx        法术模板编辑
-│   │   └── AttackEditor.tsx       ⭐ parseWeaponData()：装备→攻击属性解析
+│   │   └── AttackEditor.tsx       parseWeaponData()：装备→攻击属性解析
 │   │
 │   ├── CharacterEquipmentCard.tsx   角色背包单卡
 │   ├── EquipmentPicker.tsx          从装备库选一件
@@ -203,7 +203,7 @@ src/
 │   └── ErrorBoundary.tsx            React 错误边界
 │
 ├── hooks/             Hooks 层（React，只接收 props，不直连路由/云 API）
-│   ├── useEquipmentActions.ts   🌟 角色装备操作聚合 hook（增/改/删/手持/穿戴
+│   ├── useEquipmentActions.ts   角色装备操作聚合 hook（增/改/删/手持/穿戴
 │   │                               连 characterStore + api）
 │   └── combat/          9 个战斗聚合 hook（从 CombatSession 拆分，按子域独立）
 │       ├── useCombatInventories  背包派生（装备变更应用
@@ -217,7 +217,7 @@ src/
 │       └── usePlayback         放映模式（开始/结束/回溯/还原）
 │
 ├── lib/
-│   ├── api.ts              🌟 所有云 API 的前端客户端（双轨认证头）
+│   ├── api.ts              所有云 API 的前端客户端（双轨认证头）
 │   └── attackBonus.ts      攻击加值计算（character.ts 能力的独立函数化）
 │
 ├── contexts/
@@ -233,7 +233,7 @@ src/
 
 ```
 functions/
-├── _utils.ts           🌟 认证 & SQL 工具（所有 API 共用）
+├── _utils.ts           认证 & SQL 工具（所有 API 共用）
 │   ├── getDb()                     D1 连接（DB binding）
 │   ├── verifyDmToken(header)       仅 DM Token 校验
 │   ├── authenticateRequest(req)    JWT 优先，DM Token 兜底
@@ -734,249 +734,3 @@ git push origin main
 git branch -d feature/your-feature-name
 git push origin --delete feature/your-feature-name   # 如果推送过远程分支
 ```
-
-#### 9.3.1 push 行为规则（用户没明确说就按默认）
-
-| 场景 | 行为 |
-|------|------|
-| main 上 `tsc + build` 都通过 | ✅ **默认自动执行** `git push origin main`，不询问、不等用户确认 |
-| 功能分支 build 失败 | ❌ 不合并到 main，报错误摘要等用户处理 |
-| main 合并后 build 失败 | ❌ 不 push，报错误摘要等用户处理 |
-| 用户之前/当前对话说过「不要立即编辑 main」或「这次不要 push」 | ⚠️ 停在「本地 main 合并完成 + build 通过」的状态，不 push |
-| 用户明确说「推送到 main」 | 同上（本来就默认做），直接执行 |
-
-### 9.4 例外情形（仅在以下情况可以直接在 main 上操作）
-
-- 用户明确说「不要建分支，直接改 main」或「立即编辑 main」
-- 纯文档类修改（如只改 AGENTS.md / README.md，不涉及代码）
-- 紧急修复线上问题且用户已确认
-
-即使在 main 上直接操作，也必须遵守 §9.1「改动前先同步远程」和 §9.3「提交前编译通过」。
-
----
-
-> 最后：**不要随意探索根目录**。任务涉及哪个功能模块就按上方速查表直接跳对应文件，其他文件（特别是 `.github/`、`data/players/*.json`、`migrations/`、`views/`）不要碰，除非任务明确要求。
-
----
-
-## 10. 文档维护责任（**重要**）
-
-> 本文件（`AGENTS.md`）是项目架构的**单一事实来源**。当你的修改触及下列任一情况时，**必须同步更新本文件**，否则下一个 agent 会被错误信息误导，造成连锁踩坑。
-
-### 10.1 必须同步更新的触发条件
-
-| 触发条件 | 需要更新的章节 |
-|---------|--------------|
-| 新增 / 删除 / 重命名页面 | §0 速查表 + §2.1 路由分层图 |
-| 新增 / 删除 / 重命名 store | §0 速查表 + §1 技术栈总览 + §2.2 目录速查 |
-| 新增 / 删除 / 重命名类型文件 | §0 速查表 + §2.2 目录速查 |
-| 新增 / 删除 / 重命名组件 | §0 速查表 + §2.2 目录速查 |
-| 新增云 API 端点（functions/api/**） | §0 速查表 + §3 后端架构图 |
-| 新增数据库迁移文件（migrations/NNNN_*.sql） | §3 后端架构图末尾的迁移说明 |
-| 引入新的设计模式 / 可复用技巧 | §5 设计模式与可复用技巧（新增小节） |
-| 修改命名 / 编码约定 | §6 命名与编码约定 |
-| 修改 store 骨架模式 | §4.2 Store 统一模式 |
-| 修改认证机制（JWT / DM Token / 新增认证方式） | §5.4 双轨认证 + §3 后端架构图 |
-| 修改战斗背包派生逻辑（EquipmentChanges 三件套） | §4.1 装备三层身份 + §5.3 变更漏斗 |
-| 修改沙盘交互核心逻辑（缩放 / 白圈 / 拾取） | §5.5 双指缩放 + §5.6 长按落空 + §7 踩坑清单 |
-| 修改 Git 工作流规范（分支策略 / 提交规则 / 合并流程） | §9 Git 工作流规范 |
-| 修改长任务流程规范（Spec 阶段 / 静默模式 / 并行策略 / 错误处理） | §11 长任务降额工作流 |
-
-### 10.2 不需要更新的情况
-
-- 修 bug（行为对齐已有设计，不改架构）
-- 调整 UI 样式（Tailwind class 微调）
-- 单个页面内部逻辑调整（不涉及其他模块协作）
-- 数据内容修改（如新增预置角色卡 JSON、新增装备条目）
-
-### 10.3 更新原则
-
-1. **就近更新**：只改对应章节，不要重写整篇
-2. **保持架构图同步**：§2.2 目录速查里的文件计数（如 "9 个 store"、"24 个组件"、"39 个页面"）必须与实际一致——新增/删除后立即改数字
-3. **新增模式必须写 why**：§5 每个小节的"为什么用"是核心价值，不要只写"怎么用"
-4. **踩坑清单追加式**：§7 发现新的高危坑点就追加，不删旧的（除非旧坑已通过重构彻底消除）
-5. **不要把临时性 hack 写进文档**：只记录**有意为之的设计决策**；临时绕过方案应写在代码注释里并标注 TODO
-
-### 10.4 验证更新正确性
-
-更新 `AGENTS.md` 后，至少做一次自查：
-- 新增的文件路径在 `src/` 或 `functions/` 下真实存在（用 Glob 验证）
-- 文件计数与实际目录一致
-- 路由图里的路径与 `src/App.tsx` 实际注册的路由一致
-- 没有出现"已被删除的文件"还留在架构图里
-
----
-
-## 11. 长任务降额工作流（**完整功能搭建 / 跨 5+ 文件任务默认启用，用户未明确禁止则自动生效**）
-
-> **为什么用**：长任务（完整功能）的运算额度大头不是写代码，而是反复读上下文、多轮澄清、分步汇报、错误回溯。本流程通过「先 Spec 再实现、独立模块并行、静默模式只在关键节点汇报、Fail Fast 不硬撑」四板斧，通常可将总消耗降至原额度的 40%~60%。
-
-### 11.1 触发条件（满足任一即启用）
-
-自动识别，**无需用户每次手动说明**：
-- 用户指令开头含 **`[长任务]`** 前缀
-- 任务描述明显为「完整功能搭建」（含「搭建/实现功能/新增模块/完整功能」等关键词）
-- 预估涉及文件数 ≥ 5 个或跨 3 个以上模块（类型 + store + 页面 + API 等）
-- 用户明确说「走长任务流程」
-
-满足以上任一条，Agent **必须**按本节流程执行，不得跳过；用户明确说「别用长任务流程，直接写」时才禁用。
-
-### 11.2 阶段一：Spec 阶段（**只写文档不写代码，用户确认后才进入实现**）
-
-> **为什么分开**：避免「写了一半发现方案错了，推翻重来」的大段返工——这是长任务头号浪费。Spec 阶段只读架构和类型文件，上下文量约为实现阶段的 1/3；且把澄清沟通从 10 轮压成 1 轮。
-
-**输出 3 个文件**到 `.monkeycode/specs/<feature-slug>/`（`<feature-slug>` 用短横线小写，如 `npc-template-mgmt`）：
-
-```
-.monkeycode/specs/<feature-slug>/
-├── requirements.md   功能需求拆解
-├── design.md         技术方案
-└── tasks.md          分步任务清单
-```
-
-#### 11.2.1 requirements.md 标准模板
-
-```markdown
-# <功能名称> 需求拆解
-
-## 用户故事（Who + What + Why）
-- 作为 <角色>，我想要 <操作>，以便 <价值>
-
-## 输入输出
-| 场景 | 输入 | 输出 |
-|------|------|------|
-| 场景1 | ... | ... |
-
-## 边界条件 & 验收标准
-- ✅ 正常流程：<完成时行为>
-- ⚠️ 异常流程：<错误时提示/回退>
-- ❌ 不在本期范围：<明确排除的功能>
-```
-
-#### 11.2.2 design.md 标准模板
-
-```markdown
-# <功能名称> 技术方案
-
-## 涉及文件清单（按 AGENTS.md §0 速查表定位）
-| 变更类型 | 文件路径 | 说明 |
-|---------|---------|------|
-| 新增类型 | src/types/xxx.ts | <字段说明> |
-| 新增 store | src/data/xxxStore.ts | <统一 8 件套骨架> |
-| 新增组件 | src/components/Xxx.tsx | <职责+props> |
-| 新增页面 | src/pages/Xxx.tsx | <路由路径> |
-| 新增 API | functions/api/xxx/yyy.ts | <方法+权限> |
-| 修改路由 | src/App.tsx | <新增路由项> |
-| 修改菜单 | src/components/Layout.tsx | <菜单位置> |
-
-## 新增数据结构
-```ts
-// 关键类型定义预览（不写全实现，只画骨架）
-interface Xxx { id: string; ... }
-```
-
-## 调用链路图
-入口按钮 → 页面 Xxx.tsx → store CRUD / lib/api.ts → functions/api/xxx/yyy.ts → D1
-
-## 权限 & 认证
-- 路由守卫：ProtectedRoute / requireDM？
-- API 认证：authHeaders() 还是 adminAuthHeaders()？
-
-## 预读文件清单（实现阶段一次性读入，避免重复读）
-- 范本：src/data/characterStore.ts（作为 store 统一骨架参考）
-- 类型：src/types/character.ts / src/types/combat.ts
-- API 范本：functions/api/characters/index.ts
-- 页面范本：src/pages/EquipmentList.tsx
-```
-
-#### 11.2.3 tasks.md 标准模板
-
-```markdown
-# <功能名称> 分步任务清单
-
-## 任务分组 & 依赖关系（标注可并行组）
-- **组 A（无依赖，可并行）**：类型定义 + store 骨架
-  - [ ] A1：新建 src/types/xxx.ts，定义 Xxx 接口
-  - [ ] A2：新建 src/data/xxxStore.ts，按 §4.2 统一 8 件套
-
-- **组 B（无依赖，可与 A 并行）**：云 API 端点
-  - [ ] B1：新建 functions/api/xxx/index.ts（GET list + POST create）
-  - [ ] B2：新建 functions/api/xxx/[id].ts（GET detail + PUT update + DELETE）
-  - [ ] B3：在 src/lib/api.ts 同步加 xxxList / xxxCreate / xxxUpdate / xxxDelete 泛型函数
-
-- **组 C（依赖 A 完成）**：UI 组件
-  - [ ] C1：新建 src/components/XxxEditor.tsx
-  - [ ] C2：新建 src/pages/XxxList.tsx + src/pages/XxxDetail.tsx
-
-- **组 D（依赖 A+B+C 全部完成）**：集成 & 收尾
-  - [ ] D1：在 src/App.tsx 注册路由（按 §2.1 路由分层，选择正确的守卫组）
-  - [ ] D2：在 src/components/Layout.tsx 或 PlayerLayout.tsx 对应菜单加入口
-  - [ ] D3：完整验证 npx tsc --noEmit && npm run build
-```
-
-**Spec 三文件输出完毕后必须停下，等待用户明确确认后才能进入实现阶段**，禁止直接开始写代码。
-
-### 11.3 阶段二：实现阶段（用户确认 Spec 后执行）
-
-#### 11.3.1 预读优化（避免重复读文件）
-
-- 实现开头**一次性**把 `design.md §预读文件清单` 里所有文件批量读入上下文
-- store 文件只读**范本**（characterStore.ts）作为骨架参考，其余 8 个 store 不要全文重读
-- 类型文件只在开头读一次，后续步骤直接复用已有上下文，不重复调用 Read
-
-#### 11.3.2 分组并行执行（用 general_purpose_task 跑独立模块）
-
-- tasks.md 中标注「无依赖、可并行」的组（如组 A 和组 B），调用 `general_purpose_task` **并行执行**
-- 子 Agent 执行过程不进主对话历史，最后只返回结果摘要，主对话上下文显著缩短
-- **判断并行安全标准**：两组文件之间没有 import 互相引用；有依赖的组必须严格按顺序串行
-
-#### 11.3.3 静默模式（只在关键节点汇报，中间步骤不解释）
-
-- 每完成 tasks.md 中**一大组**（3-5 个关联文件），只输出一行：
-  ```
-  ✅ 完成：组<A/B/C/D> <简短说明>（文件：src/types/xxx.ts, src/data/xxxStore.ts ...）
-  ```
-- **禁止**：单文件级别的详细变更说明、每行代码的 educational insight、下一步计划的铺垫文字
-- **只在以下 3 种情况停下主动询问用户**（其余一律静默继续）：
-  1. Spec 设计在实现时发现逻辑冲突，需要调整 requirements/design
-  2. 需要新增依赖（修改 package.json，加新的 npm 包）
-  3. 涉及破坏性改动（修改已有类型导致旧数据不兼容、删除已对外 API、改变路由守卫行为）
-
-#### 11.3.4 Fail Fast（同一错误只改一次，不硬撑）
-
-- 同一类错误（type error / build error / 逻辑错误）自己**最多改 1 次**
-- 改 1 次仍未通过，直接停下，按格式输出：
-  ```
-  ❌ 卡壳：<错误摘要，一句话>
-  已尝试：<做了什么修正>
-  需要你确认：
-    ① <选项A：推荐方案，一句话说明后果>
-    ② <选项B：替代方案>
-    ③ <选项C：回退 Spec 某条设计>
-  ```
-- 禁止自行尝试第 3 次、第 4 次...（每次尝试都是纯烧额度）
-
-#### 11.3.5 分组验证节奏（避免每文件 build 一次）
-
-- 每大组完成后：只跑 `npx tsc --noEmit`（类型检查零副作用、快、输出短），**不 build**
-- 所有组全部完成后：统一只跑 **1 次** `npm run build`（完整构建）
-- 不要每个文件 / 每个小组都 build 一次（vite 打包日志很长，重复 build 会堆大量无意义上下文）
-
-### 11.4 阶段三：收尾（全部任务完成后）
-
-只输出 1 份简短摘要：
-```
-✅ <功能名称> 实现完成
-
-变更文件（共 N 个）：
-- 新增：src/types/xxx.ts、src/data/xxxStore.ts、...
-- 修改：src/App.tsx、src/components/Layout.tsx、...
-
-验证结果：
-- npx tsc --noEmit：✅ 通过
-- npm run build：✅ 通过（耗时 Xs）
-
-建议下一步：<1-2 句，如「可 npm run dev 本地验证 CRUD 流程」>
-```
-
-禁止附冗长的每行代码解读。代码已在文件里，需要时直接点文件链接查看。

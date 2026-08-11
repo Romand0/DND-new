@@ -661,7 +661,7 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0 };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0, canSpeak: true };
     record.updatedAt = Date.now();
     save(records);
     return 1;
@@ -771,7 +771,7 @@ const combatStore = {
     if (idx === -1) return;
     const combatants = list[idx].combatants.map(c =>
       c.id === combatantId
-        ? { ...c, isIncapacitated: !c.isIncapacitated }
+        ? { ...c, isIncapacitated: !c.isIncapacitated, canSpeak: c.isIncapacitated }
         : c
     );
     list[idx] = { ...list[idx], combatants, updatedAt: Date.now() };

@@ -249,6 +249,11 @@ export default function CombatSpellModal({ caster, target, onClose, onCastResolv
 
   // 选定法术进入施放阶段
   const handlePickSpell = (spell: Spell) => {
+    // 言语成分校验：若法术需要 V 成分而施法者无法言语，则阻止施放
+    if (spell.components?.verbal && caster.canSpeak === false) {
+      alert(`无法施放「${spell.name}」：该法术需要言语成分（V），但你当前无法说话或发出声音。`);
+      return;
+    }
     setSelectedSpell(spell);
     setStage('cast');
     setCheckType('ac');

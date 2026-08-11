@@ -43,6 +43,8 @@ export interface Combatant {
   actions?: number;
   /** 待消费的优劣势标记列表（发起者赋予此参战者的一次性优劣势来源，如协助/法术效果） */
   pendingAdvantageSources?: PendingAdvantageSource[];
+  /** 言语能力：能否说话或发出声音（true=可以，false=不可以）。默认真，某些状态可剥夺 */
+  canSpeak?: boolean;
 }
 
 export interface NpcTemplate {
