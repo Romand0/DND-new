@@ -19,10 +19,10 @@ jobs:
           rm -rf openwiki .openwiki .last-update.json debug.log
           echo "清理完成"
 
-      - name: 🔍 运行并记录详细日志(写入文件)
+      - name: 🚀 运行并记录详细日志(写入文件)
         run: openwiki code --update --print --force
         env:
-          # 关键环境变量：把详细日志写入 debug.log 文件
+          # 关键环境变量：强制 Node.js 把详细日志写入 debug.log 文件
           DEBUG: openwiki
           OPENWIKI_PROVIDER: openai-compatible
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
