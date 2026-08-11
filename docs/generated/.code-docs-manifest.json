@@ -1,0 +1,412 @@
+{
+  "files": {
+    "src/App.tsx": {
+      "sha": "d177e85128a17687eee5ce7ee6770adb01e48c5d00f34c4877eb50b4f39e0663",
+      "at": "2026-08-11T11:09:46.519Z"
+    },
+    "src/components/AdvDisadvToggle.tsx": {
+      "sha": "f4b4d7e1358bae00ea1c8bb026d0a9fc00cdae73457f24e38cde4ac5245135ef",
+      "at": "2026-08-11T11:10:07.837Z"
+    },
+    "src/components/AttackEditor.tsx": {
+      "sha": "8e09848c8095d207a73e42f48000df26e57912d3c97269184d102a860143ceb8",
+      "at": "2026-08-11T11:10:45.699Z"
+    },
+    "src/components/Battleground.tsx": {
+      "sha": "2b0504ae2e45335a99a872d86d462e147f0ad756ed49bcd9c9112b171c144051",
+      "at": "2026-08-11T11:10:54.850Z"
+    },
+    "src/components/CharacterEquipmentCard.tsx": {
+      "sha": "bdbc0bb5f394762ec4348ff6c7fee18fc89cc58820fd5c6379badbc7df48af83",
+      "at": "2026-08-11T11:11:26.636Z"
+    },
+    "src/components/CombatAttackModal.tsx": {
+      "sha": "791f40f5718982288bd7da937b014fa4cf0a31569a7f7f6f1ef7af48dfc8a099",
+      "at": "2026-08-11T11:11:43.022Z"
+    },
+    "src/components/CombatDamageModal.tsx": {
+      "sha": "3ffd4e21f9026f285704d4c9902e18303ab3a9d97693012fedd5d61e49945b2e",
+      "at": "2026-08-11T11:12:14.469Z"
+    },
+    "src/components/CombatSpellModal.tsx": {
+      "sha": "0927e17754e7d7ab6ee9e382d1b73876e6b10b5135597c1b764c16822429588b",
+      "at": "2026-08-11T11:12:23.816Z"
+    },
+    "src/components/CombatantInfoPanel.tsx": {
+      "sha": "8e9e5aedb72d49e40cdc233e73e2ef6aa16403acd55386c7475d6543c42116c0",
+      "at": "2026-08-11T11:12:33.590Z"
+    },
+    "src/components/EquipmentEditor.tsx": {
+      "sha": "71f0bb074255b11d11aea15176e819b731e6c972f45a60519f3f81e53867ed4d",
+      "at": "2026-08-11T11:13:13.253Z"
+    },
+    "src/components/EquipmentPicker.tsx": {
+      "sha": "dd88bf5a87d1083edb4b370ed4f770761060c9643fe4a4a20bd4c6b6bc9ebdc2",
+      "at": "2026-08-11T11:13:37.907Z"
+    },
+    "src/components/ErrorBoundary.tsx": {
+      "sha": "9bbd1cf5542594525d3d5e770e2d368749c7eb0e4bee4a4fbf6ac8e9262da27e",
+      "at": "2026-08-11T11:14:06.064Z"
+    },
+    "src/components/GameClock.tsx": {
+      "sha": "c7be95345789de8ffbbfa11ba41908bc5d8a6fc603dc6ec680927168f7768c56",
+      "at": "2026-08-11T11:14:34.320Z"
+    },
+    "src/components/Layout.tsx": {
+      "sha": "e9bb68ebf6ddb5d529fd68b6d97d578e30de1ee50be7d69887f330334d399896",
+      "at": "2026-08-11T11:15:04.447Z"
+    },
+    "src/components/Navbar.tsx": {
+      "sha": "5714c081be95eed6478c534b155072641d2fd3a29fc26094f4fdc859e8c2510f",
+      "at": "2026-08-11T11:15:43.876Z"
+    },
+    "src/components/NpcCreator.tsx": {
+      "sha": "941df555ec4c2830a88a73283e18b56139d33e61296bbcd7e4f373032d7af435",
+      "at": "2026-08-11T11:15:52.659Z"
+    },
+    "src/components/PlayerLayout.tsx": {
+      "sha": "7481bda8c23844d4a1fc16f9ef86a0919f9536752309965f1e485ca5605da1c7",
+      "at": "2026-08-11T11:16:15.894Z"
+    },
+    "src/components/ProtectedRoute.tsx": {
+      "sha": "39757d35f58d934f56b8c0890641c18dd7915b9a1fd890106b1fa80893ca4b26",
+      "at": "2026-08-11T11:16:41.588Z"
+    },
+    "src/components/SpellEditor.tsx": {
+      "sha": "11673bcd36b0022693c55244f7e119ec2404f9ec187ce57afc5e1683087e40bc",
+      "at": "2026-08-11T11:17:17.133Z"
+    },
+    "src/components/SpellPicker.tsx": {
+      "sha": "6cc131d07ebaccdcee284239d9b4032fc46ad03302b2d76c2a390164af820f9e",
+      "at": "2026-08-11T11:17:51.436Z"
+    },
+    "src/components/SyncButton.tsx": {
+      "sha": "eebfe9ee4f536f499cefe05c0fd1af4ffcab330f0c6d327b33a14025ce210b8e",
+      "at": "2026-08-11T11:18:22.333Z"
+    },
+    "src/components/TradeModal.tsx": {
+      "sha": "be28e1c827ec884ccda7ecdd2d86775e98d77aaafdc3f3572c787bc7da560b30",
+      "at": "2026-08-11T11:18:58.198Z"
+    },
+    "src/components/TurnTodoBoard.tsx": {
+      "sha": "fe2b4a382fe4c0435a4fdccf6c16c298dd946ad276337e1f31427f1636b08c3d",
+      "at": "2026-08-11T11:19:36.485Z"
+    },
+    "src/components/combat/CombatantList.tsx": {
+      "sha": "f1632a2617eb0bf71c59ace6602e455c4eabbc494e069411a10b3b4b94a48567",
+      "at": "2026-08-11T11:20:16.282Z"
+    },
+    "src/components/combat/InitiativeRollDialog.tsx": {
+      "sha": "8e37b043971aff1ebbe6a79fd9b2425eedff864185198089e56f7bbdfeabb9e5",
+      "at": "2026-08-11T11:20:51.541Z"
+    },
+    "src/components/combat/InitiativeTable.tsx": {
+      "sha": "fe6d33a5a2b6909f8905c3fe6918256038b90bb7714b5fb27e8cb5433ee0b6d9",
+      "at": "2026-08-11T11:21:40.829Z"
+    },
+    "src/components/combat/InitiativeTiebreakerDialog.tsx": {
+      "sha": "de5566191e3b2ee683e94da7b2bca6675d864a89e7eb343e041fe67f7be1b1ea",
+      "at": "2026-08-11T11:22:08.690Z"
+    },
+    "src/components/combat/ManualRecordDialog.tsx": {
+      "sha": "acf8852ff8c8f29192ce43acf90a21e9aa5bb5e8b6aafa6843078b1ff77b04c4",
+      "at": "2026-08-11T11:22:52.966Z"
+    },
+    "src/components/combat/PlaybackToolbar.tsx": {
+      "sha": "55ed2d0238d75e58993aac66167ebd0de71a7c9a9019454eab72b305dd5f19c0",
+      "at": "2026-08-11T11:23:24.213Z"
+    },
+    "src/components/combat/QuickCreateCombatDialog.tsx": {
+      "sha": "3887db84b1225e2e5341b65ecc6a791d5147e8414f1f66a721db3090e560968a",
+      "at": "2026-08-11T11:23:54.868Z"
+    },
+    "src/components/combat/RewindDialog.tsx": {
+      "sha": "51572bc632b1653caa7bb04e5dbeebdf1624d139903a51e4fe201037d6610943",
+      "at": "2026-08-11T11:24:15.668Z"
+    },
+    "src/components/combat/SurpriseAttackDialog.tsx": {
+      "sha": "339fb3303f19daf553e965001828d309885a7321a9a2014fd379296f57f21fbc",
+      "at": "2026-08-11T11:24:41.770Z"
+    },
+    "src/contexts/AuthContext.tsx": {
+      "sha": "bcc0bc33e766a5dc759a45762d2659918ff50ac382f78b5784f4c3105ad5c7ee",
+      "at": "2026-08-11T11:25:12.058Z"
+    },
+    "src/contexts/ThemeContext.tsx": {
+      "sha": "312305931174c1a0e66011a49b02de63a0cc880dbc662c106844f052767bc313",
+      "at": "2026-08-11T11:25:39.839Z"
+    },
+    "src/data/advantageRules.ts": {
+      "sha": "7350ba92a5266b27f95fdccc597a0507b13bb4785efb947162a4df2b57122d7d",
+      "at": "2026-08-11T11:26:17.669Z"
+    },
+    "src/data/battlegroundStore.ts": {
+      "sha": "a3dcb6747401acb86173c09faf0a27888bea783d994616e97d45d46a33c37d21",
+      "at": "2026-08-11T11:26:55.534Z"
+    },
+    "src/data/calendarData.ts": {
+      "sha": "5794ad46ebd8deb91f3d2ffcb33e461461ca397a02e6ebf4d9558eb5ef8c11fe",
+      "at": "2026-08-11T11:27:37.556Z"
+    },
+    "src/data/calendarStore.ts": {
+      "sha": "01007008d01cf22824c2c0aee1f8c634929a6ae9347227722259cafdad30b178",
+      "at": "2026-08-11T11:28:04.785Z"
+    },
+    "src/data/characterStore.ts": {
+      "sha": "18a712151adb588b4d5f34ed7361c963af5627b84f66ea38f80f752e8f9de5b6",
+      "at": "2026-08-11T11:28:39.028Z"
+    },
+    "src/data/combatStore.ts": {
+      "sha": "6c815ca7330d58ceaab57c2023be632efada66d9b9708b1dd23103a64d21ba19",
+      "at": "2026-08-11T11:29:42.920Z"
+    },
+    "src/data/diceService.ts": {
+      "sha": "d5f14059c671feefdec33b1aa5f7240f1c02b1f2691675085146e040008b8747",
+      "at": "2026-08-11T11:30:13.179Z"
+    },
+    "src/data/editorState.ts": {
+      "sha": "2fe6743e9800359fc24221fca6dd7787454b1e40d641da7d6856fa2505e74828",
+      "at": "2026-08-11T11:30:33.908Z"
+    },
+    "src/data/equipmentFactory.ts": {
+      "sha": "667f37cac734f871e2950dd432014a1d1703f9c2b11319699714f31e8c5c566b",
+      "at": "2026-08-11T11:30:54.172Z"
+    },
+    "src/data/equipmentStore.ts": {
+      "sha": "3e289ac443de6ba596e95452968a08b95920e522d2f5c1957bdca6ec5697ebe6",
+      "at": "2026-08-11T11:31:17.233Z"
+    },
+    "src/data/equipmentWear.ts": {
+      "sha": "c1587b44b525d37692a98c37a50d0356ffe374f003ab81ae07ef56407734fc48",
+      "at": "2026-08-11T11:31:35.326Z"
+    },
+    "src/data/gameTimeStore.ts": {
+      "sha": "183af068a32b69c0659fe21a94f5ea60b93b97b9042acd0f6549f6dfd300b2e1",
+      "at": "2026-08-11T11:31:58.174Z"
+    },
+    "src/data/npcTemplateStore.ts": {
+      "sha": "e0c9d53290ce65e4195adcd0a09a89f18a31d65b36a6f01e6dfeb3f9a80be6b3",
+      "at": "2026-08-11T11:32:26.650Z"
+    },
+    "src/data/spellStore.ts": {
+      "sha": "1878dfc9cf42b6527a738342c4f1379631aa3257ef7c8d5db450361dd1597103",
+      "at": "2026-08-11T11:32:55.611Z"
+    },
+    "src/data/treasureStore.ts": {
+      "sha": "27f343a62e6edc9175694852853cdb3f85cbbb4638af4093e2537b606406c21b",
+      "at": "2026-08-11T11:33:22.308Z"
+    },
+    "src/hooks/combat/useActions.ts": {
+      "sha": "0161d8ba3c8fda63d1c66e277829b35d2d00a43e245a7649bff7c0ec44b635f5",
+      "at": "2026-08-11T11:33:48.386Z"
+    },
+    "src/hooks/combat/useCombatInventories.ts": {
+      "sha": "b6fac5acc40eff1d73d51f29b9fc7671ecae849297896de56c5e55ead2ecb35e",
+      "at": "2026-08-11T11:34:19.339Z"
+    },
+    "src/hooks/combat/useDamageAndHp.ts": {
+      "sha": "80ab6942d89f35ef19d1dbb0687c0c774a29ab365647fd65e78a8e218226b57d",
+      "at": "2026-08-11T11:34:44.151Z"
+    },
+    "src/hooks/combat/useInitiative.ts": {
+      "sha": "cae0d847923e7e34a40b6e292ebdc81b48cfccf0eaa915391aa7e1e53ed188dc",
+      "at": "2026-08-11T11:35:25.707Z"
+    },
+    "src/hooks/combat/useManualRecord.ts": {
+      "sha": "2f6e824d7507a2e523481a622583652d108d65b35e17a30466f7961d14eb7ef1",
+      "at": "2026-08-11T11:36:23.129Z"
+    },
+    "src/hooks/combat/usePlayback.ts": {
+      "sha": "90afc16efc963fc7c89ff38239c2ca014863e729dee4caf8c392f3725f1bcbbe",
+      "at": "2026-08-11T11:36:58.750Z"
+    },
+    "src/hooks/combat/useRoundTurn.ts": {
+      "sha": "5904801d59c03fc8f2aa360c74d597c9b7089feeac846897e3a1d4f661ae5bcc",
+      "at": "2026-08-11T11:37:41.471Z"
+    },
+    "src/hooks/combat/useSurprise.ts": {
+      "sha": "d1ef8426dd9d593b245597c3566d0d2b3799695a1dd4a8ac4af28e74b0c4690f",
+      "at": "2026-08-11T11:38:09.879Z"
+    },
+    "src/hooks/combat/useThrownDrop.ts": {
+      "sha": "44f93f453c899fa18b57134d5e5de508fb825377ec719b7780417bf7c1bd8892",
+      "at": "2026-08-11T11:38:38.346Z"
+    },
+    "src/hooks/useEquipmentActions.ts": {
+      "sha": "d67216824617ca72602ce56ea9bb59d8842e40884ab8065238c087de6a790003",
+      "at": "2026-08-11T11:39:06.278Z"
+    },
+    "src/hooks/useInput.ts": {
+      "sha": "495cb54ae62cd95c817ccb98d319734d6ed02c5505cc4c287587775964301ca7",
+      "at": "2026-08-11T11:40:00.666Z"
+    },
+    "src/lib/api.ts": {
+      "sha": "a81fbe110a9f26bf3d787163ea1af8100023f7d45291372c15aa1d800758b970",
+      "at": "2026-08-11T11:41:04.755Z"
+    },
+    "src/lib/attackBonus.ts": {
+      "sha": "481e55ab5af04ae9727a09f8a3f171cdaa38f21b40df71e6dad62a1f843da010",
+      "at": "2026-08-11T11:41:37.900Z"
+    },
+    "src/lib/combatSnapshots.ts": {
+      "sha": "d95e4cda5544dc7b6417b000493670af3a04ff0b601923109a36f5d5afa98367",
+      "at": "2026-08-11T11:42:24.830Z"
+    },
+    "src/main.tsx": {
+      "sha": "6de94f4cc0f43267e8e1c561989f4a3326a860852c4a946cb89a43363cfa6037",
+      "at": "2026-08-11T11:42:43.976Z"
+    },
+    "src/pages/AdminAccounts.tsx": {
+      "sha": "6bebc12629f3b70643fb444268981e0cb3dda07fc9b5193c37bc8d1f8e82ce62",
+      "at": "2026-08-11T11:43:13.953Z"
+    },
+    "src/pages/AdminAuth.tsx": {
+      "sha": "d280fa9f4e68649aae4d46b5a7d5f3e811d15bb1eef17ed3543ffb778f0dc0e0",
+      "at": "2026-08-11T11:43:44.805Z"
+    },
+    "src/pages/BattlegroundEditor.tsx": {
+      "sha": "7c57dd7c08055007ebff6641aaab953f36a55a4b3d4ba2a5c41f40b28b41fca7",
+      "at": "2026-08-11T11:44:13.851Z"
+    },
+    "src/pages/CalendarPage.tsx": {
+      "sha": "8c0631b66da574ae998b55c969eb61cd96b1f5f9f36e8e39883e5e2c9c533e74",
+      "at": "2026-08-11T11:44:35.867Z"
+    },
+    "src/pages/CharacterDetail.tsx": {
+      "sha": "9a4b3eac2a52bea1502ac389de74c7485a213f24ee711052573af516b9ce3bbb",
+      "at": "2026-08-11T11:45:01.570Z"
+    },
+    "src/pages/CharacterInventory.tsx": {
+      "sha": "5d52411b824d0e9c96e43e7010ef73519707a24102a08a8ccf6965e2887ebb75",
+      "at": "2026-08-11T11:45:30.196Z"
+    },
+    "src/pages/CharacterList.tsx": {
+      "sha": "79f78fc05af32572d7ba1dd3c58eddce6c046f732c4aec76857811d271cf78d9",
+      "at": "2026-08-11T11:45:52.299Z"
+    },
+    "src/pages/CombatList.tsx": {
+      "sha": "bcc68560bdcab16df83b707583e6be93954af0a6d0ef928d15a3e88fc197514a",
+      "at": "2026-08-11T11:46:31.008Z"
+    },
+    "src/pages/CombatSession.tsx": {
+      "sha": "e235b5cea8f840a898f6f4606ee4e80faefafe6f3f5fd44805fdbcd99716e4c5",
+      "at": "2026-08-11T11:48:32.266Z"
+    },
+    "src/pages/DataManagement.tsx": {
+      "sha": "aab52b04d66f63c6e282b5c70e584c368abd155b39bd50485ced84c181857920",
+      "at": "2026-08-11T11:49:19.292Z"
+    },
+    "src/pages/DicePage.tsx": {
+      "sha": "9f68bea147d20a9c550f38c5205866e0b3cc84443ecc90820e48242fa6a0288e",
+      "at": "2026-08-11T11:49:53.453Z"
+    },
+    "src/pages/EquipmentDetail.tsx": {
+      "sha": "0e8492980c116c80a790b871d7620a386a379f602e12447b06bb731635df5719",
+      "at": "2026-08-11T11:50:27.609Z"
+    },
+    "src/pages/EquipmentList.tsx": {
+      "sha": "4b84a59967ffdb48c371844c0feb80ef0b4fbc34d10da309a660720903cefa56",
+      "at": "2026-08-11T11:50:52.741Z"
+    },
+    "src/pages/GameClockPage.tsx": {
+      "sha": "e62844df4543cec934fad76bcdc926af65efbde5ca148beefd3695eb91f7bb98",
+      "at": "2026-08-11T11:51:17.898Z"
+    },
+    "src/pages/Home.tsx": {
+      "sha": "68a2a957e3412f9a121cc17688b42742e18a83e148d863ab105c486a6db2cbf4",
+      "at": "2026-08-11T11:51:37.403Z"
+    },
+    "src/pages/InventoryPage.tsx": {
+      "sha": "2b02506d8f89c3a375efb458428504838a61e2093d29c1940b57a53b9a6bf7bc",
+      "at": "2026-08-11T11:51:52.052Z"
+    },
+    "src/pages/Login.tsx": {
+      "sha": "eceb575ff01b83888c3b8a0bd3dea23e33b24d13d3275393599351550310bcc1",
+      "at": "2026-08-11T11:52:20.222Z"
+    },
+    "src/pages/MigrationBackup.tsx": {
+      "sha": "2adc043543db3410c32b37aca36d5d61ee441a0ec52d65ac179bce04faa09ae7",
+      "at": "2026-08-11T11:52:45.947Z"
+    },
+    "src/pages/NotesPage.tsx": {
+      "sha": "a844b62892c30aeb1ae7ae6fba080af1f6cbd872eedcc4dfa19d057c66bb1543",
+      "at": "2026-08-11T11:53:04.891Z"
+    },
+    "src/pages/Placeholder.tsx": {
+      "sha": "6282a32b6703346196b026a7e5ab396aa3e4e06a641f30596dfbfd48face4f19",
+      "at": "2026-08-11T11:53:24.563Z"
+    },
+    "src/pages/PlayerHome.tsx": {
+      "sha": "aedd16e271ea26fc620ae678d14dbd2425aebbfb257b44262762cbad73a22d0a",
+      "at": "2026-08-11T11:53:46.759Z"
+    },
+    "src/pages/PlayerInventory.tsx": {
+      "sha": "0b28b01eb996c11df95fd9105647a239430f87d895adcef92e3c04ede0c4ab72",
+      "at": "2026-08-11T11:54:15.906Z"
+    },
+    "src/pages/PlayerView.tsx": {
+      "sha": "6894c1284594a4fba59b231d565bd20265b7a7e658bede1965c68569cba13653",
+      "at": "2026-08-11T11:55:19.285Z"
+    },
+    "src/pages/Register.tsx": {
+      "sha": "b3d31bb6de78e227457ff4b87e62655ea8c7294d9b1ff42be8a82a3234fa86f0",
+      "at": "2026-08-11T11:55:40.079Z"
+    },
+    "src/pages/Settings.tsx": {
+      "sha": "ef247cccdec9be20ea7d26bfefaf0fcfb74f66a0b732cb42c280ce689b1fd78b",
+      "at": "2026-08-11T11:56:06.584Z"
+    },
+    "src/pages/SpellDetail.tsx": {
+      "sha": "e589ded8723b2b668398ac400a17528629bec2fe72fa201518b4f988a696d533",
+      "at": "2026-08-11T11:56:36.973Z"
+    },
+    "src/pages/SpellList.tsx": {
+      "sha": "b025bf212b7806b214534a813be8d497ace12416eb8c7129889e1a94096a26cf",
+      "at": "2026-08-11T11:57:02.567Z"
+    },
+    "src/pages/TradePage.tsx": {
+      "sha": "45c74183e0d5e99528a9646f40c668625178a8d04d1e10fcdb6e5d07acfb2515",
+      "at": "2026-08-11T11:57:27.071Z"
+    },
+    "src/pages/TreasureDistribute.tsx": {
+      "sha": "00d64a2ab7f5b50f3ccc2e8630256ed26bc40a904add5885966102f35347f80a",
+      "at": "2026-08-11T11:57:59.620Z"
+    },
+    "src/pages/TreasureEdit.tsx": {
+      "sha": "7d813dea6794c0d232501beb5fd7d2846a45a0ba6420ded54e7da2bff8ed71ee",
+      "at": "2026-08-11T11:58:22.871Z"
+    },
+    "src/pages/TreasureList.tsx": {
+      "sha": "30acd18be4cee33772dcab4d606d0a93a6febe721c64fad9694d0d868fc5514d",
+      "at": "2026-08-11T11:58:37.010Z"
+    },
+    "src/pages/UserProfile.tsx": {
+      "sha": "ba46a8b2aa71fef89b2635e7679523527eb1e9b5f7f80d4400d37aa456a69079",
+      "at": "2026-08-11T11:58:58.450Z"
+    },
+    "src/types/battleground.ts": {
+      "sha": "28459700013892f50c65ab778340469556a517060b5f6af21ac9e1d83f644f1b",
+      "at": "2026-08-11T11:59:21.877Z"
+    },
+    "src/types/character.ts": {
+      "sha": "5e26ca22aed644077cd8ff65ad158f5c1971365b6efbe13e0c822cb6c279334d",
+      "at": "2026-08-11T12:00:34.001Z"
+    },
+    "src/types/combat.ts": {
+      "sha": "4d586596f037a6a41da503a557db018338038bd7aa93ae2c3e9331fb43e5af8e",
+      "at": "2026-08-11T12:01:19.602Z"
+    },
+    "src/types/equipment.ts": {
+      "sha": "69723178b5e12c23b76e5d3931bf9d9a20672f0db9f2448f528fa5342f723e21",
+      "at": "2026-08-11T12:01:47.735Z"
+    },
+    "src/types/spell.ts": {
+      "sha": "1e1782a84d82bde8b9aacfd16d254e170cb29eb764d4076aabf1fc730677d048",
+      "at": "2026-08-11T12:02:32.161Z"
+    },
+    "src/types/treasure.ts": {
+      "sha": "414dee197dcf46bc710c43bfa75cb3606a27061dc575417c9d93e0c1c8b98131",
+      "at": "2026-08-11T12:02:53.951Z"
+    }
+  }
+}
