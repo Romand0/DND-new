@@ -1,52 +1,36 @@
-name: OpenWiki Update
-
 on:
-  schedule:
-    - cron: "0 8 * * *"
-  push:
-    branches: [main, master]
-  workflow_dispatch:
+  workflow_dispatch: # 只允许手动触发，方便测试
 
 jobs:
   update:
     runs-on: ubuntu-latest
-
-    # 全局权限依然保留在这里
-    permissions:
-      contents: write
-      pull-requests: write
-      actions: read
-
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
 
-      - name: Install OpenWiki
-        run: npm install --global openwiki
+      - run: npm install --global openwiki
 
-      - name: Run OpenWiki
-        run: openwiki code --update --print
+      - name: 💣 暴力清空所有残留
+        run: |
+          echo "正在彻底清理环境..."
+          rm -rf openwiki .openwiki .last-update.json
+          echo "清理完成"
+
+      - name: 🔍 开启 DEBUG 模式深度排查
+        run: openwiki code --update --print --log-level DEBUG
         env:
+          # 这里确保你的 Secrets 里有 ZHIPU_API_KEY
           OPENWIKI_PROVIDER: openai-compatible
           OPENAI_COMPATIBLE_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
           OPENAI_COMPATIBLE_BASE_URL: https://open.bigmodel.cn/api/paas/v4/
           OPENWIKI_MODEL_ID: glm-4-flash
-          MCP_DISABLED: "true"
+          # 如果之前加了 MCP_DISABLED 报错，这里先注释掉或删掉
+          # MCP_DISABLED: "true" 
 
-      - name: Create OpenWiki update pull request
-        uses: peter-evans/create-pull-request@v7
-        with:
-          add-paths: openwiki
-          branch: openwiki/update
-          commit-message: "docs: update OpenWiki"
-          title: "docs: update OpenWiki"
-          body: "Automated OpenWiki documentation update."
-          
-        # 👇👇👇 核心修复：在这里手动传入 Token 👇👇👇
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: 📂 检查最终产出
+        run: |
+          echo "=== 最终生成的 openwiki 目录内容 ==="
+          ls -la openwiki/
