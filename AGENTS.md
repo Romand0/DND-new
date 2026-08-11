@@ -26,7 +26,7 @@
 | 改样式 / 主题 | Tailwind class（内联）+ `public/css/main.css`（全局 token） | 不要手写 CSS 文件，尽量用 Tailwind；暗黑模式 class 后缀 `-dark` |
 | 加新功能页面 | 建 `src/pages/Xxx.tsx` → 在 `src/App.tsx` 注册路由 → 在 `Layout` / `PlayerLayout` 对应菜单里加入口 | |
 | 改数据库表结构 | `migrations/NNNN_name.sql`（新建迁移文件，不要改旧的）+ `functions/_utils.ts` 对应类型 | 迁移文件追加式，D1 手动 apply |
-| **改言语（Speech）机制** | `src/types/character.ts` + `src/types/combat.ts` + `src/data/combatStore.ts`（toggleIncapacitated / resetActions）+ `src/components/CombatSpellModal.tsx`（handlePickSpell） | 言语不是动作/状态，是**能力**；状态剥夺能力时改 Combatant.canSpeak，回合开始时 combatStore.resetActions 恢复为 true |
+| 侦查 / 定位代码模块（先读文档再读源码） | `docs/generated/src/**`（按源码路径镜像的 .md 概述文档，见 §5.14） | 文档是路由表不是唯一事实源，关键判断仍以 `src/` 源码为准；改代码后需重新触发 docs workflow 更新文档 |
 
 ---
 
@@ -591,29 +591,16 @@ getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消�
 - 在引擎检测时修改 `pendingAdvantageSources[i].consumed`（应只读，由调用方在 confirm 后消费）
 - 让弹窗组件直接读 `combatant.pendingAdvantageSources` 自行筛选（应通过 `detectPending` detector 统一返回）
 
-### 5.14 言语（Speech）机制
+### 5.14 文档路由：侦查先读 `docs/generated` 再读源码
 
-**为什么用**：D&D 5e 中，某些状态（如失能 Incapacitated）会剥夺角色的言语能力，导致无法施放需要言语成分（V）的法术。把"言语"建模为**能力**（ability）而非动作/状态，是因为：
-- 它是角色的**固有属性**，默认所有角色都能说话（`canSpeak: true`）
-- 状态只是**临时剥夺**这个能力，状态结束后自然恢复
-- 它是**检定的前提条件**（如需要言语的检定），也是**法术成分的前提条件**（V 成分）
+**为什么用**：跨模块侦查（理解战斗/装备/交易等模块后做改动）是长任务额度大头——反复通读大文件叠加 `Read` 工具的 200 行分段限制，每次读取都烧大量输入 token。`docs/generated/` 下的 Markdown 由 GitHub Actions 用智谱 API 按源码路径镜像生成（`scripts/generate-code-docs.mjs` + workflow `docs-generate.yml`），把全部 `src/` 压缩约 6.3x（84% 上下文削减）：`CombatSession.tsx` 163KB 压到 2KB，`characterStore.ts` 64KB 压到 15KB。
 
-**数据模型**：
-```
-Character.canSpeak?: boolean    // 角色卡层面，默认 true
-Combatant.canSpeak?: boolean   // 战斗层面，默认 true（从角色卡复制）
-Spell.components.verbal: boolean  // 法术是否需要 V 成分
-```
+**核心约定**：
+- 侦查先读 `docs/generated/src/<对应路径>.md` 定位模块职责 / 导出接口 / 核心逻辑，再按需读源码关键段，不要盲目通读大文件
+- 文档是路由表，不是唯一事实源：LLM 生成的概述可能有遗漏，关键判断（类型、分支、状态流）仍以源码为准
+- 文档幂等生成（`.code-docs-manifest.json` 记源文件 sha，未变化跳过），维护成本≈0；改代码后重新触发 `Generate Code Docs (curl)` workflow 即自动更新
 
-**状态剥夺与恢复**：
-- `combatStore.toggleIncapacitated()`：切换失能状态时，同步设置 `canSpeak = !isIncapacitated`（失能时 false，解除时 true）
-- `combatStore.resetActions()`：每回合开始时恢复 `canSpeak: true`（所有状态剥夺的言语能力在回合开始时重置——这是简化规则，DM 可手动再次施加状态）
-
-**校验时机**：
-1. **法术施放**：`CombatSpellModal.handlePickSpell()` 中，选定法术后立即检查——若 `spell.components.verbal && caster.canSpeak === false`，弹窗阻止并提示"该法术需要言语成分（V），但你当前无法说话"
-2. **检定（预留）**：当前没有预设的需要言语的检定；如需添加，在 `CombatAttackModal.handleConfirmRoll()` 或对应检定入口加入 `attacker.canSpeak === false` 判断
-
-**做新的剥夺言语的状态时**：在切换该状态的 store 方法中同步修改 `canSpeak`（如 `toggleParalyzed`、`toggleSilenced` 等），并确保 `resetActions` 回合重置时恢复为 true。
+**做新的跨模块侦查时**：先并行读相关 `.md`（每个 2–15KB 一次读完），基于文档列出的函数 / 文件清单决定要精读的 1–2 个源码文件，而非逐个通读。
 
 ---
 

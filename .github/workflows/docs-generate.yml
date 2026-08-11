@@ -1,0 +1,60 @@
+name: Generate Code Docs (curl)
+
+# 兜底方案：直接用 curl/Node fetch 调用智谱 OpenAI 兼容 API，
+# 为源码目录下每个代码文件生成一份 Markdown 文档（不依赖 OpenWiki）。
+# 幂等：源文件内容未变化的文档会自动跳过，只有变化才会重新生成并开 PR。
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_dirs:
+        description: "逗号分隔的源码目录"
+        required: false
+        default: "src"
+      file_extensions:
+        description: "逗号分隔的文件扩展名"
+        required: false
+        default: "ts,tsx,js,jsx"
+  schedule:
+    - cron: "30 1 * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    env:
+      ZHIPU_API_KEY: ${{ secrets.ZHIPU_API_KEY }}
+      ZHIPU_MODEL: glm-4-flash
+      # 标准平台端点；若使用智谱 Coding Plan，改这里为
+      # https://open.bigmodel.cn/api/coding/paas/v4/ 并换对应模型
+      ZHIPU_BASE_URL: https://open.bigmodel.cn/api/paas/v4/
+      DOC_SOURCE_DIRS: ${{ inputs.source_dirs || 'src' }}
+      DOC_FILE_EXTENSIONS: ${{ inputs.file_extensions || 'ts,tsx,js,jsx' }}
+      DOC_LANGUAGE: 中文
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: 生成代码文档
+        run: node scripts/generate-code-docs.mjs
+
+      - name: 提交文档并开 PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          add-paths: docs/generated
+          branch: docs/generated
+          commit-message: "docs: update generated code docs"
+          title: "docs: update generated code docs"
+          body: |
+            由 GitHub Actions 自动生成：为 `src/` 下每个代码文件调用智谱 API 生成一份 Markdown 文档（存放于 `docs/generated/`）。
+
+            文档按源文件内容哈希幂等生成，源文件有变化时才会更新对应文档。
