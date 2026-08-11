@@ -27,7 +27,7 @@ export default function TreasureEdit() {
   const [customSubCategory, setCustomSubCategory] = useState('');
   const [customUnitPrice, setCustomUnitPrice] = useState('');
   const [customUnitPriceUnit, setCustomUnitPriceUnit] = useState<TreasurePriceUnit>('cp');
-  const [customWeight, setCustomWeight] = useState('');
+  const [customWeight, setCustomWeight] = useState<number | undefined>(undefined);
   // 物品编辑状态
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
 
@@ -81,7 +81,7 @@ export default function TreasureEdit() {
       unitPrice: customUnitPrice
         ? { amount: parseFloat(customUnitPrice) || 0, unit: customUnitPriceUnit }
         : undefined,
-      weight: customWeight ? parseFloat(customWeight) || undefined : undefined,
+      weight: customWeight,
     };
     setItems(prev => [...prev, newItem]);
     // 重置表单
@@ -91,7 +91,7 @@ export default function TreasureEdit() {
     setCustomSubCategory('');
     setCustomUnitPrice('');
     setCustomUnitPriceUnit('cp');
-    setCustomWeight('');
+    setCustomWeight(undefined);
     setShowCustomForm(false);
   };
 
@@ -252,18 +252,10 @@ export default function TreasureEdit() {
                     {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
-                <div className="sm:flex-1 flex items-center gap-1 min-w-0">
-                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">重量</span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.1"
-                    value={customWeight}
-                    onChange={e => setCustomWeight(e.target.value)}
-                    placeholder="磅"
-                    className="flex-1 min-w-0 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                  />
-                </div>
+                <WeightInput
+                  initial={customWeight}
+                  onCommit={w => setCustomWeight(w)}
+                />
               </div>
               {/* 按钮 */}
               <div className="flex gap-2 pt-1">
@@ -327,7 +319,7 @@ export default function TreasureEdit() {
                       />
                     </div>
                     <button
-                      onClick={() => setEditingItemId(isEditing ? null : it.id)}
+                      onClick={() => setEditingItemId(it.id)}
                       className="p-1.5 rounded hover:bg-accent/10 text-accent transition-colors shrink-0"
                       title="编辑属性"
                     >
@@ -383,19 +375,19 @@ export default function TreasureEdit() {
                             {PRICE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                           </select>
                         </div>
-                        <div className="sm:flex-1 flex items-center gap-1 min-w-0">
-                          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">重量</span>
-                          <input
-                            type="number"
-                            min={0}
-                            step="0.1"
-                            value={it.weight ?? ''}
-                            onChange={e => updateItemField(it.id, 'weight', e.target.value ? parseFloat(e.target.value) || undefined : undefined)}
-                            placeholder="磅"
-                            className="flex-1 min-w-0 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                          />
-                        </div>
+                        <WeightInput
+                          initial={it.weight}
+                          onCommit={w => updateItemField(it.id, 'weight', w)}
+                          compact
+                        />
                       </div>
+                      <button
+                        onClick={() => setEditingItemId(null)}
+                        className="w-full py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-1"
+                      >
+                        <Save className="w-3.5 h-3.5" />
+                        保存
+                      </button>
                     </div>
                   )}
                 </div>
@@ -412,6 +404,49 @@ export default function TreasureEdit() {
           onClose={() => setShowEquipPicker(false)}
         />
       )}
+    </div>
+  );
+}
+
+interface WeightInputProps {
+  initial: number | undefined;
+  onCommit: (w: number) => void;
+  compact?: boolean;
+}
+
+// 重量输入框：编辑中（光标闪烁）可任意值（包括空），失焦时空值自动补 0
+function WeightInput({ initial, onCommit, compact = false }: WeightInputProps) {
+  const [draft, setDraft] = useState<string>(initial === undefined ? '' : String(initial));
+  useEffect(() => {
+    setDraft(initial === undefined ? '' : String(initial));
+  }, [initial]);
+
+  const handleBlur = () => {
+    const raw = draft.trim();
+    const n = raw === '' || raw === '-' || raw === '.' ? Number.NaN : parseFloat(raw);
+    const final = Number.isNaN(n) ? 0 : n;
+    setDraft(String(final));
+    onCommit(final);
+  };
+
+  const inputClass = compact
+    ? 'flex-1 min-w-0 px-2 py-1 rounded border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary'
+    : 'flex-1 min-w-0 px-2 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary';
+
+  return (
+    <div className="sm:flex-1 flex items-center gap-1 min-w-0">
+      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">重量</span>
+      <input
+        type="number"
+        min={0}
+        step="0.1"
+        value={draft}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={handleBlur}
+        placeholder="磅"
+        className={inputClass}
+      />
+      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">lb</span>
     </div>
   );
 }
