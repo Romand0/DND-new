@@ -1,43 +1,50 @@
 # src/components/CombatSpellModal.tsx
 
 ## 功能概述
-
-该文件定义了 `CombatSpellModal` 组件，用于在游戏中展示法术施放弹窗。该弹窗允许用户浏览法术、选择法术、进行攻击检定、掷骰、计算结果，并最终确认法术施放。
+该文件定义了 `CombatSpellModal` 组件，用于在游戏中展示法术施放弹窗。该弹窗允许用户浏览和选择法术，进行攻击检定或豁免检定，并计算法术效果。它与攻击检定完全独立，从沙盘“法术”按钮触发。
 
 ## 主要导出/接口
-
-- **导出类型**：
-  - `Stage`：法术施放阶段类型，包括 'list'（浏览法术）和 'cast'（施放法术）。
-  - `CheckType`：检定类型，包括 'ac'（AC 检定）、'save'（豁免检定）和 'none'（无检定）。
-  - `EffectType`：效果类型，包括 'damage'（伤害）和 'heal'（治疗）。
-  - `Props`：组件属性类型，定义了施法者、目标、关闭弹窗函数、施放完成回调等。
-
-- **导出函数**：
-  - `parseDice`：解析骰子表达式函数。
-  - `renderSpellDice`：法术描述中的骰子表达式高亮函数。
-  - `SpellCard`：单个法术卡片组件。
-
-- **导出组件**：
-  - `CombatSpellModal`：法术施放弹窗组件。
-
-- **导出 Store**：
-  - `characterStore`：角色数据存储。
-  - `spellStore`：法术数据存储。
-  - `combatStore`：战斗数据存储。
-
-- **导出常量**：
-  - `SAVE_ATTR_MAP`：豁免属性短写与全称映射。
+- **类型**:
+  - `Stage`: 'list' | 'cast' - 法术施放阶段类型
+  - `CheckType`: 'ac' | 'save' | 'none' - 检定方式类型
+  - `EffectType`: 'damage' | 'heal' - 效果类型
+  - `Props`: 组件属性类型
+  - `AdvantageContext`: 豁免规则上下文类型
+  - `AdvantageResult`: 豁免结果类型
+- **函数**:
+  - `parseDice(expr: string): { count: number; sides: number; bonus: number }` - 解析骰子表达式
+  - `renderSpellDice(text: string): ReactNode[]` - 渲染法术描述中的骰子表达式
+  - `handlePickSpell(spell: Spell)`: 选择法术
+  - `handleCheckTypeChange(t: CheckType)`: 切换检定方式
+  - `applyDiceValues(newValues: string[])`: 应用 d20 输入变化
+  - `handleRollD20()`: 摇 d20
+  - `handleConfirmCheck()`: 确定检定
+  - `computeEffectTotal(): number`: 计算效果总数值
+  - `handleRollEffectDice()`: 摇效果骰
+  - `updateEffectDie(idx: number, val: string)`: 更新效果骰值
+  - `handleCalcEffect()`: 计算效果
+  - `handleConfirmCast()`: 确认施放
+- **组件**:
+  - `AdvDisadvToggle`: 豁免优劣势切换组件
+  - `SpellCard`: 法术卡片组件
+- **Store**:
+  - `characterStore`: 角色数据存储
+  - `spellStore`: 法术数据存储
+  - `combatStore`: 战斗数据存储
+- **常量**:
+  - `SAVE_ATTR_MAP`: 豁免属性短写与全称映射
 
 ## 核心实现说明
+`CombatSpellModal` 组件负责管理法术施放流程，包括法术选择、检定、效果计算和施放确认。它使用状态管理来跟踪用户的选择和输入，并调用相关数据存储和计算函数来处理逻辑。
 
-- **关键逻辑**：组件通过状态管理实现法术浏览、选择、检定、掷骰、计算结果等功能。
-- **状态管理**：使用 `useState` 和 `useMemo` 管理组件状态，包括法术列表、选中的法术、检定类型、效果类型、骰子结果等。
-- **与项目其他模块的关系**：组件依赖于角色数据存储、法术数据存储和战斗数据存储，用于获取角色、法术和战斗信息。
-- **被谁引用**：该组件在游戏中被用于展示法术施放弹窗。
+- **关键逻辑**: 组件通过状态管理跟踪用户的选择和输入，并调用相关函数来处理逻辑，如解析骰子表达式、计算结果、处理豁免规则等。
+- **状态管理**: 组件使用多个状态变量来跟踪用户的选择和输入，如 `selectedSpell`、`checkType`、`effectType`、`d20Values` 等。
+- **与项目其他模块的关系**: 组件依赖于 `characterStore`、`spellStore` 和 `combatStore` 等数据存储模块来获取角色和法术数据，并使用 `rollDice` 函数来摇骰。
+- **被谁引用**: 该组件被游戏主界面或其他需要展示法术施放弹窗的模块引用。
 
 ## 注意事项或使用方式
-
-- 用户需要先选择施法者和目标，然后从法术列表中选择要施放的法术。
-- 根据选定的法术和目标，组件会自动计算检定类型和效果类型。
-- 用户可以手动输入骰子结果或使用摇骰功能。
-- 计算结果后，用户可以确认施放法术或取消操作。
+- 用户需要选择法术并进入施放阶段。
+- 根据选择的检定方式，用户可能需要进行攻击检定或豁免检定。
+- 在无检定场景下，用户可以直接输入效果数值。
+- 用户可以手动输入骰子表达式或使用摇骰功能来计算效果数值。
+- 用户需要确认施放，并传入相关信息以更新游戏状态。
