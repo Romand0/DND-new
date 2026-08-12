@@ -34,6 +34,7 @@ import CalendarPage from '@/pages/CalendarPage';
 import NotesPage from '@/pages/NotesPage';
 import DicePage from '@/pages/DicePage';
 import UserProfile from '@/pages/UserProfile';
+import TripleTapGesture from '@/components/TripleTapGesture';
 import TreasureList from '@/pages/TreasureList';
 import TreasureEdit from '@/pages/TreasureEdit';
 import TreasureDistribute from '@/pages/TreasureDistribute';
@@ -53,6 +54,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
+          <TripleTapGesture />
           <Routes>
             {/* 公开路由（无需登录） */}
             <Route path="/login" element={<Login />} />
