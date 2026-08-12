@@ -3452,6 +3452,7 @@ export default function CombatSession() {
               });
             }}
             actions={infoPanelCombatant.actions}
+            bonusActions={infoPanelCombatant.bonusActions}
             onHelpClick={() => {
               if (!record) return;
               setHelpModal({ from: infoPanelCombatant });
