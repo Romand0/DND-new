@@ -22,6 +22,8 @@ interface Props {
   onUpdateChanges?: (changes: EquipmentChanges) => void;
   /** 当前可用动作数（放映模式显示，模拟模式不显示） */
   actions?: number;
+  /** 当前可用附赠动作数（放映模式显示，模拟模式不显示） */
+  bonusActions?: number;
   /** 点击「协助」动作时回调（由 CombatSession 实现友方选择 + pending 标记） */
   onHelpClick?: () => void;
   /** 点击「攻击」动作时回调（用于替代 info 面板内按钮，保持动作面板入口统一） */
@@ -32,7 +34,7 @@ interface Props {
   onDashClick?: () => void;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, onHelpClick, onAttackClick, onCastClick, onDashClick }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onAttackClick, onCastClick, onDashClick }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -837,15 +839,24 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
           {activeTab === 'actions' && (
             <div className="space-y-3">
-              {/* 动作计数行 */}
-              <div className="flex items-center justify-between rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
-                <span className="text-xs font-medium dark:text-text-dark light:text-text-light">动作</span>
-                <span className="text-sm font-semibold dark:text-text-dark light:text-text-light">
-                  {Math.max(0, typeof actions === 'number' ? actions : (typeof combatant.actions === 'number' ? combatant.actions : 1))}
-                </span>
-              </div>
-              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                可用动作数
+              {/* 动作 + 附赠动作 计数行：同一行展示 */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium dark:text-text-dark light:text-text-light">动作</span>
+                    <span className="text-sm font-semibold dark:text-text-dark light:text-text-light">
+                      {Math.max(0, typeof actions === 'number' ? actions : (typeof combatant.actions === 'number' ? combatant.actions : 1))}
+                    </span>
+                  </div>
+                </div>
+                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium dark:text-text-dark light:text-text-light">附赠动作</span>
+                    <span className="text-sm font-semibold dark:text-text-dark light:text-text-light">
+                      {Math.max(0, typeof bonusActions === 'number' ? bonusActions : (typeof combatant.bonusActions === 'number' ? combatant.bonusActions : 1))}
+                    </span>
+                  </div>
+                </div>
               </div>
               {/* 动作类型列表（攻击/施法已实现，其余为预留接口占位） */}
               <div>
