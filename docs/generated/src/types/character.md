@@ -2,286 +2,46 @@
 
 ## 功能概述
 
-该文件定义了角色类型相关的接口，包括角色的属性、技能、装备、法术等，为角色管理模块提供数据结构支持。它存在于项目中是为了确保角色数据的一致性和可维护性，便于后续的开发和扩展。
+该文件定义了角色类型相关的接口，包括角色的属性、技能、装备、法术等，为角色管理模块提供数据结构支持。它确保了角色数据的规范性和一致性，方便后续模块对角色进行操作。
 
 ## 主要导出/接口
 
-### 1. AbilityScore
+### 类型
 
-```typescript
-interface AbilityScore {
-  score: number;
-  modifier: number;
-}
-```
+- `AbilityScore`: 角色能力分数结构，包含分数和修正值。
+- `Abilities`: 角色能力结构，包含所有基础能力。
+- `HitDice`: 角色生命骰结构，包含骰子类型、总骰数和已使用骰数。
+- `Attack`: 攻击结构，包含攻击ID、名称、攻击加值、伤害、伤害类型、射程等。
+- `SpellSlots`: 法术位结构，包含不同等级法术位的使用情况。
+- `SpellSlotLevel`: 法术位等级类型，用于索引`SpellSlots`。
+- `Spells`: 法术结构，包含已知法术、法术位和自定义法术。
+- `EquipmentTag`: 装备标签结构，包含键值对。
+- `Equipment`: 装备结构，包含装备ID、名称、数量、类别、重量、伤害等。
+- `Currency`: 货币结构，包含铜币、银币、金币和 platinum。
+- `Skill`: 技能结构，包含熟练度、额外加值和专精。
+- `Skills`: 技能集合结构，包含所有技能及其属性。
+- `ProficiencyCategory`: 熟练度类别类型。
+- `Proficiencies`: 熟练度结构，包含不同类别的熟练度列表。
+- `Feature`: 特性结构，包含特性ID、名称、描述和类别。
+- `Character`: 角色结构，包含角色所有属性和状态。
+- `HandState`: 手持槽状态类型。
+- `HandSlot`: 手持槽结构，包含手的状态和拿持的装备ID。
 
-### 2. Abilities
+### 函数
 
-```typescript
-interface Abilities {
-  strength: AbilityScore;
-  dexterity: AbilityScore;
-  constitution: AbilityScore;
-  intelligence: AbilityScore;
-  wisdom: AbilityScore;
-  charisma: AbilityScore;
-}
-```
+无
 
-### 3. HitDice
+### 组件、Store、常量
 
-```typescript
-interface HitDice {
-  type: string;
-  total: number;
-  used: number;
-}
-```
-
-### 4. Attack
-
-```typescript
-interface Attack {
-  id?: string;
-  name: string;
-  attackBonus: string;
-  damage: string;
-  damageType: string;
-  range: string;
-  properties: string[];
-  subtype?: string;
-  normalRange?: number;
-  maxRange?: number;
-  twoHandedDamage?: string;
-  loaded?: boolean;
-}
-```
-
-### 5. SpellSlots
-
-```typescript
-interface SpellSlots {
-  level1: { max: number; used: number };
-  level2: { max: number; used: number };
-  level3: { max: number; used: number };
-  level4: { max: number; used: number };
-  level5: { max: number; used: number };
-  level6: { max: number; used: number };
-  level7: { max: number; used: number };
-  level8: { max: number; used: number };
-  level9: { max: number; used: number };
-}
-
-type SpellSlotLevel = keyof SpellSlots;
-```
-
-### 6. Spells
-
-```typescript
-interface Spells {
-  cantrips: string[];
-  spellSlots: SpellSlots;
-  custom: string[];
-}
-```
-
-### 7. EquipmentTag
-
-```typescript
-interface EquipmentTag {
-  key: string;
-  value: string;
-}
-```
-
-### 8. Equipment
-
-```typescript
-interface Equipment {
-  id?: string;
-  childId?: string;
-  name: string;
-  quantity: number;
-  packSize?: number;
-  unit?: string;
-  category: string;
-  weight?: number;
-  damageDice?: string;
-  damageType?: string;
-  acBase?: string;
-  strengthReq?: number;
-  stealthDisadvantage?: boolean;
-  description?: string;
-  price?: {
-    amount: number;
-    unit: 'pp' | 'gp' | 'sp' | 'cp';
-  };
-  properties?: string[];
-  tags?: EquipmentTag[];
-  source?: string;
-  dataResource?: string;
-  subtype?: string;
-}
-```
-
-### 9. Currency
-
-```typescript
-interface Currency {
-  cp: number;
-  sp: number;
-  gp: number;
-  pp: number;
-}
-```
-
-### 10. Skill
-
-```typescript
-interface Skill {
-  proficient: boolean;
-  extra: number;
-  expertise?: boolean;
-}
-```
-
-### 11. Skills
-
-```typescript
-interface Skills {
-  acrobatics: Skill;
-  animalHandling: Skill;
-  arcana: Skill;
-  athletics: Skill;
-  deception: Skill;
-  history: Skill;
-  insight: Skill;
-  intimidation: Skill;
-  investigation: Skill;
-  medicine: Skill;
-  nature: Skill;
-  perception: Skill;
-  performance: Skill;
-  persuasion: Skill;
-  religion: Skill;
-  sleightOfHand: Skill;
-  stealth: Skill;
-  survival: Skill;
-}
-```
-
-### 12. Proficiencies
-
-```typescript
-type ProficiencyCategory = 'armor' | 'weapons' | 'tools' | 'languages' | 'savingThrows';
-
-interface Proficiencies {
-  armor: string[];
-  weapons: string[];
-  tools: string[];
-  languages: string[];
-  savingThrows: string[];
-}
-```
-
-### 13. Feature
-
-```typescript
-interface Feature {
-  id?: string;
-  name: string;
-  description: string;
-  category: string;
-  source?: string;
-}
-```
-
-### 14. Character
-
-```typescript
-interface Character {
-  id: string;
-  name: string;
-  gender: 'male' | 'female' | 'other' | '';
-  class: string;
-  level: number;
-  race: string;
-  background: string;
-  alignment: string;
-  experience: number;
-  size: string;
-
-  abilities: Abilities;
-  proficiencyBonus: number;
-  passivePerception: number;
-  armorClass: number;
-  speed: number;
-  maxHp: number;
-  currentHp: number;
-  tempHp: number;
-  hitDice: HitDice;
-
-  attacks: Attack[];
-  spells: Spells;
-
-  equipment: Equipment[];
-  currency: Currency;
-
-  skills: Skills;
-  proficiencies: Proficiencies;
-  saveExpertise?: AbilityKey[];
-  saveBonusOverride?: Partial<Record<AbilityKey, number>>;
-
-  features: Feature[];
-
-  appearance: string;
-  personality: string;
-  ideals: string;
-  bonds: string;
-  flaws: string;
-
-  createdAt?: number;
-  updatedAt?: number;
-
-  wornArmorId: string | null;
-  wornOutfitId: string | null;
-  heldLeft: HandSlot;
-  heldRight: HandSlot;
-}
-```
-
-### 15. HandSlot
-
-```typescript
-interface HandSlot {
-  state: HandState;
-  equipmentId: string | null;
-}
-
-type HandState = 'ready' | 'action' | 'unavailable';
-```
-
-### 16. AbilityKey
-
-```typescript
-type AbilityKey = keyof Abilities;
-type SkillKey = keyof Skills;
-```
+无
 
 ## 核心实现说明
 
-该文件定义了一系列接口，用于描述角色的属性和状态。这些接口构成了角色数据模型的基础，为角色管理模块提供了数据结构支持。角色数据模型包括角色的基本属性、技能、装备、法术等，是角色管理模块的核心。
-
-角色数据模型与项目其他模块的关系如下：
-
-- 角色管理模块：使用该文件定义的接口来存储和操作角色数据。
-- 游戏逻辑模块：使用角色数据模型来模拟游戏中的角色行为。
-- 视图层：根据角色数据模型来渲染角色界面。
-
-该文件被角色管理模块引用，用于创建和管理角色实例。
+该文件定义了一系列接口，用于描述角色的属性和状态。这些接口被角色管理模块使用，以创建和操作角色实例。角色数据通过这些接口进行封装，保证了数据的一致性和可维护性。
 
 ## 注意事项或使用方式
 
-- 使用该文件定义的接口时，请确保遵循 TypeScript 的类型系统。
-- 在使用角色数据模型时，请注意角色的状态可能会随着游戏进程而变化。
-- 在修改角色数据时，请确保数据的一致性和完整性。
+- 使用`Character`结构创建角色实例时，需要提供所有必要的属性。
+- `AbilityScore`、`Skills`、`Proficiencies`等结构可以用于计算角色的属性值。
+- `Equipment`结构可以用于描述角色的装备，包括装备的属性和状态。
+- `Spells`结构可以用于描述角色的法术，包括已知法术和法术位的使用情况。

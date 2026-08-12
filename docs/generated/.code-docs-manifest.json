@@ -1,8 +1,8 @@
 {
   "files": {
     "src/App.tsx": {
-      "sha": "d177e85128a17687eee5ce7ee6770adb01e48c5d00f34c4877eb50b4f39e0663",
-      "at": "2026-08-11T11:09:46.519Z"
+      "sha": "251861c009be87bdd17796dda97f2960047408683b36cf2e755db42809f517cd",
+      "at": "2026-08-12T03:32:13.702Z"
     },
     "src/components/AdvDisadvToggle.tsx": {
       "sha": "f4b4d7e1358bae00ea1c8bb026d0a9fc00cdae73457f24e38cde4ac5245135ef",
@@ -29,12 +29,12 @@
       "at": "2026-08-11T11:12:14.469Z"
     },
     "src/components/CombatSpellModal.tsx": {
-      "sha": "0927e17754e7d7ab6ee9e382d1b73876e6b10b5135597c1b764c16822429588b",
-      "at": "2026-08-11T11:12:23.816Z"
+      "sha": "212d1931969150b871123b9131e88d50ed288c578e6d1cdf9653413bd3f836fc",
+      "at": "2026-08-12T03:32:27.218Z"
     },
     "src/components/CombatantInfoPanel.tsx": {
-      "sha": "8e9e5aedb72d49e40cdc233e73e2ef6aa16403acd55386c7475d6543c42116c0",
-      "at": "2026-08-11T11:12:33.590Z"
+      "sha": "4f627cedf8983d41d5aca2401e529df61f71db7895eb779985ef6f1fcf81e174",
+      "at": "2026-08-12T03:32:35.464Z"
     },
     "src/components/EquipmentEditor.tsx": {
       "sha": "71f0bb074255b11d11aea15176e819b731e6c972f45a60519f3f81e53867ed4d",
@@ -157,8 +157,8 @@
       "at": "2026-08-11T11:28:39.028Z"
     },
     "src/data/combatStore.ts": {
-      "sha": "6c815ca7330d58ceaab57c2023be632efada66d9b9708b1dd23103a64d21ba19",
-      "at": "2026-08-11T11:29:42.920Z"
+      "sha": "50def60f8a1899c9ef474a934a852ad63afc6583d76ec348e45378ca8dfccd50",
+      "at": "2026-08-12T03:33:23.727Z"
     },
     "src/data/diceService.ts": {
       "sha": "d5f14059c671feefdec33b1aa5f7240f1c02b1f2691675085146e040008b8747",
@@ -197,8 +197,8 @@
       "at": "2026-08-11T11:33:22.308Z"
     },
     "src/hooks/combat/useActions.ts": {
-      "sha": "0161d8ba3c8fda63d1c66e277829b35d2d00a43e245a7649bff7c0ec44b635f5",
-      "at": "2026-08-11T11:33:48.386Z"
+      "sha": "58cac408b4f0ee27d9a99fa906fafa66b107e83f651f4fabbe16d66724dfe361",
+      "at": "2026-08-12T03:35:05.902Z"
     },
     "src/hooks/combat/useCombatInventories.ts": {
       "sha": "b6fac5acc40eff1d73d51f29b9fc7671ecae849297896de56c5e55ead2ecb35e",
@@ -285,12 +285,12 @@
       "at": "2026-08-11T11:45:52.299Z"
     },
     "src/pages/CombatList.tsx": {
-      "sha": "bcc68560bdcab16df83b707583e6be93954af0a6d0ef928d15a3e88fc197514a",
-      "at": "2026-08-11T11:46:31.008Z"
+      "sha": "62329dc95ea787113f690c4050dd0eb10aa4f3713668d88fe835d780f2c4729f",
+      "at": "2026-08-12T03:35:32.190Z"
     },
     "src/pages/CombatSession.tsx": {
-      "sha": "e235b5cea8f840a898f6f4606ee4e80faefafe6f3f5fd44805fdbcd99716e4c5",
-      "at": "2026-08-11T11:48:32.266Z"
+      "sha": "5a6e1b18b56697b98026cb59d6adafdb17fa4024a5cf13f19a124c32c0185253",
+      "at": "2026-08-12T03:37:57.752Z"
     },
     "src/pages/DataManagement.tsx": {
       "sha": "aab52b04d66f63c6e282b5c70e584c368abd155b39bd50485ced84c181857920",
@@ -373,8 +373,8 @@
       "at": "2026-08-11T11:57:59.620Z"
     },
     "src/pages/TreasureEdit.tsx": {
-      "sha": "7d813dea6794c0d232501beb5fd7d2846a45a0ba6420ded54e7da2bff8ed71ee",
-      "at": "2026-08-11T11:58:22.871Z"
+      "sha": "4f9541f2734cb71c1c6e722cf51829c64db90c0045bdeaa772438800406c69aa",
+      "at": "2026-08-12T03:38:17.873Z"
     },
     "src/pages/TreasureList.tsx": {
       "sha": "30acd18be4cee33772dcab4d606d0a93a6febe721c64fad9694d0d868fc5514d",
@@ -389,12 +389,12 @@
       "at": "2026-08-11T11:59:21.877Z"
     },
     "src/types/character.ts": {
-      "sha": "5e26ca22aed644077cd8ff65ad158f5c1971365b6efbe13e0c822cb6c279334d",
-      "at": "2026-08-11T12:00:34.001Z"
+      "sha": "3b86f541722bd846e9b159bd7669ae11e1aa6279f4d968ac8305244c8d688d99",
+      "at": "2026-08-12T03:38:47.882Z"
     },
     "src/types/combat.ts": {
-      "sha": "4d586596f037a6a41da503a557db018338038bd7aa93ae2c3e9331fb43e5af8e",
-      "at": "2026-08-11T12:01:19.602Z"
+      "sha": "cca451431bc3cd58d98a537095012acfc626e3ddd6f2dcee22337749a613af7f",
+      "at": "2026-08-12T03:39:39.835Z"
     },
     "src/types/equipment.ts": {
       "sha": "69723178b5e12c23b76e5d3931bf9d9a20672f0db9f2448f528fa5342f723e21",
@@ -407,6 +407,26 @@
     "src/types/treasure.ts": {
       "sha": "414dee197dcf46bc710c43bfa75cb3606a27061dc575417c9d93e0c1c8b98131",
       "at": "2026-08-11T12:02:53.951Z"
+    },
+    "src/components/TripleTapGesture.tsx": {
+      "sha": "e720f5cd1afd080b7be1785ed38c0b4274b21d8deb3558f27fac24e1214922fe",
+      "at": "2026-08-12T03:32:52.200Z"
+    },
+    "src/data/hookedCombatStore.ts": {
+      "sha": "c048151bb4a1527f6c3b3f6c1ed94316b99adddb9bb3b8266143c6bb4f03e9e6",
+      "at": "2026-08-12T03:33:51.538Z"
+    },
+    "src/data/statusLibrary.ts": {
+      "sha": "a2f6a063c2295a77f65dc90da49a37d9184abac24a83d82329fe54e40831f80c",
+      "at": "2026-08-12T03:34:07.052Z"
+    },
+    "src/data/statusManager.ts": {
+      "sha": "93b24bce55253c7c85a26ae24da0414710182e168d08aacdc00102b773b38499",
+      "at": "2026-08-12T03:34:32.034Z"
+    },
+    "src/types/status.ts": {
+      "sha": "199284b7367a0638c6e415179c39af4af799db7755c749b8cb6dbf613559b135",
+      "at": "2026-08-12T03:40:47.943Z"
     }
   }
 }
