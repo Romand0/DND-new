@@ -1,9 +1,10 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
-  X, Plus, Trash2, Save, Play, AlertCircle, CheckCircle,
+  X, Plus, Trash2, Save, AlertCircle, CheckCircle,
   MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
   ChevronRight, Download, Upload, RotateCcw,
+  PanelLeft, PanelRight,
 } from 'lucide-react';
 import type {
   FlowDefinition,
@@ -54,6 +55,8 @@ export default function FlowEditor() {
   const [drafts, setDrafts] = useState<DraftEntry[]>(() => loadDrafts());
   const [showDrafts, setShowDrafts] = useState(false);
   const [flowName, setFlowName] = useState('');
+  const [showLeftPanel, setShowLeftPanel] = useState(true);
+  const [showRightPanel, setShowRightPanel] = useState(true);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -150,7 +153,6 @@ export default function FlowEditor() {
   // ===== 添加边 =====
   const addEdge = useCallback((fromId: string, toId: string, trigger: string) => {
     if (fromId === toId) return;
-    // 检查是否已存在相同 from→to 的边
     const exists = flow.edges.some(e => e.from === fromId && e.to === toId);
     if (exists) return;
 
@@ -196,7 +198,6 @@ export default function FlowEditor() {
   // ===== 画布事件：鼠标按下（开始拖拽或连接） =====
   const handleCanvasMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
     if (isConnecting) {
-      // 连接模式：点击目标节点完成连接
       if (connectFromId && connectFromId !== nodeId) {
         addEdge(connectFromId, nodeId, connectTrigger);
         setIsConnecting(false);
@@ -204,12 +205,8 @@ export default function FlowEditor() {
       }
       return;
     }
-
-    // 选择节点
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
-
-    // 开始拖拽
     const node = flow.nodes.find(n => n.id === nodeId);
     if (!node || !canvasRef.current) return;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -344,12 +341,11 @@ export default function FlowEditor() {
     const toNode = flow.nodes.find(n => n.id === edge.to);
     if (!fromNode || !toNode) return null;
 
-    const fx = fromNode.position.x + 140; // 节点宽度/2
-    const fy = fromNode.position.y + 24; // 节点高度/2
+    const fx = fromNode.position.x + 140;
+    const fy = fromNode.position.y + 24;
     const tx = toNode.position.x + 140;
     const ty = toNode.position.y + 24;
 
-    // 贝塞尔曲线
     const midX = (fx + tx) / 2;
     return `M ${fx} ${fy} C ${midX} ${fy}, ${midX} ${ty}, ${tx} ${ty}`;
   }
@@ -359,11 +355,25 @@ export default function FlowEditor() {
 
   // ===== 渲染 =====
   return (
-    <div className="h-[calc(100vh-64px)] flex overflow-hidden dark:bg-bg-dark light:bg-bg-light">
-      {/* ===== 左侧：节点面板 ===== */}
-      <div className="w-64 flex-shrink-0 border-r dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-gray-50 overflow-y-auto">
+    <div className="h-[calc(100vh-64px)] flex overflow-hidden dark:bg-bg-dark light:bg-bg-light relative">
+      {/* ===== 左侧节点面板 ===== */}
+      {/* 宽屏：固定 64 宽图标条 + 256 宽内容区；窄屏：全宽滑出抽屉 */}
+      <div
+        className={`${
+          showLeftPanel ? 'translate-x-0' : '-translate-x-full'
+        } lg:translate-x-0 absolute lg:relative z-30 w-64 h-full flex-shrink-0 border-r dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-gray-50 overflow-y-auto transition-transform duration-200 ease-out`}
+      >
         <div className="p-4">
-          <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-3">环节库</h2>
+          <div className="flex items-center justify-between mb-3 lg:hidden">
+            <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light">环节库</h2>
+            <button
+              onClick={() => setShowLeftPanel(false)}
+              className="p-1 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <h2 className="text-sm font-semibold dark:text-text-dark light:text-light mb-3 hidden lg:block">环节库</h2>
           <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
             拖拽或点击节点类型添加到画布
           </p>
@@ -378,13 +388,12 @@ export default function FlowEditor() {
                   <button
                     key={meta.type}
                     onClick={() => {
-                      // 点击添加到画布中央
                       const canvas = canvasRef.current;
                       const cx = canvas ? canvas.clientWidth / 2 - 140 : 200;
                       const cy = canvas ? canvas.clientHeight / 2 - 24 : 200;
                       addNode(meta, { x: cx + flow.nodes.length * 20, y: cy + flow.nodes.length * 20 });
                     }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-left transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light"
+                    className="w-full flex items-center gap-2 px-2.5 py-2.5 rounded-lg text-xs text-left transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light active:scale-[0.98]"
                     title={meta.description}
                   >
                     <span
@@ -400,69 +409,87 @@ export default function FlowEditor() {
         </div>
       </div>
 
+      {/* 左侧遮罩（窄屏抽屉打开时） */}
+      {showLeftPanel && (
+        <div
+          className="lg:hidden absolute inset-0 z-20 bg-black/30"
+          onClick={() => setShowLeftPanel(false)}
+        />
+      )}
+
       {/* ===== 中央：画布区域 ===== */}
-      <div className="flex-1 flex flex-col relative overflow-hidden">
+      <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
         {/* 顶部工具栏 */}
-        <div className="h-12 border-b dark:border-border-dark light:border-border-light flex items-center gap-2 px-4 dark:bg-bg-dark-2 light:bg-white">
+        <div className="h-12 border-b dark:border-border-dark light:border-border-light flex items-center gap-1 px-2 lg:px-4 dark:bg-bg-dark-2 light:bg-white overflow-x-auto no-scrollbar">
+          {/* 面板切换按钮（窄屏） */}
+          <button
+            onClick={() => setShowLeftPanel(!showLeftPanel)}
+            className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
+            title="节点库"
+          >
+            <PanelLeft className="w-4 h-4" />
+          </button>
+
           <input
             type="text"
             value={flowName}
             onChange={(e) => setFlowName(e.target.value)}
-            className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-48"
+            className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48 flex-shrink-0"
             placeholder="流程名称"
           />
 
-          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-2" />
+          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
 
-          {/* 验证按钮 */}
+          {/* 验证 */}
           <button
             onClick={runValidation}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
             title="验证流程"
           >
             <AlertCircle className="w-3.5 h-3.5" />
-            验证
+            <span className="hidden sm:inline">验证</span>
           </button>
 
           {/* 保存草稿 */}
           <button
             onClick={saveDraft}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
             title="保存到本地草稿"
           >
             <Save className="w-3.5 h-3.5" />
-            保存
+            <span className="hidden sm:inline">保存</span>
           </button>
 
           {/* 草稿列表 */}
           <button
             onClick={() => setShowDrafts(!showDrafts)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
           >
             <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showDrafts ? 'rotate-90' : ''}`} />
-            草稿 ({drafts.length})
+            <span className="hidden sm:inline">草稿</span>
+            <span className="sm:hidden">({drafts.length})</span>
           </button>
 
-          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-2" />
+          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
 
           {/* 导出 */}
           <button
             onClick={exportFlow}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
             title="导出 JSON"
           >
             <Download className="w-3.5 h-3.5" />
-            导出
+            <span className="hidden sm:inline">导出</span>
           </button>
 
           {/* 导入 */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
             title="导入 JSON"
           >
             <Upload className="w-3.5 h-3.5" />
-            导入
+            <span className="hidden sm:inline">导入</span>
           </button>
           <input
             ref={fileInputRef}
@@ -481,15 +508,36 @@ export default function FlowEditor() {
           {/* 清空 */}
           <button
             onClick={clearCanvas}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-400/10"
+            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-400/10 flex-shrink-0"
+            title="清空画布"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            清空
+            <span className="hidden sm:inline">清空</span>
+          </button>
+
+          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0 hidden lg:block" />
+
+          {/* 右面板切换（宽屏） */}
+          <button
+            onClick={() => setShowRightPanel(!showRightPanel)}
+            className="hidden lg:flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+            title="属性面板"
+          >
+            <PanelRight className="w-4 h-4" />
+          </button>
+
+          {/* 右面板切换（窄屏） */}
+          <button
+            onClick={() => setShowRightPanel(!showRightPanel)}
+            className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+            title="属性面板"
+          >
+            <PanelRight className="w-4 h-4" />
           </button>
 
           {/* 连接模式提示 */}
           {isConnecting && (
-            <div className="absolute top-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-primary/90 text-white text-xs font-medium z-50 shadow-lg">
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-primary/90 text-white text-xs font-medium z-50 shadow-lg whitespace-nowrap">
               连接模式：点击目标节点完成连接
               <button onClick={cancelConnecting} className="ml-2 underline">取消</button>
             </div>
@@ -499,153 +547,155 @@ export default function FlowEditor() {
         {/* 画布 */}
         <div
           ref={canvasRef}
-          className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 cursor-crosshair"
+          className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 cursor-crosshair touch-none"
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseUp}
         >
-          {/* 网格背景 */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-30"
-            style={{
-              backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
-              backgroundSize: '20px 20px',
-              color: 'var(--tw-text-opacity)',
-            }}
-          />
+          {/* 固定尺寸画布内容区 */}
+          <div className="relative" style={{ width: 3000, height: 2000 }}>
+            {/* 网格背景 */}
+            <div
+              className="absolute inset-0 pointer-events-none opacity-20"
+              style={{
+                backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+              }}
+            />
 
-          {/* 节点渲染层 */}
-          {flow.nodes.map(node => {
-            const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
-            const isSelected = selectedNodeId === node.id;
-            const isConnectSource = connectFromId === node.id;
-
-            return (
-              <div
-                key={node.id}
-                className="absolute select-none"
-                style={{
-                  left: node.position.x,
-                  top: node.position.y,
-                  width: 280,
-                  zIndex: isSelected ? 10 : 1,
-                }}
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  handleCanvasMouseDown(e, node.id);
-                }}
-              >
-                <div
-                  className={`rounded-lg border-2 p-3 transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-primary shadow-lg shadow-primary/20'
-                      : isConnectSource
-                        ? 'border-primary/60'
-                        : 'dark:border-border-dark light:border-border-light hover:border-primary/40'
-                  } dark:bg-bg-dark-2 light:bg-white`}
-                >
-                  {/* 节点头部 */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span
-                      className="w-6 h-6 rounded flex items-center justify-center text-white flex-shrink-0"
-                      style={{ backgroundColor: meta?.color || '#6b7280' }}
-                    >
-                      {NODE_TYPE_ICONS[node.type] || <Zap className="w-3 h-3" />}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-semibold dark:text-text-dark light:text-text-light truncate">
-                        {node.label}
-                      </div>
-                      <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted truncate">
-                        {node.type}
-                      </div>
-                    </div>
-                    {/* 操作按钮 */}
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startConnecting(node.id);
-                        }}
-                        className="p-1 rounded hover:bg-white/10 text-primary"
-                        title="连接"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteNode(node.id);
-                        }}
-                        className="p-1 rounded hover:bg-white/10 text-red-400"
-                        title="删除"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 节点配置预览 */}
-                  {node.config && Object.keys(node.config).length > 0 && (
-                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5">
-                      {Object.entries(node.config).map(([k, v]) => (
-                        <div key={k} className="truncate">
-                          <span className="font-medium">{k}:</span> {String(v)}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-
-          {/* SVG 连线层 */}
-          <svg className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%', minWidth: 2000, minHeight: 2000 }}>
-            {flow.edges.map(edge => {
-              const path = getEdgePath(edge);
-              if (!path) return null;
-              const isSelected = selectedEdgeId === edge.id;
+            {/* 节点渲染层 */}
+            {flow.nodes.map(node => {
+              const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
+              const isSelected = selectedNodeId === node.id;
+              const isConnectSource = connectFromId === node.id;
 
               return (
-                <g key={edge.id}>
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke={isSelected ? '#6366f1' : '#6b7280'}
-                    strokeWidth={isSelected ? 2.5 : 1.5}
-                    strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : undefined}
-                    className="transition-all"
-                  />
-                  {/* 箭头 */}
-                  <polygon
-                    points="0,-4 8,0 0,4"
-                    fill={isSelected ? '#6366f1' : '#6b7280'}
-                    transform={`translate(${getArrowPos(edge, flow.nodes)})`}
-                  />
-                  {/* 标签 */}
-                  {edge.label && (
-                    <text
-                      x={getLabelPos(edge, flow.nodes).x}
-                      y={getLabelPos(edge, flow.nodes).y}
-                      fill={isSelected ? '#6366f1' : '#9ca3af'}
-                      fontSize="10"
-                      textAnchor="middle"
-                      className="select-none pointer-events-auto cursor-pointer"
-                      onClick={() => setSelectedEdgeId(edge.id)}
-                    >
-                      {edge.label}
-                    </text>
-                  )}
-                </g>
+                <div
+                  key={node.id}
+                  className="absolute select-none"
+                  style={{
+                    left: node.position.x,
+                    top: node.position.y,
+                    width: 280,
+                    zIndex: isSelected ? 10 : 1,
+                  }}
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    handleCanvasMouseDown(e, node.id);
+                  }}
+                >
+                  <div
+                    className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'border-primary shadow-lg shadow-primary/20'
+                        : isConnectSource
+                          ? 'border-primary/60'
+                          : 'dark:border-border-dark light:border-border-light hover:border-primary/40'
+                    } dark:bg-bg-dark-2 light:bg-white`}
+                  >
+                    {/* 节点头部 */}
+                    <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+                      <span
+                        className="w-5 h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center text-white flex-shrink-0"
+                        style={{ backgroundColor: meta?.color || '#6b7280' }}
+                      >
+                        {NODE_TYPE_ICONS[node.type] || <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[11px] sm:text-xs font-semibold dark:text-text-dark light:text-text-light truncate">
+                          {node.label}
+                        </div>
+                        <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted truncate">
+                          {node.type}
+                        </div>
+                      </div>
+                      {/* 操作按钮 */}
+                      <div className="flex items-center gap-0.5 sm:gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startConnecting(node.id);
+                          }}
+                          className="p-1 sm:p-1.5 rounded hover:bg-white/10 text-primary"
+                          title="连接"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNode(node.id);
+                          }}
+                          className="p-1 sm:p-1.5 rounded hover:bg-white/10 text-red-400"
+                          title="删除"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* 节点配置预览 */}
+                    {node.config && Object.keys(node.config).length > 0 && (
+                      <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5">
+                        {Object.entries(node.config).map(([k, v]) => (
+                          <div key={k} className="truncate">
+                            <span className="font-medium">{k}:</span> {String(v)}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               );
             })}
-          </svg>
+
+            {/* SVG 连线层 */}
+            <svg className="absolute inset-0 pointer-events-none" style={{ width: 3000, height: 2000 }}>
+              {flow.edges.map(edge => {
+                const path = getEdgePath(edge);
+                if (!path) return null;
+                const isSelected = selectedEdgeId === edge.id;
+
+                return (
+                  <g key={edge.id}>
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke={isSelected ? '#6366f1' : '#6b7280'}
+                      strokeWidth={isSelected ? 2.5 : 1.5}
+                      strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : undefined}
+                      className="transition-all"
+                    />
+                    {/* 箭头 */}
+                    <polygon
+                      points="0,-4 8,0 0,4"
+                      fill={isSelected ? '#6366f1' : '#6b7280'}
+                      transform={`translate(${getArrowPos(edge, flow.nodes)})`}
+                    />
+                    {/* 标签 */}
+                    {edge.label && (
+                      <text
+                        x={getLabelPos(edge, flow.nodes).x}
+                        y={getLabelPos(edge, flow.nodes).y}
+                        fill={isSelected ? '#6366f1' : '#9ca3af'}
+                        fontSize="10"
+                        textAnchor="middle"
+                        className="select-none pointer-events-auto cursor-pointer"
+                        onClick={() => setSelectedEdgeId(edge.id)}
+                      >
+                        {edge.label}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+            </svg>
+          </div>
         </div>
 
         {/* 验证结果浮层 */}
         {showValidation && (
-          <div className="absolute bottom-4 left-4 right-4 max-w-lg mx-auto">
+          <div className="absolute bottom-4 left-4 right-4 max-w-lg mx-auto z-30">
             <div className="rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white shadow-lg p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
@@ -666,9 +716,9 @@ export default function FlowEditor() {
                 </button>
               </div>
               {validationErrors.length > 0 && (
-                <ul className="space-y-1">
+                <ul className="space-y-1 max-h-40 overflow-y-auto">
                   {validationErrors.map((err, i) => (
-                    <li key={i} className="text-xs text-red-400">• {err}</li>
+                    <li key={i} className="text-xs text-red-400">{err}</li>
                   ))}
                 </ul>
               )}
@@ -678,365 +728,389 @@ export default function FlowEditor() {
       </div>
 
       {/* ===== 右侧：属性面板 ===== */}
-      <div className="w-72 flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto">
-        {/* 节点属性 */}
-        {selectedNode ? (
-          <div className="p-4">
-            <div className="flex items-center gap-2 mb-4">
-              <span
-                className="w-6 h-6 rounded flex items-center justify-center text-white"
-                style={{ backgroundColor: NODE_TYPE_REGISTRY.find(m => m.type === selectedNode.type)?.color || '#6b7280' }}
-              >
-                {NODE_TYPE_ICONS[selectedNode.type] || <Zap className="w-3 h-3" />}
-              </span>
-              <div>
-                <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">
-                  {selectedNode.label}
-                </h3>
-                <p className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                  {selectedNode.type}
-                </p>
-              </div>
-            </div>
+      <div
+        className={`${
+          showRightPanel ? 'translate-x-0' : 'translate-x-full'
+        } lg:translate-x-0 absolute lg:relative right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
+      >
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-4 lg:hidden">
+            <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">属性</h3>
+            <button
+              onClick={() => setShowRightPanel(false)}
+              className="p-1 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
-            {/* 节点 ID（只读） */}
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                节点 ID
-              </label>
-              <input
-                type="text"
-                value={selectedNode.id}
-                readOnly
-                className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light opacity-60"
-              />
-            </div>
-
-            {/* 显示名称 */}
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                显示名称
-              </label>
-              <input
-                type="text"
-                value={selectedNode.label}
-                onChange={(e) => {
-                  setFlow(prev => ({
-                    ...prev,
-                    nodes: prev.nodes.map(n =>
-                      n.id === selectedNode.id ? { ...n, label: e.target.value } : n
-                    ),
-                    updatedAt: Date.now(),
-                  }));
-                }}
-                className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-              />
-            </div>
-
-            {/* 配置项 */}
-            <div className="mb-3">
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">
-                  配置项
-                </label>
-                <button
-                  onClick={() => {
-                    const key = prompt('请输入配置项名称:');
-                    if (key) updateNodeConfig(selectedNode.id, key, '');
-                  }}
-                  className="text-xs text-primary hover:underline"
+          {/* 节点属性 */}
+          {selectedNode ? (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span
+                  className="w-6 h-6 rounded flex items-center justify-center text-white"
+                  style={{ backgroundColor: NODE_TYPE_REGISTRY.find(m => m.type === selectedNode.type)?.color || '#6b7280' }}
                 >
-                  + 添加
-                </button>
-              </div>
-              <div className="space-y-2">
-                {Object.entries(selectedNode.config || {}).map(([key, value]) => (
-                  <div key={key} className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-0.5">{key}</div>
-                      <input
-                        type="text"
-                        value={String(value)}
-                        onChange={(e) => updateNodeConfig(selectedNode.id, key, e.target.value)}
-                        className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-                      />
-                    </div>
-                    <button
-                      onClick={() => {
-                        setFlow(prev => ({
-                          ...prev,
-                          nodes: prev.nodes.map(n =>
-                            n.id === selectedNode.id
-                              ? { ...n, config: Object.fromEntries(Object.entries(n.config || {}).filter(([k]) => k !== key)) }
-                              : n
-                          ),
-                          updatedAt: Date.now(),
-                        }));
-                      }}
-                      className="p-1 rounded hover:bg-white/10 text-red-400 mt-4"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
-                ))}
-                {(!selectedNode.config || Object.keys(selectedNode.config).length === 0) && (
-                  <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
-                    暂无配置项
+                  {NODE_TYPE_ICONS[selectedNode.type] || <Zap className="w-3 h-3" />}
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">
+                    {selectedNode.label}
+                  </h3>
+                  <p className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                    {selectedNode.type}
                   </p>
-                )}
+                </div>
               </div>
-            </div>
 
-            {/* 备注 */}
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                备注
-              </label>
-              <textarea
-                value={selectedNode.notes || ''}
-                onChange={(e) => {
-                  setFlow(prev => ({
-                    ...prev,
-                    nodes: prev.nodes.map(n =>
-                      n.id === selectedNode.id ? { ...n, notes: e.target.value } : n
-                    ),
-                    updatedAt: Date.now(),
-                  }));
-                }}
-                rows={3}
-                className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none"
-                placeholder="添加备注..."
-              />
-            </div>
+              {/* 节点 ID（只读） */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  节点 ID
+                </label>
+                <input
+                  type="text"
+                  value={selectedNode.id}
+                  readOnly
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light opacity-60"
+                />
+              </div>
 
-            {/* 出边列表 */}
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-2">
-                出边连接
-              </label>
-              <div className="space-y-1">
-                {flow.edges.filter(e => e.from === selectedNode.id).map(edge => {
-                  const toNode = flow.nodes.find(n => n.id === edge.to);
-                  return (
-                    <div
-                      key={edge.id}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${
-                        selectedEdgeId === edge.id ? 'bg-primary/10' : 'hover:bg-white/5'
-                      }`}
-                      onClick={() => setSelectedEdgeId(edge.id)}
-                    >
-                      <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px]">
-                        {edge.label || edge.trigger}
-                      </span>
-                      <span className="dark:text-text-dark light:text-text-light truncate">
-                        → {toNode?.label || edge.to}
-                      </span>
+              {/* 显示名称 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  显示名称
+                </label>
+                <input
+                  type="text"
+                  value={selectedNode.label}
+                  onChange={(e) => {
+                    setFlow(prev => ({
+                      ...prev,
+                      nodes: prev.nodes.map(n =>
+                        n.id === selectedNode.id ? { ...n, label: e.target.value } : n
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                />
+              </div>
+
+              {/* 配置项 */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">
+                    配置项
+                  </label>
+                  <button
+                    onClick={() => {
+                      const key = prompt('请输入配置项名称:');
+                      if (key) updateNodeConfig(selectedNode.id, key, '');
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    + 添加
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {Object.entries(selectedNode.config || {}).map(([key, value]) => (
+                    <div key={key} className="flex items-start gap-2">
+                      <div className="flex-1">
+                        <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-0.5">{key}</div>
+                        <input
+                          type="text"
+                          value={String(value)}
+                          onChange={(e) => updateNodeConfig(selectedNode.id, key, e.target.value)}
+                          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                        />
+                      </div>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteEdge(edge.id);
+                        onClick={() => {
+                          setFlow(prev => ({
+                            ...prev,
+                            nodes: prev.nodes.map(n =>
+                              n.id === selectedNode.id
+                                ? { ...n, config: Object.fromEntries(Object.entries(n.config || {}).filter(([k]) => k !== key)) }
+                                : n
+                            ),
+                            updatedAt: Date.now(),
+                          }));
                         }}
-                        className="ml-auto p-0.5 rounded hover:bg-white/10 text-red-400"
+                        className="p-1 rounded hover:bg-white/10 text-red-400 mt-4"
                       >
                         <Trash2 className="w-3 h-3" />
                       </button>
                     </div>
-                  );
-                })}
-                {flow.edges.filter(e => e.from === selectedNode.id).length === 0 && (
-                  <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
-                    暂无出边
-                  </p>
-                )}
+                  ))}
+                  {(!selectedNode.config || Object.keys(selectedNode.config).length === 0) && (
+                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
+                      暂无配置项
+                    </p>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* 入边列表 */}
-            <div>
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-2">
-                入边连接
-              </label>
-              <div className="space-y-1">
-                {flow.edges.filter(e => e.to === selectedNode.id).map(edge => {
-                  const fromNode = flow.nodes.find(n => n.id === edge.from);
-                  return (
-                    <div
-                      key={edge.id}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${
-                        selectedEdgeId === edge.id ? 'bg-primary/10' : 'hover:bg-white/5'
-                      }`}
-                      onClick={() => setSelectedEdgeId(edge.id)}
-                    >
-                      <span className="dark:text-text-dark light:text-text-light truncate">
-                        {fromNode?.label || edge.from} →
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px]">
-                        {edge.label || edge.trigger}
-                      </span>
-                    </div>
-                  );
-                })}
-                {flow.edges.filter(e => e.to === selectedNode.id).length === 0 && (
-                  <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
-                    暂无入边
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : selectedEdge ? (
-          /* 边属性 */
-          <div className="p-4">
-            <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4">
-              连线属性
-            </h3>
-
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                边 ID
-              </label>
-              <input
-                type="text"
-                value={selectedEdge.id}
-                readOnly
-                className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light opacity-60"
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                触发时机
-              </label>
-              <select
-                value={selectedEdge.trigger}
-                onChange={(e) => {
-                  setFlow(prev => ({
-                    ...prev,
-                    edges: prev.edges.map(ed =>
-                      ed.id === selectedEdge.id
-                        ? { ...ed, trigger: e.target.value as any, label: triggerToLabel(e.target.value) }
-                        : ed
-                    ),
-                    updatedAt: Date.now(),
-                  }));
-                }}
-                className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-              >
-                <option value="on_complete">on_complete（完成）</option>
-                <option value="on_success">on_success（成功）</option>
-                <option value="on_failure">on_failure（失败）</option>
-                <option value="on_partial">on_partial（部分）</option>
-                <option value="on_true">on_true（是）</option>
-                <option value="on_false">on_false（否）</option>
-              </select>
-            </div>
-
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                显示标签
-              </label>
-              <input
-                type="text"
-                value={selectedEdge.label || ''}
-                onChange={(e) => {
-                  setFlow(prev => ({
-                    ...prev,
-                    edges: prev.edges.map(ed =>
-                      ed.id === selectedEdge.id ? { ...ed, label: e.target.value } : ed
-                    ),
-                    updatedAt: Date.now(),
-                  }));
-                }}
-                className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                守卫条件（可选）
-              </label>
-              <input
-                type="text"
-                value={selectedEdge.condition || ''}
-                onChange={(e) => {
-                  setFlow(prev => ({
-                    ...prev,
-                    edges: prev.edges.map(ed =>
-                      ed.id === selectedEdge.id ? { ...ed, condition: e.target.value || undefined } : ed
-                    ),
-                    updatedAt: Date.now(),
-                  }));
-                }}
-                className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-                placeholder="如：target.currentHp > 0"
-              />
-            </div>
-
-            <div className="mb-3">
-              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                数据映射（可选）
-              </label>
-              <textarea
-                value={selectedEdge.dataMap ? JSON.stringify(selectedEdge.dataMap, null, 2) : ''}
-                onChange={(e) => {
-                  try {
-                    const map = e.target.value ? JSON.parse(e.target.value) : undefined;
+              {/* 备注 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  备注
+                </label>
+                <textarea
+                  value={selectedNode.notes || ''}
+                  onChange={(e) => {
                     setFlow(prev => ({
                       ...prev,
-                      edges: prev.edges.map(ed =>
-                        ed.id === selectedEdge.id ? { ...ed, dataMap: map } : ed
+                      nodes: prev.nodes.map(n =>
+                        n.id === selectedNode.id ? { ...n, notes: e.target.value } : n
                       ),
                       updatedAt: Date.now(),
                     }));
-                  } catch {
-                    // JSON 解析错误时不更新
-                  }
-                }}
-                rows={4}
-                className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none font-mono"
-                placeholder='{"failed_targets": "input_targets"}'
-              />
-            </div>
+                  }}
+                  rows={3}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none"
+                  placeholder="添加备注..."
+                />
+              </div>
 
-            <button
-              onClick={() => deleteEdge(selectedEdge.id)}
-              className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-400/10 transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              删除连线
-            </button>
-          </div>
-        ) : (
-          /* 空状态 */
-          <div className="p-4">
-            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-              选择一个节点或连线以编辑属性
-            </p>
-
-            {/* 统计信息 */}
-            <div className="mt-6 space-y-3">
-              <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
-                流程统计
-              </h4>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
-                  <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{flow.nodes.length}</div>
-                  <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">节点</div>
+              {/* 出边列表 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-2">
+                  出边连接
+                </label>
+                <div className="space-y-1">
+                  {flow.edges.filter(e => e.from === selectedNode.id).map(edge => {
+                    const toNode = flow.nodes.find(n => n.id === edge.to);
+                    return (
+                      <div
+                        key={edge.id}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${
+                          selectedEdgeId === edge.id ? 'bg-primary/10' : 'hover:bg-white/5'
+                        }`}
+                        onClick={() => setSelectedEdgeId(edge.id)}
+                      >
+                        <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px]">
+                          {edge.label || edge.trigger}
+                        </span>
+                        <span className="dark:text-text-dark light:text-text-light truncate">
+                          → {toNode?.label || edge.to}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteEdge(edge.id);
+                          }}
+                          className="ml-auto p-0.5 rounded hover:bg-white/10 text-red-400"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {flow.edges.filter(e => e.from === selectedNode.id).length === 0 && (
+                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
+                      暂无出边
+                    </p>
+                  )}
                 </div>
-                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
-                  <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{flow.edges.length}</div>
-                  <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">连线</div>
+              </div>
+
+              {/* 入边列表 */}
+              <div>
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-2">
+                  入边连接
+                </label>
+                <div className="space-y-1">
+                  {flow.edges.filter(e => e.to === selectedNode.id).map(edge => {
+                    const fromNode = flow.nodes.find(n => n.id === edge.from);
+                    return (
+                      <div
+                        key={edge.id}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${
+                          selectedEdgeId === edge.id ? 'bg-primary/10' : 'hover:bg-white/5'
+                        }`}
+                        onClick={() => setSelectedEdgeId(edge.id)}
+                      >
+                        <span className="dark:text-text-dark light:text-text-light truncate">
+                          {fromNode?.label || edge.from} →
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px]">
+                          {edge.label || edge.trigger}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {flow.edges.filter(e => e.to === selectedNode.id).length === 0 && (
+                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
+                      暂无入边
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          ) : selectedEdge ? (
+            /* 边属性 */
+            <div>
+              <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4">
+                连线属性
+              </h3>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  边 ID
+                </label>
+                <input
+                  type="text"
+                  value={selectedEdge.id}
+                  readOnly
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light opacity-60"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  触发时机
+                </label>
+                <select
+                  value={selectedEdge.trigger}
+                  onChange={(e) => {
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id
+                          ? { ...ed, trigger: e.target.value as any, label: triggerToLabel(e.target.value) }
+                          : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                >
+                  <option value="on_complete">on_complete（完成）</option>
+                  <option value="on_success">on_success（成功）</option>
+                  <option value="on_failure">on_failure（失败）</option>
+                  <option value="on_partial">on_partial（部分）</option>
+                  <option value="on_true">on_true（是）</option>
+                  <option value="on_false">on_false（否）</option>
+                </select>
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  显示标签
+                </label>
+                <input
+                  type="text"
+                  value={selectedEdge.label || ''}
+                  onChange={(e) => {
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id ? { ...ed, label: e.target.value } : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  守卫条件（可选）
+                </label>
+                <input
+                  type="text"
+                  value={selectedEdge.condition || ''}
+                  onChange={(e) => {
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id ? { ...ed, condition: e.target.value || undefined } : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                  placeholder="如：target.currentHp > 0"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  数据映射（可选）
+                </label>
+                <textarea
+                  value={selectedEdge.dataMap ? JSON.stringify(selectedEdge.dataMap, null, 2) : ''}
+                  onChange={(e) => {
+                    try {
+                      const map = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, dataMap: map } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    } catch {
+                      // JSON 解析错误时不更新
+                    }
+                  }}
+                  rows={4}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none font-mono"
+                  placeholder='{"failed_targets": "input_targets"}'
+                />
+              </div>
+
+              <button
+                onClick={() => deleteEdge(selectedEdge.id)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-400/10 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                删除连线
+              </button>
+            </div>
+          ) : (
+            /* 空状态 */
+            <div>
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                选择一个节点或连线以编辑属性
+              </p>
+
+              {/* 统计信息 */}
+              <div className="mt-6 space-y-3">
+                <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
+                  流程统计
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
+                    <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{flow.nodes.length}</div>
+                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">节点</div>
+                  </div>
+                  <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
+                    <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{flow.edges.length}</div>
+                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">连线</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* 右侧遮罩（窄屏抽屉打开时） */}
+      {showRightPanel && (
+        <div
+          className="lg:hidden absolute inset-0 z-20 bg-black/30"
+          onClick={() => setShowRightPanel(false)}
+        />
+      )}
 
       {/* ===== 草稿列表弹窗 ===== */}
       {showDrafts && (
-        <div className="absolute top-12 left-72 right-72 z-50 flex justify-center pointer-events-none">
-          <div className="mt-2 w-80 rounded-xl border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white shadow-xl pointer-events-auto">
+        <div className="fixed inset-0 z-[60] flex items-start justify-center pt-16 px-4 pointer-events-none">
+          <div className="mt-4 w-full max-w-md rounded-xl border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white shadow-xl pointer-events-auto">
             <div className="p-3 border-b dark:border-border-dark light:border-border-light flex items-center justify-between">
               <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">本地草稿</h3>
               <button onClick={() => setShowDrafts(false)} className="text-gray-400 hover:text-gray-200">
@@ -1095,12 +1169,10 @@ function getArrowPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): string {
   const tx = toNode.position.x + 140;
   const ty = toNode.position.y + 24;
 
-  // 在线段中点偏后的位置放置箭头
   const t = 0.5;
   const x = fx + (tx - fx) * t;
   const y = fy + (ty - fy) * t;
 
-  // 计算旋转角度
   const angle = Math.atan2(ty - fy, tx - fx) * 180 / Math.PI;
   return `${x},${y} rotate(${angle})`;
 }
@@ -1116,7 +1188,6 @@ function getLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): { x: number; y: n
   const tx = toNode.position.x + 140;
   const ty = toNode.position.y + 24;
 
-  // 标签放在中点上方
   return {
     x: (fx + tx) / 2,
     y: (fy + ty) / 2 - 10,

@@ -4,8 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
-import { Zap, Trash2, Download, Upload, FileJson, Pin, PinOff } from 'lucide-react';
-import hookedCombatStore from '@/data/hookedCombatStore';
+import { Zap, Trash2, Download, Upload, FileJson } from 'lucide-react';
 import QuickCreateCombatDialog, { type QuickCreateResult } from '@/components/combat/QuickCreateCombatDialog';
 
 export default function CombatList() {
@@ -13,20 +12,6 @@ export default function CombatList() {
   const navigate = useNavigate();
   const [records, setRecords] = useState<CombatRecord[]>([]);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
-  const [hookedId, setHookedId] = useState<string | null>(
-    hookedCombatStore.get()?.id ?? null
-  );
-
-  const toggleHook = (e: React.MouseEvent, record: CombatRecord) => {
-    e.stopPropagation();
-    if (hookedId === record.id) {
-      hookedCombatStore.clear();
-      setHookedId(null);
-    } else {
-      hookedCombatStore.set(record.id, record.title);
-      setHookedId(record.id);
-    }
-  };
 
   // 加载战斗记录
   const loadRecords = useCallback(() => {
@@ -188,21 +173,6 @@ export default function CombatList() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  {/* ✅ 钩住战斗按钮：全局三击手势跳回该战斗 */}
-                  <button
-                    onClick={(e) => toggleHook(e, record)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      hookedId === record.id
-                        ? 'bg-primary/20 text-primary'
-                        : 'hover:bg-primary/10 text-primary/50'
-                    }`}
-                    title={hookedId === record.id ? '取消钩住' : '钩住此战斗'}
-                  >
-                    {hookedId === record.id
-                      ? <PinOff className="w-4 h-4" />
-                      : <Pin className="w-4 h-4" />
-                    }
-                  </button>
                   {/* ✅ 删除按钮始终显示，hover加深颜色，彻底解决不显示问题 */}
                   <button
                     onClick={(e) => handleDelete(e, record.id)}
