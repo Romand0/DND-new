@@ -1,6 +1,16 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
 import { useState, useRef, useCallback, useEffect } from 'react';
 import {
+  DndContext,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  useDraggable,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
+import {
   X, Plus, Trash2, Save, AlertCircle, CheckCircle,
   MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
   ChevronRight, Download, Upload, RotateCcw,
@@ -48,8 +58,6 @@ export default function FlowEditor() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectFromId, setConnectFromId] = useState<string | null>(null);
   const [connectTrigger, setConnectTrigger] = useState<string>('on_complete');
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showValidation, setShowValidation] = useState(false);
   const [drafts, setDrafts] = useState<DraftEntry[]>(() => loadDrafts());
@@ -60,6 +68,21 @@ export default function FlowEditor() {
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ===== dnd-kit 传感器：Pointer（鼠标）+ Touch（触屏） =====
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 移动 5px 才激活拖拽，防止点击误触发
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200, // 触摸按住 200ms 才激活，兼容点击
+        tolerance: 5,
+      },
+    }),
+  );
 
   // ===== 初始化 flowName =====
   useEffect(() => {
@@ -139,13 +162,20 @@ export default function FlowEditor() {
     }));
   }, []);
 
-  // ===== 更新节点位置（拖拽） =====
-  const updateNodePosition = useCallback((nodeId: string, x: number, y: number) => {
+  // ===== 更新节点位置（拖拽后应用 delta） =====
+  const updateNodePositionByDelta = useCallback((nodeId: string, delta: { x: number; y: number }) => {
     setFlow(prev => ({
       ...prev,
-      nodes: prev.nodes.map(n =>
-        n.id === nodeId ? { ...n, position: { x, y } } : n
-      ),
+      nodes: prev.nodes.map(n => {
+        if (n.id !== nodeId) return n;
+        return {
+          ...n,
+          position: {
+            x: Math.max(0, n.position.x + delta.x),
+            y: Math.max(0, n.position.y + delta.y),
+          },
+        };
+      }),
       updatedAt: Date.now(),
     }));
   }, []);
@@ -195,8 +225,8 @@ export default function FlowEditor() {
     return map[trigger] || trigger;
   }
 
-  // ===== 画布事件：鼠标按下（开始拖拽或连接） =====
-  const handleCanvasMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
+  // ===== 画布事件：节点点击（选择或连接） =====
+  const handleNodeClick = useCallback((nodeId: string) => {
     if (isConnecting) {
       if (connectFromId && connectFromId !== nodeId) {
         addEdge(connectFromId, nodeId, connectTrigger);
@@ -207,29 +237,7 @@ export default function FlowEditor() {
     }
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
-    const node = flow.nodes.find(n => n.id === nodeId);
-    if (!node || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    setDraggingNodeId(nodeId);
-    setDragOffset({
-      x: e.clientX - rect.left - node.position.x,
-      y: e.clientY - rect.top - node.position.y,
-    });
-  }, [isConnecting, connectFromId, connectTrigger, flow.nodes, addEdge]);
-
-  // ===== 画布事件：鼠标移动（拖拽中） =====
-  const handleCanvasMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!draggingNodeId || !canvasRef.current) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left - dragOffset.x;
-    const y = e.clientY - rect.top - dragOffset.y;
-    updateNodePosition(draggingNodeId, Math.max(0, x), Math.max(0, y));
-  }, [draggingNodeId, dragOffset, updateNodePosition]);
-
-  // ===== 画布事件：鼠标抬起 =====
-  const handleCanvasMouseUp = useCallback(() => {
-    setDraggingNodeId(null);
-  }, []);
+  }, [isConnecting, connectFromId, connectTrigger, addEdge]);
 
   // ===== 开始连接模式 =====
   const startConnecting = useCallback((nodeId: string) => {
@@ -545,13 +553,27 @@ export default function FlowEditor() {
         </div>
 
         {/* 画布 */}
-        <div
-          ref={canvasRef}
-          className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 cursor-crosshair touch-none"
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseUp}
+        <DndContext
+          sensors={sensors}
+          onDragEnd={(event: DragEndEvent) => {
+            const { active, delta } = event;
+            if (!active) return;
+            const nodeId = active.id as string;
+            // 画布滚动偏移：需要加到 delta 上
+            const canvas = canvasRef.current;
+            const scrollLeft = canvas?.scrollLeft ?? 0;
+            const scrollTop = canvas?.scrollTop ?? 0;
+            // 减去滚动偏移，因为节点位置是相对于画布内容区的
+            updateNodePositionByDelta(nodeId, {
+              x: delta.x,
+              y: delta.y,
+            });
+          }}
         >
+          <div
+            ref={canvasRef}
+            className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 cursor-crosshair touch-none"
+          >
           {/* 固定尺寸画布内容区 */}
           <div className="relative" style={{ width: 3000, height: 2000 }}>
             {/* 网格背景 */}
@@ -563,91 +585,18 @@ export default function FlowEditor() {
               }}
             />
 
-            {/* 节点渲染层 */}
-            {flow.nodes.map(node => {
-              const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
-              const isSelected = selectedNodeId === node.id;
-              const isConnectSource = connectFromId === node.id;
-
-              return (
-                <div
-                  key={node.id}
-                  className="absolute select-none"
-                  style={{
-                    left: node.position.x,
-                    top: node.position.y,
-                    width: 280,
-                    zIndex: isSelected ? 10 : 1,
-                  }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    handleCanvasMouseDown(e, node.id);
-                  }}
-                >
-                  <div
-                    className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${
-                      isSelected
-                        ? 'border-primary shadow-lg shadow-primary/20'
-                        : isConnectSource
-                          ? 'border-primary/60'
-                          : 'dark:border-border-dark light:border-border-light hover:border-primary/40'
-                    } dark:bg-bg-dark-2 light:bg-white`}
-                  >
-                    {/* 节点头部 */}
-                    <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
-                      <span
-                        className="w-5 h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center text-white flex-shrink-0"
-                        style={{ backgroundColor: meta?.color || '#6b7280' }}
-                      >
-                        {NODE_TYPE_ICONS[node.type] || <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[11px] sm:text-xs font-semibold dark:text-text-dark light:text-text-light truncate">
-                          {node.label}
-                        </div>
-                        <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted truncate">
-                          {node.type}
-                        </div>
-                      </div>
-                      {/* 操作按钮 */}
-                      <div className="flex items-center gap-0.5 sm:gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startConnecting(node.id);
-                          }}
-                          className="p-1 sm:p-1.5 rounded hover:bg-white/10 text-primary"
-                          title="连接"
-                        >
-                          <Plus className="w-3 h-3" />
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteNode(node.id);
-                          }}
-                          className="p-1 sm:p-1.5 rounded hover:bg-white/10 text-red-400"
-                          title="删除"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* 节点配置预览 */}
-                    {node.config && Object.keys(node.config).length > 0 && (
-                      <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5">
-                        {Object.entries(node.config).map(([k, v]) => (
-                          <div key={k} className="truncate">
-                            <span className="font-medium">{k}:</span> {String(v)}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {/* 节点渲染层（dnd-kit 拖拽） */}
+            {flow.nodes.map(node => (
+              <DraggableFlowNode
+                key={node.id}
+                node={node}
+                isSelected={selectedNodeId === node.id}
+                isConnectSource={connectFromId === node.id}
+                onClick={() => handleNodeClick(node.id)}
+                onStartConnecting={() => startConnecting(node.id)}
+                onDelete={() => deleteNode(node.id)}
+              />
+            ))}
 
             {/* SVG 连线层 */}
             <svg className="absolute inset-0 pointer-events-none" style={{ width: 3000, height: 2000 }}>
@@ -692,6 +641,7 @@ export default function FlowEditor() {
             </svg>
           </div>
         </div>
+        </DndContext>
 
         {/* 验证结果浮层 */}
         {showValidation && (
@@ -1192,4 +1142,125 @@ function getLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): { x: number; y: n
     x: (fx + tx) / 2,
     y: (fy + ty) / 2 - 10,
   };
+}
+
+// ===== DraggableFlowNode 子组件：封装 dnd-kit useDraggable =====
+interface DraggableFlowNodeProps {
+  node: FlowNodeDef;
+  isSelected: boolean;
+  isConnectSource: boolean;
+  onClick: () => void;
+  onStartConnecting: () => void;
+  onDelete: () => void;
+}
+
+function DraggableFlowNode({
+  node,
+  isSelected,
+  isConnectSource,
+  onClick,
+  onStartConnecting,
+  onDelete,
+}: DraggableFlowNodeProps) {
+  const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: node.id,
+    data: { node },
+  });
+
+  // 拖拽时应用 CSS transform（跟随手指/鼠标）
+  const style: React.CSSProperties = {
+    position: 'absolute',
+    left: node.position.x,
+    top: node.position.y,
+    width: 280,
+    zIndex: isSelected ? 10 : 1,
+    transform: transform ? CSS.Transform.toString(transform) : undefined,
+    opacity: isDragging ? 0.8 : 1,
+    // 禁用 transform 动画，拖拽响应更跟手
+    transition: isDragging ? 'none' : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...listeners}
+      {...attributes}
+      className="select-none"
+    >
+      <div
+        className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${
+          isSelected
+            ? 'border-primary shadow-lg shadow-primary/20'
+            : isConnectSource
+              ? 'border-primary/60'
+              : 'dark:border-border-dark light:border-border-light hover:border-primary/40'
+        } dark:bg-bg-dark-2 light:bg-white`}
+        onClick={(e) => {
+          // 仅在未拖拽时触发 click（dnd-kit 的 listeners 已处理拖拽）
+          // 通过短延迟区分拖拽和点击
+          if (!isDragging) onClick();
+        }}
+      >
+        {/* 节点头部 */}
+        <div className="flex items-center gap-2 mb-1.5 sm:mb-2">
+          <span
+            className="w-5 h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center text-white flex-shrink-0"
+            style={{ backgroundColor: meta?.color || '#6b7280' }}
+          >
+            {NODE_TYPE_ICONS[node.type] || <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+          </span>
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] sm:text-xs font-semibold dark:text-text-dark light:text-text-light truncate">
+              {node.label}
+            </div>
+            <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted truncate">
+              {node.type}
+            </div>
+          </div>
+          {/* 操作按钮：阻止事件冒泡到拖拽层 */}
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <button
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartConnecting();
+              }}
+              className="p-1 sm:p-1.5 rounded hover:bg-white/10 text-primary"
+              title="连接"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+            <button
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1 sm:p-1.5 rounded hover:bg-white/10 text-red-400"
+              title="删除"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* 节点配置预览 */}
+        {node.config && Object.keys(node.config).length > 0 && (
+          <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5">
+            {Object.entries(node.config).map(([k, v]) => (
+              <div key={k} className="truncate">
+                <span className="font-medium">{k}:</span> {String(v)}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
