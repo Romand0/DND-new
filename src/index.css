@@ -190,3 +190,18 @@ textarea:focus::placeholder {
   pointer-events: auto !important;
   visibility: visible !important;
 }
+
+/* ===== FlowEditor 碰撞抖动动画 ===== */
+@keyframes shake-x {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-4px); }
+  30% { transform: translateX(4px); }
+  45% { transform: translateX(-3px); }
+  60% { transform: translateX(3px); }
+  75% { transform: translateX(-1px); }
+  90% { transform: translateX(1px); }
+}
+
+.animate-shake {
+  animation: shake-x 0.35s ease-in-out;
+}
