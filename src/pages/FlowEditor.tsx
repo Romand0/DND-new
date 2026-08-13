@@ -1,5 +1,6 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
   PointerSensor,
@@ -11,7 +12,7 @@ import {
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import {
-  X, Plus, Trash2, Save, AlertCircle, CheckCircle,
+  ArrowLeft, X, Plus, Trash2, Save, AlertCircle, CheckCircle,
   MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
   ChevronRight, Download, Upload, RotateCcw,
   PanelLeft, PanelRight,
@@ -42,6 +43,7 @@ const NODE_TYPE_ICONS: Record<FlowNodeType, React.ReactNode> = {
 
 // ===== 本地存储 key =====
 const STORAGE_KEY = 'dnd-flow-editor-drafts';
+const AUTOSAVE_KEY = 'dnd-flow-editor-autosave';
 
 // 节点卡片尺寸常量
 const NODE_W = 260;   // 窄屏基准宽度
@@ -92,7 +94,16 @@ function findNonOverlappingPosition(
 
 export default function FlowEditor() {
   // ===== 状态 =====
-  const [flow, setFlow] = useState<FlowDefinition>(() => createEmptyFlow());
+  const [flow, setFlow] = useState<FlowDefinition>(() => {
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data?.flow?.nodes) return data.flow as FlowDefinition;
+      }
+    } catch { /* ignore */ }
+    return createEmptyFlow();
+  });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -102,15 +113,26 @@ export default function FlowEditor() {
   const [showValidation, setShowValidation] = useState(false);
   const [drafts, setDrafts] = useState<DraftEntry[]>(() => loadDrafts());
   const [showDrafts, setShowDrafts] = useState(false);
-  const [flowName, setFlowName] = useState('');
-  const [showLeftPanel, setShowLeftPanel] = useState(true);
-  const [showRightPanel, setShowRightPanel] = useState(true);
+  const [flowName, setFlowName] = useState(() => {
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data?.flowName) return data.flowName as string;
+      }
+    } catch { /* ignore */ }
+    return '';
+  });
+  const [showLeftPanel, setShowLeftPanel] = useState(false);
+  const [showRightPanel, setShowRightPanel] = useState(false);
   // 拖拽状态：实时碰撞检测
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [isColliding, setIsColliding] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
+  const skipNameSync = useRef(true);
 
   // ===== dnd-kit 传感器：Pointer（鼠标）+ Touch（触屏） =====
   const sensors = useSensors(
@@ -127,10 +149,24 @@ export default function FlowEditor() {
     }),
   );
 
-  // ===== 初始化 flowName =====
+  // ===== 同步 flowName（跳过首次挂载，避免覆盖从 autosave 恢复的名称） =====
   useEffect(() => {
+    if (skipNameSync.current) {
+      skipNameSync.current = false;
+      return;
+    }
     setFlowName(flow.name);
   }, [flow.name]);
+
+  // ===== 自动保存（防抖 500ms，防止刷新丢失当前编辑） =====
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ flow, flowName }));
+      } catch { /* ignore quota errors */ }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [flow, flowName]);
 
   // ===== 创建空流程 =====
   function createEmptyFlow(): FlowDefinition {
@@ -459,7 +495,146 @@ export default function FlowEditor() {
 
   // ===== 渲染 =====
   return (
-    <div className="h-[calc(100vh-64px)] flex overflow-hidden dark:bg-bg-dark light:bg-bg-light relative">
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden dark:bg-bg-dark light:bg-bg-light relative">
+      {/* ===== 固定顶部工具栏（不随画布滚动） ===== */}
+      <div className="h-12 border-b dark:border-border-dark light:border-border-light flex items-center gap-1 px-2 lg:px-4 dark:bg-bg-dark-2 light:bg-white flex-shrink-0 z-50 relative">
+        {/* 退出编辑器 */}
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+          title="退出编辑器"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">退出</span>
+        </button>
+
+        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
+
+        {/* 面板切换按钮（窄屏） */}
+        <button
+          onClick={() => setShowLeftPanel(!showLeftPanel)}
+          className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
+          title="节点库"
+        >
+          <PanelLeft className="w-4 h-4" />
+        </button>
+
+        <input
+          type="text"
+          value={flowName}
+          onChange={(e) => setFlowName(e.target.value)}
+          className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48 flex-shrink-0"
+          placeholder="流程名称"
+        />
+
+        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
+
+        {/* 验证 */}
+        <button
+          onClick={runValidation}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+          title="验证流程"
+        >
+          <AlertCircle className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">验证</span>
+        </button>
+
+        {/* 保存草稿 */}
+        <button
+          onClick={saveDraft}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+          title="保存到本地草稿"
+        >
+          <Save className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">保存</span>
+        </button>
+
+        {/* 草稿列表 */}
+        <button
+          onClick={() => setShowDrafts(!showDrafts)}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+        >
+          <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showDrafts ? 'rotate-90' : ''}`} />
+          <span className="hidden sm:inline">草稿</span>
+          <span className="sm:hidden">({drafts.length})</span>
+        </button>
+
+        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
+
+        {/* 导出 */}
+        <button
+          onClick={exportFlow}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+          title="导出 JSON"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">导出</span>
+        </button>
+
+        {/* 导入 */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+          title="导入 JSON"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">导入</span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) importFlow(file);
+            e.target.value = '';
+          }}
+        />
+
+        <div className="flex-1" />
+
+        {/* 清空 */}
+        <button
+          onClick={clearCanvas}
+          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-400/10 flex-shrink-0"
+          title="清空画布"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">清空</span>
+        </button>
+
+        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0 hidden lg:block" />
+
+        {/* 右面板切换（宽屏） */}
+        <button
+          onClick={() => setShowRightPanel(!showRightPanel)}
+          className="hidden lg:flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+          title="属性面板"
+        >
+          <PanelRight className="w-4 h-4" />
+        </button>
+
+        {/* 右面板切换（窄屏） */}
+        <button
+          onClick={() => setShowRightPanel(!showRightPanel)}
+          className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
+          title="属性面板"
+        >
+          <PanelRight className="w-4 h-4" />
+        </button>
+
+        {/* 连接模式提示 */}
+        {isConnecting && (
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-primary/90 text-white text-xs font-medium z-50 shadow-lg whitespace-nowrap">
+            连接模式：点击目标节点完成连接
+            <button onClick={cancelConnecting} className="ml-2 underline">取消</button>
+          </div>
+        )}
+      </div>
+
+      {/* ===== 内容区域（左面板 + 画布 + 右面板） ===== */}
+      <div className="flex-1 flex overflow-hidden relative">
       {/* ===== 左侧节点面板 ===== */}
       {/* 宽屏：固定 64 宽图标条 + 256 宽内容区；窄屏：全宽滑出抽屉 */}
       <div
@@ -522,132 +697,7 @@ export default function FlowEditor() {
       )}
 
       {/* ===== 中央：画布区域 ===== */}
-      <div className="flex-1 flex flex-col relative overflow-hidden min-w-0">
-        {/* 顶部工具栏 */}
-        <div className="h-12 border-b dark:border-border-dark light:border-border-light flex items-center gap-1 px-2 lg:px-4 dark:bg-bg-dark-2 light:bg-white overflow-x-auto no-scrollbar">
-          {/* 面板切换按钮（窄屏） */}
-          <button
-            onClick={() => setShowLeftPanel(!showLeftPanel)}
-            className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
-            title="节点库"
-          >
-            <PanelLeft className="w-4 h-4" />
-          </button>
-
-          <input
-            type="text"
-            value={flowName}
-            onChange={(e) => setFlowName(e.target.value)}
-            className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48 flex-shrink-0"
-            placeholder="流程名称"
-          />
-
-          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
-
-          {/* 验证 */}
-          <button
-            onClick={runValidation}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-            title="验证流程"
-          >
-            <AlertCircle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">验证</span>
-          </button>
-
-          {/* 保存草稿 */}
-          <button
-            onClick={saveDraft}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-            title="保存到本地草稿"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">保存</span>
-          </button>
-
-          {/* 草稿列表 */}
-          <button
-            onClick={() => setShowDrafts(!showDrafts)}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-          >
-            <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showDrafts ? 'rotate-90' : ''}`} />
-            <span className="hidden sm:inline">草稿</span>
-            <span className="sm:hidden">({drafts.length})</span>
-          </button>
-
-          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
-
-          {/* 导出 */}
-          <button
-            onClick={exportFlow}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-            title="导出 JSON"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">导出</span>
-          </button>
-
-          {/* 导入 */}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-            title="导入 JSON"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">导入</span>
-          </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) importFlow(file);
-              e.target.value = '';
-            }}
-          />
-
-          <div className="flex-1" />
-
-          {/* 清空 */}
-          <button
-            onClick={clearCanvas}
-            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-400/10 flex-shrink-0"
-            title="清空画布"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">清空</span>
-          </button>
-
-          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0 hidden lg:block" />
-
-          {/* 右面板切换（宽屏） */}
-          <button
-            onClick={() => setShowRightPanel(!showRightPanel)}
-            className="hidden lg:flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-            title="属性面板"
-          >
-            <PanelRight className="w-4 h-4" />
-          </button>
-
-          {/* 右面板切换（窄屏） */}
-          <button
-            onClick={() => setShowRightPanel(!showRightPanel)}
-            className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-            title="属性面板"
-          >
-            <PanelRight className="w-4 h-4" />
-          </button>
-
-          {/* 连接模式提示 */}
-          {isConnecting && (
-            <div className="absolute top-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-primary/90 text-white text-xs font-medium z-50 shadow-lg whitespace-nowrap">
-              连接模式：点击目标节点完成连接
-              <button onClick={cancelConnecting} className="ml-2 underline">取消</button>
-            </div>
-          )}
-        </div>
-
+      <div className="flex-1 relative overflow-hidden min-w-0">
         {/* 画布 */}
         <DndContext
           sensors={sensors}
@@ -1122,6 +1172,7 @@ export default function FlowEditor() {
           onClick={() => setShowRightPanel(false)}
         />
       )}
+      </div>
 
       {/* ===== 草稿列表弹窗 ===== */}
       {showDrafts && (
