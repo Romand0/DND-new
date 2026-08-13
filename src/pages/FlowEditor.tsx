@@ -105,6 +105,9 @@ export default function FlowEditor() {
   const [flowName, setFlowName] = useState('');
   const [showLeftPanel, setShowLeftPanel] = useState(true);
   const [showRightPanel, setShowRightPanel] = useState(true);
+  // 拖拽状态：实时碰撞检测
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+  const [isColliding, setIsColliding] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -266,6 +269,51 @@ export default function FlowEditor() {
     };
     return map[trigger] || trigger;
   }
+
+  // ===== 实时碰撞检测：计算拖拽节点的投影位置与其他节点是否重叠 =====
+  const checkCollision = useCallback((nodeId: string, projectedX: number, projectedY: number): boolean => {
+    const target = flow.nodes.find(n => n.id === nodeId);
+    if (!target) return false;
+    const projected = { ...target, position: { x: projectedX, y: projectedY } };
+    return flow.nodes.some(other => other.id !== nodeId && nodesOverlap(projected, other, NODE_W));
+  }, [flow.nodes]);
+
+  // ===== 拖拽中实时位置投影 =====
+  const getProjectedPosition = useCallback((nodeId: string, delta: { x: number; y: number }) => {
+    const target = flow.nodes.find(n => n.id === nodeId);
+    if (!target) return { x: 0, y: 0 };
+    return {
+      x: Math.max(0, target.position.x + delta.x),
+      y: Math.max(0, target.position.y + delta.y),
+    };
+  }, [flow.nodes]);
+
+  // ===== 事件：拖拽开始 =====
+  const handleDragStart = useCallback((event: DragEndEvent) => {
+    const nodeId = event.active?.id as string;
+    if (nodeId) setDraggingNodeId(nodeId);
+    setIsColliding(false);
+  }, []);
+
+  // ===== 事件：拖拽移动（实时碰撞检测） =====
+  const handleDragMove = useCallback((event: DragEndEvent) => {
+    const { active, delta } = event;
+    if (!active) return;
+    const nodeId = active.id as string;
+    const projected = getProjectedPosition(nodeId, delta);
+    const colliding = checkCollision(nodeId, projected.x, projected.y);
+    setIsColliding(colliding);
+  }, [checkCollision, getProjectedPosition]);
+
+  // ===== 事件：拖拽结束 =====
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, delta } = event;
+    if (!active) return;
+    const nodeId = active.id as string;
+    updateNodePositionByDelta(nodeId, { x: delta.x, y: delta.y });
+    setDraggingNodeId(null);
+    setIsColliding(false);
+  }, [updateNodePositionByDelta]);
 
   // ===== 画布空白处点击取消选中 =====
   const handleCanvasClick = useCallback(() => {
@@ -603,20 +651,9 @@ export default function FlowEditor() {
         {/* 画布 */}
         <DndContext
           sensors={sensors}
-          onDragEnd={(event: DragEndEvent) => {
-            const { active, delta } = event;
-            if (!active) return;
-            const nodeId = active.id as string;
-            // 画布滚动偏移：需要加到 delta 上
-            const canvas = canvasRef.current;
-            const scrollLeft = canvas?.scrollLeft ?? 0;
-            const scrollTop = canvas?.scrollTop ?? 0;
-            // 减去滚动偏移，因为节点位置是相对于画布内容区的
-            updateNodePositionByDelta(nodeId, {
-              x: delta.x,
-              y: delta.y,
-            });
-          }}
+          onDragStart={handleDragStart}
+          onDragMove={handleDragMove}
+          onDragEnd={handleDragEnd}
         >
           {/* 画布 */}
           <div
@@ -644,6 +681,8 @@ export default function FlowEditor() {
                   node={node}
                   isSelected={selectedNodeId === node.id}
                   isConnectSource={connectFromId === node.id}
+                  isDragging={draggingNodeId === node.id}
+                  isColliding={draggingNodeId === node.id && isColliding}
                   onClick={() => handleNodeClick(node.id)}
                   onStartConnecting={() => startConnecting(node.id)}
                   onDelete={() => deleteNode(node.id)}
@@ -1169,6 +1208,8 @@ interface DraggableFlowNodeProps {
   node: FlowNodeDef;
   isSelected: boolean;
   isConnectSource: boolean;
+  isDragging: boolean;
+  isColliding: boolean;
   onClick: () => void;
   onStartConnecting: () => void;
   onDelete: () => void;
@@ -1178,12 +1219,14 @@ function DraggableFlowNode({
   node,
   isSelected,
   isConnectSource,
+  isDragging,
+  isColliding,
   onClick,
   onStartConnecting,
   onDelete,
 }: DraggableFlowNodeProps) {
   const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, transform, isDragging: dndDragging } = useDraggable({
     id: node.id,
     data: { node },
   });
@@ -1194,12 +1237,22 @@ function DraggableFlowNode({
     left: node.position.x,
     top: node.position.y,
     width: NODE_W,
-    zIndex: isSelected ? 10 : 1,
+    zIndex: isDragging ? 20 : (isSelected ? 10 : 1),
     transform: transform ? CSS.Transform.toString(transform) : undefined,
-    opacity: isDragging ? 0.8 : 1,
+    opacity: dndDragging ? 0.9 : 1,
     // 禁用 transform 动画，拖拽响应更跟手
-    transition: isDragging ? 'none' : undefined,
+    transition: dndDragging ? 'none' : undefined,
   };
+
+  // 碰撞时抖动动画
+  const shakeClass = isColliding ? 'animate-shake' : '';
+  const borderColor = isColliding
+    ? 'border-red-500 shadow-red-500/30'
+    : isSelected
+      ? 'border-primary shadow-primary/20'
+      : isConnectSource
+        ? 'border-primary/60'
+        : 'dark:border-border-dark light:border-border-light hover:border-primary/40';
 
   return (
     <div
@@ -1207,20 +1260,13 @@ function DraggableFlowNode({
       style={style}
       {...listeners}
       {...attributes}
-      className="select-none"
+      className={`select-none ${shakeClass}`}
     >
       <div
-        className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${
-          isSelected
-            ? 'border-primary shadow-lg shadow-primary/20'
-            : isConnectSource
-              ? 'border-primary/60'
-              : 'dark:border-border-dark light:border-border-light hover:border-primary/40'
-        } dark:bg-bg-dark-2 light:bg-white`}
+        className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${borderColor} dark:bg-bg-dark-2 light:bg-white`}
         onClick={(e) => {
           // 仅在未拖拽时触发 click（dnd-kit 的 listeners 已处理拖拽）
-          // 通过短延迟区分拖拽和点击
-          if (!isDragging) onClick();
+          if (!dndDragging) onClick();
         }}
       >
         {/* 节点头部 */}
