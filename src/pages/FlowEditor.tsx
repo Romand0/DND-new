@@ -43,11 +43,51 @@ const NODE_TYPE_ICONS: Record<FlowNodeType, React.ReactNode> = {
 // ===== 本地存储 key =====
 const STORAGE_KEY = 'dnd-flow-editor-drafts';
 
+// 节点卡片尺寸常量
+const NODE_W = 260;   // 窄屏基准宽度
+const NODE_H = 56;    // 最小估计高度（头部）
+
 interface DraftEntry {
   id: string;
   name: string;
   flow: FlowDefinition;
   updatedAt: number;
+}
+
+// ===== 碰撞检测工具函数 =====
+function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolean {
+  return (
+    a.id !== b.id &&
+    a.position.x < b.position.x + cardWidth &&
+    a.position.x + cardWidth > b.position.x &&
+    a.position.y < b.position.y + NODE_H &&
+    a.position.y + NODE_H > b.position.y
+  );
+}
+
+// 寻找不与其他节点碰撞的位置（右侧→下方探测）
+function findNonOverlappingPosition(
+  node: FlowNodeDef,
+  allNodes: FlowNodeDef[],
+  cardWidth: number,
+  dx = 40,
+  maxAttempts = 20,
+): { x: number; y: number } {
+  let pos = { x: node.position.x, y: node.position.y };
+  for (let i = 0; i < maxAttempts; i++) {
+    const testNode = { ...node, position: pos };
+    const hasOverlap = allNodes.some(other => other.id !== node.id && nodesOverlap(testNode, other, cardWidth));
+    if (!hasOverlap) return pos;
+    pos = { x: pos.x + dx, y: pos.y };
+  }
+  pos = { x: node.position.x, y: node.position.y + dx };
+  for (let i = 0; i < maxAttempts; i++) {
+    const testNode = { ...node, position: pos };
+    const hasOverlap = allNodes.some(other => other.id !== node.id && nodesOverlap(testNode, other, cardWidth));
+    if (!hasOverlap) return pos;
+    pos = { x: pos.x, y: pos.y + dx };
+  }
+  return pos;
 }
 
 export default function FlowEditor() {
@@ -119,24 +159,21 @@ export default function FlowEditor() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
   }
 
-  // ===== 添加节点 =====
+  // ===== 添加节点（自动防重叠） =====
   const addNode = useCallback((typeMeta: NodeTypeMeta, position: { x: number; y: number }) => {
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const newNode: FlowNodeDef = {
-      id,
-      type: typeMeta.type,
-      label: typeMeta.label,
+      id, type: typeMeta.type, label: typeMeta.label,
       position: { x: position.x, y: position.y },
       config: typeMeta.defaultConfig ? { ...typeMeta.defaultConfig } : {},
     };
-    setFlow(prev => ({
-      ...prev,
-      nodes: [...prev.nodes, newNode],
-      updatedAt: Date.now(),
-    }));
+    // 新节点防重叠放置
+    const finalPos = findNonOverlappingPosition(newNode, flow.nodes, NODE_W);
+    newNode.position = finalPos;
+    setFlow(prev => ({ ...prev, nodes: [...prev.nodes, newNode], updatedAt: Date.now() }));
     setSelectedNodeId(id);
     setSelectedEdgeId(null);
-  }, []);
+  }, [flow.nodes]);
 
   // ===== 删除节点 =====
   const deleteNode = useCallback((nodeId: string) => {
@@ -162,22 +199,27 @@ export default function FlowEditor() {
     }));
   }, []);
 
-  // ===== 更新节点位置（拖拽后应用 delta） =====
+  // ===== 更新节点位置（拖拽后应用 delta + 碰撞检测） =====
   const updateNodePositionByDelta = useCallback((nodeId: string, delta: { x: number; y: number }) => {
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => {
-        if (n.id !== nodeId) return n;
-        return {
-          ...n,
-          position: {
-            x: Math.max(0, n.position.x + delta.x),
-            y: Math.max(0, n.position.y + delta.y),
-          },
-        };
-      }),
-      updatedAt: Date.now(),
-    }));
+    setFlow(prev => {
+      const target = prev.nodes.find(n => n.id === nodeId);
+      if (!target) return prev;
+      const proposed = {
+        x: Math.max(0, target.position.x + delta.x),
+        y: Math.max(0, target.position.y + delta.y),
+      };
+      const testNode = { ...target, position: proposed };
+      const others = prev.nodes.filter(n => n.id !== nodeId);
+      const hasOverlap = others.some(other => nodesOverlap(testNode, other, NODE_W));
+      const finalPos = hasOverlap
+        ? findNonOverlappingPosition(testNode, others, NODE_W)
+        : proposed;
+      return {
+        ...prev,
+        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
+        updatedAt: Date.now(),
+      };
+    });
   }, []);
 
   // ===== 添加边 =====
@@ -224,6 +266,12 @@ export default function FlowEditor() {
     };
     return map[trigger] || trigger;
   }
+
+  // ===== 画布空白处点击取消选中 =====
+  const handleCanvasClick = useCallback(() => {
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, []);
 
   // ===== 画布事件：节点点击（选择或连接） =====
   const handleNodeClick = useCallback((nodeId: string) => {
@@ -349,9 +397,9 @@ export default function FlowEditor() {
     const toNode = flow.nodes.find(n => n.id === edge.to);
     if (!fromNode || !toNode) return null;
 
-    const fx = fromNode.position.x + 140;
+    const fx = fromNode.position.x + NODE_W / 2;
     const fy = fromNode.position.y + 24;
-    const tx = toNode.position.x + 140;
+    const tx = toNode.position.x + NODE_W / 2;
     const ty = toNode.position.y + 24;
 
     const midX = (fx + tx) / 2;
@@ -397,7 +445,7 @@ export default function FlowEditor() {
                     key={meta.type}
                     onClick={() => {
                       const canvas = canvasRef.current;
-                      const cx = canvas ? canvas.clientWidth / 2 - 140 : 200;
+                      const cx = canvas ? canvas.clientWidth / 2 - NODE_W / 2 : 200;
                       const cy = canvas ? canvas.clientHeight / 2 - 24 : 200;
                       addNode(meta, { x: cx + flow.nodes.length * 20, y: cy + flow.nodes.length * 20 });
                     }}
@@ -570,77 +618,57 @@ export default function FlowEditor() {
             });
           }}
         >
+          {/* 画布 */}
           <div
             ref={canvasRef}
-            className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 cursor-crosshair touch-none"
+            className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 touch-none select-none"
           >
-          {/* 固定尺寸画布内容区 */}
-          <div className="relative" style={{ width: 3000, height: 2000 }}>
-            {/* 网格背景 */}
-            <div
-              className="absolute inset-0 pointer-events-none opacity-20"
-              style={{
-                backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
-                backgroundSize: '20px 20px',
-              }}
-            />
-
-            {/* 节点渲染层（dnd-kit 拖拽） */}
-            {flow.nodes.map(node => (
-              <DraggableFlowNode
-                key={node.id}
-                node={node}
-                isSelected={selectedNodeId === node.id}
-                isConnectSource={connectFromId === node.id}
-                onClick={() => handleNodeClick(node.id)}
-                onStartConnecting={() => startConnecting(node.id)}
-                onDelete={() => deleteNode(node.id)}
+            {/* 固定尺寸画布内容区：两侧留白支持手指滑动 */}
+            <div className="relative min-h-full" style={{ width: 3000, paddingLeft: 40, paddingRight: 40 }}>
+              {/* 背景网格 + 点击空白处取消选中 */}
+              <div
+                className="absolute inset-0 opacity-20"
+                style={{
+                  left: 40, right: 40,
+                  backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
+                  backgroundSize: '20px 20px',
+                }}
+                onClick={handleCanvasClick}
+                onTouchStart={handleCanvasClick}
               />
-            ))}
 
-            {/* SVG 连线层 */}
-            <svg className="absolute inset-0 pointer-events-none" style={{ width: 3000, height: 2000 }}>
-              {flow.edges.map(edge => {
-                const path = getEdgePath(edge);
-                if (!path) return null;
-                const isSelected = selectedEdgeId === edge.id;
+              {/* 节点渲染层（dnd-kit 拖拽） */}
+              {flow.nodes.map(node => (
+                <DraggableFlowNode
+                  key={node.id}
+                  node={node}
+                  isSelected={selectedNodeId === node.id}
+                  isConnectSource={connectFromId === node.id}
+                  onClick={() => handleNodeClick(node.id)}
+                  onStartConnecting={() => startConnecting(node.id)}
+                  onDelete={() => deleteNode(node.id)}
+                />
+              ))}
 
-                return (
-                  <g key={edge.id}>
-                    <path
-                      d={path}
-                      fill="none"
-                      stroke={isSelected ? '#6366f1' : '#6b7280'}
-                      strokeWidth={isSelected ? 2.5 : 1.5}
-                      strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : undefined}
-                      className="transition-all"
-                    />
-                    {/* 箭头 */}
-                    <polygon
-                      points="0,-4 8,0 0,4"
-                      fill={isSelected ? '#6366f1' : '#6b7280'}
-                      transform={`translate(${getArrowPos(edge, flow.nodes)})`}
-                    />
-                    {/* 标签 */}
-                    {edge.label && (
-                      <text
-                        x={getLabelPos(edge, flow.nodes).x}
-                        y={getLabelPos(edge, flow.nodes).y}
-                        fill={isSelected ? '#6366f1' : '#9ca3af'}
-                        fontSize="10"
-                        textAnchor="middle"
-                        className="select-none pointer-events-auto cursor-pointer"
-                        onClick={() => setSelectedEdgeId(edge.id)}
-                      >
-                        {edge.label}
-                      </text>
-                    )}
-                  </g>
-                );
-              })}
-            </svg>
+              {/* SVG 连线层 */}
+              <svg className="absolute inset-0 pointer-events-none" style={{ width: 3000, height: 2000, left: 0, right: 0 }}>
+                {flow.edges.map(edge => {
+                  const path = getEdgePath(edge);
+                  if (!path) return null;
+                  const isSelected = selectedEdgeId === edge.id;
+                  return (
+                    <g key={edge.id}>
+                      <path d={path} fill="none" stroke={isSelected ? '#6366f1' : '#6b7280'} strokeWidth={isSelected ? 2.5 : 1.5} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : undefined} className="transition-all" />
+                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? '#6366f1' : '#6b7280'} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      {edge.label && (
+                        <text x={getLabelPos(edge, flow.nodes).x} y={getLabelPos(edge, flow.nodes).y} fill={isSelected ? '#6366f1' : '#9ca3af'} fontSize="10" textAnchor="middle" className="select-none pointer-events-auto cursor-pointer" onClick={() => setSelectedEdgeId(edge.id)}>{edge.label}</text>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
           </div>
-        </div>
         </DndContext>
 
         {/* 验证结果浮层 */}
@@ -1113,16 +1141,13 @@ function getArrowPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): string {
   const fromNode = nodes.find(n => n.id === edge.from);
   const toNode = nodes.find(n => n.id === edge.to);
   if (!fromNode || !toNode) return '0,0';
-
-  const fx = fromNode.position.x + 140;
+  const fx = fromNode.position.x + NODE_W / 2;
   const fy = fromNode.position.y + 24;
-  const tx = toNode.position.x + 140;
+  const tx = toNode.position.x + NODE_W / 2;
   const ty = toNode.position.y + 24;
-
   const t = 0.5;
   const x = fx + (tx - fx) * t;
   const y = fy + (ty - fy) * t;
-
   const angle = Math.atan2(ty - fy, tx - fx) * 180 / Math.PI;
   return `${x},${y} rotate(${angle})`;
 }
@@ -1132,16 +1157,11 @@ function getLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): { x: number; y: n
   const fromNode = nodes.find(n => n.id === edge.from);
   const toNode = nodes.find(n => n.id === edge.to);
   if (!fromNode || !toNode) return { x: 0, y: 0 };
-
-  const fx = fromNode.position.x + 140;
+  const fx = fromNode.position.x + NODE_W / 2;
   const fy = fromNode.position.y + 24;
-  const tx = toNode.position.x + 140;
+  const tx = toNode.position.x + NODE_W / 2;
   const ty = toNode.position.y + 24;
-
-  return {
-    x: (fx + tx) / 2,
-    y: (fy + ty) / 2 - 10,
-  };
+  return { x: (fx + tx) / 2, y: (fy + ty) / 2 - 10 };
 }
 
 // ===== DraggableFlowNode 子组件：封装 dnd-kit useDraggable =====
@@ -1173,7 +1193,7 @@ function DraggableFlowNode({
     position: 'absolute',
     left: node.position.x,
     top: node.position.y,
-    width: 280,
+    width: NODE_W,
     zIndex: isSelected ? 10 : 1,
     transform: transform ? CSS.Transform.toString(transform) : undefined,
     opacity: isDragging ? 0.8 : 1,
