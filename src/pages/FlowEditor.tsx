@@ -121,8 +121,8 @@ export default function FlowEditor() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200, // 触摸按住 200ms 才激活，兼容点击
-        tolerance: 5,
+        delay: 300, // 按住 300ms 才激活拖拽，给滚动留出时间
+        tolerance: 8,
       },
     }),
   );
@@ -658,15 +658,14 @@ export default function FlowEditor() {
           {/* 画布 */}
           <div
             ref={canvasRef}
-            className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 touch-none select-none"
+            className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 select-none px-[60px]"
           >
-            {/* 固定尺寸画布内容区：两侧留白支持手指滑动 */}
-            <div className="relative min-h-full" style={{ width: 3000, paddingLeft: 40, paddingRight: 40 }}>
+            {/* 固定尺寸画布内容区 */}
+            <div className="relative min-h-full" style={{ width: 3000, height: 2000 }}>
               {/* 背景网格 + 点击空白处取消选中 */}
               <div
                 className="absolute inset-0 opacity-20"
                 style={{
-                  left: 40, right: 40,
                   backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
                   backgroundSize: '20px 20px',
                 }}
