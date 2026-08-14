@@ -111,6 +111,8 @@ export default function CombatSession() {
   const [surpriseAttackOpen, setSurpriseAttackOpen] = useState(false);
   const [surpriseAttackRound, setSurpriseAttackRound] = useState(0);
   const [surprisedCombatants, setSurprisedCombatants] = useState<Set<string>>(new Set());
+  // ✅ 从头播放标记：突袭弹窗确认后自动启动放映
+  const [pendingRestartPlayback, setPendingRestartPlayback] = useState(false);
   // ✅ 手动记录相关状态
   const [selectedCell, setSelectedCell] = useState<{ round: number; combatantId: string } | null>(null);
   const [manualRecordOpen, setManualRecordOpen] = useState(false);
@@ -893,6 +895,11 @@ export default function CombatSession() {
     });
     setSurpriseAttackOpen(false);
     setSurprisedCombatants(new Set());
+    // 从头播放流程中设置突袭后自动启动放映
+    if (pendingRestartPlayback) {
+      setPendingRestartPlayback(false);
+      startPlaybackFromBeginning();
+    }
   };
 
   // ✅ 模式切换（真正的写入，不弹确认窗）
@@ -1051,7 +1058,94 @@ export default function CombatSession() {
     }
   };
 
-  // ✅ 给已昏迷/死亡角色在所有未填写的后续轮次中填入「昏迷」/「死亡」占位
+  // ✅ 从头播放：三种场景处理
+  const handleRestartPlayback = () => {
+    if (!record) return;
+    // 场景判断：使用最新 store 数据（避免闭包 stale）
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
+    const hasRound0 = latest.rounds.length > 0;
+    const round0HasSurprise = hasRound0 && latest.rounds[0] && Object.values(latest.rounds[0]).some(v => v === '被突袭');
+    const isAtStart = currentTurn?.round === 0 && latest.combatants.findIndex(c => c.id === currentTurn.combatantId) === 0;
+
+    if (!hasRound0) {
+      // 场景 A：空表格 → 打开第一轮 + 突袭弹窗 + 从第一格放映
+      setPendingRestartPlayback(true);
+      setSurpriseAttackRound(0);
+      setSurprisedCombatants(new Set());
+      setSurpriseAttackOpen(true);
+      // 等待突袭弹窗确认后，在 confirmSurpriseAttack 中调用 startPlaybackFromBeginning
+      return;
+    }
+
+    if (!round0HasSurprise) {
+      // 场景 B：已有第一轮但突袭为空 → 突袭弹窗 + 从第一格放映
+      setPendingRestartPlayback(true);
+      setSurpriseAttackRound(0);
+      setSurprisedCombatants(new Set());
+      setSurpriseAttackOpen(true);
+      return;
+    }
+
+    // 场景 C：已有第一轮且突袭不为空
+    if (!isAtStart) {
+      // 当前不在起点 → 弹窗确认回溯
+      if (!window.confirm('从头播放将清空所有回合记录并回到第一格，是否继续？')) return;
+    }
+    // 执行从头播放
+    startPlaybackFromBeginning();
+  };
+
+  // ✅ 实际从头播放（重置沙盘+快照后启动）
+  const startPlaybackFromBeginning = () => {
+    if (!record) return;
+    // 1. 重置沙盘到进入放映时的快照
+    const init = rollbackSnapshotRef.current.initial;
+    if (init) {
+      battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
+      // 恢复参战者状态 + 回合记录 + 装备变更到初始快照（完整回溯）
+      combatStore.update(record.id, {
+        combatants: init.combatants.map(c => ({ ...c })),
+        rounds: init.rounds.map(r => ({ ...r })),
+        equipmentChanges: init.equipmentChanges
+          ? Object.fromEntries(
+              Object.entries(init.equipmentChanges).map(([k, v]) => [
+                k,
+                { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
+              ]),
+            )
+          : undefined,
+        updatedAt: Date.now(),
+      });
+    } else if (playbackSnapshotRef.current) {
+      battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
+    }
+    // 2. 重置快照引用（保留 initial，清空 turn snapshots，从头开始新的放映历史）
+    rollbackSnapshotRef.current = { 
+      initial: rollbackSnapshotRef.current.initial, 
+      snapshots: {} 
+    };
+    // 3. 清空 IndexedDB 中的旧快照
+    snapDb.deleteSessionSnapshots(record.id).catch(() => {});
+    // 4. 从第一格开始启动放映
+    setPlaybackStarted(false);
+    setPlaybackPaused(false);
+    pausedTurnRef.current = null;
+    setCurrentTurn(null);
+    // 延迟一帧确保状态更新后再启动
+    setTimeout(() => {
+      setPlaybackStarted(true);
+      // 使用刚恢复的 rounds 而非 stale record，避免扫描到旧记录
+      const restoredRounds = init ? init.rounds.map(r => ({ ...r })) : record.rounds;
+      const firstTurn = findNextValidTurn(0, 0, restoredRounds);
+      setCurrentTurn(firstTurn);
+      if (firstTurn) {
+        resetCombatantActions(firstTurn.combatantId);
+        takeTurnSnapshot(firstTurn.round, firstTurn.combatantId);
+        checkAndAutoAdvance(firstTurn);
+      }
+    }, 0);
+  };
   // 注意：必须从 combatStore.get 读取最新数据，因为调用方（如 handleApplyDamage）
   // 可能刚刚写入 store 但 React state（record）尚未异步更新，闭包里的 record 是旧快照
   const autoFillDownedMarkers = () => {
@@ -1850,7 +1944,7 @@ export default function CombatSession() {
         </div>
       )}
 
-      {/* ✅ 模式切换栏 —— 模拟模式 / 放映模式（仅切换按钮，不挤其他信息） */}
+      {/* ✅ 模式切换栏 —— 模拟模式 / 放映模式 + 从头播放按钮 */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light w-fit">
         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
           战斗模式
@@ -1878,6 +1972,17 @@ export default function CombatSession() {
             放映模式
           </button>
         </div>
+        {/* 从头播放：放映模式下显示 */}
+        {record.mode === 'playback' && (
+          <button
+            onClick={() => handleRestartPlayback()}
+            className="ml-auto flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-primary/10 text-primary hover:bg-primary/20 transition-colors border border-primary/30"
+            title="从头开始放映（将清空所有回合记录并从第一格开始）"
+          >
+            <Play className="w-3 h-3" />
+            从头播放
+          </button>
+        )}
       </div>
 
       {/* ✅ 当前回合信息悬浮块（左上角，放映模式时显示） */}
@@ -1968,8 +2073,8 @@ export default function CombatSession() {
         );
       })()}
 
-      {/* ✅ 回合待办展示板 —— 仅放映模式 + 已开始 + 未暂停 + 当前回合存在时显示（暂停状态不显示） */}
-      {record.mode === 'playback' && playbackStarted && !playbackPaused && currentTurn && (
+      {/* ✅ 回合待办展示板 —— 放映模式 + 已开始 + 当前回合存在时显示（暂停状态也显示） */}
+      {record.mode === 'playback' && playbackStarted && currentTurn && (
         <TurnTodoBoard
           record={record}
           currentTurn={currentTurn}
