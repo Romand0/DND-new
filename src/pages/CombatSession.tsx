@@ -1061,10 +1061,12 @@ export default function CombatSession() {
   // ✅ 从头播放：三种场景处理
   const handleRestartPlayback = () => {
     if (!record) return;
-    // 场景判断
-    const hasRound0 = record.rounds.length > 0;
-    const round0HasSurprise = hasRound0 && record.rounds[0] && Object.values(record.rounds[0]).some(v => v === '被突袭');
-    const isAtStart = currentTurn?.round === 0 && record.combatants.findIndex(c => c.id === currentTurn.combatantId) === 0;
+    // 场景判断：使用最新 store 数据（避免闭包 stale）
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
+    const hasRound0 = latest.rounds.length > 0;
+    const round0HasSurprise = hasRound0 && latest.rounds[0] && Object.values(latest.rounds[0]).some(v => v === '被突袭');
+    const isAtStart = currentTurn?.round === 0 && latest.combatants.findIndex(c => c.id === currentTurn.combatantId) === 0;
 
     if (!hasRound0) {
       // 场景 A：空表格 → 打开第一轮 + 突袭弹窗 + 从第一格放映
@@ -1101,9 +1103,18 @@ export default function CombatSession() {
     const init = rollbackSnapshotRef.current.initial;
     if (init) {
       battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
-      // 恢复参战者状态到初始快照
+      // 恢复参战者状态 + 回合记录 + 装备变更到初始快照（完整回溯）
       combatStore.update(record.id, {
         combatants: init.combatants.map(c => ({ ...c })),
+        rounds: init.rounds.map(r => ({ ...r })),
+        equipmentChanges: init.equipmentChanges
+          ? Object.fromEntries(
+              Object.entries(init.equipmentChanges).map(([k, v]) => [
+                k,
+                { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
+              ]),
+            )
+          : undefined,
         updatedAt: Date.now(),
       });
     } else if (playbackSnapshotRef.current) {
@@ -1124,7 +1135,9 @@ export default function CombatSession() {
     // 延迟一帧确保状态更新后再启动
     setTimeout(() => {
       setPlaybackStarted(true);
-      const firstTurn = findNextValidTurn(0, 0);
+      // 使用刚恢复的 rounds 而非 stale record，避免扫描到旧记录
+      const restoredRounds = init ? init.rounds.map(r => ({ ...r })) : record.rounds;
+      const firstTurn = findNextValidTurn(0, 0, restoredRounds);
       setCurrentTurn(firstTurn);
       if (firstTurn) {
         resetCombatantActions(firstTurn.combatantId);
