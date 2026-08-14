@@ -17,6 +17,7 @@ import {
   ChevronRight, Download, Upload, RotateCcw,
   PanelLeft, PanelRight,
 } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
 import type {
   FlowDefinition,
   FlowNodeDef,
@@ -93,6 +94,10 @@ function findNonOverlappingPosition(
 }
 
 export default function FlowEditor() {
+  // ===== 主题感知 =====
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   // ===== 状态 =====
   const [flow, setFlow] = useState<FlowDefinition>(() => {
     try {
@@ -658,34 +663,30 @@ export default function FlowEditor() {
                 />
               ))}
 
-              {/* SVG 连线层 */}
+              {/* SVG 连线层 —— 暗色模式：浅紫边框+深紫背景+红色波浪纹；亮色模式：灰色边框+白底+灰色脉冲 */}
               <svg className="absolute inset-0 pointer-events-none" style={{ width: 3000, height: 2000, left: 0, right: 0 }}>
+                <defs>
+                  {/* 连线白色阴影滤镜：暗色模式下白色外发光，提升辨识度 */}
+                  <filter id="edge-glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#ffffff" floodOpacity="0.5" />
+                  </filter>
+                </defs>
                 {flow.edges.map(edge => {
                   const path = getEdgePath(edge);
                   if (!path) return null;
                   const isSelected = selectedEdgeId === edge.id;
                   return (
                     <g key={edge.id}>
-                      {/* 连线背景（灰底粗边 = "灰色线条边框"） */}
-                      <path d={path} fill="none" stroke="#d1d5db" strokeWidth={isSelected ? 18 : 14} strokeLinecap="round" />
-                      {/* 连线前景（白底粗线 = 连线主体） */}
-                      <path d={path} fill="none" stroke="#ffffff" strokeWidth={isSelected ? 12 : 10} strokeLinecap="round" />
-                      {/* 连线边框（浅灰 3~4px，> 波浪状脉冲） */}
-                      <path d={path} fill="none" stroke={isSelected ? '#6366f1' : '#9ca3af'} strokeWidth={isSelected ? 4 : 3} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : '10,4,4,4'} strokeLinecap="round" className={`${isSelected ? '' : 'animate-flow-pulse'}`} />
-                      {/* 流向箭头（白底描边） */}
-                      <polygon points="0,-5 10,0 0,5" fill="#ffffff" stroke={isSelected ? '#6366f1' : '#9ca3af'} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
-                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? '#6366f1' : '#9ca3af'} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
-                      {/* 流向脉冲 ">"（浅灰色，波浪状） */}
-                      {(() => {
-                        const arrowStr = getArrowPos(edge, flow.nodes);
-                        const translatePart = arrowStr.split(' rotate')[0];
-                        return (
-                          <g transform={`translate(${translatePart})`}>
-                            <polygon points="0,-6 10,0 0,6" fill="#d1d5db" className="animate-pulse-flow" />
-                          </g>
-                        );
-                      })()}
-                      {/* 连线中部标签：圆角边框样式块 */}
+                      {/* 连线背景（粗边 = 边框层） */}
+                      <path d={path} fill="none" stroke={isDark ? '#818cf8' : '#d1d5db'} strokeWidth={isSelected ? 18 : 14} strokeLinecap="round" filter={isDark ? "url(#edge-glow)" : undefined} />
+                      {/* 连线前景（白底/深紫主体） */}
+                      <path d={path} fill="none" stroke={isDark ? '#312e81' : '#ffffff'} strokeWidth={isSelected ? 12 : 10} strokeLinecap="round" />
+                      {/* 连线边框（红色波浪纹/灰色波浪纹）—— >>>>> 样式，大间隙 */}
+                      <path d={path} fill="none" stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#f87171' : '#9ca3af')} strokeWidth={isSelected ? 4 : 3} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : '12,8'} strokeLinecap="round" className={`${isSelected ? '' : 'animate-flow-pulse'}`} />
+                      {/* 流向箭头 */}
+                      <polygon points="0,-5 10,0 0,5" fill={isDark ? '#312e81' : '#ffffff'} stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      {/* 连线中部标签：圆角边框样式块（暗色适配：深紫底白字 / 亮白底黑字） */}
                       {edge.label && (
                         <>
                           <rect
@@ -694,13 +695,23 @@ export default function FlowEditor() {
                             width="60"
                             height="22"
                             rx="6"
-                            fill="#ffffff"
-                            stroke={isSelected ? '#6366f1' : '#d1d5db'}
+                            fill={isDark ? '#4338ca' : '#ffffff'}
+                            stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#d1d5db')}
                             strokeWidth="1"
                             className="select-none pointer-events-auto cursor-pointer transition-colors"
                             onClick={() => setSelectedEdgeId(edge.id)}
                           />
-                          <text x={getLabelPos(edge, flow.nodes).x} y={getLabelPos(edge, flow.nodes).y + 3} fill={isSelected ? '#6366f1' : '#6b7280'} fontSize="10" textAnchor="middle" className="select-none pointer-events-auto cursor-pointer" onClick={() => setSelectedEdgeId(edge.id)}>{edge.label}</text>
+                          <text
+                            x={getLabelPos(edge, flow.nodes).x}
+                            y={getLabelPos(edge, flow.nodes).y + 4}
+                            fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#ffffff' : '#1a1a2e')}
+                            fontSize="10"
+                            textAnchor="middle"
+                            dominantBaseline="middle"
+                            fontWeight="600"
+                            className="select-none pointer-events-auto cursor-pointer"
+                            onClick={() => setSelectedEdgeId(edge.id)}
+                          >{edge.label}</text>
                         </>
                       )}
                     </g>
