@@ -1227,6 +1227,9 @@ function DraggableFlowNode({
     opacity: dndDragging ? 0.9 : 1,
     // 禁用 transform 动画，拖拽响应更跟手
     transition: dndDragging ? 'none' : undefined,
+    // 阻止浏览器默认 touch 行为（如滚动），确保 dnd-kit 接管拖拽
+    touchAction: 'none',
+    cursor: dndDragging ? 'grabbing' : 'grab',
   };
 
   // 碰撞时抖动动画
