@@ -588,9 +588,9 @@ export default function FlowEditor() {
                     key={meta.type}
                     onClick={() => {
                       const canvas = canvasRef.current;
-                      const cx = canvas ? canvas.clientWidth / 2 - NODE_W / 2 : 200;
-                      const cy = canvas ? canvas.clientHeight / 2 - 24 : 200;
-                      addNode(meta, { x: cx + flow.nodes.length * 20, y: cy + flow.nodes.length * 20 });
+                      const cx = canvas ? canvas.scrollLeft + canvas.clientWidth / 2 - NODE_W / 2 : 1200;
+                      const cy = canvas ? canvas.scrollTop + canvas.clientHeight / 2 - 24 : 800;
+                      addNode(meta, { x: cx, y: cy });
                     }}
                     className="w-full flex items-center gap-2 px-2.5 py-2.5 rounded-lg text-xs text-left transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light active:scale-[0.98]"
                     title={meta.description}
