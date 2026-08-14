@@ -681,8 +681,8 @@ export default function FlowEditor() {
                       <path d={path} fill="none" stroke={isDark ? '#818cf8' : '#d1d5db'} strokeWidth={isSelected ? 18 : 14} strokeLinecap="round" filter={isDark ? "url(#edge-glow)" : undefined} />
                       {/* 连线前景（白底/深紫主体） */}
                       <path d={path} fill="none" stroke={isDark ? '#312e81' : '#ffffff'} strokeWidth={isSelected ? 12 : 10} strokeLinecap="round" />
-                      {/* 连线边框（红色波浪纹/灰色波浪纹） */}
-                      <path d={path} fill="none" stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#f87171' : '#9ca3af')} strokeWidth={isSelected ? 4 : 3} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : '10,4,4,4'} strokeLinecap="round" className={`${isSelected ? '' : 'animate-flow-pulse'}`} />
+                      {/* 连线边框（红色波浪纹/灰色波浪纹）—— >>>>> 样式，大间隙 */}
+                      <path d={path} fill="none" stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#f87171' : '#9ca3af')} strokeWidth={isSelected ? 4 : 3} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : '12,8'} strokeLinecap="round" className={`${isSelected ? '' : 'animate-flow-pulse'}`} />
                       {/* 流向箭头 */}
                       <polygon points="0,-5 10,0 0,5" fill={isDark ? '#312e81' : '#ffffff'} stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
                       <polygon points="0,-4 8,0 0,4" fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
@@ -703,10 +703,11 @@ export default function FlowEditor() {
                           />
                           <text
                             x={getLabelPos(edge, flow.nodes).x}
-                            y={getLabelPos(edge, flow.nodes).y + 3}
+                            y={getLabelPos(edge, flow.nodes).y + 4}
                             fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#ffffff' : '#1a1a2e')}
                             fontSize="10"
                             textAnchor="middle"
+                            dominantBaseline="middle"
                             fontWeight="600"
                             className="select-none pointer-events-auto cursor-pointer"
                             onClick={() => setSelectedEdgeId(edge.id)}
