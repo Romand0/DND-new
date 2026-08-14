@@ -132,6 +132,7 @@ export default function FlowEditor() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const [exitModalOpen, setExitModalOpen] = useState(false);
   const skipNameSync = useRef(true);
 
   // ===== dnd-kit 传感器：Pointer（鼠标）+ Touch（触屏） =====
@@ -496,142 +497,61 @@ export default function FlowEditor() {
   // ===== 渲染 =====
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden dark:bg-bg-dark light:bg-bg-light relative">
-      {/* ===== 固定顶部工具栏（不随画布滚动） ===== */}
-      <div className="h-12 border-b dark:border-border-dark light:border-border-light flex items-center gap-1 px-2 lg:px-4 dark:bg-bg-dark-2 light:bg-white flex-shrink-0 z-50 relative">
-        {/* 退出编辑器 */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-          title="退出编辑器"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">退出</span>
-        </button>
-
-        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
-
-        {/* 面板切换按钮（窄屏） */}
-        <button
-          onClick={() => setShowLeftPanel(!showLeftPanel)}
-          className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5"
-          title="节点库"
-        >
-          <PanelLeft className="w-4 h-4" />
-        </button>
-
-        <input
-          type="text"
-          value={flowName}
-          onChange={(e) => setFlowName(e.target.value)}
-          className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48 flex-shrink-0"
-          placeholder="流程名称"
-        />
-
-        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
-
-        {/* 验证 */}
-        <button
-          onClick={runValidation}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-          title="验证流程"
-        >
-          <AlertCircle className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">验证</span>
-        </button>
-
-        {/* 保存草稿 */}
-        <button
-          onClick={saveDraft}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-          title="保存到本地草稿"
-        >
-          <Save className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">保存</span>
-        </button>
-
-        {/* 草稿列表 */}
-        <button
-          onClick={() => setShowDrafts(!showDrafts)}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-        >
-          <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showDrafts ? 'rotate-90' : ''}`} />
-          <span className="hidden sm:inline">草稿</span>
-          <span className="sm:hidden">({drafts.length})</span>
-        </button>
-
-        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0" />
-
-        {/* 导出 */}
-        <button
-          onClick={exportFlow}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-          title="导出 JSON"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">导出</span>
-        </button>
-
-        {/* 导入 */}
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-          title="导入 JSON"
-        >
-          <Upload className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">导入</span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) importFlow(file);
-            e.target.value = '';
-          }}
-        />
-
-        <div className="flex-1" />
-
-        {/* 清空 */}
-        <button
-          onClick={clearCanvas}
-          className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors text-red-400 hover:bg-red-400/10 flex-shrink-0"
-          title="清空画布"
-        >
-          <RotateCcw className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">清空</span>
-        </button>
-
-        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light mx-1 flex-shrink-0 hidden lg:block" />
-
-        {/* 右面板切换（宽屏） */}
-        <button
-          onClick={() => setShowRightPanel(!showRightPanel)}
-          className="hidden lg:flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-          title="属性面板"
-        >
-          <PanelRight className="w-4 h-4" />
-        </button>
-
-        {/* 右面板切换（窄屏） */}
-        <button
-          onClick={() => setShowRightPanel(!showRightPanel)}
-          className="lg:hidden flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5 flex-shrink-0"
-          title="属性面板"
-        >
-          <PanelRight className="w-4 h-4" />
-        </button>
-
-        {/* 连接模式提示 */}
-        {isConnecting && (
-          <div className="absolute top-12 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-primary/90 text-white text-xs font-medium z-50 shadow-lg whitespace-nowrap">
-            连接模式：点击目标节点完成连接
-            <button onClick={cancelConnecting} className="ml-2 underline">取消</button>
-          </div>
-        )}
+      {/* ===== 顶部工具栏 ===== */}
+      <div className="flex items-center justify-between h-12 border-b dark:border-border-dark light:border-border-light flex-shrink-0 dark:bg-bg-dark-2 light:bg-white">
+        <div className="flex items-center gap-2 px-4">
+          <button onClick={() => setExitModalOpen(true)} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">退出</span>
+          </button>
+          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light" />
+          <input type="text" value={flowName} onChange={(e) => setFlowName(e.target.value)} className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48" placeholder="流程名称" />
+        </div>
+        <div className="flex items-center gap-2 px-4">
+          <button onClick={saveDraft} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors">
+            <Save className="w-3.5 h-3.5" />
+            <span>保存</span>
+          </button>
+        </div>
       </div>
+
+      {/* ===== 功能栏 ===== */}
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b dark:border-border-dark light:border-border-light flex-shrink-0">
+        <button onClick={() => setShowLeftPanel(!showLeftPanel)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors ${showLeftPanel ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 dark:text-text-dark light:text-text-light'}`}>
+          <PanelLeft className="w-3.5 h-3.5" /><span className="hidden sm:inline">节点库</span>
+        </button>
+        <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1" />
+        <button onClick={runValidation} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
+          <AlertCircle className="w-3.5 h-3.5" /><span className="hidden sm:inline">验证</span>
+        </button>
+        <button onClick={() => setShowDrafts(!showDrafts)} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
+          <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showDrafts ? 'rotate-90' : ''}`} /><span className="hidden sm:inline">草稿</span><span className="sm:hidden">({drafts.length})</span>
+        </button>
+        <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1" />
+        <button onClick={exportFlow} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
+          <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">导出</span>
+        </button>
+        <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
+          <Upload className="w-3.5 h-3.5" /><span className="hidden sm:inline">导入</span>
+        </button>
+        <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) importFlow(file); e.target.value = ''; }} />
+        <div className="flex-1" />
+        <button onClick={clearCanvas} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors text-red-400 hover:bg-red-400/10">
+          <RotateCcw className="w-3.5 h-3.5" /><span className="hidden sm:inline">清空</span>
+        </button>
+        <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1 hidden sm:block" />
+        <button onClick={() => setShowRightPanel(!showRightPanel)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors ${showRightPanel ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 dark:text-text-dark light:text-text-light'}`}>
+          <PanelRight className="w-3.5 h-3.5" /><span className="hidden sm:inline">属性</span>
+        </button>
+      </div>
+
+      {/* ===== 连接模式提示 ===== */}
+      {isConnecting && (
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-primary/90 text-white text-xs font-medium z-50 shadow-lg whitespace-nowrap">
+          连接模式：点击目标节点完成连接
+          <button onClick={cancelConnecting} className="ml-2 underline">取消</button>
+        </div>
+      )}
 
       {/* ===== 内容区域（左面板 + 画布 + 右面板） ===== */}
       <div className="flex-1 flex overflow-hidden relative">
@@ -1217,6 +1137,21 @@ export default function FlowEditor() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 退出确认弹窗 ===== */}
+      {exitModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="rounded-lg p-6 max-w-sm w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-xl">
+            <h3 className="text-base font-bold mb-2">退出编辑器</h3>
+            <p className="text-sm opacity-60 mb-4">是否保存当前草稿？</p>
+            <div className="flex flex-col gap-2">
+              <button onClick={() => { saveDraft(); navigate('/'); }} className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90">保存并退出</button>
+              <button onClick={() => navigate('/')} className="px-4 py-2 text-sm rounded-lg border border-red-400 text-red-400 hover:bg-red-400/10">丢弃</button>
+              <button onClick={() => setExitModalOpen(false)} className="px-4 py-2 text-sm rounded-lg border dark:border-border-dark light:border-border-light hover:bg-white/5">取消</button>
             </div>
           </div>
         </div>
