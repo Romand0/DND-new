@@ -205,3 +205,14 @@ textarea:focus::placeholder {
 .animate-shake {
   animation: shake-x 0.35s ease-in-out;
 }
+
+/* ===== FlowEditor 连线流向脉冲动画 ===== */
+/* 流向定义：数据/控制由上游节点流向下游节点（从上到下） */
+@keyframes flow-pulse {
+  0% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -20; }
+}
+
+.animate-flow-pulse {
+  animation: flow-pulse 1s linear infinite;
+}

@@ -666,8 +666,13 @@ export default function FlowEditor() {
                   const isSelected = selectedEdgeId === edge.id;
                   return (
                     <g key={edge.id}>
-                      <path d={path} fill="none" stroke={isSelected ? '#6366f1' : '#6b7280'} strokeWidth={isSelected ? 2.5 : 1.5} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : undefined} className="transition-all" />
-                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? '#6366f1' : '#6b7280'} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      {/* 连线背景（白底粗边 = "浅灰边框白背景色粗线"） */}
+                      <path d={path} fill="none" stroke="#ffffff" strokeWidth={isSelected ? 6 : 4} strokeLinecap="round" />
+                      {/* 连线前景（浅灰边框） */}
+                      <path d={path} fill="none" stroke={isSelected ? '#6366f1' : '#9ca3af'} strokeWidth={isSelected ? 2.5 : 1.5} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : '10,10'} strokeLinecap="round" className={`${isSelected ? '' : 'animate-flow-pulse'}`} />
+                      {/* 流向箭头 */}
+                      <polygon points="0,-5 10,0 0,5" fill="#ffffff" stroke={isSelected ? '#6366f1' : '#9ca3af'} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? '#6366f1' : '#9ca3af'} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
                       {edge.label && (
                         <text x={getLabelPos(edge, flow.nodes).x} y={getLabelPos(edge, flow.nodes).y} fill={isSelected ? '#6366f1' : '#9ca3af'} fontSize="10" textAnchor="middle" className="select-none pointer-events-auto cursor-pointer" onClick={() => setSelectedEdgeId(edge.id)}>{edge.label}</text>
                       )}
