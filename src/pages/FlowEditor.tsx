@@ -666,15 +666,42 @@ export default function FlowEditor() {
                   const isSelected = selectedEdgeId === edge.id;
                   return (
                     <g key={edge.id}>
-                      {/* 连线背景（白底粗边 = "浅灰边框白背景色粗线"） */}
-                      <path d={path} fill="none" stroke="#ffffff" strokeWidth={isSelected ? 6 : 4} strokeLinecap="round" />
-                      {/* 连线前景（浅灰边框） */}
-                      <path d={path} fill="none" stroke={isSelected ? '#6366f1' : '#9ca3af'} strokeWidth={isSelected ? 2.5 : 1.5} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : '10,10'} strokeLinecap="round" className={`${isSelected ? '' : 'animate-flow-pulse'}`} />
-                      {/* 流向箭头 */}
+                      {/* 连线背景（灰底粗边 = "灰色线条边框"） */}
+                      <path d={path} fill="none" stroke="#d1d5db" strokeWidth={isSelected ? 18 : 14} strokeLinecap="round" />
+                      {/* 连线前景（白底粗线 = 连线主体） */}
+                      <path d={path} fill="none" stroke="#ffffff" strokeWidth={isSelected ? 12 : 10} strokeLinecap="round" />
+                      {/* 连线边框（浅灰 3~4px，> 波浪状脉冲） */}
+                      <path d={path} fill="none" stroke={isSelected ? '#6366f1' : '#9ca3af'} strokeWidth={isSelected ? 4 : 3} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : '10,4,4,4'} strokeLinecap="round" className={`${isSelected ? '' : 'animate-flow-pulse'}`} />
+                      {/* 流向箭头（白底描边） */}
                       <polygon points="0,-5 10,0 0,5" fill="#ffffff" stroke={isSelected ? '#6366f1' : '#9ca3af'} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
                       <polygon points="0,-4 8,0 0,4" fill={isSelected ? '#6366f1' : '#9ca3af'} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      {/* 流向脉冲 ">"（浅灰色，波浪状） */}
+                      {(() => {
+                        const arrowStr = getArrowPos(edge, flow.nodes);
+                        const translatePart = arrowStr.split(' rotate')[0];
+                        return (
+                          <g transform={`translate(${translatePart})`}>
+                            <polygon points="0,-6 10,0 0,6" fill="#d1d5db" className="animate-pulse-flow" />
+                          </g>
+                        );
+                      })()}
+                      {/* 连线中部标签：圆角边框样式块 */}
                       {edge.label && (
-                        <text x={getLabelPos(edge, flow.nodes).x} y={getLabelPos(edge, flow.nodes).y} fill={isSelected ? '#6366f1' : '#9ca3af'} fontSize="10" textAnchor="middle" className="select-none pointer-events-auto cursor-pointer" onClick={() => setSelectedEdgeId(edge.id)}>{edge.label}</text>
+                        <>
+                          <rect
+                            x={getLabelPos(edge, flow.nodes).x - 30}
+                            y={getLabelPos(edge, flow.nodes).y - 14}
+                            width="60"
+                            height="22"
+                            rx="6"
+                            fill="#ffffff"
+                            stroke={isSelected ? '#6366f1' : '#d1d5db'}
+                            strokeWidth="1"
+                            className="select-none pointer-events-auto cursor-pointer transition-colors"
+                            onClick={() => setSelectedEdgeId(edge.id)}
+                          />
+                          <text x={getLabelPos(edge, flow.nodes).x} y={getLabelPos(edge, flow.nodes).y + 3} fill={isSelected ? '#6366f1' : '#6b7280'} fontSize="10" textAnchor="middle" className="select-none pointer-events-auto cursor-pointer" onClick={() => setSelectedEdgeId(edge.id)}>{edge.label}</text>
+                        </>
                       )}
                     </g>
                   );
