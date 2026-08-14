@@ -628,7 +628,7 @@ export default function FlowEditor() {
           {/* 画布 */}
           <div
             ref={canvasRef}
-            className="flex-1 relative overflow-auto dark:bg-bg-dark light:bg-gray-50 select-none px-[60px]"
+            className="absolute inset-0 overflow-auto dark:bg-bg-dark light:bg-gray-50 select-none px-[60px]"
           >
             {/* 固定尺寸画布内容区 */}
             <div className="relative min-h-full" style={{ width: 3000, height: 2000 }}>
@@ -1237,7 +1237,7 @@ function DraggableFlowNode({
       ? 'border-primary shadow-primary/20'
       : isConnectSource
         ? 'border-primary/60'
-        : 'dark:border-border-dark light:border-border-light hover:border-primary/40';
+        : 'dark:border-border-dark light:border-border-light shadow-sm hover:border-primary/40';
 
   return (
     <div
