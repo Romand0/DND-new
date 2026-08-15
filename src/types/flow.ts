@@ -100,6 +100,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '核心环节',
     color: '#6366f1',
     defaultConfig: {},
+    icon: 'zap',
   },
   {
     type: 'check_component',
@@ -108,6 +109,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '核心环节',
     color: '#8b5cf6',
     defaultConfig: { component: 'verbal' },
+    icon: 'shield',
   },
   {
     type: 'check_range',
@@ -116,6 +118,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '核心环节',
     color: '#a855f7',
     defaultConfig: { range: 60, targetMode: 'sight' },
+    icon: 'target',
   },
   {
     type: 'select_target',
@@ -124,6 +127,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '核心环节',
     color: '#ec4899',
     defaultConfig: { mode: 'single', maxCount: 1 },
+    icon: 'mouse-pointer',
   },
   {
     type: 'saving_throw',
@@ -132,6 +136,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '检定',
     color: '#f59e0b',
     defaultConfig: { ability: 'dexterity', dc: '${caster.spellSaveDc}' },
+    icon: 'shield',
   },
   {
     type: 'attack_roll',
@@ -140,6 +145,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '检定',
     color: '#f97316',
     defaultConfig: {},
+    icon: 'zap',
   },
   {
     type: 'condition_branch',
@@ -148,6 +154,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '控制流',
     color: '#10b981',
     defaultConfig: { condition: 'target.currentHp <= 100' },
+    icon: 'git-branch',
   },
   {
     type: 'apply_effect',
@@ -156,6 +163,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '效果',
     color: '#ef4444',
     defaultConfig: { effectType: 'damage', value: '8d6' },
+    icon: 'heart',
   },
   {
     type: 'concentration_check',
@@ -164,6 +172,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '检定',
     color: '#06b6d4',
     defaultConfig: {},
+    icon: 'shield',
   },
   {
     type: 'cast_end',
@@ -172,6 +181,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '核心环节',
     color: '#64748b',
     defaultConfig: {},
+    icon: 'skull',
   },
   {
     type: 'custom',
@@ -180,6 +190,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     category: '扩展',
     color: '#6b7280',
     defaultConfig: { code: '' },
+    icon: 'zap',
   },
 ];
 
@@ -285,6 +296,32 @@ export function validateFlow(flow: FlowDefinition): string[] {
     const hasFalse = outEdges.some(e => e.trigger === 'on_false');
     if (!hasTrue) errors.push(`条件分支节点 ${branch.id} 缺少 on_true 出边`);
     if (!hasFalse) errors.push(`条件分支节点 ${branch.id} 缺少 on_false 出边`);
+  }
+
+  // 5. 检查边 ID 唯一性
+  const edgeIds = new Set<string>();
+  for (const edge of flow.edges) {
+    if (edgeIds.has(edge.id)) {
+      errors.push(`边 ID 重复: ${edge.id}`);
+    }
+    edgeIds.add(edge.id);
+  }
+
+  // 6. 检查无自环边（from === to，逻辑上无意义）
+  for (const edge of flow.edges) {
+    if (edge.from === edge.to) {
+      errors.push(`边 ${edge.id} 形成自环（from === to: ${edge.from}）`);
+    }
+  }
+
+  // 7. 检查平行边（同一 from→to + 同一 trigger 的重复边）
+  const edgeSignatures = new Set<string>();
+  for (const edge of flow.edges) {
+    const sig = `${edge.from}->${edge.to}@${edge.trigger}`;
+    if (edgeSignatures.has(sig)) {
+      errors.push(`存在重复连线: ${edge.from} → ${edge.to}（${edge.trigger}）`);
+    }
+    edgeSignatures.add(sig);
   }
 
   return errors;
