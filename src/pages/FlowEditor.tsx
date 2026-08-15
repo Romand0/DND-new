@@ -50,6 +50,11 @@ const AUTOSAVE_KEY = 'dnd-flow-editor-autosave';
 const NODE_W = 260;   // 窄屏基准宽度
 const NODE_H = 56;    // 最小估计高度（头部）
 
+// 画布缩放常量
+const SCALE_MIN = 0.25;
+const SCALE_MAX = 3;
+const SCALE_STEP = 0.1;
+
 interface DraftEntry {
   id: string;
   name: string;
@@ -147,12 +152,78 @@ export default function FlowEditor() {
   // 拖拽状态：实时碰撞检测
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [isColliding, setIsColliding] = useState(false);
+  const [canvasScale, setCanvasScale] = useState(1);
+  const [canvasTranslate, setCanvasTranslate] = useState({ x: 0, y: 0 });
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const [exitModalOpen, setExitModalOpen] = useState(false);
   const skipNameSync = useRef(true);
+
+  // ===== 画布缩放：触屏双指捏合 =====
+  const pinchRef = useRef<{
+    pointers: Map<number, { x: number; y: number }>;
+    startScale: number;
+    startTranslate: { x: number; y: number };
+    startDist: number;
+    startMid: { x: number; y: number };
+  }>({
+    pointers: new Map(),
+    startScale: 1,
+    startTranslate: { x: 0, y: 0 },
+    startDist: 0,
+    startMid: { x: 0, y: 0 },
+  });
+
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length < 2) return;
+    const pts = Array.from(e.touches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
+    const map = new Map(pts.map(p => [p.id, { x: p.x, y: p.y }]));
+    const dx = pts[1].x - pts[0].x;
+    const dy = pts[1].y - pts[0].y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+    pinchRef.current = {
+      pointers: map,
+      startScale: canvasScale,
+      startTranslate: canvasTranslate,
+      startDist: dist,
+      startMid: mid,
+    };
+  }, [canvasScale, canvasTranslate]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    const state = pinchRef.current;
+    if (e.touches.length < 2 || state.startDist === 0) return;
+    e.preventDefault();
+    const pts = Array.from(e.touches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
+    const dx = pts[1].x - pts[0].x;
+    const dy = pts[1].y - pts[0].y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+    const ratio = dist / state.startDist;
+    const newScale = Math.min(SCALE_MAX, Math.max(SCALE_MIN, state.startScale * ratio));
+    const scaleDelta = newScale / state.startScale;
+    const newTranslate = {
+      x: state.startTranslate.x * scaleDelta + (mid.x - state.startMid.x * scaleDelta),
+      y: state.startTranslate.y * scaleDelta + (mid.y - state.startMid.y * scaleDelta),
+    };
+    setCanvasScale(newScale);
+    setCanvasTranslate(newTranslate);
+  }, []);
+
+  const handleTouchEnd = useCallback(() => {
+    pinchRef.current.startDist = 0;
+  }, []);
+
+  // ===== 画布缩放：鼠标 Ctrl/Meta + 滚轮 =====
+  const handleCanvasWheel = useCallback((e: React.WheelEvent) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
+    setCanvasScale(prev => Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round((prev + delta) * 100) / 100)));
+  }, []);
 
   // ===== dnd-kit 传感器：Pointer（鼠标）+ Touch（触屏） =====
   const sensors = useSensors(
@@ -580,6 +651,17 @@ export default function FlowEditor() {
         </button>
         <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) importFlow(file); e.target.value = ''; }} />
         <div className="flex-1" />
+        <div className="flex items-center gap-1 mr-2">
+          <button onClick={() => setCanvasScale(p => Math.max(SCALE_MIN, Math.round((p - SCALE_STEP) * 100) / 100))}
+            className="px-2 py-1 rounded-md text-xs dark:text-text-dark light:text-text-light hover:bg-white/5" title="缩小">−</button>
+          <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted w-10 text-center tabular-nums">
+            {Math.round(canvasScale * 100)}%
+          </span>
+          <button onClick={() => setCanvasScale(p => Math.min(SCALE_MAX, Math.round((p + SCALE_STEP) * 100) / 100))}
+            className="px-2 py-1 rounded-md text-xs dark:text-text-dark light:text-text-light hover:bg-white/5" title="放大">+</button>
+          <button onClick={() => { setCanvasScale(1); setCanvasTranslate({ x: 0, y: 0 }); }}
+            className="px-2 py-1 rounded-md text-[10px] dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/5" title="重置">重置</button>
+        </div>
         <button onClick={clearCanvas} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors text-red-400 hover:bg-red-400/10">
           <RotateCcw className="w-3.5 h-3.5" /><span className="hidden sm:inline">清空</span>
         </button>
@@ -672,10 +754,22 @@ export default function FlowEditor() {
           {/* 画布 */}
           <div
             ref={canvasRef}
-            className="absolute inset-0 overflow-auto dark:bg-bg-dark light:bg-gray-50 select-none px-[60px]"
+            className="absolute inset-0 overflow-auto dark:bg-bg-dark light:bg-gray-50 select-none"
+            onWheel={handleCanvasWheel}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
+            <div
+              className="relative origin-top-left"
+              style={{
+                width: 3000 * canvasScale,
+                height: 2000 * canvasScale,
+                transform: `translate(${canvasTranslate.x}px, ${canvasTranslate.y}px) scale(${canvasScale})`,
+              }}
+            >
             {/* 固定尺寸画布内容区 */}
-            <div className="relative min-h-full" style={{ width: 3000, height: 2000 }}>
+            <div className="relative" style={{ width: 3000, height: 2000 }}>
               {/* 背景网格 + 点击空白处取消选中 */}
               <div
                 className="absolute inset-0 opacity-20"
@@ -811,6 +905,7 @@ export default function FlowEditor() {
                   );
                 })}
               </svg>
+            </div>
             </div>
           </div>
         </DndContext>
