@@ -1,5 +1,5 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -109,7 +109,13 @@ export default function FlowEditor() {
     } catch { /* ignore */ }
     return createEmptyFlow();
   });
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => {
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (raw) return (JSON.parse(raw) as any).selectedNodeId ?? null;
+    } catch {}
+    return null;
+  });
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectFromId, setConnectFromId] = useState<string | null>(null);
@@ -168,11 +174,39 @@ export default function FlowEditor() {
   useEffect(() => {
     const timer = setTimeout(() => {
       try {
-        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ flow, flowName }));
+        const canvas = canvasRef.current;
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
+          flow,
+          flowName,
+          scrollX: canvas?.scrollLeft ?? 0,
+          scrollY: canvas?.scrollTop ?? 0,
+          selectedNodeId,
+        }));
       } catch { /* ignore quota errors */ }
     }, 500);
     return () => clearTimeout(timer);
   }, [flow, flowName]);
+
+  const scrollRestored = useRef(false);
+
+  useLayoutEffect(() => {
+    if (scrollRestored.current) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (typeof data.scrollX === 'number' && typeof data.scrollY === 'number') {
+          canvas.scrollLeft = data.scrollX;
+          canvas.scrollTop  = data.scrollY;
+        }
+      }
+    } catch { /* ignore */ }
+
+    scrollRestored.current = true;
+  }, []);
 
   // ===== 创建空流程 =====
   function createEmptyFlow(): FlowDefinition {
