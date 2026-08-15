@@ -194,6 +194,198 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
   },
 ];
 
+// ===== 节点配置 Schema：中文标签 + 控件类型 + 候选选项 =====
+
+/** 字段输入控件类型 */
+export type ConfigFieldType =
+  | 'select'     // 下拉单选（中文 → DSL 值）
+  | 'number'     // 数字输入
+  | 'text'       // 自由文本
+  | 'dice'       // 骰子表达式（如 8d6）
+  | 'template';  // 模板变量（如 ${caster.spellSaveDc}）
+
+/** 下拉选项：中文标签 → DSL 值 */
+export interface SelectOption {
+  label: string;   // 用户看到的中文
+  value: string;   // 存入 config 的 DSL 编码
+}
+
+/** 单个配置字段的 Schema */
+export interface ConfigFieldSchema {
+  key: string;                    // config 中的键名（DSL 层）
+  label: string;                  // 中文标签（展示层）
+  type: ConfigFieldType;          // 控件类型
+  options?: SelectOption[];       // select 候选列表
+  placeholder?: string;           // 输入提示
+  required?: boolean;             // 是否必填
+  defaultValue?: any;             // 默认值
+}
+
+/** 节点类型 → 配置字段列表 */
+export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
+  // ── 核心环节 ──
+  cast_start: [],
+  check_component: [
+    {
+      key: 'component',
+      label: '施法成分',
+      type: 'select',
+      required: true,
+      options: [
+        { label: '言语 (V)', value: 'verbal' },
+        { label: '姿势 (S)', value: 'somatic' },
+        { label: '材料 (M)', value: 'material' },
+      ],
+      defaultValue: 'verbal',
+    },
+  ],
+  check_range: [
+    {
+      key: 'range',
+      label: '射程（尺）',
+      type: 'number',
+      required: true,
+      placeholder: '触碰法术填 0',
+      defaultValue: 60,
+    },
+    {
+      key: 'targetMode',
+      label: '定位模式',
+      type: 'select',
+      required: true,
+      options: [
+        { label: '视线',   value: 'sight' },
+        { label: '触碰',   value: 'touch' },
+        { label: '自身',   value: 'self' },
+        { label: '指定点', value: 'point' },
+      ],
+      defaultValue: 'sight',
+    },
+  ],
+  select_target: [
+    {
+      key: 'mode',
+      label: '目标模式',
+      type: 'select',
+      required: true,
+      options: [
+        { label: '自身', value: 'self' },
+        { label: '单体', value: 'single' },
+        { label: '多体', value: 'multi' },
+        { label: '区域', value: 'area' },
+      ],
+      defaultValue: 'single',
+    },
+    {
+      key: 'maxCount',
+      label: '最大目标数',
+      type: 'number',
+      required: true,
+      placeholder: '多体模式时生效',
+      defaultValue: 1,
+    },
+  ],
+  cast_end: [],
+
+  // ── 检定 ──
+  saving_throw: [
+    {
+      key: 'ability',
+      label: '豁免属性',
+      type: 'select',
+      required: true,
+      options: [
+        { label: '力量', value: 'strength' },
+        { label: '敏捷', value: 'dexterity' },
+        { label: '体质', value: 'constitution' },
+        { label: '智力', value: 'intelligence' },
+        { label: '感知', value: 'wisdom' },
+        { label: '魅力', value: 'charisma' },
+      ],
+      defaultValue: 'dexterity',
+    },
+    {
+      key: 'dc',
+      label: '难度等级 (DC)',
+      type: 'template',
+      required: true,
+      placeholder: '如 ${caster.spellSaveDc} 或固定值 15',
+      defaultValue: '${caster.spellSaveDc}',
+    },
+  ],
+  attack_roll: [],
+  concentration_check: [],
+
+  // ── 控制流 ──
+  condition_branch: [
+    {
+      key: 'condition',
+      label: '分支条件',
+      type: 'template',
+      required: true,
+      placeholder: '如 target.currentHp <= 100',
+      defaultValue: 'target.currentHp <= 100',
+    },
+  ],
+
+  // ── 效果 ──
+  apply_effect: [
+    {
+      key: 'effectType',
+      label: '效果类型',
+      type: 'select',
+      required: true,
+      options: [
+        { label: '伤害',     value: 'damage' },
+        { label: '治疗',     value: 'healing' },
+        { label: '状态附加', value: 'status' },
+      ],
+      defaultValue: 'damage',
+    },
+    {
+      key: 'value',
+      label: '骰子表达式',
+      type: 'dice',
+      required: true,
+      placeholder: '如 8d6、3d8+5',
+      defaultValue: '8d6',
+    },
+    {
+      key: 'damageType',
+      label: '伤害类型',
+      type: 'select',
+      required: false,
+      options: [
+        { label: '火焰', value: 'fire' },
+        { label: '寒冷', value: 'cold' },
+        { label: '闪电', value: 'lightning' },
+        { label: '酸蚀', value: 'acid' },
+        { label: '毒素', value: 'poison' },
+        { label: '力场', value: 'force' },
+        { label: '黯蚀', value: 'necrotic' },
+        { label: '光耀', value: 'radiant' },
+        { label: '心灵', value: 'psychic' },
+        { label: '雷鸣', value: 'thunder' },
+        { label: '穿刺', value: 'piercing' },
+        { label: '挥砍', value: 'slashing' },
+        { label: '钝击', value: 'bludgeoning' },
+      ],
+    },
+  ],
+
+  // ── 扩展 ──
+  custom: [
+    {
+      key: 'code',
+      label: '自定义脚本',
+      type: 'text',
+      required: false,
+      placeholder: '输入自定义逻辑代码',
+      defaultValue: '',
+    },
+  ],
+};
+
 /** 按分类分组节点类型 */
 export function groupNodeTypesByCategory(): Record<string, NodeTypeMeta[]> {
   const groups: Record<string, NodeTypeMeta[]> = {};
