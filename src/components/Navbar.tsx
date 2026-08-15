@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import gameTimeStore from '@/data/gameTimeStore';
 import calendarStore from '@/data/calendarStore';
+import flowStore from '@/data/flowStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -40,6 +41,64 @@ const playerNavItems = [
   { path: '/player/inventory', label: '物资钱币', icon: Coins },
   { path: '/player/spells', label: '法术库', icon: Sparkles },
 ];
+
+const AUTOSAVE_KEY = 'dnd-flow-editor-autosave';
+
+function LastDraftLink({ onClose }: { onClose: () => void }) {
+  const navigate = useNavigate();
+
+  const handleClick = () => {
+    const allFlows = flowStore.getAll();
+    if (allFlows.length > 0) {
+      const latest = allFlows.reduce((a, b) => (a.updatedAt || 0) > (b.updatedAt || 0) ? a : b);
+      navigate(`/settings/flows/${latest.id}/edit`);
+      onClose();
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(AUTOSAVE_KEY);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data?.flow?.id) {
+          flowStore.create(data.flow.name || '未命名流程');
+          const flows = flowStore.getAll();
+          const newest = flows[flows.length - 1];
+          if (newest) {
+            flowStore.update(newest.id, data.flow);
+            navigate(`/settings/flows/${newest.id}/edit`);
+            onClose();
+            return;
+          }
+        }
+      }
+    } catch { /* ignore */ }
+    navigate('/settings/flows');
+    onClose();
+  };
+
+  const allFlows = flowStore.getAll();
+  const latestFlow = allFlows.length > 0
+    ? allFlows.reduce((a, b) => (a.updatedAt || 0) > (b.updatedAt || 0) ? a : b)
+    : null;
+  const subtitle = latestFlow
+    ? `${latestFlow.name || '未命名'} · ${latestFlow.nodes.length} 节点`
+    : '无草稿';
+
+  return (
+    <button
+      onClick={handleClick}
+      className="flex items-center gap-3 p-3 transition-colors hover:bg-white/5 w-full text-left"
+    >
+      <div className="w-12 h-12 rounded-full border-2 border-border-dark bg-bg-dark-2 flex items-center justify-center flex-shrink-0">
+        <Workflow className="w-5 h-5 text-gray-300" />
+      </div>
+      <div className="flex flex-col">
+        <span className="text-sm font-medium text-gray-200">DSL 编译器</span>
+        <span className="text-xs text-gray-400">{subtitle}</span>
+      </div>
+    </button>
+  );
+}
 
 export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }) {
   const { theme, toggleTheme } = useTheme();
@@ -171,7 +230,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
               <button
               onClick={() => setToolsOpen(!toolsOpen)}
               className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                toolsOpen || location.pathname === '/clock' || location.pathname === '/calendar' || location.pathname === '/dice' || location.pathname === '/flow-editor'
+                toolsOpen || location.pathname === '/clock' || location.pathname === '/calendar' || location.pathname === '/dice'
                   ? 'bg-primary/20 text-primary'
                   : 'text-gray-300 hover:text-white hover:bg-white/10'
               }`}
@@ -270,25 +329,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
 
                   {/* 分割线 */}
                   <div className="border-t border-border-dark" />
-
-                  {/* 流程编辑器入口 */}
-                  <Link
-                    to="/flow-editor"
-                    onClick={() => setToolsOpen(false)}
-                    className={`flex items-center gap-3 p-3 transition-colors ${
-                      location.pathname === '/flow-editor'
-                        ? 'bg-primary/10'
-                        : 'hover:bg-white/5'
-                    }`}
-                  >
-                    <div className="w-12 h-12 rounded-full border-2 border-border-dark bg-bg-dark-2 flex items-center justify-center flex-shrink-0">
-                      <Workflow className="w-5 h-5 text-gray-300" />
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium text-gray-200">DSL 编译器</span>
-                      <span className="text-xs text-gray-400">可视化流程编排引擎</span>
-                    </div>
-                  </Link>
+                  <LastDraftLink onClose={() => setToolsOpen(false)} />
                 </div>
               )}
             </div>
