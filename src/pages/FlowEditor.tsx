@@ -14,7 +14,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   ArrowLeft, X, Plus, Trash2, Save, AlertCircle, CheckCircle,
   MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
-  ChevronRight, Download, Upload, RotateCcw,
+  ChevronRight, RotateCcw,
   PanelLeft, PanelRight,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -25,7 +25,7 @@ import type {
   FlowEdgeDef,
   NodeTypeMeta,
 } from '@/types/flow';
-import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow, serializeFlow, deserializeFlow } from '@/types/flow';
+import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow } from '@/types/flow';
 
 // ===== 节点图标解析 =====
 /** 从 icon name 解析为 React 元素，单一真相源 */
@@ -148,7 +148,7 @@ export default function FlowEditor() {
     return '';
   });
   const [showLeftPanel, setShowLeftPanel] = useState(false);
-  const [showRightPanel, setShowRightPanel] = useState(false);
+  const [showRightPanel, setShowRightPanel] = useState(true);
   // 拖拽状态：实时碰撞检测
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [isColliding, setIsColliding] = useState(false);
@@ -156,7 +156,6 @@ export default function FlowEditor() {
   const [canvasTranslate, setCanvasTranslate] = useState({ x: 0, y: 0 });
 
   const canvasRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const [exitModalOpen, setExitModalOpen] = useState(false);
   const skipNameSync = useRef(true);
@@ -546,37 +545,6 @@ export default function FlowEditor() {
     saveDraftsToStorage(newDrafts);
   }, [drafts]);
 
-  // ===== 导出 JSON =====
-  const exportFlow = useCallback(() => {
-    const updatedFlow = { ...flow, name: flowName || flow.name, updatedAt: Date.now() };
-    const blob = new Blob([serializeFlow(updatedFlow)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${(flowName || flow.name).replace(/\s+/g, '_')}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [flow, flowName]);
-
-  // ===== 导入 JSON =====
-  const importFlow = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const json = e.target?.result as string;
-        const imported = deserializeFlow(json);
-        setFlow(imported);
-        setFlowName(imported.name);
-        setSelectedNodeId(null);
-        setSelectedEdgeId(null);
-        alert('流程导入成功');
-      } catch {
-        alert('导入失败：文件格式不正确');
-      }
-    };
-    reader.readAsText(file);
-  }, []);
-
   // ===== 清空画布 =====
   const clearCanvas = useCallback(() => {
     if (confirm('确定要清空当前画布吗？所有节点和连线将被删除。')) {
@@ -643,13 +611,6 @@ export default function FlowEditor() {
           <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showDrafts ? 'rotate-90' : ''}`} /><span className="hidden sm:inline">草稿</span><span className="sm:hidden">({drafts.length})</span>
         </button>
         <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1" />
-        <button onClick={exportFlow} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
-          <Download className="w-3.5 h-3.5" /><span className="hidden sm:inline">导出</span>
-        </button>
-        <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
-          <Upload className="w-3.5 h-3.5" /><span className="hidden sm:inline">导入</span>
-        </button>
-        <input ref={fileInputRef} type="file" accept=".json" className="hidden" onChange={(e) => { const file = e.target.files?.[0]; if (file) importFlow(file); e.target.value = ''; }} />
         <div className="flex-1" />
         <div className="flex items-center gap-1 mr-2">
           <button onClick={() => setCanvasScale(p => Math.max(SCALE_MIN, Math.round((p - SCALE_STEP) * 100) / 100))}
