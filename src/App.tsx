@@ -139,6 +139,8 @@ export default function App() {
                 <Route path="accounts" element={<AdminAccounts />} />
                 <Route path="migration" element={<MigrationBackup />} />
                 <Route path="data" element={<DataManagement />} />
+                <Route path="flows" element={<FlowList />} />
+                <Route path="flows/:id/edit" element={<FlowEditor />} />
               </Route>
               {/* 旧路径重定向，保兼容 */}
               <Route path="data-management" element={<Navigate to="/settings/data" replace />} />
