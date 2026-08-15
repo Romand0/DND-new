@@ -526,8 +526,8 @@ export default function FlowEditor() {
     const tx = toNode.position.x + NODE_W / 2;
     const ty = toNode.position.y + 24;
 
-    const midX = (fx + tx) / 2;
-    return `M ${fx} ${fy} C ${midX} ${fy}, ${midX} ${ty}, ${tx} ${ty}`;
+    // 直线，不再用 C（cubic bezier）弯曲
+    return `M ${fx} ${fy} L ${tx} ${ty}`;
   }
 
   // ===== 节点分类面板 =====
@@ -741,10 +741,15 @@ export default function FlowEditor() {
                   const isSelected = selectedEdgeId === edge.id;
                   return (
                     <g key={edge.id}>
-                      {/* 连线背景（粗边 = 边框层） */}
-                      <path d={path} fill="none" stroke={isDark ? '#818cf8' : '#d1d5db'} strokeWidth={isSelected ? 18 : 14} strokeLinecap="round" filter={isDark ? "url(#edge-glow)" : undefined} />
-                      {/* 连线前景（白底/深紫主体） */}
-                      <path d={path} fill="none" stroke={isDark ? '#312e81' : '#ffffff'} strokeWidth={isSelected ? 12 : 10} strokeLinecap="round" />
+                      {/* 底纹轨道（细半透明线） */}
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke={isDark ? '#4338ca' : '#e5e7eb'}
+                        strokeWidth={isSelected ? 3 : 2}
+                        strokeLinecap="round"
+                        opacity={0.5}
+                      />
                       {/* 波浪箭头层 —— 用 marker-mid 沿采样折线放置 >>>>> 花纹 */}
                       {(() => {
                         const endpoints = getEdgeEndpoints(edge, flow.nodes);
