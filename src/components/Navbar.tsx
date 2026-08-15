@@ -19,6 +19,7 @@ import {
   Dices,
   UserCircle,
   Workflow,
+  GitBranch,
 } from 'lucide-react';
 import gameTimeStore from '@/data/gameTimeStore';
 import calendarStore from '@/data/calendarStore';
@@ -31,6 +32,7 @@ const allNavItems = [
   { path: '/inventory', label: '物资钱币', icon: Coins },
   { path: '/spells', label: '法术库', icon: Sparkles },
   { path: '/notes', label: '剧情笔记', icon: ScrollText },
+  { path: '/flows', label: '流程库', icon: GitBranch },
 ];
 
 const playerNavItems = [
