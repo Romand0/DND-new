@@ -670,6 +670,36 @@ export default function FlowEditor() {
                   <filter id="edge-glow" x="-50%" y="-50%" width="200%" height="200%">
                     <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#ffffff" floodOpacity="0.5" />
                   </filter>
+                  <marker id="chevron-dark" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#818cf8" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-dark-selected" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#f87171" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-light" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#9ca3af" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-light-selected" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#6366f1" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-fail-dark" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#f87171" strokeWidth="1.5"
+                      strokeDasharray="2,2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-fail-light" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#9ca3af" strokeWidth="1.5"
+                      strokeDasharray="2,2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
                 </defs>
                 {flow.edges.map(edge => {
                   const path = getEdgePath(edge);
@@ -681,8 +711,27 @@ export default function FlowEditor() {
                       <path d={path} fill="none" stroke={isDark ? '#818cf8' : '#d1d5db'} strokeWidth={isSelected ? 18 : 14} strokeLinecap="round" filter={isDark ? "url(#edge-glow)" : undefined} />
                       {/* 连线前景（白底/深紫主体） */}
                       <path d={path} fill="none" stroke={isDark ? '#312e81' : '#ffffff'} strokeWidth={isSelected ? 12 : 10} strokeLinecap="round" />
-                      {/* 连线边框（红色波浪纹/灰色波浪纹）—— >>>>> 样式，大间隙 */}
-                      <path d={path} fill="none" stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#f87171' : '#9ca3af')} strokeWidth={isSelected ? 4 : 3} strokeDasharray={edge.trigger === 'on_failure' || edge.trigger === 'on_false' ? '5,3' : '12,8'} strokeLinecap="round" className={`${isSelected ? '' : 'animate-flow-pulse'}`} />
+                      {/* 波浪箭头层 —— 用 marker-mid 沿采样折线放置 >>>>> 花纹 */}
+                      {(() => {
+                        const endpoints = getEdgeEndpoints(edge, flow.nodes);
+                        if (!endpoints) return null;
+                        const isFailEdge = edge.trigger === 'on_failure' || edge.trigger === 'on_false';
+                        const chevronMarkerId = isFailEdge
+                          ? (isDark ? 'chevron-fail-dark' : 'chevron-fail-light')
+                          : isSelected
+                            ? (isDark ? 'chevron-dark-selected' : 'chevron-light-selected')
+                            : (isDark ? 'chevron-dark' : 'chevron-light');
+                        const polyline = sampleEdgeToPolyline(endpoints.from, endpoints.to, 16);
+                        return (
+                          <path
+                            d={polyline}
+                            fill="none"
+                            stroke="transparent"
+                            strokeWidth={2}
+                            markerMid={`url(#${chevronMarkerId})`}
+                          />
+                        );
+                      })()}
                       {/* 流向箭头 */}
                       <polygon points="0,-5 10,0 0,5" fill={isDark ? '#312e81' : '#ffffff'} stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
                       <polygon points="0,-4 8,0 0,4" fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
@@ -691,7 +740,7 @@ export default function FlowEditor() {
                         <>
                           <rect
                             x={getLabelPos(edge, flow.nodes).x - 30}
-                            y={getLabelPos(edge, flow.nodes).y - 14}
+                            y={getLabelPos(edge, flow.nodes).y - 11}
                             width="60"
                             height="22"
                             rx="6"
@@ -703,11 +752,11 @@ export default function FlowEditor() {
                           />
                           <text
                             x={getLabelPos(edge, flow.nodes).x}
-                            y={getLabelPos(edge, flow.nodes).y + 4}
+                            y={getLabelPos(edge, flow.nodes).y}
                             fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#ffffff' : '#1a1a2e')}
                             fontSize="10"
                             textAnchor="middle"
-                            dominantBaseline="middle"
+                            dominantBaseline="central"
                             fontWeight="600"
                             className="select-none pointer-events-auto cursor-pointer"
                             onClick={() => setSelectedEdgeId(edge.id)}
@@ -1229,6 +1278,38 @@ function getLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): { x: number; y: n
   const tx = toNode.position.x + NODE_W / 2;
   const ty = toNode.position.y + 24;
   return { x: (fx + tx) / 2, y: (fy + ty) / 2 - 10 };
+}
+
+/** 将一条直线段按 spacing 间距采样为多段折线的 path d 属性，供 marker-mid 使用 */
+function sampleEdgeToPolyline(
+  from: { x: number; y: number },
+  to: { x: number; y: number },
+  spacing: number = 16  // 1rem ≈ 16px
+): string {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist < spacing) return `M${from.x},${from.y} L${to.x},${to.y}`;
+  const steps = Math.max(2, Math.round(dist / spacing));
+  const parts: string[] = [];
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const px = from.x + dx * t;
+    const py = from.y + dy * t;
+    parts.push(i === 0 ? `M${px},${py}` : `L${px},${py}`);
+  }
+  return parts.join(' ');
+}
+
+/** 获取连线两端中心点（与 getArrowPos / getLabelPos 对齐） */
+function getEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[]) {
+  const fromNode = nodes.find(n => n.id === edge.from);
+  const toNode = nodes.find(n => n.id === edge.to);
+  if (!fromNode || !toNode) return null;
+  return {
+    from: { x: fromNode.position.x + NODE_W / 2, y: fromNode.position.y + 24 },
+    to:   { x: toNode.position.x + NODE_W / 2,   y: toNode.position.y + 24 },
+  };
 }
 
 // ===== DraggableFlowNode 子组件：封装 dnd-kit useDraggable =====
