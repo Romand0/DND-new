@@ -235,8 +235,8 @@ export default function FlowEditor() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 300, // 按住 300ms 才激活拖拽，给滚动留出时间
-        tolerance: 8,
+        delay: 200,
+        tolerance: 10,
       },
     }),
   );
@@ -467,12 +467,37 @@ export default function FlowEditor() {
   // ===== 事件：拖拽结束 =====
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, delta } = event;
-    if (!active) return;
+    // ── 新增：从左侧栏拖入画布 ──
+    if (active.data.current?.fromPalette) {
+      const typeMeta = active.data.current.typeMeta as NodeTypeMeta;
+      const translatedRect = active.rect.current.translated;
+      if (translatedRect && canvasRef.current) {
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        if (
+          translatedRect.left >= canvasRect.left &&
+          translatedRect.left <= canvasRect.right &&
+          translatedRect.top >= canvasRect.top &&
+          translatedRect.top <= canvasRect.bottom
+        ) {
+          const x = (translatedRect.left - canvasRect.left + canvasRef.current.scrollLeft) / canvasScale;
+          const y = (translatedRect.top - canvasRect.top + canvasRef.current.scrollTop) / canvasScale;
+          addNode(typeMeta, { x, y });
+          return;
+        }
+      }
+      // 释放在画布外 → 回退到画布中心
+      const canvas = canvasRef.current;
+      const cx = canvas ? canvas.scrollLeft + canvas.clientWidth / 2 - NODE_W / 2 : 1200;
+      const cy = canvas ? canvas.scrollTop + canvas.clientHeight / 2 - 24 : 800;
+      addNode(typeMeta, { x: cx, y: cy });
+      return;
+    }
+    // ── 原有逻辑：画布内节点拖拽移动 ──
     const nodeId = active.id as string;
-    updateNodePositionByDelta(nodeId, { x: delta.x, y: delta.y });
+    updateNodePositionByDelta(nodeId, delta);
     setDraggingNodeId(null);
     setIsColliding(false);
-  }, [updateNodePositionByDelta]);
+  }, [addNode, updateNodePositionByDelta, canvasScale]);
 
   // ===== 画布空白处点击取消选中 =====
   const handleCanvasClick = useCallback(() => {
@@ -649,6 +674,12 @@ export default function FlowEditor() {
       )}
 
       {/* ===== 内容区域（左面板 + 画布 + 右面板） ===== */}
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+      >
       <div className="flex-1 flex overflow-hidden relative">
       {/* ===== 左侧节点面板 ===== */}
       {/* 宽屏：固定 64 宽图标条 + 256 宽内容区；窄屏：全宽滑出抽屉 */}
@@ -679,23 +710,7 @@ export default function FlowEditor() {
               </h3>
               <div className="space-y-1">
                 {metas.map(meta => (
-                  <button
-                    key={meta.type}
-                    onClick={() => {
-                      const canvas = canvasRef.current;
-                      const cx = canvas ? canvas.scrollLeft + canvas.clientWidth / 2 - NODE_W / 2 : 1200;
-                      const cy = canvas ? canvas.scrollTop + canvas.clientHeight / 2 - 24 : 800;
-                      addNode(meta, { x: cx, y: cy });
-                    }}
-                    className="w-full flex items-center gap-2 px-2.5 py-2.5 rounded-lg text-xs text-left transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light active:scale-[0.98]"
-                    title={meta.description}
-                  >
-                    <span
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: meta.color }}
-                    />
-                    <span className="truncate">{meta.label}</span>
-                  </button>
+                  <PaletteDragItem key={meta.type} meta={meta} />
                 ))}
               </div>
             </div>
@@ -714,13 +729,6 @@ export default function FlowEditor() {
       {/* ===== 中央：画布区域 ===== */}
       <div className="flex-1 relative overflow-hidden min-w-0">
         {/* 画布 */}
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragMove={handleDragMove}
-          onDragEnd={handleDragEnd}
-        >
-          {/* 画布 */}
           <div
             ref={canvasRef}
             className="absolute inset-0 overflow-auto dark:bg-bg-dark light:bg-gray-50 select-none"
@@ -877,7 +885,6 @@ export default function FlowEditor() {
             </div>
             </div>
           </div>
-        </DndContext>
 
         {/* 验证结果浮层 */}
         {showValidation && (
@@ -912,26 +919,13 @@ export default function FlowEditor() {
           </div>
         )}
 
-      {/* 窄屏浮动：右侧属性面板开关（工具栏溢出时的兜底入口） */}
-      {!showRightPanel && (
-        <button
-          onClick={() => setShowRightPanel(true)}
-          className="lg:hidden absolute top-2 right-2 z-20 p-2 rounded-lg shadow-md
-                     dark:bg-bg-dark-2 dark:text-text-dark dark:border-border-dark
-                     light:bg-white light:text-text-light light:border-border-light
-                     border transition-colors hover:bg-primary/10 hover:text-primary"
-          title="打开属性面板"
-        >
-          <PanelRight className="w-4 h-4" />
-        </button>
-      )}
       </div>
 
       {/* ===== 右侧：属性面板 ===== */}
       <div
         className={`${
           showRightPanel ? 'translate-x-0' : 'translate-x-full'
-        } lg:translate-x-0 absolute lg:relative right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
+        } ${showRightPanel ? 'lg:relative' : ''} absolute right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-4 lg:hidden">
@@ -1342,6 +1336,7 @@ export default function FlowEditor() {
         />
       )}
       </div>
+      </DndContext>
 
       {/* ===== 草稿列表弹窗 ===== */}
       {showDrafts && (
@@ -1597,5 +1592,36 @@ function DraggableFlowNode({
         )}
       </div>
     </div>
+  );
+}
+
+// ===== 左侧栏可拖拽节点类型条目 =====
+interface PaletteDragItemProps {
+  meta: NodeTypeMeta;
+}
+
+function PaletteDragItem({ meta }: PaletteDragItemProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `palette-${meta.type}`,
+    data: { fromPalette: true, typeMeta: meta },
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`w-full flex items-center gap-2 px-2.5 py-2.5 rounded-lg text-xs text-left transition-colors
+        hover:bg-white/5 dark:text-text-dark light:text-text-light active:scale-[0.98]
+        ${isDragging ? 'opacity-40' : ''}`}
+      title={meta.description}
+      style={{ touchAction: 'none' }}
+    >
+      <span
+        className="w-3 h-3 rounded-full flex-shrink-0"
+        style={{ backgroundColor: meta.color }}
+      />
+      <span className="truncate">{meta.label}</span>
+    </button>
   );
 }
