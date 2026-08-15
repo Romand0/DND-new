@@ -599,7 +599,7 @@ export default function FlowEditor() {
       </div>
 
       {/* ===== 功能栏 ===== */}
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b dark:border-border-dark light:border-border-light flex-shrink-0">
+      <div className="flex items-center gap-1 px-2 py-1.5 border-b dark:border-border-dark light:border-border-light flex-shrink-0 overflow-x-auto">
         <button onClick={() => setShowLeftPanel(!showLeftPanel)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors ${showLeftPanel ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 dark:text-text-dark light:text-text-light'}`}>
           <PanelLeft className="w-3.5 h-3.5" /><span className="hidden sm:inline">节点库</span>
         </button>
@@ -621,7 +621,7 @@ export default function FlowEditor() {
           <button onClick={() => setCanvasScale(p => Math.min(SCALE_MAX, Math.round((p + SCALE_STEP) * 100) / 100))}
             className="px-2 py-1 rounded-md text-xs dark:text-text-dark light:text-text-light hover:bg-white/5" title="放大">+</button>
           <button onClick={() => { setCanvasScale(1); setCanvasTranslate({ x: 0, y: 0 }); }}
-            className="px-2 py-1 rounded-md text-[10px] dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/5" title="重置">重置</button>
+            className="px-2 py-1 rounded-md text-[10px] dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/5 hidden sm:inline-block" title="重置缩放">1:1</button>
         </div>
         <button onClick={clearCanvas} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors text-red-400 hover:bg-red-400/10">
           <RotateCcw className="w-3.5 h-3.5" /><span className="hidden sm:inline">清空</span>
@@ -903,6 +903,20 @@ export default function FlowEditor() {
             </div>
           </div>
         )}
+
+      {/* 窄屏浮动：右侧属性面板开关（工具栏溢出时的兜底入口） */}
+      {!showRightPanel && (
+        <button
+          onClick={() => setShowRightPanel(true)}
+          className="lg:hidden absolute top-2 right-2 z-20 p-2 rounded-lg shadow-md
+                     dark:bg-bg-dark-2 dark:text-text-dark dark:border-border-dark
+                     light:bg-white light:text-text-light light:border-border-light
+                     border transition-colors hover:bg-primary/10 hover:text-primary"
+          title="打开属性面板"
+        >
+          <PanelRight className="w-4 h-4" />
+        </button>
+      )}
       </div>
 
       {/* ===== 右侧：属性面板 ===== */}
