@@ -1,6 +1,6 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
   PointerSensor,
@@ -18,6 +18,7 @@ import {
   PanelLeft, PanelRight,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
+import flowStore from '@/data/flowStore';
 import type {
   FlowDefinition,
   FlowNodeDef,
@@ -93,12 +94,20 @@ function findNonOverlappingPosition(
 }
 
 export default function FlowEditor() {
+  const { id: flowId } = useParams<{ id: string }>();
+
   // ===== 主题感知 =====
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
   // ===== 状态 =====
   const [flow, setFlow] = useState<FlowDefinition>(() => {
+    // ① 优先从 flowStore 加载指定 ID
+    if (flowId) {
+      const loaded = flowStore.getById(flowId);
+      if (loaded) return loaded;
+    }
+    // ② 退回 autosave
     try {
       const raw = localStorage.getItem(AUTOSAVE_KEY);
       if (raw) {
@@ -172,19 +181,16 @@ export default function FlowEditor() {
   // ===== 自动保存（防抖 500ms，防止刷新丢失当前编辑） =====
   useEffect(() => {
     const timer = setTimeout(() => {
+      if (flowId) {
+        flowStore.update(flowId, flow);
+      }
+      // 兜底：仍写 autosave（无 flowId 时唯一保存渠道）
       try {
-        const canvas = canvasRef.current;
-        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({
-          flow,
-          flowName,
-          scrollX: canvas?.scrollLeft ?? 0,
-          scrollY: canvas?.scrollTop ?? 0,
-          selectedNodeId,
-        }));
-      } catch { /* ignore quota errors */ }
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ flow, flowName }));
+      } catch { /* ignore */ }
     }, 500);
     return () => clearTimeout(timer);
-  }, [flow, flowName]);
+  }, [flow, flowName, flowId]);
 
   const scrollRestored = useRef(false);
 

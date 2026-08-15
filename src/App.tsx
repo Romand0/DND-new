@@ -30,6 +30,7 @@ import CombatList from '@/pages/CombatList';
 import CombatSession from '@/pages/CombatSession';
 import BattlegroundEditor from '@/pages/BattlegroundEditor';
 import FlowEditor from '@/pages/FlowEditor';
+import FlowList from '@/pages/FlowList';
 import GameClockPage from '@/pages/GameClockPage';
 import CalendarPage from '@/pages/CalendarPage';
 import NotesPage from '@/pages/NotesPage';
@@ -108,7 +109,6 @@ export default function App() {
               {/* ✅ 修改1：参数名从 :id 改为 :sessionId，和 CombatSession 里的 useParams 对齐 */}
                     <Route path="/combat/:sessionId" element={<CombatSession />} />
                     <Route path="/combat/:sessionId/battleground-editor" element={<BattlegroundEditor />} />
-                    <Route path="/flow-editor" element={<FlowEditor />} />
             </Route>
 
             {/* DM 端（完整导航栏）- 需要登录 + DM 角色 */}
@@ -130,6 +130,8 @@ export default function App() {
               <Route path="inventory/treasures/new" element={<TreasureEdit />} />
               <Route path="inventory/treasures/:id/edit" element={<TreasureEdit />} />
               <Route path="inventory/treasures/:id/distribute" element={<TreasureDistribute />} />
+              <Route path="flows" element={<FlowList />} />
+              <Route path="flows/:id/edit" element={<FlowEditor />} />
               {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />
