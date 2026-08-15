@@ -26,6 +26,8 @@ import type {
   NodeTypeMeta,
 } from '@/types/flow';
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow } from '@/types/flow';
+import { NODE_CONFIG_SCHEMA } from '@/types/flow';
+import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 
 // ===== 节点图标解析 =====
 /** 从 icon name 解析为 React 元素，单一真相源 */
@@ -316,10 +318,16 @@ export default function FlowEditor() {
   // ===== 添加节点（自动防重叠） =====
   const addNode = useCallback((typeMeta: NodeTypeMeta, position: { x: number; y: number }) => {
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    // 从 Schema 合并默认值（Schema 优先，兜底 defaultConfig）
+    const schemaDefaults: Record<string, any> = {};
+    const fields = NODE_CONFIG_SCHEMA[typeMeta.type] ?? [];
+    for (const f of fields) {
+      if (f.defaultValue !== undefined) schemaDefaults[f.key] = f.defaultValue;
+    }
     const newNode: FlowNodeDef = {
       id, type: typeMeta.type, label: typeMeta.label,
       position: { x: position.x, y: position.y },
-      config: typeMeta.defaultConfig ? { ...typeMeta.defaultConfig } : {},
+      config: { ...typeMeta.defaultConfig, ...schemaDefaults },
     };
     // 新节点防重叠放置
     const finalPos = findNonOverlappingPosition(newNode, flow.nodes, NODE_W);
@@ -990,59 +998,94 @@ export default function FlowEditor() {
                 />
               </div>
 
-              {/* 配置项 */}
-              <div className="mb-3">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">
-                    配置项
-                  </label>
-                  <button
-                    onClick={() => {
-                      const key = prompt('请输入配置项名称:');
-                      if (key) updateNodeConfig(selectedNode.id, key, '');
-                    }}
-                    className="text-xs text-primary hover:underline"
-                  >
-                    + 添加
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {Object.entries(selectedNode.config || {}).map(([key, value]) => (
-                    <div key={key} className="flex items-start gap-2">
-                      <div className="flex-1">
-                        <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-0.5">{key}</div>
-                        <input
-                          type="text"
-                          value={String(value)}
-                          onChange={(e) => updateNodeConfig(selectedNode.id, key, e.target.value)}
-                          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-                        />
+              {/* 配置项 —— Schema 驱动 */}
+              {(() => {
+                const fields = NODE_CONFIG_SCHEMA[selectedNode.type] ?? [];
+                return (
+                  <div className="mb-3">
+                    <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-2">
+                      配置项
+                    </label>
+
+                    {/* Schema 定义的字段：中文标签 + 专用控件 */}
+                    {fields.length > 0 ? (
+                      <div className="space-y-3">
+                        {fields.map(field => (
+                          <div key={field.key}>
+                            <div className="flex items-center gap-1 mb-1">
+                              <span className="text-xs font-medium dark:text-text-dark light:text-text-light">
+                                {field.label}
+                              </span>
+                              {field.required && <span className="text-[10px] text-red-400">*</span>}
+                            </div>
+                            <ConfigFieldRenderer
+                              schema={field}
+                              value={selectedNode.config?.[field.key]}
+                              onChange={v => updateNodeConfig(selectedNode.id, field.key, v)}
+                              isDark={isDark}
+                            />
+                            {/* DSL 值提示：底部小字显示实际存储值 */}
+                            <div className="text-[10px] font-mono mt-0.5 dark:text-text-dark-muted light:text-text-light-muted">
+                              {field.key} = {String(selectedNode.config?.[field.key] ?? field.defaultValue ?? '')}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <button
-                        onClick={() => {
-                          setFlow(prev => ({
-                            ...prev,
-                            nodes: prev.nodes.map(n =>
-                              n.id === selectedNode.id
-                                ? { ...n, config: Object.fromEntries(Object.entries(n.config || {}).filter(([k]) => k !== key)) }
-                                : n
-                            ),
-                            updatedAt: Date.now(),
-                          }));
-                        }}
-                        className="p-1 rounded hover:bg-white/10 text-red-400 mt-4"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                  {(!selectedNode.config || Object.keys(selectedNode.config).length === 0) && (
-                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
-                      暂无配置项
-                    </p>
-                  )}
-                </div>
-              </div>
+                    ) : (
+                      <p className="text-xs italic dark:text-text-dark-muted light:text-text-light-muted">
+                        该节点无可配置项
+                      </p>
+                    )}
+
+                    {/* Schema 之外的自定义额外字段（保留灵活性） */}
+                    {(() => {
+                      const schemaKeys = new Set(fields.map(f => f.key));
+                      const extra = Object.entries(selectedNode.config || {}).filter(([k]) => !schemaKeys.has(k));
+                      if (extra.length === 0) return null;
+                      return (
+                        <div className="mt-3 pt-3 border-t dark:border-border-dark light:border-border-light">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">自定义字段</span>
+                            <button
+                              onClick={() => {
+                                const key = prompt('请输入配置项名称:');
+                                if (key) updateNodeConfig(selectedNode.id, key, '');
+                              }}
+                              className="text-xs text-primary hover:underline"
+                            >+ 添加</button>
+                          </div>
+                          <div className="space-y-2">
+                            {extra.map(([key, value]) => (
+                              <div key={key} className="flex items-start gap-2">
+                                <div className="flex-1">
+                                  <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-0.5">{key}</div>
+                                  <input type="text" value={String(value)}
+                                    onChange={e => updateNodeConfig(selectedNode.id, key, e.target.value)}
+                                    className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                                  />
+                                </div>
+                                <button onClick={() => {
+                                  setFlow(prev => ({
+                                    ...prev,
+                                    nodes: prev.nodes.map(n =>
+                                      n.id === selectedNode.id
+                                        ? { ...n, config: Object.fromEntries(Object.entries(n.config || {}).filter(([k]) => k !== key)) }
+                                        : n
+                                    ),
+                                    updatedAt: Date.now(),
+                                  }));
+                                }} className="p-1 rounded hover:bg-white/10 text-red-400 mt-4">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
 
               {/* 备注 */}
               <div className="mb-3">
