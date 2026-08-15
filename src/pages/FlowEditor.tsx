@@ -22,25 +22,24 @@ import type {
   FlowDefinition,
   FlowNodeDef,
   FlowEdgeDef,
-  FlowNodeType,
   NodeTypeMeta,
 } from '@/types/flow';
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow, serializeFlow, deserializeFlow } from '@/types/flow';
 
-// ===== 节点类型 → 图标映射 =====
-const NODE_TYPE_ICONS: Record<FlowNodeType, React.ReactNode> = {
-  cast_start: <Zap className="w-4 h-4" />,
-  check_component: <Shield className="w-4 h-4" />,
-  check_range: <Target className="w-4 h-4" />,
-  select_target: <MousePointer className="w-4 h-4" />,
-  saving_throw: <Shield className="w-4 h-4" />,
-  attack_roll: <Zap className="w-4 h-4" />,
-  condition_branch: <GitBranch className="w-4 h-4" />,
-  apply_effect: <Heart className="w-4 h-4" />,
-  concentration_check: <Shield className="w-4 h-4" />,
-  cast_end: <Skull className="w-4 h-4" />,
-  custom: <Zap className="w-4 h-4" />,
-};
+// ===== 节点图标解析 =====
+/** 从 icon name 解析为 React 元素，单一真相源 */
+function resolveNodeIcon(iconName?: string): React.ReactNode {
+  const map: Record<string, React.ReactNode> = {
+    'zap': <Zap className="w-4 h-4" />,
+    'shield': <Shield className="w-4 h-4" />,
+    'target': <Target className="w-4 h-4" />,
+    'mouse-pointer': <MousePointer className="w-4 h-4" />,
+    'git-branch': <GitBranch className="w-4 h-4" />,
+    'heart': <Heart className="w-4 h-4" />,
+    'skull': <Skull className="w-4 h-4" />,
+  };
+  return map[iconName || ''] ?? <Zap className="w-4 h-4" />;
+}
 
 // ===== 本地存储 key =====
 const STORAGE_KEY = 'dnd-flow-editor-drafts';
@@ -869,7 +868,7 @@ export default function FlowEditor() {
                   className="w-6 h-6 rounded flex items-center justify-center text-white"
                   style={{ backgroundColor: NODE_TYPE_REGISTRY.find(m => m.type === selectedNode.type)?.color || '#6b7280' }}
                 >
-                  {NODE_TYPE_ICONS[selectedNode.type] || <Zap className="w-3 h-3" />}
+                  {resolveNodeIcon(NODE_TYPE_REGISTRY.find(m => m.type === selectedNode.type)?.icon)}
                 </span>
                 <div>
                   <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">
@@ -1426,7 +1425,7 @@ function DraggableFlowNode({
             className="w-5 h-5 sm:w-6 sm:h-6 rounded flex items-center justify-center text-white flex-shrink-0"
             style={{ backgroundColor: meta?.color || '#6b7280' }}
           >
-            {NODE_TYPE_ICONS[node.type] || <Zap className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
+            {resolveNodeIcon(meta?.icon)}
           </span>
           <div className="flex-1 min-w-0">
             <div className="text-[11px] sm:text-xs font-semibold dark:text-text-dark light:text-text-light truncate">
