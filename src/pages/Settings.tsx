@@ -1,5 +1,6 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Settings as SettingsIcon, ShieldCheck, Database, Upload, ChevronRight, Users } from 'lucide-react';
+import { Workflow } from 'lucide-react';
 
 const TOKEN_KEY = 'dm_token';
 const VERIFIED_KEY = 'dm_token_verified';
@@ -28,6 +29,12 @@ const NAV_ITEMS = [
     icon: Database,
     label: '数据管理',
     description: '批量导入装备数据，管理游戏资料库',
+  },
+  {
+    path: '/settings/flows',
+    icon: Workflow,
+    label: '流程库管理',
+    description: '创建、编辑、删除 DSL 编译器流程定义（需管理员权限）',
   },
 ];
 
