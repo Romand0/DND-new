@@ -454,7 +454,7 @@ export default function FlowEditor() {
     setIsColliding(false);
   }, []);
 
-  // ===== 事件：拖拽移动（实时碰撞检测） =====
+  // ===== 事件：拖拽移动（实时碰撞检测 + 实时位置更新） =====
   const handleDragMove = useCallback((event: DragEndEvent) => {
     const { active, delta } = event;
     if (!active) return;
@@ -462,11 +462,21 @@ export default function FlowEditor() {
     const projected = getProjectedPosition(nodeId, delta);
     const colliding = checkCollision(nodeId, projected.x, projected.y);
     setIsColliding(colliding);
+    // 关键新增：实时将 delta 写入 flow 状态，驱动 SVG 重绘
+    setFlow(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n =>
+        n.id === nodeId
+          ? { ...n, position: { x: Math.max(0, n.position.x + delta.x), y: Math.max(0, n.position.y + delta.y) } }
+          : n
+      ),
+      // 注意：拖拽中不更新 updatedAt，避免触发无意义的 autosave
+    }));
   }, [checkCollision, getProjectedPosition]);
 
   // ===== 事件：拖拽结束 =====
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, delta } = event;
+    const { active } = event;
     // ── 新增：从左侧栏拖入画布 ──
     if (active.data.current?.fromPalette) {
       const typeMeta = active.data.current.typeMeta as NodeTypeMeta;
@@ -492,12 +502,24 @@ export default function FlowEditor() {
       addNode(typeMeta, { x: cx, y: cy });
       return;
     }
-    // ── 原有逻辑：画布内节点拖拽移动 ──
+    // ── 原有逻辑：画布内节点拖拽移动（位置已在 handleDragMove 实时更新，此处仅碰撞校正） ──
     const nodeId = active.id as string;
-    updateNodePositionByDelta(nodeId, delta);
     setDraggingNodeId(null);
     setIsColliding(false);
-  }, [addNode, updateNodePositionByDelta, canvasScale]);
+    // 碰撞检测 + 校正（若重叠则推开）
+    setFlow(prev => {
+      const target = prev.nodes.find(n => n.id === nodeId);
+      if (!target) return prev;
+      const others = prev.nodes.filter(n => n.id !== nodeId);
+      if (!others.some(o => nodesOverlap(target, o, NODE_W))) return prev;
+      const finalPos = findNonOverlappingPosition(target, others, NODE_W);
+      return {
+        ...prev,
+        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
+        updatedAt: Date.now(),
+      };
+    });
+  }, [addNode, canvasScale]);
 
   // ===== 画布空白处点击取消选中 =====
   const handleCanvasClick = useCallback(() => {
@@ -925,7 +947,7 @@ export default function FlowEditor() {
       <div
         className={`${
           showRightPanel ? 'translate-x-0' : 'translate-x-full'
-        } ${showRightPanel ? 'lg:relative' : ''} absolute right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
+        } absolute right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-4 lg:hidden">
