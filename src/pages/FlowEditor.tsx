@@ -150,7 +150,9 @@ export default function FlowEditor() {
     return '';
   });
   const [showLeftPanel, setShowLeftPanel] = useState(false);
-  const [showRightPanel, setShowRightPanel] = useState(true);
+  const [showRightPanel, setShowRightPanel] = useState(
+    () => window.matchMedia('(min-width: 1024px)').matches
+  );
   // 拖拽状态：实时碰撞检测
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [isColliding, setIsColliding] = useState(false);
@@ -235,8 +237,8 @@ export default function FlowEditor() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,
-        tolerance: 10,
+        delay: 250,
+        tolerance: 5,
       },
     }),
   );
@@ -367,8 +369,8 @@ export default function FlowEditor() {
       const target = prev.nodes.find(n => n.id === nodeId);
       if (!target) return prev;
       const proposed = {
-        x: Math.max(0, target.position.x + delta.x),
-        y: Math.max(0, target.position.y + delta.y),
+        x: Math.max(0, target.position.x + delta.x / canvasScale),
+        y: Math.max(0, target.position.y + delta.y / canvasScale),
       };
       const testNode = { ...target, position: proposed };
       const others = prev.nodes.filter(n => n.id !== nodeId);
@@ -467,7 +469,7 @@ export default function FlowEditor() {
       ...prev,
       nodes: prev.nodes.map(n =>
         n.id === nodeId
-          ? { ...n, position: { x: Math.max(0, n.position.x + delta.x), y: Math.max(0, n.position.y + delta.y) } }
+          ? { ...n, position: { x: Math.max(0, n.position.x + delta.x / canvasScale), y: Math.max(0, n.position.y + delta.y / canvasScale) } }
           : n
       ),
       // 注意：拖拽中不更新 updatedAt，避免触发无意义的 autosave
@@ -947,7 +949,7 @@ export default function FlowEditor() {
       <div
         className={`${
           showRightPanel ? 'translate-x-0' : 'translate-x-full'
-        } absolute right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
+        } lg:translate-x-0 absolute lg:relative right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-4 lg:hidden">
