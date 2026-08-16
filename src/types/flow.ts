@@ -110,21 +110,20 @@ export function parseFlowId(id: string): { category: FlowCategory; slug: string 
   return { category, slug };
 }
 
-/** 构建合格 ID： → "spell:fireball" */
+/** 构建合格 ID → "spell:fireball" 或 "spell:power_word_kill"
+ * 轻洗策略：仅修空格和连续下划线，保留中文/连字符等 */
 export function buildFlowId(category: FlowCategory, slug: string): string {
   const prefix = CATEGORY_PREFIX[category];
-  const safeSlug = slug.replace(/[^a-z0-9]/gi, '').replace(/\+/g, '').replace(/^|$/g, '');
+  const safeSlug = slug.trim()
+    .replace(/\s+/g, '_')            // 空格 → 下划线
+    .replace(/_+/g, '_')             // 连续下划线合并
+    .replace(/^_+|_+$/g, '');        // 去首尾下划线
   return safeSlug ? `${prefix}:${safeSlug}` : `${prefix}:unnamed`;
 }
 
-/** 流程名称 → slug（圣言术 → power_word_kill 需手动填，但英文名自动转） */
+/** 名称 → slug 建议（仅用于新建流程的默认值，不强制） */
 export function nameToSlug(name: string): string {
-  return name
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, '_')
-    .replace(/[^a-z0-9_]/g, '')
-    || 'unnamed';
+  return name.trim().replace(/\s+/g, '_') || 'unnamed';
 }
 
 // ======================
