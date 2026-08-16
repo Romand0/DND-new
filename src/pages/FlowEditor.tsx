@@ -34,6 +34,7 @@ import {
   buildFlowId,
 } from '@/types/flow';
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
+import SpellIdPicker from '@/components/SpellIdPicker';
 
 // ===== 节点图标解析 =====
 /** 从 icon name 解析为 React 元素，单一真相源 */
@@ -159,6 +160,8 @@ export default function FlowEditor() {
   const [showRightPanel, setShowRightPanel] = useState(
     () => window.matchMedia('(min-width: 1024px)').matches
   );
+  const [flowIdDraft, setFlowIdDraft] = useState(flow.id);
+  useEffect(() => { setFlowIdDraft(flow.id); }, [flow.id]);
   // 拖拽状态：实时碰撞检测
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [isColliding, setIsColliding] = useState(false);
@@ -1061,9 +1064,94 @@ export default function FlowEditor() {
             </button>
           </div>
 
+          {/* 流程属性（无选中节点时显示） */}
+          {!selectedNode && (
+            <div>
+              <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4">
+                流程属性
+              </h3>
+
+              {/* 流程 ID —— 核心改动点 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  流程 ID
+                </label>
+                <SpellIdPicker
+                  value={flowIdDraft}
+                  onChange={(id) => {
+                    setFlowIdDraft(id);
+                    setFlow(prev => ({ ...prev, id, updatedAt: Date.now() }));
+                  }}
+                  onNameHint={(name) => {
+                    if (!flowNameInput.text || flowNameInput.text === '未命名流程') {
+                      flowNameInput.setExternal(name);
+                      setFlow(prev => ({ ...prev, name, updatedAt: Date.now() }));
+                    }
+                  }}
+                  className="px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                  placeholder="如 spell:fireball"
+                />
+                <p className="text-[10px] mt-1 dark:text-text-dark-muted light:text-text-light-muted">
+                  法术绑定流程建议以 <code className="font-mono">spell:</code> 为前缀
+                </p>
+              </div>
+
+              {/* 流程描述 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  描述
+                </label>
+                <textarea
+                  value={flow.description || ''}
+                  onChange={e => setFlow(prev => ({ ...prev, description: e.target.value, updatedAt: Date.now() }))}
+                  rows={3}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-y"
+                />
+              </div>
+
+              {/* 标签 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  标签
+                </label>
+                <input
+                  type="text"
+                  value={(flow.tags || []).join(', ')}
+                  onChange={e => setFlow(prev => ({
+                    ...prev,
+                    tags: e.target.value.split(/,\s*/).filter(Boolean),
+                    updatedAt: Date.now(),
+                  }))}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                  placeholder="逗号分隔，如 法术, 火焰"
+                />
+              </div>
+            </div>
+          )}
+
           {/* 节点属性 */}
           {selectedNode ? (
             <div>
+              {/* 折叠式流程 ID 快捷入口 */}
+              <details className="mb-3">
+                <summary className="text-[10px] font-medium cursor-pointer dark:text-text-dark-muted light:text-text-light-muted hover:text-primary">
+                  流程 ID：{flow.id}
+                </summary>
+                <div className="mt-1">
+                  <SpellIdPicker
+                    value={flowIdDraft}
+                    onChange={(id) => { setFlowIdDraft(id); setFlow(prev => ({ ...prev, id, updatedAt: Date.now() })); }}
+                    onNameHint={(name) => {
+                      if (!flowNameInput.text || flowNameInput.text === '未命名流程') {
+                        flowNameInput.setExternal(name);
+                        setFlow(prev => ({ ...prev, name, updatedAt: Date.now() }));
+                      }
+                    }}
+                    className="px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                    placeholder="如 spell:fireball"
+                  />
+                </div>
+              </details>
               <div className="flex items-center gap-2 mb-4">
                 <span
                   className="w-6 h-6 rounded flex items-center justify-center text-white"
