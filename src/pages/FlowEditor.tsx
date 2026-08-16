@@ -1390,11 +1390,10 @@ export default function FlowEditor() {
                         type="text"
                         value={slug}
                         onChange={(e) => {
+                          // ★ 自由输入，不即时过滤——和 SpellEditor 一致
                           const newSlug = e.target.value;
                           const newId = buildFlowId(category, newSlug);
-                          if (newId !== flow.id && flowId) {
-                            setFlow(prev => ({ ...prev, id: newId }));
-                          }
+                          setFlow(prev => ({ ...prev, id: newId }));
                         }}
                         onBlur={() => {
                           if (flow.id !== flowId && flowId) {
