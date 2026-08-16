@@ -113,7 +113,7 @@ export function parseFlowId(id: string): { category: FlowCategory; slug: string 
 /** 构建合格 ID： → "spell:fireball" */
 export function buildFlowId(category: FlowCategory, slug: string): string {
   const prefix = CATEGORY_PREFIX[category];
-  const safeSlug = slug.replace(/[^a-z0-9]/gi, '').replace(/+/g, '').replace(/^|$/g, '');
+  const safeSlug = slug.replace(/[^a-z0-9]/gi, '').replace(/\+/g, '').replace(/^|$/g, '');
   return safeSlug ? `${prefix}:${safeSlug}` : `${prefix}:unnamed`;
 }
 
