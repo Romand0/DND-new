@@ -154,6 +154,7 @@ export default function FlowEditor() {
   // 拖拽状态：实时碰撞检测
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [isColliding, setIsColliding] = useState(false);
+  const [dragOffset, setDragOffset] = useState<{ nodeId: string; dx: number; dy: number } | null>(null);
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasTranslate, setCanvasTranslate] = useState({ x: 0, y: 0 });
 
@@ -452,74 +453,33 @@ export default function FlowEditor() {
     const nodeId = event.active?.id as string;
     if (nodeId) setDraggingNodeId(nodeId);
     setIsColliding(false);
+    setDragOffset(null); // 防御：清除可能残留的旧偏移
   }, []);
 
-  // ===== 事件：拖拽移动（实时碰撞检测 + 实时位置更新） =====
+  // ===== 事件：拖拽移动（仅记录偏移 → 驱动 SVG 重绘，绝不 setFlow） =====
   const handleDragMove = useCallback((event: DragEndEvent) => {
     const { active, delta } = event;
     if (!active) return;
     const nodeId = active.id as string;
+    // 仅记录偏移 → 驱动 effectiveNodes → SVG 实时重绘
+    // 绝不 setFlow，绝不双倍位移
+    setDragOffset({ nodeId, dx: delta.x, dy: delta.y });
+    // 碰撞检测照常
     const projected = getProjectedPosition(nodeId, delta);
     const colliding = checkCollision(nodeId, projected.x, projected.y);
     setIsColliding(colliding);
-    // 关键新增：实时将 delta 写入 flow 状态，驱动 SVG 重绘
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n =>
-        n.id === nodeId
-          ? { ...n, position: { x: Math.max(0, n.position.x + delta.x), y: Math.max(0, n.position.y + delta.y) } }
-          : n
-      ),
-      // 注意：拖拽中不更新 updatedAt，避免触发无意义的 autosave
-    }));
   }, [checkCollision, getProjectedPosition]);
 
-  // ===== 事件：拖拽结束 =====
+  // ===== 事件：拖拽结束（清除偏移，提交 position） =====
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active } = event;
-    // ── 新增：从左侧栏拖入画布 ──
-    if (active.data.current?.fromPalette) {
-      const typeMeta = active.data.current.typeMeta as NodeTypeMeta;
-      const translatedRect = active.rect.current.translated;
-      if (translatedRect && canvasRef.current) {
-        const canvasRect = canvasRef.current.getBoundingClientRect();
-        if (
-          translatedRect.left >= canvasRect.left &&
-          translatedRect.left <= canvasRect.right &&
-          translatedRect.top >= canvasRect.top &&
-          translatedRect.top <= canvasRect.bottom
-        ) {
-          const x = (translatedRect.left - canvasRect.left + canvasRef.current.scrollLeft) / canvasScale;
-          const y = (translatedRect.top - canvasRect.top + canvasRef.current.scrollTop) / canvasScale;
-          addNode(typeMeta, { x, y });
-          return;
-        }
-      }
-      // 释放在画布外 → 回退到画布中心
-      const canvas = canvasRef.current;
-      const cx = canvas ? canvas.scrollLeft + canvas.clientWidth / 2 - NODE_W / 2 : 1200;
-      const cy = canvas ? canvas.scrollTop + canvas.clientHeight / 2 - 24 : 800;
-      addNode(typeMeta, { x: cx, y: cy });
-      return;
-    }
-    // ── 原有逻辑：画布内节点拖拽移动（位置已在 handleDragMove 实时更新，此处仅碰撞校正） ──
+    const { active, delta } = event;
+    if (!active) return;
+    setDragOffset(null); // 清除偏移
     const nodeId = active.id as string;
+    updateNodePositionByDelta(nodeId, { x: delta.x, y: delta.y });
     setDraggingNodeId(null);
     setIsColliding(false);
-    // 碰撞检测 + 校正（若重叠则推开）
-    setFlow(prev => {
-      const target = prev.nodes.find(n => n.id === nodeId);
-      if (!target) return prev;
-      const others = prev.nodes.filter(n => n.id !== nodeId);
-      if (!others.some(o => nodesOverlap(target, o, NODE_W))) return prev;
-      const finalPos = findNonOverlappingPosition(target, others, NODE_W);
-      return {
-        ...prev,
-        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
-        updatedAt: Date.now(),
-      };
-    });
-  }, [addNode, canvasScale]);
+  }, [updateNodePositionByDelta]);
 
   // ===== 画布空白处点击取消选中 =====
   const handleCanvasClick = useCallback(() => {
@@ -610,14 +570,24 @@ export default function FlowEditor() {
     }
   }, []);
 
+  // ===== 拖拽期间的有效节点（dragOffset 只驱动 SVG 重绘，不动 flow.nodes） =====
+  const effectiveNodes = useMemo(() => {
+    if (!dragOffset) return flow.nodes;
+    return flow.nodes.map(n =>
+      n.id === dragOffset.nodeId
+        ? { ...n, position: { x: Math.max(0, n.position.x + dragOffset.dx), y: Math.max(0, n.position.y + dragOffset.dy) } }
+        : n
+    );
+  }, [flow.nodes, dragOffset]);
+
   // ===== 获取选中节点 =====
   const selectedNode = flow.nodes.find(n => n.id === selectedNodeId) || null;
   const selectedEdge = flow.edges.find(e => e.id === selectedEdgeId) || null;
 
   // ===== 计算 SVG 连线路径 =====
-  function getEdgePath(edge: FlowEdgeDef): string | null {
-    const fromNode = flow.nodes.find(n => n.id === edge.from);
-    const toNode = flow.nodes.find(n => n.id === edge.to);
+  function getEdgePath(edge: FlowEdgeDef, nodes: FlowNodeDef[]): string | null {
+    const fromNode = nodes.find(n => n.id === edge.from);
+    const toNode = nodes.find(n => n.id === edge.to);
     if (!fromNode || !toNode) return null;
 
     const fx = fromNode.position.x + NODE_W / 2;
@@ -834,7 +804,7 @@ export default function FlowEditor() {
                   </marker>
                 </defs>
                 {flow.edges.map(edge => {
-                  const path = getEdgePath(edge);
+                  const path = getEdgePath(edge, effectiveNodes);
                   if (!path) return null;
                   const isSelected = selectedEdgeId === edge.id;
                   return (
@@ -850,7 +820,7 @@ export default function FlowEditor() {
                       />
                       {/* 波浪箭头层 —— 用 marker-mid 沿采样折线放置 >>>>> 花纹 */}
                       {(() => {
-                        const endpoints = getEdgeEndpoints(edge, flow.nodes);
+                        const endpoints = getEdgeEndpoints(edge, effectiveNodes);
                         if (!endpoints) return null;
                         const isFailEdge = edge.trigger === 'on_failure' || edge.trigger === 'on_false';
                         const chevronMarkerId = isFailEdge
@@ -870,14 +840,14 @@ export default function FlowEditor() {
                         );
                       })()}
                       {/* 流向箭头 */}
-                      <polygon points="0,-5 10,0 0,5" fill={isDark ? '#312e81' : '#ffffff'} stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
-                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      <polygon points="0,-5 10,0 0,5" fill={isDark ? '#312e81' : '#ffffff'} stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} strokeWidth="1" transform={`translate(${getArrowPos(edge, effectiveNodes)})`} />
+                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} transform={`translate(${getArrowPos(edge, effectiveNodes)})`} />
                       {/* 连线中部标签：圆角边框样式块（暗色适配：深紫底白字 / 亮白底黑字） */}
                       {edge.label && (
                         <>
                           <rect
-                            x={getLabelPos(edge, flow.nodes).x - 30}
-                            y={getLabelPos(edge, flow.nodes).y - 11}
+                            x={getLabelPos(edge, effectiveNodes).x - 30}
+                            y={getLabelPos(edge, effectiveNodes).y - 11}
                             width="60"
                             height="22"
                             rx="6"
@@ -888,8 +858,8 @@ export default function FlowEditor() {
                             onClick={() => setSelectedEdgeId(edge.id)}
                           />
                           <text
-                            x={getLabelPos(edge, flow.nodes).x}
-                            y={getLabelPos(edge, flow.nodes).y}
+                            x={getLabelPos(edge, effectiveNodes).x}
+                            y={getLabelPos(edge, effectiveNodes).y}
                             fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#ffffff' : '#1a1a2e')}
                             fontSize="10"
                             textAnchor="middle"
@@ -947,7 +917,7 @@ export default function FlowEditor() {
       <div
         className={`${
           showRightPanel ? 'translate-x-0' : 'translate-x-full'
-        } absolute right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
+        } ${showRightPanel ? 'lg:relative' : ''} absolute right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
       >
         <div className="p-4">
           <div className="flex items-center justify-between mb-4 lg:hidden">
