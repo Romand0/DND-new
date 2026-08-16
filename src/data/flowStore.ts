@@ -2,6 +2,18 @@ import type { FlowDefinition } from '@/types/flow';
 import { serializeFlow, deserializeFlow } from '@/types/flow';
 
 const STORAGE_KEY = 'dnd-flow-library';
+const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
+
+/** 位置快照：编辑器画布/面板视图状态（按流程 ID 维度存储） */
+export interface FlowViewportSnapshot {
+  scrollX: number;
+  scrollY: number;
+  scale: number;
+  translateX: number;
+  translateY: number;
+  showLeftPanel: boolean;
+  showRightPanel: boolean;
+}
 
 type Listener = () => void;
 let listeners: Listener[] = [];
@@ -102,6 +114,28 @@ const flowStore = {
       }
       write([...read(), flow]);
       return flow;
+    } catch {
+      return null;
+    }
+  },
+
+  /** 保存位置快照（按流程 ID） */
+  saveViewportSnapshot(flowId: string, snapshot: FlowViewportSnapshot): void {
+    try {
+      const raw = localStorage.getItem(VIEWPORT_KEY);
+      const map: Record<string, FlowViewportSnapshot> = raw ? JSON.parse(raw) : {};
+      map[flowId] = snapshot;
+      localStorage.setItem(VIEWPORT_KEY, JSON.stringify(map));
+    } catch { /* ignore */ }
+  },
+
+  /** 恢复位置快照（按流程 ID） */
+  getViewportSnapshot(flowId: string): FlowViewportSnapshot | null {
+    try {
+      const raw = localStorage.getItem(VIEWPORT_KEY);
+      if (!raw) return null;
+      const map: Record<string, FlowViewportSnapshot> = JSON.parse(raw);
+      return map?.[flowId] ?? null;
     } catch {
       return null;
     }

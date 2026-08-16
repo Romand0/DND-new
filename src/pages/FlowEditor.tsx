@@ -271,16 +271,100 @@ export default function FlowEditor() {
     return () => clearTimeout(timer);
   }, [flow, flowName, flowId]);
 
-  const scrollRestored = useRef(false);
+  // ===== 位置快照：保存（画布滚动 + 缩放 + 面板展开状态，按流程 ID 持久化） =====
+  const viewportRef = useRef({
+    scrollX: 0,
+    scrollY: 0,
+    scale: canvasScale,
+    translateX: canvasTranslate.x,
+    translateY: canvasTranslate.y,
+    showLeftPanel,
+    showRightPanel,
+  });
+  const saveTimerRef = useRef<number | null>(null);
 
-  useLayoutEffect(() => {
-    if (scrollRestored.current) return;
+  const saveViewport = useCallback(() => {
+    if (!flowId) return;
+    const canvas = canvasRef.current;
+    const v = viewportRef.current;
+    flowStore.saveViewportSnapshot(flowId, {
+      scrollX: canvas ? canvas.scrollLeft : v.scrollX,
+      scrollY: canvas ? canvas.scrollTop : v.scrollY,
+      scale: v.scale,
+      translateX: v.translateX,
+      translateY: v.translateY,
+      showLeftPanel: v.showLeftPanel,
+      showRightPanel: v.showRightPanel,
+    });
+  }, [flowId]);
+
+  const scheduleViewportSave = useCallback(() => {
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      saveViewport();
+    }, 500);
+  }, [saveViewport]);
+
+  // 视图状态 → ref（避免 useCallback 依赖抖动）
+  useEffect(() => {
+    viewportRef.current.scale = canvasScale;
+    viewportRef.current.translateX = canvasTranslate.x;
+    viewportRef.current.translateY = canvasTranslate.y;
+    viewportRef.current.showLeftPanel = showLeftPanel;
+    viewportRef.current.showRightPanel = showRightPanel;
+  }, [canvasScale, canvasTranslate, showLeftPanel, showRightPanel]);
+
+  // 滚动事件：实时记录 + 防抖保存
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    const onScroll = () => {
+      viewportRef.current.scrollX = canvas.scrollLeft;
+      viewportRef.current.scrollY = canvas.scrollTop;
+      scheduleViewportSave();
+    };
+    canvas.addEventListener('scroll', onScroll);
+    return () => canvas.removeEventListener('scroll', onScroll);
+  }, [scheduleViewportSave]);
+
+  // 缩放/面板状态变化：防抖保存
+  useEffect(() => {
+    scheduleViewportSave();
+  }, [canvasScale, canvasTranslate, showLeftPanel, showRightPanel, scheduleViewportSave]);
+
+  // 卸载 / 刷新前：立即保存
+  useEffect(() => {
+    const onUnload = () => saveViewport();
+    window.addEventListener('beforeunload', onUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onUnload);
+      saveViewport();
+    };
+  }, [saveViewport]);
+
+  const scrollRestored = useRef(false);
+
+  // ===== 位置快照：恢复（优先 store 快照，兜底 autosave 滚动位置） =====
+  useLayoutEffect(() => {
+    if (scrollRestored.current) return;
+    scrollRestored.current = true;
+    const canvas = canvasRef.current;
+
+    const snapshot = flowId ? flowStore.getViewportSnapshot(flowId) : null;
+    if (snapshot && canvas) {
+      if (typeof snapshot.scale === 'number' && snapshot.scale > 0) setCanvasScale(snapshot.scale);
+      setCanvasTranslate({ x: snapshot.translateX, y: snapshot.translateY });
+      setShowLeftPanel(snapshot.showLeftPanel);
+      setShowRightPanel(snapshot.showRightPanel);
+      canvas.scrollLeft = snapshot.scrollX;
+      canvas.scrollTop  = snapshot.scrollY;
+      return;
+    }
 
     try {
       const raw = localStorage.getItem(AUTOSAVE_KEY);
-      if (raw) {
+      if (raw && canvas) {
         const data = JSON.parse(raw);
         if (typeof data.scrollX === 'number' && typeof data.scrollY === 'number') {
           canvas.scrollLeft = data.scrollX;
@@ -288,9 +372,7 @@ export default function FlowEditor() {
         }
       }
     } catch { /* ignore */ }
-
-    scrollRestored.current = true;
-  }, []);
+  }, [flowId]);
 
   // ===== 创建空流程 =====
   function createEmptyFlow(): FlowDefinition {
