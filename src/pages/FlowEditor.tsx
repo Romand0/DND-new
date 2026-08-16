@@ -27,6 +27,11 @@ import type {
 } from '@/types/flow';
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow } from '@/types/flow';
 import { NODE_CONFIG_SCHEMA } from '@/types/flow';
+import {
+  FLOW_CATEGORIES,
+  parseFlowId,
+  buildFlowId,
+} from '@/types/flow';
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 
 // ===== 节点图标解析 =====
@@ -1326,13 +1331,95 @@ export default function FlowEditor() {
               </button>
             </div>
           ) : (
-            /* 空状态 */
             <div>
-              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                选择一个节点或连线以编辑属性
-              </p>
+              {/* ===== 流程类别 ===== */}
+              <div className="mb-4">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1.5">
+                  流程类别
+                </label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {FLOW_CATEGORIES.map(cat => {
+                    const { category: currentCat } = parseFlowId(flow.id);
+                    const isActive = currentCat === cat.value;
+                    return (
+                      <button
+                        key={cat.value}
+                        onClick={() => {
+                          const { slug } = parseFlowId(flow.id);
+                          const newId = buildFlowId(cat.value, slug);
+                          if (newId !== flow.id && flowId) {
+                            const result = flowStore.retargetId(flowId, newId);
+                            if (result) {
+                              setFlow(result);
+                              navigate(`/flows/${newId}/edit`, { replace: true });
+                            } else {
+                              alert('ID 冲突，该类别+标识符已被占用');
+                            }
+                          }
+                        }}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors
+                          ${isActive
+                            ? 'bg-primary text-white'
+                            : 'border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:border-primary/40'
+                          }`}
+                        title={cat.desc}
+                      >
+                        {cat.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
 
-              {/* 统计信息 */}
+              {/* ===== 流程 ID（可编辑 slug 部分） ===== */}
+              <div className="mb-4">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1.5">
+                  流程 ID
+                </label>
+                {(() => {
+                  const { category, slug } = parseFlowId(flow.id);
+                  const prefix = FLOW_CATEGORIES.find(c => c.value === category)?.value ?? 'custom';
+                  return (
+                    <div className="flex items-center gap-0">
+                      {/* 前缀：只读 */}
+                      <span className="px-2 py-1.5 rounded-l-lg border border-r-0 dark:border-border-dark light:border-border-light bg-white/5 text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">
+                        {prefix}:
+                      </span>
+                      {/* slug：可编辑 */}
+                      <input
+                        type="text"
+                        value={slug}
+                        onChange={(e) => {
+                          const newSlug = e.target.value;
+                          const newId = buildFlowId(category, newSlug);
+                          if (newId !== flow.id && flowId) {
+                            setFlow(prev => ({ ...prev, id: newId }));
+                          }
+                        }}
+                        onBlur={() => {
+                          if (flow.id !== flowId && flowId) {
+                            const result = flowStore.retargetId(flowId, flow.id);
+                            if (result) {
+                              navigate(`/flows/${flow.id}/edit`, { replace: true });
+                            } else {
+                              alert('ID 冲突，已回退');
+                              setFlow(prev => ({ ...prev, id: flowId! }));
+                            }
+                          }
+                        }}
+                        className="flex-1 min-w-0 px-2 py-1.5 rounded-r-lg border dark:border-border-dark light:border-border-light bg-transparent text-xs font-mono dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                        placeholder="flow_slug"
+                      />
+                    </div>
+                  );
+                })()}
+                {/* DSL 预览 */}
+                <p className="text-[10px] font-mono mt-1 dark:text-text-dark-muted light:text-text-light-muted">
+                  完整 ID: {flow.id}
+                </p>
+              </div>
+
+              {/* ===== 原有统计信息 ===== */}
               <div className="mt-6 space-y-3">
                 <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
                   流程统计

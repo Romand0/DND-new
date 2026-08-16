@@ -77,6 +77,57 @@ export interface FlowDefinition {
 }
 
 // ======================
+// 流程类别与合格 ID
+// ======================
+
+/** 流程类别枚举 */
+export type FlowCategory = 'spell' | 'class_features' | 'custom';
+
+/** 类别预设表 —— 供 UI 下拉选择 */
+export const FLOW_CATEGORIES: { value: FlowCategory; label: string; desc: string }[] = [
+  { value: 'spell',          label: '法术',     desc: '法术流程（fireball / power_word_kill）' },
+  { value: 'class_features', label: '职业特性', desc: '职业特性流程（rage / sneak_attack）' },
+  { value: 'custom',         label: '自定义',   desc: '其他机制流程' },
+];
+
+/** 合格 ID 前缀映射：类别 → DSL 前缀 */
+const CATEGORY_PREFIX: Record<FlowCategory, string> = {
+  spell: 'spell',
+  class_features: 'class_features',
+  custom: 'custom',
+};
+
+/** 解析合格 ID：spell:fireball → { category: 'spell', slug: 'fireball' } */
+export function parseFlowId(id: string): { category: FlowCategory; slug: string } {
+  const idx = id.indexOf(':');
+  if (idx === -1) {
+    // 旧格式（flow-xxxx）兼容：归为 custom，整串作 slug
+    return { category: 'custom', slug: id };
+  }
+  const raw = id.substring(0, idx);
+  const slug = id.substring(idx + 1);
+  const category = FLOW_CATEGORIES.some(c => c.value === raw) ? (raw as FlowCategory) : 'custom';
+  return { category, slug };
+}
+
+/** 构建合格 ID： → "spell:fireball" */
+export function buildFlowId(category: FlowCategory, slug: string): string {
+  const prefix = CATEGORY_PREFIX[category];
+  const safeSlug = slug.replace(/[^a-z0-9]/gi, '').replace(/+/g, '').replace(/^|$/g, '');
+  return safeSlug ? `${prefix}:${safeSlug}` : `${prefix}:unnamed`;
+}
+
+/** 流程名称 → slug（圣言术 → power_word_kill 需手动填，但英文名自动转） */
+export function nameToSlug(name: string): string {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, '_')
+    .replace(/[^a-z0-9_]/g, '')
+    || 'unnamed';
+}
+
+// ======================
 // 四、节点类型元信息（注册中心用）
 // ======================
 

@@ -61,6 +61,18 @@ const flowStore = {
     return flow;
   },
 
+  /** 变更流程 ID（类别/名称变更时） */
+  retargetId(oldId: string, newId: string): FlowDefinition | undefined {
+    const flows = read();
+    const idx = flows.findIndex(f => f.id === oldId);
+    if (idx === -1) return undefined;
+    // 检查新 ID 冲突
+    if (flows.some(f => f.id === newId)) return undefined;
+    flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
+    write(flows);
+    return flows[idx];
+  },
+
   /** 更新流程（整体替换） */
   update(id: string, patch: Partial<FlowDefinition>): FlowDefinition | undefined {
     const flows = read();
