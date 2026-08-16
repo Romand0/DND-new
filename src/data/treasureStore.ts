@@ -35,6 +35,7 @@ function load(): Treasure[] {
               : { amount: it.unitPrice.amount ?? 0, unit: it.unitPrice.unit ?? 'cp' },
         equipmentSnapshot: it.equipmentSnapshot,
       })),
+      experience: typeof t.experience === 'number' ? t.experience : 0,
       createdAt: t.createdAt ?? Date.now(),
       updatedAt: t.updatedAt ?? Date.now(),
     }));
@@ -91,6 +92,7 @@ const treasureStore = {
       title: title.trim() || '未命名宝藏',
       currency: { pp: 0, gp: 0, sp: 0, cp: 0 },
       items: [],
+      experience: 0,
       createdAt: now,
       updatedAt: now,
     };

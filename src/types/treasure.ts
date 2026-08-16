@@ -39,6 +39,8 @@ export interface Treasure {
   currency: TreasureCurrency;
   /** 物品列表 */
   items: TreasureItem[];
+  /** 经验值奖励 */
+  experience: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -52,5 +54,7 @@ export interface DistributionRecord {
   currency: TreasureCurrency;
   /** 分到的物品 */
   items: TreasureItem[];
+  /** 分到的经验值 */
+  experience: number;
   distributedAt: number;
 }
