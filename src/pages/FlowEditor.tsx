@@ -18,6 +18,7 @@ import {
   PanelLeft, PanelRight,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useTextInput } from '@/hooks/useInput';
 import flowStore from '@/data/flowStore';
 import type {
   FlowDefinition,
@@ -144,7 +145,7 @@ export default function FlowEditor() {
   const [showValidation, setShowValidation] = useState(false);
   const [drafts, setDrafts] = useState<DraftEntry[]>(() => loadDrafts());
   const [showDrafts, setShowDrafts] = useState(false);
-  const [flowName, setFlowName] = useState(() => {
+  const flowNameInput = useTextInput((() => {
     try {
       const raw = localStorage.getItem(AUTOSAVE_KEY);
       if (raw) {
@@ -153,7 +154,7 @@ export default function FlowEditor() {
       }
     } catch { /* ignore */ }
     return '';
-  });
+  })());
   const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(
     () => window.matchMedia('(min-width: 1024px)').matches
@@ -254,7 +255,7 @@ export default function FlowEditor() {
       skipNameSync.current = false;
       return;
     }
-    setFlowName(flow.name);
+    flowNameInput.setExternal(flow.name);
   }, [flow.name]);
 
   // ===== 自动保存（防抖 500ms，防止刷新丢失当前编辑） =====
@@ -265,11 +266,11 @@ export default function FlowEditor() {
       }
       // 兜底：仍写 autosave（无 flowId 时唯一保存渠道）
       try {
-        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ flow, flowName }));
+        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ flow, flowName: flowNameInput.text }));
       } catch { /* ignore */ }
     }, 500);
     return () => clearTimeout(timer);
-  }, [flow, flowName, flowId]);
+  }, [flow, flowNameInput.text, flowId]);
 
   // ===== 位置快照：保存（画布滚动 + 缩放 + 面板展开状态，按流程 ID 持久化） =====
   const viewportRef = useRef({
@@ -652,10 +653,10 @@ export default function FlowEditor() {
 
   // ===== 保存草稿 =====
   const saveDraft = useCallback(() => {
-    const updatedFlow = { ...flow, name: flowName || flow.name, updatedAt: Date.now() };
+    const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
     const newDraft: DraftEntry = {
       id: flow.id,
-      name: flowName || flow.name,
+      name: flowNameInput.value || flow.name,
       flow: updatedFlow,
       updatedAt: Date.now(),
     };
@@ -671,12 +672,12 @@ export default function FlowEditor() {
     saveDraftsToStorage(newDrafts);
     setFlow(updatedFlow);
     alert('草稿已保存到本地');
-  }, [flow, flowName, drafts]);
+  }, [flow, flowNameInput.value, drafts]);
 
   // ===== 加载草稿 =====
   const loadDraft = useCallback((draft: DraftEntry) => {
     setFlow(draft.flow);
-    setFlowName(draft.flow.name);
+    flowNameInput.setExternal(draft.flow.name);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setShowDrafts(false);
@@ -693,7 +694,7 @@ export default function FlowEditor() {
   const clearCanvas = useCallback(() => {
     if (confirm('确定要清空当前画布吗？所有节点和连线将被删除。')) {
       setFlow(createEmptyFlow());
-      setFlowName('未命名流程');
+      flowNameInput.setExternal('未命名流程');
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
     }
@@ -702,6 +703,16 @@ export default function FlowEditor() {
   // ===== 获取选中节点 =====
   const selectedNode = flow.nodes.find(n => n.id === selectedNodeId) || null;
   const selectedEdge = flow.edges.find(e => e.id === selectedEdgeId) || null;
+
+  // ===== 受控输入（useTextInput：输入态字符串与业务值分离，外部值变化时自动同步） =====
+  const nodeLabelInput = useTextInput(selectedNode?.label ?? '');
+  const nodeNotesInput = useTextInput(selectedNode?.notes ?? '');
+  const edgeLabelInput = useTextInput(selectedEdge?.label ?? '');
+  const edgeConditionInput = useTextInput(selectedEdge?.condition ?? '');
+  const edgeDataMapInput = useTextInput(
+    selectedEdge?.dataMap ? JSON.stringify(selectedEdge.dataMap, null, 2) : ''
+  );
+  const slugInput = useTextInput(parseFlowId(flow.id).slug);
 
   // ===== 计算 SVG 连线路径 =====
   function getEdgePath(edge: FlowEdgeDef): string | null {
@@ -732,7 +743,7 @@ export default function FlowEditor() {
             <span className="hidden sm:inline">退出</span>
           </button>
           <div className="h-5 w-px dark:bg-border-dark light:bg-border-light" />
-          <input type="text" value={flowName} onChange={(e) => setFlowName(e.target.value)} className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48" placeholder="流程名称" />
+          <input type="text" value={flowNameInput.text} onChange={(e) => flowNameInput.onChange(e.target.value)} onBlur={flowNameInput.onBlur} className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48" placeholder="流程名称" />
         </div>
         <div className="flex items-center gap-2 px-4">
           <button onClick={saveDraft} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors">
@@ -1090,8 +1101,9 @@ export default function FlowEditor() {
                 </label>
                 <input
                   type="text"
-                  value={selectedNode.label}
+                  value={nodeLabelInput.text}
                   onChange={(e) => {
+                    nodeLabelInput.onChange(e.target.value);
                     setFlow(prev => ({
                       ...prev,
                       nodes: prev.nodes.map(n =>
@@ -1099,6 +1111,19 @@ export default function FlowEditor() {
                       ),
                       updatedAt: Date.now(),
                     }));
+                  }}
+                  onBlur={(e) => {
+                    nodeLabelInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        nodes: prev.nodes.map(n =>
+                          n.id === selectedNode.id ? { ...n, label: trimmed } : n
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
                   }}
                   className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
                 />
@@ -1162,15 +1187,12 @@ export default function FlowEditor() {
                           </div>
                           <div className="space-y-2">
                             {extra.map(([key, value]) => (
-                              <div key={key} className="flex items-start gap-2">
-                                <div className="flex-1">
-                                  <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-0.5">{key}</div>
-                                  <input type="text" value={String(value)}
-                                    onChange={e => updateNodeConfig(selectedNode.id, key, e.target.value)}
-                                    className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-                                  />
-                                </div>
-                                <button onClick={() => {
+                              <ExtraConfigField
+                                key={key}
+                                label={key}
+                                value={String(value)}
+                                onValueChange={(v) => updateNodeConfig(selectedNode.id, key, v)}
+                                onRemove={() => {
                                   setFlow(prev => ({
                                     ...prev,
                                     nodes: prev.nodes.map(n =>
@@ -1180,10 +1202,8 @@ export default function FlowEditor() {
                                     ),
                                     updatedAt: Date.now(),
                                   }));
-                                }} className="p-1 rounded hover:bg-white/10 text-red-400 mt-4">
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
+                                }}
+                              />
                             ))}
                           </div>
                         </div>
@@ -1199,8 +1219,9 @@ export default function FlowEditor() {
                   备注
                 </label>
                 <textarea
-                  value={selectedNode.notes || ''}
+                  value={nodeNotesInput.text}
                   onChange={(e) => {
+                    nodeNotesInput.onChange(e.target.value);
                     setFlow(prev => ({
                       ...prev,
                       nodes: prev.nodes.map(n =>
@@ -1208,6 +1229,19 @@ export default function FlowEditor() {
                       ),
                       updatedAt: Date.now(),
                     }));
+                  }}
+                  onBlur={(e) => {
+                    nodeNotesInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        nodes: prev.nodes.map(n =>
+                          n.id === selectedNode.id ? { ...n, notes: trimmed } : n
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
                   }}
                   rows={3}
                   className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none"
@@ -1343,8 +1377,9 @@ export default function FlowEditor() {
                 </label>
                 <input
                   type="text"
-                  value={selectedEdge.label || ''}
+                  value={edgeLabelInput.text}
                   onChange={(e) => {
+                    edgeLabelInput.onChange(e.target.value);
                     setFlow(prev => ({
                       ...prev,
                       edges: prev.edges.map(ed =>
@@ -1352,6 +1387,19 @@ export default function FlowEditor() {
                       ),
                       updatedAt: Date.now(),
                     }));
+                  }}
+                  onBlur={(e) => {
+                    edgeLabelInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, label: trimmed } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
                   }}
                   className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
                 />
@@ -1363,8 +1411,9 @@ export default function FlowEditor() {
                 </label>
                 <input
                   type="text"
-                  value={selectedEdge.condition || ''}
+                  value={edgeConditionInput.text}
                   onChange={(e) => {
+                    edgeConditionInput.onChange(e.target.value);
                     setFlow(prev => ({
                       ...prev,
                       edges: prev.edges.map(ed =>
@@ -1372,6 +1421,19 @@ export default function FlowEditor() {
                       ),
                       updatedAt: Date.now(),
                     }));
+                  }}
+                  onBlur={(e) => {
+                    edgeConditionInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, condition: trimmed || undefined } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
                   }}
                   className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
                   placeholder="如：target.currentHp > 0"
@@ -1383,8 +1445,9 @@ export default function FlowEditor() {
                   数据映射（可选）
                 </label>
                 <textarea
-                  value={selectedEdge.dataMap ? JSON.stringify(selectedEdge.dataMap, null, 2) : ''}
+                  value={edgeDataMapInput.text}
                   onChange={(e) => {
+                    edgeDataMapInput.onChange(e.target.value);
                     try {
                       const map = e.target.value ? JSON.parse(e.target.value) : undefined;
                       setFlow(prev => ({
@@ -1398,6 +1461,7 @@ export default function FlowEditor() {
                       // JSON 解析错误时不更新
                     }
                   }}
+                  onBlur={edgeDataMapInput.onBlur}
                   rows={4}
                   className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none font-mono"
                   placeholder='{"failed_targets": "input_targets"}'
@@ -1459,7 +1523,7 @@ export default function FlowEditor() {
                   流程 ID
                 </label>
                 {(() => {
-                  const { category, slug } = parseFlowId(flow.id);
+                  const { category } = parseFlowId(flow.id);
                   const prefix = FLOW_CATEGORIES.find(c => c.value === category)?.value ?? 'custom';
                   return (
                     <div className="flex items-center gap-0">
@@ -1470,14 +1534,16 @@ export default function FlowEditor() {
                       {/* slug：可编辑 */}
                       <input
                         type="text"
-                        value={slug}
+                        value={slugInput.text}
                         onChange={(e) => {
                           // ★ 自由输入，不即时过滤——和 SpellEditor 一致
                           const newSlug = e.target.value;
+                          slugInput.onChange(newSlug);
                           const newId = buildFlowId(category, newSlug);
                           setFlow(prev => ({ ...prev, id: newId }));
                         }}
                         onBlur={() => {
+                          slugInput.onBlur();
                           if (flow.id !== flowId && flowId) {
                             const result = flowStore.retargetId(flowId, flow.id);
                             if (result) {
@@ -1829,5 +1895,43 @@ function PaletteDragItem({ meta }: PaletteDragItemProps) {
       />
       <span className="truncate">{meta.label}</span>
     </button>
+  );
+}
+
+// ===== 自定义额外配置字段输入（受控输入走 useTextInput） =====
+interface ExtraConfigFieldProps {
+  label: string;
+  value: string;
+  onValueChange: (v: string) => void;
+  onRemove: () => void;
+}
+
+function ExtraConfigField({ label, value, onValueChange, onRemove }: ExtraConfigFieldProps) {
+  const input = useTextInput(value);
+  return (
+    <div className="flex items-start gap-2">
+      <div className="flex-1">
+        <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-0.5">{label}</div>
+        <input
+          type="text"
+          value={input.text}
+          onChange={(e) => {
+            input.onChange(e.target.value);
+            onValueChange(e.target.value);
+          }}
+          onBlur={(e) => {
+            input.onBlur();
+            const trimmed = e.target.value.trim();
+            if (trimmed !== e.target.value) {
+              onValueChange(trimmed);
+            }
+          }}
+          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+        />
+      </div>
+      <button onClick={onRemove} className="p-1 rounded hover:bg-white/10 text-red-400 mt-4">
+        <Trash2 className="w-3 h-3" />
+      </button>
+    </div>
   );
 }
