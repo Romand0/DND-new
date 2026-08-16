@@ -18,6 +18,7 @@ export default function TreasureEdit() {
   const [title, setTitle] = useState('');
   const [currency, setCurrency] = useState<{ pp: number; gp: number; sp: number; cp: number }>({ pp: 0, gp: 0, sp: 0, cp: 0 });
   const [items, setItems] = useState<TreasureItem[]>([]);
+  const [experience, setExperience] = useState(0);
   const [showEquipPicker, setShowEquipPicker] = useState(false);
   // 自定义物品表单状态
   const [showCustomForm, setShowCustomForm] = useState(false);
@@ -42,15 +43,16 @@ export default function TreasureEdit() {
     setTitle(t.title);
     setCurrency({ ...t.currency });
     setItems(t.items.map(it => ({ ...it })));
+    setExperience(t.experience ?? 0);
   }, [id, navigate]);
 
   const handleSave = () => {
     if (isNew) {
       const t = treasureStore.create(title);
-      treasureStore.update(t.id, { currency, items });
+      treasureStore.update(t.id, { currency, items, experience });
       navigate('/inventory/treasures');
     } else if (id) {
-      treasureStore.update(id, { title, currency, items });
+      treasureStore.update(id, { title, currency, items, experience });
       navigate('/inventory/treasures');
     }
   };
@@ -161,6 +163,22 @@ export default function TreasureEdit() {
               />
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* 经验值 */}
+      <div>
+        <label className="block text-sm font-medium dark:text-text-dark light:text-text-light mb-1.5">
+          经验值
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min={0}
+            value={experience}
+            onChange={e => setExperience(Math.max(0, parseInt(e.target.value) || 0))}
+            className="w-full px-3 py-1.5 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+          />
         </div>
       </div>
 

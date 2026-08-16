@@ -11,6 +11,7 @@ import {
   Package,
   AlertCircle,
   ArrowLeft,
+  Sparkles,
 } from 'lucide-react';
 import type {
   Treasure,
@@ -42,6 +43,7 @@ interface CharacterDistribution {
   characterName: string;
   currency: TreasureCurrency;
   items: DistributionItem[];
+  experience: number;
 }
 
 /* ─── 常量 ─── */
@@ -89,6 +91,8 @@ export default function TreasureDistribute() {
   const [remainingCurrency, setRemainingCurrency] = useState<TreasureCurrency>({
     pp: 0, gp: 0, sp: 0, cp: 0,
   });
+  const [remainingXp, setRemainingXp] = useState(0);
+  const [selectedXp, setSelectedXp] = useState(false);
 
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [selectedCurrencyKey, setSelectedCurrencyKey] = useState<CurrencyKey | null>(null);
@@ -127,6 +131,7 @@ export default function TreasureDistribute() {
     setTreasure(t);
     setRemainingItems(t.items.map((it) => ({ ...it })));
     setRemainingCurrency({ ...t.currency });
+    setRemainingXp(t.experience ?? 0);
   }, [id, navigate]);
 
   // 监听 store 变化（可选：如果其他标签页修改了数据）
@@ -144,12 +149,14 @@ export default function TreasureDistribute() {
   const selectItemCard = useCallback((itemId: string) => {
     setSelectedCardId(itemId);
     setSelectedCurrencyKey(null);
+    setSelectedXp(false);
     setSelectedQty(undefined); // 切换物品卡时清空上次的数量选择
   }, []);
 
   const selectCurrencyCard = useCallback((key: CurrencyKey) => {
     setSelectedCurrencyKey(key);
     setSelectedCardId(null);
+    setSelectedXp(false);
     setSelectedQty(undefined);
   }, []);
 
@@ -215,6 +222,7 @@ export default function TreasureDistribute() {
           characterName: char.name,
           currency: { pp: 0, gp: 0, sp: 0, cp: 0 },
           items: [],
+          experience: 0,
         },
       ];
     });
@@ -246,6 +254,21 @@ export default function TreasureDistribute() {
           )
         );
         setSelectedCurrencyKey(null);
+        triggerReceiveAnim(charId);
+        return;
+      }
+
+      // 经验值
+      if (selectedXp) {
+        if (remainingXp <= 0) return;
+        const amount = remainingXp; // 全量分配
+        setRemainingXp(0);
+        setDistributions(prev => prev.map(d =>
+          d.characterId === charId
+            ? { ...d, experience: d.experience + amount }
+            : d
+        ));
+        setSelectedXp(false);
         triggerReceiveAnim(charId);
         return;
       }
@@ -300,7 +323,7 @@ export default function TreasureDistribute() {
       );
       triggerReceiveAnim(charId);
     },
-    [selectedCardId, selectedCurrencyKey, selectedQty, remainingItems, remainingCurrency, triggerReceiveAnim]
+    [selectedCardId, selectedCurrencyKey, selectedXp, selectedQty, remainingItems, remainingCurrency, remainingXp, triggerReceiveAnim]
   );
 
   /* ─── 数量选择后分配 ─── */
@@ -391,6 +414,18 @@ export default function TreasureDistribute() {
     []
   );
 
+  /* ─── 从分配者退回经验值 ─── */
+
+  const returnXpToTreasure = useCallback((charId: string, amount: number) => {
+    if (amount <= 0) return;
+    setDistributions(prev => prev.map(d =>
+      d.characterId === charId
+        ? { ...d, experience: d.experience - amount }
+        : d
+    ));
+    setRemainingXp(prev => prev + amount);
+  }, []);
+
   /* ─── 完成分配 ─── */
 
   const handleFinish = useCallback(() => {
@@ -433,12 +468,16 @@ export default function TreasureDistribute() {
       // 3. 按类型排序整理背包（复用 combatStore.sortInventory 统一逻辑）
       updatedEquipment = sortInventory(updatedEquipment);
 
+      // 4. 加经验值
+      const newXp = char.experience + dist.experience;
+
       characterStore.update(dist.characterId, {
         currency: newCurrency,
         equipment: updatedEquipment,
+        experience: newXp,
       });
 
-      // 4. 记录分配
+      // 5. 记录分配
       const record: DistributionRecord = {
         treasureId: id,
         characterId: dist.characterId,
@@ -450,6 +489,7 @@ export default function TreasureDistribute() {
           quantity: it.quantity,
           unitPrice: it.unitPrice,
         })),
+        experience: dist.experience,
         distributedAt: Date.now(),
       };
       treasureStore.recordDistribution(record);
@@ -527,6 +567,24 @@ export default function TreasureDistribute() {
           </div>
         )}
 
+        {remainingXp > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <span className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">
+                经验值
+              </span>
+            </div>
+            <div
+              onClick={() => { setSelectedXp(true); setSelectedCardId(null); setSelectedCurrencyKey(null); }}
+              className={`rounded-lg border p-3 cursor-pointer transition-all text-purple-300 bg-purple-900/20 border-purple-700/30 ${selectedXp ? 'ring-2 ring-primary scale-[1.02] shadow-lg' : 'hover:scale-[1.01]'}`}
+            >
+              <div className="text-xs opacity-70">XP</div>
+              <div className="text-lg font-bold">{remainingXp}</div>
+            </div>
+          </div>
+        )}
+
         {/* 物品卡片 */}
         {remainingItems.length > 0 && (
           <div>
@@ -593,7 +651,8 @@ export default function TreasureDistribute() {
         )}
 
         {remainingItems.length === 0 &&
-          CURRENCY_META.every((m) => remainingCurrency[m.key] === 0) && (
+          CURRENCY_META.every((m) => remainingCurrency[m.key] === 0) &&
+          remainingXp === 0 && (
             <div className="text-center py-6 text-sm dark:text-text-dark-muted light:text-text-light-muted">
               <Check className="w-6 h-6 mx-auto mb-1 text-green-500" />
               宝藏已全部分配
@@ -633,14 +692,14 @@ export default function TreasureDistribute() {
                 else cardRefs.current.delete(dist.characterId);
               }}
               onClick={() => {
-                if (selectedCardId || selectedCurrencyKey) {
+                if (selectedCardId || selectedCurrencyKey || selectedXp) {
                   distributeToCharacter(dist.characterId);
                 }
               }}
               className={
                 `rounded-xl border p-4 transition-all ` +
                 `dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light ` +
-                (selectedCardId || selectedCurrencyKey
+                (selectedCardId || selectedCurrencyKey || selectedXp
                   ? 'cursor-pointer hover:ring-2 hover:ring-primary/50 hover:scale-[1.01]'
                   : '')
               }
@@ -694,6 +753,26 @@ export default function TreasureDistribute() {
                 </div>
               )}
 
+              {/* 已分配的经验值 */}
+              {dist.experience > 0 && (
+                <div className="mb-3">
+                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1">
+                    经验值
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      returnXpToTreasure(dist.characterId, dist.experience);
+                    }}
+                    className="px-2 py-1 rounded text-xs font-medium transition-all text-purple-300 bg-purple-900/20 border-purple-700/30 hover:opacity-80 flex items-center gap-1"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    {dist.experience} XP
+                    <ArrowLeft className="w-3 h-3" />
+                  </button>
+                </div>
+              )}
+
               {/* 已分配的物品 */}
               {dist.items.length > 0 && (
                 <div>
@@ -724,7 +803,8 @@ export default function TreasureDistribute() {
               )}
 
               {dist.items.length === 0 &&
-                CURRENCY_META.every((m) => dist.currency[m.key] === 0) && (
+                CURRENCY_META.every((m) => dist.currency[m.key] === 0) &&
+                dist.experience === 0 && (
                   <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted py-2">
                     暂无分配
                   </div>
@@ -739,7 +819,7 @@ export default function TreasureDistribute() {
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-background/80 backdrop-blur border-t dark:border-border-dark light:border-border-light z-50">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
             <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-              {distributions.filter((d) => d.items.length > 0 || Object.values(d.currency).some((v) => v > 0)).length}{' '}
+              {distributions.filter((d) => d.items.length > 0 || Object.values(d.currency).some((v) => v > 0) || d.experience > 0).length}{' '}
               个角色已分配
             </div>
             <button
@@ -861,7 +941,8 @@ export default function TreasureDistribute() {
               {distributions.map((dist) => {
                 const hasItems = dist.items.length > 0;
                 const hasCurrency = Object.values(dist.currency).some((v) => v > 0);
-                if (!hasItems && !hasCurrency) return null;
+                const hasXp = dist.experience > 0;
+                if (!hasItems && !hasCurrency && !hasXp) return null;
 
                 return (
                   <div
@@ -879,6 +960,11 @@ export default function TreasureDistribute() {
                     {hasItems && (
                       <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
                         物品：{dist.items.map((i) => `${i.name}×${i.quantity}`).join('、')}
+                      </div>
+                    )}
+                    {hasXp && (
+                      <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                        经验值：{dist.experience} XP
                       </div>
                     )}
                   </div>
