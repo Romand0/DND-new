@@ -456,30 +456,22 @@ export default function FlowEditor() {
     setIsColliding(false);
   }, []);
 
-  // ===== 事件：拖拽移动（实时碰撞检测 + 实时位置更新） =====
+  // ===== 事件：拖拽移动（仅实时碰撞检测，不再写入位置状态） =====
   const handleDragMove = useCallback((event: DragEndEvent) => {
     const { active, delta } = event;
     if (!active) return;
     const nodeId = active.id as string;
-    const projected = getProjectedPosition(nodeId, delta);
+    const scaledDelta = { x: delta.x / canvasScale, y: delta.y / canvasScale };
+    const projected = getProjectedPosition(nodeId, scaledDelta);
     const colliding = checkCollision(nodeId, projected.x, projected.y);
     setIsColliding(colliding);
-    // 关键新增：实时将 delta 写入 flow 状态，驱动 SVG 重绘
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n =>
-        n.id === nodeId
-          ? { ...n, position: { x: Math.max(0, n.position.x + delta.x / canvasScale), y: Math.max(0, n.position.y + delta.y / canvasScale) } }
-          : n
-      ),
-      // 注意：拖拽中不更新 updatedAt，避免触发无意义的 autosave
-    }));
-  }, [checkCollision, getProjectedPosition]);
+    // ★ 不再 setFlow —— 位置由 dnd-kit 的 CSS transform 驱动，拖拽结束时一次性写入
+  }, [checkCollision, getProjectedPosition, canvasScale]);
 
   // ===== 事件：拖拽结束 =====
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active } = event;
-    // ── 新增：从左侧栏拖入画布 ──
+    const { active, delta } = event;
+    // ── 从左侧栏拖入画布 ──
     if (active.data.current?.fromPalette) {
       const typeMeta = active.data.current.typeMeta as NodeTypeMeta;
       const translatedRect = active.rect.current.translated;
@@ -497,24 +489,32 @@ export default function FlowEditor() {
           return;
         }
       }
-      // 释放在画布外 → 回退到画布中心
       const canvas = canvasRef.current;
       const cx = canvas ? canvas.scrollLeft + canvas.clientWidth / 2 - NODE_W / 2 : 1200;
       const cy = canvas ? canvas.scrollTop + canvas.clientHeight / 2 - 24 : 800;
       addNode(typeMeta, { x: cx, y: cy });
       return;
     }
-    // ── 原有逻辑：画布内节点拖拽移动（位置已在 handleDragMove 实时更新，此处仅碰撞校正） ──
+
+    // ── 画布内节点拖拽结束：用全量 delta 一次性写入最终位置 + 碰撞校正 ──
     const nodeId = active.id as string;
     setDraggingNodeId(null);
     setIsColliding(false);
-    // 碰撞检测 + 校正（若重叠则推开）
+    const scaledDelta = { x: delta.x / canvasScale, y: delta.y / canvasScale };
     setFlow(prev => {
       const target = prev.nodes.find(n => n.id === nodeId);
       if (!target) return prev;
+      // target.position 仍是拖拽前的原始值（handleDragMove 不再修改它）
+      const proposed = {
+        x: Math.max(0, target.position.x + scaledDelta.x),
+        y: Math.max(0, target.position.y + scaledDelta.y),
+      };
+      const testNode = { ...target, position: proposed };
       const others = prev.nodes.filter(n => n.id !== nodeId);
-      if (!others.some(o => nodesOverlap(target, o, NODE_W))) return prev;
-      const finalPos = findNonOverlappingPosition(target, others, NODE_W);
+      const hasOverlap = others.some(other => nodesOverlap(testNode, other, NODE_W));
+      const finalPos = hasOverlap
+        ? findNonOverlappingPosition(testNode, others, NODE_W)
+        : proposed;
       return {
         ...prev,
         nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
@@ -791,6 +791,7 @@ export default function FlowEditor() {
                   isConnectSource={connectFromId === node.id}
                   isDragging={draggingNodeId === node.id}
                   isColliding={draggingNodeId === node.id && isColliding}
+                  canvasScale={canvasScale}          // ★ 新增
                   onClick={() => handleNodeClick(node.id)}
                   onStartConnecting={() => startConnecting(node.id)}
                   onDelete={() => deleteNode(node.id)}
@@ -1495,6 +1496,7 @@ interface DraggableFlowNodeProps {
   isConnectSource: boolean;
   isDragging: boolean;
   isColliding: boolean;
+  canvasScale: number;
   onClick: () => void;
   onStartConnecting: () => void;
   onDelete: () => void;
@@ -1506,6 +1508,7 @@ function DraggableFlowNode({
   isConnectSource,
   isDragging,
   isColliding,
+  canvasScale,
   onClick,
   onStartConnecting,
   onDelete,
@@ -1516,6 +1519,17 @@ function DraggableFlowNode({
     data: { node },
   });
 
+  // ★ 将 dnd-kit 屏幕像素 transform 转换为画布坐标，补偿父容器 scale
+  const adjustedTransform: React.CSSProperties['transform'] =
+    transform
+      ? CSS.Transform.toString({
+          x: transform.x / canvasScale,
+          y: transform.y / canvasScale,
+          scaleX: 1,
+          scaleY: 1,
+        })
+      : undefined;
+
   // 拖拽时应用 CSS transform（跟随手指/鼠标）
   const style: React.CSSProperties = {
     position: 'absolute',
@@ -1523,7 +1537,7 @@ function DraggableFlowNode({
     top: node.position.y,
     width: NODE_W,
     zIndex: isDragging ? 20 : (isSelected ? 10 : 1),
-    transform: transform ? CSS.Transform.toString(transform) : undefined,
+    transform: adjustedTransform,   // ★ 用调整后的 transform
     opacity: dndDragging ? 0.9 : 1,
     // 禁用 transform 动画，拖拽响应更跟手
     transition: dndDragging ? 'none' : undefined,
