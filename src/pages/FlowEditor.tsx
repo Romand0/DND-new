@@ -15,7 +15,7 @@ import {
   ArrowLeft, X, Plus, Trash2, Save, AlertCircle, CheckCircle,
   MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
   ChevronRight, RotateCcw,
-  PanelLeft, PanelRight,
+  PanelLeft, PanelRight, Sparkles,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
@@ -35,6 +35,7 @@ import {
 } from '@/types/flow';
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
+import { generateFlowId, validateFlowId } from '@/lib/idUtils';
 
 // ===== 节点图标解析 =====
 /** 从 icon name 解析为 React 元素，单一真相源 */
@@ -162,6 +163,15 @@ export default function FlowEditor() {
   );
   const [flowIdDraft, setFlowIdDraft] = useState(flow.id);
   useEffect(() => { setFlowIdDraft(flow.id); }, [flow.id]);
+  // 流程 ID 草稿态（自由编辑，不触发保存）
+  const [draftId, setDraftId] = useState(flow.id);
+  const [idErrors, setIdErrors] = useState<string[]>([]);
+  const [idDirty, setIdDirty] = useState(false);  // 草稿是否偏离正式值
+  const [spellPickerOpen, setSpellPickerOpen] = useState(false);
+  // flow.id 外部变更时同步草稿（如加载草稿、autosave 恢复）
+  useEffect(() => {
+    if (!idDirty) setDraftId(flow.id);
+  }, [flow.id, idDirty]);
   // 拖拽状态：实时碰撞检测
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [isColliding, setIsColliding] = useState(false);
@@ -264,16 +274,15 @@ export default function FlowEditor() {
   // ===== 自动保存（防抖 500ms，防止刷新丢失当前编辑） =====
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (flowId) {
-        flowStore.update(flowId, flow);
-      }
+      // 始终用 flow.id 做主键，而非路由参数
+      flowStore.update(flow.id, flow);
       // 兜底：仍写 autosave（无 flowId 时唯一保存渠道）
       try {
         localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ flow, flowName: flowNameInput.text }));
       } catch { /* ignore */ }
     }, 500);
     return () => clearTimeout(timer);
-  }, [flow, flowNameInput.text, flowId]);
+  }, [flow, flowNameInput.text]);
 
   // ===== 位置快照：保存（画布滚动 + 缩放 + 面板展开状态，按流程 ID 持久化） =====
   const viewportRef = useRef({
@@ -381,7 +390,7 @@ export default function FlowEditor() {
   // ===== 创建空流程 =====
   function createEmptyFlow(): FlowDefinition {
     return {
-      id: 'flow-' + Date.now(),
+      id: generateFlowId(),
       name: '未命名流程',
       description: '',
       nodes: [],
@@ -1071,30 +1080,110 @@ export default function FlowEditor() {
                 流程属性
               </h3>
 
-              {/* 流程 ID —— 核心改动点 */}
+              {/* 流程 ID —— 草稿编辑 + 重命名按钮 */}
               <div className="mb-3">
                 <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
                   流程 ID
                 </label>
-                <SpellIdPicker
-                  value={flowIdDraft}
-                  onChange={(id) => {
-                    setFlowIdDraft(id);
-                    setFlow(prev => ({ ...prev, id, updatedAt: Date.now() }));
-                  }}
-                  onNameHint={(name) => {
-                    if (!flowNameInput.text || flowNameInput.text === '未命名流程') {
-                      flowNameInput.setExternal(name);
-                      setFlow(prev => ({ ...prev, name, updatedAt: Date.now() }));
-                    }
-                  }}
-                  className="px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-                  placeholder="如 spell:fireball"
-                />
+                <div className="flex items-center gap-1">
+                  {/* 输入框：绑定草稿，自由编辑 */}
+                  <input
+                    type="text"
+                    value={draftId}
+                    onChange={e => {
+                      setDraftId(e.target.value);
+                      setIdDirty(e.target.value !== flow.id);
+                      setIdErrors([]);  // 编辑中清空错误
+                    }}
+                    className="flex-1 min-w-0 px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none font-mono"
+                    placeholder="如 spell:fireball"
+                  />
+                  {/* 从法术库选取按钮 */}
+                  <button
+                    type="button"
+                    onClick={() => setSpellPickerOpen(true)}
+                    className="shrink-0 p-1.5 rounded border dark:border-border-dark light:border-border-light hover:bg-primary/10 hover:border-primary hover:text-primary transition-colors"
+                    title="从法术库选取"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </button>
+                  {/* 重命名按钮：仅此触发校验 + 写入 */}
+                  <button
+                    type="button"
+                    disabled={!idDirty}
+                    onClick={() => {
+                      const allIds = flowStore.getAll().map(f => f.id);
+                      const errors = validateFlowId(draftId, allIds, flow.id);
+                      if (errors.length > 0) {
+                        setIdErrors(errors);
+                        return;
+                      }
+                      // 合法 → 写入
+                      if (draftId !== flow.id) {
+                        const result = flowStore.renameId(flow.id, draftId);
+                        if (result) {
+                          setFlow(result);
+                          // 同步路由
+                          navigate(`/flows/${draftId}`, { replace: true });
+                        }
+                      }
+                      setIdDirty(false);
+                      setIdErrors([]);
+                    }}
+                    className={`shrink-0 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                      idDirty
+                        ? 'bg-primary text-white hover:bg-primary/90'
+                        : 'dark:text-text-dark-muted light:text-text-light-muted opacity-40 cursor-not-allowed'
+                    }`}
+                    title={idDirty ? '校验并重命名' : '未修改'}
+                  >
+                    重命名
+                  </button>
+                </div>
+                {/* 错误提示 */}
+                {idErrors.length > 0 && (
+                  <ul className="mt-1 space-y-0.5">
+                    {idErrors.map((err, i) => (
+                      <li key={i} className="text-[10px] text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-2.5 h-2.5 shrink-0" />
+                        {err}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {/* 脏标记提示 */}
+                {idDirty && idErrors.length === 0 && (
+                  <p className="text-[10px] mt-1 text-amber-400">
+                    已修改，点击「重命名」保存
+                  </p>
+                )}
+                {/* 法术前缀提示 */}
                 <p className="text-[10px] mt-1 dark:text-text-dark-muted light:text-text-light-muted">
                   法术绑定流程建议以 <code className="font-mono">spell:</code> 为前缀
                 </p>
               </div>
+
+              {/* 从法术库选取流程 ID */}
+              {spellPickerOpen && (
+                <div className="mt-2">
+                  <SpellIdPicker
+                    value={draftId}
+                    onChange={(id) => {
+                      setDraftId(id);
+                      setIdDirty(id !== flow.id);
+                      setIdErrors([]);
+                    }}
+                    onNameHint={(name) => {
+                      if (!flowNameInput.text || flowNameInput.text === '未命名流程') {
+                        flowNameInput.setExternal(name);
+                        setFlow(prev => ({ ...prev, name, updatedAt: Date.now() }));
+                      }
+                    }}
+                    className="px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                    placeholder="如 spell:fireball"
+                  />
+                </div>
+              )}
 
               {/* 流程描述 */}
               <div className="mb-3">
