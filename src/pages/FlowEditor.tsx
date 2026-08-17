@@ -58,7 +58,6 @@ const NODE_W = 260;   // 窄屏基准宽度
 const NODE_H = 56;    // 最小估计高度（头部）
 
 // 空间索引实例（单例，避免重复创建）
-// 空间索引实例（单例，避免重复创建）
 let spatialGrid: SpatialGrid | null = null;
 
 // 画布缩放常量
@@ -80,16 +79,26 @@ function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolea
 // ===== 空间索引更新函数 =====
 const updateSpatialGrid = useCallback((nodes: FlowNodeDef[]) => {
   if (!spatialGrid) return;
-  spatialGrid.clear();
-  nodes.forEach(node => {
-    spatialGrid.addNode({
-      id: node.id,
-      x: node.position.x,
-      y: node.position.y,
-      width: NODE_W,
-      height: NODE_H,
+  
+  // 使用批量操作优化性能
+  spatialGrid.startBatch();
+  try {
+    spatialGrid.clear();
+    nodes.forEach(node => {
+      spatialGrid.addNode({
+        id: node.id,
+        x: node.position.x,
+        y: node.position.y,
+        width: NODE_W,
+        height: NODE_H,
+      });
     });
-  });
+  } finally {
+    spatialGrid.endBatch();
+  }
+  
+  // 定期清理缓存
+  spatialGrid.cleanupCache();
 }, []);
 
 // 寻找不与其他节点碰撞的位置（使用空间索引优化）
@@ -110,7 +119,7 @@ function findNonOverlappingPosition(
   };
   
   // 使用空间索引优化的查找算法
-  return findNonOverlappingPositionWithGrid(
+  const result = findNonOverlappingPositionWithGrid(
     spatialNode,
     allNodes.map(n => ({
       id: n.id,
@@ -123,6 +132,14 @@ function findNonOverlappingPosition(
     dx,
     maxAttempts
   );
+  
+  // 性能监控：定期记录统计信息
+  if (Math.random() < 0.01) { // 1%概率记录，避免频繁输出
+    const stats = spatialGrid.getStats();
+    console.log('空间索引性能统计:', stats);
+  }
+  
+  return result;
 }
 
 export default function FlowEditor() {
@@ -133,9 +150,9 @@ export default function FlowEditor() {
   const isDark = theme === 'dark';
 
   // ===== 状态 =====
-  // 初始化空间索引
+  // 初始化空间索引（启用自适应网格大小）
   if (!spatialGrid) {
-    spatialGrid = new SpatialGrid(100);
+    spatialGrid = new SpatialGrid(100, true); // 第二个参数启用自适应网格大小
   }
   
   const [flow, setFlow] = useState<FlowDefinition>(() => {
