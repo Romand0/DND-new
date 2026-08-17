@@ -4,6 +4,8 @@ import { serializeFlow, deserializeFlow } from '@/types/flow';
 const STORAGE_KEY = 'dnd-flow-library';
 const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
 const REMOTE_CACHE_KEY = 'dnd-flow-remote';
+const LEGACY_DRAFTS_KEY = 'dnd-flow-editor-drafts';
+const LEGACY_AUTOSAVE_KEY = 'dnd-flow-editor-autosave';
 
 /** 位置快照：编辑器画布/面板视图状态（按流程 ID 维度存储） */
 export interface FlowViewportSnapshot {
@@ -34,8 +36,44 @@ function getAuthToken(): string {
   }
 }
 
+/** 一次性迁移：将旧版编辑器草稿键（dnd-flow-editor-drafts / dnd-flow-editor-autosave）合并进流程库后删除 */
+function migrateLegacyDrafts() {
+  try {
+    const legacy = JSON.parse(localStorage.getItem(LEGACY_DRAFTS_KEY) || '[]');
+    let autosave: any = null;
+    try {
+      autosave = JSON.parse(localStorage.getItem(LEGACY_AUTOSAVE_KEY) || 'null');
+    } catch {
+      autosave = null;
+    }
+    const sources: any[] = Array.isArray(legacy) ? legacy : [];
+    if (autosave?.flow?.id) sources.push({ flow: autosave.flow, updatedAt: autosave.flow.updatedAt });
+    const flows = read();
+    let changed = false;
+    for (const s of sources) {
+      const legacyFlow = s?.flow;
+      if (!legacyFlow?.id || !Array.isArray(legacyFlow.nodes)) continue;
+      if (flows.some(f => f.id === legacyFlow.id)) continue;
+      flows.push({
+        ...legacyFlow,
+        name: legacyFlow.name || s?.name || '未命名流程',
+        updatedAt: legacyFlow.updatedAt || s?.updatedAt || Date.now(),
+      });
+      changed = true;
+    }
+    if (changed) {
+      cache = flows;
+      localFlows = flows;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(flows));
+    }
+  } catch { /* ignore */ }
+  try { localStorage.removeItem(LEGACY_DRAFTS_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(LEGACY_AUTOSAVE_KEY); } catch { /* ignore */ }
+}
+
 // 跨标签页缓存失效
 if (typeof window !== 'undefined') {
+  migrateLegacyDrafts();
   window.addEventListener('storage', (e) => {
     if (e.key === STORAGE_KEY) {
       cache = null;
@@ -207,6 +245,22 @@ const flowStore = {
     flows[idx] = { ...flows[idx], ...patch, updatedAt: Date.now() };
     write(flows);
     return flows[idx];
+  },
+
+  /** 保存流程（upsert：存在则更新，不存在则追加，保留原 ID） */
+  save(flow: FlowDefinition): FlowDefinition {
+    const flows = read();
+    const idx = flows.findIndex(f => f.id === flow.id);
+    let saved: FlowDefinition;
+    if (idx >= 0) {
+      saved = { ...flows[idx], ...flow, updatedAt: Date.now() };
+      flows[idx] = saved;
+    } else {
+      saved = { ...flow, updatedAt: flow.updatedAt ?? Date.now() };
+      flows.push(saved);
+    }
+    write(flows);
+    return saved;
   },
 
   /** 删除流程 */

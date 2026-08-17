@@ -256,8 +256,8 @@ export default function FlowEditor() {
   // ===== 自动保存（防抖 500ms，防止刷新丢失当前编辑） =====
   useEffect(() => {
     const timer = setTimeout(() => {
-      // 始终用 flow.id 做主键，而非路由参数
-      flowStore.update(flow.id, flow);
+      // 始终用 flow.id 做主键，而非路由参数；save 为 upsert，新建流程也会入库
+      flowStore.save(flow);
     }, 500);
     return () => clearTimeout(timer);
   }, [flow, flowNameInput.text]);
@@ -624,8 +624,8 @@ export default function FlowEditor() {
   // ===== 保存草稿 =====
   const saveDraft = useCallback(() => {
     const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
-    // 直接写入 flowStore（单一真相源）
-    flowStore.update(flow.id, updatedFlow);
+    // 直接写入 flowStore（单一真相源）；save 为 upsert，库中不存在的流程也会写入
+    flowStore.save(updatedFlow);
     setDrafts(flowStore.getAll());   // 刷新下拉框数据
     setFlow(updatedFlow);
   }, [flow, flowNameInput.value]);
