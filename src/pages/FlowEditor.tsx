@@ -52,10 +52,6 @@ function resolveNodeIcon(iconName?: string): React.ReactNode {
   return map[iconName || ''] ?? <Zap className="w-4 h-4" />;
 }
 
-// ===== 本地存储 key =====
-const STORAGE_KEY = 'dnd-flow-editor-drafts';
-const AUTOSAVE_KEY = 'dnd-flow-editor-autosave';
-
 // 节点卡片尺寸常量
 const NODE_W = 260;   // 窄屏基准宽度
 const NODE_H = 56;    // 最小估计高度（头部）
@@ -64,13 +60,6 @@ const NODE_H = 56;    // 最小估计高度（头部）
 const SCALE_MIN = 0.25;
 const SCALE_MAX = 3;
 const SCALE_STEP = 0.1;
-
-interface DraftEntry {
-  id: string;
-  name: string;
-  flow: FlowDefinition;
-  updatedAt: number;
-}
 
 // ===== 碰撞检测工具函数 =====
 function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolean {
@@ -122,41 +111,18 @@ export default function FlowEditor() {
       const loaded = flowStore.getById(flowId);
       if (loaded) return loaded;
     }
-    // ② 退回 autosave
-    try {
-      const raw = localStorage.getItem(AUTOSAVE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (data?.flow?.nodes) return data.flow as FlowDefinition;
-      }
-    } catch { /* ignore */ }
     return createEmptyFlow();
   });
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(() => {
-    try {
-      const raw = localStorage.getItem(AUTOSAVE_KEY);
-      if (raw) return (JSON.parse(raw) as any).selectedNodeId ?? null;
-    } catch {}
-    return null;
-  });
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectFromId, setConnectFromId] = useState<string | null>(null);
   const [connectTrigger, setConnectTrigger] = useState<string>('on_complete');
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [showValidation, setShowValidation] = useState(false);
-  const [drafts, setDrafts] = useState<DraftEntry[]>(() => loadDrafts());
+  const [drafts, setDrafts] = useState<FlowDefinition[]>(() => flowStore.getAll());
   const [showDrafts, setShowDrafts] = useState(false);
-  const flowNameInput = useTextInput((() => {
-    try {
-      const raw = localStorage.getItem(AUTOSAVE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (data?.flowName) return data.flowName as string;
-      }
-    } catch { /* ignore */ }
-    return '';
-  })());
+  const flowNameInput = useTextInput('');
   const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(
     () => window.matchMedia('(min-width: 1024px)').matches
@@ -269,7 +235,7 @@ export default function FlowEditor() {
     }),
   );
 
-  // ===== 同步 flowName（跳过首次挂载，避免覆盖从 autosave 恢复的名称） =====
+  // ===== 同步 flowName（跳过首次挂载，避免覆盖从 flowStore 恢复的名称） =====
   useEffect(() => {
     if (skipNameSync.current) {
       skipNameSync.current = false;
@@ -283,13 +249,16 @@ export default function FlowEditor() {
     const timer = setTimeout(() => {
       // 始终用 flow.id 做主键，而非路由参数
       flowStore.update(flow.id, flow);
-      // 兜底：仍写 autosave（无 flowId 时唯一保存渠道）
-      try {
-        localStorage.setItem(AUTOSAVE_KEY, JSON.stringify({ flow, flowName: flowNameInput.text }));
-      } catch { /* ignore */ }
     }, 500);
     return () => clearTimeout(timer);
   }, [flow, flowNameInput.text]);
+
+  // ===== 草稿列表：订阅 flowStore 变更，保持下拉框数据同步 =====
+  useEffect(() => {
+    const refresh = () => setDrafts(flowStore.getAll());
+    refresh();
+    return flowStore.subscribe(refresh);
+  }, []);
 
   // ===== 位置快照：保存（画布滚动 + 缩放 + 面板展开状态，按流程 ID 持久化） =====
   const viewportRef = useRef({
@@ -365,7 +334,7 @@ export default function FlowEditor() {
 
   const scrollRestored = useRef(false);
 
-  // ===== 位置快照：恢复（优先 store 快照，兜底 autosave 滚动位置） =====
+  // ===== 位置快照：恢复（从 flowStore 快照） =====
   useLayoutEffect(() => {
     if (scrollRestored.current) return;
     scrollRestored.current = true;
@@ -379,19 +348,7 @@ export default function FlowEditor() {
       setShowRightPanel(snapshot.showRightPanel);
       canvas.scrollLeft = snapshot.scrollX;
       canvas.scrollTop  = snapshot.scrollY;
-      return;
     }
-
-    try {
-      const raw = localStorage.getItem(AUTOSAVE_KEY);
-      if (raw && canvas) {
-        const data = JSON.parse(raw);
-        if (typeof data.scrollX === 'number' && typeof data.scrollY === 'number') {
-          canvas.scrollLeft = data.scrollX;
-          canvas.scrollTop  = data.scrollY;
-        }
-      }
-    } catch { /* ignore */ }
   }, [flowId]);
 
   // ===== 创建空流程 =====
@@ -407,21 +364,6 @@ export default function FlowEditor() {
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
-  }
-
-  // ===== 本地存储 =====
-  function loadDrafts(): DraftEntry[] {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return [];
-      return JSON.parse(raw) as DraftEntry[];
-    } catch {
-      return [];
-    }
-  }
-
-  function saveDraftsToStorage(drafts: DraftEntry[]) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(drafts));
   }
 
   // ===== 添加节点（自动防重叠） =====
@@ -673,25 +615,11 @@ export default function FlowEditor() {
   // ===== 保存草稿 =====
   const saveDraft = useCallback(() => {
     const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
-    const newDraft: DraftEntry = {
-      id: flow.id,
-      name: flowNameInput.value || flow.name,
-      flow: updatedFlow,
-      updatedAt: Date.now(),
-    };
-    const existingIdx = drafts.findIndex(d => d.id === flow.id);
-    let newDrafts: DraftEntry[];
-    if (existingIdx >= 0) {
-      newDrafts = [...drafts];
-      newDrafts[existingIdx] = newDraft;
-    } else {
-      newDrafts = [newDraft, ...drafts];
-    }
-    setDrafts(newDrafts);
-    saveDraftsToStorage(newDrafts);
+    // 直接写入 flowStore（单一真相源）
+    flowStore.update(flow.id, updatedFlow);
+    setDrafts(flowStore.getAll());   // 刷新下拉框数据
     setFlow(updatedFlow);
-    alert('草稿已保存到本地');
-  }, [flow, flowNameInput.value, drafts]);
+  }, [flow, flowNameInput.value]);
 
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
@@ -712,9 +640,9 @@ export default function FlowEditor() {
   }, [flow, showToast]);
 
   // ===== 加载草稿 =====
-  const loadDraft = useCallback((draft: DraftEntry) => {
-    setFlow(draft.flow);
-    flowNameInput.setExternal(draft.flow.name);
+  const loadDraft = useCallback((draft: FlowDefinition) => {
+    setFlow(draft);
+    flowNameInput.setExternal(draft.name);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     setShowDrafts(false);
@@ -722,10 +650,9 @@ export default function FlowEditor() {
 
   // ===== 删除草稿 =====
   const deleteDraft = useCallback((draftId: string) => {
-    const newDrafts = drafts.filter(d => d.id !== draftId);
-    setDrafts(newDrafts);
-    saveDraftsToStorage(newDrafts);
-  }, [drafts]);
+    flowStore.delete(draftId);
+    setDrafts(flowStore.getAll());
+  }, []);
 
   // ===== 清空画布 =====
   const clearCanvas = useCallback(() => {
@@ -1767,7 +1694,7 @@ export default function FlowEditor() {
                       </div>
                       <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
                         {new Date(draft.updatedAt).toLocaleString('zh-CN')}
-                        · {draft.flow.nodes.length} 节点 · {draft.flow.edges.length} 连线
+                        · {draft.nodes.length} 节点 · {draft.edges.length} 连线
                       </div>
                     </div>
                     <button
