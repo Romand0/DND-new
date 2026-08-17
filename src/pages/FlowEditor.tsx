@@ -188,24 +188,33 @@ export default function FlowEditor() {
     };
   }, [canvasScale, canvasTranslate]);
 
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    const state = pinchRef.current;
-    if (e.touches.length < 2 || state.startDist === 0) return;
-    e.preventDefault();
-    const pts = Array.from(e.touches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
-    const dx = pts[1].x - pts[0].x;
-    const dy = pts[1].y - pts[0].y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-    const ratio = dist / state.startDist;
-    const newScale = Math.min(SCALE_MAX, Math.max(SCALE_MIN, state.startScale * ratio));
-    const scaleDelta = newScale / state.startScale;
-    const newTranslate = {
-      x: state.startTranslate.x * scaleDelta + (mid.x - state.startMid.x * scaleDelta),
-      y: state.startTranslate.y * scaleDelta + (mid.y - state.startMid.y * scaleDelta),
+  // ===== 阻止浏览器默认双指缩放（React touch 事件是 passive 的，preventDefault 无效） =====
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const onTouchMove = (e: TouchEvent) => {
+      const state = pinchRef.current;
+      if (e.touches.length < 2 || state.startDist === 0) return;
+      e.preventDefault();
+      const pts = Array.from(e.touches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
+      const dx = pts[1].x - pts[0].x;
+      const dy = pts[1].y - pts[0].y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
+      const ratio = dist / state.startDist;
+      const newScale = Math.min(SCALE_MAX, Math.max(SCALE_MIN, state.startScale * ratio));
+      const scaleDelta = newScale / state.startScale;
+      const newTranslate = {
+        x: state.startTranslate.x * scaleDelta + (mid.x - state.startMid.x * scaleDelta),
+        y: state.startTranslate.y * scaleDelta + (mid.y - state.startMid.y * scaleDelta),
+      };
+      setCanvasScale(newScale);
+      setCanvasTranslate(newTranslate);
     };
-    setCanvasScale(newScale);
-    setCanvasTranslate(newTranslate);
+
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => el.removeEventListener('touchmove', onTouchMove);
   }, []);
 
   const handleTouchEnd = useCallback(() => {
@@ -821,9 +830,9 @@ export default function FlowEditor() {
           <div
             ref={canvasRef}
             className="absolute inset-0 overflow-auto dark:bg-bg-dark light:bg-gray-50 select-none"
+            style={{ touchAction: 'manipulation' }}
             onWheel={handleCanvasWheel}
             onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
             style={{ touchAction: 'manipulation' }}
           >
