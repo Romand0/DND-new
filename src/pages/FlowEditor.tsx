@@ -161,8 +161,6 @@ export default function FlowEditor() {
   const [showRightPanel, setShowRightPanel] = useState(
     () => window.matchMedia('(min-width: 1024px)').matches
   );
-  const [flowIdDraft, setFlowIdDraft] = useState(flow.id);
-  useEffect(() => { setFlowIdDraft(flow.id); }, [flow.id]);
   // 流程 ID 草稿态（自由编辑，不触发保存）
   const [draftId, setDraftId] = useState(flow.id);
   const [idErrors, setIdErrors] = useState<string[]>([]);
@@ -724,7 +722,6 @@ export default function FlowEditor() {
   const edgeDataMapInput = useTextInput(
     selectedEdge?.dataMap ? JSON.stringify(selectedEdge.dataMap, null, 2) : ''
   );
-  const slugInput = useTextInput(parseFlowId(flow.id).slug);
 
   // ===== 计算 SVG 连线路径 =====
   function getEdgePath(edge: FlowEdgeDef): string | null {
@@ -1118,17 +1115,22 @@ export default function FlowEditor() {
                         setIdErrors(errors);
                         return;
                       }
-                      // 合法 → 写入
-                      if (draftId !== flow.id) {
-                        const result = flowStore.renameId(flow.id, draftId);
-                        if (result) {
-                          setFlow(result);
-                          // 同步路由
-                          navigate(`/flows/${draftId}`, { replace: true });
-                        }
+                      if (draftId === flow.id) {
+                        setIdDirty(false);
+                        setIdErrors([]);
+                        return;
                       }
-                      setIdDirty(false);
-                      setIdErrors([]);
+                      // 合法 → 写入
+                      const result = flowStore.renameId(flow.id, draftId);
+                      if (result) {
+                        setFlow(result);
+                        setIdDirty(false);
+                        setIdErrors([]);
+                        // 同步路由
+                        navigate(`/flows/${draftId}/edit`, { replace: true });
+                      } else {
+                        setIdErrors(['重命名失败：源流程未在库中找到或目标 ID 已被占用']);
+                      }
                     }}
                     className={`shrink-0 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
                       idDirty
@@ -1170,7 +1172,7 @@ export default function FlowEditor() {
                     value={draftId}
                     onChange={(id) => {
                       setDraftId(id);
-                      setIdDirty(id !== flow.id);
+                      setIdDirty(true);
                       setIdErrors([]);
                     }}
                     onNameHint={(name) => {
@@ -1221,26 +1223,6 @@ export default function FlowEditor() {
           {/* 节点属性 */}
           {selectedNode ? (
             <div>
-              {/* 折叠式流程 ID 快捷入口 */}
-              <details className="mb-3">
-                <summary className="text-[10px] font-medium cursor-pointer dark:text-text-dark-muted light:text-text-light-muted hover:text-primary">
-                  流程 ID：{flow.id}
-                </summary>
-                <div className="mt-1">
-                  <SpellIdPicker
-                    value={flowIdDraft}
-                    onChange={(id) => { setFlowIdDraft(id); setFlow(prev => ({ ...prev, id, updatedAt: Date.now() })); }}
-                    onNameHint={(name) => {
-                      if (!flowNameInput.text || flowNameInput.text === '未命名流程') {
-                        flowNameInput.setExternal(name);
-                        setFlow(prev => ({ ...prev, name, updatedAt: Date.now() }));
-                      }
-                    }}
-                    className="px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-                    placeholder="如 spell:fireball"
-                  />
-                </div>
-              </details>
               <div className="flex items-center gap-2 mb-4">
                 <span
                   className="w-6 h-6 rounded flex items-center justify-center text-white"
@@ -1692,55 +1674,6 @@ export default function FlowEditor() {
                     );
                   })}
                 </div>
-              </div>
-
-              {/* ===== 流程 ID（可编辑 slug 部分） ===== */}
-              <div className="mb-4">
-                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1.5">
-                  流程 ID
-                </label>
-                {(() => {
-                  const { category } = parseFlowId(flow.id);
-                  const prefix = FLOW_CATEGORIES.find(c => c.value === category)?.value ?? 'custom';
-                  return (
-                    <div className="flex items-center gap-0">
-                      {/* 前缀：只读 */}
-                      <span className="px-2 py-1.5 rounded-l-lg border border-r-0 dark:border-border-dark light:border-border-light bg-white/5 text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">
-                        {prefix}:
-                      </span>
-                      {/* slug：可编辑 */}
-                      <input
-                        type="text"
-                        value={slugInput.text}
-                        onChange={(e) => {
-                          // ★ 自由输入，不即时过滤——和 SpellEditor 一致
-                          const newSlug = e.target.value;
-                          slugInput.onChange(newSlug);
-                          const newId = buildFlowId(category, newSlug);
-                          setFlow(prev => ({ ...prev, id: newId }));
-                        }}
-                        onBlur={() => {
-                          slugInput.onBlur();
-                          if (flow.id !== flowId && flowId) {
-                            const result = flowStore.retargetId(flowId, flow.id);
-                            if (result) {
-                              navigate(`/flows/${flow.id}/edit`, { replace: true });
-                            } else {
-                              alert('ID 冲突，已回退');
-                              setFlow(prev => ({ ...prev, id: flowId! }));
-                            }
-                          }
-                        }}
-                        className="flex-1 min-w-0 px-2 py-1.5 rounded-r-lg border dark:border-border-dark light:border-border-light bg-transparent text-xs font-mono dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-                        placeholder="flow_slug"
-                      />
-                    </div>
-                  );
-                })()}
-                {/* DSL 预览 */}
-                <p className="text-[10px] font-mono mt-1 dark:text-text-dark-muted light:text-text-light-muted">
-                  完整 ID: {flow.id}
-                </p>
               </div>
 
               {/* ===== 原有统计信息 ===== */}
