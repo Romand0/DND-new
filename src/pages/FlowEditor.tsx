@@ -1163,25 +1163,26 @@ export default function FlowEditor() {
                 </p>
               </div>
 
-              {/* 从法术库选取流程 ID 弹窗 */}
+              {/* 从法术库选取流程 ID */}
               {spellPickerOpen && (
-                <SpellPicker
-                  isOpen={spellPickerOpen}
-                  onClose={() => setSpellPickerOpen(false)}
-                  onSelect={(spell) => {
-                    const newId = `spell:${spell.id}`;
-                    setDraftId(newId);
-                    setIdDirty(newId !== flow.id);
-                    setIdErrors([]);
-                    // 名称回填
-                    if (!flowNameInput.text || flowNameInput.text === '未命名流程') {
-                      flowNameInput.setExternal(spell.name);
-                      setFlow(prev => ({ ...prev, name: spell.name, updatedAt: Date.now() }));
-                    }
-                  }}
-                  selectedSpellIds={[]}
-                  filterLevel="all"
-                />
+                <div className="mt-2">
+                  <SpellIdPicker
+                    value={draftId}
+                    onChange={(id) => {
+                      setDraftId(id);
+                      setIdDirty(id !== flow.id);
+                      setIdErrors([]);
+                    }}
+                    onNameHint={(name) => {
+                      if (!flowNameInput.text || flowNameInput.text === '未命名流程') {
+                        flowNameInput.setExternal(name);
+                        setFlow(prev => ({ ...prev, name, updatedAt: Date.now() }));
+                      }
+                    }}
+                    className="px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                    placeholder="如 spell:fireball"
+                  />
+                </div>
               )}
 
               {/* 流程描述 */}
