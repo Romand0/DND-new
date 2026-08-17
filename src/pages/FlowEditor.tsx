@@ -15,7 +15,7 @@ import {
   ArrowLeft, X, Plus, Trash2, Save, AlertCircle, CheckCircle,
   MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
   ChevronRight, RotateCcw,
-  PanelLeft, PanelRight, Sparkles,
+  PanelLeft, PanelRight, Sparkles, CloudUpload,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
@@ -180,6 +180,15 @@ export default function FlowEditor() {
   const navigate = useNavigate();
   const [exitModalOpen, setExitModalOpen] = useState(false);
   const skipNameSync = useRef(true);
+
+  // ===== 发布提示 toast =====
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const showToast = useCallback((type: 'success' | 'error', msg: string) => {
+    setToast({ type, msg });
+    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = window.setTimeout(() => setToast(null), 3000);
+  }, []);
 
   // ===== 画布缩放：触屏双指捏合 =====
   const pinchRef = useRef<{
@@ -684,6 +693,24 @@ export default function FlowEditor() {
     alert('草稿已保存到本地');
   }, [flow, flowNameInput.value, drafts]);
 
+  // ===== 发布正式版 =====
+  const handlePublish = useCallback(async () => {
+    try {
+      flowStore.update(flow.id, flow);
+      const published = await flowStore.publish(flow.id);
+      if (published) {
+        setFlow(prev => ({
+          ...prev,
+          publishedVersion: published.publishedVersion,
+          publishedAt: published.publishedAt ?? Date.now(),
+        }));
+        showToast('success', `已发布 v${published.publishedVersion}`);
+      }
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : '发布失败');
+    }
+  }, [flow, showToast]);
+
   // ===== 加载草稿 =====
   const loadDraft = useCallback((draft: DraftEntry) => {
     setFlow(draft.flow);
@@ -755,6 +782,10 @@ export default function FlowEditor() {
           <input type="text" value={flowNameInput.text} onChange={(e) => flowNameInput.onChange(e.target.value)} onBlur={flowNameInput.onBlur} className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48" placeholder="流程名称" />
         </div>
         <div className="flex items-center gap-2 px-4">
+          <button onClick={handlePublish} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:border-primary hover:text-primary transition-colors">
+            <CloudUpload className="w-3.5 h-3.5" />
+            <span>发布</span>
+          </button>
           <button onClick={saveDraft} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors">
             <Save className="w-3.5 h-3.5" />
             <span>保存</span>
@@ -1767,6 +1798,14 @@ export default function FlowEditor() {
               <button onClick={() => setExitModalOpen(false)} className="px-4 py-2 text-sm rounded-lg border dark:border-border-dark light:border-border-light hover:bg-white/5">取消</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* ===== 发布提示 toast ===== */}
+      {toast && (
+        <div className={`fixed top-16 right-4 z-[70] px-4 py-2 rounded-lg text-sm font-medium shadow-lg flex items-center gap-2 ${toast.type === 'success' ? 'bg-green-500/90 text-white' : 'bg-red-500/90 text-white'}`}>
+          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+          {toast.msg}
         </div>
       )}
     </div>

@@ -74,6 +74,10 @@ export interface FlowDefinition {
   version?: number;                  // 版本号（迭代管理）
   createdAt?: number;                // 创建时间戳
   updatedAt?: number;                // 更新时间戳
+  /** 正式发布版本号（0 = 未发布/纯草稿） */
+  publishedVersion?: number;
+  /** 最近一次发布的时间戳（null = 从未发布） */
+  publishedAt?: number | null;
 }
 
 // ======================

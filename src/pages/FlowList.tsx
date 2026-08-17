@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap } from 'lucide-react';
+import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap, CloudUpload, CloudDownload, CloudOff } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import flowStore from '@/data/flowStore';
 import type { FlowDefinition } from '@/types/flow';
@@ -19,6 +19,7 @@ export default function FlowList() {
   useEffect(() => {
     const load = () => setFlows(flowStore.getAll());
     load();
+    flowStore.fetchRemote();
     return flowStore.subscribe(load);
   }, []);
 
@@ -60,6 +61,23 @@ export default function FlowList() {
       }
     };
     reader.readAsText(file);
+  };
+
+  const handlePublish = async (flow: FlowDefinition) => {
+    try {
+      await flowStore.publish(flow.id);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '发布失败');
+    }
+  };
+
+  const handlePullRemote = async (flow: FlowDefinition) => {
+    const remote = await flowStore.pullRemote(flow.id);
+    if (!remote) alert('拉取失败：正式版不存在');
+  };
+
+  const handleUnpublish = async (flow: FlowDefinition) => {
+    await flowStore.unpublish(flow.id);
   };
 
   const formatDate = (ts?: number) =>
@@ -132,9 +150,32 @@ export default function FlowList() {
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold dark:text-text-dark light:text-text-light truncate">
-                    {f.name || '未命名流程'}
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold dark:text-text-dark light:text-text-light truncate">
+                      {f.name || '未命名流程'}
+                    </h3>
+                    {(() => {
+                      if (!f.publishedVersion || f.publishedVersion === 0) {
+                        return (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] dark:bg-white/10 light:bg-gray-100 dark:text-text-dark-muted light:text-text-light-muted">
+                            草稿
+                          </span>
+                        );
+                      }
+                      if (flowStore.isDraftDirty(f)) {
+                        return (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400/10 text-amber-400">
+                            已修改
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] bg-green-500/10 text-green-500">
+                          已发布 v{f.publishedVersion}
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap items-center gap-x-2">
                     <span className="flex items-center gap-1">
                       <Zap className="w-3 h-3" />{f.nodes.length} 节点
@@ -147,6 +188,32 @@ export default function FlowList() {
                         <span>{f.tags.join(', ')}</span>
                       </>
                     )}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <button
+                      onClick={() => handlePublish(f)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                      title="发布为正式版"
+                    >
+                      <CloudUpload className="w-3 h-3" />
+                      发布
+                    </button>
+                    <button
+                      onClick={() => handlePullRemote(f)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
+                      title="用正式版覆盖本地草稿"
+                    >
+                      <CloudDownload className="w-3 h-3" />
+                      拉取正式版
+                    </button>
+                    <button
+                      onClick={() => handleUnpublish(f)}
+                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-red-400 hover:bg-red-400/10 transition-colors"
+                      title="从正式库撤下"
+                    >
+                      <CloudOff className="w-3 h-3" />
+                      撤下
+                    </button>
                   </div>
                   {f.description && (
                     <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 truncate">
