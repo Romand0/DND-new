@@ -13,7 +13,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import {
   ArrowLeft, X, Plus, Trash2, Save, AlertCircle, CheckCircle,
-  MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
+  Loader2, MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
   ChevronRight, RotateCcw,
   PanelLeft, PanelRight, Sparkles, CloudUpload,
 } from 'lucide-react';
@@ -145,6 +145,7 @@ export default function FlowEditor() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [exitModalOpen, setExitModalOpen] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const skipNameSync = useRef(true);
 
   // ===== 发布提示 toast =====
@@ -623,11 +624,17 @@ export default function FlowEditor() {
 
   // ===== 保存草稿 =====
   const saveDraft = useCallback(() => {
-    const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
-    // 直接写入 flowStore（单一真相源）；save 为 upsert，库中不存在的流程也会写入
-    flowStore.save(updatedFlow);
-    setDrafts(flowStore.getAll());   // 刷新下拉框数据
-    setFlow(updatedFlow);
+    setSaveStatus('saving');
+    // 用 requestAnimationFrame 制造一帧延迟，让 "saving" 态先渲染
+    requestAnimationFrame(() => {
+      const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
+      // 直接写入 flowStore（单一真相源）；save 为 upsert，库中不存在的流程也会写入
+      flowStore.save(updatedFlow);
+      setDrafts(flowStore.getAll());   // 刷新下拉框数据
+      setFlow(updatedFlow);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    });
   }, [flow, flowNameInput.value]);
 
   // ===== 发布正式版 =====
@@ -722,9 +729,23 @@ export default function FlowEditor() {
             <CloudUpload className="w-3.5 h-3.5" />
             <span>发布</span>
           </button>
-          <button onClick={saveDraft} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium bg-primary text-white hover:bg-primary/90 transition-colors">
-            <Save className="w-3.5 h-3.5" />
-            <span>保存</span>
+          <button
+            onClick={saveDraft}
+            disabled={saveStatus === 'saving'}
+            className={`
+              flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
+              transition-all duration-300
+              ${saveStatus === 'saved'
+                ? 'bg-emerald-500 text-white scale-95'
+                : saveStatus === 'saving'
+                ? 'bg-primary/60 text-white/70 cursor-wait'
+                : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
+              }
+            `}
+          >
+            {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+            {saveStatus === 'saved' && <CheckCircle className="w-3.5 h-3.5" />}
+            {saveStatus === 'idle' && <Save className="w-3.5 h-3.5" />}
           </button>
         </div>
       </div>
