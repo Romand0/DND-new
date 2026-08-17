@@ -104,6 +104,17 @@ const flowStore = {
     return true;
   },
 
+  /** 重命名流程 ID（原子操作：删除旧 key → 以新 key 写回） */
+  renameId(oldId: string, newId: string): FlowDefinition | undefined {
+    const flows = read();
+    const idx = flows.findIndex(f => f.id === oldId);
+    if (idx === -1) return undefined;
+    if (flows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
+    flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
+    write(flows);
+    return flows[idx];
+  },
+
   /** 导入（从 JSON 字符串，返回导入后的 flow 或 null） */
   import(json: string): FlowDefinition | null {
     try {
