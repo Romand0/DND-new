@@ -1,42 +1,34 @@
 # src/components/Navbar.tsx
 
 ## 功能概述
-该文件定义了 `Navbar` 组件，它是 DM Toolkit 项目中的导航栏组件。该组件负责显示网站的顶部导航菜单，并根据用户的角色（DM 或玩家）显示不同的导航项。它还包含一些剧情工具的入口，如游戏时钟、日历和线上骰子。
+该文件定义了 `Navbar` 组件，负责显示和管理网页顶部的导航栏。导航栏包含网站的主要链接和工具，如角色卡库、战斗记录、物资钱币等，同时提供用户信息和主题切换功能。该组件根据用户角色（DM或玩家）显示不同的导航项。
 
 ## 主要导出/接口
-- **导出类型**: `Navbar`
-- **函数**:
-  - `useEffect`: 用于处理组件的生命周期事件，如订阅数据存储和监听点击事件。
-  - `useState`: 用于管理组件的状态，如菜单展开状态、游戏时间和日历日期。
-  - `useRef`: 用于创建一个引用，用于处理点击外部关闭下拉菜单的逻辑。
-  - `useLocation` 和 `useNavigate`: 来自 `react-router-dom`，用于获取当前路由信息和导航到不同的路径。
-  - `useTheme` 和 `useAuth`: 来自自定义上下文，用于获取主题和认证信息。
-- **组件**:
-  - `Link`: 来自 `react-router-dom`，用于创建可导航的链接。
-  - `Swords`, `Users`, `Coins`, `Sparkles`, `Menu`, `X`, `Sun`, `Moon`, `Settings`, `Clock`, `Calendar`, `ChevronDown`, `BookOpen`, `Dices`, `UserCircle`: 来自 `lucide-react`，用于显示图标。
-- **Store**:
-  - `gameTimeStore`: 用于获取和更新游戏时间。
-  - `calendarStore`: 用于获取和更新日历信息。
-- **常量**:
-  - `allNavItems`: 包含所有导航项的数组。
-  - `playerNavItems`: 包含玩家专属导航项的数组。
+- **组件**：`Navbar`
+  - `props`:
+    - `variant?: 'dm' | 'player'`: 组件的变体，用于区分DM和玩家视图，默认为 `'dm'`。
 
 ## 核心实现说明
-`Navbar` 组件的核心逻辑包括：
-- 根据用户角色和当前路径动态显示不同的导航项。
-- 使用 `useEffect` 来订阅 `gameTimeStore` 和 `calendarStore`，以便在数据更新时更新组件的状态。
-- 使用 `useRef` 来处理点击外部关闭下拉菜单的逻辑。
-- 使用 `useState` 来管理菜单展开状态、游戏时间和日历日期。
-- 使用 `useTheme` 和 `useAuth` 来获取主题和认证信息。
+`Navbar` 组件使用 React 的 `useState`、`useEffect` 和 `useRef` 钩子来管理组件状态和副作用。它通过 `useLocation` 和 `useNavigate` 钩子与 React Router 集成，以便于导航和获取当前路由信息。
 
-该组件与项目其他模块的关系包括：
-- 与 `react-router-dom` 集成，用于处理导航。
-- 与自定义上下文 `ThemeContext` 和 `AuthContext` 集成，用于获取主题和认证信息。
-- 与 `gameTimeStore` 和 `calendarStore` 集成，用于获取和更新游戏时间和日历信息。
+组件使用 `useTheme` 和 `useAuth` 钩子来访问主题上下文和认证上下文，从而实现主题切换和用户信息展示。
 
-该组件被 `App` 组件引用，并在应用程序的顶部显示。
+- **状态管理**:
+  - `mobileMenuOpen`: 控制移动端菜单的展开和收起。
+  - `toolsOpen`: 控制剧情工具下拉菜单的展开和收起。
+  - `gameTime`: 存储游戏时间信息。
+  - `calendarDate`: 存储游戏日历信息。
+
+- **与项目其他模块的关系**:
+  - `gameTimeStore` 和 `calendarStore`: 用于获取和更新游戏时间和日历信息。
+  - `flowStore`: 用于获取和更新流程信息。
+  - `ThemeContext` 和 `AuthContext`: 用于访问主题和用户认证信息。
+
+- **被谁引用**:
+  - 该组件可能被网站的其他页面或组件引用，以提供统一的导航栏。
 
 ## 注意事项或使用方式
-- 该组件接受一个 `variant` 属性，用于指定用户角色（DM 或玩家）。
-- 组件使用 `useEffect` 来处理订阅和事件监听，因此在使用时不需要额外的调用。
-- 组件使用 `useTheme` 和 `useAuth` 来获取主题和认证信息，因此在使用时不需要额外的调用。
+- 该组件根据用户角色（DM或玩家）显示不同的导航项。
+- 用户可以通过点击导航项进行页面跳转。
+- 用户可以通过点击用户信息入口进入账号页面。
+- 用户可以通过点击主题切换按钮来切换主题。
