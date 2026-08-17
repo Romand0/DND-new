@@ -36,6 +36,7 @@ import {
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
 import { generateFlowId, validateFlowId } from '@/lib/idUtils';
+import { SpatialGrid, findNonOverlappingPositionWithGrid } from '@/utils/spatialGrid';
 
 // ===== 节点图标解析 =====
 /** 从 icon name 解析为 React 元素，单一真相源 */
@@ -56,6 +57,10 @@ function resolveNodeIcon(iconName?: string): React.ReactNode {
 const NODE_W = 260;   // 窄屏基准宽度
 const NODE_H = 56;    // 最小估计高度（头部）
 
+// 空间索引实例（单例，避免重复创建）
+// 空间索引实例（单例，避免重复创建）
+let spatialGrid: SpatialGrid | null = null;
+
 // 画布缩放常量
 const SCALE_MIN = 0.25;
 const SCALE_MAX = 3;
@@ -72,7 +77,22 @@ function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolea
   );
 }
 
-// 寻找不与其他节点碰撞的位置（右侧→下方探测）
+// ===== 空间索引更新函数 =====
+const updateSpatialGrid = useCallback((nodes: FlowNodeDef[]) => {
+  if (!spatialGrid) return;
+  spatialGrid.clear();
+  nodes.forEach(node => {
+    spatialGrid.addNode({
+      id: node.id,
+      x: node.position.x,
+      y: node.position.y,
+      width: NODE_W,
+      height: NODE_H,
+    });
+  });
+}, []);
+
+// 寻找不与其他节点碰撞的位置（使用空间索引优化）
 function findNonOverlappingPosition(
   node: FlowNodeDef,
   allNodes: FlowNodeDef[],
@@ -80,21 +100,29 @@ function findNonOverlappingPosition(
   dx = 40,
   maxAttempts = 20,
 ): { x: number; y: number } {
-  let pos = { x: node.position.x, y: node.position.y };
-  for (let i = 0; i < maxAttempts; i++) {
-    const testNode = { ...node, position: pos };
-    const hasOverlap = allNodes.some(other => other.id !== node.id && nodesOverlap(testNode, other, cardWidth));
-    if (!hasOverlap) return pos;
-    pos = { x: pos.x + dx, y: pos.y };
-  }
-  pos = { x: node.position.x, y: node.position.y + dx };
-  for (let i = 0; i < maxAttempts; i++) {
-    const testNode = { ...node, position: pos };
-    const hasOverlap = allNodes.some(other => other.id !== node.id && nodesOverlap(testNode, other, cardWidth));
-    if (!hasOverlap) return pos;
-    pos = { x: pos.x, y: pos.y + dx };
-  }
-  return pos;
+  // 转换为空间索引格式
+  const spatialNode = {
+    id: node.id,
+    x: node.position.x,
+    y: node.position.y,
+    width: cardWidth,
+    height: NODE_H,
+  };
+  
+  // 使用空间索引优化的查找算法
+  return findNonOverlappingPositionWithGrid(
+    spatialNode,
+    allNodes.map(n => ({
+      id: n.id,
+      x: n.position.x,
+      y: n.position.y,
+      width: cardWidth,
+      height: NODE_H,
+    })),
+    spatialGrid,
+    dx,
+    maxAttempts
+  );
 }
 
 export default function FlowEditor() {
@@ -105,6 +133,11 @@ export default function FlowEditor() {
   const isDark = theme === 'dark';
 
   // ===== 状态 =====
+  // 初始化空间索引
+  if (!spatialGrid) {
+    spatialGrid = new SpatialGrid(100);
+  }
+  
   const [flow, setFlow] = useState<FlowDefinition>(() => {
     // ① 优先从 flowStore 加载指定 ID
     if (flowId) {
@@ -378,6 +411,8 @@ export default function FlowEditor() {
 
   // ===== 添加节点（自动防重叠） =====
   const addNode = useCallback((typeMeta: NodeTypeMeta, position: { x: number; y: number }) => {
+    // 在添加前更新空间索引
+    updateSpatialGrid(flow.nodes);
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     // 从 Schema 合并默认值（Schema 优先，兜底 defaultConfig）
     const schemaDefaults: Record<string, any> = {};
@@ -393,33 +428,48 @@ export default function FlowEditor() {
     // 新节点防重叠放置
     const finalPos = findNonOverlappingPosition(newNode, flow.nodes, NODE_W);
     newNode.position = finalPos;
-    setFlow(prev => ({ ...prev, nodes: [...prev.nodes, newNode], updatedAt: Date.now() }));
+    setFlow(prev => {
+      const newFlow = { ...prev, nodes: [...prev.nodes, newNode], updatedAt: Date.now() };
+      // 更新空间索引
+      updateSpatialGrid(newFlow.nodes);
+      return newFlow;
+    });
     setSelectedNodeId(id);
     setSelectedEdgeId(null);
   }, [flow.nodes]);
 
   // ===== 删除节点 =====
   const deleteNode = useCallback((nodeId: string) => {
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.filter(n => n.id !== nodeId),
-      edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
-      updatedAt: Date.now(),
-    }));
+    setFlow(prev => {
+      const newFlow = {
+        ...prev,
+        nodes: prev.nodes.filter(n => n.id !== nodeId),
+        edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
+        updatedAt: Date.now(),
+      };
+      // 更新空间索引
+      updateSpatialGrid(newFlow.nodes);
+      return newFlow;
+    });
     if (selectedNodeId === nodeId) setSelectedNodeId(null);
   }, [selectedNodeId]);
 
   // ===== 更新节点配置 =====
   const updateNodeConfig = useCallback((nodeId: string, key: string, value: any) => {
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n =>
-        n.id === nodeId
-          ? { ...n, config: { ...n.config, [key]: value } }
-          : n
-      ),
-      updatedAt: Date.now(),
-    }));
+    setFlow(prev => {
+      const newFlow = {
+        ...prev,
+        nodes: prev.nodes.map(n =>
+          n.id === nodeId
+            ? { ...n, config: { ...n.config, [key]: value } }
+            : n
+        ),
+        updatedAt: Date.now(),
+      };
+      // 更新空间索引（位置未变，但确保索引最新）
+      updateSpatialGrid(newFlow.nodes);
+      return newFlow;
+    });
   }, []);
 
   // ===== 更新节点位置（拖拽后应用 delta + 碰撞检测） =====
@@ -437,13 +487,17 @@ export default function FlowEditor() {
       const finalPos = hasOverlap
         ? findNonOverlappingPosition(testNode, others, NODE_W)
         : proposed;
+      
+      // 更新空间索引
+      updateSpatialGrid(prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n));
+      
       return {
         ...prev,
         nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
         updatedAt: Date.now(),
       };
     });
-  }, []);
+  }, [canvasScale]);
 
   // ===== 添加边 =====
   const addEdge = useCallback((fromId: string, toId: string, trigger: string) => {
