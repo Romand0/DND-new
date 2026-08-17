@@ -825,7 +825,7 @@ export default function FlowEditor() {
             onTouchStart={handleTouchStart}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
-            style={{ touchAction: 'none' }}
+            style={{ touchAction: 'manipulation' }}
           >
             <div
               className="relative origin-top-left"
