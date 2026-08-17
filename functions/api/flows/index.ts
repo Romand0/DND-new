@@ -1,12 +1,11 @@
 // 列出所有已发布流程 / 批量发布
-import { authenticateRequest, errorResponse, jsonResponse, readJsonBody, getDb } from '../_utils';
+import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now } from '../../_utils';
 
-export async function onRequestGet(context: any) {
-  const { request } = context;
-  const auth = await authenticateRequest(request);
+export async function onRequestGet(context: any): Promise<Response> {
+  const { request, env } = context;
+  const auth = await authenticateRequest(request, env);
   if (!auth) return errorResponse(401, '未授权');
-  const db = getDb(context.env);
-  const { results } = await db.prepare(
+  const { results } = await env.DB.prepare(
     'SELECT id, name, category, version, data, published_at, updated_at FROM flows ORDER BY updated_at DESC'
   ).all();
   const flows = results.map((row: any) => ({
@@ -17,14 +16,17 @@ export async function onRequestGet(context: any) {
   return jsonResponse(flows);
 }
 
-export async function onRequestPost(context: any) {
-  const { request } = context;
-  const auth = await authenticateRequest(request);
-  if (!auth || auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
-  const flows: any[] = await readJsonBody(request);
-  const timestamp = Date.now();
-  const db = getDb(context.env);
-  const stmt = db.prepare(
+export async function onRequestPost(context: any): Promise<Response> {
+  const { request, env } = context;
+  const auth = await authenticateRequest(request, env);
+  if (!auth) return errorResponse(401, '未授权');
+  if (auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
+  const flows: any[] | null = await readJsonBody(request);
+  if (!flows || !Array.isArray(flows) || flows.length === 0) {
+    return errorResponse('请求体必须是流程数组', 400);
+  }
+  const timestamp = now();
+  const stmt = env.DB.prepare(
     `INSERT INTO flows (id, name, category, version, data, published_at, updated_at, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
@@ -41,6 +43,10 @@ export async function onRequestPost(context: any) {
       timestamp
     )
   );
-  await db.batch(batch);
+  await env.DB.batch(batch);
   return jsonResponse({ success: true });
+}
+
+export function onRequestOptions(): Response {
+  return handleOptions();
 }

@@ -1,12 +1,11 @@
 // 单个流程的获取、发布、删除
-import { authenticateRequest, errorResponse, jsonResponse, readJsonBody, getDb } from '../_utils';
+import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now } from '../../_utils';
 
-export async function onRequestGet(context: any) {
-  const { request, params } = context;
-  const auth = await authenticateRequest(request);
+export async function onRequestGet(context: any): Promise<Response> {
+  const { request, env, params } = context;
+  const auth = await authenticateRequest(request, env);
   if (!auth) return errorResponse(401, '未授权');
-  const db = getDb(context.env);
-  const row = await db.prepare(
+  const row = await env.DB.prepare(
     'SELECT * FROM flows WHERE id = ?'
   ).bind(params.id).first();
   if (!row) return errorResponse(404, '流程不存在');
@@ -17,14 +16,15 @@ export async function onRequestGet(context: any) {
   });
 }
 
-export async function onRequestPut(context: any) {
-  const { request, params } = context;
-  const auth = await authenticateRequest(request);
-  if (!auth || auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
-  const body = await readJsonBody(request);
-  const timestamp = Date.now();
-  const db = getDb(context.env);
-  const existing = await db.prepare(
+export async function onRequestPut(context: any): Promise<Response> {
+  const { request, env, params } = context;
+  const auth = await authenticateRequest(request, env);
+  if (!auth) return errorResponse(401, '未授权');
+  if (auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
+  const body: any = await readJsonBody(request);
+  if (!body) return errorResponse('请求体为空', 400);
+  const timestamp = now();
+  const existing = await env.DB.prepare(
     'SELECT version FROM flows WHERE id = ?'
   ).bind(params.id).first();
   const nextVersion = existing ? ((existing as any).version as number) + 1 : 1;
@@ -34,7 +34,7 @@ export async function onRequestPut(context: any) {
     publishedAt: existing ? body.publishedAt : timestamp,
     updatedAt: timestamp,
   };
-  await db.prepare(
+  await env.DB.prepare(
     `INSERT INTO flows (id, name, category, version, data, published_at, updated_at, created_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(id) DO UPDATE SET
@@ -50,11 +50,15 @@ export async function onRequestPut(context: any) {
   return jsonResponse(flowData);
 }
 
-export async function onRequestDelete(context: any) {
-  const { request, params } = context;
-  const auth = await authenticateRequest(request);
-  if (!auth || auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
-  const db = getDb(context.env);
-  await db.prepare('DELETE FROM flows WHERE id = ?').bind(params.id).run();
+export async function onRequestDelete(context: any): Promise<Response> {
+  const { request, env, params } = context;
+  const auth = await authenticateRequest(request, env);
+  if (!auth) return errorResponse(401, '未授权');
+  if (auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
+  await env.DB.prepare('DELETE FROM flows WHERE id = ?').bind(params.id).run();
   return jsonResponse({ success: true });
+}
+
+export function onRequestOptions(): Response {
+  return handleOptions();
 }
