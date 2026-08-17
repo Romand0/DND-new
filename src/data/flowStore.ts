@@ -3,6 +3,7 @@ import { serializeFlow, deserializeFlow } from '@/types/flow';
 
 const STORAGE_KEY = 'dnd-flow-library';
 const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
+const REMOTE_CACHE_KEY = 'dnd-flow-remote';
 
 /** 位置快照：编辑器画布/面板视图状态（按流程 ID 维度存储） */
 export interface FlowViewportSnapshot {
@@ -19,10 +20,27 @@ type Listener = () => void;
 let listeners: Listener[] = [];
 let cache: FlowDefinition[] | null = null;
 
+// 双源模式：本地草稿 + 远程正式版缓存
+let localFlows: FlowDefinition[] = [];
+let remoteFlows: FlowDefinition[] = [];
+let remoteLoaded = false;
+
+/** 读取本地认证 token（JWT） */
+function getAuthToken(): string {
+  try {
+    return localStorage.getItem('auth_token') || '';
+  } catch {
+    return '';
+  }
+}
+
 // 跨标签页缓存失效
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY) cache = null;
+    if (e.key === STORAGE_KEY) {
+      cache = null;
+      localFlows = read();
+    }
     notify();
   });
 }
@@ -30,30 +48,126 @@ if (typeof window !== 'undefined') {
 function notify() { listeners.forEach(l => l()); }
 
 function read(): FlowDefinition[] {
-  if (cache) return cache;
+  if (cache) {
+    localFlows = cache;
+    return cache;
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     cache = raw ? JSON.parse(raw) : [];
   } catch { cache = []; }
+  localFlows = cache;
   return cache;
 }
 
 function write(flows: FlowDefinition[]) {
   cache = flows;
+  localFlows = flows;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(flows));
   notify();
 }
 
+/** 合并视图：本地草稿 + 远程独有（本地优先） */
+function mergedView(): FlowDefinition[] {
+  const localIds = new Set(localFlows.map(f => f.id));
+  const remoteOnly = remoteFlows.filter(f => !localIds.has(f.id));
+  return [...localFlows, ...remoteOnly];
+}
+
+/** 是否未发布或已有本地修改的草稿 */
+function isDraftDirty(flow: FlowDefinition): boolean {
+  if (!flow.publishedVersion || flow.publishedVersion === 0) return true;
+  return (flow.updatedAt ?? 0) > (flow.publishedAt ?? 0);
+}
+
 /** 流程库 store */
 const flowStore = {
-  /** 获取全部流程 */
+  /** 获取全部流程（本地草稿 + 远程独有合并视图） */
   getAll(): FlowDefinition[] {
-    return read();
+    return mergedView();
   },
 
-  /** 获取单个流程 */
+  /** 获取单个流程（本地优先） */
   getById(id: string): FlowDefinition | undefined {
-    return read().find(f => f.id === id);
+    return localFlows.find(f => f.id === id) || remoteFlows.find(f => f.id === id);
+  },
+
+  /** 判断草稿状态（未发布 / 本地有修改） */
+  isDraftDirty(flow: FlowDefinition): boolean {
+    return isDraftDirty(flow);
+  },
+
+  /** 发布流程到 D1 */
+  async publish(id: string): Promise<FlowDefinition | undefined> {
+    const flow = localFlows.find(f => f.id === id);
+    if (!flow) return undefined;
+    const res = await fetch(`/api/flows/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getAuthToken()}`,
+      },
+      body: JSON.stringify(flow),
+    });
+    if (!res.ok) throw new Error(`发布失败: ${res.status}`);
+    const published = await res.json();
+    const updated = {
+      ...flow,
+      publishedVersion: published.publishedVersion,
+      publishedAt: published.publishedAt ?? Date.now(),
+    };
+    const idx = localFlows.findIndex(f => f.id === id);
+    localFlows[idx] = updated;
+    write(localFlows);
+    notify();
+    return updated;
+  },
+
+  /** 从 D1 撤下 */
+  async unpublish(id: string): Promise<void> {
+    await fetch(`/api/flows/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` },
+    });
+    const flow = localFlows.find(f => f.id === id);
+    if (flow) {
+      flow.publishedVersion = 0;
+      flow.publishedAt = null;
+      write(localFlows);
+      notify();
+    }
+  },
+
+  /** 拉取远程正式版列表（缓存） */
+  async fetchRemote(): Promise<void> {
+    const res = await fetch('/api/flows', {
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` },
+    });
+    if (!res.ok) return;
+    remoteFlows = await res.json();
+    remoteLoaded = true;
+    try {
+      localStorage.setItem(REMOTE_CACHE_KEY, JSON.stringify(remoteFlows));
+    } catch {}
+    notify();
+  },
+
+  /** 拉取单个正式版覆盖本地 */
+  async pullRemote(id: string): Promise<FlowDefinition | undefined> {
+    const res = await fetch(`/api/flows/${id}`, {
+      headers: { 'Authorization': `Bearer ${getAuthToken()}` },
+    });
+    if (!res.ok) return undefined;
+    const remote = await res.json();
+    const idx = localFlows.findIndex(f => f.id === id);
+    if (idx >= 0) {
+      localFlows[idx] = remote;
+    } else {
+      localFlows.push(remote);
+    }
+    write(localFlows);
+    notify();
+    return remote;
   },
 
   /** 创建空流程 */
