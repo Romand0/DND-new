@@ -1,31 +1,34 @@
 # src/pages/TreasureDistribute.tsx
 
 ## 功能概述
-该文件定义了 TreasureDistribute 组件，负责处理宝藏的分配逻辑。它允许用户从宝藏中选择物品和货币，并将它们分配给不同的角色。组件还负责处理分配过程中的状态管理和动画效果。
+
+该文件 `TreasureDistribute.tsx` 是一个 React 组件，负责处理和展示宝藏分配的界面。它允许用户从宝藏中分配货币、经验和物品到不同的角色。该组件通过使用 React 的状态管理和生命周期特性，以及与数据存储模块的交互，实现了分配逻辑和用户界面。
 
 ## 主要导出/接口
-- `TreasureDistribute`: 主组件，负责渲染分配界面和处理分配逻辑。
-- `CurrencyKey`: 货币类型的枚举类型，包括 'pp', 'gp', 'sp', 'cp'。
-- `DistributionItem`: 分配物品的接口，包含 `id`, `name`, `quantity`, `unitPrice` 和 `animKey` 属性。
-- `CharacterDistribution`: 分配角色的接口，包含 `characterId`, `characterName`, `currency` 和 `items` 属性。
-- `CURRENCY_META`: 货币元数据常量数组，包含 `key`, `label` 和 `color` 属性。
+
+- `TreasureDistribute`：主组件，负责渲染整个宝藏分配界面。
+- `CurrencyKey`：货币键类型，定义了不同货币的类型。
+- `DistributionItem`：分配物品接口，包含物品ID、名称、数量和单价。
+- `CharacterDistribution`：角色分配接口，包含角色ID、名称、货币、物品和经验。
+- `CURRENCY_META`：货币元数据常量数组，包含货币键、标签和颜色。
+- `formatCurrencyShort`：格式化货币显示的辅助函数。
+- `treasureCurrencyToCharacter`：将宝藏货币转换为角色货币的辅助函数。
+- `treasurePriceToEquipmentPrice`：将宝藏物品单价转换为装备价格的辅助函数。
 
 ## 核心实现说明
-- `TreasureDistribute` 组件使用 React 的 `useState`, `useEffect`, `useCallback`, `useRef` 和 `useMemo` 钩子来管理状态和副作用。
-- 组件从 URL 参数中获取宝藏 ID，并使用 `treasureStore` 获取宝藏信息。
-- `useState` 用于管理宝藏、剩余物品、剩余货币、选中的卡片 ID、选中的货币类型、选中的数量、分配记录和角色选择状态。
-- `useEffect` 用于处理宝藏和角色数据的变化。
-- `selectItemCard` 和 `selectCurrencyCard` 用于选择物品和货币卡片。
-- `triggerReceiveAnim` 用于触发角色卡片的脉冲动画。
-- `startLongPress` 和 `cancelLongPress` 用于处理长按事件。
-- `addDistributor` 用于添加分配者。
-- `distributeToCharacter` 用于将物品或货币分配给角色。
-- `confirmSliderDistribution` 用于确认数量选择。
-- `returnItemToTreasure` 和 `returnCurrencyToTreasure` 用于从分配者退回物品和货币。
-- `handleFinish` 和 `confirmFinish` 用于处理分配完成。
+
+该组件的核心实现包括以下部分：
+
+- **状态管理**：使用 `useState` 和 `useEffect` 管理组件的状态，如宝藏信息、剩余物品、剩余货币、剩余经验、分配记录等。
+- **数据交互**：通过 `useParams` 和 `useNavigate` 获取路由参数和导航功能，通过 `treasureStore` 和 `characterStore` 与数据存储模块交互获取和更新数据。
+- **分配逻辑**：实现货币、经验和物品的分配逻辑，包括选择分配对象、分配数量、分配操作等。
+- **动画和反馈**：使用 `triggerReceiveAnim` 函数触发角色分配卡片的脉冲动画，提供视觉反馈。
+
+该组件被其他模块引用，用于处理和展示宝藏分配的结果。
 
 ## 注意事项或使用方式
-- 用户需要先选择宝藏，然后选择要分配的物品或货币。
-- 可以通过长按物品卡片来选择分配数量。
-- 可以通过点击角色卡片来将选中的物品或货币分配给该角色。
-- 分配完成后，可以点击“完成”按钮来确认分配结果。
+
+- 用户需要先选择宝藏，然后选择角色进行分配。
+- 可以分配货币、经验和物品到角色。
+- 分配完成后，可以查看分配结果并确认。
+- 如果需要修改分配结果，可以返回修改。

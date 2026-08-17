@@ -1,8 +1,8 @@
 {
   "files": {
     "src/App.tsx": {
-      "sha": "251861c009be87bdd17796dda97f2960047408683b36cf2e755db42809f517cd",
-      "at": "2026-08-12T03:32:13.702Z"
+      "sha": "7b472a13d7e1240d36efb16535b96551dfd24ce00e70497eed1a3c2ac718621a",
+      "at": "2026-08-17T02:36:41.489Z"
     },
     "src/components/AdvDisadvToggle.tsx": {
       "sha": "f4b4d7e1358bae00ea1c8bb026d0a9fc00cdae73457f24e38cde4ac5245135ef",
@@ -33,8 +33,8 @@
       "at": "2026-08-12T03:32:27.218Z"
     },
     "src/components/CombatantInfoPanel.tsx": {
-      "sha": "4f627cedf8983d41d5aca2401e529df61f71db7895eb779985ef6f1fcf81e174",
-      "at": "2026-08-12T03:32:35.464Z"
+      "sha": "02096554effd38de2ac040e0ed6efadb834d0d06dab720d32e9744ac6934a244",
+      "at": "2026-08-17T02:36:49.399Z"
     },
     "src/components/EquipmentEditor.tsx": {
       "sha": "71f0bb074255b11d11aea15176e819b731e6c972f45a60519f3f81e53867ed4d",
@@ -57,8 +57,8 @@
       "at": "2026-08-11T11:15:04.447Z"
     },
     "src/components/Navbar.tsx": {
-      "sha": "5714c081be95eed6478c534b155072641d2fd3a29fc26094f4fdc859e8c2510f",
-      "at": "2026-08-11T11:15:43.876Z"
+      "sha": "015014780edf2055b74cd118fa1e6f2c362e8dc8842853868de879bed43559ed",
+      "at": "2026-08-17T02:37:56.256Z"
     },
     "src/components/NpcCreator.tsx": {
       "sha": "941df555ec4c2830a88a73283e18b56139d33e61296bbcd7e4f373032d7af435",
@@ -193,8 +193,8 @@
       "at": "2026-08-11T11:32:55.611Z"
     },
     "src/data/treasureStore.ts": {
-      "sha": "27f343a62e6edc9175694852853cdb3f85cbbb4638af4093e2537b606406c21b",
-      "at": "2026-08-11T11:33:22.308Z"
+      "sha": "d4efdae7bbada6c3e60d46e8b0bc46c2104687869ae6d679489d8e0bd9993ba5",
+      "at": "2026-08-17T02:39:30.369Z"
     },
     "src/hooks/combat/useActions.ts": {
       "sha": "58cac408b4f0ee27d9a99fa906fafa66b107e83f651f4fabbe16d66724dfe361",
@@ -285,8 +285,8 @@
       "at": "2026-08-11T11:45:52.299Z"
     },
     "src/pages/CombatList.tsx": {
-      "sha": "62329dc95ea787113f690c4050dd0eb10aa4f3713668d88fe835d780f2c4729f",
-      "at": "2026-08-12T03:35:32.190Z"
+      "sha": "bcc68560bdcab16df83b707583e6be93954af0a6d0ef928d15a3e88fc197514a",
+      "at": "2026-08-17T02:39:57.646Z"
     },
     "src/pages/CombatSession.tsx": {
       "sha": "5a6e1b18b56697b98026cb59d6adafdb17fa4024a5cf13f19a124c32c0185253",
@@ -353,8 +353,8 @@
       "at": "2026-08-11T11:55:40.079Z"
     },
     "src/pages/Settings.tsx": {
-      "sha": "ef247cccdec9be20ea7d26bfefaf0fcfb74f66a0b732cb42c280ce689b1fd78b",
-      "at": "2026-08-11T11:56:06.584Z"
+      "sha": "639ceb7803ce6ffcc28ab85c5054e73ebf94fb7b9b338b9f6fd441cd1aa881f2",
+      "at": "2026-08-17T02:41:59.413Z"
     },
     "src/pages/SpellDetail.tsx": {
       "sha": "e589ded8723b2b668398ac400a17528629bec2fe72fa201518b4f988a696d533",
@@ -369,12 +369,12 @@
       "at": "2026-08-11T11:57:27.071Z"
     },
     "src/pages/TreasureDistribute.tsx": {
-      "sha": "00d64a2ab7f5b50f3ccc2e8630256ed26bc40a904add5885966102f35347f80a",
-      "at": "2026-08-11T11:57:59.620Z"
+      "sha": "677f4260e534317d1bd9c0e2a58fd55fdb99748ddacf5316380a98708d0c8c4a",
+      "at": "2026-08-17T02:42:26.382Z"
     },
     "src/pages/TreasureEdit.tsx": {
-      "sha": "4f9541f2734cb71c1c6e722cf51829c64db90c0045bdeaa772438800406c69aa",
-      "at": "2026-08-12T03:38:17.873Z"
+      "sha": "8931566cb64221cca4bc73d98272b068c65ac8bd9754997787831a4c175ee6e7",
+      "at": "2026-08-17T02:42:50.593Z"
     },
     "src/pages/TreasureList.tsx": {
       "sha": "30acd18be4cee33772dcab4d606d0a93a6febe721c64fad9694d0d868fc5514d",
@@ -405,8 +405,8 @@
       "at": "2026-08-11T12:02:32.161Z"
     },
     "src/types/treasure.ts": {
-      "sha": "414dee197dcf46bc710c43bfa75cb3606a27061dc575417c9d93e0c1c8b98131",
-      "at": "2026-08-11T12:02:53.951Z"
+      "sha": "4c5645f2eb9128a9b11eda77e6ec44ec8fc0f434e7991b7b0d136a16f1eff902",
+      "at": "2026-08-17T02:44:12.691Z"
     },
     "src/components/TripleTapGesture.tsx": {
       "sha": "e720f5cd1afd080b7be1785ed38c0b4274b21d8deb3558f27fac24e1214922fe",
@@ -427,6 +427,30 @@
     "src/types/status.ts": {
       "sha": "199284b7367a0638c6e415179c39af4af799db7755c749b8cb6dbf613559b135",
       "at": "2026-08-12T03:40:47.943Z"
+    },
+    "src/components/ConfigFieldRenderer.tsx": {
+      "sha": "3d8f67da19a216090ab4c885422244c2c93d89f20c480962487626fcd739444d",
+      "at": "2026-08-17T02:37:18.005Z"
+    },
+    "src/components/SpellIdPicker.tsx": {
+      "sha": "3c028155e29e9f545dc981274d2eea69aa216ceae9892e6cb68d2949b5a50efc",
+      "at": "2026-08-17T02:38:20.178Z"
+    },
+    "src/data/flowStore.ts": {
+      "sha": "60fcfbb8cff608e553608a55ae26f36f7f35c7443da5cc164a003f9c0fabc9b1",
+      "at": "2026-08-17T02:38:56.383Z"
+    },
+    "src/pages/FlowEditor.tsx": {
+      "sha": "e1f0d937f4eafbe4f62c7a954fb8cc0da0b6c0ac5a7a1f0bdd3c7af660b8b531",
+      "at": "2026-08-17T02:40:53.161Z"
+    },
+    "src/pages/FlowList.tsx": {
+      "sha": "da5cf14d7ef077c31ee16d7f5d43064066ab1c548ed9f6ec6ee289d4e1a8aaf8",
+      "at": "2026-08-17T02:41:34.745Z"
+    },
+    "src/types/flow.ts": {
+      "sha": "d4d62f037b2b2cde1a5f878296d307ecea1d438f504c392dd594974276e1db8e",
+      "at": "2026-08-17T02:43:39.961Z"
     }
   }
 }
