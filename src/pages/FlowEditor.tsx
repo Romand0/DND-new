@@ -27,12 +27,141 @@ import type {
   NodeTypeMeta,
 } from '@/types/flow';
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow } from '@/types/flow';
-import { NODE_CONFIG_SCHEMA } from '@/types/flow';
+import { NODE_CONFIG_SCHEMA, FlowNodeType } from '@/types/flow';
 import {
   FLOW_CATEGORIES,
   parseFlowId,
   buildFlowId,
 } from '@/types/flow';
+
+// ===== 增强的校验函数，提供节点级别错误 =====
+interface ValidationError {
+  type: 'global' | 'node' | 'edge';
+  id?: string; // 节点或边的ID
+  message: string;
+  field?: string; // 具体字段名（针对配置错误）
+}
+
+function validateFlowWithDetails(flow: FlowDefinition): ValidationError[] {
+  const errors: ValidationError[] = [];
+
+  // 1. 检查必需的全局字段
+  if (!flow.name || typeof flow.name !== 'string' || flow.name.trim() === '') {
+    errors.push({ type: 'global', message: '流程名称不能为空' });
+  }
+
+  if (!Array.isArray(flow.nodes)) {
+    errors.push({ type: 'global', message: '节点必须是数组' });
+    return errors; // 节点不是数组，后续检查无意义
+  }
+
+  if (!Array.isArray(flow.edges)) {
+    errors.push({ type: 'global', message: '边必须是数组' });
+  }
+
+  // 2. 检查节点
+  const nodeIds = new Set<string>();
+  for (let i = 0; i < flow.nodes.length; i++) {
+    const node = flow.nodes[i];
+    const nodeId = `节点${i + 1}(${node.id})`;
+
+    // 检查节点必需字段
+    if (!node.id || typeof node.id !== 'string') {
+      errors.push({ type: 'node', id: node.id, message: `${nodeId}缺少有效的ID` });
+    } else if (nodeIds.has(node.id)) {
+      errors.push({ type: 'node', id: node.id, message: `${nodeId}ID重复` });
+    } else {
+      nodeIds.add(node.id);
+    }
+
+    if (!node.type || typeof node.type !== 'string') {
+      errors.push({ type: 'node', id: node.id, message: `${nodeId}缺少节点类型` });
+    }
+
+    // 检查节点配置
+    if (node.config && typeof node.config === 'object') {
+      const schema = NODE_CONFIG_SCHEMA[node.type as FlowNodeType];
+      if (schema) {
+        for (const field of schema) {
+          if (field.required && (node.config[field.key] === undefined || node.config[field.key] === null || node.config[field.key] === '')) {
+            errors.push({
+              type: 'node',
+              id: node.id,
+              message: `${nodeId}缺少必需配置: ${field.label}`,
+              field: field.key
+            });
+          }
+        }
+      }
+    }
+
+    // 检查位置
+    if (!node.position || typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
+      errors.push({ type: 'node', id: node.id, message: `${nodeId}位置坐标无效` });
+    }
+  }
+
+  // 3. 检查边
+  const edgeIds = new Set<string>();
+  for (let i = 0; i < flow.edges.length; i++) {
+    const edge = flow.edges[i];
+    const edgeId = `边${i + 1}(${edge.id})`;
+
+    // 检查边必需字段
+    if (!edge.id || typeof edge.id !== 'string') {
+      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}缺少有效ID` });
+    } else if (edgeIds.has(edge.id)) {
+      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}ID重复` });
+    } else {
+      edgeIds.add(edge.id);
+    }
+
+    if (!edge.from || !nodeIds.has(edge.from)) {
+      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}引用了不存在的源节点: ${edge.from}` });
+    }
+
+    if (!edge.to || !nodeIds.has(edge.to)) {
+      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}引用了不存在的目标节点: ${edge.to}` });
+    }
+
+    if (edge.from === edge.to) {
+      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}形成自环（不能连接到自身）` });
+    }
+
+    // 检查重复边
+    const edgeSignature = `${edge.from}->${edge.to}@${edge.trigger}`;
+    const duplicateEdge = flow.edges.find((e, idx) => 
+      idx !== i && `${e.from}->${e.to}@${e.trigger}` === edgeSignature
+    );
+    if (duplicateEdge) {
+      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}存在重复连线: ${edge.from} → ${edge.to}（${edge.trigger}）` });
+    }
+  }
+
+  // 4. 检查入口节点
+  const nodesWithIncomingEdge = new Set(flow.edges.map(e => e.to));
+  const entryNodes = flow.nodes.filter(n => !nodesWithIncomingEdge.has(n.id));
+  if (entryNodes.length === 0) {
+    errors.push({ type: 'global', message: '流程缺少入口节点（所有节点都有入边，可能存在循环）' });
+  }
+
+  // 5. 检查条件分支
+  const branchNodes = flow.nodes.filter(n => n.type === 'condition_branch');
+  for (const branch of branchNodes) {
+    const outEdges = flow.edges.filter(e => e.from === branch.id);
+    const hasTrue = outEdges.some(e => e.trigger === 'on_true');
+    const hasFalse = outEdges.some(e => e.trigger === 'on_false');
+    
+    if (!hasTrue) {
+      errors.push({ type: 'node', id: branch.id, message: `条件分支节点 ${branch.id} 缺少 on_true 出边` });
+    }
+    if (!hasFalse) {
+      errors.push({ type: 'node', id: branch.id, message: `条件分支节点 ${branch.id} 缺少 on_false 出边` });
+    }
+  }
+
+  return errors;
+}
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
 import NodeListPanel from '@/components/NodeListPanel';
@@ -173,8 +302,6 @@ export default function FlowEditor() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectFromId, setConnectFromId] = useState<string | null>(null);
   const [connectTrigger, setConnectTrigger] = useState<string>('on_complete');
-  const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [showValidation, setShowValidation] = useState(false);
   const [drafts, setDrafts] = useState<FlowDefinition[]>(() => flowStore.getAll());
   const [showDrafts, setShowDrafts] = useState(false);
   const flowNameInput = useTextInput('');
@@ -739,11 +866,27 @@ export default function FlowEditor() {
     setConnectFromId(null);
   }, []);
 
-  // ===== 验证 =====
+  // ===== 实时校验 =====
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [showValidation, setShowValidation] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<'valid' | 'invalid'>('valid');
+  
+  // 实时校验（防抖500ms）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const errors = validateFlowWithDetails(flow);
+      setValidationErrors(errors);
+      setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [flow]);
+
+  // ===== 手动验证 =====
   const runValidation = useCallback(() => {
-    const errors = validateFlow(flow);
+    const errors = validateFlowWithDetails(flow);
     setValidationErrors(errors);
     setShowValidation(true);
+    setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
   }, [flow]);
 
   // ===== 保存草稿 =====
@@ -769,6 +912,15 @@ export default function FlowEditor() {
 
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
+    // 发布前先检查校验
+    const errors = validateFlowWithDetails(flow);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      setShowValidation(true);
+      showToast('error', `无法发布：存在 ${errors.length} 个校验错误`);
+      return;
+    }
+
     try {
       flowStore.update(flow.id, flow);
       const published = await flowStore.publish(flow.id);
@@ -855,7 +1007,17 @@ export default function FlowEditor() {
           <input type="text" value={flowNameInput.text} onChange={(e) => flowNameInput.onChange(e.target.value)} onBlur={flowNameInput.onBlur} className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48" placeholder="流程名称" />
         </div>
         <div className="flex items-center gap-2 px-4">
-          <button onClick={handlePublish} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:border-primary hover:text-primary transition-colors">
+          <button 
+            onClick={handlePublish}
+            disabled={validationStatus === 'invalid'}
+            className={`
+              flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+              ${validationStatus === 'valid'
+                ? 'border-green-500 text-green-500 hover:border-green-400 hover:text-green-400 hover:bg-green-500/10'
+                : 'border-gray-400 text-gray-400 cursor-not-allowed'
+              }
+            `}
+          >
             <CloudUpload className="w-3.5 h-3.5" />
             <span>发布</span>
           </button>
@@ -869,13 +1031,17 @@ export default function FlowEditor() {
                 ? 'bg-emerald-500 text-white scale-95'
                 : saveStatus === 'saving'
                 ? 'bg-primary/60 text-white/70 cursor-wait'
-                : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
+                : validationStatus === 'valid'
+                ? 'bg-primary text-white hover:bg-primary/90 active:scale-95'
+                : 'bg-orange-500 text-white hover:bg-orange-90 active:scale-95'
               }
             `}
           >
             {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {saveStatus === 'saved' && <CheckCircle className="w-3.5 h-3.5" />}
-            {saveStatus === 'idle' && <Save className="w-3.5 h-3.5" />}
+            {saveStatus === 'idle' && (
+              validationStatus === 'valid' ? <Save className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />
+            )}
           </button>
         </div>
       </div>
@@ -1163,7 +1329,7 @@ export default function FlowEditor() {
               {validationErrors.length > 0 && (
                 <ul className="space-y-1 max-h-40 overflow-y-auto">
                   {validationErrors.map((err, i) => (
-                    <li key={i} className="text-xs text-red-400">{err}</li>
+                    <li key={i} className="text-xs text-red-400">{err.message}</li>
                   ))}
                 </ul>
               )}
@@ -1179,20 +1345,124 @@ export default function FlowEditor() {
           showRightPanel ? 'translate-x-0' : 'translate-x-full'
         } lg:translate-x-0 absolute lg:relative right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
       >
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4 lg:hidden">
-            <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">属性</h3>
-            <button
-              onClick={() => setShowRightPanel(false)}
-              className="p-1 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
+      <div className="p-4">
+        {/* ===== 实时校验结果显示 ===== */}
+        <div className={`mb-4 p-3 rounded-lg border ${
+          validationStatus === 'valid' 
+            ? 'border-green-500/20 bg-green-500/5' 
+            : 'border-red-500/20 bg-red-500/5'
+        }`}>
+          <div className="flex items-center gap-2 mb-2">
+            {validationStatus === 'valid' ? (
+              <>
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <span className="text-sm font-medium text-green-400">可以发布</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                <span className="text-sm font-medium text-red-400">
+                  无法发布（{validationErrors.length} 个错误）
+                </span>
+              </>
+            )}
+            <button 
+              onClick={() => setShowValidation(!showValidation)}
+              className="ml-auto text-xs text-gray-400 hover:text-gray-200"
             >
-              <X className="w-4 h-4" />
+              {showValidation ? '隐藏' : '显示'}详情
             </button>
           </div>
+          
+          {showValidation && validationErrors.length > 0 && (
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {validationErrors.map((error, index) => {
+                // 根据错误类型选择不同的图标和颜色
+                let icon, borderColor, bgColor;
+                if (error.type === 'global') {
+                  icon = <AlertCircle className="w-3 h-3 text-red-400" />;
+                  borderColor = 'border-red-400';
+                  bgColor = 'bg-red-500/5';
+                } else if (error.type === 'node') {
+                  icon = <Zap className="w-3 h-3 text-orange-400" />;
+                  borderColor = 'border-orange-400';
+                  bgColor = 'bg-orange-500/5';
+                } else {
+                  icon = <GitBranch className="w-3 h-3 text-yellow-400" />;
+                  borderColor = 'border-yellow-400';
+                  bgColor = 'bg-yellow-500/5';
+                }
+
+                return (
+                  <div key={index} className={`text-xs p-2 rounded border-l-2 ${borderColor} ${bgColor}`}>
+                    <div className="flex items-start gap-2">
+                      {icon}
+                      <div className="flex-1">
+                        <span className="text-red-300">{error.message}</span>
+                        
+                        {/* 显示节点/边ID */}
+                        {error.id && (
+                          <div className="mt-1 ml-2 p-1 bg-gray-800/50 rounded text-xs font-mono">
+                            ID: <span className="text-blue-300">{error.id}</span>
+                          </div>
+                        )}
+                        
+                        {/* 显示具体字段 */}
+                        {error.field && (
+                          <div className="mt-1 ml-2 p-1 bg-gray-800/50 rounded text-xs font-mono">
+                            字段: <span className="text-green-300">{error.field}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between mb-4 lg:hidden">
+          <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">属性</h3>
+          <button
+            onClick={() => setShowRightPanel(false)}
+            className="p-1 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
           {/* 流程属性（无选中节点时显示） */}
           {!selectedNode && (
             <div>
+              {/* ===== 流程校验状态 ===== */}
+              <div className={`mb-4 p-3 rounded-lg border ${
+                validationStatus === 'valid' 
+                  ? 'border-green-500/20 bg-green-500/5' 
+                  : 'border-red-500/20 bg-red-500/5'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {validationStatus === 'valid' ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-sm font-medium text-green-400">流程可以发布</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      <span className="text-sm font-medium text-red-400">
+                        流程无法发布（{validationErrors.length} 个错误）
+                      </span>
+                    </>
+                  )}
+                </div>
+                {validationErrors.length > 0 && (
+                  <div className="text-xs text-red-300">
+                    主要问题：{validationErrors[0].message}
+                  </div>
+                )}
+              </div>
+
               <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4">
                 流程属性
               </h3>

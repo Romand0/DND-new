@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校验功能测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-case {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .test-case h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .results {
+            background-color: #f5f5f5;
+            padding: 15px;
+            border-radius: 4px;
+            margin-top: 10px;
+        }
+        .error {
+            color: #d32f2f;
+        }
+        .success {
+            color: #388e3c;
+        }
+        .error-count {
+            font-weight: bold;
+            color: #d32f2f;
+        }
+        .error-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .error-list li {
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .error-list li:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <h1>校验功能测试</h1>
+    
+    <div class="test-case">
+        <h3>测试1：正常流程</h3>
+        <div class="results" id="normal-results">
+            <p>运行测试中...</p>
+        </div>
+    </div>
+    
+    <div class="test-case">
+        <h3>测试2：错误流程</h3>
+        <div class="results" id="error-results">
+            <p>运行测试中...</p>
+        </div>
+    </div>
+
+    <script>
+        // 简化的校验函数（用于测试）
+        function validateFlowWithDetails(flow) {
+            const errors = [];
+
+            // 1. 检查必需的全局字段
+            if (!flow.name || typeof flow.name !== 'string' || flow.name.trim() === '') {
+                errors.push({ type: 'global', message: '流程名称不能为空' });
+            }
+
+            if (!Array.isArray(flow.nodes)) {
+                errors.push({ type: 'global', message: '节点必须是数组' });
+                return errors;
+            }
+
+            if (!Array.isArray(flow.edges)) {
+                errors.push({ type: 'global', message: '边必须是数组' });
+            }
+
+            // 2. 检查节点
+            const nodeIds = new Set();
+            for (let i = 0; i < flow.nodes.length; i++) {
+                const node = flow.nodes[i];
+                const nodeId = `节点${i + 1}(${node.id})`;
+
+                // 检查节点必需字段
+                if (!node.id || typeof node.id !== 'string') {
+                    errors.push({ type: 'node', id: node.id, message: `${nodeId}缺少有效的ID` });
+                } else if (nodeIds.has(node.id)) {
+                    errors.push({ type: 'node', id: node.id, message: `${nodeId}ID重复` });
+                } else {
+                    nodeIds.add(node.id);
+                }
+
+                if (!node.type || typeof node.type !== 'string') {
+                    errors.push({ type: 'node', id: node.id, message: `${nodeId}缺少节点类型` });
+                }
+
+                // 检查节点配置
+                if (node.config && typeof node.config === 'object') {
+                    // 简化的配置检查
+                    if (node.type === 'check_range' && (!node.config.range || typeof node.config.range !== 'number')) {
+                        errors.push({
+                            type: 'node',
+                            id: node.id,
+                            message: `${nodeId}缺少必需配置: 射程`,
+                            field: 'range'
+                        });
+                    }
+                }
+
+                // 检查位置
+                if (!node.position || typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
+                    errors.push({ type: 'node', id: node.id, message: `${nodeId}位置坐标无效` });
+                }
+            }
+
+            // 3. 检查边
+            const edgeIds = new Set();
+            for (let i = 0; i < flow.edges.length; i++) {
+                const edge = flow.edges[i];
+                const edgeId = `边${i + 1}(${edge.id})`;
+
+                // 检查边必需字段
+                if (!edge.id || typeof edge.id !== 'string') {
+                    errors.push({ type: 'edge', id: edge.id, message: `${edgeId}缺少有效ID` });
+                } else if (edgeIds.has(edge.id)) {
+                    errors.push({ type: 'edge', id: edge.id, message: `${edgeId}ID重复` });
+                } else {
+                    edgeIds.add(edge.id);
+                }
+
+                if (!edge.from || !nodeIds.has(edge.from)) {
+                    errors.push({ type: 'edge', id: edge.id, message: `${edgeId}引用了不存在的源节点: ${edge.from}` });
+                }
+
+                if (!edge.to || !nodeIds.has(edge.to)) {
+                    errors.push({ type: 'edge', id: edge.id, message: `${edgeId}引用了不存在的目标节点: ${edge.to}` });
+                }
+
+                if (edge.from === edge.to) {
+                    errors.push({ type: 'edge', id: edge.id, message: `${edgeId}形成自环（不能连接到自身）` });
+                }
+
+                // 检查重复边
+                const edgeSignature = `${edge.from}->${edge.to}@${edge.trigger}`;
+                const duplicateEdge = flow.edges.find((e, idx) => 
+                    idx !== i && `${e.from}->${e.to}@${e.trigger}` === edgeSignature
+                );
+                if (duplicateEdge) {
+                    errors.push({ type: 'edge', id: edge.id, message: `${edgeId}存在重复连线: ${edge.from} → ${edge.to}（${edge.trigger}）` });
+                }
+            }
+
+            // 4. 检查入口节点
+            const nodesWithIncomingEdge = new Set(flow.edges.map(e => e.to));
+            const entryNodes = flow.nodes.filter(n => !nodesWithIncomingEdge.has(n.id));
+            if (entryNodes.length === 0) {
+                errors.push({ type: 'global', message: '流程缺少入口节点（所有节点都有入边，可能存在循环）' });
+            }
+
+            // 5. 检查条件分支
+            const branchNodes = flow.nodes.filter(n => n.type === 'condition_branch');
+            for (const branch of branchNodes) {
+                const outEdges = flow.edges.filter(e => e.from === branch.id);
+                const hasTrue = outEdges.some(e => e.trigger === 'on_true');
+                const hasFalse = outEdges.some(e => e.trigger === 'on_false');
+                
+                if (!hasTrue) {
+                    errors.push({ type: 'node', id: branch.id, message: `条件分支节点 ${branch.id} 缺少 on_true 出边` });
+                }
+                if (!hasFalse) {
+                    errors.push({ type: 'node', id: branch.id, message: `条件分支节点 ${branch.id} 缺少 on_false 出边` });
+                }
+            }
+
+            return errors;
+        }
+
+        // 测试1：正常流程
+        const normalFlow = {
+            id: 'test-spell',
+            name: '测试法术',
+            nodes: [
+                {
+                    id: 'start',
+                    type: 'cast_start',
+                    label: '施法开始',
+                    position: { x: 100, y: 100 }
+                },
+                {
+                    id: 'check_range',
+                    type: 'check_range',
+                    label: '距离检测',
+                    position: { x: 300, y: 100 },
+                    config: { range: 60 }
+                }
+            ],
+            edges: [
+                {
+                    id: 'edge1',
+                    from: 'start',
+                    to: 'check_range',
+                    trigger: 'on_complete'
+                }
+            ]
+        };
+
+        // 测试2：有错误的流程
+        const errorFlow = {
+            id: 'error-spell',
+            name: '', // 空名称
+            nodes: [
+                {
+                    id: 'node1',
+                    type: 'cast_start',
+                    label: '节点1',
+                    position: { x: 100, y: 100 }
+                },
+                {
+                    id: 'node1', // 重复ID
+                    type: 'check_range',
+                    label: '节点2',
+                    position: { x: 300, y: 100 }
+                },
+                {
+                    id: 'node3',
+                    type: 'condition_branch',
+                    label: '条件分支',
+                    position: { x: 500, y: 100 }
+                    // 缺少on_true和on_false出边
+                }
+            ],
+            edges: [
+                {
+                    id: 'edge1',
+                    from: 'node1',
+                    to: 'node1', // 自环
+                    trigger: 'on_complete'
+                },
+                {
+                    id: 'edge2',
+                    from: 'node3',
+                    to: 'node1',
+                    trigger: 'on_complete' // 缺少on_true和on_false
+                },
+                {
+                    id: 'edge3',
+                    from: 'node1',
+                    to: 'node3',
+                    trigger: 'on_complete'
+                }
+            ]
+        };
+
+        // 运行测试
+        function runTests() {
+            // 测试1
+            const normalErrors = validateFlowWithDetails(normalFlow);
+            const normalResults = document.getElementById('normal-results');
+            
+            if (normalErrors.length === 0) {
+                normalResults.innerHTML = `
+                    <p class="success">✓ 测试通过！没有发现错误</p>
+                `;
+            } else {
+                normalResults.innerHTML = `
+                    <p class="error-count">发现 ${normalErrors.length} 个错误：</p>
+                    <ul class="error-list">
+                        ${normalErrors.map(err => `<li class="error">• ${err.message}</li>`).join('')}
+                    </ul>
+                `;
+            }
+
+            // 测试2
+            const errorErrors = validateFlowWithDetails(errorFlow);
+            const errorResults = document.getElementById('error-results');
+            
+            errorResults.innerHTML = `
+                <p class="error-count">发现 ${errorErrors.length} 个错误：</p>
+                <ul class="error-list">
+                    ${errorErrors.map(err => `<li class="error">• ${err.message}</li>`).join('')}
+                </ul>
+            `;
+        }
+
+        // 页面加载完成后运行测试
+        document.addEventListener('DOMContentLoaded', runTests);
+    </script>
+</body>
+</html>
