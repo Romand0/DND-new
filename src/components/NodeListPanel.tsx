@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight, Zap, Shield, Target, MousePointer, GitBranch, Heart, CheckCircle } from 'lucide-react';
-import type { FlowDefinition, FlowNodeDef, FlowEdgeDef, NodeGroup } from '@/types/flow';
+import type { FlowDefinition, FlowNodeDef, FlowEdgeDef, NodeGroup, FlowNodeType } from '@/types/flow';
+import { NODE_TYPE_REGISTRY } from '@/types/flow';
 
 interface NodeListPanelProps {
   flow: FlowDefinition;
@@ -12,23 +13,25 @@ export function groupNodesByConnectivity(flow: FlowDefinition): NodeGroup[] {
   const groups: NodeGroup[] = [];
   const visited = new Set<string>();
   
-  const isolatedNodes = findIsolatedNodes(flow);
+  // 先处理相连节点组
+  flow.nodes.forEach(node => {
+    if (!visited.has(node.id)) {
+      const group = findConnectedGroup(node, flow, visited);
+      if (!group.isIsolated) {
+        groups.unshift(group); // 非孤立节点组插入到前面
+      }
+    }
+  });
   
+  // 再处理孤立节点
+  const isolatedNodes = findIsolatedNodes(flow);
   isolatedNodes.forEach(node => {
-    groups.push({
+    groups.push({ // 孤立节点追加到后面
       id: `group-${node.id}`,
       nodes: [node],
       edges: [],
       isIsolated: true
     });
-    visited.add(node.id);
-  });
-  
-  flow.nodes.forEach(node => {
-    if (!visited.has(node.id)) {
-      const group = findConnectedGroup(node, flow, visited);
-      groups.push(group);
-    }
   });
   
   return groups;
@@ -82,9 +85,40 @@ function findConnectedGroup(
   };
 }
 
+// 从 NODE_TYPE_REGISTRY 获取节点颜色
+function getNodeColor(nodeType: FlowNodeType): string {
+  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
+  return nodeMeta?.color || '#6b7280'; // 默认灰色
+}
+
+// 从 NODE_TYPE_REGISTRY 获取节点图标
+function getNodeIcon(nodeType: FlowNodeType): React.ReactNode {
+  const iconMap: Record<string, React.ReactNode> = {
+    'cast_start': <Zap className="w-3 h-3" />,
+    'check_component': <Shield className="w-3 h-3" />,
+    'check_range': <Target className="w-3 h-3" />,
+    'select_target': <MousePointer className="w-3 h-3" />,
+    'saving_throw': <Shield className="w-3 h-3" />,
+    'attack_roll': <Zap className="w-3 h-3" />,
+    'condition_branch': <GitBranch className="w-3 h-3" />,
+    'apply_effect': <Heart className="w-3 h-3" />,
+    'concentration_check': <Shield className="w-3 h-3" />,
+    'cast_end': <CheckCircle className="w-3 h-3" />,
+    'custom': <Zap className="w-3 h-3" />,
+  };
+  return iconMap[nodeType] || <Zap className="w-3 h-3" />;
+}
+
+// 从 NODE_TYPE_REGISTRY 获取节点类型名称
+function getNodeTypeName(nodeType: FlowNodeType): string {
+  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
+  return nodeMeta?.label || '未知类型';
+}
+
 export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   
+  // 优化后的分组排序：相连节点组优先，孤立节点在后
   const groups = groupNodesByConnectivity(flow);
   
   const toggleGroup = (groupId: string) => {
@@ -99,38 +133,39 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
     });
   };
   
-  const getNodeIcon = (node: FlowNodeDef) => {
-    const iconMap: Record<string, React.ReactNode> = {
-      'cast_start': <Zap className="w-3 h-3" />,
-      'check_component': <Shield className="w-3 h-3" />,
-      'check_range': <Target className="w-3 h-3" />,
-      'select_target': <MousePointer className="w-3 h-3" />,
-      'saving_throw': <Shield className="w-3 h-3" />,
-      'attack_roll': <Zap className="w-3 h-3" />,
-      'condition_branch': <GitBranch className="w-3 h-3" />,
-      'apply_effect': <Heart className="w-3 h-3" />,
-      'concentration_check': <Shield className="w-3 h-3" />,
-      'cast_end': <CheckCircle className="w-3 h-3" />,
-      'custom': <Zap className="w-3 h-3" />,
-    };
-    return iconMap[node.type] || <Zap className="w-3 h-3" />;
-  };
-  
-  const getNodeTypeName = (nodeType: string) => {
-    const typeMap: Record<string, string> = {
-      'cast_start': '施法开始',
-      'check_component': '成分检测',
-      'check_range': '距离检测',
-      'select_target': '目标指定',
-      'saving_throw': '豁免检定',
-      'attack_roll': '法术攻击检定',
-      'condition_branch': '条件分支',
-      'apply_effect': '效果分配',
-      'concentration_check': '专注检定',
-      'cast_end': '法术结束',
-      'custom': '自定义',
-    };
-    return typeMap[nodeType] || '未知类型';
+  // 渲染单个节点项
+  const renderNodeItem = (node: FlowNodeDef) => {
+    const nodeColor = getNodeColor(node.type); // 使用类型获取颜色
+    
+    return (
+      <div
+        className={`p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors ${
+          onNodeSelect ? 'cursor-pointer' : ''
+        }`}
+        onClick={() => onNodeSelect?.(node.id)}
+      >
+        {/* 颜色徽记 - 使用类型对应的颜色 */}
+        <div 
+          className="w-4 h-4 rounded-full mb-2"
+          style={{ backgroundColor: nodeColor }}
+        />
+        
+        {/* 节点名称 - 完整显示 */}
+        <div className="font-medium text-sm dark:text-text-dark light:text-text-light mb-1">
+          {node.label || node.id}
+        </div>
+        
+        {/* 节点类型 - 使用 NODE_TYPE_REGISTRY 的显示名称 */}
+        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+          {getNodeTypeName(node.type)}
+        </div>
+        
+        {/* 节点ID - 可选显示 */}
+        <div className="text-xs text-gray-400 mt-1">
+          ID: {node.id}
+        </div>
+      </div>
+    );
   };
   
   return (
@@ -165,36 +200,22 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
               }`} />
             </button>
             
-            {/* 组内容 */}
+            {/* 组内容 - 响应式布局 */}
             {expandedGroups.has(group.id) && (
               <div className="p-2.5 space-y-1 border-t dark:border-border-dark light:border-border-light">
-                {group.nodes.map(node => (
-                  <div
-                    key={node.id}
-                    className={`flex items-center gap-2 p-2 rounded text-xs cursor-pointer hover:bg-white/5 ${
-                      onNodeSelect ? 'cursor-pointer' : ''
-                    }`}
-                    onClick={() => onNodeSelect?.(node.id)}
-                  >
-                    <div className="text-gray-400">{getNodeIcon(node)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium dark:text-text-dark light:text-text-light truncate">
-                        {node.label || node.id}
-                      </div>
-                      <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                        {getNodeTypeName(node.type)}
-                      </div>
-                    </div>
-                    <div className="text-[10px] text-gray-400">
-                      {node.id}
-                    </div>
-                  </div>
-                ))}
+                {/* 响应式节点网格布局 */}
+                <div className={`grid gap-2 ${
+                  group.nodes.length <= 3 
+                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
+                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                }`}>
+                  {group.nodes.map(node => renderNodeItem(node))}
+                </div>
                 
                 {/* 显示组内的连线信息 */}
                 {!group.isIsolated && group.edges.length > 0 && (
-                  <div className="mt-2 pt-2 border-t dark:border-border-dark light:border-border-light">
-                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-1">
+                  <div className="mt-4 pt-2 border-t dark:border-border-dark light:border-border-light">
+                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-2">
                       连接关系 ({group.edges.length})
                     </div>
                     <div className="space-y-1">
@@ -202,7 +223,7 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
                         const fromNode = group.nodes.find(n => n.id === edge.from);
                         const toNode = group.nodes.find(n => n.id === edge.to);
                         return (
-                          <div key={edge.id} className="text-[10px] dark:text-text-dark light:text-text-light">
+                          <div key={edge.id} className="text-xs dark:text-text-dark light:text-text-light">
                             <span className="text-gray-400">{fromNode?.label || edge.from}</span>
                             <span className="mx-1">→</span>
                             <span>{toNode?.label || edge.to}</span>
