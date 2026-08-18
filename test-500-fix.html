@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>500错误修复测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .btn.success {
+            background: #28a745;
+        }
+        .btn.success:hover {
+            background: #218838;
+        }
+        .btn.danger {
+            background: #dc3545;
+        }
+        .btn.danger:hover {
+            background: #c82333;
+        }
+        .result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .result.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>500错误修复测试</h1>
+        <p>此页面用于测试发布功能的500错误修复情况。</p>
+        
+        <div class="test-section">
+            <h3>1. 数据库连接测试</h3>
+            <button class="btn" onclick="testDatabaseConnection()">测试数据库连接</button>
+            <div id="db-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. 发布功能测试</h3>
+            <button class="btn" onclick="testPublishFlow()">测试发布流程</button>
+            <div id="publish-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. 获取流程测试</h3>
+            <button class="btn" onclick="testGetFlow()">测试获取流程</button>
+            <div id="get-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. 错误处理测试</h3>
+            <button class="btn danger" onclick="testErrorHandling()">测试错误处理</button>
+            <div id="error-result"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>5. 时间戳格式测试</h3>
+            <button class="btn" onclick="testTimestampFormat()">测试时间戳格式</button>
+            <div id="timestamp-result"></div>
+        </div>
+    </div>
+
+    <script>
+        // 显示结果
+        function showResult(elementId, content, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="result ${type}">${content}</div>`;
+        }
+        
+        // 显示加载状态
+        function showLoading(elementId) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = '<div class="loading"></div>';
+        }
+        
+        // 测试数据库连接
+        async function testDatabaseConnection() {
+            showLoading('db-result');
+            try {
+                const response = await fetch('/api/flows/test-db');
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('db-result', `✅ 数据库连接正常\n时间戳: ${new Date(data.timestamp).toLocaleString()}`, 'success');
+                } else {
+                    showResult('db-result', `❌ 数据库连接失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('db-result', `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试发布流程
+        async function testPublishFlow() {
+            showLoading('publish-result');
+            try {
+                const testData = {
+                    id: 'test-flow-' + Date.now(),
+                    name: '测试流程',
+                    description: '这是一个测试流程',
+                    nodes: [
+                        {
+                            id: 'node1',
+                            type: 'action',
+                            position: { x: 100, y: 100 },
+                            data: { label: '开始节点' }
+                        }
+                    ],
+                    edges: [
+                        {
+                            id: 'edge1',
+                            source: 'node1',
+                            target: 'node2',
+                            data: { label: '连接线' }
+                        }
+                    ],
+                    tags: ['test'],
+                    version: 1,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                };
+                
+                const response = await fetch('/api/flows/' + testData.id, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer test-token'
+                    },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    showResult('publish-result', `✅ 发布成功\n版本: ${data.publishedVersion}\n发布时间: ${new Date(data.publishedAt * 1000).toLocaleString()}`, 'success');
+                } else {
+                    showResult('publish-result', `❌ 发布失败: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('publish-result', `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试获取流程
+        async function testGetFlow() {
+            showLoading('get-result');
+            try {
+                const response = await fetch('/api/flows/test-flow-123');
+                if (response.status === 404) {
+                    showResult('get-result', '✅ 正确返回404 - 流程不存在', 'success');
+                } else {
+                    const data = await response.json();
+                    if (response.ok) {
+                        showResult('get-result', `✅ 获取成功\n流程名称: ${data.name}\n版本: ${data.publishedVersion}`, 'success');
+                    } else {
+                        showResult('get-result', `❌ 获取失败: ${data.error}`, 'error');
+                    }
+                }
+            } catch (error) {
+                showResult('get-result', `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试错误处理
+        async function testErrorHandling() {
+            showLoading('error-result');
+            try {
+                const response = await fetch('/api/flows/invalid-id', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer invalid-token'
+                    },
+                    body: JSON.stringify({ invalid: 'data' })
+                });
+                
+                const data = await response.json();
+                if (response.status === 401) {
+                    showResult('error-result', '✅ 正确返回401 - 未授权错误', 'success');
+                } else {
+                    showResult('error-result', `❌ 错误处理异常: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                showResult('error-result', `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 测试时间戳格式
+        function testTimestampFormat() {
+            const now = Math.floor(Date.now() / 1000); // 秒级时间戳
+            const date = new Date(now * 1000);
+            
+            const result = `当前时间戳测试:
+- 毫秒级: ${Date.now()}
+- 秒级: ${now}
+- 转换后日期: ${date.toLocaleString()}
+- 时区: ${date.getTimezoneOffset()}`;
+            
+            showResult('timestamp-result', result, 'info');
+        }
+        
+        // 页面加载时自动测试
+        window.onload = function() {
+            console.log('页面加载完成，可以开始测试');
+        };
+    </script>
+</body>
+</html>

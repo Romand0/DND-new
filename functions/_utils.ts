@@ -165,7 +165,7 @@ export async function readJsonBody<T>(request: Request): Promise<T | null> {
 }
 
 export function now(): number {
-  return Date.now();
+  return Math.floor(Date.now() / 1000); // 返回秒级时间戳，与数据库字段类型匹配
 }
 
 // ---------- Base64 URL 工具 ----------
