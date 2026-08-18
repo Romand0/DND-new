@@ -8,6 +8,51 @@ interface NodeListPanelProps {
   onNodeSelect?: (nodeId: string) => void;
 }
 
+// 从 NODE_TYPE_REGISTRY 获取节点颜色
+function getNodeColor(nodeType: FlowNodeType): string {
+  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
+  return nodeMeta?.color || '#6b7280'; // 默认灰色
+}
+
+// 从 NODE_TYPE_REGISTRY 获取节点图标
+function getNodeIcon(nodeType: FlowNodeType): React.ReactNode {
+  const iconMap: Record<string, React.ReactNode> = {
+    'cast_start': <Zap className="w-3 h-3" />,
+    'check_component': <Shield className="w-3 h-3" />,
+    'check_range': <Target className="w-3 h-3" />,
+    'select_target': <MousePointer className="w-3 h-3" />,
+    'saving_throw': <Shield className="w-3 h-3" />,
+    'attack_roll': <Zap className="w-3 h-3" />,
+    'condition_branch': <GitBranch className="w-3 h-3" />,
+    'apply_effect': <Heart className="w-3 h-3" />,
+    'concentration_check': <Shield className="w-3 h-3" />,
+    'cast_end': <CheckCircle className="w-3 h-3" />,
+    'custom': <Zap className="w-3 h-3" />,
+  };
+  return iconMap[nodeType] || <Zap className="w-3 h-3" />;
+}
+
+// 从 NODE_TYPE_REGISTRY 获取节点类型名称
+function getNodeTypeName(nodeType: FlowNodeType): string {
+  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
+  return nodeMeta?.label || '未知类型';
+}
+
+// 从节点备注中提取组名
+function extractGroupName(node: FlowNodeDef): string {
+  if (!node.notes) {
+    return '流程组';
+  }
+  
+  // 匹配"组：XXX"格式
+  const match = node.notes.match(/组：(.+)/);
+  if (match) {
+    return match[1];
+  }
+  
+  return '流程组';
+}
+
 // 导出分组算法供组件使用
 export function groupNodesByConnectivity(flow: FlowDefinition): NodeGroup[] {
   const groups: NodeGroup[] = [];
@@ -17,13 +62,14 @@ export function groupNodesByConnectivity(flow: FlowDefinition): NodeGroup[] {
   flow.nodes.forEach(node => {
     if (!visited.has(node.id)) {
       const group = findConnectedGroup(node, flow, visited);
-      if (!group.isIsolated) {
+      // 关键修正：只有≥2个节点才算流程组
+      if (!group.isIsolated && group.nodes.length >= 2) {
         groups.unshift(group); // 非孤立节点组插入到前面
       }
     }
   });
   
-  // 再处理孤立节点
+  // 再处理孤立节点（包括单节点组）
   const isolatedNodes = findIsolatedNodes(flow);
   isolatedNodes.forEach(node => {
     groups.push({ // 孤立节点追加到后面
@@ -85,40 +131,9 @@ function findConnectedGroup(
   };
 }
 
-// 从 NODE_TYPE_REGISTRY 获取节点颜色
-function getNodeColor(nodeType: FlowNodeType): string {
-  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
-  return nodeMeta?.color || '#6b7280'; // 默认灰色
-}
-
-// 从 NODE_TYPE_REGISTRY 获取节点图标
-function getNodeIcon(nodeType: FlowNodeType): React.ReactNode {
-  const iconMap: Record<string, React.ReactNode> = {
-    'cast_start': <Zap className="w-3 h-3" />,
-    'check_component': <Shield className="w-3 h-3" />,
-    'check_range': <Target className="w-3 h-3" />,
-    'select_target': <MousePointer className="w-3 h-3" />,
-    'saving_throw': <Shield className="w-3 h-3" />,
-    'attack_roll': <Zap className="w-3 h-3" />,
-    'condition_branch': <GitBranch className="w-3 h-3" />,
-    'apply_effect': <Heart className="w-3 h-3" />,
-    'concentration_check': <Shield className="w-3 h-3" />,
-    'cast_end': <CheckCircle className="w-3 h-3" />,
-    'custom': <Zap className="w-3 h-3" />,
-  };
-  return iconMap[nodeType] || <Zap className="w-3 h-3" />;
-}
-
-// 从 NODE_TYPE_REGISTRY 获取节点类型名称
-function getNodeTypeName(nodeType: FlowNodeType): string {
-  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
-  return nodeMeta?.label || '未知类型';
-}
-
 export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   
-  // 优化后的分组排序：相连节点组优先，孤立节点在后
   const groups = groupNodesByConnectivity(flow);
   
   const toggleGroup = (groupId: string) => {
@@ -168,6 +183,46 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
     );
   };
   
+  // 渲染组标题
+  const renderGroupTitle = (group: NodeGroup) => {
+    const firstNode = group.nodes[0];
+    const groupName = extractGroupName(firstNode); // 提取组名
+    
+    return (
+      <div className="flex items-center justify-between p-3 border-b dark:border-border-dark light:border-border-light">
+        <div className="flex items-center gap-3">
+          {/* 组类型指示器 */}
+          <div className={`w-3 h-3 rounded-full ${
+            group.isIsolated ? 'bg-gray-400' : 'bg-primary'
+          }`} />
+          
+          {/* 组名称 */}
+          <div className="font-medium text-sm dark:text-text-dark light:text-text-light">
+            {group.isIsolated ? '孤立节点' : `${groupName} (${group.nodes.length})`}
+          </div>
+          
+          {/* 第一个节点的颜色徽记和名称 */}
+          {!group.isIsolated && (
+            <div className="flex items-center gap-2 ml-4">
+              <div 
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: getNodeColor(firstNode.type) }}
+              />
+              <span className="text-xs text-gray-600 dark:text-gray-400">
+                {firstNode.label || firstNode.id}
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {/* 展开/折叠箭头 */}
+        <ChevronRight className={`w-4 h-4 transition-transform ${
+          expandedGroups.has(group.id) ? 'rotate-90' : ''
+        }`} />
+      </div>
+    );
+  };
+  
   return (
     <div className="mt-4 space-y-3">
       <div className="flex items-center justify-between">
@@ -181,41 +236,27 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
       
       <div className="space-y-2">
         {groups.map(group => (
-          <div key={group.id} className="border dark:border-border-dark light:border-border-light rounded-lg">
-            {/* 组标题 */}
+          <div key={group.id} className="border dark:border-border-dark light:border-border-light rounded-lg overflow-hidden">
+            {/* 组标题 - 显示组名和第一个节点信息 */}
             <button
-              className="w-full flex items-center justify-between p-2.5 text-left hover:bg-white/5 transition-colors"
+              className="w-full text-left hover:bg-white/5 transition-colors"
               onClick={() => toggleGroup(group.id)}
             >
-              <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${
-                  group.isIsolated ? 'bg-gray-400' : 'bg-primary'
-                }`} />
-                <span className="text-xs font-medium dark:text-text-dark light:text-text-light">
-                  {group.isIsolated ? '孤立节点' : `流程组 (${group.nodes.length})`}
-                </span>
-              </div>
-              <ChevronRight className={`w-3 h-3 transition-transform ${
-                expandedGroups.has(group.id) ? 'rotate-90' : ''
-              }`} />
+              {renderGroupTitle(group)}
             </button>
             
-            {/* 组内容 - 响应式布局 */}
+            {/* 组内容 - 默认展开 */}
             {expandedGroups.has(group.id) && (
-              <div className="p-2.5 space-y-1 border-t dark:border-border-dark light:border-border-light">
-                {/* 响应式节点网格布局 */}
-                <div className={`grid gap-2 ${
-                  group.nodes.length <= 3 
-                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' 
-                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
-                }`}>
+              <div className="p-3 space-y-2 bg-gray-50/5 dark:bg-gray-900/5">
+                {/* 节点列表 - 使用统一的节点卡片样式 */}
+                <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                   {group.nodes.map(node => renderNodeItem(node))}
                 </div>
                 
-                {/* 显示组内的连线信息 */}
+                {/* 连线信息 */}
                 {!group.isIsolated && group.edges.length > 0 && (
-                  <div className="mt-4 pt-2 border-t dark:border-border-dark light:border-border-light">
-                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-2">
+                  <div className="mt-3 pt-3 border-t dark:border-border-dark light:border-border-light">
+                    <div className="text-xs text-gray-500 mb-2">
                       连接关系 ({group.edges.length})
                     </div>
                     <div className="space-y-1">
@@ -223,16 +264,16 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
                         const fromNode = group.nodes.find(n => n.id === edge.from);
                         const toNode = group.nodes.find(n => n.id === edge.to);
                         return (
-                          <div key={edge.id} className="text-xs dark:text-text-dark light:text-text-light">
-                            <span className="text-gray-400">{fromNode?.label || edge.from}</span>
+                          <div key={edge.id} className="text-xs text-gray-600 dark:text-gray-400">
+                            <span>{fromNode?.label || edge.from}</span>
                             <span className="mx-1">→</span>
                             <span>{toNode?.label || edge.to}</span>
-                            <span className="text-gray-400 ml-1">({edge.trigger})</span>
+                            <span className="text-gray-500 ml-1">({edge.trigger})</span>
                           </div>
                         );
                       })}
                       {group.edges.length > 3 && (
-                        <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                        <div className="text-xs text-gray-500">
                           还有 {group.edges.length - 3} 条连线...
                         </div>
                       )}
