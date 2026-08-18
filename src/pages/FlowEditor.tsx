@@ -36,6 +36,7 @@ import {
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
 import { generateFlowId, validateFlowId } from '@/lib/idUtils';
+import { SpatialGrid } from '@/utils/spatialGrid';
 
 // ===== 节点图标解析 =====
 /** 从 icon name 解析为 React 元素，单一真相源 */
@@ -62,9 +63,17 @@ const SCALE_MAX = 3;
 const SCALE_STEP = 0.1;
 
 // ===== 碰撞检测工具函数 =====
+// 当前生效的空间索引（组件在 flow.nodes 变化时同步），供模块级 nodesOverlap 做候选筛选
+let activeSpatialGrid: SpatialGrid | null = null;
+
 function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolean {
+  if (a.id === b.id) return false;
+  // 空间索引候选筛选：b 不在候选集中则必不重叠（精确 AABB 检测在下方）
+  if (activeSpatialGrid) {
+    const candidates = activeSpatialGrid.queryCandidates(a.position.x, a.position.y, cardWidth, NODE_H);
+    if (!candidates.some(c => c.id === b.id)) return false;
+  }
   return (
-    a.id !== b.id &&
     a.position.x < b.position.x + cardWidth &&
     a.position.x + cardWidth > b.position.x &&
     a.position.y < b.position.y + NODE_H &&
@@ -72,29 +81,68 @@ function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolea
   );
 }
 
-// 寻找不与其他节点碰撞的位置（右侧→下方探测）
-function findNonOverlappingPosition(
+// 智能退避策略：对每个重叠节点计算推离向量（选重叠量最小的轴、方向远离对方），
+// 按位移平方和排序取最小推离向量作为最终落位
+function findNonOverlappingPositionV2(
   node: FlowNodeDef,
-  allNodes: FlowNodeDef[],
-  cardWidth: number,
-  dx = 40,
-  maxAttempts = 20,
+  others: FlowNodeDef[],
+  cardW: number,
+  cardH: number,
+  grid: SpatialGrid,
+  scale: number,
 ): { x: number; y: number } {
-  let pos = { x: node.position.x, y: node.position.y };
-  for (let i = 0; i < maxAttempts; i++) {
-    const testNode = { ...node, position: pos };
-    const hasOverlap = allNodes.some(other => other.id !== node.id && nodesOverlap(testNode, other, cardWidth));
-    if (!hasOverlap) return pos;
-    pos = { x: pos.x + dx, y: pos.y };
+  const step = 30 / scale;
+  const candidates = grid.queryCandidates(node.position.x, node.position.y, cardW, cardH)
+    .filter(o => o.id !== node.id);
+
+  // 对每个重叠节点计算推离向量
+  const pushVectors: { x: number; y: number }[] = [];
+  for (const o of candidates) {
+    const overlapX = Math.min(node.position.x + cardW, o.position.x + cardW) - Math.max(node.position.x, o.position.x);
+    const overlapY = Math.min(node.position.y + cardH, o.position.y + cardH) - Math.max(node.position.y, o.position.y);
+    if (overlapX <= 0 || overlapY <= 0) continue;
+    if (overlapX <= overlapY) {
+      const dir = node.position.x < o.position.x ? -1 : 1;
+      pushVectors.push({ x: dir * overlapX, y: 0 });
+    } else {
+      const dir = node.position.y < o.position.y ? -1 : 1;
+      pushVectors.push({ x: 0, y: dir * overlapY });
+    }
   }
-  pos = { x: node.position.x, y: node.position.y + dx };
-  for (let i = 0; i < maxAttempts; i++) {
-    const testNode = { ...node, position: pos };
-    const hasOverlap = allNodes.some(other => other.id !== node.id && nodesOverlap(testNode, other, cardWidth));
-    if (!hasOverlap) return pos;
-    pos = { x: pos.x, y: pos.y + dx };
+
+  if (pushVectors.length === 0) {
+    return { x: node.position.x, y: node.position.y };
   }
-  return pos;
+
+  // 候选退避点：推离向量 + 四轴向 step 递增，位移平方和越小越优先
+  const seen = new Set<string>();
+  const attempts: { x: number; y: number; cost: number }[] = [];
+  const addAttempt = (vx: number, vy: number) => {
+    const x = Math.max(0, node.position.x + vx);
+    const y = Math.max(0, node.position.y + vy);
+    const k = `${x},${y}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    const stillOverlap = others.some(o => (
+      x < o.position.x + cardW && x + cardW > o.position.x &&
+      y < o.position.y + cardH && y + cardH > o.position.y
+    ));
+    const dx = x - node.position.x;
+    const dy = y - node.position.y;
+    attempts.push({ x, y, cost: stillOverlap ? Infinity : dx * dx + dy * dy });
+  };
+
+  for (const v of pushVectors) addAttempt(v.x, v.y);
+  for (let d = 1; d <= 3; d++) {
+    addAttempt(step * d, 0);
+    addAttempt(-step * d, 0);
+    addAttempt(0, step * d);
+    addAttempt(0, -step * d);
+  }
+
+  attempts.sort((p, q) => p.cost - q.cost);
+  const best = attempts.find(a => a.cost !== Infinity);
+  return best ? { x: best.x, y: best.y } : { x: node.position.x, y: node.position.y };
 }
 
 export default function FlowEditor() {
@@ -139,6 +187,11 @@ export default function FlowEditor() {
   // 拖拽状态：实时碰撞检测
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const [isColliding, setIsColliding] = useState(false);
+  const [collisionDir, setCollisionDir] = useState<'up' | 'down' | 'left' | 'right' | null>(null);
+  const [animateMove, setAnimateMove] = useState(false);
+  const spatialGridRef = useRef(new SpatialGrid());
+  const rafIdRef = useRef<number | null>(null);
+  const lastEventRef = useRef<DragEndEvent | null>(null);
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasTranslate, setCanvasTranslate] = useState({ x: 0, y: 0 });
 
@@ -262,6 +315,17 @@ export default function FlowEditor() {
     }, 500);
     return () => clearTimeout(timer);
   }, [flow, flowNameInput.text]);
+
+  // ===== 空间索引：节点列表变化时重建，供碰撞检测候选筛选 =====
+  useEffect(() => {
+    spatialGridRef.current.rebuild(flow.nodes);
+    activeSpatialGrid = spatialGridRef.current;
+  }, [flow.nodes]);
+
+  // ===== 拖拽降频：卸载时取消挂起的 rAF =====
+  useEffect(() => () => {
+    if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
+  }, []);
 
   // ===== 草稿列表：订阅 flowStore 变更，保持下拉框数据同步 =====
   useEffect(() => {
@@ -390,13 +454,13 @@ export default function FlowEditor() {
       position: { x: position.x, y: position.y },
       config: { ...typeMeta.defaultConfig, ...schemaDefaults },
     };
-    // 新节点防重叠放置
-    const finalPos = findNonOverlappingPosition(newNode, flow.nodes, NODE_W);
+    // 新节点防重叠放置（智能退避 + 空间索引）
+    const finalPos = findNonOverlappingPositionV2(newNode, flow.nodes, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
     newNode.position = finalPos;
     setFlow(prev => ({ ...prev, nodes: [...prev.nodes, newNode], updatedAt: Date.now() }));
     setSelectedNodeId(id);
     setSelectedEdgeId(null);
-  }, [flow.nodes]);
+  }, [flow.nodes, canvasScale]);
 
   // ===== 删除节点 =====
   const deleteNode = useCallback((nodeId: string) => {
@@ -433,10 +497,7 @@ export default function FlowEditor() {
       };
       const testNode = { ...target, position: proposed };
       const others = prev.nodes.filter(n => n.id !== nodeId);
-      const hasOverlap = others.some(other => nodesOverlap(testNode, other, NODE_W));
-      const finalPos = hasOverlap
-        ? findNonOverlappingPosition(testNode, others, NODE_W)
-        : proposed;
+      const finalPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
       return {
         ...prev,
         nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
@@ -508,6 +569,23 @@ export default function FlowEditor() {
     };
   }, [flow.nodes]);
 
+  // ===== 碰撞方向：计算被拖拽节点的推离方向（供方向提示箭头） =====
+  const getCollisionDir = useCallback((
+    nodeId: string,
+    projectedX: number,
+    projectedY: number,
+  ): 'up' | 'down' | 'left' | 'right' | null => {
+    const target = flow.nodes.find(n => n.id === nodeId);
+    if (!target) return null;
+    const projected = { ...target, position: { x: projectedX, y: projectedY } };
+    const other = flow.nodes.find(o => o.id !== nodeId && nodesOverlap(projected, o, NODE_W));
+    if (!other) return null;
+    const dx = projected.position.x - other.position.x;
+    const dy = projected.position.y - other.position.y;
+    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
+    return dy >= 0 ? 'down' : 'up';
+  }, [flow.nodes]);
+
   // ===== 事件：拖拽开始 =====
   const handleDragStart = useCallback((event: DragEndEvent) => {
     const nodeId = event.active?.id as string;
@@ -515,17 +593,28 @@ export default function FlowEditor() {
     setIsColliding(false);
   }, []);
 
-  // ===== 事件：拖拽移动（仅实时碰撞检测，不再写入位置状态） =====
+  // ===== 事件：拖拽移动（rAF 节流 + 实时碰撞检测，不再写入位置状态） =====
   const handleDragMove = useCallback((event: DragEndEvent) => {
-    const { active, delta } = event;
+    const { active } = event;
     if (!active) return;
-    const nodeId = active.id as string;
-    const scaledDelta = { x: delta.x / canvasScale, y: delta.y / canvasScale };
-    const projected = getProjectedPosition(nodeId, scaledDelta);
-    const colliding = checkCollision(nodeId, projected.x, projected.y);
-    setIsColliding(colliding);
-    // ★ 不再 setFlow —— 位置由 dnd-kit 的 CSS transform 驱动，拖拽结束时一次性写入
-  }, [checkCollision, getProjectedPosition, canvasScale]);
+    // 拖拽降频：仅标记脏事件，实际碰撞检测在 rAF 回调中执行
+    lastEventRef.current = event;
+    if (rafIdRef.current !== null) return;
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      const ev = lastEventRef.current;
+      lastEventRef.current = null;
+      if (!ev?.active) return;
+      const nodeId = ev.active.id as string;
+      const scaledDelta = { x: ev.delta.x / canvasScale, y: ev.delta.y / canvasScale };
+      const projected = getProjectedPosition(nodeId, scaledDelta);
+      const colliding = checkCollision(nodeId, projected.x, projected.y);
+      setIsColliding(colliding);
+      // 碰撞方向提示：软排斥时在节点边缘显示推离方向箭头
+      setCollisionDir(colliding ? getCollisionDir(nodeId, projected.x, projected.y) : null);
+      // ★ 不再 setFlow —— 位置由 dnd-kit 的 CSS transform 驱动，拖拽结束时一次性写入
+    });
+  }, [checkCollision, getProjectedPosition, getCollisionDir, canvasScale]);
 
   // ===== 事件：拖拽结束 =====
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -555,10 +644,11 @@ export default function FlowEditor() {
       return;
     }
 
-    // ── 画布内节点拖拽结束：用全量 delta 一次性写入最终位置 + 碰撞校正 ──
+    // ── 画布内节点拖拽结束：用全量 delta 一次性写入最终位置 + 智能退避 + 磁吸对齐 ──
     const nodeId = active.id as string;
     setDraggingNodeId(null);
     setIsColliding(false);
+    setCollisionDir(null);
     const scaledDelta = { x: delta.x / canvasScale, y: delta.y / canvasScale };
     setFlow(prev => {
       const target = prev.nodes.find(n => n.id === nodeId);
@@ -570,16 +660,22 @@ export default function FlowEditor() {
       };
       const testNode = { ...target, position: proposed };
       const others = prev.nodes.filter(n => n.id !== nodeId);
-      const hasOverlap = others.some(other => nodesOverlap(testNode, other, NODE_W));
-      const finalPos = hasOverlap
-        ? findNonOverlappingPosition(testNode, others, NODE_W)
-        : proposed;
+      const resolvedPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
+      // 磁吸对齐：最终坐标吸附到 20px 网格
+      const snap = 20;
+      const finalPos = {
+        x: Math.round(resolvedPos.x / snap) * snap,
+        y: Math.round(resolvedPos.y / snap) * snap,
+      };
       return {
         ...prev,
         nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
         updatedAt: Date.now(),
       };
     });
+    // 瞬移过渡：拖拽结束后短暂开启 transform 过渡，200ms 后移除
+    setAnimateMove(true);
+    window.setTimeout(() => setAnimateMove(false), 200);
   }, [addNode, canvasScale]);
 
   // ===== 画布空白处点击取消选中 =====
@@ -886,6 +982,8 @@ export default function FlowEditor() {
                   isConnectSource={connectFromId === node.id}
                   isDragging={draggingNodeId === node.id}
                   isColliding={draggingNodeId === node.id && isColliding}
+                  collisionDir={draggingNodeId === node.id ? collisionDir : null}
+                  animateMove={animateMove}
                   canvasScale={canvasScale}          // ★ 新增
                   onClick={() => handleNodeClick(node.id)}
                   onStartConnecting={() => startConnecting(node.id)}
@@ -1836,6 +1934,8 @@ interface DraggableFlowNodeProps {
   isConnectSource: boolean;
   isDragging: boolean;
   isColliding: boolean;
+  collisionDir: 'up' | 'down' | 'left' | 'right' | null;
+  animateMove: boolean;
   canvasScale: number;
   onClick: () => void;
   onStartConnecting: () => void;
@@ -1848,6 +1948,8 @@ function DraggableFlowNode({
   isConnectSource,
   isDragging,
   isColliding,
+  collisionDir,
+  animateMove,
   canvasScale,
   onClick,
   onStartConnecting,
@@ -1878,9 +1980,11 @@ function DraggableFlowNode({
     width: NODE_W,
     zIndex: isDragging ? 20 : (isSelected ? 10 : 1),
     transform: adjustedTransform,   // ★ 用调整后的 transform
-    opacity: dndDragging ? 0.9 : 1,
-    // 禁用 transform 动画，拖拽响应更跟手
-    transition: dndDragging ? 'none' : undefined,
+    opacity: isColliding ? 0.6 : (dndDragging ? 0.9 : 1),
+    // 软排斥预览：碰撞时红色投影提示
+    filter: isColliding ? 'drop-shadow(0 0 4px red)' : undefined,
+    // 拖拽中禁用 transform 动画更跟手；结束后短暂开启 200ms 过渡做瞬移落位动画
+    transition: dndDragging ? 'none' : (animateMove ? 'transform 200ms ease-out' : undefined),
     // 阻止浏览器默认 touch 行为（如滚动），确保 dnd-kit 接管拖拽
     touchAction: 'none',
     cursor: dndDragging ? 'grabbing' : 'grab',
@@ -1904,6 +2008,15 @@ function DraggableFlowNode({
       {...attributes}
       className={`select-none ${shakeClass}`}
     >
+      {/* 碰撞方向提示：按推离方向显示对应边缘箭头 */}
+      {collisionDir && (
+        <div className="absolute inset-0 pointer-events-none z-30 text-red-500 text-lg leading-none">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2" style={{ display: collisionDir === 'up' ? 'block' : 'none' }}>↑</div>
+          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2" style={{ display: collisionDir === 'down' ? 'block' : 'none' }}>↓</div>
+          <div className="absolute -left-3 top-1/2 -translate-y-1/2" style={{ display: collisionDir === 'left' ? 'block' : 'none' }}>←</div>
+          <div className="absolute -right-3 top-1/2 -translate-y-1/2" style={{ display: collisionDir === 'right' ? 'block' : 'none' }}>→</div>
+        </div>
+      )}
       <div
         className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${borderColor} dark:bg-bg-dark-2 light:bg-white`}
         onClick={(e) => {
