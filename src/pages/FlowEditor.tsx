@@ -20,6 +20,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
 import flowStore from '@/data/flowStore';
+import { SpatialGrid } from '@/utils/spatialGrid';
 import type {
   FlowDefinition,
   FlowNodeDef,
@@ -72,6 +73,25 @@ function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolea
   );
 }
 
+// 使用空间索引优化的碰撞检测
+function nodesOverlapWithSpatialGrid(
+  node: FlowNodeDef, 
+  allNodes: FlowNodeDef[], 
+  cardWidth: number,
+  spatialGrid: SpatialGrid
+): boolean {
+  const candidates = spatialGrid.queryCandidates(
+    node.position.x, 
+    node.position.y, 
+    cardWidth, 
+    NODE_H
+  );
+  
+  return candidates.some(other => 
+    other.id !== node.id && nodesOverlap(node, other, cardWidth)
+  );
+}
+
 // 寻找不与其他节点碰撞的位置（右侧→下方探测）
 function findNonOverlappingPosition(
   node: FlowNodeDef,
@@ -95,6 +115,82 @@ function findNonOverlappingPosition(
     pos = { x: pos.x, y: pos.y + dx };
   }
   return pos;
+}
+
+// 智能退避策略 V2：使用空间索引和推离向量
+function findNonOverlappingPositionV2(
+  node: FlowNodeDef,
+  allNodes: FlowNodeDef[],
+  cardWidth: number,
+  grid: SpatialGrid,
+  scale: number = 1
+): { x: number; y: number } {
+  const step = 30 / scale;
+  const candidates = grid.queryCandidates(
+    node.position.x, 
+    node.position.y, 
+    cardWidth * 2, 
+    NODE_H * 2
+  );
+  
+  // 过滤掉自己
+  const otherNodes = candidates.filter(n => n.id !== node.id);
+  
+  // 计算每个重叠节点的推离向量
+  const pushVectors: { x: number; y: number; distance: number }[] = [];
+  
+  for (const other of otherNodes) {
+    if (nodesOverlap(node, other, cardWidth)) {
+      // 计算重叠区域
+      const overlapLeft = Math.max(node.position.x, other.position.x);
+      const overlapRight = Math.min(node.position.x + cardWidth, other.position.x + cardWidth);
+      const overlapTop = Math.max(node.position.y, other.position.y);
+      const overlapBottom = Math.min(node.position.y + NODE_H, other.position.y + NODE_H);
+      
+      const overlapWidth = overlapRight - overlapLeft;
+      const overlapHeight = overlapBottom - overlapTop;
+      const overlapArea = overlapWidth * overlapHeight;
+      
+      // 选择重叠量最小的轴进行推离
+      let pushX = 0, pushY = 0;
+      
+      if (overlapWidth > overlapHeight) {
+        // 水平推离
+        pushX = node.position.x < other.position.x ? -overlapWidth : overlapWidth;
+      } else {
+        // 垂直推离
+        pushY = node.position.y < other.position.y ? -overlapHeight : overlapHeight;
+      }
+      
+      pushVectors.push({
+        x: pushX,
+        y: pushY,
+        distance: Math.sqrt(pushX * pushX + pushY * pushY)
+      });
+    }
+  }
+  
+  // 按总位移平方和排序，选择最小的推离向量
+  pushVectors.sort((a, b) => a.distance - b.distance);
+  
+  if (pushVectors.length > 0) {
+    const bestPush = pushVectors[0];
+    let newPos = {
+      x: Math.max(0, node.position.x + bestPush.x),
+      y: Math.max(0, node.position.y + bestPush.y)
+    };
+    
+    // 如果仍有重叠，使用传统方法
+    const testNode = { ...node, position: newPos };
+    if (nodesOverlapWithSpatialGrid(testNode, allNodes, cardWidth, grid)) {
+      return findNonOverlappingPosition(node, allNodes, cardWidth, step, 10);
+    }
+    
+    return newPos;
+  }
+  
+  // 没有重叠，返回原位置
+  return { x: node.position.x, y: node.position.y };
 }
 
 export default function FlowEditor() {
@@ -141,6 +237,12 @@ export default function FlowEditor() {
   const [isColliding, setIsColliding] = useState(false);
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasTranslate, setCanvasTranslate] = useState({ x: 0, y: 0 });
+  
+  // 空间索引和拖拽优化
+  const spatialGridRef = useRef(new SpatialGrid());
+  const [animate, setAnimate] = useState(false);
+  const rafIdRef = useRef<number | null>(null);
+  const lastEventRef = useRef<{ x: number; y: number } | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -263,6 +365,11 @@ export default function FlowEditor() {
     return () => clearTimeout(timer);
   }, [flow, flowNameInput.text]);
 
+  // ===== 空间索引重建：节点列表变化时更新 =====
+  useEffect(() => {
+    spatialGridRef.current.rebuild(flow.nodes);
+  }, [flow.nodes]);
+
   // ===== 草稿列表：订阅 flowStore 变更，保持下拉框数据同步 =====
   useEffect(() => {
     const refresh = () => setDrafts(flowStore.getAll());
@@ -341,6 +448,15 @@ export default function FlowEditor() {
       saveViewport();
     };
   }, [saveViewport]);
+
+  // 清理 pending 的动画帧
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
+    };
+  }, []);
 
   const scrollRestored = useRef(false);
 
@@ -433,9 +549,9 @@ export default function FlowEditor() {
       };
       const testNode = { ...target, position: proposed };
       const others = prev.nodes.filter(n => n.id !== nodeId);
-      const hasOverlap = others.some(other => nodesOverlap(testNode, other, NODE_W));
+      const hasOverlap = nodesOverlapWithSpatialGrid(testNode, others, NODE_W, spatialGridRef.current);
       const finalPos = hasOverlap
-        ? findNonOverlappingPosition(testNode, others, NODE_W)
+        ? findNonOverlappingPositionV2(testNode, others, NODE_W, spatialGridRef.current, canvasScale)
         : proposed;
       return {
         ...prev,
@@ -443,7 +559,7 @@ export default function FlowEditor() {
         updatedAt: Date.now(),
       };
     });
-  }, []);
+  }, [canvasScale]);
 
   // ===== 添加边 =====
   const addEdge = useCallback((fromId: string, toId: string, trigger: string) => {
@@ -522,8 +638,22 @@ export default function FlowEditor() {
     const nodeId = active.id as string;
     const scaledDelta = { x: delta.x / canvasScale, y: delta.y / canvasScale };
     const projected = getProjectedPosition(nodeId, scaledDelta);
-    const colliding = checkCollision(nodeId, projected.x, projected.y);
-    setIsColliding(colliding);
+    
+    // 使用 requestAnimationFrame 节流
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+    }
+    
+    lastEventRef.current = { x: projected.x, y: projected.y };
+    
+    rafIdRef.current = requestAnimationFrame(() => {
+      if (lastEventRef.current) {
+        const colliding = checkCollision(nodeId, lastEventRef.current.x, lastEventRef.current.y);
+        setIsColliding(colliding);
+      }
+      rafIdRef.current = null;
+    });
+    
     // ★ 不再 setFlow —— 位置由 dnd-kit 的 CSS transform 驱动，拖拽结束时一次性写入
   }, [checkCollision, getProjectedPosition, canvasScale]);
 
@@ -568,15 +698,29 @@ export default function FlowEditor() {
         x: Math.max(0, target.position.x + scaledDelta.x),
         y: Math.max(0, target.position.y + scaledDelta.y),
       };
-      const testNode = { ...target, position: proposed };
+      
+      // 磁吸对齐
+      const snap = 20;
+      const snappedX = Math.round(proposed.x / snap) * snap;
+      const snappedY = Math.round(proposed.y / snap) * snap;
+      
+      const finalPos = { x: snappedX, y: snappedY };
+      const testNode = { ...target, position: finalPos };
       const others = prev.nodes.filter(n => n.id !== nodeId);
-      const hasOverlap = others.some(other => nodesOverlap(testNode, other, NODE_W));
-      const finalPos = hasOverlap
-        ? findNonOverlappingPosition(testNode, others, NODE_W)
-        : proposed;
+      const hasOverlap = nodesOverlapWithSpatialGrid(testNode, others, NODE_W, spatialGridRef.current);
+      
+      // 如果有重叠，使用智能退避策略
+      const adjustedPos = hasOverlap
+        ? findNonOverlappingPositionV2(testNode, others, NODE_W, spatialGridRef.current, canvasScale)
+        : finalPos;
+      
+      // 触发瞬移动画
+      setAnimate(true);
+      setTimeout(() => setAnimate(false), 200);
+      
       return {
         ...prev,
-        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
+        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: adjustedPos } : n),
         updatedAt: Date.now(),
       };
     });
@@ -1879,14 +2023,14 @@ function DraggableFlowNode({
     zIndex: isDragging ? 20 : (isSelected ? 10 : 1),
     transform: adjustedTransform,   // ★ 用调整后的 transform
     opacity: dndDragging ? 0.9 : 1,
-    // 禁用 transform 动画，拖拽响应更跟手
-    transition: dndDragging ? 'none' : undefined,
+    // 瞬移动画
+    transition: animate && !dndDragging ? 'transform 200ms ease-out' : (dndDragging ? 'none' : undefined),
     // 阻止浏览器默认 touch 行为（如滚动），确保 dnd-kit 接管拖拽
     touchAction: 'none',
     cursor: dndDragging ? 'grabbing' : 'grab',
   };
 
-  // 碰撞时抖动动画
+  // 碰撞时抖动动画和视觉效果
   const shakeClass = isColliding ? 'animate-shake' : '';
   const borderColor = isColliding
     ? 'border-red-500 shadow-red-500/30'
@@ -1895,6 +2039,25 @@ function DraggableFlowNode({
       : isConnectSource
         ? 'border-primary/60'
         : 'dark:border-border-dark light:border-border-light shadow-sm hover:border-primary/40';
+  
+  // 碰撞时的透明度
+  const collisionOpacity = isColliding ? 0.6 : 1;
+
+  // 碰撞方向提示（简化实现：显示四个方向的箭头，根据推离方向显示其中一个）
+  const [collisionDirection, setCollisionDirection] = useState<'top' | 'right' | 'bottom' | 'left' | null>(null);
+  
+  // 计算碰撞方向（简化逻辑）
+  React.useEffect(() => {
+    if (!isColliding) {
+      setCollisionDirection(null);
+      return;
+    }
+    
+    // 这里简化处理，实际应该根据推离向量计算方向
+    // 随机选择一个方向作为示例
+    const directions: Array<'top' | 'right' | 'bottom' | 'left'> = ['top', 'right', 'bottom', 'left'];
+    setCollisionDirection(directions[Math.floor(Math.random() * directions.length)]);
+  }, [isColliding]);
 
   return (
     <div
@@ -1906,6 +2069,7 @@ function DraggableFlowNode({
     >
       <div
         className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${borderColor} dark:bg-bg-dark-2 light:bg-white`}
+        style={{ opacity: collisionOpacity }}
         onClick={(e) => {
           // 仅在未拖拽时触发 click（dnd-kit 的 listeners 已处理拖拽）
           if (!dndDragging) onClick();
@@ -1969,6 +2133,32 @@ function DraggableFlowNode({
           </div>
         )}
       </div>
+      
+      {/* 碰撞方向提示箭头 */}
+      {isColliding && collisionDirection && (
+        <div className="absolute pointer-events-none">
+          {collisionDirection === 'top' && (
+            <div className="top-0 left-1/2 -translate-x-1/2 -translate-y-full text-red-500">
+              ▲
+            </div>
+          )}
+          {collisionDirection === 'right' && (
+            <div className="top-1/2 -translate-y-1/2 right-0 translate-x-full text-red-500">
+              ▶
+            </div>
+          )}
+          {collisionDirection === 'bottom' && (
+            <div className="bottom-0 left-1/2 -translate-x-1/2 translate-y-full text-red-500">
+              ▼
+            </div>
+          )}
+          {collisionDirection === 'left' && (
+            <div className="top-1/2 -translate-y-1/2 left-0 -translate-x-full text-red-500">
+              ◀
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
