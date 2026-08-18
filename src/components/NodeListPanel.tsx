@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { ChevronRight, Zap, Shield, Target, MousePointer, GitBranch, Heart, CheckCircle } from 'lucide-react';
+import { ChevronRight, Edit3, ExternalLink, Trash2, Zap, Shield, Target, MousePointer, GitBranch, Heart, CheckCircle } from 'lucide-react';
 import type { FlowDefinition, FlowNodeDef, FlowEdgeDef, NodeGroup, FlowNodeType } from '@/types/flow';
 import { NODE_TYPE_REGISTRY } from '@/types/flow';
 
 interface NodeListPanelProps {
   flow: FlowDefinition;
   onNodeSelect?: (nodeId: string) => void;
+  onNodeEdit?: (nodeId: string) => void;
+  onNodeFocus?: (nodeId: string) => void;
+  onNodeDelete?: (nodeId: string) => void;
 }
 
 // 从 NODE_TYPE_REGISTRY 获取节点颜色
@@ -131,8 +134,9 @@ function findConnectedGroup(
   };
 }
 
-export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps) {
+export default function NodeListPanel({ flow, onNodeSelect, onNodeEdit, onNodeFocus, onNodeDelete }: NodeListPanelProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
   
   const groups = groupNodesByConnectivity(flow);
   
@@ -150,15 +154,10 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
   
   // 渲染单个节点项
   const renderNodeItem = (node: FlowNodeDef) => {
-    const nodeColor = getNodeColor(node.type); // 使用类型获取颜色
+    const nodeColor = getNodeColor(node.type);
     
     return (
-      <div
-        className={`p-3 rounded-lg cursor-pointer hover:bg-white/5 transition-colors ${
-          onNodeSelect ? 'cursor-pointer' : ''
-        }`}
-        onClick={() => onNodeSelect?.(node.id)}
-      >
+      <div className="p-3 rounded-lg hover:bg-white/5 transition-colors">
         {/* 颜色徽记 - 使用类型对应的颜色 */}
         <div 
           className="w-4 h-4 rounded-full mb-2"
@@ -166,18 +165,57 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
         />
         
         {/* 节点名称 - 完整显示 */}
-        <div className="font-medium text-sm dark:text-text-dark light:text-text-light mb-1">
+        <div className="font-medium text-sm dark:text-text-dark light:text-text-light mb-2">
           {node.label || node.id}
         </div>
         
         {/* 节点类型 - 使用 NODE_TYPE_REGISTRY 的显示名称 */}
-        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-2">
           {getNodeTypeName(node.type)}
         </div>
         
         {/* 节点ID - 可选显示 */}
-        <div className="text-xs text-gray-400 mt-1">
+        <div className="text-xs text-gray-400 mb-3">
           ID: {node.id}
+        </div>
+        
+        {/* 操作按钮组 */}
+        <div className="flex gap-1">
+          {/* 编辑按钮 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onNodeEdit?.(node.id);
+            }}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs text-blue-400 hover:bg-blue-400/10 transition-colors"
+            title="编辑节点"
+          >
+            <Edit3 className="w-3 h-3" />
+          </button>
+          
+          {/* 跳转按钮 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onNodeFocus?.(node.id);
+            }}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs text-green-400 hover:bg-green-400/10 transition-colors"
+            title="跳转到节点"
+          >
+            <ExternalLink className="w-3 h-3" />
+          </button>
+          
+          {/* 删除按钮 */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteConfirmOpen(node.id);
+            }}
+            className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded text-xs text-red-400 hover:bg-red-400/10 transition-colors"
+            title="删除节点"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
         </div>
       </div>
     );
@@ -186,7 +224,7 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
   // 渲染组标题
   const renderGroupTitle = (group: NodeGroup) => {
     const firstNode = group.nodes[0];
-    const groupName = extractGroupName(firstNode); // 提取组名
+    const groupName = extractGroupName(firstNode);
     
     return (
       <div className="flex items-center justify-between p-3 border-b dark:border-border-dark light:border-border-light">
@@ -223,8 +261,49 @@ export default function NodeListPanel({ flow, onNodeSelect }: NodeListPanelProps
     );
   };
   
+  // 确认删除弹窗
+  const renderDeleteConfirmModal = () => {
+    if (!deleteConfirmOpen) return null;
+    
+    const node = flow.nodes.find(n => n.id === deleteConfirmOpen);
+    if (!node) return null;
+    
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="rounded-lg p-6 max-w-sm w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-xl">
+          <h3 className="text-base font-bold mb-2">确认删除</h3>
+          <p className="text-sm opacity-60 mb-4">
+            确定要删除节点 <span className="font-medium">"{node.label || node.id}"</span> 吗？
+            <br />
+            <span className="text-red-400">此操作不可恢复</span>
+          </p>
+          <div className="flex flex-col gap-2">
+            <button 
+              onClick={() => {
+                onNodeDelete?.(deleteConfirmOpen);
+                setDeleteConfirmOpen(null);
+              }} 
+              className="px-4 py-2 text-sm rounded-lg bg-red-500 text-white hover:bg-red-600"
+            >
+              确认删除
+            </button>
+            <button 
+              onClick={() => setDeleteConfirmOpen(null)} 
+              className="px-4 py-2 text-sm rounded-lg border dark:border-border-dark light:border-border-light hover:bg-white/5"
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="mt-4 space-y-3">
+      {/* 确认删除弹窗 */}
+      {renderDeleteConfirmModal()}
+      
       <div className="flex items-center justify-between">
         <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
           节点列表
