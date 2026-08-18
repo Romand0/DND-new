@@ -1001,7 +1001,7 @@ export default function FlowEditor() {
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden dark:bg-bg-dark light:bg-bg-light relative">
       {/* 自定义样式卡片节点 */}
-      <style jsx>{`
+      <style>{`
         @media (max-width: 1024px) {
           .node-card-container {
             -webkit-overflow-scrolling: touch;
@@ -1123,15 +1123,15 @@ export default function FlowEditor() {
         onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
       >
-      <div className="flex-1 flex overflow-hidden relative">
-      {/* ===== 左侧节点面板 ===== */}
-      {/* 宽屏：固定 64 宽图标条 + 256 宽内容区；窄屏：全宽滑出抽屉 */}
-      <div
-        className={`${
-          showLeftPanel ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 absolute lg:relative z-30 w-72 lg:w-80 h-full flex-shrink-0 border-r dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-gray-50 overflow-y-auto overflow-x-hidden transition-transform duration-200 ease-out node-card-container`}
-      >
-<div className="p-4">
+        <div className="flex-1 flex overflow-hidden relative">
+          {/* ===== 左侧节点面板 ===== */}
+          {/* 宽屏：固定 64 宽图标条 + 256 宽内容区；窄屏：全宽滑出抽屉 */}
+          <div
+            className={`${
+              showLeftPanel ? 'translate-x-0' : '-translate-x-full'
+            } lg:translate-x-0 absolute lg:relative z-30 w-72 lg:w-80 h-full flex-shrink-0 border-r dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-gray-50 overflow-y-auto overflow-x-hidden transition-transform duration-200 ease-out node-card-container`}
+          >
+            <div className="p-4">
           <div className="flex items-center justify-between mb-4 lg:hidden">
             <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light">环节库</h2>
             <button
@@ -1167,24 +1167,6 @@ export default function FlowEditor() {
               </div>
             ))}
           </div>
-        </div>
-          <h2 className="text-sm font-semibold dark:text-text-dark light:text-light mb-3 hidden lg:block">环节库</h2>
-          <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
-            拖拽或点击节点类型添加到画布
-          </p>
-
-          {Object.entries(nodeGroups).map(([category, metas]) => (
-            <div key={category} className="mb-6">
-              <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-3 text-center">
-                {category}
-              </h3>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {metas.map(meta => (
-                  <PaletteDragItem key={meta.type} meta={meta} />
-                ))}
-              </div>
-            </div>
-          ))}
         </div>
       </div>
 
@@ -2231,7 +2213,7 @@ onNodeDelete={(nodeId) => {
           onClick={() => setShowRightPanel(false)}
         />
       )}
-      </div>
+        </div>
       </DndContext>
 
       {/* ===== 草稿列表弹窗 ===== */}
