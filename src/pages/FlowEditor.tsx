@@ -1,5 +1,5 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
-import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -77,7 +77,7 @@ function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolea
 }
 
 // ===== 空间索引更新函数 =====
-const updateSpatialGrid = useCallback((nodes: FlowNodeDef[]) => {
+function updateSpatialGrid(nodes: FlowNodeDef[]) {
   if (!spatialGrid) return;
   
   // 使用批量操作优化性能
@@ -99,7 +99,7 @@ const updateSpatialGrid = useCallback((nodes: FlowNodeDef[]) => {
   
   // 定期清理缓存
   spatialGrid.cleanupCache();
-}, []);
+}
 
 // 寻找不与其他节点碰撞的位置（使用空间索引优化）
 function findNonOverlappingPosition(
