@@ -163,6 +163,12 @@ export default function FlowEditor() {
     return createEmptyFlow();
   });
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  
+  // ===== 确保 flowStore 引用最新 =====
+  const flowStoreRef = useRef(flowStore);
+  useEffect(() => {
+    flowStoreRef.current = flowStore;
+  }, [flowStore]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectFromId, setConnectFromId] = useState<string | null>(null);
@@ -335,6 +341,20 @@ export default function FlowEditor() {
     return flowStore.subscribe(refresh);
   }, []);
 
+  // ===== flow state 同步：监听 flowStore 变化，确保 React state 与 store 一致 =====
+  useEffect(() => {
+    const refreshFlow = () => {
+      const stored = flowStore.getById(flowId || flow.id);
+      if (stored) {
+        setFlow(stored);
+      }
+    };
+    
+    refreshFlow();
+    const unsub = flowStore.subscribe(refreshFlow);
+    return () => unsub();
+  }, [flowId, flow.id]);
+
   // ===== 位置快照：保存（画布滚动 + 缩放 + 面板展开状态，按流程 ID 持久化） =====
   const viewportRef = useRef({
     scrollX: 0,
@@ -474,7 +494,7 @@ export default function FlowEditor() {
       };
       
       // 同步到 flowStore（单一真相源）
-      flowStore.save(updatedFlow);
+      flowStoreRef.current.save(updatedFlow);
       
       return updatedFlow;
     });
