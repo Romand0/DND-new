@@ -1,7 +1,7 @@
 // 空间索引工具 - 用于优化节点碰撞检测性能
 const CELL_SIZE = 300;
 
-export interface FlowNodeDef {
+export interface SpatialNodeDef {
   id: string;
   position: { x: number; y: number };
   width?: number;
@@ -9,7 +9,7 @@ export interface FlowNodeDef {
 }
 
 export class SpatialGrid {
-  private cells: Map<string, FlowNodeDef[]> = new Map();
+  private cells: Map<string, SpatialNodeDef[]> = new Map();
 
   private key(x: number, y: number): string {
     const cellX = Math.floor(x / CELL_SIZE);
@@ -17,7 +17,7 @@ export class SpatialGrid {
     return `${cellX},${cellY}`;
   }
 
-  rebuild(nodes: FlowNodeDef[]): void {
+  rebuild(nodes: SpatialNodeDef[]): void {
     this.cells.clear();
     
     for (const node of nodes) {
@@ -29,8 +29,8 @@ export class SpatialGrid {
     }
   }
 
-  queryCandidates(x: number, y: number, w: number, h: number): FlowNodeDef[] {
-    const candidates: FlowNodeDef[] = [];
+  queryCandidates(x: number, y: number, w: number, h: number): SpatialNodeDef[] {
+    const candidates: SpatialNodeDef[] = [];
     
     // 计算查询区域覆盖的网格范围
     const minX = Math.floor((x - w) / CELL_SIZE);
