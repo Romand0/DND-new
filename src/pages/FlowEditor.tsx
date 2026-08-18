@@ -1883,10 +1883,9 @@ export default function FlowEditor() {
                       setShowRightPanel(false);
                     }
                   }}
-                  onNodeDelete={(nodeId) => {
-                    // 删除节点：通过NodeListPanel内部的确认弹窗处理
-                    // 这里只是触发，具体的确认逻辑在NodeListPanel内部
-                  }}
+onNodeDelete={(nodeId) => {
+                     deleteNode(nodeId);
+                   }}
                 />
               </div>
             </div>
