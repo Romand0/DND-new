@@ -1793,6 +1793,45 @@ export default function FlowEditor() {
                       nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
                   }}
+                  onNodeEdit={(nodeId) => {
+                    // 编辑节点：选中并显示右侧栏
+                    setSelectedNodeId(nodeId);
+                    setSelectedEdgeId(null);
+                    // 确保右侧栏显示
+                    setShowRightPanel(true);
+                    // 窄屏下可能需要滚动到右侧栏
+                    const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                    if (nodeElement) {
+                      nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }}
+                  onNodeFocus={(nodeId) => {
+                    // 跳转到节点：移动画布视图使该节点处于画布窗口正中央
+                    const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                    if (nodeElement && canvasRef.current) {
+                      const canvasRect = canvasRef.current.getBoundingClientRect();
+                      const nodeRect = nodeElement.getBoundingClientRect();
+                      
+                      // 计算滚动位置，使节点居中
+                      const scrollLeft = nodeRect.left - canvasRect.left + canvasRef.current.scrollLeft - canvasRect.width / 2 + nodeRect.width / 2;
+                      const scrollTop = nodeRect.top - canvasRect.top + canvasRef.current.scrollTop - canvasRect.height / 2 + nodeRect.height / 2;
+                      
+                      canvasRef.current.scrollTo({
+                        left: scrollLeft,
+                        top: scrollTop,
+                        behavior: 'smooth'
+                      });
+                    }
+                    
+                    // 窄屏下收起右侧栏
+                    if (window.innerWidth < 1024) {
+                      setShowRightPanel(false);
+                    }
+                  }}
+                  onNodeDelete={(nodeId) => {
+                    // 删除节点：通过NodeListPanel内部的确认弹窗处理
+                    // 这里只是触发，具体的确认逻辑在NodeListPanel内部
+                  }}
                 />
               </div>
             </div>
