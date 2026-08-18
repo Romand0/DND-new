@@ -1006,15 +1006,33 @@ export default function FlowEditor() {
           .node-card-container {
             -webkit-overflow-scrolling: touch;
             scroll-behavior: smooth;
+            padding-right: 20px;
           }
-        }
-        
-        .node-card {
-          transition: all 0.2s ease;
-        }
-        
-        .node-card:active {
-          transform: scale(0.95);
+          
+          .node-card {
+            flex-direction: row !important;
+            justify-content: flex-start !important;
+            align-items: center !important;
+            width: auto !important;
+            min-width: 100px !important;
+            max-width: 130px !important;
+            height: 44px !important;
+            padding: 0.625rem 0.75rem !important;
+            gap: 0.5rem !important;
+          }
+          
+          .node-card span:first-child {
+            width: 0.75rem !important;
+            height: 0.75rem !important;
+            margin-bottom: 0 !important;
+            margin-right: 0.25rem !important;
+          }
+          
+          .node-card span:last-child {
+            flex: 1 !important;
+            min-width: 0 !important;
+            text-align: left !important;
+          }
         }
         
         @media (hover: none) {
@@ -1141,8 +1159,8 @@ export default function FlowEditor() {
               <X className="w-4 h-4" />
             </button>
           </div>
-          <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4 hidden lg:block text-center">环节库</h2>
-          <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-6 text-center">
+          <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4 hidden lg:block text-left lg:text-center">环节库</h2>
+          <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-6 text-left lg:text-center">
             拖拽节点卡片添加到画布
           </p>
           
@@ -1156,10 +1174,10 @@ export default function FlowEditor() {
           <div className="space-y-6">
             {Object.entries(nodeGroups).map(([category, metas]) => (
               <div key={category}>
-                <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-4 text-center">
+                <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-4 text-left lg:text-center">
                   {category}
                 </h3>
-                <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
+                <div className="flex flex-wrap gap-2 lg:gap-3">
                   {metas.map(meta => (
                     <PaletteDragItem key={meta.type} meta={meta} />
                   ))}
@@ -2526,21 +2544,21 @@ function PaletteDragItem({ meta }: PaletteDragItemProps) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`node-card flex-shrink-0 inline-flex flex-col items-center gap-2 px-4 py-3 rounded-xl text-xs text-center transition-all duration-200
+      className={`node-card flex-shrink-0 inline-flex flex-row items-center gap-2 px-3 py-2.5 rounded-lg text-xs text-left transition-all duration-200
         hover:bg-primary/10 hover:border-primary hover:shadow-md hover:scale-105
         border border-transparent dark:border-transparent light:border-transparent
         bg-white/8 dark:bg-white/8 light:bg-gray-100/60
         active:scale-[0.95] active:shadow-inner
         ${isDragging ? 'opacity-50 scale-95 shadow-lg border-primary/30' : ''}
-        min-w-[120px] max-w-[140px] h-[48px] justify-center`}
+        min-w-[100px] max-w-[130px] h-[44px] w-auto`}
       title={meta.description}
       style={{ touchAction: 'none' }}
     >
       <span
-        className="w-4 h-4 rounded-full flex-shrink-0 mb-1"
+        className="w-3 h-3 rounded-full flex-shrink-0"
         style={{ backgroundColor: meta.color }}
       />
-      <span className="truncate font-medium text-xs leading-tight">{meta.label}</span>
+      <span className="truncate font-medium text-xs flex-1 min-w-0">{meta.label}</span>
     </button>
   );
 }
