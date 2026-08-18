@@ -40,6 +40,7 @@ import TripleTapGesture from '@/components/TripleTapGesture';
 import TreasureList from '@/pages/TreasureList';
 import TreasureEdit from '@/pages/TreasureEdit';
 import TreasureDistribute from '@/pages/TreasureDistribute';
+import TestNodeList from '@/pages/TestNodeList';
 
 // 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
@@ -132,6 +133,7 @@ export default function App() {
               <Route path="inventory/treasures/:id/distribute" element={<TreasureDistribute />} />
               <Route path="flows" element={<FlowList />} />
               <Route path="flows/:id/edit" element={<FlowEditor />} />
+              <Route path="test/nodelist" element={<TestNodeList />} />
               {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />

@@ -35,6 +35,14 @@ export interface FlowNodeDef {
   notes?: string;                    // 用户备注（自由文本）
 }
 
+/** 节点分组接口 */
+export interface NodeGroup {
+  id: string;                        // 分组唯一ID
+  nodes: FlowNodeDef[];              // 分组内的节点列表
+  edges: FlowEdgeDef[];              // 分组内的边列表
+  isIsolated: boolean;               // 是否为孤立节点组
+}
+
 // ======================
 // 二、边（Edge）—— 节点之间的衔接关系
 // ======================

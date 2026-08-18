@@ -35,6 +35,7 @@ import {
 } from '@/types/flow';
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
+import NodeListPanel from '@/components/NodeListPanel';
 import { generateFlowId, validateFlowId } from '@/lib/idUtils';
 import { SpatialGrid } from '@/utils/spatialGrid';
 
@@ -1762,11 +1763,13 @@ export default function FlowEditor() {
                 </div>
               </div>
 
-              {/* ===== 原有统计信息 ===== */}
+              {/* ===== 增强的流程统计 ===== */}
               <div className="mt-6 space-y-3">
                 <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
                   流程统计
                 </h4>
+                
+                {/* 基础统计信息 */}
                 <div className="grid grid-cols-2 gap-2">
                   <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
                     <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{flow.nodes.length}</div>
@@ -1777,6 +1780,20 @@ export default function FlowEditor() {
                     <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">连线</div>
                   </div>
                 </div>
+                
+                {/* 节点列表组件 */}
+                <NodeListPanel 
+                  flow={flow}
+                  onNodeSelect={(nodeId) => {
+                    setSelectedNodeId(nodeId);
+                    setSelectedEdgeId(null);
+                    // 可选：滚动到对应节点位置
+                    const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                    if (nodeElement) {
+                      nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                  }}
+                />
               </div>
             </div>
           )}
