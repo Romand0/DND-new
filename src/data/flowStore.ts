@@ -152,7 +152,7 @@ const flowStore = {
     const updated = {
       ...flow,
       publishedVersion: published.publishedVersion,
-      publishedAt: published.publishedAt ?? Date.now(),
+      publishedAt: published.publishedAt ?? Math.floor(Date.now() / 1000), // 转换为秒级时间戳
     };
     const idx = localFlows.findIndex(f => f.id === id);
     localFlows[idx] = updated;
