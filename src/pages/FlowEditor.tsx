@@ -1,5 +1,6 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, React } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -20,7 +21,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
 import flowStore from '@/data/flowStore';
-import { SpatialGrid, SpatialNodeDef } from '@/utils/spatialGrid';
+import { SpatialGrid } from '@/utils/spatialGrid';
 import type {
   FlowDefinition,
   FlowNodeDef,
@@ -273,9 +274,9 @@ export default function FlowEditor() {
     startMid: { x: 0, y: 0 },
   });
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length < 2) return;
-    const pts = Array.from(e.touches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
+    const pts = Array.from(e.touches).map((t: Touch) => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
     const map = new Map(pts.map(p => [p.id, { x: p.x, y: p.y }]));
     const dx = pts[1].x - pts[0].x;
     const dy = pts[1].y - pts[0].y;
@@ -299,7 +300,7 @@ export default function FlowEditor() {
       const state = pinchRef.current;
       if (e.touches.length < 2 || state.startDist === 0) return;
       e.preventDefault();
-      const pts = Array.from(e.touches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
+      const pts = Array.from(e.touches).map((t: Touch) => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
       const dx = pts[1].x - pts[0].x;
       const dy = pts[1].y - pts[0].y;
       const dist = Math.sqrt(dx * dx + dy * dy);
@@ -366,7 +367,7 @@ export default function FlowEditor() {
 
   // ===== 空间索引重建：节点列表变化时更新 =====
   useEffect(() => {
-    spatialGridRef.current.rebuild(flow.nodes as SpatialNodeDef[]);
+    spatialGridRef.current.rebuild(flow.nodes);
   }, [flow.nodes]);
 
   // ===== 草稿列表：订阅 flowStore 变更，保持下拉框数据同步 =====
