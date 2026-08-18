@@ -2555,7 +2555,7 @@ function PaletteDragItem({ meta }: PaletteDragItemProps) {
       style={{ touchAction: 'none' }}
     >
       <span
-        className="w-3 h-3 rounded-full flex-shrink-0"
+        className="w-4 h-4 rounded-full flex-shrink-0 mb-1"
         style={{ backgroundColor: meta.color }}
       />
       <span className="truncate font-medium text-xs flex-1 min-w-0">{meta.label}</span>
