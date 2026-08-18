@@ -56,51 +56,6 @@ function extractGroupName(node: FlowNodeDef): string {
   return '流程组';
 }
 
-// 从 NODE_TYPE_REGISTRY 获取节点颜色
-function getNodeColor(nodeType: FlowNodeType): string {
-  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
-  return nodeMeta?.color || '#6b7280'; // 默认灰色
-}
-
-// 从 NODE_TYPE_REGISTRY 获取节点图标
-function getNodeIcon(nodeType: FlowNodeType): React.ReactNode {
-  const iconMap: Record<string, React.ReactNode> = {
-    'cast_start': <Zap className="w-3 h-3" />,
-    'check_component': <Shield className="w-3 h-3" />,
-    'check_range': <Target className="w-3 h-3" />,
-    'select_target': <MousePointer className="w-3 h-3" />,
-    'saving_throw': <Shield className="w-3 h-3" />,
-    'attack_roll': <Zap className="w-3 h-3" />,
-    'condition_branch': <GitBranch className="w-3 h-3" />,
-    'apply_effect': <Heart className="w-3 h-3" />,
-    'concentration_check': <Shield className="w-3 h-3" />,
-    'cast_end': <CheckCircle className="w-3 h-3" />,
-    'custom': <Zap className="w-3 h-3" />,
-  };
-  return iconMap[nodeType] || <Zap className="w-3 h-3" />;
-}
-
-// 从 NODE_TYPE_REGISTRY 获取节点类型名称
-function getNodeTypeName(nodeType: FlowNodeType): string {
-  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
-  return nodeMeta?.label || '未知类型';
-}
-
-// 从节点备注中提取组名
-function extractGroupName(node: FlowNodeDef): string {
-  if (!node.notes) {
-    return '流程组';
-  }
-  
-  // 匹配"组：XXX"格式
-  const match = node.notes.match(/组：(.+)/);
-  if (match) {
-    return match[1];
-  }
-  
-  return '流程组';
-}
-
 // 导出分组算法供组件使用
 export function groupNodesByConnectivity(flow: FlowDefinition): NodeGroup[] {
   const groups: NodeGroup[] = [];
