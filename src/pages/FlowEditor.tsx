@@ -187,6 +187,10 @@ function resolveNodeIcon(iconName?: string): React.ReactNode {
 const NODE_W = 260;   // 窄屏基准宽度
 const NODE_H = 56;    // 最小估计高度（头部）
 
+// 卡片节点样式常量
+const CARD_NODE_W = 140;  // 卡片节点宽度
+const CARD_NODE_H = 48;   // 卡片节点高度
+
 // 画布缩放常量
 const SCALE_MIN = 0.25;
 const SCALE_MAX = 3;
@@ -996,6 +1000,30 @@ export default function FlowEditor() {
   // ===== 渲染 =====
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden dark:bg-bg-dark light:bg-bg-light relative">
+      {/* 自定义样式卡片节点 */}
+      <style jsx>{`
+        @media (max-width: 1024px) {
+          .node-card-container {
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
+          }
+        }
+        
+        .node-card {
+          transition: all 0.2s ease;
+        }
+        
+        .node-card:active {
+          transform: scale(0.95);
+        }
+        
+        @media (hover: none) {
+          .node-card:hover {
+            transform: none;
+            box-shadow: none;
+          }
+        }
+      `}</style>
       {/* ===== 顶部工具栏 ===== */}
       <div className="flex items-center justify-between h-12 border-b dark:border-border-dark light:border-border-light flex-shrink-0 dark:bg-bg-dark-2 light:bg-white">
         <div className="flex items-center gap-2 px-4">
@@ -1101,29 +1129,56 @@ export default function FlowEditor() {
       <div
         className={`${
           showLeftPanel ? 'translate-x-0' : '-translate-x-full'
-        } lg:translate-x-0 absolute lg:relative z-30 w-64 h-full flex-shrink-0 border-r dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-gray-50 overflow-y-auto transition-transform duration-200 ease-out`}
+        } lg:translate-x-0 absolute lg:relative z-30 w-72 lg:w-80 h-full flex-shrink-0 border-r dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-gray-50 overflow-y-auto overflow-x-hidden transition-transform duration-200 ease-out node-card-container`}
       >
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-3 lg:hidden">
+<div className="p-4">
+          <div className="flex items-center justify-between mb-4 lg:hidden">
             <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light">环节库</h2>
             <button
               onClick={() => setShowLeftPanel(false)}
-              className="p-1 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
+              className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
+          <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4 hidden lg:block text-center">环节库</h2>
+          <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-6 text-center">
+            拖拽节点卡片添加到画布
+          </p>
+          
+          {/* 触屏滚动提示 */}
+          <div className="lg:hidden mb-4 text-center">
+            <p className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+              ← 左右滑动查看更多节点类型
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            {Object.entries(nodeGroups).map(([category, metas]) => (
+              <div key={category}>
+                <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-4 text-center">
+                  {category}
+                </h3>
+                <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
+                  {metas.map(meta => (
+                    <PaletteDragItem key={meta.type} meta={meta} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
           <h2 className="text-sm font-semibold dark:text-text-dark light:text-light mb-3 hidden lg:block">环节库</h2>
           <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
             拖拽或点击节点类型添加到画布
           </p>
 
           {Object.entries(nodeGroups).map(([category, metas]) => (
-            <div key={category} className="mb-4">
-              <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-2">
+            <div key={category} className="mb-6">
+              <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-3 text-center">
                 {category}
               </h3>
-              <div className="space-y-1">
+              <div className="flex flex-wrap gap-2 justify-center">
                 {metas.map(meta => (
                   <PaletteDragItem key={meta.type} meta={meta} />
                 ))}
@@ -2489,17 +2544,21 @@ function PaletteDragItem({ meta }: PaletteDragItemProps) {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`w-full flex items-center gap-2 px-2.5 py-2.5 rounded-lg text-xs text-left transition-colors
-        hover:bg-white/5 dark:text-text-dark light:text-text-light active:scale-[0.98]
-        ${isDragging ? 'opacity-40' : ''}`}
+      className={`node-card flex-shrink-0 inline-flex flex-col items-center gap-2 px-4 py-3 rounded-xl text-xs text-center transition-all duration-200
+        hover:bg-primary/10 hover:border-primary hover:shadow-md hover:scale-105
+        border border-transparent dark:border-transparent light:border-transparent
+        bg-white/8 dark:bg-white/8 light:bg-gray-100/60
+        active:scale-[0.95] active:shadow-inner
+        ${isDragging ? 'opacity-50 scale-95 shadow-lg border-primary/30' : ''}
+        min-w-[120px] max-w-[140px] h-[48px] justify-center`}
       title={meta.description}
       style={{ touchAction: 'none' }}
     >
       <span
-        className="w-3 h-3 rounded-full flex-shrink-0"
+        className="w-4 h-4 rounded-full flex-shrink-0 mb-1"
         style={{ backgroundColor: meta.color }}
       />
-      <span className="truncate">{meta.label}</span>
+      <span className="truncate font-medium text-xs leading-tight">{meta.label}</span>
     </button>
   );
 }
