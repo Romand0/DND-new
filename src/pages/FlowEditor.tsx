@@ -757,9 +757,15 @@ export default function FlowEditor() {
       setDrafts(flowStore.getAll());   // 刷新下拉框数据
       setFlow(updatedFlow);
       setSaveStatus('saved');
+      
+      // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
+      if (flowId && flowId !== updatedFlow.id) {
+        navigate(`/flows/${updatedFlow.id}/edit`, { replace: true });
+      }
+      
       setTimeout(() => setSaveStatus('idle'), 2000);
     });
-  }, [flow, flowNameInput.value]);
+  }, [flow, flowNameInput.value, flowId, navigate]);
 
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
