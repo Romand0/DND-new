@@ -465,12 +465,19 @@ export default function FlowEditor() {
 
   // ===== 删除节点 =====
   const deleteNode = useCallback((nodeId: string) => {
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.filter(n => n.id !== nodeId),
-      edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
-      updatedAt: Date.now(),
-    }));
+    setFlow(prev => {
+      const updatedFlow = {
+        ...prev,
+        nodes: prev.nodes.filter(n => n.id !== nodeId),
+        edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
+        updatedAt: Date.now(),
+      };
+      
+      // 同步到 flowStore（单一真相源）
+      flowStore.save(updatedFlow);
+      
+      return updatedFlow;
+    });
     if (selectedNodeId === nodeId) setSelectedNodeId(null);
   }, [selectedNodeId]);
 
