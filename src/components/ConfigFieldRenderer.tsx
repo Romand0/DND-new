@@ -49,6 +49,33 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark }:
         />
       );
 
+    case 'object':
+      // 嵌套配置对象
+      if (!schema.children) return null;
+      return (
+        <div className="space-y-2 pl-3 border-l-2 border-gray-300 dark:border-gray-600">
+          {schema.children.map(child => (
+            <div key={child.key}>
+              <div className="flex items-center gap-1 mb-1">
+                <span className="text-xs font-medium dark:text-text-dark light:text-text-light">
+                  {child.label}
+                </span>
+                {child.required && <span className="text-[10px] text-red-400">*</span>}
+              </div>
+              <ConfigFieldRenderer
+                schema={child}
+                value={value?.[child.key]}
+                onChange={v => {
+                  const newValue = { ...value, [child.key]: v };
+                  onChange(newValue);
+                }}
+                isDark={isDark}
+              />
+            </div>
+          ))}
+        </div>
+      );
+
     case 'template':
       return (
         <input
