@@ -49,6 +49,16 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark }:
         />
       );
 
+    case 'boolean':
+      return (
+        <input
+          type="checkbox"
+          checked={value ?? schema.defaultValue ?? false}
+          onChange={e => onChange(e.target.checked)}
+          className="w-4 h-4 accent-indigo-500"
+        />
+      );
+
     case 'object':
       // 嵌套配置对象
       if (!schema.children) return null;

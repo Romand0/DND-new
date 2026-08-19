@@ -286,7 +286,9 @@ export type ConfigFieldType =
   | 'number'     // 数字输入
   | 'text'       // 自由文本
   | 'dice'       // 骰子表达式（如 8d6）
-  | 'template';  // 模板变量（如 ${caster.spellSaveDc}）
+  | 'template'   // 模板变量（如 ${caster.spellSaveDc}）
+  | 'boolean'    // 布尔开关（勾选框）
+  | 'object';    // 嵌套配置对象（递归渲染子字段）
 
 /** 下拉选项：中文标签 → DSL 值 */
 export interface SelectOption {
@@ -303,6 +305,8 @@ export interface ConfigFieldSchema {
   placeholder?: string;           // 输入提示
   required?: boolean;             // 是否必填
   defaultValue?: any;             // 默认值
+  children?: ConfigFieldSchema[]; // object 类型的子字段
+  description?: string;           // 字段说明（仅展示，不入 config）
 }
 
 /** 节点类型 → 配置字段列表 */

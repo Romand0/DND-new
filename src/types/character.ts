@@ -202,6 +202,8 @@ export interface Character {
   heldRight: HandSlot;
   /** 言语能力：能否说话或发出声音（true=可以，false=不可以）。默认为 true，某些状态可剥夺 */
   canSpeak?: boolean;
+  /** 姿势能力：能否做姿势成分（true=可以，false=不可以）。默认为 true，束缚等状态可剥夺 */
+  canSomatic?: boolean;
 }
 
 /** 手持槽状态 */
