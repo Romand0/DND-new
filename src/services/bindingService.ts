@@ -1,8 +1,9 @@
 import { spellStore } from '@/data/spellStore';
-import { flowStore } from '@/data/flowStore';
+import flowStore from '@/data/flowStore';
 import { bindingStore } from '@/data/bindingStore';
-import type { Spell, FlowDefinition, SpellFlowBinding } from '@/types/spell';
-import type { FlowDefinition as FlowType } from '@/types/flow';
+import type { Spell } from '@/types/spell';
+import type { FlowDefinition, FlowNodeDef, FlowEdgeDef } from '@/types/flow';
+import type { SpellFlowBinding } from '@/types/binding';
 import type { SpellWithFlowBindings, FlowWithSpellBindings } from '@/types/binding';
 
 export class BindingService {
@@ -67,6 +68,7 @@ export class BindingService {
     const boundFlows = await this.getSpellBoundFlows(spell.id);
     return {
       ...spell,
+      data: spell, // 添加 data 字段以满足接口要求
       boundFlows,
       bindingsCount: boundFlows.length
     };
@@ -75,10 +77,12 @@ export class BindingService {
   /**
    * 当获取流程详情时，自动加载绑定信息
    */
-  static async enrichFlowWithBindings(flow: FlowType): Promise<FlowWithSpellBindings> {
+  static async enrichFlowWithBindings(flow: FlowDefinition): Promise<FlowWithSpellBindings> {
     const boundSpells = await this.getFlowBoundSpells(flow.id);
     return {
       ...flow,
+      category: flow.data?.category || 'custom', // 添加 category 字段以满足接口要求
+      data: flow.data, // 添加 data 字段以满足接口要求
       boundSpells,
       bindingsCount: boundSpells.length
     };

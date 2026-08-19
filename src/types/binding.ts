@@ -17,6 +17,8 @@ export interface SpellWithBindings extends Spell {
 export interface FlowWithBindings extends FlowDefinition {
   boundSpells?: Spell[];
   bindingsCount?: number;
+  category?: string;
+  data?: any;
 }
 
 export interface BindingCreateData {
@@ -24,23 +26,14 @@ export interface BindingCreateData {
   flow_id: string;
 }
 
-export interface SpellWithFlowBindings {
-  id: string;
-  name: string;
-  level: number;
-  school: string;
-  data: any;
+export interface SpellWithFlowBindings extends Spell {
   boundFlows?: FlowDefinition[];
   bindingsCount?: number;
 }
 
-export interface FlowWithSpellBindings {
-  id: string;
-  name: string;
-  category: string;
-  data: any;
-  publishedVersion?: number;
-  publishedAt?: number;
+export interface FlowWithSpellBindings extends FlowDefinition {
   boundSpells?: Spell[];
   bindingsCount?: number;
+  category?: string;
+  data?: any;
 }
