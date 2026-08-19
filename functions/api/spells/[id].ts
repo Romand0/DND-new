@@ -17,14 +17,41 @@ export async function onRequestGet(context: any): Promise<Response> {
 
   const id = params.id;
   try {
-    const result = await env.DB
+    // 获取法术基本信息
+    const spellResult = await env.DB
       .prepare('SELECT data FROM spells WHERE id = ?')
       .bind(id)
       .first();
-    if (!result) {
+    if (!spellResult) {
       return errorResponse('法术不存在', 404);
     }
-    return jsonResponse(JSON.parse(result.data as string));
+
+    const spellData = JSON.parse(spellResult.data as string);
+
+    // 获取绑定的流程信息
+    const bindingsResult = await env.DB
+      .prepare(`
+        SELECT f.* FROM spell_flow_bindings b
+        JOIN flows f ON b.flow_id = f.id
+        WHERE b.spell_id = ?
+      `)
+      .bind(id)
+      .all();
+
+    const boundFlows = bindingsResult.results.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      category: row.category,
+      data: JSON.parse(row.data),
+      publishedVersion: row.version,
+      publishedAt: row.published_at
+    }));
+
+    return jsonResponse({
+      ...spellData,
+      boundFlows,
+      bindingsCount: boundFlows.length
+    });
   } catch (e: any) {
     return errorResponse(e.message || '查询失败', 500);
   }
