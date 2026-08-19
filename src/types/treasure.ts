@@ -2,7 +2,7 @@
 import type { Equipment } from './character';
 
 /** 单价可选的货币单位（与宝藏钱币口径一致，含铂金币） */
-export type TreasurePriceUnit = 'pp' | 'gp' | 'sp' | 'cp';
+export type TreasurePriceUnit = 'pp' | 'gp' | 'ep' | 'sp' | 'cp';
 
 export interface TreasurePrice {
   amount: number;
@@ -28,6 +28,7 @@ export interface TreasureItem {
 export interface TreasureCurrency {
   pp: number;
   gp: number;
+  ep: number;
   sp: number;
   cp: number;
 }

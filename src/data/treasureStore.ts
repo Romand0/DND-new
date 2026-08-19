@@ -22,7 +22,7 @@ function load(): Treasure[] {
     cache = list.map((t: any) => ({
       id: t.id || '',
       title: t.title || '未命名宝藏',
-      currency: t.currency || { pp: 0, gp: 0, sp: 0, cp: 0 },
+      currency: t.currency || { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
       items: (t.items || []).map((it: any) => ({
         id: it.id || '',
         name: it.name || '',
@@ -90,7 +90,7 @@ const treasureStore = {
     const t: Treasure = {
       id: crypto.randomUUID(),
       title: title.trim() || '未命名宝藏',
-      currency: { pp: 0, gp: 0, sp: 0, cp: 0 },
+      currency: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
       items: [],
       experience: 0,
       createdAt: now,

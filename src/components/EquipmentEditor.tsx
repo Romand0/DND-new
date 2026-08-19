@@ -16,7 +16,7 @@ interface EquipmentEditorProps {
 
 
 const CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
-const PRICE_UNITS = ['gp', 'sp', 'cp'] as const;
+const PRICE_UNITS = ['gp', 'ep', 'sp', 'cp'] as const;
 const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '远程', '弹药', '+2 AC', '单手', '双手'];
 const DAMAGE_TYPES = ['穿刺', '钝击', '挥砍', '火焰', '冰冻', '闪电', '光', '黯蚀', '心灵', '毒素', '力场', '声波', '神力'];
 

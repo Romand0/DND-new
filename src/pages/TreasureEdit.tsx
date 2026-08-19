@@ -5,10 +5,10 @@ import { ChevronLeft, Plus, Trash2, Save, Package, Edit3 } from 'lucide-react';
 import treasureStore from '@/data/treasureStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
 import EquipmentPicker from '@/components/EquipmentPicker';
-import type { Treasure, TreasureItem, TreasurePriceUnit } from '@/types/treasure';
+import type { Treasure, TreasureItem, TreasurePriceUnit, TreasureCurrency } from '@/types/treasure';
 import type { EquipmentItem } from '@/types/equipment';
 
-const PRICE_UNITS: TreasurePriceUnit[] = ['pp', 'gp', 'sp', 'cp'];
+const PRICE_UNITS: TreasurePriceUnit[] = ['pp', 'gp', 'ep', 'sp', 'cp'];
 
 export default function TreasureEdit() {
   const { id } = useParams<{ id: string }>();
@@ -16,7 +16,7 @@ export default function TreasureEdit() {
   const isNew = !id;
 
   const [title, setTitle] = useState('');
-  const [currency, setCurrency] = useState<{ pp: number; gp: number; sp: number; cp: number }>({ pp: 0, gp: 0, sp: 0, cp: 0 });
+  const [currency, setCurrency] = useState<TreasureCurrency>({ pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 });
   const [items, setItems] = useState<TreasureItem[]>([]);
   const [experience, setExperience] = useState(0);
   const [showEquipPicker, setShowEquipPicker] = useState(false);

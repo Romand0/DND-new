@@ -526,17 +526,19 @@ const totalValue = character
           effectiveAmount = amount * q;
         }
         if (item.price.unit === 'gp') acc.gp += effectiveAmount;
+        else if (item.price.unit === 'ep') acc.ep += effectiveAmount;
         else if (item.price.unit === 'sp') acc.sp += effectiveAmount;
         else if (item.price.unit === 'cp') acc.cp += effectiveAmount;
         return acc;
       },
-      { gp: 0, sp: 0, cp: 0 }
+      { gp: 0, ep: 0, sp: 0, cp: 0 }
     )
-  : { gp: 0, sp: 0, cp: 0 };
+  : { gp: 0, ep: 0, sp: 0, cp: 0 };
 
-  const totalCp = Math.floor(totalValue.gp) * 100 + Math.floor(totalValue.sp) * 10 + Math.floor(totalValue.cp);
+  const totalCp = Math.floor(totalValue.gp) * 100 + Math.floor(totalValue.ep) * 20 + Math.floor(totalValue.sp) * 10 + Math.floor(totalValue.cp);
   const gp = Math.floor(totalCp / 100);
-  const sp = Math.floor((totalCp % 100) / 10);
+  const ep = Math.floor((totalCp % 100) / 20);
+  const sp = Math.floor((totalCp % 20) / 10);
   const cp = totalCp % 10;
   
   const isOverloaded = totalWeight > carryCapacity;
@@ -638,7 +640,7 @@ if (character) {
   if (!character.equipment) character.equipment = [];
   if (!character.features) character.features = [];
   if (!character.attacks) character.attacks = [];
-  if (!character.currency) character.currency = { cp: 0, sp: 0, gp: 0, pp: 0 };
+  if (!character.currency) character.currency = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
   if (character.wornArmorId === undefined) character.wornArmorId = null;
   if (character.wornOutfitId === undefined) character.wornOutfitId = null;
 
@@ -1413,11 +1415,11 @@ if (character) {
       货币区块渲染异常，请尝试重新同步角色数据
     </div>
   }>
-            <div className="grid grid-cols-4 gap-3">
-              {(['cp', 'sp', 'gp', 'pp'] as const).map((coin) => (
+            <div className="grid grid-cols-5 gap-3">
+              {(['cp', 'sp', 'ep', 'gp', 'pp'] as const).map((coin) => (
                 <div key={coin} className="text-center p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
                   <div className="text-xs uppercase mb-1 dark:text-text-dark-muted light:text-text-light-muted">
-                    {coin === 'cp' ? '铜币' : coin === 'sp' ? '银币' : coin === 'gp' ? '金币' : '铂金币'}
+                    {coin === 'cp' ? '铜币' : coin === 'sp' ? '银币' : coin === 'ep' ? '金币' : coin === 'gp' ? '金币' : '铂金币'}
                   </div>
                   <input
                     type="number"

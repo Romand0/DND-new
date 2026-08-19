@@ -10,7 +10,7 @@ export interface EquipmentItem {
   unit?: string;
   price: {
     amount: number; // 价格数值
-    unit: 'pp' | 'gp' | 'sp' | 'cp'; // 单位：紫晶/金币/银币/铜币
+    unit: 'pp' | 'gp' | 'ep' | 'sp' | 'cp'; // 单位：紫晶/金币/金币/银币/铜币
   };
   damageDice?: string; // 如 "1d8"
   damageType?: string; // 如 "穿刺"

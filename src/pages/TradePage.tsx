@@ -107,7 +107,7 @@ export default function TradePage() {
                 <div className="text-right shrink-0">
                   <div className="flex items-center gap-1 text-sm font-bold text-accent">
                     <Coins className="w-3.5 h-3.5" />
-                    {formatCurrency(c.currency || { pp: 0, gp: 0, sp: 0, cp: 0 })}
+                    {formatCurrency(c.currency || { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 })}
                   </div>
                   <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
                     {(c.equipment || []).length} 件物资

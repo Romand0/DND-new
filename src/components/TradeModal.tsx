@@ -43,6 +43,7 @@ function formatCurrency(c: Currency): string {
   const parts: string[] = [];
   if (c.pp > 0) parts.push(`${c.pp}pp`);
   if (c.gp > 0) parts.push(`${c.gp}gp`);
+  if (c.ep > 0) parts.push(`${c.ep}ep`);
   if (c.sp > 0) parts.push(`${c.sp}sp`);
   if (c.cp > 0) parts.push(`${c.cp}cp`);
   return parts.length > 0 ? parts.join(' ') : '0cp';
