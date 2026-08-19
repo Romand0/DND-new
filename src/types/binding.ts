@@ -1,4 +1,5 @@
-import type { Spell, FlowDefinition } from '@/types';
+import type { Spell } from '@/types/spell';
+import type { FlowDefinition } from '@/types/flow';
 
 export interface SpellFlowBinding {
   id: string;

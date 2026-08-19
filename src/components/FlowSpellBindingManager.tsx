@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Spell } from '@/types';
+import type { Spell } from '@/types/spell';
 import { BindingService } from '@/services/bindingService';
-import { spellStore } from '@/data';
+import { spellStore } from '@/data/spellStore';
 
 interface FlowSpellBindingManagerProps {
   flowId: string;

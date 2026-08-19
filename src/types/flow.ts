@@ -86,6 +86,8 @@ export interface FlowDefinition {
   publishedVersion?: number;
   /** 最近一次发布的时间戳（null = 从未发布） */
   publishedAt?: number | null;
+  /** 绑定的法术数量 */
+  bindingsCount?: number;
 }
 
 // ======================

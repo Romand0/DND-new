@@ -1,7 +1,8 @@
 import { spellStore } from '@/data/spellStore';
 import { flowStore } from '@/data/flowStore';
 import { bindingStore } from '@/data/bindingStore';
-import type { Spell, FlowDefinition, SpellFlowBinding } from '@/types';
+import type { Spell, FlowDefinition, SpellFlowBinding } from '@/types/spell';
+import type { FlowDefinition as FlowType } from '@/types/flow';
 import type { SpellWithFlowBindings, FlowWithSpellBindings } from '@/types/binding';
 
 export class BindingService {
@@ -74,7 +75,7 @@ export class BindingService {
   /**
    * 当获取流程详情时，自动加载绑定信息
    */
-  static async enrichFlowWithBindings(flow: FlowDefinition): Promise<FlowWithSpellBindings> {
+  static async enrichFlowWithBindings(flow: FlowType): Promise<FlowWithSpellBindings> {
     const boundSpells = await this.getFlowBoundSpells(flow.id);
     return {
       ...flow,
