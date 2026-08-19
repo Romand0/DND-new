@@ -194,6 +194,40 @@ export async function deleteSpell(id: string): Promise<void> {
   await apiFetch(`/spells/${id}`, { method: 'DELETE' });
 }
 
+// ============ 法术流程绑定 ============
+export async function fetchAllSpellFlowBindings<T = any[]>(): Promise<T> {
+  return apiFetch<T>('/bindings');
+}
+
+export async function createSpellFlowBinding<T = any>(data: { spell_id: string; flow_id: string }): Promise<T> {
+  return apiFetch<T>('/bindings', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSpellFlowBinding(id: string): Promise<void> {
+  await apiFetch(`/bindings/${id}`, { method: 'DELETE' });
+}
+
+export async function fetchBindingsBySpell<T = any[]>(spellId: string): Promise<T> {
+  return apiFetch<T>(`/bindings/by-spell/${spellId}`);
+}
+
+export async function fetchBindingsByFlow<T = any[]>(flowId: string): Promise<T> {
+  return apiFetch<T>(`/bindings/by-flow/${flowId}`);
+}
+
+// 扩展法术API以包含绑定信息
+export async function fetchSpellWithBindings<T = any>(id: string): Promise<T> {
+  return apiFetch<T>(`/spells/${id}`);
+}
+
+// 扩展流程API以包含绑定信息
+export async function fetchFlowWithBindings<T = any>(id: string): Promise<T> {
+  return apiFetch<T>(`/flows/${id}`);
+}
+
 // ============ 管理员认证函数（旧版兼容）============
 
 export function hasToken(): boolean {

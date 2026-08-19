@@ -13,10 +13,31 @@ export async function onRequestGet(context: any): Promise<Response> {
     if (!row) return errorResponse(404, '流程不存在');
     
     const flowData = JSON.parse((row as any).data);
+    
+    // 获取绑定的法术信息
+    const bindingsResult = await env.DB
+      .prepare(`
+        SELECT s.* FROM spell_flow_bindings b
+        JOIN spells s ON b.spell_id = s.id
+        WHERE b.flow_id = ?
+      `)
+      .bind(params.id)
+      .all();
+
+    const boundSpells = bindingsResult.results.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      level: row.level,
+      school: row.school,
+      data: JSON.parse(row.data)
+    }));
+
     return jsonResponse({
       ...flowData,
       publishedVersion: (row as any).version,
       publishedAt: (row as any).published_at,
+      boundSpells,
+      bindingsCount: boundSpells.length
     });
   } catch (error) {
     console.error('获取流程失败:', error);

@@ -20,4 +20,5 @@ export interface Spell {
   hasHeightened?: boolean;
   heightenedEffect?: string;
   materialInfo?: string;
+  bindingsCount?: number;  // 绑定的流程数量
 }
