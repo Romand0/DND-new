@@ -12,6 +12,8 @@ import { isBonusActionCast } from '@/types/combat';
 import type { Combatant, CheckScene, AdvantageReason, AdvantageResult } from '@/types/combat';
 import type { Character, AbilityKey, Equipment } from '@/types/character';
 import type { Spell } from '@/types/spell';
+import type { FlowDefinition, FlowExecutionContext } from '@/types/flow';
+import { flowCompiler } from '@/lib/flowCompiler';
 
 type Stage = 'list' | 'cast';
 

@@ -7,9 +7,10 @@
 
 /** 节点类型枚举：每个环节有唯一的语义标签 */
 export type FlowNodeType =
-  | 'cast_start'          // 施法开始
-  | 'check_component'     // 成分检测（V/S/M）
-  | 'check_range'         // 距离检测
+  | 'cast_start'          // 【重构】施法开始（包含前置检查）
+  | 'cast_start_legacy'   // 【保留】旧版施法开始（向后兼容）
+  | 'check_component'     // 【标记为废弃】成分检测（V/S/M）
+  | 'check_range'         // 【标记为废弃】距离检测
   | 'select_target'       // 目标指定
   | 'saving_throw'        // 豁免检定
   | 'attack_roll'         // 法术攻击检定
@@ -164,16 +165,31 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
   {
     type: 'cast_start',
     label: '施法开始',
-    description: '初始化施法上下文，消耗施法资源',
+    description: '【重构】智能施法开始，包含前置检查功能',
     category: '核心环节',
     color: '#6366f1',
+    defaultConfig: {
+      autoChecks: {
+        components: true,
+        range: true,
+        time: true
+      }
+    },
+    icon: 'zap',
+  },
+  {
+    type: 'cast_start_legacy',
+    label: '施法开始（旧版）',
+    description: '【保留】初始化施法上下文，消耗施法资源',
+    category: '核心环节',
+    color: '#94a3b8',
     defaultConfig: {},
     icon: 'zap',
   },
   {
     type: 'check_component',
     label: '成分检测',
-    description: '检测 V/S/M 成分是否满足（ verbal / somatic / material ）',
+    description: '【已废弃】检测 V/S/M 成分是否满足（ verbal / somatic / material ）',
     category: '核心环节',
     color: '#8b5cf6',
     defaultConfig: { component: 'verbal' },
@@ -182,7 +198,7 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
   {
     type: 'check_range',
     label: '距离检测',
-    description: '检测施法者与目标是否在射程内',
+    description: '【已废弃】检测施法者与目标是否在射程内',
     category: '核心环节',
     color: '#a855f7',
     defaultConfig: { range: 60, targetMode: 'sight' },
@@ -270,7 +286,9 @@ export type ConfigFieldType =
   | 'number'     // 数字输入
   | 'text'       // 自由文本
   | 'dice'       // 骰子表达式（如 8d6）
-  | 'template';  // 模板变量（如 ${caster.spellSaveDc}）
+  | 'template'   // 模板变量（如 ${caster.spellSaveDc}）
+  | 'boolean'    // 布尔开关（勾选框）
+  | 'object';    // 嵌套配置对象（递归渲染子字段）
 
 /** 下拉选项：中文标签 → DSL 值 */
 export interface SelectOption {
@@ -287,12 +305,76 @@ export interface ConfigFieldSchema {
   placeholder?: string;           // 输入提示
   required?: boolean;             // 是否必填
   defaultValue?: any;             // 默认值
+  children?: ConfigFieldSchema[]; // object 类型的子字段
+  description?: string;           // 字段说明（仅展示，不入 config）
 }
 
 /** 节点类型 → 配置字段列表 */
 export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
   // ── 核心环节 ──
-  cast_start: [],
+  cast_start: [
+    {
+      key: 'spellId',
+      label: '绑定法术',
+      type: 'select',
+      required: true,
+      placeholder: '选择要施放的法术',
+      defaultValue: undefined,
+    },
+    {
+      key: 'autoChecks',
+      label: '自动检查',
+      type: 'object',
+      children: [
+        {
+          key: 'components',
+          label: '法术成分检查',
+          type: 'boolean',
+          defaultValue: true,
+        },
+        {
+          key: 'range',
+          label: '施法距离检查',
+          type: 'boolean',
+          defaultValue: true,
+        },
+        {
+          key: 'time',
+          label: '施法时间检查',
+          type: 'boolean',
+          defaultValue: true,
+        },
+      ],
+    },
+    {
+      key: 'overrideComponents',
+      label: '手动成分覆盖',
+      type: 'text',
+      placeholder: '如 "verbal,somatic"',
+      description: '留空则使用法术默认成分要求',
+    },
+    {
+      key: 'overrideRange',
+      label: '手动射程覆盖',
+      type: 'number',
+      placeholder: '留空则使用法术默认射程',
+    },
+    {
+      key: 'overrideTime',
+      label: '手动施法时间覆盖',
+      type: 'select',
+      options: [
+        { label: '1 动作', value: '1 action' },
+        { label: '1 附赠动作', value: '1 bonus action' },
+        { label: '1 反应', value: '1 reaction' },
+        { label: '1 分钟', value: '1 minute' },
+        { label: '10 分钟', value: '10 minutes' },
+        { label: '1 小时', value: '1 hour' },
+      ],
+      placeholder: '留空则使用法术默认施法时间',
+    },
+  ],
+  cast_start_legacy: [],
   check_component: [
     {
       key: 'component',
@@ -585,4 +667,53 @@ export function validateFlow(flow: FlowDefinition): string[] {
   }
 
   return errors;
+}
+
+// ======================
+// 七、施法开始节点相关类型定义
+// ======================
+
+/** 检查结果类型 */
+export type CheckResult = 'pass' | 'fail' | 'partial';
+
+/** 法术成分检查结果 */
+export interface ComponentsCheckResult {
+  required: string[];              // 需要的成分
+  available: boolean;               // 是否可用
+  missing?: string[];               // 缺少的成分
+}
+
+/** 施法距离检查结果 */
+export interface RangeCheckResult {
+  required: number;                 // 需要的射程
+  current: number;                  // 当前距离
+  inRange: boolean;                 // 是否在射程内
+}
+
+/** 施法时间检查结果 */
+export interface TimeCheckResult {
+  required: string;                 // 需要的施法时间
+  available: boolean;               // 是否可用（动作点数检查）
+}
+
+/** 前置检查报告 */
+export interface PreCastCheckReport {
+  components: ComponentsCheckResult; // 成分检查结果
+  range: RangeCheckResult;          // 距离检查结果
+  time: TimeCheckResult;            // 时间检查结果
+  overall: CheckResult;             // 总体结果
+}
+
+/** 施法开始节点配置 */
+export interface CastStartConfig {
+  spellId?: string;                    // 绑定的法术ID
+  autoChecks: {                       // 自动检查配置
+    components: boolean;              // 自动检查法术成分
+    range: boolean;                   // 自动检查施法距离
+    time: boolean;                    // 自动检查施法时间
+  };
+  // 手动覆盖配置（可选）
+  overrideComponents?: string;       // 手动指定成分要求
+  overrideRange?: number;           // 手动指定射程
+  overrideTime?: string;             // 手动指定施法时间
 }
