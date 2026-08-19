@@ -267,13 +267,14 @@ function restoreFromBackup(): Character[] {
 // ============================================================
 
 // ============ 货币换算工具 ============
-// 物品价格转铜币（D&D 5e 标准：1pp=1000cp, 1gp=100cp, 1sp=10cp）
-function priceToCopper(price: { amount: number; unit: 'pp' | 'gp' | 'sp' | 'cp' }): number {
+// 物品价格转铜币（D&D 5e 标准：1pp=1000cp, 1gp=5ep=10sp=100cp）
+function priceToCopper(price: { amount: number; unit: 'pp' | 'gp' | 'ep' | 'sp' | 'cp' }): number {
   if (!price) return 0;
   const { amount = 0, unit = 'gp' } = price;
   const floored = Math.floor(amount);
   if (unit === 'pp') return floored * 1000;
   if (unit === 'gp') return floored * 100;
+  if (unit === 'ep') return floored * 20;
   if (unit === 'sp') return floored * 10;
   return floored;
 }
@@ -284,38 +285,40 @@ function getEquipmentValue(item: Equipment): number {
   return Math.floor(priceToCopper(item.price) * (item.quantity || 1));
 }
 
-// 换算基准：1gp = 10sp = 100cp
-// 铂金币（pp）不参与换算：与 gp/sp/cp 并行存在，交易时只动 gp/sp/cp
+// 换算基准：1gp = 5ep = 10sp = 100cp
+// 铂金币（pp）不参与换算：与 gp/ep/sp/cp 并行存在，交易时只动 gp/ep/sp/cp
 
-// 货币转铜币总数（仅 gp/sp/cp 参与，pp 不计入）
+// 货币转铜币总数（仅 gp/ep/sp/cp 参与，pp 不计入）
 function currencyToCopper(c: Currency): number {
-  return Math.floor(c.cp || 0) + Math.floor(c.sp || 0) * 10 + Math.floor(c.gp || 0) * 100;
+  return Math.floor(c.cp || 0) + Math.floor(c.sp || 0) * 10 + Math.floor(c.ep || 0) * 20 + Math.floor(c.gp || 0) * 100;
 }
 
-// 铜币总数按「gp 优先、sp 次之、cp 兜底」规范化拆分，不主动产生 pp
-// 满足：sp ≤ 9, cp ≤ 9
+// 铜币总数按「gp 优先、ep 次之、sp 再次、cp 兜底」规范化拆分，不主动产生 pp
+// 满足：ep ≤ 4, sp ≤ 9, cp ≤ 9
 // 注意：返回的 pp 字段为 0，调用方若需保留原 pp 请自行合并
 function copperToCurrency(totalCp: number): Currency {
   totalCp = Math.floor(totalCp);
   if (totalCp < 0) totalCp = 0;
   const gp = Math.floor(totalCp / 100);
   totalCp -= gp * 100;
+  const ep = Math.floor(totalCp / 20);
+  totalCp -= ep * 20;
   const sp = Math.floor(totalCp / 10);
   totalCp -= sp * 10;
   const cp = totalCp;
-  return { pp: 0, gp, sp, cp };
+  return { pp: 0, gp, ep, sp, cp };
 }
 
-// 判断货币是否足以支付指定铜币数（仅看 gp/sp/cp，pp 不参与担负判断）
+// 判断货币是否足以支付指定铜币数（仅看 gp/ep/sp/cp，pp 不参与担负判断）
 function canAfford(c: Currency, totalCp: number): boolean {
   return currencyToCopper(c) >= Math.floor(totalCp);
 }
 
-// 扣款：从 gp/sp/cp 中扣除，pp 保持不变；不足时原样返回
+// 扣款：从 gp/ep/sp/cp 中扣除，pp 保持不变；不足时原样返回
 function deductCurrency(c: Currency, totalCp: number): Currency {
   const remain = currencyToCopper(c) - Math.floor(totalCp);
   if (remain < 0) return { ...c };
-  // 只规范化 gp/sp/cp，pp 保留原值
+  // 只规范化 gp/ep/sp/cp，pp 保留原值
   return { ...copperToCurrency(remain), pp: c.pp || 0 };
 }
 
@@ -405,7 +408,7 @@ function createBlankCharacter(name?: string): Character {
     },
     
     equipment: [],
-    currency: { cp: 0, sp: 0, gp: 0, pp: 0 },
+    currency: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
     
     skills: {
       acrobatics: { proficient: false, extra: 0 },

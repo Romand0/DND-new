@@ -84,7 +84,7 @@ export interface Equipment {
   description?: string;
   price?: {
     amount: number;
-    unit: 'pp' | 'gp' | 'sp' | 'cp';
+    unit: 'pp' | 'gp' | 'ep' | 'sp' | 'cp';
   };
   properties?: string[];
   tags?: EquipmentTag[];
@@ -96,6 +96,7 @@ export interface Equipment {
 export interface Currency {
   cp: number;
   sp: number;
+  ep: number;
   gp: number;
   pp: number;
 }

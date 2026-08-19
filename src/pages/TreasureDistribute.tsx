@@ -76,7 +76,7 @@ function treasureCurrencyToCharacter(c: TreasureCurrency) {
 }
 
 /** 宝藏物品单价 → 角色装备价格（装备价格已原生支持 pp/gp/sp/cp，直接透传） */
-function treasurePriceToEquipmentPrice(p: TreasurePrice): { amount: number; unit: 'pp' | 'gp' | 'sp' | 'cp' } {
+function treasurePriceToEquipmentPrice(p: TreasurePrice): { amount: number; unit: 'pp' | 'gp' | 'ep' | 'sp' | 'cp' } {
   return { amount: p.amount, unit: p.unit };
 }
 
@@ -89,7 +89,7 @@ export default function TreasureDistribute() {
   const [treasure, setTreasure] = useState<Treasure | null>(null);
   const [remainingItems, setRemainingItems] = useState<TreasureItem[]>([]);
   const [remainingCurrency, setRemainingCurrency] = useState<TreasureCurrency>({
-    pp: 0, gp: 0, sp: 0, cp: 0,
+    pp: 0, gp: 0, ep: 0, sp: 0, cp: 0,
   });
   const [remainingXp, setRemainingXp] = useState(0);
   const [selectedXp, setSelectedXp] = useState(false);
@@ -220,7 +220,7 @@ export default function TreasureDistribute() {
         {
           characterId: char.id,
           characterName: char.name,
-          currency: { pp: 0, gp: 0, sp: 0, cp: 0 },
+          currency: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 },
           items: [],
           experience: 0,
         },
@@ -443,6 +443,7 @@ export default function TreasureDistribute() {
       const newCurrency = {
         cp: char.currency.cp + dist.currency.cp,
         sp: char.currency.sp + dist.currency.sp,
+        ep: char.currency.ep + dist.currency.ep,
         gp: char.currency.gp + dist.currency.gp,
         pp: char.currency.pp + dist.currency.pp,
       };
