@@ -1415,11 +1415,11 @@ if (character) {
       货币区块渲染异常，请尝试重新同步角色数据
     </div>
   }>
-            <div className="grid grid-cols-5 gap-3">
-              {(['cp', 'sp', 'ep', 'gp', 'pp'] as const).map((coin) => (
-                <div key={coin} className="text-center p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+            <div className="grid grid-cols-5 gap-2">
+              {(['pp', 'gp', 'ep', 'sp', 'cp'] as const).map((coin) => (
+                <div key={coin} className="text-center p-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
                   <div className="text-xs uppercase mb-1 dark:text-text-dark-muted light:text-text-light-muted">
-                    {coin === 'cp' ? '铜币' : coin === 'sp' ? '银币' : coin === 'ep' ? '金币' : coin === 'gp' ? '金币' : '铂金币'}
+                    {coin === 'pp' ? '铂金币' : coin === 'gp' ? '金币' : coin === 'ep' ? '银金币' : coin === 'sp' ? '银币' : '铜币'}
                   </div>
                   <input
                     type="number"
