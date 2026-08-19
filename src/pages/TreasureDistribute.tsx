@@ -27,7 +27,7 @@ import { sortInventory } from '@/data/combatStore';
 
 /* ─── 类型 ─── */
 
-type CurrencyKey = 'pp' | 'gp' | 'sp' | 'cp';
+type CurrencyKey = 'pp' | 'gp' | 'ep' | 'sp' | 'cp';
 
 interface DistributionItem {
   id: string; // 宝藏中的 item.id
@@ -51,6 +51,7 @@ interface CharacterDistribution {
 const CURRENCY_META: { key: CurrencyKey; label: string; color: string }[] = [
   { key: 'pp', label: 'PP', color: 'text-amber-300 bg-amber-900/20 border-amber-700/30' },
   { key: 'gp', label: 'GP', color: 'text-yellow-300 bg-yellow-900/20 border-yellow-700/30' },
+  { key: 'ep', label: 'EP', color: 'text-gray-400 bg-gray-700/40 border-gray-500/30' },
   { key: 'sp', label: 'SP', color: 'text-gray-300 bg-gray-800/40 border-gray-600/30' },
   { key: 'cp', label: 'CP', color: 'text-orange-300 bg-orange-900/20 border-orange-700/30' },
 ];
@@ -61,6 +62,7 @@ function formatCurrencyShort(c: TreasureCurrency): string {
   const parts: string[] = [];
   if (c.pp > 0) parts.push(`${c.pp}pp`);
   if (c.gp > 0) parts.push(`${c.gp}gp`);
+  if (c.ep > 0) parts.push(`${c.ep}ep`);
   if (c.sp > 0) parts.push(`${c.sp}sp`);
   if (c.cp > 0) parts.push(`${c.cp}cp`);
   return parts.length > 0 ? parts.join(' ') : '0';
