@@ -88,6 +88,10 @@ export interface FlowDefinition {
   publishedAt?: number | null;
   /** 绑定的法术数量 */
   bindingsCount?: number;
+  /** 流程类别（spell / class_features / custom） */
+  category?: FlowCategory;
+  /** 原始存储数据（后端返回时附带） */
+  data?: any;
 }
 
 // ======================

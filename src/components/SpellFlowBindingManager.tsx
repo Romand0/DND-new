@@ -102,7 +102,7 @@ export const SpellFlowBindingManager: React.FC<SpellFlowBindingManagerProps> = (
               <li key={flow.id} className="flex justify-between items-center p-2 bg-gray-100 rounded">
                 <div>
                   <span className="font-medium">{flow.name}</span>
-                  <span className="text-sm text-gray-500 ml-2">({flow.data?.category || 'custom'})</span>
+                  <span className="text-sm text-gray-500 ml-2">({flow.category || 'custom'})</span>
                 </div>
                 <button
                   onClick={() => handleUnbind(flow.id)}
@@ -125,7 +125,7 @@ export const SpellFlowBindingManager: React.FC<SpellFlowBindingManagerProps> = (
               <li key={flow.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                 <div>
                   <span className="font-medium">{flow.name}</span>
-                  <span className="text-sm text-gray-500 ml-2">({flow.data?.category || 'custom'})</span>
+                  <span className="text-sm text-gray-500 ml-2">({flow.category || 'custom'})</span>
                 </div>
                 <button
                   onClick={() => handleBind(flow.id)}

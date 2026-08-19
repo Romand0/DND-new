@@ -1,5 +1,5 @@
 import type { Spell } from '@/types/spell';
-import type { FlowDefinition } from '@/types/flow';
+import type { FlowDefinition, FlowCategory } from '@/types/flow';
 
 export interface SpellFlowBinding {
   id: string;
@@ -17,7 +17,7 @@ export interface SpellWithBindings extends Spell {
 export interface FlowWithBindings extends FlowDefinition {
   boundSpells?: Spell[];
   bindingsCount?: number;
-  category?: string;
+  category?: FlowCategory;
   data?: any;
 }
 
@@ -34,6 +34,6 @@ export interface SpellWithFlowBindings extends Spell {
 export interface FlowWithSpellBindings extends FlowDefinition {
   boundSpells?: Spell[];
   bindingsCount?: number;
-  category?: string;
+  category?: FlowCategory;
   data?: any;
 }

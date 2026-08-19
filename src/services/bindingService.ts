@@ -68,7 +68,6 @@ export class BindingService {
     const boundFlows = await this.getSpellBoundFlows(spell.id);
     return {
       ...spell,
-      data: spell, // 添加 data 字段以满足接口要求
       boundFlows,
       bindingsCount: boundFlows.length
     };
@@ -81,8 +80,6 @@ export class BindingService {
     const boundSpells = await this.getFlowBoundSpells(flow.id);
     return {
       ...flow,
-      category: flow.data?.category || 'custom', // 添加 category 字段以满足接口要求
-      data: flow.data, // 添加 data 字段以满足接口要求
       boundSpells,
       bindingsCount: boundSpells.length
     };
