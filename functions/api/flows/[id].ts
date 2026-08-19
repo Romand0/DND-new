@@ -30,7 +30,7 @@ export async function onRequestPut(context: any): Promise<Response> {
   if (!auth) return errorResponse(401, '未授权');
   if (auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
   const body: any = await readJsonBody(request);
-  if (!body) return errorResponse('请求体为空', 400);
+  if (!body) return errorResponse(400, '请求体为空');
   
   const timestamp = now();
   console.log('发布请求:', { paramsId: params.id, body: body, timestamp });
@@ -47,11 +47,9 @@ export async function onRequestPut(context: any): Promise<Response> {
   let publishedAt = timestamp;
   if (existing) {
     if (typeof body.publishedAt === 'number') {
-      // 如果前端提供了 publishedAt，确保它是秒级时间戳
-      publishedAt = Math.floor(body.publishedAt / 1000); // 转换为秒级
+      publishedAt = body.publishedAt; // 前端已发送秒级时间戳，无需再除
     } else {
-      // 使用现有的 published_at，确保是秒级
-      publishedAt = Math.floor((existing as any).published_at / 1000);
+      publishedAt = (existing as any).published_at; // 数据库存储的已是秒级
     }
   }
   
@@ -123,6 +121,6 @@ export async function onRequestDelete(context: any): Promise<Response> {
   }
 }
 
-export function onRequestOptions(): Response {
-  return handleOptions();
+export function onRequestOptions(context: any): Response {
+  return handleOptions(context.request);
 }
