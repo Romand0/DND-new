@@ -19,7 +19,7 @@ export function errorResponse(status: number, message: string): Response {
   return jsonResponse({ error: message }, status);
 }
 
-export function handleOptions(request: Request): Response {
+export function handleOptions(request?: Request): Response {
   if (request.method === 'OPTIONS') {
     return new Response(null, {
       headers: {

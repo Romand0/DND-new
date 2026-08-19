@@ -23,7 +23,7 @@ export async function onRequestPost(context: any): Promise<Response> {
   if (auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
   const flows: any[] | null = await readJsonBody(request);
   if (!flows || !Array.isArray(flows) || flows.length === 0) {
-    return errorResponse('请求体必须是流程数组', 400);
+    return errorResponse(400, '请求体必须是流程数组');
   }
   const timestamp = now();
   const stmt = env.DB.prepare(
@@ -47,6 +47,6 @@ export async function onRequestPost(context: any): Promise<Response> {
   return jsonResponse({ success: true });
 }
 
-export function onRequestOptions(): Response {
-  return handleOptions();
+export function onRequestOptions(context: any): Response {
+  return handleOptions(context.request);
 }
