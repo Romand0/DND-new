@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap, CloudUpload, CloudDownload, CloudOff } from 'lucide-react';
+import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap, CloudUpload, CloudDownload, CloudOff, Zap as ZapIcon } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import flowStore from '@/data/flowStore';
 import type { FlowDefinition } from '@/types/flow';
@@ -238,6 +238,13 @@ export default function FlowList() {
                     title="编辑"
                   >
                     <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => navigate(`/flows/${f.id}`)}
+                    className="p-2 rounded-lg hover:bg-accent/10 text-accent transition-colors"
+                    title="查看详情"
+                  >
+                    <ZapIcon className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setDeleteId(f.id)}

@@ -1,9 +1,10 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Clock, Target, Zap, Hourglass, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Clock, Target, Zap, Hourglass, Edit2, Trash2, GitBranch } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/api';
 import SpellEditor from '@/components/SpellEditor';
+import { SpellFlowBindingManager } from '@/components/SpellFlowBindingManager';
 import type { Spell } from '@/types/spell';
 
 const levelLabels: Record<number, string> = {
@@ -74,6 +75,7 @@ export default function SpellDetail() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [bindingTab, setBindingTab] = useState(false);
 
   // 从后端加载单条法术
   const load = async () => {
@@ -261,31 +263,59 @@ export default function SpellDetail() {
         </div>
 
         {/* 表格（Wikidot 语法） */}
-{(spell as any).table && (
-  <div>
-    <h3 className="text-sm font-semibold mb-2 dark:text-text-dark light:text-text-light">表格</h3>
-    <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="dark:bg-card-dark light:bg-card-light font-bold">
-            {parseWikidotHeaders((spell as any).table).map((header, i) => (
-              <th key={i} className="px-3 py-2 text-left whitespace-nowrap">{header}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {parseWikidotRows((spell as any).table).map((row, ri) => (
-            <tr key={ri} className={ri % 2 === 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-white dark:bg-transparent'}>
-              {row.map((cell, ci) => (
-                <td key={ci} className="px-3 py-2 border-t dark:border-border-dark/50 light:border-border-light/50">{cell}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  </div>
-)}
+        {(spell as any).table && (
+          <div>
+            <h3 className="text-sm font-semibold mb-2 dark:text-text-dark light:text-text-light">表格</h3>
+            <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="dark:bg-card-dark light:bg-card-light font-bold">
+                    {parseWikidotHeaders((spell as any).table).map((header, i) => (
+                      <th key={i} className="px-3 py-2 text-left whitespace-nowrap">{header}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {parseWikidotRows((spell as any).table).map((row, ri) => (
+                    <tr key={ri} className={ri % 2 === 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-white dark:bg-transparent'}>
+                      {row.map((cell, ci) => (
+                        <td key={ci} className="px-3 py-2 border-t dark:border-border-dark/50 light:border-border-light/50">{cell}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* 绑定流程管理 */}
+        {isDM && (
+          <div className="border-t dark:border-border-dark light:border-border-light pt-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-text-dark light:text-text-light">
+                <GitBranch className="w-5 h-5 text-primary" />
+                流程绑定管理
+              </h3>
+              <button
+                onClick={() => setBindingTab(!bindingTab)}
+                className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10"
+              >
+                {bindingTab ? '隐藏' : '显示'}
+              </button>
+            </div>
+            
+            {bindingTab && (
+              <div className="mt-4">
+                <SpellFlowBindingManager
+                  spellId={spell.id}
+                  spellName={spell.name}
+                  onBindingChange={() => load()}
+                />
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
 
