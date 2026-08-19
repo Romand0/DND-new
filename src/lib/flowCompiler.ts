@@ -71,7 +71,7 @@ export class FlowCompiler {
       };
     }
 
-    const spell = spellStore.get(config.spellId);
+    const spell = spellStore.getById(config.spellId);
     if (!spell) {
       return {
         status: 'failure',
