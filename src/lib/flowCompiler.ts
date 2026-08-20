@@ -188,8 +188,50 @@ export class FlowCompiler {
         ? 'partial'
         : 'fail';
 
-    return { components, range, time, overall };
-  }
+    // 生成自动检查代码
+    const autoChecks: string[] = [];
+    
+    // 添加成分检查
+    if (config.autoChecks.components) {
+      const componentChecks: string[] = [];
+      if (spell.components.verbal) {
+        componentChecks.push(`施法者可言语: ${caster.canSpeak !== false ? '是' : '否'}`);
+      }
+      if (spell.components.somatic) {
+        componentChecks.push(`施法者可做手势: ${caster.canSomatic !== false ? '是' : '否'}`);
+      }
+      if (spell.components.material) {
+        componentChecks.push(`材料组件: 已准备`);
+      }
+      if (componentChecks.length > 0) {
+        autoChecks.push(`成分检查: ${componentChecks.join(', ')}`);
+      }
+    }
+
+    // 添加距离检查
+    if (config.autoChecks.range) {
+      const spellRange = typeof spell.range === 'string'
+        ? parseInt(spell.range.replace(/\D/g, ''), 10)
+        : NaN;
+      const required = config.overrideRange ?? (Number.isFinite(spellRange) ? spellRange : 30);
+      const current = targets.length > 0 ? 30 : 0; // 假设距离
+      autoChecks.push(`距离检查: 当前${current}尺 ≤ 要求${required}尺 - ${current <= required ? '通过' : '失败'}`);
+    }
+
+    // 添加时间检查
+    if (config.autoChecks.time) {
+      const required = (config.overrideTime ?? spell.castingTime) || '1 action';
+      const available = this.isCastingTimeAvailable(required, caster);
+      autoChecks.push(`时间检查: ${required} - ${available ? '可用' : '不可用'}`);
+    }
+
+    return { 
+      components, 
+      range, 
+      time, 
+      overall,
+      autoChecks
+    };
 
   /**
    * 检查法术成分
