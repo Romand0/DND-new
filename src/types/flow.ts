@@ -8,9 +8,6 @@
 /** 节点类型枚举：每个环节有唯一的语义标签 */
 export type FlowNodeType =
   | 'cast_start'          // 【重构】施法开始（包含前置检查）
-  | 'cast_start_legacy'   // 【保留】旧版施法开始（向后兼容）
-  | 'check_component'     // 【标记为废弃】成分检测（V/S/M）
-  | 'check_range'         // 【标记为废弃】距离检测
   | 'select_target'       // 目标指定
   | 'saving_throw'        // 豁免检定
   | 'attack_roll'         // 法术攻击检定
@@ -176,33 +173,6 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
       }
     },
     icon: 'zap',
-  },
-  {
-    type: 'cast_start_legacy',
-    label: '施法开始（旧版）',
-    description: '【保留】初始化施法上下文，消耗施法资源',
-    category: '核心环节',
-    color: '#94a3b8',
-    defaultConfig: {},
-    icon: 'zap',
-  },
-  {
-    type: 'check_component',
-    label: '成分检测',
-    description: '【已废弃】检测 V/S/M 成分是否满足（ verbal / somatic / material ）',
-    category: '核心环节',
-    color: '#8b5cf6',
-    defaultConfig: { component: 'verbal' },
-    icon: 'shield',
-  },
-  {
-    type: 'check_range',
-    label: '距离检测',
-    description: '【已废弃】检测施法者与目标是否在射程内',
-    category: '核心环节',
-    color: '#a855f7',
-    defaultConfig: { range: 60, targetMode: 'sight' },
-    icon: 'target',
   },
   {
     type: 'select_target',
@@ -373,44 +343,6 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '1 小时', value: '1 hour' },
       ],
       placeholder: '留空则使用法术默认施法时间',
-    },
-  ],
-  cast_start_legacy: [],
-  check_component: [
-    {
-      key: 'component',
-      label: '施法成分',
-      type: 'select',
-      required: true,
-      options: [
-        { label: '言语 (V)', value: 'verbal' },
-        { label: '姿势 (S)', value: 'somatic' },
-        { label: '材料 (M)', value: 'material' },
-      ],
-      defaultValue: 'verbal',
-    },
-  ],
-  check_range: [
-    {
-      key: 'range',
-      label: '射程（尺）',
-      type: 'number',
-      required: true,
-      placeholder: '触碰法术填 0',
-      defaultValue: 60,
-    },
-    {
-      key: 'targetMode',
-      label: '定位模式',
-      type: 'select',
-      required: true,
-      options: [
-        { label: '视线',   value: 'sight' },
-        { label: '触碰',   value: 'touch' },
-        { label: '自身',   value: 'self' },
-        { label: '指定点', value: 'point' },
-      ],
-      defaultValue: 'sight',
     },
   ],
   select_target: [
