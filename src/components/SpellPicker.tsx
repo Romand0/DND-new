@@ -110,9 +110,9 @@ export default function SpellPicker({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full h-full max-w-4xl max-h-[90vh] m-4 flex flex-col rounded-2xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b dark:border-border-dark light:border-border-light flex-shrink-0">
           <h2 className="text-xl font-bold flex items-center gap-2 dark:text-text-dark light:text-text-light">
             <Sparkles className="w-5 h-5 text-primary" />
@@ -126,69 +126,71 @@ export default function SpellPicker({
           </button>
         </div>
 
-        <div className="p-4 border-b dark:border-border-dark light:border-border-light flex-shrink-0">
-          <div className="flex flex-col sm:flex-row gap-3">
+        <div className="p-6 border-b dark:border-border-dark light:border-border-light flex-shrink-0">
+          <div className="flex flex-col gap-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="搜索法术名称或学派..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                className="w-full pl-12 pr-4 py-3 rounded-lg border bg-transparent outline-none text-base dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
               />
             </div>
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
-              <select
-                value={levelFilter}
-                onChange={(e) =>
-                  setLevelFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))
-                }
-                className="pl-10 pr-8 py-2 rounded-lg border bg-transparent outline-none appearance-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              >
-                <option value="all" className="dark:bg-bg-dark light:bg-bg-light">
-                  全部环级
-                </option>
-                {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
-                  <option key={level} value={level} className="dark:bg-bg-dark light:bg-bg-light">
-                    {levelLabels[level]}
+            <div className="flex gap-4">
+              <div className="relative flex-1">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted" />
+                <select
+                  value={levelFilter}
+                  onChange={(e) =>
+                    setLevelFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))
+                  }
+                  className="pl-12 pr-10 py-3 rounded-lg border bg-transparent outline-none appearance-none text-base dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="all" className="dark:bg-bg-dark light:bg-bg-light">
+                    全部环级
                   </option>
-                ))}
-              </select>
-            </div>
-            <div className="relative">
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
-              <select
-                value={classFilter}
-                onChange={(e) => setClassFilter(e.target.value)}
-                className="pl-10 pr-8 py-2 rounded-lg border bg-transparent outline-none appearance-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              >
-                <option value="all" className="dark:bg-bg-dark light:bg-bg-light">
-                  全部职业
-                </option>
-                {availableClasses.map((cls) => (
-                  <option key={cls} value={cls} className="dark:bg-bg-dark light:bg-bg-light">
-                    {cls}
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
+                    <option key={level} value={level} className="dark:bg-bg-dark light:bg-bg-light">
+                      {levelLabels[level]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="relative flex-1">
+                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted" />
+                <select
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                  className="pl-12 pr-10 py-3 rounded-lg border bg-transparent outline-none appearance-none text-base dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="all" className="dark:bg-bg-dark light:bg-bg-light">
+                    全部职业
                   </option>
-                ))}
-              </select>
+                  {availableClasses.map((cls) => (
+                    <option key={cls} value={cls} className="dark:bg-bg-dark light:bg-bg-light">
+                      {cls}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+            {characterClass && (
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                当前角色职业：{characterClass}
+                <button
+                  onClick={() => setClassFilter(characterClass)}
+                  className="ml-2 text-primary hover:underline font-medium"
+                >
+                  只显示该职业可用
+                </button>
+              </p>
+            )}
           </div>
-          {characterClass && (
-            <p className="mt-3 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-              当前角色职业：{characterClass}
-              <button
-                onClick={() => setClassFilter(characterClass)}
-                className="ml-2 text-primary hover:underline"
-              >
-                只显示该职业可用
-              </button>
-            </p>
-          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-6">
           {loading ? (
             <div className="text-center py-12 text-sm dark:text-text-dark-muted light:text-text-light-muted">
               加载中...
@@ -198,21 +200,21 @@ export default function SpellPicker({
               暂无匹配的法术
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {sortedSpells.map((spell) => (
                 <button
                   key={spell.id}
                   onClick={() => handleSelect(spell)}
-                  className="w-full text-left p-3 rounded-lg border transition-colors hover:border-primary dark:border-border-dark dark:bg-bg-dark dark:hover:bg-white/5 light:border-border-light light:bg-bg-light-2 light:hover:bg-white/70"
+                  className="w-full text-left p-4 rounded-xl border transition-colors hover:border-primary dark:border-border-dark dark:bg-bg-dark dark:hover:bg-white/5 light:border-border-light light:bg-bg-light-2 light:hover:bg-white/70"
                 >
-                  <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-4">
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium dark:text-text-dark light:text-text-light">
+                      <div className="font-semibold text-base dark:text-text-dark light:text-text-light">
                         {spell.name}
                       </div>
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                          className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
                             spell.level === 0
                               ? 'bg-gray-500/20 text-gray-400'
                               : 'bg-primary/20 text-primary'
@@ -220,15 +222,15 @@ export default function SpellPicker({
                         >
                           {levelLabels[spell.level]}
                         </span>
-                        <span className="text-xs dark:text-text-dark light:text-text-light">
+                        <span className="text-sm dark:text-text-dark light:text-text-light">
                           {spell.school}
                         </span>
-                        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                        <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
                           {spell.castingTime}
                         </span>
                       </div>
                     </div>
-                    <div className="text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">
+                    <div className="text-sm font-mono dark:text-text-dark-muted light:text-text-light-muted">
                       {[
                         spell.components.verbal && 'V',
                         spell.components.somatic && 'S',
