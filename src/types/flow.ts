@@ -282,13 +282,14 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
 
 /** 字段输入控件类型 */
 export type ConfigFieldType =
-  | 'select'     // 下拉单选（中文 → DSL 值）
-  | 'number'     // 数字输入
-  | 'text'       // 自由文本
-  | 'dice'       // 骰子表达式（如 8d6）
-  | 'template'   // 模板变量（如 ${caster.spellSaveDc}）
-  | 'boolean'    // 布尔开关（勾选框）
-  | 'object';    // 嵌套配置对象（递归渲染子字段）
+  | 'select'      // 下拉单选（中文 → DSL 值）
+  | 'number'      // 数字输入
+  | 'text'        // 自由文本
+  | 'dice'        // 骰子表达式（如 8d6）
+  | 'template'    // 模板变量（如 ${caster.spellSaveDc}）
+  | 'boolean'     // 布尔开关（勾选框）
+  | 'object'      // 嵌套配置对象（递归渲染子字段）
+  | 'spellPicker'; // 法术选择器（集成 SpellPicker 组件）
 
 /** 下拉选项：中文标签 → DSL 值 */
 export interface SelectOption {
@@ -316,7 +317,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
     {
       key: 'spellId',
       label: '绑定法术',
-      type: 'select',
+      type: 'spellPicker',
       required: true,
       placeholder: '选择要施放的法术',
       defaultValue: undefined,
