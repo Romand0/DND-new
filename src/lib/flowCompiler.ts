@@ -354,7 +354,23 @@ export class FlowCompiler {
     node: FlowNodeDef,
     context: FlowExecutionContext
   ): Promise<NodeExecutionResult> {
-    const caster = characterStore.get(context.casterId);
+    // 获取施法者信息:优先从战斗记录获取参战者,否则从角色卡获取
+    let caster: Character | Combatant | null = null;
+    const currentCombat = context.stateSnapshot?.combatRecord as CombatRecord | null;
+    if (currentCombat) {
+      // 战斗场景:从参战者列表查找
+      const combatant = currentCombat.combatants.find(c => c.id === context.casterId);
+      if (combatant) {
+        caster = combatant;
+      }
+    }
+
+    // 如果不是战斗场景或未找到参战者,使用角色卡
+    if (!caster) {
+      caster = characterStore.get(context.casterId);
+    }
+
+    if (!caster) {
     if (!caster) {
       return {
         status: 'failure',
@@ -530,7 +546,23 @@ export class FlowCompiler {
     node: FlowNodeDef,
     context: FlowExecutionContext
   ): Promise<NodeExecutionResult> {
-    const caster = characterStore.get(context.casterId);
+    // 获取施法者信息:优先从战斗记录获取参战者,否则从角色卡获取
+    let caster: Character | Combatant | null = null;
+    const currentCombat = context.stateSnapshot?.combatRecord as CombatRecord | null;
+    if (currentCombat) {
+      // 战斗场景:从参战者列表查找
+      const combatant = currentCombat.combatants.find(c => c.id === context.casterId);
+      if (combatant) {
+        caster = combatant;
+      }
+    }
+
+    // 如果不是战斗场景或未找到参战者,使用角色卡
+    if (!caster) {
+      caster = characterStore.get(context.casterId);
+    }
+
+    if (!caster) {
     if (!caster) {
       return {
         status: 'failure',
