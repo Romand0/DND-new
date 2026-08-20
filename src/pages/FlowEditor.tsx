@@ -2292,6 +2292,7 @@ onNodeDelete={(nodeId) => {
               setIdDirty(true);
               setIdErrors([]);
             }}
+            selectedSpellIds={[]}
           />
         </div>
       )}
