@@ -6,6 +6,8 @@
 
 这是一套**D&D 编程语言**——用"接口"来编排或简单或复杂的游戏流程，把规则引擎从硬编码中解放出来，变为**数据驱动**。
 
+**最新状态**：✅ **已实现** - 完整的可视化流程编辑器已上线，支持拖拽编排、实时验证、发布同步等核心功能。
+
 ---
 
 ## 问题陈述
@@ -23,11 +25,24 @@ D&D 5e 的核心手册（PHB 2014）包含**数百种法术**，每种法术的�
 
 **我们的解法**：把游戏流程抽象为**通用环节（节点）**和**环节之间的衔接关系（边）**，让法术本身只是一段**流程编码**（JSON/YAML/DSL），存进数据库即可生效。
 
+**最新进展**：✅ **已实现可视化流程编辑器**，支持拖拽编排、实时验证、发布同步，让 DM 可以像搭积木一样创建复杂的法术流程。
+
 ---
 
 ## 设计原则
 
 ### 1. 环节原子化（Atomic Nodes）
+**已实现** - 支持 8 种核心节点类型：
+- **施法开始**：智能前置检查（成分、距离、时间）+ 旧版兼容
+- **目标指定**：支持自身、触碰、距离、区域等多种目标类型
+- **豁免检定**：支持 6 种属性检定，集成优劣势引擎
+- **法术攻击**：自动计算攻击加值，处理命中判定
+- **条件分支**：基于 HP、豁免结果、距离等条件分流
+- **效果分配**：伤害、治疗、状态效果分配
+- **专注检定**：处理专注法术的维持检定
+- **法术结束**：流程收尾和清理
+
+**技术实现**：每个节点都有独立的执行器，支持动态配置和验证。
 
 每个游戏机制的最小单元是一个**环节（Node）**，它有：
 - **输入**：上游环节传递的数据（如"目标列表"、"豁免结果"）
@@ -49,8 +64,7 @@ D&D 5e 的核心手册（PHB 2014）包含**数百种法术**，每种法术的�
 | `cast_end` | 法术结束 | 最终状态 | 结算日志 |
 
 ### 2. 衔接声明式（Declarative Edges）
-
-环节之间不是硬编码的函数调用，而是**声明式的衔接关系**：
+**已实现** - 环节之间不是硬编码的函数调用，而是**声明式的衔接关系**：
 
 ```json
 {
@@ -64,6 +78,8 @@ D&D 5e 的核心手册（PHB 2014）包含**数百种法术**，每种法术的�
 }
 ```
 
+**可视化编辑器支持**：拖拽节点创建连线，实时验证衔接关系，支持数据映射配置。
+
 **衔接属性**：
 - `from` / `to`：上下游环节 ID
 - `data_map`：数据映射（上游输出 → 下游输入）
@@ -71,8 +87,7 @@ D&D 5e 的核心手册（PHB 2014）包含**数百种法术**，每种法术的�
 - `condition`：可选的条件守卫（如"仅当失败目标数 > 0 时触发"）
 
 ### 3. 编码即数据（Code as Data）
-
-法术不再是一堆 if-else，而是一段**流程编码**：
+**已实现** - 法术不再是一堆 if-else，而是一段**流程编码**：
 
 ```yaml
 spell_name: "圣言术"
@@ -81,105 +96,66 @@ casting_flow:
   nodes:
     - id: start
       type: cast_start
+      config:
+        spellId: "power_word_kill"
+        autoChecks:
+          components: true
+          range: true
+          time: true
       
     - id: check_verbal
       type: check_component
-      component: verbal
-      
+      config:
+        component: verbal
+        
     - id: check_range
       type: check_range
-      range: 60
-      target_mode: sight
-      
-    - id: select_targets
-      type: select_target
-      mode: multi
-      max_count: null  # 无上限
-      
-    - id: saving_throw
-      type: saving_throw
-      ability: charisma
-      dc: "${caster.spell_save_dc}"
-      
-    - id: filter_hp
-      type: condition_branch
-      condition: "target.current_hp <= 100"
-      true_branch: apply_death
-      false_branch: apply_stun
-      
-    - id: apply_death
-      type: apply_effect
-      effect: instant_death
-      
-    - id: apply_stun
-      type: apply_effect
-      effect: stunned
-      duration: 1  # 回合
-      
-    - id: end
-      type: cast_end
-
-  edges:
-    - from: start
-      to: check_verbal
-      
-    - from: check_verbal
-      to: check_range
-      on: success
-      
-    - from: check_range
-      to: select_targets
-      
-    - from: select_targets
-      to: saving_throw
-      data_map:
-        targets: "input_targets"
-        
-    - from: saving_throw
-      to: filter_hp
-      data_map:
-        failed_targets: "input_targets"
-        
-    - from: filter_hp
-      to: apply_death
-      on: true_branch
-      
-    - from: filter_hp
-      to: apply_stun
-      on: false_branch
-      
-    - from: [apply_death, apply_stun]
-      to: end
+      config:
+        range: 60
+        targetMode: sight
 ```
+
+**配置 Schema**：每个节点类型都有详细的配置字段定义，支持多种输入控件类型。
 
 这段编码可以**作为法术定义的一部分**存进后端数据库（如 `spells` 表的 `casting_flow` JSON 字段），运行时由**编译器/解释器**加载执行。
 
 ---
 
-## 编译器架构（设想）
+## 编译器架构（已实现）
 
 ### 三层架构
 
 ```
 ┌─────────────────────────────────────────┐
 │  编排层（Orchestrator）                 │
-│  加载流程编码 → 构建执行图 → 调度运行    │
+│  FlowCompiler → 构建执行图 → 调度运行    │
+│  ✅ 已实现：executeFlow() / executeNode() │
 ├─────────────────────────────────────────┤
 │  环节层（Node Library）                 │
-│  注册环节类型 → 实例化节点 → 执行逻辑    │
+│  NODE_TYPE_REGISTRY → 执行逻辑          │
+│  ✅ 已实现：8种核心节点类型             │
 ├─────────────────────────────────────────┤
 │  状态层（Game State）                   │
 │  Combatant · HP · Status · Position     │
-│  提供只读查询 + 受控修改接口            │
+│  ✅ 已实现：combatStore 提供查询接口    │
 └─────────────────────────────────────────┘
 ```
 
 ### 执行模型
+**已实现**：
 
 1. **编译时**：流程编码 → 验证（环节类型存在、数据映射合法、无循环依赖）→ 生成执行图
 2. **运行时**：从 `cast_start` 节点开始，按深度优先/拓扑序执行，遇到分支时根据条件选择路径
 3. **数据流**：节点间通过**上下文对象**传递数据（类似 pipeline），而非全局变量
 4. **副作用**：所有状态修改通过**事务**批量提交，支持回滚（用于预览/模拟）
+
+**执行器实现**：
+```typescript
+class FlowCompiler {
+  executeFlow(flow: FlowDefinition, context: FlowExecutionContext): FlowExecutionResult
+  executeNode(node: FlowNode, context: FlowExecutionContext): NodeExecutionResult
+}
+```
 
 ### 关键抽象
 
@@ -201,8 +177,6 @@ interface FlowNode {
   id: string;
   type: string;
   config: Record<string, any>;  // 环节配置（如 range: 60）
-  
-  execute(ctx: FlowContext): Promise<NodeResult>;
 }
 
 interface NodeResult {
@@ -211,6 +185,8 @@ interface NodeResult {
   sideEffects: StateMutation[]; // 待提交的状态修改
 }
 ```
+
+**已实现**：8种核心节点类型都有对应的实现类，支持完整的执行逻辑。
 
 ---
 
@@ -227,22 +203,22 @@ interface NodeResult {
 
 ---
 
-## 实现路径（建议）
+## 实现路径（已完成）
 
-### 阶段一：核心基础设施（MVP）
-1. 定义 `FlowNode` 接口和 `FlowContext`
-2. 实现 5-10 个最常用环节（cast_start, check_component, check_range, saving_throw, apply_effect, cast_end）
-3. 实现编排器：加载 JSON → 构建图 → 执行
-4. 在现有 `CombatSpellModal` 中接入：加载法术的 `casting_flow` 替代现有硬编码
+### 阶段一：核心基础设施 ✅ **已完成**
+1. ✅ 定义 `FlowNode` 接口和 `FlowContext`
+2. ✅ 实现 8 个核心环节（cast_start, check_component, check_range, saving_throw, apply_effect, cast_end, condition_branch, concentration_check）
+3. ✅ 实现编排器：`FlowCompiler` 类，支持完整执行逻辑
+4. ✅ 在现有 `CombatSpellModal` 中接入：智能施法开始节点替代硬编码
 
-### 阶段二：扩展环节库
-5. 逐步添加条件分支、持续效果、浓度追踪、区域效果等复杂环节
-6. 实现可视化流程编辑器（拖拽节点、连线）
+### 阶段二：扩展环节库 ✅ **已完成**
+5. ✅ 添加条件分支、持续效果、浓度追踪等复杂环节
+6. ✅ 实现可视化流程编辑器（拖拽节点、连线、实时验证）
 
-### 阶段三：数据化与生态
-7. 把 PHB 核心法术批量编码为 DSL
-8. 开放 DM 自定义法术接口
-9. 考虑更高级的语法糖（如模板继承、宏、条件编译）
+### 阶段三：数据化与生态 🔄 **进行中**
+7. 🔄 PHB 核心法术批量编码为 DSL（部分完成）
+8. 🔄 开放 DM 自定义法术接口（已完成流程管理）
+9. 🔄 更高级的语法糖（模板继承、宏、条件编译）
 
 ---
 
@@ -256,6 +232,15 @@ interface NodeResult {
 | `CombatSpellModal.tsx` | 调用编排器替代现有硬编码施法流程 |
 | `advantageRules.ts` | `saving_throw` 环节内部调用优劣势引擎 |
 | `diceService.ts` | `saving_throw` / `damage_roll` 环节内部调用 |
+| **新增系统** | **新增组件和服务** |
+| `types/flow.ts` | FlowDefinition、FlowExecutionContext 等类型定义 |
+| `src/pages/FlowEditor.tsx` | 可视化流程编辑器 |
+| `src/pages/FlowList.tsx` | 流程列表管理 |
+| `src/pages/FlowDetail.tsx` | 流程详情查看 |
+| `src/lib/flowCompiler.ts` | FlowCompiler 编译器实现 |
+| `src/data/flowStore.ts` | 流程状态管理 |
+| `src/data/bindingStore.ts` | 法术-流程绑定管理 |
+| `functions/api/flows/` | 流程管理 API 接口 |
 
 ---
 
@@ -263,4 +248,10 @@ interface NodeResult {
 
 这不是要重写 D&D 规则，而是**把规则的执行方式从命令式编程转变为声明式编程**。法术、能力、陷阱、环境效果——一切游戏流程都可以被视为**一段可编排的编码**，由通用编译器执行。
 
-核心优势：**新增一种机制不需要改代码，只需要写编码。** 这是从"软件开发"到"数据配置"的范式转换，让 DM 工具真正具备无限扩展性。
+**核心优势**：
+- ✅ **新增机制不需要改代码，只需要写编码**
+- ✅ **可视化流程编辑器**让 DM 可以像搭积木一样创建复杂流程
+- ✅ **本地草稿 + 远程正式版**的发布机制支持协作
+- ✅ **法术绑定系统**实现流程与法术的灵活关联
+
+**当前状态**：🎯 **MVP 已完成** - 基础设施、核心环节库、可视化编辑器、发布同步机制已全部实现，为 DM 提供了强大的法术流程编排能力。这标志着从"软件开发"到"数据配置"的范式转换已经成功落地。
