@@ -1002,7 +1002,7 @@ export default function FlowEditor() {
 
   // ===== 渲染 =====
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden dark:bg-bg-dark light:bg-bg-light relative">
+    <div className="h-[calc(100vh-64px)] flex flex-col dark:bg-bg-dark light:bg-bg-light relative">
       {/* 自定义样式卡片节点 */}
       <style>{`
         @media (max-width: 1024px) {
