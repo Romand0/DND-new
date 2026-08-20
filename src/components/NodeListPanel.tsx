@@ -21,8 +21,6 @@ function getNodeColor(nodeType: FlowNodeType): string {
 function getNodeIcon(nodeType: FlowNodeType): React.ReactNode {
   const iconMap: Record<string, React.ReactNode> = {
     'cast_start': <Zap className="w-3 h-3" />,
-    'check_component': <Shield className="w-3 h-3" />,
-    'check_range': <Target className="w-3 h-3" />,
     'select_target': <MousePointer className="w-3 h-3" />,
     'saving_throw': <Shield className="w-3 h-3" />,
     'attack_roll': <Zap className="w-3 h-3" />,
