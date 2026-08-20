@@ -188,36 +188,151 @@ export class FlowCompiler {
     config: CastStartConfig,
     targets: string[]
   ): Promise<PreCastCheckReport> {
-    const components = this.checkComponents(spell, config, caster);
+    // 检查施法者等级是否足够
+    if (spell.level && spell.level > caster.level) {
+      return {
+        success: false,
+        message: `施法者等级不足,无法施放此法术(需要等级 ${spell.level})`,
+        autoChecks: [], // 新增字段
+        saveConfig: undefined, // 新增字段
+        requiredComponents: {
+          verbal: false,
+          somatic: false,
+          material: false,
+        },
+        distance: {
+          current: 0,
+          required: spell.range || 0,
+          valid: false,
+        },
+        time: {
+          actionType: "action" as any,
+          available: false,
+        },
+      };
+    }
+
+    // 检查施法者是否专注
+    if (caster.isConcentrating && spell.requiresConcentration) {
+      return {
+        success: false,
+        message: "施法者正在专注其他法术,无法施放需要专注的法术",
+        autoChecks: [], // 新增字段
+        saveConfig: undefined, // 新增字段
+        requiredComponents: {
+          verbal: false,
+          somatic: false,
+          material: false,
+        },
+        distance: {
+          current: 0,
+          required: spell.range || 0,
+          valid: false,
+        },
+        time: {
+          actionType: "action" as any,
+          available: false,
+        },
+      };
+    }
+
+    // 检查施法者是否已死亡
+    if (caster.isDead) {
+      return {
+        success: false,
+        message: "施法者已死亡,无法施法",
+        autoChecks: [], // 新增字段
+        saveConfig: undefined, // 新增字段
+        requiredComponents: {
+          verbal: false,
+          somatic: false,
+          material: false,
+        },
+        distance: {
+          current: 0,
+          required: spell.range || 0,
+          valid: false,
+        },
+        time: {
+          actionType: "action" as any,
+          available: false,
+        },
+      };
+    }
+
+    // 检查施法者是否有足够的动作点
+    const actionType = spell.time as "action" | "bonus" | "reaction" | "minute" | "hour" | "day";
+    let available = true;
+    
+    if (actionType === "action" && caster.actions <= 0) {
+      available = false;
+    } else if (actionType === "bonus" && caster.bonusActions <= 0) {
+      available = false;
+    } else if (actionType === "reaction" && caster.reactions <= 0) {
+      available = false;
+    }
+
+    // 检查距离
+    const distanceValid = this.checkRange(spell, config, targets).inRange;
+
+    // 检查材料组件
+    const materialComponents = spell.material || "";
+    const hasMaterial = materialComponents === "" || 
+      (caster.equipment.some(eq => eq.name.toLowerCase().includes(materialComponents.toLowerCase())));
+
+    // 生成自动检查代码
+    const autoChecks: string[] = [];
+    
+    // 成分检查
+    const verbalCheck = spell.verbal ? "是" : "否";
+    const somaticCheck = spell.somatic ? "是" : "否";
+    autoChecks.push(`成分检查: 施法者可言语: ${verbalCheck}, 施法者可做手势: ${somaticCheck}, 材料组件: ${hasMaterial ? "已准备" : "未准备"}`);
+
+    // 距离检查
     const range = this.checkRange(spell, config, targets);
-    const time = this.checkTime(spell, config, caster);
+    autoChecks.push(`距离检查: 当前${range.current}尺 ≤ 要求${range.required}尺 - ${range.inRange ? "通过" : "失败"}`);
 
-    // 计算总体结果
-    const checks = [components.available, range.inRange, time.available];
-    const overall: CheckResult = checks.every(Boolean)
-      ? 'pass'
-      : checks.some(Boolean)
-        ? 'partial'
-        : 'fail';
+    // 时间检查
+    autoChecks.push(`时间检查: ${actionType} - ${available ? "可用" : "不可用"}`);
 
-    return { components, range, time, overall };
-  }
-
-  /**
-   * 检查法术成分
-   */
-  private checkComponents(spell: Spell, config: CastStartConfig, caster: Character) {
-    const required = config.overrideComponents
-      ? config.overrideComponents.split(',').map(s => s.trim()).filter(Boolean)
-      : (['verbal', 'somatic', 'material'] as const).filter(c => spell.components[c]);
-
-    const missing = required.filter(comp => !this.hasComponent(caster, comp));
-    const available = missing.length === 0;
+    // 检查豁免检定配置
+    let saveConfig: SavingThrowConfig | undefined;
+    if (spell.save) {
+      saveConfig = {
+        ability: spell.save.ability,
+        dc: spell.save.dc,
+      };
+      autoChecks.push(`豁免检定: ${spell.save.ability}豁免 (DC ${spell.save.dc}) - 需要时执行`);
+    }
 
     return {
-      required,
-      available,
-      missing: available ? undefined : missing
+      success: distanceValid && available,
+      message: distanceValid && available 
+        ? "所有前置检查通过,可以施法"
+        : distanceValid 
+          ? "距离检查通过,但动作点不足"
+          : available 
+            ? "动作点充足,但距离过远"
+            : "距离过远且动作点不足",
+      autoChecks, // 新增字段
+      saveConfig, // 新增字段
+      requiredComponents: {
+        verbal: spell.verbal,
+        somatic: spell.somatic,
+        material: materialComponents !== "",
+        materialComponents: materialComponents,
+      },
+      distance: {
+        current: this.checkRange(spell, config, targets).current,
+        required: spell.range || 0,
+        valid: distanceValid,
+      },
+      time: {
+        actionType,
+        available,
+      },
+    };
+  }
     };
   }
 
