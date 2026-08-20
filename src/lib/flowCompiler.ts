@@ -11,8 +11,6 @@ import type {
   SavingThrowConfig
 } from '@/types/flow';
 import type { Character } from '@/types/character';
-import type { CombatRecord, Combatant } from "@/types/combat";
-import { combatStore } from "@/data/combatStore";
 import type { Spell } from '@/types/spell';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
@@ -88,23 +86,13 @@ export class FlowCompiler {
         status: 'failure',
         output: { error: '法术不存在' }
       };
-    // 获取施法者信息:优先从战斗记录获取参战者,否则从角色卡获取
-    let caster: Character | Combatant | null = null;
-    const currentCombat = context.stateSnapshot?.combatRecord as CombatRecord | null;
-    if (currentCombat) {
-      // 战斗场景:从参战者列表查找
-      const combatant = currentCombat.combatants.find(c => c.id === context.casterId);
-      if (combatant) {
-        caster = combatant;
-      }
     }
-    
-    // 如果不是战斗场景或未找到参战者,使用角色卡
+
+    const caster = characterStore.get(context.casterId);
     if (!caster) {
-      caster = characterStore.get(context.casterId);
-    }
-    
-    if (!caster) {
+      return {
+        status: 'failure',
+        output: { error: '施法者不存在' }
       };
     }
 
@@ -188,151 +176,36 @@ export class FlowCompiler {
     config: CastStartConfig,
     targets: string[]
   ): Promise<PreCastCheckReport> {
-    // 检查施法者等级是否足够
-    if (spell.level && spell.level > caster.level) {
-      return {
-        success: false,
-        message: `施法者等级不足,无法施放此法术(需要等级 ${spell.level})`,
-        autoChecks: [], // 新增字段
-        saveConfig: undefined, // 新增字段
-        requiredComponents: {
-          verbal: false,
-          somatic: false,
-          material: false,
-        },
-        distance: {
-          current: 0,
-          required: spell.range || 0,
-          valid: false,
-        },
-        time: {
-          actionType: "action" as any,
-          available: false,
-        },
-      };
-    }
-
-    // 检查施法者是否专注
-    if (caster.isConcentrating && spell.requiresConcentration) {
-      return {
-        success: false,
-        message: "施法者正在专注其他法术,无法施放需要专注的法术",
-        autoChecks: [], // 新增字段
-        saveConfig: undefined, // 新增字段
-        requiredComponents: {
-          verbal: false,
-          somatic: false,
-          material: false,
-        },
-        distance: {
-          current: 0,
-          required: spell.range || 0,
-          valid: false,
-        },
-        time: {
-          actionType: "action" as any,
-          available: false,
-        },
-      };
-    }
-
-    // 检查施法者是否已死亡
-    if (caster.isDead) {
-      return {
-        success: false,
-        message: "施法者已死亡,无法施法",
-        autoChecks: [], // 新增字段
-        saveConfig: undefined, // 新增字段
-        requiredComponents: {
-          verbal: false,
-          somatic: false,
-          material: false,
-        },
-        distance: {
-          current: 0,
-          required: spell.range || 0,
-          valid: false,
-        },
-        time: {
-          actionType: "action" as any,
-          available: false,
-        },
-      };
-    }
-
-    // 检查施法者是否有足够的动作点
-    const actionType = spell.time as "action" | "bonus" | "reaction" | "minute" | "hour" | "day";
-    let available = true;
-    
-    if (actionType === "action" && caster.actions <= 0) {
-      available = false;
-    } else if (actionType === "bonus" && caster.bonusActions <= 0) {
-      available = false;
-    } else if (actionType === "reaction" && caster.reactions <= 0) {
-      available = false;
-    }
-
-    // 检查距离
-    const distanceValid = this.checkRange(spell, config, targets).inRange;
-
-    // 检查材料组件
-    const materialComponents = spell.material || "";
-    const hasMaterial = materialComponents === "" || 
-      (caster.equipment.some(eq => eq.name.toLowerCase().includes(materialComponents.toLowerCase())));
-
-    // 生成自动检查代码
-    const autoChecks: string[] = [];
-    
-    // 成分检查
-    const verbalCheck = spell.verbal ? "是" : "否";
-    const somaticCheck = spell.somatic ? "是" : "否";
-    autoChecks.push(`成分检查: 施法者可言语: ${verbalCheck}, 施法者可做手势: ${somaticCheck}, 材料组件: ${hasMaterial ? "已准备" : "未准备"}`);
-
-    // 距离检查
+    const components = this.checkComponents(spell, config, caster);
     const range = this.checkRange(spell, config, targets);
-    autoChecks.push(`距离检查: 当前${range.current}尺 ≤ 要求${range.required}尺 - ${range.inRange ? "通过" : "失败"}`);
+    const time = this.checkTime(spell, config, caster);
 
-    // 时间检查
-    autoChecks.push(`时间检查: ${actionType} - ${available ? "可用" : "不可用"}`);
+    // 计算总体结果
+    const checks = [components.available, range.inRange, time.available];
+    const overall: CheckResult = checks.every(Boolean)
+      ? 'pass'
+      : checks.some(Boolean)
+        ? 'partial'
+        : 'fail';
 
-    // 检查豁免检定配置
-    let saveConfig: SavingThrowConfig | undefined;
-    if (spell.save) {
-      saveConfig = {
-        ability: spell.save.ability,
-        dc: spell.save.dc,
-      };
-      autoChecks.push(`豁免检定: ${spell.save.ability}豁免 (DC ${spell.save.dc}) - 需要时执行`);
-    }
+    return { components, range, time, overall };
+  }
+
+  /**
+   * 检查法术成分
+   */
+  private checkComponents(spell: Spell, config: CastStartConfig, caster: Character) {
+    const required = config.overrideComponents
+      ? config.overrideComponents.split(',').map(s => s.trim()).filter(Boolean)
+      : (['verbal', 'somatic', 'material'] as const).filter(c => spell.components[c]);
+
+    const missing = required.filter(comp => !this.hasComponent(caster, comp));
+    const available = missing.length === 0;
 
     return {
-      success: distanceValid && available,
-      message: distanceValid && available 
-        ? "所有前置检查通过,可以施法"
-        : distanceValid 
-          ? "距离检查通过,但动作点不足"
-          : available 
-            ? "动作点充足,但距离过远"
-            : "距离过远且动作点不足",
-      autoChecks, // 新增字段
-      saveConfig, // 新增字段
-      requiredComponents: {
-        verbal: spell.verbal,
-        somatic: spell.somatic,
-        material: materialComponents !== "",
-        materialComponents: materialComponents,
-      },
-      distance: {
-        current: this.checkRange(spell, config, targets).current,
-        required: spell.range || 0,
-        valid: distanceValid,
-      },
-      time: {
-        actionType,
-        available,
-      },
-    };
-  }
+      required,
+      available,
+      missing: available ? undefined : missing
     };
   }
 
@@ -376,29 +249,17 @@ export class FlowCompiler {
   /**
    * 检查是否有组件
    */
-  private hasComponent(caster: Character | Combatant, component: string): boolean {
+  private hasComponent(caster: Character, component: string): boolean {
     switch (component) {
-      case "verbal":
-        // 言语成分:参战者有自己的 canSpeak 属性,优先使用
-        const canSpeak = (caster as Combatant).canSpeak !== undefined ? (caster as Combatant).canSpeak : (caster as Character).canSpeak;
-        return canSpeak !== false;
-      case "somatic":
-        // 手势成分:检查参战者的手部状态
-        const combatant = caster as Combatant;
-        if (combatant.heldLeft && combatant.heldRight) {
-          // 参战者有自己的手部状态管理
-          return combatant.heldLeft.state !== "unavailable" || combatant.heldRight.state !== "unavailable";
-        } else {
-          // 如果参战者没有手部状态,使用角色的手部状态
-          const character = caster as Character;
-          return character.heldLeft.state !== "unavailable" || character.heldRight.state !== "unavailable";
-        }
-      case "material":
-        return true;
+      case 'verbal':
+        return caster.canSpeak !== false;
+      case 'somatic':
+        return caster.canSomatic !== false;
+      case 'material':
+        return true; // 简化处理
       default:
         return true;
     }
-  }
   }
 
   /**
