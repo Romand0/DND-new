@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { X, Search, Filter, Sparkles } from 'lucide-react';
+import { X, Search, Sparkles } from 'lucide-react';
 import type { Spell } from '@/types/spell';
 
 interface SpellPickerProps {
@@ -138,44 +138,49 @@ export default function SpellPicker({
                 className="w-full pl-12 pr-4 py-3 rounded-lg border bg-transparent outline-none text-base dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
               />
             </div>
-            <div className="flex gap-4">
-              <div className="relative flex-1">
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted" />
-                <select
-                  value={levelFilter}
-                  onChange={(e) =>
-                    setLevelFilter(e.target.value === 'all' ? 'all' : parseInt(e.target.value))
-                  }
-                  className="pl-12 pr-10 py-3 rounded-lg border bg-transparent outline-none appearance-none text-base dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+            
+            {/* 环级筛选 - 胶囊标签样式 */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">环级</span>
+              <button
+                onClick={() => setLevelFilter('all')}
+                className={`px-2.5 py-1 rounded-full text-xs transition-colors ${levelFilter === 'all' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+              >
+                全部
+              </button>
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
+                <button
+                  key={level}
+                  onClick={() => setLevelFilter(levelFilter === level ? 'all' : level)}
+                  className={`px-2.5 py-1 rounded-full text-xs transition-colors ${levelFilter === level ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
                 >
-                  <option value="all" className="dark:bg-bg-dark light:bg-bg-light">
-                    全部环级
-                  </option>
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
-                    <option key={level} value={level} className="dark:bg-bg-dark light:bg-bg-light">
-                      {levelLabels[level]}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="relative flex-1">
-                <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted" />
-                <select
-                  value={classFilter}
-                  onChange={(e) => setClassFilter(e.target.value)}
-                  className="pl-12 pr-10 py-3 rounded-lg border bg-transparent outline-none appearance-none text-base dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                >
-                  <option value="all" className="dark:bg-bg-dark light:bg-bg-light">
-                    全部职业
-                  </option>
-                  {availableClasses.map((cls) => (
-                    <option key={cls} value={cls} className="dark:bg-bg-dark light:bg-bg-light">
-                      {cls}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  {levelLabels[level]}
+                </button>
+              ))}
             </div>
+
+            {/* 职业筛选 - 胶囊标签样式 */}
+            {availableClasses.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">职业</span>
+                <button
+                  onClick={() => setClassFilter('all')}
+                  className={`px-2.5 py-1 rounded-full text-xs transition-colors ${classFilter === 'all' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+                >
+                  全部
+                </button>
+                {availableClasses.map((cls) => (
+                  <button
+                    key={cls}
+                    onClick={() => setClassFilter(classFilter === cls ? 'all' : cls)}
+                    className={`px-2.5 py-1 rounded-full text-xs transition-colors ${classFilter === cls ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+                  >
+                    {cls}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {characterClass && (
               <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
                 当前角色职业：{characterClass}
