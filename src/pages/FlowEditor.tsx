@@ -2283,114 +2283,17 @@ onNodeDelete={(nodeId) => {
       {/* ===== 法术选择器弹窗 ===== */}
       {spellPickerOpen && (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="relative w-full max-w-2xl max-h-[85vh] m-4 flex flex-col rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-white light:border-border-light shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b dark:border-border-dark light:border-border-light flex-shrink-0">
-              <h2 className="text-lg font-bold flex items-center gap-2 dark:text-text-dark light:text-text-light">
-                <Sparkles className="w-5 h-5 text-primary" />
-                选择法术
-              </h2>
-              <button
-                onClick={() => setSpellPickerOpen(false)}
-                className="p-1 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light-muted"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="space-y-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={selectedSpellId || ''}
-                    onChange={(e) => setSelectedSpellId(e.target.value)}
-                    placeholder="搜索法术名称或学派..."
-                    className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                  />
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
-                </div>
-                <div className="flex gap-4">
-                  <div className="relative flex-1">
-                    <select
-                      value="all"
-                      onChange={(e) => {}}
-                      className="pl-10 pr-8 py-2 rounded-lg border bg-transparent outline-none appearance-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    >
-                      <option value="all" className="dark:bg-bg-dark light:bg-white">全部环级</option>
-                      {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
-                        <option key={level} value={level} className="dark:bg-bg-dark light:bg-white">
-                          {level === 0 ? '戏法' : `${level}环`}
-                        </option>
-                      ))}
-                    </select>
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
-                  </div>
-                  <div className="relative flex-1">
-                    <select
-                      value="all"
-                      onChange={(e) => {}}
-                      className="pl-10 pr-8 py-2 rounded-lg border bg-transparent outline-none appearance-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    >
-                      <option value="all" className="dark:bg-bg-dark light:bg-white">全部职业</option>
-                      {['法师', '牧师', '德鲁伊', '术士', '游侠', '吟游诗人'].map((cls) => (
-                        <option key={cls} value={cls} className="dark:bg-bg-dark light:bg-white">
-                          {cls}
-                        </option>
-                      ))}
-                    </select>
-                    <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  {[
-                    { id: 'spell:fireball', name: '火球术', level: 3, school: '塑能', castingTime: '1动作' },
-                    { id: 'spell:magic-missile', name: '魔法飞弹', level: 1, school: '塑能', castingTime: '1动作' },
-                    { id: 'spell:cure-wounds', name: '治愈术', level: 1, school: '咒法', castingTime: '1动作' },
-                    { id: 'spell:shield', name: '魔法护盾', level: 1, school: '防护', castingTime: '反应' },
-                    { id: 'spell:invisibility', name: '隐形术', level: 2, school: '幻象', castingTime: '1动作' },
-                  ].map((spell) => (
-                    <button
-                      key={spell.id}
-                      onClick={() => {
-                        setDraftId(spell.id);
-                        setSpellPickerOpen(false);
-                        setIdDirty(true);
-                        setIdErrors([]);
-                      }}
-                      className="w-full text-left p-4 rounded-xl border transition-colors hover:border-primary dark:border-border-dark dark:bg-bg-dark dark:hover:bg-white/5 light:border-border-light light:bg-white light:hover:bg-white/70"
-                    >
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-base dark:text-text-dark light:text-text-light">
-                            {spell.name}
-                          </div>
-                          <div className="flex items-center gap-3 mt-2 flex-wrap">
-                            <span
-                              className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-                                spell.level === 0
-                                  ? 'bg-gray-500/20 text-gray-400'
-                                  : 'bg-primary/20 text-primary'
-                              }`}
-                            >
-                              {spell.level === 0 ? '戏法' : `${spell.level}环`}
-                            </span>
-                            <span className="text-sm dark:text-text-dark light:text-text-light">
-                              {spell.school}
-                            </span>
-                            <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                              {spell.castingTime}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-sm font-mono dark:text-text-dark-muted light:text-text-light-muted">
-                          V, S
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
+          <SpellPicker
+            isOpen={spellPickerOpen}
+            onClose={() => setSpellPickerOpen(false)}
+            onSelect={(spell) => {
+              setDraftId(spell.id);
+              setSpellPickerOpen(false);
+              setIdDirty(true);
+              setIdErrors([]);
+            }}
+            selectedSpellIds={[]}
+          />
         </div>
       )}
 
