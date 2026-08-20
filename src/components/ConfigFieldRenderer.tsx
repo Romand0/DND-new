@@ -1,4 +1,5 @@
 import type { ConfigFieldSchema } from '@/types/flow';
+import SpellPickerField from './SpellPickerField';
 
 interface Props {
   schema: ConfigFieldSchema;
@@ -93,6 +94,16 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark }:
           value={value ?? schema.defaultValue ?? ''}
           onChange={e => onChange(e.target.value)}
           className={base + ' font-mono'}
+          placeholder={schema.placeholder}
+        />
+      );
+
+    case 'spellPicker':
+      return (
+        <SpellPickerField
+          value={value}
+          onChange={onChange}
+          isDark={isDark}
           placeholder={schema.placeholder}
         />
       );
