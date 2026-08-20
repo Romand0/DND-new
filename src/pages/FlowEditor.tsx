@@ -2285,13 +2285,12 @@ onNodeDelete={(nodeId) => {
           <SpellPicker
             isOpen={spellPickerOpen}
             onClose={() => setSpellPickerOpen(false)}
-            onSelect={(spellId) => {
-              setDraftId(spellId);
+            onSelect={(spell) => {
+              setDraftId(spell.id);
               setSpellPickerOpen(false);
               setIdDirty(true);
               setIdErrors([]);
             }}
-            isDark={theme === 'dark'}
           />
         </div>
       )}
