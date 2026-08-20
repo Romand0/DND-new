@@ -2282,7 +2282,7 @@ onNodeDelete={(nodeId) => {
 
       {/* ===== 法术选择器弹窗 ===== */}
       {spellPickerOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm border-2 border-dashed border-pink-500">
           <SpellPicker
             isOpen={spellPickerOpen}
             onClose={() => setSpellPickerOpen(false)}
