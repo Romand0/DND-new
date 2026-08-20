@@ -11,6 +11,8 @@ import type {
   SavingThrowConfig
 } from '@/types/flow';
 import type { Character } from '@/types/character';
+import type { CombatRecord, Combatant } from "@/types/combat";
+import { combatStore } from "@/data/combatStore";
 import type { Spell } from '@/types/spell';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
@@ -86,13 +88,23 @@ export class FlowCompiler {
         status: 'failure',
         output: { error: '法术不存在' }
       };
+    // 获取施法者信息:优先从战斗记录获取参战者,否则从角色卡获取
+    let caster: Character | Combatant | null = null;
+    const currentCombat = context.stateSnapshot?.combatRecord as CombatRecord | null;
+    if (currentCombat) {
+      // 战斗场景:从参战者列表查找
+      const combatant = currentCombat.combatants.find(c => c.id === context.casterId);
+      if (combatant) {
+        caster = combatant;
+      }
     }
-
-    const caster = characterStore.get(context.casterId);
+    
+    // 如果不是战斗场景或未找到参战者,使用角色卡
     if (!caster) {
-      return {
-        status: 'failure',
-        output: { error: '施法者不存在' }
+      caster = characterStore.get(context.casterId);
+    }
+    
+    if (!caster) {
       };
     }
 
@@ -249,17 +261,29 @@ export class FlowCompiler {
   /**
    * 检查是否有组件
    */
-  private hasComponent(caster: Character, component: string): boolean {
+  private hasComponent(caster: Character | Combatant, component: string): boolean {
     switch (component) {
-      case 'verbal':
-        return caster.canSpeak !== false;
-      case 'somatic':
-        return caster.canSomatic !== false;
-      case 'material':
-        return true; // 简化处理
+      case "verbal":
+        // 言语成分:参战者有自己的 canSpeak 属性,优先使用
+        const canSpeak = (caster as Combatant).canSpeak !== undefined ? (caster as Combatant).canSpeak : (caster as Character).canSpeak;
+        return canSpeak !== false;
+      case "somatic":
+        // 手势成分:检查参战者的手部状态
+        const combatant = caster as Combatant;
+        if (combatant.heldLeft && combatant.heldRight) {
+          // 参战者有自己的手部状态管理
+          return combatant.heldLeft.state !== "unavailable" || combatant.heldRight.state !== "unavailable";
+        } else {
+          // 如果参战者没有手部状态,使用角色的手部状态
+          const character = caster as Character;
+          return character.heldLeft.state !== "unavailable" || character.heldRight.state !== "unavailable";
+        }
+      case "material":
+        return true;
       default:
         return true;
     }
+  }
   }
 
   /**
