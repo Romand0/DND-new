@@ -80,7 +80,7 @@ export default function FlowDetail() {
         </button>
         {isDM && (
           <div className="flex gap-2">
-            <button onClick={() => navigate(`/flows/${id}/edit`)}
+            <button onClick={() => navigate(`/flow-editor/${id}`)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
               <Edit2 className="w-4 h-4" /> 编辑
             </button>

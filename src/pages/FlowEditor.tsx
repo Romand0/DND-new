@@ -910,7 +910,7 @@ export default function FlowEditor() {
       
       // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
       if (flowId && flowId !== updatedFlow.id) {
-        navigate(`/flows/${updatedFlow.id}/edit`, { replace: true });
+        navigate(`/flow-editor/${updatedFlow.id}`, { replace: true });
       }
       
       setTimeout(() => setSaveStatus('idle'), 2000);
@@ -1575,7 +1575,7 @@ export default function FlowEditor() {
                         setIdDirty(false);
                         setIdErrors([]);
                         // 同步路由
-                        navigate(`/flows/${draftId}/edit`, { replace: true });
+                        navigate(`/flow-editor/${draftId}`, { replace: true });
                       } else {
                         setIdErrors(['重命名失败：源流程未在库中找到或目标 ID 已被占用']);
                       }
@@ -2084,7 +2084,7 @@ export default function FlowEditor() {
                             const result = flowStore.retargetId(flowId, newId);
                             if (result) {
                               setFlow(result);
-                              navigate(`/flows/${newId}/edit`, { replace: true });
+                              navigate(`/flow-editor/${newId}`, { replace: true });
                             } else {
                               alert('ID 冲突，该类别+标识符已被占用');
                             }

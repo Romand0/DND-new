@@ -51,7 +51,7 @@ function LastDraftLink({ onClose }: { onClose: () => void }) {
     const allFlows = flowStore.getAll();
     if (allFlows.length > 0) {
       const latest = allFlows.reduce((a, b) => (a.updatedAt || 0) > (b.updatedAt || 0) ? a : b);
-      navigate(`/settings/flows/${latest.id}/edit`);
+      navigate(`/flow-editor/${latest.id}`);
       onClose();
       return;
     }
@@ -65,7 +65,7 @@ function LastDraftLink({ onClose }: { onClose: () => void }) {
           const newest = flows[flows.length - 1];
           if (newest) {
             flowStore.update(newest.id, data.flow);
-            navigate(`/settings/flows/${newest.id}/edit`);
+            navigate(`/flow-editor/${newest.id}`);
             onClose();
             return;
           }

@@ -31,7 +31,7 @@ export default function FlowList() {
 
   const handleCreate = () => {
     const f = flowStore.create('');
-    navigate(`/flows/${f.id}/edit`);
+    navigate(`/flow-editor/${f.id}`);
   };
 
   const handleDelete = () => {
@@ -233,14 +233,14 @@ export default function FlowList() {
                     <Download className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => navigate(`/flows/${f.id}/edit`)}
+                    onClick={() => navigate(`/flow-editor/${f.id}`)}
                     className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
                     title="编辑"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => navigate(`/flows/${f.id}`)}
+                    onClick={() => navigate(`/flow-editor/${f.id}`)}
                     className="p-2 rounded-lg hover:bg-accent/10 text-accent transition-colors"
                     title="查看详情"
                   >
