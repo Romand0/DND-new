@@ -16,6 +16,7 @@ import {
   Loader2, MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
   ChevronRight, RotateCcw,
   PanelLeft, PanelRight, Sparkles, CloudUpload,
+  Search, Filter,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
