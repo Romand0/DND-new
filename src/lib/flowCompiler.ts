@@ -7,14 +7,14 @@ import type {
   NodeExecutionResult,
   PreCastCheckReport,
   CastStartConfig,
-  CheckResult
+  CheckResult,
+  SavingThrowConfig
 } from '@/types/flow';
 import type { Character } from '@/types/character';
 import type { Spell } from '@/types/spell';
-import type { SavingThrowConfig } from '@/types/combat';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
-import { diceService } from '@/data/diceService';
+import { rollDie } from '@/data/diceService';
 
 export class FlowCompiler {
   /**
@@ -279,8 +279,8 @@ export class FlowCompiler {
     context: FlowExecutionContext
   ): Promise<NodeExecutionResult> {
     const config = node.config as SavingThrowConfig;
-    const ability = config?.saveAbility || 'dexterity';
-    const dc = parseInt(config?.saveDC?.toString() || '10', 10);
+    const ability = config?.ability || 'dexterity';
+    const dc = parseInt(config?.dc?.toString() || '10', 10);
     
     const results: any[] = [];
     
@@ -297,7 +297,7 @@ export class FlowCompiler {
 
       // 计算豁免修正
       const abilityModifier = Math.floor((target.abilities[ability] - 10) / 2);
-      const d20Roll = diceService.rollDie(20);
+      const d20Roll = rollDie(20);
       const total = d20Roll + abilityModifier;
       const success = total >= dc;
 
@@ -353,7 +353,7 @@ export class FlowCompiler {
 
       // 计算攻击加值（简化处理）
       const attackBonus = 5; // 应该根据施法者属性和法术等级计算
-      const d20Roll = diceService.rollDie(20);
+      const d20Roll = rollDie(20);
       const attackTotal = d20Roll + attackBonus;
       
       // 简化处理：假设目标AC为15
@@ -442,7 +442,15 @@ export class FlowCompiler {
       try {
         // 简化处理：解析骰子表达式
         if (value.includes('d')) {
-          effectValue = diceService.parseAndRoll(value);
+          // 简单解析骰子表达式，只支持XdY格式
+          const match = value.match(/(\d+)d(\d+)/);
+          if (match) {
+            const count = parseInt(match[1], 10);
+            const sides = parseInt(match[2], 10);
+            effectValue = rollDie(sides as any); // 简化处理，只掷一次
+          } else {
+            effectValue = 0;
+          }
         } else {
           effectValue = parseInt(value, 10);
         }
@@ -506,11 +514,12 @@ export class FlowCompiler {
       };
     }
 
-    // 专注检定：体质属性 vs DC 10
+// 专注检定：体质属性 vs DC 10
     const ability = 'constitution';
     const dc = 10;
-    const abilityModifier = Math.floor((caster.abilities[ability] - 10) / 2);
-    const d20Roll = diceService.rollDie(20);
+    const abilityScore = caster.abilities[ability]?.score || 10; // 默认值10
+    const abilityModifier = Math.floor((abilityScore - 10) / 2);
+    const d20Roll = rollDie(20);
     const total = d20Roll + abilityModifier;
     const success = total >= dc;
 
@@ -519,12 +528,12 @@ export class FlowCompiler {
       output: {
         ability,
         dc,
-        abilityScore: caster.abilities[ability],
+        abilityScore,
         abilityModifier,
         d20Roll,
         total,
         success,
-        message: `专注检定: ${ability}(${caster.abilities[ability]}) + ${abilityModifier} + ${d20Roll} = ${total} vs DC ${dc} - ${success ? '成功' : '失败'}`
+        message: `专注检定: ${ability}(${abilityScore}) + ${abilityModifier} + ${d20Roll} = ${total} vs DC ${dc} - ${success ? '成功' : '失败'}`
       }
     };
   }

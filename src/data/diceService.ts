@@ -82,3 +82,10 @@ export function subscribeDice(listener: DiceEventListener): () => void {
 export function broadcastDiceResult(result: DiceResult): void {
   listeners.forEach((l) => l(result));
 }
+
+/**
+ * 简单掷骰子函数（单次，面数固定）
+ */
+export function rollDie(sides: DiceType): number {
+  return Math.floor(Math.random() * sides) + 1;
+}

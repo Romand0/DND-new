@@ -650,3 +650,9 @@ export interface CastStartConfig {
   overrideRange?: number;           // 手动指定射程
   overrideTime?: string;             // 手动指定施法时间
 }
+
+/** 豁免检定节点配置 */
+export interface SavingThrowConfig {
+  ability: string;                   // 豁免属性
+  dc: string;                         // 难度等级 (DC)
+}
