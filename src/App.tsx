@@ -109,6 +109,8 @@ export default function App() {
               {/* ✅ 修改1：参数名从 :id 改为 :sessionId，和 CombatSession 里的 useParams 对齐 */}
                     <Route path="/combat/:sessionId" element={<CombatSession />} />
                     <Route path="/combat/:sessionId/battleground-editor" element={<BattlegroundEditor />} />
+              {/* 独立访问的流程编辑器路由 */}
+              <Route path="/flow-editor/:id" element={<FlowEditor />} />
             </Route>
 
             {/* DM 端（完整导航栏）- 需要登录 + DM 角色 */}
@@ -132,6 +134,8 @@ export default function App() {
               <Route path="inventory/treasures/:id/distribute" element={<TreasureDistribute />} />
               <Route path="flows" element={<FlowList />} />
               <Route path="flows/:id/edit" element={<FlowEditor />} />
+              {/* 独立访问的流程编辑器路由 */}
+              <Route path="flow-editor/:id" element={<FlowEditor />} />
               {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />
