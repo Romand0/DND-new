@@ -55,6 +55,16 @@ function load(): NpcTemplate[] {
       creatureType: t.creatureType as CreatureType | undefined,
       createdAt: t.createdAt ?? Date.now(),
       updatedAt: t.updatedAt ?? Date.now(),
+      cr: t.cr,
+      size: t.size,
+      type: t.type,
+      alignment: t.alignment,
+      features: t.features,
+      senses: t.senses,
+      languages: t.languages,
+      savingThrows: t.savingThrows,
+      skills: t.skills,
+      source: t.source,
     }));
   } catch {
     return [];
@@ -118,6 +128,11 @@ const npcTemplateStore = {
 
   clear(): void {
     save([]);
+  },
+
+  getById(id: string): NpcTemplate | null {
+    const templates = load();
+    return templates.find(t => t.id === id) || null;
   },
 
   subscribe(listener: Listener): () => void {
