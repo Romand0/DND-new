@@ -35,6 +35,7 @@ import {
   buildFlowId,
 } from '@/types/flow';
 import SpellPicker from '@/components/SpellPicker';
+import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
 import type { Spell } from '@/types/spell';
 import { spellFlowBinding } from '@/data/spellFlowBinding';
@@ -2178,34 +2179,28 @@ export default function FlowEditor() {
                 <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1.5">
                   绑定法术
                 </label>
-                <div className="flex items-center gap-2">
-                  {boundSpell ? (
-                    <>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-xs font-medium dark:text-text-dark light:text-text-light truncate">
-                          {boundSpell.name}
-                        </div>
-                        <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                          Lv.{boundSpell.level} {boundSpell.school}
-                        </div>
-                      </div>
-                      <button
-                        onClick={handleUnbindSpell}
-                        className="px-3 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
-                      >
-                        解绑
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowSpellPicker(true)}
-                      className="flex-1 px-3 py-1.5 text-xs bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                    >
-                      绑定法术
-                    </button>
-                  )}
-                </div>
+                <SpellPickerField
+                  value={flow.spellId || ''}
+                  onChange={(spellId) => {
+                    if (spellId) {
+                      const spell = spellStore.getById(spellId);
+                      if (spell) {
+                        setBoundSpell(spell);
+                        setFlow(prev => ({ ...prev, spellId }));
+                      }
+                    } else {
+                      setBoundSpell(null);
+                      setFlow(prev => ({ ...prev, spellId: undefined }));
+                    }
+                  }}
+                  placeholder="选择要施放的法术"
+                  isDark={isDark}
+                />
+                {boundSpell && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    已选择：{boundSpell.name} (Lv.{boundSpell.level} {boundSpell.school})
+                  </div>
+                )}
               </div>
 
               {/* ===== 增强的流程统计 ===== */}

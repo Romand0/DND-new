@@ -288,14 +288,6 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
   // ── 核心环节 ──
   cast_start: [
     {
-      key: 'spellId',
-      label: '绑定法术',
-      type: 'spellPicker',
-      required: true,
-      placeholder: '选择要施放的法术',
-      defaultValue: undefined,
-    },
-    {
       key: 'autoChecks',
       label: '自动检查',
       type: 'object',
