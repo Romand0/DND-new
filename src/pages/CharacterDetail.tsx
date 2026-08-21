@@ -1490,7 +1490,11 @@ if (character) {
                   </button>
                 </div>
 
+<<<<<<< Updated upstream
                 {/* ★ 新增：施法关键属性 & 法术豁免 DC */}
+=======
+                {/* ★ 新增:施法关键属性 & 法术豁免 DC */}
+>>>>>>> Stashed changes
                 {(() => {
                   const scAbility = characterStore.getSpellcastingAbility(character);
                   const saveDC = characterStore.calcSpellSaveDC(character);
@@ -1505,7 +1509,11 @@ if (character) {
                         <span className="text-sm font-bold text-primary">
                           {abilityLabels[scAbility]}
                         </span>
+<<<<<<< Updated upstream
                         {/* 可编辑：点击切换 */}
+=======
+                        {/* 可编辑:点击切换 */}
+>>>>>>> Stashed changes
                         {!readOnly && (
                           <select
                             value={scAbility}
@@ -1515,7 +1523,11 @@ if (character) {
                             }}
                             className="ml-1 text-xs px-1 py-0.5 rounded bg-transparent border dark:border-border-dark light:border-border-light outline-none text-primary"
                           >
+<<<<<<< Updated upstream
                             {(['strength','dexterity','constitution','intelligence','wisdom','charisma'] as AbilityKey[]).map((k) => (
+=======
+                            {(["strength","dexterity","constitution","intelligence","wisdom","charisma"] as AbilityKey[]).map((k) => (
+>>>>>>> Stashed changes
                               <option key={k} value={k}>{abilityLabels[k]}</option>
                             ))}
                           </select>
