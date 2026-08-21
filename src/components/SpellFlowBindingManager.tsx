@@ -1,15 +1,8 @@
-import React, { useState, useEffect, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { FlowDefinition } from '@/types/flow';
 import { BindingService } from '@/services/bindingService';
-import flowStore from '@/data/flowStore';
 import { bindingStore } from '@/data/bindingStore';
-
-function useSpellFlowBindings(spellId: string) {
-  return useSyncExternalStore(
-    (cb) => bindingStore.subscribe(cb),
-    () => bindingStore.getBySpellId(spellId),
-  );
-}
+import flowStore from '@/data/flowStore';
 
 interface SpellFlowBindingManagerProps {
   spellId: string;
@@ -22,31 +15,36 @@ export const SpellFlowBindingManager: React.FC<SpellFlowBindingManagerProps> = (
   spellName,
   onBindingChange
 }) => {
-  const bindings = useSpellFlowBindings(spellId);
+  const [boundFlows, setBoundFlows] = useState<FlowDefinition[]>([]);
   const [availableFlows, setAvailableFlows] = useState<FlowDefinition[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // 获取所有可用的流程（排除已绑定的）
-        const allFlows = flowStore.getAll();
-        const boundFlowIds = bindings.map(b => b.flow_id);
-        const unbound = allFlows.filter(flow => !boundFlowIds.includes(flow.id));
-        setAvailableFlows(unbound);
-      } catch (error) {
-        console.error('加载绑定信息失败:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadData = useCallback(async () => {
+    try {
+      const bound = await BindingService.getSpellBoundFlows(spellId);
+      setBoundFlows(bound);
+      const allFlows = flowStore.getAll();
+      const unbound = allFlows.filter(flow => !bound.some(b => b.id === flow.id));
+      setAvailableFlows(unbound);
+    } catch (error) {
+      console.error('加载绑定信息失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [spellId]);
 
-    loadData();
-  }, [spellId, bindings]);
+  // 首次加载
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // 🔑 订阅 bindingStore 变更，自动重载——实现另一侧操作后本侧刷新
+  useEffect(() => {
+    return bindingStore.subscribe(() => { loadData(); });
+  }, [loadData]);
 
   const handleBind = async (flowId: string) => {
     try {
       await BindingService.bindSpellToFlow(spellId, flowId);
+      // 不需要手动 loadData，subscribe 会自动触发
       onBindingChange?.();
     } catch (error) {
       console.error('绑定失败:', error);
@@ -54,25 +52,25 @@ export const SpellFlowBindingManager: React.FC<SpellFlowBindingManagerProps> = (
     }
   };
 
-  const handleUnbind = async (bindingId: string) => {
+  const handleUnbind = async (flowId: string) => {
     try {
-      await BindingService.unbindSpellFromFlow(bindingId);
-      onBindingChange?.();
+      const binding = boundFlows.find(f => f.id === flowId);
+      if (binding) {
+        const allBindings = await BindingService.getSpellBoundFlows(spellId);
+        const bindingToRemove = allBindings.find(b => b.id === flowId);
+        if (bindingToRemove) {
+          await BindingService.unbindSpellFromFlow(bindingToRemove.id);
+          // 同理，不需要手动 loadData
+          onBindingChange?.();
+        }
+      }
     } catch (error) {
       console.error('解绑失败:', error);
       alert('解绑失败: ' + (error as Error).message);
     }
   };
 
-  if (loading) {
-    return <div>加载中...</div>;
-  }
-
-  // 从绑定数据中提取流程信息
-  const boundFlows = bindings.map(binding => {
-    const flow = flowStore.getById(binding.flow_id);
-    return flow;
-  }).filter(Boolean) as FlowDefinition[];
+  if (loading) return <div>加载中...</div>;
 
   return (
     <div className="binding-manager">
@@ -84,7 +82,6 @@ export const SpellFlowBindingManager: React.FC<SpellFlowBindingManagerProps> = (
           <h5>已绑定流程 ({boundFlows.length})</h5>
           <ul className="space-y-2">
             {boundFlows.map(flow => {
-              const binding = bindings.find(b => b.flow_id === flow.id);
               return (
                 <li key={flow.id} className="flex justify-between items-center p-2 bg-gray-100 rounded">
                   <div>
@@ -92,7 +89,7 @@ export const SpellFlowBindingManager: React.FC<SpellFlowBindingManagerProps> = (
                     <span className="text-sm text-gray-500 ml-2">({flow.category || 'custom'})</span>
                   </div>
                   <button
-                    onClick={() => handleUnbind(binding!.id)}
+                    onClick={() => handleUnbind(flow.id)}
                     className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
                   >
                     解绑
