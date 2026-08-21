@@ -180,6 +180,10 @@ export interface Character {
   // 豁免加值覆盖：NPC 的某属性豁免加值通常等于属性调整值，
   // 个别情况下需要单独设定；若该属性未设置（undefined），则回退到属性调整值+熟练加值
   saveBonusOverride?: Partial<Record<AbilityKey, number>>;
+  /** 施法关键属性,由职业决定;未设置时通过 class 名自动推断 */
+  spellcastingAbility?: AbilityKey;
+  /** 施法关键属性,由职业决定;未设置时通过 class 名自动推断 */
+  spellcastingAbility?: AbilityKey;
 
   /** 施法关键属性，由职业决定；未设置时通过 class 名自动推断 */
   spellcastingAbility?: AbilityKey;

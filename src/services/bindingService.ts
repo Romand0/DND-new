@@ -3,10 +3,21 @@ import { spellStore } from '@/data/spellStore';
 import flowStore from '@/data/flowStore';
 import type { Spell } from '@/types/spell';
 import type { FlowDefinition, FlowNodeDef, FlowEdgeDef } from '@/types/flow';
-import type { SpellFlowBinding } from '@/types/binding';
+import type { SpellFlowBinding, BindingCreateData } from '@/types/binding';
 import type { SpellWithFlowBindings, FlowWithSpellBindings } from '@/types/binding';
 
 export class BindingService {
+<<<<<<< HEAD
+  private static currentFlowId: string | null = null;
+
+  /**
+   * 设置当前流程ID(用于获取可用法术)
+   */
+  static setCurrentFlowId(flowId: string): void {
+    this.currentFlowId = flowId;
+  }
+
+=======
   private static initialized = false;
 
   static init(): void {
@@ -45,6 +56,7 @@ export class BindingService {
       }
     }
   }
+>>>>>>> upstream/main
   /**
    * 创建法术与流程的绑定关系
    */
@@ -60,7 +72,7 @@ export class BindingService {
     // 创建绑定关系
     const binding = await bindingStore.create(spellId, flowId);
     
-    // 更新本地缓存，添加绑定信息
+    // 更新本地缓存,添加绑定信息
     this.updateLocalCacheWithBinding(spellId, flowId);
     
     return binding;
@@ -100,7 +112,29 @@ export class BindingService {
   }
 
   /**
-   * 当获取法术详情时，自动加载绑定信息
+   * 获取所有可用的法术(排除已绑定到当前流程的)
+   */
+  static async getAllAvailableSpells(): Promise<Spell[]> {
+    try {
+      // 从后端API获取所有法术
+      const response = await fetch('/api/spells');
+      const data = await response.json();
+      const allSpells = Array.isArray(data) ? data : (data.data || []);
+      
+      // 获取当前流程的已绑定法术
+      const boundSpellIds = (await this.getFlowBoundSpells(this.currentFlowId || '')).map(s => s.id);
+      
+      // 过滤掉已绑定的法术
+      return allSpells.filter(spell => !boundSpellIds.includes(spell.id));
+      
+    } catch (error) {
+      console.error('获取可用法术失败:', error);
+      throw new Error('获取法术列表失败');
+    }
+  }
+
+  /**
+   * 当获取法术详情时,自动加载绑定信息
    */
   static async enrichSpellWithBindings(spell: Spell): Promise<SpellWithFlowBindings> {
     const boundFlows = await this.getSpellBoundFlows(spell.id);
@@ -112,7 +146,7 @@ export class BindingService {
   }
 
   /**
-   * 当获取流程详情时，自动加载绑定信息
+   * 当获取流程详情时,自动加载绑定信息
    */
   static async enrichFlowWithBindings(flow: FlowDefinition): Promise<FlowWithSpellBindings> {
     const boundSpells = await this.getFlowBoundSpells(flow.id);
@@ -124,7 +158,7 @@ export class BindingService {
   }
 
   /**
-   * 更新本地缓存，添加绑定信息
+   * 更新本地缓存,添加绑定信息
    */
   private static updateLocalCacheWithBinding(spellId: string, flowId: string): void {
     // 更新法术缓存

@@ -1,0 +1,167 @@
+          {/* 流程属性(无选中节点时显示) */}
+          {!selectedNode && (
+            <div>
+              {/* ===== 流程校验状态 ===== */}
+              <div className={`mb-4 p-3 rounded-lg border ${
+                validationStatus === 'valid' 
+                  ? 'border-green-500/20 bg-green-500/5' 
+                  : 'border-red-500/20 bg-red-500/5'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {validationStatus === 'valid' ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-sm font-medium text-green-400">流程可以发布</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      <span className="text-sm font-medium text-red-400">
+                        流程无法发布({validationErrors.length} 个错误)
+                      </span>
+                    </>
+                  )}
+                </div>
+                {validationErrors.length > 0 && (
+                  <div className="text-xs text-red-300">
+                    主要问题:{validationErrors[0].message}
+                  </div>
+                )}
+              </div>
+
+              <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4">
+                流程属性
+              </h3>
+
+              {/* 流程基本信息 */}
+              <div className="border-b dark:border-border-dark light:border-border-light pb-4 mb-4">
+                <h4 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-3">
+                  流程基本信息
+                </h4>
+                
+                {/* 流程ID */}
+                <div className="mb-3">
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                    流程 ID
+                  </label>
+                  <input
+                    type="text"
+                    value={flow.id}
+                    onChange={e => {
+                      setFlow(prev => ({ ...prev, id: e.target.value }));
+                      setIdDirty(e.target.value !== flow.id);
+                      setIdErrors([]);
+                    }}
+                    className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none font-mono"
+                    placeholder="如 spell:fireball"
+                  />
+                </div>
+
+                {/* 流程名称 */}
+                <div className="mb-3">
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                    流程名称
+                  </label>
+                  <input
+                    type="text"
+                    value={flow.name}
+                    onChange={e => setFlow(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                    placeholder="输入流程名称"
+                  />
+                </div>
+
+                {/* 流程描述 */}
+                <div className="mb-3">
+                  <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                    流程描述
+                  </label>
+                  <textarea
+                    value={flow.description}
+                    onChange={e => setFlow(prev => ({ ...prev, description: e.target.value }))}
+                    rows={3}
+                    className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none"
+                    placeholder="输入流程描述"
+                  />
+                </div>
+              </div>
+
+              {/* 流程状态和发布区域 */}
+              <div className="border-b dark:border-border-dark light:border-border-light pb-4 mb-4">
+                <h4 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-3">
+                  流程状态
+                </h4>
+                
+                {/* 状态指示器 */}
+                <div className="mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${
+                      flow.status === 'draft' ? 'bg-yellow-500' : 'bg-green-500'
+                    }`} />
+                    <span className="text-sm font-medium">
+                      {flow.status === 'draft' ? '草稿状态' : '已发布'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {flow.status === 'draft' 
+                      ? '草稿可以随时编辑,发布后将锁定部分功能'
+                      : '已发布的流程可以绑定法术供使用'
+                    }
+                  </p>
+                </div>
+
+                {/* 发布/更新按钮 */}
+                <button
+                  onClick={handlePublish}
+                  className={`w-full py-2 rounded-lg font-medium transition-colors ${
+                    flow.status === 'draft'
+                      ? 'bg-primary text-white hover:bg-primary/90'
+                      : 'bg-green-500 text-white hover:bg-green-600'
+                  }`}
+                >
+                  {flow.status === 'draft' ? '发布流程' : '更新流程'}
+                </button>
+              </div>
+
+              {/* 法术绑定区域 - 根据状态显示不同内容 */}
+              <div>
+                <h4 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-3">
+                  法术绑定
+                </h4>
+                
+                {/* 草稿状态下的提示 */}
+                {flow.status === 'draft' && (
+                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="text-yellow-600 dark:text-yellow-400">
+                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                      <div>
+                        <h5 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-1">
+                          草稿状态
+                        </h5>
+                        <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                          草稿状态下不需要绑定法术。发布流程后,可以在此绑定法术供使用。
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 已发布状态下的绑定管理 */}
+                {flow.status === 'published' && (
+                  <FlowSpellBindingManager
+                    flowId={flow.id}
+                    flowName={flow.name}
+                    onBindingChange={() => {
+                      // 重新加载流程数据
+                      const updatedFlow = flowStore.getById(flow.id);
+                      if (updatedFlow) setFlow(updatedFlow);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
