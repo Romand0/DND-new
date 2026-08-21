@@ -53,6 +53,16 @@ function load(): NpcTemplate[] {
       })),
       createdAt: t.createdAt ?? Date.now(),
       updatedAt: t.updatedAt ?? Date.now(),
+      cr: t.cr,
+      size: t.size,
+      type: t.type,
+      alignment: t.alignment,
+      features: t.features,
+      senses: t.senses,
+      languages: t.languages,
+      savingThrows: t.savingThrows,
+      skills: t.skills,
+      source: t.source,
     }));
   } catch {
     return [];
