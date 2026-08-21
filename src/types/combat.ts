@@ -1,4 +1,26 @@
 // src/types/combat.ts
+
+// ===== 新增：体型枚举 =====
+/** 体型级别：0=微型, 1=小型, 2=中型, 3=大型, 4=巨型, 5=超巨型 */
+export type CreatureSize = 0 | 1 | 2 | 3 | 4 | 5;
+export const CREATURE_SIZE_LABELS: Record<CreatureSize, string> = {
+  0: '微型', 1: '小型', 2: '中型', 3: '大型', 4: '巨型', 5: '超巨型',
+};
+
+// ===== 新增：种类枚举 =====
+export type CreatureType =
+  | 'aberration' | 'beast' | 'celestial' | 'construct'
+  | 'dragon' | 'elemental' | 'fey' | 'fiend'
+  | 'giant' | 'humanoid' | 'monstrosity' | 'ooze'
+  | 'plant' | 'undead';
+
+export const CREATURE_TYPE_LABELS: Record<CreatureType, string> = {
+  aberration: '异怪', beast: '野兽', celestial: '天界生物', construct: '构装生物',
+  dragon: '龙类', elemental: '元素生物', fey: '精类', fiend: '邪魔',
+  giant: '巨人', humanoid: '类人生物', monstrosity: '怪兽', ooze: '泥怪',
+  plant: '植物', undead: '不死生物',
+};
+
 export interface Combatant {
   id: string;
   name: string;
@@ -41,6 +63,10 @@ export interface Combatant {
   attacks?: NpcAttack[];
   /** 当前可用动作数（放映模式每回合恢复，模拟模式无限） */
   actions?: number;
+  /** 体型级别（0=微型…5=超巨型），仅 NPC 使用 */
+  creatureSize?: CreatureSize;
+  /** 种类（D&D 5e 生物类型），仅 NPC 使用 */
+  creatureType?: CreatureType;
   /** 当前可用附赠动作数（放映模式每回合恢复为 1，模拟模式无限） */
   bonusActions?: number;
   /** 待消费的优劣势标记列表（发起者赋予此参战者的一次性优劣势来源，如协助/法术效果） */
@@ -65,6 +91,8 @@ export interface NpcTemplate {
   speed: number;
   ac: number;
   attacks: NpcAttack[];
+  creatureSize?: CreatureSize;
+  creatureType?: CreatureType;
   createdAt: number;
   updatedAt: number;
 }
