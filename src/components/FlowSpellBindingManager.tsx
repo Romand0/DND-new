@@ -1,15 +1,8 @@
-import React, { useState, useEffect, useSyncExternalStore } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import type { Spell } from '@/types/spell';
 import { BindingService } from '@/services/bindingService';
-import { spellStore } from '@/data/spellStore';
 import { bindingStore } from '@/data/bindingStore';
-
-function useFlowSpellBindings(flowId: string) {
-  return useSyncExternalStore(
-    (cb) => bindingStore.subscribe(cb),
-    () => bindingStore.getByFlowId(flowId),
-  );
-}
+import { spellStore } from '@/data/spellStore';
 
 interface FlowSpellBindingManagerProps {
   flowId: string;
@@ -24,27 +17,30 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
   status = 'draft',
   onBindingChange
 }) => {
-  const bindings = useFlowSpellBindings(flowId);
+  const [boundSpells, setBoundSpells] = useState<Spell[]>([]);
   const [availableSpells, setAvailableSpells] = useState<Spell[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        // 获取所有可用的法术（排除已绑定的）
-        const allSpells = spellStore.getAll();
-        const boundSpellIds = bindings.map(b => b.spell_id);
-        const unbound = allSpells.filter(spell => !boundSpellIds.includes(spell.id));
-        setAvailableSpells(unbound);
-      } catch (error) {
-        console.error('加载绑定信息失败:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const loadData = useCallback(async () => {
+    try {
+      const bound = await BindingService.getFlowBoundSpells(flowId);
+      setBoundSpells(bound);
+      const allSpells = spellStore.getAll();
+      const unbound = allSpells.filter(spell => !bound.some(b => b.id === spell.id));
+      setAvailableSpells(unbound);
+    } catch (error) {
+      console.error('加载绑定信息失败:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [flowId]);
 
-    loadData();
-  }, [flowId, bindings]);
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // 🔑 同样的订阅
+  useEffect(() => {
+    return bindingStore.subscribe(() => { loadData(); });
+  }, [loadData]);
 
   const handleBind = async (spellId: string) => {
     try {
@@ -56,25 +52,21 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
     }
   };
 
-  const handleUnbind = async (bindingId: string) => {
+  const handleUnbind = async (spellId: string) => {
     try {
-      await BindingService.unbindSpellFromFlow(bindingId);
-      onBindingChange?.();
+      const allBindings = await BindingService.getFlowBoundSpells(flowId);
+      const bindingToRemove = allBindings.find(b => b.id === spellId);
+      if (bindingToRemove) {
+        await BindingService.unbindSpellFromFlow(bindingToRemove.id);
+        onBindingChange?.();
+      }
     } catch (error) {
       console.error('解绑失败:', error);
       alert('解绑失败: ' + (error as Error).message);
     }
   };
 
-  if (loading) {
-    return <div>加载中...</div>;
-  }
-
-  // 从绑定数据中提取法术信息
-  const boundSpells = bindings.map(binding => {
-    const spell = spellStore.getById(binding.spell_id);
-    return spell;
-  }).filter(Boolean) as Spell[];
+  if (loading) return <div>加载中...</div>;
 
   return (
     <div className="binding-manager">
@@ -100,7 +92,6 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
           <h5>已绑定法术 ({boundSpells.length})</h5>
           <ul className="space-y-2">
             {boundSpells.map(spell => {
-              const binding = bindings.find(b => b.spell_id === spell.id);
               return (
                 <li key={spell.id} className="flex justify-between items-center p-2 bg-gray-100 rounded">
                   <div>
@@ -110,7 +101,7 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
                     </span>
                   </div>
                   <button
-                    onClick={() => handleUnbind(binding!.id)}
+                    onClick={() => handleUnbind(spell.id)}
                     className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
                   >
                     解绑
