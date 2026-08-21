@@ -635,6 +635,7 @@ export interface PreCastCheckReport {
   range: RangeCheckResult;          // 距离检查结果
   time: TimeCheckResult;            // 时间检查结果
   overall: CheckResult;             // 总体结果
+  autoChecks: string[];            // 自动检查代码列表
 }
 
 /** 施法开始节点配置 */
