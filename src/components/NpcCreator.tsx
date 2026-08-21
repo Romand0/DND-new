@@ -910,6 +910,8 @@ function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
   const [hp, setHp] = useState(template.maxHp);
   const [speed, setSpeed] = useState(template.speed);
   const [ac, setAc] = useState(template.ac);
+  const [creatureSize, setCreatureSize] = useState<CreatureSize | undefined>(template.creatureSize);
+  const [creatureType, setCreatureType] = useState<CreatureType | undefined>(template.creatureType);
   const [attacks, setAttacks] = useState<NpcAttack[]>(template.attacks.map(a => ({ ...a })));
 
   const modifiers: Record<AbilityKey, number> = {
@@ -986,8 +988,8 @@ function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
       speed,
       ac,
       attacks,
-      creatureSize: template.creatureSize,
-      creatureType: template.creatureType,
+      creatureSize,
+      creatureType,
     });
   };
 
@@ -1085,10 +1087,9 @@ function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
       <div>
         <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">体型</label>
         <select
-          value={template.creatureSize ?? ''}
+          value={creatureSize ?? ''}
           onChange={e => {
-            const value = e.target.value === '' ? undefined : Number(e.target.value) as CreatureSize;
-            // 这里需要更新模板，但由于是受控组件，我们通过 onSave 处理
+            setCreatureSize(e.target.value === '' ? undefined : Number(e.target.value) as CreatureSize);
           }}
           className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
         >
@@ -1103,10 +1104,9 @@ function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
       <div>
         <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">种类</label>
         <select
-          value={template.creatureType ?? ''}
+          value={creatureType ?? ''}
           onChange={e => {
-            const value = e.target.value === '' ? undefined : e.target.value as CreatureType;
-            // 这里需要更新模板，但由于是受控组件，我们通过 onSave 处理
+            setCreatureType(e.target.value === '' ? undefined : e.target.value as CreatureType);
           }}
           className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
         >
