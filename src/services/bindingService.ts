@@ -1,12 +1,13 @@
+import { bindingStore } from '@/data/bindingStore';
 import { spellStore } from '@/data/spellStore';
 import flowStore from '@/data/flowStore';
-import { bindingStore } from '@/data/bindingStore';
 import type { Spell } from '@/types/spell';
 import type { FlowDefinition, FlowNodeDef, FlowEdgeDef } from '@/types/flow';
 import type { SpellFlowBinding, BindingCreateData } from '@/types/binding';
 import type { SpellWithFlowBindings, FlowWithSpellBindings } from '@/types/binding';
 
 export class BindingService {
+<<<<<<< HEAD
   private static currentFlowId: string | null = null;
 
   /**
@@ -16,6 +17,46 @@ export class BindingService {
     this.currentFlowId = flowId;
   }
 
+=======
+  private static initialized = false;
+
+  static init(): void {
+    if (this.initialized) return;
+    this.initialized = true;
+
+    bindingStore.onBindingChange(({ type, spellId, flowId }) => {
+      const delta = type === 'bind' ? 1 : -1;
+      this.syncSpellBindingsCount(spellId, delta);
+      this.syncFlowBindingsCount(flowId, delta);
+    });
+  }
+
+  private static syncSpellBindingsCount(spellId: string, delta: number): void {
+    const spell = spellStore.getById(spellId);
+    if (!spell) return;
+    const newCount = Math.max(0, (spell.bindingsCount ?? 0) + delta);
+    spellStore.updateById(spellId, { bindingsCount: newCount });
+  }
+
+  private static syncFlowBindingsCount(flowId: string, delta: number): void {
+    const flow = flowStore.getById(flowId);
+    if (!flow) return;
+    const newCount = Math.max(0, (flow.bindingsCount ?? 0) + delta);
+    flowStore.update(flowId, { bindingsCount: newCount });
+    if (delta > 0) {
+      const bindings = bindingStore.getByFlowId(flowId);
+      if (bindings.length === 1) {
+        flowStore.update(flowId, { spellId: bindings[0].spell_id });
+      }
+    }
+    if (delta < 0) {
+      const bindings = bindingStore.getByFlowId(flowId);
+      if (bindings.length === 0) {
+        flowStore.update(flowId, { spellId: undefined });
+      }
+    }
+  }
+>>>>>>> upstream/main
   /**
    * 创建法术与流程的绑定关系
    */

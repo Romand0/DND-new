@@ -35,7 +35,16 @@ import {
   buildFlowId,
 } from '@/types/flow';
 import SpellPicker from '@/components/SpellPicker';
+<<<<<<< HEAD
 import { FlowSpellBindingManager } from '@/components/FlowSpellBindingManager';
+=======
+import SpellPickerField from '@/components/SpellPickerField';
+import { spellStore } from '@/data/spellStore';
+import { resolveAutoChecksFromSpell } from '@/types/flow';
+import { bindingStore } from '@/data/bindingStore';
+import type { Spell } from '@/types/spell';
+import { BindingService } from '@/services/bindingService';
+>>>>>>> upstream/main
 
 // ===== 增强的校验函数,提供节点级别错误 =====
 interface ValidationError {
@@ -163,8 +172,37 @@ function validateFlowWithDetails(flow: FlowDefinition): ValidationError[] {
     }
   }
 
+  // 检查流程必须绑定法术
+  if (!flow.spellId) {
+    errors.push({ type: 'global', message: '流程必须绑定法术' });
+  }
+
   return errors;
 }
+<<<<<<< HEAD
+=======
+
+// 修改后的验证逻辑：分阶段验证
+const validateForPublish = (flow: FlowDefinition) => {
+  // 只有已发布的流程才需要检查法术绑定
+  if (flow.status === 'published' && !flow.spellId) {
+    return { valid: false, error: '已发布的流程必须绑定法术' };
+  }
+
+  // 草稿只需要基本验证
+  const basicValidation = validateFlowWithDetails(flow);
+  if (basicValidation.length > 0) {
+    return { valid: false, error: `存在 ${basicValidation.length} 个基本验证错误` };
+  }
+
+  return { valid: true };
+};
+import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
+import SpellIdPicker from '@/components/SpellIdPicker';
+import NodeListPanel from '@/components/NodeListPanel';
+import { generateFlowId, validateFlowId } from '@/lib/idUtils';
+import { SpatialGrid } from '@/utils/spatialGrid';
+>>>>>>> upstream/main
 
 // ===== 节点图标解析 =====
 /** 从 icon name 解析为 React 元素,单一真相源 */
@@ -315,7 +353,15 @@ export default function FlowEditor() {
   const [draftId, setDraftId] = useState(flow.id);
   const [idErrors, setIdErrors] = useState<string[]>([]);
   const [idDirty, setIdDirty] = useState(false);  // 草稿是否偏离正式值
+<<<<<<< HEAD
   // flow.id 外部变更时同步草稿(如加载草稿、autosave 恢复)
+=======
+  const [spellPickerOpen, setSpellPickerOpen] = useState(false);
+  const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
+  const [showSpellPicker, setShowSpellPicker] = useState(false);
+  const [boundSpell, setBoundSpell] = useState<Spell | null>(null);
+  // flow.id 外部变更时同步草稿（如加载草稿、autosave 恢复）
+>>>>>>> upstream/main
   useEffect(() => {
     if (!idDirty) setDraftId(flow.id);
   }, [flow.id, idDirty]);
@@ -475,6 +521,15 @@ export default function FlowEditor() {
       const stored = flowStore.getById(flowId || flow.id);
       if (stored) {
         setFlow(stored);
+        // 设置绑定的法术
+        if (stored.spellId) {
+          const spell = spellStore.getById(stored.spellId);
+          if (spell) {
+            setBoundSpell(spell);
+          }
+        } else {
+          setBoundSpell(null);
+        }
       }
     };
     
@@ -861,6 +916,7 @@ export default function FlowEditor() {
     setConnectTrigger('on_complete');
   }, []);
 
+<<<<<<< HEAD
   // ===== 连接结束处理 =====
   const handleConnectEnd = useCallback((nodeId: string) => {
     if (!isConnecting || !connectFromId || connectFromId === nodeId) {
@@ -933,6 +989,137 @@ export default function FlowEditor() {
       } catch (error) {
         console.error('更新失败:', error);
         showToast('error', '更新失败: ' + (error as Error).message);
+=======
+  // ===== 取消连接模式 =====
+  const cancelConnecting = useCallback(() => {
+    setIsConnecting(false);
+    setConnectFromId(null);
+  }, []);
+
+  // ===== 实时校验 =====
+  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
+  const [showValidation, setShowValidation] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<'valid' | 'invalid'>('valid');
+  
+  // 实时校验（防抖500ms）
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const errors = validateFlowWithDetails(flow);
+      setValidationErrors(errors);
+      setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [flow]);
+
+  // ===== 手动验证 =====
+  const runValidation = useCallback(() => {
+    const errors = validateFlowWithDetails(flow);
+    setValidationErrors(errors);
+    setShowValidation(true);
+    setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
+  }, [flow]);
+
+  // ===== 保存草稿 =====
+  const saveDraft = useCallback(() => {
+    setSaveStatus('saving');
+    // 用 requestAnimationFrame 制造一帧延迟，让 "saving" 态先渲染
+    requestAnimationFrame(() => {
+      const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
+      // 直接写入 flowStore（单一真相源）；save 为 upsert，库中不存在的流程也会写入
+      flowStore.save(updatedFlow);
+      setDrafts(flowStore.getAll());   // 刷新下拉框数据
+      setFlow(updatedFlow);
+      setSaveStatus('saved');
+      
+      // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
+      if (flowId && flowId !== updatedFlow.id) {
+        navigate(`/flow-editor/${updatedFlow.id}`, { replace: true });
+      }
+      
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    });
+  }, [flow, flowNameInput.value, flowId, navigate]);
+
+  // ===== 法术绑定/解绑方法 =====
+  const handleBindSpell = useCallback(async (spellId: string) => {
+    if (!flow.id) return;
+
+    try {
+      await BindingService.bindSpellToFlow(spellId, flow.id);
+      const spell = spellStore.getById(spellId);
+      if (spell) {
+        // 自动回填 autoChecks 配置
+        const { autoChecks, dsl } = resolveAutoChecksFromSpell(spell);
+        
+        // 更新 flow 的 autoChecks 配置
+        setFlow(prev => {
+          const updatedFlow = { ...prev, spellId };
+          
+          // 查找 cast_start 节点并更新其 config
+          const castStartNode = updatedFlow.nodes.find(n => n.type === 'cast_start');
+          if (castStartNode && castStartNode.config) {
+            castStartNode.config = {
+              ...castStartNode.config,
+              autoChecks,
+            };
+          }
+          
+          return updatedFlow;
+        });
+        
+        setBoundSpell(spell);
+        setShowSpellPicker(false);
+        
+        // 显示提示
+        showToast('success', `已绑定法术并自动配置：${spell.name}`);
+      }
+    } catch (error) {
+      console.error('法术绑定失败:', error);
+      showToast('error', '法术绑定失败');
+    }
+  }, [flow.id, showToast]);
+
+  const handleUnbindSpell = useCallback(async () => {
+    if (!flow.id || !flow.spellId) return;
+
+    try {
+      // 获取绑定ID
+      const bindings = bindingStore.getBySpellId(flow.spellId);
+      if (bindings.length > 0) {
+        await BindingService.unbindSpellFromFlow(bindings[0].id);
+        setBoundSpell(null);
+        setFlow(prev => ({ ...prev, spellId: undefined }));
+      }
+    } catch (error) {
+      console.error('法术解绑失败:', error);
+      showToast('error', '法术解绑失败');
+    }
+  }, [flow.id, flow.spellId, showToast]);
+
+  // ===== 发布正式版 =====
+  const handlePublish = useCallback(async () => {
+    // 发布前先检查校验
+    const validation = validateForPublish(flow);
+    if (!validation.valid) {
+      setValidationErrors([{ type: 'global', message: validation.error! }]);
+      setShowValidation(true);
+      showToast('error', `无法发布：${validation.error}`);
+      return;
+    }
+
+    try {
+      // 更新流程状态为已发布
+      flowStore.update(flow.id, { ...flow, status: 'published' });
+      const published = await flowStore.publish(flow.id);
+      if (published) {
+        setFlow(prev => ({
+          ...prev,
+          status: 'published',
+          publishedVersion: published.publishedVersion,
+          publishedAt: published.publishedAt ?? Date.now(),
+        }));
+        showToast('success', `已发布 v${published.publishedVersion}`);
+>>>>>>> upstream/main
       }
     }
   }, [flow, showToast]);
@@ -1008,8 +1195,35 @@ export default function FlowEditor() {
   return (
     <div className={`h-screen flex flex-col ${isDark ? 'dark' : ''}`}>
       {/* ===== 顶部工具栏 ===== */}
+<<<<<<< HEAD
       <div className="flex items-center justify-between px-4 py-2 border-b dark:border-border-dark light:border-border-light bg-white dark:bg-gray-900">
         <div className="flex items-center gap-3">
+=======
+      <div className="flex items-center justify-between h-12 border-b dark:border-border-dark light:border-border-light flex-shrink-0 dark:bg-bg-dark-2 light:bg-white">
+        <div className="flex items-center gap-2 px-4">
+          <button onClick={() => setExitModalOpen(true)} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5">
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">退出</span>
+          </button>
+          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light" />
+          <input type="text" value={flowNameInput.text} onChange={(e) => flowNameInput.onChange(e.target.value)} onBlur={flowNameInput.onBlur} className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48" placeholder="流程名称" />
+        </div>
+        <div className="flex items-center gap-2 px-4">
+          <button 
+            onClick={handlePublish}
+            disabled={validationStatus === 'invalid'}
+            className={`
+              flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+              ${validationStatus === 'valid'
+                ? 'border-green-500 text-green-500 hover:border-green-400 hover:text-green-400 hover:bg-green-500/10'
+                : 'border-gray-400 text-gray-400 cursor-not-allowed'
+              }
+            `}
+          >
+            <CloudUpload className="w-3.5 h-3.5" />
+            <span>{flow.status === 'published' ? '更新发布' : '发布'}</span>
+          </button>
+>>>>>>> upstream/main
           <button
             onClick={handleExit}
             className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -1108,6 +1322,842 @@ export default function FlowEditor() {
                   transform: `scale(${canvasScale}) translate(${canvasTranslate.x}px, ${canvasTranslate.y}px)`,
                   transformOrigin: '0 0',
                 }}
+<<<<<<< HEAD
+=======
+                onClick={handleCanvasClick}
+                onTouchStart={handleCanvasClick}
+              />
+
+              {/* 节点渲染层（dnd-kit 拖拽） */}
+              {flow.nodes.map(node => (
+                <DraggableFlowNode
+                  key={node.id}
+                  node={node}
+                  isSelected={selectedNodeId === node.id}
+                  isConnectSource={connectFromId === node.id}
+                  isDragging={draggingNodeId === node.id}
+                  isColliding={draggingNodeId === node.id && isColliding}
+                  collisionDir={draggingNodeId === node.id ? collisionDir : null}
+                  animateMove={animateMove}
+                  canvasScale={canvasScale}          // ★ 新增
+                  onClick={() => handleNodeClick(node.id)}
+                  onStartConnecting={() => startConnecting(node.id)}
+                  onDelete={() => deleteNode(node.id)}
+                  flow={flow}
+                />
+              ))}
+
+              {/* SVG 连线层 —— 暗色模式：浅紫边框+深紫背景+红色波浪纹；亮色模式：灰色边框+白底+灰色脉冲 */}
+              <svg className="absolute inset-0 pointer-events-none" style={{ width: 3000, height: 2000, left: 0, right: 0 }}>
+                <defs>
+                  {/* 连线白色阴影滤镜：暗色模式下白色外发光，提升辨识度 */}
+                  <filter id="edge-glow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feDropShadow dx="0" dy="0" stdDeviation="3" floodColor="#ffffff" floodOpacity="0.5" />
+                  </filter>
+                  <marker id="chevron-dark" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#818cf8" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-dark-selected" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#f87171" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-light" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#9ca3af" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-light-selected" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#6366f1" strokeWidth="1.8"
+                      strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-fail-dark" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#f87171" strokeWidth="1.5"
+                      strokeDasharray="2,2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                  <marker id="chevron-fail-light" viewBox="0 0 10 10" refX="5" refY="5"
+                    markerWidth="7" markerHeight="7" orient="auto">
+                    <path d="M1,1.5 L5,5 L1,8.5" fill="none" stroke="#9ca3af" strokeWidth="1.5"
+                      strokeDasharray="2,2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </marker>
+                </defs>
+                {flow.edges.map(edge => {
+                  const path = getEdgePath(edge);
+                  if (!path) return null;
+                  const isSelected = selectedEdgeId === edge.id;
+                  return (
+                    <g key={edge.id}>
+                      {/* 底纹轨道（细半透明线） */}
+                      <path
+                        d={path}
+                        fill="none"
+                        stroke={isDark ? '#4338ca' : '#e5e7eb'}
+                        strokeWidth={isSelected ? 3 : 2}
+                        strokeLinecap="round"
+                        opacity={0.5}
+                      />
+                      {/* 波浪箭头层 —— 用 marker-mid 沿采样折线放置 >>>>> 花纹 */}
+                      {(() => {
+                        const endpoints = getEdgeEndpoints(edge, flow.nodes);
+                        if (!endpoints) return null;
+                        const isFailEdge = edge.trigger === 'on_failure' || edge.trigger === 'on_false';
+                        const chevronMarkerId = isFailEdge
+                          ? (isDark ? 'chevron-fail-dark' : 'chevron-fail-light')
+                          : isSelected
+                            ? (isDark ? 'chevron-dark-selected' : 'chevron-light-selected')
+                            : (isDark ? 'chevron-dark' : 'chevron-light');
+                        const polyline = sampleEdgeToPolyline(endpoints.from, endpoints.to, 16);
+                        return (
+                          <path
+                            d={polyline}
+                            fill="none"
+                            stroke="transparent"
+                            strokeWidth={2}
+                            markerMid={`url(#${chevronMarkerId})`}
+                          />
+                        );
+                      })()}
+                      {/* 流向箭头 */}
+                      <polygon points="0,-5 10,0 0,5" fill={isDark ? '#312e81' : '#ffffff'} stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      {/* 连线中部标签：圆角边框样式块（暗色适配：深紫底白字 / 亮白底黑字） */}
+                      {edge.label && (
+                        <>
+                          <rect
+                            x={getLabelPos(edge, flow.nodes).x - 30}
+                            y={getLabelPos(edge, flow.nodes).y - 11}
+                            width="60"
+                            height="22"
+                            rx="6"
+                            fill={isDark ? '#4338ca' : '#ffffff'}
+                            stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#d1d5db')}
+                            strokeWidth="1"
+                            className="select-none pointer-events-auto cursor-pointer transition-colors"
+                            onClick={() => setSelectedEdgeId(edge.id)}
+                          />
+                          <text
+                            x={getLabelPos(edge, flow.nodes).x}
+                            y={getLabelPos(edge, flow.nodes).y}
+                            fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#ffffff' : '#1a1a2e')}
+                            fontSize="10"
+                            textAnchor="middle"
+                            dominantBaseline="central"
+                            fontWeight="600"
+                            className="select-none pointer-events-auto cursor-pointer"
+                            onClick={() => setSelectedEdgeId(edge.id)}
+                          >{edge.label}</text>
+                        </>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+            </div>
+            </div>
+          </div>
+
+        {/* 验证结果浮层 */}
+        {showValidation && (
+          <div className="absolute bottom-4 left-4 right-4 max-w-lg mx-auto z-30">
+            <div className="rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white shadow-lg p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {validationErrors.length === 0 ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-sm font-medium text-green-400">验证通过</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      <span className="text-sm font-medium text-red-400">发现 {validationErrors.length} 个问题</span>
+                    </>
+                  )}
+                </div>
+                <button onClick={() => setShowValidation(false)} className="text-gray-400 hover:text-gray-200">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              {validationErrors.length > 0 && (
+                <ul className="space-y-1 max-h-40 overflow-y-auto">
+                  {validationErrors.map((err, i) => (
+                    <li key={i} className="text-xs text-red-400">{err.message}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
+
+      </div>
+
+      {/* ===== 右侧：属性面板 ===== */}
+      <div
+        className={`${
+          showRightPanel ? 'translate-x-0' : 'translate-x-full'
+        } lg:translate-x-0 absolute lg:relative right-0 z-30 w-72 h-full flex-shrink-0 border-l dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white overflow-y-auto transition-transform duration-200 ease-out`}
+      >
+      <div className="p-4">
+        {/* ===== 实时校验结果显示 ===== */}
+        <div className={`mb-4 p-3 rounded-lg border ${
+          validationStatus === 'valid' 
+            ? 'border-green-500/20 bg-green-500/5' 
+            : 'border-red-500/20 bg-red-500/5'
+        }`}>
+          <div className="flex items-center gap-2 mb-2">
+            {validationStatus === 'valid' ? (
+              <>
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <span className="text-sm font-medium text-green-400">可以发布</span>
+              </>
+            ) : (
+              <>
+                <AlertCircle className="w-4 h-4 text-red-400" />
+                <span className="text-sm font-medium text-red-400">
+                  无法发布（{validationErrors.length} 个错误）
+                </span>
+              </>
+            )}
+            <button 
+              onClick={() => setShowValidation(!showValidation)}
+              className="ml-auto text-xs text-gray-400 hover:text-gray-200"
+            >
+              {showValidation ? '隐藏' : '显示'}详情
+            </button>
+          </div>
+          
+          {showValidation && validationErrors.length > 0 && (
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {validationErrors.map((error, index) => {
+                // 根据错误类型选择不同的图标和颜色
+                let icon, borderColor, bgColor;
+                if (error.type === 'global') {
+                  icon = <AlertCircle className="w-3 h-3 text-red-400" />;
+                  borderColor = 'border-red-400';
+                  bgColor = 'bg-red-500/5';
+                } else if (error.type === 'node') {
+                  icon = <Zap className="w-3 h-3 text-orange-400" />;
+                  borderColor = 'border-orange-400';
+                  bgColor = 'bg-orange-500/5';
+                } else {
+                  icon = <GitBranch className="w-3 h-3 text-yellow-400" />;
+                  borderColor = 'border-yellow-400';
+                  bgColor = 'bg-yellow-500/5';
+                }
+
+                return (
+                  <div key={index} className={`text-xs p-2 rounded border-l-2 ${borderColor} ${bgColor}`}>
+                    <div className="flex items-start gap-2">
+                      {icon}
+                      <div className="flex-1">
+                        <span className="text-red-300">{error.message}</span>
+                        
+                        {/* 显示节点/边ID */}
+                        {error.id && (
+                          <div className="mt-1 ml-2 p-1 bg-gray-800/50 rounded text-xs font-mono">
+                            ID: <span className="text-blue-300">{error.id}</span>
+                          </div>
+                        )}
+                        
+                        {/* 显示具体字段 */}
+                        {error.field && (
+                          <div className="mt-1 ml-2 p-1 bg-gray-800/50 rounded text-xs font-mono">
+                            字段: <span className="text-green-300">{error.field}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between mb-4 lg:hidden">
+          <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">属性</h3>
+          <button
+            onClick={() => setShowRightPanel(false)}
+            className="p-1 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+          {/* 流程属性（无选中节点时显示） */}
+          {!selectedNode && (
+            <div>
+              {/* ===== 流程校验状态 ===== */}
+              <div className={`mb-4 p-3 rounded-lg border ${
+                validationStatus === 'valid' 
+                  ? 'border-green-500/20 bg-green-500/5' 
+                  : 'border-red-500/20 bg-red-500/5'
+              }`}>
+                <div className="flex items-center gap-2 mb-2">
+                  {validationStatus === 'valid' ? (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <span className="text-sm font-medium text-green-400">流程可以发布</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertCircle className="w-4 h-4 text-red-400" />
+                      <span className="text-sm font-medium text-red-400">
+                        流程无法发布（{validationErrors.length} 个错误）
+                      </span>
+                    </>
+                  )}
+                </div>
+                {validationErrors.length > 0 && (
+                  <div className="text-xs text-red-300">
+                    主要问题：{validationErrors[0].message}
+                  </div>
+                )}
+              </div>
+
+              <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4">
+                流程属性
+              </h3>
+
+              {/* 流程 ID —— 草稿编辑 + 重命名按钮 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  流程 ID
+                </label>
+                <div className="flex items-center gap-1">
+                  {/* 输入框：绑定草稿，自由编辑 */}
+                  <input
+                    type="text"
+                    value={draftId}
+                    onChange={e => {
+                      setDraftId(e.target.value);
+                      setIdDirty(e.target.value !== flow.id);
+                      setIdErrors([]);  // 编辑中清空错误
+                    }}
+                    className="flex-1 min-w-0 px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none font-mono"
+                    placeholder="如 spell:fireball"
+                  />
+                  {/* 从法术库选取按钮 */}
+                  <button
+                    type="button"
+                    onClick={() => setSpellPickerOpen(true)}
+                    className="shrink-0 p-1.5 rounded border dark:border-border-dark light:border-border-light hover:bg-primary/10 hover:border-primary hover:text-primary transition-colors"
+                    title="从法术库选取"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                  </button>
+                  {/* 重命名按钮：仅此触发校验 + 写入 */}
+                  <button
+                    type="button"
+                    disabled={!idDirty}
+                    onClick={() => {
+                      const allIds = flowStore.getAll().map(f => f.id);
+                      const errors = validateFlowId(draftId, allIds, flow.id);
+                      if (errors.length > 0) {
+                        setIdErrors(errors);
+                        return;
+                      }
+                      if (draftId === flow.id) {
+                        setIdDirty(false);
+                        setIdErrors([]);
+                        return;
+                      }
+                      // 合法 → 写入
+                      const result = flowStore.renameId(flow.id, draftId);
+                      if (result) {
+                        setFlow(result);
+                        setIdDirty(false);
+                        setIdErrors([]);
+                        // 同步路由
+                        navigate(`/flow-editor/${draftId}`, { replace: true });
+                      } else {
+                        setIdErrors(['重命名失败：源流程未在库中找到或目标 ID 已被占用']);
+                      }
+                    }}
+                    className={`shrink-0 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
+                      idDirty
+                        ? 'bg-primary text-white hover:bg-primary/90'
+                        : 'dark:text-text-dark-muted light:text-text-light-muted opacity-40 cursor-not-allowed'
+                    }`}
+                    title={idDirty ? '校验并重命名' : '未修改'}
+                  >
+                    重命名
+                  </button>
+                </div>
+                {/* 错误提示 */}
+                {idErrors.length > 0 && (
+                  <ul className="mt-1 space-y-0.5">
+                    {idErrors.map((err, i) => (
+                      <li key={i} className="text-[10px] text-red-400 flex items-center gap-1">
+                        <AlertCircle className="w-2.5 h-2.5 shrink-0" />
+                        {err}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {/* 脏标记提示 */}
+                {idDirty && idErrors.length === 0 && (
+                  <p className="text-[10px] mt-1 text-amber-400">
+                    已修改，点击「重命名」保存
+                  </p>
+                )}
+                {/* 法术前缀提示 */}
+                <p className="text-[10px] mt-1 dark:text-text-dark-muted light:text-text-light-muted">
+                  法术绑定流程建议以 <code className="font-mono">spell:</code> 为前缀
+                </p>
+              </div>
+
+
+
+              {/* 流程描述 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  描述
+                </label>
+                <textarea
+                  value={flow.description || ''}
+                  onChange={e => setFlow(prev => ({ ...prev, description: e.target.value, updatedAt: Date.now() }))}
+                  rows={3}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-y"
+                />
+              </div>
+
+              {/* 标签 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  标签
+                </label>
+                <input
+                  type="text"
+                  value={(flow.tags || []).join(', ')}
+                  onChange={e => setFlow(prev => ({
+                    ...prev,
+                    tags: e.target.value.split(/,\s*/).filter(Boolean),
+                    updatedAt: Date.now(),
+                  }))}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                  placeholder="逗号分隔，如 法术, 火焰"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* 节点属性 */}
+          {selectedNode ? (
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <span
+                  className="w-6 h-6 rounded flex items-center justify-center text-white"
+                  style={{ backgroundColor: NODE_TYPE_REGISTRY.find(m => m.type === selectedNode.type)?.color || '#6b7280' }}
+                >
+                  {resolveNodeIcon(NODE_TYPE_REGISTRY.find(m => m.type === selectedNode.type)?.icon)}
+                </span>
+                <div>
+                  <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">
+                    {selectedNode.label}
+                  </h3>
+                  <p className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                    {selectedNode.type}
+                  </p>
+                </div>
+              </div>
+
+              {/* 节点 ID（只读） */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  节点 ID
+                </label>
+                <input
+                  type="text"
+                  value={selectedNode.id}
+                  readOnly
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light opacity-60"
+                />
+              </div>
+
+              {/* 显示名称 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  显示名称
+                </label>
+                <input
+                  type="text"
+                  value={nodeLabelInput.text}
+                  onChange={(e) => {
+                    nodeLabelInput.onChange(e.target.value);
+                    setFlow(prev => ({
+                      ...prev,
+                      nodes: prev.nodes.map(n =>
+                        n.id === selectedNode.id ? { ...n, label: e.target.value } : n
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    nodeLabelInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        nodes: prev.nodes.map(n =>
+                          n.id === selectedNode.id ? { ...n, label: trimmed } : n
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                />
+              </div>
+
+              {/* 配置项 —— Schema 驱动 */}
+              {(() => {
+                const fields = NODE_CONFIG_SCHEMA[selectedNode.type] ?? [];
+                return (
+                  <div className="mb-3">
+                    <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-2">
+                      配置项
+                    </label>
+
+                    {/* Schema 定义的字段：中文标签 + 专用控件 */}
+                    {fields.length > 0 ? (
+                      <div className="space-y-3">
+                        {fields.map(field => (
+                          <div key={field.key}>
+                            <div className="flex items-center gap-1 mb-1">
+                              <span className="text-xs font-medium dark:text-text-dark light:text-text-light">
+                                {field.label}
+                              </span>
+                              {field.required && <span className="text-[10px] text-red-400">*</span>}
+                            </div>
+                            <ConfigFieldRenderer
+                              schema={field}
+                              value={selectedNode.config?.[field.key]}
+                              onChange={v => updateNodeConfig(selectedNode.id, field.key, v)}
+                              isDark={isDark}
+                              parentValue={selectedNode.config}
+                            />
+                            {/* DSL 值提示：底部小字显示实际存储值 */}
+                            <div className="text-[10px] font-mono mt-0.5 dark:text-text-dark-muted light:text-text-light-muted">
+                              {field.key} = {String(selectedNode.config?.[field.key] ?? field.defaultValue ?? '')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs italic dark:text-text-dark-muted light:text-text-light-muted">
+                        该节点无可配置项
+                      </p>
+                    )}
+
+                    {/* Schema 之外的自定义额外字段（保留灵活性） */}
+                    {(() => {
+                      const schemaKeys = new Set(fields.map(f => f.key));
+                      const extra = Object.entries(selectedNode.config || {}).filter(([k]) => !schemaKeys.has(k));
+                      if (extra.length === 0) return null;
+                      return (
+                        <div className="mt-3 pt-3 border-t dark:border-border-dark light:border-border-light">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">自定义字段</span>
+                            <button
+                              onClick={() => {
+                                const key = prompt('请输入配置项名称:');
+                                if (key) updateNodeConfig(selectedNode.id, key, '');
+                              }}
+                              className="text-xs text-primary hover:underline"
+                            >+ 添加</button>
+                          </div>
+                          <div className="space-y-2">
+                            {extra.map(([key, value]) => (
+                              <ExtraConfigField
+                                key={key}
+                                label={key}
+                                value={String(value)}
+                                onValueChange={(v) => updateNodeConfig(selectedNode.id, key, v)}
+                                onRemove={() => {
+                                  setFlow(prev => ({
+                                    ...prev,
+                                    nodes: prev.nodes.map(n =>
+                                      n.id === selectedNode.id
+                                        ? { ...n, config: Object.fromEntries(Object.entries(n.config || {}).filter(([k]) => k !== key)) }
+                                        : n
+                                    ),
+                                    updatedAt: Date.now(),
+                                  }));
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                );
+              })()}
+
+              {/* 备注 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  备注
+                </label>
+                <textarea
+                  value={nodeNotesInput.text}
+                  onChange={(e) => {
+                    nodeNotesInput.onChange(e.target.value);
+                    setFlow(prev => ({
+                      ...prev,
+                      nodes: prev.nodes.map(n =>
+                        n.id === selectedNode.id ? { ...n, notes: e.target.value } : n
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    nodeNotesInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        nodes: prev.nodes.map(n =>
+                          n.id === selectedNode.id ? { ...n, notes: trimmed } : n
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
+                  }}
+                  rows={3}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none"
+                  placeholder="添加备注..."
+                />
+              </div>
+
+              {/* 出边列表 */}
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-2">
+                  出边连接
+                </label>
+                <div className="space-y-1">
+                  {flow.edges.filter(e => e.from === selectedNode.id).map(edge => {
+                    const toNode = flow.nodes.find(n => n.id === edge.to);
+                    return (
+                      <div
+                        key={edge.id}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${
+                          selectedEdgeId === edge.id ? 'bg-primary/10' : 'hover:bg-white/5'
+                        }`}
+                        onClick={() => setSelectedEdgeId(edge.id)}
+                      >
+                        <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px]">
+                          {edge.label || edge.trigger}
+                        </span>
+                        <span className="dark:text-text-dark light:text-text-light truncate">
+                          → {toNode?.label || edge.to}
+                        </span>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteEdge(edge.id);
+                          }}
+                          className="ml-auto p-0.5 rounded hover:bg-white/10 text-red-400"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    );
+                  })}
+                  {flow.edges.filter(e => e.from === selectedNode.id).length === 0 && (
+                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
+                      暂无出边
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* 入边列表 */}
+              <div>
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-2">
+                  入边连接
+                </label>
+                <div className="space-y-1">
+                  {flow.edges.filter(e => e.to === selectedNode.id).map(edge => {
+                    const fromNode = flow.nodes.find(n => n.id === edge.from);
+                    return (
+                      <div
+                        key={edge.id}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs cursor-pointer ${
+                          selectedEdgeId === edge.id ? 'bg-primary/10' : 'hover:bg-white/5'
+                        }`}
+                        onClick={() => setSelectedEdgeId(edge.id)}
+                      >
+                        <span className="dark:text-text-dark light:text-text-light truncate">
+                          {fromNode?.label || edge.from} →
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-white/5 text-[10px]">
+                          {edge.label || edge.trigger}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {flow.edges.filter(e => e.to === selectedNode.id).length === 0 && (
+                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted italic">
+                      暂无入边
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : selectedEdge ? (
+            /* 边属性 */
+            <div>
+              <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4">
+                连线属性
+              </h3>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  边 ID
+                </label>
+                <input
+                  type="text"
+                  value={selectedEdge.id}
+                  readOnly
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light opacity-60"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  触发时机
+                </label>
+                <select
+                  value={selectedEdge.trigger}
+                  onChange={(e) => {
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id
+                          ? { ...ed, trigger: e.target.value as any, label: triggerToLabel(e.target.value) }
+                          : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                >
+                  <option value="on_complete">on_complete（完成）</option>
+                  <option value="on_success">on_success（成功）</option>
+                  <option value="on_failure">on_failure（失败）</option>
+                  <option value="on_partial">on_partial（部分）</option>
+                  <option value="on_true">on_true（是）</option>
+                  <option value="on_false">on_false（否）</option>
+                </select>
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  显示标签
+                </label>
+                <input
+                  type="text"
+                  value={edgeLabelInput.text}
+                  onChange={(e) => {
+                    edgeLabelInput.onChange(e.target.value);
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id ? { ...ed, label: e.target.value } : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    edgeLabelInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, label: trimmed } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  守卫条件（可选）
+                </label>
+                <input
+                  type="text"
+                  value={edgeConditionInput.text}
+                  onChange={(e) => {
+                    edgeConditionInput.onChange(e.target.value);
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id ? { ...ed, condition: e.target.value || undefined } : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    edgeConditionInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, condition: trimmed || undefined } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                  placeholder="如：target.currentHp > 0"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  数据映射（可选）
+                </label>
+                <textarea
+                  value={edgeDataMapInput.text}
+                  onChange={(e) => {
+                    edgeDataMapInput.onChange(e.target.value);
+                    try {
+                      const map = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, dataMap: map } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    } catch {
+                      // JSON 解析错误时不更新
+                    }
+                  }}
+                  onBlur={edgeDataMapInput.onBlur}
+                  rows={4}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none font-mono"
+                  placeholder='{"failed_targets": "input_targets"}'
+                />
+              </div>
+
+              <button
+                onClick={() => deleteEdge(selectedEdge.id)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-400/10 transition-colors"
+>>>>>>> upstream/main
               >
                 {/* 网格背景 */}
                 <div className="absolute inset-0 opacity-5">
@@ -1195,6 +2245,7 @@ export default function FlowEditor() {
             </div>
           </div>
 
+<<<<<<< HEAD
           <div className="p-4 overflow-y-auto h-[calc(100vh-120px)]">
             {/* 节点配置 */}
             {selectedNodeId && (
@@ -1252,6 +2303,48 @@ export default function FlowEditor() {
                       <option value="on_failure">失败</option>
                       <option value="on_partial">部分</option>
                     </select>
+=======
+              {/* ===== 法术绑定 ===== */}
+              <div className="mb-4">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1.5">
+                  绑定法术
+                </label>
+                <SpellPickerField
+                  value={flow.spellId || ''}
+                  onChange={(spellId) => {
+                    if (spellId) {
+                      const spell = spellStore.getById(spellId);
+                      if (spell) {
+                        setBoundSpell(spell);
+                        setFlow(prev => ({ ...prev, spellId }));
+                      }
+                    } else {
+                      setBoundSpell(null);
+                      setFlow(prev => ({ ...prev, spellId: undefined }));
+                    }
+                  }}
+                  placeholder="选择要施放的法术"
+                  isDark={isDark}
+                />
+                {boundSpell && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    已选择：{boundSpell.name} (Lv.{boundSpell.level} {boundSpell.school})
+                  </div>
+                )}
+              </div>
+
+              {/* ===== 增强的流程统计 ===== */}
+              <div className="mt-6 space-y-3">
+                <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
+                  流程统计
+                </h4>
+                
+                {/* 基础统计信息 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
+                    <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{flow.nodes.length}</div>
+                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">节点</div>
+>>>>>>> upstream/main
                   </div>
 
                   <div>
@@ -1565,6 +2658,63 @@ export default function FlowEditor() {
         </div>
       )}
 
+<<<<<<< HEAD
+=======
+      {/* ===== 法术选择器弹窗 ===== */}
+      {spellPickerOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm border-2 border-dashed border-pink-500">
+          <SpellPicker
+            isOpen={spellPickerOpen}
+            onClose={() => setSpellPickerOpen(false)}
+            onSelect={(spell) => {
+              setDraftId(spell.id);
+              setSpellPickerOpen(false);
+              setIdDirty(true);
+              setIdErrors([]);
+            }}
+            selectedSpellIds={[]}
+          />
+        </div>
+      )}
+
+      {/* ===== 法术绑定弹窗 ===== */}
+      {showSpellPicker && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="rounded-xl p-6 max-w-2xl w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium dark:text-text-dark light:text-text-light">选择法术</h3>
+              <button onClick={() => setShowSpellPicker(false)} className="p-1 rounded hover:bg-white/10">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {spellStore.getAll().map(spell => (
+                <div
+                  key={spell.id}
+                  className="p-3 rounded-lg border dark:border-border-dark light:border-border-light hover:bg-primary/5 cursor-pointer transition-colors"
+                  onClick={() => handleBindSpell(spell.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Zap className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium dark:text-text-dark light:text-text-light truncate">
+                        {spell.name}
+                      </div>
+                      <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                        Lv.{spell.level} {spell.school}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+>>>>>>> upstream/main
       {/* ===== 发布提示 toast ===== */}
       {toast && (
         <div className={`fixed top-16 right-4 z-[70] px-4 py-2 rounded-lg text-sm font-medium shadow-lg flex items-center gap-2 ${toast.type === 'success' ? 'bg-green-500/90 text-white' : 'bg-red-500/90 text-white'}`}>
@@ -1589,6 +2739,7 @@ interface DraggableFlowNodeProps {
   onClick: () => void;
   onStartConnecting: () => void;
   onDelete: () => void;
+  flow: FlowDefinition;
 }
 
 function DraggableFlowNode({
@@ -1603,6 +2754,7 @@ function DraggableFlowNode({
   onClick,
   onStartConnecting,
   onDelete,
+  flow,
 }: DraggableFlowNodeProps) {
   const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
   const { attributes, listeners, setNodeRef, transform, isDragging: dndDragging } = useDraggable({
@@ -1690,5 +2842,133 @@ function DraggableFlowNode({
               {node.type}
             </div>
           </div>
+<<<<<<< HEAD
           {/* 操作按钮:阻止事件冒泡到拖拽层 */}
           <div className="flex items-center gap-0.5
+=======
+          {/* 操作按钮：阻止事件冒泡到拖拽层 */}
+          <div className="flex items-center gap-0.5 sm:gap-1">
+            <button
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStartConnecting();
+              }}
+              className="p-1 sm:p-1.5 rounded hover:bg-white/10 text-primary"
+              title="连接"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+            <button
+              onPointerDown={(e) => {
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1 sm:p-1.5 rounded hover:bg-white/10 text-red-400"
+              title="删除"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* 节点配置预览 */}
+        {node.config && Object.keys(node.config).length > 0 && (
+          <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5">
+            {Object.entries(node.config).map(([k, v]) => (
+              <div key={k} className="truncate">
+                <span className="font-medium">{k}:</span> {String(v)}
+              </div>
+            ))}
+            
+            {/* 如果是 cast_start 节点且绑定了法术，显示 DSL */}
+            {node.type === 'cast_start' && flow.spellId && (
+              <div className="mt-1 pt-1 border-t dark:border-border-dark light:border-border-light text-[8px] font-mono bg-gray-100/30 dark:bg-gray-800/30 rounded px-1">
+                autoChecks={JSON.stringify(node.config?.autoChecks || {})}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===== 左侧栏可拖拽节点类型条目 =====
+interface PaletteDragItemProps {
+  meta: NodeTypeMeta;
+}
+
+function PaletteDragItem({ meta }: PaletteDragItemProps) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `palette-${meta.type}`,
+    data: { fromPalette: true, typeMeta: meta },
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`node-card flex-shrink-0 inline-flex flex-row items-center gap-2 px-3 py-2.5 rounded-lg text-xs text-left transition-all duration-200
+        hover:bg-primary/10 hover:border-primary hover:shadow-md hover:scale-105
+        border border-transparent dark:border-transparent light:border-transparent
+        bg-white/8 dark:bg-white/8 light:bg-gray-100/60
+        active:scale-[0.95] active:shadow-inner
+        ${isDragging ? 'opacity-50 scale-95 shadow-lg border-primary/30' : ''}
+        min-w-[100px] max-w-[130px] h-[44px] w-auto`}
+      title={meta.description}
+      style={{ touchAction: 'none' }}
+    >
+      <span
+        className="w-4 h-4 rounded-full flex-shrink-0 mb-1"
+        style={{ backgroundColor: meta.color }}
+      />
+      <span className="truncate font-medium text-xs flex-1 min-w-0">{meta.label}</span>
+    </button>
+  );
+}
+
+// ===== 自定义额外配置字段输入（受控输入走 useTextInput） =====
+interface ExtraConfigFieldProps {
+  label: string;
+  value: string;
+  onValueChange: (v: string) => void;
+  onRemove: () => void;
+}
+
+function ExtraConfigField({ label, value, onValueChange, onRemove }: ExtraConfigFieldProps) {
+  const input = useTextInput(value);
+  return (
+    <div className="flex items-start gap-2">
+      <div className="flex-1">
+        <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mb-0.5">{label}</div>
+        <input
+          type="text"
+          value={input.text}
+          onChange={(e) => {
+            input.onChange(e.target.value);
+            onValueChange(e.target.value);
+          }}
+          onBlur={(e) => {
+            input.onBlur();
+            const trimmed = e.target.value.trim();
+            if (trimmed !== e.target.value) {
+              onValueChange(trimmed);
+            }
+          }}
+          className="w-full px-2 py-1 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+        />
+      </div>
+      <button onClick={onRemove} className="p-1 rounded hover:bg-white/10 text-red-400 mt-4">
+        <Trash2 className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+>>>>>>> upstream/main

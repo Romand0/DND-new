@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Plus, Save, Keyboard, Users, User, ArrowLeft, Edit3, Check, Pencil } from 'lucide-react';
-import type { NpcTemplate, NpcAttack, Combatant } from '@/types/combat';
+import type { NpcTemplate, NpcAttack, Combatant, CreatureSize, CreatureType } from '@/types/combat';
+import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import { rollDice } from '@/data/diceService';
 
@@ -31,6 +32,8 @@ interface NpcEditState {
   initiative: number;
   templateId?: string;
   childId?: string;
+  creatureSize?: number;
+  creatureType?: string;
 }
 
 function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEditState {
@@ -54,6 +57,8 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
     initiative: d20 + dexMod,
     templateId: template.templateId,
     childId: `${template.templateId}-${crypto.randomUUID().slice(0, 8)}`,
+        creatureSize: template.creatureSize as CreatureSize,
+      creatureType: template.creatureType as CreatureType,
   };
 }
 
@@ -78,6 +83,8 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     intelligence: parseInt(state.abilities.intelligence, 10) || 10,
     wisdom: parseInt(state.abilities.wisdom, 10) || 10,
     charisma: parseInt(state.abilities.charisma, 10) || 10,
+    creatureSize: state.creatureSize as CreatureSize,
+    creatureType: state.creatureType as CreatureType,
   };
 }
 
@@ -290,6 +297,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
                         <div className="font-medium dark:text-text-dark light:text-text-light truncate">{t.name}</div>
                         <div className="text-xs opacity-60 dark:text-text-dark-muted light:text-text-light-muted">
                           AC {t.ac} | HP {t.maxHp} | 速度 {t.speed}尺
+                          {t.creatureSize !== undefined && ` | ${CREATURE_SIZE_LABELS[t.creatureSize]}${t.creatureType !== undefined ? ` · ${CREATURE_TYPE_LABELS[t.creatureType]}` : ''}`}
                         </div>
                       </div>
                       <button
@@ -572,6 +580,8 @@ function NpcEditor(props: NpcEditorProps) {
         ...abilities,
         maxHp: state.hp, speed: state.speed, ac: state.ac,
         attacks: state.attacks,
+      creatureSize: state.creatureSize as CreatureSize,
+      creatureType: state.creatureType as CreatureType,
       });
     }
     onSave();
@@ -655,6 +665,42 @@ function NpcEditor(props: NpcEditorProps) {
             className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
           />
         </div>
+      </div>
+
+      {/* 体型 */}
+      <div>
+        <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">体型</label>
+        <select
+          value={state.creatureSize ?? ''}
+          onChange={e => setState(prev => prev ? {
+            ...prev,
+            creatureSize: e.target.value === '' ? undefined : Number(e.target.value) as CreatureSize
+          } : null)}
+          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+        >
+          <option value="">（未设置）</option>
+          {([0,1,2,3,4,5] as any[]).map(s => (
+            <option key={s} value={s}>{CREATURE_SIZE_LABELS[s]}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* 种类 */}
+      <div>
+        <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">种类</label>
+        <select
+          value={state.creatureType ?? ''}
+          onChange={e => setState(prev => prev ? {
+            ...prev,
+            creatureType: e.target.value === '' ? undefined : e.target.value as CreatureType
+          } : null)}
+          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+        >
+          <option value="">（未设置）</option>
+          {(Object.keys(CREATURE_TYPE_LABELS) as any[]).map(t => (
+            <option key={t} value={t}>{CREATURE_TYPE_LABELS[t]}</option>
+          ))}
+        </select>
       </div>
 
       <div>
@@ -864,6 +910,8 @@ function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
   const [hp, setHp] = useState(template.maxHp);
   const [speed, setSpeed] = useState(template.speed);
   const [ac, setAc] = useState(template.ac);
+  const [creatureSize, setCreatureSize] = useState<CreatureSize | undefined>(template.creatureSize);
+  const [creatureType, setCreatureType] = useState<CreatureType | undefined>(template.creatureType);
   const [attacks, setAttacks] = useState<NpcAttack[]>(template.attacks.map(a => ({ ...a })));
 
   const modifiers: Record<AbilityKey, number> = {
@@ -940,6 +988,8 @@ function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
       speed,
       ac,
       attacks,
+      creatureSize,
+      creatureType,
     });
   };
 
@@ -1031,6 +1081,40 @@ function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
             className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
           />
         </div>
+      </div>
+
+      {/* 体型 */}
+      <div>
+        <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">体型</label>
+        <select
+          value={creatureSize ?? ''}
+          onChange={e => {
+            setCreatureSize(e.target.value === '' ? undefined : Number(e.target.value) as CreatureSize);
+          }}
+          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+        >
+          <option value="">（未设置）</option>
+          {([0,1,2,3,4,5] as any[]).map(s => (
+            <option key={s} value={s}>{CREATURE_SIZE_LABELS[s]}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* 种类 */}
+      <div>
+        <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">种类</label>
+        <select
+          value={creatureType ?? ''}
+          onChange={e => {
+            setCreatureType(e.target.value === '' ? undefined : e.target.value as CreatureType);
+          }}
+          className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+        >
+          <option value="">（未设置）</option>
+          {(Object.keys(CREATURE_TYPE_LABELS) as any[]).map(t => (
+            <option key={t} value={t}>{CREATURE_TYPE_LABELS[t]}</option>
+          ))}
+        </select>
       </div>
 
       <div>

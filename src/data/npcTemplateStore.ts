@@ -1,4 +1,4 @@
-import type { NpcTemplate } from '@/types/combat';
+import type { NpcTemplate, CreatureSize, CreatureType } from '@/types/combat';
 
 const STORAGE_KEY = 'dnd-npc-templates';
 type Listener = () => void;
@@ -51,6 +51,8 @@ function load(): NpcTemplate[] {
         maxRange: a.maxRange,
         twoHandedDamage: a.twoHandedDamage,
       })),
+      creatureSize: t.creatureSize as CreatureSize | undefined,
+      creatureType: t.creatureType as CreatureType | undefined,
       createdAt: t.createdAt ?? Date.now(),
       updatedAt: t.updatedAt ?? Date.now(),
       cr: t.cr,

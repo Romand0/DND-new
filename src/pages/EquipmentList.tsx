@@ -8,14 +8,26 @@ import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, deleteEquipments } from '@/lib/api';
 
-const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+const MAGIC_CATEGORIES = ['魔法物品', '非魔法物品'];
+const TRADE_CATEGORIES = ['冒险物品', '贵重物品'];
+
+const SUBCATEGORY_MAP: Record<string, string[]> = {
+  '武器': ['军用近战', '军用远程', '简易近战', '简易远程'],
+  '护甲': ['轻甲', '中甲', '重甲', '盾牌'],
+  '工具': ['工匠工具', '赌具', '乐器'],
+  '法器': ['奥术法器', '德鲁伊法器', '圣徽', '吟游诗人法器'],
+};
 
 export default function EquipmentList() {
   const navigate = useNavigate();
   const { isDM } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('全部');
+  const [funcFilter, setFuncFilter] = useState('全部');
+  const [subFilter, setSubFilter] = useState<string[]>([]);
+  const [magicFilter, setMagicFilter] = useState<string[]>([]);
+  const [tradeFilter, setTradeFilter] = useState<string[]>([]);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | undefined>(undefined);
   const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
@@ -54,15 +66,28 @@ export default function EquipmentList() {
     return counts;
   }, [equipments]);
 
+  const pill = (active: boolean) => 
+    `px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
+      active 
+        ? 'bg-primary text-white' 
+        : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+    }`;
+
+  const toggleTag = (list: string[], value: string): string[] =>
+  list.includes(value) ? list.filter(v => v !== value) : [...list, value];
+
   const filteredEquipments = useMemo(() => {
     return equipments.filter((item) => {
-      const matchesCategory = selectedCategory === '全部' || item.category === selectedCategory;
-      const matchesSearch =
-        !searchQuery ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+      const mc = item.magicCategory ?? '非魔法物品';
+      const tc = item.tradeCategory ?? '冒险物品';
+      const matchFunc = funcFilter === '全部' || item.category === funcFilter;
+      const matchSub = subFilter.length === 0 || subFilter.some(s => item.subtype?.includes(s));
+      const matchMagic = magicFilter.length === 0 || magicFilter.includes(mc);
+      const matchTrade = tradeFilter.length === 0 || tradeFilter.includes(tc);
+      const matchSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchFunc && matchSub && matchMagic && matchTrade && matchSearch;
     });
-  }, [equipments, selectedCategory, searchQuery]);
+  }, [equipments, funcFilter, subFilter, magicFilter, tradeFilter, searchQuery]);
 
   // ---- 选择逻辑 ----
   const allFilteredSelected = useMemo(() => {
@@ -229,22 +254,51 @@ export default function EquipmentList() {
         )}
       </div>
 
-      {/* 分类 Tab */}
-      <div className="flex gap-1 border-b dark:border-border-dark light:border-border-light overflow-x-auto -mx-2 px-2">
-        {CATEGORIES.map((cat) => {
-          const count = categoryCounts[cat] || 0;
-          const isActive = selectedCategory === cat;
-          return (
-            <button key={cat} onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors relative ${
-                isActive ? 'text-primary' : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
-              }`}>
-              {cat}
-              <span className={`ml-1.5 text-xs ${isActive ? 'text-primary' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>{count}</span>
-              {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t" />}
-            </button>
-          );
-        })}
+      {/* 三维筛选胶囊标签 */}
+      <div className="space-y-2.5 rounded-xl border dark:border-border-dark light:border-border-light p-3">
+        {/* ① 功能分类 */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">功能</span>
+          <button onClick={() => setFuncFilter('全部')} className={pill(funcFilter === '全部')}>全部</button>
+          {FUNC_CATEGORIES.filter(c => c !== '全部').map(c => (
+            <button key={c} onClick={() => {
+              const next = funcFilter === c ? '全部' : c;
+              setFuncFilter(next);
+              setSubFilter([]); // 切换主分类时重置子分类
+            }}
+              className={pill(funcFilter === c)}>{c}</button>
+          ))}
+        </div>
+        
+        {/* 子分类：仅当主分类有预设时展开 */}
+        {funcFilter !== '全部' && SUBCATEGORY_MAP[funcFilter] && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">子类</span>
+            {SUBCATEGORY_MAP[funcFilter].map(s => (
+              <button key={s}
+                onClick={() => setSubFilter(toggleTag(subFilter, s))}
+                className={pill(subFilter.includes(s))}
+              >{s}</button>
+            ))}
+          </div>
+        )}
+        
+        {/* ② 魔法分类 */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">魔法</span>
+          {MAGIC_CATEGORIES.map(m => (
+            <button key={m} onClick={() => setMagicFilter(toggleTag(magicFilter, m))}
+              className={pill(magicFilter.includes(m))}>{m}</button>
+          ))}
+        </div>
+        {/* ③ 交易分类 */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">交易</span>
+          {TRADE_CATEGORIES.map(t => (
+            <button key={t} onClick={() => setTradeFilter(toggleTag(tradeFilter, t))}
+              className={pill(tradeFilter.includes(t))}>{t}</button>
+          ))}
+        </div>
       </div>
 
       {/* 全选行：仅选择模式 + DM + 有数据 */}

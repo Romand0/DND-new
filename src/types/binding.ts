@@ -1,6 +1,20 @@
 import type { Spell } from '@/types/spell';
 import type { FlowDefinition, FlowCategory } from '@/types/flow';
 
+export interface FlowSummary {
+  id: string;
+  name: string;
+  category?: string;
+  nodeCount: number;
+}
+
+export interface SpellSummary {
+  id: string;
+  name: string;
+  level: number;
+  school: string;
+}
+
 export interface SpellFlowBinding {
   id: string;
   spell_id: string;

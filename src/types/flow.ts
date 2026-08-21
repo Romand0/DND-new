@@ -1,6 +1,8 @@
 // D&D DSL 可视化编译器 —— 流程编排类型定义
 // 把游戏机制过程编码为可视化流程图，节点=环节，边=衔接关系
 
+import type { Spell } from './spell';
+
 // ======================
 // 一、节点（Node）—— 游戏环节的原子单元
 // ======================
@@ -78,6 +80,7 @@ export interface FlowDefinition {
   edges: FlowEdgeDef[];              // 边列表
   tags?: string[];                   // 标签（用于检索和分类）
   version?: number;                  // 版本号（迭代管理）
+  status?: 'draft' | 'published';    // 流程状态（草稿或已发布）
   createdAt?: number;                // 创建时间戳
   updatedAt?: number;                // 更新时间戳
   /** 正式发布版本号（0 = 未发布/纯草稿） */
@@ -88,6 +91,8 @@ export interface FlowDefinition {
   bindingsCount?: number;
   /** 流程类别（spell / class_features / custom） */
   category?: FlowCategory;
+  /** 法术ID，直接绑定到流程级别 */
+  spellId?: string;
   /** 原始存储数据（后端返回时附带） */
   data?: any;
 }
@@ -278,20 +283,14 @@ export interface ConfigFieldSchema {
   defaultValue?: any;             // 默认值
   children?: ConfigFieldSchema[]; // object 类型的子字段
   description?: string;           // 字段说明（仅展示，不入 config）
+  /** 指向同层级中存储法术回填摘要的 key */
+  spellSummaryKey?: string;
 }
 
 /** 节点类型 → 配置字段列表 */
 export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
   // ── 核心环节 ──
   cast_start: [
-    {
-      key: 'spellId',
-      label: '绑定法术',
-      type: 'spellPicker',
-      required: true,
-      placeholder: '选择要施放的法术',
-      defaultValue: undefined,
-    },
     {
       key: 'autoChecks',
       label: '自动检查',
@@ -302,19 +301,26 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
           label: '法术成分检查',
           type: 'boolean',
           defaultValue: true,
+          spellSummaryKey: 'componentsDetail',
         },
         {
           key: 'range',
           label: '施法距离检查',
           type: 'boolean',
           defaultValue: true,
+          spellSummaryKey: 'rangeDetail',
         },
         {
           key: 'time',
           label: '施法时间检查',
           type: 'boolean',
           defaultValue: true,
+          spellSummaryKey: 'timeDetail',
         },
+        // 以下三个是只读回填字段，不渲染控件，仅作为摘要数据源
+        { key: 'componentsDetail', label: '成分详情', type: 'text', defaultValue: '' },
+        { key: 'rangeDetail',      label: '射程详情', type: 'text',   defaultValue: '' },
+        { key: 'timeDetail',       label: '时间详情', type: 'text',   defaultValue: '' },
       ],
     },
     {
@@ -602,6 +608,52 @@ export function validateFlow(flow: FlowDefinition): string[] {
   return errors;
 }
 
+/** 从法术对象解析出 cast_start 的 autoChecks 配置 */
+export function resolveAutoChecksFromSpell(spell: Spell): {
+  autoChecks: { components: boolean; range: boolean; time: boolean };
+  /** DSL 表达式（代码语言），写入 autoChecks= */
+  dsl: string;
+  /** 自然语言摘要，显示在勾选框后 */
+  summary: {
+    components: string;  // 如 "言语+手势+材料"
+    range: string;       // 如 "60尺"
+    time: string;        // 如 "1 动作"
+  };
+} {
+  // 成分
+  const compFlags: string[] = [];
+  if (spell.components?.verbal)   compFlags.push('V');
+  if (spell.components?.somatic)  compFlags.push('S');
+  if (spell.components?.material) compFlags.push('M');
+  const componentsLabel = compFlags.join('+') || '无';
+
+  // 射程
+  const rangeLabel = spell.range ?? '自身';
+
+  // 施法时间
+  const timeLabel = spell.castingTime ?? '1 动作';
+
+  // DSL：代码语言
+  const dsl = `{components:${compFlags.length > 0},range:true,time:true,`
+    + `componentsDetail:"${componentsLabel}",`
+    + `rangeDetail:"${rangeLabel}",`
+    + `timeDetail:"${timeLabel}"}`;
+
+  return {
+    autoChecks: {
+      components: compFlags.length > 0,
+      range: true,
+      time: true,
+    },
+    dsl,
+    summary: {
+      components: componentsLabel,
+      range: rangeLabel,
+      time: timeLabel,
+    },
+  };
+}
+
 // ======================
 // 七、施法开始节点相关类型定义
 // ======================
@@ -640,7 +692,6 @@ export interface PreCastCheckReport {
 
 /** 施法开始节点配置 */
 export interface CastStartConfig {
-  spellId?: string;                    // 绑定的法术ID
   autoChecks: {                       // 自动检查配置
     components: boolean;              // 自动检查法术成分
     range: boolean;                   // 自动检查施法距离

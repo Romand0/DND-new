@@ -1595,17 +1595,40 @@ const CLASS_CASTER_TYPE: Record<string, string> = {
   '奇械师': CASTER_TYPE.HALF,
 };
 
-const CLASS_SPELL_ABILITY: Record<string, AbilityKey> = {
+/** 职业→施法关键属性映射（PHB 标准施法者） */
+const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
   '吟游诗人': 'charisma',
   '牧师': 'wisdom',
   '德鲁伊': 'wisdom',
-  '术士': 'charisma',
-  '法师': 'intelligence',
-  '邪术师': 'charisma',
   '圣武士': 'charisma',
   '游侠': 'wisdom',
-  '奇械师': 'intelligence',
+  '术士': 'charisma',
+  '邪术师': 'charisma',
+  '法师': 'intelligence',
+  // 英文备选
+  'Bard': 'charisma',
+  'Cleric': 'wisdom',
+  'Druid': 'wisdom',
+  'Paladin': 'charisma',
+  'Ranger': 'wisdom',
+  'Sorcerer': 'charisma',
+  'Warlock': 'charisma',
+  'Wizard': 'intelligence',
 };
+
+/** 获取角色的施法关键属性：显式设置优先，否则按职业推断 */
+export function getSpellcastingAbility(char: Character): AbilityKey | null {
+  if (char.spellcastingAbility) return char.spellcastingAbility;
+  return CLASS_SPELLCASTING_ABILITY[char.class] ?? null;
+}
+
+/** 计算法术豁免 DC */
+export function calcSpellSaveDC(char: Character): number | null {
+  const ability = getSpellcastingAbility(char);
+  if (!ability) return null;
+  const mod = char.abilities[ability]?.modifier ?? 0;
+  return 8 + char.proficiencyBonus + mod;
+}
 
 const CLASS_CASTER_LABEL: Record<string, string> = {
   '吟游诗人': '全职施法者（魅力）',
@@ -1699,10 +1722,7 @@ function hasSpellcasting(char: Character): boolean {
   return type === CASTER_TYPE.FULL || type === CASTER_TYPE.HALF || type === CASTER_TYPE.WARLOCK;
 }
 
-function getSpellcastingAbility(char: Character): AbilityKey | null {
-  if (!hasSpellcasting(char)) return null;
-  return CLASS_SPELL_ABILITY[char.class] || null;
-}
+
 
 // 法术攻击加值 = 施法属性调整值 + 熟练加值
 function getSpellAttackBonus(char: Character): number | null {
@@ -1715,11 +1735,7 @@ function getSpellAttackBonus(char: Character): number | null {
 
 // 施法豁免 DC = 8 + 施法属性调整值 + 熟练加值
 function getSpellSaveDC(char: Character): number | null {
-  const ability = getSpellcastingAbility(char);
-  if (!ability || !char.abilities) return null;
-  const mod = char.abilities[ability]?.modifier || 0;
-  const prof = char.proficiencyBonus || 2;
-  return 8 + mod + prof;
+  return calcSpellSaveDC(char);
 }
 
 function getCasterType(char: Character): string {
@@ -1757,7 +1773,7 @@ function getSpellSlotsByLevel(char: Character): {
       slots: slots.slice(0, 9),
       maxLevel,
       casterType: 'full',
-      ability: CLASS_SPELL_ABILITY[char.class] || 'intelligence',
+      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'intelligence',
     };
   }
 
@@ -1771,7 +1787,7 @@ function getSpellSlotsByLevel(char: Character): {
       slots: slots.slice(0, 5),
       maxLevel,
       casterType: 'half',
-      ability: CLASS_SPELL_ABILITY[char.class] || 'intelligence',
+      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'intelligence',
     };
   }
 
@@ -1783,7 +1799,7 @@ function getSpellSlotsByLevel(char: Character): {
       slotLevel,
       maxLevel: slotLevel,
       casterType: 'warlock',
-      ability: CLASS_SPELL_ABILITY[char.class] || 'charisma',
+      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'charisma',
       knownSpells,
       mysticArcanum,
     };
@@ -2002,6 +2018,7 @@ export const characterStore = {
   getSpellcastingAbility,
   getSpellAttackBonus,
   getSpellSaveDC,
+  calcSpellSaveDC,
   getCasterType,
   getCasterTypeLabel,
   getSpellSlotsByLevel,
