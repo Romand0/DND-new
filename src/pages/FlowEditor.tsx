@@ -35,6 +35,9 @@ import {
   buildFlowId,
 } from '@/types/flow';
 import SpellPicker from '@/components/SpellPicker';
+import { spellStore } from '@/data/spellStore';
+import type { Spell } from '@/types/spell';
+import { spellFlowBinding } from '@/data/spellFlowBinding';
 
 // ===== 增强的校验函数，提供节点级别错误 =====
 interface ValidationError {
@@ -160,6 +163,11 @@ function validateFlowWithDetails(flow: FlowDefinition): ValidationError[] {
     if (!hasFalse) {
       errors.push({ type: 'node', id: branch.id, message: `条件分支节点 ${branch.id} 缺少 on_false 出边` });
     }
+  }
+
+  // 检查流程必须绑定法术
+  if (!flow.spellId) {
+    errors.push({ type: 'global', message: '流程必须绑定法术' });
   }
 
   return errors;
@@ -321,6 +329,8 @@ export default function FlowEditor() {
   const [idDirty, setIdDirty] = useState(false);  // 草稿是否偏离正式值
   const [spellPickerOpen, setSpellPickerOpen] = useState(false);
   const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
+  const [showSpellPicker, setShowSpellPicker] = useState(false);
+  const [boundSpell, setBoundSpell] = useState<Spell | null>(null);
   // flow.id 外部变更时同步草稿（如加载草稿、autosave 恢复）
   useEffect(() => {
     if (!idDirty) setDraftId(flow.id);
@@ -481,6 +491,15 @@ export default function FlowEditor() {
       const stored = flowStore.getById(flowId || flow.id);
       if (stored) {
         setFlow(stored);
+        // 设置绑定的法术
+        if (stored.spellId) {
+          const spell = spellStore.getById(stored.spellId);
+          if (spell) {
+            setBoundSpell(spell);
+          }
+        } else {
+          setBoundSpell(null);
+        }
       }
     };
     
@@ -916,6 +935,37 @@ export default function FlowEditor() {
       setTimeout(() => setSaveStatus('idle'), 2000);
     });
   }, [flow, flowNameInput.value, flowId, navigate]);
+
+  // ===== 法术绑定/解绑方法 =====
+  const handleBindSpell = useCallback(async (spellId: string) => {
+    if (!flow.id) return;
+
+    try {
+      await spellFlowBinding.bindSpellToFlow(spellId, flow.id);
+      const spell = spellStore.getById(spellId);
+      if (spell) {
+        setBoundSpell(spell);
+        setFlow(prev => ({ ...prev, spellId }));
+      }
+      setShowSpellPicker(false);
+    } catch (error) {
+      console.error('法术绑定失败:', error);
+      showToast('error', '法术绑定失败');
+    }
+  }, [flow.id, showToast]);
+
+  const handleUnbindSpell = useCallback(async () => {
+    if (!flow.id || !flow.spellId) return;
+
+    try {
+      await spellFlowBinding.unbindSpellFromFlow(flow.spellId, flow.id);
+      setBoundSpell(null);
+      setFlow(prev => ({ ...prev, spellId: undefined }));
+    } catch (error) {
+      console.error('法术解绑失败:', error);
+      showToast('error', '法术解绑失败');
+    }
+  }, [flow.id, flow.spellId, showToast]);
 
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
@@ -2104,6 +2154,41 @@ export default function FlowEditor() {
                 </div>
               </div>
 
+              {/* ===== 法术绑定 ===== */}
+              <div className="mb-4">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1.5">
+                  绑定法术
+                </label>
+                <div className="flex items-center gap-2">
+                  {boundSpell ? (
+                    <>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium dark:text-text-dark light:text-text-light truncate">
+                          {boundSpell.name}
+                        </div>
+                        <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                          Lv.{boundSpell.level} {boundSpell.school}
+                        </div>
+                      </div>
+                      <button
+                        onClick={handleUnbindSpell}
+                        className="px-3 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                      >
+                        解绑
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowSpellPicker(true)}
+                      className="flex-1 px-3 py-1.5 text-xs bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                    >
+                      绑定法术
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* ===== 增强的流程统计 ===== */}
               <div className="mt-6 space-y-3">
                 <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
@@ -2294,6 +2379,43 @@ onNodeDelete={(nodeId) => {
             }}
             selectedSpellIds={[]}
           />
+        </div>
+      )}
+
+      {/* ===== 法术绑定弹窗 ===== */}
+      {showSpellPicker && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="rounded-xl p-6 max-w-2xl w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium dark:text-text-dark light:text-text-light">选择法术</h3>
+              <button onClick={() => setShowSpellPicker(false)} className="p-1 rounded hover:bg-white/10">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {spellStore.getAll().map(spell => (
+                <div
+                  key={spell.id}
+                  className="p-3 rounded-lg border dark:border-border-dark light:border-border-light hover:bg-primary/5 cursor-pointer transition-colors"
+                  onClick={() => handleBindSpell(spell.id)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Zap className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium dark:text-text-dark light:text-text-light truncate">
+                        {spell.name}
+                      </div>
+                      <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                        Lv.{spell.level} {spell.school}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 
