@@ -54,6 +54,11 @@ function validateFlowWithDetails(flow: FlowDefinition): ValidationError[] {
     errors.push({ type: 'global', message: '流程名称不能为空' });
   }
 
+  // 检查流程必须绑定法术
+  if (!flow.spellId) {
+    errors.push({ type: 'global', message: '流程必须绑定法术' });
+  }
+
   if (!Array.isArray(flow.nodes)) {
     errors.push({ type: 'global', message: '节点必须是数组' });
     return errors; // 节点不是数组，后续检查无意义

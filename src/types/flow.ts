@@ -74,6 +74,7 @@ export interface FlowDefinition {
   id: string;                        // 流程唯一 ID（如 spell:power_word_kill）
   name: string;                      // 流程名称（如 "圣言术"）
   description?: string;              // 流程描述
+  spellId?: string;                  // 绑定的法术ID（直接绑定法术，而非节点）
   nodes: FlowNodeDef[];              // 节点列表
   edges: FlowEdgeDef[];              // 边列表
   tags?: string[];                   // 标签（用于检索和分类）
@@ -284,14 +285,6 @@ export interface ConfigFieldSchema {
 export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
   // ── 核心环节 ──
   cast_start: [
-    {
-      key: 'spellId',
-      label: '绑定法术',
-      type: 'spellPicker',
-      required: true,
-      placeholder: '选择要施放的法术',
-      defaultValue: undefined,
-    },
     {
       key: 'autoChecks',
       label: '自动检查',
@@ -640,7 +633,6 @@ export interface PreCastCheckReport {
 
 /** 施法开始节点配置 */
 export interface CastStartConfig {
-  spellId?: string;                    // 绑定的法术ID
   autoChecks: {                       // 自动检查配置
     components: boolean;              // 自动检查法术成分
     range: boolean;                   // 自动检查施法距离
