@@ -81,19 +81,50 @@ export interface NpcTemplate {
   templateId: string;
   /** 模板显示名称（如 "哥布林"） */
   name: string;
+  /** 挑战等级 */
+  cr?: string;
+  /** 种族 */
+  race?: string;
+  /** 职业 */
+  class?: string;
+  /** 描述 */
+  description?: string;
+  /** 体型 */
+  size?: string;
+  /** 种类 */
+  type?: string;
+  /** 阵营 */
+  alignment?: string;
+  /** 特殊能力 */
+  features?: string;
+  /** 感知能力 */
+  senses?: string;
+  /** 语言 */
+  languages?: string;
+  /** 来源 */
+  source?: string;
+  /** 属性值 */
   strength: number;
   dexterity: number;
   constitution: number;
   intelligence: number;
   wisdom: number;
   charisma: number;
+  /** 生命值 */
   maxHp: number;
+  /** 速度 */
   speed: number;
+  /** 护甲等级 */
   ac: number;
+  /** 攻击列表 */
   attacks: NpcAttack[];
+  /** 体型（枚举） */
   creatureSize?: CreatureSize;
+  /** 种类（枚举） */
   creatureType?: CreatureType;
+  /** 创建时间 */
   createdAt: number;
+  /** 更新时间 */
   updatedAt: number;
 }
 
