@@ -166,6 +166,7 @@ export default function FlowDetail() {
                   <FlowSpellBindingManager
                     flowId={flow.id}
                     flowName={flow.name}
+                    status={flow.status}
                     onBindingChange={() => load()}
                   />
                 </div>

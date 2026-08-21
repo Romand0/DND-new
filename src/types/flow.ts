@@ -78,6 +78,7 @@ export interface FlowDefinition {
   edges: FlowEdgeDef[];              // 边列表
   tags?: string[];                   // 标签（用于检索和分类）
   version?: number;                  // 版本号（迭代管理）
+  status?: 'draft' | 'published';    // 流程状态（草稿或已发布）
   createdAt?: number;                // 创建时间戳
   updatedAt?: number;                // 更新时间戳
   /** 正式发布版本号（0 = 未发布/纯草稿） */
