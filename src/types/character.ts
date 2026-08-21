@@ -181,6 +181,9 @@ export interface Character {
   // 个别情况下需要单独设定；若该属性未设置（undefined），则回退到属性调整值+熟练加值
   saveBonusOverride?: Partial<Record<AbilityKey, number>>;
 
+  /** 施法关键属性，由职业决定；未设置时通过 class 名自动推断 */
+  spellcastingAbility?: AbilityKey;
+
   features: Feature[];
 
   appearance: string;
