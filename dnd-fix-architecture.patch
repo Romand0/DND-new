@@ -1,0 +1,83 @@
+diff --git a/src/lib/flowCompiler.ts b/src/lib/flowCompiler.ts
+index d054da5..b5ebaef 100644
+--- a/src/lib/flowCompiler.ts
++++ b/src/lib/flowCompiler.ts
+@@ -73,14 +73,15 @@ export class FlowCompiler {
+   ): Promise<NodeExecutionResult> {
+     const config = node.config as CastStartConfig;
+     
+-    if (!config?.spellId) {
++    // 从流程级别获取法术ID
++    if (!context.flow?.spellId) {
+       return {
+         status: 'failure',
+-        output: { error: '施法开始节点必须绑定法术' }
++        output: { error: '流程必须绑定法术' }
+       };
+     }
+ 
+-    const spell = spellStore.getById(config.spellId);
++    const spell = spellStore.getById(context.flow.spellId);
+     if (!spell) {
+       return {
+         status: 'failure',
+@@ -114,7 +115,7 @@ export class FlowCompiler {
+     return {
+       status: 'success',
+       output: {
+-        spellId: config.spellId,
++        spellId: context.flow.spellId,
+         checkReport,
+         spellSlotReserved: true,
+         message: '前置检查通过，可以继续施法'
+diff --git a/src/pages/FlowEditor.tsx b/src/pages/FlowEditor.tsx
+index 9ad68cc..eb161a6 100644
+--- a/src/pages/FlowEditor.tsx
++++ b/src/pages/FlowEditor.tsx
+@@ -54,6 +54,11 @@ function validateFlowWithDetails(flow: FlowDefinition): ValidationError[] {
+     errors.push({ type: 'global', message: '流程名称不能为空' });
+   }
+ 
++  // 检查流程必须绑定法术
++  if (!flow.spellId) {
++    errors.push({ type: 'global', message: '流程必须绑定法术' });
++  }
++
+   if (!Array.isArray(flow.nodes)) {
+     errors.push({ type: 'global', message: '节点必须是数组' });
+     return errors; // 节点不是数组，后续检查无意义
+diff --git a/src/types/flow.ts b/src/types/flow.ts
+index d84bab7..cb90b55 100644
+--- a/src/types/flow.ts
++++ b/src/types/flow.ts
+@@ -74,6 +74,7 @@ export interface FlowDefinition {
+   id: string;                        // 流程唯一 ID（如 spell:power_word_kill）
+   name: string;                      // 流程名称（如 "圣言术"）
+   description?: string;              // 流程描述
++  spellId?: string;                  // 绑定的法术ID（直接绑定法术，而非节点）
+   nodes: FlowNodeDef[];              // 节点列表
+   edges: FlowEdgeDef[];              // 边列表
+   tags?: string[];                   // 标签（用于检索和分类）
+@@ -284,14 +285,6 @@ export interface ConfigFieldSchema {
+ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
+   // ── 核心环节 ──
+   cast_start: [
+-    {
+-      key: 'spellId',
+-      label: '绑定法术',
+-      type: 'spellPicker',
+-      required: true,
+-      placeholder: '选择要施放的法术',
+-      defaultValue: undefined,
+-    },
+     {
+       key: 'autoChecks',
+       label: '自动检查',
+@@ -640,7 +633,6 @@ export interface PreCastCheckReport {
+ 
+ /** 施法开始节点配置 */
+ export interface CastStartConfig {
+-  spellId?: string;                    // 绑定的法术ID
+   autoChecks: {                       // 自动检查配置
+     components: boolean;              // 自动检查法术成分
+     range: boolean;                   // 自动检查施法距离
