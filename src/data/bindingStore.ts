@@ -3,6 +3,7 @@ import * as api from '@/lib/api';
 
 const STORAGE_KEY = 'dnd-spell-flow-bindings';
 let listeners: (() => void)[] = [];
+let cache: SpellFlowBinding[] | null = null;
 
 type BindingEvent = {
   type: 'bind' | 'unbind';
