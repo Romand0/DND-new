@@ -21,6 +21,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
 import flowStore from '@/data/flowStore';
+import { spellFlowBinding } from '@/data/spellFlowBinding';
 import type {
   FlowDefinition,
   FlowNodeDef,
@@ -34,6 +35,7 @@ import {
   parseFlowId,
   buildFlowId,
 } from '@/types/flow';
+import type { Spell } from '@/types/spell';
 import SpellPicker from '@/components/SpellPicker';
 
 // ===== 增强的校验函数，提供节点级别错误 =====
@@ -317,127 +319,16 @@ export default function FlowEditor() {
   );
   // 流程 ID 草稿态（自由编辑，不触发保存）
   const [draftId, setDraftId] = useState(flow.id);
-  const [idErrors, setIdErrors] = useState<string[]>([]);
-  const [idDirty, setIdDirty] = useState(false);  // 草稿是否偏离正式值
-  const [spellPickerOpen, setSpellPickerOpen] = useState(false);
-  const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
-  // flow.id 外部变更时同步草稿（如加载草稿、autosave 恢复）
-  useEffect(() => {
-    if (!idDirty) setDraftId(flow.id);
-  }, [flow.id, idDirty]);
-  // 拖拽状态：实时碰撞检测
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const [isColliding, setIsColliding] = useState(false);
-  const [collisionDir, setCollisionDir] = useState<'up' | 'down' | 'left' | 'right' | null>(null);
-  const [animateMove, setAnimateMove] = useState(false);
-  const spatialGridRef = useRef(new SpatialGrid());
-  const rafIdRef = useRef<number | null>(null);
-  const lastEventRef = useRef<DragEndEvent | null>(null);
-  const [canvasScale, setCanvasScale] = useState(1);
-  const [canvasTranslate, setCanvasTranslate] = useState({ x: 0, y: 0 });
-
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
-  const [exitModalOpen, setExitModalOpen] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-  const skipNameSync = useRef(true);
-
-  // ===== 发布提示 toast =====
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-  const toastTimerRef = useRef<number | null>(null);
-  const showToast = useCallback((type: 'success' | 'error', msg: string) => {
-    setToast({ type, msg });
-    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = window.setTimeout(() => setToast(null), 3000);
-  }, []);
-
-  // ===== 画布缩放：触屏双指捏合 =====
-  const pinchRef = useRef<{
-    pointers: Map<number, { x: number; y: number }>;
-    startScale: number;
-    startTranslate: { x: number; y: number };
-    startDist: number;
-    startMid: { x: number; y: number };
-  }>({
-    pointers: new Map(),
-    startScale: 1,
-    startTranslate: { x: 0, y: 0 },
-    startDist: 0,
-    startMid: { x: 0, y: 0 },
-  });
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length < 2) return;
-    const pts = Array.from(e.touches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
-    const map = new Map(pts.map(p => [p.id, { x: p.x, y: p.y }]));
-    const dx = pts[1].x - pts[0].x;
-    const dy = pts[1].y - pts[0].y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-    pinchRef.current = {
-      pointers: map,
-      startScale: canvasScale,
-      startTranslate: canvasTranslate,
-      startDist: dist,
-      startMid: mid,
-    };
-  }, [canvasScale, canvasTranslate]);
-
-  // ===== 阻止浏览器默认双指缩放（React touch 事件是 passive 的，preventDefault 无效） =====
-  useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
-
-    const onTouchMove = (e: TouchEvent) => {
-      const state = pinchRef.current;
-      if (e.touches.length < 2 || state.startDist === 0) return;
-      e.preventDefault();
-      const pts = Array.from(e.touches).map(t => ({ id: t.identifier, x: t.clientX, y: t.clientY }));
-      const dx = pts[1].x - pts[0].x;
-      const dy = pts[1].y - pts[0].y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
-      const ratio = dist / state.startDist;
-      const newScale = Math.min(SCALE_MAX, Math.max(SCALE_MIN, state.startScale * ratio));
-      const scaleDelta = newScale / state.startScale;
-      const newTranslate = {
-        x: state.startTranslate.x * scaleDelta + (mid.x - state.startMid.x * scaleDelta),
-        y: state.startTranslate.y * scaleDelta + (mid.y - state.startMid.y * scaleDelta),
-      };
-      setCanvasScale(newScale);
-      setCanvasTranslate(newTranslate);
-    };
-
-    el.addEventListener('touchmove', onTouchMove, { passive: false });
-    return () => el.removeEventListener('touchmove', onTouchMove);
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    pinchRef.current.startDist = 0;
-  }, []);
-
-  // ===== 画布缩放：鼠标 Ctrl/Meta + 滚轮 =====
-  const handleCanvasWheel = useCallback((e: React.WheelEvent) => {
-    if (!e.ctrlKey && !e.metaKey) return;
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
-    setCanvasScale(prev => Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round((prev + delta) * 100) / 100)));
-  }, []);
-
-  // ===== dnd-kit 传感器：Pointer（鼠标）+ Touch（触屏） =====
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // 移动 5px 才激活拖拽，防止点击误触发
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    }),
+  const setIdDirty = useState(false)[1];
+  const setIdErrors = useState<string[]>([])[1];
+  const [showRightPanel, setShowRightPanel] = useState(
+    () => window.matchMedia('(min-width: 1024px)').matches
   );
+  
+  // ===== 法术绑定状态 =====
+  const [showSpellPicker, setShowSpellPicker] = useState(false);
+  const [boundSpell, setBoundSpell] = useState<Spell | null>(null);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   // ===== 同步 flowName（跳过首次挂载，避免覆盖从 flowStore 恢复的名称） =====
   useEffect(() => {
@@ -872,6 +763,63 @@ export default function FlowEditor() {
     setIsConnecting(false);
     setConnectFromId(null);
   }, []);
+
+  // ===== 法术绑定功能 =====
+  const handleBindSpell = useCallback(async (spellId: string) => {
+    if (!flow.id) return;
+    
+    try {
+      await spellFlowBinding.bindSpellToFlow(spellId, flow.id);
+      const spell = spellStore.getById(spellId);
+      if (spell) {
+        setBoundSpell(spell);
+        setFlow(prev => ({ ...prev, spellId }));
+      }
+      setShowSpellPicker(false);
+      setToast({ type: 'success', msg: '法术绑定成功' });
+    } catch (error) {
+      setToast({ type: 'error', msg: '绑定失败' });
+      console.error('法术绑定失败:', error);
+    }
+  }, [flow.id]);
+
+  const handleUnbindSpell = useCallback(async () => {
+    if (!flow.id || !flow.spellId) return;
+    
+    try {
+      await spellFlowBinding.unbindSpellFromFlow(flow.spellId, flow.id);
+      setBoundSpell(null);
+      setFlow(prev => ({ ...prev, spellId: undefined }));
+      setToast({ type: 'success', msg: '法术解绑成功' });
+    } catch (error) {
+      setToast({ type: 'error', msg: '解绑失败' });
+      console.error('法术解绑失败:', error);
+    }
+  }, [flow.id, flow.spellId]);
+
+  // 监听绑定变化
+  useEffect(() => {
+    const unsubscribe = spellFlowBinding.subscribe((event, spellId, flowId) => {
+      if (flowId === flow.id) {
+        const spell = spellStore.getById(spellId);
+        if (event === 'bind') {
+          setBoundSpell(spell);
+          setFlow(prev => ({ ...prev, spellId }));
+        } else if (event === 'unbind') {
+          setBoundSpell(null);
+          setFlow(prev => ({ ...prev, spellId: undefined }));
+        }
+      }
+    });
+
+    // 初始化当前绑定的法术
+    if (flow.spellId) {
+      const spell = spellStore.getById(flow.spellId);
+      setBoundSpell(spell);
+    }
+
+    return unsubscribe;
+  }, [flow.id, flow.spellId]);
 
   // ===== 实时校验 =====
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
@@ -1615,18 +1563,53 @@ export default function FlowEditor() {
 
 
 
-              {/* 流程描述 */}
-              <div className="mb-3">
-                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                  描述
-                </label>
-                <textarea
-                  value={flow.description || ''}
-                  onChange={e => setFlow(prev => ({ ...prev, description: e.target.value, updatedAt: Date.now() }))}
-                  rows={3}
-                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-y"
-                />
-              </div>
+               {/* 法术绑定 */}
+               <div className="mb-3">
+                 <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                   绑定法术
+                 </label>
+                 <div className="flex items-center gap-2">
+                   {boundSpell ? (
+                     <>
+                       <div className="flex-1 min-w-0">
+                         <div className="text-xs font-medium dark:text-text-dark light:text-text-light truncate">
+                           {boundSpell.name}
+                         </div>
+                         <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                           Lv.{boundSpell.level} {boundSpell.school}
+                         </div>
+                       </div>
+                       <button
+                         onClick={handleUnbindSpell}
+                         className="px-3 py-1.5 text-xs bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors"
+                       >
+                         解绑
+                       </button>
+                     </>
+                   ) : (
+                     <button
+                       type="button"
+                       onClick={() => setShowSpellPicker(true)}
+                       className="flex-1 px-3 py-1.5 text-xs bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
+                     >
+                       绑定法术
+                     </button>
+                   )}
+                 </div>
+               </div>
+
+               {/* 流程描述 */}
+               <div className="mb-3">
+                 <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                   描述
+                 </label>
+                 <textarea
+                   value={flow.description || ''}
+                   onChange={e => setFlow(prev => ({ ...prev, description: e.target.value, updatedAt: Date.now() }))}
+                   rows={3}
+                   className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-y"
+                 />
+               </div>
 
               {/* 标签 */}
               <div className="mb-3">
@@ -2280,10 +2263,48 @@ onNodeDelete={(nodeId) => {
         </div>
       )}
 
-      {/* ===== 法术选择器弹窗 ===== */}
-      {spellPickerOpen && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm border-2 border-dashed border-pink-500">
-          <SpellPicker
+       {/* ===== 法术绑定弹窗 ===== */}
+       {showSpellPicker && (
+         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+           <div className="rounded-xl p-6 max-w-2xl w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-2xl">
+             <div className="flex items-center justify-between mb-4">
+               <h3 className="text-lg font-bold">选择要绑定的法术</h3>
+               <button onClick={() => setShowSpellPicker(false)} className="p-1 rounded hover:bg-white/10">
+                 <X className="w-5 h-5" />
+               </button>
+             </div>
+             
+             <div className="space-y-4 max-h-96 overflow-y-auto">
+               {spellStore.getAll().map(spell => (
+                 <div
+                   key={spell.id}
+                   className="p-3 rounded-lg border dark:border-border-dark light:border-border-light hover:bg-primary/5 cursor-pointer transition-colors"
+                   onClick={() => handleBindSpell(spell.id)}
+                 >
+                   <div className="flex items-center gap-3">
+                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                       <Zap className="w-5 h-5 text-primary" />
+                     </div>
+                     <div className="flex-1 min-w-0">
+                       <div className="font-medium dark:text-text-dark light:text-text-light truncate">
+                         {spell.name}
+                       </div>
+                       <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                         Lv.{spell.level} {spell.school}
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               ))}
+             </div>
+           </div>
+         </div>
+       )}
+
+       {/* ===== 法术选择器弹窗 ===== */}
+       {spellPickerOpen && (
+         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm border-2 border-dashed border-pink-500">
+           <SpellPicker
             isOpen={spellPickerOpen}
             onClose={() => setSpellPickerOpen(false)}
             onSelect={(spell) => {

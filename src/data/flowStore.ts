@@ -1,5 +1,6 @@
 import type { FlowDefinition } from '@/types/flow';
 import { serializeFlow, deserializeFlow } from '@/types/flow';
+import { spellFlowBinding } from '@/data/spellFlowBinding';
 
 const STORAGE_KEY = 'dnd-flow-library';
 const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
@@ -268,6 +269,12 @@ const flowStore = {
     const flows = read();
     const next = flows.filter(f => f.id !== id);
     if (next.length === flows.length) return false;
+    
+    // 清理绑定关系
+    spellFlowBinding.onFlowDeleted(id).catch(error => {
+      console.error('[flowStore] 清理绑定关系失败:', error);
+    });
+    
     write(next);
     return true;
   },

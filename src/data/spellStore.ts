@@ -2,6 +2,7 @@
 import type { Spell } from '@/types/spell';
 import initialSpells from '@/data/spells.json';
 import * as api from '@/lib/api';
+import { spellFlowBinding } from '@/data/spellFlowBinding';
 
 const STORAGE_KEY = 'DND-spells';
 let listeners: (() => void)[] = [];
@@ -95,6 +96,8 @@ export const spellStore = {
     const all = loadFromCache().filter((s) => s.id !== id);
     saveToCache(all);
     try {
+      // 清理所有绑定关系
+      await spellFlowBinding.onSpellDeleted(id);
       await api.deleteSpell(id);
     } catch (e) {
       console.error('[spellStore] 从后端删除失败:', e);
