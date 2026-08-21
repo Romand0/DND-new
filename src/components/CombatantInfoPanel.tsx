@@ -3,8 +3,8 @@ import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from
 import { characterStore } from '@/data/characterStore';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
-import type { Combatant, NpcAttack, EquipmentChanges } from '@/types/combat';
-import { ACTION_LABELS, ALL_ACTIONS } from '@/types/combat';
+import type { Combatant, NpcAttack, EquipmentChanges, CreatureSize, CreatureType } from '@/types/combat';
+import { ACTION_LABELS, ALL_ACTIONS, CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
 
 interface Props {
@@ -467,6 +467,21 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 <span className="dark:text-text-dark-muted light:text-text-light-muted">AC</span>
                 <span className="font-medium dark:text-text-dark light:text-text-light">
                   {computeCombatantAc(combatant, character, combatInventory) ?? '—'}
+                </span>
+              </div>
+
+              {/* 体型和种类 */}
+              <div className="flex justify-between text-xs">
+                <span className="dark:text-text-dark-muted light:text-text-light-muted">体型</span>
+                <span className="font-medium dark:text-text-dark light:text-text-light">
+                  {CREATURE_SIZE_LABELS[combatant.creatureSize ?? 0] || '—'}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-xs">
+                <span className="dark:text-text-dark-muted light:text-text-light-muted">种类</span>
+                <span className="font-medium dark:text-text-dark light:text-text-light">
+                  {CREATURE_TYPE_LABELS[combatant.creatureType] || '—'}
                 </span>
               </div>
 
