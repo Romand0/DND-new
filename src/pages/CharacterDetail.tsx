@@ -1474,11 +1474,32 @@ if (character) {
     </div>
   }>
               <div className="space-y-4">
-                {/* 施法者信息 */}
-                <div className="flex items-center justify-between">
-                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                    {characterStore.getCasterTypeLabel(character)}
-                  </span>
+                {/* ★ 新增：施法关键属性 UI 替换过时的施法者信息 */}
+                <div className="flex items-center justify-between p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-accent" />
+                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      施法属性
+                    </span>
+                    <span className="text-sm font-bold text-primary">
+                      {abilityLabels[characterStore.getSpellcastingAbility(character) || 'intelligence']}
+                    </span>
+                    {/* 可编辑：点击切换 */}
+                    {!readOnly && (
+                      <select
+                        value={characterStore.getSpellcastingAbility(character) || 'intelligence'}
+                        onChange={(e) => {
+                          characterStore.update(id!, { spellcastingAbility: e.target.value as AbilityKey });
+                          reloadChar();
+                        }}
+                        className="ml-1 text-xs px-1 py-0.5 rounded bg-transparent border dark:border-border-dark light:border-border-light outline-none text-primary"
+                      >
+                        {(['strength','dexterity','constitution','intelligence','wisdom','charisma'] as AbilityKey[]).map((k) => (
+                          <option key={k} value={k}>{abilityLabels[k]}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
                   <button
                     onClick={() => {
                       characterStore.resetSpellSlots(id!);
@@ -1490,37 +1511,12 @@ if (character) {
                   </button>
                 </div>
 
-                {/* ★ 新增：施法关键属性 & 法术豁免 DC */}
+                {/* ★ 新增：法术豁免 DC（左侧空间留给未来的法术检定值） */}
                 {(() => {
-                  const scAbility = characterStore.getSpellcastingAbility(character);
                   const saveDC = characterStore.calcSpellSaveDC(character);
-                  if (!scAbility || saveDC === null) return null;
+                  if (saveDC === null) return null;
                   return (
                     <div className="flex items-center gap-4 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-accent" />
-                        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                          施法属性
-                        </span>
-                        <span className="text-sm font-bold text-primary">
-                          {abilityLabels[scAbility]}
-                        </span>
-                        {/* 可编辑：点击切换 */}
-                        {!readOnly && (
-                          <select
-                            value={scAbility}
-                            onChange={(e) => {
-                              characterStore.update(id!, { spellcastingAbility: e.target.value as AbilityKey });
-                              reloadChar();
-                            }}
-                            className="ml-1 text-xs px-1 py-0.5 rounded bg-transparent border dark:border-border-dark light:border-border-light outline-none text-primary"
-                          >
-                            {(['strength','dexterity','constitution','intelligence','wisdom','charisma'] as AbilityKey[]).map((k) => (
-                              <option key={k} value={k}>{abilityLabels[k]}</option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
                       <div className="flex items-center gap-2 ml-auto">
                         <Shield className="w-4 h-4 text-info" />
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
@@ -1530,7 +1526,7 @@ if (character) {
                           {saveDC}
                         </span>
                         <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                          = 8 + {character.proficiencyBonus} + {character.abilities[scAbility].modifier}
+                          = 8 + {character.proficiencyBonus} + 属性调整值
                         </span>
                       </div>
                     </div>
