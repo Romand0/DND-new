@@ -23,4 +23,10 @@ export interface EquipmentItem {
   tags: { key: string; value: string }[]; // 自由标签
   source?: string; // 出版来源，如 "玩家手册 2014"
   dataResource?: string; // 数据来源网站，如 "5E不全书"
+
+  /** ② 魔法体系：魔法物品 / 非魔法物品。缺省 = '非魔法物品' */
+  magicCategory?: '魔法物品' | '非魔法物品';
+
+  /** ③ 交易体系：冒险物品 / 贵重物品。缺省 = '冒险物品' */
+  tradeCategory?: '贵重物品' | '冒险物品';
 }
