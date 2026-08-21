@@ -88,6 +88,8 @@ export interface FlowDefinition {
   bindingsCount?: number;
   /** 流程类别（spell / class_features / custom） */
   category?: FlowCategory;
+  /** 法术ID，直接绑定到流程级别 */
+  spellId?: string;
   /** 原始存储数据（后端返回时附带） */
   data?: any;
 }
@@ -640,7 +642,6 @@ export interface PreCastCheckReport {
 
 /** 施法开始节点配置 */
 export interface CastStartConfig {
-  spellId?: string;                    // 绑定的法术ID
   autoChecks: {                       // 自动检查配置
     components: boolean;              // 自动检查法术成分
     range: boolean;                   // 自动检查施法距离

@@ -71,16 +71,17 @@ export class FlowCompiler {
     node: FlowNodeDef,
     context: FlowExecutionContext
   ): Promise<NodeExecutionResult> {
-    const config = node.config as CastStartConfig;
+    // 使用流程级别的 spellId，而不是节点级别
+    const spellId = context.spellId;
     
-    if (!config?.spellId) {
+    if (!spellId) {
       return {
         status: 'failure',
-        output: { error: '施法开始节点必须绑定法术' }
+        output: { error: '流程未绑定法术' }
       };
     }
 
-    const spell = spellStore.getById(config.spellId);
+    const spell = spellStore.getById(spellId);
     if (!spell) {
       return {
         status: 'failure',
@@ -96,6 +97,8 @@ export class FlowCompiler {
       };
     }
 
+    const config = node.config as CastStartConfig;
+    
     // 执行前置检查
     const checkReport = await this.executePreCastChecks(spell, caster, config, context.targets);
 
@@ -114,7 +117,7 @@ export class FlowCompiler {
     return {
       status: 'success',
       output: {
-        spellId: config.spellId,
+        spellId, // 从流程级别获取
         checkReport,
         spellSlotReserved: true,
         message: '前置检查通过，可以继续施法'
