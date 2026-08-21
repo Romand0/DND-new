@@ -6,12 +6,14 @@ import { spellStore } from '@/data/spellStore';
 interface FlowSpellBindingManagerProps {
   flowId: string;
   flowName: string;
+  status?: 'draft' | 'published';
   onBindingChange?: () => void;
 }
 
 export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = ({
   flowId,
   flowName,
+  status = 'draft',
   onBindingChange
 }) => {
   const [boundSpells, setBoundSpells] = useState<Spell[]>([]);
@@ -89,6 +91,20 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
     <div className="binding-manager">
       <h4>流程法术绑定 - {flowName}</h4>
       
+      {/* 状态提示 */}
+      <div className={`mb-4 p-3 rounded-lg ${
+        status === 'published' 
+          ? 'bg-blue-50 border border-blue-200' 
+          : 'bg-gray-50 border border-gray-200'
+      }`}>
+        <p className="text-sm">
+          {status === 'published' 
+            ? '已发布流程：必须绑定法术才能正常使用。绑定后可以随时更改。'
+            : '草稿流程：法术绑定是可选的。绑定后可以在发布时自动使用。'
+          }
+        </p>
+      </div>
+      
       {/* 已绑定的法术 */}
       {boundSpells.length > 0 && (
         <div className="bound-spells">
@@ -139,9 +155,23 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
         </div>
       )}
 
-      {boundSpells.length === 0 && availableSpells.length === 0 && (
+      {/* 状态特定的提示 */}
+      {boundSpells.length === 0 && (
+        <div className={`p-4 rounded-lg text-center ${
+          status === 'published' 
+            ? 'bg-red-50 border border-red-200 text-red-700' 
+            : 'bg-gray-50 border border-gray-200 text-gray-500'
+        }`}>
+          {status === 'published' 
+            ? '⚠️ 已发布流程必须绑定至少一个法术才能使用'
+            : '暂未绑定法术，可以随时添加'
+          }
+        </div>
+      )}
+
+      {boundSpells.length > 0 && availableSpells.length === 0 && (
         <div className="text-gray-500 text-center py-4">
-          暂无可用的法术
+          所有可用的法术都已绑定
         </div>
       )}
     </div>

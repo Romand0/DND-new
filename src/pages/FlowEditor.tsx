@@ -172,6 +172,22 @@ function validateFlowWithDetails(flow: FlowDefinition): ValidationError[] {
 
   return errors;
 }
+
+// 修改后的验证逻辑：分阶段验证
+const validateForPublish = (flow: FlowDefinition) => {
+  // 只有已发布的流程才需要检查法术绑定
+  if (flow.status === 'published' && !flow.spellId) {
+    return { valid: false, error: '已发布的流程必须绑定法术' };
+  }
+
+  // 草稿只需要基本验证
+  const basicValidation = validateFlowWithDetails(flow);
+  if (basicValidation.length > 0) {
+    return { valid: false, error: `存在 ${basicValidation.length} 个基本验证错误` };
+  }
+
+  return { valid: true };
+};
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
 import NodeListPanel from '@/components/NodeListPanel';
@@ -609,6 +625,7 @@ export default function FlowEditor() {
       edges: [],
       tags: [],
       version: 1,
+      status: 'draft',
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -970,20 +987,22 @@ export default function FlowEditor() {
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
     // 发布前先检查校验
-    const errors = validateFlowWithDetails(flow);
-    if (errors.length > 0) {
-      setValidationErrors(errors);
+    const validation = validateForPublish(flow);
+    if (!validation.valid) {
+      setValidationErrors([{ type: 'global', message: validation.error! }]);
       setShowValidation(true);
-      showToast('error', `无法发布：存在 ${errors.length} 个校验错误`);
+      showToast('error', `无法发布：${validation.error}`);
       return;
     }
 
     try {
-      flowStore.update(flow.id, flow);
+      // 更新流程状态为已发布
+      flowStore.update(flow.id, { ...flow, status: 'published' });
       const published = await flowStore.publish(flow.id);
       if (published) {
         setFlow(prev => ({
           ...prev,
+          status: 'published',
           publishedVersion: published.publishedVersion,
           publishedAt: published.publishedAt ?? Date.now(),
         }));
@@ -1118,7 +1137,7 @@ export default function FlowEditor() {
             `}
           >
             <CloudUpload className="w-3.5 h-3.5" />
-            <span>发布</span>
+            <span>{flow.status === 'published' ? '更新发布' : '发布'}</span>
           </button>
           <button
             onClick={saveDraft}
