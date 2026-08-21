@@ -12,12 +12,20 @@ const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工�
 const MAGIC_CATEGORIES = ['魔法物品', '非魔法物品'];
 const TRADE_CATEGORIES = ['冒险物品', '贵重物品'];
 
+const SUBCATEGORY_MAP: Record<string, string[]> = {
+  '武器': ['军用近战', '军用远程', '简易近战', '简易远程'],
+  '护甲': ['轻甲', '中甲', '重甲', '盾牌'],
+  '工具': ['工匠工具', '赌具', '乐器'],
+  '法器': ['奥术法器', '德鲁伊法器', '圣徽', '吟游诗人法器'],
+};
+
 export default function EquipmentList() {
   const navigate = useNavigate();
   const { isDM } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [funcFilter, setFuncFilter] = useState('全部');
+  const [subFilter, setSubFilter] = useState<string[]>([]);
   const [magicFilter, setMagicFilter] = useState<string[]>([]);
   const [tradeFilter, setTradeFilter] = useState<string[]>([]);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -73,12 +81,13 @@ export default function EquipmentList() {
       const mc = item.magicCategory ?? '非魔法物品';
       const tc = item.tradeCategory ?? '冒险物品';
       const matchFunc = funcFilter === '全部' || item.category === funcFilter;
+      const matchSub = subFilter.length === 0 || subFilter.some(s => item.subtype?.includes(s));
       const matchMagic = magicFilter.length === 0 || magicFilter.includes(mc);
       const matchTrade = tradeFilter.length === 0 || tradeFilter.includes(tc);
       const matchSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchFunc && matchMagic && matchTrade && matchSearch;
+      return matchFunc && matchSub && matchMagic && matchTrade && matchSearch;
     });
-  }, [equipments, funcFilter, magicFilter, tradeFilter, searchQuery]);
+  }, [equipments, funcFilter, subFilter, magicFilter, tradeFilter, searchQuery]);
 
   // ---- 选择逻辑 ----
   const allFilteredSelected = useMemo(() => {
@@ -252,10 +261,28 @@ export default function EquipmentList() {
           <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">功能</span>
           <button onClick={() => setFuncFilter('全部')} className={pill(funcFilter === '全部')}>全部</button>
           {FUNC_CATEGORIES.filter(c => c !== '全部').map(c => (
-            <button key={c} onClick={() => setFuncFilter(funcFilter === c ? '全部' : c)}
+            <button key={c} onClick={() => {
+              const next = funcFilter === c ? '全部' : c;
+              setFuncFilter(next);
+              setSubFilter([]); // 切换主分类时重置子分类
+            }}
               className={pill(funcFilter === c)}>{c}</button>
           ))}
         </div>
+        
+        {/* 子分类：仅当主分类有预设时展开 */}
+        {funcFilter !== '全部' && SUBCATEGORY_MAP[funcFilter] && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">子类</span>
+            {SUBCATEGORY_MAP[funcFilter].map(s => (
+              <button key={s}
+                onClick={() => setSubFilter(toggleTag(subFilter, s))}
+                className={pill(subFilter.includes(s))}
+              >{s}</button>
+            ))}
+          </div>
+        )}
+        
         {/* ② 魔法分类 */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">魔法</span>
