@@ -10,7 +10,7 @@ interface Props {
   parentValue?: any;
 }
 
-export default function ConfigFieldRenderer({ schema, value, onChange, isDark }: Props) {
+export default function ConfigFieldRenderer({ schema, value, onChange, isDark, parentValue }: Props) {
   const base =
     'w-full px-2 py-1.5 rounded border text-xs focus:border-primary outline-none '
     + (isDark ? 'border-border-dark bg-transparent text-text-dark' : 'border-border-light bg-transparent text-text-light');
