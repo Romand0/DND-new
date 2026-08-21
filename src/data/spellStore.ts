@@ -100,4 +100,12 @@ export const spellStore = {
       console.error('[spellStore] 从后端删除失败:', e);
     }
   },
+
+  updateById(id: string, patch: Partial<Spell>): void {
+    const all = loadFromCache();
+    const idx = all.findIndex(s => s.id === id);
+    if (idx === -1) return;
+    all[idx] = { ...all[idx], ...patch };
+    saveToCache(all);
+  },
 };
