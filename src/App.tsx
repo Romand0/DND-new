@@ -40,6 +40,7 @@ import TripleTapGesture from '@/components/TripleTapGesture';
 import TreasureList from '@/pages/TreasureList';
 import TreasureEdit from '@/pages/TreasureEdit';
 import TreasureDistribute from '@/pages/TreasureDistribute';
+import { BindingService } from '@/services/bindingService';
 
 // 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
 function RoleShell() {
@@ -52,6 +53,9 @@ function RoleShell() {
 }
 
 export default function App() {
+  // 初始化双向同步引擎
+  BindingService.init();
+
   return (
     <ThemeProvider>
       <AuthProvider>

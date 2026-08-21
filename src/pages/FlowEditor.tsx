@@ -37,8 +37,9 @@ import {
 import SpellPicker from '@/components/SpellPicker';
 import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
+import { bindingStore } from '@/data/bindingStore';
 import type { Spell } from '@/types/spell';
-import { spellFlowBinding } from '@/data/spellFlowBinding';
+import { BindingService } from '@/services/bindingService';
 
 // ===== 增强的校验函数，提供节点级别错误 =====
 interface ValidationError {
@@ -959,7 +960,7 @@ export default function FlowEditor() {
     if (!flow.id) return;
 
     try {
-      await spellFlowBinding.bindSpellToFlow(spellId, flow.id);
+      await BindingService.bindSpellToFlow(spellId, flow.id);
       const spell = spellStore.getById(spellId);
       if (spell) {
         setBoundSpell(spell);
@@ -976,9 +977,13 @@ export default function FlowEditor() {
     if (!flow.id || !flow.spellId) return;
 
     try {
-      await spellFlowBinding.unbindSpellFromFlow(flow.spellId, flow.id);
-      setBoundSpell(null);
-      setFlow(prev => ({ ...prev, spellId: undefined }));
+      // 获取绑定ID
+      const bindings = bindingStore.getBySpellId(flow.spellId);
+      if (bindings.length > 0) {
+        await BindingService.unbindSpellFromFlow(bindings[0].id);
+        setBoundSpell(null);
+        setFlow(prev => ({ ...prev, spellId: undefined }));
+      }
     } catch (error) {
       console.error('法术解绑失败:', error);
       showToast('error', '法术解绑失败');
