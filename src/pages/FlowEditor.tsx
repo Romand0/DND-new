@@ -1343,6 +1343,7 @@ export default function FlowEditor() {
                   onClick={() => handleNodeClick(node.id)}
                   onStartConnecting={() => startConnecting(node.id)}
                   onDelete={() => deleteNode(node.id)}
+                  flow={flow}
                 />
               ))}
 
@@ -1838,6 +1839,7 @@ export default function FlowEditor() {
                               value={selectedNode.config?.[field.key]}
                               onChange={v => updateNodeConfig(selectedNode.id, field.key, v)}
                               isDark={isDark}
+                              parentValue={selectedNode.config}
                             />
                             {/* DSL 值提示：底部小字显示实际存储值 */}
                             <div className="text-[10px] font-mono mt-0.5 dark:text-text-dark-muted light:text-text-light-muted">
@@ -2544,6 +2546,7 @@ interface DraggableFlowNodeProps {
   onClick: () => void;
   onStartConnecting: () => void;
   onDelete: () => void;
+  flow: FlowDefinition;
 }
 
 function DraggableFlowNode({
@@ -2558,6 +2561,7 @@ function DraggableFlowNode({
   onClick,
   onStartConnecting,
   onDelete,
+  flow,
 }: DraggableFlowNodeProps) {
   const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
   const { attributes, listeners, setNodeRef, transform, isDragging: dndDragging } = useDraggable({
