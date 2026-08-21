@@ -38,7 +38,7 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
     if (initialTemplate) {
       setName(initialTemplate.name);
       setTemplateId(initialTemplate.templateId);
-      setCr(initialTemplate.cr ? parseFloat(initialTemplate.cr) : undefined);
+      setCr(initialTemplate.cr || undefined);
       setSize(initialTemplate.size || '');
       setType(initialTemplate.type || '');
       setAlignment(initialTemplate.alignment || '');
@@ -189,7 +189,7 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
                 type="number"
                 step="0.25"
                 value={cr ?? ''}
-                onChange={(e) => setCr(e.target.value ? parseFloat(e.target.value) : undefined)}
+                onChange={(e) => setCr(e.target.value || undefined)}
                 placeholder="0, 0.25, 1, 5..."
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:bg-bg-dark light:border-border-light light:bg-bg-light dark:text-text-dark light:text-text-light focus:border-primary outline-none"
               />

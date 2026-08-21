@@ -102,7 +102,7 @@ export default function MonsterList() {
         t.templateId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.type?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = typeFilter === 'all' || t.type === typeFilter;
-      const matchesCr = crFilter === 'all' ||         t.cr === crFilter || parseFloat(t.cr) === parseFloat(crFilter);
+      const matchesCr = crFilter === 'all' ||         t.cr === crFilter || (crFilter && t.cr === crFilter.toString());
       const matchesSize = sizeFilter === 'all' || t.size === sizeFilter;
       return matchesSearch && matchesType && matchesCr && matchesSize;
     });
