@@ -8,6 +8,8 @@ const HIDE_SYNC_BUTTON_PATHS: RegExp[] = [
   /\/flow-editor\/.+/,
   /\/flows\/[^/]+\/edit$/,
   /\/settings\/flows\/[^/]+\/edit$/,
+  /^\/spells$/,
+  /^\/spells\/[^/]+$/,
 ];
 
 export default function Layout() {
