@@ -19,6 +19,8 @@ const CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物', 
 const PRICE_UNITS = ['gp', 'ep', 'sp', 'cp'] as const;
 const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '远程', '弹药', '+2 AC', '单手', '双手'];
 const DAMAGE_TYPES = ['穿刺', '钝击', '挥砍', '火焰', '冰冻', '闪电', '光', '黯蚀', '心灵', '毒素', '力场', '声波', '神力'];
+const MAGIC_OPTIONS = ['非魔法物品', '魔法物品'] as const;
+const TRADE_OPTIONS = ['冒险物品', '贵重物品'] as const;
 
 export default function EquipmentEditor({
   item, isStatic = false, showQuantity = false, showPackSize = false,
@@ -43,6 +45,8 @@ const [formData, setFormData] = useState<
   properties: [],
   tags: [],
   source: '',
+  magicCategory: '非魔法物品',
+  tradeCategory: '冒险物品',
   quantity: showQuantity ? 1 : undefined,
   unit: '',
   packSize: undefined,  
@@ -77,6 +81,8 @@ const [formData, setFormData] = useState<
   properties: item.properties || [],
   tags: [...(item.tags || [])],
   source: item.source || '',
+  magicCategory: item.magicCategory ?? '非魔法物品',
+  tradeCategory: item.tradeCategory ?? '冒险物品',
   quantity: (item as any).quantity ?? (item as any).packSize ?? 1,
   unit: (item as any).unit || '',
   packSize: (item as any).packSize,
@@ -300,36 +306,71 @@ const [formData, setFormData] = useState<
 
 
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                分类
-              </label>
-              <select
-                value={CATEGORIES.includes(formData.category) ? formData.category : '自定义'}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
+<div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  分类
+                </label>
+                <select
+                  value={CATEGORIES.includes(formData.category) ? formData.category : '自定义'}
+                  onChange={(e) => handleCategoryChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  子分类
+                </label>
+                <input
+                  type="text"
+                  value={formData.subtype}
+                  onChange={(e) => setFormData({ ...formData, subtype: e.target.value })}
+                  placeholder="例如：简易武器"
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                子分类
-              </label>
-              <input
-                type="text"
-                value={formData.subtype}
-                onChange={(e) => setFormData({ ...formData, subtype: e.target.value })}
-                placeholder="例如：简易武器"
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              />
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  魔法分类
+                </label>
+                <select
+                  value={formData.magicCategory}
+                  onChange={(e) => setFormData({ ...formData, magicCategory: e.target.value as any })}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  {MAGIC_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                  交易分类
+                </label>
+                <select
+                  value={formData.tradeCategory}
+                  onChange={(e) => setFormData({ ...formData, tradeCategory: e.target.value as any })}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  {TRADE_OPTIONS.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
-          </div>
 
           {formData.category === '自定义' || !CATEGORIES.includes(formData.category) ? (
             <div>

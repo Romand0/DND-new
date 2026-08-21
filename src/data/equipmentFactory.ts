@@ -29,5 +29,7 @@ export function extractBaseFields(
     tags: source.tags ? [...source.tags] : [],
     source: source.source ?? '',
     dataResource: source.dataResource ?? '',
+    magicCategory: source.magicCategory ?? '非魔法物品',
+    tradeCategory: source.tradeCategory ?? '冒险物品',
   };
 }
