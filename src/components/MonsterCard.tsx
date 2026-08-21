@@ -1,4 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
+// 使用 Tailwind CSS 直接实现卡片样式
 import { useNavigate } from 'react-router-dom';
 import type { NpcTemplate } from '@/types/combat';
 
@@ -9,57 +9,38 @@ interface MonsterCardProps {
 export default function MonsterCard({ template }: MonsterCardProps) {
   const navigate = useNavigate();
 
-  const handleClick = () => {
-    navigate(`/monsters/${template.id}`);
-  };
-
-  const crLabel = template.cr !== undefined ? (template.cr % 1 === 0 ? template.cr : template.cr) : '—';
-  const sizeLabel = template.size || '—';
-  const typeLabel = template.type || '—';
-  const alignmentLabel = template.alignment || '—';
-
   return (
-    <Card
-      className="cursor-pointer hover:shadow-lg transition-shadow dark:bg-bg-card dark:border-border-card light:bg-bg-card light:border-border-card"
-      onClick={handleClick}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-base dark:text-text-dark light:text-text-light truncate">
-              {template.name}
-            </h3>
-            <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                CR {crLabel}
-              </span>
-              <span>{sizeLabel}</span>
-              <span>{typeLabel}</span>
-            </div>
-          </div>
+    <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:shadow-md transition-shadow cursor-pointer">
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+          {template.name}
+        </h3>
+        <span className="text-sm text-gray-500 dark:text-gray-400">
+          CR {template.cr}
+        </span>
+      </div>
+      
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-600 dark:text-gray-300">
+            {template.race}
+          </span>
+          <span className="text-sm text-gray-600 dark:text-gray-300">
+            {template.class}
+          </span>
         </div>
-        <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <span className="font-medium dark:text-text-dark light:text-text-light">AC</span>
-            <span>{template.ac}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="font-medium dark:text-text-dark light:text-text-light">HP</span>
-            <span>{template.maxHp}</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="font-medium dark:text-text-dark light:text-text-light">速度</span>
-            <span>{template.speed}尺</span>
-          </div>
+        
+        <div className="text-sm text-gray-500 dark:text-gray-400">
+          {template.description?.substring(0, 100)}...
         </div>
-        {template.attacks.length > 0 && (
-          <div className="mt-2 text-xs text-muted-foreground">
-            <span className="font-medium dark:text-text-dark light:text-text-light">
-              {template.attacks.length} 种攻击
-            </span>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+      </div>
+      
+      <button
+        onClick={() => navigate(`/monsters/${template.id}`)}
+        className="mt-4 w-full py-2 px-4 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+      >
+        查看详情
+      </button>
+    </div>
   );
 }

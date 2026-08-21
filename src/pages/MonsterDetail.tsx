@@ -248,7 +248,7 @@ export default function MonsterDetail() {
 
       {/* 编辑器 */}
       <MonsterEditor
-        template={template}
+        initialTemplate={template}
         isOpen={editorOpen}
         onClose={() => setEditorOpen(false)}
         onSave={handleSave}

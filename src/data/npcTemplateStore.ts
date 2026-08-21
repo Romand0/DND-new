@@ -130,6 +130,11 @@ const npcTemplateStore = {
     save([]);
   },
 
+  getById(id: string): NpcTemplate | null {
+    const templates = load();
+    return templates.find(t => t.id === id) || null;
+  },
+
   subscribe(listener: Listener): () => void {
     listeners.push(listener);
     return () => {
