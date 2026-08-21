@@ -6,6 +6,8 @@ interface Props {
   value: any;
   onChange: (value: any) => void;
   isDark: boolean;
+  /** 父级 object 的完整值，用于查找摘要字段 */
+  parentValue?: any;
 }
 
 export default function ConfigFieldRenderer({ schema, value, onChange, isDark }: Props) {
@@ -51,38 +53,52 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark }:
       );
 
     case 'boolean':
+      // 查找自然语言摘要
+      let summary = '';
+      if (schema.spellSummaryKey && parentValue) {
+        summary = parentValue[schema.spellSummaryKey] || '';
+      }
+
       return (
-        <input
-          type="checkbox"
-          checked={value ?? schema.defaultValue ?? false}
-          onChange={e => onChange(e.target.checked)}
-          className="w-4 h-4 accent-indigo-500"
-        />
+        <div className="space-y-2">
+          <div className="flex items-start space-x-2">
+            <input
+              type="checkbox"
+              checked={value}
+              onChange={(e) => onChange(e.target.checked)}
+              className="mt-0.5 w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <div className="flex-1">
+              <label className="text-sm font-medium cursor-pointer">
+                {schema.label}
+              </label>
+              {summary && (
+                <span className="ml-2 text-xs text-gray-500">
+                  ({summary})
+                </span>
+              )}
+            </div>
+          </div>
+          {schema.description && (
+            <p className="text-xs text-gray-500">{schema.description}</p>
+          )}
+        </div>
       );
 
     case 'object':
-      // 嵌套配置对象
-      if (!schema.children) return null;
+      if (!value) value = {};
       return (
-        <div className="space-y-2 pl-3 border-l-2 border-gray-300 dark:border-gray-600">
-          {schema.children.map(child => (
-            <div key={child.key}>
-              <div className="flex items-center gap-1 mb-1">
-                <span className="text-xs font-medium dark:text-text-dark light:text-text-light">
-                  {child.label}
-                </span>
-                {child.required && <span className="text-[10px] text-red-400">*</span>}
-              </div>
-              <ConfigFieldRenderer
-                schema={child}
-                value={value?.[child.key]}
-                onChange={v => {
-                  const newValue = { ...value, [child.key]: v };
-                  onChange(newValue);
-                }}
-                isDark={isDark}
-              />
-            </div>
+        <div className="space-y-3">
+          <h4 className="text-sm font-medium">{schema.label}</h4>
+          {schema.children?.map((child) => (
+            <ConfigFieldRenderer
+              key={child.key}
+              schema={child}
+              value={value[child.key]}
+              onChange={(newValue) => onChange({ ...value, [child.key]: newValue })}
+              isDark={isDark}
+              parentValue={value}
+            />
           ))}
         </div>
       );

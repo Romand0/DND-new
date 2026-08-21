@@ -37,6 +37,7 @@ import {
 import SpellPicker from '@/components/SpellPicker';
 import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
+import { resolveAutoChecksFromSpell } from '@/types/flow';
 import { bindingStore } from '@/data/bindingStore';
 import type { Spell } from '@/types/spell';
 import { BindingService } from '@/services/bindingService';
@@ -963,10 +964,31 @@ export default function FlowEditor() {
       await BindingService.bindSpellToFlow(spellId, flow.id);
       const spell = spellStore.getById(spellId);
       if (spell) {
+        // 自动回填 autoChecks 配置
+        const { autoChecks, dsl } = resolveAutoChecksFromSpell(spell);
+        
+        // 更新 flow 的 autoChecks 配置
+        setFlow(prev => {
+          const updatedFlow = { ...prev, spellId };
+          
+          // 查找 cast_start 节点并更新其 config
+          const castStartNode = updatedFlow.nodes.find(n => n.type === 'cast_start');
+          if (castStartNode && castStartNode.config) {
+            castStartNode.config = {
+              ...castStartNode.config,
+              autoChecks,
+            };
+          }
+          
+          return updatedFlow;
+        });
+        
         setBoundSpell(spell);
-        setFlow(prev => ({ ...prev, spellId }));
+        setShowSpellPicker(false);
+        
+        // 显示提示
+        showToast('success', `已绑定法术并自动配置：${spell.name}`);
       }
-      setShowSpellPicker(false);
     } catch (error) {
       console.error('法术绑定失败:', error);
       showToast('error', '法术绑定失败');
@@ -2662,6 +2684,13 @@ function DraggableFlowNode({
                 <span className="font-medium">{k}:</span> {String(v)}
               </div>
             ))}
+            
+            {/* 如果是 cast_start 节点且绑定了法术，显示 DSL */}
+            {node.type === 'cast_start' && flow.spellId && (
+              <div className="mt-1 pt-1 border-t dark:border-border-dark light:border-border-light text-[8px] font-mono bg-gray-100/30 dark:bg-gray-800/30 rounded px-1">
+                autoChecks={JSON.stringify(node.config?.autoChecks || {})}
+              </div>
+            )}
           </div>
         )}
       </div>
