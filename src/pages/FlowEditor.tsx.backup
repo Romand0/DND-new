@@ -34,7 +34,6 @@ import {
   parseFlowId,
   buildFlowId,
 } from '@/types/flow';
-import { FlowSpellBindingManager } from @/components/FlowSpellBindingManager;
 import SpellPicker from '@/components/SpellPicker';
 
 // ===== 增强的校验函数，提供节点级别错误 =====
@@ -320,6 +319,7 @@ export default function FlowEditor() {
   const [draftId, setDraftId] = useState(flow.id);
   const [idErrors, setIdErrors] = useState<string[]>([]);
   const [idDirty, setIdDirty] = useState(false);  // 草稿是否偏离正式值
+  const [spellPickerOpen, setSpellPickerOpen] = useState(false);
   const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
   // flow.id 外部变更时同步草稿（如加载草稿、autosave 恢复）
   useEffect(() => {
@@ -592,7 +592,6 @@ export default function FlowEditor() {
       version: 1,
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      status: 'draft',
     };
   }
 
@@ -626,7 +625,6 @@ export default function FlowEditor() {
         nodes: prev.nodes.filter(n => n.id !== nodeId),
         edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
         updatedAt: Date.now(),
-      status: 'draft',
       };
       
       // 同步到 flowStore（单一真相源）
@@ -647,7 +645,6 @@ export default function FlowEditor() {
           : n
       ),
       updatedAt: Date.now(),
-      status: 'draft',
     }));
   }, []);
 
@@ -667,7 +664,6 @@ export default function FlowEditor() {
         ...prev,
         nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
         updatedAt: Date.now(),
-      status: 'draft',
       };
     });
   }, []);
@@ -690,7 +686,6 @@ export default function FlowEditor() {
       ...prev,
       edges: [...prev.edges, newEdge],
       updatedAt: Date.now(),
-      status: 'draft',
     }));
     setSelectedEdgeId(edgeId);
   }, [flow.edges]);
@@ -701,7 +696,6 @@ export default function FlowEditor() {
       ...prev,
       edges: prev.edges.filter(e => e.id !== edgeId),
       updatedAt: Date.now(),
-      status: 'draft',
     }));
     if (selectedEdgeId === edgeId) setSelectedEdgeId(null);
   }, [selectedEdgeId]);
@@ -839,7 +833,6 @@ export default function FlowEditor() {
         ...prev,
         nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
         updatedAt: Date.now(),
-      status: 'draft',
       };
     });
     // 瞬移过渡：拖拽结束后短暂开启 transform 过渡，200ms 后移除
@@ -926,59 +919,28 @@ export default function FlowEditor() {
 
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
-    if (flow.status === 'draft') {
-      // 草稿发布前的确认对话框
-      const confirmed = confirm(
-        '发布流程确认
+    // 发布前先检查校验
+    const errors = validateFlowWithDetails(flow);
+    if (errors.length > 0) {
+      setValidationErrors(errors);
+      setShowValidation(true);
+      showToast('error', `无法发布：存在 ${errors.length} 个校验错误`);
+      return;
+    }
 
-' +
-        '• 发布后流程将变为只读状态
-' +
-        '• 发布后可以绑定法术供使用
-' +
-        '• 发布后可以继续更新流程内容
-
-' +
-        '确定要发布此流程吗?'
-      );
-      
-      if (!confirmed) return;
-      
-      try {
-        // 发布流程
-        const publishedFlow = {
-          ...flow,
-          status: 'published' as const,
-          publishedAt: Date.now(),
-        };
-        
-        await flowStore.save(publishedFlow);
-        setFlow(publishedFlow);
-        
-        // 显示成功提示
-        showToast('success', '流程已发布,现在可以绑定法术了');
-        
-        // 自动滚动到绑定区域
-        setTimeout(() => {
-          const bindingSection = document.querySelector('.binding-manager');
-          if (bindingSection) {
-            bindingSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }, 500);
-        
-      } catch (error) {
-        console.error('发布失败:', error);
-        showToast('error', '发布失败: ' + (error as Error).message);
+    try {
+      flowStore.update(flow.id, flow);
+      const published = await flowStore.publish(flow.id);
+      if (published) {
+        setFlow(prev => ({
+          ...prev,
+          publishedVersion: published.publishedVersion,
+          publishedAt: published.publishedAt ?? Date.now(),
+        }));
+        showToast('success', `已发布 v${published.publishedVersion}`);
       }
-    } else {
-      // 已发布状态的更新
-      try {
-        await flowStore.save(flow);
-        showToast('success', '流程已更新');
-      } catch (error) {
-        console.error('更新失败:', error);
-        showToast('error', '更新失败: ' + (error as Error).message);
-      }
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : '发布失败');
     }
   }, [flow, showToast]);
 
@@ -1678,7 +1640,6 @@ export default function FlowEditor() {
                     ...prev,
                     tags: e.target.value.split(/,\s*/).filter(Boolean),
                     updatedAt: Date.now(),
-      status: 'draft',
                   }))}
                   className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
                   placeholder="逗号分隔，如 法术, 火焰"
@@ -1736,7 +1697,6 @@ export default function FlowEditor() {
                         n.id === selectedNode.id ? { ...n, label: e.target.value } : n
                       ),
                       updatedAt: Date.now(),
-      status: 'draft',
                     }));
                   }}
                   onBlur={(e) => {
@@ -1749,7 +1709,6 @@ export default function FlowEditor() {
                           n.id === selectedNode.id ? { ...n, label: trimmed } : n
                         ),
                         updatedAt: Date.now(),
-      status: 'draft',
                       }));
                     }
                   }}
@@ -1829,7 +1788,6 @@ export default function FlowEditor() {
                                         : n
                                     ),
                                     updatedAt: Date.now(),
-      status: 'draft',
                                   }));
                                 }}
                               />
@@ -1857,7 +1815,6 @@ export default function FlowEditor() {
                         n.id === selectedNode.id ? { ...n, notes: e.target.value } : n
                       ),
                       updatedAt: Date.now(),
-      status: 'draft',
                     }));
                   }}
                   onBlur={(e) => {
@@ -1870,7 +1827,6 @@ export default function FlowEditor() {
                           n.id === selectedNode.id ? { ...n, notes: trimmed } : n
                         ),
                         updatedAt: Date.now(),
-      status: 'draft',
                       }));
                     }
                   }}
@@ -1989,7 +1945,6 @@ export default function FlowEditor() {
                           : ed
                       ),
                       updatedAt: Date.now(),
-      status: 'draft',
                     }));
                   }}
                   className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
@@ -2018,7 +1973,6 @@ export default function FlowEditor() {
                         ed.id === selectedEdge.id ? { ...ed, label: e.target.value } : ed
                       ),
                       updatedAt: Date.now(),
-      status: 'draft',
                     }));
                   }}
                   onBlur={(e) => {
@@ -2031,7 +1985,6 @@ export default function FlowEditor() {
                           ed.id === selectedEdge.id ? { ...ed, label: trimmed } : ed
                         ),
                         updatedAt: Date.now(),
-      status: 'draft',
                       }));
                     }
                   }}
@@ -2054,7 +2007,6 @@ export default function FlowEditor() {
                         ed.id === selectedEdge.id ? { ...ed, condition: e.target.value || undefined } : ed
                       ),
                       updatedAt: Date.now(),
-      status: 'draft',
                     }));
                   }}
                   onBlur={(e) => {
@@ -2067,7 +2019,6 @@ export default function FlowEditor() {
                           ed.id === selectedEdge.id ? { ...ed, condition: trimmed || undefined } : ed
                         ),
                         updatedAt: Date.now(),
-      status: 'draft',
                       }));
                     }
                   }}
@@ -2092,7 +2043,6 @@ export default function FlowEditor() {
                           ed.id === selectedEdge.id ? { ...ed, dataMap: map } : ed
                         ),
                         updatedAt: Date.now(),
-      status: 'draft',
                       }));
                     } catch {
                       // JSON 解析错误时不更新
@@ -2332,6 +2282,17 @@ onNodeDelete={(nodeId) => {
 
       {/* ===== 法术选择器弹窗 ===== */}
       {spellPickerOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm border-2 border-dashed border-pink-500">
+          <SpellPicker
+            isOpen={spellPickerOpen}
+            onClose={() => setSpellPickerOpen(false)}
+            onSelect={(spell) => {
+              setDraftId(spell.id);
+              setSpellPickerOpen(false);
+              setIdDirty(true);
+              setIdErrors([]);
+            }}
+            selectedSpellIds={[]}
           />
         </div>
       )}
