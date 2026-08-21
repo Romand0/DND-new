@@ -13,7 +13,7 @@ interface MonsterEditorProps {
 export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate }: MonsterEditorProps) {
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState('');
-  const [cr, setCr] = useState<number | undefined>(undefined);
+  const [cr, setCr] = useState<string | undefined>(undefined);
   const [size, setSize] = useState('');
   const [type, setType] = useState('');
   const [alignment, setAlignment] = useState('');
@@ -38,7 +38,7 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
     if (initialTemplate) {
       setName(initialTemplate.name);
       setTemplateId(initialTemplate.templateId);
-      setCr(initialTemplate.cr);
+      setCr(initialTemplate.cr ? parseFloat(initialTemplate.cr) : undefined);
       setSize(initialTemplate.size || '');
       setType(initialTemplate.type || '');
       setAlignment(initialTemplate.alignment || '');
@@ -110,7 +110,7 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
       attacks,
       createdAt: initialTemplate?.createdAt || Date.now(),
       updatedAt: Date.now(),
-      cr,
+      cr: cr || '',
       size,
       type,
       alignment,

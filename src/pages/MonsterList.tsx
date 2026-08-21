@@ -102,7 +102,7 @@ export default function MonsterList() {
         t.templateId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.type?.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesType = typeFilter === 'all' || t.type === typeFilter;
-      const matchesCr = crFilter === 'all' || t.cr === crFilter;
+      const matchesCr = crFilter === 'all' ||         t.cr === crFilter || parseFloat(t.cr) === parseFloat(crFilter);
       const matchesSize = sizeFilter === 'all' || t.size === sizeFilter;
       return matchesSearch && matchesType && matchesCr && matchesSize;
     });
@@ -120,7 +120,9 @@ export default function MonsterList() {
     return [...filteredTemplates].sort((a, b) => {
       // 先按 CR 升序,再按名称拼音序
       if (a.cr !== undefined && b.cr !== undefined) {
-        if (a.cr !== b.cr) return a.cr - b.cr;
+        const aCr = parseFloat(a.cr) || 0;
+        const bCr = parseFloat(b.cr) || 0;
+        if (aCr !== bCr) return aCr - bCr;
       }
       return a.name.localeCompare(b.name, 'zh-CN');
     });
