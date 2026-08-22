@@ -1,5 +1,5 @@
 // 空间索引（均匀网格）：按 CELL_SIZE 方格划分节点，碰撞检测前先取邻近 9 格的候选，再做精确 AABB 检测
-import type { FlowNodeDef } from '@/types/flow';
+import type { FlowNodeDef } from '../types/flow';
 
 export const CELL_SIZE = 300;
 
