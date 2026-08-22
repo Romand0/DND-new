@@ -466,13 +466,13 @@ export default function FlowEditor() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // 移动 5px 才激活拖拽，防止点击误触发
+        distance: 3, // 5→3，更早激活
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 200,        // 长按 200ms 激活拖拽
-        tolerance: 5,      // 允许 5px 抖动
+        delay: 150,    // 250→150，触屏响应提速 100ms
+        tolerance: 8,  // 5→8，允许更大手指抖动不取消
       },
     }),
   );
@@ -862,14 +862,41 @@ export default function FlowEditor() {
       if (!ev?.active) return;
       const nodeId = ev.active.id as string;
       const scaledDelta = { x: ev.delta.x / canvasScale, y: ev.delta.y / canvasScale };
-      const projected = getProjectedPosition(nodeId, scaledDelta);
-      const colliding = checkCollision(nodeId, projected.x, projected.y);
+      // ★ 一次查找，复用 target 引用
+      const target = flow.nodes.find(n => n.id === nodeId);
+      if (!target) return;
+      const projected = {
+        x: Math.max(0, target.position.x + scaledDelta.x),
+        y: Math.max(0, target.position.y + scaledDelta.y),
+      };
+      // ★ 直接用 SpatialGrid 候选做碰撞，不再遍历全量 nodes
+      const candidates = spatialGridRef.current
+        .queryCandidates(projected.x, projected.y, NODE_W, NODE_H)
+        .filter(o => o.id !== nodeId);
+      const colliding = candidates.some(o =>
+        projected.x < o.position.x + NODE_W &&
+        projected.x + NODE_W > o.position.x &&
+        projected.y < o.position.y + NODE_H &&
+        projected.y + NODE_H > o.position.y
+      );
       setIsColliding(colliding);
-      // 碰撞方向提示：软排斥时在节点边缘显示推离方向箭头
-      setCollisionDir(colliding ? getCollisionDir(nodeId, projected.x, projected.y) : null);
-      // ★ 不再 setFlow —— 位置由 dnd-kit 的 CSS transform 驱动，拖拽结束时一次性写入
+      if (colliding) {
+        const other = candidates.find(o =>
+          projected.x < o.position.x + NODE_W &&
+          projected.x + NODE_W > o.position.x &&
+          projected.y < o.position.y + NODE_H &&
+          projected.y + NODE_H > o.position.y
+        );
+        if (other) {
+          const dx = projected.x - other.position.x;
+          const dy = projected.y - other.position.y;
+          setCollisionDir(Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'right' : 'left') : (dy >= 0 ? 'down' : 'up'));
+        }
+      } else {
+        setCollisionDir(null);
+      }
     });
-  }, [checkCollision, getProjectedPosition, getCollisionDir, canvasScale, crossLayerDrag]);
+  }, [flow.nodes, canvasScale]);
 
   // ===== 事件：拖拽结束 =====
   const handleDragEnd = useCallback((event: DragEndEvent) => {
@@ -923,16 +950,21 @@ export default function FlowEditor() {
     setFlow(prev => {
       const target = prev.nodes.find(n => n.id === nodeId);
       if (!target) return prev;
-      // target.position 仍是拖拽前的原始值（handleDragMove 不再修改它）
       const proposed = {
         x: Math.max(0, target.position.x + scaledDelta.x),
         y: Math.max(0, target.position.y + scaledDelta.y),
       };
-      const testNode = { ...target, position: proposed };
+      // ① 先磁吸（用户心理预期是"放到网格上"）
+      const snap = 20;
+      const snapped = {
+        x: Math.round(proposed.x / snap) * snap,
+        y: Math.round(proposed.y / snap) * snap,
+      };
+      // ② 再退避（从磁吸位置出发，退避步长也对齐网格）
+      const testNode = { ...target, position: snapped };
       const others = prev.nodes.filter(n => n.id !== nodeId);
       const resolvedPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
-      // 磁吸对齐：最终坐标吸附到 20px 网格
-      const snap = 20;
+      // ③ 退避结果再次磁吸，确保最终落位在网格上
       const finalPos = {
         x: Math.round(resolvedPos.x / snap) * snap,
         y: Math.round(resolvedPos.y / snap) * snap,
@@ -943,9 +975,9 @@ export default function FlowEditor() {
         updatedAt: Date.now(),
       };
     });
-    // 瞬移过渡：拖拽结束后短暂开启 transform 过渡，200ms 后移除
+    // 瞬移过渡：拖拽结束后短暂开启 transform 过渡，300ms 后移除
     setAnimateMove(true);
-    window.setTimeout(() => setAnimateMove(false), 200);
+    window.setTimeout(() => setAnimateMove(false), 300);
   }, [addNode, canvasScale, canvasTranslate]);
 
   // ===== 画布空白处点击取消选中 =====
@@ -1254,6 +1286,15 @@ export default function FlowEditor() {
             transform: none;
             box-shadow: none;
           }
+        }
+        
+        .flow-node-card {
+          will-change: transform;        /* 提示浏览器提前提升为合成层 */
+          contain: layout style paint;   /* 限制重排范围 */
+        }
+        
+        .flow-node-card.animate-move {
+          transition: transform 300ms cubic-bezier(0.2, 0, 0, 1);  /* ease-out 曲线，结束不突兀 */
         }
       `}</style>
       {/* ===== 顶部工具栏 ===== */}
@@ -2747,7 +2788,7 @@ function DraggableFlowNode({
       {...listeners}
       {...attributes}
       data-node-id={node.id}
-      className={`select-none ${shakeClass}`}
+      className={`select-none ${shakeClass} flow-node-card`}
     >
       {/* 碰撞方向提示：按推离方向显示对应边缘箭头 */}
       {collisionDir && (
@@ -2759,7 +2800,7 @@ function DraggableFlowNode({
         </div>
       )}
       <div
-        className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${borderColor} dark:bg-bg-dark-2 light:bg-white`}
+        className={`rounded-lg border-2 p-2.5 sm:p-3 transition-all cursor-pointer ${borderColor} dark:bg-bg-dark-2 light:bg-white ${animateMove ? 'animate-move' : ''}`}
         onClick={(e) => {
           // 仅在未拖拽时触发 click（dnd-kit 的 listeners 已处理拖拽）
           if (!dndDragging) onClick();
