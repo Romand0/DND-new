@@ -155,8 +155,6 @@ export function useFlowDraft(config: UseFlowDraftConfig = {}): UseFlowDraftRetur
   const loadDraft = useCallback((draft: FlowDefinition) => {
     setFlow(draft);
     flowNameInput.setExternal(draft.name);
-    setSelectedNodeId(null);
-    setSelectedEdgeId(null);
     setShowDrafts(false);
     setIdDirty(false);
   }, []);
@@ -179,14 +177,11 @@ export function useFlowDraft(config: UseFlowDraftConfig = {}): UseFlowDraftRetur
       const newFlow = createEmptyFlow();
       setFlow(newFlow);
       flowNameInput.setExternal(newFlow.name);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
       setIdDirty(true);
     }
   }, []);
   
   // ===== 设置选中节点（需要外部传入） =====
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   return {
     // 状态
     flow,
