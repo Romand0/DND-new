@@ -359,7 +359,7 @@ export default function MonsterList() {
       </div>
 
       <MonsterEditor
-        initialTemplate={editingTemplate}
+        template={editingTemplate}
         isOpen={editorOpen}
         onClose={() => { setEditorOpen(false); setEditingTemplate(undefined); }}
         onSave={handleSaveTemplate}

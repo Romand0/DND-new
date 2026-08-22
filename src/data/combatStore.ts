@@ -111,12 +111,14 @@ export function computeChildQtyMap(
   // 3. 应用 quantityDeltas：combatQty 增减
   for (const [cid, delta] of Object.entries(qtyDeltas)) {
     if (!delta) continue;
+    const deltaNum = Number(delta);
+    if (isNaN(deltaNum)) continue;
     const ex = map.get(cid);
     if (ex) {
-      ex.combatQty += delta;
+      ex.combatQty += deltaNum;
     } else {
       // 未知 childId：按 srcQty=0 处理，delta 后 combatQty = delta（允许 added 后被 delta 改变量时触发）
-      map.set(cid, { srcQty: 0, combatQty: delta });
+      map.set(cid, { srcQty: 0, combatQty: deltaNum });
     }
   }
 
@@ -1148,7 +1150,7 @@ function hashCharacter(character: Character | null): string {
   if (!character) return '';
   const snapshot: CharacterSnapshot = {
     id: character.id,
-    hp: character.hp || 0,
+    hp: character.currentHp || 0,
     equipment: character.equipment || [],
     updatedAt: character.updatedAt || 0,
   };
@@ -1165,7 +1167,7 @@ function mergeHp(
   character: Character,
 ): { finalHp: number; delta: number } {
   const combatHp = combatant.currentHp || 0;
-  const characterHp = character.hp || 0;
+  const characterHp = character.currentHp || 0;
   const finalHp = Math.min(combatHp, characterHp);
   const delta = finalHp - characterHp;
   return { finalHp, delta };
@@ -1239,7 +1241,7 @@ function detectConflicts(
   
   // HP 冲突检测
   const combatHp = combatant.currentHp || 0;
-  const characterHp = character.hp || 0;
+  const characterHp = character.currentHp || 0;
   if (combatHp !== characterHp) {
     conflicts.push({
       field: 'hp',
@@ -1309,7 +1311,7 @@ export function commitCombatToCharacter(
   const result: CombatCommitResult = {
     characterId: combatant.characterId,
     hp: {
-      before: character.hp || 0,
+      before: character.currentHp || 0,
       after: hpResult.finalHp,
     },
     equipmentDeltas,
@@ -1334,13 +1336,13 @@ export function executeCombatCommit(
   if (!character) return false;
   
   // 1. 更新 HP
-  const updatedCharacter = { ...character, hp: result.hp.after };
+  const updatedCharacter = { ...character, currentHp: result.hp.after };
   
   // 2. 更新装备
   updatedCharacter.equipment = mergeEquipment(character, result.equipmentDeltas);
   
   // 3. 保存角色卡（原子写入）
-  characterStore.saveCharacter(updatedCharacter);
+  characterStore.save(updatedCharacter);
   
   return true;
 }
