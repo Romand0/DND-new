@@ -2404,7 +2404,10 @@ function sampleEdgeToPolyline(
   to: { x: number; y: number },
   spacing: number = 16  // 1rem ≈ 16px
 ): string {
-  return sampleSmartEdgeToPolyline(from, to, spacing);
+  // 临时创建 EdgeEndpoint 对象以匹配 sampleSmartEdgeToPolyline 的签名
+  const fromWithSide: any = { ...from, side: 'bottom' as any };
+  const toWithSide: any = { ...to, side: 'top' as any };
+  return sampleSmartEdgeToPolyline(fromWithSide, toWithSide, spacing);
 }
 
 /** 获取连线两端中心点（与 getArrowPos / getLabelPos 对齐） */

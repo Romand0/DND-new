@@ -52,12 +52,20 @@ function selectOptimalEdgeSide(
   const direction = getNodeDirection(isFromNode ? node : otherNode, isFromNode ? otherNode : node);
   
   // 优先选择较远的方向
-  if (Math.abs(direction.horizontal) > Math.abs(direction.vertical)) {
-    // 水平距离更大，选择左右边
-    return direction.horizontal === 'right' ? 'right' : 'left';
+  if (direction.distance > 0) {
+    // 根据主方向选择边
+    if (direction.horizontal === 'right') {
+      return 'right';
+    } else if (direction.horizontal === 'left') {
+      return 'left';
+    } else if (direction.vertical === 'bottom') {
+      return 'bottom';
+    } else {
+      return 'top';
+    }
   } else {
-    // 垂直距离更大，选择上下边
-    return direction.vertical === 'bottom' ? 'bottom' : 'top';
+    // 默认选择底边
+    return 'bottom';
   }
 }
 
