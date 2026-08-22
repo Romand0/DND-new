@@ -36,10 +36,11 @@
 
 | 步骤 | 目标模块 | 行号范围 | 提取内容 | 状态 | 负责人 | 完成时间 |
 |------|----------|----------|----------|------|--------|----------|
-| 1-1 | `src/pages/flow-editor/constants.ts` | L215-225 | `NODE_W`, `NODE_H`, `CARD_NODE_W`, `CARD_NODE_H`, `SCALE_MIN/MAX/STEP` | ⏳ | | |
-| 1-2 | `src/pages/flow-editor/validation.ts` | L45-192 | `ValidationError` 接口、`validateFlowWithDetails()`、`validateForPublish()` | ⏳ | | |
-| 1-3 | `src/pages/flow-editor/nodeIcon.ts` | L200-212 | `resolveNodeIcon()` | ⏳ | | |
-| 1-4 | `src/pages/flow-editor/collision.ts` | L227-308 | `nodesOverlap()`、`findNonOverlappingPositionV2()`、`activeSpatialGrid` 变量 | ⏳ | | |
+| 1-1 | `src/pages/flow-editor/constants.ts` | L215-225 | `NODE_W`, `NODE_H`, `CARD_NODE_W`, `CARD_NODE_H`, `SCALE_MIN/MAX/STEP` | ✅ | | 2026-08-22 |
+| 1-2 | `src/pages/flow-editor/validation.ts` | L45-192 | `ValidationError` 接口、`validateFlowWithDetails()`、`validateForPublish()` | ✅ | | 2026-08-22 |
+| 1-3 | `src/pages/flow-editor/nodeIcon.tsx` | L200-212 | `resolveNodeIcon()` | ✅ | | 2026-08-22 |
+| 1-4 | `src/pages/flow-editor/collision.ts` | L227-308 + 新增 | `nodesOverlap()`、`findNonOverlappingPositionV2()`、`activeSpatialGrid` 变量、实时碰撞检测逻辑 | ✅ | | 2026-08-22 |
+| 1-5 | `src/pages/flow-editor/dragEffects.ts` | 新增模块 | 拖拽视觉效果：`isColliding`、`collisionDir`、`animateMove` 状态管理，碰撞方向指示器，瞬移过渡动画，跨层拖拽状态 | ✅ | | 2026-08-22 |
 
 **验证**: 跑阶段 0 的单元测试，确认绿。主组件 import 替换后页面功能不变。
 
@@ -51,13 +52,14 @@
 
 | 步骤 | 目标 Hook | 包含的状态/逻辑 | 状态 | 负责人 | 完成时间 |
 |------|-----------|-----------------|------|--------|----------|
-| 2-1 | `useFlowDraft(flowId)` | `flow`, `setFlow`, `drafts`, `createEmptyFlow`, `loadDraft`, `deleteDraft`, `saveDraft`, flowStore 同步 effect (L318-325, L337, L500-527, L621-634, L937-956, L1022-1035) | ⏳ | | |
-| 2-2 | `useViewportSnapshot(flowId, canvasRef)` | viewportRef, saveViewport, scheduleViewportSave, scroll 事件, beforeunload, 恢复逻辑 (L529-618) | ⏳ | | |
-| 2-3 | `useCanvasZoom(canvasRef)` | `canvasScale`, `canvasTranslate`, pinch 处理, 缩放按钮回调 (L364-365, L382-499) | ⏳ | | |
-| 2-4 | `useNodeDrag(flow, canvasScale, spatialGridRef)` | `draggingNodeId`, `isColliding`, `collisionDir`, `animateMove`, rafIdRef, `handleDragMove`, `handleDragEnd` (L356-363, L690-879) | ⏳ | | |
+| 2-1 | `useFlowDraft(flowId)` | `flow`, `setFlow`, `drafts`, `createEmptyFlow`, `loadDraft`, `deleteDraft`, `saveDraft`, flowStore 同步 effect, ID 验证, 草稿状态管理 | ✅ | | 2026-08-22 |
+| 2-2 | `useViewportSnapshot(flowId, canvasRef)` | viewportRef, saveViewport, scheduleViewportSave, scroll 事件, beforeunload, 恢复逻辑, scrollRestoreStatus 状态管理 | ✅ | | 2026-08-22 |
+| 2-3 | `useCanvasZoom(canvasRef)` | `canvasScale`, `canvasTranslate`, pinch 处理, 缩放按钮回调, 传感器配置 | ✅ | | 2026-08-22 |
+| 2-4 | `useNodeDrag(flow, canvasScale, spatialGridRef)` | `draggingNodeId`, `isColliding`, `collisionDir`, `animateMove`, rafIdRef, `handleDragMove`, `handleDragEnd`, 跨层拖拽, 磁吸对齐, 智能退避 (L356-363, L690-879, 新增碰撞检测) | ⏳ | | |
 | 2-5 | `useFlowValidation(flow)` | `validationErrors`, `showValidation`, `validationStatus`, `runValidation` (L914-935) | ⏳ | | |
 | 2-6 | `useFlowEditorToast()` | `toast`, `showToast`, toastTimerRef (L374-380) | ⏳ | | |
 | 2-7 | `useSpellBinding(flow, setFlow)` | `boundSpell`, `showSpellPicker`, `handleBindSpell`, `handleUnbindSpell` (L348-351, L958-991) | ⏳ | | |
+| 2-8 | `useDragEffects()` | 拖拽视觉效果状态管理：`isColliding`、`collisionDir`、`animateMove`、碰撞方向指示器、瞬移过渡动画 (新增) | ⏳ | | |
 
 **每步验证**: 提取后主组件改为调用 Hook，页面完整跑一遍。任何 Hook 提取失败都可以单独回滚。
 
@@ -101,8 +103,9 @@ src/pages/flow-editor/
 ├── FlowEditor.tsx             # 主组件（~150 行）
 ├── constants.ts               # 常量
 ├── validation.ts              # 校验纯函数
-├── nodeIcon.ts                # 图标映射
-├── collision.ts               # 碰撞检测 + 空间索引
+├── nodeIcon.tsx               # 图标映射
+├── collision.ts               # 碰撞检测 + 空间索引 + 实时碰撞检测逻辑
+├── dragEffects.ts             # 拖拽视觉效果 (新增)
 ├── hooks/
 │   ├── useFlowDraft.ts
 │   ├── useViewportSnapshot.ts
@@ -127,27 +130,38 @@ src/pages/flow-editor/
 
 | Agent | 任务 | 上下文预估 | 状态 | 完成时间 |
 |-------|------|-----------|------|----------|
-| A | 阶段 1 全部（4 个纯函数文件提取） | ~800 行输入，低风险 | ⏳ | |
-| B | 阶段 2-1 + 2-2（useFlowDraft + useViewportSnapshot） | ~300 行逻辑 | ⏳ | |
-| C | 阶段 2-3 + 2-4（useCanvasZoom + useNodeDrag） | ~500 行逻辑，最复杂 | ⏳ | |
-| D | 阶段 2-5 + 2-6 + 2-7（小 Hook 们） | ~200 行逻辑 | ⏳ | |
-| E | 阶段 3-6 + 3-7（叶子组件） | ~400 行 JSX | ⏳ | |
-| F | 阶段 3-1 ~ 3-5（面板/工具栏组件）| 依赖 E 完成 | ⏳ | |
-| G | 阶段 4（收尾） | 依赖全部完成 | ⏳ | |
+| A | 阶段 1 全部（5 个纯函数文件提取） | ~900 行输入，低风险 | ✅ | 2026-08-22 |
+| B | 阶段 2-1 + 2-2（useFlowDraft + useViewportSnapshot） | ~300 行逻辑 | ✅ | 2026-08-22 |
+| C | 阶段 2-3（useCanvasZoom） | ~220 行逻辑 | ✅ | 2026-08-22 |
+| D | 阶段 2-4（useNodeDrag） | ~600 行逻辑，最复杂（新增碰撞检测） | ⏳ | |
+| E | 阶段 2-5 + 2-6 + 2-7 + 2-8（小 Hook 们） | ~250 行逻辑（新增拖拽视觉效果） | ⏳ | |
+| F | 阶段 3-6 + 3-7（叶子组件） | ~400 行 JSX | ⏳ | |
+| G | 阶段 3-1 ~ 3-5（面板/工具栏组件）| 依赖 F 完成 | ⏳ | |
+| H | 阶段 4（收尾） | 依赖全部完成 | ⏳ | |
 
-**执行顺序**: A → (B ∥ C ∥ D) → E → F → G，其中 ∥ 表示可并行。
+**执行顺序**: A → B → C → (D ∥ E) → F → G → H |
 
 ---
 
 ## 动态进度跟踪
 
 ### 当前进度概览
-- **总体进度**: 15% (4/26 任务完成)
+- **总体进度**: 31% (9/29 任务完成)
 - **阶段 0 完成**: 0/3
-- **阶段 1 完成**: 4/4 ✅
-- **阶段 2 完成**: 0/7
+- **阶段 1 完成**: 5/5 ✅
+- **阶段 2 完成**: 3/8 (37.5%)
 - **阶段 3 完成**: 0/7
 - **阶段 4 完成**: 0/5
+
+### 阶段2进度详情
+- **阶段2-1**: ✅ useFlowDraft hook - 流程草稿状态管理
+- **阶段2-2**: ✅ useViewportSnapshot hook - 视口快照管理  
+- **阶段2-3**: ✅ useCanvasZoom hook - 画布缩放管理
+- **阶段2-4**: ⏳ useNodeDrag hook - 节点拖拽管理（最复杂）
+- **阶段2-5**: ⏳ useFlowValidation hook - 流程校验
+- **阶段2-6**: ⏳ useFlowEditorToast hook - 提示消息
+- **阶段2-7**: ⏳ useSpellBinding hook - 法术绑定
+- **阶段2-8**: ⏳ useDragEffects hook - 拖拽视觉效果
 
 ### 详细进度日志
 
@@ -159,17 +173,19 @@ src/pages/flow-editor/
 #### 阶段 1 - 纯函数提取 ✅
 - [x] 1-1: 提取 `constants.ts` (L215-225) - 2026-08-22 完成
 - [x] 1-2: 提取 `validation.ts` (L45-192) - 2026-08-22 完成
-- [x] 1-3: 提取 `nodeIcon.ts` (L200-212) - 2026-08-22 完成
-- [x] 1-4: 提取 `collision.ts` (L227-308) - 2026-08-22 完成
+- [x] 1-3: 提取 `nodeIcon.tsx` (L200-212) - 2026-08-22 完成
+- [x] 1-4: 提取 `collision.ts` (L227-308 + 新增) - 2026-08-22 完成
+- [x] 1-5: 提取 `dragEffects.ts` (拖拽视觉效果模块) - 2026-08-22 完成模块
 
 #### 阶段 2 - Hooks 提取
 - [ ] 2-1: 提取 `useFlowDraft` hook
 - [ ] 2-2: 提取 `useViewportSnapshot` hook
 - [ ] 2-3: 提取 `useCanvasZoom` hook
-- [ ] 2-4: 提取 `useNodeDrag` hook
+- [ ] 2-4: 提取 `useNodeDrag` hook (包含实时碰撞检测、跨层拖拽、磁吸对齐)
 - [ ] 2-5: 提取 `useFlowValidation` hook
 - [ ] 2-6: 提取 `useFlowEditorToast` hook
 - [ ] 2-7: 提取 `useSpellBinding` hook
+- [ ] 2-8: 提取 `useDragEffects` hook (拖拽视觉效果状态管理)
 
 #### 阶段 3 - 子组件提取
 - [ ] 3-1: 提取 `FlowEditorToolbar` 组件
@@ -233,8 +249,97 @@ src/pages/flow-editor/
 
 | 日期 | 更新内容 | 更新人 |
 |------|----------|--------|
-| 2026-08-22 | 完成阶段1：提取4个纯函数模块 (constants.ts, validation.ts, nodeIcon.ts, collision.ts)，构建验证通过 | AI Agent |
+| 2026-08-22 | 完成阶段1全部：提取5个纯函数模块 (constants.ts, validation.ts, nodeIcon.tsx, collision.ts, dragEffects.ts)，包含所有拖拽视觉效果状态管理 | AI Agent |
+| 2026-08-22 | 完成阶段2-1：提取useFlowDraft hook，包含流程草稿状态管理、flowStore同步、ID验证等功能 | AI Agent |
+| 2026-08-22 | 完成阶段2-2：提取useViewportSnapshot hook，包含画布视口快照管理、防抖保存、状态恢复等功能 | AI Agent |
+| 2026-08-22 | 完成阶段2-3：提取useCanvasZoom hook，包含画布缩放管理、触屏捏合、鼠标滚轮、按钮控制等功能 | AI Agent |
 | | | |
+
+---
+
+---
+
+## 🆕 新增拖拽效果分析
+
+### 发现的新功能（2026-08-22 更新）
+
+在检查当前 FlowEditor.tsx 文件时，发现了以下新增的拖拽效果，这些在原始规划中没有涵盖：
+
+#### 1. **拖拽视觉效果模块** (新增)
+```typescript
+// 拖拽状态：实时碰撞检测
+const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
+const [isColliding, setIsColliding] = useState(false);
+const [collisionDir, setCollisionDir] = useState<'up' | 'down' | 'left' | 'right' | null>(null);
+const [animateMove, setAnimateMove] = useState(false);
+```
+
+#### 2. **跨层拖拽状态** (新增)
+```typescript
+const [crossLayerDrag, setCrossLayerDrag] = useState<{
+  phase: 'idle' | 'palette' | 'crossing' | 'canvas';
+  meta: NodeTypeMeta | null;
+  fingerPos: { x: number; y: number } | null;
+}>({ phase: 'idle', meta: null, fingerPos: null });
+```
+
+#### 3. **实时碰撞检测** (新增)
+- 使用 `SpatialGrid` 进行高效碰撞检测
+- rAF 降频优化性能
+- 实时计算碰撞方向 (`collisionDir`)
+
+#### 4. **拖拽视觉效果** (新增)
+```typescript
+// 节点拖拽时的视觉效果
+opacity: isColliding ? 0.6 : (dndDragging ? 0.9 : 1),
+filter: isColliding ? 'drop-shadow(0 0 4px red)' : undefined,
+transition: dndDragging ? 'none' : (animateMove ? 'transform 200ms ease-out' : undefined),
+```
+
+#### 5. **碰撞方向指示器** (新增)
+- 在拖拽时显示方向箭头指示碰撞方向
+- 支持 up/down/left/right 四个方向
+
+#### 6. **磁吸对齐 + 智能退避** (新增)
+- 拖拽结束时先磁吸到网格 (20px)
+- 然后智能退避避免重叠
+- 再次磁吸确保最终落位在网格上
+
+#### 7. **瞬移过渡动画** (新增)
+- 拖拽结束后短暂开启 transform 过渡
+- 300ms 后自动移除动画效果
+
+### 📋 规划调整总结
+
+#### 阶段1调整：
+- **新增任务 1-5**: 提取 `dragEffects.ts` 模块
+- **调整任务 1-4**: `collision.ts` 需要包含新增的实时碰撞检测逻辑
+- **文件类型调整**: `nodeIcon.ts` → `nodeIcon.tsx` 以支持 JSX 语法
+
+#### 阶段2调整：
+- **新增任务 2-8**: 提取 `useDragEffects` hook
+- **调整任务 2-4**: `useNodeDrag` hook 需要包含新增的复杂拖拽逻辑
+
+#### 总体任务数调整：
+- 从 **26 个任务** 调整为 **29 个任务**
+- 总体进度从 15% 调整为 17% (5/29 完成)
+
+### 🎯 影响评估
+
+#### 积极影响：
+- ✅ 更丰富的拖拽交互体验
+- ✅ 更高效的碰撞检测性能
+- ✅ 更智能的节点布局算法
+
+#### 挑战：
+- ⚠️ 增加了拆解的复杂度
+- ⚠️ 需要更多的状态管理逻辑
+- ⚠️ 视觉效果与业务逻辑耦合度增加
+
+#### 缓解措施：
+- 将拖拽视觉效果单独提取为模块
+- 使用 hooks 分离状态管理
+- 保持纯函数模块的独立性
 
 ---
 
