@@ -734,7 +734,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           }
                         }}
                       />
-                      {somaticDetail?.manualOverride && <span className="text-xs px-2 py-1 rounded bg-accent text-accent-foreground">DM覆盖</span>}
+                      <span className="text-xs px-2 py-1 rounded bg-accent text-accent-foreground">DM覆盖</span>
                     </label>
                   </div>
                 </div>

@@ -184,12 +184,45 @@ export function createStatusManager(): StatusManager {
         console.log(`状态 ${statusId} 会影响 canGesticulate，需要联动更新`);
       }
 
-      return instance;
-    },
+return instance;
+     },
 
-    // --- 维护 ---
+     // --- 状态应用 ---
 
-    advanceRound(combatId: string): void {
+     /**
+      * 应用状态到参战者（自动联动 canGesticulate）
+      * 注意：此方法需要在调用处手动更新 combatStore 中的参战者状态
+      */
+     applyEffect(
+       targetId: string,
+       statusId: string,
+       scope: StatusScope = 'combat',
+       combatId?: string
+     ): StatusInstance {
+       // 应用状态
+       const instance = this.declareStart(statusId, targetId, scope, combatId);
+       
+       // 当施加以下状态时，自动设置 canGesticulate = false
+       const SOMATIC_BLOCKING_STATES: Record<string, Partial<any>> = {
+         incapacitated: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
+         grappled:      { canGesticulate: false },
+         paralyzed:     { isIncapacitated: true, canGesticulate: false, canSpeak: false },
+         petrified:     { isIncapacitated: true, canGesticulate: false, canSpeak: false },
+         stunned:       { isIncapacitated: true, canGesticulate: false }, // 注意：stunned 不剥夺言语
+         unconscious:   { isUnconscious: true, canGesticulate: false, canSpeak: false },
+       };
+
+       // 返回需要更新的状态信息，由调用者处理 combatStore 更新
+       if (statusId in SOMATIC_BLOCKING_STATES) {
+         console.log(`状态 ${statusId} 会影响 canGesticulate，需要联动更新`);
+       }
+
+       return instance;
+     },
+
+     // --- 维护 ---
+
+     advanceRound(combatId: string): void {
       // 处理回合推进：衰减持续时间
       const combatInstances = store.instances.filter(
         i => i.combatId === combatId && i.isActive

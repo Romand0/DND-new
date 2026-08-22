@@ -8,7 +8,8 @@ import type {
   PreCastCheckReport,
   CastStartConfig,
   CheckResult,
-  SavingThrowConfig
+  SavingThrowConfig,
+  ComponentsCheckResult
 } from '@/types/flow';
 import type { Character } from '@/types/character';
 import type { Spell } from '@/types/spell';

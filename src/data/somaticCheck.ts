@@ -1,5 +1,5 @@
 /** 会使双手均不可用、从而无法执行 S 成分的状态名 */
-const SOMATIC_BLOCKING_CONDITIONS = new Set([
+export const SOMATIC_BLOCKING_CONDITIONS = new Set([
   'grappled',     // 擒抱
   'paralyzed',    // 麻痹
   'petrified',    // 石化
