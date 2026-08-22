@@ -90,7 +90,7 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark, p
       return (
         <div className="space-y-3">
           <h4 className="text-sm font-medium">{schema.label}</h4>
-          {schema.children?.map((child) => (
+          {schema.children?.filter(c => !c.hidden).map((child) => (
             <ConfigFieldRenderer
               key={child.key}
               schema={child}

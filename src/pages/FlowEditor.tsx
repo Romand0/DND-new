@@ -635,14 +635,24 @@ export default function FlowEditor() {
   }
 
   // ===== 添加节点（自动防重叠） =====
+  /** 递归收集 schema 的默认值（含嵌套 object） */
+  const collectSchemaDefaults = useCallback((fields: ConfigFieldSchema[]): Record<string, any> => {
+    const defaults: Record<string, any> = {};
+    for (const f of fields) {
+      if (f.type === 'object' && f.children) {
+        const childDefaults = collectSchemaDefaults(f.children);
+        defaults[f.key] = Object.keys(childDefaults).length > 0 ? childDefaults : (f.defaultValue ?? {});
+      } else if (f.defaultValue !== undefined) {
+        defaults[f.key] = f.defaultValue;
+      }
+    }
+    return defaults;
+  }, []);
+
   const addNode = useCallback((typeMeta: NodeTypeMeta, position: { x: number; y: number }) => {
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     // 从 Schema 合并默认值（Schema 优先，兜底 defaultConfig）
-    const schemaDefaults: Record<string, any> = {};
-    const fields = NODE_CONFIG_SCHEMA[typeMeta.type] ?? [];
-    for (const f of fields) {
-      if (f.defaultValue !== undefined) schemaDefaults[f.key] = f.defaultValue;
-    }
+    const schemaDefaults = collectSchemaDefaults(NODE_CONFIG_SCHEMA[typeMeta.type] ?? []);
     const newNode: FlowNodeDef = {
       id, type: typeMeta.type, label: typeMeta.label,
       position: { x: position.x, y: position.y },
@@ -927,6 +937,45 @@ export default function FlowEditor() {
     return () => clearTimeout(timer);
   }, [flow]);
 
+  // ===== 历史数据兼容性处理 =====
+  useEffect(() => {
+    if (!flow.spellId) return;
+    const spell = spellStore.getById(flow.spellId);
+    if (!spell) return;
+
+    // 检查是否需要补填历史数据（缺少 detail 字段）
+    const needsBackfill = flow.nodes.some(
+      n => n.type === 'cast_start' && 
+           n.config?.autoChecks && 
+           !n.config.autoChecks.componentsDetail
+    );
+    if (!needsBackfill) return;
+
+    // 自动补填缺失的 detail 字段
+    const resolved = resolveAutoChecksFromSpell(spell);
+    setFlow(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n =>
+        n.type === 'cast_start' && 
+        n.config?.autoChecks && 
+        !n.config.autoChecks.componentsDetail
+          ? {
+              ...n,
+              config: {
+                ...n.config,
+                autoChecks: {
+                  ...n.config.autoChecks,
+                  componentsDetail: resolved.summary.components,
+                  rangeDetail: resolved.summary.range,
+                  timeDetail: resolved.summary.time,
+                },
+              },
+            }
+          : n
+      ),
+    }));
+  }, [flow.spellId, flow.nodes]);
+
   // ===== 手动验证 =====
   const runValidation = useCallback(() => {
     const errors = validateFlowWithDetails(flow);
@@ -965,7 +1014,7 @@ export default function FlowEditor() {
       const spell = spellStore.getById(spellId);
       if (spell) {
         // 自动回填 autoChecks 配置
-        const { autoChecks, dsl } = resolveAutoChecksFromSpell(spell);
+        const { autoChecks, dsl, summary } = resolveAutoChecksFromSpell(spell);
         
         // 更新 flow 的 autoChecks 配置
         setFlow(prev => {
@@ -976,7 +1025,13 @@ export default function FlowEditor() {
           if (castStartNode && castStartNode.config) {
             castStartNode.config = {
               ...castStartNode.config,
-              autoChecks,
+              autoChecks: {
+                ...castStartNode.config.autoChecks,
+                ...autoChecks,
+                componentsDetail: summary.components,
+                rangeDetail: summary.range,
+                timeDetail: summary.time,
+              },
             };
           }
           
