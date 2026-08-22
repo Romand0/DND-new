@@ -36,6 +36,10 @@ import {
   parseFlowId,
   buildFlowId,
 } from '@/types/flow';
+import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from './flow-editor/constants';
+import { validateFlowWithDetails, validateForPublish, type ValidationError } from './flow-editor/validation';
+import { resolveNodeIcon } from './flow-editor/nodeIcon';
+import { nodesOverlap, findNonOverlappingPositionV2, setActiveSpatialGrid } from './flow-editor/collision';
 import SpellPicker from '@/components/SpellPicker';
 import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
@@ -44,271 +48,18 @@ import { bindingStore } from '@/data/bindingStore';
 import type { Spell } from '@/types/spell';
 import { BindingService } from '@/services/bindingService';
 
-// ===== 增强的校验函数，提供节点级别错误 =====
-interface ValidationError {
-  type: 'global' | 'node' | 'edge';
-  id?: string; // 节点或边的ID
-  message: string;
-  field?: string; // 具体字段名（针对配置错误）
-}
 
-function validateFlowWithDetails(flow: FlowDefinition): ValidationError[] {
-  const errors: ValidationError[] = [];
-
-  // 1. 检查必需的全局字段
-  if (!flow.name || typeof flow.name !== 'string' || flow.name.trim() === '') {
-    errors.push({ type: 'global', message: '流程名称不能为空' });
-  }
-
-  if (!Array.isArray(flow.nodes)) {
-    errors.push({ type: 'global', message: '节点必须是数组' });
-    return errors; // 节点不是数组，后续检查无意义
-  }
-
-  if (!Array.isArray(flow.edges)) {
-    errors.push({ type: 'global', message: '边必须是数组' });
-  }
-
-  // 2. 检查节点
-  const nodeIds = new Set<string>();
-  for (let i = 0; i < flow.nodes.length; i++) {
-    const node = flow.nodes[i];
-    const nodeId = `节点${i + 1}(${node.id})`;
-
-    // 检查节点必需字段
-    if (!node.id || typeof node.id !== 'string') {
-      errors.push({ type: 'node', id: node.id, message: `${nodeId}缺少有效的ID` });
-    } else if (nodeIds.has(node.id)) {
-      errors.push({ type: 'node', id: node.id, message: `${nodeId}ID重复` });
-    } else {
-      nodeIds.add(node.id);
-    }
-
-    if (!node.type || typeof node.type !== 'string') {
-      errors.push({ type: 'node', id: node.id, message: `${nodeId}缺少节点类型` });
-    }
-
-    // 检查节点配置
-    if (node.config && typeof node.config === 'object') {
-      const schema = NODE_CONFIG_SCHEMA[node.type as FlowNodeType];
-      if (schema) {
-        for (const field of schema) {
-          if (field.required && (node.config[field.key] === undefined || node.config[field.key] === null || node.config[field.key] === '')) {
-            errors.push({
-              type: 'node',
-              id: node.id,
-              message: `${nodeId}缺少必需配置: ${field.label}`,
-              field: field.key
-            });
-          }
-        }
-      }
-    }
-
-    // 检查位置
-    if (!node.position || typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
-      errors.push({ type: 'node', id: node.id, message: `${nodeId}位置坐标无效` });
-    }
-  }
-
-  // 3. 检查边
-  const edgeIds = new Set<string>();
-  for (let i = 0; i < flow.edges.length; i++) {
-    const edge = flow.edges[i];
-    const edgeId = `边${i + 1}(${edge.id})`;
-
-    // 检查边必需字段
-    if (!edge.id || typeof edge.id !== 'string') {
-      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}缺少有效ID` });
-    } else if (edgeIds.has(edge.id)) {
-      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}ID重复` });
-    } else {
-      edgeIds.add(edge.id);
-    }
-
-    if (!edge.from || !nodeIds.has(edge.from)) {
-      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}引用了不存在的源节点: ${edge.from}` });
-    }
-
-    if (!edge.to || !nodeIds.has(edge.to)) {
-      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}引用了不存在的目标节点: ${edge.to}` });
-    }
-
-    if (edge.from === edge.to) {
-      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}形成自环（不能连接到自身）` });
-    }
-
-    // 检查重复边
-    const edgeSignature = `${edge.from}->${edge.to}@${edge.trigger}`;
-    const duplicateEdge = flow.edges.find((e, idx) => 
-      idx !== i && `${e.from}->${e.to}@${e.trigger}` === edgeSignature
-    );
-    if (duplicateEdge) {
-      errors.push({ type: 'edge', id: edge.id, message: `${edgeId}存在重复连线: ${edge.from} → ${edge.to}（${edge.trigger}）` });
-    }
-  }
-
-  // 4. 检查入口节点
-  const nodesWithIncomingEdge = new Set(flow.edges.map(e => e.to));
-  const entryNodes = flow.nodes.filter(n => !nodesWithIncomingEdge.has(n.id));
-  if (entryNodes.length === 0) {
-    errors.push({ type: 'global', message: '流程缺少入口节点（所有节点都有入边，可能存在循环）' });
-  }
-
-  // 5. 检查条件分支
-  const branchNodes = flow.nodes.filter(n => n.type === 'condition_branch');
-  for (const branch of branchNodes) {
-    const outEdges = flow.edges.filter(e => e.from === branch.id);
-    const hasTrue = outEdges.some(e => e.trigger === 'on_true');
-    const hasFalse = outEdges.some(e => e.trigger === 'on_false');
-    
-    if (!hasTrue) {
-      errors.push({ type: 'node', id: branch.id, message: `条件分支节点 ${branch.id} 缺少 on_true 出边` });
-    }
-    if (!hasFalse) {
-      errors.push({ type: 'node', id: branch.id, message: `条件分支节点 ${branch.id} 缺少 on_false 出边` });
-    }
-  }
-
-  // 检查流程必须绑定法术
-  if (!flow.spellId) {
-    errors.push({ type: 'global', message: '流程必须绑定法术' });
-  }
-
-  return errors;
-}
-
-// 修改后的验证逻辑：分阶段验证
-const validateForPublish = (flow: FlowDefinition) => {
-  // 只有已发布的流程才需要检查法术绑定
-  if (flow.status === 'published' && !flow.spellId) {
-    return { valid: false, error: '已发布的流程必须绑定法术' };
-  }
-
-  // 草稿只需要基本验证
-  const basicValidation = validateFlowWithDetails(flow);
-  if (basicValidation.length > 0) {
-    return { valid: false, error: `存在 ${basicValidation.length} 个基本验证错误` };
-  }
-
-  return { valid: true };
-};
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
 import NodeListPanel from '@/components/NodeListPanel';
 import { generateFlowId, validateFlowId } from '@/lib/idUtils';
 import { SpatialGrid } from '@/utils/spatialGrid';
 
-// ===== 节点图标解析 =====
-/** 从 icon name 解析为 React 元素，单一真相源 */
-function resolveNodeIcon(iconName?: string): React.ReactNode {
-  const map: Record<string, React.ReactNode> = {
-    'zap': <Zap className="w-4 h-4" />,
-    'shield': <Shield className="w-4 h-4" />,
-    'target': <Target className="w-4 h-4" />,
-    'mouse-pointer': <MousePointer className="w-4 h-4" />,
-    'git-branch': <GitBranch className="w-4 h-4" />,
-    'heart': <Heart className="w-4 h-4" />,
-    'skull': <Skull className="w-4 h-4" />,
-  };
-  return map[iconName || ''] ?? <Zap className="w-4 h-4" />;
-}
 
-// 节点卡片尺寸常量
-const NODE_W = 260;   // 窄屏基准宽度
-const NODE_H = 56;    // 最小估计高度（头部）
 
-// 卡片节点样式常量
-const CARD_NODE_W = 140;  // 卡片节点宽度
-const CARD_NODE_H = 48;   // 卡片节点高度
 
-// 画布缩放常量
-const SCALE_MIN = 0.25;
-const SCALE_MAX = 3;
-const SCALE_STEP = 0.1;
 
-// ===== 碰撞检测工具函数 =====
-// 当前生效的空间索引（组件在 flow.nodes 变化时同步），供模块级 nodesOverlap 做候选筛选
-let activeSpatialGrid: SpatialGrid | null = null;
 
-function nodesOverlap(a: FlowNodeDef, b: FlowNodeDef, cardWidth: number): boolean {
-  if (a.id === b.id) return false;
-  // 空间索引候选筛选：b 不在候选集中则必不重叠（精确 AABB 检测在下方）
-  if (activeSpatialGrid) {
-    const candidates = activeSpatialGrid.queryCandidates(a.position.x, a.position.y, cardWidth, NODE_H);
-    if (!candidates.some(c => c.id === b.id)) return false;
-  }
-  return (
-    a.position.x < b.position.x + cardWidth &&
-    a.position.x + cardWidth > b.position.x &&
-    a.position.y < b.position.y + NODE_H &&
-    a.position.y + NODE_H > b.position.y
-  );
-}
-
-// 智能退避策略：对每个重叠节点计算推离向量（选重叠量最小的轴、方向远离对方），
-// 按位移平方和排序取最小推离向量作为最终落位
-function findNonOverlappingPositionV2(
-  node: FlowNodeDef,
-  others: FlowNodeDef[],
-  cardW: number,
-  cardH: number,
-  grid: SpatialGrid,
-  scale: number,
-): { x: number; y: number } {
-  const step = 30 / scale;
-  const candidates = grid.queryCandidates(node.position.x, node.position.y, cardW, cardH)
-    .filter(o => o.id !== node.id);
-
-  // 对每个重叠节点计算推离向量
-  const pushVectors: { x: number; y: number }[] = [];
-  for (const o of candidates) {
-    const overlapX = Math.min(node.position.x + cardW, o.position.x + cardW) - Math.max(node.position.x, o.position.x);
-    const overlapY = Math.min(node.position.y + cardH, o.position.y + cardH) - Math.max(node.position.y, o.position.y);
-    if (overlapX <= 0 || overlapY <= 0) continue;
-    if (overlapX <= overlapY) {
-      const dir = node.position.x < o.position.x ? -1 : 1;
-      pushVectors.push({ x: dir * overlapX, y: 0 });
-    } else {
-      const dir = node.position.y < o.position.y ? -1 : 1;
-      pushVectors.push({ x: 0, y: dir * overlapY });
-    }
-  }
-
-  if (pushVectors.length === 0) {
-    return { x: node.position.x, y: node.position.y };
-  }
-
-  // 候选退避点：推离向量 + 四轴向 step 递增，位移平方和越小越优先
-  const seen = new Set<string>();
-  const attempts: { x: number; y: number; cost: number }[] = [];
-  const addAttempt = (vx: number, vy: number) => {
-    const x = Math.max(0, node.position.x + vx);
-    const y = Math.max(0, node.position.y + vy);
-    const k = `${x},${y}`;
-    if (seen.has(k)) return;
-    seen.add(k);
-    const stillOverlap = others.some(o => (
-      x < o.position.x + cardW && x + cardW > o.position.x &&
-      y < o.position.y + cardH && y + cardH > o.position.y
-    ));
-    const dx = x - node.position.x;
-    const dy = y - node.position.y;
-    attempts.push({ x, y, cost: stillOverlap ? Infinity : dx * dx + dy * dy });
-  };
-
-  for (const v of pushVectors) addAttempt(v.x, v.y);
-  for (let d = 1; d <= 3; d++) {
-    addAttempt(step * d, 0);
-    addAttempt(-step * d, 0);
-    addAttempt(0, step * d);
-    addAttempt(0, -step * d);
-  }
-
-  attempts.sort((p, q) => p.cost - q.cost);
-  const best = attempts.find(a => a.cost !== Infinity);
-  return best ? { x: best.x, y: best.y } : { x: node.position.x, y: node.position.y };
-}
 
 export default function FlowEditor() {
   const { id: flowId } = useParams<{ id: string }>();
@@ -498,7 +249,7 @@ export default function FlowEditor() {
   // ===== 空间索引：节点列表变化时重建，供碰撞检测候选筛选 =====
   useEffect(() => {
     spatialGridRef.current.rebuild(flow.nodes);
-    activeSpatialGrid = spatialGridRef.current;
+    setActiveSpatialGrid(spatialGridRef.current);
   }, [flow.nodes]);
 
   // ===== 拖拽降频：卸载时取消挂起的 rAF =====
