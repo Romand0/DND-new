@@ -1213,7 +1213,7 @@ export default function FlowEditor() {
             onClick={handlePublish}
             disabled={validationStatus === 'invalid'}
             className={`
-              flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
+              flex items-center gap-1 px-3 py-1.5 h-10 rounded-lg text-xs font-medium border transition-colors min-w-[80px]
               ${validationStatus === 'valid'
                 ? 'border-green-500 text-green-500 hover:border-green-400 hover:text-green-400 hover:bg-green-500/10'
                 : 'border-gray-400 text-gray-400 cursor-not-allowed'
@@ -1221,7 +1221,7 @@ export default function FlowEditor() {
             `}
           >
             <CloudUpload className="w-3.5 h-3.5" />
-            <span>{flow.status === 'published' ? '更新发布' : '发布'}</span>
+            <span className="truncate">{flow.status === 'published' ? '更新' : '发布'}</span>
           </button>
           <button
             onClick={saveDraft}
@@ -2738,17 +2738,21 @@ function DraggableFlowNode({
 
         {/* 节点配置预览 */}
         {node.config && Object.keys(node.config).length > 0 && (
-          <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5">
+          <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5 max-h-20 overflow-y-auto">
             {Object.entries(node.config).map(([k, v]) => (
-              <div key={k} className="truncate">
-                <span className="font-medium">{k}:</span> {String(v)}
+              <div key={k} className="truncate pr-1" title={`${k}: ${String(v)}`}>
+                <span className="font-medium">{k}:</span> 
+                <span className="truncate ml-1">{String(v)}</span>
               </div>
             ))}
             
             {/* 如果是 cast_start 节点且绑定了法术，显示 DSL */}
             {node.type === 'cast_start' && flow.spellId && (
-              <div className="mt-1 pt-1 border-t dark:border-border-dark light:border-border-light text-[8px] font-mono bg-gray-100/30 dark:bg-gray-800/30 rounded px-1">
-                autoChecks={JSON.stringify(node.config?.autoChecks || {})}
+              <div className="mt-1 pt-1 border-t dark:border-border-dark light:border-border-light text-[8px] font-mono bg-gray-100/30 dark:bg-gray-800/30 rounded px-1 max-h-16 overflow-y-auto">
+                <div className="truncate" title={`autoChecks: ${JSON.stringify(node.config?.autoChecks || {})}`}>
+                  autoChecks={JSON.stringify(node.config?.autoChecks || {}).substring(0, 50)}
+                  {JSON.stringify(node.config?.autoChecks || {}).length > 50 && '...'}
+                </div>
               </div>
             )}
           </div>
