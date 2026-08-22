@@ -1336,7 +1336,7 @@ export default function FlowEditor() {
                   </marker>
                 </defs>
                 {flow.edges.map(edge => {
-                  const path = getEdgePath(edge, flow.nodes, nodeSizes);
+                  const path = getEdgePath(edge);
                   if (!path) return null;
                   const isSelected = selectedEdgeId === edge.id;
                   return (
@@ -1378,8 +1378,8 @@ export default function FlowEditor() {
                       {edge.label && (
                         <>
                           <rect
-                            x={getSmartLabelPos(edge, flow.nodes, nodeSizes).x - 30}
-                            y={getSmartLabelPos(edge, flow.nodes, nodeSizes).y - 11}
+                            x={parseInt(getSmartLabelPos(edge, flow.nodes, nodeSizes).split(',')[0]) - 30}
+                            y={parseInt(getSmartLabelPos(edge, flow.nodes, nodeSizes).split(',')[1]) - 11}
                             width="60"
                             height="22"
                             rx="6"
@@ -1390,8 +1390,8 @@ export default function FlowEditor() {
                             onClick={() => setSelectedEdgeId(edge.id)}
                           />
                           <text
-                            x={getSmartLabelPos(edge, flow.nodes, nodeSizes).x}
-                            y={getSmartLabelPos(edge, flow.nodes, nodeSizes).y}
+                            x={parseInt(getSmartLabelPos(edge, flow.nodes, nodeSizes).split(',')[0])}
+                            y={parseInt(getSmartLabelPos(edge, flow.nodes, nodeSizes).split(',')[1])}
                             fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#ffffff' : '#1a1a2e')}
                             fontSize="10"
                             textAnchor="middle"
@@ -2441,16 +2441,6 @@ onNodeDelete={(nodeId) => {
   );
 }
 
-// ===== 辅助函数：计算箭头位置 =====
-function getArrowPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): string {
-  return getSmartArrowPos(edge, nodes, nodeSizes);
-}
-
-// ===== 辅助函数：计算标签位置 =====
-function getLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): { x: number; y: number } {
-  return getSmartLabelPos(edge, nodes, nodeSizes);
-}
-
 /** 将一条直线段按 spacing 间距采样为多段折线的 path d 属性，供 marker-mid 使用 */
 function sampleEdgeToPolyline(
   from: { x: number; y: number },
@@ -2461,11 +2451,6 @@ function sampleEdgeToPolyline(
   const fromWithSide: any = { ...from, side: 'bottom' as any };
   const toWithSide: any = { ...to, side: 'top' as any };
   return sampleSmartEdgeToPolyline(fromWithSide, toWithSide, spacing);
-}
-
-/** 获取连线两端中心点（与 getArrowPos / getLabelPos 对齐） */
-function getEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[]) {
-  return getSmartEdgeDecoratedEndpoints(edge, nodes, nodeSizes);
 }
 
 // ===== DraggableFlowNode 子组件：封装 dnd-kit useDraggable =====
