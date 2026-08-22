@@ -811,6 +811,15 @@ export default function FlowEditor() {
     const nodeId = event.active?.id as string;
     if (nodeId) setDraggingNodeId(nodeId);
     setIsColliding(false);
+    
+    // ── 跨层拖拽：开始拖拽时设置 phase ──
+    if (event.active.data.current?.fromPalette) {
+      setCrossLayerDrag(prev => ({
+        ...prev,
+        phase: 'palette',
+        meta: event.active.data.current?.typeMeta as NodeTypeMeta || null,
+      }));
+    }
   }, []);
 
   // ===== 事件：拖拽移动（rAF 节流 + 实时碰撞检测，不再写入位置状态） =====
