@@ -8,6 +8,7 @@ import {
   useSensor,
   useSensors,
   useDraggable,
+  DragOverlay,
   DragEndEvent,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
@@ -381,6 +382,13 @@ export default function FlowEditor() {
     toastTimerRef.current = window.setTimeout(() => setToast(null), 3000);
   }, []);
 
+  // ===== 跨层拖拽状态 =====
+  const [crossLayerDrag, setCrossLayerDrag] = useState<{
+    phase: 'idle' | 'palette' | 'crossing' | 'canvas';
+    meta: NodeTypeMeta | null;
+    fingerPos: { x: number; y: number } | null;
+  }>({ phase: 'idle', meta: null, fingerPos: null });
+
   // ===== 画布缩放：触屏双指捏合 =====
   const pinchRef = useRef<{
     pointers: Map<number, { x: number; y: number }>;
@@ -463,8 +471,8 @@ export default function FlowEditor() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
-        tolerance: 5,
+        delay: 200,        // 长按 200ms 激活拖拽
+        tolerance: 5,      // 允许 5px 抖动
       },
     }),
   );
@@ -809,6 +817,32 @@ export default function FlowEditor() {
   const handleDragMove = useCallback((event: DragEndEvent) => {
     const { active } = event;
     if (!active) return;
+    // ── 跨层拖拽：手指位置检测 ──
+    if (active.data.current?.fromPalette) {
+      const translatedRect = active.rect.current.translated;
+      if (translatedRect) {
+        const panelWidth = 320; // 左面板宽度 w-72 = 288px，加 padding
+        const fingerX = translatedRect.left + translatedRect.width / 2;
+        if (fingerX > panelWidth && crossLayerDrag.phase === 'palette') {
+          // 手指越过面板边界 → 进入 CROSSING 阶段
+          setCrossLayerDrag(prev => ({
+            ...prev,
+            phase: 'crossing',
+            fingerPos: { x: fingerX, y: translatedRect.top },
+          }));
+          // 收起左面板（带动画）
+          setShowLeftPanel(false);
+        }
+        if (crossLayerDrag.phase === 'crossing' || crossLayerDrag.phase === 'canvas') {
+          // 面板已收起，卡片全屏跟随
+          setCrossLayerDrag(prev => ({
+            ...prev,
+            phase: 'canvas',
+            fingerPos: { x: fingerX, y: translatedRect.top + translatedRect.height / 2 },
+          }));
+        }
+      }
+    }
     // 拖拽降频：仅标记脏事件，实际碰撞检测在 rAF 回调中执行
     lastEventRef.current = event;
     if (rafIdRef.current !== null) return;
@@ -826,33 +860,48 @@ export default function FlowEditor() {
       setCollisionDir(colliding ? getCollisionDir(nodeId, projected.x, projected.y) : null);
       // ★ 不再 setFlow —— 位置由 dnd-kit 的 CSS transform 驱动，拖拽结束时一次性写入
     });
-  }, [checkCollision, getProjectedPosition, getCollisionDir, canvasScale]);
+  }, [checkCollision, getProjectedPosition, getCollisionDir, canvasScale, crossLayerDrag]);
 
   // ===== 事件：拖拽结束 =====
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, delta } = event;
-    // ── 从左侧栏拖入画布 ──
+    // ── 从左侧栏拖入画布（增强：跨层落位） ──
     if (active.data.current?.fromPalette) {
       const typeMeta = active.data.current.typeMeta as NodeTypeMeta;
       const translatedRect = active.rect.current.translated;
       if (translatedRect && canvasRef.current) {
         const canvasRect = canvasRef.current.getBoundingClientRect();
+        const dropX = translatedRect.left + translatedRect.width / 2;
+        const dropY = translatedRect.top + translatedRect.height / 2;
+
         if (
-          translatedRect.left >= canvasRect.left &&
-          translatedRect.left <= canvasRect.right &&
-          translatedRect.top >= canvasRect.top &&
-          translatedRect.top <= canvasRect.bottom
+          dropX >= canvasRect.left &&
+          dropX <= canvasRect.right &&
+          dropY >= canvasRect.top &&
+          dropY <= canvasRect.bottom
         ) {
-          const x = (translatedRect.left - canvasRect.left + canvasRef.current.scrollLeft) / canvasScale;
-          const y = (translatedRect.top - canvasRect.top + canvasRef.current.scrollTop) / canvasScale;
-          addNode(typeMeta, { x, y });
-          return;
+          // ★ 精确落位：屏幕坐标 → 画布逻辑坐标（含缩放 + 平移 + 滚动）
+          const x = (dropX - canvasRect.left + canvasRef.current.scrollLeft - canvasTranslate.x)
+                    / canvasScale
+                    - CARD_NODE_W / 2;
+          const y = (dropY - canvasRect.top + canvasRef.current.scrollTop - canvasTranslate.y)
+                    / canvasScale
+                    - CARD_NODE_H / 2;
+          addNode(typeMeta, { x: Math.max(0, x), y: Math.max(0, y) });
+        } else {
+          // 松手在画布外 → 取消放置，恢复左面板
+          setShowLeftPanel(true);
         }
+      } else {
+        // 兜底：放在画布中心
+        const canvas = canvasRef.current;
+        const cx = canvas ? (canvas.scrollLeft + canvas.clientWidth / 2) / canvasScale - NODE_W / 2 : 600;
+        const cy = canvas ? (canvas.scrollTop + canvas.clientHeight / 2) / canvasScale - 24 : 400;
+        addNode(typeMeta, { x: cx, y: cy });
       }
-      const canvas = canvasRef.current;
-      const cx = canvas ? canvas.scrollLeft + canvas.clientWidth / 2 - NODE_W / 2 : 1200;
-      const cy = canvas ? canvas.scrollTop + canvas.clientHeight / 2 - 24 : 800;
-      addNode(typeMeta, { x: cx, y: cy });
+
+      // 重置跨层状态
+      setCrossLayerDrag({ phase: 'idle', meta: null, fingerPos: null });
       return;
     }
 
@@ -888,7 +937,7 @@ export default function FlowEditor() {
     // 瞬移过渡：拖拽结束后短暂开启 transform 过渡，200ms 后移除
     setAnimateMove(true);
     window.setTimeout(() => setAnimateMove(false), 200);
-  }, [addNode, canvasScale]);
+  }, [addNode, canvasScale, canvasTranslate]);
 
   // ===== 画布空白处点击取消选中 =====
   const handleCanvasClick = useCallback(() => {
@@ -2399,6 +2448,24 @@ onNodeDelete={(nodeId) => {
         />
       )}
         </div>
+        <DragOverlay dropAnimation={null}>
+          {crossLayerDrag.meta && crossLayerDrag.fingerPos && (
+            <div
+              className="pointer-events-none fixed z-50"
+              style={{
+                left: crossLayerDrag.fingerPos.x - CARD_NODE_W / 2,
+                top: crossLayerDrag.fingerPos.y - CARD_NODE_H / 2,
+                width: CARD_NODE_W,
+                height: CARD_NODE_H,
+                transform: 'scale(1.05)',
+                opacity: crossLayerDrag.phase === 'crossing' ? 0.7 : 0.9,
+                transition: 'opacity 150ms ease',
+              }}
+            >
+              <NodeCardGhost meta={crossLayerDrag.meta} />
+            </div>
+          )}
+        </DragOverlay>
       </DndContext>
 
       {/* ===== 草稿列表弹窗 ===== */}
@@ -2794,6 +2861,17 @@ function PaletteDragItem({ meta }: PaletteDragItemProps) {
       />
       <span className="truncate font-medium text-xs flex-1 min-w-0">{meta.label}</span>
     </button>
+  );
+}
+
+function NodeCardGhost({ meta }: { meta: NodeTypeMeta }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/40 bg-primary/10 shadow-lg shadow-primary/20">
+      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: meta.color }} />
+      <span className="text-sm font-medium dark:text-text-dark light:text-text-light whitespace-nowrap">
+        {meta.label}
+      </span>
+    </div>
   );
 }
 
