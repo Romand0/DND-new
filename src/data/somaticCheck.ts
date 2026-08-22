@@ -9,6 +9,8 @@ const SOMATIC_BLOCKING_CONDITIONS = new Set([
 
 export type SomaticBlockingCondition = typeof SOMATIC_BLOCKING_CONDITIONS extends Set<infer T> ? T : never;
 
+import type { Combatant } from '@/types/combat';
+
 /** 推导 canGesticulate
  * @param combatant 参战者
  * @param activeConditions 当前身上的状态列表（由状态管理器提供）

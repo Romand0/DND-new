@@ -15,7 +15,7 @@ import type { Spell } from '@/types/spell';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
 import { rollDie } from '@/data/diceService';
-import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS } from '@/data/somaticCheck';
+import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS, type SomaticBlockingCondition } from '@/data/somaticCheck';
 
 export class FlowCompiler {
   /**
@@ -243,7 +243,7 @@ export class FlowCompiler {
    */
   private checkComponents(
     spell: Spell,
-    combatant: Character,
+    combatant: any,
     activeConditions: string[],
   ) {
     const required: string[] = [];
@@ -259,7 +259,7 @@ export class FlowCompiler {
     }
 
     // S 检查（新增）
-    let somaticDetail: ComponentsCheckResult['somaticDetail'];
+    let somaticDetail: any;
     if (spell.components?.somatic) {
       const derived = deriveCanGesticulate(combatant, activeConditions);
       
@@ -272,7 +272,7 @@ export class FlowCompiler {
       
       // 收集详情
       const blocking = activeConditions.filter(c =>
-        SOMATIC_BLOCKING_CONDITIONS.has(c as any)
+        SOMATIC_BLOCKING_CONDITIONS.has(c as SomaticBlockingCondition)
       );
       somaticDetail = {
         canGesticulate: finalCanGesticulate,
@@ -333,7 +333,7 @@ export class FlowCompiler {
   /**
    * 检查是否有组件
    */
-  private hasComponent(caster: Character, component: string): boolean {
+  private hasComponent(caster: any, component: string): boolean {
     switch (component) {
       case 'verbal':
         return caster.canSpeak !== false;

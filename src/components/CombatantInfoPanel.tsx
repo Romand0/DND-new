@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+
 import { characterStore } from '@/data/characterStore';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
@@ -706,7 +706,15 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       <input
                         type="checkbox"
                         checked={combatant.canSpeak !== false}
-                        onChange={e => updateCombatant({ canSpeak: e.target.checked })}
+                        onChange={e => {
+                          const record = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
+                          if (record) {
+                            const updatedCombatants = record.combatants.map(c => 
+                              c.id === combatant.id ? { ...c, canSpeak: e.target.checked } : c
+                            );
+                            combatStore.update(record.id, { combatants: updatedCombatants });
+                          }
+                        }}
                       />
                     </label>
                   </div>
@@ -716,9 +724,17 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       <input
                         type="checkbox"
                         checked={combatant.canGesticulate !== false}
-                        onChange={e => updateCombatant({ canGesticulate: e.target.checked })}
+                        onChange={e => {
+                          const record = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
+                          if (record) {
+                            const updatedCombatants = record.combatants.map(c => 
+                              c.id === combatant.id ? { ...c, canGesticulate: e.target.checked } : c
+                            );
+                            combatStore.update(record.id, { combatants: updatedCombatants });
+                          }
+                        }}
                       />
-                      {somaticDetail?.manualOverride && <Badge>DM覆盖</Badge>}
+                      {somaticDetail?.manualOverride && <span className="text-xs px-2 py-1 rounded bg-accent text-accent-foreground">DM覆盖</span>}
                     </label>
                   </div>
                 </div>

@@ -158,6 +158,7 @@ export function createStatusManager(): StatusManager {
 
     /**
      * 应用状态到参战者（自动联动 canGesticulate）
+     * 注意：此方法需要在调用处手动更新 combatStore 中的参战者状态
      */
     applyEffect(
       targetId: string,
@@ -178,11 +179,8 @@ export function createStatusManager(): StatusManager {
         unconscious:   { isUnconscious: true, canGesticulate: false, canSpeak: false },
       };
 
-      // 在状态施加循环中，若状态名在 SOMATIC_BLOCKING_STATES 中，则合并更新 combatant
+      // 返回需要更新的状态信息，由调用者处理 combatStore 更新
       if (statusId in SOMATIC_BLOCKING_STATES) {
-        // 这里需要调用 combatStore 来更新参战者状态
-        // 由于当前文件没有直接访问 combatStore，这个逻辑需要在调用处实现
-        // 或者通过事件系统通知状态变更
         console.log(`状态 ${statusId} 会影响 canGesticulate，需要联动更新`);
       }
 
