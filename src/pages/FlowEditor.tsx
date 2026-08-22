@@ -38,6 +38,7 @@ import {
 } from '@/types/flow';
 import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from './flow-editor/constants';
 import { validateFlowWithDetails, validateForPublish, type ValidationError } from './flow-editor/validation';
+import { resolveNodeIcon } from './flow-editor/nodeIcon';
 import SpellPicker from '@/components/SpellPicker';
 import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
@@ -53,20 +54,7 @@ import NodeListPanel from '@/components/NodeListPanel';
 import { generateFlowId, validateFlowId } from '@/lib/idUtils';
 import { SpatialGrid } from '@/utils/spatialGrid';
 
-// ===== 节点图标解析 =====
-/** 从 icon name 解析为 React 元素，单一真相源 */
-function resolveNodeIcon(iconName?: string): React.ReactNode {
-  const map: Record<string, React.ReactNode> = {
-    'zap': <Zap className="w-4 h-4" />,
-    'shield': <Shield className="w-4 h-4" />,
-    'target': <Target className="w-4 h-4" />,
-    'mouse-pointer': <MousePointer className="w-4 h-4" />,
-    'git-branch': <GitBranch className="w-4 h-4" />,
-    'heart': <Heart className="w-4 h-4" />,
-    'skull': <Skull className="w-4 h-4" />,
-  };
-  return map[iconName || ''] ?? <Zap className="w-4 h-4" />;
-}
+
 
 
 
