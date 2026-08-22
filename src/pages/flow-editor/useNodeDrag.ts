@@ -295,39 +295,41 @@ export function useNodeDrag(config: UseNodeDragConfig): UseNodeDragReturn {
     setDragState(prev => ({ ...prev, draggingNodeId: null, isColliding: false, collisionDir: null }));
     
     const scaledDelta = { x: delta.x / canvasScale, y: delta.y / canvasScale };
-    setFlow(prev => {
-      const target = prev.nodes.find(n => n.id === nodeId);
-      if (!target) return prev;
-      
-      const proposed = {
-        x: Math.max(0, target.position.x + scaledDelta.x),
-        y: Math.max(0, target.position.y + scaledDelta.y),
-      };
-      
-      // ① 先磁吸（用户心理预期是"放到网格上"）
-      const snap = 20;
-      const snapped = {
-        x: Math.round(proposed.x / snap) * snap,
-        y: Math.round(proposed.y / snap) * snap,
-      };
-      
-      // ② 再退避（从磁吸位置出发，退避步长也对齐网格）
-      const testNode = { ...target, position: snapped };
-      const others = prev.nodes.filter(n => n.id !== nodeId);
-      const resolvedPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
-      
-      // ③ 退避结果再次磁吸，确保最终落位在网格上
-      const finalPos = {
-        x: Math.round(resolvedPos.x / snap) * snap,
-        y: Math.round(resolvedPos.y / snap) * snap,
-      };
-      
-      return {
-        ...prev,
-        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
-        updatedAt: Date.now(),
-      };
-    });
+    // 创建新的flow对象
+    const target = flow.nodes.find(n => n.id === nodeId);
+    if (!target) return;
+    
+    const proposed = {
+      x: Math.max(0, target.position.x + scaledDelta.x),
+      y: Math.max(0, target.position.y + scaledDelta.y),
+    };
+    
+    // ① 先磁吸（用户心理预期是"放到网格上"）
+    const snap = 20;
+    const snapped = {
+      x: Math.round(proposed.x / snap) * snap,
+      y: Math.round(proposed.y / snap) * snap,
+    };
+    
+    // ② 再退避（从磁吸位置出发，退避步长也对齐网格）
+    const testNode = { ...target, position: snapped };
+    const others = flow.nodes.filter(n => n.id !== nodeId);
+    const resolvedPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
+    
+    // ③ 退避结果再次磁吸，确保最终落位在网格上
+    const finalPos = {
+      x: Math.round(resolvedPos.x / snap) * snap,
+      y: Math.round(resolvedPos.y / snap) * snap,
+    };
+    
+    // 创建新的flow对象
+    const newFlow = {
+      ...flow,
+      nodes: flow.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
+      updatedAt: Date.now(),
+    };
+    
+    setFlow(newFlow);
     
     // 瞬移过渡：拖拽结束后短暂开启 transform 过渡，300ms 后移除
     setDragState(prev => ({ ...prev, animateMove: true }));
