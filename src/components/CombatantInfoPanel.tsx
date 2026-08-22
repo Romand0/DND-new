@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from 'lucide-react';
+
 import { characterStore } from '@/data/characterStore';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
@@ -695,6 +696,50 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
           {activeTab === 'status' && (
             <div className="space-y-3">
+              {/* 能力开关 */}
+              <div className="rounded-lg border dark:border-border-dark light:border-border-light p-3">
+                <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">能力开关</div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs dark:text-text-dark light:text-text-light">言语能力 (V)</span>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={combatant.canSpeak !== false}
+                        onChange={e => {
+                          const record = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
+                          if (record) {
+                            const updatedCombatants = record.combatants.map(c => 
+                              c.id === combatant.id ? { ...c, canSpeak: e.target.checked } : c
+                            );
+                            combatStore.update(record.id, { combatants: updatedCombatants });
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs dark:text-text-dark light:text-text-light">手势能力 (S)</span>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={combatant.canGesticulate !== false}
+                        onChange={e => {
+                          const record = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
+                          if (record) {
+                            const updatedCombatants = record.combatants.map(c => 
+                              c.id === combatant.id ? { ...c, canGesticulate: e.target.checked } : c
+                            );
+                            combatStore.update(record.id, { combatants: updatedCombatants });
+                          }
+                        }}
+                      />
+                      <span className="text-xs px-2 py-1 rounded bg-accent text-accent-foreground">DM覆盖</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* 状态卡片：失能 */}
               {combatant.isIncapacitated && (
                 <div className="rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">
