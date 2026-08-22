@@ -72,16 +72,17 @@ function getEdgeCenter(node: FlowNodeDef, side: EdgeSide, size?: {w: number, h: 
   const { x, y } = node.position;
   const w = size?.w || NODE_W;
   const h = size?.h || NODE_H;
+  const offset = 2; // 向外推 ~2px 避开 border-2
   
   switch (side) {
     case 'top':
-      return { x: x + w / 2, y };
+      return { x: x + w / 2, y: y - offset };
     case 'right':
-      return { x: x + w, y: y + h / 2 };
+      return { x: x + w + offset, y: y + h / 2 };
     case 'bottom':
-      return { x: x + w / 2, y: y + h };
+      return { x: x + w / 2, y: y + h + offset };
     case 'left':
-      return { x: x, y: y + h / 2 };
+      return { x: x - offset, y: y + h / 2 };
   }
 }
 }

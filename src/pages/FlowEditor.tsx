@@ -132,7 +132,23 @@ export default function FlowEditor() {
   // 测量节点实际尺寸
   useLayoutEffect(() => {
     const newSizes = new Map<string, {w: number, h: number}>();
+    const resizeObserver = new ResizeObserver(() => {
+      // 重新测量所有节点尺寸
+      nodeRefs.current.forEach((ref, nodeId) => {
+        if (ref) {
+          const rect = ref.getBoundingClientRect();
+          // 考虑画布缩放，转换为画布坐标
+          const scaleX = 1 / canvasScale;
+          newSizes.set(nodeId, {
+            w: rect.width * scaleX,
+            h: rect.height * scaleX
+          });
+        }
+      });
+      setNodeSizes(new Map(newSizes)); // 触发重新渲染
+    });
     
+    // 初始测量
     nodeRefs.current.forEach((ref, nodeId) => {
       if (ref) {
         const rect = ref.getBoundingClientRect();
@@ -142,10 +158,17 @@ export default function FlowEditor() {
           w: rect.width * scaleX,
           h: rect.height * scaleX
         });
+        // 开始监听尺寸变化
+        resizeObserver.observe(ref);
       }
     });
     
     setNodeSizes(newSizes);
+    
+    // 清理函数
+    return () => {
+      resizeObserver.disconnect();
+    };
   }, [flow.nodes, canvasScale]);
 
   // ===== 发布提示 toast =====
