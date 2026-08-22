@@ -19,8 +19,21 @@ interface StatusStore {
   listeners: StatusChangeListener[];
 }
 
+/**
+ * 状态管理器扩展接口：在 StatusManager 基础上增加 applyEffect
+ * （applyEffect 负责施加状态时联动参战者能力标记，如 canGesticulate / canSpeak）
+ */
+export type StatusManagerWithApply = StatusManager & {
+  applyEffect(
+    targetId: string,
+    statusId: string,
+    scope?: StatusScope,
+    combatId?: string
+  ): StatusInstance;
+};
+
 /** 创建新的状态管理器实例（每局战斗或全局各一个） */
-export function createStatusManager(): StatusManager {
+export function createStatusManager(): StatusManagerWithApply {
   const store: StatusStore = {
     instances: [],
     listeners: [],
@@ -157,8 +170,9 @@ export function createStatusManager(): StatusManager {
     // --- 状态应用 ---
 
     /**
-     * 应用状态到参战者（自动联动 canGesticulate）
-     * 注意：此方法需要在调用处手动更新 combatStore 中的参战者状态
+     * 应用状态到参战者（自动联动 canGesticulate / canSpeak）
+     * 当施加的状态在 SOMATIC_BLOCKING_STATES 中时，会在返回结果中携带
+     * 需要联动更新的参战者字段，由调用方负责写入 combatStore。
      */
     applyEffect(
       targetId: string,
@@ -168,7 +182,7 @@ export function createStatusManager(): StatusManager {
     ): StatusInstance {
       // 应用状态
       const instance = this.declareStart(statusId, targetId, scope, combatId);
-      
+
       // 当施加以下状态时，自动设置 canGesticulate = false
       const SOMATIC_BLOCKING_STATES: Record<string, Partial<any>> = {
         incapacitated: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
@@ -179,50 +193,20 @@ export function createStatusManager(): StatusManager {
         unconscious:   { isUnconscious: true, canGesticulate: false, canSpeak: false },
       };
 
-      // 返回需要更新的状态信息，由调用者处理 combatStore 更新
+      // 若状态名在 SOMATIC_BLOCKING_STATES 中，记录联动更新信息到实例 metadata
       if (statusId in SOMATIC_BLOCKING_STATES) {
-        console.log(`状态 ${statusId} 会影响 canGesticulate，需要联动更新`);
+        instance.metadata = {
+          ...instance.metadata,
+          combatantPatch: SOMATIC_BLOCKING_STATES[statusId],
+        };
       }
 
-return instance;
-     },
+      return instance;
+    },
 
-     // --- 状态应用 ---
+    // --- 维护 ---
 
-     /**
-      * 应用状态到参战者（自动联动 canGesticulate）
-      * 注意：此方法需要在调用处手动更新 combatStore 中的参战者状态
-      */
-     applyEffect(
-       targetId: string,
-       statusId: string,
-       scope: StatusScope = 'combat',
-       combatId?: string
-     ): StatusInstance {
-       // 应用状态
-       const instance = this.declareStart(statusId, targetId, scope, combatId);
-       
-       // 当施加以下状态时，自动设置 canGesticulate = false
-       const SOMATIC_BLOCKING_STATES: Record<string, Partial<any>> = {
-         incapacitated: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
-         grappled:      { canGesticulate: false },
-         paralyzed:     { isIncapacitated: true, canGesticulate: false, canSpeak: false },
-         petrified:     { isIncapacitated: true, canGesticulate: false, canSpeak: false },
-         stunned:       { isIncapacitated: true, canGesticulate: false }, // 注意：stunned 不剥夺言语
-         unconscious:   { isUnconscious: true, canGesticulate: false, canSpeak: false },
-       };
-
-       // 返回需要更新的状态信息，由调用者处理 combatStore 更新
-       if (statusId in SOMATIC_BLOCKING_STATES) {
-         console.log(`状态 ${statusId} 会影响 canGesticulate，需要联动更新`);
-       }
-
-       return instance;
-     },
-
-     // --- 维护 ---
-
-     advanceRound(combatId: string): void {
+    advanceRound(combatId: string): void {
       // 处理回合推进：衰减持续时间
       const combatInstances = store.instances.filter(
         i => i.combatId === combatId && i.isActive
