@@ -1,28 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, XCircle, AlertTriangle, Users, ArrowRight, ArrowLeft } from 'lucide-react';
+import { commitCombatToCharacter, commitAllPcCombatChanges, executeCombatCommit } from '@/data/combatStore';
+import combatStore from '@/data/combatStore';
+import { characterStore } from '@/data/characterStore';
 
-// 类型定义（由于从 @/data/combatStore 导入可能有问题，这里重新定义）
-interface CombatCommitResult {
-  characterId: string;
-  hp: { before: number; after: number };
-  equipmentDeltas: Array<{
-    childId: string;
-    name: string;
-    delta: number;
-    combatQty: number;
-    srcQty: number;
-    info: any;
-  }>;
-  statusChanges: string[];
-  conflicts: Array<{
-    field: 'equipment' | 'hp' | 'status';
-    childId?: string;
-    combatValue: any;
-    currentValue: any;
-    resolution: 'auto' | 'manual';
-  }>;
-}
+// 从 combatStore 导入类型定义
+import type { CombatCommitResult } from '@/data/combatStore';
 
 interface CombatCommitModalProps {
   recordId: string;
@@ -43,14 +27,9 @@ export default function CombatCommitModal({ recordId, isOpen, onClose }: CombatC
   
   useEffect(() => {
     if (recordId) {
-      // 这里应该从全局状态获取 record，由于 combatStore 是 localStorage 的，
-      // 我们需要在组件内直接读取
-      const savedRecords = localStorage.getItem('dnd-combat-records');
-      if (savedRecords) {
-        const records = JSON.parse(savedRecords);
-        const foundRecord = records.find((r: any) => r.id === recordId);
-        setRecord(foundRecord);
-      }
+      // 从 combatStore 获取记录
+      const foundRecord = combatStore.get(recordId);
+      setRecord(foundRecord);
     }
   }, [recordId]);
   
@@ -64,9 +43,9 @@ export default function CombatCommitModal({ recordId, isOpen, onClose }: CombatC
     const failed: string[] = [];
     const conflicts: string[] = [];
     
-    // 模拟 commitCombatToCharacter 的逻辑
+    // 真正调用 commitCombatToCharacter 进行预览
     for (const combatant of pcCombatants) {
-      const result = simulateCommitCombatToCharacter(recordId, combatant.id);
+      const result = commitCombatToCharacter(recordId, combatant.id);
       if (result) {
         results.push(result);
         if (result.conflicts.length > 0) {
@@ -90,8 +69,8 @@ export default function CombatCommitModal({ recordId, isOpen, onClose }: CombatC
   const handleCommit = async () => {
     setIsCommitting(true);
     try {
-      // 模拟 commitAllPcCombatChanges 的逻辑
-      const results = simulateCommitAllPcCombatChanges(recordId);
+      // 真正执行 commitAllPcCombatChanges
+      const results = commitAllPcCombatChanges(recordId);
       setCommitResults({
         success: results.success,
         failed: results.failed,
@@ -103,77 +82,7 @@ export default function CombatCommitModal({ recordId, isOpen, onClose }: CombatC
     }
   };
   
-  // 模拟函数：由于 combatStore 是 localStorage 的，我们需要模拟这些功能
-  const simulateCommitCombatToCharacter = (recordId: string, combatantId: string) => {
-    if (!record) return null;
-    
-    const combatant = record.combatants.find(c => c.id === combatantId);
-    if (!combatant || !combatant.characterId) return null;
-    
-    // 这里简化处理，实际应该从 characterStore 获取
-    const character = {
-      id: combatant.characterId,
-      name: `角色${combatant.characterId}`,
-      hp: 10,
-      equipment: [],
-    };
-    
-    // 模拟计算净增量
-    const equipmentDeltas = [
-      {
-        childId: 'test-item',
-        name: '测试物品',
-        delta: 1,
-        combatQty: 2,
-        srcQty: 1,
-        info: {
-          srcQty: 1,
-          combatQty: 2,
-          addedEq: { id: 'test-item', name: '测试物品', quantity: 1 }
-        }
-      }
-    ];
-    
-    // 模拟 HP 合并
-    const hpResult = {
-      finalHp: Math.min(combatant.currentHp || 0, character.hp),
-      delta: 0
-    };
-    
-    // 模拟状态合并
-    const statusChanges = [];
-    if (combatant.isUnconscious) statusChanges.push('昏迷');
-    if (combatant.isDead) statusChanges.push('死亡');
-    
-    // 模拟冲突检测
-    const conflicts = [];
-    if (combatant.currentHp !== character.hp) {
-      conflicts.push({
-        field: 'hp' as const,
-        combatValue: combatant.currentHp,
-        currentValue: character.hp,
-        resolution: 'auto' as const,
-      });
-    }
-    
-    return {
-      characterId: combatant.characterId,
-      hp: {
-        before: character.hp,
-        after: hpResult.finalHp,
-      },
-      equipmentDeltas,
-      statusChanges,
-      conflicts,
-    };
-  };
-  
-  const simulateCommitAllPcCombatChanges = (recordId: string) => {
-    const success = ['角色1', '角色2'];
-    const failed = [];
-    const conflicts = ['角色3'];
-    return { success, failed, conflicts };
-  };
+
   
   const handleClose = () => {
     setCommitResults(null);
