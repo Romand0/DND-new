@@ -146,10 +146,10 @@ src/pages/flow-editor/
 ## 动态进度跟踪
 
 ### 当前进度概览
-- **总体进度**: 31% (9/29 任务完成)
+- **总体进度**: 34% (10/29 任务完成)
 - **阶段 0 完成**: 0/3
 - **阶段 1 完成**: 5/5 ✅
-- **阶段 2 完成**: 3/8 (37.5%)
+- **阶段 2 完成**: 4/8 (50%)
 - **阶段 3 完成**: 0/7
 - **阶段 4 完成**: 0/5
 
@@ -157,7 +157,7 @@ src/pages/flow-editor/
 - **阶段2-1**: ✅ useFlowDraft hook - 流程草稿状态管理
 - **阶段2-2**: ✅ useViewportSnapshot hook - 视口快照管理  
 - **阶段2-3**: ✅ useCanvasZoom hook - 画布缩放管理
-- **阶段2-4**: ⏳ useNodeDrag hook - 节点拖拽管理（最复杂）
+- **阶段2-4**: ✅ useNodeDrag hook - 节点拖拽管理（最复杂）
 - **阶段2-5**: ⏳ useFlowValidation hook - 流程校验
 - **阶段2-6**: ⏳ useFlowEditorToast hook - 提示消息
 - **阶段2-7**: ⏳ useSpellBinding hook - 法术绑定
@@ -178,10 +178,10 @@ src/pages/flow-editor/
 - [x] 1-5: 提取 `dragEffects.ts` (拖拽视觉效果模块) - 2026-08-22 完成模块
 
 #### 阶段 2 - Hooks 提取
-- [x] 2-1: 提取 `useFlowDraft` hook - 2026-08-22 完成，包含流程草稿状态管理、flowStore同步、ID验证等功能
+- [x] 2-1: 提取 `useFlowDraft` hook - 2026-08-22 完成，包含流程草稿状态管理、flowStore同步、ID验证等功能，已修复类型错误
 - [x] 2-2: 提取 `useViewportSnapshot` hook - 2026-08-22 完成，包含视口快照管理、防抖保存、状态恢复等功能
 - [x] 2-3: 提取 `useCanvasZoom` hook - 2026-08-22 完成，包含画布缩放管理、触屏捏合、鼠标滚轮、按钮控制等功能
-- [ ] 2-4: 提取 `useNodeDrag` hook (包含实时碰撞检测、跨层拖拽、磁吸对齐)
+- [x] 2-4: 提取 `useNodeDrag` hook - 2026-08-22 完成，包含实时碰撞检测、跨层拖拽、磁吸对齐、rAF降频优化
 - [ ] 2-5: 提取 `useFlowValidation` hook
 - [ ] 2-6: 提取 `useFlowEditorToast` hook
 - [ ] 2-7: 提取 `useSpellBinding` hook
