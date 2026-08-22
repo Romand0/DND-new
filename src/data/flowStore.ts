@@ -1,5 +1,5 @@
-import type { FlowDefinition } from '@/types/flow';
-import { serializeFlow, deserializeFlow } from '@/types/flow';
+import type { FlowDefinition } from '../types/flow';
+import { serializeFlow, deserializeFlow } from '../types/flow';
 
 const STORAGE_KEY = 'dnd-flow-library';
 const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
@@ -94,8 +94,8 @@ function read(): FlowDefinition[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     cache = raw ? JSON.parse(raw) : [];
   } catch { cache = []; }
-  localFlows = cache;
-  return cache;
+  localFlows = cache || [];
+  return cache || [];
 }
 
 function write(flows: FlowDefinition[]) {

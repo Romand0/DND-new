@@ -169,7 +169,7 @@ export function useFlowDraft(config: UseFlowDraftConfig = {}): UseFlowDraftRetur
     // 如果删除的是当前流程，需要处理清理逻辑
     if (flow.id === draftId) {
       // 注意：这里不直接处理页面跳转，由调用者负责
-      console.log('Current draft deleted, need to handle cleanup');
+      // TODO: 需要处理页面跳转逻辑
     }
   }, [flow.id]);
   
@@ -204,6 +204,10 @@ export function useFlowDraft(config: UseFlowDraftConfig = {}): UseFlowDraftRetur
     saveStatus,
     showDrafts,
     setShowDrafts,
+    selectedNodeId,
+    setSelectedNodeId,
+    selectedEdgeId,
+    setSelectedEdgeId,
     
     // 输入管理
     flowNameInput,
