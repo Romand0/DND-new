@@ -15,6 +15,7 @@ import type { Spell } from '@/types/spell';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
 import { rollDie } from '@/data/diceService';
+import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS } from '@/data/somaticCheck';
 
 export class FlowCompiler {
   /**
@@ -179,7 +180,7 @@ export class FlowCompiler {
     config: CastStartConfig,
     targets: string[]
   ): Promise<PreCastCheckReport> {
-    const components = this.checkComponents(spell, config, caster);
+    const components = this.checkComponents(spell, caster, []);
     const range = this.checkRange(spell, config, targets);
     const time = this.checkTime(spell, config, caster);
 
@@ -201,7 +202,7 @@ export class FlowCompiler {
         componentChecks.push(`施法者可言语: ${caster.canSpeak !== false ? '是' : '否'}`);
       }
       if (spell.components.somatic) {
-        componentChecks.push(`施法者可做手势: ${caster.canSomatic !== false ? '是' : '否'}`);
+        componentChecks.push(`施法者可做手势: ${components.somaticDetail?.canGesticulate !== false ? '是' : '否'}`);
       }
       if (spell.components.material) {
         componentChecks.push(`材料组件: 已准备`);
@@ -240,18 +241,55 @@ export class FlowCompiler {
   /**
    * 检查法术成分
    */
-  private checkComponents(spell: Spell, config: CastStartConfig, caster: Character) {
-    const required = config.overrideComponents
-      ? config.overrideComponents.split(',').map(s => s.trim()).filter(Boolean)
-      : (['verbal', 'somatic', 'material'] as const).filter(c => spell.components[c]);
+  private checkComponents(
+    spell: Spell,
+    combatant: Character,
+    activeConditions: string[],
+  ) {
+    const required: string[] = [];
+    if (spell.components?.verbal)   required.push('V');
+    if (spell.components?.somatic)  required.push('S');
+    if (spell.components?.material) required.push('M');
 
-    const missing = required.filter(comp => !this.hasComponent(caster, comp));
-    const available = missing.length === 0;
+    const missing: string[] = [];
+
+    // V 检查（已有）
+    if (spell.components?.verbal && !combatant.canSpeak) {
+      missing.push('V');
+    }
+
+    // S 检查（新增）
+    let somaticDetail: ComponentsCheckResult['somaticDetail'];
+    if (spell.components?.somatic) {
+      const derived = deriveCanGesticulate(combatant, activeConditions);
+      
+      // DM 手动覆盖优先：若 canGesticulate 被显式设为 false，则强制不可用
+      const finalCanGesticulate = combatant.canGesticulate === false ? false : derived;
+      
+      if (!finalCanGesticulate) {
+        missing.push('S');
+      }
+      
+      // 收集详情
+      const blocking = activeConditions.filter(c =>
+        SOMATIC_BLOCKING_CONDITIONS.has(c as any)
+      );
+      somaticDetail = {
+        canGesticulate: finalCanGesticulate,
+        blockingConditions: combatant.isIncapacitated
+          ? ['incapacitated', ...blocking]
+          : blocking,
+        manualOverride: combatant.canGesticulate === false && derived === true,
+      };
+    }
+
+    // M 检查（暂无运行时判定，跳过）
 
     return {
       required,
-      available,
-      missing: available ? undefined : missing
+      available: missing.length === 0,
+      missing: missing.length > 0 ? missing : undefined,
+      somaticDetail,
     };
   }
 
@@ -300,7 +338,7 @@ export class FlowCompiler {
       case 'verbal':
         return caster.canSpeak !== false;
       case 'somatic':
-        return caster.canSomatic !== false;
+        return caster.canGesticulate !== false;
       case 'material':
         return true; // 简化处理
       default:

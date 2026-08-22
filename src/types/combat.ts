@@ -73,6 +73,11 @@ export interface Combatant {
   pendingAdvantageSources?: PendingAdvantageSource[];
   /** 言语能力：能否说话或发出声音（true=可以，false=不可以）。默认真，某些状态可剥夺 */
   canSpeak?: boolean;
+  /** 手势能力：能否执行 S（手势）成分（true=可以，false=不可以）。默认 true。以下情况置 false：
+   * - isIncapacitated（失能）
+   * - 导致失能的状态：擒抱、麻痹、石化、震慑、昏迷
+   * - DM 手动覆盖 */
+  canGesticulate?: boolean;
 }
 
 export interface NpcTemplate {

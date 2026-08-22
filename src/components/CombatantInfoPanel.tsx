@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { characterStore } from '@/data/characterStore';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
@@ -695,6 +696,34 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
           {activeTab === 'status' && (
             <div className="space-y-3">
+              {/* 能力开关 */}
+              <div className="rounded-lg border dark:border-border-dark light:border-border-light p-3">
+                <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">能力开关</div>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs dark:text-text-dark light:text-text-light">言语能力 (V)</span>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={combatant.canSpeak !== false}
+                        onChange={e => updateCombatant({ canSpeak: e.target.checked })}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs dark:text-text-dark light:text-text-light">手势能力 (S)</span>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={combatant.canGesticulate !== false}
+                        onChange={e => updateCombatant({ canGesticulate: e.target.checked })}
+                      />
+                      {somaticDetail?.manualOverride && <Badge>DM覆盖</Badge>}
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* 状态卡片：失能 */}
               {combatant.isIncapacitated && (
                 <div className="rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">

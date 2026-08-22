@@ -667,6 +667,12 @@ export interface ComponentsCheckResult {
   required: string[];              // 需要的成分
   available: boolean;               // 是否可用
   missing?: string[];               // 缺少的成分
+  /** S 成分检查详情 */
+  somaticDetail?: {
+    canGesticulate: boolean;         // 推导结果
+    blockingConditions?: string[];   // 实际命中的阻断状态
+    manualOverride?: boolean;        // 是否为 DM 手动覆盖
+  };
 }
 
 /** 施法距离检查结果 */
