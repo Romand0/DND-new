@@ -28,6 +28,8 @@ export interface EdgeEndpoint {
 function getNodeDirection(fromNode: FlowNodeDef, toNode: FlowNodeDef): {
   horizontal: 'left' | 'right';
   vertical: 'top' | 'bottom';
+  dx: number;
+  dy: number;
   distance: number;
 } {
   const dx = toNode.position.x - fromNode.position.x;
@@ -37,6 +39,8 @@ function getNodeDirection(fromNode: FlowNodeDef, toNode: FlowNodeDef): {
   return {
     horizontal: dx > 0 ? 'right' : 'left',
     vertical: dy > 0 ? 'bottom' : 'top',
+    dx,
+    dy,
     distance
   };
 }
@@ -51,21 +55,13 @@ function selectOptimalEdgeSide(
 ): EdgeSide {
   const direction = getNodeDirection(isFromNode ? node : otherNode, isFromNode ? otherNode : node);
   
-  // 优先选择较远的方向
-  if (direction.distance > 0) {
-    // 根据主方向选择边
-    if (direction.horizontal === 'right') {
-      return 'right';
-    } else if (direction.horizontal === 'left') {
-      return 'left';
-    } else if (direction.vertical === 'bottom') {
-      return 'bottom';
-    } else {
-      return 'top';
-    }
+  // 根据实际距离比例选择最佳边
+  if (Math.abs(direction.dx) > Math.abs(direction.dy)) {
+    // 水平距离更大，选择左右边
+    return direction.horizontal === 'right' ? 'right' : 'left';
   } else {
-    // 默认选择底边
-    return 'bottom';
+    // 垂直距离更大，选择上下边
+    return direction.vertical === 'bottom' ? 'bottom' : 'top';
   }
 }
 
