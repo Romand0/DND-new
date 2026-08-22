@@ -5,7 +5,7 @@
  * 选择四条边上的居中位置作为连线端点，避免连线被卡片遮挡
  */
 
-import type { FlowEdgeDef, FlowNodeDef } from '@/types/flow';
+import type { FlowEdgeDef, FlowNodeDef } from '../../types/flow';
 import { NODE_W, NODE_H } from './constants';
 
 /**
@@ -85,7 +85,6 @@ function getEdgeCenter(node: FlowNodeDef, side: EdgeSide, size?: {w: number, h: 
       return { x: x - offset, y: y + h / 2 };
   }
 }
-}
 
 /**
  * 获取连线的两个端点（智能选择边端点）
@@ -102,7 +101,7 @@ export function getSmartEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[], n
   // 一次决策相向配对的边端点
   const dx = toNode.position.x - fromNode.position.x;
   const dy = toNode.position.y - fromNode.position.y;
-  let fromSide, toSide;
+  let fromSide: EdgeSide, toSide: EdgeSide;
   
   if (Math.abs(dx) >= Math.abs(dy)) {
     // 水平主导：相向左右配对
