@@ -187,8 +187,6 @@ export function useFlowDraft(config: UseFlowDraftConfig = {}): UseFlowDraftRetur
   
   // ===== 设置选中节点（需要外部传入） =====
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  
   return {
     // 状态
     flow,
@@ -204,10 +202,6 @@ export function useFlowDraft(config: UseFlowDraftConfig = {}): UseFlowDraftRetur
     saveStatus,
     showDrafts,
     setShowDrafts,
-    selectedNodeId,
-    setSelectedNodeId,
-    selectedEdgeId,
-    setSelectedEdgeId,
     
     // 输入管理
     flowNameInput,
