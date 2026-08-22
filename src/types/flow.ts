@@ -285,6 +285,7 @@ export interface ConfigFieldSchema {
   description?: string;           // 字段说明（仅展示，不入 config）
   /** 指向同层级中存储法术回填摘要的 key */
   spellSummaryKey?: string;
+  hidden?: boolean;               // 是否隐藏字段（不渲染控件）
 }
 
 /** 节点类型 → 配置字段列表 */
@@ -318,9 +319,9 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
           spellSummaryKey: 'timeDetail',
         },
         // 以下三个是只读回填字段，不渲染控件，仅作为摘要数据源
-        { key: 'componentsDetail', label: '成分详情', type: 'text', defaultValue: '' },
-        { key: 'rangeDetail',      label: '射程详情', type: 'text',   defaultValue: '' },
-        { key: 'timeDetail',       label: '时间详情', type: 'text',   defaultValue: '' },
+        { key: 'componentsDetail', label: '成分详情', type: 'text', defaultValue: '', hidden: true },
+        { key: 'rangeDetail',      label: '射程详情', type: 'text',   defaultValue: '', hidden: true },
+        { key: 'timeDetail',       label: '时间详情', type: 'text',   defaultValue: '', hidden: true },
       ],
     },
     {
