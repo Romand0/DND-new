@@ -26,6 +26,7 @@ import type {
   FlowNodeDef,
   FlowEdgeDef,
   NodeTypeMeta,
+  ConfigFieldSchema,
 } from '@/types/flow';
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow } from '@/types/flow';
 import { NODE_CONFIG_SCHEMA, FlowNodeType } from '@/types/flow';
