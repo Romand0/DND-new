@@ -36,6 +36,7 @@ import {
   parseFlowId,
   buildFlowId,
 } from '@/types/flow';
+import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from './flow-editor/constants';
 import SpellPicker from '@/components/SpellPicker';
 import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
@@ -214,18 +215,7 @@ function resolveNodeIcon(iconName?: string): React.ReactNode {
   return map[iconName || ''] ?? <Zap className="w-4 h-4" />;
 }
 
-// 节点卡片尺寸常量
-const NODE_W = 260;   // 窄屏基准宽度
-const NODE_H = 56;    // 最小估计高度（头部）
 
-// 卡片节点样式常量
-const CARD_NODE_W = 140;  // 卡片节点宽度
-const CARD_NODE_H = 48;   // 卡片节点高度
-
-// 画布缩放常量
-const SCALE_MIN = 0.25;
-const SCALE_MAX = 3;
-const SCALE_STEP = 0.1;
 
 // ===== 碰撞检测工具函数 =====
 // 当前生效的空间索引（组件在 flow.nodes 变化时同步），供模块级 nodesOverlap 做候选筛选
