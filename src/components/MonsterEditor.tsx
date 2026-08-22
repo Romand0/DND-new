@@ -7,10 +7,10 @@ interface MonsterEditorProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (template: NpcTemplate) => void;
-  initialTemplate?: NpcTemplate | null;
+  template?: NpcTemplate | null;
 }
 
-export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate }: MonsterEditorProps) {
+export default function MonsterEditor({ isOpen, onClose, onSave, template }: MonsterEditorProps) {
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [cr, setCr] = useState<string | undefined>(undefined);
@@ -35,31 +35,31 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
   // 重置表单
   useEffect(() => {
     if (!isOpen) return;
-    if (initialTemplate) {
-      setName(initialTemplate.name);
-      setTemplateId(initialTemplate.templateId);
-      setCr(initialTemplate.cr || undefined);
-      setSize(initialTemplate.size || '');
-      setType(initialTemplate.type || '');
-      setAlignment(initialTemplate.alignment || '');
-      setFeatures(initialTemplate.features || '');
-      setSenses(initialTemplate.senses || '');
-      setLanguages(initialTemplate.languages || '');
-      setSource(initialTemplate.source || '');
-      setStrength(String(initialTemplate.strength));
-      setDexterity(String(initialTemplate.dexterity));
-      setConstitution(String(initialTemplate.constitution));
-      setIntelligence(String(initialTemplate.intelligence));
-      setWisdom(String(initialTemplate.wisdom));
-      setCharisma(String(initialTemplate.charisma));
-      setMaxHp(String(initialTemplate.maxHp));
-      setAc(String(initialTemplate.ac));
-      setSpeed(String(initialTemplate.speed));
-      setAttacks([...initialTemplate.attacks]);
+    if (template) {
+      setName(template.name);
+      setTemplateId(template.templateId);
+      setCr(template.cr || undefined);
+      setSize(template.size || '');
+      setType(template.type || '');
+      setAlignment(template.alignment || '');
+      setFeatures(template.features || '');
+      setSenses(template.senses || '');
+      setLanguages(template.languages || '');
+      setSource(template.source || '');
+      setStrength(String(template.strength));
+      setDexterity(String(template.dexterity));
+      setConstitution(String(template.constitution));
+      setIntelligence(String(template.intelligence));
+      setWisdom(String(template.wisdom));
+      setCharisma(String(template.charisma));
+      setMaxHp(String(template.maxHp));
+      setAc(String(template.ac));
+      setSpeed(String(template.speed));
+      setAttacks([...template.attacks]);
     } else {
       resetForm();
     }
-  }, [isOpen, initialTemplate]);
+  }, [isOpen, template]);
 
   const resetForm = () => {
     setName('');
@@ -94,8 +94,8 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
       return;
     }
 
-    const template: NpcTemplate = {
-      id: initialTemplate?.id || crypto.randomUUID(),
+    const newTemplate: NpcTemplate = {
+      id: template?.id || crypto.randomUUID(),
       templateId: templateId.trim(),
       name: name.trim(),
       strength: parseInt(strength, 10) || 10,
@@ -108,7 +108,7 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
       speed: parseInt(speed, 10) || 30,
       ac: parseInt(ac, 10) || 10,
       attacks,
-      createdAt: initialTemplate?.createdAt || Date.now(),
+      createdAt: template?.createdAt || Date.now(),
       updatedAt: Date.now(),
       cr: cr || '',
       size,
@@ -120,7 +120,7 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
       source,
     };
 
-    onSave(template);
+    onSave(newTemplate);
     onClose();
   };
 
@@ -153,7 +153,7 @@ export default function MonsterEditor({ isOpen, onClose, onSave, initialTemplate
         {/* 顶部栏 */}
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
-            {initialTemplate ? '编辑怪物模板' : '新建怪物模板'}
+            {template ? '编辑怪物模板' : '新建怪物模板'}
           </h3>
           <button onClick={onClose} className="p-1 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light">
             <X className="w-5 h-5" />

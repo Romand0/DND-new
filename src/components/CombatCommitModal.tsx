@@ -173,6 +173,7 @@ export default function CombatCommitModal({ recordId, isOpen, onClose }: CombatC
     const failed = [];
     const conflicts = ['角色3'];
     return { success, failed, conflicts };
+  };
   
   const handleClose = () => {
     setCommitResults(null);

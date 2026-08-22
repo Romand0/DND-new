@@ -3643,14 +3643,14 @@ export default function CombatSession() {
             }}
           />
         );
-      })()}
-    </div>
-    
-    {/* 战斗结束回传弹窗 */}
+       })()}
+     
+     {/* 战斗结束回传弹窗 */}
     <CombatCommitModal
       recordId={sessionId}
       isOpen={commitModalOpen}
       onClose={() => setCommitModalOpen(false)}
     />
+    </div>
   );
 }
