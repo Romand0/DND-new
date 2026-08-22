@@ -40,6 +40,7 @@ import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_S
 import { validateFlowWithDetails, validateForPublish, type ValidationError } from './flow-editor/validation';
 import { resolveNodeIcon } from './flow-editor/nodeIcon';
 import { nodesOverlap, findNonOverlappingPositionV2, setActiveSpatialGrid } from './flow-editor/collision';
+import { getSmartEdgePath, getSmartArrowPos, getSmartLabelPos, getSmartEdgeDecoratedEndpoints, sampleSmartEdgeToPolyline } from './flow-editor/edgeConnection';
 import SpellPicker from '@/components/SpellPicker';
 import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
@@ -978,17 +979,7 @@ export default function FlowEditor() {
 
   // ===== 计算 SVG 连线路径 =====
   function getEdgePath(edge: FlowEdgeDef): string | null {
-    const fromNode = flow.nodes.find(n => n.id === edge.from);
-    const toNode = flow.nodes.find(n => n.id === edge.to);
-    if (!fromNode || !toNode) return null;
-
-    const fx = fromNode.position.x + NODE_W / 2;
-    const fy = fromNode.position.y + 24;
-    const tx = toNode.position.x + NODE_W / 2;
-    const ty = toNode.position.y + 24;
-
-    // 直线，不再用 C（cubic bezier）弯曲
-    return `M ${fx} ${fy} L ${tx} ${ty}`;
+    return getSmartEdgePath(edge, flow.nodes);
   }
 
   // ===== 节点分类面板 =====
@@ -2399,30 +2390,12 @@ onNodeDelete={(nodeId) => {
 
 // ===== 辅助函数：计算箭头位置 =====
 function getArrowPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): string {
-  const fromNode = nodes.find(n => n.id === edge.from);
-  const toNode = nodes.find(n => n.id === edge.to);
-  if (!fromNode || !toNode) return '0,0';
-  const fx = fromNode.position.x + NODE_W / 2;
-  const fy = fromNode.position.y + 24;
-  const tx = toNode.position.x + NODE_W / 2;
-  const ty = toNode.position.y + 24;
-  const t = 0.5;
-  const x = fx + (tx - fx) * t;
-  const y = fy + (ty - fy) * t;
-  const angle = Math.atan2(ty - fy, tx - fx) * 180 / Math.PI;
-  return `${x},${y} rotate(${angle})`;
+  return getSmartArrowPos(edge, nodes);
 }
 
 // ===== 辅助函数：计算标签位置 =====
 function getLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): { x: number; y: number } {
-  const fromNode = nodes.find(n => n.id === edge.from);
-  const toNode = nodes.find(n => n.id === edge.to);
-  if (!fromNode || !toNode) return { x: 0, y: 0 };
-  const fx = fromNode.position.x + NODE_W / 2;
-  const fy = fromNode.position.y + 24;
-  const tx = toNode.position.x + NODE_W / 2;
-  const ty = toNode.position.y + 24;
-  return { x: (fx + tx) / 2, y: (fy + ty) / 2 - 10 };
+  return getSmartLabelPos(edge, nodes);
 }
 
 /** 将一条直线段按 spacing 间距采样为多段折线的 path d 属性，供 marker-mid 使用 */
@@ -2431,30 +2404,12 @@ function sampleEdgeToPolyline(
   to: { x: number; y: number },
   spacing: number = 16  // 1rem ≈ 16px
 ): string {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  if (dist < spacing) return `M${from.x},${from.y} L${to.x},${to.y}`;
-  const steps = Math.max(2, Math.round(dist / spacing));
-  const parts: string[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const px = from.x + dx * t;
-    const py = from.y + dy * t;
-    parts.push(i === 0 ? `M${px},${py}` : `L${px},${py}`);
-  }
-  return parts.join(' ');
+  return sampleSmartEdgeToPolyline(from, to, spacing);
 }
 
 /** 获取连线两端中心点（与 getArrowPos / getLabelPos 对齐） */
 function getEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[]) {
-  const fromNode = nodes.find(n => n.id === edge.from);
-  const toNode = nodes.find(n => n.id === edge.to);
-  if (!fromNode || !toNode) return null;
-  return {
-    from: { x: fromNode.position.x + NODE_W / 2, y: fromNode.position.y + 24 },
-    to:   { x: toNode.position.x + NODE_W / 2,   y: toNode.position.y + 24 },
-  };
+  return getSmartEdgeDecoratedEndpoints(edge, nodes);
 }
 
 // ===== DraggableFlowNode 子组件：封装 dnd-kit useDraggable =====
