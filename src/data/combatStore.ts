@@ -1097,4 +1097,290 @@ const combatStore = {
   },
 };
 
+// =======================
+// 战斗→角色变更回传协议
+// =======================
+
+/**
+ * 角色状态快照（用于冲突检测）
+ */
+interface CharacterSnapshot {
+  id: string;
+  hp: number;
+  equipment: Equipment[];
+  updatedAt: number;
+}
+
+/**
+ * 战斗回传结果
+ */
+export interface CombatCommitResult {
+  characterId: string;
+  /** HP 变更（最终值，非 delta） */
+  hp: { before: number; after: number };
+  /** 装备净变更条目 */
+  equipmentDeltas: NetChangeEntry[];
+  /** 状态变更（如昏迷/死亡，仅回传有意义的状态） */
+  statusChanges: string[];
+  /** 冲突标记 */
+  conflicts: CommitConflict[];
+}
+
+/**
+ * 回传冲突信息 */
+export interface CommitConflict {
+  field: 'equipment' | 'hp' | 'status';
+  childId?: string;       // 装备冲突时的 childId
+  combatValue: any;       // 战斗中的值
+  currentValue: any;      // 角色卡当前值
+  resolution: 'auto' | 'manual';  // 自动解决还是需要 DM 介入
+}
+
+/**
+ * 可回传的状态白名单
+ */
+const COMMITTABLE_STATUSES = ['中毒', '束缚', '麻痹', '石化', '昏迷'] as const;
+
+/**
+ * 生成角色快照哈希
+ */
+function hashCharacter(character: Character | null): string {
+  if (!character) return '';
+  const snapshot: CharacterSnapshot = {
+    id: character.id,
+    hp: character.hp || 0,
+    equipment: character.equipment || [],
+    updatedAt: character.updatedAt || 0,
+  };
+  return JSON.stringify(snapshot);
+}
+
+/**
+ * HP 回传策略：取最小值策略
+ * 战斗让 HP 降了（受伤），角色卡可能已被 DM 手动治疗
+ * 安全策略：取 min(战斗最终HP, 角色卡当前HP)
+ */
+function mergeHp(
+  combatant: Combatant,
+  character: Character,
+): { finalHp: number; delta: number } {
+  const combatHp = combatant.currentHp || 0;
+  const characterHp = character.hp || 0;
+  const finalHp = Math.min(combatHp, characterHp);
+  const delta = finalHp - characterHp;
+  return { finalHp, delta };
+}
+
+/**
+ * 装备回传：childId 精确合并
+ */
+function mergeEquipment(
+  character: Character,
+  netChanges: NetChangeEntry[],
+): Equipment[] {
+  const currentEq = [...(character.equipment as Equipment[])] as Equipment[];
+  
+  for (const entry of netChanges) {
+    const idx = currentEq.findIndex(e => 
+      (e.childId || e.id) === entry.childId
+    );
+    
+    if (entry.delta > 0) {
+      // 获得物品：角色卡已有 → 叠加数量；没有 → 从 info.addedEq 插入
+      if (idx >= 0) {
+        currentEq[idx] = { 
+          ...currentEq[idx], 
+          quantity: (currentEq[idx].quantity ?? 1) + entry.delta 
+        };
+      } else if (entry.info.addedEq) {
+        currentEq.push({ ...entry.info.addedEq, quantity: entry.delta });
+      }
+    } else if (entry.delta < 0) {
+      // 失去物品：角色卡已有 → 减数量（不低于0）；没有 → 冲突标记
+      if (idx >= 0) {
+        const newQty = (currentEq[idx].quantity ?? 1) + entry.delta; // delta 是负数
+        if (newQty <= 0) {
+          currentEq.splice(idx, 1);  // 整件移除
+        } else {
+          currentEq[idx] = { ...currentEq[idx], quantity: newQty };
+        }
+      }
+      // else: 角色卡里已经没这件东西了 → 无冲突，无需操作
+    }
+  }
+  return currentEq;
+}
+
+/**
+ * 状态回传：白名单过滤
+ */
+function mergeStatus(
+  combatant: Combatant,
+): string[] {
+  const statusChanges: string[] = [];
+  
+  // 只回传白名单内的状态，其余丢弃
+  if (combatant.isUnconscious) statusChanges.push('昏迷');
+  if (combatant.isDead) statusChanges.push('死亡');
+  if (combatant.isIncapacitated) statusChanges.push('失能');
+  
+  return statusChanges;
+}
+
+/**
+ * 检测冲突
+ */
+function detectConflicts(
+  character: Character,
+  combatant: Combatant,
+  netChanges: NetChangeEntry[],
+): CommitConflict[] {
+  const conflicts: CommitConflict[] = [];
+  
+  // HP 冲突检测
+  const combatHp = combatant.currentHp || 0;
+  const characterHp = character.hp || 0;
+  if (combatHp !== characterHp) {
+    conflicts.push({
+      field: 'hp',
+      combatValue: combatHp,
+      currentValue: characterHp,
+      resolution: 'auto', // HP 使用 min 策略自动解决
+    });
+  }
+  
+  // 装备冲突检测
+  for (const entry of netChanges) {
+    const characterEq = character.equipment?.find(e => 
+      (e.childId || e.id) === entry.childId
+    );
+    if (characterEq) {
+      const charQty = characterEq.quantity ?? 1;
+      if (charQty !== entry.srcQty) {
+        conflicts.push({
+          field: 'equipment',
+          childId: entry.childId,
+          combatValue: entry.srcQty,
+          currentValue: charQty,
+          resolution: 'auto', // 装备使用精确合并自动解决
+        });
+      }
+    }
+  }
+  
+  return conflicts;
+}
+
+/**
+ * 战斗结束变更回传协议：
+ *   1. 快照锁定：战斗结束时拍一份 character 的当前状态作为 base
+ *   2. 增量计算：以 base 为基准算 delta，而非以战斗开始时的快照
+ *   3. 三路合并：如果 base 与当前 characterStore 中的角色一致 → 直接应用 delta
+ *      如果不一致（战斗期间有人在角色卡页改了数据）→ 走冲突解决策略
+ *   4. 原子写入：一次 saveCharacter 调用，不拆多步
+ */
+export function commitCombatToCharacter(
+  recordId: string,
+  combatantId: string,
+): CombatCommitResult | null {
+  const record = combatStore.get(recordId);
+  if (!record) return null;
+  
+  const combatant = record.combatants.find(c => c.id === combatantId);
+  if (!combatant || !combatant.characterId) return null;
+  
+  const character = characterStore.get(combatant.characterId);
+  if (!character) return null;
+  
+  // 1. 计算装备净增量
+  const equipmentChanges = record.equipmentChanges?.[combatantId];
+  const equipmentDeltas = computeNetChanges(character, equipmentChanges);
+  
+  // 2. HP 合并
+  const hpResult = mergeHp(combatant, character);
+  
+  // 3. 状态合并
+  const statusChanges = mergeStatus(combatant);
+  
+  // 4. 冲突检测
+  const conflicts = detectConflicts(character, combatant, equipmentDeltas);
+  
+  // 5. 构建结果
+  const result: CombatCommitResult = {
+    characterId: combatant.characterId,
+    hp: {
+      before: character.hp || 0,
+      after: hpResult.finalHp,
+    },
+    equipmentDeltas,
+    statusChanges,
+    conflicts,
+  };
+  
+  return result;
+}
+
+/**
+ * 执行战斗回传：将变更应用到角色卡
+ */
+export function executeCombatCommit(
+  recordId: string,
+  combatantId: string,
+): boolean {
+  const result = commitCombatToCharacter(recordId, combatantId);
+  if (!result) return false;
+  
+  const character = characterStore.get(result.characterId);
+  if (!character) return false;
+  
+  // 1. 更新 HP
+  const updatedCharacter = { ...character, hp: result.hp.after };
+  
+  // 2. 更新装备
+  updatedCharacter.equipment = mergeEquipment(character, result.equipmentDeltas);
+  
+  // 3. 保存角色卡（原子写入）
+  characterStore.saveCharacter(updatedCharacter);
+  
+  return true;
+}
+
+/**
+ * 批量回传所有 PC 的战斗变更
+ */
+export function commitAllPcCombatChanges(recordId: string): {
+  success: string[];
+  failed: string[];
+  conflicts: string[];
+} {
+  const record = combatStore.get(recordId);
+  if (!record) return { success: [], failed: [], conflicts: [] };
+  
+  const success: string[] = [];
+  const failed: string[] = [];
+  const conflicts: string[] = [];
+  
+  for (const combatant of record.combatants) {
+    if (combatant.isPc && combatant.characterId) {
+      const result = commitCombatToCharacter(recordId, combatant.id);
+      if (result) {
+        if (result.conflicts.length > 0) {
+          conflicts.push(combatant.name);
+        } else {
+          const executed = executeCombatCommit(recordId, combatant.id);
+          if (executed) {
+            success.push(combatant.name);
+          } else {
+            failed.push(combatant.name);
+          }
+        }
+      } else {
+        failed.push(combatant.name);
+      }
+    }
+  }
+  
+  return { success, failed, conflicts };
+}
+
 export default combatStore;

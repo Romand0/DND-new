@@ -49,6 +49,7 @@ import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
 import CombatantInfoPanel from '@/components/CombatantInfoPanel';
+import CombatCommitModal from '@/components/CombatCommitModal';
 
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
@@ -147,6 +148,8 @@ export default function CombatSession() {
   } | null>(null);
   // ✅ 参战者信息面板（点击表头名称按钮打开，等价沙盘双击弹窗）
   const [infoPanelCombatant, setInfoPanelCombatant] = useState<Combatant | null>(null);
+  // ✅ 战斗结束回传弹窗
+  const [commitModalOpen, setCommitModalOpen] = useState(false);
   // ✅ 沙盘最近单击选中的参战者 ID（用于左上 HUD 展示；若放映中有当前回合则以当前回合角色优先覆盖）
   const [sandboxSelectedId, setSandboxSelectedId] = useState<string | null>(null);
   // 回合快照集合（key = `${round}:${combatantId}`）
@@ -1288,7 +1291,8 @@ export default function CombatSession() {
     if (aliveCount === 0) {
       setCurrentTurn(null);
       setPlaybackStarted(false);
-      alert('战斗已结束（所有参战者已倒地或死亡）。');
+      // 显示战斗结束回传弹窗
+      setCommitModalOpen(true);
       return;
     }
     // 检查是否需要新开一轮
@@ -3641,5 +3645,12 @@ export default function CombatSession() {
         );
       })()}
     </div>
+    
+    {/* 战斗结束回传弹窗 */}
+    <CombatCommitModal
+      recordId={sessionId}
+      isOpen={commitModalOpen}
+      onClose={() => setCommitModalOpen(false)}
+    />
   );
 }
