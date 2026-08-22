@@ -2,7 +2,7 @@
 
 // 节点卡片尺寸常量
 export const NODE_W = 260;   // 窄屏基准宽度
-export const NODE_H = 56;    // 最小估计高度（头部）
+export const NODE_H = 96;    // 估计高度（头部 + 内容 + margin）
 
 // 卡片节点样式常量
 export const CARD_NODE_W = 140;  // 卡片节点宽度

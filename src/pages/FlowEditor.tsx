@@ -124,6 +124,52 @@ export default function FlowEditor() {
   const [exitModalOpen, setExitModalOpen] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const skipNameSync = useRef(true);
+  
+  // ===== 节点尺寸测量 =====
+  const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [nodeSizes, setNodeSizes] = useState<Map<string, {w: number, h: number}>>(new Map());
+  
+  // 测量节点实际尺寸
+  useLayoutEffect(() => {
+    const newSizes = new Map<string, {w: number, h: number}>();
+    const resizeObserver = new ResizeObserver(() => {
+      // 重新测量所有节点尺寸
+      nodeRefs.current.forEach((ref, nodeId) => {
+        if (ref) {
+          const rect = ref.getBoundingClientRect();
+          // 考虑画布缩放，转换为画布坐标
+          const scaleX = 1 / canvasScale;
+          newSizes.set(nodeId, {
+            w: rect.width * scaleX,
+            h: rect.height * scaleX
+          });
+        }
+      });
+      setNodeSizes(new Map(newSizes)); // 触发重新渲染
+    });
+    
+    // 初始测量
+    nodeRefs.current.forEach((ref, nodeId) => {
+      if (ref) {
+        const rect = ref.getBoundingClientRect();
+        // 考虑画布缩放，转换为画布坐标
+        const scaleX = 1 / canvasScale;
+        newSizes.set(nodeId, {
+          w: rect.width * scaleX,
+          h: rect.height * scaleX
+        });
+        // 开始监听尺寸变化
+        resizeObserver.observe(ref);
+      }
+    });
+    
+    setNodeSizes(newSizes);
+    
+    // 清理函数
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [flow.nodes, canvasScale]);
 
   // ===== 发布提示 toast =====
   const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
@@ -979,7 +1025,7 @@ export default function FlowEditor() {
 
   // ===== 计算 SVG 连线路径 =====
   function getEdgePath(edge: FlowEdgeDef): string | null {
-    return getSmartEdgePath(edge, flow.nodes);
+    return getSmartEdgePath(edge, flow.nodes, nodeSizes);
   }
 
   // ===== 节点分类面板 =====
@@ -1241,6 +1287,13 @@ export default function FlowEditor() {
                   onStartConnecting={() => startConnecting(node.id)}
                   onDelete={() => deleteNode(node.id)}
                   flow={flow}
+                  onRefSet={(ref) => {
+                    if (ref) {
+                      nodeRefs.current.set(node.id, ref);
+                    } else {
+                      nodeRefs.current.delete(node.id);
+                    }
+                  }}
                 />
               ))}
 
@@ -1299,7 +1352,7 @@ export default function FlowEditor() {
                       />
                       {/* 波浪箭头层 —— 用 marker-mid 沿采样折线放置 >>>>> 花纹 */}
                       {(() => {
-                        const endpoints = getEdgeEndpoints(edge, flow.nodes);
+                        const endpoints = getSmartEdgeDecoratedEndpoints(edge, flow.nodes, nodeSizes);
                         if (!endpoints) return null;
                         const isFailEdge = edge.trigger === 'on_failure' || edge.trigger === 'on_false';
                         const chevronMarkerId = isFailEdge
@@ -1307,7 +1360,7 @@ export default function FlowEditor() {
                           : isSelected
                             ? (isDark ? 'chevron-dark-selected' : 'chevron-light-selected')
                             : (isDark ? 'chevron-dark' : 'chevron-light');
-                        const polyline = sampleEdgeToPolyline(endpoints.from, endpoints.to, 16);
+                        const polyline = sampleSmartEdgeToPolyline(endpoints.from, endpoints.to, 16);
                         return (
                           <path
                             d={polyline}
@@ -1319,14 +1372,14 @@ export default function FlowEditor() {
                         );
                       })()}
                       {/* 流向箭头 */}
-                      <polygon points="0,-5 10,0 0,5" fill={isDark ? '#312e81' : '#ffffff'} stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} strokeWidth="1" transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
-                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} transform={`translate(${getArrowPos(edge, flow.nodes)})`} />
+                      <polygon points="0,-5 10,0 0,5" fill={isDark ? '#312e81' : '#ffffff'} stroke={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} strokeWidth="1" transform={`translate(${getSmartArrowPos(edge, flow.nodes, nodeSizes)})`} />
+                      <polygon points="0,-4 8,0 0,4" fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#818cf8' : '#9ca3af')} transform={`translate(${getSmartArrowPos(edge, flow.nodes, nodeSizes)})`} />
                       {/* 连线中部标签：圆角边框样式块（暗色适配：深紫底白字 / 亮白底黑字） */}
                       {edge.label && (
                         <>
                           <rect
-                            x={getLabelPos(edge, flow.nodes).x - 30}
-                            y={getLabelPos(edge, flow.nodes).y - 11}
+                            x={parseInt(getSmartLabelPos(edge, flow.nodes, nodeSizes).split(',')[0]) - 30}
+                            y={parseInt(getSmartLabelPos(edge, flow.nodes, nodeSizes).split(',')[1]) - 11}
                             width="60"
                             height="22"
                             rx="6"
@@ -1337,8 +1390,8 @@ export default function FlowEditor() {
                             onClick={() => setSelectedEdgeId(edge.id)}
                           />
                           <text
-                            x={getLabelPos(edge, flow.nodes).x}
-                            y={getLabelPos(edge, flow.nodes).y}
+                            x={parseInt(getSmartLabelPos(edge, flow.nodes, nodeSizes).split(',')[0])}
+                            y={parseInt(getSmartLabelPos(edge, flow.nodes, nodeSizes).split(',')[1])}
                             fill={isSelected ? (isDark ? '#f87171' : '#6366f1') : (isDark ? '#ffffff' : '#1a1a2e')}
                             fontSize="10"
                             textAnchor="middle"
@@ -2388,16 +2441,6 @@ onNodeDelete={(nodeId) => {
   );
 }
 
-// ===== 辅助函数：计算箭头位置 =====
-function getArrowPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): string {
-  return getSmartArrowPos(edge, nodes);
-}
-
-// ===== 辅助函数：计算标签位置 =====
-function getLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): { x: number; y: number } {
-  return getSmartLabelPos(edge, nodes);
-}
-
 /** 将一条直线段按 spacing 间距采样为多段折线的 path d 属性，供 marker-mid 使用 */
 function sampleEdgeToPolyline(
   from: { x: number; y: number },
@@ -2408,11 +2451,6 @@ function sampleEdgeToPolyline(
   const fromWithSide: any = { ...from, side: 'bottom' as any };
   const toWithSide: any = { ...to, side: 'top' as any };
   return sampleSmartEdgeToPolyline(fromWithSide, toWithSide, spacing);
-}
-
-/** 获取连线两端中心点（与 getArrowPos / getLabelPos 对齐） */
-function getEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[]) {
-  return getSmartEdgeDecoratedEndpoints(edge, nodes);
 }
 
 // ===== DraggableFlowNode 子组件：封装 dnd-kit useDraggable =====
@@ -2429,6 +2467,7 @@ interface DraggableFlowNodeProps {
   onStartConnecting: () => void;
   onDelete: () => void;
   flow: FlowDefinition;
+  onRefSet: (ref: HTMLDivElement | null) => void;
 }
 
 function DraggableFlowNode({
@@ -2444,12 +2483,21 @@ function DraggableFlowNode({
   onStartConnecting,
   onDelete,
   flow,
+  onRefSet,
 }: DraggableFlowNodeProps) {
   const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
   const { attributes, listeners, setNodeRef, transform, isDragging: dndDragging } = useDraggable({
     id: node.id,
     data: { node },
   });
+  
+  // 额外的 ref 用于尺寸测量
+  const sizeRef = useRef<HTMLDivElement>(null);
+  
+  // 当 ref 设置时调用回调
+  useEffect(() => {
+    onRefSet(sizeRef.current);
+  }, [sizeRef.current, onRefSet]);
 
   // ★ 将 dnd-kit 屏幕像素 transform 转换为画布坐标，补偿父容器 scale
   const adjustedTransform: React.CSSProperties['transform'] =
@@ -2499,6 +2547,8 @@ function DraggableFlowNode({
       data-node-id={node.id}
       className={`select-none ${shakeClass} flow-node-card`}
     >
+      {/* 内层容器用于尺寸测量 */}
+      <div ref={sizeRef} className="absolute inset-0 pointer-events-none" />
       {/* 碰撞方向提示：按推离方向显示对应边缘箭头 */}
       {collisionDir && (
         <div className="absolute inset-0 pointer-events-none z-30 text-red-500 text-lg leading-none">

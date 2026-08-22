@@ -5,7 +5,7 @@
  * 选择四条边上的居中位置作为连线端点，避免连线被卡片遮挡
  */
 
-import type { FlowEdgeDef, FlowNodeDef } from '@/types/flow';
+import type { FlowEdgeDef, FlowNodeDef } from '../../types/flow';
 import { NODE_W, NODE_H } from './constants';
 
 /**
@@ -68,25 +68,28 @@ function selectOptimalEdgeSide(
 /**
  * 计算节点指定边的中心点坐标
  */
-function getEdgeCenter(node: FlowNodeDef, side: EdgeSide): { x: number; y: number } {
+function getEdgeCenter(node: FlowNodeDef, side: EdgeSide, size?: {w: number, h: number}): { x: number; y: number } {
   const { x, y } = node.position;
+  const w = size?.w || NODE_W;
+  const h = size?.h || NODE_H;
+  const offset = 2; // 向外推 ~2px 避开 border-2
   
   switch (side) {
     case 'top':
-      return { x: x + NODE_W / 2, y: y };
+      return { x: x + w / 2, y: y - offset };
     case 'right':
-      return { x: x + NODE_W, y: y + NODE_H / 2 };
+      return { x: x + w + offset, y: y + h / 2 };
     case 'bottom':
-      return { x: x + NODE_W / 2, y: y + NODE_H };
+      return { x: x + w / 2, y: y + h + offset };
     case 'left':
-      return { x: x, y: y + NODE_H / 2 };
+      return { x: x - offset, y: y + h / 2 };
   }
 }
 
 /**
  * 获取连线的两个端点（智能选择边端点）
  */
-export function getSmartEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[]): {
+export function getSmartEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[], nodeSizes?: Map<string, {w: number, h: number}>): {
   from: EdgeEndpoint;
   to: EdgeEndpoint;
 } | null {
@@ -95,13 +98,26 @@ export function getSmartEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[]): 
   
   if (!fromNode || !toNode) return null;
 
-  // 选择最佳的边端点
-  const fromSide = selectOptimalEdgeSide(fromNode, true, toNode);
-  const toSide = selectOptimalEdgeSide(toNode, false, fromNode);
+  // 一次决策相向配对的边端点
+  const dx = toNode.position.x - fromNode.position.x;
+  const dy = toNode.position.y - fromNode.position.y;
+  let fromSide: EdgeSide, toSide: EdgeSide;
+  
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    // 水平主导：相向左右配对
+    fromSide = dx > 0 ? 'right' : 'left';
+    toSide   = dx > 0 ? 'left'  : 'right';
+  } else {
+    // 垂直主导：相向上下配对
+    fromSide = dy > 0 ? 'bottom' : 'top';
+    toSide   = dy > 0 ? 'top'    : 'bottom';
+  }
 
-  // 获取端点坐标
-  const fromPoint = getEdgeCenter(fromNode, fromSide);
-  const toPoint = getEdgeCenter(toNode, toSide);
+  // 获取端点坐标（使用真实节点尺寸）
+  const fromSize = nodeSizes?.get(edge.from) || { w: NODE_W, h: NODE_H };
+  const toSize = nodeSizes?.get(edge.to) || { w: NODE_W, h: NODE_H };
+  const fromPoint = getEdgeCenter(fromNode, fromSide, fromSize);
+  const toPoint = getEdgeCenter(toNode, toSide, toSize);
 
   return {
     from: { ...fromPoint, side: fromSide },
@@ -110,103 +126,170 @@ export function getSmartEdgeEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[]): 
 }
 
 /**
- * 计算智能连线路径（使用边端点）
+ * 边曲线接口
  */
-export function getSmartEdgePath(edge: FlowEdgeDef, nodes: FlowNodeDef[]): string | null {
-  const endpoints = getSmartEdgeEndpoints(edge, nodes);
+export interface EdgeCurve {
+  from: EdgeEndpoint;
+  to: EdgeEndpoint;
+  c1: { x: number; y: number };  // 第一个控制点
+  c2: { x: number; y: number };  // 第二个控制点
+}
+
+/**
+ * 构建边曲线（三次贝塞尔）
+ */
+function buildEdgeCurve(edge: FlowEdgeDef, nodes: FlowNodeDef[], nodeSizes?: Map<string, {w: number, h: number}>): EdgeCurve | null {
+  const endpoints = getSmartEdgeEndpoints(edge, nodes, nodeSizes);
   if (!endpoints) return null;
 
   const { from, to } = endpoints;
   
-  // 使用贝塞尔曲线创建更自然的连线
+  // 计算弯曲距离（根据节点间距，至少 40px）
   const dx = to.x - from.x;
   const dy = to.y - from.y;
+  const dist = Math.max(40, Math.min(80, Math.abs(dx) * 0.35, Math.abs(dy) * 0.35));
   
-  // 根据边的方向控制曲线弯曲程度
-  let controlOffsetX = 0;
-  let controlOffsetY = 0;
+  // 根据边的方向计算控制点
+  let c1, c2;
   
-  if (from.side === 'top' || from.side === 'bottom') {
-    controlOffsetX = dx * 0.3;
-  } else {
-    controlOffsetY = dy * 0.3;
+  if (from.side === 'right') {
+    c1 = { x: from.x + dist, y: from.y };
+  } else if (from.side === 'left') {
+    c1 = { x: from.x - dist, y: from.y };
+  } else if (from.side === 'bottom') {
+    c1 = { x: from.x, y: from.y + dist };
+  } else { // top
+    c1 = { x: from.x, y: from.y - dist };
   }
   
-  // 创建二次贝塞尔曲线
-  const midX = (from.x + to.x) / 2;
-  const midY = (from.y + to.y) / 2;
+  if (to.side === 'right') {
+    c2 = { x: to.x + dist, y: to.y };
+  } else if (to.side === 'left') {
+    c2 = { x: to.x - dist, y: to.y };
+  } else if (to.side === 'bottom') {
+    c2 = { x: to.x, y: to.y + dist };
+  } else { // top
+    c2 = { x: to.x, y: to.y - dist };
+  }
   
-  return `M ${from.x} ${from.y} Q ${midX + controlOffsetX} ${midY + controlOffsetY}, ${to.x} ${to.y}`;
+  return { from, to, c1, c2 };
 }
 
 /**
- * 计算箭头位置（使用边端点）
+ * 沿曲线获取指定 t 值的点和角度
  */
-export function getSmartArrowPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): string {
-  const endpoints = getSmartEdgeEndpoints(edge, nodes);
-  if (!endpoints) return '0,0';
+function pointOnCurve(curve: EdgeCurve, t: number): { x: number; y: number; angle: number } {
+  const { from, to, c1, c2 } = curve;
   
-  const { from, to } = endpoints;
+  // 三次贝塞尔公式：P(t) = (1-t)^3*P0 + 3(1-t)^2*t*P1 + 3(1-t)*t^2*P2 + t^3*P3
+  const mt = 1 - t;
+  const mt2 = mt * mt;
+  const mt3 = mt2 * mt;
+  const t2 = t * t;
+  const t3 = t2 * t;
   
-  // 计算箭头在线条上的位置（靠近目标端点）
-  const t = 0.7;
-  const x = from.x + (to.x - from.x) * t;
-  const y = from.y + (to.y - from.y) * t;
+  const x = mt3 * from.x + 3 * mt2 * t * c1.x + 3 * mt * t2 * c2.x + t3 * to.x;
+  const y = mt3 * from.y + 3 * mt2 * t * c1.y + 3 * mt * t2 * c2.y + t3 * to.y;
   
-  // 计算角度
-  const angle = Math.atan2(to.y - from.y, to.x - from.x) * 180 / Math.PI;
+  // 计算切线角度
+  const dx = 3 * mt2 * (c1.x - from.x) + 6 * mt * t * (c2.x - c1.x) + 3 * t2 * (to.x - c2.x);
+  const dy = 3 * mt2 * (c1.y - from.y) + 6 * mt * t * (c2.y - c1.y) + 3 * t2 * (to.y - c2.y);
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;
   
-  return `${x},${y} rotate(${angle})`;
+  return { x, y, angle };
 }
 
 /**
- * 计算标签位置（使用边端点）
+ * 沿曲线采样为 polyline
  */
-export function getSmartLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[]): { x: number; y: number } {
-  const endpoints = getSmartEdgeEndpoints(edge, nodes);
-  if (!endpoints) return { x: 0, y: 0 };
+function sampleCurveToPolyline(curve: EdgeCurve, spacing: number = 16): string {
+  const totalDist = Math.sqrt(
+    Math.pow(curve.to.x - curve.from.x, 2) + 
+    Math.pow(curve.to.y - curve.from.y, 2)
+  );
   
-  const { from, to } = endpoints;
+  if (totalDist < spacing) {
+    return `M${curve.from.x},${curve.from.y} L${curve.to.x},${curve.to.y}`;
+  }
   
-  // 标签放在连线中点附近
-  const x = (from.x + to.x) / 2;
-  const y = (from.y + to.y) / 2 - 15; // 稍微上移避免与连线重叠
+  const steps = Math.max(2, Math.round(totalDist / spacing));
+  const points: string[] = [];
   
-  return { x, y };
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const point = pointOnCurve(curve, t);
+    points.push(i === 0 ? `M${point.x},${point.y}` : `L${point.x},${point.y}`);
+  }
+  
+  return points.join(' ');
 }
 
 /**
- * 生成连线的装饰性采样点（用于箭头等装饰）
+ * 计算智能连线路径（使用边端点）
+ */
+export function getSmartEdgePath(edge: FlowEdgeDef, nodes: FlowNodeDef[], nodeSizes?: Map<string, {w: number, h: number}>): string | null {
+  const curve = buildEdgeCurve(edge, nodes, nodeSizes);
+  if (!curve) return null;
+
+  // 三次贝塞尔曲线
+  const { from, to, c1, c2 } = curve;
+  return `M ${from.x} ${from.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${to.x} ${to.y}`;
+}
+
+/**
+ * 计算箭头位置（使用曲线）
+ */
+export function getSmartArrowPos(edge: FlowEdgeDef, nodes: FlowNodeDef[], nodeSizes?: Map<string, {w: number, h: number}>): string {
+  const curve = buildEdgeCurve(edge, nodes, nodeSizes);
+  if (!curve) return '0,0';
+  
+  // 在曲线上取 t=0.85 的点（靠近目标端点）
+  const point = pointOnCurve(curve, 0.85);
+  
+  return `${point.x},${point.y} rotate(${point.angle})`;
+}
+
+/**
+ * 计算标签位置（使用曲线）
+ */
+export function getSmartLabelPos(edge: FlowEdgeDef, nodes: FlowNodeDef[], nodeSizes?: Map<string, {w: number, h: number}>): string {
+  const curve = buildEdgeCurve(edge, nodes, nodeSizes);
+  if (!curve) return '0,0';
+  
+  // 在曲线上取 t=0.5 的点（曲线中点），然后向上偏移 12px
+  const point = pointOnCurve(curve, 0.5);
+  
+  // 法线方向（切线的垂直方向，向上）
+  const normalAngle = point.angle - 90;
+  const normalX = point.x + Math.cos(normalAngle * Math.PI / 180) * 12;
+  const normalY = point.y + Math.sin(normalAngle * Math.PI / 180) * 12;
+  
+  return `${normalX},${normalY}`;
+}
+
+/**
+ * 生成连线的装饰性采样点（用于箭头等装饰） - 已弃用，使用 sampleCurveToPolyline
  */
 export function sampleSmartEdgeToPolyline(
   from: EdgeEndpoint,
   to: EdgeEndpoint,
   spacing: number = 16
 ): string {
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const dist = Math.sqrt(dx * dx + dy * dy);
-  
-  if (dist < spacing) return `M${from.x},${from.y} L${to.x},${to.y}`;
-  
-  const steps = Math.max(2, Math.round(dist / spacing));
-  const parts: string[] = [];
-  
-  for (let i = 0; i <= steps; i++) {
-    const t = i / steps;
-    const px = from.x + dx * t;
-    const py = from.y + dy * t;
-    parts.push(i === 0 ? `M${px},${py}` : `L${px},${py}`);
-  }
-  
-  return parts.join(' ');
+  // 创建临时曲线对象
+  const curve: EdgeCurve = {
+    from,
+    to,
+    c1: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+    c2: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
+  };
+  return sampleCurveToPolyline(curve, spacing);
 }
 
 /**
  * 获取连线的装饰性端点（用于调试和可视化）
  */
-export function getSmartEdgeDecoratedEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[]) {
-  const endpoints = getSmartEdgeEndpoints(edge, nodes);
+export function getSmartEdgeDecoratedEndpoints(edge: FlowEdgeDef, nodes: FlowNodeDef[], nodeSizes?: Map<string, {w: number, h: number}>) {
+  const endpoints = getSmartEdgeEndpoints(edge, nodes, nodeSizes);
   if (!endpoints) return null;
   
   return {
