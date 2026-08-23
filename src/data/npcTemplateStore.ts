@@ -1,4 +1,13 @@
 import type { NpcTemplate, CreatureSize, CreatureType } from '@/types/combat';
+import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
+
+// 反查表：旧文本 → 枚举
+const REVERSE_SIZE_MAP: Record<string, CreatureSize> = Object.fromEntries(
+  Object.entries(CREATURE_SIZE_LABELS).map(([k, v]) => [v, Number(k) as CreatureSize])
+);
+const REVERSE_TYPE_MAP: Record<string, CreatureType> = Object.fromEntries(
+  Object.entries(CREATURE_TYPE_LABELS) as [string, string][]
+) as Record<string, CreatureType>;
 
 const STORAGE_KEY = 'dnd-npc-templates';
 type Listener = () => void;
@@ -51,8 +60,8 @@ function load(): NpcTemplate[] {
         maxRange: a.maxRange,
         twoHandedDamage: a.twoHandedDamage,
       })),
-      creatureSize: t.creatureSize as CreatureSize | undefined,
-      creatureType: t.creatureType as CreatureType | undefined,
+      creatureSize: (t.creatureSize as CreatureSize | undefined) ?? REVERSE_SIZE_MAP[t.size],
+      creatureType: (t.creatureType as CreatureType | undefined) ?? REVERSE_TYPE_MAP[t.type],
       createdAt: t.createdAt ?? Date.now(),
       updatedAt: t.updatedAt ?? Date.now(),
       cr: t.cr,

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Edit2, Trash2, GripVertical, Shield, Heart, Footprints, Swords, BookOpen } from 'lucide-react';
+import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
 import type { NpcTemplate, NpcAttack } from '@/types/combat';
 import MonsterEditor from '@/components/MonsterEditor';
 import npcTemplateStore from '@/data/npcTemplateStore';
@@ -156,12 +157,20 @@ export default function MonsterDetail() {
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-muted-foreground dark:text-text-dark-muted light:text-text-light-muted">尺寸</span>
-              <span className="font-medium dark:text-text-dark light:text-text-light">{template.size || '—'}</span>
+              <span className="text-sm text-muted-foreground dark:text-text-dark-muted light:text-text-light-muted">体型</span>
+              <span className="font-medium dark:text-text-dark light:text-text-light">
+                {template.creatureSize !== undefined
+                  ? CREATURE_SIZE_LABELS[template.creatureSize]
+                  : template.size || '—'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground dark:text-text-dark-muted light:text-text-light-muted">种类</span>
-              <span className="font-medium dark:text-text-dark light:text-text-light">{template.type || '—'}</span>
+              <span className="font-medium dark:text-text-dark light:text-text-light">
+                {template.creatureType !== undefined
+                  ? CREATURE_TYPE_LABELS[template.creatureType]
+                  : template.type || '—'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground dark:text-text-dark-muted light:text-text-light-muted">阵营</span>
