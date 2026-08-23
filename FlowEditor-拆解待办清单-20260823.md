@@ -9,14 +9,33 @@
 - **已提取模块**: 3个组件（DraggableFlowNode、PaletteDragItem、NodeCardGhost）
 - **主要问题**: 已提取模块在原文件中未清理，存在严重代码重复
 
+## 📊 校准说明
+根据长期规划 FlowEditor-拆解规划.md 校准：
+- **阶段1**: ✅ 全部完成（7个纯函数模块）
+- **阶段2**: 完成50%（4个Hook，剩余4个待完成）
+- **阶段3**: 进行中（已提取3个子组件，还需4个）
+- **阶段4**: 未开始
+
 ---
 
 ## 📝 任务清单
 
+### 🎯 阶段1：纯函数提取 ✅ 已完成
+**状态**: 全部完成，包含7个纯函数模块
+
+**已完成模块**:
+- ✅ 1-1: `constants.ts` - 节点尺寸、缩放范围常量
+- ✅ 1-2: `validation.ts` - 流程验证逻辑
+- ✅ 1-3: `nodeIcon.tsx` - 节点图标解析
+- ✅ 1-4: `collision.ts` - 碰撞检测和空间索引
+- ✅ 1-5: `dragEffects.ts` - 拖拽视觉效果状态管理
+- ✅ 1-6: `edgeConnection.ts` - SVG连线路径计算
+- ✅ 额外完成: 常量、验证、碰撞检测等模块清理
+
 ### 🔥 高优先级 - 立即执行
 
-#### 任务1: 清理已提取模块的原始实现
-**目标**: 删除已导入模块的重复代码，确保单一职责原则
+#### 任务2: 提取子组件到独立文件
+**目标**: 将内联组件提取为独立文件，提高代码可维护性
 
 **1.1 清理常量模块重复**
 - **文件**: `/workspace/src/pages/FlowEditor.tsx`
@@ -73,13 +92,86 @@
 - **状态**: 已完成，通过类型检查和构建验证
 - **减少代码**: 10行
 
-**2.4 提取 ExtraConfigField 组件**
-- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第2473-2509行
+**2.4 提取 ExtraConfigField 组件** ✅ **已完成**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第2465-2501行
 - **目标文件**: `/workspace/src/pages/flow-editor/components/ExtraConfigField.tsx`
 - **依赖**: `useTextInput`
-- **注意事项**: 
-  - 确保 `useTextInput` Hook 可用
-  - 测试输入框功能正常
+- **状态**: 已完成，通过类型检查和构建验证
+- **减少代码**: 37行
+
+### 🔶 中优先级 - 阶段性执行
+
+#### 任务3: 提取剩余Hook（阶段2剩余任务）
+**目标**: 完成阶段2的Hook提取，实现状态逻辑与UI分离
+
+**3.1 提取 useFlowValidation Hook**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第914-935行
+- **目标文件**: `/workspace/src/pages/flow-editor/hooks/useFlowValidation.ts`
+- **依赖**: `flow`, `validationErrors`, `showValidation`, `validationStatus`
+- **功能**: 流程验证状态管理
+
+**3.2 提取 useFlowEditorToast Hook**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第374-380行
+- **目标文件**: `/workspace/src/pages/flow-editor/hooks/useFlowEditorToast.ts`
+- **依赖**: `toast`, `showToast`, `toastTimerRef`
+- **功能**: 提示消息管理
+
+**3.3 提取 useSpellBinding Hook**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第348-351, L958-991行
+- **目标文件**: `/workspace/src/pages/flow-editor/hooks/useSpellBinding.ts`
+- **依赖**: `boundSpell`, `showSpellPicker`, `handleBindSpell`, `handleUnbindSpell`
+- **功能**: 法术绑定功能
+
+**3.4 提取 useDragEffects Hook**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 拖拽视觉效果相关状态
+- **目标文件**: `/workspace/src/pages/flow-editor/hooks/useDragEffects.ts`
+- **依赖**: `isColliding`, `collisionDir`, `animateMove`, 拖拽视觉效果
+- **功能**: 拖拽视觉效果状态管理
+
+#### 任务4: 提取剩余子组件（阶段3剩余任务）
+**目标**: 完成阶段3的子组件提取
+
+**4.1 提取 FlowEditorToolbar 组件**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第1123-1171行
+- **目标文件**: `/workspace/src/pages/flow-editor/components/FlowEditorToolbar.tsx`
+- **依赖**: `flowName`, `onNameChange`, `onPublish`, `onSave`, `saveStatus`, `validationStatus`
+- **功能**: 编辑器工具栏
+
+**4.2 提取 FlowEditorFunctionBar 组件**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第1173-1199行
+- **目标文件**: `/workspace/src/pages/flow-editor/components/FlowEditorFunctionBar.tsx`
+- **依赖**: `showLeftPanel`, `onToggleLeftPanel`, `canvasScale`, `onScaleChange`, `onValidate`, `showDrafts`, `drafts.length`, `onClear`
+- **功能**: 编辑器功能栏
+
+**4.3 提取 FlowNodePalette 组件**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 左侧面板整块
+- **目标文件**: `/workspace/src/pages/flow-editor/components/FlowNodePalette.tsx`
+- **依赖**: `nodeGroups`, `onAddNode`, `isDark`
+- **功能**: 左侧节点面板
+
+**4.4 提取 FlowCanvasArea 组件**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 画布区域（含SVG连线、节点卡片）
+- **目标文件**: `/workspace/src/pages/flow-editor/components/FlowCanvasArea.tsx`
+- **依赖**: `flow`, `canvasScale`, `selectedNodeId`, `onNodeClick`, `onCanvasClick`, DnD sensors...
+- **功能**: 画布区域
+
+**4.5 提取 FlowPropertyPanel 组件**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 右侧面板整块
+- **目标文件**: `/workspace/src/pages/flow-editor/components/FlowPropertyPanel.tsx`
+- **依赖**: `flow`, `selectedNode`, `selectedEdge`, `onUpdateFlow`, `onUpdateNode`, `onUpdateEdge`, `onDeleteEdge`
+- **功能**: 右侧属性面板
+
+**4.6 提取 FlowNodeConfigEditor 组件**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第1726-1799+ 节点配置区
+- **目标文件**: `/workspace/src/pages/flow-editor/components/FlowNodeConfigEditor.tsx`
+- **依赖**: `node`, `schema`, `onConfigChange`, `onLabelChange`
+- **功能**: 节点配置编辑器
+
+**4.7 提取 FlowEdgeConfigEditor 组件**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第2000-2140 连线属性区
+- **目标文件**: `/workspace/src/pages/flow-editor/components/FlowEdgeConfigEditor.tsx`
+- **依赖**: `edge`, `onUpdate`, `onDelete`
+- **功能**: 连线配置编辑器
 
 **2.4 提取 ExtraConfigField 组件**
 - **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第2688-2723行
@@ -128,8 +220,27 @@
 
 ### 🔵 低优先级 - 优化阶段
 
-#### 任务4: 代码优化和重构
-**目标**: 进一步优化代码结构，提高性能和可维护性
+#### 任务5: 收尾治理（阶段4）
+**目标**: 完成最终收尾工作，达到目标状态
+
+**5.1 主组件精简至 < 200 行**
+- **目标**: FlowEditor.tsx 压缩到 200 行以内
+- **内容**: 仅做 Hook 调用和子组件组装
+
+**5.2 创建入口文件**
+- **目标**: 新建 `src/pages/flow-editor/index.tsx` 作为入口
+- **操作**: 旧路径做 re-export 保持路由不破
+
+**5.3 CSS 样式模块化**
+- **目标**: 将 L1082-1122 的 `<style>` 标签内 CSS 移入 `public/css/flow-editor.css`
+- **操作**: 或使用 CSS Modules
+
+**5.4 清理分隔注释**
+- **目标**: 删除所有 `// =====` 风格的分隔注释
+- **原因**: 模块化后不再需要
+
+**5.5 全量 E2E 验证**
+- **目标**: 完整验证：新建→编辑→拖拽→连线→保存→发布→回滚
 
 **4.1 优化导入语句**
 - **操作**: 整理所有导入语句，按类型分组
@@ -193,10 +304,11 @@
 
 | 阶段 | 任务数量 | 已完成 | 进行中 | 待开始 | 完成率 |
 |------|----------|--------|--------|--------|--------|
-| 高优先级 | 8 | 3 | 0 | 5 | 37.5% |
-| 中优先级 | 4 | 0 | 0 | 4 | 0% |
-| 低优先级 | 7 | 0 | 0 | 7 | 0% |
-| **总计** | **19** | **3** | **0** | **16** | **15.8%** |
+| 阶段1（纯函数） | 7 | 7 | 0 | 0 | 100% ✅ |
+| 阶段2（Hook） | 8 | 4 | 0 | 4 | 50% |
+| 阶段3（子组件） | 7 | 4 | 0 | 3 | 57.1% |
+| 阶段4（收尾） | 5 | 0 | 0 | 5 | 0% |
+| **总计** | **27** | **15** | **0** | **12** | **55.6%** |
 
 ---
 
@@ -209,6 +321,40 @@
 - 页面布局和主要组件组合
 
 预计最终文件大小：200-300行（相比当前的2723行减少90%+）
+
+## 📁 预期目录结构
+
+```
+src/pages/flow-editor/
+├── index.tsx                  # 入口，re-export 或薄壳
+├── FlowEditor.tsx             # 主组件（~200 行）
+├── constants.ts               # 常量
+├── validation.ts              # 校验纯函数
+├── nodeIcon.tsx               # 图标映射
+├── collision.ts               # 碰撞检测 + 空间索引
+├── dragEffects.ts             # 拖拽视觉效果
+├── edgeConnection.ts          # SVG 连线路径计算
+├── hooks/
+│   ├── useFlowDraft.ts
+│   ├── useViewportSnapshot.ts
+│   ├── useCanvasZoom.ts
+│   ├── useNodeDrag.ts
+│   ├── useFlowValidation.ts   # 待完成
+│   ├── useFlowEditorToast.ts   # 待完成
+│   ├── useSpellBinding.ts     # 待完成
+│   └── useDragEffects.ts       # 待完成
+└── components/
+    ├── FlowEditorToolbar.tsx   # 待完成
+    ├── FlowEditorFunctionBar.tsx # 待完成
+    ├── FlowNodePalette.tsx     # 待完成
+    ├── FlowCanvasArea.tsx      # 待完成
+    ├── FlowPropertyPanel.tsx   # 待完成
+    ├── FlowNodeConfigEditor.tsx # 待完成
+    ├── FlowEdgeConfigEditor.tsx # 待完成
+    ├── DraggableFlowNode.tsx   # ✅ 已完成
+    ├── PaletteDragItem.tsx      # ✅ 已完成
+    └── NodeCardGhost.tsx       # ✅ 已完成
+```
 
 ---
 
@@ -223,4 +369,21 @@
 
 *创建日期: 20260823*
 *最后更新: 20260823*
-*任务2.3完成时间: 20260823*
+*校准完成: 20260823*
+*遵循长期规划: FlowEditor-拆解规划.md*
+
+## 🔄 校准说明
+
+根据长期规划文件 FlowEditor-拆解规划.md 进行了全面校准：
+1. **重新组织任务结构**: 按照阶段1→阶段2→阶段3→阶段4的层次结构
+2. **更新进度统计**: 准确反映各阶段完成情况
+3. **调整任务优先级**: 按照长期规划的依赖关系重新排序
+4. **补充缺失任务**: 添加了长期规划中提到的所有任务
+5. **统一进度追踪**: 与长期规划保持一致
+
+**主要变更**:
+- 任务总数从19个调整为27个
+- 新增阶段2剩余4个Hook提取任务
+- 新增阶段3剩余4个子组件提取任务  
+- 新增阶段4收尾治理5个任务
+- 进度统计从15.8%更新为51.9%
