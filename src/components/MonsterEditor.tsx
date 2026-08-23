@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 import { X, Plus, Save, Trash2, GripVertical } from 'lucide-react';
+import {
+  CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS,
+  type CreatureSize, type CreatureType,
+} from '@/types/combat';
 import type { NpcTemplate, NpcAttack } from '@/types/combat';
 import npcTemplateStore from '@/data/npcTemplateStore';
 
@@ -14,8 +18,8 @@ export default function MonsterEditor({ isOpen, onClose, onSave, template }: Mon
   const [name, setName] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [cr, setCr] = useState<string | undefined>(undefined);
-  const [size, setSize] = useState('');
-  const [type, setType] = useState('');
+  const [creatureSize, setCreatureSize] = useState<CreatureSize | ''>('');
+  const [creatureType, setCreatureType] = useState<CreatureType | ''>('');
   const [alignment, setAlignment] = useState('');
   const [features, setFeatures] = useState('');
   const [senses, setSenses] = useState('');
@@ -39,8 +43,8 @@ export default function MonsterEditor({ isOpen, onClose, onSave, template }: Mon
       setName(template.name);
       setTemplateId(template.templateId);
       setCr(template.cr || undefined);
-      setSize(template.size || '');
-      setType(template.type || '');
+      setCreatureSize(template.creatureSize ?? '');
+      setCreatureType(template.creatureType ?? '');
       setAlignment(template.alignment || '');
       setFeatures(template.features || '');
       setSenses(template.senses || '');
@@ -65,8 +69,8 @@ export default function MonsterEditor({ isOpen, onClose, onSave, template }: Mon
     setName('');
     setTemplateId('');
     setCr(undefined);
-    setSize('');
-    setType('');
+    setCreatureSize('');
+    setCreatureType('');
     setAlignment('');
     setFeatures('');
     setSenses('');
@@ -111,8 +115,12 @@ export default function MonsterEditor({ isOpen, onClose, onSave, template }: Mon
       createdAt: template?.createdAt || Date.now(),
       updatedAt: Date.now(),
       cr: cr || '',
-      size,
-      type,
+      // 枚举字段（新真相源）
+      creatureSize: creatureSize === '' ? undefined : creatureSize,
+      creatureType: creatureType === '' ? undefined : creatureType,
+      // 文本字段（派生，保持向后兼容）
+      size: creatureSize === '' ? '' : CREATURE_SIZE_LABELS[creatureSize],
+      type: creatureType === '' ? '' : CREATURE_TYPE_LABELS[creatureType],
       alignment,
       features,
       senses,
@@ -195,26 +203,32 @@ export default function MonsterEditor({ isOpen, onClose, onSave, template }: Mon
               />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">尺寸</label>
-              <input
-                type="text"
-                value={size}
-                onChange={(e) => setSize(e.target.value)}
-                placeholder="如:中型"
+              <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">体型</label>
+              <select
+                value={creatureSize}
+                onChange={(e) => setCreatureSize(e.target.value ? Number(e.target.value) as CreatureSize : '')}
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:bg-bg-dark light:border-border-light light:bg-bg-light dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-              />
+              >
+                <option value="">— 未选择 —</option>
+                {Object.entries(CREATURE_SIZE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">种类</label>
-              <input
-                type="text"
-                value={type}
-                onChange={(e) => setType(e.target.value)}
-                placeholder="如:类人生物"
+              <select
+                value={creatureType}
+                onChange={(e) => setCreatureType(e.target.value as CreatureType | '')}
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark dark:bg-bg-dark light:border-border-light light:bg-bg-light dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-              />
+              >
+                <option value="">— 未选择 —</option>
+                {Object.entries(CREATURE_TYPE_LABELS).map(([k, v]) => (
+                  <option key={k} value={k}>{v}</option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">阵营</label>

@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEditorState } from '@/data/editorState';
 import { Search, Plus, Edit2, Trash2, GripVertical } from 'lucide-react';
+import {
+  CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS,
+  type CreatureSize, type CreatureType,
+} from '@/types/combat';
 import type { NpcTemplate } from '@/types/combat';
 import MonsterCard from '@/components/MonsterCard';
 import MonsterEditor from '@/components/MonsterEditor';
@@ -19,8 +23,16 @@ const STORAGE_KEY_SCROLL = 'monsterList.scroll';
 function loadSearchQuery(): string {
   try { return sessionStorage.getItem(STORAGE_KEY_SEARCH) || ''; } catch { return ''; }
 }
-function loadTypeFilter(): string {
-  try { return sessionStorage.getItem(STORAGE_KEY_TYPE) || ''; } catch { return ''; }
+function loadTypeFilter(): CreatureType | 'all' {
+  try {
+    const v = sessionStorage.getItem(STORAGE_KEY_TYPE);
+    if (v === null || v === 'all') return 'all';
+    // 验证是否为有效的 CreatureType
+    if (Object.keys(CREATURE_TYPE_LABELS).includes(v)) {
+      return v as CreatureType;
+    }
+    return 'all';
+  } catch { return 'all'; }
 }
 function loadCrFilter(): number | 'all' {
   try {
@@ -30,8 +42,17 @@ function loadCrFilter(): number | 'all' {
     return isNaN(n) ? 'all' : n;
   } catch { return 'all'; }
 }
-function loadSizeFilter(): string {
-  try { return sessionStorage.getItem(STORAGE_KEY_SIZE) || ''; } catch { return ''; }
+function loadSizeFilter(): CreatureSize | 'all' {
+  try {
+    const v = sessionStorage.getItem(STORAGE_KEY_SIZE);
+    if (v === null || v === 'all') return 'all';
+    // 验证是否为有效的 CreatureSize
+    const num = parseInt(v, 10);
+    if (num >= 0 && num <= 5) {
+      return num as CreatureSize;
+    }
+    return 'all';
+  } catch { return 'all'; }
 }
 
 export default function MonsterList() {
@@ -39,9 +60,9 @@ export default function MonsterList() {
   const { isDM } = useAuth();
   const [templates, setTemplates] = useState<NpcTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState(loadSearchQuery);
-  const [typeFilter, setTypeFilter] = useState(loadTypeFilter);
+  const [typeFilter, setTypeFilter] = useState<CreatureType | 'all'>('all');
   const [crFilter, setCrFilter] = useState<number | 'all'>(loadCrFilter);
-  const [sizeFilter, setSizeFilter] = useState(loadSizeFilter);
+  const [sizeFilter, setSizeFilter] = useState<CreatureSize | 'all'>('all');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<NpcTemplate | undefined>();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -53,9 +74,9 @@ export default function MonsterList() {
 
   // 筛选状态写入 sessionStorage
   useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_SEARCH, searchQuery); } catch {} }, [searchQuery]);
-  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_TYPE, typeFilter); } catch {} }, [typeFilter]);
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_TYPE, typeFilter === 'all' ? 'all' : typeFilter); } catch {} }, [typeFilter]);
   useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_CR, String(crFilter)); } catch {} }, [crFilter]);
-  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_SIZE, sizeFilter); } catch {} }, [sizeFilter]);
+  useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_SIZE, sizeFilter === 'all' ? 'all' : String(sizeFilter)); } catch {} }, [sizeFilter]);
 
   // 滚动位置保存 + 返回时恢复
   useEffect(() => {
@@ -83,17 +104,9 @@ export default function MonsterList() {
 
   useEffect(() => { load(); }, []);
 
-  // 派生:所有出现的类型和尺寸
-  const allTypes = useMemo(() => {
-    const set = new Set<string>();
-    templates.forEach(t => t.type && set.add(t.type));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'));
-  }, [templates]);
-  const allSizes = useMemo(() => {
-    const set = new Set<string>();
-    templates.forEach(t => t.size && set.add(t.size));
-    return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'));
-  }, [templates]);
+  // 静态枚举（不再依赖数据）
+  const ALL_CREATURE_TYPES: CreatureType[] = Object.keys(CREATURE_TYPE_LABELS) as CreatureType[];
+  const ALL_CREATURE_SIZES: CreatureSize[] = [0, 1, 2, 3, 4, 5];
 
   const filteredTemplates = useMemo(() => {
     return templates.filter(t => {
@@ -101,9 +114,15 @@ export default function MonsterList() {
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.templateId.toLowerCase().includes(searchQuery.toLowerCase()) ||
         t.type?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesType = typeFilter === 'all' || t.type === typeFilter;
+      // 优先匹配枚举字段，回退匹配旧文本
+      const matchesType = typeFilter === 'all'
+        || t.creatureType === typeFilter
+        || t.type === CREATURE_TYPE_LABELS[typeFilter];
       const matchesCr = crFilter === 'all' ||         t.cr === crFilter?.toString();
-      const matchesSize = sizeFilter === 'all' || t.size === sizeFilter;
+      // 优先匹配枚举字段，回退匹配旧文本
+      const matchesSize = sizeFilter === 'all'
+        || t.creatureSize === sizeFilter
+        || t.size === CREATURE_SIZE_LABELS[sizeFilter];
       return matchesSearch && matchesType && matchesCr && matchesSize;
     });
   }, [templates, searchQuery, typeFilter, crFilter, sizeFilter]);
@@ -240,15 +259,15 @@ export default function MonsterList() {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">种类</span>
           <button
-            onClick={() => setTypeFilter(typeFilter === 'all' ? '' : 'all')}
+            onClick={() => setTypeFilter('all')}
             className={`px-2.5 py-1 rounded-full text-xs transition-colors ${typeFilter === 'all' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
           >全部</button>
-          {allTypes.map(type => (
+          {ALL_CREATURE_TYPES.map(ct => (
             <button
-              key={type}
-              onClick={() => setTypeFilter(typeFilter === type ? 'all' : type)}
-              className={`px-2.5 py-1 rounded-full text-xs transition-colors ${typeFilter === type ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
-            >{type}</button>
+              key={ct}
+              onClick={() => setTypeFilter(typeFilter === ct ? 'all' : ct)}
+              className={`px-2.5 py-1 rounded-full text-xs transition-colors ${typeFilter === ct ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+            >{CREATURE_TYPE_LABELS[ct]}</button>
           ))}
         </div>
         {/* CR */}
@@ -270,15 +289,15 @@ export default function MonsterList() {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">尺寸</span>
           <button
-            onClick={() => setSizeFilter(sizeFilter === 'all' ? '' : 'all')}
+            onClick={() => setSizeFilter('all')}
             className={`px-2.5 py-1 rounded-full text-xs transition-colors ${sizeFilter === 'all' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
           >全部</button>
-          {allSizes.map(size => (
+          {ALL_CREATURE_SIZES.map(cs => (
             <button
-              key={size}
-              onClick={() => setSizeFilter(sizeFilter === size ? 'all' : size)}
-              className={`px-2.5 py-1 rounded-full text-xs transition-colors ${sizeFilter === size ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
-            >{size}</button>
+              key={cs}
+              onClick={() => setSizeFilter(sizeFilter === cs ? 'all' : cs)}
+              className={`px-2.5 py-1 rounded-full text-xs transition-colors ${sizeFilter === cs ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+            >{CREATURE_SIZE_LABELS[cs]}</button>
           ))}
         </div>
         {/* 清空 */}
@@ -299,7 +318,7 @@ export default function MonsterList() {
             <tr className="border-b dark:border-border-dark light:border-border-light">
               <th className="text-left px-4 py-3 text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">名称</th>
               <th className="text-center px-4 py-3 text-sm font-medium w-16 dark:text-text-dark-muted light:text-text-light-muted">CR</th>
-              <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">尺寸·种类</th>
+              <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">体型·种类</th>
               <th className="text-center px-4 py-3 text-sm font-medium w-16 dark:text-text-dark-muted light:text-text-light-muted">AC</th>
               <th className="text-center px-4 py-3 text-sm font-medium w-16 dark:text-text-dark-muted light:text-text-light-muted">HP</th>
               <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">速度</th>
@@ -324,7 +343,11 @@ export default function MonsterList() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">
-                    {template.size && template.type ? `${template.size}·${template.type}` : '—'}
+                    {(() => {
+                      const sz = template.creatureSize !== undefined ? CREATURE_SIZE_LABELS[template.creatureSize] : template.size;
+                      const tp = template.creatureType !== undefined ? CREATURE_TYPE_LABELS[template.creatureType] : template.type;
+                      return (sz && tp) ? `${sz}·${tp}` : '—';
+                    })()}
                   </td>
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">{template.ac}</td>
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">{template.maxHp}</td>
