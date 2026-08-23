@@ -1,5 +1,6 @@
 import type { FlowDefinition } from '../types/flow';
 import { serializeFlow, deserializeFlow } from '../types/flow';
+import { apiFetch } from '../lib/api';
 
 const STORAGE_KEY = 'dnd-flow-library';
 const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
@@ -139,21 +140,18 @@ const flowStore = {
   async publish(id: string): Promise<FlowDefinition | undefined> {
     const flow = localFlows.find(f => f.id === id);
     if (!flow) return undefined;
-    const res = await fetch(`/api/flows/${id}`, {
+    
+    const published = await apiFetch(`/flows/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${getAuthToken()}`,
-      },
       body: JSON.stringify(flow),
     });
-    if (!res.ok) throw new Error(`发布失败: ${res.status}`);
-    const published = await res.json();
+    
     const updated = {
       ...flow,
       publishedVersion: published.publishedVersion,
       publishedAt: published.publishedAt ?? Math.floor(Date.now() / 1000), // 转换为秒级时间戳
     };
+    
     const idx = localFlows.findIndex(f => f.id === id);
     localFlows[idx] = updated;
     write(localFlows);
@@ -163,9 +161,8 @@ const flowStore = {
 
   /** 从 D1 撤下 */
   async unpublish(id: string): Promise<void> {
-    await fetch(`/api/flows/${id}`, {
+    await apiFetch(`/flows/${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${getAuthToken()}` },
     });
     const flow = localFlows.find(f => f.id === id);
     if (flow) {
@@ -178,11 +175,8 @@ const flowStore = {
 
   /** 拉取远程正式版列表（缓存） */
   async fetchRemote(): Promise<void> {
-    const res = await fetch('/api/flows', {
-      headers: { 'Authorization': `Bearer ${getAuthToken()}` },
-    });
-    if (!res.ok) return;
-    remoteFlows = await res.json();
+    const flows = await apiFetch('/flows');
+    remoteFlows = flows;
     remoteLoaded = true;
     try {
       localStorage.setItem(REMOTE_CACHE_KEY, JSON.stringify(remoteFlows));
@@ -192,11 +186,7 @@ const flowStore = {
 
   /** 拉取单个正式版覆盖本地 */
   async pullRemote(id: string): Promise<FlowDefinition | undefined> {
-    const res = await fetch(`/api/flows/${id}`, {
-      headers: { 'Authorization': `Bearer ${getAuthToken()}` },
-    });
-    if (!res.ok) return undefined;
-    const remote = await res.json();
+    const remote = await apiFetch(`/flows/${id}`);
     const idx = localFlows.findIndex(f => f.id === id);
     if (idx >= 0) {
       localFlows[idx] = remote;
