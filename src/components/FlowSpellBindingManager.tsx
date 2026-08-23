@@ -80,7 +80,7 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
       }`}>
         <p className="text-sm">
           {status === 'published' 
-            ? '已发布流程：必须绑定法术才能正常使用。绑定后可以随时更改。'
+            ? '已发布流程：建议绑定法术以便正常使用。绑定后可以随时更改。'
             : '草稿流程：法术绑定是可选的。绑定后可以在发布时自动使用。'
           }
         </p>
@@ -146,7 +146,7 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
             : 'bg-gray-50 border border-gray-200 text-gray-500'
         }`}>
           {status === 'published' 
-            ? '⚠️ 已发布流程必须绑定至少一个法术才能使用'
+            ? '⚠️ 已发布流程建议绑定至少一个法术以便使用'
             : '暂未绑定法术，可以随时添加'
           }
         </div>
