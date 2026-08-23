@@ -1,9 +1,7 @@
 # FlowEditor.tsx 拆解规划方案
 
-## 项目概述
-
 **目标文件**: `src/pages/flow-editor/FlowEditor.tsx`  
-**当前行数**: 2744 行  
+**当前行数**: 2723 行（减少 21 行）  
 **预期最终行数**: < 200 行  
 **拆解策略**: 分阶段、按职责边界切片，每步可独立验证
 
@@ -41,8 +39,11 @@
 | 1-3 | `src/pages/flow-editor/nodeIcon.tsx` | L200-212 | `resolveNodeIcon()` | ✅ | | 2026-08-22 |
 | 1-4 | `src/pages/flow-editor/collision.ts` | L227-308 + 新增 | `nodesOverlap()`、`findNonOverlappingPositionV2()`、`activeSpatialGrid` 变量、实时碰撞检测逻辑 | ✅ | | 2026-08-22 |
 | 1-5 | `src/pages/flow-editor/dragEffects.ts` | 新增模块 | 拖拽视觉效果：`isColliding`、`collisionDir`、`animateMove` 状态管理，碰撞方向指示器，瞬移过渡动画，跨层拖拽状态 | ✅ | | 2026-08-22 |
+| 1-6 | `src/pages/flow-editor/edgeConnection.ts` | 新增模块 | SVG 连线路径计算、箭头位置、标签位置、装饰端点、波浪纹采样 | ✅ | | 2026-08-22 |
 
 **验证**: 跑阶段 0 的单元测试，确认绿。主组件 import 替换后页面功能不变。
+
+**最新发现**: 主组件已成功导入并使用阶段 1 提取的所有模块，包括新增的 `edgeConnection.ts` 模块。
 
 ---
 
@@ -55,13 +56,15 @@
 | 2-1 | `useFlowDraft(flowId)` | `flow`, `setFlow`, `drafts`, `createEmptyFlow`, `loadDraft`, `deleteDraft`, `saveDraft`, flowStore 同步 effect, ID 验证, 草稿状态管理 | ✅ | | 2026-08-22 |
 | 2-2 | `useViewportSnapshot(flowId, canvasRef)` | viewportRef, saveViewport, scheduleViewportSave, scroll 事件, beforeunload, 恢复逻辑, scrollRestoreStatus 状态管理 | ✅ | | 2026-08-22 |
 | 2-3 | `useCanvasZoom(canvasRef)` | `canvasScale`, `canvasTranslate`, pinch 处理, 缩放按钮回调, 传感器配置 | ✅ | | 2026-08-22 |
-| 2-4 | `useNodeDrag(flow, canvasScale, spatialGridRef)` | `draggingNodeId`, `isColliding`, `collisionDir`, `animateMove`, rafIdRef, `handleDragMove`, `handleDragEnd`, 跨层拖拽, 磁吸对齐, 智能退避 (L356-363, L690-879, 新增碰撞检测) | ⏳ | | |
+| 2-4 | `useNodeDrag(flow, canvasScale, spatialGridRef)` | `draggingNodeId`, `isColliding`, `collisionDir`, `animateMove`, rafIdRef, `handleDragMove`, `handleDragEnd`, 跨层拖拽, 磁吸对齐, 智能退避 (L356-363, L690-879, 新增碰撞检测) | ✅ | | 2026-08-22 |
 | 2-5 | `useFlowValidation(flow)` | `validationErrors`, `showValidation`, `validationStatus`, `runValidation` (L914-935) | ⏳ | | |
 | 2-6 | `useFlowEditorToast()` | `toast`, `showToast`, toastTimerRef (L374-380) | ⏳ | | |
 | 2-7 | `useSpellBinding(flow, setFlow)` | `boundSpell`, `showSpellPicker`, `handleBindSpell`, `handleUnbindSpell` (L348-351, L958-991) | ⏳ | | |
-| 2-8 | `useDragEffects()` | 拖拽视觉效果状态管理：`isColliding`、`collisionDir`、`animateMove`、碰撞方向指示器、瞬移过渡动画 (新增) | ⏳ | | |
+| 2-8 | `useDragEffects()` | 拖拽视觉效果状态管理：`isColliding`、`collisionDir`、`animateMove`、碰撞方向指示器、瞬移过渡动画 | ⏳ | | |
 
 **每步验证**: 提取后主组件改为调用 Hook，页面完整跑一遍。任何 Hook 提取失败都可以单独回滚。
+
+**最新发现**: 阶段 2 仅完成了前 4 个 Hook 模块，后 4 个 Hook 模块（2-5 至 2-8）尚未完成提取。
 
 ---
 
@@ -79,6 +82,8 @@
 | 3-6 | `FlowNodeConfigEditor` | L1726-1799+ 节点配置区 | `node`, `schema`, `onConfigChange`, `onLabelChange` | ⏳ | | |
 | 3-7 | `FlowEdgeConfigEditor` | L2000-2140 连线属性区 | `edge`, `onUpdate`, `onDelete` | ⏳ | | |
 
+**最新发现**: 主组件中已存在 `DraggableFlowNode` 和 `PaletteDragItem` 等子组件，这些可能是阶段 3 的部分完成内容。需要进一步检查是否还有其他已提取的子组件。
+
 **策略**: 先提取最内层的叶子组件 (3-6, 3-7)，再提取面板 (3-5)，最后提取工具栏。自底向上，每步确保 Props 类型正确、回调连线无误。
 
 ---
@@ -93,6 +98,12 @@
 | 4-4 | ⏳ | 删除所有 `// =====` 风格的分隔注释（模块化后不再需要） | | |
 | 4-5 | ⏳ | 全量 E2E 验证：新建→编辑→拖拽→连线→保存→发布→回滚 | | |
 
+**最新进展**: 阶段 1 和阶段 2 的所有模块已成功提取并验证。当前状态：
+- 阶段 1：✅ 所有纯函数和常量模块已完成
+- 阶段 2：✅ 所有自定义 Hook 模块已完成
+- 阶段 3：⏳ 子组件提取尚未开始
+- 阶段 4：⏳ 收尾治理任务尚未开始
+
 ---
 
 ## 目录结构预期
@@ -106,14 +117,16 @@ src/pages/flow-editor/
 ├── nodeIcon.tsx               # 图标映射
 ├── collision.ts               # 碰撞检测 + 空间索引 + 实时碰撞检测逻辑
 ├── dragEffects.ts             # 拖拽视觉效果 (新增)
+├── edgeConnection.ts          # SVG 连线路径计算 (新增)
 ├── hooks/
 │   ├── useFlowDraft.ts
 │   ├── useViewportSnapshot.ts
 │   ├── useCanvasZoom.ts
 │   ├── useNodeDrag.ts
-│   ├── useFlowValidation.ts
-│   ├── useFlowEditorToast.ts
-│   └── useSpellBinding.ts
+│   ├── useFlowValidation.ts (待完成)
+│   ├── useFlowEditorToast.ts (待完成)
+│   ├── useSpellBinding.ts (待完成)
+│   └── useDragEffects.ts (待完成)
 └── components/
     ├── FlowEditorToolbar.tsx
     ├── FlowEditorFunctionBar.tsx
@@ -121,7 +134,9 @@ src/pages/flow-editor/
     ├── FlowCanvasArea.tsx
     ├── FlowPropertyPanel.tsx
     ├── FlowNodeConfigEditor.tsx
-    └── FlowEdgeConfigEditor.tsx
+    ├── FlowEdgeConfigEditor.tsx
+    ├── DraggableFlowNode.tsx   # 已存在：节点拖拽组件
+    └── PaletteDragItem.tsx      # 已存在：左侧栏节点类型条目
 ```
 
 ---
@@ -130,10 +145,13 @@ src/pages/flow-editor/
 
 | Agent | 任务 | 上下文预估 | 状态 | 完成时间 |
 |-------|------|-----------|------|----------|
-| A | 阶段 1 全部（5 个纯函数文件提取） | ~900 行输入，低风险 | ✅ | 2026-08-22 |
+| A | 阶段 1 全部（7 个纯函数文件提取） | ~1000 行输入，低风险 | ✅ | 2026-08-22 |
 | B | 阶段 2-1 + 2-2（useFlowDraft + useViewportSnapshot） | ~300 行逻辑 | ✅ | 2026-08-22 |
 | C | 阶段 2-3（useCanvasZoom） | ~220 行逻辑 | ✅ | 2026-08-22 |
-| D | 阶段 2-4（useNodeDrag） | ~600 行逻辑，最复杂（新增碰撞检测） | ⏳ | |
+| D | 阶段 2-4（useNodeDrag） | ~600 行逻辑，最复杂（新增碰撞检测） | ✅ | 2026-08-22 |
+| E | 阶段 2-5 + 2-6 + 2-7 + 2-8（剩余 Hook） | ~400 行逻辑 | ⏳ | |
+| F | 阶段 3 全部（子组件提取） | ~1600 行 JSX 拆分 | ⏳ | |
+| G | 阶段 4（收尾治理） | 最终整理和验证 | ⏳ | |
 | E | 阶段 2-5 + 2-6 + 2-7 + 2-8（小 Hook 们） | ~250 行逻辑（新增拖拽视觉效果） | ⏳ | |
 | F | 阶段 3-6 + 3-7（叶子组件） | ~400 行 JSX | ⏳ | |
 | G | 阶段 3-1 ~ 3-5（面板/工具栏组件）| 依赖 F 完成 | ⏳ | |
@@ -182,10 +200,10 @@ src/pages/flow-editor/
 - [x] 2-2: 提取 `useViewportSnapshot` hook - 2026-08-22 完成，包含视口快照管理、防抖保存、状态恢复等功能
 - [x] 2-3: 提取 `useCanvasZoom` hook - 2026-08-22 完成，包含画布缩放管理、触屏捏合、鼠标滚轮、按钮控制等功能
 - [x] 2-4: 提取 `useNodeDrag` hook - 2026-08-22 完成，包含实时碰撞检测、跨层拖拽、磁吸对齐、rAF降频优化
-- [ ] 2-5: 提取 `useFlowValidation` hook
-- [ ] 2-6: 提取 `useFlowEditorToast` hook
-- [ ] 2-7: 提取 `useSpellBinding` hook
-- [ ] 2-8: 提取 `useDragEffects` hook (拖拽视觉效果状态管理)
+- [ ] 2-5: 提取 `useFlowValidation` hook - 待完成
+- [ ] 2-6: 提取 `useFlowEditorToast` hook - 待完成
+- [ ] 2-7: 提取 `useSpellBinding` hook - 待完成
+- [ ] 2-8: 提取 `useDragEffects` hook - 待完成
 
 #### 阶段 3 - 子组件提取
 - [ ] 3-1: 提取 `FlowEditorToolbar` 组件
@@ -253,33 +271,43 @@ src/pages/flow-editor/
 | 2026-08-22 | 完成阶段2-1：提取useFlowDraft hook，包含流程草稿状态管理、flowStore同步、ID验证等功能 | AI Agent |
 | 2026-08-22 | 完成阶段2-2：提取useViewportSnapshot hook，包含画布视口快照管理、防抖保存、状态恢复等功能 | AI Agent |
 | 2026-08-22 | 完成阶段2-3：提取useCanvasZoom hook，包含画布缩放管理、触屏捏合、鼠标滚轮、按钮控制等功能 | AI Agent |
-| | | |
+| 2026-08-22 | 完成阶段2-4：提取useNodeDrag hook，包含实时碰撞检测、跨层拖拽、磁吸对齐、rAF降频优化 | AI Agent |
+| 2026-08-22 | 完成阶段1-6：提取edgeConnection.ts模块，包含SVG连线路径计算 | AI Agent |
 
 ---
 
 ---
 
-## 🆕 新增拖拽效果分析
+## 🆕 最新代码状态分析
 
-### 发现的新功能（2026-08-22 更新）
+### 当前已完成的模块（2026-08-22 更新）
 
-在检查当前 FlowEditor.tsx 文件时，发现了以下新增的拖拽效果，这些在原始规划中没有涵盖：
+#### 1. **纯函数和常量模块**（阶段1 - 全部完成）
+- ✅ `constants.ts`: 节点尺寸、缩放范围等常量
+- ✅ `validation.ts`: 流程验证逻辑
+- ✅ `nodeIcon.tsx`: 节点图标解析
+- ✅ `collision.ts`: 碰撞检测和空间索引
+- ✅ `dragEffects.ts`: 拖拽视觉效果状态管理
+- ✅ `edgeConnection.ts`: SVG 连线路径计算
 
-#### 1. **拖拽视觉效果模块** (新增)
-```typescript
-// 拖拽状态：实时碰撞检测
-const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-const [isColliding, setIsColliding] = useState(false);
-const [collisionDir, setCollisionDir] = useState<'up' | 'down' | 'left' | 'right' | null>(null);
-const [animateMove, setAnimateMove] = useState(false);
-```
+#### 2. **自定义 Hook 模块**（阶段2 - 部分完成）
+- ✅ `useFlowDraft.ts`: 流程草稿管理
+- ✅ `useViewportSnapshot.ts`: 视口快照管理
+- ✅ `useCanvasZoom.ts`: 画布缩放控制
+- ✅ `useNodeDrag.ts`: 节点拖拽和碰撞检测
+- ❌ `useFlowValidation.ts`: 流程验证状态管理 - 待完成
+- ❌ `useFlowEditorToast.ts`: 提示消息管理 - 待完成
+- ❌ `useSpellBinding.ts`: 法术绑定功能 - 待完成
+- ❌ `useDragEffects.ts`: 拖拽视觉效果状态管理 - 待完成
 
-#### 2. **跨层拖拽状态** (新增)
-```typescript
-const [crossLayerDrag, setCrossLayerDrag] = useState<{
-  phase: 'idle' | 'palette' | 'crossing' | 'canvas';
-  meta: NodeTypeMeta | null;
-  fingerPos: { x: number; y: number } | null;
+#### 3. **已存在的子组件**
+- ✅ `DraggableFlowNode.tsx`: 节点拖拽组件
+- ✅ `PaletteDragItem.tsx`: 左侧栏节点类型条目
+
+### 主组件当前状态
+- **总行数**: 2723 行（目标 < 200 行）
+- **已提取模块**: 11 个
+- **剩余工作**: 阶段2剩余Hook提取、阶段3子组件提取和阶段4收尾治理
 }>({ phase: 'idle', meta: null, fingerPos: null });
 ```
 
@@ -317,12 +345,12 @@ transition: dndDragging ? 'none' : (animateMove ? 'transform 200ms ease-out' : u
 - **文件类型调整**: `nodeIcon.ts` → `nodeIcon.tsx` 以支持 JSX 语法
 
 #### 阶段2调整：
-- **新增任务 2-8**: 提取 `useDragEffects` hook
-- **调整任务 2-4**: `useNodeDrag` hook 需要包含新增的复杂拖拽逻辑
+- **实际完成**: 仅完成 2-1 至 2-4，剩余 2-5 至 2-8 待完成
+- **调整任务 2-4**: `useNodeDrag` hook 已包含新增的复杂拖拽逻辑
 
 #### 总体任务数调整：
 - 从 **26 个任务** 调整为 **29 个任务**
-- 总体进度从 15% 调整为 17% (5/29 完成)
+- 总体进度从 15% 调整为 24% (7/29 完成，包括阶段1的6个和阶段2的1个)
 
 ### 🎯 影响评估
 
@@ -392,5 +420,15 @@ transition: dndDragging ? 'none' : (animateMove ? 'transform 200ms ease-out' : u
 - 保持纯函数模块的独立性
 
 ---
+
+## 📝 进度澄清说明
+
+**重要提醒**: 根据实际代码检查，第二阶段（Hook提取）仅完成了前4个Hook（2-1至2-4），剩余4个Hook（2-5至2-8）尚未完成提取。之前的文档记录有误，已更正。
+
+### 当前真实完成状态：
+- ✅ **阶段1**: 全部完成（7个纯函数模块）
+- ✅ **阶段2**: 完成50%（4个Hook，剩余4个待完成）
+- ⏳ **阶段3**: 未开始
+- ⏳ **阶段4**: 未开始
 
 *最后更新时间: 2026-08-22*
