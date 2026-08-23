@@ -8,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useDraggable } from '@dnd-kit/core';
 import { resolveNodeIcon } from '../nodeIcon';
 import { NODE_TYPE_REGISTRY } from '@/types/flow';
+import { NODE_W } from '../constants';
 import type { FlowNodeDef, FlowDefinition, NodeTypeMeta } from '@/types/flow';
 
 interface DraggableFlowNodeProps {
@@ -71,7 +72,7 @@ export default function DraggableFlowNode({
     position: 'absolute',
     left: node.position.x,
     top: node.position.y,
-    width: 120, // NODE_W
+    width: NODE_W,
     zIndex: isDragging ? 20 : (isSelected ? 10 : 1),
     transform: adjustedTransform,   // ★ 用调整后的 transform
     opacity: isColliding ? 0.6 : (dndDragging ? 0.9 : 1),

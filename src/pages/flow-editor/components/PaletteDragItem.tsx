@@ -23,7 +23,7 @@ function PaletteDragItem({ meta }: PaletteDragItemProps) {
         bg-white/8 dark:bg-white/8 light:bg-gray-100/60
         active:scale-[0.95] active:shadow-inner
         ${isDragging ? 'opacity-50 scale-95 shadow-lg border-primary/30' : ''}
-        min-w-[100px] max-w-[130px] h-[44px] w-auto`}
+        min-w-[100px] h-[44px] w-auto`}
       title={meta.description}
       style={{ touchAction: 'none' }}
     >
