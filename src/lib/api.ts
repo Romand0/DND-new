@@ -329,3 +329,33 @@ export async function uploadAvatar<T = { url: string }>(dataUrl: string): Promis
   });
 }
 
+// ============ 流程管理 ============
+export async function fetchAllFlows<T = any[]>(): Promise<T> {
+  return apiFetch<T>('/flows');
+}
+
+export async function createFlow<T = any>(data: T): Promise<T> {
+  return apiFetch<T>('/flows', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateFlow<T = any>(id: string, data: T): Promise<T> {
+  return apiFetch<T>(`/flows/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteFlow(id: string): Promise<void> {
+  await apiFetch(`/flows/${id}`, { method: 'DELETE' });
+}
+
+export async function publishFlow<T = any>(id: string): Promise<T> {
+  return apiFetch<T>(`/flows/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'published' }),
+  });
+}
+
