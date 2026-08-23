@@ -2,6 +2,50 @@ import type { FlowDefinition } from '../types/flow';
 import { serializeFlow, deserializeFlow } from '../types/flow';
 import { apiFetch } from '../lib/api';
 
+/**
+ * 深度清理对象中的 undefined 值
+ * 解决 D1 数据库类型错误：Type 'undefined' not supported for value 'undefined'
+ */
+function deepCleanUndefined(obj: any): any {
+  if (obj === undefined || obj === null) {
+    return null;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj
+      .map(item => deepCleanUndefined(item))
+      .filter(item => item !== null);
+  }
+  
+  if (typeof obj === 'object' && obj !== null) {
+    const result: any = {};
+    for (const [key, val] of Object.entries(obj)) {
+      if (val !== undefined) {
+        result[key] = deepCleanUndefined(val);
+      }
+    }
+    return result;
+  }
+  
+  return obj;
+}
+
+/**
+ * 清理 FlowDefinition 中的所有 undefined 值
+ */
+function cleanFlowDefinition(flow: FlowDefinition): FlowDefinition {
+  return deepCleanUndefined({
+    ...flow,
+    publishedAt: flow.publishedAt ?? Math.floor(Date.now() / 1000),
+    tags: flow.tags || [],
+    version: flow.version ?? 1,
+    status: flow.status || 'draft',
+    description: flow.description || '',
+    category: flow.category || 'custom',
+    bindingsCount: flow.bindingsCount ?? 0,
+  });
+}
+
 const STORAGE_KEY = 'dnd-flow-library';
 const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
 const REMOTE_CACHE_KEY = 'dnd-flow-remote';
@@ -141,21 +185,8 @@ const flowStore = {
     const flow = localFlows.find(f => f.id === id);
     if (!flow) return undefined;
     
-    // 清理 undefined 值，防止 D1 数据库类型错误
-    const sanitizedFlow = {
-      ...flow,
-      // 移除 undefined 值，D1 不支持 undefined
-      publishedAt: flow.publishedAt ?? Math.floor(Date.now() / 1000),
-      tags: flow.tags || [],
-      version: flow.version ?? 1,
-      status: flow.status || 'draft',
-      description: flow.description || '',
-      category: flow.category || 'custom',
-      bindingsCount: flow.bindingsCount ?? 0,
-      // 确保数组字段不为 undefined
-      nodes: flow.nodes || [],
-      edges: flow.edges || [],
-    };
+    // 使用深度清理函数处理所有嵌套的 undefined 值
+    const sanitizedFlow = cleanFlowDefinition(flow);
     
     const published = await apiFetch(`/flows/${id}`, {
       method: 'PUT',

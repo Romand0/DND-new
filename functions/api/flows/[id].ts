@@ -83,49 +83,34 @@ export async function onRequestPut(context: any): Promise<Response> {
   
   console.log('处理后的数据:', { nextVersion, publishedAt, flowData });
   
-   try {
-     // 安全序列化：移除可能引起序列化问题的字段和 undefined 值
-     const sanitizeValue = (value: any): any => {
-       if (value === undefined || value === null) {
-         return '';
-       }
-       if (Array.isArray(value)) {
-         return value.map(item => sanitizeValue(item));
-       }
-       if (typeof value === 'object' && value !== null) {
-         const result: any = {};
-         for (const [key, val] of Object.entries(value)) {
-           result[key] = sanitizeValue(val);
-         }
-         return result;
-       }
-       return value;
-     };
-     
-     const sanitizedFlowData = {
-       ...flowData,
-       // 移除 undefined 值，D1 不支持
-       publishedAt: flowData.publishedAt || Math.floor(Date.now() / 1000),
-       tags: flowData.tags || [],
-       version: flowData.version || 1,
-       status: flowData.status || 'draft',
-       description: flowData.description || '',
-       category: flowData.category || 'custom',
-       bindingsCount: flowData.bindingsCount || 0,
-       // 确保数组字段不为 undefined
-       nodes: flowData.nodes || [],
-       edges: flowData.edges || [],
-       // 深度清理节点和边中的数据
-       nodes: flowData.nodes?.map((node: any) => ({
-         ...node,
-         data: sanitizeValue(node.data),
-         config: sanitizeValue(node.config)
-       })) || [],
-       edges: flowData.edges?.map((edge: any) => ({
-         ...edge,
-         data: sanitizeValue(edge.data)
-       })) || []
-     };
+     try {
+      // 安全序列化：深度清理所有 undefined 值
+      const sanitizeValue = (value: any): any => {
+        if (value === undefined || value === null) {
+          return null;
+        }
+        
+        if (Array.isArray(value)) {
+          return value
+            .map(item => sanitizeValue(item))
+            .filter(item => item !== null);
+        }
+        
+        if (typeof value === 'object' && value !== null) {
+          const result: any = {};
+          for (const [key, val] of Object.entries(value)) {
+            if (val !== undefined) {
+              result[key] = sanitizeValue(val);
+            }
+          }
+          return result;
+        }
+        
+        return value;
+      };
+      
+      // 深度清理整个 flow 对象
+      const sanitizedFlowData = sanitizeValue(flowData);
      
      const serializedData = JSON.stringify(sanitizedFlowData);
     

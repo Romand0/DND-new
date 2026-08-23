@@ -330,12 +330,14 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       type: 'text',
       placeholder: '如 "verbal,somatic"',
       description: '留空则使用法术默认成分要求',
+      defaultValue: '',
     },
     {
       key: 'overrideRange',
       label: '手动射程覆盖',
       type: 'number',
       placeholder: '留空则使用法术默认射程',
+      defaultValue: null,
     },
     {
       key: 'overrideTime',
@@ -350,6 +352,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '1 小时', value: '1 hour' },
       ],
       placeholder: '留空则使用法术默认施法时间',
+      defaultValue: null,
     },
   ],
   select_target: [
