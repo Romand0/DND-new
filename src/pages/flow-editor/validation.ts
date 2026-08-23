@@ -127,24 +127,16 @@ export function validateFlowWithDetails(flow: FlowDefinition): ValidationError[]
     }
   }
 
-  // 检查流程必须绑定法术
-  if (!flow.spellId) {
-    errors.push({ type: 'global', message: '流程必须绑定法术' });
-  }
+  // 检查流程绑定法术（可选，不再强制要求）
+  // 允许草稿和已发布流程都不绑定法术
 
   return errors;
 }
 
 // 发布前特殊验证
 export function validateForPublish(flow: FlowDefinition) {
-  // 1. 检查流程状态和法术绑定
-  if (flow.status === 'published' && !flow.spellId) {
-    return { 
-      valid: false, 
-      error: '已发布的流程必须绑定法术',
-      suggestions: ['请为流程绑定一个法术', '流程发布前必须与法术关联']
-    };
-  }
+  // 1. 检查流程状态（法术绑定现在是可选的）
+  // 已发布的流程可以不绑定法术，草稿也可以不绑定法术
 
   // 2. 基本验证检查
   const basicValidation = validateFlowWithDetails(flow);
