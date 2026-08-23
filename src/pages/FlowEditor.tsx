@@ -1053,7 +1053,7 @@ export default function FlowEditor() {
             align-items: center !important;
             width: auto !important;
             min-width: 100px !important;
-            max-width: 130px !important;
+            max-width: 300px !important;
             height: 44px !important;
             padding: 0.625rem 0.75rem !important;
             gap: 0.5rem !important;
