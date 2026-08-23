@@ -141,9 +141,25 @@ const flowStore = {
     const flow = localFlows.find(f => f.id === id);
     if (!flow) return undefined;
     
+    // 清理 undefined 值，防止 D1 数据库类型错误
+    const sanitizedFlow = {
+      ...flow,
+      // 移除 undefined 值，D1 不支持 undefined
+      publishedAt: flow.publishedAt ?? Math.floor(Date.now() / 1000),
+      tags: flow.tags || [],
+      version: flow.version ?? 1,
+      status: flow.status || 'draft',
+      description: flow.description || '',
+      category: flow.category || 'custom',
+      bindingsCount: flow.bindingsCount ?? 0,
+      // 确保数组字段不为 undefined
+      nodes: flow.nodes || [],
+      edges: flow.edges || [],
+    };
+    
     const published = await apiFetch(`/flows/${id}`, {
       method: 'PUT',
-      body: JSON.stringify(flow),
+      body: JSON.stringify(sanitizedFlow),
     });
     
     const updated = {
