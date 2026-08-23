@@ -43,6 +43,7 @@ import { nodesOverlap, findNonOverlappingPositionV2, setActiveSpatialGrid } from
 import { getSmartEdgePath, getSmartArrowPos, getSmartLabelPos, getSmartEdgeDecoratedEndpoints, sampleSmartEdgeToPolyline } from './flow-editor/edgeConnection';
 import DraggableFlowNode from './flow-editor/components/DraggableFlowNode';
 import PaletteDragItem from './flow-editor/components/PaletteDragItem';
+import NodeCardGhost from './flow-editor/components/NodeCardGhost';
 import SpellPicker from '@/components/SpellPicker';
 import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
@@ -2459,16 +2460,7 @@ function sampleEdgeToPolyline(
 
 
 
-function NodeCardGhost({ meta }: { meta: NodeTypeMeta }) {
-  return (
-    <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-primary/40 bg-primary/10 shadow-lg shadow-primary/20">
-      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: meta.color }} />
-      <span className="text-sm font-medium dark:text-text-dark light:text-text-light whitespace-nowrap">
-        {meta.label}
-      </span>
-    </div>
-  );
-}
+
 
 // ===== 自定义额外配置字段输入（受控输入走 useTextInput） =====
 interface ExtraConfigFieldProps {

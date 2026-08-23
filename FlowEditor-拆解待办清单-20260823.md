@@ -4,9 +4,9 @@
 将 FlowEditor.tsx 从当前的 2723 行拆解为模块化的架构，最终目标是将主文件压缩到 200 行以内。
 
 ## 🎯 当前状态
-- **当前进度**: 第二阶段第四个文件（useNodeDrag）
-- **文件总行数**: 2723 行（目标: 200 行）
-- **已提取模块**: 5个 + 4个Hook + 4个子组件
+- **当前进度**: 任务2.3完成，准备任务2.4
+- **文件总行数**: 2499 行（目标: 200 行，已减少224行）
+- **已提取模块**: 3个组件（DraggableFlowNode、PaletteDragItem、NodeCardGhost）
 - **主要问题**: 已提取模块在原文件中未清理，存在严重代码重复
 
 ---
@@ -66,12 +66,20 @@
   - 保持拖拽功能完整
   - 确保 CSS 样式正确迁移
 
-**2.3 提取 NodeCardGhost 组件**
-- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第2676-2685行
+**2.3 提取 NodeCardGhost 组件** ✅ **已完成**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第2462-2471行
 - **目标文件**: `/workspace/src/pages/flow-editor/components/NodeCardGhost.tsx`
 - **依赖**: `NodeTypeMeta`
+- **状态**: 已完成，通过类型检查和构建验证
+- **减少代码**: 10行
+
+**2.4 提取 ExtraConfigField 组件**
+- **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第2473-2509行
+- **目标文件**: `/workspace/src/pages/flow-editor/components/ExtraConfigField.tsx`
+- **依赖**: `useTextInput`
 - **注意事项**: 
-  - 确保样式与原组件一致
+  - 确保 `useTextInput` Hook 可用
+  - 测试输入框功能正常
 
 **2.4 提取 ExtraConfigField 组件**
 - **源文件**: `/workspace/src/pages/FlowEditor.tsx` 第2688-2723行
@@ -185,10 +193,10 @@
 
 | 阶段 | 任务数量 | 已完成 | 进行中 | 待开始 | 完成率 |
 |------|----------|--------|--------|--------|--------|
-| 高优先级 | 8 | 0 | 0 | 8 | 0% |
+| 高优先级 | 8 | 3 | 0 | 5 | 37.5% |
 | 中优先级 | 4 | 0 | 0 | 4 | 0% |
 | 低优先级 | 7 | 0 | 0 | 7 | 0% |
-| **总计** | **19** | **0** | **0** | **19** | **0%** |
+| **总计** | **19** | **3** | **0** | **16** | **15.8%** |
 
 ---
 
@@ -215,3 +223,4 @@
 
 *创建日期: 20260823*
 *最后更新: 20260823*
+*任务2.3完成时间: 20260823*
