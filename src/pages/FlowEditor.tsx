@@ -37,7 +37,7 @@ import {
   buildFlowId,
 } from '@/types/flow';
 import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from './flow-editor/constants';
-import { validateFlowWithDetails, validateForPublish, type ValidationError } from './flow-editor/validation';
+import { validateFlowWithDetails, validateForPublish, type ValidationError, getAutoFixSuggestions } from './flow-editor/validation';
 import { resolveNodeIcon } from './flow-editor/nodeIcon';
 import { nodesOverlap, findNonOverlappingPositionV2, setActiveSpatialGrid } from './flow-editor/collision';
 import { getSmartEdgePath, getSmartArrowPos, getSmartLabelPos, getSmartEdgeDecoratedEndpoints, sampleSmartEdgeToPolyline } from './flow-editor/edgeConnection';
@@ -819,6 +819,11 @@ export default function FlowEditor() {
   const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
   const [showValidation, setShowValidation] = useState(false);
   const [validationStatus, setValidationStatus] = useState<'valid' | 'invalid'>('valid');
+  const [autoFixSuggestions, setAutoFixSuggestions] = useState<Array<{
+    type: 'global' | 'node' | 'edge';
+    message: string;
+    fix: () => FlowDefinition;
+  }>>([]);
   
   // 实时校验（防抖500ms）
   useEffect(() => {
@@ -826,9 +831,18 @@ export default function FlowEditor() {
       const errors = validateFlowWithDetails(flow);
       setValidationErrors(errors);
       setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
+      
+      // 获取自动修复建议
+      const suggestions = getAutoFixSuggestions(flow);
+      setAutoFixSuggestions(suggestions);
+      
+      // 如果有错误，自动显示验证面板
+      if (errors.length > 0 && !showValidation) {
+        setShowValidation(true);
+      }
     }, 500);
     return () => clearTimeout(timer);
-  }, [flow]);
+  }, [flow, showValidation]);
 
   // ===== 历史数据兼容性处理 =====
   useEffect(() => {
@@ -965,9 +979,18 @@ export default function FlowEditor() {
     // 发布前先检查校验
     const validation = validateForPublish(flow);
     if (!validation.valid) {
-      setValidationErrors([{ type: 'global', message: validation.error! }]);
+      // 显示详细的验证错误
+      setValidationErrors(validation.details || [{ type: 'global', message: validation.error! }]);
       setShowValidation(true);
+      
+      // 显示错误提示
       showToast('error', `无法发布：${validation.error}`);
+      
+      // 如果有建议，显示提示
+      if (validation.suggestions && validation.suggestions.length > 0) {
+        console.log('发布建议：', validation.suggestions.join('；'));
+      }
+      
       return;
     }
 
@@ -983,11 +1006,42 @@ export default function FlowEditor() {
           publishedAt: published.publishedAt ?? Date.now(),
         }));
         showToast('success', `已发布 v${published.publishedVersion}`);
+        
+        // 发布成功后隐藏验证面板
+        setShowValidation(false);
       }
     } catch (err) {
       showToast('error', err instanceof Error ? err.message : '发布失败');
     }
   }, [flow, showToast]);
+
+  // ===== 自动修复 =====
+  const handleAutoFix = useCallback(() => {
+    if (autoFixSuggestions.length === 0) return;
+
+    // 按顺序应用修复建议
+    let updatedFlow = flow;
+    const fixesApplied: string[] = [];
+
+    autoFixSuggestions.forEach(suggestion => {
+      try {
+        const fixedFlow = suggestion.fix();
+        if (fixedFlow !== updatedFlow) {
+          updatedFlow = fixedFlow;
+          fixesApplied.push(suggestion.message);
+        }
+      } catch (error) {
+        console.warn('自动修复失败:', suggestion.message, error);
+      }
+    });
+
+    if (fixesApplied.length > 0) {
+      setFlow(updatedFlow);
+      showToast('success', `已应用 ${fixesApplied.length} 个修复：${fixesApplied.join('；')}`);
+    } else {
+      showToast('success', '没有可应用的修复');
+    }
+  }, [flow, autoFixSuggestions, showToast]);
 
   // ===== 加载草稿 =====
   const loadDraft = useCallback((draft: FlowDefinition) => {
@@ -1482,6 +1536,14 @@ export default function FlowEditor() {
             >
               {showValidation ? '隐藏' : '显示'}详情
             </button>
+            {autoFixSuggestions.length > 0 && (
+              <button 
+                onClick={handleAutoFix}
+                className="ml-2 text-xs text-blue-400 hover:text-blue-200"
+              >
+                自动修复 ({autoFixSuggestions.length})
+              </button>
+            )}
           </div>
           
           {showValidation && validationErrors.length > 0 && (
