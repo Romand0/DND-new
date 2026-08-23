@@ -453,8 +453,33 @@ export default function FlowEditor() {
       if (f.type === 'object' && f.children) {
         const childDefaults = collectSchemaDefaults(f.children);
         defaults[f.key] = Object.keys(childDefaults).length > 0 ? childDefaults : (f.defaultValue ?? {});
-      } else if (f.defaultValue !== undefined) {
-        defaults[f.key] = f.defaultValue;
+      } else {
+        // 为所有字段提供默认值，防止 undefined
+        if (f.defaultValue !== undefined) {
+          defaults[f.key] = f.defaultValue;
+        } else {
+          switch (f.type) {
+            case 'boolean':
+              defaults[f.key] = false;
+              break;
+            case 'number':
+              defaults[f.key] = 0;
+              break;
+            case 'text':
+            case 'dice':
+            case 'template':
+              defaults[f.key] = '';
+              break;
+            case 'select':
+              defaults[f.key] = f.options?.[0]?.value || null;
+              break;
+            case 'spellPicker':
+              defaults[f.key] = null;
+              break;
+            default:
+              defaults[f.key] = null;
+          }
+        }
       }
     }
     return defaults;
