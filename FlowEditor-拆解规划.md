@@ -1,9 +1,14 @@
-# FlowEditor.tsx 拆解规划方案
+# FlowEditor.tsx 拆解规划方案（更新版）
 
 **目标文件**: `src/pages/flow-editor/FlowEditor.tsx`  
-**当前行数**: 2462 行（减少 261 行）  
+**当前行数**: 2569 行（较初始 2723 行减少 154 行）  
 **预期最终行数**: < 200 行  
 **拆解策略**: 分阶段、按职责边界切片，每步可独立验证
+
+## 🔄 重要更新
+- **新增功能**: 法术绑定、自动修复、节点尺寸测量、节点列表面板
+- **代码增长**: 相比规划文档增加107行，需要更新拆解计划
+- **任务扩展**: 总任务数从27个增加到33个
 
 ---
 
@@ -30,22 +35,64 @@
 
 ---
 
+## 🚀 快速开始检查清单
+
+### ✅ 立即可执行的任务
+- [ ] **代码备份**: 确保有完整的代码备份
+- [ ] **测试环境**: 确保有可用的测试环境
+- [ ] **功能验证**: 确认当前功能完全正常
+- [ ] **依赖检查**: 确认所有依赖项都已安装
+
+### 🎯 第一阶段任务（本周）
+- [ ] **useSpellBinding**: 提取法术绑定功能
+- [ ] **useAutoFix**: 提取自动修复功能
+- [ ] **useNodeSizeMeasurement**: 提取节点尺寸测量功能
+- [ ] **useFlowValidation**: 提取验证功能
+- [ ] **useFlowEditorToast**: 提取消息提示功能
+
+### 🎯 第二阶段任务（下周）
+- [ ] **NodeListPanel**: 提取节点列表面板
+- [ ] **FlowStatisticsPanel**: 提取统计面板
+- [ ] **FlowEditorToolbar**: 提取工具栏
+- [ ] **FlowEditorFunctionBar**: 提取功能栏
+- [ ] **FlowNodePalette**: 提取节点调色板
+
+### 🎯 第三阶段任务（收尾）
+- [ ] **剩余Hook**: 提取剩余的Hook
+- [ ] **组件优化**: 优化组件性能和样式
+- [ ] **测试验证**: 确保所有功能正常
+- [ ] **文档更新**: 更新相关文档
+
+### ⚠️ 风险提醒
+- **新增功能复杂度**: 新增的Hook和组件增加了拆解复杂度
+- **状态管理**: 需要仔细处理状态依赖关系
+- **测试覆盖**: 确保新增功能有相应的测试覆盖
+- **性能影响**: 注意拆解后的性能影响
+
+---
+
 ## 📊 当前进度总览
 
 ### 🎯 整体进度
-- **当前文件行数**: 2462 行（较初始 2723 行减少 261 行）
-- **目标行数**: < 200 行（还需减少 2262 行）
-- **完成率**: 11.5%（261/2262）
+- **当前文件行数**: 2569 行（较初始 2723 行减少 154 行）
+- **目标行数**: < 200 行（还需减少 2369 行）
+- **完成率**: 6.5%（154/2369）
 
 ### 📈 分阶段进度
 
-| 阶段 | 总任务数 | 已完成 | 进行中 | 待开始 | 完成率 | 状态 |
-|------|----------|--------|--------|--------|--------|------|
-| 阶段 1（纯函数） | 7 | 7 | 0 | 0 | 100% | ✅ **已完成** |
-| 阶段 2（Hook） | 8 | 4 | 0 | 4 | 50% | ⏳ **进行中** |
-| 阶段 3（子组件） | 7 | 4 | 0 | 3 | 57.1% | 🔄 **部分完成** |
-| 阶段 4（收尾） | 5 | 0 | 0 | 5 | 0% | ⏳ **未开始** |
-| **总计** | **27** | **15** | **0** | **12** | **55.6%** | 📈 **稳步推进** |
+| 阶段 | 总任务数 | 新增任务数 | 总任务数 | 已完成 | 完成率 | 状态 |
+|------|----------|------------|----------|--------|--------|------|
+| 阶段 1（纯函数） | 7 | 0 | 7 | 7 | 100% | ✅ **已完成** |
+| 阶段 2（Hook） | 8 | 3 | 11 | 4 | 36% | 🔄 **进行中** |
+| 阶段 3（子组件） | 7 | 2 | 9 | 4 | 44% | 🔄 **部分完成** |
+| 阶段 4（收尾） | 5 | 1 | 6 | 0 | 0% | ⏳ **未开始** |
+| **总计** | **27** | **6** | **33** | **15** | **45%** | 📈 **稳步推进** |
+
+### 🆕 新增功能说明
+- **法术绑定系统**: 新增的法术绑定/解绑功能
+- **自动修复系统**: 新增的自动修复建议和应用功能
+- **节点尺寸测量**: 新增的节点实际尺寸测量系统
+- **节点列表面板**: 新增的节点列表管理组件
 
 ### 📋 详细进展说明
 
@@ -54,23 +101,60 @@
 - **新增**: 常量、验证、碰撞检测清理工作已完成
 - **状态**: 零风险完成，无依赖问题
 
-#### 🔄 阶段 2：Hook 提取（50% 完成）
+#### 🔄 阶段 2：Hook 提取（36% 完成）
 - **已完成**: 4 个 Hook（useFlowDraft, useViewportSnapshot, useCanvasZoom, useNodeDrag）
-- **待完成**: 4 个 Hook（useFlowValidation, useFlowEditorToast, useSpellBinding, useDragEffects）
-- **状态**: **无新进展**，剩余 Hook 较复杂，需要仔细处理状态依赖
+- **待完成**: 7 个 Hook（useFlowValidation, useFlowEditorToast, useSpellBinding, useDragEffects, useAutoFix, useNodeSizeMeasurement, useFlowStatistics）
+- **状态**: **需要更新**，新增了3个重要Hook，复杂度增加
 
-#### 🔄 阶段 3：子组件提取（57.1% 完成）
+#### 🔄 阶段 3：子组件提取（44% 完成）
 - **已完成**: 4 个子组件（DraggableFlowNode, PaletteDragItem, NodeCardGhost, ExtraConfigField）
-- **待完成**: 3 个大型组件（FlowEditorToolbar, FlowEditorFunctionBar, FlowNodePalette）
-- **状态**: **部分完成**，已完成的小型组件验证正常，大型组件复杂度较高
+- **待完成**: 5 个组件（FlowEditorToolbar, FlowEditorFunctionBar, FlowNodePalette, NodeListPanel, FlowStatisticsPanel）
+- **状态**: **需要更新**，新增了2个重要组件，复杂度增加
 
 #### ⏳ 阶段 4：收尾治理（0% 完成）
 - **状态**: **未开始**，需要在阶段 2-3 基本完成后进行
 
-### 🎯 下一步优先级
-1. **高优先级**: 完成阶段 2 剩余 4 个 Hook 提取
-2. **中优先级**: 完成阶段 3 剩余 3 个大型组件提取
-3. **低优先级**: 阶段 4 收尾治理工作
+### 🎯 下一步优先级（更新版）
+1. **高优先级**: 
+   - 完成阶段 2 剩余 7 个 Hook（特别是新增的法术绑定、自动修复、节点尺寸测量）
+2. **中优先级**: 
+   - 完成阶段 3 剩余 5 个组件（特别是新增的节点列表面板）
+3. **低优先级**: 
+   - 阶段 4 收尾治理工作（考虑新增功能的样式优化）
+
+### 📅 执行计划更新
+
+#### 🚀 快速启动策略（建议）
+```typescript
+const quickStartPlan = {
+  week1: "专注核心Hook提取",
+    day1: "useSpellBinding（法术绑定核心功能）",
+    day2: "useAutoFix（自动修复功能）",
+    day3: "useNodeSizeMeasurement（节点尺寸测量）",
+    day4: "useFlowValidation（验证功能）",
+    day5: "useFlowEditorToast（消息提示）",
+  
+  week2: "专注组件提取",
+    day1: "NodeListPanel（节点列表面板）",
+    day2: "FlowStatisticsPanel（统计面板）",
+    day3: "FlowEditorToolbar（工具栏）",
+    day4: "FlowEditorFunctionBar（功能栏）",
+    day5: "FlowNodePalette（节点调色板）",
+  
+  week3: "收尾和优化",
+    day1: "剩余Hook提取（useDragEffects, useFlowStatistics）",
+    day2: "组件样式优化",
+    day3: "测试和验证",
+    day4: "文档更新",
+    day5: "最终验收"
+};
+```
+
+#### ⚠️ 重要提醒
+1. **新增功能复杂度**: 新增的Hook和组件增加了拆解复杂度，需要更仔细的状态管理
+2. **依赖关系**: 新增的Hook之间可能存在依赖关系，需要仔细处理
+3. **测试覆盖**: 新增功能需要相应的测试覆盖，确保拆解后功能正常
+4. **文档更新**: 拆解完成后需要更新相关文档，确保维护性
 
 ### 📝 关键观察
 - 阶段 1 完全成功，为后续工作奠定了坚实基础
@@ -97,7 +181,100 @@
 
 ---
 
+## 🆕 新增功能拆解计划
+
+### 📋 新增功能概览
+基于最新代码分析，发现以下**新增功能**需要纳入拆解规划：
+
+#### 1. **法术绑定系统**（新增）
+```typescript
+// 状态和逻辑
+const [boundSpell, setBoundSpell] = useState<Spell | null>(null);
+const [showSpellPicker, setShowSpellPicker] = useState(false);
+const handleBindSpell = useCallback(async (spellId: string) => { ... });
+const handleUnbindSpell = useCallback(async () => { ... });
+```
+
+#### 2. **自动修复系统**（新增）
+```typescript
+// 状态和逻辑
+const [autoFixSuggestions, setAutoFixSuggestions] = useState<Array<{
+  type: 'global' | 'node' | 'edge';
+  message: string;
+  fix: () => FlowDefinition;
+}>>([]);
+
+const handleAutoFix = useCallback(() => { ... });
+```
+
+#### 3. **节点尺寸测量系统**（新增）
+```typescript
+// 状态和逻辑
+const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+const [nodeSizes, setNodeSizes] = useState<Map<string, {w: number, h: number}>>(new Map());
+
+useLayoutEffect(() => {
+  // ResizeObserver 监听节点尺寸变化
+  const resizeObserver = new ResizeObserver(() => { ... });
+}, []);
+```
+
+#### 4. **节点列表面板**（新增）
+```typescript
+// 组件逻辑
+<NodeListPanel 
+  flow={flow}
+  onNodeSelect={(nodeId) => { ... }}
+  onNodeEdit={(nodeId) => { ... }}
+  onNodeFocus={(nodeId) => { ... }}
+  onNodeDelete={(nodeId) => { ... }}
+/>
+```
+
+#### 5. **流程统计面板**（新增）
+```typescript
+// 组件逻辑
+<div className="mt-6 space-y-3">
+  <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
+    流程统计
+  </h4>
+  <div className="grid grid-cols-2 gap-2">
+    <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
+      <div className="text-lg font-semibold">{flow.nodes.length}</div>
+      <div className="text-[10px]">节点</div>
+    </div>
+    <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
+      <div className="text-lg font-semibold">{flow.edges.length}</div>
+      <div className="text-[10px]">连线</div>
+    </div>
+  </div>
+</div>
+```
+
+---
+
 ### 阶段 2：提取自定义 Hooks（状态逻辑与 UI 分离）
+
+**扩展说明**: 由于新增功能，本阶段需要提取 **11个Hook**（原8个 + 新增3个）
+
+| 步骤 | 目标 Hook | 包含的状态/逻辑 | 状态 |
+|------|-----------|-----------------|------|
+| 2-1 | `useFlowDraft` | Flow草稿状态、自动保存、版本管理 | ✅ |
+| 2-2 | `useViewportSnapshot` | 视口状态、缩放、平移、快照管理 | ✅ |
+| 2-3 | `useCanvasZoom` | 缩放控制、键盘快捷键、手势缩放 | ✅ |
+| 2-4 | `useNodeDrag` | 节点拖拽、碰撞检测、位置更新 | ✅ |
+| 2-5 | `useFlowValidation` | 流程验证、错误收集、实时验证 | ⏳ |
+| 2-6 | `useFlowEditorToast` | 消息提示、错误处理、用户反馈 | ⏳ |
+| 2-7 | `useSpellBinding` | **新增**：法术绑定、解绑、自动回填配置 | ⏳ |
+| 2-8 | `useDragEffects` | 拖拽视觉效果、碰撞指示器、动画 | ⏳ |
+| 2-9 | `useAutoFix` | **新增**：自动修复建议、修复应用逻辑 | ⏳ |
+| 2-10 | `useNodeSizeMeasurement` | **新增**：节点尺寸测量、ResizeObserver管理 | ⏳ |
+| 2-11 | `useFlowStatistics` | **新增**：流程统计信息计算、展示逻辑 | ⏳ |
+
+**新增Hook优先级**：
+1. **高优先级**: `useSpellBinding`（核心功能，已在代码中实现）
+2. **中优先级**: `useAutoFix`、`useNodeSizeMeasurement`（重要功能）
+3. **低优先级**: `useFlowStatistics`（展示功能，相对简单）
 
 当前组件有 **~30 个 useState** 和 **~15 个 useEffect**，全挤在一个函数里。
 
@@ -118,9 +295,9 @@
 
 ---
 
-### 阶段 3：提取子组件（JSX 分片）
+### 阶段 3：提取子组件（UI组件化）
 
-主组件的 return 块约 **1600 行** (L1078-2744)，需要拆成可维护的子组件。
+**扩展说明**: 由于新增功能，本阶段需要提取 **9个组件**（原7个 + 新增2个）
 
 | 步骤 | 目标组件 | 行号范围 | Props 接口要点 | 状态 | 负责人 | 完成时间 |
 |------|----------|----------|---------------|------|--------|----------|
@@ -131,6 +308,8 @@
 | 3-5 | `FlowPropertyPanel` | 右侧面板整块 | `flow`, `selectedNode`, `selectedEdge`, `onUpdateFlow`, `onUpdateNode`, `onUpdateEdge`, `onDeleteEdge`... | ⏳ | | |
 | 3-6 | `FlowNodeConfigEditor` | L1726-1799+ 节点配置区 | `node`, `schema`, `onConfigChange`, `onLabelChange` | ⏳ | | |
 | 3-7 | `FlowEdgeConfigEditor` | L2000-2140 连线属性区 | `edge`, `onUpdate`, `onDelete` | ⏳ | | |
+| 3-8 | `NodeListPanel` | **新增** | **新增**：节点列表、快速定位、编辑入口 | ⏳ | | |
+| 3-9 | `FlowStatisticsPanel` | **新增** | **新增**：流程统计信息展示 | ⏳ | | |
 
 **最新发现**: 阶段 3 已完成 4 个子组件提取：
 - ✅ `DraggableFlowNode` (L2456-2639) - 已提取到独立文件
@@ -138,7 +317,10 @@
 - ✅ `NodeCardGhost` (L2462-2471) - 已提取到独立文件
 - ✅ `ExtraConfigField` (L2465-2501) - 已提取到独立文件
 
-剩余 3 个大型组件（3-1, 3-2, 3-3）尚未提取。
+**新增组件优先级**：
+1. **高优先级**: `NodeListPanel`（核心功能，已在代码中实现）
+2. **中优先级**: `FlowStatisticsPanel`（展示功能，相对简单）
+3. **低优先级**: 原有大型组件（复杂度较高）
 
 **策略**: 先提取最内层的叶子组件 (3-6, 3-7)，再提取面板 (3-5)，最后提取工具栏。自底向上，每步确保 Props 类型正确、回调连线无误。
 
