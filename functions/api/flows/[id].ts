@@ -85,14 +85,15 @@ export async function onRequestPut(context: any): Promise<Response> {
   
      try {
       // 安全序列化：深度清理所有 undefined 值
-      const sanitizeValue = (value: any): any => {
+      const sanitizeValue = (value: any, fieldPath: string = ''): any => {
+        // 基础类型处理
         if (value === undefined || value === null) {
           return null;
         }
         
         if (Array.isArray(value)) {
           return value
-            .map(item => sanitizeValue(item))
+            .map((item, index) => sanitizeValue(item, `${fieldPath}[${index}]`))
             .filter(item => item !== null);
         }
         
@@ -100,7 +101,7 @@ export async function onRequestPut(context: any): Promise<Response> {
           const result: any = {};
           for (const [key, val] of Object.entries(value)) {
             if (val !== undefined) {
-              result[key] = sanitizeValue(val);
+              result[key] = sanitizeValue(val, `${fieldPath}.${key}`);
             }
           }
           return result;

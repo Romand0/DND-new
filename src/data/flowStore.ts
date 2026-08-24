@@ -5,15 +5,20 @@ import { apiFetch } from '../lib/api';
 /**
  * 深度清理对象中的 undefined 值
  * 解决 D1 数据库类型错误：Type 'undefined' not supported for value 'undefined'
+ * 
+ * @param obj 要清理的对象
+ * @param fieldPath 字段路径，用于调试和类型判断
+ * @returns 清理后的对象
  */
-function deepCleanUndefined(obj: any): any {
+function deepCleanUndefined(obj: any, fieldPath: string = ''): any {
+  // 基础类型处理
   if (obj === undefined || obj === null) {
     return null;
   }
   
   if (Array.isArray(obj)) {
     return obj
-      .map(item => deepCleanUndefined(item))
+      .map((item, index) => deepCleanUndefined(item, `${fieldPath}[${index}]`))
       .filter(item => item !== null);
   }
   
@@ -21,7 +26,7 @@ function deepCleanUndefined(obj: any): any {
     const result: any = {};
     for (const [key, val] of Object.entries(obj)) {
       if (val !== undefined) {
-        result[key] = deepCleanUndefined(val);
+        result[key] = deepCleanUndefined(val, `${fieldPath}.${key}`);
       }
     }
     return result;
@@ -32,9 +37,11 @@ function deepCleanUndefined(obj: any): any {
 
 /**
  * 清理 FlowDefinition 中的所有 undefined 值
+ * 实现分层清理策略：先处理顶层字段，再处理嵌套结构
  */
 function cleanFlowDefinition(flow: FlowDefinition): FlowDefinition {
-  return deepCleanUndefined({
+  // 第一层：处理必填字段和类型转换
+  const cleaned = {
     ...flow,
     publishedAt: flow.publishedAt ?? Math.floor(Date.now() / 1000),
     tags: flow.tags || [],
@@ -43,7 +50,28 @@ function cleanFlowDefinition(flow: FlowDefinition): FlowDefinition {
     description: flow.description || '',
     category: flow.category || 'custom',
     bindingsCount: flow.bindingsCount ?? 0,
-  });
+  };
+  
+  // 第二层：深度清理 nodes 数组
+  if (cleaned.nodes && Array.isArray(cleaned.nodes)) {
+    cleaned.nodes = cleaned.nodes.map((node, index) => ({
+      ...node,
+      config: deepCleanUndefined(node.config, `nodes[${index}].config`),
+      notes: node.notes || '',
+    }));
+  }
+  
+  // 第三层：深度清理 edges 数组
+  if (cleaned.edges && Array.isArray(cleaned.edges)) {
+    cleaned.edges = cleaned.edges.map((edge, index) => ({
+      ...edge,
+      dataMap: deepCleanUndefined(edge.dataMap, `edges[${index}].dataMap`),
+      label: edge.label || '',
+      condition: edge.condition || '',
+    }));
+  }
+  
+  return cleaned;
 }
 
 const STORAGE_KEY = 'dnd-flow-library';
