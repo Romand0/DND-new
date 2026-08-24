@@ -318,17 +318,33 @@ export default function FlowEditor() {
   // ===== flow state 同步：监听 flowStore 变化，确保 React state 与 store 一致 =====
   useEffect(() => {
     const refreshFlow = () => {
-      const stored = flowStore.getById(flowId || flow.id);
-      if (stored) {
-        setFlow(stored);
+      // 优先获取草稿数据
+      const draft = flowStore.getDraft(flowId || flow.id);
+      if (draft) {
+        setFlow(draft.data);
         // 设置绑定的法术
-        if (stored.spellId) {
-          const spell = spellStore.getById(stored.spellId);
+        if (draft.data.spellId) {
+          const spell = spellStore.getById(draft.data.spellId);
           if (spell) {
             setBoundSpell(spell);
           }
         } else {
           setBoundSpell(null);
+        }
+      } else {
+        // 如果没有草稿，获取已发布版本
+        const published = flowStore.getPublished(flowId || flow.id);
+        if (published) {
+          setFlow(published);
+          // 设置绑定的法术
+          if (published.spellId) {
+            const spell = spellStore.getById(published.spellId);
+            if (spell) {
+              setBoundSpell(spell);
+            }
+          } else {
+            setBoundSpell(null);
+          }
         }
       }
     };

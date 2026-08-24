@@ -208,13 +208,11 @@ const flowStore = {
 
   // ──────────── 读取 ────────────
 
-  /** 获取所有流程（已发布版 + 从未发布的新流程草稿） */
+  /** 获取所有流程（已发布版 + 所有草稿） */
   getAll(): FlowDefinition[] {
-    // 已发布版 + 尚无 publishedVersion 的纯新草稿
-    const newDrafts = drafts
-      .filter(d => !d.data.publishedVersion || d.data.publishedVersion === 0)
-      .map(d => d.data);
-    return [...publishedFlows, ...newDrafts];
+    // 已发布版 + 所有草稿（包括未发布的和已发布的草稿）
+    const allDrafts = drafts.map(d => d.data);
+    return [...publishedFlows, ...allDrafts];
   },
 
   /** 获取单个已发布版（只读，战斗引擎用此路径） */
@@ -403,9 +401,16 @@ const flowStore = {
     return draft ? (draft.updatedAt > (flow.publishedAt ?? 0)) : false;
   },
 
-  /** 获取单个流程（本地优先） */
+  /** 获取单个流程（优先草稿，其次已发布版） */
   getById(id: string): FlowDefinition | undefined {
-    return this.getAll().find(f => f.id === id);
+    // 优先返回草稿数据
+    const draft = drafts.find(d => d.data.id === id || d.parentId === id);
+    if (draft) {
+      return draft.data;
+    }
+    
+    // 如果没有草稿，返回已发布流程
+    return publishedFlows.find(f => f.id === id);
   },
 
   /** 发布流程到 D1（兼容原有接口） */
@@ -467,20 +472,31 @@ const flowStore = {
     return flows[idx];
   },
 
-  /** 保存流程（upsert：存在则更新，不存在则追加，保留原 ID） */
+  /** 保存流程（Fork 模式下保存到草稿） */
   save(flow: FlowDefinition): FlowDefinition {
-    const flows = read();
-    const idx = flows.findIndex(f => f.id === flow.id);
-    let saved: FlowDefinition;
-    if (idx >= 0) {
-      saved = { ...flows[idx], ...flow, updatedAt: Date.now() };
-      flows[idx] = saved;
+    // 检查是否有草稿
+    const draft = drafts.find(d => d.data.id === flow.id);
+    
+    if (draft) {
+      // 有草稿，更新草稿
+      draft.data = flow;
+      draft.updatedAt = Date.now();
+      writeDrafts(drafts);
+      notify();
+      return flow;
     } else {
-      saved = { ...flow, updatedAt: flow.updatedAt ?? Date.now() };
-      flows.push(saved);
+      // 没有草稿，创建新草稿
+      const draft: FlowDraft = {
+        parentId: flow.id,
+        data: flow,
+        forkedAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      drafts.push(draft);
+      writeDrafts(drafts);
+      notify();
+      return flow;
     }
-    write(flows);
-    return saved;
   },
 
   /** 删除流程 */
