@@ -54,18 +54,18 @@ function cleanFlowDefinition(flow: FlowDefinition): FlowDefinition {
   
   // 第二层：深度清理 nodes 数组
   if (cleaned.nodes && Array.isArray(cleaned.nodes)) {
-    cleaned.nodes = cleaned.nodes.map((node, index) => ({
+    cleaned.nodes = cleaned.nodes.map(node => ({
       ...node,
-      config: deepCleanUndefined(node.config, `nodes[${index}].config`),
+      config: deepCleanUndefined(node.config, `nodes.${node.id}.config`),
       notes: node.notes || '',
     }));
   }
   
   // 第三层：深度清理 edges 数组
   if (cleaned.edges && Array.isArray(cleaned.edges)) {
-    cleaned.edges = cleaned.edges.map((edge, index) => ({
+    cleaned.edges = cleaned.edges.map(edge => ({
       ...edge,
-      dataMap: deepCleanUndefined(edge.dataMap, `edges[${index}].dataMap`),
+      dataMap: deepCleanUndefined(edge.dataMap, `edges.${edge.id}.dataMap`),
       label: edge.label || '',
       condition: edge.condition || '',
     }));
