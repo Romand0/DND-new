@@ -347,8 +347,12 @@ const flowStore = {
   async unpublish(id: string): Promise<void> {
     await apiFetch(`/flows/${id}`, { method: 'DELETE' });
     publishedFlows = publishedFlows.filter(f => f.id !== id);
-    // 不清理草稿，因为撤下操作会将已发布流程迁移到草稿表
-    // writeDrafts(drafts);  // 注释掉清理草稿的代码
+    writePublished(publishedFlows);
+    
+    // 清除草稿（撤下操作后清理相关草稿）
+    drafts = drafts.filter(d => d.parentId !== id);
+    writeDrafts(drafts);
+    
     notify();
   },
 
@@ -452,6 +456,17 @@ const flowStore = {
   /** 拉取单个正式版覆盖本地 */
   async pullRemote(id: string): Promise<FlowDefinition | undefined> {
     const remote = await apiFetch(`/flows/${id}`);
+    
+    // 更新已发布版缓存
+    const pIdx = publishedFlows.findIndex(f => f.id === id);
+    if (pIdx >= 0) {
+      publishedFlows[pIdx] = remote;
+    } else {
+      publishedFlows.push(remote);
+    }
+    writePublished(publishedFlows);
+    
+    // 更新本地流程（向后兼容）
     const idx = localFlows.findIndex(f => f.id === id);
     if (idx >= 0) {
       localFlows[idx] = remote;
@@ -459,6 +474,7 @@ const flowStore = {
       localFlows.push(remote);
     }
     write(localFlows);
+    
     notify();
     return remote;
   },
@@ -467,6 +483,12 @@ const flowStore = {
   createLegacy(name: string = '未命名流程'): FlowDefinition {
     const flow = this.create(name);
     write([...read(), flow]);
+    
+    // 同步添加到已发布版缓存
+    publishedFlows.push(flow);
+    writePublished(publishedFlows);
+    
+    notify();
     return flow;
   },
 
@@ -479,6 +501,15 @@ const flowStore = {
     if (flows.some(f => f.id === newId)) return undefined;
     flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
     write(flows);
+    
+    // 同步更新已发布版缓存（如果存在）
+    const pIdx = publishedFlows.findIndex(f => f.id === oldId);
+    if (pIdx >= 0) {
+      publishedFlows[pIdx] = { ...publishedFlows[pIdx], id: newId, updatedAt: Date.now() };
+      writePublished(publishedFlows);
+    }
+    
+    notify();
     return flows[idx];
   },
 
@@ -489,6 +520,15 @@ const flowStore = {
     if (idx === -1) return undefined;
     flows[idx] = { ...flows[idx], ...patch, updatedAt: Date.now() };
     write(flows);
+    
+    // 同步更新已发布版缓存（如果存在）
+    const pIdx = publishedFlows.findIndex(f => f.id === id);
+    if (pIdx >= 0) {
+      publishedFlows[pIdx] = { ...publishedFlows[pIdx], ...patch, updatedAt: Date.now() };
+      writePublished(publishedFlows);
+    }
+    
+    notify();
     return flows[idx];
   },
 
@@ -527,10 +567,21 @@ const flowStore = {
 
   /** 删除流程 */
   delete(id: string): boolean {
+    // 1. 删除已发布版
+    publishedFlows = publishedFlows.filter(f => f.id !== id);
+    writePublished(publishedFlows);
+    
+    // 2. 删除相关草稿
+    drafts = drafts.filter(d => d.parentId !== id);
+    writeDrafts(drafts);
+    
+    // 3. 删除本地流程（向后兼容）
     const flows = read();
     const next = flows.filter(f => f.id !== id);
     if (next.length === flows.length) return false;
     write(next);
+    
+    notify();
     return true;
   },
 
@@ -542,6 +593,15 @@ const flowStore = {
     if (flows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
     flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
     write(flows);
+    
+    // 同步更新已发布版缓存（如果存在）
+    const pIdx = publishedFlows.findIndex(f => f.id === oldId);
+    if (pIdx >= 0) {
+      publishedFlows[pIdx] = { ...publishedFlows[pIdx], id: newId, updatedAt: Date.now() };
+      writePublished(publishedFlows);
+    }
+    
+    notify();
     return flows[idx];
   },
 
@@ -554,6 +614,12 @@ const flowStore = {
         flow.id = 'flow-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       }
       write([...read(), flow]);
+      
+      // 同步添加到已发布版缓存
+      publishedFlows.push(flow);
+      writePublished(publishedFlows);
+      
+      notify();
       return flow;
     } catch {
       return null;
