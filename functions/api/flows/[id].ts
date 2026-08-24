@@ -266,8 +266,18 @@ export async function onRequestPut(context: any): Promise<Response> {
       existing ? (existing as any).created_at : timestamp
     ).run();
     
-    console.log('发布成功');
-    return jsonResponse(finalFlowData);
+     console.log('发布成功');
+     
+     // 发布成功后，清除关联草稿（工位清空）
+     try {
+       await env.DB.prepare('DELETE FROM flow_drafts WHERE parent_id = ?')
+         .bind(params.id).run();
+       console.log('已清除关联草稿');
+     } catch (e) {
+       console.warn('清除草稿失败（非致命）:', e);
+     }
+     
+     return jsonResponse(finalFlowData);
   } catch (error) {
     console.error('发布失败:', error);
     return errorResponse(500, `发布失败: ${error instanceof Error ? error.message : '未知错误'}`);
