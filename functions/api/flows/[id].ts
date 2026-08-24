@@ -290,12 +290,52 @@ export async function onRequestDelete(context: any): Promise<Response> {
   if (!auth) return errorResponse(401, '未授权');
   if (auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
   
+  const timestamp = now();
+  
   try {
+    // 1. 先获取要撤下的流程数据
+    const flowRow = await env.DB.prepare(
+      'SELECT * FROM flows WHERE id = ?'
+    ).bind(params.id).first();
+    
+    if (!flowRow) {
+      return errorResponse(404, '流程不存在');
+    }
+    
+    const flowData = JSON.parse((flowRow as any).data);
+    
+    // 2. 将数据迁移到草稿表，重置 publishedVersion 为 0
+    const draftData = {
+      ...flowData,
+      publishedVersion: 0,  // 重置为 0 表示草稿状态
+      publishedAt: undefined,  // 清除发布时间
+    };
+    
+    await env.DB.prepare(`
+      INSERT INTO flow_drafts (parent_id, data, forked_at, updated_at)
+      VALUES (?, ?, ?, ?)
+    `).bind(
+      params.id,
+      JSON.stringify(draftData),
+      timestamp,
+      timestamp
+    ).run();
+    
+    console.log('已将流程数据迁移到草稿表');
+    
+    // 3. 再从已发布流程表中删除
     await env.DB.prepare('DELETE FROM flows WHERE id = ?').bind(params.id).run();
-    return jsonResponse({ success: true });
+    
+    console.log('已从已发布流程表中删除');
+    
+    return jsonResponse({ 
+      success: true, 
+      message: '流程已撤下并迁移到草稿',
+      draftId: params.id 
+    });
   } catch (error) {
-    console.error('删除流程失败:', error);
-    return errorResponse(500, `删除流程失败: ${error instanceof Error ? error.message : '未知错误'}`);
+    console.error('撤下流程失败:', error);
+    return errorResponse(500, `撤下流程失败: ${error instanceof Error ? error.message : '未知错误'}`);
   }
 }
 

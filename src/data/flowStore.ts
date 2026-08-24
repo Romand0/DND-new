@@ -323,14 +323,12 @@ const flowStore = {
     return updated;
   },
 
-  /** 撤下（从 D1 删除已发布版） */
+  /** 撤下（将已发布流程迁移到草稿） */
   async unpublish(id: string): Promise<void> {
     await apiFetch(`/flows/${id}`, { method: 'DELETE' });
     publishedFlows = publishedFlows.filter(f => f.id !== id);
-    // 同时清理关联草稿
-    drafts = drafts.filter(d => d.parentId !== id);
-    writePublished(publishedFlows);
-    writeDrafts(drafts);
+    // 不清理草稿，因为撤下操作会将已发布流程迁移到草稿表
+    // writeDrafts(drafts);  // 注释掉清理草稿的代码
     notify();
   },
 

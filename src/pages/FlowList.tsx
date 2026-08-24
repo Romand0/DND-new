@@ -77,7 +77,14 @@ export default function FlowList() {
   };
 
   const handleUnpublish = async (flow: FlowDefinition) => {
-    await flowStore.unpublish(flow.id);
+    if (confirm(`确定要撤下"${flow.name}"吗？撤下后将变为草稿状态。`)) {
+      try {
+        await flowStore.unpublish(flow.id);
+        alert('流程已成功撤下并转为草稿状态');
+      } catch (err) {
+        alert(err instanceof Error ? err.message : '撤下失败');
+      }
+    }
   };
 
   const formatDate = (ts?: number) =>
