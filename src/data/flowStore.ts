@@ -199,6 +199,10 @@ function migrateLegacyDrafts() {
 // 跨标签页缓存失效
 if (typeof window !== 'undefined') {
   migrateLegacyDrafts();
+  // 初始化草稿数据
+  drafts = readDrafts();
+  publishedFlows = readPublished();
+  
   window.addEventListener('storage', (e) => {
     if (e.key === PUBLISHED_KEY || e.key === DRAFTS_KEY || e.key === STORAGE_KEY) {
       publishedFlows = readPublished();
@@ -223,7 +227,12 @@ const flowStore = {
       ...d.data,
       publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
     }));
-    return [...publishedFlows, ...allDrafts];
+    const result = [...publishedFlows, ...allDrafts];
+    console.log('getAll() - publishedFlows:', publishedFlows.length);
+    console.log('getAll() - drafts:', drafts.length);
+    console.log('getAll() - allDrafts:', allDrafts.length);
+    console.log('getAll() - result:', result.length);
+    return result;
   },
 
   /** 获取单个已发布版（只读，战斗引擎用此路径） */
@@ -374,6 +383,8 @@ const flowStore = {
     publishedFlows = flows;
     remoteLoaded = true;
     writePublished(publishedFlows);
+    // 重新加载草稿数据，确保数据同步
+    drafts = readDrafts();
     notify();
   },
 
