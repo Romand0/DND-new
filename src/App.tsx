@@ -33,6 +33,7 @@ import CombatSession from '@/pages/CombatSession';
 import BattlegroundEditor from '@/pages/BattlegroundEditor';
 import FlowEditor from '@/pages/FlowEditor';
 import FlowList from '@/pages/FlowList';
+import LocalStorageManager from '@/pages/LocalStorageManager';
 import GameClockPage from '@/pages/GameClockPage';
 import CalendarPage from '@/pages/CalendarPage';
 import NotesPage from '@/pages/NotesPage';
@@ -144,6 +145,8 @@ export default function App() {
               <Route path="flows/:id/edit" element={<FlowEditor />} />
               {/* 独立访问的流程编辑器路由 */}
               <Route path="flow-editor/:id" element={<FlowEditor />} />
+              {/* LocalStorage管理工具 */}
+              <Route path="local-storage-manager" element={<LocalStorageManager />} />
               {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />
