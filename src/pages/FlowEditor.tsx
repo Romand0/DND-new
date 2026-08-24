@@ -2256,7 +2256,7 @@ export default function FlowEditor() {
                       const spell = spellStore.getById(spellId);
                       if (spell) {
                         setBoundSpell(spell);
-                        setFlow(prev => ({ ...prev, spellId }));
+                        setFlow(prev => ({ ...prev, spellId: spellId }));
                       }
                     } else {
                       setBoundSpell(null);
