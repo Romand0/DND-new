@@ -461,11 +461,19 @@ const flowStore = {
     // 优先返回草稿数据
     const draft = drafts.find(d => d.data.id === id || d.parentId === id);
     if (draft) {
+      console.log('getById() - 返回草稿数据:', id);
       return draft.data;
     }
     
     // 如果没有草稿，返回已发布流程
-    return publishedFlows.find(f => f.id === id);
+    const published = publishedFlows.find(f => f.id === id);
+    if (published) {
+      console.log('getById() - 返回已发布数据:', id);
+      return published;
+    }
+    
+    console.log('getById() - 未找到流程:', id);
+    return undefined;
   },
 
   /** 发布流程到 D1（兼容原有接口） */
@@ -513,12 +521,12 @@ const flowStore = {
   /** 创建空流程（兼容原有接口） */
   createLegacy(name: string = '未命名流程'): FlowDefinition {
     const flow = this.create(name);
-    write([...read(), flow]);
-    
-    // 同步添加到已发布版缓存
+    // 注意：create() 方法已经处理了草稿存储，这里不需要重复写入 localFlows
+    // 为了向后兼容，我们只更新已发布版缓存
     publishedFlows.push(flow);
     writePublished(publishedFlows);
     
+    console.log('createLegacy() - 创建流程并同步到已发布缓存:', flow.id);
     notify();
     return flow;
   },
@@ -563,6 +571,19 @@ const flowStore = {
 
   /** 更新流程（整体替换） */
   update(id: string, patch: Partial<FlowDefinition>): FlowDefinition | undefined {
+    // 验证数据完整性
+    if (!id || !patch.name) {
+      throw new Error('流程数据不完整');
+    }
+
+    // Fork 模式下，更新操作应该保存到草稿
+    const flow = this.getById(id);
+    if (flow) {
+      const updatedFlow = { ...flow, ...patch, updatedAt: Date.now() };
+      return this.save(updatedFlow);
+    }
+    
+    // 如果没有找到流程，尝试向后兼容模式
     const flows = read();
     const idx = flows.findIndex(f => f.id === id);
     if (idx === -1) return undefined;
@@ -576,28 +597,36 @@ const flowStore = {
       writePublished(publishedFlows);
     }
     
+    console.log('update() - 向后兼容模式更新:', id);
     notify();
     return flows[idx];
   },
 
   /** 保存流程（Fork 模式下保存到草稿） */
   save(flow: FlowDefinition): FlowDefinition {
+    // 验证数据完整性
+    if (!flow.id || !flow.name) {
+      throw new Error('流程数据不完整');
+    }
+
     // 检查是否有草稿
-    const draft = drafts.find(d => d.data.id === flow.id);
+    const draftIndex = drafts.findIndex(d => d.parentId === flow.id);
     
-    if (draft) {
+    if (draftIndex >= 0) {
       // 有草稿，更新草稿
-      draft.data = {
-        ...flow,
-        publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
+      drafts[draftIndex] = {
+        ...drafts[draftIndex],
+        data: {
+          ...flow,
+          publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
+        },
+        updatedAt: Date.now(),
       };
-      draft.updatedAt = Date.now();
       writeDrafts(drafts);
-      notify();
-      return draft.data;
+      console.log('save() - 更新现有草稿:', flow.id);
     } else {
       // 没有草稿，创建新草稿
-      const draft: FlowDraft = {
+      const newDraft: FlowDraft = {
         parentId: flow.id,
         data: {
           ...flow,
@@ -606,11 +635,13 @@ const flowStore = {
         forkedAt: Date.now(),
         updatedAt: Date.now(),
       };
-      drafts.push(draft);
+      drafts.push(newDraft);
       writeDrafts(drafts);
-      notify();
-      return draft.data;
+      console.log('save() - 创建新草稿:', flow.id);
     }
+    
+    notify();
+    return flow;
   },
 
   /** 删除流程 */
