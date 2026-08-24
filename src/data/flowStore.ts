@@ -123,14 +123,29 @@ function readDrafts(): FlowDraft[] {
   try {
     const raw = localStorage.getItem(DRAFTS_KEY);
     const drafts = raw ? JSON.parse(raw) : [];
+    
+    // 去重逻辑：按 parentId 分组，保留最新的草稿
+    const draftMap = new Map<string, FlowDraft>();
+    drafts.forEach(draft => {
+      const existing = draftMap.get(draft.parentId);
+      if (!existing || draft.updatedAt > existing.updatedAt) {
+        draftMap.set(draft.parentId, draft);
+      }
+    });
+    
     // 确保所有草稿的 publishedVersion 为 0
-    return drafts.map((draft: FlowDraft) => ({
+    const uniqueDrafts = Array.from(draftMap.values()).map((draft: FlowDraft) => ({
       ...draft,
       data: {
         ...draft.data,
         publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
       },
     }));
+    
+    console.log('readDrafts() - 原始草稿数:', drafts.length);
+    console.log('readDrafts() - 去重后草稿数:', uniqueDrafts.length);
+    
+    return uniqueDrafts;
   } catch { return []; }
 }
 
@@ -227,11 +242,27 @@ const flowStore = {
       ...d.data,
       publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
     }));
-    const result = [...publishedFlows, ...allDrafts];
+    
+    // 去重逻辑：确保每个流程 ID 只显示一次
+    const resultMap = new Map<string, FlowDefinition>();
+    
+    // 先添加已发布流程
+    publishedFlows.forEach(flow => {
+      resultMap.set(flow.id, flow);
+    });
+    
+    // 再添加草稿，覆盖已发布流程（草稿优先）
+    allDrafts.forEach(draft => {
+      resultMap.set(draft.id, draft);
+    });
+    
+    const result = Array.from(resultMap.values());
+    
     console.log('getAll() - publishedFlows:', publishedFlows.length);
     console.log('getAll() - drafts:', drafts.length);
     console.log('getAll() - allDrafts:', allDrafts.length);
-    console.log('getAll() - result:', result.length);
+    console.log('getAll() - result (去重后):', result.length);
+    
     return result;
   },
 
