@@ -494,20 +494,37 @@ const flowStore = {
 
   /** 变更流程 ID（类别/名称变更时） */
   retargetId(oldId: string, newId: string): FlowDefinition | undefined {
+    // 1. 在已发布版中查找
+    const pIdx = publishedFlows.findIndex(f => f.id === oldId);
+    if (pIdx >= 0) {
+      if (publishedFlows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
+      publishedFlows[pIdx] = { ...publishedFlows[pIdx], id: newId, updatedAt: Date.now() };
+      writePublished(publishedFlows);
+      notify();
+      return publishedFlows[pIdx];
+    }
+    
+    // 2. 在草稿中查找
+    const draftIdx = drafts.findIndex(d => d.data.id === oldId);
+    if (draftIdx >= 0) {
+      if (drafts.some(d => d.data.id === newId)) return undefined; // 新 ID 冲突
+      const updatedDraft = {
+        ...drafts[draftIdx],
+        data: { ...drafts[draftIdx].data, id: newId, updatedAt: Date.now() }
+      };
+      drafts[draftIdx] = updatedDraft;
+      writeDrafts(drafts);
+      notify();
+      return updatedDraft.data;
+    }
+    
+    // 3. 在本地流程中查找（向后兼容）
     const flows = read();
     const idx = flows.findIndex(f => f.id === oldId);
     if (idx === -1) return undefined;
-    // 检查新 ID 冲突
-    if (flows.some(f => f.id === newId)) return undefined;
+    if (flows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
     flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
     write(flows);
-    
-    // 同步更新已发布版缓存（如果存在）
-    const pIdx = publishedFlows.findIndex(f => f.id === oldId);
-    if (pIdx >= 0) {
-      publishedFlows[pIdx] = { ...publishedFlows[pIdx], id: newId, updatedAt: Date.now() };
-      writePublished(publishedFlows);
-    }
     
     notify();
     return flows[idx];
@@ -587,19 +604,37 @@ const flowStore = {
 
   /** 重命名流程 ID（原子操作：删除旧 key → 以新 key 写回） */
   renameId(oldId: string, newId: string): FlowDefinition | undefined {
+    // 1. 在已发布版中查找
+    const pIdx = publishedFlows.findIndex(f => f.id === oldId);
+    if (pIdx >= 0) {
+      if (publishedFlows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
+      publishedFlows[pIdx] = { ...publishedFlows[pIdx], id: newId, updatedAt: Date.now() };
+      writePublished(publishedFlows);
+      notify();
+      return publishedFlows[pIdx];
+    }
+    
+    // 2. 在草稿中查找
+    const draftIdx = drafts.findIndex(d => d.data.id === oldId);
+    if (draftIdx >= 0) {
+      if (drafts.some(d => d.data.id === newId)) return undefined; // 新 ID 冲突
+      const updatedDraft = {
+        ...drafts[draftIdx],
+        data: { ...drafts[draftIdx].data, id: newId, updatedAt: Date.now() }
+      };
+      drafts[draftIdx] = updatedDraft;
+      writeDrafts(drafts);
+      notify();
+      return updatedDraft.data;
+    }
+    
+    // 3. 在本地流程中查找（向后兼容）
     const flows = read();
     const idx = flows.findIndex(f => f.id === oldId);
     if (idx === -1) return undefined;
     if (flows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
     flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
     write(flows);
-    
-    // 同步更新已发布版缓存（如果存在）
-    const pIdx = publishedFlows.findIndex(f => f.id === oldId);
-    if (pIdx >= 0) {
-      publishedFlows[pIdx] = { ...publishedFlows[pIdx], id: newId, updatedAt: Date.now() };
-      writePublished(publishedFlows);
-    }
     
     notify();
     return flows[idx];
