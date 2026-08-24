@@ -67,9 +67,17 @@ export interface FlowEdgeDef {
   condition?: string;                // 可选守卫条件（如 "target.currentHp > 0"）
 }
 
-// ======================
-// 三、流程定义（Flow）—— 完整的法术/机制编码
-// ======================
+// ==================== 新增 ====================
+
+/** 草稿定义：从已发布流程 fork 出来的工作副本 */
+export interface FlowDraft {
+  parentId: string;          // → PublishedFlow.id（唯一绑定）
+  data: FlowDefinition;      // 草稿内容（可自由修改）
+  forkedAt: number;          // 派生时间
+  updatedAt: number;         // 最近保存时间
+}
+
+// ==================== FlowDefinition 变更 ====================
 
 /** 流程定义：一段完整的游戏机制编码 */
 export interface FlowDefinition {
@@ -95,6 +103,30 @@ export interface FlowDefinition {
   spellId?: string;
   /** 原始存储数据（后端返回时附带） */
   data?: any;
+  // ---- 删除 ----
+  // 不再需要用 updatedAt vs publishedAt 推断脏状态
+}
+
+// ==================== 三态枚举 ====================
+
+/** 流程在列表中的显示状态（替代时间戳推断） */
+export type FlowPublishStatus =
+  | { kind: 'draft' }                                          // 从未发布
+  | { kind: 'published'; version: number }                     // 已发布，无草稿
+  | { kind: 'modified'; version: number; draftUpdatedAt: number }; // 已发布 + 有草稿
+
+/** 计算三态：纯存在性判断，无时间戳依赖 */
+export function computePublishStatus(
+  flow: FlowDefinition,
+  draft: FlowDraft | undefined
+): FlowPublishStatus {
+  if (!flow.publishedVersion || flow.publishedVersion === 0) {
+    return { kind: 'draft' };
+  }
+  if (!draft) {
+    return { kind: 'published', version: flow.publishedVersion };
+  }
+  return { kind: 'modified', version: flow.publishedVersion, draftUpdatedAt: draft.updatedAt };
 }
 
 // ======================
