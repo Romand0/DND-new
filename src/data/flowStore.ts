@@ -122,7 +122,15 @@ function writePublished(flows: FlowDefinition[]) {
 function readDrafts(): FlowDraft[] {
   try {
     const raw = localStorage.getItem(DRAFTS_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const drafts = raw ? JSON.parse(raw) : [];
+    // 确保所有草稿的 publishedVersion 为 0
+    return drafts.map((draft: FlowDraft) => ({
+      ...draft,
+      data: {
+        ...draft.data,
+        publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
+      },
+    }));
   } catch { return []; }
 }
 
@@ -211,7 +219,10 @@ const flowStore = {
   /** 获取所有流程（已发布版 + 所有草稿） */
   getAll(): FlowDefinition[] {
     // 已发布版 + 所有草稿（包括未发布的和已发布的草稿）
-    const allDrafts = drafts.map(d => d.data);
+    const allDrafts = drafts.map(d => ({
+      ...d.data,
+      publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
+    }));
     return [...publishedFlows, ...allDrafts];
   },
 
@@ -477,23 +488,29 @@ const flowStore = {
     
     if (draft) {
       // 有草稿，更新草稿
-      draft.data = flow;
+      draft.data = {
+        ...flow,
+        publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
+      };
       draft.updatedAt = Date.now();
       writeDrafts(drafts);
       notify();
-      return flow;
+      return draft.data;
     } else {
       // 没有草稿，创建新草稿
       const draft: FlowDraft = {
         parentId: flow.id,
-        data: flow,
+        data: {
+          ...flow,
+          publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
+        },
         forkedAt: Date.now(),
         updatedAt: Date.now(),
       };
       drafts.push(draft);
       writeDrafts(drafts);
       notify();
-      return flow;
+      return draft.data;
     }
   },
 
