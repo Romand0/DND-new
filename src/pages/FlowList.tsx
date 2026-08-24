@@ -162,13 +162,6 @@ export default function FlowList() {
                           </span>
                         );
                       }
-                      if (flowStore.isDraftDirty(f)) {
-                        return (
-                          <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] bg-amber-400/10 text-amber-400">
-                            已修改
-                          </span>
-                        );
-                      }
                       return (
                         <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] bg-green-500/10 text-green-500">
                           已发布 v{f.publishedVersion}
