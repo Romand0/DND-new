@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useFlowEditorToast } from './flow-editor/useFlowEditorToast';
 import { useFlowValidation } from './flow-editor/hooks/useFlowValidation';
+import { useAutoFix } from './flow-editor/hooks/useAutoFix';
 import { useDragEffects } from './flow-editor/hooks/useDragEffects';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
@@ -629,6 +630,9 @@ export default function FlowEditor() {
   // ===== 验证逻辑（已迁移至 useFlowValidation Hook） =====
   const validation = useFlowValidation(flow);
 
+  // ===== 自动修复逻辑（已迁移至 useAutoFix Hook） =====
+  const autoFix = useAutoFix(flow);
+
   // ===== 拖拽效果（已迁移至 useDragEffects Hook） =====
   const dragEffects = useDragEffects({
     flow,
@@ -1188,12 +1192,13 @@ export default function FlowEditor() {
             >
                {validation.showValidation ? '隐藏' : '显示'}详情
             </button>
-            {validation.autoFixSuggestions.length > 0 && (
+            {autoFix.hasSuggestions && (
               <button 
-                onClick={validation.handleAutoFix}
+                onClick={autoFix.handleAutoFix}
                 className="ml-2 text-xs text-blue-400 hover:text-blue-200"
+                disabled={autoFix.isFixing}
               >
-                自动修复 ({validation.autoFixSuggestions.length})
+                自动修复 ({autoFix.suggestionCount})
               </button>
             )}
           </div>
