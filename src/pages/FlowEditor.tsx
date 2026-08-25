@@ -320,10 +320,10 @@ export default function FlowEditor() {
         if (draft.data.spellId) {
           const spell = spellStore.getById(draft.data.spellId);
           if (spell) {
-            setBoundSpell(spell);
+            spellBinding.setBoundSpell(spell);
           }
         } else {
-          setBoundSpell(null);
+          spellBinding.setBoundSpell(null);
         }
       } else {
         // 如果没有草稿，获取已发布版本
@@ -334,10 +334,10 @@ export default function FlowEditor() {
           if (published.spellId) {
             const spell = spellStore.getById(published.spellId);
             if (spell) {
-              setBoundSpell(spell);
+              spellBinding.setBoundSpell(spell);
             }
           } else {
-            setBoundSpell(null);
+            spellBinding.setBoundSpell(null);
           }
         }
       }
@@ -947,23 +947,18 @@ export default function FlowEditor() {
     });
   }, [flow, flowNameInput.value, flowId, navigate]);
 
-     // 法术绑定状态已迁移至 useSpellBinding Hook   
-  const handleUnbindSpell = useCallback(async () => {
-    if (!flow.id || !flow.spellId) return;
+      // 法术绑定状态已迁移至 useSpellBinding Hook
+   const handleUnbindSpell = useCallback(async () => {
+     if (!flow.id || !flow.spellId) return;
 
-    try {
-      // 获取绑定ID
-      const bindings = bindingStore.getBySpellId(flow.spellId);
-      if (bindings.length > 0) {
-        await BindingService.unbindSpellFromFlow(bindings[0].id);
-        setBoundSpell(null);
-        setFlow(prev => ({ ...prev, spellId: undefined }));
-      }
-    } catch (error) {
-      console.error('法术解绑失败:', error);
-      showToast('error', '法术解绑失败');
-    }
-  }, [flow.id, flow.spellId, showToast]);
+     try {
+       // 使用 Hook 中的解绑方法
+       await spellBinding.handleUnbindSpell();
+     } catch (error) {
+       console.error('法术解绑失败:', error);
+       showToast('error', '法术解绑失败');
+     }
+   }, [flow.id, flow.spellId, showToast, spellBinding]);
 
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
@@ -2221,11 +2216,11 @@ export default function FlowEditor() {
                     if (spellId) {
                       const spell = spellStore.getById(spellId);
                       if (spell) {
-                        setBoundSpell(spell);
+                        spellBinding.setBoundSpell(spell);
                         setFlow(prev => ({ ...prev, spellId: spellId }));
                       }
                     } else {
-                      setBoundSpell(null);
+                      spellBinding.setBoundSpell(null);
                       setFlow(prev => ({ ...prev, spellId: undefined }));
                     }
                   }}
@@ -2456,7 +2451,7 @@ onNodeDelete={(nodeId) => {
           <div className="rounded-xl p-6 max-w-2xl w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium dark:text-text-dark light:text-text-light">选择法术</h3>
-              <button onClick={() => setShowSpellPicker(false)} className="p-1 rounded hover:bg-white/10">
+              <button onClick={() => spellBinding.setShowSpellPicker(false)} className="p-1 rounded hover:bg-white/10">
                 <X className="w-5 h-5" />
               </button>
             </div>

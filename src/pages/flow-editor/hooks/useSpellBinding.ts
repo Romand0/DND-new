@@ -103,12 +103,10 @@ export function useSpellBinding(
     boundSpell,
     setBoundSpell,
     showSpellPicker,
-    setShowSpellPicker,
     
     // 操作方法
     handleBindSpell,
     handleUnbindSpell,
-    showSpellPicker,
     setShowSpellPicker,
     
     // 计算属性
