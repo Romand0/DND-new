@@ -4,6 +4,7 @@ import { useFlowEditorToast } from './flow-editor/useFlowEditorToast';
 import { useFlowValidation } from './flow-editor/hooks/useFlowValidation';
 import { useAutoFix } from './flow-editor/hooks/useAutoFix';
 import { useDragEffects } from './flow-editor/hooks/useDragEffects';
+import { useNodeSizeMeasurement } from './flow-editor/hooks/useNodeSizeMeasurement';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -124,49 +125,10 @@ export default function FlowEditor() {
   
   // ===== 节点尺寸测量 =====
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const [nodeSizes, setNodeSizes] = useState<Map<string, {w: number, h: number}>>(new Map());
-  
-  // 测量节点实际尺寸
-  useLayoutEffect(() => {
-    const newSizes = new Map<string, {w: number, h: number}>();
-    const resizeObserver = new ResizeObserver(() => {
-      // 重新测量所有节点尺寸
-      nodeRefs.current.forEach((ref, nodeId) => {
-        if (ref) {
-          const rect = ref.getBoundingClientRect();
-          // 考虑画布缩放，转换为画布坐标
-          const scaleX = 1 / canvasScale;
-          newSizes.set(nodeId, {
-            w: rect.width * scaleX,
-            h: rect.height * scaleX
-          });
-        }
-      });
-      setNodeSizes(new Map(newSizes)); // 触发重新渲染
-    });
-    
-    // 初始测量
-    nodeRefs.current.forEach((ref, nodeId) => {
-      if (ref) {
-        const rect = ref.getBoundingClientRect();
-        // 考虑画布缩放，转换为画布坐标
-        const scaleX = 1 / canvasScale;
-        newSizes.set(nodeId, {
-          w: rect.width * scaleX,
-          h: rect.height * scaleX
-        });
-        // 开始监听尺寸变化
-        resizeObserver.observe(ref);
-      }
-    });
-    
-    setNodeSizes(newSizes);
-    
-    // 清理函数
-    return () => {
-      resizeObserver.disconnect();
-    };
-  }, [flow.nodes, canvasScale]);
+  const { nodeSizes } = useNodeSizeMeasurement({
+    nodes: flow.nodes,
+    canvasScale,
+  });
 
   // ===== 发布提示 toast =====
   const { toast, showToast } = useFlowEditorToast();
