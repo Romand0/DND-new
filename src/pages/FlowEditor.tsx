@@ -1,6 +1,7 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useFlowEditorToast } from './flow-editor/useFlowEditorToast';
+import { useFlowValidation } from './flow-editor/hooks/useFlowValidation';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -850,184 +851,8 @@ export default function FlowEditor() {
     setConnectFromId(null);
   }, []);
 
-  // ===== 实时校验 =====
-  const [validationErrors, setValidationErrors] = useState<ValidationError[]>([]);
-  const [showValidation, setShowValidation] = useState(false);
-  const [validationStatus, setValidationStatus] = useState<'valid' | 'invalid'>('valid');
-  const [autoFixSuggestions, setAutoFixSuggestions] = useState<Array<{
-    type: 'global' | 'node' | 'edge';
-    message: string;
-    fix: () => FlowDefinition;
-  }>>([]);
-  
-  // 实时校验（防抖500ms）
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const errors = validateFlowWithDetails(flow);
-      setValidationErrors(errors);
-      setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
-      
-      // 获取自动修复建议
-      const suggestions = getAutoFixSuggestions(flow);
-      setAutoFixSuggestions(suggestions);
-      
-      // 如果有错误，自动显示验证面板
-      if (errors.length > 0 && !showValidation) {
-        setShowValidation(true);
-      }
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [flow, showValidation]);
-
-  // ===== 历史数据兼容性处理 =====
-  useEffect(() => {
-    if (!flow.spellId) return;
-    const spell = spellStore.getById(flow.spellId);
-    if (!spell) return;
-
-    // 检查是否需要补填历史数据（缺少 detail 字段）
-    const needsBackfill = flow.nodes.some(
-      n => n.type === 'cast_start' && 
-           n.config?.autoChecks && 
-           !n.config.autoChecks.componentsDetail
-    );
-    if (!needsBackfill) return;
-
-    // 自动补填缺失的 detail 字段
-    const resolved = resolveAutoChecksFromSpell(spell);
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n =>
-        n.type === 'cast_start' && 
-        n.config?.autoChecks && 
-        !n.config.autoChecks.componentsDetail
-          ? {
-              ...n,
-              config: {
-                ...n.config,
-                autoChecks: {
-                  ...n.config.autoChecks,
-                  componentsDetail: resolved.summary.components,
-                  rangeDetail: resolved.summary.range,
-                  timeDetail: resolved.summary.time,
-                },
-              },
-            }
-          : n
-      ),
-    }));
-  }, [flow.spellId, flow.nodes]);
-
-  // ===== 手动验证 =====
-  const runValidation = useCallback(() => {
-    const errors = validateFlowWithDetails(flow);
-    setValidationErrors(errors);
-    setShowValidation(true);
-    setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
-  }, [flow]);
-
-  // ===== 保存草稿 =====
-  const saveDraft = useCallback(() => {
-    setSaveStatus('saving');
-    // 用 requestAnimationFrame 制造一帧延迟，让 "saving" 态先渲染
-    requestAnimationFrame(() => {
-      const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
-      // 直接写入 flowStore（单一真相源）；save 为 upsert，库中不存在的流程也会写入
-      flowStore.save(updatedFlow);
-      setDrafts(flowStore.getAll());   // 刷新下拉框数据
-      setFlow(updatedFlow);
-      setSaveStatus('saved');
-      
-      // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
-      if (flowId && flowId !== updatedFlow.id) {
-        navigate(`/flow-editor/${updatedFlow.id}`, { replace: true });
-      }
-      
-      setTimeout(() => setSaveStatus('idle'), 2000);
-    });
-  }, [flow, flowNameInput.value, flowId, navigate]);
-
-      // 法术绑定状态已迁移至 useSpellBinding Hook
-   const handleUnbindSpell = useCallback(async () => {
-     if (!flow.id || !flow.spellId) return;
-
-     try {
-       // 使用 Hook 中的解绑方法
-       await spellBinding.handleUnbindSpell();
-     } catch (error) {
-       console.error('法术解绑失败:', error);
-       showToast('error', '法术解绑失败');
-     }
-   }, [flow.id, flow.spellId, showToast, spellBinding]);
-
-  // ===== 发布正式版 =====
-  const handlePublish = useCallback(async () => {
-    // 发布前先检查校验
-    const validation = validateForPublish(flow);
-    if (!validation.valid) {
-      // 显示详细的验证错误
-      setValidationErrors(validation.details || [{ type: 'global', message: validation.error! }]);
-      setShowValidation(true);
-      
-      // 显示错误提示
-      showToast('error', `无法发布：${validation.error}`);
-      
-      // 如果有建议，显示提示
-      if (validation.suggestions && validation.suggestions.length > 0) {
-        console.log('发布建议：', validation.suggestions.join('；'));
-      }
-      
-      return;
-    }
-
-    try {
-      // 更新流程状态为已发布
-      flowStore.update(flow.id, { ...flow, status: 'published' });
-      const published = await flowStore.publish(flow.id);
-      if (published) {
-        setFlow(prev => ({
-          ...prev,
-          status: 'published',
-          publishedVersion: published.publishedVersion,
-          publishedAt: published.publishedAt ?? Date.now(),
-        }));
-        showToast('success', `已发布 v${published.publishedVersion}`);
-        
-        // 发布成功后隐藏验证面板
-        setShowValidation(false);
-      }
-    } catch (err) {
-      showToast('error', err instanceof Error ? err.message : '发布失败');
-    }
-  }, [flow, showToast]);
-
-  // ===== 自动修复 =====
-  const handleAutoFix = useCallback(() => {
-    if (autoFixSuggestions.length === 0) return;
-
-    // 按顺序应用修复建议
-    let updatedFlow = flow;
-    const fixesApplied: string[] = [];
-
-    autoFixSuggestions.forEach(suggestion => {
-      try {
-        const fixedFlow = suggestion.fix();
-        if (fixedFlow !== updatedFlow) {
-          updatedFlow = fixedFlow;
-          fixesApplied.push(suggestion.message);
-        }
-      } catch (error) {
-        console.warn('自动修复失败:', suggestion.message, error);
-      }
-    });
-
-    if (fixesApplied.length > 0) {
-      setFlow(updatedFlow);
-      showToast('success', `已应用 ${fixesApplied.length} 个修复：${fixesApplied.join('；')}`);
-    } else {
-      showToast('success', '没有可应用的修复');
-    }
-  }, [flow, autoFixSuggestions, showToast]);
+  // ===== 验证逻辑（已迁移至 useFlowValidation Hook） =====
+  const validation = useFlowValidation(flow);
 
   // ===== 加载草稿 =====
   const loadDraft = useCallback((draft: FlowDefinition) => {
@@ -1053,6 +878,64 @@ export default function FlowEditor() {
       setSelectedEdgeId(null);
     }
   }, []);
+
+  // ===== 保存草稿 =====
+  const saveDraft = useCallback(() => {
+    setSaveStatus('saving');
+    // 用 requestAnimationFrame 制造一帧延迟，让 "saving" 态先渲染
+    requestAnimationFrame(() => {
+      const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
+      // 直接写入 flowStore（单一真相源）；save 为 upsert，库中不存在的流程也会写入
+      flowStore.save(updatedFlow);
+      setDrafts(flowStore.getAll());   // 刷新下拉框数据
+      setFlow(updatedFlow);
+      setSaveStatus('saved');
+      
+      // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
+      if (flowId && flowId !== updatedFlow.id) {
+        navigate(`/flow-editor/${updatedFlow.id}`, { replace: true });
+      }
+      
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    });
+  }, [flow, flowNameInput.value, flowId, navigate]);
+
+  // ===== 发布正式版 =====
+  const handlePublish = useCallback(async () => {
+    // 发布前先检查校验
+    const publishValidation = validateForPublish(flow);
+    if (!publishValidation.valid) {
+      // 显示错误提示
+      showToast('error', `无法发布：${publishValidation.error}`);
+      
+      // 如果有建议，显示提示
+      if (publishValidation.suggestions && publishValidation.suggestions.length > 0) {
+        console.log('发布建议：', publishValidation.suggestions.join('；'));
+      }
+      
+      return;
+    }
+
+    try {
+      // 更新流程状态为已发布
+      flowStore.update(flow.id, { ...flow, status: 'published' });
+      const published = await flowStore.publish(flow.id);
+      if (published) {
+        setFlow(prev => ({
+          ...prev,
+          status: 'published',
+          publishedVersion: published.publishedVersion,
+          publishedAt: published.publishedAt ?? Date.now(),
+        }));
+        showToast('success', `已发布 v${published.publishedVersion}`);
+        
+        // 发布成功后隐藏验证面板
+        validation.setShowValidation(false);
+      }
+    } catch (err) {
+      showToast('error', err instanceof Error ? err.message : '发布失败');
+    }
+  }, [flow, showToast, validation]);
 
   // ===== 获取选中节点 =====
   const selectedNode = flow.nodes.find(n => n.id === selectedNodeId) || null;
@@ -1142,10 +1025,10 @@ export default function FlowEditor() {
         <div className="flex items-center gap-2 px-4">
           <button 
             onClick={handlePublish}
-            disabled={validationStatus === 'invalid'}
+            disabled={validation.validationStatus === 'invalid'}
             className={`
               flex items-center gap-1 px-3 py-1.5 h-10 rounded-lg text-xs font-medium border transition-colors min-w-[80px]
-              ${validationStatus === 'valid'
+              ${validation.validationStatus === 'valid'
                 ? 'border-green-500 text-green-500 hover:border-green-400 hover:text-green-400 hover:bg-green-500/10'
                 : 'border-gray-400 text-gray-400 cursor-not-allowed'
               }
@@ -1164,7 +1047,7 @@ export default function FlowEditor() {
                 ? 'bg-emerald-500 text-white scale-95'
                 : saveStatus === 'saving'
                 ? 'bg-primary/60 text-white/70 cursor-wait'
-                : validationStatus === 'valid'
+                : validation.validationStatus === 'valid'
                 ? 'bg-primary text-white hover:bg-primary/90 active:scale-95'
                 : 'bg-orange-500 text-white hover:bg-orange-90 active:scale-95'
               }
@@ -1173,7 +1056,7 @@ export default function FlowEditor() {
             {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             {saveStatus === 'saved' && <CheckCircle className="w-3.5 h-3.5" />}
             {saveStatus === 'idle' && (
-              validationStatus === 'valid' ? <Save className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />
+              validation.validationStatus === 'valid' ? <Save className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />
             )}
           </button>
         </div>
@@ -1185,7 +1068,7 @@ export default function FlowEditor() {
           <PanelLeft className="w-3.5 h-3.5" /><span className="hidden sm:inline">节点库</span>
         </button>
         <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1" />
-        <button onClick={runValidation} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
+        <button onClick={validation.runValidation} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
           <AlertCircle className="w-3.5 h-3.5" /><span className="hidden sm:inline">验证</span>
         </button>
         <button onClick={() => setShowDrafts(!showDrafts)} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
@@ -1455,12 +1338,12 @@ export default function FlowEditor() {
           </div>
 
         {/* 验证结果浮层 */}
-        {showValidation && (
+         {validation.showValidation && (
           <div className="absolute bottom-4 left-4 right-4 max-w-lg mx-auto z-30">
             <div className="rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white shadow-lg p-3">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  {validationErrors.length === 0 ? (
+                   {validation.validationErrors.length === 0 ? (
                     <>
                       <CheckCircle className="w-4 h-4 text-green-400" />
                       <span className="text-sm font-medium text-green-400">验证通过</span>
@@ -1468,17 +1351,17 @@ export default function FlowEditor() {
                   ) : (
                     <>
                       <AlertCircle className="w-4 h-4 text-red-400" />
-                      <span className="text-sm font-medium text-red-400">发现 {validationErrors.length} 个问题</span>
+                      <span className="text-sm font-medium text-red-400">发现 {validation.validationErrors.length} 个问题</span>
                     </>
                   )}
                 </div>
-                <button onClick={() => setShowValidation(false)} className="text-gray-400 hover:text-gray-200">
+                <button onClick={() => validation.setShowValidation(false)} className="text-gray-400 hover:text-gray-200">
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              {validationErrors.length > 0 && (
+                {validation.validationErrors.length > 0 && (
                 <ul className="space-y-1 max-h-40 overflow-y-auto">
-                  {validationErrors.map((err, i) => (
+                   {validation.validationErrors.map((err, i) => (
                     <li key={i} className="text-xs text-red-400">{err.message}</li>
                   ))}
                 </ul>
@@ -1498,12 +1381,12 @@ export default function FlowEditor() {
       <div className="p-4">
         {/* ===== 实时校验结果显示 ===== */}
         <div className={`mb-4 p-3 rounded-lg border ${
-          validationStatus === 'valid' 
+                validation.validationStatus === 'valid'
             ? 'border-green-500/20 bg-green-500/5' 
             : 'border-red-500/20 bg-red-500/5'
         }`}>
           <div className="flex items-center gap-2 mb-2">
-            {validationStatus === 'valid' ? (
+                  {validation.validationStatus === 'valid' ? (
               <>
                 <CheckCircle className="w-4 h-4 text-green-400" />
                 <span className="text-sm font-medium text-green-400">可以发布</span>
@@ -1512,29 +1395,29 @@ export default function FlowEditor() {
               <>
                 <AlertCircle className="w-4 h-4 text-red-400" />
                 <span className="text-sm font-medium text-red-400">
-                  无法发布（{validationErrors.length} 个错误）
+                   无法发布（{validation.validationErrors.length} 个错误）
                 </span>
               </>
             )}
             <button 
-              onClick={() => setShowValidation(!showValidation)}
+              onClick={() => validation.setShowValidation(!validation.showValidation)}
               className="ml-auto text-xs text-gray-400 hover:text-gray-200"
             >
-              {showValidation ? '隐藏' : '显示'}详情
+               {validation.showValidation ? '隐藏' : '显示'}详情
             </button>
-            {autoFixSuggestions.length > 0 && (
+            {validation.autoFixSuggestions.length > 0 && (
               <button 
-                onClick={handleAutoFix}
+                onClick={validation.handleAutoFix}
                 className="ml-2 text-xs text-blue-400 hover:text-blue-200"
               >
-                自动修复 ({autoFixSuggestions.length})
+                自动修复 ({validation.autoFixSuggestions.length})
               </button>
             )}
           </div>
           
-          {showValidation && validationErrors.length > 0 && (
+           {validation.showValidation && validation.validationErrors.length > 0 && (
             <div className="space-y-1 max-h-48 overflow-y-auto">
-              {validationErrors.map((error, index) => {
+               {validation.validationErrors.map((error, index) => {
                 // 根据错误类型选择不同的图标和颜色
                 let icon, borderColor, bgColor;
                 if (error.type === 'global') {
@@ -1595,12 +1478,12 @@ export default function FlowEditor() {
             <div>
               {/* ===== 流程校验状态 ===== */}
               <div className={`mb-4 p-3 rounded-lg border ${
-                validationStatus === 'valid' 
+          validation.validationStatus === 'valid'
                   ? 'border-green-500/20 bg-green-500/5' 
                   : 'border-red-500/20 bg-red-500/5'
               }`}>
                 <div className="flex items-center gap-2 mb-2">
-                  {validationStatus === 'valid' ? (
+            {validation.validationStatus === 'valid' ? (
                     <>
                       <CheckCircle className="w-4 h-4 text-green-400" />
                       <span className="text-sm font-medium text-green-400">流程可以发布</span>
@@ -1609,14 +1492,14 @@ export default function FlowEditor() {
                     <>
                       <AlertCircle className="w-4 h-4 text-red-400" />
                       <span className="text-sm font-medium text-red-400">
-                        流程无法发布（{validationErrors.length} 个错误）
+                        流程无法发布（{validation.validationErrors.length} 个错误）
                       </span>
                     </>
                   )}
                 </div>
-                {validationErrors.length > 0 && (
+                {validation.validationErrors.length > 0 && (
                   <div className="text-xs text-red-300">
-                    主要问题：{validationErrors[0].message}
+                     主要问题：{validation.validationErrors[0].message}
                   </div>
                 )}
               </div>
