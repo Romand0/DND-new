@@ -100,6 +100,8 @@ class StatusLibraryImpl implements StatusLibrary {
         },
       ],
 
+      combatantPatch: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
+
       ui: {
         badgeColor: 'purple',
         icon: 'zap-off',
@@ -185,9 +187,104 @@ class StatusLibraryImpl implements StatusLibrary {
           description: '力量和敏捷豁免自动失败（预留）',
         },
       ],
+
+      combatantPatch: { isUnconscious: true, canGesticulate: false, canSpeak: false },
+
       ui: {
         badgeColor: 'gray',
         icon: 'moon',
+      },
+    });
+
+    // 预留：擒抱（Grappled）
+    this.register({
+      id: 'grappled',
+      name: '擒抱',
+      description: '速度变为 0，无法从擒抱中获益。',
+      shortDescription: '速度归零',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：由擒抱攻击或能力触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '手动声明：挣脱擒抱或擒抱者被控制时结束。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      combatantPatch: { canGesticulate: false },
+      ui: {
+        badgeColor: 'orange',
+        icon: 'grab',
+      },
+    });
+
+    // 预留：麻痹（Paralyzed）
+    this.register({
+      id: 'paralyzed',
+      name: '麻痹',
+      description: '无法行动，自动失败力量和敏捷豁免。攻击者对其有优势，5 尺内的攻击为致命一击。',
+      shortDescription: '无法行动、自动失败豁免',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：由法术或生物能力触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '手动声明：法术持续时间届满或解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      combatantPatch: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
+      ui: {
+        badgeColor: 'purple',
+        icon: 'disable',
+      },
+    });
+
+    // 预留：石化（Petrified）
+    this.register({
+      id: 'petrified',
+      name: '石化',
+      description: '变成无生命实体，无法移动或感知。攻击检定自动成功，其受到的伤害变为易伤。',
+      shortDescription: '化作石像、无法行动',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：由石化类效果触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '手动声明：解除石化效果后恢复。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      combatantPatch: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
+      ui: {
+        badgeColor: 'gray',
+        icon: 'stone',
+      },
+    });
+
+    // 预留：震慑（Stunned）
+    this.register({
+      id: 'stunned',
+      name: '震慑',
+      description: '无法行动，自动失败力量和敏捷豁免。攻击者对其有优势。',
+      shortDescription: '无法行动、自动失败豁免',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：由震慑类效果触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '手动声明：效果持续时间届满或豁免成功解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      combatantPatch: { isIncapacitated: true, canGesticulate: false },
+      ui: {
+        badgeColor: 'yellow',
+        icon: 'star',
       },
     });
   }

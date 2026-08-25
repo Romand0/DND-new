@@ -184,21 +184,10 @@ export function createStatusManager(): StatusManagerWithApply {
       const instance = this.declareStart(statusId, targetId, scope, combatId);
 
       // 当施加以下状态时，自动设置 canGesticulate = false
-      const SOMATIC_BLOCKING_STATES: Record<string, Partial<any>> = {
-        incapacitated: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
-        grappled:      { canGesticulate: false },
-        paralyzed:     { isIncapacitated: true, canGesticulate: false, canSpeak: false },
-        petrified:     { isIncapacitated: true, canGesticulate: false, canSpeak: false },
-        stunned:       { isIncapacitated: true, canGesticulate: false }, // 注意：stunned 不剥夺言语
-        unconscious:   { isUnconscious: true, canGesticulate: false, canSpeak: false },
-      };
+      const definition = statusLibrary.get(statusId);
 
-      // 若状态名在 SOMATIC_BLOCKING_STATES 中，记录联动更新信息到实例 metadata
-      if (statusId in SOMATIC_BLOCKING_STATES) {
-        instance.metadata = {
-          ...instance.metadata,
-          combatantPatch: SOMATIC_BLOCKING_STATES[statusId],
-        };
+      if (definition?.combatantPatch) {
+        instance.metadata = { ...instance.metadata, combatantPatch: definition.combatantPatch };
       }
 
       return instance;
