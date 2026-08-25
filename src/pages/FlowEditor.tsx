@@ -5,6 +5,7 @@ import { useFlowValidation } from './flow-editor/hooks/useFlowValidation';
 import { useAutoFix } from './flow-editor/hooks/useAutoFix';
 import { useDragEffects } from './flow-editor/hooks/useDragEffects';
 import { useNodeSizeMeasurement } from './flow-editor/hooks/useNodeSizeMeasurement';
+import { useFlowStatistics } from './flow-editor/hooks/useFlowStatistics';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -133,11 +134,12 @@ export default function FlowEditor() {
   // ===== 发布提示 toast =====
   const { toast, showToast } = useFlowEditorToast();
 
-  // ===== 法术绑定 Hook =====
+// ===== 法术绑定 Hook =====
   const spellBinding = useSpellBinding(flow, setFlow, showToast);
   
-
-
+  // ===== 流程统计 Hook =====
+  const statistics = useFlowStatistics(flow);
+   
   // ===== 画布缩放：触屏双指捏合 =====
   const pinchRef = useRef<{
     pointers: Map<number, { x: number; y: number }>;
@@ -1882,84 +1884,85 @@ export default function FlowEditor() {
                 </div>
                 
                 {/* 节点列表组件 */}
-                <NodeListPanel 
-                  flow={flow}
-                  onNodeSelect={(nodeId) => {
-                    setSelectedNodeId(nodeId);
-                    setSelectedEdgeId(null);
-                    // 可选：滚动到对应节点位置
-                    const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-                    if (nodeElement) {
-                      nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                  }}
-                  onNodeEdit={(nodeId) => {
-                    // 编辑节点：选中并显示右侧栏
-                    setSelectedNodeId(nodeId);
-                    setSelectedEdgeId(null);
-                    // 确保右侧栏显示
-                    setShowRightPanel(true);
-                    // 窄屏下可能需要滚动到右侧栏
-                    const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-                    if (nodeElement) {
-                      nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                  }}
-                  onNodeFocus={(nodeId) => {
-                    // 跳转到节点：移动画布视图使该节点处于画布窗口正中央
-                    const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-                    if (nodeElement && canvasRef.current) {
-                      const canvasRect = canvasRef.current.getBoundingClientRect();
-                      const nodeRect = nodeElement.getBoundingClientRect();
-                      
-                      // 获取节点的实际位置（考虑画布变换）
-                      const canvasTransform = canvasRef.current.querySelector('.relative');
-                      if (canvasTransform) {
-                        const transformStyle = window.getComputedStyle(canvasTransform);
-                        const transform = transformStyle.transform;
-                        
-                        // 解析 transform 矩阵获取缩放和平移信息
-                        let scaleX = 1, scaleY = 1, translateX = 0, translateY = 0;
-                        if (transform && transform !== 'none') {
-                          const matrix = new DOMMatrix(transform);
-                          scaleX = matrix.a;
-                          scaleY = matrix.d;
-                          translateX = matrix.e;
-                          translateY = matrix.f;
-                        }
-                        
-                        // 计算节点在画布中的实际坐标（考虑缩放和平移）
-                        const nodeCanvasX = nodeRect.left - canvasRect.left - translateX;
-                        const nodeCanvasY = nodeRect.top - canvasRect.top - translateY;
-                        
-                        // 计算滚动位置，使节点居中（考虑缩放后的节点大小）
-                        const scaledNodeWidth = nodeRect.width * scaleX;
-                        const scaledNodeHeight = nodeRect.height * scaleY;
-                        
-                        const scrollLeft = nodeCanvasX - canvasRect.width / 2 + scaledNodeWidth / 2;
-                        const scrollTop = nodeCanvasY - canvasRect.height / 2 + scaledNodeHeight / 2;
-                        
-                        // 确保滚动位置在有效范围内
-                        const maxScrollLeft = canvasRef.current.scrollWidth - canvasRect.width;
-                        const maxScrollTop = canvasRef.current.scrollHeight - canvasRect.height;
-                        
-                        canvasRef.current.scrollTo({
-                          left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
-                          top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
-                          behavior: 'smooth'
-                        });
-                      }
-                    }
-                    
-                    // 窄屏下收起右侧栏
-                    if (window.innerWidth < 1024) {
-                      setShowRightPanel(false);
-                    }
-                  }}
+                 <NodeListPanel 
+                   flow={flow}
+                   statistics={statistics}
+                   onNodeSelect={(nodeId) => {
+                     setSelectedNodeId(nodeId);
+                     setSelectedEdgeId(null);
+                     // 可选：滚动到对应节点位置
+                     const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                     if (nodeElement) {
+                       nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                     }
+                   }}
+                   onNodeEdit={(nodeId) => {
+                     // 编辑节点：选中并显示右侧栏
+                     setSelectedNodeId(nodeId);
+                     setSelectedEdgeId(null);
+                     // 确保右侧栏显示
+                     setShowRightPanel(true);
+                     // 窄屏下可能需要滚动到右侧栏
+                     const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                     if (nodeElement) {
+                       nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                     }
+                   }}
+                   onNodeFocus={(nodeId) => {
+                     // 跳转到节点：移动画布视图使该节点处于画布窗口正中央
+                     const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                     if (nodeElement && canvasRef.current) {
+                       const canvasRect = canvasRef.current.getBoundingClientRect();
+                       const nodeRect = nodeElement.getBoundingClientRect();
+                       
+                       // 获取节点的实际位置（考虑画布变换）
+                       const canvasTransform = canvasRef.current.querySelector('.relative');
+                       if (canvasTransform) {
+                         const transformStyle = window.getComputedStyle(canvasTransform);
+                         const transform = transformStyle.transform;
+                         
+                         // 解析 transform 矩阵获取缩放和平移信息
+                         let scaleX = 1, scaleY = 1, translateX = 0, translateY = 0;
+                         if (transform && transform !== 'none') {
+                           const matrix = new DOMMatrix(transform);
+                           scaleX = matrix.a;
+                           scaleY = matrix.d;
+                           translateX = matrix.e;
+                           translateY = matrix.f;
+                         }
+                         
+                         // 计算节点在画布中的实际坐标（考虑缩放和平移）
+                         const nodeCanvasX = nodeRect.left - canvasRect.left - translateX;
+                         const nodeCanvasY = nodeRect.top - canvasRect.top - translateY;
+                         
+                         // 计算滚动位置，使节点居中（考虑缩放后的节点大小）
+                         const scaledNodeWidth = nodeRect.width * scaleX;
+                         const scaledNodeHeight = nodeRect.height * scaleY;
+                         
+                         const scrollLeft = nodeCanvasX - canvasRect.width / 2 + scaledNodeWidth / 2;
+                         const scrollTop = nodeCanvasY - canvasRect.height / 2 + scaledNodeHeight / 2;
+                         
+                         // 确保滚动位置在有效范围内
+                         const maxScrollLeft = canvasRef.current.scrollWidth - canvasRect.width;
+                         const maxScrollTop = canvasRef.current.scrollHeight - canvasRect.height;
+                         
+                         canvasRef.current.scrollTo({
+                           left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
+                           top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
+                           behavior: 'smooth'
+                         });
+                       }
+                     }
+                     
+                     // 窄屏下收起右侧栏
+                     if (window.innerWidth < 1024) {
+                       setShowRightPanel(false);
+                     }
+                   }}
 onNodeDelete={(nodeId) => {
                      deleteNode(nodeId);
                    }}
-                />
+                 />
               </div>
             </div>
           )}
