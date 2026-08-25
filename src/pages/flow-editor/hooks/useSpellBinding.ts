@@ -20,6 +20,15 @@ export function useSpellBinding(
   const [boundSpell, setBoundSpell] = useState<Spell | null>(null);
   const [showSpellPicker, setShowSpellPicker] = useState(false);
 
+  return {
+    boundSpell,
+    setBoundSpell,
+    showSpellPicker,
+    setShowSpellPicker,
+    BindingService,
+    bindingStore,
+ };
+  
   // 绑定法术到流程
   const handleBindSpell = useCallback(async (spellId: string) => {
     if (!flow.id) return;
