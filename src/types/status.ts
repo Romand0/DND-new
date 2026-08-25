@@ -108,6 +108,9 @@ export interface StatusDefinition {
   // --- 核心：效果列表 ---
   effects: Effect[];
 
+  /** 施加该状态时，需要联动写入参战者的字段补丁 */
+  combatantPatch?: Record<string, any>;
+
   // --- 可选：叠加规则 ---
   stacking?: {
     rule: 'replace' | 'stack' | 'ignore';  // 同名状态叠加规则

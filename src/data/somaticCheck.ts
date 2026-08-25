@@ -1,11 +1,17 @@
-/** 会使双手均不可用、从而无法执行 S 成分的状态名 */
-export const SOMATIC_BLOCKING_CONDITIONS = new Set([
-  'grappled',     // 擒抱
-  'paralyzed',    // 麻痹
-  'petrified',    // 石化
-  'stunned',      // 震慑
-  'unconscious',  // 昏迷
-] as const);
+import statusLibrary from './statusLibrary';
+
+/** 哪些 condition 会阻断姿态成分 —— 从定义的 combatantPatch 自动推导 */
+function buildSomaticBlockingSet(): Set<string> {
+  const ids = new Set<string>();
+  for (const def of statusLibrary.list()) {
+    if (def.combatantPatch && def.combatantPatch.canGesticulate === false) {
+      ids.add(def.id);
+    }
+  }
+  return ids;
+}
+
+export const SOMATIC_BLOCKING_CONDITIONS = buildSomaticBlockingSet();
 
 export type SomaticBlockingCondition = typeof SOMATIC_BLOCKING_CONDITIONS extends Set<infer T> ? T : never;
 
