@@ -50,10 +50,7 @@ import SpellPicker from '@/components/SpellPicker';
 import SpellPickerField from '@/components/SpellPickerField';
 import { spellStore } from '@/data/spellStore';
 import { resolveAutoChecksFromSpell } from '@/types/flow';
-import { bindingStore } from '@/data/bindingStore';
-import type { Spell } from '@/types/spell';
-import { BindingService } from '@/services/bindingService';
-
+import { useSpellBinding } from './flow-editor/hooks/useSpellBinding';
 
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
@@ -107,8 +104,7 @@ export default function FlowEditor() {
   const [idDirty, setIdDirty] = useState(false);  // 草稿是否偏离正式值
   const [spellPickerOpen, setSpellPickerOpen] = useState(false);
   const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
-  const [showSpellPicker, setShowSpellPicker] = useState(false);
-  const [boundSpell, setBoundSpell] = useState<Spell | null>(null);
+  // 法术绑定状态已迁移至 useSpellBinding
   // flow.id 外部变更时同步草稿（如加载草稿、autosave 恢复）
   useEffect(() => {
     if (!idDirty) setDraftId(flow.id);
@@ -179,6 +175,9 @@ export default function FlowEditor() {
   // ===== 发布提示 toast =====
   const { toast, showToast } = useFlowEditorToast();
 
+  // ===== 法术绑定 Hook =====
+  const spellBinding = useSpellBinding(flow, setFlow, showToast);
+  
   // ===== 跨层拖拽状态 =====
   const [crossLayerDrag, setCrossLayerDrag] = useState<{
     phase: 'idle' | 'palette' | 'crossing' | 'canvas';
@@ -321,10 +320,10 @@ export default function FlowEditor() {
         if (draft.data.spellId) {
           const spell = spellStore.getById(draft.data.spellId);
           if (spell) {
-            setBoundSpell(spell);
+            spellBinding.setBoundSpell(spell);
           }
         } else {
-          setBoundSpell(null);
+          spellBinding.setBoundSpell(null);
         }
       } else {
         // 如果没有草稿，获取已发布版本
@@ -335,10 +334,10 @@ export default function FlowEditor() {
           if (published.spellId) {
             const spell = spellStore.getById(published.spellId);
             if (spell) {
-              setBoundSpell(spell);
+              spellBinding.setBoundSpell(spell);
             }
           } else {
-            setBoundSpell(null);
+            spellBinding.setBoundSpell(null);
           }
         }
       }
@@ -948,67 +947,18 @@ export default function FlowEditor() {
     });
   }, [flow, flowNameInput.value, flowId, navigate]);
 
-  // ===== 法术绑定/解绑方法 =====
-  const handleBindSpell = useCallback(async (spellId: string) => {
-    if (!flow.id) return;
+      // 法术绑定状态已迁移至 useSpellBinding Hook
+   const handleUnbindSpell = useCallback(async () => {
+     if (!flow.id || !flow.spellId) return;
 
-    try {
-      await BindingService.bindSpellToFlow(spellId, flow.id);
-      const spell = spellStore.getById(spellId);
-      if (spell) {
-        // 自动回填 autoChecks 配置
-        const { autoChecks, dsl, summary } = resolveAutoChecksFromSpell(spell);
-        
-        // 更新 flow 的 autoChecks 配置
-        setFlow(prev => {
-          const updatedFlow = { ...prev, spellId };
-          
-          // 查找 cast_start 节点并更新其 config
-          const castStartNode = updatedFlow.nodes.find(n => n.type === 'cast_start');
-          if (castStartNode && castStartNode.config) {
-            castStartNode.config = {
-              ...castStartNode.config,
-              autoChecks: {
-                ...castStartNode.config.autoChecks,
-                ...autoChecks,
-                componentsDetail: summary.components,
-                rangeDetail: summary.range,
-                timeDetail: summary.time,
-              },
-            };
-          }
-          
-          return updatedFlow;
-        });
-        
-        setBoundSpell(spell);
-        setShowSpellPicker(false);
-        
-        // 显示提示
-        showToast('success', `已绑定法术并自动配置：${spell.name}`);
-      }
-    } catch (error) {
-      console.error('法术绑定失败:', error);
-      showToast('error', '法术绑定失败');
-    }
-  }, [flow.id, showToast]);
-
-  const handleUnbindSpell = useCallback(async () => {
-    if (!flow.id || !flow.spellId) return;
-
-    try {
-      // 获取绑定ID
-      const bindings = bindingStore.getBySpellId(flow.spellId);
-      if (bindings.length > 0) {
-        await BindingService.unbindSpellFromFlow(bindings[0].id);
-        setBoundSpell(null);
-        setFlow(prev => ({ ...prev, spellId: undefined }));
-      }
-    } catch (error) {
-      console.error('法术解绑失败:', error);
-      showToast('error', '法术解绑失败');
-    }
-  }, [flow.id, flow.spellId, showToast]);
+     try {
+       // 使用 Hook 中的解绑方法
+       await spellBinding.handleUnbindSpell();
+     } catch (error) {
+       console.error('法术解绑失败:', error);
+       showToast('error', '法术解绑失败');
+     }
+   }, [flow.id, flow.spellId, showToast, spellBinding]);
 
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
@@ -2266,20 +2216,20 @@ export default function FlowEditor() {
                     if (spellId) {
                       const spell = spellStore.getById(spellId);
                       if (spell) {
-                        setBoundSpell(spell);
+                        spellBinding.setBoundSpell(spell);
                         setFlow(prev => ({ ...prev, spellId: spellId }));
                       }
                     } else {
-                      setBoundSpell(null);
+                      spellBinding.setBoundSpell(null);
                       setFlow(prev => ({ ...prev, spellId: undefined }));
                     }
                   }}
                   placeholder="选择要施放的法术"
                   isDark={isDark}
                 />
-                {boundSpell && (
+                {spellBinding.boundSpell && (
                   <div className="mt-2 text-xs text-gray-500">
-                    已选择：{boundSpell.name} (Lv.{boundSpell.level} {boundSpell.school})
+                    已选择：{spellBinding.boundSpellName} (Lv.{spellBinding.boundSpellLevel} {spellBinding.boundSpellSchool})
                   </div>
                 )}
               </div>
@@ -2496,12 +2446,12 @@ onNodeDelete={(nodeId) => {
       )}
 
       {/* ===== 法术绑定弹窗 ===== */}
-      {showSpellPicker && (
+      {spellBinding.showSpellPicker && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="rounded-xl p-6 max-w-2xl w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-2xl">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium dark:text-text-dark light:text-text-light">选择法术</h3>
-              <button onClick={() => setShowSpellPicker(false)} className="p-1 rounded hover:bg-white/10">
+              <button onClick={() => spellBinding.setShowSpellPicker(false)} className="p-1 rounded hover:bg-white/10">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -2510,7 +2460,7 @@ onNodeDelete={(nodeId) => {
                 <div
                   key={spell.id}
                   className="p-3 rounded-lg border dark:border-border-dark light:border-border-light hover:bg-primary/5 cursor-pointer transition-colors"
-                  onClick={() => handleBindSpell(spell.id)}
+                  onClick={() => spellBinding.handleBindSpell(spell.id)}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
