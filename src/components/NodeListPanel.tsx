@@ -1,142 +1,22 @@
 import { useState } from 'react';
-import { ChevronRight, Edit3, ExternalLink, Trash2, Zap, Shield, Target, MousePointer, GitBranch, Heart, CheckCircle } from 'lucide-react';
+import { ChevronRight, Edit3, ExternalLink, Trash2 } from 'lucide-react';
 import type { FlowDefinition, FlowNodeDef, FlowEdgeDef, NodeGroup, FlowNodeType } from '@/types/flow';
-import { NODE_TYPE_REGISTRY } from '@/types/flow';
+import { useFlowStatistics } from '@/pages/flow-editor/hooks/useFlowStatistics';
 
 interface NodeListPanelProps {
   flow: FlowDefinition;
+  statistics: ReturnType<typeof useFlowStatistics>;
   onNodeSelect?: (nodeId: string) => void;
   onNodeEdit?: (nodeId: string) => void;
   onNodeFocus?: (nodeId: string) => void;
   onNodeDelete?: (nodeId: string) => void;
 }
 
-// 从 NODE_TYPE_REGISTRY 获取节点颜色
-function getNodeColor(nodeType: FlowNodeType): string {
-  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
-  return nodeMeta?.color || '#6b7280'; // 默认灰色
-}
-
-// 从 NODE_TYPE_REGISTRY 获取节点图标
-function getNodeIcon(nodeType: FlowNodeType): React.ReactNode {
-  const iconMap: Record<string, React.ReactNode> = {
-    'cast_start': <Zap className="w-3 h-3" />,
-    'select_target': <MousePointer className="w-3 h-3" />,
-    'saving_throw': <Shield className="w-3 h-3" />,
-    'attack_roll': <Zap className="w-3 h-3" />,
-    'condition_branch': <GitBranch className="w-3 h-3" />,
-    'apply_effect': <Heart className="w-3 h-3" />,
-    'concentration_check': <Shield className="w-3 h-3" />,
-    'cast_end': <CheckCircle className="w-3 h-3" />,
-    'custom': <Zap className="w-3 h-3" />,
-  };
-  return iconMap[nodeType] || <Zap className="w-3 h-3" />;
-}
-
-// 从 NODE_TYPE_REGISTRY 获取节点类型名称
-function getNodeTypeName(nodeType: FlowNodeType): string {
-  const nodeMeta = NODE_TYPE_REGISTRY.find(meta => meta.type === nodeType);
-  return nodeMeta?.label || '未知类型';
-}
-
-// 从节点备注中提取组名
-function extractGroupName(node: FlowNodeDef): string {
-  if (!node.notes) {
-    return '流程组';
-  }
-  
-  // 匹配"组：XXX"格式
-  const match = node.notes.match(/组：(.+)/);
-  if (match) {
-    return match[1];
-  }
-  
-  return '流程组';
-}
-
-// 导出分组算法供组件使用
-export function groupNodesByConnectivity(flow: FlowDefinition): NodeGroup[] {
-  const groups: NodeGroup[] = [];
-  const visited = new Set<string>();
-  
-  // 先处理相连节点组
-  flow.nodes.forEach(node => {
-    if (!visited.has(node.id)) {
-      const group = findConnectedGroup(node, flow, visited);
-      // 关键修正：只有≥2个节点才算流程组
-      if (!group.isIsolated && group.nodes.length >= 2) {
-        groups.unshift(group); // 非孤立节点组插入到前面
-      }
-    }
-  });
-  
-  // 再处理孤立节点（包括单节点组）
-  const isolatedNodes = findIsolatedNodes(flow);
-  isolatedNodes.forEach(node => {
-    groups.push({ // 孤立节点追加到后面
-      id: `group-${node.id}`,
-      nodes: [node],
-      edges: [],
-      isIsolated: true
-    });
-  });
-  
-  return groups;
-}
-
-function findIsolatedNodes(flow: FlowDefinition): FlowNodeDef[] {
-  const connectedNodes = new Set<string>();
-  flow.edges.forEach(edge => {
-    connectedNodes.add(edge.from);
-    connectedNodes.add(edge.to);
-  });
-  return flow.nodes.filter(node => !connectedNodes.has(node.id));
-}
-
-function findConnectedGroup(
-  startNode: FlowNodeDef, 
-  flow: FlowDefinition, 
-  visited: Set<string>
-): NodeGroup {
-  const groupNodes: FlowNodeDef[] = [];
-  const groupEdges: FlowEdgeDef[] = [];
-  const stack = [startNode];
-  
-  while (stack.length > 0) {
-    const currentNode = stack.pop();
-    if (!currentNode || visited.has(currentNode.id)) continue;
-    
-    visited.add(currentNode.id);
-    groupNodes.push(currentNode);
-    
-    const relatedEdges = flow.edges.filter(edge => 
-      edge.from === currentNode.id || edge.to === currentNode.id
-    );
-    
-    relatedEdges.forEach(edge => {
-      groupEdges.push(edge);
-      
-      const adjacentNodeId = edge.from === currentNode.id ? edge.to : edge.from;
-      const adjacentNode = flow.nodes.find(n => n.id === adjacentNodeId);
-      if (adjacentNode && !visited.has(adjacentNodeId)) {
-        stack.push(adjacentNode);
-      }
-    });
-  }
-  
-  return {
-    id: `group-${startNode.id}`,
-    nodes: groupNodes,
-    edges: groupEdges,
-    isIsolated: false
-  };
-}
-
-export default function NodeListPanel({ flow, onNodeSelect, onNodeEdit, onNodeFocus, onNodeDelete }: NodeListPanelProps) {
+export default function NodeListPanel({ flow, statistics, onNodeSelect, onNodeEdit, onNodeFocus, onNodeDelete }: NodeListPanelProps) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState<string | null>(null);
   
-  const groups = groupNodesByConnectivity(flow);
+  const { groups, getNodeColor, getNodeTypeName, getNodeIcon, extractGroupName } = statistics;
   
   const toggleGroup = (groupId: string) => {
     setExpandedGroups(prev => {
