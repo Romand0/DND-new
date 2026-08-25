@@ -2097,14 +2097,9 @@ export default function FlowEditor() {
                   value={flow.spellId || ''}
                   onChange={(spellId) => {
                     if (spellId) {
-                      const spell = spellStore.getById(spellId);
-                      if (spell) {
-                        spellBinding.setBoundSpell(spell);
-                        setFlow(prev => ({ ...prev, spellId: spellId }));
-                      }
+                      spellBinding.handleBindSpell(spellId);
                     } else {
-                      spellBinding.setBoundSpell(null);
-                      setFlow(prev => ({ ...prev, spellId: undefined }));
+                      spellBinding.handleUnbindSpell();
                     }
                   }}
                   placeholder="选择要施放的法术"
