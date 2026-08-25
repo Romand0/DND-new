@@ -639,6 +639,7 @@ export default function FlowEditor() {
     canvasScale,
     canvasTranslate,
     addNode,
+    updateNodePositionByDelta,
   });
 
   // ===== 加载草稿 =====

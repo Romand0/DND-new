@@ -16,11 +16,13 @@ export function useDragEffects({
   canvasScale,
   canvasTranslate,
   addNode,
+  updateNodePositionByDelta,
 }: {
   flow: FlowDefinition;
   canvasScale: number;
   canvasTranslate: { x: number; y: number };
   addNode: (typeMeta: NodeTypeMeta, position: { x: number; y: number }) => void;
+  updateNodePositionByDelta: (nodeId: string, delta: { x: number; y: number }) => void;
 }) {
   // 状态管理
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
@@ -137,6 +139,12 @@ export function useDragEffects({
     
     // 画布内节点拖拽结束
     const nodeId = active.id as string;
+    if (!active.data.current?.fromPalette) {
+      // 调用位置更新函数
+      const scaledDelta = { x: delta.x / canvasScale, y: delta.y / canvasScale };
+      updateNodePositionByDelta(nodeId, scaledDelta);
+    }
+    
     setDraggingNodeId(null);
     setIsColliding(false);
     setCollisionDir(null);
@@ -145,7 +153,7 @@ export function useDragEffects({
     // 瞬移过渡动画
     setAnimateMove(true);
     window.setTimeout(() => setAnimateMove(false), 300);
-  }, [addNode, canvasScale, getProjectedPosition]);
+  }, [addNode, canvasScale, getProjectedPosition, updateNodePositionByDelta]);
 
   // 空间索引重建
   useEffect(() => {
