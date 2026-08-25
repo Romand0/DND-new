@@ -20,14 +20,6 @@ export function useSpellBinding(
   const [boundSpell, setBoundSpell] = useState<Spell | null>(null);
   const [showSpellPicker, setShowSpellPicker] = useState(false);
 
-  return {
-    boundSpell,
-    setBoundSpell,
-    showSpellPicker,
-    setShowSpellPicker,
-    BindingService,
-    bindingStore,
- };
   
   // 绑定法术到流程
   const handleBindSpell = useCallback(async (spellId: string) => {
@@ -103,13 +95,20 @@ export function useSpellBinding(
   }, [flow.spellId]);
 
   return {
+    // 文件
+    BindingService,
+    bindingStore,
+    
     // 状态
     boundSpell,
+    setBoundSpell,
     showSpellPicker,
+    setShowSpellPicker,
     
     // 操作方法
     handleBindSpell,
     handleUnbindSpell,
+    showSpellPicker,
     setShowSpellPicker,
     
     // 计算属性
