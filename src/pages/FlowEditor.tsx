@@ -2,6 +2,7 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useFlowEditorToast } from './flow-editor/useFlowEditorToast';
 import { useFlowValidation } from './flow-editor/hooks/useFlowValidation';
+import { useDragEffects } from './flow-editor/hooks/useDragEffects';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -110,14 +111,7 @@ export default function FlowEditor() {
   useEffect(() => {
     if (!idDirty) setDraftId(flow.id);
   }, [flow.id, idDirty]);
-  // 拖拽状态：实时碰撞检测
-  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
-  const [isColliding, setIsColliding] = useState(false);
-  const [collisionDir, setCollisionDir] = useState<'up' | 'down' | 'left' | 'right' | null>(null);
-  const [animateMove, setAnimateMove] = useState(false);
-  const spatialGridRef = useRef(new SpatialGrid());
-  const rafIdRef = useRef<number | null>(null);
-  const lastEventRef = useRef<DragEndEvent | null>(null);
+
   const [canvasScale, setCanvasScale] = useState(1);
   const [canvasTranslate, setCanvasTranslate] = useState({ x: 0, y: 0 });
 
@@ -179,12 +173,7 @@ export default function FlowEditor() {
   // ===== 法术绑定 Hook =====
   const spellBinding = useSpellBinding(flow, setFlow, showToast);
   
-  // ===== 跨层拖拽状态 =====
-  const [crossLayerDrag, setCrossLayerDrag] = useState<{
-    phase: 'idle' | 'palette' | 'crossing' | 'canvas';
-    meta: NodeTypeMeta | null;
-    fingerPos: { x: number; y: number } | null;
-  }>({ phase: 'idle', meta: null, fingerPos: null });
+
 
   // ===== 画布缩放：触屏双指捏合 =====
   const pinchRef = useRef<{
@@ -292,16 +281,7 @@ export default function FlowEditor() {
     return () => clearTimeout(timer);
   }, [flow, flowNameInput.text]);
 
-  // ===== 空间索引：节点列表变化时重建，供碰撞检测候选筛选 =====
-  useEffect(() => {
-    spatialGridRef.current.rebuild(flow.nodes);
-    setActiveSpatialGrid(spatialGridRef.current);
-  }, [flow.nodes]);
 
-  // ===== 拖拽降频：卸载时取消挂起的 rAF =====
-  useEffect(() => () => {
-    if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
-  }, []);
 
   // ===== 草稿列表：订阅 flowStore 变更，保持下拉框数据同步 =====
   useEffect(() => {
@@ -506,7 +486,7 @@ export default function FlowEditor() {
       config: { ...typeMeta.defaultConfig, ...schemaDefaults },
     };
     // 新节点防重叠放置（智能退避 + 空间索引）
-    const finalPos = findNonOverlappingPositionV2(newNode, flow.nodes, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
+    const finalPos = findNonOverlappingPositionV2(newNode, flow.nodes, NODE_W, NODE_H, dragEffects.spatialGridRef.current, canvasScale);
     newNode.position = finalPos;
     setFlow(prev => ({ ...prev, nodes: [...prev.nodes, newNode], updatedAt: Date.now() }));
     setSelectedNodeId(id);
@@ -555,7 +535,7 @@ export default function FlowEditor() {
       };
       const testNode = { ...target, position: proposed };
       const others = prev.nodes.filter(n => n.id !== nodeId);
-      const finalPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
+      const finalPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, dragEffects.spatialGridRef.current, canvasScale);
       return {
         ...prev,
         nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
@@ -609,214 +589,9 @@ export default function FlowEditor() {
     return map[trigger] || trigger;
   }
 
-  // ===== 实时碰撞检测：计算拖拽节点的投影位置与其他节点是否重叠 =====
-  const checkCollision = useCallback((nodeId: string, projectedX: number, projectedY: number): boolean => {
-    const target = flow.nodes.find(n => n.id === nodeId);
-    if (!target) return false;
-    const projected = { ...target, position: { x: projectedX, y: projectedY } };
-    return flow.nodes.some(other => other.id !== nodeId && nodesOverlap(projected, other, NODE_W));
-  }, [flow.nodes]);
 
-  // ===== 拖拽中实时位置投影 =====
-  const getProjectedPosition = useCallback((nodeId: string, delta: { x: number; y: number }) => {
-    const target = flow.nodes.find(n => n.id === nodeId);
-    if (!target) return { x: 0, y: 0 };
-    return {
-      x: Math.max(0, target.position.x + delta.x),
-      y: Math.max(0, target.position.y + delta.y),
-    };
-  }, [flow.nodes]);
 
-  // ===== 碰撞方向：计算被拖拽节点的推离方向（供方向提示箭头） =====
-  const getCollisionDir = useCallback((
-    nodeId: string,
-    projectedX: number,
-    projectedY: number,
-  ): 'up' | 'down' | 'left' | 'right' | null => {
-    const target = flow.nodes.find(n => n.id === nodeId);
-    if (!target) return null;
-    const projected = { ...target, position: { x: projectedX, y: projectedY } };
-    const other = flow.nodes.find(o => o.id !== nodeId && nodesOverlap(projected, o, NODE_W));
-    if (!other) return null;
-    const dx = projected.position.x - other.position.x;
-    const dy = projected.position.y - other.position.y;
-    if (Math.abs(dx) >= Math.abs(dy)) return dx >= 0 ? 'right' : 'left';
-    return dy >= 0 ? 'down' : 'up';
-  }, [flow.nodes]);
 
-  // ===== 事件：拖拽开始 =====
-  const handleDragStart = useCallback((event: DragEndEvent) => {
-    const nodeId = event.active?.id as string;
-    if (nodeId) setDraggingNodeId(nodeId);
-    setIsColliding(false);
-    
-    // ── 跨层拖拽：开始拖拽时设置 phase ──
-    if (event.active.data.current?.fromPalette) {
-      setCrossLayerDrag(prev => ({
-        ...prev,
-        phase: 'palette',
-        meta: event.active.data.current?.typeMeta as NodeTypeMeta || null,
-      }));
-    }
-  }, []);
-
-  // ===== 事件：拖拽移动（rAF 节流 + 实时碰撞检测，不再写入位置状态） =====
-  const handleDragMove = useCallback((event: DragEndEvent) => {
-    const { active } = event;
-    if (!active) return;
-    // ── 跨层拖拽：手指位置检测 ──
-    if (active.data.current?.fromPalette) {
-      const translatedRect = active.rect.current.translated;
-      if (translatedRect) {
-        const panelWidth = 320; // 左面板宽度 w-72 = 288px，加 padding
-        const fingerX = translatedRect.left + translatedRect.width / 2;
-        if (fingerX > panelWidth && crossLayerDrag.phase === 'palette') {
-          // 手指越过面板边界 → 进入 CROSSING 阶段
-          setCrossLayerDrag(prev => ({
-            ...prev,
-            phase: 'crossing',
-            fingerPos: { x: fingerX, y: translatedRect.top },
-          }));
-          // 收起左面板（带动画）
-          setShowLeftPanel(false);
-        }
-        if (crossLayerDrag.phase === 'crossing' || crossLayerDrag.phase === 'canvas') {
-          // 面板已收起，卡片全屏跟随
-          setCrossLayerDrag(prev => ({
-            ...prev,
-            phase: 'canvas',
-            fingerPos: { x: fingerX, y: translatedRect.top + translatedRect.height / 2 },
-          }));
-        }
-      }
-    }
-    // 拖拽降频：仅标记脏事件，实际碰撞检测在 rAF 回调中执行
-    lastEventRef.current = event;
-    if (rafIdRef.current !== null) return;
-    rafIdRef.current = requestAnimationFrame(() => {
-      rafIdRef.current = null;
-      const ev = lastEventRef.current;
-      lastEventRef.current = null;
-      if (!ev?.active) return;
-      const nodeId = ev.active.id as string;
-      const scaledDelta = { x: ev.delta.x / canvasScale, y: ev.delta.y / canvasScale };
-      // ★ 一次查找，复用 target 引用
-      const target = flow.nodes.find(n => n.id === nodeId);
-      if (!target) return;
-      const projected = {
-        x: Math.max(0, target.position.x + scaledDelta.x),
-        y: Math.max(0, target.position.y + scaledDelta.y),
-      };
-      // ★ 直接用 SpatialGrid 候选做碰撞，不再遍历全量 nodes
-      const candidates = spatialGridRef.current
-        .queryCandidates(projected.x, projected.y, NODE_W, NODE_H)
-        .filter(o => o.id !== nodeId);
-      const colliding = candidates.some(o =>
-        projected.x < o.position.x + NODE_W &&
-        projected.x + NODE_W > o.position.x &&
-        projected.y < o.position.y + NODE_H &&
-        projected.y + NODE_H > o.position.y
-      );
-      setIsColliding(colliding);
-      if (colliding) {
-        const other = candidates.find(o =>
-          projected.x < o.position.x + NODE_W &&
-          projected.x + NODE_W > o.position.x &&
-          projected.y < o.position.y + NODE_H &&
-          projected.y + NODE_H > o.position.y
-        );
-        if (other) {
-          const dx = projected.x - other.position.x;
-          const dy = projected.y - other.position.y;
-          setCollisionDir(Math.abs(dx) >= Math.abs(dy) ? (dx >= 0 ? 'right' : 'left') : (dy >= 0 ? 'down' : 'up'));
-        }
-      } else {
-        setCollisionDir(null);
-      }
-    });
-  }, [flow.nodes, canvasScale]);
-
-  // ===== 事件：拖拽结束 =====
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, delta } = event;
-    // ── 从左侧栏拖入画布（增强：跨层落位） ──
-    if (active.data.current?.fromPalette) {
-      const typeMeta = active.data.current.typeMeta as NodeTypeMeta;
-      const translatedRect = active.rect.current.translated;
-      if (translatedRect && canvasRef.current) {
-        const canvasRect = canvasRef.current.getBoundingClientRect();
-        const dropX = translatedRect.left + translatedRect.width / 2;
-        const dropY = translatedRect.top + translatedRect.height / 2;
-
-        if (
-          dropX >= canvasRect.left &&
-          dropX <= canvasRect.right &&
-          dropY >= canvasRect.top &&
-          dropY <= canvasRect.bottom
-        ) {
-          // ★ 精确落位：屏幕坐标 → 画布逻辑坐标（含缩放 + 平移 + 滚动）
-          const x = (dropX - canvasRect.left + canvasRef.current.scrollLeft - canvasTranslate.x)
-                    / canvasScale
-                    - CARD_NODE_W / 2;
-          const y = (dropY - canvasRect.top + canvasRef.current.scrollTop - canvasTranslate.y)
-                    / canvasScale
-                    - CARD_NODE_H / 2;
-          addNode(typeMeta, { x: Math.max(0, x), y: Math.max(0, y) });
-        } else {
-          // 松手在画布外 → 取消放置，恢复左面板
-          setShowLeftPanel(true);
-        }
-      } else {
-        // 兜底：放在画布中心
-        const canvas = canvasRef.current;
-        const cx = canvas ? (canvas.scrollLeft + canvas.clientWidth / 2) / canvasScale - NODE_W / 2 : 600;
-        const cy = canvas ? (canvas.scrollTop + canvas.clientHeight / 2) / canvasScale - 24 : 400;
-        addNode(typeMeta, { x: cx, y: cy });
-      }
-
-      // 重置跨层状态
-      setCrossLayerDrag({ phase: 'idle', meta: null, fingerPos: null });
-      return;
-    }
-
-    // ── 画布内节点拖拽结束：用全量 delta 一次性写入最终位置 + 智能退避 + 磁吸对齐 ──
-    const nodeId = active.id as string;
-    setDraggingNodeId(null);
-    setIsColliding(false);
-    setCollisionDir(null);
-    const scaledDelta = { x: delta.x / canvasScale, y: delta.y / canvasScale };
-    setFlow(prev => {
-      const target = prev.nodes.find(n => n.id === nodeId);
-      if (!target) return prev;
-      const proposed = {
-        x: Math.max(0, target.position.x + scaledDelta.x),
-        y: Math.max(0, target.position.y + scaledDelta.y),
-      };
-      // ① 先磁吸（用户心理预期是"放到网格上"）
-      const snap = 20;
-      const snapped = {
-        x: Math.round(proposed.x / snap) * snap,
-        y: Math.round(proposed.y / snap) * snap,
-      };
-      // ② 再退避（从磁吸位置出发，退避步长也对齐网格）
-      const testNode = { ...target, position: snapped };
-      const others = prev.nodes.filter(n => n.id !== nodeId);
-      const resolvedPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, spatialGridRef.current, canvasScale);
-      // ③ 退避结果再次磁吸，确保最终落位在网格上
-      const finalPos = {
-        x: Math.round(resolvedPos.x / snap) * snap,
-        y: Math.round(resolvedPos.y / snap) * snap,
-      };
-      return {
-        ...prev,
-        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
-        updatedAt: Date.now(),
-      };
-    });
-    // 瞬移过渡：拖拽结束后短暂开启 transform 过渡，300ms 后移除
-    setAnimateMove(true);
-    window.setTimeout(() => setAnimateMove(false), 300);
-  }, [addNode, canvasScale, canvasTranslate]);
 
   // ===== 画布空白处点击取消选中 =====
   const handleCanvasClick = useCallback(() => {
@@ -853,6 +628,14 @@ export default function FlowEditor() {
 
   // ===== 验证逻辑（已迁移至 useFlowValidation Hook） =====
   const validation = useFlowValidation(flow);
+
+  // ===== 拖拽效果（已迁移至 useDragEffects Hook） =====
+  const dragEffects = useDragEffects({
+    flow,
+    canvasScale,
+    canvasTranslate,
+    addNode,
+  });
 
   // ===== 加载草稿 =====
   const loadDraft = useCallback((draft: FlowDefinition) => {
@@ -1107,9 +890,9 @@ export default function FlowEditor() {
       {/* ===== 内容区域（左面板 + 画布 + 右面板） ===== */}
       <DndContext
         sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragMove={handleDragMove}
-        onDragEnd={handleDragEnd}
+        onDragStart={dragEffects.handleDragStart}
+        onDragMove={dragEffects.handleDragMove}
+        onDragEnd={dragEffects.handleDragEnd}
       >
         <div className="flex-1 flex overflow-hidden relative">
           {/* ===== 左侧节点面板 ===== */}
@@ -1205,10 +988,10 @@ export default function FlowEditor() {
                   node={node}
                   isSelected={selectedNodeId === node.id}
                   isConnectSource={connectFromId === node.id}
-                  isDragging={draggingNodeId === node.id}
-                  isColliding={draggingNodeId === node.id && isColliding}
-                  collisionDir={draggingNodeId === node.id ? collisionDir : null}
-                  animateMove={animateMove}
+                  isDragging={dragEffects.draggingNodeId === node.id}
+                  isColliding={dragEffects.draggingNodeId === node.id && dragEffects.isColliding}
+                  collisionDir={dragEffects.draggingNodeId === node.id ? dragEffects.collisionDir : null}
+                  animateMove={dragEffects.animateMove}
                   canvasScale={canvasScale}          // ★ 新增
                   onClick={() => handleNodeClick(node.id)}
                   onStartConnecting={() => startConnecting(node.id)}
@@ -2224,20 +2007,20 @@ onNodeDelete={(nodeId) => {
       )}
         </div>
         <DragOverlay dropAnimation={null}>
-          {crossLayerDrag.meta && crossLayerDrag.fingerPos && (
+          {dragEffects.crossLayerDrag.meta && dragEffects.crossLayerDrag.fingerPos && (
             <div
               className="pointer-events-none fixed z-50"
               style={{
-                left: crossLayerDrag.fingerPos.x - CARD_NODE_W / 2,
-                top: crossLayerDrag.fingerPos.y - CARD_NODE_H / 2,
+                left: dragEffects.crossLayerDrag.fingerPos.x - CARD_NODE_W / 2,
+                top: dragEffects.crossLayerDrag.fingerPos.y - CARD_NODE_H / 2,
                 width: CARD_NODE_W,
                 height: CARD_NODE_H,
                 transform: 'scale(1.05)',
-                opacity: crossLayerDrag.phase === 'crossing' ? 0.7 : 0.9,
+                opacity: dragEffects.crossLayerDrag.phase === 'crossing' ? 0.7 : 0.9,
                 transition: 'opacity 150ms ease',
               }}
             >
-              <NodeCardGhost meta={crossLayerDrag.meta} />
+              <NodeCardGhost meta={dragEffects.crossLayerDrag.meta} />
             </div>
           )}
         </DragOverlay>
