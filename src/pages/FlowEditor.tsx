@@ -1,5 +1,6 @@
 // D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useFlowEditorToast } from './flow-editor/useFlowEditorToast';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -176,13 +177,7 @@ export default function FlowEditor() {
   }, [flow.nodes, canvasScale]);
 
   // ===== 发布提示 toast =====
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
-  const toastTimerRef = useRef<number | null>(null);
-  const showToast = useCallback((type: 'success' | 'error', msg: string) => {
-    setToast({ type, msg });
-    if (toastTimerRef.current !== null) window.clearTimeout(toastTimerRef.current);
-    toastTimerRef.current = window.setTimeout(() => setToast(null), 3000);
-  }, []);
+  const { toast, showToast } = useFlowEditorToast();
 
   // ===== 跨层拖拽状态 =====
   const [crossLayerDrag, setCrossLayerDrag] = useState<{
@@ -2537,13 +2532,7 @@ onNodeDelete={(nodeId) => {
         </div>
       )}
 
-      {/* ===== 发布提示 toast ===== */}
-      {toast && (
-        <div className={`fixed top-16 right-4 z-[70] px-4 py-2 rounded-lg text-sm font-medium shadow-lg flex items-center gap-2 ${toast.type === 'success' ? 'bg-green-500/90 text-white' : 'bg-red-500/90 text-white'}`}>
-          {toast.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
-          {toast.msg}
-        </div>
-      )}
+
     </div>
   );
 }
