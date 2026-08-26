@@ -6,6 +6,7 @@ import { useAutoFix } from './flow-editor/hooks/useAutoFix';
 import { useDragEffects } from './flow-editor/hooks/useDragEffects';
 import { useNodeSizeMeasurement } from './flow-editor/hooks/useNodeSizeMeasurement';
 import { useFlowStatistics } from './flow-editor/hooks/useFlowStatistics';
+import { FlowEditorToolbar } from '../components/flow-editor/FlowEditorToolbar';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -764,55 +765,17 @@ export default function FlowEditor() {
           transition: transform 300ms cubic-bezier(0.2, 0, 0, 1);  /* ease-out 曲线，结束不突兀 */
         }
       `}</style>
-      {/* ===== 顶部工具栏 ===== */}
-      <div className="flex items-center justify-between h-12 border-b dark:border-border-dark light:border-border-light flex-shrink-0 dark:bg-bg-dark-2 light:bg-white">
-        <div className="flex items-center gap-2 px-4">
-          <button onClick={() => setExitModalOpen(true)} className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors dark:text-text-dark light:text-text-light hover:bg-white/5">
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">退出</span>
-          </button>
-          <div className="h-5 w-px dark:bg-border-dark light:bg-border-light" />
-          <input type="text" value={flowNameInput.text} onChange={(e) => flowNameInput.onChange(e.target.value)} onBlur={flowNameInput.onBlur} className="text-sm font-medium bg-transparent border-none outline-none dark:text-text-dark light:text-text-light w-28 sm:w-48" placeholder="流程名称" />
-        </div>
-        <div className="flex items-center gap-2 px-4">
-          <button 
-            onClick={handlePublish}
-            disabled={validation.validationStatus === 'invalid'}
-            className={`
-              flex items-center gap-1 px-3 py-1.5 h-10 rounded-lg text-xs font-medium border transition-colors min-w-[80px]
-              ${validation.validationStatus === 'valid'
-                ? 'border-green-500 text-green-500 hover:border-green-400 hover:text-green-400 hover:bg-green-500/10'
-                : 'border-gray-400 text-gray-400 cursor-not-allowed'
-              }
-            `}
-          >
-            <CloudUpload className="w-3.5 h-3.5" />
-            <span className="truncate">{flow.status === 'published' ? '更新' : '发布'}</span>
-          </button>
-          <button
-            onClick={saveDraft}
-            disabled={saveStatus === 'saving'}
-            className={`
-              flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
-              transition-all duration-300
-              ${saveStatus === 'saved'
-                ? 'bg-emerald-500 text-white scale-95'
-                : saveStatus === 'saving'
-                ? 'bg-primary/60 text-white/70 cursor-wait'
-                : validation.validationStatus === 'valid'
-                ? 'bg-primary text-white hover:bg-primary/90 active:scale-95'
-                : 'bg-orange-500 text-white hover:bg-orange-90 active:scale-95'
-              }
-            `}
-          >
-            {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {saveStatus === 'saved' && <CheckCircle className="w-3.5 h-3.5" />}
-            {saveStatus === 'idle' && (
-              validation.validationStatus === 'valid' ? <Save className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />
-            )}
-          </button>
-        </div>
-      </div>
+      <FlowEditorToolbar
+  flowName={flow.name}
+  flowStatus={flow.status}
+  saveStatus={saveStatus}
+  validationStatus={validation.validationStatus}
+  onExit={() => setExitModalOpen(true)}
+  onPublish={handlePublish}
+  onSaveDraft={saveDraft}
+  onFlowNameChange={(value) => flowNameInput.onChange(value)}
+  onFlowNameBlur={flowNameInput.onBlur}
+/>
 
       {/* ===== 功能栏 ===== */}
       <div className="flex items-center gap-1 px-2 py-1.5 border-b dark:border-border-dark light:border-border-light flex-shrink-0 overflow-x-auto">
