@@ -7,6 +7,7 @@ import { useDragEffects } from './flow-editor/hooks/useDragEffects';
 import { useNodeSizeMeasurement } from './flow-editor/hooks/useNodeSizeMeasurement';
 import { useFlowStatistics } from './flow-editor/hooks/useFlowStatistics';
 import { FlowEditorToolbar } from '../components/flow-editor/FlowEditorToolbar';
+import { FlowEditorFunctionBar } from '../components/flow-editor/FlowEditorFunctionBar';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -777,39 +778,23 @@ export default function FlowEditor() {
   onFlowNameBlur={flowNameInput.onBlur}
 />
 
-      {/* ===== 功能栏 ===== */}
-      <div className="flex items-center gap-1 px-2 py-1.5 border-b dark:border-border-dark light:border-border-light flex-shrink-0 overflow-x-auto">
-        <button onClick={() => setShowLeftPanel(!showLeftPanel)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors ${showLeftPanel ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 dark:text-text-dark light:text-text-light'}`}>
-          <PanelLeft className="w-3.5 h-3.5" /><span className="hidden sm:inline">节点库</span>
-        </button>
-        <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1" />
-        <button onClick={validation.runValidation} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
-          <AlertCircle className="w-3.5 h-3.5" /><span className="hidden sm:inline">验证</span>
-        </button>
-        <button onClick={() => setShowDrafts(!showDrafts)} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
-          <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showDrafts ? 'rotate-90' : ''}`} /><span className="hidden sm:inline">草稿</span><span className="sm:hidden">({drafts.length})</span>
-        </button>
-        <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1" />
-        <div className="flex-1" />
-        <div className="flex items-center gap-1 mr-2">
-          <button onClick={() => setCanvasScale(p => Math.max(SCALE_MIN, Math.round((p - SCALE_STEP) * 100) / 100))}
-            className="px-2 py-1 rounded-md text-xs dark:text-text-dark light:text-text-light hover:bg-white/5" title="缩小">−</button>
-          <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted w-10 text-center tabular-nums">
-            {Math.round(canvasScale * 100)}%
-          </span>
-          <button onClick={() => setCanvasScale(p => Math.min(SCALE_MAX, Math.round((p + SCALE_STEP) * 100) / 100))}
-            className="px-2 py-1 rounded-md text-xs dark:text-text-dark light:text-text-light hover:bg-white/5" title="放大">+</button>
-          <button onClick={() => { setCanvasScale(1); setCanvasTranslate({ x: 0, y: 0 }); }}
-            className="px-2 py-1 rounded-md text-[10px] dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/5 hidden sm:inline-block" title="重置缩放">1:1</button>
-        </div>
-        <button onClick={clearCanvas} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors text-red-400 hover:bg-red-400/10">
-          <RotateCcw className="w-3.5 h-3.5" /><span className="hidden sm:inline">清空</span>
-        </button>
-        <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1 hidden sm:block" />
-        <button onClick={() => setShowRightPanel(!showRightPanel)} className={`flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors ${showRightPanel ? 'bg-primary/10 text-primary' : 'hover:bg-white/5 dark:text-text-dark light:text-text-light'}`}>
-          <PanelRight className="w-3.5 h-3.5" /><span className="hidden sm:inline">属性</span>
-        </button>
-      </div>
+      <FlowEditorFunctionBar
+  showLeftPanel={showLeftPanel}
+  onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
+  validation={validation}
+  showDrafts={showDrafts}
+  onToggleDrafts={() => setShowDrafts(!showDrafts)}
+  drafts={drafts}
+  canvasScale={canvasScale}
+  onScaleChange={setCanvasScale}
+  onResetZoom={() => { setCanvasScale(1); setCanvasTranslate({ x: 0, y: 0 }); }}
+  onClearCanvas={clearCanvas}
+  showRightPanel={showRightPanel}
+  onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+  scaleMin={SCALE_MIN}
+  scaleMax={SCALE_MAX}
+  scaleStep={SCALE_STEP}
+/>
 
       {/* ===== 连接模式提示 ===== */}
       {isConnecting && (
