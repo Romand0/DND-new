@@ -8,6 +8,7 @@ import { useNodeSizeMeasurement } from './flow-editor/hooks/useNodeSizeMeasureme
 import { useFlowStatistics } from './flow-editor/hooks/useFlowStatistics';
 import { FlowEditorToolbar } from '../components/flow-editor/FlowEditorToolbar';
 import { FlowEditorFunctionBar } from '../components/flow-editor/FlowEditorFunctionBar';
+import { FlowNodePalette } from '../components/flow-editor/FlowNodePalette';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -812,59 +813,20 @@ export default function FlowEditor() {
         onDragEnd={dragEffects.handleDragEnd}
       >
         <div className="flex-1 flex overflow-hidden relative">
-          {/* ===== 左侧节点面板 ===== */}
-          {/* 宽屏：固定 64 宽图标条 + 256 宽内容区；窄屏：全宽滑出抽屉 */}
-          <div
-            className={`${
-              showLeftPanel ? 'translate-x-0' : '-translate-x-full'
-            } lg:translate-x-0 absolute lg:relative z-30 w-72 lg:w-80 h-full flex-shrink-0 border-r dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-gray-50 overflow-y-auto overflow-x-hidden transition-transform duration-200 ease-out node-card-container`}
-          >
-            <div className="p-4">
-          <div className="flex items-center justify-between mb-4 lg:hidden">
-            <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light">环节库</h2>
-            <button
-              onClick={() => setShowLeftPanel(false)}
-              className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-          <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4 hidden lg:block text-left lg:text-center">环节库</h2>
-          <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-6 text-left lg:text-center">
-            拖拽节点卡片添加到画布
-          </p>
-          
-          {/* 触屏滚动提示 */}
-          <div className="lg:hidden mb-4 text-center">
-            <p className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-              ← 左右滑动查看更多节点类型
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            {Object.entries(nodeGroups).map(([category, metas]) => (
-              <div key={category}>
-                <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-4 text-left lg:text-center">
-                  {category}
-                </h3>
-                <div className="flex flex-wrap gap-2 lg:gap-3">
-                  {metas.map(meta => (
-                    <PaletteDragItem key={meta.type} meta={meta} />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* 左侧遮罩（窄屏抽屉打开时） */}
-      {showLeftPanel && (
-        <div
-          className="lg:hidden absolute inset-0 z-20 bg-black/30"
-          onClick={() => setShowLeftPanel(false)}
+          <FlowNodePalette
+          showLeftPanel={showLeftPanel}
+          onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
+          nodeGroups={nodeGroups}
+          isDark={false}
         />
-      )}
+
+        {/* 左侧遮罩（窄屏抽屉打开时） */}
+        {showLeftPanel && (
+          <div
+            className="lg:hidden absolute inset-0 z-20 bg-black/30"
+            onClick={() => setShowLeftPanel(false)}
+          />
+        )}
 
       {/* ===== 中央：画布区域 ===== */}
       <div className="flex-1 relative overflow-hidden min-w-0">
