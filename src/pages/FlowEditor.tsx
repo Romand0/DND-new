@@ -8,7 +8,7 @@ import { useNodeSizeMeasurement } from './flow-editor/hooks/useNodeSizeMeasureme
 import { useFlowStatistics } from './flow-editor/hooks/useFlowStatistics';
 import { FlowEditorToolbar } from '../components/flow-editor/FlowEditorToolbar';
 import { FlowEditorFunctionBar } from '../components/flow-editor/FlowEditorFunctionBar';
-import { FlowNodePalette } from '../components/flow-editor/FlowNodePalette';
+import { FlowNodePalette } from './flow-editor/components/FlowNodePalette';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
