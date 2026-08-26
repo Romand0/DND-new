@@ -319,8 +319,8 @@ useLayoutEffect(() => {
 - ✅ `NodeListPanel` - 已提取到独立文件（新增组件）
 - ✅ `FlowEditorToolbar` - 已提取到独立文件（L767-815）
 - ✅ `FlowEditorFunctionBar` - 已提取到独立文件（L780-812）
-- ✅ `FlowNodePalette` - 已提取到独立文件（L817-859）
-- ✅ **新增**: 阶段 3 完成度 100%（7/7），剩余 2 个组件待提取
+- ✅ `FlowNodePalette` - 已提取到独立文件（L817-859）**[已修正位置]**
+- ✅ **新增**: 阶段 3 完成度 77.8%（7/9），剩余 2 个组件待提取
 
 **新增组件优先级**：
 1. **高优先级**: `NodeListPanel`（核心功能，已在代码中实现）
