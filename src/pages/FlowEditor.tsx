@@ -968,21 +968,6 @@ export default function FlowEditor() {
           )}
         </div>
 
-        <FlowPropertiesHeader
-          flow={flow}
-          draftId={draftId}
-          idDirty={idDirty}
-          idErrors={idErrors}
-          spellPickerOpen={spellPickerOpen}
-          setDraftId={setDraftId}
-          setIdDirty={setIdDirty}
-          setIdErrors={setIdErrors}
-          setSpellPickerOpen={setSpellPickerOpen}
-          setShowRightPanel={setShowRightPanel}
-          setFlow={setFlow}
-          validation={validation}
-        />
-
           {/* 节点属性 */}
           {selectedNode ? (
             <div>
@@ -1401,6 +1386,20 @@ export default function FlowEditor() {
             </div>
           ) : (
             <div>
+              <FlowPropertiesHeader
+                flow={flow}
+                draftId={draftId}
+                idDirty={idDirty}
+                idErrors={idErrors}
+                spellPickerOpen={spellPickerOpen}
+                setDraftId={setDraftId}
+                setIdDirty={setIdDirty}
+                setIdErrors={setIdErrors}
+                setSpellPickerOpen={setSpellPickerOpen}
+                setShowRightPanel={setShowRightPanel}
+                setFlow={setFlow}
+                validation={validation}
+              />
               {/* ===== 流程类别 ===== */}
               <div className="mb-4">
                 <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1.5">
