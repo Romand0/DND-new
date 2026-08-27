@@ -323,6 +323,56 @@ useLayoutEffect(() => {
 - ✅ `FlowCanvasArea` - 已提取到独立文件（L850-1035）
 - ✅ **新增**: 阶段 3 完成度 88.9%（8/9），剩余 1 个组件待提取
 
+### 📋 FlowPropertyPanel 精细拆分规划
+
+**发现**: FlowPropertyPanel 约 800 行，直接拆分为单个文件仍过大，建议按功能区域精细拆分：
+
+#### 🔥 **主要功能区域分析**：
+1. **流程属性**（无选中项时）：
+   - 流程ID/重命名管理
+   - 流程描述和标签
+   - 流程类别选择
+   - 法术绑定
+   - 流程统计（含NodeListPanel）
+
+2. **节点属性**（选中节点时）：
+   - 节点基本信息（ID、名称、图标）
+   - Schema驱动的配置项
+   - 自定义字段管理
+   - 备注编辑
+   - 出边/入边连接管理
+
+3. **边属性**（选中边时）：
+   - 边ID和触发时机
+   - 标签编辑
+   - 守卫条件
+   - 数据映射
+   - 删除功能
+
+#### 🎯 **建议的精细拆分策略**：
+
+```
+FlowPropertyPanel/
+├── FlowPropertiesHeader.tsx      # 流程头部（ID、重命名、描述、标签）
+├── FlowPropertiesCategories.tsx  # 流程类别选择
+├── FlowPropertiesSpellBinding.tsx # 法术绑定
+├── FlowPropertiesStatistics.tsx   # 流程统计
+├── NodePropertiesPanel.tsx       # 节点属性面板
+└── EdgePropertiesPanel.tsx       # 边属性面板
+```
+
+#### 💡 **拆分优势**：
+- **组件规模**：每个组件约 100-200 行，易于维护
+- **功能聚焦**：每个组件职责单一，便于理解和修改
+- **复用性**：小组件可以在其他地方复用
+- **渐进式**：可以逐个提取，降低风险
+
+#### 🚀 **建议的执行顺序**：
+1. 先提取 **FlowPropertiesHeader**（约150行）
+2. 再提取 **NodePropertiesPanel**（约200行）
+3. 最后提取 **EdgePropertiesPanel**（约150行）
+4. 其他小组件可以后续再提取
+
 **新增组件优先级**：
 1. **高优先级**: `NodeListPanel`（核心功能，已在代码中实现）
 2. **中优先级**: `FlowStatisticsPanel`（展示功能，相对简单）
@@ -755,3 +805,59 @@ transition: dndDragging ? 'none' : (animateMove ? 'transform 200ms ease-out' : u
 - **开发效率**: 模块化设计便于后续开发和维护
 - **技术债务**: 清理了架构问题，为未来发展奠定基础
 - **团队成长**: 通过重构提升了团队的技术能力
+
+## 📋 FlowPropertyPanel 精细拆分规划
+
+**发现**: FlowPropertyPanel 约 800 行，直接拆分为单个文件仍过大，建议按功能区域精细拆分：
+
+### 🔥 **主要功能区域分析**：
+1. **流程属性**（无选中项时）：
+   - 流程ID/重命名管理
+   - 流程描述和标签
+   - 流程类别选择
+   - 法术绑定
+   - 流程统计（含NodeListPanel）
+
+2. **节点属性**（选中节点时）：
+   - 节点基本信息（ID、名称、图标）
+   - Schema驱动的配置项
+   - 自定义字段管理
+   - 备注编辑
+   - 出边/入边连接管理
+
+3. **边属性**（选中边时）：
+   - 边ID和触发时机
+   - 标签编辑
+   - 守卫条件
+   - 数据映射
+   - 删除功能
+
+### 🎯 **建议的精细拆分策略**：
+
+```
+FlowPropertyPanel/
+├── FlowPropertiesHeader.tsx      # 流程头部（ID、重命名、描述、标签）
+├── FlowPropertiesCategories.tsx  # 流程类别选择
+├── FlowPropertiesSpellBinding.tsx # 法术绑定
+├── FlowPropertiesStatistics.tsx   # 流程统计
+├── NodePropertiesPanel.tsx       # 节点属性面板
+└── EdgePropertiesPanel.tsx       # 边属性面板
+```
+
+### 💡 **拆分优势**：
+- **组件规模**：每个组件约 100-200 行，易于维护
+- **功能聚焦**：每个组件职责单一，便于理解和修改
+- **复用性**：小组件可以在其他地方复用
+- **渐进式**：可以逐个提取，降低风险
+
+### 🚀 **建议的执行顺序**：
+1. 先提取 **FlowPropertiesHeader**（约150行）
+2. 再提取 **NodePropertiesPanel**（约200行）
+3. 最后提取 **EdgePropertiesPanel**（约150行）
+4. 其他小组件可以后续再提取
+
+### 📊 **精细拆分后预期效果**：
+- FlowEditor.tsx 预计减少 800 行（从 1891 行 → 1091 行）
+- 每个小组件 100-200 行，易于维护
+- 阶段 3 完成度达到 100%（14/14 组件）
+- 整体项目完成度达到 96%（24/25 任务）
