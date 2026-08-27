@@ -979,40 +979,9 @@ export default function FlowEditor() {
           setIdErrors={setIdErrors}
           setSpellPickerOpen={setSpellPickerOpen}
           setShowRightPanel={setShowRightPanel}
+          setFlow={setFlow}
           validation={validation}
         />
-              {/* 流程描述 */}
-              <div className="mb-3">
-                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                  描述
-                </label>
-                <textarea
-                  value={flow.description || ''}
-                  onChange={e => setFlow(prev => ({ ...prev, description: e.target.value, updatedAt: Date.now() }))}
-                  rows={3}
-                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-y"
-                />
-              </div>
-
-              {/* 标签 */}
-              <div className="mb-3">
-                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
-                  标签
-                </label>
-                <input
-                  type="text"
-                  value={(flow.tags || []).join(', ')}
-                  onChange={e => setFlow(prev => ({
-                    ...prev,
-                    tags: e.target.value.split(/,\s*/).filter(Boolean),
-                    updatedAt: Date.now(),
-                  }))}
-                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
-                  placeholder="逗号分隔，如 法术, 火焰"
-                />
-              </div>
-            </div>
-          )}
 
           {/* 节点属性 */}
           {selectedNode ? (
