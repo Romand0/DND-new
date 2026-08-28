@@ -9,6 +9,7 @@ import { useFlowStatistics } from './flow-editor/hooks/useFlowStatistics';
 import { FlowEditorToolbar } from '../components/flow-editor/FlowEditorToolbar';
 import { FlowEditorFunctionBar } from '../components/flow-editor/FlowEditorFunctionBar';
 import { FlowPropertiesHeader } from './flow-editor/components/FlowPropertiesHeader';
+import FlowPropertiesCategories from './flow-editor/components/FlowPropertiesCategories';
 import { FlowNodePalette } from './flow-editor/components/FlowNodePalette';
 import { FlowCanvasArea } from './flow-editor/components/FlowCanvasArea';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -42,11 +43,7 @@ import type {
 } from '@/types/flow';
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow } from '@/types/flow';
 import { NODE_CONFIG_SCHEMA, FlowNodeType } from '@/types/flow';
-import {
-  FLOW_CATEGORIES,
-  parseFlowId,
-  buildFlowId,
-} from '@/types/flow';
+// FLOW_CATEGORIES, parseFlowId, buildFlowId 已移至 FlowPropertiesCategories 组件
 import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from './flow-editor/constants';
 import { validateFlowWithDetails, validateForPublish, type ValidationError, getAutoFixSuggestions } from './flow-editor/validation';
 import { resolveNodeIcon } from './flow-editor/nodeIcon';
@@ -1400,44 +1397,10 @@ export default function FlowEditor() {
                 setFlow={setFlow}
                 validation={validation}
               />
-              {/* ===== 流程类别 ===== */}
-              <div className="mb-4">
-                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1.5">
-                  流程类别
-                </label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {FLOW_CATEGORIES.map(cat => {
-                    const { category: currentCat } = parseFlowId(flow.id);
-                    const isActive = currentCat === cat.value;
-                    return (
-                      <button
-                        key={cat.value}
-                        onClick={() => {
-                          const { slug } = parseFlowId(flow.id);
-                          const newId = buildFlowId(cat.value, slug);
-                          if (newId !== flow.id && flowId) {
-                            const result = flowStore.retargetId(flowId, newId);
-                            if (result) {
-                              setFlow(result);
-                              navigate(`/flow-editor/${newId}`, { replace: true });
-                            } else {
-                              alert('ID 冲突，该类别+标识符已被占用');
-                            }
-                          }
-                        }}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors
-                          ${isActive
-                            ? 'bg-primary text-white'
-                            : 'border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:border-primary/40'
-                          }`}
-                        title={cat.desc}
-                      >
-                        {cat.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+              <FlowPropertiesCategories
+                currentFlowId={flow.id}
+                onCategoryChange={(newId) => setFlow(flowStore.getById(newId) || createEmptyFlow())}
+              />
 
               {/* ===== 法术绑定 ===== */}
               <div className="mb-4">
