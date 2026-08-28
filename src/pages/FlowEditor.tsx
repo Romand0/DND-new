@@ -12,6 +12,7 @@ import { FlowPropertiesHeader } from './flow-editor/components/FlowPropertiesHea
 import FlowPropertiesCategories from './flow-editor/components/FlowPropertiesCategories';
 import FlowPropertiesSpellBinding from './flow-editor/components/FlowPropertiesSpellBinding';
 import FlowPropertiesNodeEditor from './flow-editor/components/FlowPropertiesNodeEditor';
+import FlowPropertiesStatistics from './flow-editor/components/FlowPropertiesStatistics';
 import { FlowNodePalette } from './flow-editor/components/FlowNodePalette';
 import { FlowCanvasArea } from './flow-editor/components/FlowCanvasArea';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -1165,105 +1166,86 @@ export default function FlowEditor() {
                 showToast={showToast}
               />
 
-              {/* ===== 增强的流程统计 ===== */}
-              <div className="mt-6 space-y-3">
-                <h4 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide">
-                  流程统计
-                </h4>
-                
-                {/* 基础统计信息 */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
-                    <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{flow.nodes.length}</div>
-                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">节点</div>
-                  </div>
-                  <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5 text-center">
-                    <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{flow.edges.length}</div>
-                    <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">连线</div>
-                  </div>
-                </div>
-                
-                {/* 节点列表组件 */}
-                 <NodeListPanel 
-                   flow={flow}
-                   statistics={statistics}
-                   onNodeSelect={(nodeId) => {
-                     setSelectedNodeId(nodeId);
-                     setSelectedEdgeId(null);
-                     // 可选：滚动到对应节点位置
-                     const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-                     if (nodeElement) {
-                       nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                     }
-                   }}
-                   onNodeEdit={(nodeId) => {
-                     // 编辑节点：选中并显示右侧栏
-                     setSelectedNodeId(nodeId);
-                     setSelectedEdgeId(null);
-                     // 确保右侧栏显示
-                     setShowRightPanel(true);
-                     // 窄屏下可能需要滚动到右侧栏
-                     const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-                     if (nodeElement) {
-                       nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                     }
-                   }}
-                   onNodeFocus={(nodeId) => {
-                     // 跳转到节点：移动画布视图使该节点处于画布窗口正中央
-                     const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-                     if (nodeElement && canvasRef.current) {
-                       const canvasRect = canvasRef.current.getBoundingClientRect();
-                       const nodeRect = nodeElement.getBoundingClientRect();
-                       
-                       // 获取节点的实际位置（考虑画布变换）
-                       const canvasTransform = canvasRef.current.querySelector('.relative');
-                       if (canvasTransform) {
-                         const transformStyle = window.getComputedStyle(canvasTransform);
-                         const transform = transformStyle.transform;
-                         
-                         // 解析 transform 矩阵获取缩放和平移信息
-                         let scaleX = 1, scaleY = 1, translateX = 0, translateY = 0;
-                         if (transform && transform !== 'none') {
-                           const matrix = new DOMMatrix(transform);
-                           scaleX = matrix.a;
-                           scaleY = matrix.d;
-                           translateX = matrix.e;
-                           translateY = matrix.f;
-                         }
-                         
-                         // 计算节点在画布中的实际坐标（考虑缩放和平移）
-                         const nodeCanvasX = nodeRect.left - canvasRect.left - translateX;
-                         const nodeCanvasY = nodeRect.top - canvasRect.top - translateY;
-                         
-                         // 计算滚动位置，使节点居中（考虑缩放后的节点大小）
-                         const scaledNodeWidth = nodeRect.width * scaleX;
-                         const scaledNodeHeight = nodeRect.height * scaleY;
-                         
-                         const scrollLeft = nodeCanvasX - canvasRect.width / 2 + scaledNodeWidth / 2;
-                         const scrollTop = nodeCanvasY - canvasRect.height / 2 + scaledNodeHeight / 2;
-                         
-                         // 确保滚动位置在有效范围内
-                         const maxScrollLeft = canvasRef.current.scrollWidth - canvasRect.width;
-                         const maxScrollTop = canvasRef.current.scrollHeight - canvasRect.height;
-                         
-                         canvasRef.current.scrollTo({
-                           left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
-                           top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
-                           behavior: 'smooth'
-                         });
-                       }
-                     }
-                     
-                     // 窄屏下收起右侧栏
-                     if (window.innerWidth < 1024) {
-                       setShowRightPanel(false);
-                     }
-                   }}
-onNodeDelete={(nodeId) => {
-                     deleteNode(nodeId);
-                   }}
-                 />
-              </div>
+              {/* ===== 流程统计 ===== */}
+              <FlowPropertiesStatistics
+                flow={flow}
+                statistics={statistics}
+                onNodeSelect={(nodeId) => {
+                  setSelectedNodeId(nodeId);
+                  setSelectedEdgeId(null);
+                  // 可选：滚动到对应节点位置
+                  const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                  if (nodeElement) {
+                    nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+                onNodeEdit={(nodeId) => {
+                  // 编辑节点：选中并显示右侧栏
+                  setSelectedNodeId(nodeId);
+                  setSelectedEdgeId(null);
+                  // 确保右侧栏显示
+                  setShowRightPanel(true);
+                  // 窄屏下可能需要滚动到右侧栏
+                  const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                  if (nodeElement) {
+                    nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                }}
+                onNodeFocus={(nodeId) => {
+                  // 跳转到节点：移动画布视图使该节点处于画布窗口正中央
+                  const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
+                  if (nodeElement && canvasRef.current) {
+                    const canvasRect = canvasRef.current.getBoundingClientRect();
+                    const nodeRect = nodeElement.getBoundingClientRect();
+                    
+                    // 获取节点的实际位置（考虑画布变换）
+                    const canvasTransform = canvasRef.current.querySelector('.relative');
+                    if (canvasTransform) {
+                      const transformStyle = window.getComputedStyle(canvasTransform);
+                      const transform = transformStyle.transform;
+                      
+                      // 解析 transform 矩阵获取缩放和平移信息
+                      let scaleX = 1, scaleY = 1, translateX = 0, translateY = 0;
+                      if (transform && transform !== 'none') {
+                        const matrix = new DOMMatrix(transform);
+                        scaleX = matrix.a;
+                        scaleY = matrix.d;
+                        translateX = matrix.e;
+                        translateY = matrix.f;
+                      }
+                      
+                      // 计算节点在画布中的实际坐标（考虑缩放和平移）
+                      const nodeCanvasX = nodeRect.left - canvasRect.left - translateX;
+                      const nodeCanvasY = nodeRect.top - canvasRect.top - translateY;
+                      
+                      // 计算滚动位置，使节点居中（考虑缩放后的节点大小）
+                      const scaledNodeWidth = nodeRect.width * scaleX;
+                      const scaledNodeHeight = nodeRect.height * scaleY;
+                      
+                      const scrollLeft = nodeCanvasX - canvasRect.width / 2 + scaledNodeWidth / 2;
+                      const scrollTop = nodeCanvasY - canvasRect.height / 2 + scaledNodeHeight / 2;
+                      
+                      // 确保滚动位置在有效范围内
+                      const maxScrollLeft = canvasRef.current.scrollWidth - canvasRect.width;
+                      const maxScrollTop = canvasRef.current.scrollHeight - canvasRect.height;
+                      
+                      canvasRef.current.scrollTo({
+                        left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
+                        top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
+                        behavior: 'smooth'
+                      });
+                    }
+                  }
+                  
+                  // 窄屏下收起右侧栏
+                  if (window.innerWidth < 1024) {
+                    setShowRightPanel(false);
+                  }
+                }}
+                onNodeDelete={(nodeId) => {
+                  deleteNode(nodeId);
+                }}
+              />
             </div>
           )}
         </div>

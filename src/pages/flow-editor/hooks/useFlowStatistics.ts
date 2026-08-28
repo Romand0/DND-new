@@ -216,3 +216,6 @@ export function useFlowStatistics(flow: FlowDefinition): FlowStatistics {
     extractGroupName,
   };
 }
+
+// 导出类型
+export type { NodeTypeStat, FlowStatistics };
