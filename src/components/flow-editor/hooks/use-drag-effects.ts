@@ -3,7 +3,7 @@ import { DragEndEvent } from '@dnd-kit/core';
 import type { FlowDefinition, NodeTypeMeta } from '@/types/flow';
 import { nodesOverlap } from '@/utils/flow-editor/collision';
 import { SpatialGrid } from '@/utils/spatialGrid';
-import { NODE_W, NODE_H } from '../constants';
+import { NODE_W, NODE_H } from '@/utils/flow-editor/constants';
 
 interface CrossLayerDragState {
   phase: 'idle' | 'palette' | 'crossing' | 'canvas';

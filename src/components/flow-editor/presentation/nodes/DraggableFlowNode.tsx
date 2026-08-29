@@ -6,9 +6,9 @@
 import React, { useRef, useEffect } from 'react';
 import { CSS } from '@dnd-kit/utilities';
 import { useDraggable } from '@dnd-kit/core';
-import { resolveNodeIcon } from '../nodeIcon';
+import { resolveNodeIcon } from '@/utils/flow-editor/node-icon';
 import { NODE_TYPE_REGISTRY } from '@/types/flow';
-import { NODE_W } from '../constants';
+import { NODE_W } from '@/utils/flow-editor/constants';
 import type { FlowNodeDef, FlowDefinition, NodeTypeMeta } from '@/types/flow';
 
 interface DraggableFlowNodeProps {

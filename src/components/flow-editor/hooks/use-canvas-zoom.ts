@@ -11,7 +11,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useSensors, useSensor, PointerSensor, TouchSensor } from '@dnd-kit/core';
-import { SCALE_MIN, SCALE_MAX, SCALE_STEP } from './constants';
+import { SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
 
 // ===== Hook 配置接口 =====
 export interface UseCanvasZoomConfig {

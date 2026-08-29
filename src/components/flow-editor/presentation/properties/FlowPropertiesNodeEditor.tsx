@@ -2,7 +2,7 @@ import React, { useCallback, useReducer } from 'react';
 import NodeBasicInfo from './NodeBasicInfo';
 import NodeConfigForm from './NodeConfigForm';
 import NodeCustomFields from './NodeCustomFields';
-import NodeConnections from './NodeConnections';
+import NodeConnections from '../nodes/NodeConnections';
 import type { FlowDefinition, FlowNodeDef } from '@/types/flow';
 
 // 定义节点状态类型

@@ -10,8 +10,8 @@
  */
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react';
-import type { FlowViewportSnapshot } from '../../data/flowStore';
-import flowStore from '../../data/flowStore';
+import type { FlowViewportSnapshot } from '@/data/flowStore';
+import flowStore from '@/data/flowStore';
 
 // ===== Hook 配置接口 =====
 export interface UseViewportSnapshotConfig {
