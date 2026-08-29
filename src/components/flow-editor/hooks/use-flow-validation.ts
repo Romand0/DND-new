@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FlowDefinition } from '@/types/flow';
-import { validateFlowWithDetails, validateForPublish, type ValidationError } from '../validation';
-import { useAutoFix, type AutoFixSuggestion } from './useAutoFix';
+import { validateFlowWithDetails, validateForPublish, type ValidationError } from '@/utils/flow-editor/validation';
+import { useAutoFix, type AutoFixSuggestion } from './use-auto-fix';
 
 export interface UseFlowValidationReturn {
   // 状态

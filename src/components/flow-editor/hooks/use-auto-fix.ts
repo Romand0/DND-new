@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FlowDefinition } from '@/types/flow';
-import { getAutoFixSuggestions } from '../validation';
+import { getAutoFixSuggestions } from '@/utils/flow-editor/validation';
 
 export interface AutoFixSuggestion {
   type: 'global' | 'node' | 'edge';

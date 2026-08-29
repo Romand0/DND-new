@@ -11,10 +11,10 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import type { FlowDefinition } from '../../types/flow';
-import flowStore from '../../data/flowStore';
-import { generateFlowId } from '../../lib/idUtils';
-import { useTextInput } from '../../hooks/useInput';
+import type { FlowDefinition } from '@/types/flow';
+import flowStore from '@/data/flowStore';
+import { generateFlowId } from '@/lib/idUtils';
+import { useTextInput } from '@/hooks/useInput';
 
 // ===== 草稿操作状态 =====
 export type SaveStatus = 'idle' | 'saving' | 'saved';

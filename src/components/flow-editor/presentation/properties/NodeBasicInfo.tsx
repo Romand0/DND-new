@@ -1,7 +1,7 @@
 import React from 'react';
 import { NODE_TYPE_REGISTRY } from '@/types/flow';
 import type { FlowNodeDef } from '@/types/flow';
-import { resolveNodeIcon } from '../nodeIcon';
+import { resolveNodeIcon } from '@/utils/flow-editor/node-icon';
 
 interface NodeBasicInfoProps {
   node: FlowNodeDef;

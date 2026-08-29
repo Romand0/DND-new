@@ -1,6 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import PaletteDragItem from '../../pages/flow-editor/components/PaletteDragItem';
+import PaletteDragItem from './presentation/nodes/PaletteDragItem';
 import { NodeTypeMeta } from '@/types/flow';
 
 interface FlowNodePaletteProps {

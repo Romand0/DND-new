@@ -1,20 +1,21 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
-import { useFlowEditorToast } from './flow-editor/useFlowEditorToast';
-import { useFlowValidation } from './flow-editor/hooks/useFlowValidation';
-import { useAutoFix } from './flow-editor/hooks/useAutoFix';
-import { useDragEffects } from './flow-editor/hooks/useDragEffects';
-import { useNodeSizeMeasurement } from './flow-editor/hooks/useNodeSizeMeasurement';
-import { useFlowStatistics } from './flow-editor/hooks/useFlowStatistics';
-import { FlowEditorToolbar } from '../components/flow-editor/FlowEditorToolbar';
-import { FlowEditorFunctionBar } from '../components/flow-editor/FlowEditorFunctionBar';
-import { FlowPropertiesHeader } from './flow-editor/components/FlowPropertiesHeader';
-import FlowPropertiesCategories from './flow-editor/components/FlowPropertiesCategories';
-import FlowPropertiesSpellBinding from './flow-editor/components/FlowPropertiesSpellBinding';
-import FlowPropertiesNodeEditor from './flow-editor/components/FlowPropertiesNodeEditor';
-import FlowPropertiesStatistics from './flow-editor/components/FlowPropertiesStatistics';
-import EdgePropertiesPanel from './flow-editor/components/EdgePropertiesPanel';
-import { FlowNodePalette } from './flow-editor/components/FlowNodePalette';
-import { FlowCanvasArea } from './flow-editor/components/FlowCanvasArea';
+import { useFlowEditorToast } from '@/components/flow-editor/hooks/use-flow-editor-toast';
+import { useFlowValidation } from '@/components/flow-editor/hooks/use-flow-validation';
+import { useAutoFix } from '@/components/flow-editor/hooks/use-auto-fix';
+import { useDragEffects } from '@/components/flow-editor/hooks/use-drag-effects';
+import { useNodeSizeMeasurement } from '@/components/flow-editor/hooks/use-node-size-measurement';
+import { useFlowStatistics } from '@/components/flow-editor/hooks/use-flow-statistics';
+import { FlowPropertiesHeader } from '@/components/flow-editor/presentation/properties/FlowPropertiesHeader';
+import FlowPropertiesCategories from '@/components/flow-editor/presentation/properties/FlowPropertiesCategories';
+import FlowPropertiesSpellBinding from '@/components/flow-editor/presentation/properties/FlowPropertiesSpellBinding';
+import FlowPropertiesNodeEditor from '@/components/flow-editor/presentation/properties/FlowPropertiesNodeEditor';
+import FlowPropertiesStatistics from '@/components/flow-editor/presentation/properties/FlowPropertiesStatistics';
+import EdgePropertiesPanel from '@/components/flow-editor/presentation/properties/EdgePropertiesPanel';
+import { FlowNodePalette } from '@/components/flow-editor/presentation/nodes/FlowNodePalette';
+import { FlowCanvasArea } from '@/components/flow-editor/presentation/canvas/FlowCanvasArea';
+import { FlowEditorToolbar } from '@/components/flow-editor/FlowEditorToolbar';
+import { FlowEditorFunctionBar } from '@/components/flow-editor/FlowEditorFunctionBar';
+import SpellPicker from '@/components/SpellPicker';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   DndContext,
@@ -47,20 +48,17 @@ import type {
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow } from '@/types/flow';
 import { NODE_CONFIG_SCHEMA, FlowNodeType } from '@/types/flow';
 // FLOW_CATEGORIES, parseFlowId, buildFlowId 已移至 FlowPropertiesCategories 组件
-import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from './flow-editor/constants';
-import { validateFlowWithDetails, validateForPublish, type ValidationError, getAutoFixSuggestions } from './flow-editor/validation';
-import { resolveNodeIcon } from './flow-editor/nodeIcon';
-import { nodesOverlap, findNonOverlappingPositionV2, setActiveSpatialGrid } from './flow-editor/collision';
-import { getSmartEdgePath, getSmartArrowPos, getSmartLabelPos, getSmartEdgeDecoratedEndpoints, sampleSmartEdgeToPolyline } from './flow-editor/edgeConnection';
-import DraggableFlowNode from './flow-editor/components/DraggableFlowNode';
-import PaletteDragItem from './flow-editor/components/PaletteDragItem';
-import NodeCardGhost from './flow-editor/components/NodeCardGhost';
-import ExtraConfigField from './flow-editor/components/ExtraConfigField';
-import SpellPicker from '@/components/SpellPicker';
-import SpellPickerField from '@/components/SpellPickerField';
+import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
+import { validateFlowWithDetails, validateForPublish, type ValidationError, getAutoFixSuggestions } from '@/utils/flow-editor/validation';
+import { resolveNodeIcon } from '@/utils/flow-editor/node-icon';
+import { nodesOverlap, findNonOverlappingPositionV2, setActiveSpatialGrid } from '@/utils/flow-editor/collision';
+import { getSmartEdgePath, getSmartArrowPos, getSmartLabelPos, getSmartEdgeDecoratedEndpoints, sampleSmartEdgeToPolyline } from '@/utils/flow-editor/edge-connection';
+import DraggableFlowNode from '@/components/flow-editor/presentation/nodes/DraggableFlowNode';
+import PaletteDragItem from '@/components/flow-editor/presentation/nodes/PaletteDragItem';
+import NodeCardGhost from '@/components/flow-editor/presentation/nodes/NodeCardGhost';
+import ExtraConfigField from '@/components/flow-editor/presentation/properties/ExtraConfigField';
+import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
 import { spellStore } from '@/data/spellStore';
-import { resolveAutoChecksFromSpell } from '@/types/flow';
-import { useSpellBinding } from './flow-editor/hooks/useSpellBinding';
 
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';

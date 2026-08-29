@@ -1,6 +1,6 @@
 import React from 'react';
 import { Zap, X } from 'lucide-react';
-import { useSpellBinding } from '@/pages/flow-editor/hooks/useSpellBinding';
+import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
 import SpellPickerField from '@/components/SpellPickerField';
 import type { Spell } from '@/types/spell';
 import { spellStore } from '@/data/spellStore';

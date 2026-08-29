@@ -12,8 +12,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { DragEndEvent } from '@dnd-kit/core';
 import type { FlowDefinition, FlowNodeDef, NodeTypeMeta } from '@/types/flow';
-import { nodesOverlap, findNonOverlappingPositionV2 } from './collision';
-import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H } from './constants';
+import { nodesOverlap, findNonOverlappingPositionV2 } from '@/utils/flow-editor/collision';
+import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H } from '@/utils/flow-editor/constants';
 
 // ===== 拖拽状态接口 =====
 export interface DragState {

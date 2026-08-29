@@ -10,8 +10,8 @@ import type {
   FlowNodeDef,
   FlowEdgeDef,
 } from '@/types/flow';
-import DraggableFlowNode from './DraggableFlowNode';
-import { sampleSmartEdgeToPolyline, getSmartEdgeDecoratedEndpoints, getSmartArrowPos, getSmartLabelPos, getSmartEdgePath } from '../edgeConnection';
+import DraggableFlowNode from '../nodes/DraggableFlowNode';
+import { sampleSmartEdgeToPolyline, getSmartEdgeDecoratedEndpoints, getSmartArrowPos, getSmartLabelPos, getSmartEdgePath } from '@/utils/flow-editor/edge-connection';
 
 interface FlowCanvasAreaProps {
   flow: FlowDefinition;

@@ -1,6 +1,6 @@
 import React from 'react';
 import type { FlowNodeType } from '@/types/flow';
-import type { NodeTypeStat } from '@/pages/flow-editor/hooks/useFlowStatistics';
+import type { NodeTypeStat } from '@/components/flow-editor/hooks/use-flow-statistics';
 
 interface FlowStatisticsTypesProps {
   nodeTypeStats: Record<FlowNodeType, NodeTypeStat>;

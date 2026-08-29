@@ -1,5 +1,5 @@
 import React from 'react';
-import ExtraConfigField from '@/pages/flow-editor/components/ExtraConfigField';
+import ExtraConfigField from './ExtraConfigField';
 import { NODE_CONFIG_SCHEMA } from '@/types/flow';
 import type { FlowNodeDef } from '@/types/flow';
 
