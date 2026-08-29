@@ -1,3 +1,4 @@
+// D&D DSL 可视化流程图编辑器 —— 在画布上拖拽节点、连线、配置属性，编排法术/机制的流程编码
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import { useFlowEditorToast } from './flow-editor/useFlowEditorToast';
 import { useFlowValidation } from './flow-editor/hooks/useFlowValidation';
@@ -996,6 +997,139 @@ export default function FlowEditor() {
               isDark={isDark}
             />
 
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  触发时机
+                </label>
+                <select
+                  value={selectedEdge.trigger}
+                  onChange={(e) => {
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id
+                          ? { ...ed, trigger: e.target.value as any, label: triggerToLabel(e.target.value) }
+                          : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                >
+                  <option value="on_complete">on_complete（完成）</option>
+                  <option value="on_success">on_success（成功）</option>
+                  <option value="on_failure">on_failure（失败）</option>
+                  <option value="on_partial">on_partial（部分）</option>
+                  <option value="on_true">on_true（是）</option>
+                  <option value="on_false">on_false（否）</option>
+                </select>
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  显示标签
+                </label>
+                <input
+                  type="text"
+                  value={edgeLabelInput.text}
+                  onChange={(e) => {
+                    edgeLabelInput.onChange(e.target.value);
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id ? { ...ed, label: e.target.value } : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    edgeLabelInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, label: trimmed } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  守卫条件（可选）
+                </label>
+                <input
+                  type="text"
+                  value={edgeConditionInput.text}
+                  onChange={(e) => {
+                    edgeConditionInput.onChange(e.target.value);
+                    setFlow(prev => ({
+                      ...prev,
+                      edges: prev.edges.map(ed =>
+                        ed.id === selectedEdge.id ? { ...ed, condition: e.target.value || undefined } : ed
+                      ),
+                      updatedAt: Date.now(),
+                    }));
+                  }}
+                  onBlur={(e) => {
+                    edgeConditionInput.onBlur();
+                    const trimmed = e.target.value.trim();
+                    if (trimmed !== e.target.value) {
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, condition: trimmed || undefined } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    }
+                  }}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none"
+                  placeholder="如：target.currentHp > 0"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted block mb-1">
+                  数据映射（可选）
+                </label>
+                <textarea
+                  value={edgeDataMapInput.text}
+                  onChange={(e) => {
+                    edgeDataMapInput.onChange(e.target.value);
+                    try {
+                      const map = e.target.value ? JSON.parse(e.target.value) : undefined;
+                      setFlow(prev => ({
+                        ...prev,
+                        edges: prev.edges.map(ed =>
+                          ed.id === selectedEdge.id ? { ...ed, dataMap: map } : ed
+                        ),
+                        updatedAt: Date.now(),
+                      }));
+                    } catch {
+                      // JSON 解析错误时不更新
+                    }
+                  }}
+                  onBlur={edgeDataMapInput.onBlur}
+                  rows={4}
+                  className="w-full px-2 py-1.5 rounded border dark:border-border-dark light:border-border-light bg-transparent text-xs dark:text-text-dark light:text-text-light focus:border-primary outline-none resize-none font-mono"
+                  placeholder='{"failed_targets": "input_targets"}'
+                />
+              </div>
+
+              <button
+                onClick={() => deleteEdge(selectedEdge.id)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-400/10 transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                删除连线
+              </button>
+            </div>
           ) : (
             <div>
               <FlowPropertiesHeader
