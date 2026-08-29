@@ -5,7 +5,7 @@ import FlowStatisticsTypes from './FlowStatisticsTypes';
 import FlowStatisticsActions from './FlowStatisticsActions';
 import NodeListPanel from '@/components/NodeListPanel';
 import type { FlowDefinition } from '@/types/flow';
-import type { FlowStatistics } from '@/pages/flow-editor/hooks/useFlowStatistics';
+import type { FlowStatistics } from '@/components/flow-editor/hooks/use-flow-statistics';
 
 interface FlowPropertiesStatisticsProps {
   flow: FlowDefinition;

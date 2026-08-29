@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Download, RefreshCw } from 'lucide-react';
 import type { FlowDefinition } from '@/types/flow';
-import type { FlowStatistics } from '@/pages/flow-editor/hooks/useFlowStatistics';
+import type { FlowStatistics } from '@/components/flow-editor/hooks/use-flow-statistics';
 
 interface FlowStatisticsActionsProps {
   flow: FlowDefinition;

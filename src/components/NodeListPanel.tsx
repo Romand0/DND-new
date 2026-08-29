@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ChevronRight, Edit3, ExternalLink, Trash2 } from 'lucide-react';
 import type { FlowDefinition, FlowNodeDef, FlowEdgeDef, NodeGroup, FlowNodeType } from '@/types/flow';
-import { useFlowStatistics } from '@/pages/flow-editor/hooks/useFlowStatistics';
+import { useFlowStatistics } from '@/components/flow-editor/hooks/use-flow-statistics';
 
 interface NodeListPanelProps {
   flow: FlowDefinition;
