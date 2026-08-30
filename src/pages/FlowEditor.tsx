@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
-import flowStore from '@/data/flowStore';
+import flowStore, { useSandboxPersistence } from '@/data/flowStore';
 import { apiFetch } from '@/lib/api';
 import type {
   FlowDefinition,
@@ -113,6 +113,10 @@ export default function FlowEditor() {
   const [idDirty, setIdDirty] = useState(false);  // 草稿是否偏离正式值
   const [spellPickerOpen, setSpellPickerOpen] = useState(false);
   const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
+  
+  // ===== 沙盒环境保存状态 =====
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   // 法术绑定状态已迁移至 useSpellBinding
   // flow.id 外部变更时同步草稿（如加载草稿、autosave 恢复）
   useEffect(() => {
@@ -125,7 +129,6 @@ export default function FlowEditor() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [exitModalOpen, setExitModalOpen] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const skipNameSync = useRef(true);
   
   // ===== 节点尺寸测量 =====
@@ -245,9 +248,34 @@ export default function FlowEditor() {
   useEffect(() => {
     // 实时同步到草稿，无需防抖
     if (flow.id) {
+      setSaveStatus('saving');
       flowStore.saveDraft(flow.id, flow);
+      setSaveStatus('saved');
+      setLastSavedAt(Date.now());
     }
   }, [flow]);
+
+  // ===== 手动保存机制（作为实时同步的备份） =====
+  const manualSave = useCallback(() => {
+    if (flow && flow.id) {
+      setSaveStatus('saving');
+      flowStore.saveDraft(flow.id, flow);
+      setSaveStatus('saved');
+      setLastSavedAt(Date.now());
+      console.log('手动保存沙盒环境:', flow.id);
+    }
+  }, [flow]);
+
+  // 定期自动保存（作为额外保障）
+  useEffect(() => {
+    if (!flow || !flow.id) return;
+    
+    const interval = setInterval(() => {
+      manualSave();
+    }, 30000); // 每30秒自动保存一次
+    
+    return () => clearInterval(interval);
+  }, [flow, manualSave]);
 
 
 
@@ -658,7 +686,7 @@ export default function FlowEditor() {
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
     try {
-      // 1. 验证草稿
+      // 1. 验证沙盒环境中的草稿
       const validation = await apiFetch(`/flows/validate/${flow.id}`);
       if (validation.errors && validation.errors.length > 0) {
         showToast('error', `发布失败: ${validation.errors.join(', ')}`);
@@ -678,11 +706,48 @@ export default function FlowEditor() {
         
         // 发布成功后隐藏验证面板
         validation.setShowValidation(false);
+        
+        // 发布后保持沙盒环境，可以继续编辑
+        const sandboxData = flowStore.enterSandbox(flow.id);
+        setFlow(sandboxData);
       }
     } catch (err) {
       showToast('error', err instanceof Error ? err.message : '发布失败');
     }
   }, [flow, showToast, validation]);
+
+  // ===== 沙盒环境持久化 =====
+  const { flow: sandboxFlow, setFlow: setSandboxFlow } = useSandboxPersistence(flow.id || '');
+  
+  // 同步沙盒数据到本地状态
+  useEffect(() => {
+    if (sandboxFlow && sandboxFlow.id === flow.id) {
+      setFlow(sandboxFlow);
+    }
+  }, [sandboxFlow, flow.id, setFlow]);
+
+  // ===== 组件卸载时保存沙盒环境 =====
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      // 页面卸载时保存沙盒环境
+      if (flow && flow.id) {
+        flowStore.saveDraft(flow.id, flow);
+        event.preventDefault();
+        event.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // 组件卸载时最后保存一次
+      if (flow && flow.id) {
+        flowStore.saveDraft(flow.id, flow);
+      }
+    };
+  }, [flow, flowId]);
 
   // ===== 获取选中节点 =====
   const selectedNode = flow.nodes.find(n => n.id === selectedNodeId) || null;
@@ -762,7 +827,7 @@ export default function FlowEditor() {
       <FlowEditorToolbar
   flowName={flow.name}
   flowStatus={flow.status}
-  saveStatus={saveStatus}
+  saveStatus={saveStatus as 'idle' | 'saving' | 'saved'}
   validationStatus={validation.validationStatus}
   onExit={() => setExitModalOpen(true)}
   onPublish={handlePublish}

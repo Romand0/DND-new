@@ -218,27 +218,57 @@ const flowStore = {
   // ──────────── 草稿操作 ────────────
 
   /**
-   * Fork：从已发布版派生草稿
-   * - 如果草稿已存在，直接返回（幂等）
-   * - 如果是未发布的新流程，草稿本身就是数据
+   * 进入沙盒环境：确保流程有沙盒环境
+   * - 如果流程从未发布过，沙盒就是草稿本身
+   * - 如果流程已发布，沙盒基于最新发布态创建
+   * - 沙盒环境长期存在，清空后可以重新进入
    */
-  fork(parentId: string): FlowDraft {
+  enterSandbox(parentId: string): FlowDefinition {
     const existing = drafts.find(d => d.parentId === parentId);
-    if (existing) return existing;  // 唯一草稿约束：已存在则复用
+    if (existing) return existing.data;  // 沙盒已存在，直接返回
 
     const published = publishedFlows.find(f => f.id === parentId);
-    if (!published) throw new Error(`已发布流程 ${parentId} 不存在，无法 fork`);
+    if (!published) {
+      throw new Error(`流程 ${parentId} 不存在，无法进入沙盒`);
+    }
 
-    const draft: FlowDraft = {
+    // 创建沙盒环境（基于最新发布态）
+    const sandbox: FlowDraft = {
       parentId,
-      data: { ...published, updatedAt: Date.now() },  // 深拷贝已发布版作为起点
+      data: { ...published, updatedAt: Date.now() },
       forkedAt: Date.now(),
       updatedAt: Date.now(),
     };
-    drafts.push(draft);
+    drafts.push(sandbox);
     writeDrafts(drafts);
     notify();
-    return draft;
+    return sandbox.data;
+  },
+
+  /** 退出沙盒环境：清空沙盒内容 */
+  exitSandbox(parentId: string): boolean {
+    return this.clearDraft(parentId);
+  },
+
+  /** 重置沙盒环境：用当前发布态重置沙盒 */
+  resetSandbox(parentId: string): FlowDefinition | undefined {
+    const published = publishedFlows.find(f => f.id === parentId);
+    if (!published) return undefined;
+
+    // 清空现有沙盒
+    this.clearDraft(parentId);
+
+    // 重新创建沙盒
+    const sandbox: FlowDraft = {
+      parentId,
+      data: { ...published, updatedAt: Date.now() },
+      forkedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    drafts.push(sandbox);
+    writeDrafts(drafts);
+    notify();
+    return sandbox.data;
   },
 
   /** 保存草稿（编辑器每次改动调用） */
@@ -264,6 +294,37 @@ const flowStore = {
     writeDrafts(drafts);
     notify();
     return true;
+  },
+
+  /** 清空草稿（编辑器主动清空） */
+  clearDraft(parentId: string): boolean {
+    const next = drafts.filter(d => d.parentId !== parentId);
+    if (next.length === drafts.length) return false;
+    drafts = next;
+    writeDrafts(drafts);
+    notify();
+    return true;
+  },
+
+  /** 用已发布版覆盖草稿（清空草稿后从flow表复制） */
+  async overwriteDraftFromPublished(parentId: string): Promise<FlowDefinition | undefined> {
+    const published = publishedFlows.find(f => f.id === parentId);
+    if (!published) return undefined;
+
+    // 清除草稿
+    this.clearDraft(parentId);
+
+    // 创建新草稿，基于已发布版
+    const draft: FlowDraft = {
+      parentId,
+      data: { ...published, updatedAt: Date.now() },
+      forkedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    drafts.push(draft);
+    writeDrafts(drafts);
+    notify();
+    return draft.data;
   },
 
   // ──────────── 发布 ────────────
@@ -335,6 +396,7 @@ const flowStore = {
       createdAt: Date.now(), updatedAt: Date.now(),
     };
     // 新流程也作为草稿存储，parentId 等于自身 id
+    // 这也是流程的沙盒环境
     const draft: FlowDraft = {
       parentId: id,
       data: flow,
@@ -572,7 +634,7 @@ const flowStore = {
         flow.id = 'flow-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       }
       
-      // 作为草稿存储
+      // 作为草稿存储，同时也是沙盒环境
       const newDraft: FlowDraft = {
         parentId: flow.id,
         data: {
@@ -630,6 +692,54 @@ export function useRealtimeSync(flowId: string) {
       // 实时同步到草稿
       flowStore.saveDraft(flowId, flow);
     }
+  }, [flow, flowId]);
+  
+  return { flow, setFlow };
+}
+
+// ====== 沙盒环境持久化Hook ======
+export function useSandboxPersistence(flowId: string) {
+  const [flow, setFlow] = useState<FlowDefinition>();
+  
+  // 进入沙盒环境
+  useEffect(() => {
+    if (flowId) {
+      const sandboxData = flowStore.enterSandbox(flowId);
+      setFlow(sandboxData);
+    }
+  }, [flowId]);
+  
+  // 页面卸载时保存
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (flow && flowId) {
+        flowStore.saveDraft(flowId, flow);
+        event.preventDefault();
+        event.returnValue = '';
+        return '';
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // 组件卸载时保存
+      if (flow && flowId) {
+        flowStore.saveDraft(flowId, flow);
+      }
+    };
+  }, [flow, flowId]);
+  
+  // 定期自动保存
+  useEffect(() => {
+    if (!flow || !flowId) return;
+    
+    const interval = setInterval(() => {
+      flowStore.saveDraft(flowId, flow);
+    }, 30000); // 每30秒自动保存一次
+    
+    return () => clearInterval(interval);
   }, [flow, flowId]);
   
   return { flow, setFlow };
