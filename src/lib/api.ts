@@ -359,3 +359,19 @@ export async function publishFlow<T = any>(id: string): Promise<T> {
   });
 }
 
+// ============ 实时同步API ============
+export async function syncFlowDraft<T = any>(id: string, data: T): Promise<void> {
+  return apiFetch<void>(`/flows/draft/${id}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function validateFlowForPublish<T = any>(id: string): Promise<T> {
+  return apiFetch<T>(`/flows/validate/${id}`);
+}
+
+export async function clearFlowDraft<T = any>(id: string): Promise<void> {
+  return apiFetch<void>(`/flows/draft/${id}`, { method: 'DELETE' });
+}
+
