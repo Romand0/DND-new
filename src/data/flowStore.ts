@@ -241,6 +241,16 @@ const flowStore = {
     return draft;
   },
 
+  /** 编辑已发布流程：fork到草稿并返回草稿数据 */
+  editPublished(id: string): FlowDefinition | undefined {
+    const published = publishedFlows.find(f => f.id === id);
+    if (!published) return undefined;
+
+    // fork到草稿
+    const draft = this.fork(id);
+    return draft.data;
+  },
+
   /** 保存草稿（编辑器每次改动调用） */
   saveDraft(parentId: string, patch: Partial<FlowDefinition>): FlowDraft | undefined {
     const idx = drafts.findIndex(d => d.parentId === parentId);
@@ -264,6 +274,37 @@ const flowStore = {
     writeDrafts(drafts);
     notify();
     return true;
+  },
+
+  /** 清空草稿（编辑器主动清空） */
+  clearDraft(parentId: string): boolean {
+    const next = drafts.filter(d => d.parentId !== parentId);
+    if (next.length === drafts.length) return false;
+    drafts = next;
+    writeDrafts(drafts);
+    notify();
+    return true;
+  },
+
+  /** 用已发布版覆盖草稿（清空草稿后从flow表复制） */
+  async overwriteDraftFromPublished(parentId: string): Promise<FlowDefinition | undefined> {
+    const published = publishedFlows.find(f => f.id === parentId);
+    if (!published) return undefined;
+
+    // 清除草稿
+    this.clearDraft(parentId);
+
+    // 创建新草稿，基于已发布版
+    const draft: FlowDraft = {
+      parentId,
+      data: { ...published, updatedAt: Date.now() },
+      forkedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    drafts.push(draft);
+    writeDrafts(drafts);
+    notify();
+    return draft.data;
   },
 
   // ──────────── 发布 ────────────
