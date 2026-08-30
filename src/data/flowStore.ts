@@ -1,7 +1,6 @@
 import type { FlowDefinition, FlowDraft, FlowPublishStatus } from '../types/flow';
 import { computePublishStatus } from '../types/flow';
 import { apiFetch } from '../lib/api';
-import { useState, useEffect } from 'react';
 
 /**
  * 深度清理对象中的 undefined 值
@@ -682,67 +681,5 @@ const flowStore = {
     return () => { listeners = listeners.filter(l => l !== listener); };
   },
 };
-
-// ====== 实时同步Hook ======
-export function useRealtimeSync(flowId: string) {
-  const [flow, setFlow] = useState<FlowDefinition>();
-  
-  useEffect(() => {
-    if (flow && flowId) {
-      // 实时同步到草稿
-      flowStore.saveDraft(flowId, flow);
-    }
-  }, [flow, flowId]);
-  
-  return { flow, setFlow };
-}
-
-// ====== 沙盒环境持久化Hook ======
-export function useSandboxPersistence(flowId: string) {
-  const [flow, setFlow] = useState<FlowDefinition>();
-  
-  // 进入沙盒环境
-  useEffect(() => {
-    if (flowId) {
-      const sandboxData = flowStore.enterSandbox(flowId);
-      setFlow(sandboxData);
-    }
-  }, [flowId]);
-  
-  // 页面卸载时保存
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (flow && flowId) {
-        flowStore.saveDraft(flowId, flow);
-        event.preventDefault();
-        event.returnValue = '';
-        return '';
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      // 组件卸载时保存
-      if (flow && flowId) {
-        flowStore.saveDraft(flowId, flow);
-      }
-    };
-  }, [flow, flowId]);
-  
-  // 定期自动保存
-  useEffect(() => {
-    if (!flow || !flowId) return;
-    
-    const interval = setInterval(() => {
-      flowStore.saveDraft(flowId, flow);
-    }, 30000); // 每30秒自动保存一次
-    
-    return () => clearInterval(interval);
-  }, [flow, flowId]);
-  
-  return { flow, setFlow };
-}
 
 export default flowStore;
