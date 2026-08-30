@@ -276,6 +276,12 @@ const flowStore = {
     const draft = drafts.find(d => d.parentId === parentId);
     if (!draft) return undefined;
 
+    // 验证草稿
+    const validation = await apiFetch(`/flows/validate/${parentId}`);
+    if (validation.errors && validation.errors.length > 0) {
+      throw new Error(`发布失败: ${validation.errors.join(', ')}`);
+    }
+
     // 深度清理
     const sanitizedFlow = cleanFlowDefinition(draft.data);
 
