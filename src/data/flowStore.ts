@@ -1,6 +1,7 @@
 import type { FlowDefinition, FlowDraft, FlowPublishStatus } from '../types/flow';
 import { computePublishStatus } from '../types/flow';
 import { apiFetch } from '../lib/api';
+import { useState, useEffect } from 'react';
 
 /**
  * 深度清理对象中的 undefined 值
@@ -613,5 +614,19 @@ const flowStore = {
     return () => { listeners = listeners.filter(l => l !== listener); };
   },
 };
+
+// ====== 实时同步Hook ======
+export function useRealtimeSync(flowId: string) {
+  const [flow, setFlow] = useState<FlowDefinition>();
+  
+  useEffect(() => {
+    if (flow && flowId) {
+      // 实时同步到草稿
+      flowStore.saveDraft(flowId, flow);
+    }
+  }, [flow, flowId]);
+  
+  return { flow, setFlow };
+}
 
 export default flowStore;
