@@ -38,6 +38,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
 import flowStore from '@/data/flowStore';
+import { apiFetch } from '@/lib/api';
 import type {
   FlowDefinition,
   FlowNodeDef,
@@ -240,14 +241,13 @@ export default function FlowEditor() {
     flowNameInput.setExternal(flow.name);
   }, [flow.name]);
 
-  // ===== 自动保存（防抖 500ms，防止刷新丢失当前编辑） =====
+  // ===== 实时同步：即时保存到草稿，无需防抖 =====
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // 始终用 flow.id 做主键，而非路由参数；save 为 upsert，新建流程也会入库
-      flowStore.save(flow);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [flow, flowNameInput.text]);
+    // 实时同步到草稿，无需防抖
+    if (flow.id) {
+      flowStore.saveDraft(flow.id, flow);
+    }
+  }, [flow]);
 
 
 
@@ -657,23 +657,15 @@ export default function FlowEditor() {
 
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
-    // 发布前先检查校验
-    const publishValidation = validateForPublish(flow);
-    if (!publishValidation.valid) {
-      // 显示错误提示
-      showToast('error', `无法发布：${publishValidation.error}`);
-      
-      // 如果有建议，显示提示
-      if (publishValidation.suggestions && publishValidation.suggestions.length > 0) {
-        console.log('发布建议：', publishValidation.suggestions.join('；'));
-      }
-      
-      return;
-    }
-
     try {
-      // 更新流程状态为已发布
-      flowStore.update(flow.id, { ...flow, status: 'published' });
+      // 1. 验证草稿
+      const validation = await apiFetch(`/flows/validate/${flow.id}`);
+      if (validation.errors && validation.errors.length > 0) {
+        showToast('error', `发布失败: ${validation.errors.join(', ')}`);
+        return;
+      }
+
+      // 2. 发布到生产环境
       const published = await flowStore.publish(flow.id);
       if (published) {
         setFlow(prev => ({
