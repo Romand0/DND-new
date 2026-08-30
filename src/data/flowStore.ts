@@ -79,9 +79,6 @@ const PUBLISHED_KEY = 'dnd-flow-published';   // 已发布版本地缓存
 const DRAFTS_KEY    = 'dnd-flow-drafts';      // 草稿本地存储
 const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
 const REMOTE_CACHE_KEY = 'dnd-flow-remote';
-const LEGACY_DRAFTS_KEY = 'dnd-flow-editor-drafts';
-const LEGACY_AUTOSAVE_KEY = 'dnd-flow-editor-autosave';
-const STORAGE_KEY = 'dnd-flow-library';        // 向后兼容
 
 /** 位置快照：编辑器画布/面板视图状态（按流程 ID 维度存储） */
 export interface FlowViewportSnapshot {
@@ -99,8 +96,6 @@ type Listener = () => void;
 let listeners: Listener[] = [];
 let publishedFlows: FlowDefinition[] = [];     // 远程已发布版缓存
 let drafts: FlowDraft[] = [];                  // 本地草稿（parentId → FlowDraft）
-let cache: FlowDefinition[] | null = null;     // 向后兼容的缓存
-let localFlows: FlowDefinition[] = [];          // 向后兼容的本地流程
 let remoteLoaded = false;
 
 // ====== 工具函数 ======
@@ -155,80 +150,15 @@ function writeDrafts(d: FlowDraft[]) {
   } catch { /* ignore */ }
 }
 
-// 向后兼容的读取函数
-function read(): FlowDefinition[] {
-  if (cache) {
-    localFlows = cache;
-    return cache;
-  }
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    cache = raw ? JSON.parse(raw) : [];
-  } catch { cache = []; }
-  localFlows = cache || [];
-  return cache || [];
-}
 
-function write(flows: FlowDefinition[]) {
-  cache = flows;
-  localFlows = flows;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(flows));
-  notify();
-}
 
-// 一次性迁移：将旧版编辑器草稿键（dnd-flow-editor-drafts / dnd-flow-editor-autosave）合并进流程库后删除
-function migrateLegacyDrafts() {
-  try {
-    const legacy = JSON.parse(localStorage.getItem(LEGACY_DRAFTS_KEY) || '[]');
-    let autosave: any = null;
-    try {
-      autosave = JSON.parse(localStorage.getItem(LEGACY_AUTOSAVE_KEY) || 'null');
-    } catch {
-      autosave = null;
-    }
-    const sources: any[] = Array.isArray(legacy) ? legacy : [];
-    if (autosave?.flow?.id) sources.push({ flow: autosave.flow, updatedAt: autosave.flow.updatedAt });
-    const flows = read();
-    let changed = false;
-    for (const s of sources) {
-      const legacyFlow = s?.flow;
-      if (!legacyFlow?.id || !Array.isArray(legacyFlow.nodes)) continue;
-      if (flows.some(f => f.id === legacyFlow.id)) continue;
-      flows.push({
-        ...legacyFlow,
-        name: legacyFlow.name || s?.name || '未命名流程',
-        updatedAt: legacyFlow.updatedAt || s?.updatedAt || Date.now(),
-      });
-      changed = true;
-    }
-    if (changed) {
-      cache = flows;
-      localFlows = flows;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(flows));
-    }
-  } catch { /* ignore */ }
-  try { localStorage.removeItem(LEGACY_DRAFTS_KEY); } catch { /* ignore */ }
-  try { localStorage.removeItem(LEGACY_AUTOSAVE_KEY); } catch { /* ignore */ }
-}
 
-// 跨标签页缓存失效
+
+// 初始化本地数据
 if (typeof window !== 'undefined') {
-  migrateLegacyDrafts();
   // 初始化草稿数据
   drafts = readDrafts();
   publishedFlows = readPublished();
-  
-  window.addEventListener('storage', (e) => {
-    if (e.key === PUBLISHED_KEY || e.key === DRAFTS_KEY || e.key === STORAGE_KEY) {
-      publishedFlows = readPublished();
-      drafts = readDrafts();
-      if (e.key === STORAGE_KEY) {
-        cache = null;
-        localFlows = read();
-      }
-      notify();
-    }
-  });
 }
 
 const flowStore = {
@@ -476,60 +406,7 @@ const flowStore = {
     return undefined;
   },
 
-  /** 发布流程到 D1（兼容原有接口） */
-  async publishLegacy(id: string): Promise<FlowDefinition | undefined> {
-    // 使用新的发布逻辑
-    return this.publish(id);
-  },
 
-  /** 从 D1 撤下 */
-  async unpublishLegacy(id: string): Promise<void> {
-    await this.unpublish(id);
-  },
-
-  /** 拉取远程正式版列表（缓存） */
-  async fetchRemoteLegacy(): Promise<void> {
-    await this.fetchRemote();
-  },
-
-  /** 拉取单个正式版覆盖本地 */
-  async pullRemote(id: string): Promise<FlowDefinition | undefined> {
-    const remote = await apiFetch(`/flows/${id}`);
-    
-    // 更新已发布版缓存
-    const pIdx = publishedFlows.findIndex(f => f.id === id);
-    if (pIdx >= 0) {
-      publishedFlows[pIdx] = remote;
-    } else {
-      publishedFlows.push(remote);
-    }
-    writePublished(publishedFlows);
-    
-    // 更新本地流程（向后兼容）
-    const idx = localFlows.findIndex(f => f.id === id);
-    if (idx >= 0) {
-      localFlows[idx] = remote;
-    } else {
-      localFlows.push(remote);
-    }
-    write(localFlows);
-    
-    notify();
-    return remote;
-  },
-
-  /** 创建空流程（兼容原有接口） */
-  createLegacy(name: string = '未命名流程'): FlowDefinition {
-    const flow = this.create(name);
-    // 注意：create() 方法已经处理了草稿存储，这里不需要重复写入 localFlows
-    // 为了向后兼容，我们只更新已发布版缓存
-    publishedFlows.push(flow);
-    writePublished(publishedFlows);
-    
-    console.log('createLegacy() - 创建流程并同步到已发布缓存:', flow.id);
-    notify();
-    return flow;
-  },
 
   /** 变更流程 ID（类别/名称变更时） */
   retargetId(oldId: string, newId: string): FlowDefinition | undefined {
@@ -557,16 +434,7 @@ const flowStore = {
       return updatedDraft.data;
     }
     
-    // 3. 在本地流程中查找（向后兼容）
-    const flows = read();
-    const idx = flows.findIndex(f => f.id === oldId);
-    if (idx === -1) return undefined;
-    if (flows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
-    flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
-    write(flows);
-    
-    notify();
-    return flows[idx];
+    return undefined;
   },
 
   /** 更新流程（整体替换） */
@@ -583,23 +451,7 @@ const flowStore = {
       return this.save(updatedFlow);
     }
     
-    // 如果没有找到流程，尝试向后兼容模式
-    const flows = read();
-    const idx = flows.findIndex(f => f.id === id);
-    if (idx === -1) return undefined;
-    flows[idx] = { ...flows[idx], ...patch, updatedAt: Date.now() };
-    write(flows);
-    
-    // 同步更新已发布版缓存（如果存在）
-    const pIdx = publishedFlows.findIndex(f => f.id === id);
-    if (pIdx >= 0) {
-      publishedFlows[pIdx] = { ...publishedFlows[pIdx], ...patch, updatedAt: Date.now() };
-      writePublished(publishedFlows);
-    }
-    
-    console.log('update() - 向后兼容模式更新:', id);
-    notify();
-    return flows[idx];
+    return undefined;
   },
 
   /** 保存流程（Fork 模式下保存到草稿） */
@@ -654,12 +506,6 @@ const flowStore = {
     drafts = drafts.filter(d => d.parentId !== id);
     writeDrafts(drafts);
     
-    // 3. 删除本地流程（向后兼容）
-    const flows = read();
-    const next = flows.filter(f => f.id !== id);
-    if (next.length === flows.length) return false;
-    write(next);
-    
     notify();
     return true;
   },
@@ -690,16 +536,24 @@ const flowStore = {
       return updatedDraft.data;
     }
     
-    // 3. 在本地流程中查找（向后兼容）
-    const flows = read();
-    const idx = flows.findIndex(f => f.id === oldId);
-    if (idx === -1) return undefined;
-    if (flows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
-    flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
-    write(flows);
+    return undefined;
+  },
+
+  /** 拉取单个正式版覆盖本地 */
+  async pullRemote(id: string): Promise<FlowDefinition | undefined> {
+    const remote = await apiFetch(`/flows/${id}`);
+    
+    // 更新已发布版缓存
+    const pIdx = publishedFlows.findIndex(f => f.id === id);
+    if (pIdx >= 0) {
+      publishedFlows[pIdx] = remote;
+    } else {
+      publishedFlows.push(remote);
+    }
+    writePublished(publishedFlows);
     
     notify();
-    return flows[idx];
+    return remote;
   },
 
   /** 导入（从 JSON 字符串，返回导入后的 flow 或 null） */
@@ -707,14 +561,22 @@ const flowStore = {
     try {
       const flow = JSON.parse(json) as FlowDefinition; // 直接解析，避免循环依赖
       // 若 ID 冲突则重新生成
-      if (read().some(f => f.id === flow.id)) {
+      if (this.getAll().some(f => f.id === flow.id)) {
         flow.id = 'flow-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       }
-      write([...read(), flow]);
       
-      // 同步添加到已发布版缓存
-      publishedFlows.push(flow);
-      writePublished(publishedFlows);
+      // 作为草稿存储
+      const newDraft: FlowDraft = {
+        parentId: flow.id,
+        data: {
+          ...flow,
+          publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
+        },
+        forkedAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      drafts.push(newDraft);
+      writeDrafts(drafts);
       
       notify();
       return flow;
