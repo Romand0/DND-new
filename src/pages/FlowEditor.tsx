@@ -658,7 +658,7 @@ export default function FlowEditor() {
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
     try {
-      // 1. 验证草稿
+      // 1. 验证沙盒环境中的草稿
       const validation = await apiFetch(`/flows/validate/${flow.id}`);
       if (validation.errors && validation.errors.length > 0) {
         showToast('error', `发布失败: ${validation.errors.join(', ')}`);
@@ -678,11 +678,24 @@ export default function FlowEditor() {
         
         // 发布成功后隐藏验证面板
         validation.setShowValidation(false);
+        
+        // 发布后保持沙盒环境，可以继续编辑
+        const sandboxData = flowStore.enterSandbox(flow.id);
+        setFlow(sandboxData);
       }
     } catch (err) {
       showToast('error', err instanceof Error ? err.message : '发布失败');
     }
   }, [flow, showToast, validation]);
+
+  // ===== 沙盒环境管理 =====
+  // 进入沙盒环境（确保流程有沙盒）
+  useEffect(() => {
+    if (flow && flow.id) {
+      const sandboxData = flowStore.enterSandbox(flow.id);
+      setFlow(sandboxData);
+    }
+  }, [flowId]);
 
   // ===== 获取选中节点 =====
   const selectedNode = flow.nodes.find(n => n.id === selectedNodeId) || null;

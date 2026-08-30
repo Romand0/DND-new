@@ -218,37 +218,57 @@ const flowStore = {
   // ──────────── 草稿操作 ────────────
 
   /**
-   * Fork：从已发布版派生草稿
-   * - 如果草稿已存在，直接返回（幂等）
-   * - 如果是未发布的新流程，草稿本身就是数据
+   * 进入沙盒环境：确保流程有沙盒环境
+   * - 如果流程从未发布过，沙盒就是草稿本身
+   * - 如果流程已发布，沙盒基于最新发布态创建
+   * - 沙盒环境长期存在，清空后可以重新进入
    */
-  fork(parentId: string): FlowDraft {
+  enterSandbox(parentId: string): FlowDefinition {
     const existing = drafts.find(d => d.parentId === parentId);
-    if (existing) return existing;  // 唯一草稿约束：已存在则复用
+    if (existing) return existing.data;  // 沙盒已存在，直接返回
 
     const published = publishedFlows.find(f => f.id === parentId);
-    if (!published) throw new Error(`已发布流程 ${parentId} 不存在，无法 fork`);
+    if (!published) {
+      throw new Error(`流程 ${parentId} 不存在，无法进入沙盒`);
+    }
 
-    const draft: FlowDraft = {
+    // 创建沙盒环境（基于最新发布态）
+    const sandbox: FlowDraft = {
       parentId,
-      data: { ...published, updatedAt: Date.now() },  // 深拷贝已发布版作为起点
+      data: { ...published, updatedAt: Date.now() },
       forkedAt: Date.now(),
       updatedAt: Date.now(),
     };
-    drafts.push(draft);
+    drafts.push(sandbox);
     writeDrafts(drafts);
     notify();
-    return draft;
+    return sandbox.data;
   },
 
-  /** 编辑已发布流程：fork到草稿并返回草稿数据 */
-  editPublished(id: string): FlowDefinition | undefined {
-    const published = publishedFlows.find(f => f.id === id);
+  /** 退出沙盒环境：清空沙盒内容 */
+  exitSandbox(parentId: string): boolean {
+    return this.clearDraft(parentId);
+  },
+
+  /** 重置沙盒环境：用当前发布态重置沙盒 */
+  resetSandbox(parentId: string): FlowDefinition | undefined {
+    const published = publishedFlows.find(f => f.id === parentId);
     if (!published) return undefined;
 
-    // fork到草稿
-    const draft = this.fork(id);
-    return draft.data;
+    // 清空现有沙盒
+    this.clearDraft(parentId);
+
+    // 重新创建沙盒
+    const sandbox: FlowDraft = {
+      parentId,
+      data: { ...published, updatedAt: Date.now() },
+      forkedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+    drafts.push(sandbox);
+    writeDrafts(drafts);
+    notify();
+    return sandbox.data;
   },
 
   /** 保存草稿（编辑器每次改动调用） */
@@ -376,6 +396,7 @@ const flowStore = {
       createdAt: Date.now(), updatedAt: Date.now(),
     };
     // 新流程也作为草稿存储，parentId 等于自身 id
+    // 这也是流程的沙盒环境
     const draft: FlowDraft = {
       parentId: id,
       data: flow,
@@ -613,7 +634,7 @@ const flowStore = {
         flow.id = 'flow-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
       }
       
-      // 作为草稿存储
+      // 作为草稿存储，同时也是沙盒环境
       const newDraft: FlowDraft = {
         parentId: flow.id,
         data: {
