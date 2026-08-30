@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
-import flowStore, { useSandboxPersistence } from '@/data/flowStore';
+import flowStore from '@/data/flowStore';
 import { apiFetch } from '@/lib/api';
 import type {
   FlowDefinition,
@@ -59,7 +59,6 @@ import PaletteDragItem from '@/components/flow-editor/presentation/nodes/Palette
 import NodeCardGhost from '@/components/flow-editor/presentation/nodes/NodeCardGhost';
 import ExtraConfigField from '@/components/flow-editor/presentation/properties/ExtraConfigField';
 import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
-import { spellStore } from '@/data/spellStore';
 
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
 import SpellIdPicker from '@/components/SpellIdPicker';
@@ -245,11 +244,11 @@ export default function FlowEditor() {
   }, [flow.name]);
 
   // ===== 实时同步：即时保存到草稿，无需防抖 =====
+  // 注意：save() 是 upsert，草稿不存在时也会创建，保证首次编辑可落盘
   useEffect(() => {
-    // 实时同步到草稿，无需防抖
     if (flow.id) {
       setSaveStatus('saving');
-      flowStore.saveDraft(flow.id, flow);
+      flowStore.save(flow);
       setSaveStatus('saved');
       setLastSavedAt(Date.now());
     }
@@ -259,10 +258,9 @@ export default function FlowEditor() {
   const manualSave = useCallback(() => {
     if (flow && flow.id) {
       setSaveStatus('saving');
-      flowStore.saveDraft(flow.id, flow);
+      flowStore.save(flow);
       setSaveStatus('saved');
       setLastSavedAt(Date.now());
-      console.log('手动保存沙盒环境:', flow.id);
     }
   }, [flow]);
 
@@ -286,44 +284,19 @@ export default function FlowEditor() {
     return flowStore.subscribe(refresh);
   }, []);
 
-  // ===== flow state 同步：监听 flowStore 变化，确保 React state 与 store 一致 =====
+  // ===== flow 加载：仅在流程切换时从 flowStore 读取一次 =====
+  // 编辑器 state 是唯一真相源，store 只做持久化；
+  // 不订阅 store（否则实时同步 save → notify → 回读覆盖，形成循环）
   useEffect(() => {
-    const refreshFlow = () => {
-      // 优先获取草稿数据
-      const draft = flowStore.getDraft(flowId || flow.id);
-      if (draft) {
-        setFlow(draft.data);
-        // 设置绑定的法术
-        if (draft.data.spellId) {
-          const spell = spellStore.getById(draft.data.spellId);
-          if (spell) {
-            spellBinding.setBoundSpell(spell);
-          }
-        } else {
-          spellBinding.setBoundSpell(null);
-        }
-      } else {
-        // 如果没有草稿，获取已发布版本
-        const published = flowStore.getPublished(flowId || flow.id);
-        if (published) {
-          setFlow(published);
-          // 设置绑定的法术
-          if (published.spellId) {
-            const spell = spellStore.getById(published.spellId);
-            if (spell) {
-              spellBinding.setBoundSpell(spell);
-            }
-          } else {
-            spellBinding.setBoundSpell(null);
-          }
-        }
-      }
-    };
-    
-    refreshFlow();
-    const unsub = flowStore.subscribe(refreshFlow);
-    return () => unsub();
-  }, [flowId, flow.id]);
+    if (!flowId) return;
+    const loaded = flowStore.getById(flowId);
+    if (loaded) {
+      setFlow(loaded);
+      flowNameInput.setExternal(loaded.name);
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
+    }
+  }, [flowId]);
 
   // ===== 位置快照：保存（画布滚动 + 缩放 + 面板展开状态，按流程 ID 持久化） =====
   const viewportRef = useRef({
@@ -716,22 +689,12 @@ export default function FlowEditor() {
     }
   }, [flow, showToast, validation]);
 
-  // ===== 沙盒环境持久化 =====
-  const { flow: sandboxFlow, setFlow: setSandboxFlow } = useSandboxPersistence(flow.id || '');
-  
-  // 同步沙盒数据到本地状态
-  useEffect(() => {
-    if (sandboxFlow && sandboxFlow.id === flow.id) {
-      setFlow(sandboxFlow);
-    }
-  }, [sandboxFlow, flow.id, setFlow]);
-
   // ===== 组件卸载时保存沙盒环境 =====
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       // 页面卸载时保存沙盒环境
       if (flow && flow.id) {
-        flowStore.saveDraft(flow.id, flow);
+        flowStore.save(flow);
         event.preventDefault();
         event.returnValue = '';
         return '';
@@ -744,7 +707,7 @@ export default function FlowEditor() {
       window.removeEventListener('beforeunload', handleBeforeUnload);
       // 组件卸载时最后保存一次
       if (flow && flow.id) {
-        flowStore.saveDraft(flow.id, flow);
+        flowStore.save(flow);
       }
     };
   }, [flow, flowId]);
