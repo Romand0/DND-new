@@ -93,7 +93,7 @@ export default function FlowEditor() {
   const isDark = theme === 'dark';
 
   // ===== 状态 =====
-  const [flow, setFlow] = useState<FlowDefinition>(createEmptyFlow());
+  const [flow, setFlow] = useState<FlowDefinition | null>(null);
   
   // 初始化加载流程数据
   useEffect(() => {
@@ -102,7 +102,17 @@ export default function FlowEditor() {
       if (loaded) {
         setFlow(loaded);
         flowNameInput.setExternal(loaded.name);
+      } else {
+        // URL 中的 ID 在 store 中不存在（被删除或手动输入），回退列表页
+        navigate('/flows', { replace: true });
       }
+    } else {
+      // 无 ID 参数 → 新建流程
+      const newFlow = createEmptyFlow();
+      // 先设置本地状态，然后异步保存到 store
+      setFlow(newFlow);
+      flowStore.create('未命名流程');
+      navigate(`/flow-editor/${newFlow.id}`, { replace: true });
     }
   }, [flowId]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -739,27 +749,28 @@ export default function FlowEditor() {
   }, [flow, showToast, validation]);
 
   // ===== 组件卸载时保存沙盒环境 =====
+  const flowRef = useRef(flow);
+  flowRef.current = flow;  // 每次 render 同步，无 effect 开销
+
   useEffect(() => {
+    const saveCurrent = () => {
+      const current = flowRef.current;
+      if (current?.id) flowStore.save(current);
+    };
+
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      // 页面卸载时保存沙盒环境
-      if (flow && flow.id) {
-        flowStore.save(flow);
-        event.preventDefault();
-        event.returnValue = '';
-        return '';
-      }
+      saveCurrent();
+      event.preventDefault();
+      event.returnValue = '';
+      return '';
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // 组件卸载时最后保存一次
-      if (flow && flow.id) {
-        flowStore.save(flow);
-      }
+      saveCurrent();  // 仅在组件真正卸载时执行
     };
-  }, [flow, flowId]);
+  }, [flowId]);  // ← 移除 flow 依赖
 
   // ===== 获取选中节点 =====
   const selectedNode = flow.nodes.find(n => n.id === selectedNodeId) || null;
@@ -781,6 +792,13 @@ export default function FlowEditor() {
 
   // ===== 节点分类面板 =====
   const nodeGroups = groupNodeTypesByCategory();
+
+  // 加载完成前渲染占位
+  if (!flow) {
+    return <div className="h-[calc(100vh-64px)] flex items-center justify-center">
+      <Loader2 className="w-6 h-6 animate-spin" />
+    </div>;
+  }
 
   // ===== 渲染 =====
   return (

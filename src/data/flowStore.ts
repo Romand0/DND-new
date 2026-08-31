@@ -118,30 +118,52 @@ function writePublished(flows: FlowDefinition[]) {
 function readDrafts(): FlowDraft[] {
   try {
     const raw = localStorage.getItem(DRAFTS_KEY);
-    const drafts = raw ? JSON.parse(raw) : [];
+    const allDrafts: FlowDraft[] = raw ? JSON.parse(raw) : [];
     
-    // 去重逻辑：按 parentId 分组，保留最新的草稿
-    const draftMap = new Map<string, FlowDraft>();
-    drafts.forEach(draft => {
-      const existing = draftMap.get(draft.parentId);
+    // 第一轮：按 parentId 去重，保留最新
+    const byParentId = new Map<string, FlowDraft>();
+    allDrafts.forEach(draft => {
+      const existing = byParentId.get(draft.parentId);
       if (!existing || draft.updatedAt > existing.updatedAt) {
-        draftMap.set(draft.parentId, draft);
+        byParentId.set(draft.parentId, draft);
       }
     });
     
-    // 确保所有草稿的 publishedVersion 为 0
-    const uniqueDrafts = Array.from(draftMap.values()).map((draft: FlowDraft) => ({
+    // 第二轮：按 data.id 去重，保留最新（消除同 ID 多 parentId 的幽灵）
+    const byDataId = new Map<string, FlowDraft>();
+    for (const draft of byParentId.values()) {
+      // 自修正：parentId 与 data.id 不一致时，以 data.id 为准
+      const canonical = draft.parentId !== draft.data.id && !publishedFlows.some(f => f.id === draft.parentId)
+        ? { ...draft, parentId: draft.data.id }
+        : draft;
+      
+      const existing = byDataId.get(canonical.data.id);
+      if (!existing || canonical.updatedAt > existing.updatedAt) {
+        byDataId.set(canonical.data.id, canonical);
+      }
+    }
+    
+    // 第三轮：清除孤儿草稿（parentId 既不在已发布版中，也不在其他草稿的 data.id 中）
+    // 仅保留：parentId 在 publishedFlows 中，或 data.id 等于 parentId（纯草稿流程）
+    const validDrafts = Array.from(byDataId.values()).filter(draft => {
+      const isPublished = publishedFlows.some(f => f.id === draft.parentId);
+      const isPureDraft = draft.parentId === draft.data.id;
+      return isPublished || isPureDraft;
+    });
+    
+    // 标准化：publishedVersion 归零
+    const result = validDrafts.map(draft => ({
       ...draft,
-      data: {
-        ...draft.data,
-        publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
-      },
+      data: { ...draft.data, publishedVersion: 0 },
     }));
     
-    console.log('readDrafts() - 原始草稿数:', drafts.length);
-    console.log('readDrafts() - 去重后草稿数:', uniqueDrafts.length);
+    // 如果清理有成效，立即回写（一次性修复）
+    if (result.length < allDrafts.length) {
+      console.log(`readDrafts() - 清理幽灵草稿: ${allDrafts.length} → ${result.length}`);
+      writeDrafts(result);
+    }
     
-    return uniqueDrafts;
+    return result;
   } catch { return []; }
 }
 
@@ -502,11 +524,13 @@ const flowStore = {
     }
     
     // 2. 在草稿中查找
-    const draftIdx = drafts.findIndex(d => d.data.id === oldId);
+    const draftIdx = drafts.findIndex(d => d.parentId === oldId || d.data.id === oldId);
     if (draftIdx >= 0) {
-      if (drafts.some(d => d.data.id === newId)) return undefined; // 新 ID 冲突
+      // 冲突检测：同时检查 parentId 和 data.id
+      if (drafts.some(d => d.parentId === newId || d.data.id === newId)) return undefined;
       const updatedDraft = {
         ...drafts[draftIdx],
+        parentId: newId,  // ← 关键修复：同步更新 parentId
         data: { ...drafts[draftIdx].data, id: newId, updatedAt: Date.now() }
       };
       drafts[draftIdx] = updatedDraft;
@@ -610,11 +634,13 @@ const flowStore = {
     }
     
     // 2. 在草稿中查找
-    const draftIdx = drafts.findIndex(d => d.data.id === oldId);
+    const draftIdx = drafts.findIndex(d => d.parentId === oldId || d.data.id === oldId);
     if (draftIdx >= 0) {
-      if (drafts.some(d => d.data.id === newId)) return undefined; // 新 ID 冲突
+      // 冲突检测：同时检查 parentId 和 data.id
+      if (drafts.some(d => d.parentId === newId || d.data.id === newId)) return undefined;
       const updatedDraft = {
         ...drafts[draftIdx],
+        parentId: newId,  // ← 关键修复：同步更新 parentId
         data: { ...drafts[draftIdx].data, id: newId, updatedAt: Date.now() }
       };
       drafts[draftIdx] = updatedDraft;
