@@ -94,27 +94,47 @@ export default function FlowEditor() {
 
   // ===== 状态 =====
   const [flow, setFlow] = useState<FlowDefinition | null>(null);
+  const flowRef = useRef<FlowDefinition | null>(null);
   
   // 初始化加载流程数据
   useEffect(() => {
-    if (flowId) {
-      const loaded = flowStore.getById(flowId);
-      if (loaded) {
-        setFlow(loaded);
-        flowNameInput.setExternal(loaded.name);
-      } else {
-        // URL 中的 ID 在 store 中不存在（被删除或手动输入），回退列表页
-        navigate('/flows', { replace: true });
-      }
+    if (!flowId) return;
+    
+    const loaded = flowStore.getById(flowId);
+    if (loaded) {
+      setFlow(loaded);
+      flowRef.current = loaded;
+      flowNameInput.setExternal(loaded.name);
     } else {
-      // 无 ID 参数 → 新建流程
-      const newFlow = createEmptyFlow();
-      // 先设置本地状态，然后异步保存到 store
-      setFlow(newFlow);
-      flowStore.create('未命名流程');
-      navigate(`/flow-editor/${newFlow.id}`, { replace: true });
+      // 流程在本地不存在，尝试从远程拉取
+      (async () => {
+        try {
+          await flowStore.fetchRemote();
+          const remote = flowStore.getById(flowId);
+          if (remote) {
+            setFlow(remote);
+            flowRef.current = remote;
+            flowNameInput.setExternal(remote.name);
+          } else {
+            // 确实不存在，回退列表页
+            navigate('/flows', { replace: true });
+          }
+        } catch {
+          navigate('/flows', { replace: true });
+        }
+      })();
     }
   }, [flowId]);
+  
+  // flowRef 同步
+  useEffect(() => { flowRef.current = flow; });
+
+  // 加载完成前不渲染编辑器主体
+  if (!flow) {
+    return <div className="h-[calc(100vh-64px)] flex items-center justify-center">
+        <Loader2 className="w-6 h-6 animate-spin" />
+    </div>;
+  }
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   
   // ===== 确保 flowStore 引用最新 =====
@@ -310,7 +330,7 @@ export default function FlowEditor() {
     
     const loadFlow = () => {
       const loaded = flowStore.getById(flowId);
-      if (loaded && loaded.id !== flow.id) {
+      if (loaded && loaded.id !== flowRef.current?.id) {
         console.log('FlowEditor: 重新加载流程数据', flowId);
         setFlow(loaded);
         flowNameInput.setExternal(loaded.name);
@@ -324,11 +344,17 @@ export default function FlowEditor() {
     
     // 订阅 flowStore 变化，但只在真正有数据变化时才重新加载
     const unsubscribe = flowStore.subscribe(() => {
+      const current = flowRef.current;
+      if (!current) return;
+      
       const loaded = flowStore.getById(flowId);
-      if (loaded && loaded.id !== flow.id) {
+      // 精确守卫：仅当 store 中的 updatedAt 不同于当前编辑器时才覆写
+      if (loaded && loaded.id === current.id 
+          && loaded.updatedAt !== current.updatedAt) {
         requestAnimationFrame(() => {
           console.log('FlowEditor: 重新加载流程数据', flowId);
           setFlow(loaded);
+          flowRef.current = loaded;
           flowNameInput.setExternal(loaded.name);
           setSelectedNodeId(null);
           setSelectedEdgeId(null);
@@ -749,8 +775,6 @@ export default function FlowEditor() {
   }, [flow, showToast, validation]);
 
   // ===== 组件卸载时保存沙盒环境 =====
-  const flowRef = useRef(flow);
-  flowRef.current = flow;  // 每次 render 同步，无 effect 开销
 
   useEffect(() => {
     const saveCurrent = () => {
