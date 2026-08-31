@@ -29,8 +29,8 @@ export default function FlowList() {
     (f.tags || []).some(t => t.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleCreate = () => {
-    const f = flowStore.create('');
+  const handleCreate = async () => {
+    const f = await flowStore.create('');
     navigate(`/flow-editor/${f.id}`);
   };
 

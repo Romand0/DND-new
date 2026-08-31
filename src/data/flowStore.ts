@@ -388,14 +388,26 @@ const flowStore = {
   // ──────────── 新建 ────────────
 
   /** 创建全新流程（纯草稿，尚未发布） */
-  create(name: string = '未命名流程'): FlowDefinition {
+  async create(name: string = '未命名流程'): Promise<FlowDefinition> {
     const id = 'flow-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
     const flow: FlowDefinition = {
       id, name, description: '', nodes: [], edges: [],
       tags: [], version: 1,
       createdAt: Date.now(), updatedAt: Date.now(),
     };
-    // 新流程也作为草稿存储，parentId 等于自身 id
+    
+    // 先同步到数据库，确保有ID
+    try {
+      await apiFetch('/flows', {
+        method: 'POST',
+        body: JSON.stringify(flow),
+      });
+      console.log('create() - 流程已同步到数据库:', id);
+    } catch (error) {
+      console.warn('create() - 数据库同步失败，仅保存到本地:', error);
+    }
+    
+    // 再作为草稿存储到localStorage，parentId 等于自身 id
     // 这也是流程的沙盒环境
     const draft: FlowDraft = {
       parentId: id,
