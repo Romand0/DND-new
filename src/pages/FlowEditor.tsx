@@ -284,18 +284,33 @@ export default function FlowEditor() {
     return flowStore.subscribe(refresh);
   }, []);
 
-  // ===== flow 加载：仅在流程切换时从 flowStore 读取一次 =====
+  // ===== flow 加载：流程切换时从 flowStore 读取，并订阅数据变化 =====
   // 编辑器 state 是唯一真相源，store 只做持久化；
-  // 不订阅 store（否则实时同步 save → notify → 回读覆盖，形成循环）
+  // 添加订阅机制，但避免循环更新（只在数据真正变化时更新）
   useEffect(() => {
     if (!flowId) return;
-    const loaded = flowStore.getById(flowId);
-    if (loaded) {
-      setFlow(loaded);
-      flowNameInput.setExternal(loaded.name);
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
-    }
+    
+    const loadFlow = () => {
+      const loaded = flowStore.getById(flowId);
+      if (loaded && loaded.id !== flow.id) {
+        console.log('FlowEditor: 重新加载流程数据', flowId);
+        setFlow(loaded);
+        flowNameInput.setExternal(loaded.name);
+        setSelectedNodeId(null);
+        setSelectedEdgeId(null);
+      }
+    };
+    
+    // 初始加载
+    loadFlow();
+    
+    // 订阅 flowStore 变化，但只在数据变化时重新加载
+    const unsubscribe = flowStore.subscribe(() => {
+      // 使用 requestAnimationFrame 避免频繁更新
+      requestAnimationFrame(loadFlow);
+    });
+    
+    return unsubscribe;
   }, [flowId]);
 
   // ===== 位置快照：保存（画布滚动 + 缩放 + 面板展开状态，按流程 ID 持久化） =====
