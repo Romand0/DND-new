@@ -1,4 +1,17 @@
 import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+
+// 防抖函数
+function debounce(func: Function, wait: number) {
+  let timeout: number;
+  return function executedFunction(...args: any[]) {
+    const later = () => {
+      clearTimeout(timeout);
+      func(...args);
+    };
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait) as unknown as number;
+  };
+}
 import { useFlowEditorToast } from '@/components/flow-editor/hooks/use-flow-editor-toast';
 import { useFlowValidation } from '@/components/flow-editor/hooks/use-flow-validation';
 import { useAutoFix } from '@/components/flow-editor/hooks/use-auto-fix';
@@ -247,16 +260,7 @@ export default function FlowEditor() {
     flowNameInput.setExternal(flow.name);
   }, [flow.name]);
 
-  // ===== 实时同步：即时保存到草稿，无需防抖 =====
-  // 注意：save() 是 upsert，草稿不存在时也会创建，保证首次编辑可落盘
-  useEffect(() => {
-    if (flow.id) {
-      setSaveStatus('saving');
-      flowStore.save(flow);
-      setSaveStatus('saved');
-      setLastSavedAt(Date.now());
-    }
-  }, [flow]);
+
 
   // ===== 手动保存机制（作为实时同步的备份） =====
   const manualSave = useCallback(() => {
@@ -308,10 +312,18 @@ export default function FlowEditor() {
     // 初始加载
     loadFlow();
     
-    // 订阅 flowStore 变化，但只在数据变化时重新加载
+    // 订阅 flowStore 变化，但只在真正有数据变化时才重新加载
     const unsubscribe = flowStore.subscribe(() => {
-      // 使用 requestAnimationFrame 避免频繁更新
-      requestAnimationFrame(loadFlow);
+      const loaded = flowStore.getById(flowId);
+      if (loaded && loaded.id !== flow.id) {
+        requestAnimationFrame(() => {
+          console.log('FlowEditor: 重新加载流程数据', flowId);
+          setFlow(loaded);
+          flowNameInput.setExternal(loaded.name);
+          setSelectedNodeId(null);
+          setSelectedEdgeId(null);
+        });
+      }
     });
     
     return unsubscribe;
@@ -500,7 +512,7 @@ export default function FlowEditor() {
   }, [selectedNodeId]);
 
   // ===== 更新节点配置 =====
-  const updateNodeConfig = useCallback((nodeId: string, key: string, value: any) => {
+  const updateNodeConfig = useCallback(debounce((nodeId: string, key: string, value: any) => {
     setFlow(prev => ({
       ...prev,
       nodes: prev.nodes.map(n =>
@@ -510,7 +522,7 @@ export default function FlowEditor() {
       ),
       updatedAt: Date.now(),
     }));
-  }, []);
+  }, 300), []);
 
   // ===== 更新节点位置（拖拽后应用 delta + 碰撞检测） =====
   const updateNodePositionByDelta = useCallback((nodeId: string, delta: { x: number; y: number }) => {

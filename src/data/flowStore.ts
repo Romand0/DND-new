@@ -545,6 +545,12 @@ const flowStore = {
     // 检查是否有草稿
     const draftIndex = drafts.findIndex(d => d.parentId === flow.id);
     
+    // 如果草稿已存在且版本相同，则不重复保存
+    if (draftIndex >= 0 && drafts[draftIndex].data.updatedAt === flow.updatedAt) {
+      console.log('save() - 草稿版本相同，跳过保存:', flow.id);
+      return flow;
+    }
+    
     if (draftIndex >= 0) {
       // 有草稿，更新草稿
       drafts[draftIndex] = {
