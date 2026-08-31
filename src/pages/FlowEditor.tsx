@@ -80,14 +80,18 @@ export default function FlowEditor() {
   const isDark = theme === 'dark';
 
   // ===== 状态 =====
-  const [flow, setFlow] = useState<FlowDefinition>(() => {
-    // ① 优先从 flowStore 加载指定 ID
+  const [flow, setFlow] = useState<FlowDefinition>(createEmptyFlow());
+  
+  // 初始化加载流程数据
+  useEffect(() => {
     if (flowId) {
       const loaded = flowStore.getById(flowId);
-      if (loaded) return loaded;
+      if (loaded) {
+        setFlow(loaded);
+        flowNameInput.setExternal(loaded.name);
+      }
     }
-    return createEmptyFlow();
-  });
+  }, [flowId]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   
   // ===== 确保 flowStore 引用最新 =====
