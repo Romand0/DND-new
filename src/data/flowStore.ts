@@ -448,11 +448,43 @@ const flowStore = {
   /** 拉取远程已发布版列表（刷新缓存） */
   async fetchRemote(): Promise<void> {
     const flows = await apiFetch('/flows');
-    publishedFlows = flows;
     remoteLoaded = true;
+    
+    // 正确分离：已发布版 vs 远程草稿
+    const remotePublished: FlowDefinition[] = [];
+    const remoteDrafts: FlowDraft[] = [];
+    
+    for (const flow of flows) {
+      if (flow.publishedVersion && flow.publishedVersion > 0) {
+        remotePublished.push(flow);
+      } else {
+        // 远程草稿：仅当本地没有更新版本时才采纳
+        const localDraft = drafts.find(d => 
+          d.parentId === flow.id || d.data.id === flow.id
+        );
+        if (!localDraft || localDraft.updatedAt < flow.updatedAt) {
+          remoteDrafts.push({
+            parentId: flow.id,
+            data: { ...flow, publishedVersion: 0 },
+            forkedAt: flow.createdAt ?? Date.now(),
+            updatedAt: flow.updatedAt ?? Date.now(),
+          });
+        }
+      }
+    }
+    
+    publishedFlows = remotePublished;  // 只含真正的已发布版
     writePublished(publishedFlows);
-    // 重新加载草稿数据，确保数据同步
-    drafts = readDrafts();
+    
+    // 合并远程草稿到本地（本地优先）
+    const localDraftIds = new Set(drafts.map(d => d.parentId));
+    for (const rd of remoteDrafts) {
+      if (!localDraftIds.has(rd.parentId)) {
+        drafts.push(rd);
+      }
+    }
+    writeDrafts(drafts);
+    
     notify();
   },
 
