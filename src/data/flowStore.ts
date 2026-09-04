@@ -48,27 +48,22 @@ function cleanFlowDefinition(flow: FlowDefinition): FlowDefinition {
     tags: flow.tags || [],
     version: flow.version ?? 1,
     status: flow.status || 'draft',
-    description: flow.description || '',
-    category: flow.category || 'custom',
-    bindingsCount: flow.bindingsCount ?? 0,
+    createdAt: flow.createdAt ?? Date.now(),
+    updatedAt: flow.updatedAt ?? Date.now(),
   };
   
-  // 第二层：深度清理 nodes 数组
-  if (cleaned.nodes && Array.isArray(cleaned.nodes)) {
+  // 第二层：处理嵌套结构
+  if (cleaned.nodes) {
     cleaned.nodes = cleaned.nodes.map(node => ({
       ...node,
-      config: deepCleanUndefined(node.config, `nodes.${node.id}.config`),
-      notes: node.notes || '',
+      config: node.config ? deepCleanUndefined(node.config, `nodes.${node.id}.config`) : {},
     }));
   }
   
-  // 第三层：深度清理 edges 数组
-  if (cleaned.edges && Array.isArray(cleaned.edges)) {
+  if (cleaned.edges) {
     cleaned.edges = cleaned.edges.map(edge => ({
       ...edge,
-      dataMap: deepCleanUndefined(edge.dataMap, `edges.${edge.id}.dataMap`),
-      label: edge.label || '',
-      condition: edge.condition || '',
+      config: edge.config ? deepCleanUndefined(edge.config, `edges.${edge.id}.config`) : {},
     }));
   }
   
@@ -82,7 +77,7 @@ const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
 const REMOTE_CACHE_KEY = 'dnd-flow-remote';
 
 /** 位置快照：编辑器画布/面板视图状态（按流程 ID 维度存储） */
-export interface FlowViewportSnapshot {
+interface ViewportSnapshot {
   scrollX: number;
   scrollY: number;
   scale: number;
@@ -90,17 +85,18 @@ export interface FlowViewportSnapshot {
   translateY: number;
   showLeftPanel: boolean;
   showRightPanel: boolean;
+  timestamp: number;
 }
 
-// ====== 内部状态 ======
-type Listener = () => void;
-let listeners: Listener[] = [];
-let publishedFlows: FlowDefinition[] = [];     // 远程已发布版缓存
-let drafts: FlowDraft[] = [];                  // 本地草稿（parentId → FlowDraft）
+// ====== 数据状态 ======
+let drafts: FlowDraft[] = [];
+let publishedFlows: FlowDefinition[] = [];
 let remoteLoaded = false;
+let listeners: (() => void)[] = [];
 
-// ====== 工具函数 ======
-function notify() { listeners.forEach(l => l()); }
+function notify() {
+  listeners.forEach(l => l());
+}
 
 function readPublished(): FlowDefinition[] {
   try {
@@ -115,67 +111,40 @@ function writePublished(flows: FlowDefinition[]) {
   } catch { /* ignore */ }
 }
 
-function readDrafts(): FlowDraft[] {
-  try {
-    const raw = localStorage.getItem(DRAFTS_KEY);
-    const allDrafts: FlowDraft[] = raw ? JSON.parse(raw) : [];
-    
-    // 第一轮：按 parentId 去重，保留最新
-    const byParentId = new Map<string, FlowDraft>();
-    allDrafts.forEach(draft => {
-      const existing = byParentId.get(draft.parentId);
-      if (!existing || draft.updatedAt > existing.updatedAt) {
-        byParentId.set(draft.parentId, draft);
-      }
-    });
-    
-    // 第二轮：按 data.id 去重，保留最新（消除同 ID 多 parentId 的幽灵）
-    const byDataId = new Map<string, FlowDraft>();
-    for (const draft of byParentId.values()) {
-      // 自修正：parentId 与 data.id 不一致时，以 data.id 为准
-      const canonical = draft.parentId !== draft.data.id && !publishedFlows.some(f => f.id === draft.parentId)
-        ? { ...draft, parentId: draft.data.id }
-        : draft;
-      
-      const existing = byDataId.get(canonical.data.id);
-      if (!existing || canonical.updatedAt > existing.updatedAt) {
-        byDataId.set(canonical.data.id, canonical);
-      }
-    }
-    
-    // 第三轮：清除孤儿草稿（parentId 既不在已发布版中，也不在其他草稿的 data.id 中）
-    // 仅保留：parentId 在 publishedFlows 中，或 data.id 等于 parentId（纯草稿流程）
-    const validDrafts = Array.from(byDataId.values()).filter(draft => {
-      const isPublished = publishedFlows.some(f => f.id === draft.parentId);
-      const isPureDraft = draft.parentId === draft.data.id;
-      return isPublished || isPureDraft;
-    });
-    
-    // 标准化：publishedVersion 归零
-    const result = validDrafts.map(draft => ({
-      ...draft,
-      data: { ...draft.data, publishedVersion: 0 },
-    }));
-    
-    // 如果清理有成效，立即回写（一次性修复）
-    if (result.length < allDrafts.length) {
-      console.log(`readDrafts() - 清理幽灵草稿: ${allDrafts.length} → ${result.length}`);
-      writeDrafts(result);
-    }
-    
-    return result;
-  } catch { return []; }
-}
-
 function writeDrafts(d: FlowDraft[]) {
   try {
     localStorage.setItem(DRAFTS_KEY, JSON.stringify(d));
   } catch { /* ignore */ }
 }
 
-
-
-
+function readDrafts(): FlowDraft[] {
+  try {
+    const raw = localStorage.getItem(DRAFTS_KEY);
+    const allDrafts: FlowDraft[] = raw ? JSON.parse(raw) : [];
+    
+    // 【修复】移除所有依赖数据库的清理逻辑
+    // 草稿是独立的，不需要依赖外部数据
+    
+    // 只做基本去重：按草稿 ID 去重，保留最新版本
+    const byId = new Map<string, FlowDraft>();
+    allDrafts.forEach(draft => {
+      const existing = byId.get(draft.id);
+      if (!existing || draft.updatedAt > existing.updatedAt) {
+        byId.set(draft.id, draft);
+      }
+    });
+    
+    const result = Array.from(byId.values());
+    
+    // 【修复】移除立即回写逻辑
+    // if (result.length < allDrafts.length) {
+    //   writeDrafts(result);  // ← 删除这行！
+    // }
+    
+    console.log(`readDrafts() - 返回 ${result.length} 个独立草稿`);
+    return result;
+  } catch { return []; }
+}
 
 // 初始化本地数据
 if (typeof window !== 'undefined') {
@@ -185,6 +154,90 @@ if (typeof window !== 'undefined') {
 }
 
 const flowStore = {
+  /** 订阅数据变化 */
+  subscribe(listener: () => void) {
+    listeners.push(listener);
+    return () => {
+      const idx = listeners.indexOf(listener);
+      if (idx >= 0) listeners.splice(idx, 1);
+    };
+  },
+
+  /** 导入流程 */
+  import(json: string): FlowDefinition | undefined {
+    try {
+      const imported = JSON.parse(json);
+      if (!imported.id || !imported.name) {
+        throw new Error('导入文件格式不正确');
+      }
+      
+      // 验证数据完整性
+      const validation = this.validateFlowDefinition(imported);
+      if (validation.errors && validation.errors.length > 0) {
+        throw new Error(`导入失败: ${validation.errors.join(', ')}`);
+      }
+      
+      // 添加到本地存储
+      const flow = this.save(imported);
+      notify();
+      return flow;
+    } catch (error) {
+      console.error('导入失败:', error);
+      return undefined;
+    }
+  },
+
+  /** 验证流程定义 */
+  validateFlowDefinition(flow: any): { valid: boolean; errors: string[] } {
+    const errors: string[] = [];
+    
+    if (!flow.id) errors.push('缺少流程 ID');
+    if (!flow.name) errors.push('缺少流程名称');
+    if (!Array.isArray(flow.nodes)) errors.push('节点列表格式错误');
+    if (!Array.isArray(flow.edges)) errors.push('边列表格式错误');
+    
+    // 验证节点
+    flow.nodes?.forEach((node: any, index: number) => {
+      if (!node.id) errors.push(`节点 ${index} 缺少 ID`);
+      if (!node.type) errors.push(`节点 ${index} 缺少类型`);
+      if (!node.position) errors.push(`节点 ${index} 缺少位置`);
+    });
+    
+    // 验证边
+    flow.edges?.forEach((edge: any, index: number) => {
+      if (!edge.id) errors.push(`边 ${index} 缺少 ID`);
+      if (!edge.from) errors.push(`边 ${index} 缺少起始节点`);
+      if (!edge.to) errors.push(`边 ${index} 缺少目标节点`);
+    });
+    
+    return { valid: errors.length === 0, errors };
+  },
+
+  /** 拉取远程流程 */
+  async pullRemote(id: string): Promise<FlowDefinition | undefined> {
+    try {
+      const response = await apiFetch(`/flows/${id}`);
+      if (response) {
+        const flow = response as FlowDefinition;
+        
+        // 更新本地已发布版缓存
+        const pIdx = publishedFlows.findIndex(f => f.id === id);
+        if (pIdx >= 0) {
+          publishedFlows[pIdx] = flow;
+        } else {
+          publishedFlows.push(flow);
+        }
+        writePublished(publishedFlows);
+        
+        notify();
+        return flow;
+      }
+      return undefined;
+    } catch (error) {
+      console.error('拉取远程流程失败:', error);
+      return undefined;
+    }
+  },
 
   // ──────────── 读取 ────────────
 
@@ -226,15 +279,15 @@ const flowStore = {
 
   /** 获取草稿（如果存在） */
   getDraft(parentId: string): FlowDraft | undefined {
-    return drafts.find(d => d.parentId === parentId);
+    return drafts.find(d => d.data.id === parentId);
   },
 
   /** 计算三态标签 */
   getPublishStatus(id: string): FlowPublishStatus {
     const flow = publishedFlows.find(f => f.id === id)
-      || drafts.find(d => d.parentId === id)?.data;
+      || drafts.find(d => d.data.id === id)?.data;
     if (!flow) return { kind: 'draft' };
-    return computePublishStatus(flow, drafts.find(d => d.parentId === id));
+    return computePublishStatus(flow, drafts.find(d => d.data.id === id));
   },
 
   // ──────────── 草稿操作 ────────────
@@ -246,7 +299,7 @@ const flowStore = {
    * - 沙盒环境长期存在，清空后可以重新进入
    */
   enterSandbox(parentId: string): FlowDefinition {
-    const existing = drafts.find(d => d.parentId === parentId);
+    const existing = drafts.find(d => d.data.id === parentId);
     if (existing) return existing.data;  // 沙盒已存在，直接返回
 
     const published = publishedFlows.find(f => f.id === parentId);
@@ -256,10 +309,17 @@ const flowStore = {
 
     // 创建沙盒环境（基于最新发布态）
     const sandbox: FlowDraft = {
-      parentId,
+      id: `draft-${parentId}-${Date.now()}`,
       data: { ...published, updatedAt: Date.now() },
-      forkedAt: Date.now(),
+      dataVersion: published.version || 1,
+      draftVersion: 1,
+      createdAt: Date.now(),
       updatedAt: Date.now(),
+      isSynced: false,
+      metadata: {
+        source: 'local',
+        syncAttempts: 0,
+      },
     };
     drafts.push(sandbox);
     writeDrafts(drafts);
@@ -282,10 +342,17 @@ const flowStore = {
 
     // 重新创建沙盒
     const sandbox: FlowDraft = {
-      parentId,
+      id: `draft-${parentId}-${Date.now()}`,
       data: { ...published, updatedAt: Date.now() },
-      forkedAt: Date.now(),
+      dataVersion: published.version || 1,
+      draftVersion: 1,
+      createdAt: Date.now(),
       updatedAt: Date.now(),
+      isSynced: false,
+      metadata: {
+        source: 'local',
+        syncAttempts: 0,
+      },
     };
     drafts.push(sandbox);
     writeDrafts(drafts);
@@ -295,7 +362,7 @@ const flowStore = {
 
   /** 保存草稿（编辑器每次改动调用） */
   saveDraft(parentId: string, patch: Partial<FlowDefinition>): FlowDraft | undefined {
-    const idx = drafts.findIndex(d => d.parentId === parentId);
+    const idx = drafts.findIndex(d => d.data.id === parentId);
     if (idx === -1) return undefined;
 
     drafts[idx] = {
@@ -310,7 +377,7 @@ const flowStore = {
 
   /** 放弃草稿（回退到已发布版） */
   discardDraft(parentId: string): boolean {
-    const next = drafts.filter(d => d.parentId !== parentId);
+    const next = drafts.filter(d => d.data.id !== parentId);
     if (next.length === drafts.length) return false;
     drafts = next;
     writeDrafts(drafts);
@@ -320,7 +387,7 @@ const flowStore = {
 
   /** 清空草稿（编辑器主动清空） */
   clearDraft(parentId: string): boolean {
-    const next = drafts.filter(d => d.parentId !== parentId);
+    const next = drafts.filter(d => d.data.id !== parentId);
     if (next.length === drafts.length) return false;
     drafts = next;
     writeDrafts(drafts);
@@ -338,10 +405,17 @@ const flowStore = {
 
     // 创建新草稿，基于已发布版
     const draft: FlowDraft = {
-      parentId,
+      id: `draft-${parentId}-${Date.now()}`,
       data: { ...published, updatedAt: Date.now() },
-      forkedAt: Date.now(),
+      dataVersion: published.version || 1,
+      draftVersion: 1,
+      createdAt: Date.now(),
       updatedAt: Date.now(),
+      isSynced: false,
+      metadata: {
+        source: 'local',
+        syncAttempts: 0,
+      },
     };
     drafts.push(draft);
     writeDrafts(drafts);
@@ -356,7 +430,7 @@ const flowStore = {
    * 这是唯一修改 publishedFlows 的路径
    */
   async publish(parentId: string): Promise<FlowDefinition | undefined> {
-    const draft = drafts.find(d => d.parentId === parentId);
+    const draft = drafts.find(d => d.data.id === parentId);
     if (!draft) return undefined;
 
     // 验证草稿
@@ -387,7 +461,7 @@ const flowStore = {
     writePublished(publishedFlows);
 
     // 清除草稿（发布后工位清空）
-    drafts = drafts.filter(d => d.parentId !== parentId);
+    drafts = drafts.filter(d => d.data.id !== parentId);
     writeDrafts(drafts);
 
     notify();
@@ -401,7 +475,7 @@ const flowStore = {
     writePublished(publishedFlows);
     
     // 清除草稿（撤下操作后清理相关草稿）
-    drafts = drafts.filter(d => d.parentId !== id);
+    drafts = drafts.filter(d => d.data.id !== id);
     writeDrafts(drafts);
     
     notify();
@@ -429,13 +503,20 @@ const flowStore = {
       console.warn('create() - 数据库同步失败，仅保存到本地:', error);
     }
     
-    // 再作为草稿存储到localStorage，parentId 等于自身 id
+    // 再作为草稿存储到localStorage，id 等于自身 id
     // 这也是流程的沙盒环境
     const draft: FlowDraft = {
-      parentId: id,
+      id: `draft-${id}-${Date.now()}`,
       data: flow,
-      forkedAt: Date.now(),
+      dataVersion: 1,
+      draftVersion: 1,
+      createdAt: Date.now(),
       updatedAt: Date.now(),
+      isSynced: false,
+      metadata: {
+        source: 'local',
+        syncAttempts: 0,
+      },
     };
     drafts.push(draft);
     writeDrafts(drafts);
@@ -460,14 +541,21 @@ const flowStore = {
       } else {
         // 远程草稿：仅当本地没有更新版本时才采纳
         const localDraft = drafts.find(d => 
-          d.parentId === flow.id || d.data.id === flow.id
+          d.data.id === flow.id
         );
         if (!localDraft || localDraft.updatedAt < flow.updatedAt) {
           remoteDrafts.push({
-            parentId: flow.id,
+            id: `draft-${flow.id}-${Date.now()}`,
             data: { ...flow, publishedVersion: 0 },
-            forkedAt: flow.createdAt ?? Date.now(),
-            updatedAt: flow.updatedAt ?? Date.now(),
+            dataVersion: flow.version || 1,
+            draftVersion: 1,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isSynced: true,
+            metadata: {
+              source: 'remote',
+              syncAttempts: 0,
+            },
           });
         }
       }
@@ -477,9 +565,9 @@ const flowStore = {
     writePublished(publishedFlows);
     
     // 合并远程草稿到本地（本地优先）
-    const localDraftIds = new Set(drafts.map(d => d.parentId));
+    const localDraftIds = new Set(drafts.map(d => d.data.id));
     for (const rd of remoteDrafts) {
-      if (!localDraftIds.has(rd.parentId)) {
+      if (!localDraftIds.has(rd.data.id)) {
         drafts.push(rd);
       }
     }
@@ -492,7 +580,7 @@ const flowStore = {
 
   /** 计算草稿相对已发布版的变更（Fork 模式天然支持） */
   diff(parentId: string): { addedNodes: string[]; removedNodes: string[]; modifiedNodes: string[] } | null {
-    const draft = drafts.find(d => d.parentId === parentId);
+    const draft = drafts.find(d => d.data.id === parentId);
     const published = publishedFlows.find(f => f.id === parentId);
     if (!draft || !published) return null;
 
@@ -517,17 +605,22 @@ const flowStore = {
   /** 判断草稿状态（Fork 模式下重新实现） */
   isDraftDirty(flow: FlowDefinition): boolean {
     if (!flow.publishedVersion || flow.publishedVersion === 0) return true;
-    const draft = drafts.find(d => d.parentId === flow.id);
+    const draft = drafts.find(d => d.data.id === flow.id);
     return draft ? (draft.updatedAt > (flow.publishedAt ?? 0)) : false;
   },
 
   /** 获取单个流程（优先草稿，其次已发布版） */
   getById(id: string): FlowDefinition | undefined {
-    // 优先返回草稿数据
-    const draft = drafts.find(d => d.data.id === id || d.parentId === id);
-    if (draft) {
-      console.log('getById() - 返回草稿数据:', id);
-      return draft.data;
+    // 查找该流程的所有草稿版本
+    const relevantDrafts = drafts.filter(d => d.data.id === id);
+    
+    if (relevantDrafts.length > 0) {
+      // 返回最新版本的草稿数据
+      const latestDraft = relevantDrafts.reduce((latest, current) => 
+        current.dataVersion > latest.dataVersion ? current : latest
+      );
+      console.log('getById() - 返回最新草稿数据:', id, '版本:', latestDraft.dataVersion);
+      return latestDraft.data;
     }
     
     // 如果没有草稿，返回已发布流程
@@ -540,8 +633,6 @@ const flowStore = {
     console.log('getById() - 未找到流程:', id);
     return undefined;
   },
-
-
 
   /** 变更流程 ID（类别/名称变更时） */
   retargetId(oldId: string, newId: string): FlowDefinition | undefined {
@@ -556,13 +647,13 @@ const flowStore = {
     }
     
     // 2. 在草稿中查找
-    const draftIdx = drafts.findIndex(d => d.parentId === oldId || d.data.id === oldId);
+    const draftIdx = drafts.findIndex(d => d.data.id === oldId);
     if (draftIdx >= 0) {
-      // 冲突检测：同时检查 parentId 和 data.id
-      if (drafts.some(d => d.parentId === newId || d.data.id === newId)) return undefined;
+      // 冲突检测：检查 data.id
+      if (drafts.some(d => d.data.id === newId)) return undefined;
       const updatedDraft = {
         ...drafts[draftIdx],
-        parentId: newId,  // ← 关键修复：同步更新 parentId
+        id: `draft-${newId}-${Date.now()}`,
         data: { ...drafts[draftIdx].data, id: newId, updatedAt: Date.now() }
       };
       drafts[draftIdx] = updatedDraft;
@@ -598,37 +689,46 @@ const flowStore = {
       throw new Error('流程数据不完整');
     }
 
-    // 检查是否有草稿
-    const draftIndex = drafts.findIndex(d => d.parentId === flow.id);
+    // 获取该流程的所有草稿版本
+    const relevantDrafts = drafts.filter(d => d.data.id === flow.id);
     
-    // 如果草稿已存在且版本相同，则不重复保存
-    if (draftIndex >= 0 && drafts[draftIndex].data.updatedAt === flow.updatedAt) {
-      console.log('save() - 草稿版本相同，跳过保存:', flow.id);
-      return flow;
-    }
-    
-    if (draftIndex >= 0) {
-      // 有草稿，更新草稿
+    if (relevantDrafts.length > 0) {
+      // 找到最新版本的草稿
+      const latestDraft = relevantDrafts.reduce((latest, current) => 
+        current.dataVersion > latest.dataVersion ? current : latest
+      );
+      
+      // 检查是否真的需要更新
+      if (latestDraft.dataVersion >= flow.version) {
+        console.log('save() - 草稿已是最新，无需更新:', flow.id);
+        return flow;
+      }
+      
+      // 更新现有草稿，保持草稿 ID 不变
+      const draftIndex = drafts.findIndex(d => d.id === latestDraft.id);
       drafts[draftIndex] = {
-        ...drafts[draftIndex],
-        data: {
-          ...flow,
-          publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
-        },
+        ...latestDraft,
+        data: flow,
+        dataVersion: flow.version,
         updatedAt: Date.now(),
+        isSynced: false,
       };
       writeDrafts(drafts);
       console.log('save() - 更新现有草稿:', flow.id);
     } else {
-      // 没有草稿，创建新草稿
+      // 创建新草稿
       const newDraft: FlowDraft = {
-        parentId: flow.id,
-        data: {
-          ...flow,
-          publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
-        },
-        forkedAt: Date.now(),
+        id: `draft-${flow.id}-${flow.version}-${Date.now()}`,
+        data: flow,
+        dataVersion: flow.version,
+        draftVersion: 1,
+        createdAt: Date.now(),
         updatedAt: Date.now(),
+        isSynced: false,
+        metadata: {
+          source: 'local',
+          syncAttempts: 0,
+        },
       };
       drafts.push(newDraft);
       writeDrafts(drafts);
@@ -646,7 +746,7 @@ const flowStore = {
     writePublished(publishedFlows);
     
     // 2. 删除相关草稿
-    drafts = drafts.filter(d => d.parentId !== id);
+    drafts = drafts.filter(d => d.data.id !== id);
     writeDrafts(drafts);
     
     notify();
@@ -666,13 +766,13 @@ const flowStore = {
     }
     
     // 2. 在草稿中查找
-    const draftIdx = drafts.findIndex(d => d.parentId === oldId || d.data.id === oldId);
+    const draftIdx = drafts.findIndex(d => d.data.id === oldId);
     if (draftIdx >= 0) {
-      // 冲突检测：同时检查 parentId 和 data.id
-      if (drafts.some(d => d.parentId === newId || d.data.id === newId)) return undefined;
+      // 冲突检测：检查 data.id
+      if (drafts.some(d => d.data.id === newId)) return undefined;
       const updatedDraft = {
         ...drafts[draftIdx],
-        parentId: newId,  // ← 关键修复：同步更新 parentId
+        id: `draft-${newId}-${Date.now()}`,
         data: { ...drafts[draftIdx].data, id: newId, updatedAt: Date.now() }
       };
       drafts[draftIdx] = updatedDraft;
@@ -684,141 +784,35 @@ const flowStore = {
     return undefined;
   },
 
-  /** 拉取单个正式版覆盖本地 */
-  async pullRemote(id: string): Promise<FlowDefinition | undefined> {
-    const remote = await apiFetch(`/flows/${id}`);
-    
-    // 更新已发布版缓存
-    const pIdx = publishedFlows.findIndex(f => f.id === id);
-    if (pIdx >= 0) {
-      publishedFlows[pIdx] = remote;
-    } else {
-      publishedFlows.push(remote);
-    }
-    writePublished(publishedFlows);
-    
-    notify();
-    return remote;
-  },
+  // ──────────── 视图快照 ────────────
 
-  /** 导入（从 JSON 字符串，返回导入后的 flow 或 null） */
-  import(json: string): FlowDefinition | null {
-    try {
-      const flow = JSON.parse(json) as FlowDefinition; // 直接解析，避免循环依赖
-      // 若 ID 冲突则重新生成
-      if (this.getAll().some(f => f.id === flow.id)) {
-        flow.id = 'flow-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-      }
-      
-      // 作为草稿存储，同时也是沙盒环境
-      const newDraft: FlowDraft = {
-        parentId: flow.id,
-        data: {
-          ...flow,
-          publishedVersion: 0, // 草稿的 publishedVersion 必须为 0
-        },
-        forkedAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      drafts.push(newDraft);
-      writeDrafts(drafts);
-      
-      notify();
-      return flow;
-    } catch {
-      return null;
-    }
-  },
-
-  /** 保存位置快照（按流程 ID） */
-  saveViewportSnapshot(flowId: string, snapshot: FlowViewportSnapshot): void {
+  /** 保存编辑器视图快照 */
+  saveViewportSnapshot(flowId: string, snapshot: ViewportSnapshot): void {
     try {
       const raw = localStorage.getItem(VIEWPORT_KEY);
-      const map: Record<string, FlowViewportSnapshot> = raw ? JSON.parse(raw) : {};
-      map[flowId] = snapshot;
-      localStorage.setItem(VIEWPORT_KEY, JSON.stringify(map));
+      const snapshots: Record<string, ViewportSnapshot> = raw ? JSON.parse(raw) : {};
+      
+      // 合并现有快照和新快照
+      snapshots[flowId] = {
+        ...snapshots[flowId],
+        ...snapshot,
+        timestamp: Date.now(),
+      };
+      
+      localStorage.setItem(VIEWPORT_KEY, JSON.stringify(snapshots));
     } catch { /* ignore */ }
   },
 
-  /** 恢复位置快照（按流程 ID） */
-  getViewportSnapshot(flowId: string): FlowViewportSnapshot | null {
+  /** 获取编辑器视图快照 */
+  getViewportSnapshot(flowId: string): ViewportSnapshot | null {
     try {
       const raw = localStorage.getItem(VIEWPORT_KEY);
-      if (!raw) return null;
-      const map: Record<string, FlowViewportSnapshot> = JSON.parse(raw);
-      return map?.[flowId] ?? null;
-    } catch {
-      return null;
-    }
+      const snapshots: Record<string, ViewportSnapshot> = raw ? JSON.parse(raw) : {};
+      return snapshots[flowId] || null;
+    } catch { return null; }
   },
 
-  /** 订阅变更 */
-  subscribe(listener: Listener): () => void {
-    listeners.push(listener);
-    return () => { listeners = listeners.filter(l => l !== listener); };
-  },
 };
 
-// ====== 实时同步Hook ======
-export function useRealtimeSync(flowId: string) {
-  const [flow, setFlow] = useState<FlowDefinition>();
-  
-  useEffect(() => {
-    if (flow && flowId) {
-      // 实时同步到草稿
-      flowStore.saveDraft(flowId, flow);
-    }
-  }, [flow, flowId]);
-  
-  return { flow, setFlow };
-}
-
-// ====== 沙盒环境持久化Hook ======
-export function useSandboxPersistence(flowId: string) {
-  const [flow, setFlow] = useState<FlowDefinition>();
-  
-  // 进入沙盒环境
-  useEffect(() => {
-    if (flowId) {
-      const sandboxData = flowStore.enterSandbox(flowId);
-      setFlow(sandboxData);
-    }
-  }, [flowId]);
-  
-  // 页面卸载时保存
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (flow && flowId) {
-        flowStore.saveDraft(flowId, flow);
-        event.preventDefault();
-        event.returnValue = '';
-        return '';
-      }
-    };
-    
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      // 组件卸载时保存
-      if (flow && flowId) {
-        flowStore.saveDraft(flowId, flow);
-      }
-    };
-  }, [flow, flowId]);
-  
-  // 定期自动保存
-  useEffect(() => {
-    if (!flow || !flowId) return;
-    
-    const interval = setInterval(() => {
-      flowStore.saveDraft(flowId, flow);
-    }, 30000); // 每30秒自动保存一次
-    
-    return () => clearInterval(interval);
-  }, [flow, flowId]);
-  
-  return { flow, setFlow };
-}
-
+// ====== 发布模式 ======
 export default flowStore;

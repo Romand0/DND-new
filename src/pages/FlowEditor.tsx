@@ -381,15 +381,16 @@ export default function FlowEditor() {
     if (!flowId) return;
     const canvas = canvasRef.current;
     const v = viewportRef.current;
-    flowStore.saveViewportSnapshot(flowId, {
+flowStore.saveViewportSnapshot(flowId, {
       scrollX: canvas ? canvas.scrollLeft : v.scrollX,
       scrollY: canvas ? canvas.scrollTop : v.scrollY,
       scale: v.scale,
       translateX: v.translateX,
       translateY: v.translateY,
-      showLeftPanel: v.showLeftPanel,
-      showRightPanel: v.showRightPanel,
-    });
+      showLeftPanel: showLeftPanel,
+      showRightPanel: showRightPanel,
+      timestamp: Date.now(),
+    } as any);
   }, [flowId]);
 
   const scheduleViewportSave = useCallback(() => {
