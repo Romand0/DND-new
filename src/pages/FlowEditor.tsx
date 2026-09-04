@@ -85,6 +85,20 @@ import { SpatialGrid } from '@/utils/spatialGrid';
 
 
 
+/** 加载完成前的空占位流程：保证组件内所有 Hook 无条件执行、顺序恒定 */
+const EMPTY_FLOW: FlowDefinition = {
+  id: '',
+  name: '',
+  description: '',
+  nodes: [],
+  edges: [],
+  tags: [],
+  version: 1,
+  status: 'draft',
+  createdAt: 0,
+  updatedAt: 0,
+};
+
 export default function FlowEditor() {
   const { id: flowId } = useParams<{ id: string }>();
 
@@ -93,7 +107,27 @@ export default function FlowEditor() {
   const isDark = theme === 'dark';
 
   // ===== 状态 =====
-  const [flow, setFlow] = useState<FlowDefinition | null>(null);
+  // flow 恒非 null：加载完成前用 EMPTY_FLOW 占位。
+  // 若在此处返回 spinner 会切断其后的 Hook 链，导致二次渲染 Hook 数量不一致而崩溃。
+  const [flowState, setFlowState] = useState<{ flow: FlowDefinition; loaded: boolean }>({
+    flow: EMPTY_FLOW,
+    loaded: false,
+  });
+  const flow = flowState.flow;
+  const flowLoaded = flowState.loaded;
+  // 编辑器操作更新（保持 loaded 不变）
+  const setFlow = useCallback((updater: FlowDefinition | ((prev: FlowDefinition) => FlowDefinition)) => {
+    setFlowState(prev => {
+      const next = typeof updater === 'function'
+        ? (updater as (p: FlowDefinition) => FlowDefinition)(prev.flow)
+        : updater;
+      return { flow: next, loaded: prev.loaded };
+    });
+  }, []);
+  // 数据加载完成（置 loaded，结束占位）
+  const setLoadedFlow = useCallback((f: FlowDefinition) => {
+    setFlowState({ flow: f, loaded: true });
+  }, []);
   const flowRef = useRef<FlowDefinition | null>(null);
   
   // 初始化加载流程数据
@@ -102,7 +136,7 @@ export default function FlowEditor() {
     
     const loaded = flowStore.getById(flowId);
     if (loaded) {
-      setFlow(loaded);
+      setLoadedFlow(loaded);
       flowRef.current = loaded;
       flowNameInput.setExternal(loaded.name);
     } else {
@@ -112,7 +146,7 @@ export default function FlowEditor() {
           await flowStore.fetchRemote();
           const remote = flowStore.getById(flowId);
           if (remote) {
-            setFlow(remote);
+            setLoadedFlow(remote);
             flowRef.current = remote;
             flowNameInput.setExternal(remote.name);
           } else {
@@ -129,12 +163,6 @@ export default function FlowEditor() {
   // flowRef 同步
   useEffect(() => { flowRef.current = flow; });
 
-  // 加载完成前不渲染编辑器主体
-  if (!flow) {
-    return <div className="h-[calc(100vh-64px)] flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin" />
-    </div>;
-  }
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   
   // ===== 确保 flowStore 引用最新 =====
@@ -332,7 +360,7 @@ export default function FlowEditor() {
       const loaded = flowStore.getById(flowId);
       if (loaded && loaded.id !== flowRef.current?.id) {
         console.log('FlowEditor: 重新加载流程数据', flowId);
-        setFlow(loaded);
+        setLoadedFlow(loaded);
         flowNameInput.setExternal(loaded.name);
         setSelectedNodeId(null);
         setSelectedEdgeId(null);
@@ -353,7 +381,7 @@ export default function FlowEditor() {
           && loaded.updatedAt !== current.updatedAt) {
         requestAnimationFrame(() => {
           console.log('FlowEditor: 重新加载流程数据', flowId);
-          setFlow(loaded);
+          setLoadedFlow(loaded);
           flowRef.current = loaded;
           flowNameInput.setExternal(loaded.name);
           setSelectedNodeId(null);
@@ -818,8 +846,8 @@ flowStore.saveViewportSnapshot(flowId, {
   // ===== 节点分类面板 =====
   const nodeGroups = groupNodeTypesByCategory();
 
-  // 加载完成前渲染占位
-  if (!flow) {
+  // 加载完成前渲染占位（位于所有 Hook 之后，不切断 Hook 链）
+  if (!flowLoaded) {
     return <div className="h-[calc(100vh-64px)] flex items-center justify-center">
       <Loader2 className="w-6 h-6 animate-spin" />
     </div>;

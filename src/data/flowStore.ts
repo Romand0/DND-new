@@ -698,9 +698,18 @@ const flowStore = {
         current.dataVersion > latest.dataVersion ? current : latest
       );
       
-      // 检查是否真的需要更新
-      if (latestDraft.dataVersion >= flow.version) {
-        console.log('save() - 草稿已是最新，无需更新:', flow.id);
+      // 内容未变化的判定依据是 updatedAt（编辑器每次改动都会刷新 updatedAt）。
+      // 仅在时间戳完全相同（同一份数据重复保存）时跳过，避免无谓写盘；
+      // 不能用 dataVersion >= flow.version 做门控——新建草稿 version 恒定不递增，
+      // 会导致编辑后的内容永不写回 localStorage。
+      const srcUpdatedAt = latestDraft.data.updatedAt;
+      const flowUpdatedAt = flow.updatedAt;
+      const unchanged =
+        typeof srcUpdatedAt === 'number' &&
+        typeof flowUpdatedAt === 'number' &&
+        srcUpdatedAt === flowUpdatedAt;
+      if (unchanged) {
+        console.log('save() - 草稿数据未变化，跳过写入:', flow.id);
         return flow;
       }
       
@@ -709,7 +718,7 @@ const flowStore = {
       drafts[draftIndex] = {
         ...latestDraft,
         data: flow,
-        dataVersion: flow.version,
+        dataVersion: Math.max(latestDraft.dataVersion, flow.version ?? 1),
         updatedAt: Date.now(),
         isSynced: false,
       };
