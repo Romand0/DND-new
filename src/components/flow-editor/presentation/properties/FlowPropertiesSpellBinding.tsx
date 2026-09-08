@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { Zap, X } from 'lucide-react';
+import React from 'react';
+import { Zap } from 'lucide-react';
 import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
 import SpellPickerField from '@/components/SpellPickerField';
-import SpellPicker from '@/components/SpellPicker';
 import type { Spell } from '@/types/spell';
 import { spellStore } from '@/data/spellStore';
 
@@ -31,9 +30,6 @@ export default function FlowPropertiesSpellBinding({
     showToast
   );
 
-  // 添加本地状态管理法术选择器
-  const [isSpellPickerOpen, setIsSpellPickerOpen] = useState(false);
-
   const handleSpellChange = (newSpellId: string) => {
     if (newSpellId) {
       spellBinding.handleBindSpell(newSpellId);
@@ -58,24 +54,7 @@ export default function FlowPropertiesSpellBinding({
           已选择：{spellBinding.boundSpellName} (Lv.{spellBinding.boundSpellLevel} {spellBinding.boundSpellSchool})
         </div>
       )}
-      
-      {/* 法术选择弹窗 - 使用完整的 SpellPicker */}
-      {isSpellPickerOpen && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsSpellPickerOpen(false)} />
-          <div className="relative w-full h-full max-w-4xl max-h-[90vh] m-4 flex flex-col rounded-2xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl overflow-hidden">
-            <SpellPicker
-              isOpen={isSpellPickerOpen}
-              onClose={() => setIsSpellPickerOpen(false)}
-              onSelect={(spell) => {
-                handleSpellChange(spell.id);
-                setIsSpellPickerOpen(false);
-              }}
-              selectedSpellIds={spellId ? [spellId] : []}
-            />
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }

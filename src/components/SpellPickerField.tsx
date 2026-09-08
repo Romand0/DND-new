@@ -98,6 +98,8 @@ export default function SpellPickerField({ value, onChange, isDark, placeholder 
           onChange(spell.id);
         }}
         selectedSpellIds={value ? [value] : []}
+        filterLevel="all"
+        matchByName={true}
       />
     </>
   );
