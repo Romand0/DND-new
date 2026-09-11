@@ -2,6 +2,7 @@ import React from 'react';
 import { Zap } from 'lucide-react';
 import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
 import SpellPickerField from '@/components/SpellPickerField';
+import SpellPicker from '@/components/SpellPicker';
 import type { Spell } from '@/types/spell';
 import { spellStore } from '@/data/spellStore';
 
@@ -29,6 +30,9 @@ export default function FlowPropertiesSpellBinding({
     },
     showToast
   );
+
+  // 添加本地状态管理法术选择器
+  const [isSpellPickerOpen, setIsSpellPickerOpen] = useState(false);
 
   const handleSpellChange = (newSpellId: string) => {
     if (newSpellId) {
