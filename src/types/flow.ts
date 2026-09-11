@@ -65,16 +65,26 @@ export interface FlowEdgeDef {
   label?: string;                    // 显示标签（如 "成功" / "失败"）
   dataMap?: Record<string, string>;  // 数据映射：上游输出 → 下游输入（如 { "failed_targets": "input_targets" }）
   condition?: string;                // 可选守卫条件（如 "target.currentHp > 0"）
+  config?: Record<string, any>;      // 边配置（新增）
 }
 
 // ==================== 新增 ====================
 
 /** 草稿定义：从已发布流程 fork 出来的工作副本 */
 export interface FlowDraft {
-  parentId: string;          // → PublishedFlow.id（唯一绑定）
-  data: FlowDefinition;      // 草稿内容（可自由修改）
-  forkedAt: number;          // 派生时间
-  updatedAt: number;         // 最近保存时间
+  id: string;                    // 草稿唯一标识
+  data: FlowDefinition;         // 草稿内容（可自由修改）
+  dataVersion: number;           // 数据版本号（与 flow.version 保持一致）
+  draftVersion: number;          // 草稿版本号（递增）
+  createdAt: number;             // 草稿创建时间
+  updatedAt: number;             // 草稿更新时间
+  isSynced: boolean;             // 是否已同步到数据库
+  metadata?: {                   // 元数据（可选）
+    source: 'local' | 'remote'; // 数据来源
+    syncAttempts: number;       // 同步尝试次数
+    sessionId?: string;         // 会话标识（防止多标签页冲突）
+    userAgent?: string;          // 用户代理信息
+  };
 }
 
 // ==================== FlowDefinition 变更 ====================

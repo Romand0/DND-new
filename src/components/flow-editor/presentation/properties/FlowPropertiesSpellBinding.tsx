@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Zap, X } from 'lucide-react';
 import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
 import SpellPickerField from '@/components/SpellPickerField';
+import SpellPicker from '@/components/SpellPicker';
 import type { Spell } from '@/types/spell';
 import { spellStore } from '@/data/spellStore';
 
@@ -30,6 +31,9 @@ export default function FlowPropertiesSpellBinding({
     showToast
   );
 
+  // 添加本地状态管理法术选择器
+  const [isSpellPickerOpen, setIsSpellPickerOpen] = useState(false);
+
   const handleSpellChange = (newSpellId: string) => {
     if (newSpellId) {
       spellBinding.handleBindSpell(newSpellId);
@@ -55,72 +59,23 @@ export default function FlowPropertiesSpellBinding({
         </div>
       )}
       
-      {/* 法术选择弹窗 */}
-      {spellBinding.showSpellPicker && (
-        <SpellPickerModal
-          isOpen={spellBinding.showSpellPicker}
-          onClose={() => spellBinding.setShowSpellPicker(false)}
-          onSpellSelect={spellBinding.handleBindSpell}
-          selectedSpellId={spellId}
-        />
+      {/* 法术选择弹窗 - 使用完整的 SpellPicker */}
+      {isSpellPickerOpen && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setIsSpellPickerOpen(false)} />
+          <div className="relative w-full h-full max-w-4xl max-h-[90vh] m-4 flex flex-col rounded-2xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl overflow-hidden">
+            <SpellPicker
+              isOpen={isSpellPickerOpen}
+              onClose={() => setIsSpellPickerOpen(false)}
+              onSelect={(spell) => {
+                handleSpellChange(spell.id);
+                setIsSpellPickerOpen(false);
+              }}
+              selectedSpellIds={spellId ? [spellId] : []}
+            />
+          </div>
+        </div>
       )}
-    </div>
-  );
-}
-
-// 法术选择弹窗组件
-interface SpellPickerModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSpellSelect: (spellId: string) => void;
-  selectedSpellId: string | undefined;
-}
-
-function SpellPickerModal({
-  isOpen,
-  onClose,
-  onSpellSelect,
-  selectedSpellId,
-}: SpellPickerModalProps) {
-  if (!isOpen) return null;
-
-  return (
-    <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="rounded-xl p-6 max-w-2xl w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-medium dark:text-text-dark light:text-text-light">选择法术</h3>
-          <button onClick={onClose} className="p-1 rounded hover:bg-white/10">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <div className="space-y-4 max-h-96 overflow-y-auto">
-          {spellStore.getAll().map(spell => (
-            <div
-              key={spell.id}
-              className={`p-3 rounded-lg border dark:border-border-dark light:border-border-light cursor-pointer transition-colors ${
-                selectedSpellId === spell.id
-                  ? 'bg-primary/5 border-primary'
-                  : 'hover:bg-primary/5'
-              }`}
-              onClick={() => onSpellSelect(spell.id)}
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <Zap className="w-5 h-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium dark:text-text-dark light:text-text-light truncate">
-                    {spell.name}
-                  </div>
-                  <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                    Lv.{spell.level} {spell.school}
-                  </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }
