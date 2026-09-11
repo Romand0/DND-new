@@ -538,26 +538,38 @@ const flowStore = {
     for (const flow of flows) {
       if (flow.publishedVersion && flow.publishedVersion > 0) {
         remotePublished.push(flow);
-      } else {
-        // 远程草稿：仅当本地没有更新版本时才采纳
-        const localDraft = drafts.find(d => 
-          d.data.id === flow.id
-        );
-        if (!localDraft || localDraft.updatedAt < flow.updatedAt) {
-          remoteDrafts.push({
-            id: `draft-${flow.id}-${Date.now()}`,
-            data: { ...flow, publishedVersion: 0 },
-            dataVersion: flow.version || 1,
-            draftVersion: 1,
-            createdAt: Date.now(),
-            updatedAt: Date.now(),
-            isSynced: true,
-            metadata: {
-              source: 'remote',
-              syncAttempts: 0,
-            },
-          });
+} else {
+          // 远程草稿：仅当本地没有更新版本时才采纳
+          const localDraft = drafts.find(d => 
+            d.data.id === flow.id
+          );
+          if (!localDraft || localDraft.updatedAt < flow.updatedAt) {
+            remoteDrafts.push({
+              id: `draft-${flow.id}-${Date.now()}`,
+              data: { ...flow, publishedVersion: 0 },
+              dataVersion: flow.version || 1,
+              draftVersion: 1,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+              isSynced: true,
+              metadata: {
+                source: 'remote',
+                syncAttempts: 0,
+              },
+            });
+          }
         }
+      }
+      
+      writePublished(publishedFlows);
+      
+      // 合并远程草稿到本地（本地优先）
+      const localDraftIds = new Set(drafts.map(d => d.data.id));
+      for (const rd of remoteDrafts) {
+        if (!localDraftIds.has(rd.data.id)) {
+          drafts.push(rd);
+        }
+      }
       }
     }
     

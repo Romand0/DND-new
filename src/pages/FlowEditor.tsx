@@ -134,22 +134,22 @@ export default function FlowEditor() {
   useEffect(() => {
     if (!flowId) return;
     
-    const loaded = flowStore.getById(flowId);
-    if (loaded) {
-      setLoadedFlow(loaded);
-      flowRef.current = loaded;
-      flowNameInput.setExternal(loaded.name);
-    } else {
+      const loaded = flowStore.getById(flowId);
+      if (loaded) {
+        setLoadedFlow(loaded);
+        flowRef.current = loaded;
+        flowNameInput.setExternal(loaded.name);
+      } else {
       // 流程在本地不存在，尝试从远程拉取
       (async () => {
         try {
           await flowStore.fetchRemote();
-          const remote = flowStore.getById(flowId);
-          if (remote) {
-            setLoadedFlow(remote);
-            flowRef.current = remote;
-            flowNameInput.setExternal(remote.name);
-          } else {
+            const remote = flowStore.getById(flowId);
+            if (remote) {
+              setLoadedFlow(remote);
+              flowRef.current = remote;
+              flowNameInput.setExternal(remote.name);
+            } else {
             // 确实不存在，回退列表页
             navigate('/flows', { replace: true });
           }
@@ -160,12 +160,12 @@ export default function FlowEditor() {
     }
   }, [flowId]);
   
-  // flowRef 同步
-  useEffect(() => { flowRef.current = flow; });
-
-  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  
-  // ===== 确保 flowStore 引用最新 =====
+    // flowRef 同步
+    useEffect(() => { flowRef.current = flow; });
+    
+    const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+    
+    // ===== 确保 flowStore 引用最新 =====
   const flowStoreRef = useRef(flowStore);
   useEffect(() => {
     flowStoreRef.current = flowStore;
@@ -379,12 +379,12 @@ export default function FlowEditor() {
       // 精确守卫：仅当 store 中的 updatedAt 不同于当前编辑器时才覆写
       if (loaded && loaded.id === current.id 
           && loaded.updatedAt !== current.updatedAt) {
-        requestAnimationFrame(() => {
-          console.log('FlowEditor: 重新加载流程数据', flowId);
-          setLoadedFlow(loaded);
-          flowRef.current = loaded;
-          flowNameInput.setExternal(loaded.name);
-          setSelectedNodeId(null);
+          requestAnimationFrame(() => {
+            console.log('FlowEditor: 重新加载流程数据', flowId);
+            setLoadedFlow(loaded);
+            flowRef.current = loaded;
+            flowNameInput.setExternal(loaded.name);
+            setSelectedNodeId(null);
           setSelectedEdgeId(null);
         });
       }
