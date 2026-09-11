@@ -577,15 +577,9 @@ const flowStore = {
     writePublished(publishedFlows);
     
     // 合并远程草稿到本地（本地优先）
-<<<<<<< HEAD
-    const localDraftIds = new Set(drafts.map(d => d.parentId));
-    for (const rd of remoteDrafts) {
-      if (!localDraftIds.has(rd.parentId)) {
-=======
     const localDraftIds = new Set(drafts.map(d => d.data.id));
     for (const rd of remoteDrafts) {
       if (!localDraftIds.has(rd.data.id)) {
->>>>>>> 5ad3cc9fb084a9f0c0b7865797d66ebb13a77bf0
         drafts.push(rd);
       }
     }
