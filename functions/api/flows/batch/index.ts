@@ -1,5 +1,5 @@
 // 批量处理流程 API
-import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now } from '../../_utils';
+import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now } from '../../../_utils';
 
 export async function onRequestPost(context: any): Promise<Response> {
   const { request, env } = context;
