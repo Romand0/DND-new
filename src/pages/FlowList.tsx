@@ -14,6 +14,7 @@ export default function FlowList() {
   const [flows, setFlows] = useState<FlowDefinition[]>([]);
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [showConsole, setShowConsole] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 订阅 store
@@ -103,8 +104,8 @@ export default function FlowList() {
         </button>
         <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">流程库</h1>
         <button
-          onClick={() => document.body.classList.add('console-open')}
-          className="px-4 py-2 rounded-lg bg-secondary text-white text-sm font-medium hover:bg-secondary/90 transition-colors flex items-center gap-2"
+          onClick={() => setShowConsole(true)}
+          className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors flex items-center gap-2"
         >
           <Zap className="w-4 h-4" />
           控制台
@@ -295,7 +296,7 @@ export default function FlowList() {
       )}
       
       {/* FlowConsole 组件 */}
-      {document.body.classList.contains('console-open') && <FlowConsole />}
+      {showConsole && <FlowConsole onClose={() => setShowConsole(false)} />}
     </div>
   );
 }
