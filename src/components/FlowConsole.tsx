@@ -185,7 +185,7 @@ export default function FlowConsole({ onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="dark:bg-card-dark light:bg-card-light rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl border border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-bold dark:text-text-dark light:text-text-light flex items-center gap-2">
             <Terminal className="w-5 h-5" />
