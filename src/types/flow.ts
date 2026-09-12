@@ -30,7 +30,7 @@ export interface FlowNodeDef {
   id: string;                        // 节点唯一 ID（如 "start" / "check_verbal"）
   type: FlowNodeType;                // 节点语义类型
   label: string;                     // 显示名称（如 "施法开始"）
-  position: FlowNodePosition;          // 画布坐标
+  position?: FlowNodePosition;        // 画布坐标（可选，缺失时编辑器自动布局）
   config?: Record<string, any>;      // 节点配置（如 range: 60, component: "verbal"）
   notes?: string;                    // 用户备注（自由文本）
 }
@@ -187,6 +187,137 @@ export function buildFlowId(category: FlowCategory, slug: string): string {
 /** 名称 → slug 建议（仅用于新建流程的默认值，不强制） */
 export function nameToSlug(name: string): string {
   return name.trim().replace(/\s+/g, '_') || 'unnamed';
+}
+
+/**
+ * 确保节点坐标：缺失时按节点在边图中的层级做简单网格布局
+ * @param flow 流程定义
+ * @param options 布局选项
+ * @returns 带坐标的流程定义（原对象被修改）
+ */
+export function ensureNodePositions(
+  flow: FlowDefinition,
+  options: {
+    startX?: number;
+    startY?: number;
+    spacingX?: number;
+    spacingY?: number;
+    columns?: number;
+  } = {}
+): FlowDefinition {
+  const {
+    startX = 100,
+    startY = 100,
+    spacingX = 200,
+    spacingY = 150,
+    columns = 3
+  } = options;
+
+  // 如果所有节点都有坐标，直接返回
+  const hasAllPositions = flow.nodes.every(node => 
+    node.position && typeof node.position.x === 'number' && typeof node.position.y === 'number'
+  );
+  if (hasAllPositions) return flow;
+
+  // 计算节点拓扑层级
+  const { levels } = computeNodeLevels(flow);
+  
+  // 按层级分配坐标
+  const nodePositions = new Map<string, FlowNodePosition>();
+  
+  levels.forEach((levelNodes, levelIndex) => {
+    const rowY = startY + levelIndex * spacingY;
+    levelNodes.forEach((nodeId, nodeIndex) => {
+      const colX = startX + (nodeIndex % columns) * spacingX;
+      nodePositions.set(nodeId, { x: colX, y: rowY });
+    });
+  });
+
+  // 更新节点坐标
+  flow.nodes = flow.nodes.map(node => {
+    const position = nodePositions.get(node.id) || node.position || { x: startX, y: startY };
+    return { ...node, position };
+  });
+
+  return flow;
+}
+
+/**
+ * 计算节点拓扑层级：入口节点为第0层，按边关系递推
+ */
+function computeNodeLevels(flow: FlowDefinition): { levels: string[][]; nodeLevels: Map<string, number> } {
+  const nodeIds = new Set(flow.nodes.map(n => n.id));
+  const edges = flow.edges.filter(e => nodeIds.has(e.from) && nodeIds.has(e.to));
+  
+  // 构建邻接表
+  const graph = new Map<string, string[]>();
+  const reverseGraph = new Map<string, string[]>();
+  
+  flow.nodes.forEach(node => {
+    graph.set(node.id, []);
+    reverseGraph.set(node.id, []);
+  });
+  
+  edges.forEach(edge => {
+    graph.get(edge.from)!.push(edge.to);
+    reverseGraph.get(edge.to)!.push(edge.from);
+  });
+  
+  // 找入口节点（无入边的节点）
+  const inDegree = new Map<string, number>();
+  nodeIds.forEach(id => inDegree.set(id, 0));
+  
+  edges.forEach(edge => {
+    inDegree.set(edge.to, (inDegree.get(edge.to) || 0) + 1);
+  });
+  
+  const entryNodes = Array.from(nodeIds).filter(id => inDegree.get(id) === 0);
+  
+  // BFS 计算层级
+  const levels: string[][] = [];
+  const nodeLevels = new Map<string, number>();
+  const queue: string[] = entryNodes.map(id => {
+    nodeLevels.set(id, 0);
+    return id;
+  });
+  
+  if (queue.length > 0) {
+    levels.push(queue);
+  }
+  
+  while (queue.length > 0) {
+    const currentLevel = queue.length;
+    const nextLevel: string[] = [];
+    
+    for (let i = 0; i < currentLevel; i++) {
+      const nodeId = queue[i];
+      const neighbors = graph.get(nodeId) || [];
+      
+      neighbors.forEach(neighborId => {
+        // 避免重复添加和循环
+        if (!nodeLevels.has(neighborId)) {
+          nodeLevels.set(neighborId, nodeLevels.get(nodeId)! + 1);
+          nextLevel.push(neighborId);
+        }
+      });
+    }
+    
+    if (nextLevel.length > 0) {
+      levels.push(nextLevel);
+      queue.splice(0, currentLevel);
+      queue.push(...nextLevel);
+    } else {
+      break;
+    }
+  }
+  
+  // 处理孤立节点（未在 BFS 中到达的节点）
+  const isolatedNodes = Array.from(nodeIds).filter(id => !nodeLevels.has(id));
+  if (isolatedNodes.length > 0) {
+    levels.push(isolatedNodes);
+  }
+  
+  return { levels, nodeLevels };
 }
 
 // ======================

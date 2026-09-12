@@ -1,4 +1,5 @@
 import type { FlowDefinition } from '@/types/flow';
+import { parseFlowId } from '@/types/flow';
 
 /**
  * 验证流程定义（增强版）
@@ -18,6 +19,19 @@ export function validateFlowDefinition(flow: any): { valid: boolean; errors: str
   
   if (!flow.description || typeof flow.description !== 'string') {
     errors.push('流程描述必填且必须是字符串');
+  }
+
+  // 类别验证
+  if (!flow.category || !['spell', 'class_features', 'custom'].includes(flow.category)) {
+    errors.push('流程类别必填且必须是 spell、class_features 或 custom');
+  }
+
+  // 检查 ID 前缀与类别一致
+  if (flow.category && flow.id) {
+    const { category: parsedCategory } = parseFlowId(flow.id);
+    if (parsedCategory !== flow.category) {
+      warnings.push(`流程 ID 前缀与类别不一致：ID 为 ${flow.id}（${parsedCategory}），类别为 ${flow.category}`);
+    }
   }
 
   // 节点验证
@@ -47,12 +61,17 @@ export function validateFlowDefinition(flow: any): { valid: boolean; errors: str
         errors.push(`节点 ${index} 缺少标签或标签不是字符串`);
       }
       
-      if (!node.position || typeof node.position !== 'object') {
-        errors.push(`节点 ${index} 缺少位置或位置不是对象`);
-      } else {
-        if (typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
-          errors.push(`节点 ${index} 位置坐标必须是数字`);
+      // 位置验证：存在时才校验，缺失不报错
+      if (node.position) {
+        if (typeof node.position !== 'object') {
+          errors.push(`节点 ${index} 位置不是对象`);
+        } else {
+          if (typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
+            errors.push(`节点 ${index} 位置坐标必须是数字`);
+          }
         }
+      } else {
+        warnings.push(`节点 ${index} 缺少画布坐标，将在打开编辑器时自动布局`);
       }
     });
   }

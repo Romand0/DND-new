@@ -59,7 +59,7 @@ import type {
   NodeTypeMeta,
   ConfigFieldSchema,
 } from '@/types/flow';
-import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow } from '@/types/flow';
+import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow, ensureNodePositions } from '@/types/flow';
 import { NODE_CONFIG_SCHEMA, FlowNodeType } from '@/types/flow';
 // FLOW_CATEGORIES, parseFlowId, buildFlowId 已移至 FlowPropertiesCategories 组件
 import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
@@ -136,9 +136,11 @@ export default function FlowEditor() {
     
     const loaded = flowStore.getById(flowId);
     if (loaded) {
-      setLoadedFlow(loaded);
-      flowRef.current = loaded;
-      flowNameInput.setExternal(loaded.name);
+      // 确保节点坐标：缺失时自动布局
+      const flowWithPositions = ensureNodePositions(loaded);
+      setLoadedFlow(flowWithPositions);
+      flowRef.current = flowWithPositions;
+      flowNameInput.setExternal(flowWithPositions.name);
     } else {
       // 流程在本地不存在，尝试从远程拉取
       (async () => {
@@ -146,9 +148,11 @@ export default function FlowEditor() {
           await flowStore.fetchRemote();
           const remote = flowStore.getById(flowId);
           if (remote) {
-            setLoadedFlow(remote);
-            flowRef.current = remote;
-            flowNameInput.setExternal(remote.name);
+            // 确保节点坐标：缺失时自动布局
+            const flowWithPositions = ensureNodePositions(remote);
+            setLoadedFlow(flowWithPositions);
+            flowRef.current = flowWithPositions;
+            flowNameInput.setExternal(flowWithPositions.name);
           } else {
             // 确实不存在，回退列表页
             navigate('/flows', { replace: true });

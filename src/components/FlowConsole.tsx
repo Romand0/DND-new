@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
 import flowStore from '@/data/flowStore';
-import { validateForPublish } from '@/utils/flow-validation';
+import { buildFlowId, parseFlowId, nameToSlug } from '@/types/flow';
+import { validateFlowDefinition, validateForPublish } from '@/utils/flow-validation';
 import type { FlowDefinition } from '@/types/flow';
 
 interface ConsoleResult {
@@ -58,9 +59,31 @@ export default function FlowConsole({ onClose }: Props) {
             }
 
             const now = Date.now();
+            
+            // 处理类别和 ID
+            const category = flowData.category || 'custom'; // 默认类别
+            let id = flowData.id;
+            
+            // 如果没有提供 ID，自动生成合格 ID
+            if (!id) {
+              id = buildFlowId(category, nameToSlug(flowData.name));
+            }
+            
+            // 验证 ID 前缀与类别一致
+            const { category: parsedCategory } = parseFlowId(id);
+            if (parsedCategory !== category) {
+              failedItems.push({
+                name: flowData.name,
+                reason: `ID 前缀与类别不一致：ID 为 ${id}（${parsedCategory}），类别为 ${category}`,
+              });
+              fail++;
+              continue;
+            }
+
             const newFlow: FlowDefinition = {
-              id: flowData.id || `flow-${now}-${Math.floor(Math.random() * 1000)}`,
+              id,
               name: flowData.name,
+              category,
               description: flowData.description ?? '',
               nodes: flowData.nodes ?? [],
               edges: flowData.edges ?? [],
@@ -95,11 +118,21 @@ export default function FlowConsole({ onClose }: Props) {
               continue;
             }
 
+            // 处理类别和 ID 更新
+            const existingCategory = flowData.category || existing.category || 'custom';
+            let id = flowData.id || existing.id;
+            
+            // 如果类别变更，需要重建 ID 前缀
+            if (flowData.category && flowData.category !== existing.category) {
+              const slug = nameToSlug(existing.name);
+              id = buildFlowId(flowData.category, slug);
+            }
+
             const merged: FlowDefinition = {
               ...existing,
               ...flowData,
-              id: existing.id, // 保持发布态 ID 不变
-              name: existing.name,
+              id,
+              category: existingCategory,
               updatedAt: Date.now(),
             };
 
@@ -157,7 +190,9 @@ export default function FlowConsole({ onClose }: Props) {
   };
 
   const exampleCreate = `{
+  "id": "spell:example_flow",
   "name": "示例流程",
+  "category": "spell",
   "description": "这是一个示例流程",
   "nodes": [
     {
@@ -312,8 +347,8 @@ export default function FlowConsole({ onClose }: Props) {
 
         {/* 使用说明 */}
         <div className="mt-4 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-          <p className="mb-1"><strong>创建模式：</strong>输入完整的流程定义（包含 name、nodes、edges 等必填字段）</p>
-          <p className="mb-1"><strong>更新模式：</strong>只需输入要更新的字段（如 name、description），其他字段保持不变</p>
+          <p className="mb-1"><strong>创建模式：</strong>输入完整的流程定义（包含 id、category、name、nodes、edges 等必填字段）</p>
+          <p className="mb-1"><strong>更新模式：</strong>只需输入要更新的字段（如 name、description、category），其他字段保持不变</p>
           <p><strong>删除模式：</strong>只需输入流程的 name 字段</p>
         </div>
       </div>
