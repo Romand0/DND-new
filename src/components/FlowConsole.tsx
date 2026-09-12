@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
 import flowStore from '@/data/flowStore';
+import { validateFlowDefinition, validateForPublish } from '@/utils/flow-validation';
 import type { FlowDefinition } from '@/types/flow';
 
 interface ConsoleResult {
@@ -42,7 +43,7 @@ export default function FlowConsole() {
           }
 
           // 验证流程数据
-          const validation = flowStore.validateFlowDefinition(flowData);
+          const validation = validateFlowDefinition(flowData);
           if (!validation.valid) {
             failedItems.push({ 
               name: flowData.name, 
@@ -50,6 +51,19 @@ export default function FlowConsole() {
             });
             fail++;
             continue;
+          }
+
+          // 如果是创建模式，额外进行发布验证
+          if (mode === 'create') {
+            const publishValidation = validateForPublish(flowData);
+            if (!publishValidation.valid) {
+              failedItems.push({ 
+                name: flowData.name, 
+                reason: `发布验证失败: ${publishValidation.errors.join(', ')}` 
+              });
+              fail++;
+              continue;
+            }
           }
 
           // 根据模式执行操作
