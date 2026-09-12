@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap, CloudUpload, CloudDownload, CloudOff, Zap as ZapIcon } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import flowStore from '@/data/flowStore';
+import FlowConsole from '@/components/FlowConsole';
 import type { FlowDefinition } from '@/types/flow';
 
 export default function FlowList() {
@@ -101,6 +102,13 @@ export default function FlowList() {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">流程库</h1>
+        <button
+          onClick={() => document.body.classList.add('console-open')}
+          className="px-4 py-2 rounded-lg bg-secondary text-white text-sm font-medium hover:bg-secondary/90 transition-colors flex items-center gap-2"
+        >
+          <Zap className="w-4 h-4" />
+          控制台
+        </button>
         <button
           onClick={handleCreate}
           className="ml-auto px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
@@ -285,6 +293,9 @@ export default function FlowList() {
           </div>
         </div>
       )}
+      
+      {/* FlowConsole 组件 */}
+      {document.body.classList.contains('console-open') && <FlowConsole />}
     </div>
   );
 }

@@ -821,6 +821,67 @@ const flowStore = {
     } catch { return null; }
   },
 
+  // ──────────── 批量操作 ────────────
+
+  /** 批量创建流程 */
+  async batchCreate(flows: FlowDefinition[]): Promise<{ success: FlowDefinition[]; failed: { flow: FlowDefinition; reason: string }[] }> {
+    const success: FlowDefinition[] = [];
+    const failed: { flow: FlowDefinition; reason: string }[] = [];
+
+    for (const flow of flows) {
+      try {
+        const result = await this.create(flow.name);
+        success.push(result);
+      } catch (err: any) {
+        failed.push({ flow, reason: err.message || '创建失败' });
+      }
+    }
+
+    return { success, failed };
+  },
+
+  /** 批量更新流程 */
+  async batchUpdate(updates: { id: string; data: Partial<FlowDefinition> }[]): Promise<{ success: FlowDefinition[]; failed: { id: string; reason: string }[] }> {
+    const success: FlowDefinition[] = [];
+    const failed: { id: string; reason: string }[] = [];
+
+    for (const update of updates) {
+      try {
+        const result = await this.update(update.id, update.data);
+        if (result) {
+          success.push(result);
+        } else {
+          failed.push({ id: update.id, reason: '流程不存在' });
+        }
+      } catch (err: any) {
+        failed.push({ id: update.id, reason: err.message || '更新失败' });
+      }
+    }
+
+    return { success, failed };
+  },
+
+  /** 批量删除流程 */
+  async batchDelete(ids: string[]): Promise<{ success: string[]; failed: { id: string; reason: string }[] }> {
+    const success: string[] = [];
+    const failed: { id: string; reason: string }[] = [];
+
+    for (const id of ids) {
+      try {
+        const result = this.delete(id);
+        if (result) {
+          success.push(id);
+        } else {
+          failed.push({ id, reason: '流程不存在' });
+        }
+      } catch (err: any) {
+        failed.push({ id, reason: err.message || '删除失败' });
+      }
+    }
+
+    return { success, failed };
+  }
+
 };
 
 // ====== 发布模式 ======
