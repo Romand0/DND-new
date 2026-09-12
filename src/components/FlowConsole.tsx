@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
 import flowStore from '@/data/flowStore';
-import { validateFlowDefinition, validateForPublish } from '@/utils/flow-validation';
+import { validateForPublish } from '@/utils/flow-validation';
 import type { FlowDefinition } from '@/types/flow';
 
 interface ConsoleResult {
@@ -10,7 +10,11 @@ interface ConsoleResult {
   failedItems: { name: string; reason: string }[];
 }
 
-export default function FlowConsole() {
+interface Props {
+  onClose: () => void;
+}
+
+export default function FlowConsole({ onClose }: Props) {
   const [input, setInput] = useState('');
   const [result, setResult] = useState<ConsoleResult | null>(null);
   const [executing, setExecuting] = useState(false);
@@ -30,9 +34,9 @@ export default function FlowConsole() {
       let fail = 0;
       const failedItems: { name: string; reason: string }[] = [];
 
-      // 获取现有流程列表，用于更新和删除操作
-      const existingFlows = flowStore.getAll();
-      const nameToFlow = new Map(existingFlows.map(f => [f.name, f]));
+      // 控制台直写发布态：按名称在已发布库中查找
+      const publishedList = flowStore.getAllPublished();
+      const nameToFlow = new Map(publishedList.map(f => [f.name, f]));
 
       for (const flowData of flows) {
         try {
@@ -42,81 +46,88 @@ export default function FlowConsole() {
             continue;
           }
 
-          // 验证流程数据
-          const validation = validateFlowDefinition(flowData);
-          if (!validation.valid) {
-            failedItems.push({ 
-              name: flowData.name, 
-              reason: validation.errors.join(', ') 
-            });
-            fail++;
-            continue;
-          }
-
-          // 如果是创建模式，额外进行发布验证
           if (mode === 'create') {
-            const publishValidation = validateForPublish(flowData);
-            if (!publishValidation.valid) {
-              failedItems.push({ 
-                name: flowData.name, 
-                reason: `发布验证失败: ${publishValidation.errors.join(', ')}` 
+            // 创建：需要完整代码，直接写入发布态
+            if (nameToFlow.has(flowData.name)) {
+              failedItems.push({
+                name: flowData.name,
+                reason: '同名流程已存在，请使用更新模式',
               });
               fail++;
               continue;
             }
-          }
 
-          // 根据模式执行操作
-          if (mode === 'create') {
-            // 创建流程
-            const existing = nameToFlow.get(flowData.name);
-            if (existing) {
-              failedItems.push({ 
-                name: flowData.name, 
-                reason: '流程名称已存在，请使用更新模式' 
+            const now = Date.now();
+            const newFlow: FlowDefinition = {
+              id: flowData.id || `flow-${now}-${Math.floor(Math.random() * 1000)}`,
+              name: flowData.name,
+              description: flowData.description ?? '',
+              nodes: flowData.nodes ?? [],
+              edges: flowData.edges ?? [],
+              tags: flowData.tags ?? [],
+              version: 1,
+              status: 'published',
+              createdAt: now,
+              updatedAt: now,
+            };
+
+            const validation = validateForPublish(newFlow);
+            if (!validation.valid) {
+              failedItems.push({
+                name: flowData.name,
+                reason: validation.errors.join(', '),
               });
               fail++;
               continue;
             }
-            
-            await flowStore.create(flowData.name);
+
+            await flowStore.publishDirect(newFlow);
             success++;
           } else if (mode === 'update') {
-            // 更新流程
+            // 更新：变量名（name）+ 修改后内容，合并后重新通过验证
             const existing = nameToFlow.get(flowData.name);
             if (!existing) {
-              failedItems.push({ 
-                name: flowData.name, 
-                reason: '流程不存在，请使用创建模式' 
+              failedItems.push({
+                name: flowData.name,
+                reason: '已发布库中不存在该流程，请使用创建模式',
               });
               fail++;
               continue;
             }
 
-            // 更新流程数据
-            const updatedFlow = { 
-              ...existing, 
-              ...flowData, 
-              id: existing.id, // 保持 ID 不变
+            const merged: FlowDefinition = {
+              ...existing,
+              ...flowData,
+              id: existing.id, // 保持发布态 ID 不变
+              name: existing.name,
               updatedAt: Date.now(),
-              version: (existing.version || 1) + 1
             };
-            
-            await flowStore.update(existing.id, updatedFlow);
+
+            const validation = validateForPublish(merged);
+            if (!validation.valid) {
+              failedItems.push({
+                name: flowData.name,
+                reason: validation.errors.join(', '),
+              });
+              fail++;
+              continue;
+            }
+
+            await flowStore.publishDirect(merged);
             success++;
           } else if (mode === 'delete') {
-            // 删除流程
+            // 删除：仅需变量名（name），从发布态撤下
             const existing = nameToFlow.get(flowData.name);
             if (!existing) {
-              failedItems.push({ 
-                name: flowData.name, 
-                reason: '流程不存在' 
+              failedItems.push({
+                name: flowData.name,
+                reason: '已发布库中不存在该流程',
               });
               fail++;
               continue;
             }
 
-            await flowStore.delete(existing.id);
+            await flowStore.unpublish(existing.id);
             success++;
           }
         } catch (err: any) {
@@ -181,7 +192,7 @@ export default function FlowConsole() {
             流程控制台
           </h2>
           <button
-            onClick={() => document.body.classList.remove('console-open')}
+            onClick={onClose}
             className="p-1 rounded-lg hover:bg-white/10"
           >
             <X className="w-5 h-5" />

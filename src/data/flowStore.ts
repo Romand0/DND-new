@@ -821,6 +821,49 @@ const flowStore = {
     } catch { return null; }
   },
 
+  // ──────────── 控制台直写发布态 ────────────
+
+  /** 获取所有已发布版流程（控制台按名称查找用） */
+  getAllPublished(): FlowDefinition[] {
+    return publishedFlows;
+  },
+
+  /** 按名称查找已发布版流程 */
+  getPublishedByName(name: string): FlowDefinition | undefined {
+    return publishedFlows.find(f => f.name === name);
+  },
+
+  /**
+   * 直接发布（控制台专用）：不走草稿/沙盒，直接写入发布态
+   * 与可视化编辑器的 publish 不同，这里接收一份完整 FlowDefinition 并覆写 D1。
+   */
+  async publishDirect(flow: FlowDefinition): Promise<FlowDefinition> {
+    const sanitizedFlow = cleanFlowDefinition(flow);
+    const published = await apiFetch(`/flows/${flow.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(sanitizedFlow),
+    });
+
+    const updated: FlowDefinition = {
+      ...flow,
+      publishedVersion: published.publishedVersion,
+      publishedAt: published.publishedAt ?? Math.floor(Date.now() / 1000),
+      updatedAt: Date.now(),
+    };
+
+    const idx = publishedFlows.findIndex(f => f.id === flow.id);
+    if (idx >= 0) publishedFlows[idx] = updated;
+    else publishedFlows.push(updated);
+    writePublished(publishedFlows);
+
+    // 直写发布态，清除该流程可能残留的本地草稿
+    drafts = drafts.filter(d => d.data.id !== flow.id);
+    writeDrafts(drafts);
+
+    notify();
+    return updated;
+  },
+
   // ──────────── 批量操作 ────────────
 
   /** 批量创建流程 */
