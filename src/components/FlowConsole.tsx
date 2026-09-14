@@ -190,28 +190,34 @@ export default function FlowConsole({ onClose }: Props) {
   };
 
   const exampleCreate = `{
-  "id": "spell:example_flow",
-  "name": "示例流程",
-  "category": "spell",
-  "description": "这是一个示例流程",
-  "nodes": [
-    {
-      "id": "start",
-      "type": "cast_start",
-      "label": "开始",
-      "position": { "x": 100, "y": 100 }
-    }
-  ],
-  "edges": [
-    {
-      "id": "edge1",
-      "from": "start",
-      "to": "end",
-      "trigger": "on_complete"
-    }
-  ],
-  "tags": ["示例"]
-}`;
+   "id": "spell:example_flow",
+   "name": "示例流程",
+   "category": "spell",
+   "description": "这是一个示例流程",
+   "nodes": [
+     {
+       "id": "start",
+       "type": "cast_start",
+       "label": "开始",
+       "position": { "x": 100, "y": 100 }
+     },
+     {
+       "id": "end",
+       "type": "cast_end",
+       "label": "结束",
+       "position": { "x": 300, "y": 100 }
+     }
+   ],
+   "edges": [
+     {
+       "id": "edge1",
+       "from": "start",
+       "to": "end",
+       "trigger": "on_complete"
+     }
+   ],
+   "tags": ["示例"]
+ }`;
 
   const exampleUpdate = `{
   "name": "现有流程名称",
