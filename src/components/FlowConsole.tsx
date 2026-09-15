@@ -4,7 +4,9 @@ import flowStore from '@/data/flowStore';
 import { buildFlowId, parseFlowId, nameToSlug } from '@/types/flow';
 import { validateFlowDefinition, validateForPublish } from '@/utils/flow-validation';
 import { BindingService } from '@/services/bindingService';
-import { spellStore } from '@/data/spellStore';
+import { fetchAllSpells, fetchBindingsByFlow } from '@/lib/api';
+import type { SpellFlowBinding } from '@/types/binding';
+import type { Spell } from '@/types/spell';
 import type { FlowDefinition } from '@/types/flow';
 
 interface ConsoleResult {
@@ -205,77 +207,82 @@ export default function FlowConsole({ onClose }: Props) {
     }
   };
 
-  // 法术绑定/解绑功能
-  const handleBindingAction = async (action: 'bind' | 'unbind', flowName: string, spellId: string) => {
-    try {
-      const publishedList = flowStore.getAllPublished();
-      const flow = publishedList.find(f => f.name === flowName);
-      
-      if (!flow) {
-        setBindingResult({ success: '', error: `未找到流程: ${flowName}` });
-        return;
-      }
+  // 已绑定/可选法术列表状态（数据源：云端数据库 spells 表）
+  const [boundSpells, setBoundSpells] = useState<Spell[]>([]);
+  const [availableSpells, setAvailableSpells] = useState<Spell[]>([]);
+  const [flowBindings, setFlowBindings] = useState<SpellFlowBinding[]>([]);
+  const [loadingSpells, setLoadingSpells] = useState(false);
 
-      if (action === 'bind') {
-        await BindingService.bindSpellToFlow(spellId, flow.id);
-        setBindingResult({ success: `法术已绑定到流程: ${flowName}`, error: '' });
-      } else {
-        // 解绑需要先找到绑定关系
-        const bindings = await BindingService.getFlowBoundSpells(flow.id);
-        const binding = bindings.find(b => b.id === spellId);
-        if (binding) {
-          await BindingService.unbindSpellFromFlow(binding.id);
-          setBindingResult({ success: `法术已从流程解绑: ${flowName}`, error: '' });
-        } else {
-          setBindingResult({ success: '', error: `未找到该绑定关系` });
-        }
-      }
+  // 从 API 加载指定流程的绑定关系，并与数据库法术表求交集/差集
+  const loadFlowBindings = async (flowName: string) => {
+    const flow = flowStore.getAllPublished().find(f => f.name === flowName);
+    if (!flow) {
+      setBoundSpells([]);
+      setAvailableSpells([]);
+      setFlowBindings([]);
+      return;
+    }
+
+    setLoadingSpells(true);
+    try {
+      const [allSpells, bindings] = await Promise.all([
+        fetchAllSpells<Spell[]>(),
+        fetchBindingsByFlow<SpellFlowBinding[]>(flow.id),
+      ]);
+      const boundIds = new Set(bindings.map(b => b.spell_id));
+      setFlowBindings(bindings);
+      setBoundSpells(allSpells.filter(s => boundIds.has(s.id)));
+      setAvailableSpells(allSpells.filter(s => !boundIds.has(s.id)));
     } catch (error) {
-      setBindingResult({ success: '', error: `${action === 'bind' ? '绑定' : '解绑'}失败: ${error instanceof Error ? error.message : '未知错误'}` });
+      setBindingResult({
+        success: '',
+        error: `加载法术数据失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      });
+    } finally {
+      setLoadingSpells(false);
     }
   };
-
-  // 获取可用法术列表
-  const getAvailableSpells = () => {
-    return spellStore.getAll();
-  };
-
-  // 获取流程已绑定的法术
-  const getFlowBoundSpells = async (flowName: string) => {
-    const publishedList = flowStore.getAllPublished();
-    const flow = publishedList.find(f => f.name === flowName);
-    if (!flow) return [];
-    return await BindingService.getFlowBoundSpells(flow.id);
-  };
-
-  // 组件状态：已绑定和可选法术
-  const [boundSpells, setBoundSpells] = useState<any[]>([]);
-  const [availableSpells, setAvailableSpells] = useState<any[]>([]);
-  const [loadingSpells, setLoadingSpells] = useState(false);
 
   // 当选择的流程改变时，加载绑定信息
   useEffect(() => {
     if (selectedFlowName) {
-      const loadSpells = async () => {
-        setLoadingSpells(true);
-        try {
-          const bound = await getFlowBoundSpells(selectedFlowName);
-          setBoundSpells(bound);
-          const allSpells = spellStore.getAll();
-          const unbound = allSpells.filter(spell => !bound.some(b => b.id === spell.id));
-          setAvailableSpells(unbound);
-        } catch (error) {
-          console.error('加载法术信息失败:', error);
-        } finally {
-          setLoadingSpells(false);
-        }
-      };
-      loadSpells();
+      loadFlowBindings(selectedFlowName);
     } else {
       setBoundSpells([]);
       setAvailableSpells([]);
+      setFlowBindings([]);
     }
   }, [selectedFlowName]);
+
+  // 法术绑定/解绑（写操作经 BindingService 落库，随后以 API 数据刷新列表）
+  const handleBindingAction = async (action: 'bind' | 'unbind', flowName: string, spellId: string) => {
+    const flow = flowStore.getAllPublished().find(f => f.name === flowName);
+    if (!flow) {
+      setBindingResult({ success: '', error: `未找到流程: ${flowName}` });
+      return;
+    }
+
+    try {
+      if (action === 'bind') {
+        await BindingService.bindSpellToFlow(spellId, flow.id);
+        setBindingResult({ success: `法术已绑定到流程: ${flowName}`, error: '' });
+      } else {
+        const binding = flowBindings.find(b => b.spell_id === spellId);
+        if (!binding) {
+          setBindingResult({ success: '', error: '未找到该绑定关系' });
+          return;
+        }
+        await BindingService.unbindSpellFromFlow(binding.id);
+        setBindingResult({ success: `法术已从流程解绑: ${flowName}`, error: '' });
+      }
+      await loadFlowBindings(flowName);
+    } catch (error) {
+      setBindingResult({
+        success: '',
+        error: `${action === 'bind' ? '绑定' : '解绑'}失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      });
+    }
+  };
 
   const clearInput = () => {
     setInput('');
