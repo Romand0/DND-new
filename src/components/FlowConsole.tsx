@@ -1,8 +1,12 @@
-import { useState } from 'react';
-import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X, BookOpen, Link, Unlink } from 'lucide-react';
 import flowStore from '@/data/flowStore';
 import { buildFlowId, parseFlowId, nameToSlug } from '@/types/flow';
 import { validateFlowDefinition, validateForPublish } from '@/utils/flow-validation';
+import { BindingService } from '@/services/bindingService';
+import { fetchAllSpells, fetchBindingsByFlow } from '@/lib/api';
+import type { SpellFlowBinding } from '@/types/binding';
+import type { Spell } from '@/types/spell';
 import type { FlowDefinition } from '@/types/flow';
 
 interface ConsoleResult {
@@ -20,12 +24,16 @@ export default function FlowConsole({ onClose }: Props) {
   const [result, setResult] = useState<ConsoleResult | null>(null);
   const [executing, setExecuting] = useState(false);
   const [mode, setMode] = useState<'create' | 'update' | 'delete'>('create');
+  const [showBinding, setShowBinding] = useState(false);
+  const [selectedFlowName, setSelectedFlowName] = useState('');
+  const [bindingResult, setBindingResult] = useState<{ success: string; error: string } | null>(null);
 
   const executeConsole = async () => {
     if (!input.trim()) return;
 
     setExecuting(true);
     setResult(null);
+    setBindingResult(null);
 
     try {
       const parsed = JSON.parse(input);
@@ -118,25 +126,40 @@ export default function FlowConsole({ onClose }: Props) {
               continue;
             }
 
-            // 处理类别和 ID 更新
-            const existingCategory = flowData.category || existing.category || 'custom';
+            // 处理类别和 ID
+            const category = flowData.category || existing.category || 'custom';
             let id = flowData.id || existing.id;
             
-            // 如果类别变更，需要重建 ID 前缀
+            // 如果提供了类别且与原类别不同，需要重建 ID
             if (flowData.category && flowData.category !== existing.category) {
-              const slug = nameToSlug(existing.name);
-              id = buildFlowId(flowData.category, slug);
+              id = buildFlowId(category, nameToSlug(flowData.name));
+            }
+            
+            // 验证 ID 前缀与类别一致
+            const { category: parsedCategory } = parseFlowId(id);
+            if (parsedCategory !== category) {
+              failedItems.push({
+                name: flowData.name,
+                reason: `ID 前缀与类别不一致：ID 为 ${id}（${parsedCategory}），类别为 ${category}`,
+              });
+              fail++;
+              continue;
             }
 
-            const merged: FlowDefinition = {
+            const updatedFlow: FlowDefinition = {
               ...existing,
-              ...flowData,
               id,
-              category: existingCategory,
+              name: flowData.name || existing.name,
+              category,
+              description: flowData.description ?? existing.description,
+              nodes: flowData.nodes ?? existing.nodes,
+              edges: flowData.edges ?? existing.edges,
+              tags: flowData.tags ?? existing.tags,
+              version: (existing.version || 1) + 1,
               updatedAt: Date.now(),
             };
 
-            const validation = validateForPublish(merged);
+            const validation = validateForPublish(updatedFlow);
             if (!validation.valid) {
               failedItems.push({
                 name: flowData.name,
@@ -146,7 +169,7 @@ export default function FlowConsole({ onClose }: Props) {
               continue;
             }
 
-            await flowStore.publishDirect(merged);
+            await flowStore.publishDirect(updatedFlow);
             success++;
           } else if (mode === 'delete') {
             // 删除：仅需变量名（name），从发布态撤下
@@ -177,10 +200,87 @@ export default function FlowConsole({ onClose }: Props) {
       setResult({
         success: 0,
         fail: 1,
-        failedItems: [{ name: '解析错误', reason: '输入不是有效的 JSON 格式' }]
+        failedItems: [{ name: '(全局)', reason: err instanceof Error ? err.message : '未知错误' }],
       });
     } finally {
       setExecuting(false);
+    }
+  };
+
+  // 已绑定/可选法术列表状态（数据源：云端数据库 spells 表）
+  const [boundSpells, setBoundSpells] = useState<Spell[]>([]);
+  const [availableSpells, setAvailableSpells] = useState<Spell[]>([]);
+  const [flowBindings, setFlowBindings] = useState<SpellFlowBinding[]>([]);
+  const [loadingSpells, setLoadingSpells] = useState(false);
+
+  // 从 API 加载指定流程的绑定关系，并与数据库法术表求交集/差集
+  const loadFlowBindings = async (flowName: string) => {
+    const flow = flowStore.getAllPublished().find(f => f.name === flowName);
+    if (!flow) {
+      setBoundSpells([]);
+      setAvailableSpells([]);
+      setFlowBindings([]);
+      return;
+    }
+
+    setLoadingSpells(true);
+    try {
+      const [allSpells, bindings] = await Promise.all([
+        fetchAllSpells<Spell[]>(),
+        fetchBindingsByFlow<SpellFlowBinding[]>(flow.id),
+      ]);
+      const boundIds = new Set(bindings.map(b => b.spell_id));
+      setFlowBindings(bindings);
+      setBoundSpells(allSpells.filter(s => boundIds.has(s.id)));
+      setAvailableSpells(allSpells.filter(s => !boundIds.has(s.id)));
+    } catch (error) {
+      setBindingResult({
+        success: '',
+        error: `加载法术数据失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      });
+    } finally {
+      setLoadingSpells(false);
+    }
+  };
+
+  // 当选择的流程改变时，加载绑定信息
+  useEffect(() => {
+    if (selectedFlowName) {
+      loadFlowBindings(selectedFlowName);
+    } else {
+      setBoundSpells([]);
+      setAvailableSpells([]);
+      setFlowBindings([]);
+    }
+  }, [selectedFlowName]);
+
+  // 法术绑定/解绑（写操作经 BindingService 落库，随后以 API 数据刷新列表）
+  const handleBindingAction = async (action: 'bind' | 'unbind', flowName: string, spellId: string) => {
+    const flow = flowStore.getAllPublished().find(f => f.name === flowName);
+    if (!flow) {
+      setBindingResult({ success: '', error: `未找到流程: ${flowName}` });
+      return;
+    }
+
+    try {
+      if (action === 'bind') {
+        await BindingService.bindSpellToFlow(spellId, flow.id);
+        setBindingResult({ success: `法术已绑定到流程: ${flowName}`, error: '' });
+      } else {
+        const binding = flowBindings.find(b => b.spell_id === spellId);
+        if (!binding) {
+          setBindingResult({ success: '', error: '未找到该绑定关系' });
+          return;
+        }
+        await BindingService.unbindSpellFromFlow(binding.id);
+        setBindingResult({ success: `法术已从流程解绑: ${flowName}`, error: '' });
+      }
+      await loadFlowBindings(flowName);
+    } catch (error) {
+      setBindingResult({
+        success: '',
+        error: `${action === 'bind' ? '绑定' : '解绑'}失败: ${error instanceof Error ? error.message : '未知错误'}`,
+      });
     }
   };
 
@@ -220,9 +320,9 @@ export default function FlowConsole({ onClose }: Props) {
  }`;
 
   const exampleUpdate = `{
-  "name": "现有流程名称",
-  "description": "更新后的描述"
-}`;
+   "name": "现有流程名称",
+   "description": "更新后的描述"
+ }`;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -275,6 +375,17 @@ export default function FlowConsole({ onClose }: Props) {
             <Trash2 className="w-4 h-4 inline mr-1" />
             删除
           </button>
+          <button
+            onClick={() => setShowBinding(!showBinding)}
+            className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+              showBinding
+                ? 'bg-green-500 text-white'
+                : 'dark:bg-white/10 light:bg-gray-100 dark:text-text-dark light:text-text-light'
+            }`}
+          >
+            <BookOpen className="w-4 h-4 inline mr-1" />
+            法术绑定
+          </button>
         </div>
 
         {/* 示例代码 */}
@@ -283,7 +394,7 @@ export default function FlowConsole({ onClose }: Props) {
             onClick={() => setInput(mode === 'create' ? exampleCreate : exampleUpdate)}
             className="text-sm text-primary hover:underline"
           >
-            {mode === 'create' ? '加载创建示例' : '加载更新示例'}
+            {mode === 'create' ? '载入创建示例' : '载入更新示例'}
           </button>
         </div>
 
@@ -292,8 +403,13 @@ export default function FlowConsole({ onClose }: Props) {
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="输入 JSON 格式的流程数据..."
-            className="w-full h-64 p-3 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light dark:text-text-dark light:text-text-light font-mono text-sm"
+            placeholder={mode === 'create' 
+              ? '输入流程定义 JSON（包含 id、name、category、nodes、edges）' 
+              : mode === 'update' 
+                ? '输入要更新的字段（如 {"name": "新名称", "description": "新描述"}）'
+                : '输入要删除的流程名称（如 {"name": "流程名称"}）'
+            }
+            className="w-full h-40 p-3 border dark:border-border-dark light:border-border-light rounded-lg bg-white dark:bg-gray-700 font-mono text-sm dark:text-text-dark light:text-text-light"
           />
         </div>
 
@@ -301,7 +417,7 @@ export default function FlowConsole({ onClose }: Props) {
         <div className="flex gap-2 mb-4">
           <button
             onClick={executeConsole}
-            disabled={executing || !input.trim()}
+            disabled={executing}
             className="flex-1 px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {executing ? (
@@ -346,6 +462,109 @@ export default function FlowConsole({ onClose }: Props) {
                     <span className="font-medium">{item.name}:</span> {item.reason}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 法术绑定/解绑面板 */}
+        {showBinding && (
+          <div className="mt-6 border dark:border-border-dark light:border-border-light rounded-lg p-4">
+            <h3 className="font-medium mb-4 flex items-center gap-2">
+              <BookOpen className="w-4 h-4" />
+              法术绑定管理
+            </h3>
+            
+            {/* 流程选择 */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">选择流程：</label>
+              <select
+                value={selectedFlowName}
+                onChange={(e) => setSelectedFlowName(e.target.value)}
+                className="w-full px-3 py-2 border dark:border-border-dark light:border-border-light rounded-lg bg-white dark:bg-gray-700"
+              >
+                <option value="">请选择流程</option>
+                {flowStore.getAllPublished().map(flow => (
+                  <option key={flow.id} value={flow.name}>
+                    {flow.name} ({flow.category})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 绑定结果 */}
+            {bindingResult && (bindingResult.success || bindingResult.error) && (
+              <div className={`mb-4 p-3 rounded-lg text-sm ${
+                bindingResult.success 
+                  ? 'bg-green-50 border border-green-200 text-green-700' 
+                  : 'bg-red-50 border border-red-200 text-red-700'
+              }`}>
+                {bindingResult.success && <p className="font-medium">{bindingResult.success}</p>}
+                {bindingResult.error && <p className="font-medium">{bindingResult.error}</p>}
+              </div>
+            )}
+
+            {/* 已绑定法术 */}
+            {selectedFlowName && (
+              <div className="mb-4">
+                <h4 className="font-medium mb-2">已绑定法术：</h4>
+                <div className="space-y-2">
+                  {loadingSpells ? (
+                    <div className="text-sm text-gray-500">加载中...</div>
+                  ) : boundSpells.length === 0 ? (
+                    <p className="text-sm text-gray-500">暂无绑定法术</p>
+                  ) : (
+                    boundSpells.map(spell => (
+                      <div key={spell.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                        <div>
+                          <span className="font-medium">{spell.name}</span>
+                          <span className="text-sm text-gray-500 ml-2">
+                            {spell.level}环 {spell.school}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleBindingAction('unbind', selectedFlowName, spell.id)}
+                          className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                        >
+                          <Unlink className="w-4 h-4 inline mr-1" />
+                          解绑
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 可选法术 */}
+            {selectedFlowName && (
+              <div>
+                <h4 className="font-medium mb-2">可选法术：</h4>
+                <div className="space-y-2">
+                  {loadingSpells ? (
+                    <div className="text-sm text-gray-500">加载中...</div>
+                  ) : availableSpells.length === 0 ? (
+                    <p className="text-sm text-gray-500">所有法术均已绑定</p>
+                  ) : (
+                    availableSpells.map(spell => (
+                      <div key={spell.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                        <div>
+                          <span className="font-medium">{spell.name}</span>
+                          <span className="text-sm text-gray-500 ml-2">
+                            {spell.level}环 {spell.school}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleBindingAction('bind', selectedFlowName, spell.id)}
+                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                        >
+                          <Link className="w-4 h-4 inline mr-1" />
+                          绑定
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </div>
