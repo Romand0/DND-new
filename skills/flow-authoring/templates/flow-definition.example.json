@@ -1,0 +1,72 @@
+{
+  "id": "spell:fireball",
+  "name": "火球术",
+  "category": "spell",
+  "description": "1 动作，60 尺，V，单体，敏捷豁免 DC15，失败受 8d6 火焰伤害，成功伤害减半",
+  "tags": ["塑能", "三环", "范围伤害"],
+  "nodes": [
+    {
+      "id": "cast_start",
+      "type": "cast_start",
+      "label": "施法开始",
+      "position": { "x": 100, "y": 100 },
+      "config": {
+        "autoChecks": { "components": true, "range": true, "time": true }
+      }
+    },
+    {
+      "id": "select_target",
+      "type": "select_target",
+      "label": "选择区域",
+      "position": { "x": 100, "y": 250 },
+      "config": { "mode": "area", "maxCount": 10 }
+    },
+    {
+      "id": "save_dex",
+      "type": "saving_throw",
+      "label": "敏捷豁免",
+      "position": { "x": 100, "y": 400 },
+      "config": { "ability": "dexterity", "dc": "15" }
+    },
+    {
+      "id": "damage_fire",
+      "type": "apply_effect",
+      "label": "火焰伤害",
+      "position": { "x": 100, "y": 550 },
+      "config": { "effectType": "damage", "value": "8d6", "damageType": "fire" }
+    },
+    {
+      "id": "cast_end",
+      "type": "cast_end",
+      "label": "施法结束",
+      "position": { "x": 100, "y": 700 },
+      "config": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_cast_start_select_target_on_complete",
+      "from": "cast_start",
+      "to": "select_target",
+      "trigger": "on_complete"
+    },
+    {
+      "id": "edge_select_target_save_dex_on_complete",
+      "from": "select_target",
+      "to": "save_dex",
+      "trigger": "on_complete"
+    },
+    {
+      "id": "edge_save_dex_damage_fire_on_complete",
+      "from": "save_dex",
+      "to": "damage_fire",
+      "trigger": "on_complete"
+    },
+    {
+      "id": "edge_damage_fire_cast_end_on_complete",
+      "from": "damage_fire",
+      "to": "cast_end",
+      "trigger": "on_complete"
+    }
+  ]
+}
