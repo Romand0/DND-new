@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X, BookOpen, Link, Unlink } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X, BookOpen, Link, Unlink, Search } from 'lucide-react';
 import flowStore from '@/data/flowStore';
 import { buildFlowId, parseFlowId, nameToSlug } from '@/types/flow';
 import { validateFlowDefinition, validateForPublish } from '@/utils/flow-validation';
@@ -18,6 +18,19 @@ interface ConsoleResult {
 interface Props {
   onClose: () => void;
 }
+
+const levelLabels: Record<number, string> = {
+  0: '戏法',
+  1: '1环',
+  2: '2环',
+  3: '3环',
+  4: '4环',
+  5: '5环',
+  6: '6环',
+  7: '7环',
+  8: '8环',
+  9: '9环',
+};
 
 export default function FlowConsole({ onClose }: Props) {
   const [input, setInput] = useState('');
@@ -212,6 +225,42 @@ export default function FlowConsole({ onClose }: Props) {
   const [availableSpells, setAvailableSpells] = useState<Spell[]>([]);
   const [flowBindings, setFlowBindings] = useState<SpellFlowBinding[]>([]);
   const [loadingSpells, setLoadingSpells] = useState(false);
+
+  // 可选法术筛选条件（胶囊标签）
+  const [spellSearch, setSpellSearch] = useState('');
+  const [spellLevelFilter, setSpellLevelFilter] = useState<number | 'all'>('all');
+  const [spellClassFilter, setSpellClassFilter] = useState<string>('all');
+
+  // 可选法术中出现的职业集合（绑定+可选取并集，避免绑定后职业胶囊消失）
+  const spellClasses = useMemo(() => {
+    const classes = new Set<string>();
+    [...boundSpells, ...availableSpells].forEach((spell) => {
+      (spell.classes ?? []).forEach((cls) => classes.add(cls));
+    });
+    return Array.from(classes).sort();
+  }, [boundSpells, availableSpells]);
+
+  // 筛选后的可选法术列表
+  const filteredAvailableSpells = useMemo(() => {
+    return availableSpells.filter((spell) => {
+      if (spellSearch) {
+        const q = spellSearch.toLowerCase();
+        if (
+          !spell.name.toLowerCase().includes(q) &&
+          !spell.school.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      if (spellLevelFilter !== 'all' && spell.level !== spellLevelFilter) {
+        return false;
+      }
+      if (spellClassFilter !== 'all' && !(spell.classes ?? []).includes(spellClassFilter)) {
+        return false;
+      }
+      return true;
+    });
+  }, [availableSpells, spellSearch, spellLevelFilter, spellClassFilter]);
 
   // 从 API 加载指定流程的绑定关系，并与数据库法术表求交集/差集
   const loadFlowBindings = async (flowName: string) => {
@@ -540,29 +589,89 @@ export default function FlowConsole({ onClose }: Props) {
             {selectedFlowName && (
               <div>
                 <h4 className="font-medium mb-2">可选法术：</h4>
-                <div className="space-y-2">
+
+                {/* 搜索框 */}
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+                  <input
+                    type="text"
+                    value={spellSearch}
+                    onChange={(e) => setSpellSearch(e.target.value)}
+                    placeholder="搜索法术名称或学派..."
+                    className="w-full pl-9 pr-3 py-2 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                </div>
+
+                {/* 环级筛选 - 胶囊标签 */}
+                <div className="flex items-center gap-2 flex-wrap mb-2">
+                  <span className="text-xs font-medium shrink-0 w-8 dark:text-text-dark-muted light:text-text-light-muted">环级</span>
+                  <button
+                    onClick={() => setSpellLevelFilter('all')}
+                    className={`px-2.5 py-1 rounded-full text-xs transition-colors ${spellLevelFilter === 'all' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+                  >
+                    全部
+                  </button>
+                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
+                    <button
+                      key={level}
+                      onClick={() => setSpellLevelFilter(spellLevelFilter === level ? 'all' : level)}
+                      className={`px-2.5 py-1 rounded-full text-xs transition-colors ${spellLevelFilter === level ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+                    >
+                      {levelLabels[level]}
+                    </button>
+                  ))}
+                </div>
+
+                {/* 职业筛选 - 胶囊标签 */}
+                {spellClasses.length > 0 && (
+                  <div className="flex items-center gap-1.5 flex-wrap mb-3">
+                    <span className="text-xs font-medium shrink-0 w-8 dark:text-text-dark-muted light:text-text-light-muted">职业</span>
+                    <button
+                      onClick={() => setSpellClassFilter('all')}
+                      className={`px-2.5 py-1 rounded-full text-xs transition-colors ${spellClassFilter === 'all' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+                    >
+                      全部
+                    </button>
+                    {spellClasses.map((cls) => (
+                      <button
+                        key={cls}
+                        onClick={() => setSpellClassFilter(spellClassFilter === cls ? 'all' : cls)}
+                        className={`px-2.5 py-1 rounded-full text-xs transition-colors ${spellClassFilter === cls ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
+                      >
+                        {cls}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* 固定高度滚动窗口：窄屏约 6-8 张卡片，宽屏两列容纳更多 */}
+                <div className="h-96 sm:h-64 overflow-y-auto rounded-lg border p-2 dark:border-border-dark light:border-border-light">
                   {loadingSpells ? (
-                    <div className="text-sm text-gray-500">加载中...</div>
+                    <div className="text-sm text-gray-500 p-2">加载中...</div>
                   ) : availableSpells.length === 0 ? (
-                    <p className="text-sm text-gray-500">所有法术均已绑定</p>
+                    <p className="text-sm text-gray-500 p-2">所有法术均已绑定</p>
+                  ) : filteredAvailableSpells.length === 0 ? (
+                    <p className="text-sm text-gray-500 p-2">暂无匹配的法术</p>
                   ) : (
-                    availableSpells.map(spell => (
-                      <div key={spell.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
-                        <div>
-                          <span className="font-medium">{spell.name}</span>
-                          <span className="text-sm text-gray-500 ml-2">
-                            {spell.level}环 {spell.school}
-                          </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {filteredAvailableSpells.map(spell => (
+                        <div key={spell.id} className="flex items-center justify-between gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-sm truncate">{spell.name}</div>
+                            <div className="text-xs text-gray-500 truncate">
+                              {levelLabels[spell.level] ?? `${spell.level}环`} · {spell.school}
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => handleBindingAction('bind', selectedFlowName, spell.id)}
+                            className="shrink-0 px-2.5 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-xs"
+                          >
+                            <Link className="w-3.5 h-3.5 inline mr-1" />
+                            绑定
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleBindingAction('bind', selectedFlowName, spell.id)}
-                          className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                        >
-                          <Link className="w-4 h-4 inline mr-1" />
-                          绑定
-                        </button>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
               </div>
