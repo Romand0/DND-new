@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles, Clock, Target, Zap, Hourglass, Edit2, Trash2, GitBranch } from 'lucide-react';
+import { ArrowLeft, Sparkles, Clock, Target, Zap, Hourglass, Edit2, Trash2, GitBranch, Copy } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/api';
@@ -132,6 +132,67 @@ export default function SpellDetail() {
     }
   };
 
+  const handleCopyToClipboard = async () => {
+    if (!spell) return;
+    
+    try {
+      // 格式化法术信息为可读文本
+      const levelLabels: Record<number, string> = {
+        0: '戏法', 1: '1环', 2: '2环', 3: '3环', 4: '4环',
+        5: '5环', 6: '6环', 7: '7环', 8: '8环', 9: '9环',
+      };
+      
+      const components = [
+        spell.components.verbal && 'V',
+        spell.components.somatic && 'S',
+        spell.components.material && 'M'
+      ].filter(Boolean).join(', ') || '无';
+      
+      const formattedText = `法术名称：${spell.name}
+环级：${levelLabels[spell.level] || spell.level}
+学派：${spell.school}
+施法时间：${spell.castingTime}
+射程：${spell.range}
+成分：${components}
+${spell.components.material && spell.materialInfo ? `材料成分：${spell.materialInfo}\n` : ''}
+持续时间：${spell.duration}
+描述：${spell.description}
+${spell.hasHeightened && spell.heightenedEffect ? `升环效果：${spell.heightenedEffect}\n` : ''}
+${spell.notes ? `备注：${spell.notes}\n` : ''}
+可用职业：${spell.classes.join(', ')}
+${spell.ritual ? '仪式法术：是' : ''}
+${spell.concentration ? '需要专注：是' : ''}
+${spell.source ? `来源：${spell.source}` : ''}`;
+      
+      await navigator.clipboard.writeText(formattedText);
+      
+      // 显示复制成功的反馈
+      const originalText = '复制';
+      const button = event?.target as HTMLButtonElement;
+      if (button) {
+        const originalContent = button.innerHTML;
+        button.innerHTML = '<span class="text-green-600">✓ 已复制</span>';
+        button.disabled = true;
+        setTimeout(() => {
+          button.innerHTML = originalContent;
+          button.disabled = false;
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('复制失败:', error);
+      if (event) {
+        const button = event.target as HTMLButtonElement;
+        if (button) {
+          const originalContent = button.innerHTML;
+          button.innerHTML = '<span class="text-red-600">✗ 失败</span>';
+          setTimeout(() => {
+            button.innerHTML = originalContent;
+          }, 2000);
+        }
+      }
+    }
+  };
+
   if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
 
   if (!spell) {
@@ -167,6 +228,11 @@ export default function SpellDetail() {
             <button onClick={() => setEditorOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
               <Edit2 className="w-4 h-4" /> 编辑
+            </button>
+            <button onClick={handleCopyToClipboard}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light"
+              title="复制所有属性到剪贴板">
+              <Copy className="w-4 h-4" /> 复制
             </button>
             <button onClick={() => setDeleteConfirm(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20">
