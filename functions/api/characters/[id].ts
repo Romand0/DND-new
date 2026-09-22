@@ -85,13 +85,18 @@ export async function onRequestDelete(context: any): Promise<Response> {
   }
 
   try {
-    const result = await env.DB
-      .prepare('DELETE FROM characters WHERE id = ?')
+    const existing = await env.DB
+      .prepare('SELECT id FROM characters WHERE id = ?')
       .bind(id)
-      .run();
-    if (result.meta.changes === 0) {
+      .first<{ id: string }>();
+    if (!existing) {
       return errorResponse('角色不存在', 404);
     }
+    // 同步清理账号绑定关系，避免产生悬空绑定
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM user_characters WHERE character_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM characters WHERE id = ?').bind(id),
+    ]);
     return jsonResponse({ success: true });
   } catch (e: any) {
     return errorResponse(e.message || '删除失败', 500);
