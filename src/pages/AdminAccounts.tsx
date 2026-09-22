@@ -11,9 +11,11 @@ import {
   AlertCircle,
   X,
   Check,
+  Plus,
 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import CharacterPicker from '@/components/CharacterPicker';
 
 const VERIFIED_KEY = 'dm_token_verified';
 
@@ -23,12 +25,14 @@ interface UserRow {
   role: 'player' | 'dm';
   createdAt: number;
   online: boolean;
+  characters: api.BoundCharacter[];
 }
 
 type ModalState =
   | { type: 'role'; user: UserRow }
   | { type: 'delete'; user: UserRow }
   | { type: 'password'; user: UserRow }
+  | { type: 'unbind'; user: UserRow; character: api.BoundCharacter }
   | null;
 
 export default function AdminAccounts() {
@@ -43,6 +47,8 @@ export default function AdminAccounts() {
   const [pendingRole, setPendingRole] = useState<'player' | 'dm'>('player');
   const [newPassword, setNewPassword] = useState('');
   const [modalError, setModalError] = useState('');
+  // 正在为其绑定角色的账号（非空即打开角色选择器）
+  const [bindTarget, setBindTarget] = useState<UserRow | null>(null);
   // 当前展开完整 ID 的账号
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -136,6 +142,37 @@ export default function AdminAccounts() {
     setNewPassword('');
   };
 
+  const handleBind = async (characterId: string) => {
+    const target = bindTarget;
+    if (!target) return;
+    setError('');
+    try {
+      await api.bindCharacterToUser(target.id, characterId);
+      showNotice(`已为 ${target.username} 绑定角色`);
+      loadUsers();
+    } catch (e: any) {
+      setError(e?.message || '绑定失败');
+    } finally {
+      setBindTarget(null);
+    }
+  };
+
+  const handleUnbind = async () => {
+    if (!modal || modal.type !== 'unbind') return;
+    setSubmitting(true);
+    setModalError('');
+    try {
+      await api.unbindCharacterFromUser(modal.user.id, modal.character.id);
+      setModal(null);
+      showNotice(`已解绑角色 ${modal.character.name ?? '已删除角色'}`);
+      loadUsers();
+    } catch (e: any) {
+      setModalError(e?.message || '解绑失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const isSelf = (id: string) => currentUser?.id === id;
 
   return (
@@ -206,6 +243,7 @@ export default function AdminAccounts() {
                   <th className="py-2 pr-6 font-medium">权限</th>
                   <th className="py-2 pr-6 font-medium">身份</th>
                   <th className="py-2 pr-6 font-medium">登录状态</th>
+                  <th className="py-2 pr-6 font-medium">绑定角色</th>
                   <th className="py-2 font-medium">操作</th>
                 </tr>
               </thead>
@@ -270,6 +308,44 @@ export default function AdminAccounts() {
                           {u.online ? '在线' : '离线'}
                         </span>
                       </td>
+                      <td className="py-2 pr-6">
+                        <div className="flex flex-wrap items-center gap-1.5 max-w-[280px]">
+                          {u.characters.map((c) => (
+                            <span
+                              key={c.id}
+                              className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-xs bg-primary/10 text-primary"
+                            >
+                              {c.name ?? '已删除角色'}
+                              <button
+                                onClick={() => {
+                                  setModalError('');
+                                  setModal({ type: 'unbind', user: u, character: c });
+                                }}
+                                className="p-0.5 rounded-full hover:bg-danger/20 hover:text-danger transition-colors"
+                                title="解绑角色"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                          <button
+                            onClick={() => {
+                              setError('');
+                              setBindTarget(u);
+                            }}
+                            disabled={u.role === 'player' && u.characters.length >= 3}
+                            className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                            title={
+                              u.role === 'player' && u.characters.length >= 3
+                                ? '每个玩家最多绑定 3 个角色'
+                                : '绑定角色'
+                            }
+                          >
+                            <Plus className="w-3 h-3" />
+                            添加
+                          </button>
+                        </div>
+                      </td>
                       <td className="py-2">
                         <div className="flex items-center gap-1.5 whitespace-nowrap">
                           <button
@@ -331,6 +407,7 @@ export default function AdminAccounts() {
                 {modal.type === 'role' && '修改权限'}
                 {modal.type === 'delete' && '删除账号'}
                 {modal.type === 'password' && '重置密码'}
+                {modal.type === 'unbind' && '解绑角色'}
               </h3>
               <button onClick={closeModal} className="p-1 rounded hover:bg-white/10 text-gray-400">
                 <X className="w-4 h-4" />
@@ -363,6 +440,14 @@ export default function AdminAccounts() {
             {modal.type === 'delete' && (
               <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
                 确定删除账号 <span className="font-medium text-danger">{modal.user.username}</span> 吗？此操作不可撤销。
+              </p>
+            )}
+
+            {modal.type === 'unbind' && (
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                确定将角色{' '}
+                <span className="font-medium text-danger">{modal.character.name ?? '已删除角色'}</span>{' '}
+                从账号 <span className="font-medium dark:text-text-dark light:text-text-light">{modal.user.username}</span> 解绑吗？
               </p>
             )}
 
@@ -404,11 +489,15 @@ export default function AdminAccounts() {
                     ? handleRoleChange
                     : modal.type === 'delete'
                     ? handleDelete
+                    : modal.type === 'unbind'
+                    ? handleUnbind
                     : handleResetPassword
                 }
                 disabled={submitting}
                 className={`px-4 py-2 text-sm rounded-lg text-white transition-colors flex items-center gap-2 disabled:opacity-50 ${
-                  modal.type === 'delete' ? 'bg-danger hover:bg-danger/80' : 'bg-primary hover:bg-primary-dark'
+                  modal.type === 'delete' || modal.type === 'unbind'
+                    ? 'bg-danger hover:bg-danger/80'
+                    : 'bg-primary hover:bg-primary-dark'
                 }`}
               >
                 {submitting ? '处理中…' : '确认'}
@@ -425,6 +514,14 @@ export default function AdminAccounts() {
           身份为管理员仅适用于当前持有并已验证 DM Token 的登录账号；修改权限或重置密码后，该账号需重新登录生效。
         </p>
       </div>
+
+      {/* 角色选择器 */}
+      <CharacterPicker
+        isOpen={!!bindTarget}
+        onClose={() => setBindTarget(null)}
+        onSelect={(character) => handleBind(character.id)}
+        selectedCharacterIds={bindTarget?.characters.map((c) => c.id) ?? []}
+      />
     </div>
   );
 }

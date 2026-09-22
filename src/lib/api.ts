@@ -298,6 +298,38 @@ export async function resetUserPassword<T = any>(id: string, password: string): 
   });
 }
 
+/** 账号绑定的角色卡（name 为 null 表示角色已被删除的悬空绑定） */
+export interface BoundCharacter {
+  id: string;
+  name: string | null;
+  class: string;
+  level: number;
+  race: string;
+}
+
+/** 为账号绑定一个角色卡 */
+export async function bindCharacterToUser<T = { ok: boolean; characters: BoundCharacter[] }>(
+  userId: string,
+  characterId: string,
+): Promise<T> {
+  return apiFetch<T>(`/admin/users/${userId}/characters`, {
+    method: 'POST',
+    headers: adminAuthHeaders(),
+    body: JSON.stringify({ characterId }),
+  });
+}
+
+/** 解绑账号的一个角色卡 */
+export async function unbindCharacterFromUser<T = { ok: boolean; characters: BoundCharacter[] }>(
+  userId: string,
+  characterId: string,
+): Promise<T> {
+  return apiFetch<T>(`/admin/users/${userId}/characters/${characterId}`, {
+    method: 'DELETE',
+    headers: adminAuthHeaders(),
+  });
+}
+
 // ============ 用户账号页 ============
 
 /** 更新当前用户资料（用户名/头像） */
