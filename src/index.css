@@ -68,6 +68,32 @@ body {
   color: var(--color-text-light);
 }
 
+/* 表单控件兜底：未显式声明 bg-* 的文本类控件，深色模式下会露出浏览器默认浅底，
+   与浅色文字对比度不足。base 层优先级低于 utilities，已有 bg-transparent / dark:bg-* 的控件不受影响。 */
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  textarea,
+  select {
+    background-color: var(--color-card-light);
+    color: var(--color-text-light);
+  }
+
+  .dark input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  .dark textarea,
+  .dark select {
+    background-color: var(--color-bg-dark-2);
+    color: var(--color-text-dark);
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  .light {
+    color-scheme: light;
+  }
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
