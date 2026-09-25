@@ -6,39 +6,40 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --color-primary: #e63946;
-  --color-primary-dark: #c1121f;
-  --color-primary-light: #ff6b6b;
+  --color-primary: #d64545;
+  --color-primary-dark: #b83434;
+  --color-primary-light: #ff8a8a;
+  
   --color-accent: #d4a574;
   --color-accent-dark: #b8860b;
   --color-accent-light: #e8c99b;
+  
+  --color-success: #52c962;
+  --color-warning: #f4a022;
+  --color-danger: #e85a5a;
+  --color-info: #5b9bd5;
   
   --color-bg-dark: #1a1a2e;
   --color-bg-dark-2: #16213e;
   --color-bg-dark-3: #0f3460;
   --color-bg-light: #faf8f5;
-  --color-bg-light-2: #f0ebe3;
-  --color-bg-light-3: #e8e0d5;
+  --color-bg-light-2: #f5f2ee;
+  --color-bg-light-3: #f0ebe8;
   
   --color-text-dark: #e8e6e3;
   --color-text-dark-muted: #a0a0b0;
-  --color-text-light: #1a1a2e;
-  --color-text-light-muted: #5a5a6e;
+  --color-text-light: #2c2416;
+  --color-text-light-muted: #6b5d4f;
   
   --color-border-dark: #2a2a4a;
   --color-border-dark-hover: #3a3a5a;
-  --color-border-light: #d4cfc5;
-  --color-border-light-hover: #b8b0a0;
+  --color-border-light: #d4c5b8;
+  --color-border-light-hover: #c4b5a8;
   
   --color-card-dark: #1e1e3a;
   --color-card-dark-hover: #282848;
-  --color-card-light: #ffffff;
-  --color-card-light-hover: #f5f2ed;
-  
-  --color-success: #2ecc71;
-  --color-warning: #f39c12;
-  --color-danger: #e74c3c;
-  --color-info: #3498db;
+  --color-card-light: #fefefe;
+  --color-card-light-hover: #faf8f2;
   
   --font-display: 'Cinzel', 'Georgia', serif;
   --font-body: 'Inter', system-ui, sans-serif;
