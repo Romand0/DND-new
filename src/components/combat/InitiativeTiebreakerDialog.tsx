@@ -48,7 +48,7 @@ export default function InitiativeTiebreakerDialog(props: Props) {
           {tiedOrder.map((c, index) => {
             const pc = c.characterId ? characterStore.get(c.characterId) : null;
             const race = pc?.race;
-            const cls = pc?.class;
+            const cls = pc?.profession?.class;
             return (
               <div
                 key={c.id}

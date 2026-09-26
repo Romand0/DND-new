@@ -873,7 +873,7 @@ export default function TreasureDistribute() {
                       {char.name}
                     </div>
                     <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                      {char.class} Lv.{char.level}
+                      {char.profession?.class} Lv.{char.level}
                     </div>
                   </div>
                 </button>

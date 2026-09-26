@@ -708,15 +708,78 @@ if (character) {
         <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
         <input
           type="text"
-          value={character.class}
+          value={character.profession.class}
           onChange={(e) => {
-            characterStore.update(id!, { class: e.target.value });
+            characterStore.update(id!, { profession: { ...character.profession, class: e.target.value } });
             reloadChar();
           }}
           placeholder="职业"
           className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
         />
       </div>
+
+      {/* 子职业选择 */}
+      {characterStore.getLevelFromExp(character.experience) >= 3 && (
+        <div className="mt-4 p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-4 h-4 text-accent" />
+            <span className="text-sm font-medium dark:text-text-dark light:text-text-light">子职业</span>
+            {character.profession.subclass && (
+              <span className="text-xs px-2 py-1 rounded-full bg-accent/20 text-accent">
+                {character.profession.subclass}
+              </span>
+            )}
+          </div>
+          
+          {!character.profession.subclass ? (
+            <div className="space-y-2">
+              <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                3级角色可以选择一个子职业，获得特殊能力和特性
+              </p>
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) {
+                    characterStore.setSubclass(id!, e.target.value);
+                    reloadChar();
+                  }
+                }}
+                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light bg-transparent"
+              >
+                <option value="">选择子职业...</option>
+                {characterStore.getAvailableSubclasses(character.profession.class).map((subclass) => (
+                  <option key={subclass.id} value={subclass.id}>
+                    {subclass.displayName} - {subclass.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm dark:text-text-dark light:text-text-light">
+                  当前子职业: {character.profession.subclass}
+                </p>
+                <button
+                  onClick={() => {
+                    if (confirm('确定要更换子职业吗？')) {
+                      characterStore.changeSubclass(id!, '');
+                      reloadChar();
+                    }
+                  }}
+                  className="text-xs px-3 py-1 rounded-lg border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
+                >
+                  更换
+                </button>
+              </div>
+              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                {characterStore.getAvailableSubclasses(character.profession.class)
+                  .find(sc => sc.name === character.profession.subclass)?.features.join('、')}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <input
@@ -1996,7 +2059,7 @@ if (character) {
         onClose={() => setSpellPickerOpen(false)}
         onSelect={handleSelectSpell}
         selectedSpellIds={getSelectedSpellNames()}
-        characterClass={character?.class}
+        characterClass={character?.profession?.class}
         filterLevel={selectedSpellType === 'cantrip' ? 0 : 'all'}
         matchByName={true}
       />

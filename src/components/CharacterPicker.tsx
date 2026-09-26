@@ -41,7 +41,7 @@ export default function CharacterPicker({
         const q = searchQuery.toLowerCase();
         if (
           !(character.name || '').toLowerCase().includes(q) &&
-          !(character.class || '').toLowerCase().includes(q) &&
+          !(character.profession?.class || '').toLowerCase().includes(q) &&
           !(character.race || '').toLowerCase().includes(q)
         ) {
           return false;
@@ -118,7 +118,7 @@ export default function CharacterPicker({
                           Lv.{character.level ?? 1}
                         </span>
                         <span className="text-sm dark:text-text-dark light:text-text-light">
-                          {character.class || '未知职业'}
+                          {character.profession?.class || '未知职业'}
                         </span>
                         <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
                           {character.race || '未知种族'}

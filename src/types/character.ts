@@ -150,7 +150,10 @@ export interface Character {
   id: string;
   name: string;
   gender: 'male' | 'female' | 'other' | '';
-  class: string;
+  profession: {
+    class: string;
+    subclass?: string; // 3级可选的子职业
+  };
   level: number;
   race: string;
   background: string;

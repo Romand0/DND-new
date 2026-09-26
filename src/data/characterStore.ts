@@ -14,6 +14,7 @@ import type {
   HandState,
   Currency,
 } from '@/types/character';
+import { getAvailableSubclasses, canChooseSubclass, canChangeSubclass } from './subclasses';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
 
@@ -45,6 +46,16 @@ if (typeof window !== 'undefined') {
 // ============================================================
 
 function migrateCharacter(char: any): Character {
+  // 迁移：将 class 和 profession 字段统一为 profession 结构
+  if (char.class && !char.profession) {
+    char.profession = {
+      class: char.class,
+      subclass: char.subclass || undefined,
+    };
+    delete char.class;
+    delete char.subclass;
+  }
+  
   if (char.attacks && Array.isArray(char.attacks)) {
     char.attacks = char.attacks.map((attack: any) => ({
       id: attack.id,
@@ -364,7 +375,10 @@ function createBlankCharacter(name?: string): Character {
     id: generateId(),
     name: name || '新角色',
     gender: '',
-    class: '',
+    profession: {
+      class: '',
+      subclass: undefined,
+    },
     level: 1,
     race: '',
     background: '',
@@ -1619,7 +1633,7 @@ const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
 /** 获取角色的施法关键属性：显式设置优先，否则按职业推断 */
 export function getSpellcastingAbility(char: Character): AbilityKey | null {
   if (char.spellcastingAbility) return char.spellcastingAbility;
-  return CLASS_SPELLCASTING_ABILITY[char.class] ?? null;
+  return CLASS_SPELLCASTING_ABILITY[char.profession.class] ?? null;
 }
 
 /** 计算法术豁免 DC */
@@ -1717,8 +1731,8 @@ const SPELL_LEVEL_LABELS: Record<number, string> = {
 };
 
 function hasSpellcasting(char: Character): boolean {
-  if (!char || !char.class) return false;
-  const type = CLASS_CASTER_TYPE[char.class];
+  if (!char || !char.profession.class) return false;
+  const type = CLASS_CASTER_TYPE[char.profession.class];
   return type === CASTER_TYPE.FULL || type === CASTER_TYPE.HALF || type === CASTER_TYPE.WARLOCK;
 }
 
@@ -1739,13 +1753,13 @@ function getSpellSaveDC(char: Character): number | null {
 }
 
 function getCasterType(char: Character): string {
-  if (!char || !char.class) return CASTER_TYPE.NONE;
-  return CLASS_CASTER_TYPE[char.class] || CASTER_TYPE.NONE;
+  if (!char || !char.profession.class) return CASTER_TYPE.NONE;
+  return CLASS_CASTER_TYPE[char.profession.class] || CASTER_TYPE.NONE;
 }
 
 function getCasterTypeLabel(char: Character): string | null {
   if (!hasSpellcasting(char)) return null;
-  return CLASS_CASTER_LABEL[char.class] || '施法者';
+  return CLASS_CASTER_LABEL[char.profession.class] || '施法者';
 }
 
 function getSpellSlotsByLevel(char: Character): {
@@ -1773,7 +1787,7 @@ function getSpellSlotsByLevel(char: Character): {
       slots: slots.slice(0, 9),
       maxLevel,
       casterType: 'full',
-      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'intelligence',
+      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'intelligence',
     };
   }
 
@@ -1787,7 +1801,7 @@ function getSpellSlotsByLevel(char: Character): {
       slots: slots.slice(0, 5),
       maxLevel,
       casterType: 'half',
-      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'intelligence',
+      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'intelligence',
     };
   }
 
@@ -1799,7 +1813,7 @@ function getSpellSlotsByLevel(char: Character): {
       slotLevel,
       maxLevel: slotLevel,
       casterType: 'warlock',
-      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'charisma',
+      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'charisma',
       knownSpells,
       mysticArcanum,
     };
@@ -1862,7 +1876,7 @@ function getSpellSlotDisplayData(char: Character): {
     return {
       ability: config.ability,
       abilityLabel: ABILITY_LABELS[config.ability] || config.ability,
-      casterTypeLabel: CLASS_CASTER_LABEL[char.class] || '施法者',
+      casterTypeLabel: CLASS_CASTER_LABEL[char.profession.class] || '施法者',
       spellSlots: slotList,
       maxLevel: config.maxLevel,
       casterType: config.casterType,
@@ -1877,7 +1891,7 @@ function getSpellSlotDisplayData(char: Character): {
     return {
       ability: config.ability,
       abilityLabel: ABILITY_LABELS[config.ability] || config.ability,
-      casterTypeLabel: CLASS_CASTER_LABEL[char.class] || '契约施法者',
+      casterTypeLabel: CLASS_CASTER_LABEL[char.profession.class] || '契约施法者',
       spellSlots: [{
         level: slotLevel,
         label: SPELL_LEVEL_LABELS[slotLevel] || (slotLevel + '环'),
@@ -1945,6 +1959,48 @@ function resetSpellSlots(charId: string): void {
 
 function shouldShowSpellSlots(char: Character): boolean {
   return hasSpellcasting(char);
+}
+
+// ============================================================
+// 子职业管理
+// ============================================================
+
+/**
+ * 设置角色的子职业
+ */
+function setSubclass(charId: string, subclassId: string): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+
+  const availableSubclasses = getAvailableSubclasses(char.profession.class);
+  const selectedSubclass = availableSubclasses.find(sc => sc.id === subclassId);
+  
+  if (!selectedSubclass) {
+    console.warn(`Subclass ${subclassId} not available for class ${char.profession.class}`);
+    return;
+  }
+
+  char.profession.subclass = selectedSubclass.name;
+  saveCharacter(char as Character);
+}
+
+/**
+ * 更改角色的子职业
+ */
+function changeSubclass(charId: string, newSubclassId: string): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+
+  const availableSubclasses = getAvailableSubclasses(char.profession.class);
+  const newSubclass = availableSubclasses.find(sc => sc.id === newSubclassId);
+  
+  if (!newSubclass) {
+    console.warn(`New subclass ${newSubclassId} not available for class ${char.profession.class}`);
+    return;
+  }
+
+  char.profession.subclass = newSubclass.name;
+  saveCharacter(char as Character);
 }
 
 // ============================================================
@@ -2070,6 +2126,13 @@ export const characterStore = {
   setHandAction,
   endHandAction,
   setHandUnavailable,
-  restoreHand,
+   restoreHand,
+   
+   // 子职业管理
+   getAvailableSubclasses,
+   canChooseSubclass,
+   canChangeSubclass,
+   setSubclass,
+   changeSubclass,
 
 };

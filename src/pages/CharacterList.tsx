@@ -35,7 +35,7 @@ export default function CharacterList() {
   const filteredCharacters = characters.filter(
     (c) =>
       (c.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (c.class || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.profession?.class || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.race || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -256,7 +256,7 @@ export default function CharacterList() {
                           {char.name}
                         </div>
                         <div className="text-sm dark:text-text-dark/80 light:text-text-light/80">
-                          {char.race || '未知种族'} · {char.class || '未知职业'}
+                          {char.race || '未知种族'} · {char.profession?.class || '未知职业'}
                         </div>
                       </div>
                       <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/30 text-white text-sm font-medium">
