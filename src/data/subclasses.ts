@@ -1,11 +1,24 @@
 import { Character } from '@/types/character';
 
+export interface SpellProgression {
+  cantrips: string;
+  knownSpells: string;
+  spellSlots: {
+    level1: string;
+    level2: string;
+    level3: string;
+    level4: string;
+  };
+  maxSpellLevel: number;
+}
+
 export interface Subclass {
   id: string;
   name: string;
   displayName: string;
   description: string;
   features: string[];
+  spellProgression?: SpellProgression;
 }
 
 export const SUBCLASSES: Record<string, Subclass[]> = {
@@ -358,7 +371,18 @@ export const SUBCLASSES: Record<string, Subclass[]> = {
         '妖精魔法：使用妖精魔法',
         '妖精契约：与妖精建立契约',
         '妖精祝福：获得妖精祝福'
-      ]
+      ],
+      spellProgression: {
+        cantrips: '3-3级，4-10级',
+        knownSpells: '3-3级，4-4级，5-7级，6-8级，7-10级，8-11级，9-13级，10-14级，11-16级，12-19级，13-20级',
+        spellSlots: {
+          level1: '2-3级，3-4级，4-7级',
+          level2: '2-7级，3-10级',
+          level3: '2-13级，3-16级',
+          level4: '1-19级'
+        },
+        maxSpellLevel: 4
+      }
     },
     {
       id: 'fiend',
@@ -369,7 +393,18 @@ export const SUBCLASSES: Record<string, Subclass[]> = {
         '邪魔魔法：使用邪魔魔法',
         '邪魔契约：与邪魔建立契约',
         '邪魔力量：获得邪魔力量'
-      ]
+      ],
+      spellProgression: {
+        cantrips: '3-3级，4-10级',
+        knownSpells: '3-3级，4-4级，5-7级，6-8级，7-10级，8-11级，9-13级，10-14级，11-16级，12-19级，13-20级',
+        spellSlots: {
+          level1: '2-3级，3-4级，4-7级',
+          level2: '2-7级，3-10级',
+          level3: '2-13级，3-16级',
+          level4: '1-19级'
+        },
+        maxSpellLevel: 4
+      }
     },
     {
       id: 'old_one',
@@ -380,7 +415,18 @@ export const SUBCLASSES: Record<string, Subclass[]> = {
         '禁忌魔法：使用禁忌魔法',
         '旧日契约：与旧日支配者建立契约',
         '疯狂知识：获得疯狂知识'
-      ]
+      ],
+      spellProgression: {
+        cantrips: '3-3级，4-10级',
+        knownSpells: '3-3级，4-4级，5-7级，6-8级，7-10级，8-11级，9-13级，10-14级，11-16级，12-19级，13-20级',
+        spellSlots: {
+          level1: '2-3级，3-4级，4-7级',
+          level2: '2-7级，3-10级',
+          level3: '2-13级，3-16级',
+          level4: '1-19级'
+        },
+        maxSpellLevel: 4
+      }
     }
   ]
 };

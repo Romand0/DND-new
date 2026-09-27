@@ -774,9 +774,31 @@ if (character) {
                   更换
                 </button>
               </div>
-              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                {characterStore.getAvailableSubclasses(character)
-                  .find(sc => sc.id === character.profession.subclass)?.features.join('、')}
+              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted space-y-2">
+                <div>
+                  {characterStore.getAvailableSubclasses(character)
+                    .find(sc => sc.id === character.profession.subclass)?.features.join('、')}
+                </div>
+                {/* 邪术师显示法术成长轨迹 */}
+                {(character.profession.class === '邪术师') && (
+                  <div className="p-2 bg-accent/5 rounded border border-accent/20">
+                    <div className="font-medium text-accent mb-1">法术成长轨迹</div>
+                    <div className="text-xs space-y-1">
+                      <div>已知戏法: {characterStore.getAvailableSubclasses(character)
+                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.cantrips}</div>
+                      <div>已知法术: {characterStore.getAvailableSubclasses(character)
+                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.knownSpells}</div>
+                      <div>1环: {characterStore.getAvailableSubclasses(character)
+                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.spellSlots.level1}</div>
+                      <div>2环: {characterStore.getAvailableSubclasses(character)
+                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.spellSlots.level2}</div>
+                      <div>3环: {characterStore.getAvailableSubclasses(character)
+                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.spellSlots.level3}</div>
+                      <div>4环: {characterStore.getAvailableSubclasses(character)
+                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.spellSlots.level4}</div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
