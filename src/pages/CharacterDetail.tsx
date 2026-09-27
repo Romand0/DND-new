@@ -719,7 +719,7 @@ if (character) {
       </div>
 
       {/* 子职业选择 */}
-      {characterStore.getLevelFromExp(character.experience) >= 3 && (
+      {characterStore.canCharacterChooseSubclass(character) && (
         <div className="mt-4 p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="w-4 h-4 text-accent" />
@@ -734,7 +734,9 @@ if (character) {
           {!character.profession.subclass ? (
             <div className="space-y-2">
               <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                3级角色可以选择一个子职业，获得特殊能力和特性
+                {character.profession.class === '术士' || character.profession.class === '邪术师' 
+                  ? '1级角色可以选择一个子职业，获得特殊能力和特性' 
+                  : '3级角色可以选择一个子职业，获得特殊能力和特性'}
               </p>
               <select
                 value=""

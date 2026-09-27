@@ -1609,8 +1609,8 @@ const CLASS_CASTER_TYPE: Record<string, string> = {
   '奇械师': CASTER_TYPE.HALF,
   '野蛮人': CASTER_TYPE.NONE,
   '武僧': CASTER_TYPE.NONE,
-  '游荡者': CASTER_TYPE.NONE,
-  '战士': CASTER_TYPE.NONE,
+  '游荡者': CASTER_TYPE.HALF, // 诡术师可以施法
+  '战士': CASTER_TYPE.HALF, // 奥法骑士可以施法
 };
 
 /** 职业→施法关键属性映射（PHB 标准施法者） */
@@ -1623,10 +1623,10 @@ const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
   '术士': 'charisma',
   '邪术师': 'charisma',
   '法师': 'intelligence',
-'野蛮人': 'strength',
+  '野蛮人': 'strength',
   '武僧': 'wisdom',
-  '游荡者': 'dexterity',
-  '战士': 'strength',
+  '游荡者': 'charisma', // 诡术师使用魅力施法
+  '战士': 'intelligence', // 奥法骑士使用智力施法
   // 英文备选
   'Bard': 'charisma',
   'Cleric': 'wisdom',
@@ -1664,8 +1664,8 @@ const CLASS_CASTER_LABEL: Record<string, string> = {
   '奇械师': '半职施法者（智力）',
   '野蛮人': '非施法者',
   '武僧': '非施法者',
-  '游荡者': '非施法者',
-  '战士': '非施法者',
+  '游荡者': '半职施法者（魅力·诡术师）',
+  '战士': '半职施法者（智力·奥法骑士）',
 };
 
 const FULL_CASTER_SLOTS = [
@@ -1978,6 +1978,18 @@ function shouldShowSpellSlots(char: Character): boolean {
 // ============================================================
 
 /**
+ * 检查角色是否可以选择子职业
+ */
+export function canCharacterChooseSubclass(character: Character): boolean {
+  // 术士和邪术师1级就可以选择子职业
+  if (character.profession.class === '术士' || character.profession.class === '邪术师') {
+    return character.level >= 1;
+  }
+  // 其他职业3级可以选择子职业
+  return character.level >= 3;
+}
+
+/**
  * 设置角色的子职业
  */
 function setSubclass(charId: string, subclassId: string): void {
@@ -2140,11 +2152,12 @@ export const characterStore = {
   setHandUnavailable,
    restoreHand,
    
-   // 子职业管理
-   getAvailableSubclasses,
-   canChooseSubclass,
+    // 子职业管理
+    getAvailableSubclasses,
+    canChooseSubclass,
+    canCharacterChooseSubclass,
 
-   setSubclass,
+    setSubclass,
    changeSubclass,
 
 };
