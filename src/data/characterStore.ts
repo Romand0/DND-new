@@ -14,7 +14,7 @@ import type {
   HandState,
   Currency,
 } from '@/types/character';
-import { getAvailableSubclasses, canChooseSubclass, canChangeSubclass } from './subclasses';
+import { getAvailableSubclasses, canChooseSubclass } from './subclasses';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
 
@@ -1607,6 +1607,10 @@ const CLASS_CASTER_TYPE: Record<string, string> = {
   '圣武士': CASTER_TYPE.HALF,
   '游侠': CASTER_TYPE.HALF,
   '奇械师': CASTER_TYPE.HALF,
+  '野蛮人': CASTER_TYPE.NONE,
+  '武僧': CASTER_TYPE.NONE,
+  '游荡者': CASTER_TYPE.NONE,
+  '战士': CASTER_TYPE.NONE,
 };
 
 /** 职业→施法关键属性映射（PHB 标准施法者） */
@@ -1619,6 +1623,10 @@ const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
   '术士': 'charisma',
   '邪术师': 'charisma',
   '法师': 'intelligence',
+'野蛮人': 'strength',
+  '武僧': 'wisdom',
+  '游荡者': 'dexterity',
+  '战士': 'strength',
   // 英文备选
   'Bard': 'charisma',
   'Cleric': 'wisdom',
@@ -1654,6 +1662,10 @@ const CLASS_CASTER_LABEL: Record<string, string> = {
   '圣武士': '半职施法者（魅力）',
   '游侠': '半职施法者（感知）',
   '奇械师': '半职施法者（智力）',
+  '野蛮人': '非施法者',
+  '武僧': '非施法者',
+  '游荡者': '非施法者',
+  '战士': '非施法者',
 };
 
 const FULL_CASTER_SLOTS = [
@@ -1972,7 +1984,7 @@ function setSubclass(charId: string, subclassId: string): void {
   const char = getCharacter(charId);
   if (!char) return;
 
-  const availableSubclasses = getAvailableSubclasses(char.profession.class);
+  const availableSubclasses = getAvailableSubclasses(char as Character);
   const selectedSubclass = availableSubclasses.find(sc => sc.id === subclassId);
   
   if (!selectedSubclass) {
@@ -1980,7 +1992,7 @@ function setSubclass(charId: string, subclassId: string): void {
     return;
   }
 
-  char.profession.subclass = selectedSubclass.name;
+  char.profession.subclass = selectedSubclass.id;
   saveCharacter(char as Character);
 }
 
@@ -1991,7 +2003,7 @@ function changeSubclass(charId: string, newSubclassId: string): void {
   const char = getCharacter(charId);
   if (!char) return;
 
-  const availableSubclasses = getAvailableSubclasses(char.profession.class);
+  const availableSubclasses = getAvailableSubclasses(char as Character);
   const newSubclass = availableSubclasses.find(sc => sc.id === newSubclassId);
   
   if (!newSubclass) {
@@ -1999,7 +2011,7 @@ function changeSubclass(charId: string, newSubclassId: string): void {
     return;
   }
 
-  char.profession.subclass = newSubclass.name;
+  char.profession.subclass = newSubclass.id;
   saveCharacter(char as Character);
 }
 
@@ -2131,7 +2143,7 @@ export const characterStore = {
    // 子职业管理
    getAvailableSubclasses,
    canChooseSubclass,
-   canChangeSubclass,
+
    setSubclass,
    changeSubclass,
 

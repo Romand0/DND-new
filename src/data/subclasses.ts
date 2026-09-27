@@ -1,423 +1,435 @@
-// DM Toolkit - 子职业配置数据
-// 内置各职业的子职业选项，3级角色可以选择
+import { Character } from '@/types/character';
 
-export interface SubclassOption {
+export interface Subclass {
   id: string;
   name: string;
   displayName: string;
   description: string;
-  features: string[]; // 主要特性描述
-  prerequisites?: string[]; // 前置要求
+  features: string[];
 }
 
-export interface ClassSubclasses {
-  [className: string]: SubclassOption[];
-}
-
-// D&D 5e 主要职业的子职业配置
-export const SUBCLASSES_DATA: ClassSubclasses = {
-  // 战士 (Fighter)
-  '战士': [
+export const SUBCLASSES: Record<string, Subclass[]> = {
+  野蛮人: [
     {
-      id: 'weapon-master',
-      name: '武器大师',
-      displayName: '武器大师',
-      description: '专注于特定武器类型的战斗专家，掌握各种武器技巧',
+      id: 'berserker',
+      name: '狂战士道途',
+      displayName: '狂战士道途',
+      description: '进入狂暴状态，获得额外的战斗能力和伤害',
       features: [
-        '武器专精：选择一种武器类型，获得额外加值',
-        '战斗风格：选择一种战斗风格增强战斗能力',
-        '武器技巧：掌握独特的武器使用方法'
+        '狂暴：进入狂暴状态，获得额外攻击和伤害',
+        '抵抗：在狂暴状态下获得伤害抗性',
+        '狂怒：狂暴状态下移动速度增加'
       ]
     },
     {
-      id: 'battle-master',
-      name: '战役大师',
-      displayName: '战役大师',
-      description: '精通战术和战斗技巧的战术专家',
+      id: 'totem_warrior',
+      name: '图腾武者道途',
+      displayName: '图腾武者道途',
+      description: '通过图腾获得特殊能力，与自然力量连接',
       features: [
-        '战术指令：可以给队友提供战术指令',
-        '战斗技巧：掌握多种战斗技巧',
-        '战术洞察：能够分析战场局势'
-      ]
-    },
-    {
-      id: 'eldritch-knight',
-      name: '奥术骑士',
-      displayName: '奥术骑士',
-      description: '结合战士的战斗技巧与法术施法的特殊战士',
-      features: [
-        '战斗法术：可以学习并施放少量法术',
-        '战士法术：将战士技巧与法术结合',
-        '奥术护甲：获得魔法护甲能力'
+        '图腾：获得图腾的特殊能力',
+        '动物形态：能够模拟动物的行为',
+        '图腾连接：与图腾动物建立连接'
       ]
     }
   ],
-  
-  // 法师 (Wizard)
-  '法师': [
+  吟游诗人: [
     {
-      id: 'abjuration',
-      name: '防护系',
-      displayName: '防护系',
-      description: '专注于防护和防护法术的大师',
+      id: 'college_of_lore',
+      name: '逸闻学院',
+      displayName: '逸闻学院',
+      description: '掌握广泛的知识和技能，能够学习和使用各种法术',
       features: [
-        '防护专精：防护法术效果增强',
-        '防护护盾：获得额外的防护能力',
-        '反制法术：可以反制敌人的法术'
+        '博学：掌握各种知识',
+        '法术专精：能够学习和使用更多法术',
+        '技能大师：技能检定获得加成'
       ]
     },
     {
-      id: 'conjuration',
-      name: '召唤系',
-      displayName: '召唤系',
-      description: '精通召唤和创造法术的专家',
+      id: 'college_of_valor',
+      name: '勇气学院',
+      displayName: '勇气学院',
+      description: '专注于勇气和战斗，能够在战斗中鼓舞队友',
       features: [
-        '召唤增强：召唤生物效果增强',
-        '创造专精：创造法术效果增强',
-        '位面通道：可以打开位面通道'
-      ]
-    },
-    {
-      id: 'divination',
-      name: '预言系',
-      displayName: '预言系',
-      description: '能够预见未来和获得神秘知识的智者',
-      features: [
-        '预知能力：可以预见未来事件',
-        '洞察真相：看穿谎言和幻象',
-        '命运指引：获得命运指引'
-      ]
-    },
-    {
-      id: 'enchantment',
-      name: '惑控系',
-      displayName: '惑控系',
-      description: '精通影响和操控他人心智的大师',
-      features: [
-        '惑控专精：惑控法术效果增强',
-        '心灵控制：可以控制他人心智',
-        '魅惑增强：魅惑法术效果增强'
-      ]
-    },
-    {
-      id: 'evocation',
-      name: '塑能系',
-      displayName: '塑能系',
-      description: '掌握纯粹能量法术的毁灭大师',
-      features: [
-        '塑能专精：塑能法术效果增强',
-        '能量爆发：可以释放强大的能量',
-        '元素掌控：掌握元素能量'
-      ]
-    },
-    {
-      id: 'illusion',
-      name: '幻术系',
-      displayName: '幻术系',
-      description: '创造幻象和欺骗感官的大师',
-      features: [
-        '幻术专精：幻术法术效果增强',
-        '真实幻象：创造难以分辨的幻象',
-        '感官欺骗：欺骗他人感官'
-      ]
-    },
-    {
-      id: 'necromancy',
-      name: '死灵系',
-      displayName: '死灵系',
-      description: '操控生命和死亡力量的黑暗大师',
-      features: [
-        '死灵专精：死灵法术效果增强',
-        '亡灵操控：可以操控亡灵',
-        '生命汲取：可以汲取生命能量'
-      ]
-    },
-    {
-      id: 'transmutation',
-      name: '变化系',
-      displayName: '变化系',
-      description: '改变物质形态和属性的变形大师',
-      features: [
-        '变化专精：变化法术效果增强',
-        '物质变形：可以改变物质形态',
-        '属性增强：可以增强物体属性'
+        '勇气鼓舞：鼓舞队友的勇气',
+        '战斗吟唱：在战斗中吟唱',
+        '武器专精：获得武器专精'
       ]
     }
   ],
-  
-  // 游侠 (Ranger)
-  '游侠': [
+  牧师: [
     {
-      id: 'beast-master',
-      name: '野兽大师',
-      displayName: '野兽大师',
-      description: '与野兽建立特殊联系的野外生存专家',
+      id: 'knowledge',
+      name: '知识领域',
+      displayName: '知识领域',
+      description: '专注于智慧和知识，能够获取信息和识破谎言',
       features: [
-        '野兽伙伴：获得野兽伙伴',
-        '野兽沟通：可以与野兽沟通',
-        '野兽增强：增强野兽伙伴能力'
+        '知识获取：能够获取更多信息',
+        '智慧祝福：提升智力相关检定',
+        '真相洞察：能够识破谎言'
       ]
     },
-    {
-      id: 'hunter',
-      name: '猎人',
-      displayName: '猎人',
-      description: '追踪和猎杀目标的专家',
-      features: [
-        '猎杀专精：对抗特定敌人加成',
-        '陷阱大师：擅长设置和使用陷阱',
-        '追踪大师：追踪能力增强'
-      ]
-    },
-    {
-      id: 'gloom-stalker',
-      name: '幽暗追踪者',
-      displayName: '幽暗追踪者',
-      description: '擅长在黑暗中作战的游侠',
-      features: [
-        '黑暗视觉：在黑暗中视觉增强',
-        '幽暗猎手：在黑暗中作战加成',
-        '恐惧掌控：可以制造恐惧'
-      ]
-    }
-  ],
-  
-  // 牧师 (Cleric)
-  '牧师': [
     {
       id: 'life',
       name: '生命领域',
       displayName: '生命领域',
-      description: '专注于治疗和生命力量的牧师',
+      description: '专注于治疗和保护生命，能够治愈伤势和驱散邪恶',
       features: [
-        '生命专精：治疗法术效果增强',
-        '生命恢复：增强恢复能力',
-        '生命守护：保护生命'
+        '生命治愈：治疗法术效果增强',
+        '生命护盾：获得生命护盾',
+        '生命复苏：能够复活死者'
       ]
     },
     {
       id: 'light',
       name: '光明领域',
       displayName: '光明领域',
-      description: '专注于光明和驱邪的牧师',
+      description: '专注于光明和正义，能够驱散黑暗和邪恶',
       features: [
-        '光明专精：光明法术效果增强',
-        '驱邪专家：对抗邪恶生物加成',
-        '光明护盾：提供光明护盾'
+        '光明打击：对黑暗生物造成额外伤害',
+        '光明护盾：获得光明护盾',
+        '光明祝福：能够祝福队友'
       ]
     },
     {
-      id: 'knowledge',
-      name: '知识领域',
-      displayName: '知识领域',
-      description: '专注于知识和智慧的牧师',
+      id: 'nature',
+      name: '自然领域',
+      displayName: '自然领域',
+      description: '专注于自然和生态，能够与自然沟通',
       features: [
-        '知识专精：知识相关法术增强',
-        '智慧启发：增强智慧属性',
-        '记忆掌握：增强记忆能力'
+        '自然沟通：与自然沟通',
+        '自然掌控：掌控自然力量',
+        '生态平衡：维护生态平衡'
       ]
     },
     {
       id: 'tempest',
       name: '风暴领域',
       displayName: '风暴领域',
-      description: '掌控风暴和雷电力量的牧师',
+      description: '专注于风暴和雷电，能够召唤雷电风暴',
       features: [
-        '风暴专精：风暴法术效果增强',
-        '雷电掌控：掌控雷电力量',
-        '风暴守护：风暴护盾'
+        '风暴召唤：能够召唤雷电风暴',
+        '雷电掌控：掌握雷电法术',
+        '风暴护盾：获得风暴护盾'
       ]
     },
     {
       id: 'trickery',
-      name: '诡诈领域',
-      displayName: '诡诈领域',
-      description: '专注于诡计和欺骗的牧师',
+      name: '诡术领域',
+      displayName: '诡术领域',
+      description: '专注于诡计和欺骗，擅长隐秘行动',
       features: [
-        '诡诈专精：诡诈法术效果增强',
-        '欺骗大师：擅长欺骗',
-        '阴影掌控：掌控阴影'
+        '隐秘行动：在隐秘行动中获得优势',
+        '欺骗技巧：欺骗相关检定获得加成',
+        '阴影掌控：在阴影中隐秘行动'
       ]
     },
     {
       id: 'war',
       name: '战争领域',
       displayName: '战争领域',
-      description: '专注于战斗和战争的牧师',
+      description: '专注于战争和战斗，能够鼓舞战士和增强战斗力',
       features: [
-        '战争专精：战斗法术效果增强',
-        '战争狂热：增强战斗能力',
-        '战争祝福：提供战争祝福'
+        '战争祝福：战斗相关检定获得加成',
+        '战争武器：武器攻击获得加成',
+        '战争指挥：能够鼓舞队友'
       ]
     }
   ],
-  
-  // 盗贼 (Rogue)
-  '盗贼': [
+  德鲁伊: [
+    {
+      id: 'circle_of_land',
+      name: '大地结社',
+      displayName: '大地结社',
+      description: '专注于大地和自然，能够掌控大地力量',
+      features: [
+        '大地掌控：掌控大地力量',
+        '植物生长：促进植物生长',
+        '地形改变：改变地形'
+      ]
+    },
+    {
+      id: 'circle_of_moon',
+      name: '月亮结社',
+      displayName: '月亮结社',
+      description: '专注于月亮和变形，能够变身成动物',
+      features: [
+        '月亮变身：变身成动物',
+        '月亮掌控：掌控月亮力量',
+        '夜行动物：在夜晚获得优势'
+      ]
+    }
+  ],
+  战士: [
+    {
+      id: 'fighter',
+      name: '勇士',
+      displayName: '勇士',
+      description: '专注于基础战斗技能，掌握各种武器和战斗技巧',
+      features: [
+        '战斗专精：获得武器专精',
+        '战斗技巧：掌握各种战斗技巧',
+        '战斗耐力：增加战斗耐力'
+      ]
+    },
+    {
+      id: 'battle_master',
+      name: '战斗大师',
+      displayName: '战斗大师',
+      description: '精通战术和战斗技巧，能够精准打击敌人弱点',
+      features: [
+        '战术大师：掌握各种战术技巧',
+        '打击技巧：能够精准打击敌人弱点',
+        '指挥能力：能够鼓舞队友'
+      ]
+    },
+    {
+      id: 'eldritch_knight',
+      name: '奥法骑士',
+      displayName: '奥法骑士',
+      description: '结合魔法和武力的战士，能够使用简单的魔法',
+      features: [
+        '奥术武装：能够为武器附加魔法效果',
+        '魔法护盾：获得魔法护盾能力',
+        '战斗法术：能够使用简单的战斗法术'
+      ]
+    }
+  ],
+  武僧: [
+    {
+      id: 'quingong_master',
+      name: '散打宗',
+      displayName: '散打宗',
+      description: '专注于散打技巧，能够使用各种武术技巧',
+      features: [
+        '散打技巧：掌握各种散打技巧',
+        '内力增强：内力攻击增强',
+        '武术专精：获得武术专精'
+      ]
+    },
+    {
+      id: 'shadow_monk',
+      name: '暗影宗',
+      displayName: '暗影宗',
+      description: '专注于暗影和隐秘行动，能够在阴影中隐秘行动',
+      features: [
+        '暗影掌控：掌控暗影力量',
+        '隐秘行动：在阴影中隐秘行动',
+        '暗影步法：暗影中移动速度增加'
+      ]
+    },
+    {
+      id: 'four_elements',
+      name: '四象宗',
+      displayName: '四象宗',
+      description: '专注于四象元素，能够使用四象元素的力量',
+      features: [
+        '四象掌控：掌控四象元素',
+        '元素攻击：使用元素攻击',
+        '元素防御：获得元素防御'
+      ]
+    }
+  ],
+  圣武士: [
+    {
+      id: 'oath_of_devotion',
+      name: '奉献之誓',
+      displayName: '奉献之誓',
+      description: '奉献于正义和善良，能够保护无辜者',
+      features: [
+        '正义奉献：为正义而战',
+        '保护誓言：保护无辜者',
+        '神圣打击：对邪恶生物造成额外伤害'
+      ]
+    },
+    {
+      id: 'oath_of_the_ancients',
+      name: '古贤之誓',
+      displayName: '古贤之誓',
+      description: '遵循古贤的教诲，保护自然和善良',
+      features: [
+        '古贤教诲：遵循古贤的教诲',
+        '自然保护：保护自然',
+        '善良守护：守护善良'
+      ]
+    },
+    {
+      id: 'oath_of_revenge',
+      name: '复仇之誓',
+      displayName: '复仇之誓',
+      description: '为复仇而战，能够追踪和惩罚邪恶',
+      features: [
+        '复仇追踪：追踪邪恶',
+        '复仇打击：对邪恶生物造成额外伤害',
+        '复仇意志：复仇意志增强'
+      ]
+    }
+  ],
+  游侠: [
+    {
+      id: 'hunter',
+      name: '猎人',
+      displayName: '猎人',
+      description: '专精追踪和狩猎，能够精准打击敌人',
+      features: [
+        '狩猎技巧：掌握狩猎技巧',
+        '精准打击：能够精准打击敌人',
+        '陷阱设置：能够设置陷阱'
+      ]
+    },
+    {
+      id: 'beast_master',
+      name: '驯兽师',
+      displayName: '驯兽师',
+      description: '与野兽建立深厚联系，能够与野兽并肩作战',
+      features: [
+        '野兽伙伴：拥有一个野兽伙伴',
+        '野兽沟通：能够与野兽沟通',
+        '野兽强化：能够强化野兽的能力'
+      ]
+    }
+  ],
+  游荡者: [
     {
       id: 'thief',
       name: '盗贼',
       displayName: '盗贼',
-      description: '传统的偷窃和开锁专家',
+      description: '专精偷窃和潜行，能够悄无声息地行动',
       features: [
-        '偷窃专精：偷窃技能增强',
-        '开锁大师：开锁能力增强',
-        '悄无声息：移动更加隐蔽'
+        '潜行专家：在潜行中获得优势',
+        '偷窃技巧：偷窃相关检定获得加成',
+        '敏捷行动：在敏捷行动中获得优势'
       ]
     },
     {
       id: 'assassin',
       name: '刺客',
       displayName: '刺客',
-      description: '精通暗杀和偷袭的杀手',
+      description: '专精暗杀和突袭，能够造成致命伤害',
       features: [
-        '暗杀专精：暗杀能力增强',
-        '偷袭大师：偷袭加成',
-        '毒药专家：擅长使用毒药'
+        '暗杀专家：暗杀相关检定获得加成',
+        '致命一击：能够造成致命伤害',
+        '隐秘行动：在隐秘行动中获得优势'
       ]
     },
     {
-      id: 'arcane-trickster',
-      name: '奥术诡术师',
-      displayName: '奥术诡术师',
-      description: '结合盗贼技巧与法术施法的特殊盗贼',
+      id: 'arcane_trickster',
+      name: '诡术师',
+      displayName: '诡术师',
+      description: '结合偷窃和魔法，能够使用简单的魔法',
       features: [
-        '奥术法术：可以学习少量法术',
-        '诡术法术：将诡术与法术结合',
-        '心灵操控：操控他人心智'
+        '奥术偷窃：能够偷取魔法效果',
+        '诡术魔法：使用诡术相关的魔法',
+        '隐秘魔法：在隐秘中使用魔法'
       ]
     }
   ],
-  
-  // 吟游诗人 (Bard)
-  '吟游诗人': [
+  术士: [
     {
-      id: 'valor',
-      name: '勇吟诗人',
-      displayName: '勇吟诗人',
-      description: '专注于战斗和英雄诗篇的吟游诗人',
-      features: [
-        '勇吟专精：战斗歌曲效果增强',
-        '英雄诗篇：鼓舞英雄事迹',
-        '战斗艺术：结合音乐与战斗'
-      ]
-    },
-    {
-      id: 'lore',
-      name: '博吟诗人',
-      displayName: '博吟诗人',
-      description: '专注于知识和魔法的吟游诗人',
-      features: [
-        '博吟专精：知识歌曲效果增强',
-        '魔法艺术：结合音乐与魔法',
-        '知识掌握：增强知识能力'
-      ]
-    },
-    {
-      id: 'elegy',
-      name: '悲吟诗人',
-      displayName: '悲吟诗人',
-      description: '专注于悲伤和治疗的歌曲大师',
-      features: [
-        '悲吟专精：悲伤歌曲效果增强',
-        '治疗艺术：结合音乐与治疗',
-        '情感操控：操控他人情感'
-      ]
-    }
-  ],
-  
-  // 德鲁伊 (Druid)
-  '德鲁伊': [
-    {
-      id: 'circle-of-the-land',
-      name: '自然之环',
-      displayName: '自然之环',
-      description: '与特定自然环境联系紧密的德鲁伊',
-      features: [
-        '自然专精：特定环境法术增强',
-        '自然伙伴：获得自然伙伴',
-        '环境掌控：掌控特定环境'
-      ]
-    },
-    {
-      id: 'circle-of-the-moon',
-      name: '月亮之环',
-      displayName: '月亮之环',
-      description: '擅长变形和野性战斗的德鲁伊',
-      features: [
-        '变形专精：变形能力增强',
-        '野性战斗：野性战斗加成',
-        '野性伙伴：获得野性伙伴'
-      ]
-    },
-    {
-      id: 'circle-of-stars',
-      name: '星辰之环',
-      displayName: '星辰之环',
-      description: '与星辰和宇宙联系的神秘德鲁伊',
-      features: [
-        '星辰专精：星辰法术效果增强',
-        '预言能力：预见未来',
-        '宇宙掌控：掌控宇宙力量'
-      ]
-    }
-  ],
-  
-  // 术士 (Sorcerer)
-  '术士': [
-    {
-      id: 'draconic-bloodline',
+      id: 'draconic',
       name: '龙族血脉',
       displayName: '龙族血脉',
-      description: '拥有龙族血统的术士',
+      description: '拥有龙族血脉，能够使用龙族相关的魔法',
       features: [
-        '龙族专精：龙族法术效果增强',
-        '龙族护甲：获得龙族护甲',
-        '龙族呼吸：获得龙族呼吸能力'
+        '龙族护盾：获得龙族护盾',
+        '龙族魔法：使用龙族魔法',
+        '龙族特性：获得龙族特性'
       ]
     },
     {
-      id: 'wild-magic',
-      name: '野魔法',
-      displayName: '野魔法',
-      description: '掌控不稳定野魔法的术士',
+      id: 'wild_magic',
+      name: '狂野魔法',
+      displayName: '狂野魔法',
+      description: '掌控野魔法，魔法效果不可预测',
       features: [
-        '野魔法爆发：随机魔法爆发',
+        '野魔法爆发：魔法效果不可预测',
         '野魔法掌控：掌控野魔法',
-        '野魔法增强：野魔法效果增强'
+        '野魔法护盾：获得野魔法护盾'
+      ]
+    }
+  ],
+  邪术师: [
+    {
+      id: 'archfey',
+      name: '至高妖精',
+      displayName: '至高妖精',
+      description: '与至高妖精建立联系，能够使用妖精魔法',
+      features: [
+        '妖精魔法：使用妖精魔法',
+        '妖精契约：与妖精建立契约',
+        '妖精祝福：获得妖精祝福'
       ]
     },
     {
-      id: 'shadow-magic',
-      name: '暗影魔法',
-      displayName: '暗影魔法',
-      description: '掌控暗影和阴影力量的术士',
+      id: 'fiend',
+      name: '邪魔',
+      displayName: '邪魔',
+      description: '与邪魔建立联系，能够使用邪魔魔法',
       features: [
-        '暗影专精：暗影法术效果增强',
-        '暗影移动：暗影移动能力',
-        '暗影掌控：掌控暗影力量'
+        '邪魔魔法：使用邪魔魔法',
+        '邪魔契约：与邪魔建立契约',
+        '邪魔力量：获得邪魔力量'
+      ]
+    },
+    {
+      id: 'old_one',
+      name: '旧日支配者',
+      displayName: '旧日支配者',
+      description: '与旧日支配者建立联系，能够使用禁忌魔法',
+      features: [
+        '禁忌魔法：使用禁忌魔法',
+        '旧日契约：与旧日支配者建立契约',
+        '疯狂知识：获得疯狂知识'
       ]
     }
   ]
 };
 
-// 辅助函数：获取职业的可用子职业
-export function getAvailableSubclasses(className: string): SubclassOption[] {
-  return SUBCLASSES_DATA[className] || [];
+export function getAvailableSubclasses(character: Character): Subclass[] {
+  if (!character.profession || !character.profession.class) {
+    return [];
+  }
+  
+  return SUBCLASSES[character.profession.class] || [];
 }
 
-// 辅助函数：检查角色是否可以选择子职业
-export function canChooseSubclass(character: {
-  level: number;
-  profession: { class: string; subclass?: string };
-}): boolean {
-  return character.level >= 3 && !character.profession.subclass;
-}
-
-// 辅助函数：检查角色是否可以更换子职业
-export function canChangeSubclass(character: {
-  level: number;
-  profession: { class: string; subclass?: string };
-}): boolean {
+export function canChooseSubclass(character: Character): boolean {
   return character.level >= 3 && !!character.profession.subclass;
+}
+
+export function setSubclass(character: Character, subclass: Subclass | null): Character {
+  if (!character.profession) {
+    character.profession = { class: '', subclass: undefined };
+  }
+  
+  if (subclass) {
+    character.profession.subclass = subclass.id;
+  } else {
+    character.profession.subclass = undefined;
+  }
+  
+  return character;
+}
+
+export function changeSubclass(character: Character, newSubclass: Subclass): Character {
+  if (!character.profession) {
+    character.profession = { class: '', subclass: undefined };
+  }
+  
+  character.profession.subclass = newSubclass.id;
+  return character;
+}
+
+export function getSubclassById(character: Character, subclassId: string): Subclass | null {
+  const availableSubclasses = getAvailableSubclasses(character);
+  return availableSubclasses.find(sub => sub.id === subclassId) || null;
+}
+
+export function getSubclassDisplayName(character: Character): string {
+  if (!character.profession || !character.profession.subclass) {
+    return '';
+  }
+  
+  const subclass = getSubclassById(character, character.profession.subclass);
+  return subclass?.displayName || '';
 }

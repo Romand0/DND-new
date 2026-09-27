@@ -747,7 +747,7 @@ if (character) {
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light bg-transparent"
               >
                 <option value="">选择子职业...</option>
-                {characterStore.getAvailableSubclasses(character.profession.class).map((subclass) => (
+                {characterStore.getAvailableSubclasses(character).map((subclass) => (
                   <option key={subclass.id} value={subclass.id}>
                     {subclass.displayName} - {subclass.description}
                   </option>
@@ -773,8 +773,8 @@ if (character) {
                 </button>
               </div>
               <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                {characterStore.getAvailableSubclasses(character.profession.class)
-                  .find(sc => sc.name === character.profession.subclass)?.features.join('、')}
+                {characterStore.getAvailableSubclasses(character)
+                  .find(sc => sc.id === character.profession.subclass)?.features.join('、')}
               </div>
             </div>
           )}
