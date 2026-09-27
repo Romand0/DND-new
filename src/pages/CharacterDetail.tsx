@@ -779,26 +779,20 @@ if (character) {
                   {characterStore.getAvailableSubclasses(character)
                     .find(sc => sc.id === character.profession.subclass)?.features.join('、')}
                 </div>
-                {/* 诡术师显示法术成长轨迹 */}
-                {(character.profession.class === '游荡者' && character.profession.subclass === 'arcane_trickster') && (
-                  <div className="p-2 bg-accent/5 rounded border border-accent/20">
-                    <div className="font-medium text-accent mb-1">法术成长轨迹</div>
-                    <div className="text-xs space-y-1">
-                      <div>已知戏法: {characterStore.getAvailableSubclasses(character)
-                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.cantrips}</div>
-                      <div>已知法术: {characterStore.getAvailableSubclasses(character)
-                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.knownSpells}</div>
-                      <div>1环: {characterStore.getAvailableSubclasses(character)
-                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.spellSlots.level1}</div>
-                      <div>2环: {characterStore.getAvailableSubclasses(character)
-                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.spellSlots.level2}</div>
-                      <div>3环: {characterStore.getAvailableSubclasses(character)
-                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.spellSlots.level3}</div>
-                      <div>4环: {characterStore.getAvailableSubclasses(character)
-                        .find(sc => sc.id === character.profession.subclass)?.spellProgression?.spellSlots.level4}</div>
-                    </div>
-                  </div>
-                )}
+                    {/* 诡术师显示法术成长轨迹 */}
+                    {character.profession?.class === '游荡者' && character.profession?.subclass === '诡术师' && (
+                      <div className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                        <div className="font-medium text-accent mb-1">法术成长轨迹</div>
+                        <div className="text-xs space-y-1">
+                          <div>智力施法，最高4环</div>
+                          <div>3级开始获得法术位</div>
+                          <div>1环: {character.level >= 3 ? (character.level >= 5 ? 4 : (character.level >= 4 ? 3 : 2)) : 0}个</div>
+                          <div>2环: {character.level >= 5 ? (character.level >= 9 ? 3 : (character.level >= 7 ? 2 : 0)) : 0}个</div>
+                          <div>3环: {character.level >= 9 ? (character.level >= 17 ? 3 : (character.level >= 13 ? 1 : 0)) : 0}个</div>
+                          <div>4环: {character.level >= 13 ? (character.level >= 19 ? 3 : (character.level >= 15 ? 2 : 1)) : 0}个</div>
+                        </div>
+                      </div>
+                    )}
               </div>
             </div>
           )}
