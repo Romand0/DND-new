@@ -334,7 +334,18 @@ export const SUBCLASSES: Record<string, Subclass[]> = {
         '奥术偷窃：能够偷取魔法效果',
         '诡术魔法：使用诡术相关的魔法',
         '隐秘魔法：在隐秘中使用魔法'
-      ]
+      ],
+      spellProgression: {
+        cantrips: '3-3级，4-10级',
+        knownSpells: '3-3级，4-4级，5-7级，6-8级，7-10级，8-11级，9-13级，10-14级，11-16级，12-19级，13-20级',
+        spellSlots: {
+          level1: '2-3级，3-4级，4-7级',
+          level2: '2-7级，3-10级',
+          level3: '2-13级，3-16级',
+          level4: '1-19级'
+        },
+        maxSpellLevel: 4
+      }
     }
   ],
   术士: [

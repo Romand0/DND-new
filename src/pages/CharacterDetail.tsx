@@ -779,8 +779,8 @@ if (character) {
                   {characterStore.getAvailableSubclasses(character)
                     .find(sc => sc.id === character.profession.subclass)?.features.join('、')}
                 </div>
-                {/* 邪术师显示法术成长轨迹 */}
-                {(character.profession.class === '邪术师') && (
+                {/* 诡术师显示法术成长轨迹 */}
+                {(character.profession.class === '游荡者' && character.profession.subclass === 'arcane_trickster') && (
                   <div className="p-2 bg-accent/5 rounded border border-accent/20">
                     <div className="font-medium text-accent mb-1">法术成长轨迹</div>
                     <div className="text-xs space-y-1">

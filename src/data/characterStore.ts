@@ -1603,7 +1603,7 @@ const CLASS_CASTER_TYPE: Record<string, string> = {
   '德鲁伊': CASTER_TYPE.FULL,
   '术士': CASTER_TYPE.FULL,
   '法师': CASTER_TYPE.FULL,
-  '邪术师': CASTER_TYPE.HALF, // 半职施法者
+  '邪术师': CASTER_TYPE.WARLOCK,
   '圣武士': CASTER_TYPE.HALF,
   '游侠': CASTER_TYPE.HALF,
   '奇械师': CASTER_TYPE.HALF,
@@ -1621,11 +1621,11 @@ const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
   '圣武士': 'charisma',
   '游侠': 'wisdom',
   '术士': 'charisma',
-  '邪术师': 'intelligence', // 诡术师使用智力施法
+  '邪术师': 'charisma',
   '法师': 'intelligence',
   '野蛮人': 'strength',
   '武僧': 'wisdom',
-  '游荡者': 'charisma', // 诡术师使用魅力施法
+  '游荡者': 'intelligence', // 诡术师使用智力施法
   '战士': 'intelligence', // 奥法骑士使用智力施法
   // 英文备选
   'Bard': 'charisma',
@@ -1658,13 +1658,13 @@ const CLASS_CASTER_LABEL: Record<string, string> = {
   '德鲁伊': '全职施法者（感知）',
   '术士': '全职施法者（魅力）',
   '法师': '全职施法者（智力）',
-  '邪术师': '契约施法者（智力·短休恢复）',
+  '邪术师': '契约施法者（魅力·短休恢复）',
   '圣武士': '半职施法者（魅力）',
   '游侠': '半职施法者（感知）',
   '奇械师': '半职施法者（智力）',
   '野蛮人': '非施法者',
   '武僧': '非施法者',
-  '游荡者': '半职施法者（魅力·诡术师）',
+  '游荡者': '半职施法者（智力·诡术师）',
   '战士': '半职施法者（智力·奥法骑士）',
 };
 
