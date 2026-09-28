@@ -14,6 +14,7 @@ import type {
   HandState,
   Currency,
 } from '@/types/character';
+import { getAvailableSubclasses, canChooseSubclass } from './subclasses';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
 
@@ -45,6 +46,16 @@ if (typeof window !== 'undefined') {
 // ============================================================
 
 function migrateCharacter(char: any): Character {
+  // 迁移：将 class 和 profession 字段统一为 profession 结构
+  if (char.class && !char.profession) {
+    char.profession = {
+      class: char.class,
+      subclass: char.subclass || undefined,
+    };
+    delete char.class;
+    delete char.subclass;
+  }
+  
   if (char.attacks && Array.isArray(char.attacks)) {
     char.attacks = char.attacks.map((attack: any) => ({
       id: attack.id,
@@ -364,7 +375,10 @@ function createBlankCharacter(name?: string): Character {
     id: generateId(),
     name: name || '新角色',
     gender: '',
-    class: '',
+    profession: {
+      class: '',
+      subclass: undefined,
+    },
     level: 1,
     race: '',
     background: '',
@@ -1593,6 +1607,10 @@ const CLASS_CASTER_TYPE: Record<string, string> = {
   '圣武士': CASTER_TYPE.HALF,
   '游侠': CASTER_TYPE.HALF,
   '奇械师': CASTER_TYPE.HALF,
+  '野蛮人': CASTER_TYPE.NONE,
+  '武僧': CASTER_TYPE.NONE,
+  '游荡者': CASTER_TYPE.HALF, // 诡术师可以施法
+  '战士': CASTER_TYPE.HALF, // 奥法骑士可以施法
 };
 
 /** 职业→施法关键属性映射（PHB 标准施法者） */
@@ -1605,6 +1623,10 @@ const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
   '术士': 'charisma',
   '邪术师': 'charisma',
   '法师': 'intelligence',
+  '野蛮人': 'strength',
+  '武僧': 'wisdom',
+  '游荡者': 'intelligence', // 诡术师使用智力施法
+  '战士': 'intelligence', // 奥法骑士使用智力施法
   // 英文备选
   'Bard': 'charisma',
   'Cleric': 'wisdom',
@@ -1619,7 +1641,7 @@ const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
 /** 获取角色的施法关键属性：显式设置优先，否则按职业推断 */
 export function getSpellcastingAbility(char: Character): AbilityKey | null {
   if (char.spellcastingAbility) return char.spellcastingAbility;
-  return CLASS_SPELLCASTING_ABILITY[char.class] ?? null;
+  return CLASS_SPELLCASTING_ABILITY[char.profession.class] ?? null;
 }
 
 /** 计算法术豁免 DC */
@@ -1640,6 +1662,10 @@ const CLASS_CASTER_LABEL: Record<string, string> = {
   '圣武士': '半职施法者（魅力）',
   '游侠': '半职施法者（感知）',
   '奇械师': '半职施法者（智力）',
+  '野蛮人': '非施法者',
+  '武僧': '非施法者',
+  '游荡者': '半职施法者（智力·诡术师）',
+  '战士': '半职施法者（智力·奥法骑士）',
 };
 
 const FULL_CASTER_SLOTS = [
@@ -1688,6 +1714,31 @@ const HALF_CASTER_SLOTS = [
   [4, 3, 3, 3, 2],
 ];
 
+// 诡术师法术位（半职施法者，智力施法，最高4环）
+// 前2级无施法能力，3级开始获得法术位，最高只能施展4级法术
+const ROGUE_SPELLSLOTS = [
+  [0, 0, 0, 0, 0],    // 1级：无施法能力
+  [0, 0, 0, 0, 0],    // 2级：无施法能力
+  [2, 0, 0, 0, 0],    // 3级：2个1环法术位
+  [3, 0, 0, 0, 0],    // 4级：3个1环法术位
+  [4, 2, 0, 0, 0],    // 5级：4个1环 + 2个2环法术位
+  [4, 2, 0, 0, 0],    // 6级：4个1环 + 2个2环法术位
+  [4, 3, 0, 0, 0],    // 7级：4个1环 + 3个2环法术位
+  [4, 3, 0, 0, 0],    // 8级：4个1环 + 3个2环法术位
+  [4, 3, 2, 0, 0],    // 9级：4个1环 + 3个2环 + 2个3环法术位
+  [4, 3, 2, 0, 0],    // 10级：4个1环 + 3个2环 + 2个3环法术位
+  [4, 3, 3, 0, 0],    // 11级：4个1环 + 3个2环 + 3个3环法术位
+  [4, 3, 3, 0, 0],    // 12级：4个1环 + 3个2环 + 3个3环法术位
+  [4, 3, 3, 1, 0],    // 13级：4个1环 + 3个2环 + 3个3环 + 1个4环法术位
+  [4, 3, 3, 1, 0],    // 14级：4个1环 + 3个2环 + 3个3环 + 1个4环法术位
+  [4, 3, 3, 2, 0],    // 15级：4个1环 + 3个2环 + 3个3环 + 2个4环法术位
+  [4, 3, 3, 2, 0],    // 16级：4个1环 + 3个2环 + 3个3环 + 2个4环法术位
+  [4, 3, 3, 3, 1],    // 17级：4个1环 + 3个2环 + 3个3环 + 3个4环法术位
+  [4, 3, 3, 3, 1],    // 18级：4个1环 + 3个2环 + 3个3环 + 3个4环法术位
+  [4, 3, 3, 3, 2],    // 19级：4个1环 + 3个2环 + 3个3环 + 3个4环 + 2个4环法术位
+  [4, 3, 3, 3, 2],    // 20级：4个1环 + 3个2环 + 3个3环 + 3个4环 + 2个4环法术位
+];
+
 const WARLOCK_SLOTS = [
   [1, 1, 2, 2],
   [2, 1, 3, 2],
@@ -1717,8 +1768,8 @@ const SPELL_LEVEL_LABELS: Record<number, string> = {
 };
 
 function hasSpellcasting(char: Character): boolean {
-  if (!char || !char.class) return false;
-  const type = CLASS_CASTER_TYPE[char.class];
+  if (!char || !char.profession.class) return false;
+  const type = CLASS_CASTER_TYPE[char.profession.class];
   return type === CASTER_TYPE.FULL || type === CASTER_TYPE.HALF || type === CASTER_TYPE.WARLOCK;
 }
 
@@ -1739,13 +1790,13 @@ function getSpellSaveDC(char: Character): number | null {
 }
 
 function getCasterType(char: Character): string {
-  if (!char || !char.class) return CASTER_TYPE.NONE;
-  return CLASS_CASTER_TYPE[char.class] || CASTER_TYPE.NONE;
+  if (!char || !char.profession.class) return CASTER_TYPE.NONE;
+  return CLASS_CASTER_TYPE[char.profession.class] || CASTER_TYPE.NONE;
 }
 
 function getCasterTypeLabel(char: Character): string | null {
   if (!hasSpellcasting(char)) return null;
-  return CLASS_CASTER_LABEL[char.class] || '施法者';
+  return CLASS_CASTER_LABEL[char.profession.class] || '施法者';
 }
 
 function getSpellSlotsByLevel(char: Character): {
@@ -1773,11 +1824,27 @@ function getSpellSlotsByLevel(char: Character): {
       slots: slots.slice(0, 9),
       maxLevel,
       casterType: 'full',
-      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'intelligence',
+      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'intelligence',
     };
   }
 
   if (casterType === CASTER_TYPE.HALF) {
+    // 诡术师使用特殊的法术位数组，最高只能施展4级法术
+    if (char.profession.class === '游荡者' && char.profession.subclass === '诡术师') {
+      const slots = ROGUE_SPELLSLOTS[levelIndex] || ROGUE_SPELLSLOTS[0];
+      let maxLevel = 0;
+      for (let i = slots.length - 1; i >= 0; i--) {
+        if (slots[i] > 0) { maxLevel = i + 1; break; }
+      }
+      return {
+        slots: slots.slice(0, 5),
+        maxLevel,
+        casterType: 'half',
+        ability: 'intelligence', // 诡术师使用智力施法
+      };
+    }
+    
+    // 其他半职施法者使用标准的半职施法者数组
     const slots = HALF_CASTER_SLOTS[levelIndex] || HALF_CASTER_SLOTS[0];
     let maxLevel = 0;
     for (let i = slots.length - 1; i >= 0; i--) {
@@ -1787,7 +1854,7 @@ function getSpellSlotsByLevel(char: Character): {
       slots: slots.slice(0, 5),
       maxLevel,
       casterType: 'half',
-      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'intelligence',
+      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'intelligence',
     };
   }
 
@@ -1799,7 +1866,7 @@ function getSpellSlotsByLevel(char: Character): {
       slotLevel,
       maxLevel: slotLevel,
       casterType: 'warlock',
-      ability: CLASS_SPELLCASTING_ABILITY[char.class] || 'charisma',
+      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'charisma',
       knownSpells,
       mysticArcanum,
     };
@@ -1862,7 +1929,7 @@ function getSpellSlotDisplayData(char: Character): {
     return {
       ability: config.ability,
       abilityLabel: ABILITY_LABELS[config.ability] || config.ability,
-      casterTypeLabel: CLASS_CASTER_LABEL[char.class] || '施法者',
+      casterTypeLabel: CLASS_CASTER_LABEL[char.profession.class] || '施法者',
       spellSlots: slotList,
       maxLevel: config.maxLevel,
       casterType: config.casterType,
@@ -1877,7 +1944,7 @@ function getSpellSlotDisplayData(char: Character): {
     return {
       ability: config.ability,
       abilityLabel: ABILITY_LABELS[config.ability] || config.ability,
-      casterTypeLabel: CLASS_CASTER_LABEL[char.class] || '契约施法者',
+      casterTypeLabel: CLASS_CASTER_LABEL[char.profession.class] || '契约施法者',
       spellSlots: [{
         level: slotLevel,
         label: SPELL_LEVEL_LABELS[slotLevel] || (slotLevel + '环'),
@@ -1945,6 +2012,60 @@ function resetSpellSlots(charId: string): void {
 
 function shouldShowSpellSlots(char: Character): boolean {
   return hasSpellcasting(char);
+}
+
+// ============================================================
+// 子职业管理
+// ============================================================
+
+/**
+ * 检查角色是否可以选择子职业
+ */
+export function canCharacterChooseSubclass(character: Character): boolean {
+  // 术士和邪术师1级就可以选择子职业
+  if (character.profession.class === '术士' || character.profession.class === '邪术师') {
+    return character.level >= 1;
+  }
+  // 其他职业3级可以选择子职业
+  return character.level >= 3;
+}
+
+/**
+ * 设置角色的子职业
+ */
+function setSubclass(charId: string, subclassId: string): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+
+  const availableSubclasses = getAvailableSubclasses(char as Character);
+  const selectedSubclass = availableSubclasses.find(sc => sc.id === subclassId);
+  
+  if (!selectedSubclass) {
+    console.warn(`Subclass ${subclassId} not available for class ${char.profession.class}`);
+    return;
+  }
+
+  char.profession.subclass = selectedSubclass.id;
+  saveCharacter(char as Character);
+}
+
+/**
+ * 更改角色的子职业
+ */
+function changeSubclass(charId: string, newSubclassId: string): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+
+  const availableSubclasses = getAvailableSubclasses(char as Character);
+  const newSubclass = availableSubclasses.find(sc => sc.id === newSubclassId);
+  
+  if (!newSubclass) {
+    console.warn(`New subclass ${newSubclassId} not available for class ${char.profession.class}`);
+    return;
+  }
+
+  char.profession.subclass = newSubclass.id;
+  saveCharacter(char as Character);
 }
 
 // ============================================================
@@ -2070,6 +2191,14 @@ export const characterStore = {
   setHandAction,
   endHandAction,
   setHandUnavailable,
-  restoreHand,
+   restoreHand,
+   
+    // 子职业管理
+    getAvailableSubclasses,
+    canChooseSubclass,
+    canCharacterChooseSubclass,
+
+    setSubclass,
+   changeSubclass,
 
 };

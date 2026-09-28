@@ -1898,7 +1898,7 @@ export default function CombatSession() {
                 // PC 查种族/职业；NPC 仅显示名称
                 const pc = c.characterId ? characterStore.get(c.characterId) : null;
                 const race = pc?.race;
-                const cls = pc?.class;
+                const cls = pc?.profession?.class;
                 return (
                   <div
                     key={c.id}

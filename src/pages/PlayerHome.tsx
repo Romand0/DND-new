@@ -122,7 +122,7 @@ export default function PlayerHome() {
                       {player.name || '未命名角色'}
                     </div>
                     <div className="text-sm dark:text-text-dark/80 light:text-text-light/80">
-                      {player.race || '未知种族'} · {player.class || '未知职业'}
+                      {player.race || '未知种族'} · {player.profession?.class || '未知职业'}
                     </div>
                   </div>
                   <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/30 text-white text-sm font-medium">

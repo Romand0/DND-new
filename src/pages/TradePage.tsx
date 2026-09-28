@@ -33,7 +33,7 @@ export default function TradePage() {
     const q = searchQuery.toLowerCase();
     return characters.filter(c =>
       c.name.toLowerCase().includes(q) ||
-      (c.class || '').toLowerCase().includes(q) ||
+      (c.profession?.class || '').toLowerCase().includes(q) ||
       (c.race || '').toLowerCase().includes(q)
     );
   }, [characters, searchQuery]);
@@ -101,7 +101,7 @@ export default function TradePage() {
                       </span>
                     </div>
                     <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5 truncate">
-                      {[c.race, c.class].filter(Boolean).join(' · ') || '未设定职业'}
+                      {[c.race, c.profession?.class].filter(Boolean).join(' · ') || '未设定职业'}
                     </div>
                   </div>
                 </div>
