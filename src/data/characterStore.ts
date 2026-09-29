@@ -34,6 +34,8 @@ const BACKUP_INTERVAL = 30000;
 // 所有写操作都必须经过 saveStore()/saveCharacter()，否则缓存不会失效。
 let charactersCache: Character[] | null = null;
 
+
+
 // 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
@@ -1641,7 +1643,8 @@ const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
 /** 获取角色的施法关键属性：显式设置优先，否则按职业推断 */
 export function getSpellcastingAbility(char: Character): AbilityKey | null {
   if (char.spellcastingAbility) return char.spellcastingAbility;
-  return CLASS_SPELLCASTING_ABILITY[char.profession.class] ?? null;
+  const className = getCharacterClass(char);
+  return CLASS_SPELLCASTING_ABILITY[className] ?? null;
 }
 
 /** 计算法术豁免 DC */
@@ -1768,8 +1771,9 @@ const SPELL_LEVEL_LABELS: Record<number, string> = {
 };
 
 function hasSpellcasting(char: Character): boolean {
-  if (!char || !char.profession.class) return false;
-  const type = CLASS_CASTER_TYPE[char.profession.class];
+  if (!char) return false;
+  const className = getCharacterClass(char);
+  const type = CLASS_CASTER_TYPE[className];
   return type === CASTER_TYPE.FULL || type === CASTER_TYPE.HALF || type === CASTER_TYPE.WARLOCK;
 }
 
@@ -1789,14 +1793,28 @@ function getSpellSaveDC(char: Character): number | null {
   return calcSpellSaveDC(char);
 }
 
+/**
+ * 兼容性函数：获取职业名称（支持旧数据格式）
+ */
+function getCharacterClass(char: Character): string {
+  // 新数据格式：profession.class
+  if (char.profession && char.profession.class) {
+    return char.profession.class;
+  }
+  // 旧数据格式：直接使用class字段
+  return (char as any).class || '';
+}
+
 function getCasterType(char: Character): string {
-  if (!char || !char.profession.class) return CASTER_TYPE.NONE;
-  return CLASS_CASTER_TYPE[char.profession.class] || CASTER_TYPE.NONE;
+  if (!char) return CASTER_TYPE.NONE;
+  const className = getCharacterClass(char);
+  return CLASS_CASTER_TYPE[className] || CASTER_TYPE.NONE;
 }
 
 function getCasterTypeLabel(char: Character): string | null {
   if (!hasSpellcasting(char)) return null;
-  return CLASS_CASTER_LABEL[char.profession.class] || '施法者';
+  const className = getCharacterClass(char);
+  return CLASS_CASTER_LABEL[className] || '施法者';
 }
 
 function getSpellSlotsByLevel(char: Character): {
@@ -1824,13 +1842,15 @@ function getSpellSlotsByLevel(char: Character): {
       slots: slots.slice(0, 9),
       maxLevel,
       casterType: 'full',
-      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'intelligence',
+      ability: CLASS_SPELLCASTING_ABILITY[getCharacterClass(char)] || 'intelligence',
     };
   }
 
   if (casterType === CASTER_TYPE.HALF) {
     // 诡术师使用特殊的法术位数组，最高只能施展4级法术
-    if (char.profession.class === '游荡者' && char.profession.subclass === '诡术师') {
+    const className = getCharacterClass(char);
+    const subclass = char.profession?.subclass || (char as any).subclass;
+    if (className === '游荡者' && subclass === '诡术师') {
       const slots = ROGUE_SPELLSLOTS[levelIndex] || ROGUE_SPELLSLOTS[0];
       let maxLevel = 0;
       for (let i = slots.length - 1; i >= 0; i--) {
@@ -1854,7 +1874,7 @@ function getSpellSlotsByLevel(char: Character): {
       slots: slots.slice(0, 5),
       maxLevel,
       casterType: 'half',
-      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'intelligence',
+      ability: CLASS_SPELLCASTING_ABILITY[getCharacterClass(char)] || 'intelligence',
     };
   }
 
@@ -1866,7 +1886,7 @@ function getSpellSlotsByLevel(char: Character): {
       slotLevel,
       maxLevel: slotLevel,
       casterType: 'warlock',
-      ability: CLASS_SPELLCASTING_ABILITY[char.profession.class] || 'charisma',
+      ability: CLASS_SPELLCASTING_ABILITY[getCharacterClass(char)] || 'charisma',
       knownSpells,
       mysticArcanum,
     };
@@ -1929,7 +1949,7 @@ function getSpellSlotDisplayData(char: Character): {
     return {
       ability: config.ability,
       abilityLabel: ABILITY_LABELS[config.ability] || config.ability,
-      casterTypeLabel: CLASS_CASTER_LABEL[char.profession.class] || '施法者',
+      casterTypeLabel: CLASS_CASTER_LABEL[getCharacterClass(char)] || '施法者',
       spellSlots: slotList,
       maxLevel: config.maxLevel,
       casterType: config.casterType,
@@ -1944,7 +1964,7 @@ function getSpellSlotDisplayData(char: Character): {
     return {
       ability: config.ability,
       abilityLabel: ABILITY_LABELS[config.ability] || config.ability,
-      casterTypeLabel: CLASS_CASTER_LABEL[char.profession.class] || '契约施法者',
+      casterTypeLabel: CLASS_CASTER_LABEL[getCharacterClass(char)] || '契约施法者',
       spellSlots: [{
         level: slotLevel,
         label: SPELL_LEVEL_LABELS[slotLevel] || (slotLevel + '环'),
@@ -2022,8 +2042,9 @@ function shouldShowSpellSlots(char: Character): boolean {
  * 检查角色是否可以选择子职业
  */
 export function canCharacterChooseSubclass(character: Character): boolean {
+  const className = getCharacterClass(character);
   // 术士和邪术师1级就可以选择子职业
-  if (character.profession.class === '术士' || character.profession.class === '邪术师') {
+  if (className === '术士' || className === '邪术师') {
     return character.level >= 1;
   }
   // 其他职业3级可以选择子职业
@@ -2041,7 +2062,7 @@ function setSubclass(charId: string, subclassId: string): void {
   const selectedSubclass = availableSubclasses.find(sc => sc.id === subclassId);
   
   if (!selectedSubclass) {
-    console.warn(`Subclass ${subclassId} not available for class ${char.profession.class}`);
+    console.warn(`Subclass ${subclassId} not available for class ${getCharacterClass(char)}`);
     return;
   }
 
@@ -2060,7 +2081,7 @@ function changeSubclass(charId: string, newSubclassId: string): void {
   const newSubclass = availableSubclasses.find(sc => sc.id === newSubclassId);
   
   if (!newSubclass) {
-    console.warn(`New subclass ${newSubclassId} not available for class ${char.profession.class}`);
+    console.warn(`New subclass ${newSubclassId} not available for class ${getCharacterClass(char)}`);
     return;
   }
 
