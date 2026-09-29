@@ -451,6 +451,7 @@ export function getAvailableSubclasses(character: Character): Subclass[] {
 }
 
 export function canChooseSubclass(character: Character): boolean {
+  if (!character.profession) return false;
   // 术士和邪术师1级就可以选择子职业
   if (character.profession.class === '术士' || character.profession.class === '邪术师') {
     return character.level >= 1 && !!character.profession.subclass;

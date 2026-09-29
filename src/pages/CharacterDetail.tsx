@@ -641,6 +641,15 @@ if (character) {
   if (!character.features) character.features = [];
   if (!character.attacks) character.attacks = [];
   if (!character.currency) character.currency = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 };
+  // 兼容旧数据 / 后端直接返回的对象：profession 可能缺失，兜底成空职业，避免渲染崩溃
+  if (!character.profession || typeof character.profession !== 'object') {
+    character.profession = {
+      class: (character as any).class || '',
+      subclass: (character as any).subclass || undefined,
+    };
+  } else if (character.profession.class === undefined) {
+    character.profession.class = (character as any).class || '';
+  }
   if (character.wornArmorId === undefined) character.wornArmorId = null;
   if (character.wornOutfitId === undefined) character.wornOutfitId = null;
 
