@@ -4,6 +4,7 @@ import { useParams, Link } from 'react-router-dom';
 import { RefreshCw, AlertCircle, ArrowLeft } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { fetchAllCharacters } from '@/lib/api';
+import { normalizeCharacter } from '@/data/characterStore';
 import CharacterDetail from '@/pages/CharacterDetail';
 
 export default function PlayerView() {
@@ -23,7 +24,7 @@ export default function PlayerView() {
         setError('角色不存在或已被删除');
         setCharacter(null);
       } else {
-        setCharacter(found);
+        setCharacter(normalizeCharacter(found));
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '加载失败');

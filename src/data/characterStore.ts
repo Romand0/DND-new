@@ -48,15 +48,24 @@ if (typeof window !== 'undefined') {
 // ============================================================
 
 function migrateCharacter(char: any): Character {
-  // 迁移：将 class 和 profession 字段统一为 profession 结构
-  if (char.class && !char.profession) {
+  // 迁移：将 class / subclass 统一为 profession 结构，并保证 profession 一定存在。
+  // 旧数据可能既没有 profession 也没有 class（部分后端返回），此时必须兜底为空对象，
+  // 否则渲染层读取 character.profession.class 会抛 "Cannot read properties of undefined"。
+  if (!char.profession || typeof char.profession !== 'object') {
     char.profession = {
-      class: char.class,
+      class: char.class || '',
       subclass: char.subclass || undefined,
     };
-    delete char.class;
-    delete char.subclass;
+  } else {
+    if (char.profession.class === undefined) {
+      char.profession.class = char.class || '';
+    }
+    if (char.profession.subclass === undefined && char.subclass) {
+      char.profession.subclass = char.subclass;
+    }
   }
+  delete char.class;
+  delete char.subclass;
   
   if (char.attacks && Array.isArray(char.attacks)) {
     char.attacks = char.attacks.map((attack: any) => ({
@@ -101,6 +110,14 @@ function migrateCharacter(char: any): Character {
   return char as Character;
 }
 
+/**
+ * 对外暴露的数据规范化入口：把后端 / 旧格式对象补全成符合 Character 结构的对象。
+ * 用于绕过 store 的路径（如玩家端直接把 API 原始数据传给组件）。
+ */
+export function normalizeCharacter(char: any): Character {
+  return migrateCharacter(char);
+}
+
 function migrateStore(chars: any[]): Character[] {
   let migrated = false;
   const result = chars.map((char) => {
@@ -112,7 +129,9 @@ function migrateStore(chars: any[]): Character[] {
     );
     const missingChildId = char.equipment?.some((eq: any) => !eq.childId);
     const missingHeldSlots = !char.heldLeft || !char.heldRight || typeof char.heldLeft === 'string';
-    if (hasOldAttackFields || missingNewAttackFields || missingHeldSlots || missingChildId) {
+    // profession 缺失或结构不对也必须迁移（旧数据可能只有 class 字段）
+    const invalidProfession = !char.profession || typeof char.profession !== 'object' || typeof char.profession.class !== 'string';
+    if (hasOldAttackFields || missingNewAttackFields || missingHeldSlots || missingChildId || invalidProfession) {
       migrated = true;
       return migrateCharacter(char);
     }
@@ -2066,6 +2085,7 @@ function setSubclass(charId: string, subclassId: string): void {
     return;
   }
 
+  if (!char.profession) char.profession = { class: '', subclass: undefined };
   char.profession.subclass = selectedSubclass.id;
   saveCharacter(char as Character);
 }
@@ -2085,6 +2105,7 @@ function changeSubclass(charId: string, newSubclassId: string): void {
     return;
   }
 
+  if (!char.profession) char.profession = { class: '', subclass: undefined };
   char.profession.subclass = newSubclass.id;
   saveCharacter(char as Character);
 }
