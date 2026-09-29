@@ -735,7 +735,7 @@ if (character) {
             <span className="text-sm font-medium dark:text-text-dark light:text-text-light">子职业</span>
             {character.profession.subclass && (
               <span className="text-xs px-2 py-1 rounded-full bg-accent/20 text-accent">
-                {character.profession.subclass}
+                {characterStore.getSubclassDisplayName(character)}
               </span>
             )}
           </div>
@@ -760,7 +760,7 @@ if (character) {
                 <option value="">选择子职业...</option>
                 {characterStore.getAvailableSubclasses(character).map((subclass) => (
                   <option key={subclass.id} value={subclass.id}>
-                    {subclass.displayName} - {subclass.description}
+                    {subclass.displayName}
                   </option>
                 ))}
               </select>
@@ -769,7 +769,7 @@ if (character) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <p className="text-sm dark:text-text-dark light:text-text-light">
-                  当前子职业: {character.profession.subclass}
+                  当前子职业: {characterStore.getSubclassDisplayName(character)}
                 </p>
                 <button
                   onClick={() => {
@@ -784,12 +784,8 @@ if (character) {
                 </button>
               </div>
               <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted space-y-2">
-                <div>
-                  {characterStore.getAvailableSubclasses(character)
-                    .find(sc => sc.id === character.profession.subclass)?.features.join('、')}
-                </div>
                     {/* 诡术师显示法术成长轨迹 */}
-                    {character.profession?.class === '游荡者' && character.profession?.subclass === '诡术师' && (
+                    {character.profession?.class === '游荡者' && character.profession?.subclass === 'arcane_trickster' && (
                       <div className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
                         <div className="font-medium text-accent mb-1">法术成长轨迹</div>
                         <div className="text-xs space-y-1">

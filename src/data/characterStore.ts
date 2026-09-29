@@ -14,7 +14,7 @@ import type {
   HandState,
   Currency,
 } from '@/types/character';
-import { getAvailableSubclasses, canChooseSubclass } from './subclasses';
+import { getAvailableSubclasses, canChooseSubclass, getSubclassDisplayName } from './subclasses';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
 
@@ -2097,6 +2097,14 @@ function changeSubclass(charId: string, newSubclassId: string): void {
   const char = getCharacter(charId);
   if (!char) return;
 
+  // 空字符串表示清除当前子职业，回到可重新选择的状态
+  if (!newSubclassId) {
+    if (!char.profession) char.profession = { class: '', subclass: undefined };
+    char.profession.subclass = undefined;
+    saveCharacter(char as Character);
+    return;
+  }
+
   const availableSubclasses = getAvailableSubclasses(char as Character);
   const newSubclass = availableSubclasses.find(sc => sc.id === newSubclassId);
   
@@ -2239,6 +2247,7 @@ export const characterStore = {
     getAvailableSubclasses,
     canChooseSubclass,
     canCharacterChooseSubclass,
+    getSubclassDisplayName,
 
     setSubclass,
    changeSubclass,
