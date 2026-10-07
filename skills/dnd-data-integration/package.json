@@ -1,0 +1,51 @@
+{
+  "name": "dnd-data-integration",
+  "version": "1.0.0",
+  "description": "DND5e 权威数据源技能 - 让 agent 能够访问和使用 DND5e_chm 仓库作为标准数据源",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [
+    "dnd",
+    "dnd5e",
+    "data-source",
+    "integration",
+    "role-playing-game"
+  ],
+  "author": "MonkeyCode-AI",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0",
+    "node-fetch": "^3.3.0",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/jest": "^29.5.0",
+    "@types/cheerio": "^0.22.31",
+    "typescript": "^5.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "eslint": "^8.50.0",
+    "@typescript-eslint/eslint-plugin": "^6.7.0",
+    "@typescript-eslint/parser": "^6.7.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DND5eChm/DND5e_chm"
+  },
+  "bugs": {
+    "url": "https://github.com/DND5eChm/DND5e_chm/issues"
+  },
+  "homepage": "https://github.com/DND5eChm/DND5e_chm#readme"
+}

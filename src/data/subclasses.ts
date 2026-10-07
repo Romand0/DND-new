@@ -4,17 +4,16 @@ export interface SpellProgression {
   cantrips: string;
   knownSpells: string;
   spellSlots: {
-    level1: string;
-    level2: string;
-    level3: string;
-    level4: string;
+    level1: number;
+    level2: number;
+    level3: number;
+    level4: number;
   };
   maxSpellLevel: number;
 }
 
 export interface Subclass {
   id: string;
-  name: string;
   displayName: string;
   description: string;
   features: string[];
@@ -23,430 +22,270 @@ export interface Subclass {
 
 export const SUBCLASSES: Record<string, Subclass[]> = {
   野蛮人: [
-    {
-      id: 'berserker',
-      name: '狂战士道途',
+    { 
+      id: 'berserker', 
       displayName: '狂战士道途',
-      description: '进入狂暴状态，获得额外的战斗能力和伤害',
-      features: [
-        '狂暴：进入狂暴状态，获得额外攻击和伤害',
-        '抵抗：在狂暴状态下获得伤害抗性',
-        '狂怒：狂暴状态下移动速度增加'
-      ]
+      description: '狂战士在战斗中能够进入狂暴状态，获得额外的攻击力和防御力。',
+      features: ['狂暴', '不稳定狂暴', '意志坚韧']
     },
-    {
-      id: 'totem_warrior',
-      name: '图腾武者道途',
+    { 
+      id: 'totem_warrior', 
       displayName: '图腾武者道途',
-      description: '通过图腾获得特殊能力，与自然力量连接',
-      features: [
-        '图腾：获得图腾的特殊能力',
-        '动物形态：能够模拟动物的行为',
-        '图腾连接：与图腾动物建立连接'
-      ]
-    }
+      description: '图腾武者与动物图腾建立联系，获得图腾赋予的特殊能力。',
+      features: ['图腾灵', '图腾战士', '图腾狂怒', '精神庇护']
+    },
   ],
   吟游诗人: [
-    {
-      id: 'college_of_lore',
-      name: '逸闻学院',
+    { 
+      id: 'college_of_lore', 
       displayName: '逸闻学院',
-      description: '掌握广泛的知识和技能，能够学习和使用各种法术',
-      features: [
-        '博学：掌握各种知识',
-        '法术专精：能够学习和使用更多法术',
-        '技能大师：技能检定获得加成'
-      ]
+      description: '逸闻学院的诗人精通各种知识，能够学习和记忆更多的法术。',
+      features: ['逸闻学识', '魔法秘闻', '秘闻复诵', '秘闻大师']
     },
-    {
-      id: 'college_of_valor',
-      name: '勇气学院',
+    { 
+      id: 'college_of_valor', 
       displayName: '勇气学院',
-      description: '专注于勇气和战斗，能够在战斗中鼓舞队友',
-      features: [
-        '勇气鼓舞：鼓舞队友的勇气',
-        '战斗吟唱：在战斗中吟唱',
-        '武器专精：获得武器专精'
-      ]
-    }
+      description: '勇气学院的诗人擅长战斗，能够鼓舞战友的士气。',
+      features: ['鼓舞士气', '英雄气概', '鼓舞人心', '英雄诗篇']
+    },
   ],
   牧师: [
-    {
-      id: 'knowledge',
-      name: '知识领域',
+    { 
+      id: 'knowledge', 
       displayName: '知识领域',
-      description: '专注于智慧和知识，能够获取信息和识破谎言',
-      features: [
-        '知识获取：能够获取更多信息',
-        '智慧祝福：提升智力相关检定',
-        '真相洞察：能够识破谎言'
-      ]
+      description: '知识领域的牧师专注于学习和传播知识，能够保护和解除魔法效果。',
+      features: ['学者', '解除魔法', '知识之神赐福', '秘术抗性']
     },
-    {
-      id: 'life',
-      name: '生命领域',
+    { 
+      id: 'life', 
       displayName: '生命领域',
-      description: '专注于治疗和保护生命，能够治愈伤势和驱散邪恶',
-      features: [
-        '生命治愈：治疗法术效果增强',
-        '生命护盾：获得生命护盾',
-        '生命复苏：能够复活死者'
-      ]
+      description: '生命领域的牧师专注于治疗和保护生命，能够治愈疾病和伤害。',
+      features: ['生命赐福', '反制疾病', '守护生命', '生命链接']
     },
-    {
-      id: 'light',
-      name: '光明领域',
+    { 
+      id: 'light', 
       displayName: '光明领域',
-      description: '专注于光明和正义，能够驱散黑暗和邪恶',
-      features: [
-        '光明打击：对黑暗生物造成额外伤害',
-        '光明护盾：获得光明护盾',
-        '光明祝福：能够祝福队友'
-      ]
+      description: '光明领域的牧师专注于驱散黑暗和邪恶，能够照亮黑暗并伤害不死生物。',
+      features: ['光耀术', '驱散不死生物', '守护之光', '太阳射线']
     },
-    {
-      id: 'nature',
-      name: '自然领域',
+    { 
+      id: 'nature', 
       displayName: '自然领域',
-      description: '专注于自然和生态，能够与自然沟通',
-      features: [
-        '自然沟通：与自然沟通',
-        '自然掌控：掌控自然力量',
-        '生态平衡：维护生态平衡'
-      ]
+      description: '自然领域的牧师专注于与自然和谐共处，能够控制自然元素和动物。',
+      features: ['动物交谈', '植物生长', '自然和谐', '狂野形态']
     },
-    {
-      id: 'tempest',
-      name: '风暴领域',
+    { 
+      id: 'tempest', 
       displayName: '风暴领域',
-      description: '专注于风暴和雷电，能够召唤雷电风暴',
-      features: [
-        '风暴召唤：能够召唤雷电风暴',
-        '雷电掌控：掌握雷电法术',
-        '风暴护盾：获得风暴护盾'
-      ]
+      description: '风暴领域的牧师掌控风暴和雷电，能够召唤雷暴和闪电攻击敌人。',
+      features: ['风暴之怒', '雷鸣术', '风之庇护', '风暴召唤']
     },
-    {
-      id: 'trickery',
-      name: '诡术领域',
+    { 
+      id: 'trickery', 
       displayName: '诡术领域',
-      description: '专注于诡计和欺骗，擅长隐秘行动',
-      features: [
-        '隐秘行动：在隐秘行动中获得优势',
-        '欺骗技巧：欺骗相关检定获得加成',
-        '阴影掌控：在阴影中隐秘行动'
-      ]
+      description: '诡术领域的牧师专注于欺骗和诡计，能够隐身和欺骗敌人。',
+      features: ['阴影庇护', '神行术', '欺骗之语', '诡术大师']
     },
-    {
-      id: 'war',
-      name: '战争领域',
+    { 
+      id: 'war', 
       displayName: '战争领域',
-      description: '专注于战争和战斗，能够鼓舞战士和增强战斗力',
-      features: [
-        '战争祝福：战斗相关检定获得加成',
-        '战争武器：武器攻击获得加成',
-        '战争指挥：能够鼓舞队友'
-      ]
-    }
+      description: '战争领域的牧师专注于战争和胜利，能够鼓舞战士的士气并增强战斗力。',
+      features: ['战争祝福', '战争神赐', '鼓舞士气', '战争大师']
+    },
   ],
   德鲁伊: [
-    {
-      id: 'circle_of_land',
-      name: '大地结社',
+    { 
+      id: 'circle_of_land', 
       displayName: '大地结社',
-      description: '专注于大地和自然，能够掌控大地力量',
-      features: [
-        '大地掌控：掌控大地力量',
-        '植物生长：促进植物生长',
-        '地形改变：改变地形'
-      ]
+      description: '大地结社的德鲁伊专注于与土地和植物的联系，能够操控植物和获得土地的庇护。',
+      features: ['土地庇护', '动物交谈', '自然和谐', '土地之友']
     },
-    {
-      id: 'circle_of_moon',
-      name: '月亮结社',
+    { 
+      id: 'circle_of_moon', 
       displayName: '月亮结社',
-      description: '专注于月亮和变形，能够变身成动物',
-      features: [
-        '月亮变身：变身成动物',
-        '月亮掌控：掌控月亮力量',
-        '夜行动物：在夜晚获得优势'
-      ]
-    }
+      description: '月亮结社的德鲁伊专注于野生动物和变形，能够变成各种野兽进行战斗。',
+      features: ['野生形态', '月下狂暴', '野兽交谈', '月之祝福']
+    },
   ],
   战士: [
-    {
-      id: 'fighter',
-      name: '勇士',
+    { 
+      id: 'fighter', 
       displayName: '勇士',
-      description: '专注于基础战斗技能，掌握各种武器和战斗技巧',
-      features: [
-        '战斗专精：获得武器专精',
-        '战斗技巧：掌握各种战斗技巧',
-        '战斗耐力：增加战斗耐力'
-      ]
+      description: '勇士是战士的基础职业，专注于各种武器和护甲的使用。',
+      features: ['武器专精', '战斗风格', '行动如风', '武器大师']
     },
-    {
-      id: 'battle_master',
-      name: '战斗大师',
+    { 
+      id: 'battle_master', 
       displayName: '战斗大师',
-      description: '精通战术和战斗技巧，能够精准打击敌人弱点',
-      features: [
-        '战术大师：掌握各种战术技巧',
-        '打击技巧：能够精准打击敌人弱点',
-        '指挥能力：能够鼓舞队友'
-      ]
+      description: '战斗大师精通各种战斗技巧，能够使用战斗指令来控制战场。',
+      features: ['战斗指令', '方阵战术', '反击', '战术大师']
     },
-    {
-      id: 'eldritch_knight',
-      name: '奥法骑士',
+    { 
+      id: 'eldritch_knight', 
       displayName: '奥法骑士',
-      description: '结合魔法和武力的战士，能够使用简单的魔法',
-      features: [
-        '奥术武装：能够为武器附加魔法效果',
-        '魔法护盾：获得魔法护盾能力',
-        '战斗法术：能够使用简单的战斗法术'
-      ]
-    }
+      description: '奥法骑士结合了战士的战斗能力和法术施放能力。',
+      features: ['战斗施法', '武器咒术', '奥术骑士', '魔法剑术']
+    },
   ],
   武僧: [
-    {
-      id: 'quingong_master',
-      name: '散打宗',
+    { 
+      id: 'quingong_master', 
       displayName: '散打宗',
-      description: '专注于散打技巧，能够使用各种武术技巧',
-      features: [
-        '散打技巧：掌握各种散打技巧',
-        '内力增强：内力攻击增强',
-        '武术专精：获得武术专精'
-      ]
+      description: '散打宗专注于拳法和格斗技巧，能够使用内力增强攻击力。',
+      features: ['拳法精通', '内力爆发', '散打技巧', '拳宗大师']
     },
-    {
-      id: 'shadow_monk',
-      name: '暗影宗',
+    { 
+      id: 'shadow_monk', 
       displayName: '暗影宗',
-      description: '专注于暗影和隐秘行动，能够在阴影中隐秘行动',
-      features: [
-        '暗影掌控：掌控暗影力量',
-        '隐秘行动：在阴影中隐秘行动',
-        '暗影步法：暗影中移动速度增加'
-      ]
+      description: '暗影宗专注于暗影和隐身，能够在暗影中移动和攻击。',
+      features: ['暗影步', '暗影攻击', '暗影庇护', '暗影大师']
     },
-    {
-      id: 'four_elements',
-      name: '四象宗',
+    { 
+      id: 'four_elements', 
       displayName: '四象宗',
-      description: '专注于四象元素，能够使用四象元素的力量',
-      features: [
-        '四象掌控：掌控四象元素',
-        '元素攻击：使用元素攻击',
-        '元素防御：获得元素防御'
-      ]
-    }
+      description: '四象宗专注于四种元素的操控，能够使用元素力量进行攻击和防御。',
+      features: ['元素掌控', '四象合一', '元素护盾', '元素大师']
+    },
   ],
   圣武士: [
-    {
-      id: 'oath_of_devotion',
-      name: '奉献之誓',
+    { 
+      id: 'oath_of_devotion', 
       displayName: '奉献之誓',
-      description: '奉献于正义和善良，能够保护无辜者',
-      features: [
-        '正义奉献：为正义而战',
-        '保护誓言：保护无辜者',
-        '神圣打击：对邪恶生物造成额外伤害'
-      ]
+      description: '奉献之誓的圣武士专注于保护和帮助他人，能够治愈和驱散邪恶。',
+      features: ['神圣庇护', '奉献之誓', '神圣治愈', '正义使者']
     },
-    {
-      id: 'oath_of_the_ancients',
-      name: '古贤之誓',
+    { 
+      id: 'oath_of_the_ancients', 
       displayName: '古贤之誓',
-      description: '遵循古贤的教诲，保护自然和善良',
-      features: [
-        '古贤教诲：遵循古贤的教诲',
-        '自然保护：保护自然',
-        '善良守护：守护善良'
-      ]
+      description: '古贤之誓的圣武士专注于保护自然和弱小，能够与自然和谐共处。',
+      features: ['自然守护', '古贤之誓', '自然治愈', '自然庇护']
     },
-    {
-      id: 'oath_of_revenge',
-      name: '复仇之誓',
+    { 
+      id: 'oath_of_revenge', 
       displayName: '复仇之誓',
-      description: '为复仇而战，能够追踪和惩罚邪恶',
-      features: [
-        '复仇追踪：追踪邪恶',
-        '复仇打击：对邪恶生物造成额外伤害',
-        '复仇意志：复仇意志增强'
-      ]
-    }
+      description: '复仇之誓的圣武士专注于复仇和正义，能够对邪恶造成额外伤害。',
+      features: ['复仇之怒', '复仇之誓', '正义审判', '复仇使者']
+    },
   ],
   游侠: [
-    {
-      id: 'hunter',
-      name: '猎人',
+    { 
+      id: 'hunter', 
       displayName: '猎人',
-      description: '专精追踪和狩猎，能够精准打击敌人',
-      features: [
-        '狩猎技巧：掌握狩猎技巧',
-        '精准打击：能够精准打击敌人',
-        '陷阱设置：能够设置陷阱'
-      ]
+      description: '猎人专注于追踪和狩猎，能够追踪敌人并进行精准射击。',
+      features: ['追踪专家', '精准射击', '野外生存', '猎人直觉']
     },
-    {
-      id: 'beast_master',
-      name: '驯兽师',
+    { 
+      id: 'beast_master', 
       displayName: '驯兽师',
-      description: '与野兽建立深厚联系，能够与野兽并肩作战',
-      features: [
-        '野兽伙伴：拥有一个野兽伙伴',
-        '野兽沟通：能够与野兽沟通',
-        '野兽强化：能够强化野兽的能力'
-      ]
-    }
+      description: '驯兽师能够与动物建立联系，指挥动物进行战斗。',
+      features: ['动物伙伴', '动物指挥', '动物沟通', '野兽大师']
+    },
   ],
   游荡者: [
-    {
-      id: 'thief',
-      name: '盗贼',
+    { 
+      id: 'thief', 
       displayName: '盗贼',
-      description: '专精偷窃和潜行，能够悄无声息地行动',
-      features: [
-        '潜行专家：在潜行中获得优势',
-        '偷窃技巧：偷窃相关检定获得加成',
-        '敏捷行动：在敏捷行动中获得优势'
-      ]
+      description: '盗贼是精通偷窃和潜行的大师，能够悄无声息地移动并进行偷窃。',
+      features: ['偷窃', '无声移动', '巧手', '盗贼工具']
     },
-    {
-      id: 'assassin',
-      name: '刺客',
+    { 
+      id: 'assassin', 
       displayName: '刺客',
-      description: '专精暗杀和突袭，能够造成致命伤害',
-      features: [
-        '暗杀专家：暗杀相关检定获得加成',
-        '致命一击：能够造成致命伤害',
-        '隐秘行动：在隐秘行动中获得优势'
-      ]
+      description: '刺客是暗杀和伏击的专家，能够进行致命的偷袭和暗杀。',
+      features: ['致命一击', '暗杀', '隐匿', '暗影大师']
     },
     {
       id: 'arcane_trickster',
-      name: '诡术师',
       displayName: '诡术师',
-      description: '结合偷窃和魔法，能够使用简单的魔法',
-      features: [
-        '奥术偷窃：能够偷取魔法效果',
-        '诡术魔法：使用诡术相关的魔法',
-        '隐秘魔法：在隐秘中使用魔法'
-      ],
+      description: '诡术师将盗贼的灵活性与法术施放能力结合，能够使用法术进行欺骗和偷窃。',
+      features: ['法术偷窃', '欺骗法术', '隐匿法术', '诡术大师'],
       spellProgression: {
         cantrips: '3-3级，4-10级',
         knownSpells: '3-3级，4-4级，5-7级，6-8级，7-10级，8-11级，9-13级，10-14级，11-16级，12-19级，13-20级',
         spellSlots: {
-          level1: '2-3级，3-4级，4-7级',
-          level2: '2-7级，3-10级',
-          level3: '2-13级，3-16级',
-          level4: '1-19级'
+          level1: 2,
+          level2: 2,
+          level3: 2,
+          level4: 1,
         },
-        maxSpellLevel: 4
-      }
-    }
+        maxSpellLevel: 4,
+      },
+    },
   ],
   术士: [
-    {
-      id: 'draconic',
-      name: '龙族血脉',
+    { 
+      id: 'draconic', 
       displayName: '龙族血脉',
-      description: '拥有龙族血脉，能够使用龙族相关的魔法',
-      features: [
-        '龙族护盾：获得龙族护盾',
-        '龙族魔法：使用龙族魔法',
-        '龙族特性：获得龙族特性'
-      ]
+      description: '龙族血脉的术士拥有龙族血统，能够从龙族血脉中获得特殊能力。',
+      features: ['龙族血脉', '龙鳞护甲', '龙息', '龙族亲和']
     },
-    {
-      id: 'wild_magic',
-      name: '狂野魔法',
+    { 
+      id: 'wild_magic', 
       displayName: '狂野魔法',
-      description: '掌控野魔法，魔法效果不可预测',
-      features: [
-        '野魔法爆发：魔法效果不可预测',
-        '野魔法掌控：掌控野魔法',
-        '野魔法护盾：获得野魔法护盾'
-      ]
-    }
+      description: '狂野魔法的术士能够控制不稳定的魔法能量，每次施法都可能产生特殊效果。',
+      features: ['狂野魔法', '魔法爆发', '不稳定施法', '魔法掌控']
+    },
   ],
   邪术师: [
     {
       id: 'archfey',
-      name: '至高妖精',
       displayName: '至高妖精',
-      description: '与至高妖精建立联系，能够使用妖精魔法',
-      features: [
-        '妖精魔法：使用妖精魔法',
-        '妖精契约：与妖精建立契约',
-        '妖精祝福：获得妖精祝福'
-      ],
+      description: '至高妖精的邪术师与妖精界建立了联系，能够使用妖精界的魔法。',
+      features: ['妖精契约', '妖精魔法', '妖精庇护', '妖精亲和'],
       spellProgression: {
         cantrips: '3-3级，4-10级',
         knownSpells: '3-3级，4-4级，5-7级，6-8级，7-10级，8-11级，9-13级，10-14级，11-16级，12-19级，13-20级',
         spellSlots: {
-          level1: '2-3级，3-4级，4-7级',
-          level2: '2-7级，3-10级',
-          level3: '2-13级，3-16级',
-          level4: '1-19级'
+          level1: 2,
+          level2: 2,
+          level3: 2,
+          level4: 1,
         },
-        maxSpellLevel: 4
-      }
+        maxSpellLevel: 4,
+      },
     },
     {
       id: 'fiend',
-      name: '邪魔',
       displayName: '邪魔',
-      description: '与邪魔建立联系，能够使用邪魔魔法',
-      features: [
-        '邪魔魔法：使用邪魔魔法',
-        '邪魔契约：与邪魔建立契约',
-        '邪魔力量：获得邪魔力量'
-      ],
+      description: '邪魔的邪术师与邪魔界建立了联系，能够使用邪魔界的黑暗魔法。',
+      features: ['邪魔契约', '黑暗魔法', '邪魔庇护', '邪魔亲和'],
       spellProgression: {
         cantrips: '3-3级，4-10级',
         knownSpells: '3-3级，4-4级，5-7级，6-8级，7-10级，8-11级，9-13级，10-14级，11-16级，12-19级，13-20级',
         spellSlots: {
-          level1: '2-3级，3-4级，4-7级',
-          level2: '2-7级，3-10级',
-          level3: '2-13级，3-16级',
-          level4: '1-19级'
+          level1: 2,
+          level2: 2,
+          level3: 2,
+          level4: 1,
         },
-        maxSpellLevel: 4
-      }
+        maxSpellLevel: 4,
+      },
     },
     {
       id: 'old_one',
-      name: '旧日支配者',
       displayName: '旧日支配者',
-      description: '与旧日支配者建立联系，能够使用禁忌魔法',
-      features: [
-        '禁忌魔法：使用禁忌魔法',
-        '旧日契约：与旧日支配者建立契约',
-        '疯狂知识：获得疯狂知识'
-      ],
+      description: '旧日支配者的邪术师与远古存在建立了联系，能够使用来自远古的禁忌魔法。',
+      features: ['远古契约', '禁忌魔法', '远古庇护', '远古知识'],
       spellProgression: {
         cantrips: '3-3级，4-10级',
         knownSpells: '3-3级，4-4级，5-7级，6-8级，7-10级，8-11级，9-13级，10-14级，11-16级，12-19级，13-20级',
         spellSlots: {
-          level1: '2-3级，3-4级，4-7级',
-          level2: '2-7级，3-10级',
-          level3: '2-13级，3-16级',
-          level4: '1-19级'
+          level1: 2,
+          level2: 2,
+          level3: 2,
+          level4: 1,
         },
-        maxSpellLevel: 4
-      }
-    }
-  ]
+        maxSpellLevel: 4,
+      },
+    },
+  ],
 };
 
 export function getAvailableSubclasses(character: Character): Subclass[] {
   if (!character.profession || !character.profession.class) {
     return [];
   }
-  
+
   return SUBCLASSES[character.profession.class] || [];
 }
 
@@ -464,13 +303,13 @@ export function setSubclass(character: Character, subclass: Subclass | null): Ch
   if (!character.profession) {
     character.profession = { class: '', subclass: undefined };
   }
-  
+
   if (subclass) {
     character.profession.subclass = subclass.id;
   } else {
     character.profession.subclass = undefined;
   }
-  
+
   return character;
 }
 
@@ -478,7 +317,7 @@ export function changeSubclass(character: Character, newSubclass: Subclass): Cha
   if (!character.profession) {
     character.profession = { class: '', subclass: undefined };
   }
-  
+
   character.profession.subclass = newSubclass.id;
   return character;
 }
@@ -492,7 +331,7 @@ export function getSubclassDisplayName(character: Character): string {
   if (!character.profession || !character.profession.subclass) {
     return '';
   }
-  
+
   const subclass = getSubclassById(character, character.profession.subclass);
-  return subclass?.displayName || '';
+  return subclass?.displayName || character.profession.subclass;
 }
