@@ -33,6 +33,7 @@ import CombatSession from '@/pages/CombatSession';
 import BattlegroundEditor from '@/pages/BattlegroundEditor';
 import FlowEditor from '@/pages/FlowEditor';
 import FlowList from '@/pages/FlowList';
+import FlowView from '@/pages/FlowView';
 import LocalStorageManager from '@/pages/LocalStorageManager';
 import GameClockPage from '@/pages/GameClockPage';
 import CalendarPage from '@/pages/CalendarPage';
@@ -120,6 +121,7 @@ export default function App() {
                     <Route path="/combat/:sessionId/battleground-editor" element={<BattlegroundEditor />} />
               {/* 独立访问的流程编辑器路由 */}
               <Route path="/flow-editor/:id" element={<FlowEditor />} />
+              <Route path="/flow-editor/:id/view" element={<FlowView />} />
             </Route>
 
             {/* DM 端（完整导航栏）- 需要登录 + DM 角色 */}
@@ -145,6 +147,7 @@ export default function App() {
               <Route path="flows/:id/edit" element={<FlowEditor />} />
               {/* 独立访问的流程编辑器路由 */}
               <Route path="flow-editor/:id" element={<FlowEditor />} />
+              <Route path="flow-editor/:id/view" element={<FlowView />} />
               {/* LocalStorage管理工具 */}
               <Route path="local-storage-manager" element={<LocalStorageManager />} />
               {/* Settings 嵌套路由壳 */}

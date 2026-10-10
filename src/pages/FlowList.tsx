@@ -249,7 +249,7 @@ export default function FlowList() {
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => navigate(`/flow-editor/${f.id}`)}
+                    onClick={() => navigate(`/flow-editor/${f.id}/view`)}
                     className="p-2 rounded-lg hover:bg-accent/10 text-accent transition-colors"
                     title="查看详情"
                   >
