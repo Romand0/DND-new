@@ -735,42 +735,25 @@ flowStore.saveViewportSnapshot(flowId, {
     }
   }, []);
 
-  // ===== 保存草稿 =====
-  const saveDraft = useCallback(async () => {
+  // ===== 保存 =====
+  // 编辑直接写入统一缓存（不再有独立的草稿临时态），后端同步在发布时完成。
+  const saveDraft = useCallback(() => {
     setSaveStatus('saving');
     // 用 requestAnimationFrame 制造一帧延迟，让 "saving" 态先渲染
-    requestAnimationFrame(async () => {
+    requestAnimationFrame(() => {
       const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
-      
-      try {
-        // 1. 同步到数据库
-        await apiFetch('/flows', {
-          method: 'POST',
-          body: JSON.stringify(updatedFlow),
-        });
-        console.log('saveDraft() - 已同步到数据库:', updatedFlow.id);
-        
-        // 2. 保存到localStorage
-        flowStore.save(updatedFlow);
-        setDrafts(flowStore.getAll());   // 刷新下拉框数据
-        setFlow(updatedFlow);
-        setSaveStatus('saved');
-        
-        // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
-        if (flowId && flowId !== updatedFlow.id) {
-          navigate(`/flow-editor/${updatedFlow.id}`, { replace: true });
-        }
-        
-        setTimeout(() => setSaveStatus('idle'), 2000);
-      } catch (error) {
-        console.error('saveDraft() - 数据库同步失败:', error);
-        setSaveStatus('error');
-        // 即使数据库失败，也要保存到本地
-        flowStore.save(updatedFlow);
-        setDrafts(flowStore.getAll());
-        setFlow(updatedFlow);
-        setTimeout(() => setSaveStatus('idle'), 2000);
+
+      flowStore.save(updatedFlow);
+      setDrafts(flowStore.getAll());   // 刷新下拉框数据
+      setFlow(updatedFlow);
+      setSaveStatus('saved');
+
+      // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
+      if (flowId && flowId !== updatedFlow.id) {
+        navigate(`/flow-editor/${updatedFlow.id}`, { replace: true });
       }
+
+      setTimeout(() => setSaveStatus('idle'), 2000);
     });
   }, [flow, flowNameInput.value, flowId, navigate]);
 
@@ -787,20 +770,16 @@ flowStore.saveViewportSnapshot(flowId, {
       // 2. 发布到生产环境
       const published = await flowStore.publish(flow.id);
       if (published) {
-        setFlow(prev => ({
-          ...prev,
-          status: 'published',
-          publishedVersion: published.publishedVersion,
-          publishedAt: published.publishedAt ?? Date.now(),
-        }));
+        // 发布后统一缓存已更新，采用 store 中的最新数据
+        const refreshed = flowStore.getById(flow.id);
+        if (refreshed) {
+          setFlow(refreshed);
+          flowNameInput.setExternal(refreshed.name);
+        }
         showToast('success', `已发布 v${published.publishedVersion}`);
-        
+
         // 发布成功后隐藏验证面板
         validation.setShowValidation(false);
-        
-        // 发布后保持沙盒环境，可以继续编辑
-        const sandboxData = flowStore.enterSandbox(flow.id);
-        setFlow(sandboxData);
       }
     } catch (err) {
       showToast('error', err instanceof Error ? err.message : '发布失败');
