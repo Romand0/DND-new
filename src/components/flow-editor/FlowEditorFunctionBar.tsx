@@ -4,7 +4,10 @@ import {
   AlertCircle, 
   ChevronRight, 
   RotateCcw, 
-  PanelRight 
+  PanelRight,
+  CloudUpload,
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
 
 interface FlowEditorFunctionBarProps {
@@ -13,9 +16,8 @@ interface FlowEditorFunctionBarProps {
   validation: {
     runValidation: () => void;
   };
-  showDrafts: boolean;
-  onToggleDrafts: () => void;
-  drafts: Array<any>;
+  syncStatus: 'idle' | 'syncing' | 'synced';
+  onSync: () => void;
   canvasScale: number;
   onScaleChange: (scale: number) => void;
   onResetZoom: () => void;
@@ -31,9 +33,8 @@ export const FlowEditorFunctionBar: React.FC<FlowEditorFunctionBarProps> = ({
   showLeftPanel,
   onToggleLeftPanel,
   validation,
-  showDrafts,
-  onToggleDrafts,
-  drafts,
+  syncStatus,
+  onSync,
   canvasScale,
   onScaleChange,
   onResetZoom,
@@ -53,8 +54,10 @@ export const FlowEditorFunctionBar: React.FC<FlowEditorFunctionBarProps> = ({
       <button onClick={validation.runValidation} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
         <AlertCircle className="w-3.5 h-3.5" /><span className="hidden sm:inline">验证</span>
       </button>
-      <button onClick={onToggleDrafts} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-text-light">
-        <ChevronRight className={`w-3.5 h-3.5 transition-transform ${showDrafts ? 'rotate-90' : ''}`} /><span className="hidden sm:inline">草稿</span><span className="sm:hidden">({drafts.length})</span>
+      <button onClick={onSync} className="flex items-center gap-1 px-2 py-1 rounded-md text-xs transition-colors hover:bg-white/5 dark:text-text-dark light:text-light">
+        {syncStatus === 'syncing' ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CloudUpload className="w-3.5 h-3.5" />}
+        <span className="hidden sm:inline">同步</span>
+        {syncStatus === 'synced' && <CheckCircle className="w-3.5 h-3.5 ml-1" />}
       </button>
       <div className="h-4 w-px dark:bg-border-dark light:bg-border-light mx-1" />
       <div className="flex-1" />
