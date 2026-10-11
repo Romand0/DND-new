@@ -7,9 +7,10 @@ interface FlowEditorToolbarProps {
   flowStatus: 'draft' | 'published';
   saveStatus: 'idle' | 'saving' | 'saved';
   validationStatus: 'valid' | 'invalid';
+  syncStatus: 'idle' | 'syncing' | 'synced';
   onExit: () => void;
   onPublish: () => void;
-  onSaveDraft: () => void;
+  onSave: () => void;
   onFlowNameChange: (value: string) => void;
   onFlowNameBlur: () => void;
 }
@@ -19,9 +20,10 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
   flowStatus,
   saveStatus,
   validationStatus,
+  syncStatus,
   onExit,
   onPublish,
-  onSaveDraft,
+  onSave,
   onFlowNameChange,
   onFlowNameBlur,
 }) => {
@@ -34,6 +36,13 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
           <ArrowLeft className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">退出</span>
         </button>
+        <div className="h-5 w-px dark:bg-border-dark light:bg-border-light" />
+        <div className="flex items-center gap-1 px-2 py-1 rounded-md text-xs">
+          {syncStatus === 'syncing' && <Loader2 className="w-3 h-3 animate-spin text-blue-400" />}
+          {syncStatus === 'synced' && <CheckCircle className="w-3 h-3 text-green-400" />}
+          {syncStatus === 'idle' && <div className="w-3 h-3 rounded-full bg-gray-400" />}
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">缓存</span>
+        </div>
         <div className="h-5 w-px dark:bg-border-dark light:bg-border-light" />
         <input 
           type="text" 
@@ -62,7 +71,7 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
           <span className="truncate">{flowStatus === 'published' ? '更新' : '发布'}</span>
         </button>
         <button
-          onClick={onSaveDraft}
+          onClick={onSave}
           disabled={saveStatus === 'saving'}
           className={`
             flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
@@ -71,17 +80,13 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
               ? 'bg-emerald-500 text-white scale-95'
               : saveStatus === 'saving'
               ? 'bg-primary/60 text-white/70 cursor-wait'
-              : validationStatus === 'valid'
-              ? 'bg-primary text-white hover:bg-primary/90 active:scale-95'
-              : 'bg-orange-500 text-white hover:bg-orange-90 active:scale-95'
+              : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
             }
           `}
         >
           {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           {saveStatus === 'saved' && <CheckCircle className="w-3.5 h-3.5" />}
-          {saveStatus === 'idle' && (
-            validationStatus === 'valid' ? <Save className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />
-          )}
+          {saveStatus === 'idle' && <Save className="w-3.5 h-3.5" />}
         </button>
       </div>
     </div>

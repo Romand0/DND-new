@@ -178,8 +178,7 @@ export default function FlowEditor() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectFromId, setConnectFromId] = useState<string | null>(null);
   const [connectTrigger, setConnectTrigger] = useState<string>('on_complete');
-  const [drafts, setDrafts] = useState<FlowDefinition[]>(() => flowStore.getAll());
-  const [showDrafts, setShowDrafts] = useState(false);
+
   const flowNameInput = useTextInput('');
   const [showLeftPanel, setShowLeftPanel] = useState(false);
   const [showRightPanel, setShowRightPanel] = useState(
@@ -347,12 +346,8 @@ export default function FlowEditor() {
 
 
 
-  // ===== 草稿列表：订阅 flowStore 变更，保持下拉框数据同步 =====
-  useEffect(() => {
-    const refresh = () => setDrafts(flowStore.getAll());
-    refresh();
-    return flowStore.subscribe(refresh);
-  }, []);
+  // ===== 缓存同步状态 =====
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced'>('idle');
 
   // ===== flow 加载：流程切换时从 flowStore 读取，并订阅数据变化 =====
   // 编辑器 state 是唯一真相源，store 只做持久化；
@@ -710,20 +705,22 @@ flowStore.saveViewportSnapshot(flowId, {
     updateNodePositionByDelta,
   });
 
-  // ===== 加载草稿 =====
-  const loadDraft = useCallback((draft: FlowDefinition) => {
-    setFlow(draft);
-    flowNameInput.setExternal(draft.name);
-    setSelectedNodeId(null);
-    setSelectedEdgeId(null);
-    setShowDrafts(false);
-  }, []);
-
-  // ===== 删除草稿 =====
-  const deleteDraft = useCallback((draftId: string) => {
-    flowStore.delete(draftId);
-    setDrafts(flowStore.getAll());
-  }, []);
+  // ===== 缓存同步 =====
+  const syncWithCache = useCallback(async () => {
+    if (syncStatus === 'syncing') return;
+    
+    setSyncStatus('syncing');
+    try {
+      // 这里可以添加与远程缓存的同步逻辑
+      // 目前只是模拟同步过程
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setSyncStatus('synced');
+      setTimeout(() => setSyncStatus('idle'), 2000);
+    } catch (error) {
+      setSyncStatus('idle');
+      console.error('同步失败:', error);
+    }
+  }, [syncStatus]);
 
   // ===== 清空画布 =====
   const clearCanvas = useCallback(() => {
@@ -736,17 +733,16 @@ flowStore.saveViewportSnapshot(flowId, {
   }, []);
 
   // ===== 保存 =====
-  // 编辑直接写入统一缓存（不再有独立的草稿临时态），后端同步在发布时完成。
-  const saveDraft = useCallback(() => {
+  // 编辑直接写入统一缓存，实时保存到本地存储
+  const saveFlow = useCallback(() => {
     setSaveStatus('saving');
     // 用 requestAnimationFrame 制造一帧延迟，让 "saving" 态先渲染
     requestAnimationFrame(() => {
       const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
 
       flowStore.save(updatedFlow);
-      setDrafts(flowStore.getAll());   // 刷新下拉框数据
       setFlow(updatedFlow);
-      setSaveStatus('saved');
+      setSyncStatus('synced');
 
       // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
       if (flowId && flowId !== updatedFlow.id) {
@@ -891,34 +887,34 @@ flowStore.saveViewportSnapshot(flowId, {
         }
       `}</style>
       <FlowEditorToolbar
-  flowName={flow.name}
-  flowStatus={flow.status}
-  saveStatus={saveStatus as 'idle' | 'saving' | 'saved'}
-  validationStatus={validation.validationStatus}
-  onExit={() => setExitModalOpen(true)}
-  onPublish={handlePublish}
-  onSaveDraft={saveDraft}
-  onFlowNameChange={(value) => flowNameInput.onChange(value)}
-  onFlowNameBlur={flowNameInput.onBlur}
-/>
+        flowName={flow.name}
+        flowStatus={flow.status}
+        saveStatus={saveStatus as 'idle' | 'saving' | 'saved'}
+        validationStatus={validation.validationStatus}
+        syncStatus={syncStatus}
+        onExit={() => setExitModalOpen(true)}
+        onPublish={handlePublish}
+        onSave={saveFlow}
+        onFlowNameChange={(value) => flowNameInput.onChange(value)}
+        onFlowNameBlur={flowNameInput.onBlur}
+      />
 
       <FlowEditorFunctionBar
-  showLeftPanel={showLeftPanel}
-  onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
-  validation={validation}
-  showDrafts={showDrafts}
-  onToggleDrafts={() => setShowDrafts(!showDrafts)}
-  drafts={drafts}
-  canvasScale={canvasScale}
-  onScaleChange={setCanvasScale}
-  onResetZoom={() => { setCanvasScale(1); setCanvasTranslate({ x: 0, y: 0 }); }}
-  onClearCanvas={clearCanvas}
-  showRightPanel={showRightPanel}
-  onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
-  scaleMin={SCALE_MIN}
-  scaleMax={SCALE_MAX}
-  scaleStep={SCALE_STEP}
-/>
+        showLeftPanel={showLeftPanel}
+        onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
+        validation={validation}
+        syncStatus={syncStatus}
+        onSync={syncWithCache}
+        canvasScale={canvasScale}
+        onScaleChange={setCanvasScale}
+        onResetZoom={() => { setCanvasScale(1); setCanvasTranslate({ x: 0, y: 0 }); }}
+        onClearCanvas={clearCanvas}
+        showRightPanel={showRightPanel}
+        onToggleRightPanel={() => setShowRightPanel(!showRightPanel)}
+        scaleMin={SCALE_MIN}
+        scaleMax={SCALE_MAX}
+        scaleStep={SCALE_STEP}
+      />
 
       {/* ===== 连接模式提示 ===== */}
       {isConnecting && (
@@ -1265,62 +1261,16 @@ flowStore.saveViewportSnapshot(flowId, {
         </DragOverlay>
       </DndContext>
 
-      {/* ===== 草稿列表弹窗 ===== */}
-      {showDrafts && (
-        <div className="fixed inset-0 z-[60] flex items-start justify-center pt-16 px-4 pointer-events-none">
-          <div className="mt-4 w-full max-w-md rounded-xl border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-white shadow-xl pointer-events-auto">
-            <div className="p-3 border-b dark:border-border-dark light:border-border-light flex items-center justify-between">
-              <h3 className="text-sm font-semibold dark:text-text-dark light:text-text-light">本地草稿</h3>
-              <button onClick={() => setShowDrafts(false)} className="text-gray-400 hover:text-gray-200">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="max-h-64 overflow-y-auto">
-              {drafts.length === 0 ? (
-                <p className="p-4 text-xs dark:text-text-dark-muted light:text-text-light-muted text-center">
-                  暂无草稿
-                </p>
-              ) : (
-                drafts.map(draft => (
-                  <div
-                    key={draft.id}
-                    className="flex items-center gap-3 px-3 py-2.5 hover:bg-white/5 cursor-pointer border-b dark:border-border-dark/50 light:border-border-light/50 last:border-0"
-                    onClick={() => loadDraft(draft)}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium dark:text-text-dark light:text-text-light truncate">
-                        {draft.name}
-                      </div>
-                      <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                        {new Date(draft.updatedAt).toLocaleString('zh-CN')}
-                        · {draft.nodes.length} 节点 · {draft.edges.length} 连线
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteDraft(draft.id);
-                      }}
-                      className="p-1 rounded hover:bg-white/10 text-red-400"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* ===== 退出确认弹窗 ===== */}
       {exitModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="rounded-lg p-6 max-w-sm w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-xl">
             <h3 className="text-base font-bold mb-2">退出编辑器</h3>
-            <p className="text-sm opacity-60 mb-4">是否保存当前草稿？</p>
+            <p className="text-sm opacity-60 mb-4">是否保存当前流程？</p>
             <div className="flex flex-col gap-2">
-              <button onClick={() => { saveDraft(); navigate('/'); }} className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90">保存并退出</button>
+              <button onClick={() => { saveFlow(); navigate('/'); }} className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90">保存并退出</button>
               <button onClick={() => navigate('/')} className="px-4 py-2 text-sm rounded-lg border border-red-400 text-red-400 hover:bg-red-400/10">丢弃</button>
               <button onClick={() => setExitModalOpen(false)} className="px-4 py-2 text-sm rounded-lg border dark:border-border-dark light:border-border-light hover:bg-white/5">取消</button>
             </div>
