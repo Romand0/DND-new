@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap, CloudUpload, CloudDownload, CloudOff, Zap as ZapIcon } from 'lucide-react';
+import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap, CloudUpload, CloudDownload, CloudOff, Zap as ZapIcon, Loader2, CheckCircle, Circle } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import flowStore from '@/data/flowStore';
 import FlowConsole from '@/components/FlowConsole';
@@ -15,6 +15,7 @@ export default function FlowList() {
   const [search, setSearch] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [showConsole, setShowConsole] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced'>('idle');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // 订阅 store
@@ -22,7 +23,14 @@ export default function FlowList() {
     const load = () => setFlows(flowStore.getAll());
     load();
     flowStore.fetchRemote();
-    return flowStore.subscribe(load);
+    return flowStore.subscribe(() => {
+      load();
+      // 同步完成后更新状态
+      if (syncStatus === 'syncing') {
+        setSyncStatus('synced');
+        setTimeout(() => setSyncStatus('idle'), 3000);
+      }
+    });
   }, []);
 
   const filtered = flows.filter(f =>
@@ -89,6 +97,19 @@ export default function FlowList() {
     }
   };
 
+  const handleSyncCache = async () => {
+    setSyncStatus('syncing');
+    try {
+      await flowStore.fetchRemote();
+      setSyncStatus('synced');
+      // 3秒后重置为idle状态
+      setTimeout(() => setSyncStatus('idle'), 3000);
+    } catch (err) {
+      setSyncStatus('idle');
+      alert(err instanceof Error ? err.message : '同步失败');
+    }
+  };
+
   const formatDate = (ts?: number) =>
     ts ? new Date(ts).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
@@ -103,12 +124,28 @@ export default function FlowList() {
           <ChevronLeft className="w-5 h-5" />
         </button>
         <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">流程库</h1>
+        <div className="flex items-center gap-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+          {syncStatus === 'syncing' && <Loader2 className="w-3 h-3 animate-spin text-blue-400" />}
+          {syncStatus === 'synced' && <CheckCircle className="w-3 h-3 text-green-400" />}
+          {syncStatus === 'idle' && <Circle className="w-3 h-3" />}
+          <span>缓存</span>
+        </div>
         <button
           onClick={() => setShowConsole(true)}
           className="px-4 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors flex items-center gap-2"
         >
           <Zap className="w-4 h-4" />
           控制台
+        </button>
+        <button
+          onClick={handleSyncCache}
+          disabled={syncStatus === 'syncing'}
+          className="px-4 py-2 rounded-lg bg-secondary text-white text-sm font-medium hover:bg-secondary/90 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {syncStatus === 'syncing' && <Loader2 className="w-4 h-4 animate-spin" />}
+          {syncStatus === 'synced' && <CheckCircle className="w-4 h-4" />}
+          {syncStatus === 'idle' && <CloudDownload className="w-4 h-4" />}
+          {syncStatus === 'syncing' ? '同步中...' : '同步缓存'}
         </button>
         <button
           onClick={handleCreate}
@@ -198,32 +235,36 @@ export default function FlowList() {
                       </>
                     )}
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <button
-                      onClick={() => handlePublish(f)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                      title="发布为正式版"
-                    >
-                      <CloudUpload className="w-3 h-3" />
-                      发布
-                    </button>
-                    <button
-                      onClick={() => handlePullRemote(f)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
-                      title="用正式版覆盖本地草稿"
-                    >
-                      <CloudDownload className="w-3 h-3" />
-                      拉取正式版
-                    </button>
-                    <button
-                      onClick={() => handleUnpublish(f)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-red-400 hover:bg-red-400/10 transition-colors"
-                      title="从正式库撤下"
-                    >
-                      <CloudOff className="w-3 h-3" />
-                      撤下
-                    </button>
-                  </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => handlePublish(f)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                        title="发布为正式版"
+                      >
+                        <CloudUpload className="w-3 h-3" />
+                        发布
+                      </button>
+                      <button
+                        onClick={() => handlePullRemote(f)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
+                        title="用正式版覆盖本地草稿"
+                      >
+                        <CloudDownload className="w-3 h-3" />
+                        拉取正式版
+                      </button>
+                      <button
+                        onClick={() => handleUnpublish(f)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-red-400 hover:bg-red-400/10 transition-colors"
+                        title="从正式库撤下"
+                      >
+                        <CloudOff className="w-3 h-3" />
+                        撤下
+                      </button>
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100/50 dark:bg-gray-800/50">
+                        <Circle className="w-3 h-3" />
+                        缓存
+                      </div>
+                    </div>
                   {f.description && (
                     <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 truncate">
                       {f.description}
@@ -275,7 +316,7 @@ export default function FlowList() {
           <div className="dark:bg-card-dark light:bg-card-light rounded-xl p-6 max-w-sm w-full">
             <h3 className="font-bold dark:text-text-dark light:text-text-light mb-2">确认删除</h3>
             <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
-              删除后无法恢复，是否继续？
+              删除后将同时清除本地缓存，此操作无法恢复，是否继续？
             </p>
             <div className="flex gap-2">
               <button
