@@ -12,7 +12,7 @@ import type {} from '@/hooks/combat/useInitiative';
 import type {} from '@/hooks/combat/useManualRecord';
 import type {} from '@/hooks/combat/usePlayback';
 import type {} from '@/hooks/combat/useRoundTurn';
-import type {} from '@/hooks/combat/useSurprise';
+import { useSurprise } from '@/hooks/combat/useSurprise';
 import type {} from '@/hooks/combat/useThrownDrop';
 import type {} from '@/components/combat/CombatantList';
 import type {} from '@/components/combat/InitiativeTable';
@@ -108,10 +108,6 @@ export default function CombatSession() {
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
-  // ✅ 突袭相关状态
-  const [surpriseAttackOpen, setSurpriseAttackOpen] = useState(false);
-  const [surpriseAttackRound, setSurpriseAttackRound] = useState(0);
-  const [surprisedCombatants, setSurprisedCombatants] = useState<Set<string>>(new Set());
   // ✅ 从头播放标记：突袭弹窗确认后自动启动放映
   const [pendingRestartPlayback, setPendingRestartPlayback] = useState(false);
   // ✅ 手动记录相关状态
@@ -298,6 +294,24 @@ export default function CombatSession() {
     }
     return map;
   }, [record?.id, record?.combatants.length, record?.updatedAt]);
+
+  // 突袭回合标记：状态与弹窗逻辑由 hook 接管；onConfirmed 负责与「从头播放」流程联动
+  const {
+    surpriseAttackOpen,
+    surpriseAttackRound,
+    surprisedCombatants,
+    openSurpriseAttackModal,
+    closeSurpriseAttackModal,
+    toggleSurprisedCombatant,
+    confirmSurpriseAttack,
+  } = useSurprise(record, {
+    onConfirmed: () => {
+      if (pendingRestartPlayback) {
+        setPendingRestartPlayback(false);
+        startPlaybackFromBeginning();
+      }
+    },
+  });
 
   // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
   if (!isDM) {
@@ -863,48 +877,6 @@ export default function CombatSession() {
     battlegroundStore.placeItemToken(record.id, itemToken);
   };
 
-  // ✅ 突袭：打开突袭选择窗口
-  const openSurpriseAttackModal = (round: number) => {
-    setSurpriseAttackRound(round);
-    // 初始化当前回合已标记为被突袭的角色
-    const existing = new Set<string>();
-    const roundData = record.rounds[round];
-    if (roundData) {
-      Object.entries(roundData).forEach(([id, val]) => {
-        if (val === '被突袭') existing.add(id);
-      });
-    }
-    setSurprisedCombatants(existing);
-    setSurpriseAttackOpen(true);
-  };
-
-  // ✅ 突袭：确认后写入被突袭标记
-  const confirmSurpriseAttack = () => {
-    const updatedRounds = [...record.rounds];
-    updatedRounds[surpriseAttackRound] = { ...updatedRounds[surpriseAttackRound] };
-    record.combatants.forEach(c => {
-      if (surprisedCombatants.has(c.id)) {
-        updatedRounds[surpriseAttackRound][c.id] = '被突袭';
-      } else {
-        // 不清除已有标记（避免误操作），仅在首次设置时处理
-        if (updatedRounds[surpriseAttackRound][c.id] === '被突袭' && !surprisedCombatants.has(c.id)) {
-          updatedRounds[surpriseAttackRound][c.id] = '';
-        }
-      }
-    });
-    combatStore.update(record.id, {
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-    setSurpriseAttackOpen(false);
-    setSurprisedCombatants(new Set());
-    // 从头播放流程中设置突袭后自动启动放映
-    if (pendingRestartPlayback) {
-      setPendingRestartPlayback(false);
-      startPlaybackFromBeginning();
-    }
-  };
-
   // ✅ 模式切换（真正的写入，不弹确认窗）
   const commitModeChange = (mode: 'simulation' | 'playback') => {
     if (!record) return;
@@ -1074,19 +1046,15 @@ export default function CombatSession() {
     if (!hasRound0) {
       // 场景 A：空表格 → 打开第一轮 + 突袭弹窗 + 从第一格放映
       setPendingRestartPlayback(true);
-      setSurpriseAttackRound(0);
-      setSurprisedCombatants(new Set());
-      setSurpriseAttackOpen(true);
-      // 等待突袭弹窗确认后，在 confirmSurpriseAttack 中调用 startPlaybackFromBeginning
+      openSurpriseAttackModal(0);
+      // 等待突袭弹窗确认后，由 useSurprise.onConfirmed 调用 startPlaybackFromBeginning
       return;
     }
 
     if (!round0HasSurprise) {
       // 场景 B：已有第一轮但突袭为空 → 突袭弹窗 + 从第一格放映
       setPendingRestartPlayback(true);
-      setSurpriseAttackRound(0);
-      setSurprisedCombatants(new Set());
-      setSurpriseAttackOpen(true);
+      openSurpriseAttackModal(0);
       return;
     }
 
@@ -2932,10 +2900,7 @@ export default function CombatSession() {
                 突袭 · 第 {surpriseAttackRound + 1} 轮
               </h3>
               <button
-                onClick={() => {
-                  setSurpriseAttackOpen(false);
-                  setSurprisedCombatants(new Set());
-                }}
+                onClick={closeSurpriseAttackModal}
                 className="p-1 rounded hover:bg-white/10"
               >
                 <X className="w-5 h-5" />
@@ -2959,14 +2924,7 @@ export default function CombatSession() {
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={() => {
-                        setSurprisedCombatants(prev => {
-                          const next = new Set(prev);
-                          if (next.has(c.id)) next.delete(c.id);
-                          else next.add(c.id);
-                          return next;
-                        });
-                      }}
+                      onChange={() => toggleSurprisedCombatant(c.id)}
                       className="rounded"
                     />
                     <div className="flex-1">
@@ -2983,10 +2941,7 @@ export default function CombatSession() {
             </div>
             <div className="flex gap-2 mt-4">
               <button
-                onClick={() => {
-                  setSurpriseAttackOpen(false);
-                  setSurprisedCombatants(new Set());
-                }}
+                onClick={closeSurpriseAttackModal}
                 className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
               >
                 取消
