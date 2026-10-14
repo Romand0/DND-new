@@ -275,7 +275,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P0 | 文件骨架抽取（hook + 组件落盘，`import type {}` 占位） | ✅ | — | 3646→3656 | 产物完整但**过期**，见 §1.2 |
 | P1-1 | useActions | ⬜ | — | 3656 | — |
 | P1-2 | useCombatInventories | ⬜ | — | — | — |
-| P1-3 | useSurprise | ⬜ | — | — | — |
+| P1-3 | useSurprise | ✅ | 2026-10-14 | 3611 | Pilot：按方案 A 重新抽取并真实接线；`onConfirmed` 承接 `pendingRestartPlayback → startPlaybackFromBeginning` 联动；tsc/build/dev 三验通过 |
 | P1-4 | useThrownDrop | ⬜ | — | — | — |
 | P2-1 | useDamageAndHp | ⬜ | — | — | — |
 | P2-2 | useRoundTurn | ⬜ | — | — | 缺口大：缺自动推进 + handleComatoseTurn |
@@ -359,3 +359,19 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 - [ ] 裁定 `clearExpiredAdvantage` 是否应保留（页面当前未调用，见 §1.4 反向疑点）
 - [ ] `useThrownDrop.executeThrownDrop` 恢复页面原签名或同步更新所有调用点
 - [ ] 每次接线后立即 `tsc --noEmit && npm run build`，并确认 `import type {}` 占位逐条减少
+
+### 9.4 Pilot 结果（useSurprise，2026-10-14）
+
+| 指标 | 结果 |
+|---|---|
+| 方式 | 方案 A：以页面为权威源重写 `useSurprise.ts`，再接线、删内联 |
+| CombatSession 行数 | 3656 → 3611（-45） |
+| `useSurprise.ts` 行数 | 53 → 92（新增 helper 与 `onConfirmed` 回调） |
+| `import type {}` 占位 | 18 → 17 |
+| 同步状态 | `surpriseAttackOpen/Round`、`surprisedCombatants` 三处 `useState` 删除，改由 hook 持有；`pendingRestartPlayback` 留在页面 |
+| 门禁 | `tsc -b` 零错误、`vite build` 成功、`vite dev` 正常启动 |
+| 结论 | 管线跑通，单 hook 成本可接受；方案 A 有效 |
+
+**遗留待办**（接线中发现的非阻塞项）：
+- `handleRestartPlayback` 用 `openSurpriseAttackModal(0)` 替代原来的三连 set。二者在场景 A/B 下等价（该轮无突袭标记 → 选中集恒为空），已人工确认。
+- `onConfirmed` 在页面中引用后声明的 `startPlaybackFromBeginning`（闭包内引用，运行期安全；tsc 通过）。后续 hook 若涉及同类回调，保持「页面提供回调、hook 只调用」的边界。
