@@ -1634,6 +1634,12 @@ const CLASS_CASTER_TYPE: Record<string, string> = {
   '战士': CASTER_TYPE.HALF, // 奥法骑士可以施法
 };
 
+// 非施法职业的施法子职：其法术从法师列表选取，最高 4 环（PHB 1/3 施法者）
+const SUBCLASS_SPELL_LIST: Record<string, { source: string; maxLevel: number }> = {
+  '游荡者:arcane_trickster': { source: '法师', maxLevel: 4 },
+  '战士:eldritch_knight':    { source: '法师', maxLevel: 4 },
+};
+
 /** 职业→施法关键属性映射（PHB 标准施法者） */
 const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
   '吟游诗人': 'charisma',
@@ -2250,6 +2256,16 @@ export const characterStore = {
     getSubclassDisplayName,
 
     setSubclass,
-   changeSubclass,
+    changeSubclass,
 
-};
+   // 子职法术列表映射
+   getSpellListForCharacter,
+} as const;
+
+// 获取角色的法术列表来源和最高环级（用于子职施法者）
+export function getSpellListForCharacter(char: Character): { source: string; maxLevel: number } | null {
+  const className = getCharacterClass(char);
+  const subclass = char.profession?.subclass || (char as any).subclass;
+  if (!className || !subclass) return null;
+  return SUBCLASS_SPELL_LIST[`${className}:${subclass}`] ?? null;
+}
