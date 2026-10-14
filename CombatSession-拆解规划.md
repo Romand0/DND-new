@@ -8,15 +8,70 @@
 
 ## 一、现状快照
 
+> 下列数值均为 **2026-10-14 实测**（非估算），命令见括号内。
+
 | 项目 | 数值 |
 |---|---|
-| 原文件行数 | 3646 |
-| useState 声明数 | ~40+ |
-| useRef 声明数 | ~8 |
-| useEffect 声明数 | ~10 |
-| 已抽取 hook 文件 | 9（全部仅 `import type {}` 引用，零运行时调用） |
-| 已抽取组件文件 | 9（同上，零运行时调用） |
+| CombatSession.tsx 行数 | 3656（`wc -l`，较规划初稿 3646 微增） |
+| useState 声明数 | 42（`grep -cE "useState[<(]"`） |
+| useRef 声明数 | 7（`grep -cE "useRef[<(]"`） |
+| useEffect 声明数 | 5（`grep -cE "useEffect\("`） |
+| useMemo 声明数 | 2 |
+| 已抽取 hook 文件 | 9 个，合计 1253 行（`wc -l src/hooks/combat/*.ts`） |
+| 已抽取组件文件 | 8 个 combat 子组件 + CombatantInfoPanel，合计 2784 行 |
+| hook/组件运行时调用 | **0**。全部靠文件顶部 `import type {}` 占位引用，CombatSession 内联实现原封未动 |
 | 共享 ref（跨 hook） | `rollbackSnapshotRef`、`playbackSnapshotRef`、`autoAdvanceRef`、`autoAdvanceTimerRef`、`pausedTurnRef` |
+
+### 1.1 当前真实进度（重要）
+
+**实际完成度 = 阶段 0（文件骨架抽取）完成，迁移进度 0%。**
+
+- 拆分产物（9 hook + 9 组件）是**先行落盘的目标形态**，每个 hook 内都是**完整可读的真实实现**，不是 `TODO` 空壳。
+- 但 CombatSession.tsx 顶部第 1 行注释明确写着「原内容：完全保留，一个字都没改」，页面仍以 3656 行巨型单文件运行，所有内联实现与 hook 内容**并存（重复）**。
+- 因此 hook/组件文件当前处于「已存在但零接线」状态，仅用于防止被当作废文件清理。
+
+### 1.2 抽取产物已过期（接线前必须先同步）
+
+hook 是从页面某个历史时点拷贝出来的快照，**落后于页面现行逻辑**。实测差异：
+
+| 页面独有逻辑 | 页面出现次数 | hook 中是否存在 |
+|---|---|---|
+| 自动推进定时器（`autoAdvanceRef` / `autoAdvanceTimerRef`） | 有 | 无（`useRoundTurn` / `usePlayback` 均缺） |
+| `handleComatoseTurn`（昏迷回合自动处理） | 有 | 无 |
+| `checkAndAutoAdvance` / `pausePlayback` / `resumePlayback` / `startPlaybackFromBeginning` | 有 | 无 |
+| `clearAdvantageByExpireCombatant` / `clearExpiredAdvantage` / `resetTurnTodosForRound` | 有 | 部分：`useRoundTurn` 有，其余无 |
+
+> 结论：迁移任何一个 hook 前，必须先将其实现与页面现行版本**逐函数对齐**，不能直接 swap。`useRoundTurn` / `usePlayback` 缺口最大（缺自动推进与昏迷处理），优先级和风险需重新评估。
+
+### 1.3 逐 hook 漂移对账（2026-10-14）
+
+> 方法：逐个 hook 与页面同名内联实现逐行比对。**页面是权威源**（含最新特性），hook 是历史分叉。
+
+| Hook | 页面对应实现（行号） | 漂移 | 具体差异 |
+|---|---|---|---|
+| `useSurprise` | openSurpriseAttackModal(867) / confirmSurpriseAttack(882) | 小 | hook 的 `confirmSurpriseAttack` 缺页面末尾的 `pendingRestartPlayback → startPlaybackFromBeginning()` 联动 |
+| `useManualRecord` | confirmManualRecord(1531) / cancelManualRecord(1613) | 无 | 逐行一致；仅缺 `!record` 守卫（页面已提前 return） |
+| `useCombatInventories` | combatInventories(279) + getEffectiveAc(258) | 无 | 功能一致；页面 `getEffectiveAc` 有未使用的 `changes` 变量 |
+| `useDamageAndHp` | handleApplyDamage(567) / autoFillDownedMarkers(1154) | 极小 | 仅入参形式不同（hook 走 `playbackMode` prop，页面读 `record.mode`） |
+| `useInitiative` | 406-533 / 536 / 1627-1671 | 小 | hook 多处新增 `!record` 守卫；其余逐行一致 |
+| `useThrownDrop` | chebyDist(707) / calcThrownDropPos(713) / executeThrownDrop(764) | 小 | `executeThrownDrop` **签名被改**：hook 加 `record` 入参并返回 `ItemToken`，页面用闭包且返回 `void`（抽取时做了重构，违反 §5.4「禁止重构」） |
+| `useActions` | currentMode/isPlaybackActive(643-703) | 中 | hook 用 `currentMode()` 判定可用性，**丢了 `playbackPaused` 判定**（页面走 `isPlaybackActive()`）；导致暂停期间 hook 会误消耗动作 |
+| `useRoundTurn` | 1189-1528 | 大 | 双向分叉：页面 `applyRollback` 是 `async` 且走 IndexedDB（`snapDb.getBestTurnSnapshot`）+ 截断/补轮逻辑，hook 是同步纯内存简化版；页面 `takeTurnSnapshot` 双写 IDB，hook 仅内存。**反向差异**：hook 的 `advanceTurn` 含 `clearExpiredAdvantage` / `clearAdvantageByExpireCombatant`，页面 `advanceTurn` 完全没有 |
+| `usePlayback` | 909-1062 | 大 | 页面 `handleModeChange` 写 IDB 初始快照、`finalizeExitPlayback` 复位 `playbackPaused/pausedTurnRef` + `deleteSessionSnapshots`；hook 完全没有 IDB / 暂停 / 从头播放 |
+
+### 1.4 结构性缺口（hook 从未拥有的页面能力）
+
+以下能力只存在于页面，任何 hook 里都没有；接线时若直接采用 hook 会**静默丢失**这些功能：
+
+| 能力 | 页面实现位置 |
+|---|---|
+| IndexedDB 快照持久化（刷新/关闭后可回溯） | `snapDb` 导入(27)：getInitialSnapshot(194)、putInitialSnapshot(946)、deleteSessionSnapshots(988/1132)、putTurnSnapshot(1419)、getBestTurnSnapshot(1438)、deleteTurnSnapshot(1516) |
+| 放映暂停 / 恢复 | `playbackPaused`(133)、`pausedTurnRef`、`pausePlayback`(997)、`resumePlayback`(1006)，共 19 处引用 |
+| 自动推进（昏迷角色延迟推进） | `autoAdvanceRef`(163)、`autoAdvanceTimerRef`(165)、`checkAndAutoAdvance`(1336)、`handleComatoseTurn`(1211) |
+| 从头播放 / 突袭联动 | `handleRestartPlayback`(1065)、`startPlaybackFromBeginning`(1103)、`pendingRestartPlayback`(116) |
+| 战斗结束回传弹窗 | `setCommitModalOpen(true)`（advanceTurn 全灭分支，1295） |
+
+> 反向疑点：`clearExpiredAdvantage` / `clearAdvantageByExpireCombatant` 全项目**仅被 stale hook 调用**，页面从未调用（`combatStore` 有定义无调用）。需人工判定：是页面漏调（潜在 bug），还是过期逻辑已迁移到别处。**这一项不能在「对齐到页面」时被无脑删除。**
 
 ---
 
@@ -217,15 +272,16 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 
 | 阶段 | Hook | 状态 | 完成日期 | CombatSession 行数 | 备注 |
 |---|---|---|---|---|---|
-| P1-1 | useActions | ⬜ | — | 3646 | — |
+| P0 | 文件骨架抽取（hook + 组件落盘，`import type {}` 占位） | ✅ | — | 3646→3656 | 产物完整但**过期**，见 §1.2 |
+| P1-1 | useActions | ⬜ | — | 3656 | — |
 | P1-2 | useCombatInventories | ⬜ | — | — | — |
 | P1-3 | useSurprise | ⬜ | — | — | — |
 | P1-4 | useThrownDrop | ⬜ | — | — | — |
 | P2-1 | useDamageAndHp | ⬜ | — | — | — |
-| P2-2 | useRoundTurn | ⬜ | — | — | — |
+| P2-2 | useRoundTurn | ⬜ | — | — | 缺口大：缺自动推进 + handleComatoseTurn |
 | P3-1 | useInitiative | ⬜ | — | — | — |
 | P3-2 | useManualRecord | ⬜ | — | — | — |
-| P4 | usePlayback | ⬜ | — | — | — |
+| P4 | usePlayback | ⬜ | — | — | 缺口大：缺自动推进与暂停/恢复 |
 
 ### 组件迁移
 
@@ -270,3 +326,36 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 □ 无共享 ref 被错误搬入单个 hook
 □ git diff --stat 显示 CombatSession.tsx 大幅减少、hook 文件无变化
 ```
+
+---
+
+## 九、下一步（2026-10-14 重新基线）
+
+原计划假设 hook「已就绪可直接接线」，实测证伪：hook 是**双向分叉的历史快照**，直接接线会丢功能（IDB 快照、暂停、自动推进、从头播放）且引入暂停期误扣动作。因此**下一步不是按 §二 顺序接线，而是先做「重新基线」**。
+
+### 9.1 推荐动作：三选一（已给出推荐）
+
+| 方案 | 做法 | 优点 | 缺点 |
+|---|---|---|---|
+| **A. 重新抽取（推荐）** | 以页面现行代码为准，重新生成每个 hook 的 body，再接线删除内联 | 不丢任何页面特性；一次到位；消除双向分叉 | 相当于把 §三 的「迁移」重做一遍，但更可靠 |
+| B. 前向对齐 | 把 stale hook 逐函数改动到与页面一致，再接线 | 保留已写好的 hook 骨架 | 双向分叉下等于两边都要改，且易漏 |
+| C. 放弃 hook，改抽组件 | 只做 §六 组件迁移，逻辑留页面 | 风险最低 | 不解决 3656 行问题，治标不治本 |
+
+推荐 **方案 A**。
+
+### 9.2 执行顺序（先易后难，先验证管线）
+
+1. **Pilot：`useSurprise`（验证管线）** — 漂移最小之一，先跑通「重新抽取 → 接线 → 删内联 → tsc/build」全流程，量出单 hook 成本。
+2. **零/极小漂移组**：`useManualRecord`、`useCombatInventories`、`useDamageAndHp`。
+3. **小漂移组**：`useInitiative`、`useThrownDrop`（同时修回被擅自改动的签名）。
+4. **中漂移**：`useActions`（必须补回 `playbackPaused` 判定）。
+5. **大漂移**：`useRoundTurn`、`usePlayback`（重新抽取时**必须带上 IDB / 暂停 / 自动推进 / 从头播放**；并先裁定 `clearExpiredAdvantage` 归属）。
+6. 最后做 **§六 组件迁移**。
+
+### 9.3 接线前置约束（新增，原文档未覆盖）
+
+- [ ] 每个 hook 重新抽取后，必须与页面**逐行**比对通过，才能删内联
+- [ ] 涉及 `snapDb` / `playbackPaused` / `autoAdvance*` / `pendingRestartPlayback` 的 hook，接线后必须跑冒烟清单中对应场景（放映启动、暂停恢复、刷新后回溯、从头播放）
+- [ ] 裁定 `clearExpiredAdvantage` 是否应保留（页面当前未调用，见 §1.4 反向疑点）
+- [ ] `useThrownDrop.executeThrownDrop` 恢复页面原签名或同步更新所有调用点
+- [ ] 每次接线后立即 `tsc --noEmit && npm run build`，并确认 `import type {}` 占位逐条减少
