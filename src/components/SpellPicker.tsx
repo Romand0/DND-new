@@ -8,6 +8,9 @@ interface SpellPickerProps {
   onSelect: (spell: Spell) => void;
   selectedSpellIds: string[];
   characterClass?: string;
+  characterSubclass?: string;
+  spellListSource?: string;
+  maxSpellLevel?: number;
   filterLevel?: number | 'cantrip' | 'all';
   matchByName?: boolean;
 }
@@ -31,6 +34,9 @@ export default function SpellPicker({
   onSelect,
   selectedSpellIds,
   characterClass,
+  characterSubclass,
+  spellListSource,
+  maxSpellLevel,
   filterLevel = 'all',
   matchByName = false,
 }: SpellPickerProps) {
@@ -39,7 +45,7 @@ export default function SpellPicker({
     filterLevel === 'cantrip' ? 0 : (typeof filterLevel === 'number' ? filterLevel : 'all')
   );
   const [classFilter, setClassFilter] = useState<string>(
-    characterClass || 'all'
+    spellListSource || characterClass || 'all'
   );
   const [allSpells, setAllSpells] = useState<Spell[]>([]);
   const [loading, setLoading] = useState(false);
@@ -148,7 +154,7 @@ export default function SpellPicker({
               >
                 全部
               </button>
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
+              {Array.from({ length: maxSpellLevel ? maxSpellLevel + 1 : 10 }, (_, i) => i).map((level) => (
                 <button
                   key={level}
                   onClick={() => setLevelFilter(levelFilter === level ? 'all' : level)}
@@ -183,13 +189,28 @@ export default function SpellPicker({
 
             {characterClass && (
               <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                当前角色职业：{characterClass}
-                <button
-                  onClick={() => setClassFilter(characterClass)}
-                  className="ml-2 text-primary hover:underline font-medium"
-                >
-                  只显示该职业可用
-                </button>
+                {spellListSource ? (
+                  <>
+                    法术列表来源：{spellListSource}
+                    {maxSpellLevel && `（最高${maxSpellLevel}环）`}
+                    <button
+                      onClick={() => setClassFilter(spellListSource)}
+                      className="ml-2 text-primary hover:underline font-medium"
+                    >
+                      只显示该职业可用
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    当前角色职业：{characterClass}
+                    <button
+                      onClick={() => setClassFilter(characterClass)}
+                      className="ml-2 text-primary hover:underline font-medium"
+                    >
+                      只显示该职业可用
+                    </button>
+                  </>
+                )}
               </p>
             )}
           </div>

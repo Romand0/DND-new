@@ -2087,6 +2087,9 @@ if (character) {
         onSelect={handleSelectSpell}
         selectedSpellIds={getSelectedSpellNames()}
         characterClass={character?.profession?.class}
+        characterSubclass={character?.profession?.subclass}
+        spellListSource={character ? characterStore.getSpellListForCharacter(character)?.source : undefined}
+        maxSpellLevel={character ? characterStore.getSpellListForCharacter(character)?.maxLevel : undefined}
         filterLevel={selectedSpellType === 'cantrip' ? 0 : 'all'}
         matchByName={true}
       />
