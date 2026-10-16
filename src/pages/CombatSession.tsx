@@ -9,7 +9,7 @@ import type {} from '@/hooks/combat/useActions';
 import type {} from '@/hooks/combat/useCombatInventories';
 import type {} from '@/hooks/combat/useDamageAndHp';
 import type {} from '@/hooks/combat/useInitiative';
-import type {} from '@/hooks/combat/useManualRecord';
+import { useManualRecord } from '@/hooks/combat/useManualRecord';
 import type {} from '@/hooks/combat/usePlayback';
 import type {} from '@/hooks/combat/useRoundTurn';
 import { useSurprise } from '@/hooks/combat/useSurprise';
@@ -110,17 +110,8 @@ export default function CombatSession() {
 
   // ✅ 从头播放标记：突袭弹窗确认后自动启动放映
   const [pendingRestartPlayback, setPendingRestartPlayback] = useState(false);
-  // ✅ 手动记录相关状态
+  // ✅ 选中格状态（先攻表格操作 + 手动记录弹窗依赖）
   const [selectedCell, setSelectedCell] = useState<{ round: number; combatantId: string } | null>(null);
-  const [manualRecordOpen, setManualRecordOpen] = useState(false);
-  const [manualRecordType, setManualRecordType] = useState<'attack' | 'recovery' | null>(null);
-  const [manualTargetId, setManualTargetId] = useState('');
-  const [manualAttackMethod, setManualAttackMethod] = useState('');
-  const [manualDamage, setManualDamage] = useState('');
-  const [manualIsKill, setManualIsKill] = useState(false);
-  const [manualHealMethod, setManualHealMethod] = useState('');
-  const [manualHealAmount, setManualHealAmount] = useState('');
-  const [manualAttackRoll, setManualAttackRoll] = useState('');
   // ✅ 放映模式状态
   const [playbackStarted, setPlaybackStarted] = useState(false);
   // 当前回合：{ round: 行索引, combatantIdx: 列索引, combatantId }
@@ -311,6 +302,33 @@ export default function CombatSession() {
         startPlaybackFromBeginning();
       }
     },
+  });
+
+  // 手动记录：状态与确认/取消逻辑由 hook 接管。
+  // canUseAction / consumeCombatantAction / handleApplyDamage / handleCellChange
+  // 在下方早退之后才定义，用惰性箭头解引用（箭头体仅在事件触发时求值，避开 TDZ）
+  const {
+    manualRecordOpen, setManualRecordOpen,
+    manualRecordType, setManualRecordType,
+    manualTargetId, setManualTargetId,
+    manualAttackMethod, setManualAttackMethod,
+    manualDamage, setManualDamage,
+    manualIsKill, setManualIsKill,
+    manualHealMethod, setManualHealMethod,
+    manualHealAmount, setManualHealAmount,
+    manualAttackRoll, setManualAttackRoll,
+    confirmManualRecord,
+    cancelManualRecord,
+  } = useManualRecord(record, {
+    selectedCell,
+    setSelectedCell,
+    getEffectiveAc,
+    canUseAction: (id: string) => canUseAction(id),
+    consumeCombatantAction: (id: string) => consumeCombatantAction(id),
+    handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead') =>
+      handleApplyDamage(targetId, newHp, status),
+    handleCellChange: (round: number, combatantId: string, value: string) =>
+      handleCellChange(round, combatantId, value),
   });
 
   // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
@@ -1493,102 +1511,6 @@ export default function CombatSession() {
   const confirmEndTurn = () => {
     setConfirmEndTurnOpen(false);
     advanceTurn();
-  };
-
-  // ✅ 手动记录：确认后写入表格并应用效果
-  const confirmManualRecord = () => {
-    if (!selectedCell) return;
-    const { round, combatantId } = selectedCell;
-    const target = record.combatants.find(c => c.id === manualTargetId);
-    const attacker = record.combatants.find(c => c.id === combatantId);
-
-    if (manualRecordType === 'attack') {
-      if (!canUseAction(combatantId)) {
-        alert('该参战者本回合已没有可用动作');
-        return;
-      }
-      if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
-      if (!target) { alert('请选择目标'); return; }
-      if (!manualAttackRoll) { alert('请填写攻击检定值'); return; }
-
-      // 自动判定：攻击检定值根据目标 AC 自动判断命中
-      const roll = parseInt(manualAttackRoll, 10);
-      if (isNaN(roll)) { alert('攻击检定值必须是数字'); return; }
-      const tgtAc = getEffectiveAc(target);
-      if (!tgtAc && tgtAc !== 0) { alert('目标缺少 AC，无法判定命中'); return; }
-      const hit = roll >= tgtAc;
-
-      let text = '';
-      if (!hit) {
-        text = `对 ${target.name} 的攻击未命中，${manualAttackMethod}打偏了`;
-      } else {
-        const dmg = parseInt(manualDamage, 10);
-        if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
-        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害`;
-        if (manualIsKill && target.currentHp !== undefined) {
-          const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
-          const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
-          handleApplyDamage(target.id, newHp, status);
-          text += target.isPc ? `，将其击昏` : `，将其杀死`;
-        } else if (target.currentHp !== undefined) {
-          const newHp = Math.max(0, target.currentHp - dmg);
-          handleApplyDamage(target.id, newHp);
-        }
-      }
-      handleCellChange(round, combatantId, text);
-      // 攻击（无论命中/未命中）消耗 1 个动作
-      consumeCombatantAction(combatantId);
-    } else if (manualRecordType === 'recovery') {
-      if (!manualHealMethod.trim()) { alert('请填写恢复方式'); return; }
-      const amount = parseInt(manualHealAmount, 10);
-      if (isNaN(amount) || amount <= 0) { alert('请输入有效的恢复量（正整数）'); return; }
-      if (!attacker) return;
-
-      let targetHpId = manualTargetId;
-      let targetName = target?.name || '';
-      if (!target) {
-        // 如果没选目标，默认恢复自己
-        targetHpId = combatantId;
-        targetName = attacker.name;
-      }
-      const tgt = record.combatants.find(c => c.id === targetHpId);
-      if (!tgt) return;
-
-      const newHp = Math.min(tgt.maxHp ?? tgt.currentHp ?? 0, (tgt.currentHp ?? 0) + amount);
-      handleApplyDamage(tgt.id, newHp);
-
-      const isSelf = targetHpId === combatantId;
-      const text = isSelf
-        ? `用${manualHealMethod}恢复了自己${amount}点生命值`
-        : `用${manualHealMethod}恢复了${targetName} ${amount}点生命值`;
-      handleCellChange(round, combatantId, text);
-    }
-
-    // 重置表单
-    setManualRecordOpen(false);
-    setManualRecordType(null);
-    setManualTargetId('');
-    setManualAttackMethod('');
-    setManualDamage('');
-    setManualIsKill(false);
-    setManualHealMethod('');
-    setManualHealAmount('');
-    setManualAttackRoll('');
-    setSelectedCell(null);
-  };
-
-  // ✅ 手动记录：关闭窗口
-  const cancelManualRecord = () => {
-    setManualRecordOpen(false);
-    setManualRecordType(null);
-    setManualTargetId('');
-    setManualAttackMethod('');
-    setManualDamage('');
-    setManualIsKill(false);
-    setManualHealMethod('');
-    setManualHealAmount('');
-    setManualAttackRoll('');
-    setSelectedCell(null);
   };
 
   // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）

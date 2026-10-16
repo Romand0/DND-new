@@ -280,7 +280,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P2-1 | useDamageAndHp | ⬜ | — | — | — |
 | P2-2 | useRoundTurn | ⬜ | — | — | 缺口大：缺自动推进 + handleComatoseTurn |
 | P3-1 | useInitiative | ⬜ | — | — | — |
-| P3-2 | useManualRecord | ⬜ | — | — | — |
+| P3-2 | useManualRecord | ✅ | 2026-10-16 | 3533 | hook 与页面逐行对账零漂移（仅多 `!record` 守卫），直接接线；4 个依赖函数在 `!isDM` 早退之后定义，以惰性箭头传入规避 TDZ；删 9 个 state + confirm/cancel 内联 |
 | P4 | usePlayback | ⬜ | — | — | 缺口大：缺自动推进与暂停/恢复 |
 
 ### 组件迁移
