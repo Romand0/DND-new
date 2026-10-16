@@ -6,7 +6,7 @@
 //          InitiativeTiebreakerDialog / ManualRecordDialog / PlaybackToolbar /
 //          RewindDialog / SurpriseAttackDialog / CombatantInfoPanel
 import type {} from '@/hooks/combat/useActions';
-import type {} from '@/hooks/combat/useCombatInventories';
+import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
 import type {} from '@/hooks/combat/useDamageAndHp';
 import type {} from '@/hooks/combat/useInitiative';
 import { useManualRecord } from '@/hooks/combat/useManualRecord';
@@ -29,7 +29,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   applyEquipmentChange,
-  computeCombatantAc,
   getCombatInventory,
   getCombatInventoryRaw,
 } from '@/data/combatStore';
@@ -237,20 +236,8 @@ export default function CombatSession() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.id, record?.mode]);
 
-  /**
-   * 基于战斗背包实际装备，获取该 combatant 的有效 AC。
-   * PC 角色：护甲/盾牌被移除或数量=0时，不参与加值；不存在于战斗背包的装备不加值。
-   * NPC：直接用 combatant.ac。
-   */
-  const getEffectiveAc = (c: Combatant): number => {
-    if (!record) return c.ac ?? 0;
-    const changes = record.equipmentChanges?.[c.id];
-    let character: Character | null = null;
-    if (c.characterId) character = characterStore.get(c.characterId);
-    const combatInventory = combatInventories[c.id];
-    if (character) return computeCombatantAc(c, character, combatInventory);
-    return c.ac ?? 0;
-  };
+  // 战斗背包 + 有效 AC：由 hook 接管（useMemo 按 record 引用缓存，store 更新生成新引用自然失效）
+  const { combatInventories, getEffectiveAc } = useCombatInventories(record);
 
   useEffect(() => {
     setNpcTemplates(npcTemplateStore.getAll());
@@ -259,19 +246,6 @@ export default function CombatSession() {
     });
     return unsub;
   }, []);
-
-  // 战斗背包记忆化：按 record 引用缓存全部参战者的战斗背包映射。
-  // store 每次更新会生成新 record 引用，此处自然失效；渲染热路径（每秒定时刷新等）
-  // 不会重跑，避免每个参战者重复走 parse + 派生计算。
-  const combatInventories = useMemo(() => {
-    if (!record) return {} as Record<string, any[]>;
-    const result: Record<string, any[]> = {};
-    for (const c of record.combatants) {
-      result[c.id] = getCombatInventory(record, c);
-    }
-    return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record]);
 
   // 所有参战者沙盘位置字典（用于跨参战者距离判定：协助动作 5 尺约束等）
   const combatantPositions = useMemo(() => {

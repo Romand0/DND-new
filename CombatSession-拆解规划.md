@@ -274,7 +274,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 |---|---|---|---|---|---|
 | P0 | 文件骨架抽取（hook + 组件落盘，`import type {}` 占位） | ✅ | — | 3646→3656 | 产物完整但**过期**，见 §1.2 |
 | P1-1 | useActions | ⬜ | — | 3656 | — |
-| P1-2 | useCombatInventories | ⬜ | — | — | — |
+| P1-2 | useCombatInventories | ✅ | 2026-10-16 | 3507 | 零漂移直接接线（页面版 `getEffectiveAc` 含一行未使用死代码 `const changes`，hook 已去掉）；同时清掉页面对 `computeCombatantAc` 的 import |
 | P1-3 | useSurprise | ✅ | 2026-10-14 | 3611 | Pilot：按方案 A 重新抽取并真实接线；`onConfirmed` 承接 `pendingRestartPlayback → startPlaybackFromBeginning` 联动；tsc/build/dev 三验通过 |
 | P1-4 | useThrownDrop | ⬜ | — | — | — |
 | P2-1 | useDamageAndHp | ⬜ | — | — | — |
