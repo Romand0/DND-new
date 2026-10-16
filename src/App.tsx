@@ -41,6 +41,7 @@ import NotesPage from '@/pages/NotesPage';
 import DicePage from '@/pages/DicePage';
 import UserProfile from '@/pages/UserProfile';
 import TripleTapGesture from '@/components/TripleTapGesture';
+import KeyboardShortcutDetector from '@/components/KeyboardShortcutDetector';
 import TreasureList from '@/pages/TreasureList';
 import TreasureEdit from '@/pages/TreasureEdit';
 import TreasureDistribute from '@/pages/TreasureDistribute';
@@ -65,7 +66,8 @@ export default function App() {
       <AuthProvider>
         <BrowserRouter>
           <TripleTapGesture />
-          <Routes>
+          <KeyboardShortcutDetector>
+            <Routes>
             {/* 公开路由（无需登录） */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -169,7 +171,8 @@ export default function App() {
               <Route path="account" element={<UserProfile />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
-          </Routes>
+            </Routes>
+          </KeyboardShortcutDetector>
         </BrowserRouter>
       </AuthProvider>
     </ThemeProvider>
