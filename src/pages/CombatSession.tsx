@@ -6,10 +6,10 @@
 //          InitiativeTiebreakerDialog / ManualRecordDialog / PlaybackToolbar /
 //          RewindDialog / SurpriseAttackDialog / CombatantInfoPanel
 import type {} from '@/hooks/combat/useActions';
-import type {} from '@/hooks/combat/useCombatInventories';
-import type {} from '@/hooks/combat/useDamageAndHp';
+import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
+import { useDamageAndHp } from '@/hooks/combat/useDamageAndHp';
 import type {} from '@/hooks/combat/useInitiative';
-import type {} from '@/hooks/combat/useManualRecord';
+import { useManualRecord } from '@/hooks/combat/useManualRecord';
 import type {} from '@/hooks/combat/usePlayback';
 import type {} from '@/hooks/combat/useRoundTurn';
 import { useSurprise } from '@/hooks/combat/useSurprise';
@@ -29,7 +29,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   applyEquipmentChange,
-  computeCombatantAc,
   getCombatInventory,
   getCombatInventoryRaw,
 } from '@/data/combatStore';
@@ -110,17 +109,8 @@ export default function CombatSession() {
 
   // ✅ 从头播放标记：突袭弹窗确认后自动启动放映
   const [pendingRestartPlayback, setPendingRestartPlayback] = useState(false);
-  // ✅ 手动记录相关状态
+  // ✅ 选中格状态（先攻表格操作 + 手动记录弹窗依赖）
   const [selectedCell, setSelectedCell] = useState<{ round: number; combatantId: string } | null>(null);
-  const [manualRecordOpen, setManualRecordOpen] = useState(false);
-  const [manualRecordType, setManualRecordType] = useState<'attack' | 'recovery' | null>(null);
-  const [manualTargetId, setManualTargetId] = useState('');
-  const [manualAttackMethod, setManualAttackMethod] = useState('');
-  const [manualDamage, setManualDamage] = useState('');
-  const [manualIsKill, setManualIsKill] = useState(false);
-  const [manualHealMethod, setManualHealMethod] = useState('');
-  const [manualHealAmount, setManualHealAmount] = useState('');
-  const [manualAttackRoll, setManualAttackRoll] = useState('');
   // ✅ 放映模式状态
   const [playbackStarted, setPlaybackStarted] = useState(false);
   // 当前回合：{ round: 行索引, combatantIdx: 列索引, combatantId }
@@ -246,20 +236,14 @@ export default function CombatSession() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.id, record?.mode]);
 
-  /**
-   * 基于战斗背包实际装备，获取该 combatant 的有效 AC。
-   * PC 角色：护甲/盾牌被移除或数量=0时，不参与加值；不存在于战斗背包的装备不加值。
-   * NPC：直接用 combatant.ac。
-   */
-  const getEffectiveAc = (c: Combatant): number => {
-    if (!record) return c.ac ?? 0;
-    const changes = record.equipmentChanges?.[c.id];
-    let character: Character | null = null;
-    if (c.characterId) character = characterStore.get(c.characterId);
-    const combatInventory = combatInventories[c.id];
-    if (character) return computeCombatantAc(c, character, combatInventory);
-    return c.ac ?? 0;
-  };
+  // 战斗背包 + 有效 AC：由 hook 接管（useMemo 按 record 引用缓存，store 更新生成新引用自然失效）
+  const { combatInventories, getEffectiveAc } = useCombatInventories(record);
+
+  // HP / 昏迷 / 死亡豁免待办生命周期：由 hook 接管
+  const { handleApplyDamage, autoFillDownedMarkers } = useDamageAndHp(record, {
+    currentTurn,
+    playbackMode: record?.mode === 'playback',
+  });
 
   useEffect(() => {
     setNpcTemplates(npcTemplateStore.getAll());
@@ -268,19 +252,6 @@ export default function CombatSession() {
     });
     return unsub;
   }, []);
-
-  // 战斗背包记忆化：按 record 引用缓存全部参战者的战斗背包映射。
-  // store 每次更新会生成新 record 引用，此处自然失效；渲染热路径（每秒定时刷新等）
-  // 不会重跑，避免每个参战者重复走 parse + 派生计算。
-  const combatInventories = useMemo(() => {
-    if (!record) return {} as Record<string, any[]>;
-    const result: Record<string, any[]> = {};
-    for (const c of record.combatants) {
-      result[c.id] = getCombatInventory(record, c);
-    }
-    return result;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [record]);
 
   // 所有参战者沙盘位置字典（用于跨参战者距离判定：协助动作 5 尺约束等）
   const combatantPositions = useMemo(() => {
@@ -311,6 +282,33 @@ export default function CombatSession() {
         startPlaybackFromBeginning();
       }
     },
+  });
+
+  // 手动记录：状态与确认/取消逻辑由 hook 接管。
+  // canUseAction / consumeCombatantAction / handleApplyDamage / handleCellChange
+  // 在下方早退之后才定义，用惰性箭头解引用（箭头体仅在事件触发时求值，避开 TDZ）
+  const {
+    manualRecordOpen, setManualRecordOpen,
+    manualRecordType, setManualRecordType,
+    manualTargetId, setManualTargetId,
+    manualAttackMethod, setManualAttackMethod,
+    manualDamage, setManualDamage,
+    manualIsKill, setManualIsKill,
+    manualHealMethod, setManualHealMethod,
+    manualHealAmount, setManualHealAmount,
+    manualAttackRoll, setManualAttackRoll,
+    confirmManualRecord,
+    cancelManualRecord,
+  } = useManualRecord(record, {
+    selectedCell,
+    setSelectedCell,
+    getEffectiveAc,
+    canUseAction: (id: string) => canUseAction(id),
+    consumeCombatantAction: (id: string) => consumeCombatantAction(id),
+    handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead') =>
+      handleApplyDamage(targetId, newHp, status),
+    handleCellChange: (round: number, combatantId: string, value: string) =>
+      handleCellChange(round, combatantId, value),
   });
 
   // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
@@ -573,83 +571,6 @@ export default function CombatSession() {
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
-  };
-
-  // ✅ 新增：应用伤害 —— 仅写入战斗参战者 HP，不回传角色卡
-  // status: 'unconscious' 昏迷 / 'dead' 死亡（NPC 致命伤害时附带）
-  // PC HP 归零未显式指定 status 时，按 D&D 5e 规则自动判定为昏迷（不直接死亡）
-  const handleApplyDamage = (targetId: string, newHp: number, status?: 'unconscious' | 'dead') => {
-    const target = record.combatants.find(c => c.id === targetId);
-    const wasUnconscious = target?.isUnconscious ?? false;
-    const isPc = target?.isPc ?? false;
-    // PC HP≤0 且未显式指定状态 → 自动昏迷（D&D 5e：PC 不会因伤害直接死亡，先进入昏迷）
-    const effectiveStatus: 'unconscious' | 'dead' | undefined =
-      status ?? (newHp <= 0 && isPc ? 'unconscious' : undefined);
-
-    const updatedCombatants = record.combatants.map(c => {
-      if (c.id !== targetId) return c;
-      if (newHp <= 0 && effectiveStatus === 'dead') {
-        return { ...c, currentHp: newHp, isDead: true, isUnconscious: false };
-      }
-      if (newHp <= 0 && effectiveStatus === 'unconscious') {
-        // 首次进入昏迷时重置死亡豁免计数（D&D 5e：每次倒下重新计数）
-        const firstDown = !wasUnconscious;
-        return {
-          ...c,
-          currentHp: newHp,
-          isDead: false,
-          isUnconscious: true,
-          deathSaveFailures: firstDown ? 0 : (c.deathSaveFailures ?? 0),
-          deathSaveSuccesses: firstDown ? 0 : (c.deathSaveSuccesses ?? 0),
-        };
-      }
-      // HP > 0：恢复清醒，同时清零死亡豁免计数
-      return {
-        ...c,
-        currentHp: newHp,
-        isDead: false,
-        isUnconscious: false,
-        deathSaveFailures: 0,
-        deathSaveSuccesses: 0,
-      };
-    });
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      updatedAt: Date.now(),
-    });
-
-    // ✅ 死亡豁免待办自动生命周期：
-    //   1) PC 首次进入昏迷（HP=0 & unconscious）→ 自动创建待办
-    //   2) HP 恢复 / 死亡 / 稳定 → 自动清理
-    // 仅放映模式下创建（待办依赖回合系统）
-    if (record.mode === 'playback' && isPc) {
-      const nowDown = newHp <= 0 && effectiveStatus === 'unconscious';
-      if (nowDown) {
-        const existing = combatStore.get(record.id)?.turnTodos?.some(
-          t => t.type === 'death_save' && t.combatantId === targetId
-        );
-        if (!existing) {
-          // 起始回合 = 当前回合（"当前回合后满足触发条件的第一个属于适用者的回合"）。
-          // findNextValidTurn 会让带未执行死亡豁免待办的昏迷 PC 的回合照常推进，
-          // activeTodos 的 startRound <= round 判定会确保只在 PC 的回合显示。
-          const startRound = currentTurn ? currentTurn.round : 0;
-          combatStore.addTurnTodo(record.id, {
-            combatantId: targetId,
-            name: '死亡豁免',
-            type: 'death_save',
-            startRound,
-            endRound: -1, // 由 cleanupDeathSaveTodos 按 HP 状态终止
-          });
-        }
-      }
-    }
-    // 放映模式下昏迷/死亡状态变化后，自动填充后续轮次的占位标记
-    // （非放映模式没有轮次概念，不需要填）
-    if (record.mode === 'playback') {
-      autoFillDownedMarkers();
-    }
-    // HP 变化后统一清理已失效的死亡豁免待办
-    combatStore.cleanupDeathSaveTodos(record.id);
   };
 
   // ============ 动作机制 ============
@@ -1117,36 +1038,6 @@ export default function CombatSession() {
       }
     }, 0);
   };
-  // 注意：必须从 combatStore.get 读取最新数据，因为调用方（如 handleApplyDamage）
-  // 可能刚刚写入 store 但 React state（record）尚未异步更新，闭包里的 record 是旧快照
-  const autoFillDownedMarkers = () => {
-    if (!record) return;
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    let updatedRounds = latest.rounds.map(r => ({ ...r }));
-    let changed = false;
-    latest.combatants.forEach(c => {
-      if (!c.isDead && !c.isUnconscious) return;
-      const marker = c.isDead ? '死亡' : '昏迷中，无法行动';
-      updatedRounds = updatedRounds.map(round => {
-        const cur = round[c.id];
-        if (cur && cur !== '被突袭' && cur !== '昏迷中，无法行动' && cur !== '死亡') {
-          // 已有有效记录的轮次不覆盖
-          return round;
-        }
-        // 没记录或就是「昏迷/死亡」占位的，更新为最新状态
-        if (cur !== marker) {
-          changed = true;
-          return { ...round, [c.id]: marker };
-        }
-        return round;
-      });
-    });
-    if (changed) {
-      combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
-    }
-  };
-
   // ✅ 找到下一个有效回合（跳过被突袭/死亡，不跳过昏迷）
   // 从指定位置（行、列）开始，向右→下一行扫描
   // 可选传入 roundsOverride：当本帧刚 combatStore.update 新增了轮次、record 还没重新渲染时使用
@@ -1493,102 +1384,6 @@ export default function CombatSession() {
   const confirmEndTurn = () => {
     setConfirmEndTurnOpen(false);
     advanceTurn();
-  };
-
-  // ✅ 手动记录：确认后写入表格并应用效果
-  const confirmManualRecord = () => {
-    if (!selectedCell) return;
-    const { round, combatantId } = selectedCell;
-    const target = record.combatants.find(c => c.id === manualTargetId);
-    const attacker = record.combatants.find(c => c.id === combatantId);
-
-    if (manualRecordType === 'attack') {
-      if (!canUseAction(combatantId)) {
-        alert('该参战者本回合已没有可用动作');
-        return;
-      }
-      if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
-      if (!target) { alert('请选择目标'); return; }
-      if (!manualAttackRoll) { alert('请填写攻击检定值'); return; }
-
-      // 自动判定：攻击检定值根据目标 AC 自动判断命中
-      const roll = parseInt(manualAttackRoll, 10);
-      if (isNaN(roll)) { alert('攻击检定值必须是数字'); return; }
-      const tgtAc = getEffectiveAc(target);
-      if (!tgtAc && tgtAc !== 0) { alert('目标缺少 AC，无法判定命中'); return; }
-      const hit = roll >= tgtAc;
-
-      let text = '';
-      if (!hit) {
-        text = `对 ${target.name} 的攻击未命中，${manualAttackMethod}打偏了`;
-      } else {
-        const dmg = parseInt(manualDamage, 10);
-        if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
-        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害`;
-        if (manualIsKill && target.currentHp !== undefined) {
-          const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
-          const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
-          handleApplyDamage(target.id, newHp, status);
-          text += target.isPc ? `，将其击昏` : `，将其杀死`;
-        } else if (target.currentHp !== undefined) {
-          const newHp = Math.max(0, target.currentHp - dmg);
-          handleApplyDamage(target.id, newHp);
-        }
-      }
-      handleCellChange(round, combatantId, text);
-      // 攻击（无论命中/未命中）消耗 1 个动作
-      consumeCombatantAction(combatantId);
-    } else if (manualRecordType === 'recovery') {
-      if (!manualHealMethod.trim()) { alert('请填写恢复方式'); return; }
-      const amount = parseInt(manualHealAmount, 10);
-      if (isNaN(amount) || amount <= 0) { alert('请输入有效的恢复量（正整数）'); return; }
-      if (!attacker) return;
-
-      let targetHpId = manualTargetId;
-      let targetName = target?.name || '';
-      if (!target) {
-        // 如果没选目标，默认恢复自己
-        targetHpId = combatantId;
-        targetName = attacker.name;
-      }
-      const tgt = record.combatants.find(c => c.id === targetHpId);
-      if (!tgt) return;
-
-      const newHp = Math.min(tgt.maxHp ?? tgt.currentHp ?? 0, (tgt.currentHp ?? 0) + amount);
-      handleApplyDamage(tgt.id, newHp);
-
-      const isSelf = targetHpId === combatantId;
-      const text = isSelf
-        ? `用${manualHealMethod}恢复了自己${amount}点生命值`
-        : `用${manualHealMethod}恢复了${targetName} ${amount}点生命值`;
-      handleCellChange(round, combatantId, text);
-    }
-
-    // 重置表单
-    setManualRecordOpen(false);
-    setManualRecordType(null);
-    setManualTargetId('');
-    setManualAttackMethod('');
-    setManualDamage('');
-    setManualIsKill(false);
-    setManualHealMethod('');
-    setManualHealAmount('');
-    setManualAttackRoll('');
-    setSelectedCell(null);
-  };
-
-  // ✅ 手动记录：关闭窗口
-  const cancelManualRecord = () => {
-    setManualRecordOpen(false);
-    setManualRecordType(null);
-    setManualTargetId('');
-    setManualAttackMethod('');
-    setManualDamage('');
-    setManualIsKill(false);
-    setManualHealMethod('');
-    setManualHealAmount('');
-    setManualAttackRoll('');
-    setSelectedCell(null);
   };
 
   // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）

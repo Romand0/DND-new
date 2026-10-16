@@ -274,13 +274,13 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 |---|---|---|---|---|---|
 | P0 | 文件骨架抽取（hook + 组件落盘，`import type {}` 占位） | ✅ | — | 3646→3656 | 产物完整但**过期**，见 §1.2 |
 | P1-1 | useActions | ⬜ | — | 3656 | — |
-| P1-2 | useCombatInventories | ⬜ | — | — | — |
+| P1-2 | useCombatInventories | ✅ | 2026-10-16 | 3507 | 零漂移直接接线（页面版 `getEffectiveAc` 含一行未使用死代码 `const changes`，hook 已去掉）；同时清掉页面对 `computeCombatantAc` 的 import |
 | P1-3 | useSurprise | ✅ | 2026-10-14 | 3611 | Pilot：按方案 A 重新抽取并真实接线；`onConfirmed` 承接 `pendingRestartPlayback → startPlaybackFromBeginning` 联动；tsc/build/dev 三验通过 |
 | P1-4 | useThrownDrop | ⬜ | — | — | — |
-| P2-1 | useDamageAndHp | ⬜ | — | — | — |
+| P2-1 | useDamageAndHp | ✅ | 2026-10-16 | 3406 | 小漂移对账：hook 仅多 `!record` 守卫、`playbackMode` 改为 props 传入（页面语义等价）；删 handleApplyDamage + autoFillDownedMarkers 内联（~100 行） |
 | P2-2 | useRoundTurn | ⬜ | — | — | 缺口大：缺自动推进 + handleComatoseTurn |
 | P3-1 | useInitiative | ⬜ | — | — | — |
-| P3-2 | useManualRecord | ⬜ | — | — | — |
+| P3-2 | useManualRecord | ✅ | 2026-10-16 | 3533 | hook 与页面逐行对账零漂移（仅多 `!record` 守卫），直接接线；4 个依赖函数在 `!isDM` 早退之后定义，以惰性箭头传入规避 TDZ；删 9 个 state + confirm/cancel 内联 |
 | P4 | usePlayback | ⬜ | — | — | 缺口大：缺自动推进与暂停/恢复 |
 
 ### 组件迁移
