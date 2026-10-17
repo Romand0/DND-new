@@ -12,6 +12,9 @@ const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工�
 const MAGIC_CATEGORIES = ['魔法物品', '非魔法物品'];
 const TRADE_CATEGORIES = ['冒险物品', '贵重物品'];
 
+// 分类排序顺序（排除"全部"）
+const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+
 const SUBCATEGORY_MAP: Record<string, string[]> = {
   '武器': ['军用近战', '军用远程', '简易近战', '简易远程'],
   '护甲': ['轻甲', '中甲', '重甲', '盾牌'],
@@ -47,7 +50,6 @@ export default function EquipmentList() {
     setError('');
     try {
       const data = await fetchAllEquipments();
-      data.sort((a, b) => a.id.localeCompare(b.id));
       setEquipments(data);
     } catch (e: any) {
       setError(e.message || '加载失败');
@@ -77,7 +79,7 @@ export default function EquipmentList() {
   list.includes(value) ? list.filter(v => v !== value) : [...list, value];
 
   const filteredEquipments = useMemo(() => {
-    return equipments.filter((item) => {
+    let result = equipments.filter((item) => {
       const mc = item.magicCategory ?? '非魔法物品';
       const tc = item.tradeCategory ?? '冒险物品';
       const matchFunc = funcFilter === '全部' || item.category === funcFilter;
@@ -87,6 +89,27 @@ export default function EquipmentList() {
       const matchSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
       return matchFunc && matchSub && matchMagic && matchTrade && matchSearch;
     });
+
+    // 排序逻辑：在"全部"筛选下按分类顺序排序，否则按 ID 排序
+    result.sort((a, b) => {
+      if (funcFilter === '全部') {
+        // 按分类顺序排序，同分类内按 ID 排序
+        const aCategoryIndex = CATEGORY_ORDER.indexOf(a.category);
+        const bCategoryIndex = CATEGORY_ORDER.indexOf(b.category);
+        
+        if (aCategoryIndex !== bCategoryIndex) {
+          return aCategoryIndex - bCategoryIndex;
+        }
+        
+        // 同分类内按 ID 排序
+        return a.id.localeCompare(b.id);
+      } else {
+        // 非"全部"筛选下按 ID 排序
+        return a.id.localeCompare(b.id);
+      }
+    });
+
+    return result;
   }, [equipments, funcFilter, subFilter, magicFilter, tradeFilter, searchQuery]);
 
   // ---- 选择逻辑 ----
