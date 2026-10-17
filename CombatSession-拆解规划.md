@@ -289,6 +289,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 |---|---|---|---|
 | SurpriseAttackDialog | ✅ | 2026-10-17 | 预抽取与页面逐字一致，直接接线（open 布尔包裹 + 7 props 直传 useSurprise 输出）；页面 2468→2415（-53），占位 9→8；分支 refactor/combat-session-p6-1（堆叠于 p4） |
 | InitiativeRollDialog | ✅ | 2026-10-17 | 预抽取与页面行为等价（dexMod/total 计算与禁用条件一致，组件内部 `!open || !selectedPc` 自守卫替代页面双重包裹）；onClose 为三 setter 组合以惰性箭头传入；onConfirm=handleConfirmInitiative（useInitiative 输出）；页面 2415→2341（-74），占位 8→7；分支 refactor/combat-session-p6-2（堆叠于 p6-1） |
+| InitiativeTiebreakerDialog | ✅ | 2026-10-17 | 预抽取与页面逐字一致，直接接线（9 props：tiedOrder/cardRefs/draggingIndex + 拖拽三回调 handleDragStart/Move/End + handleConfirmTiebreaker，均 useInitiative 输出；onClose 两 setter 组合惰性箭头）；页面 2341→2278（-63），占位 7→6；分支 refactor/combat-session-p6-3（堆叠于 p6-2） |
 | CombatantList | ⬜ | — | — |
 | InitiativeTable | ⬜ | — | — |
 | InitiativeRollDialog | ⬜ | — | — |

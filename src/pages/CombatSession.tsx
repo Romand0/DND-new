@@ -17,7 +17,7 @@ import { useThrownDrop } from '@/hooks/combat/useThrownDrop';
 import type {} from '@/components/combat/CombatantList';
 import type {} from '@/components/combat/InitiativeTable';
 import InitiativeRollDialog from '@/components/combat/InitiativeRollDialog';
-import type {} from '@/components/combat/InitiativeTiebreakerDialog';
+import InitiativeTiebreakerDialog from '@/components/combat/InitiativeTiebreakerDialog';
 import type {} from '@/components/combat/ManualRecordDialog';
 import type {} from '@/components/combat/PlaybackToolbar';
 import type {} from '@/components/combat/RewindDialog';
@@ -621,83 +621,20 @@ export default function CombatSession() {
       />
 
       {/* ✅ 新增：先攻平局排序弹窗 —— 触屏拖拽重排平局参战者 */}
-      {tiebreakerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-          <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">先攻平局</h3>
-              <button
-                onClick={() => {
-                  setTiebreakerOpen(false);
-                  setTiedOrder([]);
-                }}
-                className="p-1 rounded hover:bg-white/10"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-4">
-              以下参战者先攻相同（{tiedOrder[0]?.initiative ?? '-'}），长按拖动调整行动顺序
-            </p>
-            <div
-              className="space-y-2 max-h-[60vh] overflow-y-auto touch-none select-none"
-              onPointerMove={handleDragMove}
-              onPointerUp={handleDragEnd}
-              onPointerCancel={handleDragEnd}
-            >
-              {tiedOrder.map((c, index) => {
-                // PC 查种族/职业；NPC 仅显示名称
-                const pc = c.characterId ? characterStore.get(c.characterId) : null;
-                const race = pc?.race;
-                const cls = pc?.profession?.class;
-                return (
-                  <div
-                    key={c.id}
-                    ref={(el) => { cardRefs.current[index] = el; }}
-                    onPointerDown={(e) => handleDragStart(e, index)}
-                    className={`flex items-center gap-2 p-3 rounded-lg border cursor-grab active:cursor-grabbing transition-shadow ${
-                      draggingIndex === index
-                        ? 'border-primary shadow-lg scale-[1.02] opacity-90'
-                        : 'dark:border-border-dark light:border-border-light'
-                    } dark:bg-bg-dark light:bg-bg-light-2`}
-                    style={{ touchAction: 'none' }}
-                  >
-                    <GripVertical className="w-4 h-4 opacity-40 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate dark:text-text-dark light:text-text-light">
-                        {c.name}
-                      </div>
-                      <div className="text-xs opacity-60 truncate">
-                        {c.isPc
-                          ? [race, cls].filter(Boolean).join(' · ') || '玩家角色'
-                          : 'NPC'}
-                      </div>
-                    </div>
-                    <div className="text-xs font-bold text-primary shrink-0">#{index + 1}</div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() => {
-                  setTiebreakerOpen(false);
-                  setTiedOrder([]);
-                }}
-                className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
-              >
-                取消
-              </button>
-              <button
-                onClick={handleConfirmTiebreaker}
-                className="flex-1 px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
-              >
-                确认顺序
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <InitiativeTiebreakerDialog
+        open={tiebreakerOpen}
+        tiedOrder={tiedOrder}
+        cardRefs={cardRefs}
+        draggingIndex={draggingIndex}
+        onDragStart={handleDragStart}
+        onDragMove={handleDragMove}
+        onDragEnd={handleDragEnd}
+        onConfirm={handleConfirmTiebreaker}
+        onClose={() => {
+          setTiebreakerOpen(false);
+          setTiedOrder([]);
+        }}
+      />
 
       {/* ✅ 模式切换栏 —— 模拟模式 / 放映模式 + 从头播放按钮 */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light w-fit">
