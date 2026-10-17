@@ -5,7 +5,7 @@
 //   components: CombatantList / InitiativeTable / InitiativeRollDialog /
 //          InitiativeTiebreakerDialog / ManualRecordDialog / PlaybackToolbar /
 //          RewindDialog / SurpriseAttackDialog / CombatantInfoPanel
-import type {} from '@/hooks/combat/useActions';
+import { useActions } from '@/hooks/combat/useActions';
 import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
 import { useDamageAndHp } from '@/hooks/combat/useDamageAndHp';
 import { useInitiative } from '@/hooks/combat/useInitiative';
@@ -125,7 +125,8 @@ export default function CombatSession() {
 
   // 回合推进全链路：由 hook 接管（playbackStarted/currentTurn/确认弹窗/回溯弹窗/快照/回溯）。
   // 必须置于下方 playback 相关 effect 之前：effect 依赖数组在渲染期读取 playbackStarted/currentTurn。
-  // resetCombatantActions / isPlaybackActive 在下方早退之后才定义，用惰性箭头解引用（避开 TDZ）
+  // resetCombatantActions / isPlaybackActive 由下方 useActions hook 返回，
+  // 晚于本调用声明，用惰性箭头解引用（避开 TDZ）
   const {
     playbackStarted,
     setPlaybackStarted,
@@ -162,6 +163,19 @@ export default function CombatSession() {
     });
     return unsub;
   }, [sessionId]);
+
+  // 动作机制：由 hook 接管（isPlaybackActive 含 playbackPaused 判定，暂停期间按模拟模式处理）。
+  // resetCombatantActions / isPlaybackActive 供上方 useRoundTurn 的惰性箭头闭包引用。
+  const {
+    currentMode,
+    isPlaybackActive,
+    canUseAction,
+    canUseBonusAction,
+    consumeCombatantAction,
+    consumeCombatantBonusAction,
+    markLoadingAttacked,
+    resetCombatantActions,
+  } = useActions(record, { playbackStarted, playbackPaused, currentTurn });
 
   // ✅ 新增：过滤已参战的角色，避免重复添加（完全不影响原有逻辑）
   const existingCharIds = record
@@ -454,70 +468,6 @@ export default function CombatSession() {
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
-  };
-
-  // ============ 动作机制 ============
-  // 当前战斗模式：playback=放映（有回合，每回合 1 动作），否则 simulation=模拟（动作无限）
-  const currentMode = (): 'simulation' | 'playback' =>
-    record?.mode === 'playback' ? 'playback' : 'simulation';
-
-  // 是否处于"有效放映回合中"：放映模式 + 已开始 + 未暂停 + 有当前回合
-  // （暂停期间所有动作判定按模拟模式处理：不消耗动作、不写当前回合格）
-  const isPlaybackActive = (): boolean =>
-    currentMode() === 'playback' && playbackStarted && !playbackPaused && !!currentTurn;
-
-  // 该参战者当前是否还能发起动作（模拟模式/放映暂停恒可；放映模式 0 时禁止）
-  const canUseAction = (combatantId: string): boolean => {
-    if (!record) return false;
-    if (!isPlaybackActive()) return true;
-    const c = record.combatants.find(x => x.id === combatantId);
-    if (!c) return false;
-    return (typeof c.actions === 'number' ? c.actions : 1) > 0;
-  };
-
-  // 消耗 1 个动作（写入 store，订阅机制自动刷新 UI）；暂停期间不消耗
-  const consumeCombatantAction = (combatantId: string) => {
-    if (!record) return;
-    if (!isPlaybackActive()) return;
-    combatStore.consumeAction(record.id, combatantId, 'playback');
-  };
-
-  // 该参战者当前是否还有可用附赠动作次数（模拟模式/放映暂停恒可；放映模式 0 时禁止）
-  const canUseBonusAction = (combatantId: string): boolean => {
-    if (!record) return false;
-    if (!isPlaybackActive()) return true;
-    const c = record.combatants.find(x => x.id === combatantId);
-    if (!c) return false;
-    return (typeof c.bonusActions === 'number' ? c.bonusActions : 1) > 0;
-  };
-
-  // 消耗 1 个附赠动作（写入 store，订阅机制自动刷新 UI）；暂停期间不消耗
-  const consumeCombatantBonusAction = (combatantId: string) => {
-    if (!record) return;
-    if (!isPlaybackActive()) return;
-    combatStore.consumeBonusAction(record.id, combatantId, 'playback');
-  };
-
-  // 放映模式：标记本回合已用过装填武器攻击（每回合只能攻击一次，优先级高于额外动作）
-  // 暂停期间不做标记，暂停解除前的操作不计入回合限制
-  const markLoadingAttacked = (combatantId: string) => {
-    if (!isPlaybackActive()) return;
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    combatStore.update(record.id, {
-      loadingAttackedThisRound: {
-        ...(latest.loadingAttackedThisRound || {}),
-        [combatantId]: true,
-      },
-      updatedAt: Date.now(),
-    });
-  };
-
-  // 放映模式回合开始：恢复该参战者可用动作为 1
-  const resetCombatantActions = (combatantId: string) => {
-    if (!record) return;
-    if (record.mode !== 'playback') return;
-    combatStore.resetActions(record.id, combatantId);
   };
 
   const commitModeChange = (mode: 'simulation' | 'playback') => {
