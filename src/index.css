@@ -247,3 +247,74 @@ textarea:focus::placeholder {
 .animate-flow-pulse {
   animation: flow-pulse 1s linear infinite;
 }
+
+/* ===== 渐变省略号效果 ===== */
+.text-gradient-ellipsis {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.text-gradient-ellipsis::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to right, transparent, var(--bg-color, transparent));
+  pointer-events: none;
+}
+
+/* 深色模式适配 */
+.dark .text-gradient-ellipsis {
+  --bg-color: var(--color-bg-dark);
+}
+
+/* 浅色模式适配 */
+.light .text-gradient-ellipsis {
+  --bg-color: var(--color-bg-light-2);
+}
+
+/* 表格中的渐变省略号 */
+.table-ellipsis {
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px; /* 限制最大宽度 */
+}
+
+.table-ellipsis::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 32px;
+  background: linear-gradient(to right, transparent, var(--bg-color, transparent));
+  pointer-events: none;
+}
+
+/* 移动端卡片中的渐变省略号 */
+.mobile-ellipsis {
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
+}
+
+.mobile-ellipsis::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 28px;
+  background: linear-gradient(to right, transparent, var(--bg-color, transparent));
+  pointer-events: none;
+}

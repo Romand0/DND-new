@@ -280,7 +280,7 @@ export default function SpellList() {
       <div className="hidden md:block rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
         <table className="w-full">
           <thead>
-            <tr className="border-b dark:border-border-dark light:border-border-light">
+            <tr className="border-b dark:border-border-dark light:border-border-light h-12">
               <th className="text-left px-4 py-3 text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">名称</th>
               <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">环级</th>
               <th className="text-center px-4 py-3 text-sm font-medium w-24 dark:text-text-dark-muted light:text-text-light-muted">学派</th>
@@ -294,7 +294,7 @@ export default function SpellList() {
               <tr><td colSpan={isDM ? 6 : 5} className="px-4 py-12 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">暂无匹配的法术</td></tr>
             ) : (
               sortedSpells.map(spell => (
-                <tr key={spell.id} className="border-b last:border-0 dark:border-border-dark/50 light:border-border-light/50 hover:bg-white/5 transition-colors">
+                <tr key={spell.id} className="border-b last:border-0 dark:border-border-dark/50 light:border-border-light/50 hover:bg-white/5 transition-colors h-12">
                   <td className="px-4 py-3">
                     <button onClick={() => navigate(`/spells/${spell.id}`)} className="text-left font-medium hover:text-primary dark:text-text-dark light:text-text-light">
                       {spell.name}
@@ -306,7 +306,11 @@ export default function SpellList() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">{spell.school}</td>
-                  <td className="px-4 py-3 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">{spell.castingTime}</td>
+                  <td className="px-4 py-3">
+  <span className="table-ellipsis text-sm text-center dark:text-text-dark-muted light:text-text-light-muted inline-block">
+    {spell.castingTime}
+  </span>
+</td>
                   <td className="px-4 py-3 text-center text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">{getComponentAbbr(spell.components)}</td>
                   {isDM && (
                     <td className="px-4 py-3">
@@ -348,7 +352,7 @@ export default function SpellList() {
                 )}
               </div>
               <div className="flex items-center gap-4 mt-3 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                <span>施法时间: {spell.castingTime}</span>
+                <span className="mobile-ellipsis">施法时间: {spell.castingTime}</span>
                 <span>成分: {getComponentAbbr(spell.components) || '无'}</span>
               </div>
             </div>
