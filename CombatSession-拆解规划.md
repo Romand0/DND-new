@@ -281,7 +281,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P2-2 | useRoundTurn | ✅ | 2026-10-17 | 2732 | 方案 A 重新抽取（页面为权威源）：hook 带上完整页面能力——IDB 双写快照（takeTurnSnapshot/applyRollback 走 snapDb）、自动推进（checkAndAutoAdvance + handleComatoseTurn 含 PC death_save 待办判定/NPC 自动掷骰）、全灭 → setCommitModalOpen、rewindModal 弹窗状态；autoAdvanceRef/autoAdvanceTimerRef/rollbackSnapshotRef 按 §4.2 留在页面以 props 传入；**clearExpiredAdvantage 裁定：保留**（AGENTS.md §5.13 记载的设计行为，页面此前漏调，接线时补齐 3 个分支）；resetCombatantActions/isPlaybackActive 惰性箭头传入；hook 调用必须置于 playback effect 之前（L173/197 依赖数组渲染期读取 playbackStarted）；删除 autoFillDownedMarkers 死 prop（仅 startPlayback 用，P4 时给 usePlayback）；TurnSnapshot 改用 types/combat 共享类型并对 stale usePlayback 再导出；删 4 state + 10 内联函数（-325 行）；占位 12→11；注意：本仓库 `npx tsc --noEmit` 为 no-op（solution-style tsconfig），真门禁是 `tsc -b`（本次 `tsc -b --force` 才暴露 stale usePlayback 的缓存掩盖问题） |
 | P3-1 | useInitiative | ✅ | 2026-10-17 | 3057 | 小漂移对账：除 hook 多 `!record` 守卫外逐行一致，直接接线；接口清理：删除从未被 hook 内部调用的 4 个死 props（onAddCombatant/onRemoveCombatant/onAddNpc/onBatchAddNpc，避免 handleAddCombatant 依赖 hook setter 的循环依赖），editingInitiative/initiativeInput 由页面死代码移入 hook 内部持有（内联编辑 UI 已只读化，无 JSX 调用方）；页面删 7 state + cardRefs + 9 内联函数；占位 13→12；tsc/build/dev 三验通过 |
 | P3-2 | useManualRecord | ✅ | 2026-10-16 | 3533 | hook 与页面逐行对账零漂移（仅多 `!record` 守卫），直接接线；4 个依赖函数在 `!isDM` 早退之后定义，以惰性箭头传入规避 TDZ；删 9 个 state + confirm/cancel 内联 |
-| P4 | usePlayback | ⬜ | — | — | 缺口大：缺自动推进与暂停/恢复 |
+| P4 | usePlayback | ✅ | 2026-10-17 | 2468 | 方案 A 重新抽取：拥有 playbackPaused/pausedTurnRef/playbackSnapshotRef/exitPlaybackModalOpen/pendingRestartPlayback 5 个状态与 commitModeChange/handleModeChange/finalizeExitPlayback/pausePlayback/resumePlayback/startPlayback/handleRestartPlayback/startPlaybackFromBeginning 全链路；**initial 快照 IDB 持久化收口在 hook**（handleModeChange 写入 putInitialSnapshot，finalizeExitPlayback/startPlaybackFromBeginning 清理 deleteSessionSnapshots，陈旧 hook 均缺）；调用顺序：record-loading effect 之后、useActions 之前（isPlaybackActive 依赖 playbackPaused）；对 useRoundTurn 直接传 playbackStarted/currentTurn/findNextValidTurn/checkAndAutoAdvance/takeTurnSnapshot，对 useActions/useDamageAndHp/useSurprise 用惰性箭头（resetCombatantActions/autoFillDownedMarkers/openSurpriseAttackModal）；startPlayback 增加 selectedCell prop；**裁定：丢弃陈旧 hook startPlayback 的"还原快照+清空选中格后记录"逻辑**（页面权威版为纯扫描启动，完整回溯已由 useRoundTurn.applyRollback + startPlaybackFromBeginning 分担，§5.11 描述系陈旧 hook 时代设计）；页面 2682→2468（-214），占位 10→9 |
 
 ### 组件迁移
 
@@ -310,7 +310,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P2-2 | ✅ `tsc -b --force` 零错误 | dev 启动 ✅；放映/回溯场景待人工 | 3057→2732 ✅ | ✅ grep 验证 | ✅（待人工冒烟补录） |
 | P3-1 | ✅ 零错误 | dev 启动 ✅；战斗流程场景待人工 | 3245→3057 ✅ | ✅ grep 验证 | ✅（待人工冒烟补录） |
 | P3-2 | — | — | — | — | — |
-| P4 | — | — | — | — | — |
+| P4 | ✅ 零错误 | dev 启动 ✅；放映/暂停/恢复/回溯/刷新恢复场景待人工 | 2682→2468 ✅ | ✅ grep 验证 | ✅（待人工冒烟补录） |
 
 ---
 
