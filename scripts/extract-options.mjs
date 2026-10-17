@@ -147,6 +147,8 @@ function isTraitHeader(t, following) {
   // 句号收尾仅允许「英文名。」形态（如 亚种Subrace。——句号常被包进加粗 run）
   if (t.includes('。') && !/[A-Za-z)）]。$/.test(t)) return false;
   if (t.includes('，') || t.includes('、')) return false;
+  // 字段标签：以冒号收尾（如 技能熟练项：/语言：/装备：）
+  if (/[：:]$/.test(t) && t.length <= 20) return true;
   // 条目头以英文收尾（如 黑暗视觉Darkvision / 特性：信仰庇护Feature: Shelter of the Faithful）
   if (/[A-Za-z)）]。?$/.test(t)) return true;
   // 纯中文条目头：紧随其后的正文以 。 开头才算
@@ -184,6 +186,14 @@ function parseTable(tableHtml) {
 // ---------- 机械字段解析 ----------
 
 const ABILITY_ZH = ['力量', '敏捷', '体质', '智力', '感知', '魅力'];
+const ABILITY_EN_MAP_ZH = {
+  力量: 'strength',
+  敏捷: 'dexterity',
+  体质: 'constitution',
+  智力: 'intelligence',
+  感知: 'wisdom',
+  魅力: 'charisma',
+};
 
 function parseAbilityBonus(text) {
   // 特例：人类「全部属性值加1」
@@ -216,30 +226,53 @@ function parseDarkvision(text) {
 }
 
 function parseSaves(text) {
+  // 独立字段形态：「豁免：」header 后的纯列表（如 力量、体质 / 感知，魅力）
+  const list = text.match(
+    /^(力量|敏捷|体质|智力|感知|魅力)((?:[、，,](力量|敏捷|体质|智力|感知|魅力))+)$/
+  );
+  if (list) {
+    const saves = [list[1]];
+    const re = /[、，,](力量|敏捷|体质|智力|感知|魅力)/g;
+    let m;
+    while ((m = re.exec(text)) !== null) saves.push(m[1]);
+    return [...new Set(saves)].map((a) => ABILITY_EN_MAP_ZH[a]);
+  }
+  // 行内形态：熟练项正文中的「豁免：力量、体质」
   const m = text.match(
     /豁免[：:]\s*((?:力量|敏捷|体质|智力|感知|魅力)(?:、(?:力量|敏捷|体质|智力|感知|魅力))*)/
   );
-  return m ? m[1].split('、') : null;
+  if (m) {
+    return [...new Set(m[1].split(/[、，,]/))].map((a) => ABILITY_EN_MAP_ZH[a]);
+  }
+  return null;
 }
 
 // ---------- L2.5: 文档流 → 块序列 ----------
 
 function extractBlocks(lines, tables) {
   const blocks = [];
-  for (const line of lines) {
-    const hm = line.match(/^«H(\d)»([\s\S]*?)(?:«\/H»)?$/);
-    if (hm) {
-      // Word 导出的 h2 常缺 </h2>，«/H» 可能缺失；行内加粗标记一并剥除
-      blocks.push({
-        kind: 'heading',
-        level: Number(hm[1]),
-        text: stripBoldMarkers(hm[2].replace(/«\/H»/g, '')).trim(),
-      });
-      continue;
-    }
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const tm = line.match(/^«TABLE:(\d+)»$/);
     if (tm) {
       blocks.push({ kind: 'table', rows: parseTable(tables[Number(tm[1])]) });
+      continue;
+    }
+    // 标题可能跨物理行（Word 源码在 </b><b> 间留软换行），向后吞到 «/H» 为止
+    if (/^«H\d»/.test(line)) {
+      let text = line;
+      let guard = 0;
+      while (!/«\/H»\s*$/.test(text) && li + 1 < lines.length && guard < 3) {
+        text += ' ' + lines[++li];
+        guard++;
+      }
+      const hm = text.match(/^«H(\d)»([\s\S]*?)(?:«\/H»)?$/);
+      const headingText = stripBoldMarkers(hm[2].replace(/«\/H»/g, '')).trim();
+      blocks.push({ kind: 'heading', level: Number(hm[1]), text: headingText });
+      // 背景域的特性标题以 h4 形态出现，同步补一条 header 块供特征收集
+      if (headingText.startsWith('特性')) {
+        blocks.push({ kind: 'header', text: headingText });
+      }
       continue;
     }
     for (const seg of splitLineIntoSegments(line)) {
@@ -516,11 +549,11 @@ function extractBackgrounds() {
     const firstText = blocks.find((b) => b.kind === 'text' && b.text.length > 30);
     bg.description = firstText ? firstText.text.replace(/\s+/g, ' ').slice(0, 500) : '';
 
-    // 建议特征表（d8/d6）
+    // 建议特征表（d8/d6）：起始锚点可能是 header 或 h4 heading
     const charTables = [];
     let inChars = false;
     for (const b of blocks) {
-      if (b.kind === 'header' && /建议特征/i.test(b.text)) inChars = true;
+      if ((b.kind === 'header' || b.kind === 'heading') && /建议特征/i.test(b.text)) inChars = true;
       else if (b.kind === 'header' || b.kind === 'heading') inChars = false;
       else if (b.kind === 'table' && inChars) charTables.push(b.rows);
     }
@@ -584,6 +617,10 @@ function extractClasses() {
   console.log(`\n=== 职业域：${classFiles.length} 个候选文件 ===`);
 
   for (const e of classFiles) {
+    // 章节概览页
+    if (e.name === '职业.html') continue;
+    // 吟游诗人1.html 为 CHM 冗余副本，与 吟游诗人.html 内容一致
+    if (e.name === '吟游诗人1.html') continue;
     const { lines, tables } = normalize(decodeGbk(path.join(dir, e.name)));
     const blocks = extractBlocks(lines, tables);
     const headings = blocks.filter((b) => b.kind === 'heading');
@@ -594,24 +631,35 @@ function extractClasses() {
     }
     const { zh: className, en: classEn } = splitZhEn(h2.text);
 
-    // 职业表：表头含 职业等级 的第一张表
+    // 职业表：表头含 职业等级 的第一张表（单元格内换行被压缩成空格，先归一化）
     const tableBlock = blocks.find(
       (b) =>
         b.kind === 'table' &&
         b.rows.length > 5 &&
-        b.rows[0].some((c) => c.includes('职业等级'))
+        b.rows[0].some((c) => c.replace(/\s/g, '').includes('职业等级'))
     );
     let table = null;
     if (tableBlock) {
-      const header = tableBlock.rows[0];
+      // 双行表头（法师/吟游诗人等「每环法术位」合并列）：row1 为 1环~9环 子列，
+      // 合并为单表头——前段列取 row0，环阶段取 row1
+      let rows = tableBlock.rows;
+      const isRingRow = (r) =>
+        r.filter((c) => /^[一二三四五六七八九1-9]\s*环$/.test(String(c).replace(/\s/g, ''))).length >= 5;
+      if (rows.length > 2 && isRingRow(rows[1])) {
+        // row0 末列「每环法术位」是跨列组标题（colSpan 未展开），由 row1 的环阶列替代
+        const merged = [...rows[0].slice(0, -1), ...rows[1]];
+        rows = [merged, ...rows.slice(2)];
+      }
+      const header = rows[0];
       const idx = { level: -1, prof: -1, features: -1, slots: {} };
       header.forEach((c, i) => {
-        if (c.includes('职业等级')) idx.level = i;
-        else if (c.includes('熟练加值')) idx.prof = i;
-        else if (c.includes('职业特性')) idx.features = i;
-        else if (/^[一二三四五六七八九]环/.test(c)) idx.slots[i] = c;
+        const col = String(c).replace(/\s/g, '');
+        if (col.includes('职业等级')) idx.level = i;
+        else if (col.includes('熟练加值')) idx.prof = i;
+        else if (col.includes('职业特性')) idx.features = i;
+        else if (/^[一二三四五六七八九1-9]环/.test(col)) idx.slots[i] = col;
       });
-      table = tableBlock.rows
+      table = rows
         .slice(1)
         .map((r) => {
           const row = {
@@ -620,7 +668,10 @@ function extractClasses() {
             features: [],
           };
           if (idx.features >= 0 && r[idx.features]) {
-            row.features = r[idx.features].split(/[，,]/).map((s) => s.trim()).filter(Boolean);
+            row.features = r[idx.features]
+              .split(/[，,]/)
+              .map((s) => s.trim())
+              .filter((s) => s && s !== '－' && s !== '—');
           }
           const slots = {};
           for (const [i, label] of Object.entries(idx.slots)) {
@@ -641,6 +692,7 @@ function extractClasses() {
     const hpF = find('生命骰');
     const profF = find('熟练项');
     const equipF = find('装备');
+    const saveF = find('豁免');
     const hitDie = hpF ? (hpF.text.match(/1d(\d+)/) || [])[1] : null;
 
     // 职业特性：排除结构段
@@ -672,7 +724,7 @@ function extractClasses() {
       source: '玩家手册 2014',
       mechanics: {
         hitDie: hitDie ? Number(hitDie) : null,
-        savingThrows: parseSaves(profF ? profF.text : '') || [],
+        savingThrows: parseSaves(saveF ? saveF.text : '') || [],
         proficiencies: profF ? profF.text.slice(0, 400) : '',
         startingEquipment: equipF ? equipF.text.slice(0, 500) : '',
       },
@@ -709,26 +761,70 @@ function extractClasses() {
 function extractSubclass(dir, file, parentName) {
   const { lines, tables } = normalize(decodeGbk(path.join(dir, file)));
   const blocks = extractBlocks(lines, tables);
-  const headings = blocks.filter((b) => b.kind === 'heading');
-  const h4s = headings.filter((h) => h.level === 4);
-  if (!h4s.length) return null;
 
-  const features = collectFeatures(blocks);
-  const lvlFeatures = features.filter((f) => f.text && /第\s*\d+\s*级/.test(f.text.slice(0, 30)));
-  if (!lvlFeatures.length) {
-    warn(`子职业/${parentName}/${file}: 无带等级的特性，跳过（概览页）`);
+  // 子职业名：首个「带等级」L4 特性之前最后一个不以「。」结尾的 header/L2。
+  // 文件名不可靠（CHM 存在文件名与内容错位）；以「。」收尾的 header 是无等级选项
+  // 条目（链之魔契Pact of the Chain。/ 战技Maneuvers。），排除
+  const isLeveledL4 = (i) => {
+    const b = blocks[i];
+    return (
+      b.kind === 'heading' &&
+      b.level >= 4 &&
+      blocks.slice(i + 1).some((n) => n.kind === 'text' && /第\s*\d+\s*级/.test(n.text)) === true &&
+      blocks[i + 1] &&
+      blocks[i + 1].kind === 'text' &&
+      /第\s*\d+\s*级/.test(blocks[i + 1].text)
+    );
+  };
+  const firstL4 = blocks.findIndex((_, i) => isLeveledL4(i));
+  const beforeFeature = firstL4 >= 0 ? blocks.slice(0, firstL4) : blocks;
+  // 名字候选：不以「。」收尾、且紧随正文不以「。」开头（排除信条/选项词条，
+  // 如 诚实Honesty→。不诳语、链之魔契Pact of the Chain。）
+  const nameBlock = [...beforeFeature]
+    .reverse()
+    .find((b, ri) => {
+      if (b.kind !== 'header' || !/[\u4e00-\u9fff]/.test(b.text)) return false;
+      if (/[。．]$/.test(b.text)) return false;
+      const bi = beforeFeature.length - 1 - ri;
+      const next = blocks[bi + 1];
+      return !(next && next.kind === 'text' && next.text.startsWith('。'));
+    });
+  const l2 = beforeFeature.find((b) => b.kind === 'heading' && b.level === 2);
+  const nameText = nameBlock ? nameBlock.text : l2 && l2.text;
+  if (!nameText) return null;
+  const { zh: subName, en: subEn } = splitZhEn(nameText.replace(/[。．]$/, ''));
+
+  // 特性以 L4 heading 出现，等级嵌在正文（如「从你第3级选择此范型起」）
+  const features = [];
+  let cur = null;
+  let droppedNoLevel = 0;
+  const flush = () => {
+    if (!cur) return;
+    const m = cur.text.match(/第\s*(\d+)\s*级/);
+    if (m) {
+      features.push({ name: cur.name, nameEn: cur.nameEn, text: cur.text, level: Number(m[1]) });
+    } else if (cur.name) {
+      droppedNoLevel++;
+    }
+    cur = null;
+  };
+  for (const b of blocks) {
+    if (b.kind === 'heading' && b.level >= 4) {
+      flush();
+      const { zh, en } = splitZhEn(b.text);
+      cur = { name: zh, nameEn: en, text: '' };
+    } else if (b.kind === 'heading' || b.kind === 'header' || b.kind === 'table') {
+      flush();
+    } else if (b.kind === 'text' && cur) {
+      cur.text += (cur.text ? ' ' : '') + b.text;
+    }
+  }
+  flush();
+
+  if (!features.length) {
+    warn(`子职业/${parentName}/${file}: 无带等级的特性，跳过（概览页，丢弃无等级条目 ${droppedNoLevel} 条）`);
     return null;
   }
-  const nameH =
-    h4s.find((h) => /[A-Za-z]/.test(h.text) && /[\u4e00-\u9fff]/.test(h.text)) || h4s[0];
-  const { zh: subName, en: subEn } = splitZhEn(nameH.text);
-
-  const parsed = lvlFeatures.map((f) => {
-    const m = f.text.match(/第\s*(\d+)\s*级/);
-    return { name: f.name, nameEn: f.nameEn, text: f.text, level: m ? Number(m[1]) : null };
-  });
-
-  if (parsed.some((p) => p.level === null)) warn(`子职业/${subName}: 存在无法解析等级的特性`);
 
   return {
     id: slug(subEn || subName),
@@ -737,7 +833,7 @@ function extractSubclass(dir, file, parentName) {
     category: 'subclass',
     parentName,
     source: '玩家手册 2014',
-    features: parsed,
+    features,
     dataResource: '5E不全书',
   };
 }
@@ -763,7 +859,15 @@ function main() {
   const args = process.argv.slice(2);
   const want = (d) => args.length === 0 || args.includes(d);
 
-  const out = {};
+  // 部分域运行时与既有产出合并
+  let out = {};
+  if (fs.existsSync(OUT_FILE)) {
+    try {
+      out = JSON.parse(fs.readFileSync(OUT_FILE, 'utf8'));
+    } catch {
+      out = {};
+    }
+  }
   if (want('race')) out.races = extractRaces();
   if (want('background')) out.backgrounds = extractBackgrounds();
   if (want('class')) out.classes = extractClasses();
