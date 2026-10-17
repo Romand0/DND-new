@@ -5,6 +5,7 @@ import * as api from '@/lib/api';
 import { equipmentStore } from '@/data/equipmentStore';
 import { spellStore } from '@/data/spellStore';
 import { characterStore } from '@/data/characterStore';
+import optionStore from '@/data/optionStore';
 import type { Character } from '@/types/character';
 
 export default function MigrationBackup() {
@@ -12,7 +13,7 @@ export default function MigrationBackup() {
   const [migrating, setMigrating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [migrateResult, setMigrateResult] = useState<{ equipments: number; spells: number; characters: number } | null>(null);
+  const [migrateResult, setMigrateResult] = useState<{ equipments: number; spells: number; characters: number; options?: number } | null>(null);
   const [migrateError, setMigrateError] = useState('');
 
   const [equipmentCount, setEquipmentCount] = useState(0);
@@ -41,15 +42,17 @@ export default function MigrationBackup() {
   const handleExport = async () => {
     setExporting(true);
     try {
-      const [eqs, sps, chars] = await Promise.all([
+      const [eqs, sps, chars, opts] = await Promise.all([
         api.fetchAllEquipments(),
         api.fetchAllSpells(),
         api.fetchAllCharacters(),
+        api.fetchAllOptions<any[]>().catch(() => []),
       ]);
       const data = {
         equipments: eqs,
         spells: sps,
         characters: chars,
+        options: opts,
         exportedAt: new Date().toISOString(),
       };
       downloadJson(data);
@@ -58,6 +61,7 @@ export default function MigrationBackup() {
         equipments: equipmentStore.getAll(),
         spells: spellStore.getAll(),
         characters: characterStore.getAll(),
+        options: optionStore.getAll(),
         exportedAt: new Date().toISOString(),
       };
       downloadJson(data);
@@ -142,7 +146,18 @@ export default function MigrationBackup() {
         });
       }
 
-      setMigrateResult({ equipments: eqCount, spells: spCount, characters: chCount });
+      let opCount = 0;
+      if (data.options && Array.isArray(data.options) && data.options.length > 0) {
+        const result = await api.batchUpsertOptions(data.options);
+        opCount = result.count;
+        const opMap = new Map(optionStore.getAll().map((o: any) => [o.id, o]));
+        data.options.forEach((o: any) => {
+          opMap.set(o.id, { ...opMap.get(o.id), ...o });
+        });
+        optionStore.save(Array.from(opMap.values()));
+      }
+
+      setMigrateResult({ equipments: eqCount, spells: spCount, characters: chCount, options: opCount });
       await fetchCounts();
     } catch (err) {
       setMigrateError(err instanceof Error ? err.message : '导入失败，请检查文件格式');
@@ -158,10 +173,11 @@ export default function MigrationBackup() {
     setMigrateResult(null);
 
     try {
-      const [eqs, sps, chars] = await Promise.all([
+      const [eqs, sps, chars, opts] = await Promise.all([
         api.fetchAllEquipments(),
         api.fetchAllSpells(),
         api.fetchAllCharacters(),
+        api.fetchAllOptions<any[]>().catch(() => []),
       ]);
 
       // 装备：合并到本地缓存（save 接收数组）
@@ -186,6 +202,15 @@ export default function MigrationBackup() {
       // 角色：使用 replaceAllFromBackend 一次性替换本地缓存，避免逐个 save 触发反向同步
       if (chars.length > 0) {
         await characterStore.replaceAllFromBackend();
+      }
+
+      // 角色选项：合并到本地缓存
+      if (opts && opts.length > 0) {
+        const opMap = new Map(optionStore.getAll().map((o: any) => [o.id, o]));
+        opts.forEach((o: any) => {
+          opMap.set(o.id, { ...opMap.get(o.id), ...o });
+        });
+        optionStore.save(Array.from(opMap.values()));
       }
 
       setMigrateResult({
@@ -305,8 +330,9 @@ export default function MigrationBackup() {
               <div>
                 {migrateResult.equipments > 0 && `${migrateResult.equipments} 个装备、`}
                 {migrateResult.spells > 0 && `${migrateResult.spells} 个法术、`}
-                {migrateResult.characters > 0 && `${migrateResult.characters} 个角色`}
-                {migrateResult.equipments === 0 && migrateResult.spells === 0 && migrateResult.characters === 0
+                {migrateResult.characters > 0 && `${migrateResult.characters} 个角色、`}
+                {migrateResult.options && migrateResult.options > 0 && `${migrateResult.options} 个角色选项`}
+                {(migrateResult.equipments === 0 && migrateResult.spells === 0 && migrateResult.characters === 0 && !migrateResult.options)
                   ? '无数据变更'
                   : ' 已同步到本地'}
               </div>
