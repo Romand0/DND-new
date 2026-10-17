@@ -5,6 +5,9 @@ import { fetchAllEquipments } from '@/lib/api';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
 
+// 分类排序顺序（排除"全部"）
+const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+
 interface EquipmentPickerProps {
   onSelect: (item: EquipmentItem) => void;
   onClose: () => void;
@@ -24,7 +27,7 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
   }, []);
 
   const filteredEquipments = useMemo(() => {
-    return equipments.filter((item) => {
+    let result = equipments.filter((item) => {
       const matchesCategory = selectedCategory === '全部' || item.category === selectedCategory;
       const matchesSearch =
         !searchQuery ||
@@ -33,6 +36,27 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
         item.category.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
+
+    // 排序逻辑：在"全部"筛选下按分类顺序排序，否则按 ID 排序
+    result.sort((a, b) => {
+      if (selectedCategory === '全部') {
+        // 按分类顺序排序，同分类内按 ID 排序
+        const aCategoryIndex = CATEGORY_ORDER.indexOf(a.category);
+        const bCategoryIndex = CATEGORY_ORDER.indexOf(b.category);
+        
+        if (aCategoryIndex !== bCategoryIndex) {
+          return aCategoryIndex - bCategoryIndex;
+        }
+        
+        // 同分类内按 ID 排序
+        return a.id.localeCompare(b.id);
+      } else {
+        // 非"全部"筛选下按 ID 排序
+        return a.id.localeCompare(b.id);
+      }
+    });
+
+    return result;
   }, [equipments, selectedCategory, searchQuery]);
 
   const formatPrice = (item: EquipmentItem) => {
