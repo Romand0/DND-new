@@ -276,7 +276,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P1-1 | useActions | ⬜ | — | 3656 | — |
 | P1-2 | useCombatInventories | ✅ | 2026-10-16 | 3507 | 零漂移直接接线（页面版 `getEffectiveAc` 含一行未使用死代码 `const changes`，hook 已去掉）；同时清掉页面对 `computeCombatantAc` 的 import |
 | P1-3 | useSurprise | ✅ | 2026-10-14 | 3611 | Pilot：按方案 A 重新抽取并真实接线；`onConfirmed` 承接 `pendingRestartPlayback → startPlaybackFromBeginning` 联动；tsc/build/dev 三验通过 |
-| P1-4 | useThrownDrop | ⬜ | — | — | — |
+| P1-4 | useThrownDrop | ✅ | 2026-10-17 | 3245 | 小漂移对账：chebyDist/calcThrownDropPos 逐行一致；executeThrownDrop 按 §9.3 第二路径「同步更新调用点」——保留 hook 显式 `record` 入参 + 返回 `ItemToken`，页面 2 个调用点（命中/未命中）在 usageMode 前插入 `record`；删内联 3 函数（-161 行）；清死 import `getCombatInventoryRaw`/`ItemToken`；占位 14→13；tsc/build 双验通过 |
 | P2-1 | useDamageAndHp | ✅ | 2026-10-16 | 3406 | 小漂移对账：hook 仅多 `!record` 守卫、`playbackMode` 改为 props 传入（页面语义等价）；删 handleApplyDamage + autoFillDownedMarkers 内联（~100 行） |
 | P2-2 | useRoundTurn | ⬜ | — | — | 缺口大：缺自动推进 + handleComatoseTurn |
 | P3-1 | useInitiative | ⬜ | — | — | — |
