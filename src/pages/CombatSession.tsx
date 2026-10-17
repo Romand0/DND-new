@@ -22,7 +22,6 @@ import ManualRecordDialog from '@/components/combat/ManualRecordDialog';
 import type {} from '@/components/combat/PlaybackToolbar';
 import RewindDialog from '@/components/combat/RewindDialog';
 import SurpriseAttackDialog from '@/components/combat/SurpriseAttackDialog';
-import type {} from '@/components/CombatantInfoPanel';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import * as snapDb from '@/lib/combatSnapshots';
 import { useParams, useNavigate } from 'react-router-dom';
