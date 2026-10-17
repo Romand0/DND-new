@@ -7,27 +7,18 @@ import combatStore from '@/data/combatStore';
 const CIRCLE_NUMBERS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
 
 export interface UseInitiativeProps {
-  editingInitiative: string | null;
-  setEditingInitiative: (v: string | null) => void;
-  initiativeInput: string;
-  setInitiativeInput: (v: string) => void;
   selectedIds: Set<string>;
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
   batchMode: boolean;
   setBatchMode: (v: boolean) => void;
-  onAddCombatant: (char?: Character) => void;
-  onRemoveCombatant: (id: string) => void;
-  onAddNpc: (c: Omit<Combatant, 'id'>) => void;
-  onBatchAddNpc: (list: Omit<Combatant, 'id'>[]) => void;
 }
 
 export function useInitiative(record: CombatRecord | null, props: UseInitiativeProps) {
-  const {
-    editingInitiative, setEditingInitiative,
-    initiativeInput, setInitiativeInput,
-    selectedIds, setSelectedIds, batchMode, setBatchMode,
-    onAddCombatant, onRemoveCombatant,
-  } = props;
+  const { selectedIds, setSelectedIds, batchMode, setBatchMode } = props;
+
+  // 先攻编辑状态：内联先攻编辑 UI 已改为只读，状态由 hook 持有（InitiativeTable/CombatantList 组件迁移时消费）
+  const [editingInitiative, setEditingInitiative] = useState<string | null>(null);
+  const [initiativeInput, setInitiativeInput] = useState('');
 
   // 先攻投掷弹窗
   const [initiativeRollOpen, setInitiativeRollOpen] = useState(false);
@@ -231,12 +222,15 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
     handleDragMove,
     handleDragEnd,
     handleAddRound,
-    handleRemoveCombatant: onRemoveCombatant,
-    handleAddCombatant: onAddCombatant,
     handleInitiativeSave,
     handleBatchDelete,
     toggleSelect,
     cardRefs: cardRefs as MutableRefObject<(HTMLDivElement | null)[]>,
+    // 先攻编辑（只读化前遗留，供 §六 组件迁移消费）
+    editingInitiative,
+    setEditingInitiative,
+    initiativeInput,
+    setInitiativeInput,
     // 弹窗状态
     initiativeRollOpen,
     setInitiativeRollOpen,
