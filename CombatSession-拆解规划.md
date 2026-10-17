@@ -279,7 +279,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P1-4 | useThrownDrop | ✅ | 2026-10-17 | 3245 | 小漂移对账：chebyDist/calcThrownDropPos 逐行一致；executeThrownDrop 按 §9.3 第二路径「同步更新调用点」——保留 hook 显式 `record` 入参 + 返回 `ItemToken`，页面 2 个调用点（命中/未命中）在 usageMode 前插入 `record`；删内联 3 函数（-161 行）；清死 import `getCombatInventoryRaw`/`ItemToken`；占位 14→13；tsc/build 双验通过 |
 | P2-1 | useDamageAndHp | ✅ | 2026-10-16 | 3406 | 小漂移对账：hook 仅多 `!record` 守卫、`playbackMode` 改为 props 传入（页面语义等价）；删 handleApplyDamage + autoFillDownedMarkers 内联（~100 行） |
 | P2-2 | useRoundTurn | ⬜ | — | — | 缺口大：缺自动推进 + handleComatoseTurn |
-| P3-1 | useInitiative | ⬜ | — | — | — |
+| P3-1 | useInitiative | ✅ | 2026-10-17 | 3057 | 小漂移对账：除 hook 多 `!record` 守卫外逐行一致，直接接线；接口清理：删除从未被 hook 内部调用的 4 个死 props（onAddCombatant/onRemoveCombatant/onAddNpc/onBatchAddNpc，避免 handleAddCombatant 依赖 hook setter 的循环依赖），editingInitiative/initiativeInput 由页面死代码移入 hook 内部持有（内联编辑 UI 已只读化，无 JSX 调用方）；页面删 7 state + cardRefs + 9 内联函数；占位 13→12；tsc/build/dev 三验通过 |
 | P3-2 | useManualRecord | ✅ | 2026-10-16 | 3533 | hook 与页面逐行对账零漂移（仅多 `!record` 守卫），直接接线；4 个依赖函数在 `!isDM` 早退之后定义，以惰性箭头传入规避 TDZ；删 9 个 state + confirm/cancel 内联 |
 | P4 | usePlayback | ⬜ | — | — | 缺口大：缺自动推进与暂停/恢复 |
 
@@ -307,7 +307,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P1-4 | — | — | — | — | — |
 | P2-1 | — | — | — | — | — |
 | P2-2 | — | — | — | — | — |
-| P3-1 | — | — | — | — | — |
+| P3-1 | ✅ 零错误 | dev 启动 ✅；战斗流程场景待人工 | 3245→3057 ✅ | ✅ grep 验证 | ✅（待人工冒烟补录） |
 | P3-2 | — | — | — | — | — |
 | P4 | — | — | — | — | — |
 

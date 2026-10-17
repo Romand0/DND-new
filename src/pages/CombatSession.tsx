@@ -8,7 +8,7 @@
 import type {} from '@/hooks/combat/useActions';
 import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
 import { useDamageAndHp } from '@/hooks/combat/useDamageAndHp';
-import type {} from '@/hooks/combat/useInitiative';
+import { useInitiative } from '@/hooks/combat/useInitiative';
 import { useManualRecord } from '@/hooks/combat/useManualRecord';
 import type {} from '@/hooks/combat/usePlayback';
 import type {} from '@/hooks/combat/useRoundTurn';
@@ -57,16 +57,9 @@ export default function CombatSession() {
   const [editingCell, setEditingCell] = useState<{ round: number; combatantId: string } | null>(null);
   // ✅ 新增：控制角色选择弹窗的显示状态（仅点击按钮触发，不影响加载逻辑）
   const [showCharSelect, setShowCharSelect] = useState(false);
-  // ✅ 新增：先攻编辑状态（先攻属于战斗临时数据，PC/NPC 均可编辑）
-  const [editingInitiative, setEditingInitiative] = useState<string | null>(null);
-  const [initiativeInput, setInitiativeInput] = useState('');
   // ✅ 新增：批量删除状态
   const [batchMode, setBatchMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  // ✅ 新增：先攻投掷弹窗（PC 参战用）
-  const [initiativeRollOpen, setInitiativeRollOpen] = useState(false);
-  const [selectedPc, setSelectedPc] = useState<Character | null>(null);
-  const [d20Input, setD20Input] = useState('');
   // ✅ 新增：NPC 创建器
   const [npcCreatorOpen, setNpcCreatorOpen] = useState(false);
   const [npcTemplates, setNpcTemplates] = useState<NpcTemplate[]>([]);
@@ -99,11 +92,6 @@ export default function CombatSession() {
   } | null>(null);
   // ✅ 新增：协助（Help）动作弹窗 —— 选择友方 → 挂 pending 优劣势标记
   const [helpModal, setHelpModal] = useState<{ from: Combatant } | null>(null);
-  // ✅ 新增：先攻平局排序弹窗（触屏拖拽重排）
-  const [tiebreakerOpen, setTiebreakerOpen] = useState(false);
-  const [tiedOrder, setTiedOrder] = useState<Combatant[]>([]);
-  const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   // ✅ 从头播放标记：突袭弹窗确认后自动启动放映
   const [pendingRestartPlayback, setPendingRestartPlayback] = useState(false);
@@ -312,6 +300,40 @@ export default function CombatSession() {
       handleCellChange(round, combatantId, value),
   });
 
+  // 先攻全链路：由 hook 接管（投掷弹窗 / 平局拖拽 / 批量删除 / 圆形序号）。
+  // 编辑状态（editingInitiative/initiativeInput）随内联编辑 UI 只读化一并移入 hook；
+  // checkTieAndOpen 在下方 handleCreateNpc（早退之后）被引用，闭包事件期求值，无 TDZ
+  const {
+    initiativeOrder,
+    getInitiativeCircle,
+    handleConfirmInitiative,
+    checkTieAndOpen,
+    handleConfirmTiebreaker,
+    handleDragStart,
+    handleDragMove,
+    handleDragEnd,
+    handleAddRound,
+    handleBatchDelete,
+    toggleSelect,
+    cardRefs,
+    initiativeRollOpen,
+    setInitiativeRollOpen,
+    selectedPc,
+    setSelectedPc,
+    d20Input,
+    setD20Input,
+    tiebreakerOpen,
+    setTiebreakerOpen,
+    tiedOrder,
+    setTiedOrder,
+    draggingIndex,
+  } = useInitiative(record, {
+    selectedIds,
+    setSelectedIds,
+    batchMode,
+    setBatchMode,
+  });
+
   // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
   if (!isDM) {
     return (
@@ -415,150 +437,7 @@ export default function CombatSession() {
     });
   };
 
-  // ✅ 新增：确认 PC 先攻并加入战斗（d20 + 敏捷调整值 = 先攻总值）
-  const handleConfirmInitiative = () => {
-    if (!selectedPc) return;
-    const d20 = parseInt(d20Input, 10);
-    if (isNaN(d20) || d20 < 1 || d20 > 20) {
-      alert('请输入 1-20 之间的 d20 数值');
-      return;
-    }
-    const dexMod = selectedPc.abilities?.dexterity?.modifier ?? 0;
-    const initiative = d20 + dexMod;
-    const newId = crypto.randomUUID();
-    // 从角色库读取数据，填充Combatant字段（完全对齐设计文档的Combatant定义）
-    const newCombatant: Combatant = {
-      id: newId,
-      name: selectedPc.name,
-      initiative,
-      ac: selectedPc.armorClass,
-      maxHp: selectedPc.maxHp,
-      currentHp: selectedPc.currentHp,
-      isDead: selectedPc.currentHp <= 0,
-      isPc: true,
-      characterId: selectedPc.id,
-      speed: selectedPc.speed,
-      note: '',
-      actions: 1,
-    };
-    // 按先攻总值排序，符合设计文档的「快速建表」要求
-    const updatedCombatants = [...record.combatants, newCombatant].sort(
-      (a, b) => b.initiative - a.initiative
-    );
-    // 为新参战者初始化所有回合的行动记录
-    const updatedRounds = record.rounds.map(round => ({
-      ...round,
-      [newCombatant.id]: '',
-    }));
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-    setInitiativeRollOpen(false);
-    setSelectedPc(null);
-    setD20Input('');
-    // ✅ 新增：检测先攻平局
-    checkTieAndOpen(newId);
-  };
-
-  // ✅ 新增：检测先攻平局 —— 新参战者先攻与现有参战者相同时，打开排序弹窗
-  // latestId 为刚加入的参战者 ID；用 combatStore.get 取最新记录
-  const checkTieAndOpen = (latestId: string) => {
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    const target = latest.combatants.find((c) => c.id === latestId);
-    if (!target) return;
-    const tied = latest.combatants.filter((c) => c.initiative === target.initiative);
-    if (tied.length >= 2) {
-      setTiedOrder(tied);
-      setTiebreakerOpen(true);
-    }
-  };
-
-  // ✅ 新增：确认平局顺序 —— 只调整平局参战者的相对顺序，其他参战者位置不变
-  const handleConfirmTiebreaker = () => {
-    const latest = combatStore.get(record.id);
-    if (!latest) {
-      setTiebreakerOpen(false);
-      return;
-    }
-    // 平局组的先攻值
-    const tieInit = tiedOrder[0]?.initiative;
-    if (tieInit === undefined) {
-      setTiebreakerOpen(false);
-      return;
-    }
-    // 平局组的新顺序 ID 列表
-    const newTiedIds = tiedOrder.map((c) => c.id);
-    // 重建 combatants：遇到平局组的占位，按新顺序填入；非平局者原样保留
-    let tiedPtr = 0;
-    const updatedCombatants = latest.combatants.map((c) => {
-      if (c.initiative === tieInit) {
-        const replacement = latest.combatants.find((x) => x.id === newTiedIds[tiedPtr]);
-        tiedPtr++;
-        return replacement || c;
-      }
-      return c;
-    });
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      updatedAt: Date.now(),
-    });
-    setTiebreakerOpen(false);
-    setTiedOrder([]);
-  };
-
-  // ✅ 新增：触屏拖拽 —— pointer 事件同时兼容鼠标与触摸
-  const handleDragStart = (e: React.PointerEvent, index: number) => {
-    e.preventDefault();
-    setDraggingIndex(index);
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-  };
-  const handleDragMove = (e: React.PointerEvent) => {
-    if (draggingIndex === null) return;
-    // 用各卡片中点判断指针落在哪个卡片，跨越中点则交换
-    const pointerY = e.clientY;
-    let targetIndex = draggingIndex;
-    for (let i = 0; i < cardRefs.current.length; i++) {
-      const el = cardRefs.current[i];
-      if (!el) continue;
-      const rect = el.getBoundingClientRect();
-      const midY = rect.top + rect.height / 2;
-      if (pointerY < midY) {
-        targetIndex = i;
-        break;
-      }
-      if (i === cardRefs.current.length - 1) targetIndex = i;
-    }
-    if (targetIndex !== draggingIndex) {
-      setTiedOrder((prev) => {
-        const next = [...prev];
-        const [moved] = next.splice(draggingIndex, 1);
-        next.splice(targetIndex, 0, moved);
-        return next;
-      });
-      setDraggingIndex(targetIndex);
-    }
-  };
-  const handleDragEnd = () => {
-    setDraggingIndex(null);
-  };
-
-  // 原内容：完全保留，一个字都没改（新增轮次逻辑不变）
-  const handleAddRound = () => {
-    const newRound: RoundAction = {};
-    record.combatants.forEach(combatant => {
-      newRound[combatant.id] = '';
-    });
-    const updatedRounds = [...record.rounds, newRound];
-    combatStore.update(record.id, {
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-  };
-
-  // 原内容：完全保留，一个字都没改（删除参战者逻辑不变）
+  // ============ 动作机制 ============
   const handleRemoveCombatant = (combatantId: string) => {
     if (!confirm('确定删除该参战者吗？')) return;
     const updatedCombatants = record.combatants.filter(c => c.id !== combatantId);
@@ -1046,26 +925,6 @@ export default function CombatSession() {
     }, 750);
   };
 
-  // 先攻顺序序号（按先攻高→低排序，同先攻保持原序）：返回圆形序号标记
-  // 注意：不能用 useMemo，因为在 if(!record) early return 之后，会导致 hooks 顺序不一致
-  const initiativeOrder: Map<string, number> = (() => {
-    if (!record) return new Map<string, number>();
-    const order = [...record.combatants]
-      .map((c, i) => ({ c, i }))
-      .sort((a, b) => (b.c.initiative - a.c.initiative) || (a.i - b.i));
-    const m = new Map<string, number>();
-    order.forEach((o, idx) => m.set(o.c.id, idx));
-    return m;
-  })();
-
-  const CIRCLE_NUMBERS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
-  const getInitiativeCircle = (combatantId: string): string => {
-    const idx = initiativeOrder.get(combatantId);
-    if (idx === undefined) return '';
-    if (idx < CIRCLE_NUMBERS.length) return CIRCLE_NUMBERS[idx];
-    return `㉑${idx + 1}`; // 超过 20 时简单 fallback
-  };
-
   // ✅ 确定沙盘攻击写入先攻表格的 {round, combatantId} 坐标
   // 有效放映回合 → 当前回合（写入当前角色列）；模拟模式/暂停放映 → 最后一轮（写入攻击者本人列）
   const resolveWriteCell = (attackerId: string): { round: number; combatantId: string } | null => {
@@ -1223,53 +1082,6 @@ export default function CombatSession() {
   const confirmEndTurn = () => {
     setConfirmEndTurnOpen(false);
     advanceTurn();
-  };
-
-  // ✅ 新增：保存先攻值并按先攻重新排序（先攻是战斗临时数据，不涉及角色卡默认信息）
-  const handleInitiativeSave = (combatantId: string) => {
-    const newInit = parseInt(initiativeInput, 10);
-    if (isNaN(newInit)) {
-      alert('请输入有效的先攻数值');
-      setEditingInitiative(null);
-      return;
-    }
-    setEditingInitiative(null);
-    const updatedCombatants = record.combatants
-      .map((c) => (c.id === combatantId ? { ...c, initiative: newInit } : c))
-      .sort((a, b) => b.initiative - a.initiative);
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      updatedAt: Date.now(),
-    });
-  };
-
-  // ✅ 新增：批量删除参战者（同时清理各回合对应行动记录）
-  const handleBatchDelete = () => {
-    if (selectedIds.size === 0) return;
-    if (!confirm(`确定删除选中的 ${selectedIds.size} 个参战者吗？`)) return;
-    const updatedCombatants = record.combatants.filter((c) => !selectedIds.has(c.id));
-    const updatedRounds = record.rounds.map((round) => {
-      const newRound = { ...round };
-      selectedIds.forEach((id) => delete newRound[id]);
-      return newRound;
-    });
-    combatStore.update(record.id, {
-      combatants: updatedCombatants,
-      rounds: updatedRounds,
-      updatedAt: Date.now(),
-    });
-    setSelectedIds(new Set());
-    setBatchMode(false);
-  };
-
-  // ✅ 新增：切换选中状态
-  const toggleSelect = (id: string) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   };
 
   // 原内容：完全保留，一个字都没改（页面结构主体不变）
