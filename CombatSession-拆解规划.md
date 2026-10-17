@@ -292,7 +292,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | InitiativeTiebreakerDialog | ✅ | 2026-10-17 | 预抽取与页面逐字一致，直接接线（9 props：tiedOrder/cardRefs/draggingIndex + 拖拽三回调 handleDragStart/Move/End + handleConfirmTiebreaker，均 useInitiative 输出；onClose 两 setter 组合惰性箭头）；页面 2341→2278（-63），占位 7→6；分支 refactor/combat-session-p6-3（堆叠于 p6-2） |
 | RewindDialog | ✅ | 2026-10-17 | 预抽取与页面行为等价；**关键差异：firstClickDone 由页面 rewindModal state 改为组件局部 useState，必须保留 `{rewindModal && ...}` 包裹强制重挂载**（组件 open=false 时不卸载，局部状态会残留）；onRewind 惰性箭头捕获 rewindModal.round/combatantIdx；页面 2278→2222（-56） |
 | ManualRecordDialog | ✅ | 2026-10-17 | 预抽取与页面全量对账一致（攻击/恢复双模板 + AC 命中判定 + 预览文本）；attacker 解析差异等价：页面在 map 内经 selectedCell 查找 → 组件 attackerId prop（`selectedCell?.combatantId ?? ''`）；315 行内联 JSX 行号脚本替换；页面 2222→1931（-291），占位 6→5 |
-| CombatantList | ⛔ 废弃 | 2026-10-17 | **页面已无对应 UI 区块**：参战者卡片列表的批量选择/先攻/删除/信息按钮均已并入先攻表格 `<th>` 表头（P3-1 时内联编辑已只读化）；组件是死抽取，接线会重复添加 UI——**文件去留待用户确认后处理**（建议删除 src/components/combat/CombatantList.tsx + 占位导入） |
+| CombatantList | 🗑️ 已删除 | 2026-10-17 | **页面无对应 UI 区块，经用户裁定废弃删除**：参战者卡片列表的批量选择/先攻/删除/信息按钮均已并入先攻表格 `<th>` 表头（P3-1 时内联编辑已只读化），接线会引入重复 UI；已 `git rm` 组件文件 + 移除占位导入，git 历史可随时找回 |
 | PlaybackToolbar | ✅ | 2026-10-17 | **方案 A 重写**（陈旧抽取漂移过大：缺从头播放/暂停恢复，完成回合按钮位置错误）：组件 = 模式切换栏 + 右上角按钮组（暂停/恢复/退出）两个 Fragment，页面两处内联（651-690 + 1418-1456）合一；8 props（mode/playbackStarted/playbackPaused/onModeChange/onRestartPlayback/onPausePlayback/onResumePlayback/onExitPlayback）；页面 1654→1585（-69） |
 | InitiativeTable | ✅ | 2026-10-17 | **方案 A 重写**（陈旧抽取违反 §5.12：currentTurn 含 combatantIdx；还含死代码 editingInitiative 内联编辑）：以页面 312 行表格 JSX 为权威重写——th 卡片式表头（序号/死亡红叉/批量勾选/信息按钮/只读先攻/HP/删除）+ tbody 单元格（被突袭/编辑 textarea/选中操作面板：开始放映/记录/手动输入/回溯到此，currentTurn 比较 findIndex 实时计算）；新增 playbackPaused prop（暂停不高亮）；onOpenManualRecord 收敛页面重复 2 次的 8-setter 重置序列；页面 1931→1654（-277），占位 5→3 |
 | CombatantInfoPanel | ✅ | 2026-10-17 | **早已真实接线**（页面 48 行真导入 + infoPanel IIFE 使用），仅清理冗余占位导入；无需改动 |
@@ -312,7 +312,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P3-1 | ✅ 零错误 | dev 启动 ✅；战斗流程场景待人工 | 3245→3057 ✅ | ✅ grep 验证 | ✅（待人工冒烟补录） |
 | P3-2 | — | — | — | — | — |
 | P4 | ✅ 零错误 | dev 启动 ✅；放映/暂停/恢复/回溯/刷新恢复场景待人工 | 2682→2468 ✅ | ✅ grep 验证 | ✅（待人工冒烟补录） |
-| P6 批次 | ✅ `tsc -b --force` 零错误 | dev 启动 ✅（每组件接续 + 批次末各探活一次）；弹窗/表格/工具条交互待人工 | 2468→1585 ✅ | ✅ grep 验证（占位 9→2：CombatantList 废弃待决 + 文件头注释待清） | ✅（待人工冒烟补录） |
+| P6 批次 | ✅ `tsc -b --force` 零错误 | dev 启动 ✅（每组件接续 + 批次末各探活一次）；弹窗/表格/工具条交互待人工 | 2468→1580 ✅ | ✅ grep 验证（**占位归零**，CombatantList 经用户裁定删除） | ✅（待人工冒烟补录） |
 
 ---
 

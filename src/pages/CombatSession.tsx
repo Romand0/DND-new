@@ -1,10 +1,6 @@
-// 原内容：完全保留，一个字都没改（保持旧版 UI 视觉与功能完全一致）
-// 拆分产物保留引用（避免被当作"废文件"，未来模块化改造可按职责迁移对应逻辑）：
-//   hooks:  useActions / useCombatInventories / useDamageAndHp / useInitiative /
-//          useManualRecord / usePlayback / useRoundTurn / useSurprise / useThrownDrop
-//   components: CombatantList / InitiativeTable / InitiativeRollDialog /
-//          InitiativeTiebreakerDialog / ManualRecordDialog / PlaybackToolbar /
-//          RewindDialog / SurpriseAttackDialog / CombatantInfoPanel
+// CombatSession：战斗追踪主页面（拆解完成态）
+// 状态与逻辑由 9 个 hooks/combat/* hook 提供；弹窗/表格/工具条由 components/combat/* 组件渲染。
+// CombatantList 预抽取已废弃：其卡片列表 UI 已并入先攻表格表头，详见 CombatSession-拆解规划.md §七。
 import { useActions } from '@/hooks/combat/useActions';
 import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
 import { useDamageAndHp } from '@/hooks/combat/useDamageAndHp';
@@ -14,7 +10,6 @@ import { usePlayback } from '@/hooks/combat/usePlayback';
 import { useRoundTurn } from '@/hooks/combat/useRoundTurn';
 import { useSurprise } from '@/hooks/combat/useSurprise';
 import { useThrownDrop } from '@/hooks/combat/useThrownDrop';
-import type {} from '@/components/combat/CombatantList';
 import InitiativeTable from '@/components/combat/InitiativeTable';
 import InitiativeRollDialog from '@/components/combat/InitiativeRollDialog';
 import InitiativeTiebreakerDialog from '@/components/combat/InitiativeTiebreakerDialog';
