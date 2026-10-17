@@ -1,284 +1,62 @@
-# DND5e 权威数据源技能
+# 不全书搜索
 
-## 简介
+opencode 技能：从本地 DND5e_chm 仓库确定性查询 D&D 5e 权威中文规则数据（法术、职业、装备、怪物、专长等）。零依赖、只读、跨会话可复现。
 
-DND5e 权威数据源技能是一个让 agent 在工作时能够访问和使用 DND5e_chm 仓库作为标准数据源的技能。它提供了权威的 D&D 5e 中文数据参考，确保项目数据的准确性和权威性。
+## 方案构成
 
-## 功能特性
+| 文件 | 职责 |
+|------|------|
+| `SKILL.md` | 唯一执行入口：数据源路径、GBK 编码陷阱、三步查询流程、兜底策略 |
+| `EXAMPLE.md` | 输出规范：原文模式与概要模式的定义、选择规则与示例 |
+| `README.md` | 本文件：方案说明与维护指南 |
 
-### 🔍 数据查询
-- **职业查询**: 查询职业描述、子职业、特性等
-- **法术查询**: 查询法术信息、等级、施法时间等
-- **装备查询**: 查询装备属性、价格、效果等
-- **条件查询**: 支持按等级、学派、职业等条件查询
+查询动作只用 grep / iconv / ls / Read 四类只读命令，无 npm 依赖、无脚本执行。
 
-### ✅ 数据验证
-- **角色验证**: 验证角色数据是否符合 DND 5e 规则
-- **数据一致性**: 确保项目数据与权威数据源一致
-- **错误检测**: 检测数据中的错误和不一致
+## 数据源
 
-### 🔄 数据同步
-- **自动同步**: 定期检查数据更新
-- **手动同步**: 手动触发数据更新
-- **版本管理**: 支持特定版本的数据访问
+- 固定路径：`/workspace/data/DND5e_chm`（嵌套 git 仓库，主仓库 `.gitignore` 已排除）
+- 内容：69 个 D&D 5e 中文官方及合作书源（玩家手册 2014/2024、城主指南、塔莎的万事坩埚、珊娜萨的万事指南等），7613 个 HTML 文件
+- 多数文件为 GBK/gb2312 编码——这是所有中文搜索必须走 SKILL.md 双通道流程的原因
+- 数据缺失或需更新时重新同步：
 
-### 💾 缓存管理
-- **智能缓存**: 缓存已获取的数据，提高访问速度
-- **缓存控制**: 支持缓存 TTL 和大小限制
-- **缓存清理**: 提供缓存清理功能
-
-## 快速开始
-
-### 安装
 ```bash
-npm install
+git clone --depth 1 https://github.com/DND5eChm/DND5e_chm /workspace/data/DND5e_chm
+# 已存在时更新：
+git -C /workspace/data/DND5e_chm pull --ff-only
 ```
 
-### 基本使用
-```typescript
-import { dndDataSource } from './src/index';
+## 使用方式
 
-// 查询职业信息
-const bardClass = await dndDataSource.getClass('吟游诗人');
-console.log(bardClass);
+1. **新会话**：用户说「使用不全书搜索」→ 技能经 `skill` 工具加载（注册位置见下），或由 auto-use-skills 规则引导 AI 读取 `/root/.claude/skills/*/SKILL.md` 发现本技能
+2. **执行**：严格按 `SKILL.md` 的三步流程操作（双通道定位 → iconv 转码读取 → 按模式输出），每一步都是确定命令，无需现场探索
+3. **输出**：默认概要模式；用户要求完整原文或用于数据录入时切换原文模式，规范见 `EXAMPLE.md`
 
-// 查询法术信息
-const fireballSpell = await dndDataSource.getSpell('fireball');
-console.log(fireballSpell);
+## 输出模式
 
-// 验证角色数据
-const character = {
-  profession: { class: '吟游诗人', subclass: 'college_of_lore' },
-  spells: [{ id: 'fireball' }]
-};
-const validation = await dndDataSource.validateCharacter(character);
-console.log(validation);
-```
+- **原文模式**：逐字保留数据源条目原文，标注书源出处；用于规则核对与数据录入
+- **概要模式**（默认）：按固定模板提取关键字段；用于快速参考
 
-## API 文档
+详细定义与示例见 `EXAMPLE.md`。
 
-### DNDDataSource 类
+## 注册位置
 
-#### 构造函数
-```typescript
-new DNDDataSource(config: DataSourceConfig)
-```
+| 位置 | 角色 |
+|------|------|
+| `skills/不全书搜索/SKILL.md`（本仓库） | 唯一事实源，随 git 版本管理 |
+| `/root/.claude/skills/不全书搜索/SKILL.md` | 运行时注册副本，供 opencode 技能发现 |
 
-#### 方法
+环境重建或 SKILL.md 更新后，需要同步注册副本：
 
-##### 获取职业信息
-```typescript
-getClass(className: string): Promise<ClassInfo | null>
-```
-
-##### 获取子职业信息
-```typescript
-getSubclass(className: string, subclassId: string): Promise<SubclassInfo | null>
-```
-
-##### 获取法术信息
-```typescript
-getSpell(spellId: string): Promise<SpellInfo | null>
-```
-
-##### 获取装备信息
-```typescript
-getEquipment(equipmentId: string): Promise<EquipmentInfo | null>
-```
-
-##### 条件查询法术
-```typescript
-getSpells(options: {
-  level?: number;
-  school?: string;
-  classes?: string[];
-  subclasses?: string[];
-  name?: string;
-}): Promise<SpellInfo[]>
-```
-
-##### 获取装备类别
-```typescript
-getEquipmentByCategory(category: string): Promise<EquipmentInfo[]>
-```
-
-##### 验证角色数据
-```typescript
-validateCharacter(character: Character): Promise<{
-  valid: boolean;
-  errors: string[];
-  warnings: string[];
-  suggestions: string[];
-}>
-```
-
-##### 数据同步
-```typescript
-sync(): Promise<void>
-```
-
-##### 检查更新
-```typescript
-checkUpdates(): Promise<{
-  hasUpdates: boolean;
-  version?: string;
-  changes?: string[];
-}>
-```
-
-##### 缓存管理
-```typescript
-clearCache(): Promise<void>
-getCacheInfo(): {
-  size: number;
-  entries: Array<{ key: string; timestamp: number; ttl: number }>;
-}
-```
-
-## 数据格式
-
-### ClassInfo
-```typescript
-interface ClassInfo {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  hitDice: string;
-  primaryAbility: string[];
-  savingThrows: string[];
-  skills: string[];
-  subclasses: SubclassInfo[];
-}
-```
-
-### SubclassInfo
-```typescript
-interface SubclassInfo {
-  id: string;
-  name: string;
-  displayName: string;
-  description: string;
-  features: string[];
-  spellProgression?: SpellProgression;
-}
-```
-
-### SpellInfo
-```typescript
-interface SpellInfo {
-  id: string;
-  name: string;
-  displayName: string;
-  level: number;
-  school: string;
-  castingTime: string;
-  range: string;
-  components: string[];
-  duration: string;
-  description: string;
-  higherLevels?: string;
-  classes: string[];
-  subclasses?: string[];
-}
-```
-
-### EquipmentInfo
-```typescript
-interface EquipmentInfo {
-  id: string;
-  name: string;
-  displayName: string;
-  category: string;
-  subtype: string;
-  weight: number;
-  packSize?: number;
-  unit: string;
-  price: {
-    amount: number;
-    unit: string;
-  };
-  damageDice?: string;
-  damageType?: string;
-  acBase?: string;
-  strengthReq?: number;
-  stealthDisadvantage?: boolean;
-  description: string;
-  properties: string[];
-  tags: string[];
-  source: string;
-}
-```
-
-## 配置选项
-
-### DataSourceConfig
-```typescript
-interface DataSourceConfig {
-  source: string;
-  branch?: string;
-  cache?: boolean;
-  autoUpdate?: boolean;
-  timeout?: number;
-  retries?: number;
-}
-```
-
-## 使用示例
-
-查看 [EXAMPLE.md](./EXAMPLE.md) 获取详细的使用示例。
-
-## 开发
-
-### 构建
 ```bash
-npm run build
+cp /workspace/skills/不全书搜索/SKILL.md /root/.claude/skills/不全书搜索/SKILL.md
 ```
 
-### 开发模式
-```bash
-npm run dev
-```
+## 维护
 
-### 测试
-```bash
-npm test
-```
+- **修改 SKILL.md**：先改本仓库版本，验证查询链路通过后，同步到注册位置并提交
+- **验证链路**：任选一条目（如「不谐低语」）按手册零探索执行一遍，能完整拿到数据即通过
+- **新增书源**：数据仓库更新后，若新书源引入新编码或新目录结构，在 SKILL.md 的书源导航表补充对应路径
 
-### 代码检查
-```bash
-npm run lint
-```
+## 历史
 
-### 类型检查
-```bash
-npm run type-check
-```
-
-## 贡献
-
-欢迎贡献代码！请确保：
-
-1. 遵循现有的代码风格
-2. 添加适当的测试
-3. 更新相关文档
-4. 提交前运行所有检查
-
-## 许可证
-
-MIT License
-
-## 支持
-
-- 问题反馈: GitHub Issues
-- 功能请求: GitHub Discussions
-- 文档: Wiki页面
-
-## 更新日志
-
-### v1.0.0
-- 初始版本发布
-- 基本数据查询功能
-- 数据验证功能
-- 缓存管理功能
-- 数据同步功能
+本技能曾实现为 TypeScript npm 包（axios/cheerio 抓取 + 内存缓存），因依赖安装、`@/` 路径别名与运行时环境在跨会话中反复踩坑、无法保证「任意会话迅速无误执行」，已废弃并从仓库移除（git 历史可查）。当前方案以「SKILL.md 确定性手册 + 本地数据仓库」替代，执行路径压缩为零依赖文件读取。
