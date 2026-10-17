@@ -287,6 +287,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 
 | 组件 | 状态 | 完成日期 | 备注 |
 |---|---|---|---|
+| SurpriseAttackDialog | ✅ | 2026-10-17 | 预抽取与页面逐字一致，直接接线（open 布尔包裹 + 7 props 直传 useSurprise 输出）；页面 2468→2415（-53），占位 9→8；分支 refactor/combat-session-p6-1（堆叠于 p4） |
 | CombatantList | ⬜ | — | — |
 | InitiativeTable | ⬜ | — | — |
 | InitiativeRollDialog | ⬜ | — | — |
