@@ -28,6 +28,7 @@ import {
   Library,
 } from 'lucide-react';
 import type { Character, AbilityKey, ProficiencyCategory, Equipment, Attack } from '@/types/character';
+import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
@@ -36,6 +37,8 @@ import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
 import SpellPicker from '@/components/SpellPicker';
 import EquipmentPicker from '@/components/EquipmentPicker';
+import OptionPicker from '@/components/OptionPicker';
+import optionStore from '@/data/optionStore';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import AttackEditor from '@/components/AttackEditor';
 import SyncButton from '@/components/SyncButton';
@@ -442,6 +445,66 @@ export default function CharacterDetail({
     reloadChar();
   };
 
+  // 从选项库追加特质到 features（同名同分类去重，可重复点选刷新）
+  const applyOptionTraits = (
+    traits: { name: string; text: string }[],
+    category: string,
+    source: string
+  ) => {
+    if (!id) return;
+    const existing = new Set(
+      (character.features || []).map((f) => `${f.category}:${f.name}`)
+    );
+    const fresh = traits.filter((t) => t.name && t.text && !existing.has(`${category}:${t.name}`));
+    for (const t of fresh) {
+      characterStore.addFeature(id, {
+        name: t.name,
+        description: t.text,
+        category,
+        source,
+      });
+    }
+    return fresh.length;
+  };
+
+  const handleRaceSelect = (opt: CharacterOption) => {
+    if (!id) return;
+    characterStore.update(id!, { race: opt.name });
+    applyOptionTraits(opt.traits, '种族特质', opt.name);
+    reloadChar();
+  };
+
+  const handleSubraceSelect = (opt: CharacterOption) => {
+    if (!id) return;
+    characterStore.update(id!, { race: opt.name });
+    applyOptionTraits(opt.traits, '亚种特质', opt.parentName || opt.name);
+    reloadChar();
+  };
+
+  const handleClassSelect = (opt: CharacterOption) => {
+    if (!id) return;
+    characterStore.update(id!, { profession: { ...character.profession, class: opt.name } });
+    const level = character.level || 1;
+    const leveled = (opt.traits as Array<{ name: string; text: string; level?: number }>).filter(
+      (t) => (t.level ?? 1) <= level
+    );
+    applyOptionTraits(leveled, '职业特性', opt.name);
+    reloadChar();
+  };
+
+  const handleBackgroundSelect = (opt: CharacterOption) => {
+    if (!id) return;
+    characterStore.update(id!, { background: opt.name });
+    const traits: { name: string; text: string }[] = [];
+    if (opt.feature) traits.push(opt.feature);
+    if (opt.mechanics?.skills) traits.push({ name: '技能熟练项', text: opt.mechanics.skills });
+    if (opt.mechanics?.tools) traits.push({ name: '工具熟练项', text: opt.mechanics.tools });
+    if (opt.mechanics?.languages) traits.push({ name: '语言', text: opt.mechanics.languages });
+    if (opt.mechanics?.equipment) traits.push({ name: '装备', text: opt.mechanics.equipment });
+    applyOptionTraits(traits, '背景特性', opt.name);
+    reloadChar();
+  };
+
   const handleUpdateFeature = (featureId: string, field: string, value: string) => {
     if (!id) return;
     characterStore.updateFeature(id, featureId, { [field]: value });
@@ -714,6 +777,15 @@ if (character) {
           placeholder="种族"
           className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
         />
+        <OptionPicker category="race" onSelect={handleRaceSelect} />
+        {optionStore.getSubraces(character.race).length > 0 && (
+          <OptionPicker
+            category="subrace"
+            parentName={character.race}
+            placeholder="选择亚种…"
+            onSelect={handleSubraceSelect}
+          />
+        )}
         <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
         <input
           type="text"
@@ -725,6 +797,7 @@ if (character) {
           placeholder="职业"
           className="px-2 py-0.5 text-base bg-transparent border-b border-transparent focus:border-primary outline-none dark:text-text-dark dark:focus:text-text-dark light:text-text-light light:focus:text-text-light w-28 font-medium"
         />
+        <OptionPicker category="class" onSelect={handleClassSelect} />
       </div>
 
       {/* 子职业选择 */}
@@ -1970,6 +2043,9 @@ if (character) {
               rows={1}
               className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary resize-none min-h-[40px] field-sizing-content"
             />
+            <div className="mt-2">
+              <OptionPicker category="background" onSelect={handleBackgroundSelect} />
+            </div>
           </div>
           
           <div className="md:col-span-2">

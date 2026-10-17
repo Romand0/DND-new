@@ -12,6 +12,7 @@ import CharacterList from '@/pages/CharacterList';
 import CharacterDetail from '@/pages/CharacterDetail';
 import CharacterInventory from '@/pages/CharacterInventory';
 import SpellList from '@/pages/SpellList';
+import OptionsPage from '@/pages/OptionsPage';
 import SpellDetail from '@/pages/SpellDetail';
 import MonsterList from '@/pages/MonsterList';
 import MonsterDetail from '@/pages/MonsterDetail';
@@ -114,6 +115,7 @@ export default function App() {
               <Route path="/equipment" element={<EquipmentList />} />
               <Route path="/equipment/:id" element={<EquipmentDetail />} />
               <Route path="/spells" element={<SpellList />} />
+              <Route path="/options" element={<OptionsPage />} />
             <Route path="/monsters" element={<MonsterList />} />
             <Route path="/monsters/:id" element={<MonsterDetail />} />
               <Route path="/spells/:id" element={<SpellDetail />} />

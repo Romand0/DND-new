@@ -194,6 +194,18 @@ export async function deleteSpell(id: string): Promise<void> {
   await apiFetch(`/spells/${id}`, { method: 'DELETE' });
 }
 
+// ============ 角色选项库（种族/背景/职业） ============
+export async function fetchAllOptions<T = any[]>(): Promise<T> {
+  return apiFetch<T>('/options');
+}
+
+export async function batchUpsertOptions(items: any[]): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>('/options', {
+    method: 'POST',
+    body: JSON.stringify(items),
+  });
+}
+
 // ============ 法术流程绑定 ============
 export async function fetchAllSpellFlowBindings<T = any[]>(): Promise<T> {
   return apiFetch<T>('/bindings');
