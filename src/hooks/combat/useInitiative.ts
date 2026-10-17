@@ -16,7 +16,7 @@ export interface UseInitiativeProps {
 export function useInitiative(record: CombatRecord | null, props: UseInitiativeProps) {
   const { selectedIds, setSelectedIds, batchMode, setBatchMode } = props;
 
-  // 先攻编辑状态：内联先攻编辑 UI 已改为只读，状态由 hook 持有（InitiativeTable/CombatantList 组件迁移时消费）
+  // 先攻编辑状态：内联先攻编辑 UI 已改为只读，InitiativeTable 经 props 只读消费
   const [editingInitiative, setEditingInitiative] = useState<string | null>(null);
   const [initiativeInput, setInitiativeInput] = useState('');
 
