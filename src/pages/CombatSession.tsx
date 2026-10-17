@@ -13,7 +13,7 @@ import { useManualRecord } from '@/hooks/combat/useManualRecord';
 import type {} from '@/hooks/combat/usePlayback';
 import type {} from '@/hooks/combat/useRoundTurn';
 import { useSurprise } from '@/hooks/combat/useSurprise';
-import type {} from '@/hooks/combat/useThrownDrop';
+import { useThrownDrop } from '@/hooks/combat/useThrownDrop';
 import type {} from '@/components/combat/CombatantList';
 import type {} from '@/components/combat/InitiativeTable';
 import type {} from '@/components/combat/InitiativeRollDialog';
@@ -30,7 +30,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import {
   applyEquipmentChange,
   getCombatInventory,
-  getCombatInventoryRaw,
 } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { characterStore } from '@/data/characterStore';
@@ -39,7 +38,6 @@ import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, RoundAction, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
-import type { ItemToken } from '@/types/battleground';
 import { Plus, Trash2, ArrowLeft, Users, X, GripVertical, Pencil, Swords, Heart, Target, Check, Keyboard, Play, SkipForward, Pause, Undo2, PlayCircle, PauseCircle } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
@@ -244,6 +242,9 @@ export default function CombatSession() {
     currentTurn,
     playbackMode: record?.mode === 'playback',
   });
+
+  // 投掷武器掉落：由 hook 接管（executeThrownDrop 需显式传入 record）
+  const { executeThrownDrop } = useThrownDrop(record?.id ?? null);
 
   useEffect(() => {
     setNpcTemplates(npcTemplateStore.getAll());
@@ -637,168 +638,6 @@ export default function CombatSession() {
     combatStore.resetActions(record.id, combatantId);
   };
 
-  // ============ 投掷武器掉落机制 ============
-  // 切比雪夫距离（格）
-  const chebyDist = (a: { col: number; row: number }, b: { col: number; row: number }) =>
-    Math.max(Math.abs(a.col - b.col), Math.abs(a.row - b.row));
-
-  // 计算投掷武器掉落位置
-  // hit=true: 敌人5尺（1格）内最靠近玩家的3格中随机一格
-  // hit=false: 以玩家为圆心、本次射程为半径 和 以敌人为圆心、敌人速度为半径 的交集区域随机一格
-  const calcThrownDropPos = (
-    attackerPos: { col: number; row: number },
-    targetPos: { col: number; row: number },
-    hit: boolean,
-    rangeUsedFeet: number,
-    targetSpeed: number,
-    gridCols: number,
-    gridRows: number,
-  ): { col: number; row: number } => {
-    if (hit) {
-      // 敌人周围8格，按到玩家的切比雪夫距离排序，取前3格随机选一
-      const candidates: { col: number; row: number; d: number }[] = [];
-      for (let dc = -1; dc <= 1; dc++) {
-        for (let dr = -1; dr <= 1; dr++) {
-          if (dc === 0 && dr === 0) continue; // 跳过敌人自身格
-          const c = targetPos.col + dc;
-          const r = targetPos.row + dr;
-          if (c < 0 || c >= gridCols || r < 0 || r >= gridRows) continue;
-          candidates.push({ col: c, row: r, d: chebyDist({ col: c, row: r }, attackerPos) });
-        }
-      }
-      candidates.sort((a, b) => a.d - b.d);
-      const top = candidates.slice(0, Math.min(3, candidates.length));
-      if (top.length === 0) return { col: targetPos.col, row: targetPos.row };
-      return top[Math.floor(Math.random() * top.length)];
-    } else {
-      // 未命中：两个圆形区域的交集
-      const rangeCells = Math.floor(rangeUsedFeet / 5);
-      const speedCells = Math.floor(targetSpeed / 5);
-      const candidates: { col: number; row: number }[] = [];
-      for (let c = 0; c < gridCols; c++) {
-        for (let r = 0; r < gridRows; r++) {
-          const dPlayer = chebyDist({ col: c, row: r }, attackerPos);
-          const dEnemy = chebyDist({ col: c, row: r }, targetPos);
-          if (dPlayer <= rangeCells && dEnemy <= speedCells) {
-            candidates.push({ col: c, row: r });
-          }
-        }
-      }
-      if (candidates.length === 0) {
-        // 交集为空时退回到玩家与敌人连线中点
-        return {
-          col: Math.round((attackerPos.col + targetPos.col) / 2),
-          row: Math.round((attackerPos.row + targetPos.row) / 2),
-        };
-      }
-      return candidates[Math.floor(Math.random() * candidates.length)];
-    }
-  };
-
-  // 执行投掷武器掉落：从攻击者背包移除武器，在网格上生成物品 token
-  const executeThrownDrop = (
-    attacker: Combatant,
-    target: Combatant,
-    attack: Attack | NpcAttack,
-    attackerPos: { col: number; row: number },
-    targetPos: { col: number; row: number },
-    hit: boolean,
-    usageMode?: 'melee' | 'thrown',
-  ) => {
-    if (usageMode !== 'thrown') return;
-    if (!record) return;
-    const bg = battlegroundStore.get(record.id);
-    if (!bg) return;
-
-    // 确定本次使用的射程（常规或最大）
-    let rangeUsedFeet = attack.normalRange || 20;
-    const distanceFeet = chebyDist(attackerPos, targetPos) * 5;
-    if (attack.maxRange && distanceFeet > (attack.normalRange || 0)) {
-      rangeUsedFeet = attack.maxRange;
-    }
-    const targetSpeed = target.speed || 30;
-
-    const gridCols = bg.size === 'small' ? 12 : bg.size === 'medium' ? 24 : 36;
-    const gridRows = bg.size === 'small' ? 18 : bg.size === 'medium' ? 36 : 54;
-
-    const dropPos = calcThrownDropPos(attackerPos, targetPos, hit, rangeUsedFeet, targetSpeed, gridCols, gridRows);
-
-    // 构造装备快照数据
-    let equipData: Record<string, unknown> = {
-      name: attack.name,
-      category: '武器',
-      subtype: attack.subtype,
-      damageDice: attack.damage,
-      damageType: attack.damageType,
-      properties: attack.properties,
-      normalRange: attack.normalRange,
-      maxRange: attack.maxRange,
-      range: attack.range,
-      quantity: 1,
-    };
-
-    // PC：从"战斗背包"查找对应武器（未合并版本，确保 childId 精确匹配）
-    if (attacker.characterId) {
-      const combatInventoryRaw = getCombatInventoryRaw(record, attacker);
-      // 手持 id 从角色卡拿（手持的引用指向角色源装备）
-      const char = characterStore.get(attacker.characterId);
-      const heldLeftId = char?.heldLeft?.equipmentId;
-      const heldRightId = char?.heldRight?.equipmentId;
-      // 优先找手持的匹配武器（在未合并列表中按 childId 精确匹配）
-      let foundEquip = null;
-      for (const eq of combatInventoryRaw) {
-        const slotId = eq.childId || eq.id;
-        if (slotId === heldLeftId || slotId === heldRightId) {
-          if (eq.name === attack.name) {
-            foundEquip = eq;
-            break;
-          }
-        }
-      }
-      // 若手持未找到，按名称查找（取第一个匹配的）
-      if (!foundEquip) {
-        foundEquip = combatInventoryRaw.find(e => e.name === attack.name) || null;
-      }
-      if (foundEquip) {
-        equipData = { ...(foundEquip as any), quantity: 1 };
-        // 写入变更信息漏斗：数量 > 1 → -1，否则 → 移除该 childId
-        const slotId = foundEquip.childId || foundEquip.id || '';
-        // 未合并列表中每条的数量是源装备的原始数量（已应用 delta）
-        const qty = (foundEquip.quantity || 1);
-        const currentChanges = record?.equipmentChanges?.[attacker.id];
-        const newChanges = applyEquipmentChange(currentChanges, (ch) => {
-          if (qty > 1) {
-            ch.quantityDeltas[slotId] = (ch.quantityDeltas[slotId] || 0) - 1;
-          } else {
-            // 数量已经是 1（或 0），直接移除
-            if (!ch.removedChildIds.includes(slotId)) {
-              ch.removedChildIds.push(slotId);
-            }
-          }
-        });
-        combatStore.update(record.id, {
-          equipmentChanges: {
-            ...(record?.equipmentChanges || {}),
-            [attacker.id]: newChanges,
-          },
-        });
-      }
-    }
-
-    // 生成唯一 token id
-    const tokenId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
-    const itemToken: ItemToken = {
-      id: tokenId,
-      col: dropPos.col,
-      row: dropPos.row,
-      name: attack.name,
-      equipmentData: equipData,
-      droppedBy: attacker.id,
-    };
-    battlegroundStore.placeItemToken(record.id, itemToken);
-  };
-
-  // ✅ 模式切换（真正的写入，不弹确认窗）
   const commitModeChange = (mode: 'simulation' | 'playback') => {
     if (!record) return;
     combatStore.update(record.id, { mode, updatedAt: Date.now() });
@@ -2501,7 +2340,7 @@ export default function CombatSession() {
                 attackModal.attacker, attackModal.target,
                 missInfo.attack,
                 attackModal.attackerPos, attackModal.targetPos,
-                false, missInfo.usageMode,
+                false, record, missInfo.usageMode,
               );
             }
           }}
@@ -2539,7 +2378,7 @@ export default function CombatSession() {
                   damageModal.attack,
                   { col: attackerToken.col, row: attackerToken.row },
                   { col: targetToken.col, row: targetToken.row },
-                  true, damageModal.usageMode,
+                  true, record, damageModal.usageMode,
                 );
               }
             }
