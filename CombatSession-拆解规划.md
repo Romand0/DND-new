@@ -297,14 +297,6 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | InitiativeTable | ✅ | 2026-10-17 | **方案 A 重写**（陈旧抽取违反 §5.12：currentTurn 含 combatantIdx；还含死代码 editingInitiative 内联编辑）：以页面 312 行表格 JSX 为权威重写——th 卡片式表头（序号/死亡红叉/批量勾选/信息按钮/只读先攻/HP/删除）+ tbody 单元格（被突袭/编辑 textarea/选中操作面板：开始放映/记录/手动输入/回溯到此，currentTurn 比较 findIndex 实时计算）；新增 playbackPaused prop（暂停不高亮）；onOpenManualRecord 收敛页面重复 2 次的 8-setter 重置序列；页面 1931→1654（-277），占位 5→3 |
 | CombatantInfoPanel | ✅ | 2026-10-17 | **早已真实接线**（页面 48 行真导入 + infoPanel IIFE 使用），仅清理冗余占位导入；无需改动 |
 | QuickCreateCombatDialog | ✅ 已有 | — | 纯 UI 组件，页面已在使用（规划 §六 列出但本就完成） |
-| InitiativeTable | ⬜ | — | — |
-| InitiativeRollDialog | ⬜ | — | — |
-| InitiativeTiebreakerDialog | ⬜ | — | — |
-| ManualRecordDialog | ⬜ | — | — |
-| PlaybackToolbar | ⬜ | — | — |
-| RewindDialog | ⬜ | — | — |
-| SurpriseAttackDialog | ⬜ | — | — |
-| QuickCreateCombatDialog | ⬜ | — | — |
 
 ### 验证门禁记录
 
@@ -320,6 +312,7 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | P3-1 | ✅ 零错误 | dev 启动 ✅；战斗流程场景待人工 | 3245→3057 ✅ | ✅ grep 验证 | ✅（待人工冒烟补录） |
 | P3-2 | — | — | — | — | — |
 | P4 | ✅ 零错误 | dev 启动 ✅；放映/暂停/恢复/回溯/刷新恢复场景待人工 | 2682→2468 ✅ | ✅ grep 验证 | ✅（待人工冒烟补录） |
+| P6 批次 | ✅ `tsc -b --force` 零错误 | dev 启动 ✅（每组件接续 + 批次末各探活一次）；弹窗/表格/工具条交互待人工 | 2468→1585 ✅ | ✅ grep 验证（占位 9→2：CombatantList 废弃待决 + 文件头注释待清） | ✅（待人工冒烟补录） |
 
 ---
 
