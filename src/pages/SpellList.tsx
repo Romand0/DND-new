@@ -12,57 +12,28 @@ const levelLabels: Record<number, string> = {
   5: '5环', 6: '6环', 7: '7环', 8: '8环', 9: '9环',
 };
 
-// 智能施法时间显示组件
+// 关键施法时间前缀：只锚定开头，后面的补充说明整句省略（注意 附赠动作 须排在 动作 之前）
+const CASTING_TIME_PREFIX = /^(\d+\s*(?:附赠动作|反应|动作|回合|分钟|小时|日)|即刻|特殊)/;
+
+// 智能施法时间显示组件：关键信息完整显示，后续文字用渐变消失的省略号代替
 const SmartCastingTime = ({ castingTime }: { castingTime: string }) => {
-  // 关键施法时间模式
-  const keyPatterns = [
-    /^1\s*动作$/,           // "1 动作"
-    /^1\s*附赠动作$/,        // "1 附赠动作"  
-    /^1\s*反应$/,           // "1 反应"
-    /^10\s*分钟$/,          // "10 分钟"
-    /^1\s*回合$/,           // "1 回合"
-    /^1\s*小时$/,           // "1 小时"
-    /^1\s*日$/,             // "1 日"
-    /^即刻$/,               // "即刻"
-    /^特殊$/,               // "特殊"
-  ];
+  const text = castingTime.trim();
+  const match = text.match(CASTING_TIME_PREFIX);
 
-  // 检查是否匹配关键模式
-  let matchedKeyPattern: string | null = null;
-  for (const pattern of keyPatterns) {
-    const match = castingTime.trim().match(pattern);
-    if (match) {
-      matchedKeyPattern = match[0];
-      break;
-    }
+  if (!match) {
+    // 无关键前缀：inline-block 让 overflow/max-width 生效，走渐变截断
+    return <span className="mobile-ellipsis inline-block">{text}</span>;
   }
 
-  // 如果匹配到关键模式，显示关键模式 + 渐变省略号
-  if (matchedKeyPattern) {
-    // 检查是否还有额外的文本
-    const remainingText = castingTime.trim().substring(matchedKeyPattern.length).trim();
-    
-    if (remainingText) {
-      // 有关键模式 + 额外文本，显示关键模式 + 渐变省略号
-      return (
-        <span className="mobile-ellipsis text-sm dark:text-text-dark-muted light:text-text-light-medium">
-          {matchedKeyPattern}
-        </span>
-      );
-    } else {
-      // 只有关键模式，完整显示
-      return (
-        <span className="text-sm dark:text-text-dark-muted light:text-text-light-medium">
-          {matchedKeyPattern}
-        </span>
-      );
-    }
-  }
-  
-  // 没有关键模式，使用渐变省略号
+  const key = match[0];
+  const rest = text.slice(key.length).trim();
+
   return (
-    <span className="mobile-ellipsis text-sm dark:text-text-dark-muted light:text-text-light-medium">
-      {castingTime}
+    <span className="whitespace-nowrap">
+      {key}
+      {rest && (
+        <span className="bg-clip-text text-transparent bg-gradient-to-r from-current to-transparent">…</span>
+      )}
     </span>
   );
 };
@@ -407,7 +378,7 @@ export default function SpellList() {
                 )}
               </div>
               <div className="flex items-center gap-4 mt-3 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                <span className="text-sm dark:text-text-dark-muted light:text-text-light-medium">
+                <span>
                   施法时间: <SmartCastingTime castingTime={spell.castingTime} />
                 </span>
                 <span>成分: {getComponentAbbr(spell.components) || '无'}</span>

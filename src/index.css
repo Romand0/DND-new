@@ -318,3 +318,11 @@ textarea:focus::placeholder {
   background: linear-gradient(to right, transparent, var(--bg-color, transparent));
   pointer-events: none;
 }
+
+.dark .mobile-ellipsis {
+  --bg-color: var(--color-bg-dark);
+}
+
+.light .mobile-ellipsis {
+  --bg-color: var(--color-bg-light-2);
+}
