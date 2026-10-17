@@ -12,6 +12,41 @@ const levelLabels: Record<number, string> = {
   5: '5环', 6: '6环', 7: '7环', 8: '8环', 9: '9环',
 };
 
+// 智能施法时间显示组件
+const SmartCastingTime = ({ castingTime }: { castingTime: string }) => {
+  // 关键施法时间模式
+  const keyPatterns = [
+    /^1\s*动作$/,           // "1 动作"
+    /^1\s*附赠动作$/,        // "1 附赠动作"  
+    /^1\s*反应$/,           // "1 反应"
+    /^10\s*分钟$/,          // "10 分钟"
+    /^1\s*回合$/,           // "1 回合"
+    /^1\s*小时$/,           // "1 小时"
+    /^1\s*日$/,             // "1 日"
+    /^即刻$/,               // "即刻"
+    /^特殊$/,               // "特殊"
+  ];
+
+  // 检查是否是关键模式
+  const isKeyPattern = keyPatterns.some(pattern => pattern.test(castingTime.trim()));
+  
+  // 如果是关键模式，完整显示
+  if (isKeyPattern) {
+    return (
+      <span className="text-sm dark:text-text-dark-muted light:text-text-light-medium font-medium">
+        {castingTime}
+      </span>
+    );
+  }
+  
+  // 非关键模式使用省略号
+  return (
+    <span className="mobile-ellipsis text-sm dark:text-text-dark-muted light:text-text-light-medium">
+      {castingTime}
+    </span>
+  );
+};
+
 // 筛选状态持久化 key（跨导航保留，关标签页清空）
 const STORAGE_KEY_SEARCH = 'spellList.search';
 const STORAGE_KEY_LEVEL = 'spellList.level';
@@ -352,7 +387,9 @@ export default function SpellList() {
                 )}
               </div>
               <div className="flex items-center gap-4 mt-3 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                <span className="mobile-ellipsis">施法时间: {spell.castingTime}</span>
+                <span className="text-sm dark:text-text-dark-muted light:text-text-light-medium">
+                  施法时间: <SmartCastingTime castingTime={spell.castingTime} />
+                </span>
                 <span>成分: {getComponentAbbr(spell.components) || '无'}</span>
               </div>
             </div>
