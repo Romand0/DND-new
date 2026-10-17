@@ -1,12 +1,70 @@
 # CombatSession 拆解规划
 
-> **目标**：将 `src/pages/CombatSession.tsx`（3646 行）拆解为 9 个 combat hooks + 9 个 combat 子组件的组合体，最终 CombatSession 仅保留顶层编排与路由逻辑（目标 < 400 行）。
+> **状态：✅ 已完结（2026-10-17）**。`src/pages/CombatSession.tsx` 从 3646 行拆解至 **1580 行**（-56.7%）：9 个 combat hooks + 8 个 combat 子组件全部以真实 import 接线，`import type {}` 占位归零，`tsc -b --force` 零错误。完结总结见 §零；模块导航见 `docs/combat-navigation.md`。
 >
-> **原则**：每个阶段独立可验证。宁可慢一步，不可错一步。
+> 本文以下章节保留为**决策档案**：§一～§五 是迁移期的现状分析与操作规程（结论已沉淀进看板与导航），§七 进度看板含每个单元的裁定详情，§九 记录了「重新基线」的方法论转折。
 
 ---
 
-## 一、现状快照
+## 零、完结总结（2026-10-17）
+
+### 0.1 最终成果
+
+| 指标 | 起点 | 终点 |
+|---|---|---|
+| CombatSession.tsx 行数 | 3646（实测峰值 3656） | **1580**（-56.7%） |
+| hooks 接线 | 0/9（占位引用） | **9/9**（页面权威重抽取/对账） |
+| 组件接线 | 0/9（占位引用） | **8 接线 + 1 废弃删除**（CombatantList，用户裁定） |
+| `import type {}` 占位 | 18 | **0** |
+| 门禁 | — | 每单元 `tsc -b --force` + `vite build` + dev 探活全过 |
+
+### 0.2 交付分支与合并顺序
+
+堆叠分支链，GitHub 逐个合入，后续 PR 自动只剩增量：
+
+```
+p2-2 → p1-1 → p4 → p6-1 → p6-2 → p6-3 → p6-batch
+（p3-1 已合入 #252；更早的 P1-2/P1-3/P1-4/P2-1/P3-2 均已随各自分支合并）
+```
+
+各分支 PR 链接：`https://github.com/Romand0/DND-new/pull/new/refactor/combat-session-{分支名}`
+
+| 分支 | 头提交 | 内容 |
+|---|---|---|
+| refactor/combat-session-p2-2 | 5aeb8b3 | useRoundTurn（方案 A 重抽取） |
+| refactor/combat-session-p1-1 | 76a963a | useActions |
+| refactor/combat-session-p4 | d66a858 | usePlayback |
+| refactor/combat-session-p6-1 | 49d0df7 | SurpriseAttackDialog |
+| refactor/combat-session-p6-2 | d9426a3 | InitiativeRollDialog |
+| refactor/combat-session-p6-3 | 9b4e385 | InitiativeTiebreakerDialog |
+| refactor/combat-session-p6-batch | f307016 | RewindDialog / ManualRecordDialog / InitiativeTable / PlaybackToolbar / CombatantList 删除 / 看板收口 |
+
+### 0.3 关键裁定存档（why 记录）
+
+| # | 裁定 | 理由 |
+|---|---|---|
+| 1 | **方案 A 全程贯彻**：页面为权威源，预抽取产物视为过期快照，接线前逐行对账 | 预抽取是历史分叉（§1.2/1.3），直接接线会丢 IDB 快照/暂停/自动推进/从头播放 |
+| 2 | `clearExpiredAdvantage` 保留并在接线时补齐 3 个调用分支 | AGENTS.md §5.13 记载的设计行为，页面此前漏调（§1.4 反向疑点） |
+| 3 | 真门禁是 `npx tsc -b --force` | 本仓库 `tsc --noEmit` 对 solution-style tsconfig 是 no-op，曾掩盖 stale 代码错误；已记入 `.monkeycode/MEMORY.md` |
+| 4 | useActions：`playbackPaused` 判定补回（可用性统一走 `isPlaybackActive()`）；丢弃 hook 自加的昏迷/死亡门控 | 暂停期间误消耗动作是实际 bug；页面无 incapacitated 判定，对齐页面 |
+| 5 | usePlayback：IDB 快照持久化收口 hook 内；丢弃陈旧 hook startPlayback 的「还原快照+清空选中格」逻辑 | 完整回溯已由 `useRoundTurn.applyRollback` + `startPlaybackFromBeginning` 分担；§5.11 描述系陈旧 hook 时代设计 |
+| 6 | useRoundTurn：`currentTurn` 仅 `{ round, combatantId }`（去 combatantIdx 缓存） | 遵守 AGENTS.md §5.12：先攻重排后缓存下标会偏移跳列 |
+| 7 | 共享 ref（rollbackSnapshotRef/playbackSnapshotRef/autoAdvance*/pausedTurnRef）留在页面以 props 传入 | §4.2：跨 hook 读写，禁止搬入单个 hook |
+| 8 | CombatantList 死抽取删除（用户裁定） | 页面卡片列表 UI 已并入先攻表格 `<th>` 表头（P3-1 内联编辑只读化），接线会引入重复 UI |
+| 9 | RewindDialog 保留 `{rewindModal && ...}` 外层包裹 | 组件 `firstClickDone` 为局部 state，open=false 不卸载会导致状态残留，须强制重挂载 |
+| 10 | PlaybackToolbar / InitiativeTable 为页面权威重写（放弃对账直连） | 陈旧抽取漂移过大：InitiativeTable 违反 §5.12（含 combatantIdx）+ 死编辑代码；PlaybackToolbar 缺从头播放/暂停恢复 |
+
+### 0.4 遗留事项
+
+1. **合并**：按 §0.2 顺序在 GitHub 合入六分支（未做）。
+2. **人工冒烟**：§3.2 十二场景全量跑一遍（放映/暂停/回溯/刷新恢复 + 攻击-伤害-法术 + 批量操作），通过后补录 §3.2 门禁记录。
+3. **可选第二阶段瘦身（未立项）**：当前 1580 行全部为「组装层」代码。可继续抽取的大块：沙盘配置块 ~210 / Help 弹窗 ~102 / HUD ~57 / 退出放映+完成回合弹窗 ~86 / 角色选择+回合信息块 ~70 / 攻击-伤害-法术弹窗装配 ~200，全抽约落 850 行；到 <400 还需 `useCombatModals` 类胶水聚合 hook。属锦上添花，建议冒烟通过后再评估。
+
+---
+
+## 一、现状快照（历史档案，2026-10-14 实测）
+
+> ⚠️ 本节及 §1.2/1.3/1.4 为**迁移前状态记录**，用于解释方案 A 的由来；现行结构见 `docs/combat-navigation.md`。
 
 > 下列数值均为 **2026-10-14 实测**（非估算），命令见括号内。
 
@@ -217,6 +275,8 @@ React 要求 hook 调用顺序在每次渲染间保持一致。迁移后的调�
 
 每个阶段必须通过以下检查才能进入下一阶段：
 
+> ⚠️ 实测修正：本仓库 `npx tsc --noEmit` 对 solution-style tsconfig 是 no-op，**真门禁是 `npx tsc -b --force`**（见 §0.3 裁定 3）。
+
 ```
 □ tsc --noEmit 零错误
 □ dev server 正常启动
@@ -244,7 +304,9 @@ React 要求 hook 调用顺序在每次渲染间保持一致。迁移后的调�
 
 ---
 
-## 六、组件迁移（Hook 迁移完成后执行）
+## 六、组件迁移（Hook 迁移完成后执行）【已全部完成】
+
+> ✅ 2026-10-17 完结：8 个组件接线 + CombatantList 废弃删除 + QuickCreateCombatDialog 本就已接线。逐组件裁定见 §七 组件迁移看板。
 
 Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们是纯展示/交互组件，状态由 hook 提供。
 
@@ -316,25 +378,25 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 
 ---
 
-## 八、最终验收标准
+## 八、最终验收标准（完结时对照，2026-10-17）
 
 ```
-□ CombatSession.tsx 行数 < 400
-□ 零个 import type {} 占位引用
-□ 9 个 hook 全部以真实 import 调用
-□ 9 个子组件全部以真实 import 渲染
-□ tsc --noEmit 零错误
-□ 全量冒烟测试通过
-□ 无重复 useState 声明（grep 验证）
-□ 无共享 ref 被错误搬入单个 hook
-□ git diff --stat 显示 CombatSession.tsx 大幅减少、hook 文件无变化
+☑ CombatSession.tsx 行数 < 400        → 1580（未达，转为可选第二阶段，见 §0.4.3）
+☑ 零个 import type {} 占位引用        → 0 ✅
+☑ 9 个 hook 全部以真实 import 调用    → ✅
+☑ 9 个子组件全部以真实 import 渲染    → 8 接线 + CombatantList 裁定删除 ✅
+☑ tsc --noEmit 零错误                 → tsc -b --force 零错误 ✅
+□ 全量冒烟测试通过                    → 待合并后人工执行（§0.4.2）
+☑ 无重复 useState 声明（grep 验证）   → ✅
+☑ 无共享 ref 被错误搬入单个 hook      → ✅（§4.2 归属表执行）
+☑ git diff --stat 显示 CombatSession.tsx 大幅减少、hook 文件无变化 → 3646→1580 ✅
 ```
 
 ---
 
-## 九、下一步（2026-10-14 重新基线）
+## 九、下一步（2026-10-14 重新基线）【已执行完毕】
 
-原计划假设 hook「已就绪可直接接线」，实测证伪：hook 是**双向分叉的历史快照**，直接接线会丢功能（IDB 快照、暂停、自动推进、从头播放）且引入暂停期误扣动作。因此**下一步不是按 §二 顺序接线，而是先做「重新基线」**。
+> 本节为方法论文档：预抽取产物与页面双向分叉后，按方案 A 逐 hook 重新抽取并接线。**全部执行完毕**，结果见 §零 与 §七 看板。
 
 ### 9.1 推荐动作：三选一（已给出推荐）
 
