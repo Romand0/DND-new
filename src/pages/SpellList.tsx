@@ -27,19 +27,39 @@ const SmartCastingTime = ({ castingTime }: { castingTime: string }) => {
     /^特殊$/,               // "特殊"
   ];
 
-  // 检查是否是关键模式
-  const isKeyPattern = keyPatterns.some(pattern => pattern.test(castingTime.trim()));
-  
-  // 如果是关键模式，完整显示
-  if (isKeyPattern) {
-    return (
-      <span className="text-sm dark:text-text-dark-muted light:text-text-light-medium font-medium">
-        {castingTime}
-      </span>
-    );
+  // 检查是否匹配关键模式
+  let matchedKeyPattern: string | null = null;
+  for (const pattern of keyPatterns) {
+    const match = castingTime.trim().match(pattern);
+    if (match) {
+      matchedKeyPattern = match[0];
+      break;
+    }
+  }
+
+  // 如果匹配到关键模式，显示关键模式 + 渐变省略号
+  if (matchedKeyPattern) {
+    // 检查是否还有额外的文本
+    const remainingText = castingTime.trim().substring(matchedKeyPattern.length).trim();
+    
+    if (remainingText) {
+      // 有关键模式 + 额外文本，显示关键模式 + 渐变省略号
+      return (
+        <span className="mobile-ellipsis text-sm dark:text-text-dark-muted light:text-text-light-medium">
+          {matchedKeyPattern}
+        </span>
+      );
+    } else {
+      // 只有关键模式，完整显示
+      return (
+        <span className="text-sm dark:text-text-dark-muted light:text-text-light-medium">
+          {matchedKeyPattern}
+        </span>
+      );
+    }
   }
   
-  // 非关键模式使用省略号
+  // 没有关键模式，使用渐变省略号
   return (
     <span className="mobile-ellipsis text-sm dark:text-text-dark-muted light:text-text-light-medium">
       {castingTime}
