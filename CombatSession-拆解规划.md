@@ -290,7 +290,13 @@ Hook 迁移完成后，9 个 combat 子组件的迁移相对简单——它们�
 | SurpriseAttackDialog | ✅ | 2026-10-17 | 预抽取与页面逐字一致，直接接线（open 布尔包裹 + 7 props 直传 useSurprise 输出）；页面 2468→2415（-53），占位 9→8；分支 refactor/combat-session-p6-1（堆叠于 p4） |
 | InitiativeRollDialog | ✅ | 2026-10-17 | 预抽取与页面行为等价（dexMod/total 计算与禁用条件一致，组件内部 `!open || !selectedPc` 自守卫替代页面双重包裹）；onClose 为三 setter 组合以惰性箭头传入；onConfirm=handleConfirmInitiative（useInitiative 输出）；页面 2415→2341（-74），占位 8→7；分支 refactor/combat-session-p6-2（堆叠于 p6-1） |
 | InitiativeTiebreakerDialog | ✅ | 2026-10-17 | 预抽取与页面逐字一致，直接接线（9 props：tiedOrder/cardRefs/draggingIndex + 拖拽三回调 handleDragStart/Move/End + handleConfirmTiebreaker，均 useInitiative 输出；onClose 两 setter 组合惰性箭头）；页面 2341→2278（-63），占位 7→6；分支 refactor/combat-session-p6-3（堆叠于 p6-2） |
-| CombatantList | ⬜ | — | — |
+| RewindDialog | ✅ | 2026-10-17 | 预抽取与页面行为等价；**关键差异：firstClickDone 由页面 rewindModal state 改为组件局部 useState，必须保留 `{rewindModal && ...}` 包裹强制重挂载**（组件 open=false 时不卸载，局部状态会残留）；onRewind 惰性箭头捕获 rewindModal.round/combatantIdx；页面 2278→2222（-56） |
+| ManualRecordDialog | ✅ | 2026-10-17 | 预抽取与页面全量对账一致（攻击/恢复双模板 + AC 命中判定 + 预览文本）；attacker 解析差异等价：页面在 map 内经 selectedCell 查找 → 组件 attackerId prop（`selectedCell?.combatantId ?? ''`）；315 行内联 JSX 行号脚本替换；页面 2222→1931（-291），占位 6→5 |
+| CombatantList | ⛔ 废弃 | 2026-10-17 | **页面已无对应 UI 区块**：参战者卡片列表的批量选择/先攻/删除/信息按钮均已并入先攻表格 `<th>` 表头（P3-1 时内联编辑已只读化）；组件是死抽取，接线会重复添加 UI——**文件去留待用户确认后处理**（建议删除 src/components/combat/CombatantList.tsx + 占位导入） |
+| PlaybackToolbar | ✅ | 2026-10-17 | **方案 A 重写**（陈旧抽取漂移过大：缺从头播放/暂停恢复，完成回合按钮位置错误）：组件 = 模式切换栏 + 右上角按钮组（暂停/恢复/退出）两个 Fragment，页面两处内联（651-690 + 1418-1456）合一；8 props（mode/playbackStarted/playbackPaused/onModeChange/onRestartPlayback/onPausePlayback/onResumePlayback/onExitPlayback）；页面 1654→1585（-69） |
+| InitiativeTable | ✅ | 2026-10-17 | **方案 A 重写**（陈旧抽取违反 §5.12：currentTurn 含 combatantIdx；还含死代码 editingInitiative 内联编辑）：以页面 312 行表格 JSX 为权威重写——th 卡片式表头（序号/死亡红叉/批量勾选/信息按钮/只读先攻/HP/删除）+ tbody 单元格（被突袭/编辑 textarea/选中操作面板：开始放映/记录/手动输入/回溯到此，currentTurn 比较 findIndex 实时计算）；新增 playbackPaused prop（暂停不高亮）；onOpenManualRecord 收敛页面重复 2 次的 8-setter 重置序列；页面 1931→1654（-277），占位 5→3 |
+| CombatantInfoPanel | ✅ | 2026-10-17 | **早已真实接线**（页面 48 行真导入 + infoPanel IIFE 使用），仅清理冗余占位导入；无需改动 |
+| QuickCreateCombatDialog | ✅ 已有 | — | 纯 UI 组件，页面已在使用（规划 §六 列出但本就完成） |
 | InitiativeTable | ⬜ | — | — |
 | InitiativeRollDialog | ⬜ | — | — |
 | InitiativeTiebreakerDialog | ⬜ | — | — |
