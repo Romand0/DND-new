@@ -21,13 +21,16 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  Eye,
+  EyeOff,
+  MoreHorizontal,
   Edit2,
   X,
   ArrowUpDown,
   Download,
   Library,
 } from 'lucide-react';
-import type { Character, AbilityKey, ProficiencyCategory, Equipment, Attack } from '@/types/character';
+import type { Character, AbilityKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
@@ -155,21 +158,23 @@ export default function CharacterDetail({
   const [spellsLoaded, setSpellsLoaded] = useState(false);
   const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
-  // 特性卡片折叠偏好：DM 不常查看的特质（已被其他模块计入）可手动收起，默认展开。
-  // 按「分类:名称」持久化到 localStorage，跨角色通用，重新点选选项库后名称不变、状态保持
-  const [collapsedFeatures, setCollapsedFeatures] = useState<Set<string>>(() => {
+  // 特性卡片隐藏偏好：DM 不常查看的特质（已被其他模块计入）可点眼睛图标隐藏，
+  // 被隐藏的条目收进列表底部的「…」折叠块；按「分类:名称」持久化到 localStorage，
+  // 跨角色通用，重新点选选项库后名称不变、隐藏状态保持
+  const [hiddenFeatures, setHiddenFeatures] = useState<Set<string>>(() => {
     try {
-      return new Set(JSON.parse(localStorage.getItem('DND-feature-collapsed') || '[]'));
+      return new Set(JSON.parse(localStorage.getItem('DND-feature-hidden') || '[]'));
     } catch {
       return new Set();
     }
   });
-  const toggleFeatureCollapsed = (key: string) => {
-    setCollapsedFeatures((prev) => {
+  const [hiddenFeaturesOpen, setHiddenFeaturesOpen] = useState(false);
+  const toggleFeatureHidden = (key: string) => {
+    setHiddenFeatures((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
-      localStorage.setItem('DND-feature-collapsed', JSON.stringify([...next]));
+      localStorage.setItem('DND-feature-hidden', JSON.stringify([...next]));
       return next;
     });
   };
@@ -533,6 +538,54 @@ export default function CharacterDetail({
     characterStore.deleteFeature(id, featureId);
     reloadChar();
   };
+
+  // 特性/特质卡片（主列表与底部隐藏折叠块共用）；inHiddenBlock 时眼睛按钮变为恢复
+  const renderFeatureCard = (feature: Feature, inHiddenBlock: boolean) => (
+    <div
+      key={feature.id}
+      className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-1.5"
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-medium dark:text-text-dark light:text-text-light">
+          {feature.name}
+        </span>
+        {feature.level != null && feature.category === '职业特性' && (
+          <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
+            Lv.{feature.level}
+          </span>
+        )}
+        {feature.category && (
+          <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
+            {feature.category}
+          </span>
+        )}
+        {feature.source && (
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted truncate">
+            {feature.source}
+          </span>
+        )}
+        <button
+          onClick={() => toggleFeatureHidden(`${feature.category || ''}:${feature.name}`)}
+          className="ml-auto p-1 rounded dark:hover:bg-bg-dark-2 light:hover:bg-bg-light-3 text-dark-text-muted light:text-text-light-muted hover:text-primary flex-shrink-0"
+          title={inHiddenBlock ? '恢复显示' : '隐藏'}
+        >
+          {inHiddenBlock ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+        </button>
+        <button
+          onClick={() => handleDeleteFeature(feature.id!)}
+          className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+          title="移除此条目"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
+      {feature.description && (
+        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted leading-relaxed whitespace-pre-wrap">
+          {feature.description}
+        </p>
+      )}
+    </div>
+  );
 
   const handleRemoveCantrip = (index: number) => {
     if (!id) return;
@@ -1998,66 +2051,35 @@ if (character) {
             <div className="space-y-2">
               {character.features
                 .filter(
-                  // 职业特性按等级门槛显示：角色达到生效级才展示（数据仍保留在卡上）
+                  // 职业特性按等级门槛显示（数据仍保留在卡上）；被 DM 隐藏的条目移入底部折叠块
                   (f) =>
-                    f.category !== '职业特性' ||
-                    !f.level ||
-                    f.level <= (character.level || 1)
+                    (f.category !== '职业特性' ||
+                      !f.level ||
+                      f.level <= (character.level || 1)) &&
+                    !hiddenFeatures.has(`${f.category || ''}:${f.name}`)
                 )
-                 .map((feature) => {
-                 const collapsedKey = `${feature.category || ''}:${feature.name}`;
-                 const isCollapsed = collapsedFeatures.has(collapsedKey);
-                 return (
-                <div
-                  key={feature.id}
-                  className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-1.5"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium dark:text-text-dark light:text-text-light">
-                      {feature.name}
-                    </span>
-                    {feature.level != null && feature.category === '职业特性' && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
-                        Lv.{feature.level}
-                      </span>
-                    )}
-                    {feature.category && (
-                      <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
-                        {feature.category}
-                      </span>
-                    )}
-                    {feature.source && (
-                      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted truncate">
-                        {feature.source}
-                      </span>
-                    )}
+                 .map((feature) => renderFeatureCard(feature, false))}
+              {(() => {
+                const hiddenList = character.features.filter((f) =>
+                  hiddenFeatures.has(`${f.category || ''}:${f.name}`)
+                );
+                if (hiddenList.length === 0) return null;
+                return (
+                  <>
                     <button
-                      onClick={() => toggleFeatureCollapsed(collapsedKey)}
-                      className="ml-auto p-1 rounded dark:hover:bg-bg-dark-2 light:hover:bg-bg-light-3 text-dark-text-muted light:text-text-light-muted hover:text-primary flex-shrink-0"
-                      title={isCollapsed ? '展开' : '折叠'}
+                      onClick={() => setHiddenFeaturesOpen(!hiddenFeaturesOpen)}
+                      className="w-full py-1.5 text-xs rounded-lg border border-dashed transition-colors flex items-center justify-center gap-1.5 dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
                     >
-                      {isCollapsed ? (
-                        <ChevronDown className="w-4 h-4" />
-                      ) : (
-                        <ChevronUp className="w-4 h-4" />
-                      )}
+                      <MoreHorizontal className="w-4 h-4" />
+                      {hiddenFeaturesOpen
+                        ? '收起已隐藏条目'
+                        : `${hiddenList.length} 条已隐藏`}
                     </button>
-                    <button
-                      onClick={() => handleDeleteFeature(feature.id!)}
-                      className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
-                      title="移除此条目"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                  {feature.description && !isCollapsed && (
-                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted leading-relaxed whitespace-pre-wrap">
-                      {feature.description}
-                    </p>
-                  )}
-                </div>
-                 );
-               })}
+                    {hiddenFeaturesOpen &&
+                      hiddenList.map((feature) => renderFeatureCard(feature, true))}
+                  </>
+                );
+              })()}
               {character.features.length === 0 && (
                 <div className="py-6 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">
                   暂无特性，可通过上方种族/职业/背景选择器从选项库填充
