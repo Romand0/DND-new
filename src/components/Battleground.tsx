@@ -609,6 +609,22 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     }
   };
 
+  // pointer 被取消（pointercancel）：手势作废，仅清理状态，与 handlePointerUp 的区别是绝不落子
+  //（桌面端原生拖拽、浏览器手势接管等场景会发出 cancel，此时 hover 目标是残留值，落子会放错位置）
+  const handlePointerCancel = (e: React.PointerEvent) => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    setDragLock(null);
+    dragLockRef.current = null;
+    const ts = touchState.current;
+    ts.pointers.delete(e.pointerId);
+    ts.startPoints.delete(e.pointerId);
+    ts.moved = false;
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+  };
+
   // 点击格子：只有未发生拖拽时才触发
   const handleCellClick = (col: number, row: number) => {
     if (readOnly) return;
@@ -956,11 +972,15 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       {/* 网格 —— 手势平移与缩放 */}
       <div
         ref={gridWrapRef}
-        className="relative overflow-hidden max-h-[70vh] rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 touch-none"
+        className="relative overflow-hidden max-h-[70vh] rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 touch-none select-none"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        // 桌面端鼠标长按会建立文本选区，继续拖动会触发选区拖拽（dragstart），
+        // 浏览器接管 pointer 流后 pointerup 不再派发，白圈拖拽断链导致无法落子。
+        // 禁掉一切原生拖拽根源。
+        onDragStart={(e) => e.preventDefault()}
         onDoubleClick={() => {
           if (lockedTargetId) {
             setLockedTargetId(null);
