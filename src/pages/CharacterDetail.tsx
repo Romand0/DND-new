@@ -585,7 +585,7 @@ export default function CharacterDetail({
       </div>
       {feature.description && (
         <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted leading-relaxed whitespace-pre-wrap">
-          {feature.description}
+          {renderSpellDice(feature.description)}
         </p>
       )}
     </div>
