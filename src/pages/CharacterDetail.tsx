@@ -443,63 +443,72 @@ export default function CharacterDetail({
     });
   };
 
-  // 从选项库追加特质到 features（同名同分类去重，可重复点选刷新）
+  // 从选项库填充特质：先移除角色卡上指定分类的旧特质，再写入新特质（完整替换，
+  // 更换种族/职业/背景时避免新旧混杂）；basePatch 顺带合并一次 update
   const applyOptionTraits = (
+    basePatch: Partial<Character>,
     traits: { name: string; text: string }[],
+    removeCategories: string[],
     category: string,
     source: string
   ) => {
     if (!id) return;
-    const existing = new Set(
-      (character.features || []).map((f) => `${f.category}:${f.name}`)
+    const kept = (character.features || []).filter(
+      (f) => !removeCategories.includes(f.category)
     );
-    const fresh = traits.filter((t) => t.name && t.text && !existing.has(`${category}:${t.name}`));
-    for (const t of fresh) {
-      characterStore.addFeature(id, {
+    const fresh = traits
+      .filter((t) => t.name && t.text)
+      .map((t) => ({
+        id: crypto.randomUUID(),
         name: t.name,
         description: t.text,
         category,
         source,
-      });
-    }
+      }));
+    characterStore.update(id, { ...basePatch, features: [...kept, ...fresh] });
     return fresh.length;
   };
 
   const handleRaceSelect = (opt: CharacterOption) => {
-    if (!id) return;
-    characterStore.update(id!, { race: opt.name });
-    applyOptionTraits(opt.traits, '种族特质', opt.name);
+    // 换种族时亚种特质一并失效（旧亚种归属旧种族）
+    applyOptionTraits({ race: opt.name }, opt.traits, ['种族特质', '亚种特质'], '种族特质', opt.name);
     reloadChar();
   };
 
   const handleSubraceSelect = (opt: CharacterOption) => {
-    if (!id) return;
-    characterStore.update(id!, { race: opt.name });
-    applyOptionTraits(opt.traits, '亚种特质', opt.parentName || opt.name);
+    applyOptionTraits(
+      { race: opt.name },
+      opt.traits,
+      ['亚种特质'],
+      '亚种特质',
+      opt.parentName || opt.name
+    );
     reloadChar();
   };
 
   const handleClassSelect = (opt: CharacterOption) => {
-    if (!id) return;
-    characterStore.update(id!, { profession: { ...character.profession, class: opt.name } });
     const level = character.level || 1;
     const leveled = (opt.traits as Array<{ name: string; text: string; level?: number }>).filter(
       (t) => (t.level ?? 1) <= level
     );
-    applyOptionTraits(leveled, '职业特性', opt.name);
+    applyOptionTraits(
+      { profession: { ...character.profession, class: opt.name } },
+      leveled,
+      ['职业特性'],
+      '职业特性',
+      opt.name
+    );
     reloadChar();
   };
 
   const handleBackgroundSelect = (opt: CharacterOption) => {
-    if (!id) return;
-    characterStore.update(id!, { background: opt.name });
     const traits: { name: string; text: string }[] = [];
     if (opt.feature) traits.push(opt.feature);
     if (opt.mechanics?.skills) traits.push({ name: '技能熟练项', text: opt.mechanics.skills });
     if (opt.mechanics?.tools) traits.push({ name: '工具熟练项', text: opt.mechanics.tools });
     if (opt.mechanics?.languages) traits.push({ name: '语言', text: opt.mechanics.languages });
     if (opt.mechanics?.equipment) traits.push({ name: '装备', text: opt.mechanics.equipment });
-    applyOptionTraits(traits, '背景特性', opt.name);
+    applyOptionTraits({ background: opt.name }, traits, ['背景特性'], '背景特性', opt.name);
     reloadChar();
   };
 
