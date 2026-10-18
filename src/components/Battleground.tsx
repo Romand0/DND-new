@@ -289,7 +289,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         y: (pts[0].y + pts[1].y) / 2,
       };
     }
-    (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+    // 指针捕获改为惰性（见 handlePointerMove 顶部）：此处立即捕获会把 pointerup 重定向到容器，
+    // 浏览器据此把 click 派发到容器而非被点的格子，桌面端"点击选中/放置"整条路径失效。
     // 进入拖拽锁定模式时禁止网格平移
     if (dragLockRef.current) {
       e.preventDefault();
@@ -301,6 +302,21 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     const ts = touchState.current;
     if (!ts.pointers.has(e.pointerId)) return;
     ts.pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    // 惰性指针捕获：静止点击不捕获，让 click 事件正常落在被点的格子/棋子上；
+    // 一旦开始真实拖拽（白圈拖拽，或位移超过移动阈值）才捕获，
+    // 保证拖拽过程中指针移出容器仍能收到 move/up。
+    // 阈值取 4px（与下方单指平移的 moved 判定一致）：超过即视为拖拽，此后 click 本就该被抑制。
+    const wrap = e.currentTarget as HTMLElement;
+    if (wrap.setPointerCapture && !wrap.hasPointerCapture(e.pointerId)) {
+      const startPt = ts.startPoints.get(e.pointerId);
+      if (
+        dragLockRef.current ||
+        (startPt && (Math.abs(e.clientX - startPt.x) > 4 || Math.abs(e.clientY - startPt.y) > 4))
+      ) {
+        wrap.setPointerCapture(e.pointerId);
+      }
+    }
 
     // 拖拽锁定模式：直接操作 DOM 更新圆框位置，避免每帧 setState
     if (dragLockRef.current) {
@@ -585,8 +601,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       const ts = touchState.current;
       ts.pointers.delete(e.pointerId);
       ts.startPoints.delete(e.pointerId);
+      // 成功落子：标记 moved，抑制拖拽后浏览器补发的 click
+      //（无捕获时该 click 会正常落在格子上，若不抑制会把刚拖完的棋子再选中/移动一次）；
       // 长按落空：重置 moved，让随后的 click 能正常进入 handleCellClick 选中棋子
-      if (dragLockMissed) ts.moved = false;
+      ts.moved = !dragLockMissed;
       return;
     }
     const ts = touchState.current;
