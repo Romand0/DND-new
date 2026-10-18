@@ -155,6 +155,24 @@ export default function CharacterDetail({
   const [spellsLoaded, setSpellsLoaded] = useState(false);
   const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
   const [expandedEquipment, setExpandedEquipment] = useState<Set<string>>(new Set());
+  // 特性卡片折叠偏好：DM 不常查看的特质（已被其他模块计入）可手动收起，默认展开。
+  // 按「分类:名称」持久化到 localStorage，跨角色通用，重新点选选项库后名称不变、状态保持
+  const [collapsedFeatures, setCollapsedFeatures] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem('DND-feature-collapsed') || '[]'));
+    } catch {
+      return new Set();
+    }
+  });
+  const toggleFeatureCollapsed = (key: string) => {
+    setCollapsedFeatures((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      localStorage.setItem('DND-feature-collapsed', JSON.stringify([...next]));
+      return next;
+    });
+  };
   const [tradeOpen, setTradeOpen] = useState(false);
   const [equipmentEditorOpen, setEquipmentEditorOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
@@ -1986,7 +2004,10 @@ if (character) {
                     !f.level ||
                     f.level <= (character.level || 1)
                 )
-                .map((feature) => (
+                 .map((feature) => {
+                 const collapsedKey = `${feature.category || ''}:${feature.name}`;
+                 const isCollapsed = collapsedFeatures.has(collapsedKey);
+                 return (
                 <div
                   key={feature.id}
                   className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-1.5"
@@ -2011,20 +2032,32 @@ if (character) {
                       </span>
                     )}
                     <button
+                      onClick={() => toggleFeatureCollapsed(collapsedKey)}
+                      className="ml-auto p-1 rounded dark:hover:bg-bg-dark-2 light:hover:bg-bg-light-3 text-dark-text-muted light:text-text-light-muted hover:text-primary flex-shrink-0"
+                      title={isCollapsed ? '展开' : '折叠'}
+                    >
+                      {isCollapsed ? (
+                        <ChevronDown className="w-4 h-4" />
+                      ) : (
+                        <ChevronUp className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
                       onClick={() => handleDeleteFeature(feature.id!)}
-                      className="ml-auto p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                      className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
                       title="移除此条目"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  {feature.description && (
+                  {feature.description && !isCollapsed && (
                     <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted leading-relaxed whitespace-pre-wrap">
                       {feature.description}
                     </p>
                   )}
                 </div>
-              ))}
+                 );
+               })}
               {character.features.length === 0 && (
                 <div className="py-6 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">
                   暂无特性，可通过上方种族/职业/背景选择器从选项库填充
