@@ -439,12 +439,6 @@ export default function CharacterDetail({
     });
   };
 
-  const handleAddFeature = () => {
-    if (!id) return;
-    characterStore.addFeature(id, { name: '新特性' });
-    reloadChar();
-  };
-
   // 从选项库追加特质到 features（同名同分类去重，可重复点选刷新）
   const applyOptionTraits = (
     traits: { name: string; text: string }[],
@@ -502,12 +496,6 @@ export default function CharacterDetail({
     if (opt.mechanics?.languages) traits.push({ name: '语言', text: opt.mechanics.languages });
     if (opt.mechanics?.equipment) traits.push({ name: '装备', text: opt.mechanics.equipment });
     applyOptionTraits(traits, '背景特性', opt.name);
-    reloadChar();
-  };
-
-  const handleUpdateFeature = (featureId: string, field: string, value: string) => {
-    if (!id) return;
-    characterStore.updateFeature(id, featureId, { [field]: value });
     reloadChar();
   };
 
@@ -1982,46 +1970,42 @@ if (character) {
               {character.features.map((feature) => (
                 <div
                   key={feature.id}
-                  className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-2"
+                  className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-1.5"
                 >
                   <div className="flex items-center gap-2">
-                    <textarea
-                      value={feature.name}
-                      onChange={(e) => handleUpdateFeature(feature.id!, 'name', e.target.value)}
-                      placeholder="特性名称"
-                      rows={1}
-                      className="flex-1 px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-sm font-medium dark:text-text-dark light:text-text-light resize-none min-h-[32px] field-sizing-content"
-                    />
-                    <input
-                      type="text"
-                      value={feature.category}
-                      onChange={(e) => handleUpdateFeature(feature.id!, 'category', e.target.value)}
-                      placeholder="分类"
-                      className="w-20 px-1 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs text-center dark:text-text-dark-muted light:text-text-light-muted"
-                    />
+                    <span className="text-sm font-medium dark:text-text-dark light:text-text-light">
+                      {feature.name}
+                    </span>
+                    {feature.category && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
+                        {feature.category}
+                      </span>
+                    )}
+                    {feature.source && (
+                      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted truncate">
+                        {feature.source}
+                      </span>
+                    )}
                     <button
                       onClick={() => handleDeleteFeature(feature.id!)}
-                      className="p-1 rounded hover:bg-danger/20 text-danger"
+                      className="ml-auto p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
+                      title="移除此条目"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
-                  <textarea
-                    value={feature.description}
-                    onChange={(e) => handleUpdateFeature(feature.id!, 'description', e.target.value)}
-                    placeholder="描述..."
-                    rows={2}
-                    className="w-full px-2 py-1 rounded bg-white/50 dark:bg-white/10 outline-none text-xs dark:text-text-dark-muted light:text-text-light-muted resize-none min-h-[48px] field-sizing-content"
-                  />
+                  {feature.description && (
+                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted leading-relaxed whitespace-pre-wrap">
+                      {feature.description}
+                    </p>
+                  )}
                 </div>
               ))}
-              <button
-                onClick={handleAddFeature}
-                className="w-full py-2 text-sm rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
-              >
-                <Plus className="w-4 h-4 inline mr-1" />
-                添加特性
-              </button>
+              {character.features.length === 0 && (
+                <div className="py-6 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                  暂无特性，可通过上方种族/职业/背景选择器从选项库填充
+                </div>
+              )}
             </div>
           </Section>
         </div>
