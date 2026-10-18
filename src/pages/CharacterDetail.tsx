@@ -168,6 +168,8 @@ export default function CharacterDetail({
     }
   });
   const [hiddenFeaturesOpen, setHiddenFeaturesOpen] = useState(false);
+  // 隐藏操作需二次确认（防误触）；恢复显示无破坏性，直接执行
+  const [hideConfirmKey, setHideConfirmKey] = useState<string | null>(null);
   const toggleFeatureHidden = (key: string) => {
     setHiddenFeatures((prev) => {
       const next = new Set(prev);
@@ -564,7 +566,10 @@ export default function CharacterDetail({
           </span>
         )}
         <button
-          onClick={() => toggleFeatureHidden(`${feature.category || ''}:${feature.name}`)}
+          onClick={() => {
+            if (inHiddenBlock) toggleFeatureHidden(`${feature.category || ''}:${feature.name}`);
+            else setHideConfirmKey(`${feature.category || ''}:${feature.name}`);
+          }}
           className="ml-auto p-1 rounded dark:hover:bg-bg-dark-2 light:hover:bg-bg-light-3 text-dark-text-muted light:text-text-light-muted hover:text-primary flex-shrink-0"
           title={inHiddenBlock ? '恢复显示' : '隐藏'}
         >
@@ -2281,6 +2286,37 @@ if (character) {
 )}
 
       
+
+      {hideConfirmKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setHideConfirmKey(null)} />
+          <div className="relative w-full max-w-xs rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl p-6">
+            <h3 className="text-lg font-bold mb-4 text-center dark:text-text-dark light:text-text-light">
+              隐藏此条目
+            </h3>
+            <p className="text-sm text-center mb-6 dark:text-text-dark-muted light:text-text-light-muted">
+              确定要隐藏这条特性与特质吗？它将收进列表底部的「已隐藏」折叠块。
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setHideConfirmKey(null)}
+                className="flex-1 py-2 px-4 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light light:hover:border-primary light:hover:text-primary"
+              >
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  if (hideConfirmKey) toggleFeatureHidden(hideConfirmKey);
+                  setHideConfirmKey(null);
+                }}
+                className="flex-1 py-2 px-4 text-sm rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors"
+              >
+                隐藏
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteConfirmId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">

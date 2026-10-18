@@ -414,7 +414,9 @@ function extractRaces() {
         continue;
       }
       // text 块
-      if (junkMode) continue;
+      // h4 候选期间出现的叙事（亚种介绍、特质后的风味节 lore）不属于任何特质，丢弃；
+      // 否则「野性面具」会吃掉黑暗精灵 h4 后的卓尔介绍、「卓尔武器训练」尾部拖上 lore
+      if (pendingH4 || junkMode) continue;
       const t = b.text;
       if (isNamesFlavor(t)) {
         junkMode = true;
@@ -427,6 +429,12 @@ function extractRaces() {
     // 文件尾种族导航链接（属性值加成之后出现的其他种族名 bold 头）剔除
     const raceNames = new Set(files.map((f) => f.replace('.html', '')));
     const isNavLink = (t) => raceNames.has(t.name);
+
+    // 亚种介绍段：bold 切换路径会把亚种名自身收成特质容器并吞入介绍叙事
+    // （如「木精灵：作为木精灵，你拥有…」），名字恒等于亚种名，统一剔除
+    for (const s of subraces.values()) {
+      s.traits = s.traits.filter((t) => t.name !== s.name);
+    }
 
     // 亚种排除（书源归属）
     const excl = SUBRACE_EXCLUDE[raceName] || [];
