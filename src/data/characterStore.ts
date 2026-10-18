@@ -1630,8 +1630,10 @@ const CLASS_CASTER_TYPE: Record<string, string> = {
   '奇械师': CASTER_TYPE.HALF,
   '野蛮人': CASTER_TYPE.NONE,
   '武僧': CASTER_TYPE.NONE,
-  '游荡者': CASTER_TYPE.HALF, // 诡术师可以施法
-  '战士': CASTER_TYPE.HALF, // 奥法骑士可以施法
+  // 战士/游荡者本体不施法，仅施法子职（奥法骑士/诡术师）为 1/3 施法者，
+  // 由 hasSpellcasting 的子职分支判定
+  '游荡者': CASTER_TYPE.NONE,
+  '战士': CASTER_TYPE.NONE,
 };
 
 // 非施法职业的施法子职：其法术从法师列表选取，最高 4 环（PHB 1/3 施法者）
@@ -1665,9 +1667,10 @@ const CLASS_SPELLCASTING_ABILITY: Record<string, AbilityKey> = {
   'Wizard': 'intelligence',
 };
 
-/** 获取角色的施法关键属性：显式设置优先，否则按职业推断 */
+/** 获取角色的施法关键属性：显式设置优先，否则按职业推断（无施法能力的子职返回 null） */
 export function getSpellcastingAbility(char: Character): AbilityKey | null {
   if (char.spellcastingAbility) return char.spellcastingAbility;
+  if (!hasSpellcasting(char)) return null;
   const className = getCharacterClass(char);
   return CLASS_SPELLCASTING_ABILITY[className] ?? null;
 }
@@ -1799,7 +1802,11 @@ function hasSpellcasting(char: Character): boolean {
   if (!char) return false;
   const className = getCharacterClass(char);
   const type = CLASS_CASTER_TYPE[className];
-  return type === CASTER_TYPE.FULL || type === CASTER_TYPE.HALF || type === CASTER_TYPE.WARLOCK;
+  if (type === CASTER_TYPE.FULL || type === CASTER_TYPE.HALF || type === CASTER_TYPE.WARLOCK) {
+    return true;
+  }
+  // 非施法职业的施法子职（战士:奥法骑士 / 游荡者:诡术师，1/3 施法者）
+  return !!getSpellListForCharacter(char);
 }
 
 
