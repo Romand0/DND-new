@@ -21,7 +21,6 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
-  Eye,
   EyeOff,
   MoreHorizontal,
   Edit2,
