@@ -115,6 +115,16 @@ function ClassTable({ table }: { table: ClassTableRow[] }) {
 }
 
 function OptionCard({ option, expanded, onToggle }: { option: CharacterOption; expanded: boolean; onToggle: () => void }) {
+  // 建议特征默认只展示前 3 条，点击卡片展开全部
+  const [openChars, setOpenChars] = useState<Set<number>>(new Set());
+  const toggleChar = (i: number) => {
+    setOpenChars((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  };
   return (
     <div className="rounded-xl border border-border-dark bg-white/[0.03] overflow-hidden">
       <button onClick={onToggle} className="w-full flex items-center gap-3 p-4 text-left hover:bg-white/5 transition-colors">
@@ -155,19 +165,28 @@ function OptionCard({ option, expanded, onToggle }: { option: CharacterOption; e
             <div>
               <h4 className="text-sm font-semibold text-gray-300 mb-2">建议特征</h4>
               <div className="grid gap-2 sm:grid-cols-2">
-                {option.characteristics.map((c, i) => (
-                  <div key={i} className="p-2.5 rounded-lg bg-white/5 border border-border-dark">
-                    <div className="text-xs text-gray-500 mb-1">
-                      d{c.die.replace('d', '')}-{c.kind}
+                {option.characteristics.map((c, i) => {
+                  const open = openChars.has(i);
+                  return (
+                  <div
+                    key={i}
+                    onClick={() => c.entries.length > 3 && toggleChar(i)}
+                    className={`p-2.5 rounded-lg bg-white/5 border border-border-dark ${c.entries.length > 3 ? 'cursor-pointer hover:border-primary/40 transition-colors' : ''}`}
+                  >
+                    <div className="text-xs text-gray-500 mb-1 flex items-center justify-between">
+                      <span>
+                        d{c.die.replace('d', '')}-{c.kind}
+                      </span>
+                      {c.entries.length > 3 && (
+                        <span className="text-gray-600">{open ? '收起' : `展开全部 ${c.entries.length} 条`}</span>
+                      )}
                     </div>
-                    {c.entries.slice(0, 3).map((e, j) => (
+                    {(open ? c.entries : c.entries.slice(0, 3)).map((e, j) => (
                       <p key={j} className="text-xs text-gray-400 leading-relaxed">{e}</p>
                     ))}
-                    {c.entries.length > 3 && (
-                      <p className="text-xs text-gray-600 mt-1">…共 {c.entries.length} 条</p>
-                    )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
