@@ -167,6 +167,25 @@ export default function MigrationBackup() {
     }
   };
 
+  const handlePushOptionsSeed = async () => {
+    if (!api.hasToken()) {
+      setMigrateError('请先配置并验证 DM Token');
+      return;
+    }
+    setSyncing(true);
+    setMigrateError('');
+    setMigrateResult(null);
+    try {
+      const count = await optionStore.syncToCloud();
+      setMigrateResult({ equipments: 0, spells: 0, characters: 0, options: count });
+      await fetchCounts();
+    } catch (err) {
+      setMigrateError(err instanceof Error ? err.message : '推送选项种子失败');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleSyncFromCloud = async () => {
     setSyncing(true);
     setMigrateError('');
@@ -295,6 +314,24 @@ export default function MigrationBackup() {
                 <>
                   <Database className="w-4 h-4" />
                   从云端同步
+                </>
+              )}
+            </button>
+            <button
+              onClick={handlePushOptionsSeed}
+              disabled={syncing || !api.hasToken()}
+              title="将内置的 PHB 种族/背景/职业数据推送到云端数据库"
+              className="flex-1 px-4 py-2 border dark:border-border-dark light:border-border-light hover:bg-primary/10 dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {syncing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  推送中…
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4" />
+                  推送选项种子
                 </>
               )}
             </button>
