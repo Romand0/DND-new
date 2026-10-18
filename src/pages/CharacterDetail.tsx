@@ -265,6 +265,10 @@ export default function CharacterDetail({
     }
   }, [id, externalCharacter]);
 
+  // 选项库种子 chunk 晚到时重渲染一次（亚种下拉的条件渲染依赖 getSubraces）
+  const [, setOptionTick] = useState(0);
+  useEffect(() => optionStore.subscribe(() => setOptionTick((t) => t + 1)), []);
+
   useEffect(() => {
   let cancelled = false;
   fetch('/api/spells')

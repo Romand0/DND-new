@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ChevronDown } from 'lucide-react';
 import optionStore from '@/data/optionStore';
 import type { CharacterOption, OptionCategory } from '@/types/characterOption';
@@ -10,16 +10,23 @@ interface Props {
   onSelect: (option: CharacterOption) => void;
 }
 
-// 从角色选项库选择一个条目；选中后自动复位以便重复打开
+// 从角色选项库选择一个条目；选中后自动复位以便重复打开。
+// 订阅 optionStore：种子 chunk 晚到或云端同步后自动刷新下拉项
 export default function OptionPicker({ category, parentName, placeholder, onSelect }: Props) {
+  const [all, setAll] = useState<CharacterOption[]>(() => optionStore.getAll());
+
+  useEffect(() => {
+    const unsub = optionStore.subscribe(() => setAll(optionStore.getAll()));
+    setAll(optionStore.getAll());
+    return unsub;
+  }, []);
+
   const options = useMemo(() => {
-    const all = optionStore.getAll().filter((o) => o.category === category);
-    if (parentName) {
-      const scoped = all.filter((o) => o.parentName === parentName);
-      return scoped.length ? scoped : all;
-    }
-    return all;
-  }, [category, parentName]);
+    const scoped = parentName ? all.filter((o) => o.parentName === parentName) : all;
+    const matched = scoped.filter((o) => o.category === category);
+    // 指定了母项但库中无对应子项时回退到全量，避免下拉空白
+    return parentName && matched.length === 0 ? all.filter((o) => o.category === category) : matched;
+  }, [all, category, parentName]);
 
   const sorted = useMemo(
     () => [...options].sort((a, b) => a.name.localeCompare(b.name, 'zh')),
