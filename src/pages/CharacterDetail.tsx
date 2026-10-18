@@ -444,10 +444,11 @@ export default function CharacterDetail({
   };
 
   // 从选项库填充特质：先移除角色卡上指定分类的旧特质，再写入新特质（完整替换，
-  // 更换种族/职业/背景时避免新旧混杂）；basePatch 顺带合并一次 update
+  // 更换种族/职业/背景时避免新旧混杂）；basePatch 顺带合并一次 update。
+  // 职业特性全量写入并携带 level，显示层按角色等级过滤（升级后自动出现新特性）
   const applyOptionTraits = (
     basePatch: Partial<Character>,
-    traits: { name: string; text: string }[],
+    traits: { name: string; text: string; level?: number }[],
     removeCategories: string[],
     category: string,
     source: string
@@ -464,6 +465,7 @@ export default function CharacterDetail({
         description: t.text,
         category,
         source,
+        level: t.level,
       }));
     characterStore.update(id, { ...basePatch, features: [...kept, ...fresh] });
     return fresh.length;
@@ -487,13 +489,9 @@ export default function CharacterDetail({
   };
 
   const handleClassSelect = (opt: CharacterOption) => {
-    const level = character.level || 1;
-    const leveled = (opt.traits as Array<{ name: string; text: string; level?: number }>).filter(
-      (t) => (t.level ?? 1) <= level
-    );
     applyOptionTraits(
       { profession: { ...character.profession, class: opt.name } },
-      leveled,
+      opt.traits,
       ['职业特性'],
       '职业特性',
       opt.name
@@ -1980,7 +1978,15 @@ if (character) {
 
           <Section title="特性与特质" icon={Sparkles}>
             <div className="space-y-2">
-              {character.features.map((feature) => (
+              {character.features
+                .filter(
+                  // 职业特性按等级门槛显示：角色达到生效级才展示（数据仍保留在卡上）
+                  (f) =>
+                    f.category !== '职业特性' ||
+                    !f.level ||
+                    f.level <= (character.level || 1)
+                )
+                .map((feature) => (
                 <div
                   key={feature.id}
                   className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-1.5"
@@ -1989,6 +1995,11 @@ if (character) {
                     <span className="text-sm font-medium dark:text-text-dark light:text-text-light">
                       {feature.name}
                     </span>
+                    {feature.level != null && feature.category === '职业特性' && (
+                      <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
+                        Lv.{feature.level}
+                      </span>
+                    )}
                     {feature.category && (
                       <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
                         {feature.category}

@@ -8,6 +8,8 @@ export interface OptionTrait {
   name: string;
   nameEn: string;
   text: string;
+  // 生效等级（从文本「第X级」解析；无标注的按 1 级默认，仅职业特性使用）
+  level?: number;
 }
 
 // 种族/职业的机械字段（自动化填卡用；v1 只读展示）

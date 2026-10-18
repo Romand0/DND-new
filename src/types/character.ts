@@ -144,6 +144,8 @@ export interface Feature {
   description: string;
   category: string;
   source?: string;
+  // 生效等级：职业特性在角色未达到该级前隐藏显示（数据仍在卡上）
+  level?: number;
 }
 
 export interface Character {

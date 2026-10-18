@@ -421,7 +421,7 @@ function extractRaces() {
         if (curTrait) curTrait.text = curTrait.text.replace(/\s*[\u4e00-\u9fff]*姓名.*$/s, '').trim();
         continue;
       }
-      if (curTrait) curTrait.text += (curTrait.text ? ' ' : '') + t;
+      if (curTrait) curTrait.text += (curTrait.text ? ' ' : '') + t.replace(/^[。、：；]+/, '');
     }
 
     // 文件尾种族导航链接（属性值加成之后出现的其他种族名 bold 头）剔除
@@ -579,7 +579,7 @@ function collectFeatures(blocks) {
       const { zh, en } = splitZhEn(b.text);
       cur = { name: zh, nameEn: en, text: '' };
     } else if (b.kind === 'text' && cur) {
-      cur.text += (cur.text ? ' ' : '') + b.text;
+      cur.text += (cur.text ? ' ' : '') + b.text.replace(/^[。、：；]+/, '');
     } else if (cur && (b.kind === 'heading' || b.kind === 'table')) {
       features.push(cur);
       cur = null;
@@ -701,9 +701,15 @@ function extractClasses() {
     const structural = ['生命值', '生命骰', '熟练项', '装备', '快速建卡', '职业特性', '职业表', '施法', '法术'];
     const createIdx = features.findIndex((f) => /^(创建|创造)/.test(f.name));
     const featureSource = createIdx >= 0 ? features.slice(createIdx + 1) : features;
-    const classFeatures = featureSource.filter(
-      (f) => f.text && !structural.some((s) => f.name.includes(s)) && f.nameEn
-    );
+    const classFeatures = featureSource
+      .filter((f) => f.text && !structural.some((s) => f.name.includes(s)) && f.nameEn)
+      .map((f) => ({
+        ...f,
+        // 生效等级：从文本首个「第X级」解析（如「从第1级起」「第4、8、12级」「第4、
+        // 第6、第19级」三种形态都要命中首个数字），无等级标注的一律为 1 级特性
+        // （PHB 1 级特性普遍不带等级前缀；「第10章」等章节引用因无「级」后缀不会误匹配）
+        level: Number((f.text.match(/第\s*(\d+)(?:\s*[、，,]\s*第?\s*\d+)*\s*级/) || [])[1] || 1),
+      }));
 
     // h4 子选项（战斗风格等）挂回所属特性
     const optionsByCtx = new Map();
@@ -737,6 +743,7 @@ function extractClasses() {
         name: f.name,
         nameEn: f.nameEn,
         text: f.text,
+        level: f.level,
       })),
       subclasses: [],
       dataResource: '5E不全书',
@@ -820,7 +827,7 @@ function extractSubclass(dir, file, parentName) {
     } else if (b.kind === 'heading' || b.kind === 'header' || b.kind === 'table') {
       flush();
     } else if (b.kind === 'text' && cur) {
-      cur.text += (cur.text ? ' ' : '') + b.text;
+      cur.text += (cur.text ? ' ' : '') + b.text.replace(/^[。、：；]+/, '');
     }
   }
   flush();
