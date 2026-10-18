@@ -493,10 +493,10 @@ function isNamesFlavor(text) {
   return /姓名/.test(text) && /Names/i.test(text);
 }
 
-/** 剔除导航链接型伪特质（文件尾种族列表） */
+/** 剔除伪特质：文件尾种族导航链接、指向亚种列表的「亚种」介绍段（纯引导，无机械内容） */
 function baseTraitsClean(traits, isNavLink) {
   for (let i = traits.length - 1; i >= 0; i--) {
-    if (isNavLink(traits[i])) traits.splice(i, 1);
+    if (isNavLink(traits[i]) || traits[i].name === '亚种') traits.splice(i, 1);
   }
 }
 
@@ -695,9 +695,13 @@ function extractClasses() {
     const saveF = find('豁免');
     const hitDie = hpF ? (hpF.text.match(/1d(\d+)/) || [])[1] : null;
 
-    // 职业特性：排除结构段
+    // 职业特性：每个职业在职业特性区之前有两段叙事 flavor（如「音乐与魔法/从经验中
+    // 学习」）和一段「创建XXX」快速建卡引导，全部从「创建XXX」之后截取；德鲁伊语/
+    // 专精/盗贼黑话等 1 级真特性位于其后，不受影响。无「创建XXX」时退化为仅排结构段
     const structural = ['生命值', '生命骰', '熟练项', '装备', '快速建卡', '职业特性', '职业表', '施法', '法术'];
-    const classFeatures = features.filter(
+    const createIdx = features.findIndex((f) => /^(创建|创造)/.test(f.name));
+    const featureSource = createIdx >= 0 ? features.slice(createIdx + 1) : features;
+    const classFeatures = featureSource.filter(
       (f) => f.text && !structural.some((s) => f.name.includes(s)) && f.nameEn
     );
 
