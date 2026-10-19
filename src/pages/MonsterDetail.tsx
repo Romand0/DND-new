@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Edit2, Trash2, GripVertical, Shield, Heart, Footprints, Swords, BookOpen } from 'lucide-react';
-import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
+import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS, normalizeCr } from '@/types/combat';
 import type { NpcTemplate, NpcAttack } from '@/types/combat';
 import MonsterEditor from '@/components/MonsterEditor';
 import npcTemplateStore from '@/data/npcTemplateStore';
@@ -49,8 +49,11 @@ export default function MonsterDetail() {
     navigate('/monsters');
   };
 
-  const crLabels: Record<number, string> = {
-    0: '0', 0.25: '1⁄4', 0.5: '1⁄2', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10', 11: '11', 12: '12', 13: '13', 14: '14', 15: '15', 16: '16', 17: '17', 18: '18', 19: '19', 20: '20',
+  const crLabels: Record<string, string> = {
+    '0': '0', '1/8': '1⁄8', '1/4': '1⁄4', '1/2': '1⁄2',
+    '1': '1', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
+    '10': '10', '11': '11', '12': '12', '13': '13', '14': '14', '15': '15', '16': '16',
+    '17': '17', '18': '18', '19': '19', '20': '20',
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
@@ -153,7 +156,7 @@ export default function MonsterDetail() {
             <div className="flex justify-between">
               <span className="text-sm text-muted-foreground dark:text-text-dark-muted light:text-text-light-muted">挑战等级 (CR)</span>
               <span className={`font-bold ${template.cr === undefined ? 'text-gray-400' : 'text-primary'}`}>
-                {template.cr === undefined ? '—' : crLabels[template.cr] || template.cr}
+                {template.cr === undefined ? '—' : crLabels[normalizeCr(template.cr) ?? ''] || template.cr}
               </span>
             </div>
             <div className="flex justify-between">

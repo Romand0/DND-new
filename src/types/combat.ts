@@ -23,6 +23,52 @@ export const CREATURE_TYPE_LABELS: Record<CreatureType, string> = {
   plant: '植物', undead: '不死生物',
 };
 
+// 种子 / 解析器存 "1/8""1/4""1/2"；编辑器 number input 可能写出 "0.25"。筛选与排序一律先归一。
+export const CR_FILTER_VALUES = [
+  '0', '1/8', '1/4', '1/2',
+  '1', '2', '3', '4', '5', '6', '7', '8', '9',
+  '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+] as const;
+
+const CR_DECIMAL_TO_FRACTION: Record<string, string> = {
+  '0.125': '1/8',
+  '0.25': '1/4',
+  '0.5': '1/2',
+};
+
+/** 任意 CR 表示 → 规范字符串（"1/4" / "2"）；无法解析返回 null */
+export function normalizeCr(raw: string | number | undefined | null): string | null {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const s = String(raw).trim().replace(/⁄/g, '/');
+  if (s === '—' || s === '无') return null;
+  if (CR_DECIMAL_TO_FRACTION[s]) return CR_DECIMAL_TO_FRACTION[s];
+  const frac = s.match(/^(\d+)\s*\/\s*(\d+)$/);
+  if (frac) {
+    const v = Number(frac[1]) / Number(frac[2]);
+    if (Math.abs(v - 0.125) < 1e-9) return '1/8';
+    if (Math.abs(v - 0.25) < 1e-9) return '1/4';
+    if (Math.abs(v - 0.5) < 1e-9) return '1/2';
+    return s.replace(/\s+/g, '');
+  }
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  if (Math.abs(n - 0.125) < 1e-9) return '1/8';
+  if (Math.abs(n - 0.25) < 1e-9) return '1/4';
+  if (Math.abs(n - 0.5) < 1e-9) return '1/2';
+  if (Number.isInteger(n)) return String(n);
+  return String(n);
+}
+
+/** 规范 CR → 数值，供排序；未知排最后 */
+export function crToNumber(raw: string | number | undefined | null): number {
+  const canon = normalizeCr(raw);
+  if (canon === null) return Number.POSITIVE_INFINITY;
+  const frac = canon.match(/^(\d+)\/(\d+)$/);
+  if (frac) return Number(frac[1]) / Number(frac[2]);
+  const n = Number(canon);
+  return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
+}
+
 export interface Combatant {
   id: string;
   name: string;
