@@ -1,0 +1,23 @@
+# 需求实施计划：combat-cast-steps
+
+- [ ] 1. 契约层与持久层基础
+  - [ ] 1.1 新建 `src/types/castStep.ts`：CastStepType / CastStepStatus / CastStepLog（对齐 types/flow.ts L11-20 / L680-703）
+  - [ ] 1.2 `types/combat.ts`：CombatRecord 增加 `castLogs?: CastStepLog[]`（R7.1）
+  - [ ] 1.3 `combatStore.ts`：load() 兜底 `castLogs ?? []`；`appendCastLogs(recordId, logs)` 走既有 update→save→notify（R7.2）
+- [ ] 2. 状态机层
+  - [ ] 2.1 新建 `src/hooks/combat/useCastSteps.ts`：buildCastSteps 纯函数（按设计 §2 推导表裁剪）+ useCastSteps hook（completeCurrent / forceCurrent / abort / collectLogs）（R1/R2）
+  - [ ] 2.2 序列边界保证：任意法术推导以 cast_start 开头、cast_end 结尾、中间裁剪保序（Correctness 5）
+- [ ] 3. 视图层步骤组件（`src/components/combat/`）
+  - [ ] 3.1 `SpellStepBar.tsx`：步骤进度条（R1.4）
+  - [ ] 3.2 `SpellPreCastStep.tsx`：V/S/M 成分（deriveCanGesticulate + canSpeak 兜底）+ 施法时间门禁（动作 / canUseBonusAction）+ 射程明细；硬门禁 + 强制施放（R3）
+  - [ ] 3.3 `SpellTargetStep.tsx`：切比雪夫距离×5 尺、射程门禁同交互、目标更换、无位置 skipped（R4）
+  - [ ] 3.4 `SpellCheckStep.tsx`：现有检定逻辑整体搬迁（d20 手填/掷骰、AdvDisadvToggle、pending 消费、SAVE_ATTR_MAP）；检定类型切换留在步骤内（R5）
+  - [ ] 3.5 `SpellEffectStep.tsx`：parseDice / 手动骰 / HP 预览搬迁（R6.1）
+  - [ ] 3.6 `SpellFinishStep.tsx`：全步骤摘要 + 结算清单 + 超上限截断展示（R6.2/R6.4）
+- [ ] 4. 宿主重构
+  - [ ] 4.1 `CombatSpellModal`：list 阶段保留；cast 阶段换装 useCastSteps + 步骤组件；跨步骤共享态上提；删除死 import flowCompiler（R8.2）
+  - [ ] 4.2 副作用收口：仅收尾确认时调 onCastResolved（契约逐字不变）+ appendCastLogs 批量写入；关闭弹窗零变更（Correctness 1/2）
+  - [ ] 4.3 检查点：`npx tsc --noEmit` + `npm run build` 通过
+- [ ] 5. 收尾
+  - [ ] 5.1 onCastResolved 字段与重构前逐字比对（Correctness 2）
+  - [ ] 5.2 commit + push，附部署后手动走查清单（设计 §Test Strategy 8 条）
