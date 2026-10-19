@@ -65,7 +65,58 @@ export default function SpellCheckStep({
   const spellAttackBonus = casterCharacter ? characterStore.getSpellAttackBonus(casterCharacter) : null;
   const spellSaveDC = casterCharacter ? characterStore.getSpellSaveDC(casterCharacter) : null;
 
-  // 自动填入目标豁免加值：PC 从角色卡取豁免加值；NPC 从属性调整值兜底。用户仍可手动覆盖
+  const fmtBonus = (n: number) => (n >= 0 ? `+${n}` : String(n));
+  const ABILITY_LABEL_MAP: Record<AbilityKey, string> = {
+    strength: '力量', dexterity: '敏捷', constitution: '体质',
+    intelligence: '智力', wisdom: '感知', charisma: '魅力',
+  };
+
+  // 豁免加值构成（推导链展示：属性值 → 调整值 (+ 熟练) → 豁免加值）
+  const saveBreakdown = (() => {
+    if (checkType !== 'save') return null;
+    const abilityKey = SAVE_ATTR_MAP[saveAttribute];
+    if (!abilityKey) return null;
+    const abilityLabel = ABILITY_LABEL_MAP[abilityKey];
+    if (targetCharacter) {
+      const mod = targetCharacter.abilities?.[abilityKey]?.modifier ?? 0;
+      const total = characterStore.getSaveBonus(targetCharacter, abilityKey);
+      const profPart = total - mod;
+      const score = targetCharacter.abilities?.[abilityKey]?.score;
+      return {
+        total,
+        formula: `${abilityLabel} ${score ?? '?'} → 调整值 ${fmtBonus(mod)}` +
+          (profPart > 0 ? ` + 熟练 ${profPart}` : '（无熟练）') +
+          ` → 豁免 ${fmtBonus(total)}`,
+        fromCharacter: true,
+      };
+    }
+    const score = target[abilityKey as keyof Combatant] as number | undefined;
+    if (typeof score !== 'number') return null;
+    const mod = Math.floor((score - 10) / 2);
+    const profPart = target.proficientSaves?.includes(abilityKey) ? (target.proficiencyBonus ?? 2) : 0;
+    const total = mod + profPart;
+    return {
+      total,
+      formula: `${abilityLabel} ${score} → 调整值 ${fmtBonus(mod)}` +
+        (profPart > 0 ? ` + 图鉴熟练 ${profPart}` : '（无熟练）') +
+        ` → 豁免 ${fmtBonus(total)}`,
+      fromCharacter: false,
+    };
+  })();
+
+  // DC 来源拆解（与 calcSpellSaveDC 公式一致：8 基础 + 施法属性调整值 + 熟练；熟练部分反推保持与实际 DC 严格一致）
+  const dcBreakdown = (() => {
+    if (checkType !== 'save' || spellSaveDC === null || !casterCharacter) return null;
+    const ability = characterStore.getSpellcastingAbility(casterCharacter);
+    const mod = ability ? casterCharacter.abilities?.[ability]?.modifier ?? 0 : 0;
+    const profPart = spellSaveDC - 8 - mod;
+    const abilityLabel = ability ? ABILITY_LABEL_MAP[ability] : null;
+    return abilityLabel
+      ? `DC ${spellSaveDC} = 8 基础 + ${abilityLabel}调整 ${fmtBonus(mod)} + 熟练 ${profPart}（施法者）`
+      : `DC ${spellSaveDC}（施法者法术豁免 DC）`;
+  })();
+
+  // 自动填入目标豁免加值：PC 从角色卡取豁免加值；NPC 从属性值 + 图鉴熟练信息推导。用户仍可手动覆盖
   useEffect(() => {
     if (checkType !== 'save') return;
     const abilityKey = SAVE_ATTR_MAP[saveAttribute];
@@ -78,6 +129,9 @@ export default function SpellCheckStep({
       const abilityScore = target[abilityKey as keyof Combatant] as number | undefined;
       if (typeof abilityScore === 'number') {
         bonus = Math.floor((abilityScore - 10) / 2);
+        if (target.proficientSaves?.includes(abilityKey)) {
+          bonus += target.proficiencyBonus ?? 2;
+        }
       }
     }
 
@@ -276,7 +330,10 @@ export default function SpellCheckStep({
               </button>
             ))}
           </div>
-          <div className="text-amber-400/80 mt-1">提示：根据法术描述选择对应属性，由目标掷骰</div>
+          <div className="text-amber-400/80 mt-1">
+            提示：根据法术描述选择对应属性，由目标掷骰
+            {dcBreakdown && <span className="ml-1">· {dcBreakdown}</span>}
+          </div>
         </div>
       )}
 
@@ -345,10 +402,17 @@ export default function SpellCheckStep({
                 placeholder={targetCharacter ? '目标豁免加值' : '目标无角色卡，请手填'}
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary text-center"
               />
-              {targetCharacter && (
+              {saveBreakdown ? (
                 <div className="text-[10px] text-center dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
-                  已从角色卡自动填入，可修改
+                  {saveBreakdown.formula}，可修改
+                  {parseInt(targetSaveBonus, 10) === saveBreakdown.total ? '' : '（已手动修改）'}
                 </div>
+              ) : (
+                targetCharacter && (
+                  <div className="text-[10px] text-center dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
+                    已从角色卡自动填入，可修改
+                  </div>
+                )
               )}
             </div>
           )}

@@ -35,6 +35,10 @@ interface NpcEditState {
   childId?: string;
   creatureSize?: number;
   creatureType?: string;
+  /** 熟练豁免属性（从模板带入，自定义 NPC 为空 → 豁免 = 纯调整值） */
+  proficientSaves: AbilityKey[];
+  /** 熟练加值（从模板带入，自定义 NPC 默认 2） */
+  proficiencyBonus: number;
 }
 
 function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEditState {
@@ -60,6 +64,8 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
     childId: `${template.templateId}-${crypto.randomUUID().slice(0, 8)}`,
         creatureSize: template.creatureSize as CreatureSize,
       creatureType: template.creatureType as CreatureType,
+    proficientSaves: template.savingThrows ?? [],
+    proficiencyBonus: template.proficiencyBonus ?? 2,
   };
 }
 
@@ -86,6 +92,9 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     charisma: parseInt(state.abilities.charisma, 10) || 10,
     creatureSize: state.creatureSize as CreatureSize,
     creatureType: state.creatureType as CreatureType,
+    // 携带熟练信息用于豁免加值自动计算（调整值 + 熟练属性 × PB）
+    proficientSaves: state.proficientSaves,
+    proficiencyBonus: state.proficiencyBonus,
   };
 }
 
@@ -136,6 +145,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
     setEditState({
       name: '',
       abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
+      proficientSaves: [], proficiencyBonus: 2,
       hp: 10, speed: 30, ac: 10, attacks: [],
       d20, initiative: d20 + 0,
     });
@@ -149,6 +159,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
       setEditState({
         name: '',
         abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
+      proficientSaves: [], proficiencyBonus: 2,
         hp: 10, speed: 30, ac: 10, attacks: [],
         d20, initiative: d20 + 0,
       });
@@ -562,6 +573,8 @@ function NpcEditor(props: NpcEditorProps) {
         attacks: state.attacks,
       creatureSize: state.creatureSize as CreatureSize,
       creatureType: state.creatureType as CreatureType,
+        savingThrows: state.proficientSaves.length > 0 ? state.proficientSaves : undefined,
+        proficiencyBonus: state.proficiencyBonus,
       });
     }
     onSave();
@@ -612,6 +625,14 @@ function NpcEditor(props: NpcEditorProps) {
               }`}>
                 {modifiers[ability] >= 0 ? '+' : ''}{modifiers[ability]}
               </span>
+              {state.proficientSaves.includes(ability) && (
+                <span
+                  className="text-xs font-bold px-1 rounded shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400"
+                  title={`熟练豁免：调整值 ${modifiers[ability] >= 0 ? '+' : ''}${modifiers[ability]} + 熟练 ${state.proficiencyBonus} = ${modifiers[ability] + state.proficiencyBonus}`}
+                >
+                  豁免 {modifiers[ability] + state.proficiencyBonus >= 0 ? '+' : ''}{modifiers[ability] + state.proficiencyBonus}
+                </span>
+              )}
             </div>
           ))}
         </div>

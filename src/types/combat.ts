@@ -57,6 +57,10 @@ export interface Combatant {
   intelligence?: number;
   wisdom?: number;
   charisma?: number;
+  /** NPC 熟练加值（从怪物图鉴模板带入；豁免 = 属性调整值 + 熟练属性 × PB） */
+  proficiencyBonus?: number;
+  /** NPC 熟练豁免属性（从怪物图鉴模板带入，缺省视为无熟练 → 豁免 = 纯调整值） */
+  proficientSaves?: AbilityKey[];
   /** NPC 实例子 ID，格式 `{templateId}-{random}`，从模板创建时自动带入 */
   childId?: string;
   /** 模板 ID 引用（从模板创建时带入） */
