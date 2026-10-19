@@ -15,6 +15,7 @@ export type FlowNodeType =
   | 'attack_roll'         // 法术攻击检定
   | 'condition_branch'    // 条件分支
   | 'apply_effect'        // 效果分配（伤害/治疗/状态）
+  | 'scaled_effect'       // 分级效果（按施法者等级/法术环位取值，戏法缩放与升环施法）
   | 'concentration_check' // 专注检定
   | 'cast_end'            // 法术结束/结算
   | 'custom';             // 自定义节点（开放扩展）
@@ -398,6 +399,25 @@ export const NODE_TYPE_REGISTRY: NodeTypeMeta[] = [
     icon: 'heart',
   },
   {
+    type: 'scaled_effect',
+    label: '分级效果',
+    description: '按施法者角色等级或法术环位自动取值的伤害/治疗（戏法缩放、升环施法，替代条件分支链）',
+    category: '效果',
+    color: '#d946ef',
+    defaultConfig: {
+      scaleBy: 'caster_level',
+      tiers: [
+        { level: 17, value: '4d4' },
+        { level: 11, value: '3d4' },
+        { level: 5, value: '2d4' },
+        { level: 1, value: '1d4' },
+      ],
+      effectType: 'damage',
+      damageType: '',
+    },
+    icon: 'trending-up',
+  },
+  {
     type: 'concentration_check',
     label: '专注检定',
     description: '施法者进行专注豁免（体质检定 vs DC 10 或伤害半数）',
@@ -437,6 +457,7 @@ export type ConfigFieldType =
   | 'template'    // 模板变量（如 ${caster.spellSaveDc}）
   | 'boolean'     // 布尔开关（勾选框）
   | 'object'      // 嵌套配置对象（递归渲染子字段）
+  | 'array'       // 对象数组（递归渲染子字段为行，可增删行）
   | 'spellPicker'; // 法术选择器（集成 SpellPicker 组件）
 
 /** 下拉选项：中文标签 → DSL 值 */
@@ -640,6 +661,70 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
   ],
 
   // ── 扩展 ──
+  scaled_effect: [
+    {
+      key: 'scaleBy',
+      label: '缩放依据',
+      type: 'select',
+      required: true,
+      options: [
+        { label: '施法者角色等级（戏法缩放）', value: 'caster_level' },
+        { label: '当前法术环位（升环施法）', value: 'spell_level' },
+      ],
+      defaultValue: 'caster_level',
+    },
+    {
+      key: 'tiers',
+      label: '分档表',
+      type: 'array',
+      required: true,
+      description: '命中规则：取「等级 ≤ 缩放值」的最大一档（自上而下首个命中行），建议按等级从高到低排列',
+      children: [
+        { key: 'level', label: '达到等级', type: 'number', required: true },
+        { key: 'value', label: '骰式', type: 'dice', required: true, placeholder: '如 4d4、1d8+5' },
+      ],
+      defaultValue: [
+        { level: 17, value: '4d4' },
+        { level: 11, value: '3d4' },
+        { level: 5, value: '2d4' },
+        { level: 1, value: '1d4' },
+      ],
+    },
+    {
+      key: 'effectType',
+      label: '效果类型',
+      type: 'select',
+      required: true,
+      options: [
+        { label: '伤害', value: 'damage' },
+        { label: '治疗', value: 'healing' },
+      ],
+      defaultValue: 'damage',
+    },
+    {
+      key: 'damageType',
+      label: '伤害类型',
+      type: 'select',
+      required: false,
+      options: [
+        { label: '（未指定）', value: '' },
+        { label: '火焰', value: 'fire' },
+        { label: '寒冷', value: 'cold' },
+        { label: '闪电', value: 'lightning' },
+        { label: '酸蚀', value: 'acid' },
+        { label: '毒素', value: 'poison' },
+        { label: '力场', value: 'force' },
+        { label: '黯蚀', value: 'necrotic' },
+        { label: '光耀', value: 'radiant' },
+        { label: '心灵', value: 'psychic' },
+        { label: '雷鸣', value: 'thunder' },
+        { label: '穿刺', value: 'piercing' },
+        { label: '挥砍', value: 'slashing' },
+        { label: '钝击', value: 'bludgeoning' },
+      ],
+    },
+  ],
+
   custom: [
     {
       key: 'code',

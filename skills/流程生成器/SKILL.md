@@ -87,10 +87,10 @@
 | 半伤 | 豁免成功是否减半 | 影响边与效果说明 |
 | 效果类别 | 伤害/治疗/状态 | `apply_effect.effectType` |
 | 持续与专注 | 时长、是否专注 | 是否需要 `concentration_check` |
-| 升环 | 升环增量 | 是否需要 `condition_branch` |
+| 升环 / 戏法缩放 | 分档取值表 | 用 `scaled_effect`（见 2.3，禁分支链） |
 | 特殊分支 | 阈值、条件、二次选择 | 决定分支节点与边 |
 
-> **戏法缩放陷阱**：戏法（level 0）的伤害提升按**施法者角色等级**（5/11/17 级），与环位无关——法术描述「当你到达 5 级时」指角色等级。分支条件必须写 `caster.level >= N`（scope 已注入完整施法者 Character）；写 `spell.level >= N` 恒为 false（戏法环级永远是 0），伤害永远取基础骰。升环施法（有环位法术用更高环位施放）才用 `spell.level`。
+> **戏法缩放陷阱**：戏法（level 0）的伤害提升按**施法者角色等级**（5/11/17 级），与环位无关——法术描述「当你到达 5 级时」指角色等级。数值分档一律用 `scaled_effect` 节点（`scaleBy: "caster_level"`）；只有手写 `condition_branch` 条件时才写 `caster.level >= N`（scope 已注入完整施法者 Character），写 `spell.level >= N` 恒为 false（戏法环级永远是 0），伤害永远取基础骰。升环施法（有环位法术用更高环位施放）用 `scaled_effect` 的 `scaleBy: "spell_level"`。
 
 ### 1.2 归一化规则
 
@@ -118,7 +118,7 @@
 
 ## 版块 2：机制建模 —— 节点与边
 
-### 2.1 节点目录（9 种，以 `FlowNodeType` 为准）
+### 2.1 节点目录（10 种，以 `FlowNodeType` 为准）
 
 | 类型 | 语义 | 入口/出口 | 运行支撑 |
 |------|------|-----------|----------|
@@ -128,6 +128,7 @@
 | `attack_roll` | 法术攻击检定 | 产生命中/未命中分流 | 有（真实加值/AC + 自然 20/1；NPC 目标待 Phase 3） |
 | `condition_branch` | 条件分流 | 必须有两个出口 | 有（白名单安全求值器） |
 | `apply_effect` | 伤害/治疗/状态结算 | 效果终点 | 有（完整 NdM+K 掷骰；不与检定结果联动，Phase 3） |
+| `scaled_effect` | 分级效果：按施法者角色等级或法术环位自动取值的伤害/治疗 | 效果终点 | 有（分档表取档 + 掷骰；一次掷骰全目标共用） |
 | `concentration_check` | 专注检定（体质 DC 10） | 持续法术收尾 | 有 |
 | `cast_end` | 流程收尾 | 流程出口 | 有（仅日志） |
 | `custom` | 开放扩展 | 任意 | 有（eval，风险自负） |
@@ -198,6 +199,43 @@ cast_start → select_target → saving_throw → apply_effect(status) → cast_
 ```
 cast_start → select_target → apply_effect(status) → concentration_check → cast_end
 ```
+
+**分级缩放（戏法按角色等级 / 升环按环位）——用 `scaled_effect`，禁止分支链**：
+
+```
+cast_start → select_target → saving_throw → scaled_effect → cast_end
+```
+
+`condition_branch` 只表达**判定/状态**分流（豁免成败、HP 阈值）。数值随等级/环位线性分档属于**取值**逻辑，用 `scaled_effect` 的分档表表达；用分支链拆 4d4/3d4/2d4/1d4 是反模式（节点爆炸、改档位要同步改边）。
+
+`scaled_effect` 配置契约（以 `NODE_CONFIG_SCHEMA.scaled_effect` 为准）：
+
+- `scaleBy`：`caster_level`（戏法缩放，读施法者角色等级）| `spell_level`（升环施法，读当前法术环位）
+- `tiers`：分档表 `{ level: number; value: string }[]`，**建议按 level 从高到低排列**；执行时取首个「缩放值 ≥ level」的档（等价于最大可用档），全部不命中回落最低档
+- `effectType`：`damage` | `healing`（状态不分档，仍走 `apply_effect`）
+- `damageType`：可选，同 `apply_effect.damageType` 映射
+
+示例——恶言相加（戏法，角色等级缩放）：
+
+```json
+{
+  "id": "scaled_dmg",
+  "type": "scaled_effect",
+  "config": {
+    "scaleBy": "caster_level",
+    "tiers": [
+      { "level": 17, "value": "4d4" },
+      { "level": 11, "value": "3d4" },
+      { "level": 5,  "value": "2d4" },
+      { "level": 1,  "value": "1d4" }
+    ],
+    "effectType": "damage",
+    "damageType": "psychic"
+  }
+}
+```
+
+输出字段：`scaleBy / scaleValue / scaleSource / matchedTier / tiers / dice / results`（`scaleSource` 是人类可读的取值来源说明，直接进运行日志）。
 
 带条件分流（升环、阈值）：
 

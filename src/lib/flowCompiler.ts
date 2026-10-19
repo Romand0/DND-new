@@ -136,6 +136,8 @@ export class FlowCompiler {
         return this.executeConditionBranchNode(node, context);
       case 'apply_effect':
         return this.executeApplyEffectNode(node, context);
+      case 'scaled_effect':
+        return this.executeScaledEffectNode(node, context);
       case 'concentration_check':
         return this.executeConcentrationCheckNode(node, context);
       case 'cast_end':
@@ -659,23 +661,102 @@ export class FlowCompiler {
     const effectType = config?.effectType || 'damage';
     const value = config?.value || '0';
 
-    // 完整骰式解析与投掷（一次掷骰，全目标共用）
-    let effectValue = 0;
-    let diceDetail: { expr: string; count: number; sides: number; bonus: number; values: number[] } | null = null;
-    try {
-      const parsed = parseDice(String(value));
-      if (parsed.count > 0 && parsed.sides > 0) {
-        const result = rollDice({ sides: parsed.sides as 4 | 6 | 8 | 10 | 12 | 20, count: parsed.count, mode: 'independent' });
-        effectValue = result.values.reduce((s, v) => s + v, 0) + parsed.bonus;
-        diceDetail = { expr: String(value), count: parsed.count, sides: parsed.sides, bonus: parsed.bonus, values: result.values };
-      } else {
-        // flat 数值或无法解析的骰式
-        effectValue = parsed.count === 0 ? parsed.bonus : 0;
+    const { effectValue, diceDetail } = this.rollEffectValue(String(value));
+    const results = this.applyValueToTargets(effectType, effectValue, context);
+
+    return {
+      status: 'success',
+      output: {
+        effectType,
+        value,
+        dice: diceDetail,
+        results,
+        message: `效果应用完成，${results.filter(r => r.effectApplied).length}个目标受影响`
       }
-    } catch {
-      effectValue = 0;
+    };
+  }
+
+  /**
+   * 执行分级效果节点（戏法缩放 / 升环施法）
+   *
+   * 分档表按 level 降序排列后取首个「缩放值 ≥ level」的档位；
+   * 缩放值 = caster_level 时读施法者角色等级，spell_level 时读当前法术环位。
+   * 掷骰与目标结算复用 apply_effect 的路径，保证语义一致。
+   */
+  private async executeScaledEffectNode(
+    node: FlowNodeDef,
+    context: FlowExecutionContext
+  ): Promise<NodeExecutionResult> {
+    const config = node.config;
+    const effectType = config?.effectType === 'healing' ? 'healing' : 'damage';
+    const damageType = config?.damageType || '';
+
+    // 归一化分档表：过滤非法行 + 按 level 降序（首个命中 = 最大可用档）
+    const tiers = (Array.isArray(config?.tiers) ? config.tiers : [])
+      .map(t => ({ level: Number(t?.level), value: String(t?.value ?? '') }))
+      .filter(t => Number.isFinite(t.level) && t.value !== '')
+      .sort((a, b) => b.level - a.level);
+    if (tiers.length === 0) {
+      return {
+        status: 'failure',
+        output: { error: '分级效果节点缺少有效的分档表（tiers）' }
+      };
     }
 
+    const scaleBy = config?.scaleBy === 'spell_level' ? 'spell_level' : 'caster_level';
+    let scaleValue: number;
+    let scaleSource: string;
+    if (scaleBy === 'spell_level') {
+      const spell = context.spellId ? spellStore.getById(context.spellId) : null;
+      scaleValue = spell?.level ?? 0;
+      scaleSource = spell ? `${spell.name}（环位 ${scaleValue}）` : '（未指定法术，按 0 环）';
+    } else {
+      const caster = characterStore.get(context.casterId);
+      scaleValue = caster?.level ?? 0;
+      scaleSource = caster ? `${caster.name}（角色等级 ${scaleValue}）` : '（未指定施法者，按 0 级）';
+    }
+
+    const matchedTier = tiers.find(t => scaleValue >= t.level) ?? tiers[tiers.length - 1];
+
+    const { effectValue, diceDetail } = this.rollEffectValue(matchedTier.value);
+    const results = this.applyValueToTargets(effectType, effectValue, context);
+
+    return {
+      status: 'success',
+      output: {
+        effectType,
+        damageType,
+        scaleBy,
+        scaleValue,
+        scaleSource,
+        matchedTier,
+        tiers,
+        dice: diceDetail,
+        results,
+        message: `分级效果（${scaleBy === 'spell_level' ? '环位' : '角色等级'} ${scaleValue} → ${matchedTier.value}），${results.filter(r => r.effectApplied).length}个目标受影响`
+      }
+    };
+  }
+
+  /** 解析并投掷骰式：一次掷骰，全目标共用（含纯加值回退） */
+  private rollEffectValue(value: string): { effectValue: number; diceDetail: { expr: string; count: number; sides: number; bonus: number; values: number[] } | null } {
+    try {
+      const parsed = parseDice(value);
+      if (parsed.count > 0 && parsed.sides > 0) {
+        const result = rollDice({ sides: parsed.sides as 4 | 6 | 8 | 10 | 12 | 20, count: parsed.count, mode: 'independent' });
+        return {
+          effectValue: result.values.reduce((s, v) => s + v, 0) + parsed.bonus,
+          diceDetail: { expr: value, count: parsed.count, sides: parsed.sides, bonus: parsed.bonus, values: result.values },
+        };
+      }
+      return { effectValue: parsed.count === 0 ? parsed.bonus : 0, diceDetail: null };
+    } catch {
+      return { effectValue: 0, diceDetail: null };
+    }
+  }
+
+  /** 将数值效果结算到全部目标（伤害/治疗，含 HP 更新），返回逐目标结果 */
+  private applyValueToTargets(effectType: 'damage' | 'healing', effectValue: number, context: FlowExecutionContext) {
     const results: any[] = [];
 
     for (const targetId of context.targets) {
@@ -719,16 +800,7 @@ export class FlowCompiler {
       }
     }
 
-    return {
-      status: 'success',
-      output: {
-        effectType,
-        value,
-        dice: diceDetail,
-        results,
-        message: `效果应用完成，${results.filter(r => r.effectApplied).length}个目标受影响`
-      }
-    };
+    return results;
   }
 
   /**

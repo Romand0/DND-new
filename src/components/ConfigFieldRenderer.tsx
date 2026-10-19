@@ -124,6 +124,55 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark, p
         />
       );
 
+    case 'array': {
+      const rows: any[] = Array.isArray(value) ? value : (Array.isArray(schema.defaultValue) ? schema.defaultValue : []);
+      const itemDefaults = () => {
+        const item: any = {};
+        for (const child of schema.children ?? []) {
+          item[child.key] = child.defaultValue ?? (child.type === 'number' ? 0 : '');
+        }
+        return item;
+      };
+      return (
+        <div className="space-y-2">
+          {rows.map((row, idx) => (
+            <div key={idx} className="flex items-center gap-1.5">
+              {(schema.children ?? []).map(child => (
+                <div key={child.key} className="flex-1 min-w-0">
+                  <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">{child.label}</div>
+                  <ConfigFieldRenderer
+                    schema={child}
+                    value={row?.[child.key]}
+                    onChange={(v) => {
+                      const next = rows.map((r, i) => (i === idx ? { ...r, [child.key]: v } : r));
+                      onChange(next);
+                    }}
+                    isDark={isDark}
+                    parentValue={row}
+                  />
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => onChange(rows.filter((_, i) => i !== idx))}
+                className="shrink-0 self-end px-1.5 py-1 text-[10px] rounded border border-red-400/50 text-red-400 hover:bg-red-400/10"
+                title="删除该档"
+              >
+                删
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() => onChange([...rows, itemDefaults()])}
+            className="w-full py-1 text-[10px] rounded border border-dashed dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/5"
+          >
+            + 添加一档
+          </button>
+        </div>
+      );
+    }
+
     case 'text':
     default:
       return (
