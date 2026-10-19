@@ -60,6 +60,7 @@ import type {
   ConfigFieldSchema,
 } from '@/types/flow';
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow, ensureNodePositions } from '@/types/flow';
+import { tidyFlowLayout, hasDegeneratePositions } from '@/utils/flow-editor/topology-layout';
 import { NODE_CONFIG_SCHEMA, FlowNodeType } from '@/types/flow';
 // FLOW_CATEGORIES, parseFlowId, buildFlowId 已移至 FlowPropertiesCategories 组件
 import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
@@ -136,8 +137,10 @@ export default function FlowEditor() {
     
     const loaded = flowStore.getById(flowId);
     if (loaded) {
-      // 确保节点坐标：缺失时自动布局
-      const flowWithPositions = ensureNodePositions(loaded);
+      // 坐标缺失或重复堆叠时按拓扑重排（与查看模式同款分层布局），保证可编辑
+      const flowWithPositions = hasDegeneratePositions(loaded)
+        ? tidyFlowLayout(loaded)
+        : ensureNodePositions(loaded);
       setLoadedFlow(flowWithPositions);
       flowRef.current = flowWithPositions;
       flowNameInput.setExternal(flowWithPositions.name);
@@ -148,8 +151,10 @@ export default function FlowEditor() {
           await flowStore.fetchRemote();
           const remote = flowStore.getById(flowId);
           if (remote) {
-            // 确保节点坐标：缺失时自动布局
-            const flowWithPositions = ensureNodePositions(remote);
+            // 坐标缺失或重复堆叠时按拓扑重排（与查看模式同款分层布局）
+            const flowWithPositions = hasDegeneratePositions(remote)
+              ? tidyFlowLayout(remote)
+              : ensureNodePositions(remote);
             setLoadedFlow(flowWithPositions);
             flowRef.current = flowWithPositions;
             flowNameInput.setExternal(flowWithPositions.name);
@@ -782,6 +787,14 @@ flowStore.saveViewportSnapshot(flowId, {
     }
   }, [flow, showToast, validation]);
 
+  // ===== 整理布局：按拓扑分层重排（与查看模式同款布局），写回流程并随自动保存持久化 =====
+  const handleTidyLayout = useCallback(() => {
+    const source = flowRef.current ?? flow;
+    if (source.nodes.length === 0) return;
+    setFlow(tidyFlowLayout(source));
+    showToast('success', '已按拓扑结构整理布局');
+  }, [flow, setFlow, showToast]);
+
   // ===== 组件卸载时保存当前草稿 =====
 
   useEffect(() => {
@@ -895,6 +908,7 @@ flowStore.saveViewportSnapshot(flowId, {
         onExit={() => setExitModalOpen(true)}
         onPublish={handlePublish}
         onSave={saveFlow}
+        onTidyLayout={handleTidyLayout}
         onFlowNameChange={(value) => flowNameInput.onChange(value)}
         onFlowNameBlur={flowNameInput.onBlur}
       />

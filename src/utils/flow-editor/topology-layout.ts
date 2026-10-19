@@ -145,3 +145,38 @@ export function layoutTopology(
 
   return { nodes, edges: flow.edges, width, height, ranks };
 }
+
+/**
+ * 整理布局：把 layoutTopology 派生的坐标写回流程（编辑器「整理布局」/加载兜底用）。
+ * 纯函数，返回全新 FlowDefinition，不修改入参。
+ */
+export function tidyFlowLayout(flow: FlowDefinition): FlowDefinition {
+  const layout = layoutTopology(flow);
+  const posById = new Map(layout.nodes.map(n => [n.id, n.position]));
+  return {
+    ...flow,
+    nodes: flow.nodes.map(n => {
+      const pos = posById.get(n.id);
+      return pos ? { ...n, position: pos } : n;
+    }),
+  };
+}
+
+/**
+ * 坐标是否退化（需要整理）：存在缺失坐标，或出现重复坐标（多个节点叠在同一点）。
+ * 手工摆放过但整体挤成一团的流程会被判为退化，触发自动整理。
+ */
+export function hasDegeneratePositions(flow: FlowDefinition): boolean {
+  const nodes = flow.nodes;
+  if (nodes.length === 0) return false;
+  if (nodes.some(n => !n.position || typeof n.position.x !== 'number' || typeof n.position.y !== 'number')) {
+    return true;
+  }
+  const seen = new Set<string>();
+  for (const n of nodes) {
+    const key = `${n.position!.x},${n.position!.y}`;
+    if (seen.has(key)) return true;
+    seen.add(key);
+  }
+  return false;
+}
