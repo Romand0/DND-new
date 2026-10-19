@@ -5,6 +5,7 @@ import { useEditorState } from '@/data/editorState';
 import { Search, Plus, Edit2, Trash2, GripVertical } from 'lucide-react';
 import {
   CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS,
+  CR_FILTER_VALUES, normalizeCr, crToNumber,
   type CreatureSize, type CreatureType,
 } from '@/types/combat';
 import type { NpcTemplate } from '@/types/combat';
@@ -34,12 +35,11 @@ function loadTypeFilter(): CreatureType | 'all' {
     return 'all';
   } catch { return 'all'; }
 }
-function loadCrFilter(): number | 'all' {
+function loadCrFilter(): string | 'all' {
   try {
     const v = sessionStorage.getItem(STORAGE_KEY_CR);
     if (v === null || v === 'all') return 'all';
-    const n = parseFloat(v);
-    return isNaN(n) ? 'all' : n;
+    return normalizeCr(v) ?? 'all';
   } catch { return 'all'; }
 }
 function loadSizeFilter(): CreatureSize | 'all' {
@@ -61,7 +61,7 @@ export default function MonsterList() {
   const [templates, setTemplates] = useState<NpcTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState(loadSearchQuery);
   const [typeFilter, setTypeFilter] = useState<CreatureType | 'all'>('all');
-  const [crFilter, setCrFilter] = useState<number | 'all'>(loadCrFilter);
+  const [crFilter, setCrFilter] = useState<string | 'all'>(loadCrFilter);
   const [sizeFilter, setSizeFilter] = useState<CreatureSize | 'all'>('all');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<NpcTemplate | undefined>();
@@ -118,7 +118,7 @@ export default function MonsterList() {
       const matchesType = typeFilter === 'all'
         || t.creatureType === typeFilter
         || t.type === CREATURE_TYPE_LABELS[typeFilter];
-      const matchesCr = crFilter === 'all' ||         t.cr === crFilter?.toString();
+      const matchesCr = crFilter === 'all' || normalizeCr(t.cr) === crFilter;
       // 优先匹配枚举字段，回退匹配旧文本
       const matchesSize = sizeFilter === 'all'
         || t.creatureSize === sizeFilter
@@ -137,12 +137,9 @@ export default function MonsterList() {
 
   const sortedTemplates = useMemo(() => {
     return [...filteredTemplates].sort((a, b) => {
-      // 先按 CR 升序,再按名称拼音序
-      if (a.cr !== undefined && b.cr !== undefined) {
-        const aCr = parseFloat(a.cr) || 0;
-        const bCr = parseFloat(b.cr) || 0;
-        if (aCr !== bCr) return aCr - bCr;
-      }
+      const aCr = crToNumber(a.cr);
+      const bCr = crToNumber(b.cr);
+      if (aCr !== bCr) return aCr - bCr;
       return a.name.localeCompare(b.name, 'zh-CN');
     });
   }, [filteredTemplates]);
@@ -195,30 +192,15 @@ export default function MonsterList() {
     setEditorOpen(true);
   };
 
-  const crLabels: Record<number, string> = {
-    0: '0',
-    0.25: '1⁄4',
-    0.5: '1⁄2',
-    1: '1',
-    2: '2',
-    3: '3',
-    4: '4',
-    5: '5',
-    6: '6',
-    7: '7',
-    8: '8',
-    9: '9',
-    10: '10',
-    11: '11',
-    12: '12',
-    13: '13',
-    14: '14',
-    15: '15',
-    16: '16',
-    17: '17',
-    18: '18',
-    19: '19',
-    20: '20',
+  const crLabels: Record<string, string> = {
+    '0': '0',
+    '1/8': '1⁄8',
+    '1/4': '1⁄4',
+    '1/2': '1⁄2',
+    '1': '1', '2': '2', '3': '3', '4': '4', '5': '5',
+    '6': '6', '7': '7', '8': '8', '9': '9', '10': '10',
+    '11': '11', '12': '12', '13': '13', '14': '14', '15': '15',
+    '16': '16', '17': '17', '18': '18', '19': '19', '20': '20',
   };
 
   if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
@@ -274,10 +256,10 @@ export default function MonsterList() {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">CR</span>
           <button
-            onClick={() => setCrFilter(crFilter === 'all' ? 0 : 'all')}
+            onClick={() => setCrFilter('all')}
             className={`px-2.5 py-1 rounded-full text-xs transition-colors ${crFilter === 'all' ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`}
           >全部</button>
-          {[0, 0.25, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map(cr => (
+          {CR_FILTER_VALUES.map(cr => (
             <button
               key={cr}
               onClick={() => setCrFilter(crFilter === cr ? 'all' : cr)}
@@ -339,7 +321,7 @@ export default function MonsterList() {
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${template.cr === undefined ? 'bg-gray-500/20 text-gray-400' : 'bg-primary/20 text-primary'}`}>
-                      {template.cr === undefined ? '—' : crLabels[template.cr] || template.cr}
+                        {template.cr === undefined ? '—' : crLabels[normalizeCr(template.cr) ?? ''] || template.cr}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">
