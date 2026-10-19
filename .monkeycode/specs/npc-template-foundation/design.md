@@ -79,9 +79,13 @@ note?: string;                              // 条目附加文本（如"若勇�
 
 新增「怪物图鉴」卡片：按钮触发 `npcTemplateStore.importSeed({ overwrite })`（覆盖开关为页内 checkbox），结果行展示「新增 N / 更新 N / 跳过 N」。无云端调用。
 
-### 5. `src/components/NpcCreator.tsx` — 模板筛选消费
+### 5. 复用既有怪物图鉴模块（用户裁决修正）
 
-在既有模板选择区加：名称搜索框、CR 排序/筛选、生物类型筛选（复用 `CREATURE_TYPE_LABELS`）。从模板创建参战者时带入 `templateId`、`proficiencyBonus`、`savingThrows`（Combatant 已有 `templateId` 字段，战斗态字段透传即可）。
+**概念修正**：NPC 模板库的本质即「怪物图鉴」模块，且 UI 已存在——`/monsters` 路由的 `MonsterList` 页（搜索 + 类型/CR/体型筛选 + sessionStorage 持久化 + `MonsterCard` 网格 + `MonsterEditor` 维护）读的就是 `npcTemplateStore`。种子入库后图鉴页自动呈现 ~300 条目，零改动。
+
+**新增 `src/components/MonsterPicker.tsx`（从 MonsterList 抽取筛选机制）**：props `{ onSelect(template), selectedId?, emptyHint? }`，内含名称搜索 + 类型/CR/体型筛选（sessionStorage key 独立命名空间 `npcCreator.monsterPicker.*`）+ MonsterCard 网格。
+
+**`NpcCreator` choose 阶段改造**：朴素模板列表替换为 `<MonsterPicker onSelect={handleSelectTemplate} />`，交互主文案改为「从怪物图鉴选取」；「自定义 NPC」按钮保留为次入口（家养怪物）。MonsterList 本体本期保持不动（逻辑以 MonsterPicker 为后续统一目标，另起任务）。
 
 ## Data Models
 
