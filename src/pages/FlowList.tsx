@@ -162,12 +162,12 @@ export default function FlowList() {
           {filtered.map(f => (
             <div
               key={f.id}
-              className="p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary/40 transition-colors"
+              className="min-w-0 p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary/40 transition-colors"
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold dark:text-text-dark light:text-text-light truncate">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <h3 className="min-w-0 font-semibold dark:text-text-dark light:text-text-light truncate">
                       {f.name || '未命名流程'}
                     </h3>
                     {(() => {
@@ -225,7 +225,7 @@ export default function FlowList() {
                     </button>
                   </div>
                   {f.description && (
-                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 truncate">
+                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 line-clamp-2">
                       {f.description}
                     </p>
                   )}

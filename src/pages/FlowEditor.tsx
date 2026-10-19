@@ -191,7 +191,7 @@ export default function FlowEditor() {
   const [spellPickerOpen, setSpellPickerOpen] = useState(false);
   const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
   
-  // ===== 沙盒环境保存状态 =====
+  // ===== 草稿编辑会话：自动保存状态 =====
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   // 法术绑定状态已迁移至 useSpellBinding
@@ -756,7 +756,7 @@ flowStore.saveViewportSnapshot(flowId, {
   // ===== 发布正式版 =====
   const handlePublish = useCallback(async () => {
     try {
-      // 1. 验证沙盒环境中的草稿
+      // 1. 验证本地草稿
       const validation = await apiFetch(`/flows/validate/${flow.id}`);
       if (validation.errors && validation.errors.length > 0) {
         showToast('error', `发布失败: ${validation.errors.join(', ')}`);
@@ -782,7 +782,7 @@ flowStore.saveViewportSnapshot(flowId, {
     }
   }, [flow, showToast, validation]);
 
-  // ===== 组件卸载时保存沙盒环境 =====
+  // ===== 组件卸载时保存当前草稿 =====
 
   useEffect(() => {
     const saveCurrent = () => {
