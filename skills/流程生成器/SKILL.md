@@ -90,6 +90,8 @@
 | 升环 | 升环增量 | 是否需要 `condition_branch` |
 | 特殊分支 | 阈值、条件、二次选择 | 决定分支节点与边 |
 
+> **戏法缩放陷阱**：戏法（level 0）的伤害提升按**施法者角色等级**（5/11/17 级），与环位无关——法术描述「当你到达 5 级时」指角色等级。分支条件必须写 `caster.level >= N`（scope 已注入完整施法者 Character）；写 `spell.level >= N` 恒为 false（戏法环级永远是 0），伤害永远取基础骰。升环施法（有环位法术用更高环位施放）才用 `spell.level`。
+
 ### 1.2 归一化规则
 
 - **属性名**：文本「敏捷」→ `dexterity`；「体质」→ `constitution`；映射表见 `src/types/flow.ts` 的 `select` 选项。
