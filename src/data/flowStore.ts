@@ -269,9 +269,9 @@ const flowStore = {
     return flow;
   },
 
-  /** 更新流程（局部合并） */
+  /** 更新流程（局部合并；patch 只需携带要改的字段，如绑定计数） */
   update(id: string, patch: Partial<FlowDefinition>): FlowDefinition | undefined {
-    if (!id || !patch.name) {
+    if (!id) {
       throw new Error('流程数据不完整');
     }
 

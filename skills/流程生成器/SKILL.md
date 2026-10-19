@@ -25,6 +25,13 @@
 | 自审报告 | 通过/失败项、风险项、待确认项 | `templates/review-checklist.md` |
 | （仅扩展任务）节点类型契约 | 新类型的字段、不变量、输出、失败模式 | `templates/new-node-type-contract.md` |
 
+**FlowConsole 发布校验必填项**（`src/utils/flow-validation.ts`，缺任一即被发布门禁拒绝，JSON 交付前逐项自检）：
+
+- 顶层：`id`（字符串，前缀须与 `category` 一致，如 `spell:xxx`）、`name`、`description`、`category`（`spell` / `class_features` / `custom` 之一）
+- 每个节点：`id`、`type`、`label`（中文字符串，画布显示名）、`position`（缺坐标仅警告，但建议带上）
+- 每条边：`id`、`from`、`to`、`trigger`
+- `position` 缺失会触发「打开编辑器时自动布局」警告；`label` 与 `category` 缺失是硬错误
+
 ### 0.3 权威来源金字塔
 
 冲突时，上层覆盖下层：
