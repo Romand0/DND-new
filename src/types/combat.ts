@@ -1,5 +1,6 @@
 // src/types/combat.ts
 import type { CastStepLog } from './castStep';
+import type { AbilityKey } from './character';
 
 // ===== 新增：体型枚举 =====
 /** 体型级别：0=微型, 1=小型, 2=中型, 3=大型, 4=巨型, 5=超巨型 */
@@ -132,6 +133,37 @@ export interface NpcTemplate {
   createdAt: number;
   /** 更新时间 */
   updatedAt: number;
+  // ---- 怪物图鉴 2014 自动入库扩展（全部可选，向后兼容）----
+  /** 熟练加值（MM2014 不印，缺失时由解析器按 CR 推导） */
+  proficiencyBonus?: number;
+  /** PB 是否为推导值（源卡未印） */
+  pbDerived?: boolean;
+  /** 熟练豁免属性列表（如 saving_throw 流程节点消费） */
+  savingThrows?: AbilityKey[];
+  /** 技能熟练（名称 + 数据卡标注加值） */
+  skills?: { name: string; bonus: number }[];
+  /** 生命骰表达式（如 "11d8+44"） */
+  hpDice?: string;
+  /** 护甲描述（如 "链甲"、"天生护甲"；双形态卡为原文全文） */
+  acNote?: string;
+  /** 英文名（templateId slug 依据） */
+  nameEn?: string;
+  /** 经验值 */
+  xp?: number;
+  /** 伤害抗性（中文标签） */
+  damageResistances?: string[];
+  /** 伤害免疫 */
+  damageImmunities?: string[];
+  /** 伤害易伤 */
+  damageVulnerabilities?: string[];
+  /** 状态免疫 */
+  conditionImmunities?: string[];
+  /** 附加速度说明（如 "飞行 90 尺"） */
+  speedNotes?: string;
+  /** 结构化特性条目（数据卡「特性」区，如 好斗/灵活） */
+  traits?: { name: string; text: string }[];
+  /** 解析来源目录（去重消歧用） */
+  sourceDir?: string;
 }
 
 export interface NpcAttack {
@@ -148,6 +180,8 @@ export interface NpcAttack {
   twoHandedDamage?: string;
   /** 武器是否已装填（"装填"属性：当前弹匣状态，true=已装填可射击，false=需装填） */
   loaded?: boolean;
+  /** 双手/多用伤害之外的附加文本（如 "外加1d8"、豁免型攻击的命中效果） */
+  note?: string;
 }
 
 export interface RoundAction {

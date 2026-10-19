@@ -3,6 +3,7 @@ import { X, Plus, Save, Keyboard, Users, User, ArrowLeft, Edit3, Check, Pencil }
 import type { NpcTemplate, NpcAttack, Combatant, CreatureSize, CreatureType } from '@/types/combat';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
 import npcTemplateStore from '@/data/npcTemplateStore';
+import MonsterPicker from '@/components/MonsterPicker';
 import { rollDice } from '@/data/diceService';
 
 const ABILITY_NAMES = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
@@ -92,10 +93,9 @@ interface Props {
   onClose: () => void;
   onCreate: (combatant: Omit<Combatant, 'id'>) => void;
   onBatchCreate?: (combatants: Omit<Combatant, 'id'>[]) => void;
-  templates?: NpcTemplate[];
 }
 
-export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates = [] }: Props) {
+export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) {
   // 阶段: 'choose' 选择模板/自定义, 'single-edit' 单个编辑, 'batch' 批量列表, 'batch-edit' 批量中编辑单个, 'edit-template' 编辑模板
   const [stage, setStage] = useState<'choose' | 'single-edit' | 'batch' | 'batch-edit' | 'edit-template'>('choose');
   const [selectedTemplate, setSelectedTemplate] = useState<NpcTemplate | null>(null);
@@ -271,49 +271,29 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate, templates
               </div>
             </button>
 
-            {/* 模板列表 */}
+            {/* 模板选取：从怪物图鉴选取（MonsterPicker 提供搜索/筛选） */}
             <div>
               <div className="text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted flex items-center justify-between">
-                <span>从模板创建</span>
-                <span className="text-xs opacity-60">点击模板选择，点击笔图标编辑</span>
+                <span>从怪物图鉴选取</span>
+                <span className="text-xs opacity-60">点击怪物选择，笔图标编辑模板</span>
               </div>
-              {templates.length === 0 ? (
-                <div className="text-center py-8 text-sm opacity-50 dark:text-text-dark-muted light:text-text-light-muted">
-                  暂无模板
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-2 max-h-64 overflow-y-auto">
-                  {templates.map(t => (
-                    <div
-                      key={t.id}
-                      className={`p-3 rounded-lg border cursor-pointer transition-all flex items-center gap-2 ${
-                        selectedTemplate?.id === t.id
-                          ? 'border-primary ring-2 ring-primary/30'
-                          : 'dark:border-border-dark light:border-border-light hover:border-primary/50'
-                      }`}
-                      onClick={() => handleSelectTemplate(t)}
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium dark:text-text-dark light:text-text-light truncate">{t.name}</div>
-                        <div className="text-xs opacity-60 dark:text-text-dark-muted light:text-text-light-muted">
-                          AC {t.ac} | HP {t.maxHp} | 速度 {t.speed}尺
-                          {t.creatureSize !== undefined && ` | ${CREATURE_SIZE_LABELS[t.creatureSize]}${t.creatureType !== undefined ? ` · ${CREATURE_TYPE_LABELS[t.creatureType]}` : ''}`}
-                        </div>
-                      </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          startEditTemplate(t);
-                        }}
-                        className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors shrink-0"
-                        title="编辑模板"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <MonsterPicker
+                onSelect={handleSelectTemplate}
+                selectedId={selectedTemplate?.id}
+                emptyHint="图鉴中暂无匹配的怪物"
+                renderAction={(t) => (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startEditTemplate(t);
+                    }}
+                    className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                    title="编辑模板"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                )}
+              />
             </div>
 
             {/* 选中模板后显示的操作按钮 */}

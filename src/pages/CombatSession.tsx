@@ -56,7 +56,6 @@ export default function CombatSession() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // ✅ 新增：NPC 创建器
   const [npcCreatorOpen, setNpcCreatorOpen] = useState(false);
-  const [npcTemplates, setNpcTemplates] = useState<NpcTemplate[]>([]);
   // ✅ 新增：战斗攻击检定弹窗（在 main 上处理）
   const [attackModal, setAttackModal] = useState<{
     attacker: Combatant;
@@ -282,14 +281,6 @@ export default function CombatSession() {
 
   // 投掷武器掉落：由 hook 接管（executeThrownDrop 需显式传入 record）
   const { executeThrownDrop } = useThrownDrop(record?.id ?? null);
-
-  useEffect(() => {
-    setNpcTemplates(npcTemplateStore.getAll());
-    const unsub = npcTemplateStore.subscribe(() => {
-      setNpcTemplates(npcTemplateStore.getAll());
-    });
-    return unsub;
-  }, []);
 
   // 所有参战者沙盘位置字典（用于跨参战者距离判定：协助动作 5 尺约束等）
   const combatantPositions = useMemo(() => {
@@ -992,7 +983,6 @@ export default function CombatSession() {
           onClose={() => setNpcCreatorOpen(false)}
           onCreate={handleCreateNpc}
           onBatchCreate={handleBatchCreateNpc}
-          templates={npcTemplates}
         />
       )}
 

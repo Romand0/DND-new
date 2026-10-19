@@ -1,5 +1,6 @@
 import type { NpcTemplate, CreatureSize, CreatureType } from '@/types/combat';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
+import seedTemplates from '@/data/npcTemplates.json';
 
 // 反查表：旧文本 → 枚举
 const REVERSE_SIZE_MAP: Record<string, CreatureSize> = Object.fromEntries(
@@ -74,6 +75,20 @@ function load(): NpcTemplate[] {
       savingThrows: t.savingThrows,
       skills: t.skills,
       source: t.source,
+      // ---- 图鉴扩展字段兜底（旧 localStorage 数据零报错）----
+      proficiencyBonus: t.proficiencyBonus,
+      pbDerived: t.pbDerived,
+      hpDice: t.hpDice,
+      acNote: t.acNote,
+      nameEn: t.nameEn,
+      xp: t.xp,
+      damageResistances: t.damageResistances,
+      damageImmunities: t.damageImmunities,
+      damageVulnerabilities: t.damageVulnerabilities,
+      conditionImmunities: t.conditionImmunities,
+      speedNotes: t.speedNotes,
+      traits: t.traits,
+      sourceDir: t.sourceDir,
     }));
   } catch {
     return [];
@@ -88,6 +103,66 @@ function save(templates: NpcTemplate[]): void {
   } catch (e) {
     console.error('NPC模板保存失败:', e);
   }
+}
+
+/** 种子条目 → 完整 NpcTemplate（补 id/时间戳） */
+function seedToTemplate(entry: any): NpcTemplate {
+  const now = Date.now();
+  return {
+    ...(entry as Omit<NpcTemplate, 'id' | 'createdAt' | 'updatedAt'>),
+    id: crypto.randomUUID(),
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+const SEEDED_FLAG_KEY = 'dnd-npc-templates-seeded';
+
+/** 首启预置：localStorage 为空且从未预置过时写入图鉴种子（seeded 标记防复活已删模板） */
+function ensureSeeded(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (localStorage.getItem(SEEDED_FLAG_KEY)) return;
+    localStorage.setItem(SEEDED_FLAG_KEY, 'true');
+    if (localStorage.getItem(STORAGE_KEY)) return;
+    const templates = (seedTemplates as any[]).map(seedToTemplate);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+    templateCache = templates;
+  } catch (e) {
+    console.error('图鉴种子预置失败:', e);
+  }
+}
+ensureSeeded();
+
+export interface ImportStats {
+  created: number;
+  updated: number;
+  skipped: number;
+}
+
+/**
+ * 重新导入图鉴种子：按 templateId 匹配。
+ * 默认只补缺失（跳过已存在，保留用户改动）；overwrite 时覆盖解析自有字段、保留 id/createdAt。
+ */
+function importSeed(options: { overwrite?: boolean } = {}): ImportStats {
+  const stats: ImportStats = { created: 0, updated: 0, skipped: 0 };
+  const templates = load();
+  const byId = new Map(templates.map((t) => [t.templateId, t]));
+  for (const entry of seedTemplates as any[]) {
+    const existing = byId.get(entry.templateId);
+    if (!existing) {
+      templates.push(seedToTemplate(entry));
+      stats.created++;
+    } else if (options.overwrite) {
+      const { id: _id, createdAt: _c, ...parsedFields } = seedToTemplate(entry);
+      templates[templates.indexOf(existing)] = { ...existing, ...parsedFields, updatedAt: Date.now() };
+      stats.updated++;
+    } else {
+      stats.skipped++;
+    }
+  }
+  save(templates);
+  return stats;
 }
 
 const npcTemplateStore = {
@@ -137,6 +212,13 @@ const npcTemplateStore = {
 
   clear(): void {
     save([]);
+  },
+
+  importSeed,
+
+  /** 图鉴种子模板数量（导入卡片展示用） */
+  seedCount(): number {
+    return (seedTemplates as any[]).length;
   },
 
   getById(id: string): NpcTemplate | null {
