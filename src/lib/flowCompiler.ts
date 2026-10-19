@@ -456,7 +456,24 @@ export class FlowCompiler {
   ): Promise<NodeExecutionResult> {
     const config = node.config as SavingThrowConfig;
     const ability = config?.ability || 'dexterity';
-    const dc = parseInt(config?.dc?.toString() || '10', 10);
+
+    // DC 语义：留空 = 施法者法术豁免 DC（8 + 施法属性调整值 + 熟练）；显式数字 = 固定 DC（非法数字回落 10）
+    let dc: number;
+    const rawDc = config?.dc?.toString().trim() ?? '';
+    if (rawDc === '') {
+      const caster = characterStore.get(context.casterId);
+      const casterDc = caster ? characterStore.getSpellSaveDC(caster) : null;
+      if (casterDc === null) {
+        return {
+          status: 'failure',
+          output: { error: 'DC 未配置且施法者无法术豁免 DC（NPC 施法者待身份映射支持）' },
+        };
+      }
+      dc = casterDc;
+    } else {
+      dc = parseInt(rawDc, 10);
+      if (isNaN(dc)) dc = 10;
+    }
 
     const results: any[] = [];
 

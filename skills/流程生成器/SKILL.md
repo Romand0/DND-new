@@ -97,7 +97,7 @@
 - **骰子**：保留原始表达式 `8d6`、`3d8+5`；不要展开成期望值。
 - **射程**：抽出数字（`60尺` → `60`）；「自身」记 0 或留空。
 - **成分**：V/S/M 布尔；材料不参与运行时判定。
-- **DC**：优先写成**数字字符串**（如 `"15"`）。`saving_throw` 运行时执行 `parseInt(config.dc)`，模板变量会得到 `NaN`。若原文没有具体 DC，用难度规则推定并记入待确认。
+- **DC**：**留空 `""`**（运行时自动取施法者法术豁免 DC，随施法者实时变化）。法术文本从不印 DC，只有施法者才知道自己的豁免 DC——推定写死是错误来源。仅当效果文本明确给出固定 DC（如某些物品/区域效果「DC 15」）才写数字字符串；避免模板变量（`parseInt` 得 `NaN` 回落 10）。
 
 ### 1.3 歧义处理策略
 
@@ -253,7 +253,7 @@ cast_start → select_target → apply_effect(status) → concentration_check �
 | 键 | 类型 | 必填 | 说明 |
 |----|------|------|------|
 | `ability` | select | 是 | `strength` / `dexterity` / `constitution` / `intelligence` / `wisdom` / `charisma` |
-| `dc` | string | 是 | 数字字符串，如 `"15"`；避免模板变量 |
+| `dc` | string | 是 | **留空 `""` = 施法者法术豁免 DC**（运行时取 `characterStore.getSpellSaveDC(施法者)`，推荐）；显式数字字符串 = 固定 DC，如 `"15"`；非法数字回落 10 |
 
 `apply_effect`
 
