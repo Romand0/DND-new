@@ -1,4 +1,5 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource } from '@/types/combat';
+import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import type { Equipment, Character } from '@/types/character';
 
@@ -481,6 +482,9 @@ function load(): CombatRecord[] {
             ? { round: r.playbackState.currentTurn.round, combatantId: r.playbackState.currentTurn.combatantId }
             : null,
         } : undefined,
+        castLogs: Array.isArray(r.castLogs) ? r.castLogs.filter(
+          (l: any) => l && typeof l === 'object' && typeof l.id === 'string' && typeof l.castId === 'string'
+        ) : [],
         createdAt: Number(r.createdAt) || Date.now(),
         updatedAt: Number(r.updatedAt) || Date.now(),
       };
@@ -522,7 +526,7 @@ const combatStore = {
     const found = load().find(r => r.id === id) ?? null;
     if (!found) return null;
     // 浅拷贝：防止调用方 mutate 污染内存缓存（原实现每次 parse 天然隔离）
-    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds], turnTodos: found.turnTodos ? [...found.turnTodos] : undefined };
+    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds], turnTodos: found.turnTodos ? [...found.turnTodos] : undefined, castLogs: found.castLogs ? [...found.castLogs] : undefined };
   },
 
   /**
@@ -617,6 +621,16 @@ const combatStore = {
       };
       reader.readAsText(file);
     });
+  },
+
+  /**
+   * 追加施法步骤日志（收尾步骤一次性批量写入；记录不存在时静默跳过，兜底不阻塞结算）
+   */
+  appendCastLogs(recordId: string, logs: CastStepLog[]): void {
+    if (!Array.isArray(logs) || logs.length === 0) return;
+    const record = this.get(recordId);
+    if (!record) return;
+    this.update(recordId, { castLogs: [...(record.castLogs ?? []), ...logs] });
   },
 
   /**

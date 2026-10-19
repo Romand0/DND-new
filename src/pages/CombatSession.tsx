@@ -1169,7 +1169,9 @@ export default function CombatSession() {
           targetCharacter={spellModal.target.characterId ? characterStore.get(spellModal.target.characterId) : null}
           targetCombatInventory={getCombatInventory(record, spellModal.target)}
           combatantPositions={combatantPositions}
+          canUseAction={canUseAction(spellModal.caster.id)}
           canUseBonusAction={canUseBonusAction(spellModal.caster.id)}
+          onTargetChange={(c) => setSpellModal(m => (m ? { ...m, target: c } : m))}
           onClose={() => setSpellModal(null)}
           onCastResolved={(info) => {
             // 施法时间 = "1 动作" 的法术消耗 1 个动作（无论是否命中/被豁免）

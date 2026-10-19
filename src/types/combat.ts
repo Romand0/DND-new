@@ -1,4 +1,5 @@
 // src/types/combat.ts
+import type { CastStepLog } from './castStep';
 
 // ===== 新增：体型枚举 =====
 /** 体型级别：0=微型, 1=小型, 2=中型, 3=大型, 4=巨型, 5=超巨型 */
@@ -335,6 +336,8 @@ export interface CombatRecord {
       paused: boolean;
       currentTurn: { round: number; combatantId: string } | null;
     };
+    /** 施法步骤日志（按 castId 分组的扁平追加数组，副作用延迟原则下仅在收尾时批量写入） */
+    castLogs?: CastStepLog[];
     createdAt: number;
     updatedAt: number;
 }

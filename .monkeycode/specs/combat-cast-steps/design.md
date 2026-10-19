@@ -87,7 +87,7 @@ interface UseCastStepsReturn {
 | 恒有 | `select_target` | 目标由沙盘预填，可更换 |
 | checkType === 'ac' | `attack_roll` | 法术攻击检定 |
 | checkType === 'save' | `saving_throw` | 豁免检定 |
-| 法术含伤害骰或治疗 | `apply_effect` | 无效果法术（纯 buff）裁剪 |
+| 法术含伤害骰或治疗 | `apply_effect` | 恒保留（见实施偏差 #1），纯 buff 走「跳过效果(0)」出口 |
 | 恒有 | `cast_end` | 汇总 + 确认 |
 
 检定类型切换（现有 `handleCheckTypeChange`）保留在 `SpellCheckStep` 内部——切换只改变该步骤内部行为与日志 `stepType`，重建序列（避免序列抖动）。
@@ -159,7 +159,7 @@ appendCastLogs(recordId: string, logs: CastStepLog[]): void
 | 参战者无沙盘位置（token 未放置） | select_target | 距离检查标记 skipped（不计 failure），`data` 注明「未放置，距离未知」 |
 | 更换目标后射程变化 | select_target | 步骤内实时重算，沿用同一门禁交互 |
 | 弹窗打开期间战斗记录被删除 | cast_end | `appendCastLogs` 内部 get 为空时静默跳过日志，`onCastResolved` 照常回调（兜底不阻塞结算） |
-| 法术无检定且无效果（纯 buff） | buildCastSteps | 裁剪检定/效果步骤，`onCastResolved` 沿用现状字段（amount 0、success true） |
+| 法术无检定且无效果（纯 buff） | buildCastSteps | 检定裁剪、效果步骤保留（走跳过效果出口），`onCastResolved` 沿用现状字段（amount 0、success true） |
 
 ## Test Strategy
 
@@ -170,7 +170,7 @@ appendCastLogs(recordId: string, logs: CastStepLog[]): void
 1. **火球术**（save+伤害）：5 步全走；人为制造成分失败 → 硬门禁阻断 → 强制施放 → 日志含 partial+forced。
 2. **魔法飞弹**（none+伤害）：检定步骤自动裁剪，4 步。
 3. **治疗真言**（none+治疗，触及）：射程按沙盘距离判定；超上限治疗截断留痕。
-4. **纯 buff 法术**（无检定无效果）：3 步（cast_start/select_target/cast_end）。
+4. **纯 buff 法术**（无检定无效果）：3 步渲染（cast_start/select_target/cast_end，apply_effect 以「跳过效果(0)」即时通过）。
 5. **中止路径**：效果确认前关闭弹窗 → HP/动作/先攻表格/castLogs 零变化。
 6. **旧数据回归**：打开既有战斗记录不报错；施法后新日志正常追加。
 7. **NPC 施法**：无角色卡参战者成分检查不崩溃。
@@ -186,3 +186,10 @@ appendCastLogs(recordId: string, logs: CastStepLog[]): void
 [^6]: (Filename) - `src/data/somaticCheck.ts` — 姿势成分阻断判定复用
 [^7]: (Filename#L302-L304) - `src/lib/flowCompiler.ts` — 射程字符串解析参照实现
 [^8]: (Filename#L75-L80) - `src/types/combat.ts` — Combatant.canSpeak / canGesticulate 可选字段
+
+## Implementation Deviations（实施期偏差记录）
+
+1. **apply_effect 恒保留**（原设计：纯 buff 法术裁剪效果步骤）。实施时发现 flat 数值法术（如描述为「造成 30 点伤害」、无骰子表达式的法术）会与纯 buff 混淆——若按「无法术骰」裁剪效果步骤，这类法术的伤害出口会被一并裁掉。改为：apply_effect 步骤恒在序列中，纯 buff 由 DM 在该步骤点「跳过效果(0)」显式出口（日志记 success + skipped: true，amount 0）。
+2. **目标更换同步宿主**（新增 prop `onTargetChange`）。原设计假设目标固定；实施时确认 `onCastResolved` 的 HP 应用与先攻表格均读 `spellModal.target`，步骤内更换目标必须同步回宿主状态，否则结算落点错误。CombatSession 仅增此一处 prop 接线。
+3. **动作门禁 prop**（新增 prop `canUseAction`）。前置检查步骤的「1 动作」门禁需要施法者剩余动作数，由 CombatSession 传入既有 `canUseAction(caster.id)`。
+4. **检定步骤 ac↔save 互切**走 `hook.rebuild`：序列重建保留 cast_start/select_target 已完成前缀，检定步骤以新类型重挂载（骰值重置），与原设计一致。
