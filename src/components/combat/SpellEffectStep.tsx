@@ -4,47 +4,12 @@
 import { Fragment, useEffect, useMemo, type ReactNode } from 'react';
 import { Dices, Calculator, SkipForward } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
+// 骰式解析唯一事实源在 utils/diceExpr.ts（flowCompiler 共用），此处再导出保持既有导入路径
+import { parseDice } from '@/utils/diceExpr';
+export { parseDice } from '@/utils/diceExpr';
+export type { ParsedDice } from '@/utils/diceExpr';
 
 export type SpellEffectType = 'damage' | 'heal';
-
-// 解析骰子表达式，如 "8d6"、"2d8+3"、"1d4"（自 CombatSpellModal 迁入）
-export function parseDice(expr: string): { count: number; sides: number; bonus: number } {
-  const result = { count: 1, sides: 0, bonus: 0 };
-  if (!expr) return result;
-  const plusIdx = expr.indexOf('+');
-  let dicePart = expr;
-  let bonusPart = '';
-  if (plusIdx !== -1) {
-    dicePart = expr.substring(0, plusIdx).trim();
-    bonusPart = expr.substring(plusIdx + 1).trim();
-  } else {
-    dicePart = expr.trim();
-  }
-  if (bonusPart) {
-    const b = parseInt(bonusPart, 10);
-    if (!isNaN(b)) result.bonus = b;
-  }
-  const dIdx = dicePart.toLowerCase().indexOf('d');
-  if (dIdx === -1) {
-    const flat = parseInt(dicePart, 10);
-    if (!isNaN(flat)) {
-      result.bonus += flat;
-      result.count = 0;
-    }
-    return result;
-  }
-  const countStr = dicePart.substring(0, dIdx).trim();
-  const sidesStr = dicePart.substring(dIdx + 1).trim();
-  if (countStr) {
-    const c = parseInt(countStr, 10);
-    if (!isNaN(c) && c > 0) result.count = c;
-  }
-  if (sidesStr) {
-    const s = parseInt(sidesStr, 10);
-    if (!isNaN(s) && s > 0) result.sides = s;
-  }
-  return result;
-}
 
 // 法术描述中的骰子表达式高亮（供宿主法术卡片复用）
 export function renderSpellDice(text: string): ReactNode[] {

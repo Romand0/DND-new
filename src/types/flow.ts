@@ -674,6 +674,8 @@ export interface FlowExecutionContext {
   results: Map<string, any>;         // 各节点输出缓存（key=节点 ID）
   stateSnapshot: Record<string, any>; // 游戏状态快照（只读）
   log: FlowLogEntry[];               // 执行日志
+  /** 沙盘位置字典（key 与 casterId/targets 同一身份空间），切比雪夫距离校验用；缺省时距离检查跳过 */
+  positions?: Record<string, { col: number; row: number } | null | undefined> | null;
 }
 
 /** 单条执行日志 */
@@ -856,6 +858,8 @@ export interface RangeCheckResult {
   required: number;                 // 需要的射程
   current: number;                  // 当前距离
   inRange: boolean;                 // 是否在射程内
+  /** true = 无沙盘位置数据，距离校验被跳过（current 无意义） */
+  assumed?: boolean;
 }
 
 /** 施法时间检查结果 */

@@ -53,11 +53,14 @@
 
 ### 0.5 运行成熟度（编写时的现实约束）
 
-以当前代码为准（本文件撰写日 2026-09-18）：
+以当前代码为准（本节更新于 2026-10-19，Phase 2 之后）：
 
-- `FlowCompiler.executeFlow` 只执行入口的 `cast_start` 节点，**不遍历边**。`trigger` / `dataMap` / `condition` 目前是声明性语义，用于校验与可视化表达。
-- `flowCompiler` 在 `CombatSpellModal.tsx` 中被导入但**未被调用**，战斗内的流程执行尚未接通。
-- 因此一份流程当前的价值是：**可评审、可校验、可视化、可绑定的结构化机制规格**，加上有限的前置检查运行支撑。
+- `FlowCompiler.executeFlow` **按边遍历整张图**：从 `cast_start` 出发，按出边 `trigger` 匹配结果状态（on_success/on_failure/on_partial/on_true/on_false/on_complete）深度优先推进；每节点至多执行一次（visited 防环），执行轨迹逐节点写入 `context.log`（FlowLogEntry），节点输出缓存进 `context.results`。多目标判定节点（saving_throw / attack_roll）的状态反映聚合结果：全成=success、全败=failure、混合=partial，使分流边真实可用。
+- `condition_branch` 已接入白名单安全求值器（`src/lib/flowExpression.ts`，替代裸 eval）；作用域注入 `state` / `results` / `spell` / `caster` / `targets` / `prev`。`custom` 节点保留 eval 逃逸舱（风险自负）。
+- 数值缺陷已修：`saving_throw` 属性调整值按 `AbilityScore.score` 重算（旧代码对象减法得 NaN 恒失败）；`attack_roll` 加值走 `getSpellAttackBonus`、目标 AC 读 `armorClass`（旧硬编码 5/15），自然 20 必中 / 自然 1 必失；`apply_effect` 骰式 `NdM+K` 完整投掷（旧代码 8d6 只掷一颗），一次掷骰全目标共用；`concentration_check` 体质调整值同款修复。
+- `cast_start` 距离检查：施法者与目标均有沙盘位置（`context.positions`）时按切比雪夫 × 5 尺真实校验；缺位置数据时跳过并标注 `assumed: true`。施法时间检查恒可用（动作消耗属战斗态，Phase 3 接入）。
+- **战斗内流程执行尚未接通**：`executeFlow` 目前无生产调用方；战斗施法走 `CombatSpellModal` 的步骤化流程（useCastSteps 状态机）。身份映射（Combatant ↔ Character）与执行内核统一是 Phase 3 范围。
+- 因此一份流程当前的价值是：**可评审、可校验、可视化、可绑定、可独立跑通执行轨迹**的结构化机制规格；与战斗实时状态的联动仍待 Phase 3。
 
 编写时按此现实表述：把节点图当作「精确且可审查的规格」来写，并对每个节点标注它是否已有运行支撑（见 §5 自审）。不要把「图上有这个节点」等同于「运行时已经实现该机制」。
 
@@ -117,12 +120,12 @@
 
 | 类型 | 语义 | 入口/出口 | 运行支撑 |
 |------|------|-----------|----------|
-| `cast_start` | 施法开始 + 前置检查（成分/射程/时间） | 流程入口，通常唯一 | 部分（射程用假设距离 30，时间恒可用） |
+| `cast_start` | 施法开始 + 前置检查（成分/射程/时间） | 流程入口，通常唯一 | 有（射程按沙盘位置真实校验，无位置跳过；时间恒可用） |
 | `select_target` | 目标选择与数量校验 | 接在 cast_start 后 | 有（数量校验） |
-| `saving_throw` | 属性豁免检定 | 产生成功/失败分流 | 有缺陷（属性修正计算错误，见 §5.4） |
-| `attack_roll` | 法术攻击检定 | 产生命中/未命中分流 | 占位（硬编码加成与 AC） |
-| `condition_branch` | 条件分流 | 必须有两个出口 | 占位（表达式作用域受限） |
-| `apply_effect` | 伤害/治疗/状态结算 | 效果终点 | 部分（多骰只掷一次） |
+| `saving_throw` | 属性豁免检定 | 产生成功/失败分流 | 有（真实调整值+熟练加值；NPC 目标待 Phase 3） |
+| `attack_roll` | 法术攻击检定 | 产生命中/未命中分流 | 有（真实加值/AC + 自然 20/1；NPC 目标待 Phase 3） |
+| `condition_branch` | 条件分流 | 必须有两个出口 | 有（白名单安全求值器） |
+| `apply_effect` | 伤害/治疗/状态结算 | 效果终点 | 有（完整 NdM+K 掷骰；不与检定结果联动，Phase 3） |
 | `concentration_check` | 专注检定（体质 DC 10） | 持续法术收尾 | 有 |
 | `cast_end` | 流程收尾 | 流程出口 | 有（仅日志） |
 | `custom` | 开放扩展 | 任意 | 有（eval，风险自负） |
@@ -384,17 +387,17 @@ startX = 100, startY = 100, spacingX = 200, spacingY = 150
 
 ### 5.4 门 D：运行现实核对
 
-对每个节点标注当前运行支撑，并在报告中写出：
+对每个节点标注当前运行支撑，并在报告中写出（Phase 2 后）：
 
 | 节点 | 运行时行为 | 风险 |
 |------|-----------|------|
-| `saving_throw` | `abilities[ability]` 被当作数字参与减法 | 属性修正计算为 `NaN`，判定恒失败风险 |
-| `attack_roll` | 加成 5、AC 15 硬编码 | 与真实角色数据不一致 |
-| `apply_effect` | 正则匹配 `(\d+)d(\d+)` 后只掷一次 | 多骰伤害偏低 |
-| `condition_branch` | `eval(condition)`，作用域内没有 `target` | 引用目标字段的条件会抛错并被判失败 |
-| `cast_start` | 射程用假设距离 30，施法时间恒可用 | 前置检查不反映真实战斗态 |
-| `concentration_check` | 体质属性用 `.score`，DC 10 | 与设想的 `dc` 配置不一致 |
-| 边遍历 | 不执行 | `trigger` / `dataMap` 为声明性 |
+| `saving_throw` | 调整值按 AbilityScore.score 重算，PC 走 getSaveBonus 熟练豁免 | NPC 目标（非 Character）查不到，Phase 3 身份映射解决 |
+| `attack_roll` | 加值走 getSpellAttackBonus，AC 读 target.armorClass，自然 20/1 特判 | 目标无 armorClass 字段时回退 15 |
+| `apply_effect` | parseDice 完整解析 NdM+K，一次掷骰全目标共用 | 不与检定结果联动（半伤/暴击），Phase 3 执行内核处理 |
+| `condition_branch` | 白名单求值器（flowExpression），未知变量/语法错误 → failure | 仅支持只读表达式，无赋值/调用 |
+| `cast_start` | 有沙盘位置时切比雪夫真实距离校验；无位置跳过并标 assumed | 施法时间恒可用（动作消耗 Phase 3 接入） |
+| `concentration_check` | 体质调整值按 score 重算，DC 10 | dc 配置键不存在（§0.4），固定 10 |
+| 边遍历 | 已实现：trigger 匹配 + visited 防环 + 日志落 context.log | 多目标混合结果走 on_partial 边；dataMap 仍为声明性 |
 
 若某个机制完全依赖尚未实现的运行支撑，在报告中明确写「图已表达，运行未实现」，交由人类决定是否入库。
 
