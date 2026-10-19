@@ -6,19 +6,26 @@ import * as api from '@/lib/api';
 const STORAGE_KEY = 'DND-spells';
 let listeners: (() => void)[] = [];
 
+// 模块级解析缓存：库内容量达数百条时避免每次 getAll/getById 都全量 JSON.parse
+let cachedSpells: Spell[] | null = null;
+
 function loadFromCache(): Spell[] {
+  if (cachedSpells) return cachedSpells;
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      cachedSpells = JSON.parse(stored);
+      return cachedSpells;
     }
   } catch {
     // ignore
   }
-  return initialSpells as Spell[];
+  cachedSpells = initialSpells as Spell[];
+  return cachedSpells;
 }
 
 function saveToCache(spells: Spell[]): void {
+  cachedSpells = spells;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(spells));
   notifyListeners();
 }

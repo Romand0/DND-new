@@ -1,11 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, memo, useDeferredValue } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEditorState } from '@/data/editorState';
+import { spellStore } from '@/data/spellStore';
 import { Sparkles, Plus, Edit2, Trash2, Search } from 'lucide-react';
 import type { Spell } from '@/types/spell';
 import SpellEditor from '@/components/SpellEditor';
-import { fetchAllSpells, createSpell, updateSpell, deleteSpell } from '@/lib/api';
+import { createSpell, updateSpell, deleteSpell } from '@/lib/api';
+import { useVirtualizer, useWindowVirtualizer } from '@tanstack/react-virtual';
 
 const levelLabels: Record<number, string> = {
   0: '戏法', 1: '1环', 2: '2环', 3: '3环', 4: '4环',
@@ -70,10 +72,213 @@ function loadSchoolFilter(): string[] {
   } catch { return []; }
 }
 
+// 桌面表格列模板：名称自适应，其余列与原 th 的 w-20/w-24 对齐；DM 多一列操作
+const GRID_TMPL_BASE = 'minmax(0,1fr) 5rem 6rem 6rem 5rem';
+const GRID_TMPL_DM = `${GRID_TMPL_BASE} 6rem`;
+
+function getComponentAbbr(components: Spell['components']) {
+  const parts: string[] = [];
+  if (components.verbal) parts.push('V');
+  if (components.somatic) parts.push('S');
+  if (components.material) parts.push('M');
+  return parts.join(',');
+}
+
+// 双树渲染（hidden md:block 两份 DOM 同时挂载）在数百行下 reconciliation 翻倍，改为单一分支渲染
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(() => window.matchMedia('(min-width: 768px)').matches);
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)');
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return isDesktop;
+}
+
+interface ListCallbacks {
+  onOpen: (id: string) => void;
+  onEdit: (spell: Spell) => void;
+  onDelete: (id: string) => void;
+}
+
+interface SpellRowProps extends ListCallbacks {
+  spell: Spell;
+  isDM: boolean;
+}
+
+// memo 化行组件：筛选/输入引发的整表重渲只重新 diff 虚拟窗口内的常驻行
+const SpellRow = memo(function SpellRow(props: SpellRowProps) {
+  const { spell, isDM, onOpen, onEdit, onDelete } = props;
+  return (
+    <div
+      className="grid items-center h-12 border-b last:border-0 dark:border-border-dark/50 light:border-border-light/50 hover:bg-white/5 transition-colors"
+      style={{ gridTemplateColumns: isDM ? GRID_TMPL_DM : GRID_TMPL_BASE }}
+    >
+      <div className="px-4 min-w-0">
+        <button onClick={() => onOpen(spell.id)} className="block w-full text-left font-medium hover:text-primary dark:text-text-dark light:text-text-light truncate">
+          {spell.name}
+        </button>
+      </div>
+      <div className="justify-self-center">
+        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${spell.level === 0 ? 'bg-gray-500/20 text-gray-400' : 'bg-primary/20 text-primary'}`}>
+          {levelLabels[spell.level]}
+        </span>
+      </div>
+      <div className="justify-self-center text-sm dark:text-text-dark light:text-text-light">{spell.school}</div>
+      <div className="px-4 min-w-0">
+        <span className="table-ellipsis text-sm dark:text-text-dark-muted light:text-text-light-muted inline-block">{spell.castingTime}</span>
+      </div>
+      <div className="justify-self-center text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">{getComponentAbbr(spell.components)}</div>
+      {isDM && (
+        <div className="px-4 flex items-center justify-end gap-1">
+          <button onClick={() => onEdit(spell)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>
+          <button onClick={() => onDelete(spell.id)} className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
+        </div>
+      )}
+    </div>
+  );
+});
+
+interface SpellCardProps extends ListCallbacks {
+  spell: Spell;
+  isDM: boolean;
+}
+
+const SpellCard = memo(function SpellCard(props: SpellCardProps) {
+  const { spell, isDM, onOpen, onEdit, onDelete } = props;
+  return (
+    <div className="p-4 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light">
+      <div className="flex items-start justify-between gap-3">
+        <button onClick={() => onOpen(spell.id)} className="text-left flex-1 min-w-0">
+          <h3 className="font-medium hover:text-primary dark:text-text-dark light:text-text-light truncate">{spell.name}</h3>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${spell.level === 0 ? 'bg-gray-500/20 text-gray-400' : 'bg-primary/20 text-primary'}`}>{levelLabels[spell.level]}</span>
+            <span className="text-xs dark:text-text-dark light:text-text-light">{spell.school}</span>
+          </div>
+        </button>
+        {isDM && (
+          <div className="flex items-center gap-1">
+            <button onClick={() => onEdit(spell)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>
+            <button onClick={() => onDelete(spell.id)} className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-4 mt-3 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+        <span>
+          施法时间: <SmartCastingTime castingTime={spell.castingTime} />
+        </span>
+        <span>成分: {getComponentAbbr(spell.components) || '无'}</span>
+      </div>
+    </div>
+  );
+});
+
+interface VirtualListProps extends ListCallbacks {
+  spells: Spell[];
+  isDM: boolean;
+}
+
+// 桌面：CSS Grid 行 + 内部滚动容器虚拟化，500 行常驻 DOM 从 500+ 降到约 20
+function DesktopSpellTable(props: VirtualListProps) {
+  const { spells, isDM, onOpen, onEdit, onDelete } = props;
+  const scrollRef = useRef<HTMLDivElement>(null);
+  // 行高固定 h-12 = 48px（border-box 含下边框），虚拟器按整数值定位
+  const rowVirtualizer = useVirtualizer({
+    count: spells.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => 48,
+    overscan: 8,
+  });
+  const gridTemplate = isDM ? GRID_TMPL_DM : GRID_TMPL_BASE;
+
+  return (
+    <div className="rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
+      <div className="grid items-center h-12 border-b dark:border-border-dark light:border-border-light" style={{ gridTemplateColumns: gridTemplate }}>
+        <span className="px-4 text-left text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">名称</span>
+        <span className="justify-self-center text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">环级</span>
+        <span className="justify-self-center text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">学派</span>
+        <span className="px-4 text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">施法时间</span>
+        <span className="justify-self-center text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">成分</span>
+        {isDM && <span className="px-4 text-right text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">操作</span>}
+      </div>
+      {spells.length === 0 ? (
+        <div className="px-4 py-12 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">暂无匹配的法术</div>
+      ) : (
+        <div ref={scrollRef} className="overflow-y-auto overscroll-contain" style={{ height: 'calc(100dvh - 20rem)', minHeight: '16rem' }}>
+          <div style={{ height: rowVirtualizer.getTotalSize(), position: 'relative' }}>
+            {rowVirtualizer.getVirtualItems().map(vi => {
+              const row = spells[vi.index];
+              if (!row) return null;
+              return (
+                <div key={row.id} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)` }}>
+                  <SpellRow spell={row} isDM={isDM} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 移动：窗口虚拟器跟随页面滚动，保留原有的滚动位置恢复体验；卡片高度不定，用 measureElement 动态测量
+function MobileSpellCardList(props: VirtualListProps) {
+  const { spells, isDM, onOpen, onEdit, onDelete } = props;
+  const listRef = useRef<HTMLDivElement>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+  // 窗口虚拟器以文档顶部为原点；筛选区高度随标签换行变化，每次提交后重测并用阈值防抖
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY;
+    setScrollMargin(prev => (Math.abs(prev - top) > 1 ? top : prev));
+  });
+  const virtualizer = useWindowVirtualizer({
+    count: spells.length,
+    estimateSize: () => 150,
+    overscan: 6,
+    scrollMargin,
+  });
+
+  if (spells.length === 0) {
+    return (
+      <div className="text-center py-12 text-sm dark:text-text-dark-muted light:text-text-light-muted rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light">
+        暂无匹配的法术
+      </div>
+    );
+  }
+
+  return (
+    <div ref={listRef} className="relative" style={{ height: virtualizer.getTotalSize() }}>
+      {virtualizer.getVirtualItems().map(vi => {
+        const row = spells[vi.index];
+        if (!row) return null;
+        return (
+          <div
+            key={row.id}
+            data-index={vi.index}
+            ref={virtualizer.measureElement}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)`, paddingBottom: '0.75rem' }}
+          >
+            <SpellCard spell={row} isDM={isDM} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function SpellList() {
   const navigate = useNavigate();
   const { isDM } = useAuth();
-  const [spells, setSpells] = useState<Spell[]>([]);
+  const isDesktop = useIsDesktop();
+
+  // 缓存优先：首帧同步读本地（含模块级解析缓存），网络请求降级为后台校准
+  const [spells, setSpells] = useState<Spell[]>(() => spellStore.getAll());
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState('');
   const [searchQuery, setSearchQuery] = useState(loadSearchQuery);
   const [levelFilter, setLevelFilter] = useState<number | 'all'>(loadLevelFilter);
   // 职业 / 学派筛选：多选，空数组 = 不筛
@@ -84,9 +289,22 @@ export default function SpellList() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   useEditorState(editorOpen);
+
+  // store 单一数据源：后台刷新 / 增删改都经 notify 回流到本地 state
+  useEffect(() => spellStore.subscribe(() => setSpells(spellStore.getAll())), []);
+
+  // 后台校准云端数据，失败静默降级到本地缓存
+  useEffect(() => {
+    let alive = true;
+    setSyncing(true);
+    spellStore.fetchAll()
+      .then(() => { if (alive) setSyncError(''); })
+      .catch((e: any) => { if (alive) setSyncError(e?.message || '云端同步失败，当前展示本地缓存'); })
+      .finally(() => { if (alive) setSyncing(false); });
+    return () => { alive = false; };
+  }, []);
 
   // 筛选状态写入 sessionStorage
   useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_SEARCH, searchQuery); } catch {} }, [searchQuery]);
@@ -94,7 +312,7 @@ export default function SpellList() {
   useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_CLASSES, JSON.stringify(classesFilter)); } catch {} }, [classesFilter]);
   useEffect(() => { try { sessionStorage.setItem(STORAGE_KEY_SCHOOL, JSON.stringify(schoolFilter)); } catch {} }, [schoolFilter]);
 
-  // 滚动位置保存（窗口滚动）+ 返回时恢复
+  // 滚动位置保存（窗口滚动）+ 返回时恢复；桌面表格已改为内部滚动容器，窗口滚动仅在移动端生效
   useEffect(() => {
     const onScroll = () => { try { sessionStorage.setItem(STORAGE_KEY_SCROLL, String(window.scrollY)); } catch {} };
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -105,22 +323,10 @@ export default function SpellList() {
       if (!isNaN(top)) requestAnimationFrame(() => { window.scrollTo(0, top); });
     }
     return () => window.removeEventListener('scroll', onScroll);
-  }, [loading]);
+  }, []);
 
-  const load = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await fetchAllSpells();
-      setSpells(data);
-    } catch (e: any) {
-      setError(e.message || '加载失败');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
+  // 搜索输入保持即时响应，过滤计算吃 deferred 值避免每个按键都重算
+  const deferredQuery = useDeferredValue(searchQuery);
 
   // 派生：所有出现过的职业 / 学派（用于筛选标签）
   const allClasses = useMemo(() => {
@@ -134,17 +340,19 @@ export default function SpellList() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'zh-CN'));
   }, [spells]);
 
-  const filteredSpells = useMemo(() => {
-    return spells.filter(spell => {
-      const matchesSearch =
-        spell.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        spell.school.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesLevel = levelFilter === 'all' || spell.level === levelFilter;
-      const matchesClass = classesFilter.length === 0 || classesFilter.some(c => spell.classes?.includes(c));
-      const matchesSchool = schoolFilter.length === 0 || schoolFilter.includes(spell.school);
-      return matchesSearch && matchesLevel && matchesClass && matchesSchool;
-    });
-  }, [spells, searchQuery, levelFilter, classesFilter, schoolFilter]);
+  // 过滤 + 排序合一：filter 返回新数组，原地 sort 安全
+  const visibleSpells = useMemo(() => {
+    const q = deferredQuery.trim().toLowerCase();
+    return spells
+      .filter(spell => {
+        const matchesSearch = !q || spell.name.toLowerCase().includes(q) || spell.school.toLowerCase().includes(q);
+        const matchesLevel = levelFilter === 'all' || spell.level === levelFilter;
+        const matchesClass = classesFilter.length === 0 || classesFilter.some(c => spell.classes?.includes(c));
+        const matchesSchool = schoolFilter.length === 0 || schoolFilter.includes(spell.school);
+        return matchesSearch && matchesLevel && matchesClass && matchesSchool;
+      })
+      .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name, 'zh-CN'));
+  }, [spells, deferredQuery, levelFilter, classesFilter, schoolFilter]);
 
   // 标签切换工具
   const toggleTag = (list: string[], value: string): string[] =>
@@ -157,12 +365,19 @@ export default function SpellList() {
   };
   const hasAnyFilter = levelFilter !== 'all' || classesFilter.length > 0 || schoolFilter.length > 0 || searchQuery !== '';
 
-  const sortedSpells = useMemo(() => {
-    return [...filteredSpells].sort((a, b) => {
-      if (a.level !== b.level) return a.level - b.level;
-      return a.name.localeCompare(b.name, 'zh-CN');
-    });
-  }, [filteredSpells]);
+  const openDetail = useCallback((id: string) => navigate(`/spells/${id}`), [navigate]);
+  const handleEdit = useCallback((spell: Spell) => {
+    if (!isDM) return;
+    setEditingSpell(spell);
+    setEditorOpen(true);
+  }, [isDM]);
+  const requestDelete = useCallback((id: string) => setDeleteConfirm(id), []);
+
+  const handleAdd = () => {
+    if (!isDM) return;
+    setEditingSpell(undefined);
+    setEditorOpen(true);
+  };
 
   const handleSaveSpell = async (spell: Spell) => {
     if (!isDM) return;
@@ -174,9 +389,10 @@ export default function SpellList() {
       } else {
         await createSpell(spell);
       }
+      // 增量写回缓存并经订阅回流，替代全量 reload
+      spellStore.save([...spellStore.getAll().filter(s => s.id !== spell.id), spell]);
       setEditorOpen(false);
       setEditingSpell(undefined);
-      load();
     } catch (e: any) {
       setError(e.message || '保存失败');
       throw e;
@@ -191,36 +407,14 @@ export default function SpellList() {
     setError('');
     try {
       await deleteSpell(id);
+      spellStore.save(spellStore.getAll().filter(s => s.id !== id));
       setDeleteConfirm(null);
-      load();
     } catch (e: any) {
       setError(e.message || '删除失败');
     } finally {
       setSaving(false);
     }
   };
-
-  const handleEdit = (spell: Spell) => {
-    if (!isDM) return;
-    setEditingSpell(spell);
-    setEditorOpen(true);
-  };
-
-  const handleAdd = () => {
-    if (!isDM) return;
-    setEditingSpell(undefined);
-    setEditorOpen(true);
-  };
-
-  const getComponentAbbr = (components: Spell['components']) => {
-    const parts: string[] = [];
-    if (components.verbal) parts.push('V');
-    if (components.somatic) parts.push('S');
-    if (components.material) parts.push('M');
-    return parts.join(',');
-  };
-
-  if (loading) return <div className="p-8 text-center text-gray-500">加载中...</div>;
 
   return (
     <div className="space-y-6">
@@ -229,7 +423,10 @@ export default function SpellList() {
           <h1 className="text-2xl font-bold flex items-center gap-2 dark:text-text-dark light:text-text-light">
             <Sparkles className="w-7 h-7 text-primary" /> 法术库
           </h1>
-          <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">共 {spells.length} 个法术</p>
+          <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            共 {spells.length} 个法术{syncing ? ' · 云端同步中…' : ''}
+          </p>
+          {syncError && <p className="mt-1 text-xs text-danger">{syncError}</p>}
         </div>
         {isDM && (
           <button onClick={handleAdd} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
@@ -302,91 +499,11 @@ export default function SpellList() {
         )}
       </div>
 
-      {/* Desktop table */}
-      <div className="hidden md:block rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b dark:border-border-dark light:border-border-light h-12">
-              <th className="text-left px-4 py-3 text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">名称</th>
-              <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">环级</th>
-              <th className="text-center px-4 py-3 text-sm font-medium w-24 dark:text-text-dark-muted light:text-text-light-muted">学派</th>
-              <th className="text-center px-4 py-3 text-sm font-medium w-24 dark:text-text-dark-muted light:text-text-light-muted">施法时间</th>
-              <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">成分</th>
-              {isDM && <th className="text-right px-4 py-3 text-sm font-medium w-24 dark:text-text-dark-muted light:text-text-light-muted">操作</th>}
-            </tr>
-          </thead>
-          <tbody>
-            {sortedSpells.length === 0 ? (
-              <tr><td colSpan={isDM ? 6 : 5} className="px-4 py-12 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">暂无匹配的法术</td></tr>
-            ) : (
-              sortedSpells.map(spell => (
-                <tr key={spell.id} className="border-b last:border-0 dark:border-border-dark/50 light:border-border-light/50 hover:bg-white/5 transition-colors h-12">
-                  <td className="px-4 py-3">
-                    <button onClick={() => navigate(`/spells/${spell.id}`)} className="text-left font-medium hover:text-primary dark:text-text-dark light:text-text-light">
-                      {spell.name}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${spell.level === 0 ? 'bg-gray-500/20 text-gray-400' : 'bg-primary/20 text-primary'}`}>
-                      {levelLabels[spell.level]}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">{spell.school}</td>
-                  <td className="px-4 py-3">
-  <span className="table-ellipsis text-sm text-center dark:text-text-dark-muted light:text-text-light-muted inline-block">
-    {spell.castingTime}
-  </span>
-</td>
-                  <td className="px-4 py-3 text-center text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">{getComponentAbbr(spell.components)}</td>
-                  {isDM && (
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => handleEdit(spell)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={() => setDeleteConfirm(spell.id)} className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* Mobile cards */}
-      <div className="md:hidden space-y-3">
-        {sortedSpells.length === 0 ? (
-          <div className="text-center py-12 text-sm dark:text-text-dark-muted light:text-text-light-muted rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light">
-            暂无匹配的法术
-          </div>
-        ) : (
-          sortedSpells.map(spell => (
-            <div key={spell.id} className="p-4 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light">
-              <div className="flex items-start justify-between gap-3">
-                <button onClick={() => navigate(`/spells/${spell.id}`)} className="text-left flex-1">
-                  <h3 className="font-medium hover:text-primary dark:text-text-dark light:text-text-light">{spell.name}</h3>
-                  <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${spell.level === 0 ? 'bg-gray-500/20 text-gray-400' : 'bg-primary/20 text-primary'}`}>{levelLabels[spell.level]}</span>
-                    <span className="text-xs dark:text-text-dark light:text-text-light">{spell.school}</span>
-                  </div>
-                </button>
-                {isDM && (
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => handleEdit(spell)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>
-                    <button onClick={() => setDeleteConfirm(spell.id)} className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-4 mt-3 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                <span>
-                  施法时间: <SmartCastingTime castingTime={spell.castingTime} />
-                </span>
-                <span>成分: {getComponentAbbr(spell.components) || '无'}</span>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+      {isDesktop ? (
+        <DesktopSpellTable spells={visibleSpells} isDM={isDM} onOpen={openDetail} onEdit={handleEdit} onDelete={requestDelete} />
+      ) : (
+        <MobileSpellCardList spells={visibleSpells} isDM={isDM} onOpen={openDetail} onEdit={handleEdit} onDelete={requestDelete} />
+      )}
 
       <SpellEditor
         spell={editingSpell}
