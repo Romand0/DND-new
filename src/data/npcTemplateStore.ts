@@ -30,68 +30,76 @@ function notify(): void {
   listeners.forEach(listener => listener());
 }
 
+function normalizeTemplate(t: any): NpcTemplate {
+  return {
+    id: t.id ?? crypto.randomUUID(),
+    templateId: t.templateId ?? t.id ?? crypto.randomUUID(),
+    name: t.name ?? '未命名NPC',
+    strength: t.strength ?? 10,
+    dexterity: t.dexterity ?? 10,
+    constitution: t.constitution ?? 10,
+    intelligence: t.intelligence ?? 10,
+    wisdom: t.wisdom ?? 10,
+    charisma: t.charisma ?? 10,
+    maxHp: t.maxHp ?? 10,
+    speed: t.speed ?? 30,
+    ac: t.ac ?? 10,
+    attacks: (t.attacks ?? []).map((a: any) => ({
+      name: a.name ?? '',
+      attackBonus: a.attackBonus ?? '',
+      damage: a.damage ?? '',
+      damageType: a.damageType ?? '挥砍',
+      range: a.range ?? '5 尺',
+      properties: a.properties ?? [],
+      subtype: a.subtype,
+      normalRange: a.normalRange,
+      maxRange: a.maxRange,
+      twoHandedDamage: a.twoHandedDamage,
+    })),
+    creatureSize: (t.creatureSize as CreatureSize | undefined) ?? REVERSE_SIZE_MAP[t.size],
+    creatureType: (t.creatureType as CreatureType | undefined) ?? REVERSE_TYPE_MAP[t.type],
+    createdAt: t.createdAt ?? Date.now(),
+    updatedAt: t.updatedAt ?? Date.now(),
+    cr: t.cr,
+    size: t.size,
+    type: t.type,
+    alignment: t.alignment,
+    features: t.features,
+    senses: t.senses,
+    languages: t.languages,
+    savingThrows: t.savingThrows,
+    skills: t.skills,
+    source: t.source,
+    proficiencyBonus: t.proficiencyBonus,
+    pbDerived: t.pbDerived,
+    hpDice: t.hpDice,
+    acNote: t.acNote,
+    nameEn: t.nameEn,
+    xp: t.xp,
+    damageResistances: t.damageResistances,
+    damageImmunities: t.damageImmunities,
+    damageVulnerabilities: t.damageVulnerabilities,
+    conditionImmunities: t.conditionImmunities,
+    speedNotes: t.speedNotes,
+    traits: t.traits,
+    sourceDir: t.sourceDir,
+  };
+}
+
 function load(): NpcTemplate[] {
   if (templateCache) return templateCache;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const templates: unknown[] = JSON.parse(raw);
-    return templates.map((t: any) => ({
-      id: t.id ?? crypto.randomUUID(),
-      templateId: t.templateId ?? t.id ?? crypto.randomUUID(),
-      name: t.name ?? '未命名NPC',
-      strength: t.strength ?? 10,
-      dexterity: t.dexterity ?? 10,
-      constitution: t.constitution ?? 10,
-      intelligence: t.intelligence ?? 10,
-      wisdom: t.wisdom ?? 10,
-      charisma: t.charisma ?? 10,
-      maxHp: t.maxHp ?? 10,
-      speed: t.speed ?? 30,
-      ac: t.ac ?? 10,
-      attacks: (t.attacks ?? []).map((a: any) => ({
-        name: a.name ?? '',
-        attackBonus: a.attackBonus ?? '',
-        damage: a.damage ?? '',
-        damageType: a.damageType ?? '挥砍',
-        range: a.range ?? '5 尺',
-        properties: a.properties ?? [],
-        subtype: a.subtype,
-        normalRange: a.normalRange,
-        maxRange: a.maxRange,
-        twoHandedDamage: a.twoHandedDamage,
-      })),
-      creatureSize: (t.creatureSize as CreatureSize | undefined) ?? REVERSE_SIZE_MAP[t.size],
-      creatureType: (t.creatureType as CreatureType | undefined) ?? REVERSE_TYPE_MAP[t.type],
-      createdAt: t.createdAt ?? Date.now(),
-      updatedAt: t.updatedAt ?? Date.now(),
-      cr: t.cr,
-      size: t.size,
-      type: t.type,
-      alignment: t.alignment,
-      features: t.features,
-      senses: t.senses,
-      languages: t.languages,
-      savingThrows: t.savingThrows,
-      skills: t.skills,
-      source: t.source,
-      // ---- 图鉴扩展字段兜底（旧 localStorage 数据零报错）----
-      proficiencyBonus: t.proficiencyBonus,
-      pbDerived: t.pbDerived,
-      hpDice: t.hpDice,
-      acNote: t.acNote,
-      nameEn: t.nameEn,
-      xp: t.xp,
-      damageResistances: t.damageResistances,
-      damageImmunities: t.damageImmunities,
-      damageVulnerabilities: t.damageVulnerabilities,
-      conditionImmunities: t.conditionImmunities,
-      speedNotes: t.speedNotes,
-      traits: t.traits,
-      sourceDir: t.sourceDir,
-    }));
+    if (!raw) {
+      templateCache = [];
+      return templateCache;
+    }
+    const parsed: unknown[] = JSON.parse(raw);
+    templateCache = parsed.map(normalizeTemplate);
+    return templateCache;
   } catch {
-    return [];
+    templateCache = [];
+    return templateCache;
   }
 }
 
@@ -99,10 +107,10 @@ function save(templates: NpcTemplate[]): void {
   templateCache = templates;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
-    notify();
   } catch (e) {
     console.error('NPC模板保存失败:', e);
   }
+  notify();
 }
 
 /** 种子条目 → 完整 NpcTemplate（补 id/时间戳） */
@@ -116,23 +124,36 @@ function seedToTemplate(entry: any): NpcTemplate {
   };
 }
 
-const SEEDED_FLAG_KEY = 'dnd-npc-templates-seeded';
+const SEEDED_FLAG_KEY = 'dnd-npc-templates-seeded-v2';
 
-/** 首启预置：localStorage 为空且从未预置过时写入图鉴种子（seeded 标记防复活已删模板） */
-function ensureSeeded(): void {
+/**
+ * 图鉴种子灌入：库内还没有任何种子 templateId 时合并进去。
+ * 覆盖：从未预置、仅有自定义模板、旧版先打标记后写失败留下空库。
+ * v2 标记只在写入成功后打上——用户清空后不被复活；写失败仍保留内存数据，Picker 本会话可读。
+ */
+function hydrateSeeds(): void {
   if (typeof window === 'undefined') return;
+  const seeds = seedTemplates as any[];
+  if (seeds.length === 0) return;
+
+  const current = load();
+  const seedIds = new Set(seeds.map((s) => s.templateId as string));
+  if (current.some((t) => seedIds.has(t.templateId))) {
+    try { localStorage.setItem(SEEDED_FLAG_KEY, 'true'); } catch { /* ignore */ }
+    return;
+  }
+  if (localStorage.getItem(SEEDED_FLAG_KEY)) return;
+
+  const merged = current.concat(seeds.map(seedToTemplate));
+  templateCache = merged;
   try {
-    if (localStorage.getItem(SEEDED_FLAG_KEY)) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
     localStorage.setItem(SEEDED_FLAG_KEY, 'true');
-    if (localStorage.getItem(STORAGE_KEY)) return;
-    const templates = (seedTemplates as any[]).map(seedToTemplate);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
-    templateCache = templates;
   } catch (e) {
     console.error('图鉴种子预置失败:', e);
   }
 }
-ensureSeeded();
+hydrateSeeds();
 
 export interface ImportStats {
   created: number;
