@@ -43,3 +43,6 @@ dist
 
 # 权威数据源（DND5e_chm 嵌套仓库，由不全书搜索技能使用）
 data/DND5e_chm
+
+.dev.vars
+.wrangler/

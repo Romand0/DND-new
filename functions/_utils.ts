@@ -15,7 +15,13 @@ export function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
-export function errorResponse(status: number, message: string): Response {
+// 错误响应：历史上大量调用点写成了反序 (message, status)（132 处），与定义 (status, message)（24 处）并存。
+// 反序调用会把字符串传进 Response 的 status，构造器抛 RangeError 后若处于 catch 内再次反序调用，
+// 将形成双重异常无人接住 → Cloudflare Pages 返回裸 500（无 JSON 体）。
+// 此处按运行时类型判别归一两种顺序；新代码请按 (status, message) 调用。
+export function errorResponse(a: unknown, b: unknown): Response {
+  const status = typeof a === 'number' ? a : typeof b === 'number' ? b : 500;
+  const message = typeof a === 'string' ? a : typeof b === 'string' ? b : '请求失败';
   return jsonResponse({ error: message }, status);
 }
 
