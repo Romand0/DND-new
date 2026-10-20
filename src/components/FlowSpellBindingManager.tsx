@@ -54,12 +54,15 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
 
   const handleUnbind = async (spellId: string) => {
     try {
-      const allBindings = await BindingService.getFlowBoundSpells(flowId);
-      const bindingToRemove = allBindings.find(b => b.id === spellId);
-      if (bindingToRemove) {
-        await BindingService.unbindSpellFromFlow(bindingToRemove.id);
-        onBindingChange?.();
+      // 解绑必须用绑定关系自身的 ID；getFlowBoundSpells 返回的是法术列表，
+      // 此前误把法术 ID 当绑定 ID 传给 DELETE /bindings/[id]，服务端按 id 查不到行，解绑必败
+      const binding = bindingStore.getByFlowId(flowId).find(b => b.spell_id === spellId);
+      if (!binding) {
+        alert('未找到该绑定关系，请刷新后重试');
+        return;
       }
+      await BindingService.unbindSpellFromFlow(binding.id);
+      onBindingChange?.();
     } catch (error) {
       console.error('解绑失败:', error);
       alert('解绑失败: ' + (error as Error).message);
