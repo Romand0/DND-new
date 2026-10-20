@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import type { Spell } from '@/types/spell';
 import { BindingService } from '@/services/bindingService';
 import { bindingStore } from '@/data/bindingStore';
-import { spellStore } from '@/data/spellStore';
+import { fetchAllSpells, fetchBindingsByFlow } from '@/lib/api';
 
 interface FlowSpellBindingManagerProps {
   flowId: string;
@@ -18,16 +18,22 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
   onBindingChange
 }) => {
   const [boundSpells, setBoundSpells] = useState<Spell[]>([]);
+  const [boundBindings, setBoundBindings] = useState<any[]>([]);
   const [availableSpells, setAvailableSpells] = useState<Spell[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
+    setLoading(true);
     try {
-      const bound = await BindingService.getFlowBoundSpells(flowId);
-      setBoundSpells(bound);
-      const allSpells = spellStore.getAll();
-      const unbound = allSpells.filter(spell => !bound.some(b => b.id === spell.id));
-      setAvailableSpells(unbound);
+      // 以云端为真源：此前读本地缓存（bindingStore），与云端漂移时会显示幽灵绑定且解绑 404
+      const [allSpells, bindings] = await Promise.all([
+        fetchAllSpells<Spell[]>(),
+        fetchBindingsByFlow<any[]>(flowId),
+      ]);
+      const boundIds = new Set(bindings.map(b => b.spell_id));
+      setBoundBindings(bindings);
+      setBoundSpells(bindings.map(b => b.spell).filter(Boolean));
+      setAvailableSpells(allSpells.filter(spell => !boundIds.has(spell.id)));
     } catch (error) {
       console.error('加载绑定信息失败:', error);
     } finally {
@@ -54,15 +60,15 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
 
   const handleUnbind = async (spellId: string) => {
     try {
-      // 解绑必须用绑定关系自身的 ID；getFlowBoundSpells 返回的是法术列表，
-      // 此前误把法术 ID 当绑定 ID 传给 DELETE /bindings/[id]，服务端按 id 查不到行，解绑必败
-      const binding = bindingStore.getByFlowId(flowId).find(b => b.spell_id === spellId);
+      // 解绑必须用云端绑定关系自身的 ID（云端真源），误用法术 ID 或本地幽灵行 ID 均会 404
+      const binding = boundBindings.find(b => b.spell_id === spellId);
       if (!binding) {
         alert('未找到该绑定关系，请刷新后重试');
         return;
       }
       await BindingService.unbindSpellFromFlow(binding.id);
       onBindingChange?.();
+      await loadData();
     } catch (error) {
       console.error('解绑失败:', error);
       alert('解绑失败: ' + (error as Error).message);

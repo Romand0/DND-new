@@ -69,9 +69,15 @@ export const bindingStore = {
 
   async delete(id: string): Promise<void> {
     const binding = loadFromCache().find(b => b.id === id);
-    await api.deleteSpellFlowBinding(id);
-    const bindings = loadFromCache().filter(b => b.id !== id);
-    saveToCache(bindings);
+    try {
+      await api.deleteSpellFlowBinding(id);
+    } catch (e) {
+      // 云端已无此行（他端已删或本地幽灵行）时视为成功并继续清理本地缓存，
+      // 否则幽灵行永远无法删除（404 → 本地不清理 → 刷新后照旧显示）。
+      // 其余错误（网络/认证）照常抛出。消息文本与 functions/api/bindings/[id].ts 的 404 分支对应。
+      if (!(e instanceof Error) || e.message !== '绑定关系不存在') throw e;
+    }
+    saveToCache(loadFromCache().filter(b => b.id !== id));
     if (binding) {
       emitBindingEvent({ type: 'unbind', spellId: binding.spell_id, flowId: binding.flow_id });
     }
