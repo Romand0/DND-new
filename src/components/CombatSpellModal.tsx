@@ -138,6 +138,9 @@ export default function CombatSpellModal({
   // 流程施放：spellId → 绑定的正式流程（挂载时从云端拉一次绑定关系；拉取失败静默降级手动管线）
   const [flowBindings, setFlowBindings] = useState<Map<string, string>>(new Map());
   const [boundFlow, setBoundFlow] = useState<FlowDefinition | null>(null);
+  // 法术库缓存刷新信号：knownSpells 按名字从本地缓存解析，而绑定按云端 spell_id 查询——
+  // 本地缓存可能是种子回落（id 与云端不同源），必须先 fetchAll 刷新为云端真值再查绑定
+  const [spellCacheTick, setSpellCacheTick] = useState(0);
 
   // 目标确认步骤内可更换目标：本地生效目标 + 通知宿主同步（HP/先攻按新目标结算）
   const [effectiveTarget, setEffectiveTarget] = useState<Combatant>(target);
@@ -181,9 +184,23 @@ export default function CombatSpellModal({
       if (s) list.push({ spell: s, level: s.level });
     });
     return list;
-  }, [character]);
+  }, [character, spellCacheTick]);
 
-  // 挂载时拉取每个已知法术的绑定关系（取首个绑定的正式流程）；失败静默——流程入口消失但手动施放不受影响
+  // 挂载时刷新法术库缓存为云端真值（失败保留现有缓存），随后绑定查询才能命中云端 spell_id
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        await spellStore.fetchAll();
+      } catch {
+        // 离线：用现有缓存（种子或上次同步），绑定查询可能落空但不影响手动施放
+      }
+      if (!cancelled) setSpellCacheTick(t => t + 1);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // 法术缓存就绪后拉取每个已知法术的绑定关系（取首个绑定的正式流程）；失败静默——流程入口消失但手动施放不受影响
   useEffect(() => {
     if (knownSpells.length === 0) return;
     let cancelled = false;
