@@ -1,10 +1,11 @@
 // functions/api/admin/users/[id]/characters/index.ts
 // 账号角色绑定：POST 绑定一个角色卡，仅接受 DM_TOKEN 认证
-import { jsonResponse, errorResponse, handleOptions, verifyDmToken, readJsonBody, now } from '../../../../../_utils';
+import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now } from '../../../../../_utils';
 
 interface Env {
   DB: D1Database;
   DM_TOKEN: string;
+  JWT_SECRET: string;
 }
 
 // 每个玩家账号最多绑定的角色数量
@@ -35,8 +36,12 @@ export async function onRequestPost(context: any): Promise<Response> {
   const { request, env } = context;
   const id = context.params?.id as string;
 
-  if (!verifyDmToken(request, env)) {
-    return errorResponse(401, 'DM Token 无效');
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
+    return errorResponse(401, '未登录或凭证无效');
+  }
+  if (!auth.isAdmin) {
+    return errorResponse(403, '需要站点管理员权限');
   }
 
   const body = await readJsonBody<{ characterId?: string }>(request);

@@ -32,12 +32,23 @@ export async function onRequestGet(context: any): Promise<Response> {
     return errorResponse(401, 'Invalid or expired token');
   }
 
-  // 从数据库查询用户
-  const user = await env.DB.prepare(
-    'SELECT id, username, role, avatar, created_at FROM users WHERE id = ?'
-  )
-    .bind(payload.sub)
-    .first<{ id: string; username: string; role: string; avatar: string | null; created_at: number }>();
+  // 从数据库查询用户（未执行 0009 迁移时回退旧字段）
+  type UserRow = { id: string; username: string; role: string; is_admin: number; avatar: string | null; created_at: number };
+  let user: UserRow | null = null;
+  try {
+    user = await env.DB.prepare(
+      'SELECT id, username, role, is_admin, avatar, created_at FROM users WHERE id = ?'
+    )
+      .bind(payload.sub)
+      .first<UserRow>();
+  } catch {
+    const legacy = await env.DB.prepare(
+      'SELECT id, username, role, avatar, created_at FROM users WHERE id = ?'
+    )
+      .bind(payload.sub)
+      .first<Omit<UserRow, 'is_admin'>>();
+    user = legacy ? { ...legacy, is_admin: legacy.role === 'dm' ? 1 : 0 } : null;
+  }
 
   if (!user) {
     return errorResponse(404, 'User not found');
@@ -49,6 +60,7 @@ export async function onRequestGet(context: any): Promise<Response> {
       id: user.id,
       username: user.username,
       role: user.role,
+      isAdmin: user.is_admin === 1,
       avatar: user.avatar || null,
     },
   });

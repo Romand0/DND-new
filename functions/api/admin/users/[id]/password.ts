@@ -1,18 +1,23 @@
 // functions/api/admin/users/[id]/password.ts
 // 账号管理：重置密码（POST），仅接受 DM_TOKEN 认证
-import { jsonResponse, errorResponse, handleOptions, verifyDmToken, readJsonBody, hashPassword } from '../../../../_utils';
+import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, hashPassword } from '../../../../_utils';
 
 interface Env {
   DB: D1Database;
   DM_TOKEN: string;
+  JWT_SECRET: string;
 }
 
 export async function onRequestPost(context: any): Promise<Response> {
   const { request, env } = context;
   const id = context.params?.id as string;
 
-  if (!verifyDmToken(request, env)) {
-    return errorResponse(401, 'DM Token 无效');
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
+    return errorResponse(401, '未登录或凭证无效');
+  }
+  if (!auth.isAdmin) {
+    return errorResponse(403, '需要站点管理员权限');
   }
 
   const body = await readJsonBody<{ password?: string }>(request);

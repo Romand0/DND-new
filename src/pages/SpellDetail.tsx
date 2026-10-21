@@ -68,7 +68,7 @@ function renderWithDice(text: string): React.ReactNode[] {
 export default function SpellDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
   const [spell, setSpell] = useState<Spell | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,7 +98,7 @@ export default function SpellDetail() {
   useEffect(() => { load(); }, [id]);
 
   const handleSave = async (updatedSpell: Spell) => {
-    if (!isDM || !id) return;
+    if (!isAdmin || !id) return;
     setSaving(true);
     setError('');
     try {
@@ -116,7 +116,7 @@ export default function SpellDetail() {
   };
 
   const handleDelete = async () => {
-    if (!isDM || !id) return;
+    if (!isAdmin || !id) return;
     setSaving(true);
     setError('');
     try {
@@ -223,7 +223,7 @@ ${spell.source ? `来源：${spell.source}` : ''}`;
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light">
           <ArrowLeft className="w-4 h-4" /> 返回列表
         </button>
-        {isDM && (
+        {isAdmin && (
           <div className="flex gap-2">
             <button onClick={() => setEditorOpen(true)}
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
@@ -356,7 +356,7 @@ ${spell.source ? `来源：${spell.source}` : ''}`;
         )}
 
         {/* 绑定流程管理 */}
-        {isDM && (
+        {isAdmin && (
           <div className="border-t dark:border-border-dark light:border-border-light pt-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-text-dark light:text-text-light">

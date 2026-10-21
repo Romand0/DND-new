@@ -57,7 +57,7 @@ function loadSizeFilter(): CreatureSize | 'all' {
 
 export default function MonsterList() {
   const navigate = useNavigate();
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
   const [templates, setTemplates] = useState<NpcTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState(loadSearchQuery);
   const [typeFilter, setTypeFilter] = useState<CreatureType | 'all'>('all');
@@ -150,7 +150,7 @@ export default function MonsterList() {
   }, [filteredTemplates]);
 
   const handleSaveTemplate = (template: NpcTemplate) => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setSaving(true);
     setError('');
     try {
@@ -171,7 +171,7 @@ export default function MonsterList() {
   };
 
   const handleDeleteTemplate = (id: string) => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setSaving(true);
     setError('');
     try {
@@ -186,13 +186,13 @@ export default function MonsterList() {
   };
 
   const handleEdit = (template: NpcTemplate) => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setEditingTemplate(template);
     setEditorOpen(true);
   };
 
   const handleAdd = () => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setEditingTemplate(undefined);
     setEditorOpen(true);
   };
@@ -219,7 +219,7 @@ export default function MonsterList() {
           </h1>
           <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">共 {templates.length} 个怪物模板</p>
         </div>
-        {isDM && (
+        {isAdmin && (
           <button onClick={handleAdd} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors">
             <Plus className="w-4 h-4" /> 新建怪物
           </button>
@@ -310,12 +310,12 @@ export default function MonsterList() {
               <th className="text-center px-4 py-3 text-sm font-medium w-16 dark:text-text-dark-muted light:text-text-light-muted">HP</th>
               <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">速度</th>
               <th className="text-center px-4 py-3 text-sm font-medium w-20 dark:text-text-dark-muted light:text-text-light-muted">攻击</th>
-              {isDM && <th className="text-right px-4 py-3 text-sm font-medium w-24 dark:text-text-dark-muted light:text-text-light-muted">操作</th>}
+              {isAdmin && <th className="text-right px-4 py-3 text-sm font-medium w-24 dark:text-text-dark-muted light:text-text-light-muted">操作</th>}
             </tr>
           </thead>
           <tbody>
             {sortedTemplates.length === 0 ? (
-              <tr><td colSpan={isDM ? 7 : 6} className="px-4 py-12 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">暂无匹配的怪物</td></tr>
+              <tr><td colSpan={isAdmin ? 7 : 6} className="px-4 py-12 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">暂无匹配的怪物</td></tr>
             ) : (
               sortedTemplates.map(template => (
                 <tr key={template.id} className="border-b last:border-0 dark:border-border-dark/50 light:border-border-light/50 hover:bg-white/5 transition-colors">
@@ -340,7 +340,7 @@ export default function MonsterList() {
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">{template.maxHp}</td>
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">{template.speed}尺</td>
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">{template.attacks.length}</td>
-                  {isDM && (
+                  {isAdmin && (
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button onClick={() => handleEdit(template)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>

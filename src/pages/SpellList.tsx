@@ -104,16 +104,16 @@ interface ListCallbacks {
 
 interface SpellRowProps extends ListCallbacks {
   spell: Spell;
-  isDM: boolean;
+  isAdmin: boolean;
 }
 
 // memo 化行组件：筛选/输入引发的整表重渲只重新 diff 虚拟窗口内的常驻行
 const SpellRow = memo(function SpellRow(props: SpellRowProps) {
-  const { spell, isDM, onOpen, onEdit, onDelete } = props;
+  const { spell, isAdmin, onOpen, onEdit, onDelete } = props;
   return (
     <div
       className="grid items-center h-12 border-b last:border-0 dark:border-border-dark/50 light:border-border-light/50 hover:bg-white/5 transition-colors"
-      style={{ gridTemplateColumns: isDM ? GRID_TMPL_DM : GRID_TMPL_BASE }}
+      style={{ gridTemplateColumns: isAdmin ? GRID_TMPL_DM : GRID_TMPL_BASE }}
     >
       <div className="px-4 min-w-0">
         <button onClick={() => onOpen(spell.id)} className="block w-full text-left font-medium hover:text-primary dark:text-text-dark light:text-text-light truncate">
@@ -130,7 +130,7 @@ const SpellRow = memo(function SpellRow(props: SpellRowProps) {
         <span className="table-ellipsis text-sm dark:text-text-dark-muted light:text-text-light-muted inline-block">{spell.castingTime}</span>
       </div>
       <div className="justify-self-center text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">{getComponentAbbr(spell.components)}</div>
-      {isDM && (
+      {isAdmin && (
         <div className="px-4 flex items-center justify-end gap-1">
           <button onClick={() => onEdit(spell)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>
           <button onClick={() => onDelete(spell.id)} className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
@@ -142,11 +142,11 @@ const SpellRow = memo(function SpellRow(props: SpellRowProps) {
 
 interface SpellCardProps extends ListCallbacks {
   spell: Spell;
-  isDM: boolean;
+  isAdmin: boolean;
 }
 
 const SpellCard = memo(function SpellCard(props: SpellCardProps) {
-  const { spell, isDM, onOpen, onEdit, onDelete } = props;
+  const { spell, isAdmin, onOpen, onEdit, onDelete } = props;
   return (
     <div className="p-4 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light">
       <div className="flex items-start justify-between gap-3">
@@ -157,7 +157,7 @@ const SpellCard = memo(function SpellCard(props: SpellCardProps) {
             <span className="text-xs dark:text-text-dark light:text-text-light">{spell.school}</span>
           </div>
         </button>
-        {isDM && (
+        {isAdmin && (
           <div className="flex items-center gap-1">
             <button onClick={() => onEdit(spell)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>
             <button onClick={() => onDelete(spell.id)} className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
@@ -176,12 +176,12 @@ const SpellCard = memo(function SpellCard(props: SpellCardProps) {
 
 interface VirtualListProps extends ListCallbacks {
   spells: Spell[];
-  isDM: boolean;
+  isAdmin: boolean;
 }
 
 // 桌面：CSS Grid 行 + 内部滚动容器虚拟化，500 行常驻 DOM 从 500+ 降到约 20
 function DesktopSpellTable(props: VirtualListProps) {
-  const { spells, isDM, onOpen, onEdit, onDelete } = props;
+  const { spells, isAdmin, onOpen, onEdit, onDelete } = props;
   const scrollRef = useRef<HTMLDivElement>(null);
   // 行高固定 h-12 = 48px（border-box 含下边框），虚拟器按整数值定位
   const rowVirtualizer = useVirtualizer({
@@ -190,7 +190,7 @@ function DesktopSpellTable(props: VirtualListProps) {
     estimateSize: () => 48,
     overscan: 8,
   });
-  const gridTemplate = isDM ? GRID_TMPL_DM : GRID_TMPL_BASE;
+  const gridTemplate = isAdmin ? GRID_TMPL_DM : GRID_TMPL_BASE;
 
   return (
     <div className="rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
@@ -200,7 +200,7 @@ function DesktopSpellTable(props: VirtualListProps) {
         <span className="justify-self-center text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">学派</span>
         <span className="px-4 text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">施法时间</span>
         <span className="justify-self-center text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">成分</span>
-        {isDM && <span className="px-4 text-right text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">操作</span>}
+        {isAdmin && <span className="px-4 text-right text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">操作</span>}
       </div>
       {spells.length === 0 ? (
         <div className="px-4 py-12 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">暂无匹配的法术</div>
@@ -212,7 +212,7 @@ function DesktopSpellTable(props: VirtualListProps) {
               if (!row) return null;
               return (
                 <div key={row.id} style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start}px)` }}>
-                  <SpellRow spell={row} isDM={isDM} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
+                  <SpellRow spell={row} isAdmin={isAdmin} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
                 </div>
               );
             })}
@@ -225,7 +225,7 @@ function DesktopSpellTable(props: VirtualListProps) {
 
 // 移动：窗口虚拟器跟随页面滚动，保留原有的滚动位置恢复体验；卡片高度不定，用 measureElement 动态测量
 function MobileSpellCardList(props: VirtualListProps) {
-  const { spells, isDM, onOpen, onEdit, onDelete } = props;
+  const { spells, isAdmin, onOpen, onEdit, onDelete } = props;
   const listRef = useRef<HTMLDivElement>(null);
   const [scrollMargin, setScrollMargin] = useState(0);
   // 窗口虚拟器以文档顶部为原点；筛选区高度随标签换行变化，每次提交后重测并用阈值防抖
@@ -262,7 +262,7 @@ function MobileSpellCardList(props: VirtualListProps) {
             ref={virtualizer.measureElement}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${vi.start - virtualizer.options.scrollMargin}px)`, paddingBottom: '0.75rem' }}
           >
-            <SpellCard spell={row} isDM={isDM} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
+            <SpellCard spell={row} isAdmin={isAdmin} onOpen={onOpen} onEdit={onEdit} onDelete={onDelete} />
           </div>
         );
       })}
@@ -272,7 +272,7 @@ function MobileSpellCardList(props: VirtualListProps) {
 
 export default function SpellList() {
   const navigate = useNavigate();
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
   const isDesktop = useIsDesktop();
 
   // 缓存优先：首帧同步读本地（含模块级解析缓存），网络请求降级为后台校准
@@ -367,20 +367,20 @@ export default function SpellList() {
 
   const openDetail = useCallback((id: string) => navigate(`/spells/${id}`), [navigate]);
   const handleEdit = useCallback((spell: Spell) => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setEditingSpell(spell);
     setEditorOpen(true);
-  }, [isDM]);
+  }, [isAdmin]);
   const requestDelete = useCallback((id: string) => setDeleteConfirm(id), []);
 
   const handleAdd = () => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setEditingSpell(undefined);
     setEditorOpen(true);
   };
 
   const handleSaveSpell = async (spell: Spell) => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setSaving(true);
     setError('');
     try {
@@ -402,7 +402,7 @@ export default function SpellList() {
   };
 
   const handleDeleteSpell = async (id: string) => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setSaving(true);
     setError('');
     try {
@@ -428,7 +428,7 @@ export default function SpellList() {
           </p>
           {syncError && <p className="mt-1 text-xs text-danger">{syncError}</p>}
         </div>
-        {isDM && (
+        {isAdmin && (
           <button onClick={handleAdd} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
             <Plus className="w-4 h-4" /> 新增法术
           </button>
@@ -500,9 +500,9 @@ export default function SpellList() {
       </div>
 
       {isDesktop ? (
-        <DesktopSpellTable spells={visibleSpells} isDM={isDM} onOpen={openDetail} onEdit={handleEdit} onDelete={requestDelete} />
+        <DesktopSpellTable spells={visibleSpells} isAdmin={isAdmin} onOpen={openDetail} onEdit={handleEdit} onDelete={requestDelete} />
       ) : (
-        <MobileSpellCardList spells={visibleSpells} isDM={isDM} onOpen={openDetail} onEdit={handleEdit} onDelete={requestDelete} />
+        <MobileSpellCardList spells={visibleSpells} isAdmin={isAdmin} onOpen={openDetail} onEdit={handleEdit} onDelete={requestDelete} />
       )}
 
       <SpellEditor

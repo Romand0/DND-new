@@ -10,7 +10,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 export default function MonsterDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
   const [template, setTemplate] = useState<NpcTemplate | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -36,14 +36,14 @@ export default function MonsterDetail() {
   }, [id]);
 
   const handleSave = (updated: NpcTemplate) => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     npcTemplateStore.update(id!, updated);
     setTemplate(updated);
     setEditorOpen(false);
   };
 
   const handleDelete = () => {
-    if (!isDM || !id) return;
+    if (!isAdmin || !id) return;
     npcTemplateStore.delete(id);
     setDeleteConfirm(false);
     navigate('/monsters');
@@ -78,7 +78,7 @@ export default function MonsterDetail() {
             </p>
           </div>
         </div>
-        {isDM && (
+        {isAdmin && (
           <div className="flex items-center gap-2">
             <button
               onClick={() => setEditorOpen(true)}

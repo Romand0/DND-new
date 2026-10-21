@@ -22,8 +22,8 @@ export async function onRequestPost(context: any): Promise<Response> {
   if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  if (auth.role !== 'dm') {
-    return errorResponse(403, '需要 DM 权限');
+  if (!auth.isAdmin) {
+    return errorResponse(403, '需要站点管理员权限');
   }
 
   const body = await readJsonBody(request);

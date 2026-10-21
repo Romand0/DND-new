@@ -8,7 +8,6 @@ const Register: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<'player' | 'dm'>('player');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -32,7 +31,7 @@ const Register: React.FC = () => {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, role }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await res.json();
@@ -115,35 +114,9 @@ const Register: React.FC = () => {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              身份
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="role"
-                  value="player"
-                  checked={role === 'player'}
-                  onChange={() => setRole('player')}
-                  className="text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-gray-700 dark:text-gray-300">玩家</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name="role"
-                  value="dm"
-                  checked={role === 'dm'}
-                  onChange={() => setRole('dm')}
-                  className="text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-gray-700 dark:text-gray-300">DM（地下城主）</span>
-              </label>
-            </div>
-          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            游戏身份（DM/玩家）属于具体战役，可在账号管理里由管理员标注；站点管理员权限由现有管理员授予。
+          </p>
 
           <button
             type="submit"
