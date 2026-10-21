@@ -101,7 +101,17 @@ export default function MonsterPicker({ isOpen, onClose, onSelect, selectedId, e
   };
 
   const chipClass = (active: boolean) =>
-    `px-2.5 py-1 rounded-full text-xs transition-colors ${active ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`;
+    `shrink-0 whitespace-nowrap px-2.5 py-1 rounded-full text-xs transition-colors ${active ? 'bg-primary text-white' : 'dark:bg-white/5 light:bg-white/60 dark:text-text-dark light:text-text-light hover:bg-primary/10'}`;
+
+  // 标签行：单行 + 行内横向滑动，避免手机上标签换行挤占列表高度
+  const filterRow = (label: string, children: ReactNode) => (
+    <div className="flex items-center gap-2">
+      <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">{label}</span>
+      <div className="flex items-center gap-2 flex-1 min-w-0 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {children}
+      </div>
+    </div>
+  );
 
   if (!isOpen) return null;
 
@@ -142,33 +152,36 @@ export default function MonsterPicker({ isOpen, onClose, onSelect, selectedId, e
           </div>
 
           <div className="space-y-2.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">种类</span>
-              <button onClick={() => setTypeFilter('all')} className={chipClass(typeFilter === 'all')}>全部</button>
-              {ALL_CREATURE_TYPES.map(ct => (
-                <button key={ct} onClick={() => setTypeFilter(typeFilter === ct ? 'all' : ct)} className={chipClass(typeFilter === ct)}>
-                  {CREATURE_TYPE_LABELS[ct]}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">CR</span>
-              <button onClick={() => setCrFilter('all')} className={chipClass(crFilter === 'all')}>全部</button>
-              {CR_FILTER_VALUES.map(cr => (
-                <button key={cr} onClick={() => setCrFilter(crFilter === cr ? 'all' : cr)} className={chipClass(crFilter === cr)}>
-                  {CR_LABELS[cr] || cr}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">尺寸</span>
-              <button onClick={() => setSizeFilter('all')} className={chipClass(sizeFilter === 'all')}>全部</button>
-              {ALL_CREATURE_SIZES.map(cs => (
-                <button key={cs} onClick={() => setSizeFilter(sizeFilter === cs ? 'all' : cs)} className={chipClass(sizeFilter === cs)}>
-                  {CREATURE_SIZE_LABELS[cs]}
-                </button>
-              ))}
-            </div>
+            {filterRow('种类', (
+              <>
+                <button onClick={() => setTypeFilter('all')} className={chipClass(typeFilter === 'all')}>全部</button>
+                {ALL_CREATURE_TYPES.map(ct => (
+                  <button key={ct} onClick={() => setTypeFilter(typeFilter === ct ? 'all' : ct)} className={chipClass(typeFilter === ct)}>
+                    {CREATURE_TYPE_LABELS[ct]}
+                  </button>
+                ))}
+              </>
+            ))}
+            {filterRow('CR', (
+              <>
+                <button onClick={() => setCrFilter('all')} className={chipClass(crFilter === 'all')}>全部</button>
+                {CR_FILTER_VALUES.map(cr => (
+                  <button key={cr} onClick={() => setCrFilter(crFilter === cr ? 'all' : cr)} className={chipClass(crFilter === cr)}>
+                    {CR_LABELS[cr] || cr}
+                  </button>
+                ))}
+              </>
+            ))}
+            {filterRow('尺寸', (
+              <>
+                <button onClick={() => setSizeFilter('all')} className={chipClass(sizeFilter === 'all')}>全部</button>
+                {ALL_CREATURE_SIZES.map(cs => (
+                  <button key={cs} onClick={() => setSizeFilter(sizeFilter === cs ? 'all' : cs)} className={chipClass(sizeFilter === cs)}>
+                    {CREATURE_SIZE_LABELS[cs]}
+                  </button>
+                ))}
+              </>
+            ))}
             {hasAnyFilter && (
               <div className="pt-1">
                 <button onClick={clearAllFilters} className="text-xs text-danger hover:underline">清空所有筛选</button>
