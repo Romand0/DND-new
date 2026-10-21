@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Plus, Save, Keyboard, Users, User, ArrowLeft, Edit3, Check, Pencil } from 'lucide-react';
+import { X, Plus, Save, Keyboard, Users, User, ArrowLeft, Edit3, Check, Pencil, BookOpen } from 'lucide-react';
 import type { NpcTemplate, NpcAttack, Combatant, CreatureSize, CreatureType } from '@/types/combat';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
 import npcTemplateStore from '@/data/npcTemplateStore';
@@ -110,6 +110,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
   const [selectedTemplate, setSelectedTemplate] = useState<NpcTemplate | null>(null);
   const [customMode, setCustomMode] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<NpcTemplate | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // 批量生成
   const [batchCountInput, setBatchCountInput] = useState('5');
@@ -282,50 +283,96 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
               </div>
             </button>
 
-            {/* 模板选取：从怪物图鉴选取（MonsterPicker 提供搜索/筛选） */}
-            <div>
-              <div className="text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted flex items-center justify-between">
-                <span>从怪物图鉴选取</span>
-                <span className="text-xs opacity-60">点击怪物选择，笔图标编辑模板</span>
+            {/* 图鉴选取：整屏选择器，数据源与 /monsters 页一致 */}
+            <button
+              onClick={() => setPickerOpen(true)}
+              className="w-full px-4 py-3 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light flex items-center gap-3 hover:border-primary hover:text-primary transition-colors"
+            >
+              <BookOpen className="w-5 h-5" />
+              <div className="text-left">
+                <div className="font-medium">从怪物图鉴选取</div>
+                <div className="text-xs opacity-60">搜索名称 / 按种类、CR、体型筛选</div>
               </div>
-              <MonsterPicker
-                onSelect={handleSelectTemplate}
-                selectedId={selectedTemplate?.id}
-                emptyHint="图鉴中暂无匹配的怪物"
-                renderAction={(t) => (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startEditTemplate(t);
-                    }}
-                    className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
-                    title="编辑模板"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                )}
-              />
-            </div>
+            </button>
 
             {/* 选中模板后显示的操作按钮 */}
             {selectedTemplate && (
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button
-                  onClick={startSingle}
-                  className="flex items-center justify-center gap-2 py-3 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
-                >
-                  <User className="w-4 h-4" />
-                  单个
-                </button>
-                <button
-                  onClick={startBatch}
-                  className="flex items-center justify-center gap-2 py-3 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light font-medium hover:bg-white/5 transition-colors"
-                >
-                  <Users className="w-4 h-4" />
-                  批量
-                </button>
+              <div className="rounded-lg border dark:border-border-dark light:border-border-light p-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium truncate dark:text-text-dark light:text-text-light">{selectedTemplate.name}</div>
+                    <div className="text-xs opacity-60 truncate">
+                      {[
+                        selectedTemplate.cr !== undefined ? `CR ${selectedTemplate.cr}` : null,
+                        (() => {
+                          const sz = selectedTemplate.creatureSize !== undefined
+                            ? CREATURE_SIZE_LABELS[selectedTemplate.creatureSize]
+                            : selectedTemplate.size;
+                          const tp = selectedTemplate.creatureType !== undefined
+                            ? CREATURE_TYPE_LABELS[selectedTemplate.creatureType]
+                            : selectedTemplate.type;
+                          return sz && tp ? `${sz}·${tp}` : null;
+                        })(),
+                        `AC ${selectedTemplate.ac}`,
+                        `HP ${selectedTemplate.maxHp}`,
+                      ].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => startEditTemplate(selectedTemplate)}
+                      className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                      title="编辑模板"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setPickerOpen(true)}
+                      className="text-xs text-primary hover:underline px-1"
+                    >
+                      重选
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={startSingle}
+                    className="flex items-center justify-center gap-2 py-3 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <User className="w-4 h-4" />
+                    单个
+                  </button>
+                  <button
+                    onClick={startBatch}
+                    className="flex items-center justify-center gap-2 py-3 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light font-medium hover:bg-white/5 transition-colors"
+                  >
+                    <Users className="w-4 h-4" />
+                    批量
+                  </button>
+                </div>
               </div>
             )}
+
+            <MonsterPicker
+              isOpen={pickerOpen}
+              onClose={() => setPickerOpen(false)}
+              onSelect={handleSelectTemplate}
+              selectedId={selectedTemplate?.id}
+              emptyHint="怪物图鉴暂无数据，请先在数据管理导入图鉴种子"
+              renderAction={(t) => (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPickerOpen(false);
+                    startEditTemplate(t);
+                  }}
+                  className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors shrink-0"
+                  title="编辑模板"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
+            />
           </div>
         )}
 
