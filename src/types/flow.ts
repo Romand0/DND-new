@@ -787,6 +787,31 @@ export interface NodeExecutionResult {
   sideEffects?: StateMutation[];
 }
 
+/** 骰值请求：编译器每次需要掷骰时向骰源发起（现场投骰手动输入场景） */
+export interface FlowDiceRequest {
+  purpose: 'save' | 'attack' | 'concentration' | 'effect';
+  /** 检定类：目标身份与名称 */
+  targetId?: string;
+  targetName?: string;
+  /** 检定类：豁免属性（save 时） */
+  ability?: string;
+  /** 检定类：DC（save/concentration）或目标 AC（attack） */
+  dc?: number;
+  ac?: number;
+  /** 效果类：骰式表达式与拆解（如 "1d4" → count 1, sides 4） */
+  expr?: string;
+  count?: number;
+  sides?: number;
+}
+
+/**
+ * 骰源：返回数值（d20 场景 1-20；效果场景返回长度 = count 的每颗骰值数组）则采用手动值，
+ * 返回 null/undefined 则编译器自动掷。FlowRunStep 据此实现「手动输入框 + 旁边自动掷按钮」。
+ */
+export type FlowDiceSource = (
+  req: FlowDiceRequest,
+) => Promise<number | number[] | null | undefined> | number | number[] | null | undefined;
+
 /** 状态变更操作（待提交） */
 export interface StateMutation {
   targetId: string;                  // 目标对象 ID

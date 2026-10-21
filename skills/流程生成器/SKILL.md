@@ -67,6 +67,7 @@
 - 数值缺陷已修：`saving_throw` 属性调整值按 `AbilityScore.score` 重算（旧代码对象减法得 NaN 恒失败）；`attack_roll` 加值走 `getSpellAttackBonus`、目标 AC 读参战者 `ac`（角色卡 `armorClass` 兜底），自然 20 必中 / 自然 1 必失；`apply_effect` 骰式 `NdM+K` 完整投掷（旧代码 8d6 只掷一颗），一次掷骰全目标共用；`concentration_check` 体质调整值同款修复。
 - `cast_start` 距离检查：施法者与目标均有沙盘位置（`context.positions`）时按切比雪夫 × 5 尺真实校验；缺位置数据时跳过并标注 `assumed: true`。
 - **战斗接入已通（Phase 3 核心）**：`CombatSpellModal` 选定法术时按 spellId 查绑定 → 有绑定正式流程（`flowStore.getPublished`，本地缓存缺失自动 `pullRemote`）→ 进入「按流程施放」（`src/components/combat/FlowRunStep.tsx`）→ 组装 `FlowExecutionContext`（casterId/targets = 参战者 id、`combatants` 身份映射、positions = 沙盘）执行 → 逐节点日志渲染 → 确认后经 `onFlowResolved` 由 `CombatSession` 回写逐目标参战者 HP + 按施法时间扣动作 + 先攻表格摘要。**编译器纯计算不落库**：HP 变化只进 results（oldHp/newHp），重复执行不叠加扣血。
+- **手动骰源（现场投骰）**：`executeFlow(flow, context, diceSource?)` 第三参为骰源钩子（`FlowDiceSource`）——编译器在每次 d20 检定（save/attack/concentration，逐目标）与效果骰组（apply_effect / scaled_effect，一次掷骰全目标共用）前向骰源要值；骰源返回合法值（1-20 / 长度 = count 且 1..sides 的数组）则采用，返回 null 回落自动掷。FlowRunStep 默认手动模式：每个骰暂停弹出输入面板（d20 单框 / 效果骰逐颗框），旁挂「自动掷」按钮（resolve null），顶部开关可切回全自动。日志中手动骰值带「（手动）」标记。
 - **身份映射语义**：`context.combatants` 存在时 id 即参战者 id——纯 NPC 参战者豁免 = 属性调整值 + 熟练属性 × 熟练加值（读参战者六维/proficientSaves/proficiencyBonus），AC 读 `combatant.ac`，HP 读参战者；PC 参战者经 characterId 回落角色卡（getSaveBonus / getSpellSaveDC / getSpellAttackBonus）。无映射（非战斗场景）时 id 直接当角色卡 ID（旧行为）。NPC 施法者启发式：DC = 8 + 熟练加值 + 精神三维最大调整值；法术攻击加值同款。
 - 因此一份流程的价值是：**可评审、可校验、可视化、可绑定、可独立跑通执行轨迹、可在战斗中一键施放**的结构化机制规格。
 

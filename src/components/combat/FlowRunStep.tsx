@@ -2,10 +2,12 @@
 // 组装参战者身份映射的 FlowExecutionContext 调用 flowCompiler 执行绑定流程，
 // 逐节点渲染执行日志（豁免判定/分档取值/骰值/HP 变化），确认后把逐目标 HP 结果交宿主回写。
 // 编译器纯计算不落库：HP 变更只在确认时经 CombatSession 的参战者路径应用。
-import { useMemo, useState } from 'react';
-import { ChevronLeft, Play, Check, AlertTriangle, Workflow } from 'lucide-react';
+// 骰源钩子：默认手动模式（现场投骰后输入，编译器在每个检定/效果骰前暂停收数），
+// 输入框旁挂自动掷按钮；关闭手动开关则全自动（旧行为）。
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, Play, Check, AlertTriangle, Workflow, Dices } from 'lucide-react';
 import { flowCompiler } from '@/lib/flowCompiler';
-import type { FlowDefinition, FlowExecutionContext, FlowLogEntry } from '@/types/flow';
+import type { FlowDefinition, FlowExecutionContext, FlowLogEntry, FlowDiceRequest } from '@/types/flow';
 import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
 
@@ -59,6 +61,22 @@ export default function FlowRunStep({
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 骰源：默认手动（现场投骰后输入）；关闭则全自动。ref 供 executeFlow 闭包读取最新值
+  const [manualDice, setManualDice] = useState(true);
+  const manualDiceRef = useRef(manualDice);
+  useEffect(() => { manualDiceRef.current = manualDice; }, [manualDice]);
+
+  // 悬停中的骰值请求：编译器暂停等输入，Promise resolve 后继续执行
+  const [pendingReq, setPendingReq] = useState<FlowDiceRequest | null>(null);
+  const pendingResolveRef = useRef<((v: number | number[] | null) => void) | null>(null);
+  // 手动输入态（请求切换时重置）
+  const [d20Input, setD20Input] = useState('');
+  const [diceInputs, setDiceInputs] = useState<string[]>([]);
+  useEffect(() => {
+    setD20Input('');
+    setDiceInputs(pendingReq?.count ? Array.from({ length: pendingReq.count }, () => '') : []);
+  }, [pendingReq]);
+
   // 节点 ID → 标签（日志行标题）
   const nodeLabel = useMemo(() => {
     const m = new Map<string, string>();
@@ -86,6 +104,8 @@ export default function FlowRunStep({
   const handleRun = async () => {
     setRunning(true);
     setError(null);
+    setPendingReq(null);
+    pendingResolveRef.current = null;
     try {
       const context: FlowExecutionContext = {
         casterId: caster.id,
@@ -98,7 +118,17 @@ export default function FlowRunStep({
         // 参战者身份映射：编译器按参战者解析豁免/AC/HP（NPC 免角色卡）
         combatants: Object.fromEntries(allCombatants.map(c => [c.id, c])),
       };
-      await flowCompiler.executeFlow(flow, context);
+      // 骰源：手动模式下每个检定/效果骰暂停等输入；自动模式直接回落编译器随机
+      await flowCompiler.executeFlow(flow, context, async (req) => {
+        if (!manualDiceRef.current) return null;
+        setLog([...context.log]);
+        return new Promise<number | number[] | null>(resolve => {
+          pendingResolveRef.current = resolve;
+          setPendingReq(req);
+        });
+      });
+      setPendingReq(null);
+      pendingResolveRef.current = null;
       setLog([...context.log]);
       setRan(true);
     } catch (e) {
@@ -107,6 +137,45 @@ export default function FlowRunStep({
       setRunning(false);
     }
   };
+
+  // ── 手动骰收数 ──
+  const ABILITY_LABELS: Record<string, string> = {
+    strength: '力量', dexterity: '敏捷', constitution: '体质', intelligence: '智力', wisdom: '感知', charisma: '魅力',
+  };
+
+  const resolvePending = (v: number | number[] | null) => {
+    const resolve = pendingResolveRef.current;
+    pendingResolveRef.current = null;
+    setPendingReq(null);
+    resolve?.(v);
+  };
+
+  const d20Valid = Number.isFinite(parseInt(d20Input, 10)) && parseInt(d20Input, 10) >= 1 && parseInt(d20Input, 10) <= 20;
+  const diceValid = diceInputs.length > 0 && diceInputs.every(s => {
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) && n >= 1 && n <= (pendingReq?.sides ?? 0);
+  });
+
+  const confirmD20 = () => { if (d20Valid) resolvePending(parseInt(d20Input, 10)); };
+  const confirmDice = () => { if (diceValid) resolvePending(diceInputs.map(s => parseInt(s, 10))); };
+
+  const pendingTitle = (() => {
+    if (!pendingReq) return '';
+    switch (pendingReq.purpose) {
+      case 'save':
+        return `${pendingReq.targetName ?? '目标'} ${ABILITY_LABELS[pendingReq.ability ?? ''] ?? pendingReq.ability ?? ''}豁免${pendingReq.dc != null ? ` vs DC ${pendingReq.dc}` : ''}`;
+      case 'attack':
+        return `法术攻击${pendingReq.targetName ? ` → ${pendingReq.targetName}` : ''}${pendingReq.ac != null ? ` vs AC ${pendingReq.ac}` : ''}`;
+      case 'concentration':
+        return `专注检定${pendingReq.dc != null ? ` vs DC ${pendingReq.dc}` : ''}`;
+      case 'effect':
+        return `效果骰 ${pendingReq.expr ?? ''}（${pendingReq.count ?? 0} 颗 d${pendingReq.sides ?? '?'}）`;
+      default:
+        return '';
+    }
+  })();
+
+  const inputCls = 'w-20 rounded-lg px-2 py-1.5 text-sm text-center dark:bg-bg-dark light:bg-bg-light-2 dark:border-border-dark light:border-border-light border dark:text-text-dark light:text-text-light';
 
   const handleApply = () => {
     const effectResults: any[] = Array.isArray(effectOutput?.results) ? effectOutput.results : [];
@@ -163,6 +232,17 @@ export default function FlowRunStep({
         </div>
       </div>
 
+      {/* 手动掷骰开关（默认开：现场投骰后输入；关 = 全自动随机） */}
+      <label className="flex items-center gap-1.5 text-xs dark:text-text-dark-muted light:text-text-light-muted cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={manualDice}
+          onChange={e => setManualDice(e.target.checked)}
+          disabled={running}
+        />
+        手动掷骰（现场投骰后输入，每个检定/效果骰暂停确认）
+      </label>
+
       {/* 执行 / 重跑 */}
       <div className="flex items-center gap-2">
         <button
@@ -181,6 +261,76 @@ export default function FlowRunStep({
           返回
         </button>
       </div>
+
+      {/* 悬停骰值请求：现场投骰后输入，或点自动掷交给编译器随机 */}
+      {pendingReq && (
+        <div className="rounded-lg p-3 border border-primary/40 bg-primary/5 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium dark:text-text-dark light:text-text-light">
+            <Dices className="w-4 h-4 text-primary shrink-0" />
+            <span>{pendingTitle}</span>
+            <span className="dark:text-text-dark-muted light:text-text-light-muted font-normal">—— 现场投骰后输入</span>
+          </div>
+          {pendingReq.purpose === 'effect' ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              {diceInputs.map((v, i) => (
+                <input
+                  key={i}
+                  type="number"
+                  min={1}
+                  max={pendingReq.sides}
+                  value={v}
+                  onChange={e => setDiceInputs(arr => arr.map((x, j) => (j === i ? e.target.value : x)))}
+                  placeholder={`d${pendingReq.sides}`}
+                  autoFocus={i === 0}
+                  className={inputCls}
+                />
+              ))}
+              <button
+                onClick={confirmDice}
+                disabled={!diceValid}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+              >
+                确认
+              </button>
+              <button
+                onClick={() => resolvePending(null)}
+                className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <Dices className="w-3.5 h-3.5" />
+                自动掷
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={d20Input}
+                onChange={e => setD20Input(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmD20(); }}
+                placeholder="d20"
+                autoFocus
+                className={inputCls}
+              />
+              <button
+                onClick={confirmD20}
+                disabled={!d20Valid}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+              >
+                确认
+              </button>
+              <button
+                onClick={() => resolvePending(null)}
+                className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <Dices className="w-3.5 h-3.5" />
+                自动掷
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {error && (
         <div className="flex items-start gap-2 rounded-lg p-2.5 text-xs text-red-400 bg-red-500/10 border border-red-500/30">
@@ -219,12 +369,12 @@ export default function FlowRunStep({
             {data?.scaleSource && (
               <div className="opacity-90">
                 缩放：{data.scaleSource} → 档位 {data.matchedTier?.value}
-                {(data.dice?.values?.length ?? 0) > 0 && ` · 骰值 [${data.dice.values.join(', ')}]${data.dice.bonus ? `+${data.dice.bonus}` : ''}`}
+                {(data.dice?.values?.length ?? 0) > 0 && ` · 骰值 [${data.dice.values.join(', ')}]${data.dice.bonus ? `+${data.dice.bonus}` : ''}${data.dice.manual ? '（手动）' : ''}`}
               </div>
             )}
             {/* 骰值明细（apply_effect 无缩放时） */}
             {!data?.scaleSource && (data?.dice?.values?.length ?? 0) > 0 && (
-              <div className="opacity-90">骰值 [{data.dice.values.join(', ')}]{data.dice.bonus ? `+${data.dice.bonus}` : ''}</div>
+              <div className="opacity-90">骰值 [{data.dice.values.join(', ')}]{data.dice.bonus ? `+${data.dice.bonus}` : ''}{data.dice.manual ? '（手动）' : ''}</div>
             )}
             {/* HP 变更明细 */}
             {Array.isArray(data?.results) && data.results.some((r: any) => r.newHp !== undefined) && (
