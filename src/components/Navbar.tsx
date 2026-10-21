@@ -112,6 +112,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
   const [gameTime, setGameTime] = useState({ hour: 8, minute: 0 });
   const [calendarDate, setCalendarDate] = useState('');
   const toolsRef = useRef<HTMLDivElement>(null);
+  const navScrollRef = useRef<HTMLDivElement>(null);
   const isPlayerPath = location.pathname.startsWith('/player/');
   const navItems = variant === 'player' || isPlayerPath ? playerNavItems : allNavItems;
 
@@ -151,6 +152,26 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
     setToolsOpen(false);
   }, [location.pathname]);
 
+  // 当前路由的导航项若被横向滚动出可视区，则把它滚回视野内。
+  // 直接改 scrollLeft，避免 scrollIntoView 连带滚动文档。
+  useEffect(() => {
+    const container = navScrollRef.current;
+    if (!container) return;
+    const active = container.querySelector<HTMLElement>('[data-nav-active="true"]');
+    if (!active) return;
+    const left = active.offsetLeft;
+    const right = left + active.offsetWidth;
+    const padding = 8;
+    if (left < container.scrollLeft + padding) {
+      container.scrollTo({ left: Math.max(0, left - padding), behavior: 'smooth' });
+    } else if (right > container.scrollLeft + container.clientWidth - padding) {
+      container.scrollTo({
+        left: right - container.clientWidth + padding,
+        behavior: 'smooth',
+      });
+    }
+  }, [location.pathname, navItems]);
+
   const timeStr = `${String(gameTime.hour).padStart(2, '0')}:${String(gameTime.minute).padStart(2, '0')}`;
   const isAM = gameTime.hour < 12;
 
@@ -161,7 +182,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
     <nav className="fixed top-0 left-0 right-0 z-50 border-b backdrop-blur-md bg-bg-dark/90 border-border-dark">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 shrink-0">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <Swords className="w-6 h-6 text-white" />
@@ -172,7 +193,12 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
             </Link>
           </div>
 
-          <div className="hidden md:flex items-center gap-1">
+          {/* 导航项横向可滑动：overflow-x-auto + touch-pan-x 让横向手势滚动导航条本身，
+              纵向手势不再穿透到下方页面。隐藏滚动条保持顶栏整洁。 */}
+          <div
+            ref={navScrollRef}
+            className="hidden md:flex flex-1 min-w-0 items-center gap-1 mx-2 overflow-x-auto overflow-y-hidden overscroll-x-contain touch-pan-x [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          >
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname.startsWith(item.path);
@@ -180,7 +206,8 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  data-nav-active={isActive ? 'true' : undefined}
+                  className={`flex shrink-0 items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     isActive
                       ? 'bg-primary/20 text-primary'
                       : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -193,7 +220,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
             })}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {/* DM 专属工具栏：设置 */}
             {variant === 'dm' && (
               <Link
@@ -357,7 +384,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
       </div>
 
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-border-dark bg-bg-dark">
+        <div className="md:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border-dark bg-bg-dark">
           <div className="px-4 py-3 space-y-1">
             {/* 剧情工具组 */}
             <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
