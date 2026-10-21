@@ -13,7 +13,9 @@ import type {
   CastStartConfig,
   CheckResult,
   SavingThrowConfig,
-  FlowLogEntry
+  FlowLogEntry,
+  FlowDiceSource,
+  FlowDiceRequest
 } from '@/types/flow';
 import type { Character, AbilityKey } from '@/types/character';
 import type { Combatant } from '@/types/combat';
@@ -93,6 +95,56 @@ export class FlowCompiler {
     return mod + (c.proficientSaves?.includes(ability) ? pb : 0);
   }
 
+
+  // ======================
+  // 骰源钩子（现场投骰手动输入）：返回 null/undefined 回落自动掷
+  // ======================
+
+  /** d20 检定骰：骰源返回 1-20 整数则采用，否则自动掷 */
+  private async rollCheckD20(req: FlowDiceRequest, diceSource?: FlowDiceSource): Promise<number> {
+    if (diceSource) {
+      const v = await diceSource(req);
+      if (typeof v === 'number' && Number.isFinite(v) && v >= 1 && v <= 20) {
+        return Math.floor(v);
+      }
+    }
+    return rollDie(20);
+  }
+
+  /** 效果骰组：骰源返回长度 = count 的数组则逐颗采用，否则自动掷（一次掷骰全目标共用） */
+  private async rollEffectValueWithSource(
+    value: string,
+    reqBase: FlowDiceRequest,
+    diceSource?: FlowDiceSource,
+  ): Promise<{ effectValue: number; diceDetail: { expr: string; count: number; sides: number; bonus: number; values: number[]; manual?: boolean } | null }> {
+    let parsed: { count: number; sides: number; bonus: number };
+    try {
+      parsed = parseDice(value);
+    } catch {
+      return { effectValue: 0, diceDetail: null };
+    }
+    if (parsed.count <= 0 || parsed.sides <= 0) {
+      return { effectValue: parsed.count === 0 ? parsed.bonus : 0, diceDetail: null };
+    }
+
+    if (diceSource) {
+      const v = await diceSource({ ...reqBase, expr: value, count: parsed.count, sides: parsed.sides });
+      if (Array.isArray(v) && v.length === parsed.count && v.every(n => typeof n === 'number' && Number.isFinite(n) && n >= 1 && n <= parsed.sides)) {
+        const values = v.map(n => Math.floor(n));
+        return {
+          effectValue: values.reduce((sum, n) => sum + n, 0) + parsed.bonus,
+          diceDetail: { expr: value, count: parsed.count, sides: parsed.sides, bonus: parsed.bonus, values, manual: true },
+        };
+      }
+    }
+
+    const result = rollDice({ sides: parsed.sides as 4 | 6 | 8 | 10 | 12 | 20, count: parsed.count, mode: 'independent' });
+    return {
+      effectValue: result.values.reduce((sum, n) => sum + n, 0) + parsed.bonus,
+      diceDetail: { expr: value, count: parsed.count, sides: parsed.sides, bonus: parsed.bonus, values: result.values },
+    };
+  }
+
   /**
    * 执行流程：从 cast_start 入口按边遍历整张图。
    * 每个节点至多执行一次（visited 守卫防环）；执行轨迹写入 context.log（FlowLogEntry），
@@ -100,7 +152,8 @@ export class FlowCompiler {
    */
   async executeFlow(
     flow: FlowDefinition,
-    context: FlowExecutionContext
+    context: FlowExecutionContext,
+    diceSource?: FlowDiceSource
   ): Promise<NodeExecutionResult> {
     const startNode = flow.nodes.find(node => node.type === 'cast_start');
 
@@ -130,7 +183,7 @@ export class FlowCompiler {
       visited.add(node.id);
       steps++;
 
-      const result = await this.executeNode(node, context);
+      const result = await this.executeNode(node, context, diceSource);
       lastResult = result;
 
       // 日志与输出缓存
@@ -168,7 +221,8 @@ export class FlowCompiler {
    */
   async executeNode(
     node: FlowNodeDef,
-    context: FlowExecutionContext
+    context: FlowExecutionContext,
+    diceSource?: FlowDiceSource
   ): Promise<NodeExecutionResult> {
     switch (node.type) {
       case 'cast_start':
@@ -176,17 +230,17 @@ export class FlowCompiler {
       case 'select_target':
         return this.executeSelectTargetNode(node, context);
       case 'saving_throw':
-        return this.executeSavingThrowNode(node, context);
+        return this.executeSavingThrowNode(node, context, diceSource);
       case 'attack_roll':
-        return this.executeAttackRollNode(node, context);
+        return this.executeAttackRollNode(node, context, diceSource);
       case 'condition_branch':
         return this.executeConditionBranchNode(node, context);
       case 'apply_effect':
-        return this.executeApplyEffectNode(node, context);
+        return this.executeApplyEffectNode(node, context, diceSource);
       case 'scaled_effect':
-        return this.executeScaledEffectNode(node, context);
+        return this.executeScaledEffectNode(node, context, diceSource);
       case 'concentration_check':
-        return this.executeConcentrationCheckNode(node, context);
+        return this.executeConcentrationCheckNode(node, context, diceSource);
       case 'cast_end':
         return this.executeCastEndNode(node, context);
       case 'custom':
@@ -506,7 +560,8 @@ export class FlowCompiler {
    */
   private async executeSavingThrowNode(
     node: FlowNodeDef,
-    context: FlowExecutionContext
+    context: FlowExecutionContext,
+    diceSource?: FlowDiceSource
   ): Promise<NodeExecutionResult> {
     const config = node.config as SavingThrowConfig;
     const ability = config?.ability || 'dexterity';
@@ -566,7 +621,11 @@ export class FlowCompiler {
         ? targetCharacter.abilities?.[ability as AbilityKey]?.score
         : (targetCombatant as unknown as Record<string, unknown>)[ability];
 
-      const d20Roll = rollDie(20);
+      // 现场投骰：骰源注入时先询问手动值（附 DC 上下文供输入界面显示），null 回落自动掷
+      const d20Roll = await this.rollCheckD20(
+        { purpose: 'save', targetId, targetName, ability, dc },
+        diceSource,
+      );
       const total = d20Roll + saveBonus;
       const success = total >= dc;
 
@@ -609,7 +668,8 @@ export class FlowCompiler {
    */
   private async executeAttackRollNode(
     node: FlowNodeDef,
-    context: FlowExecutionContext
+    context: FlowExecutionContext,
+    diceSource?: FlowDiceSource
   ): Promise<NodeExecutionResult> {
     // 施法者攻击加值：有角色卡走 getSpellAttackBonus；纯 NPC 参战者启发式 = 熟练加值 + 精神三维最大调整值
     const casterCharacter = this.resolveCharacter(context.casterId, context);
@@ -642,8 +702,6 @@ export class FlowCompiler {
         continue;
       }
 
-      const d20Roll = rollDie(20);
-      const attackTotal = d20Roll + spellAttackBonus;
       // 目标 AC：参战者 ac 优先（战斗背包不参与重算，弹窗侧已传入计算后的值时可在此覆盖），
       // 角色卡 armorClass 兜底，均无按 15 估算
       const targetAC = typeof targetCombatant?.ac === 'number'
@@ -651,6 +709,12 @@ export class FlowCompiler {
         : typeof (targetCharacter as unknown as { armorClass?: number } | null)?.armorClass === 'number'
           ? (targetCharacter as unknown as { armorClass: number }).armorClass
           : 15;
+      // 现场投骰：骰源注入时先询问手动值（附 AC 上下文），null 回落自动掷
+      const d20Roll = await this.rollCheckD20(
+        { purpose: 'attack', targetId, targetName: targetCombatant?.name ?? targetCharacter?.name ?? targetId, ac: targetAC },
+        diceSource,
+      );
+      const attackTotal = d20Roll + spellAttackBonus;
       // D&D 5e：自然 20 必中，自然 1 必失
       const hit = d20Roll === 20 ? true : d20Roll === 1 ? false : attackTotal >= targetAC;
 
@@ -737,13 +801,18 @@ export class FlowCompiler {
    */
   private async executeApplyEffectNode(
     node: FlowNodeDef,
-    context: FlowExecutionContext
+    context: FlowExecutionContext,
+    diceSource?: FlowDiceSource
   ): Promise<NodeExecutionResult> {
     const config = node.config;
     const effectType = config?.effectType || 'damage';
     const value = config?.value || '0';
 
-    const { effectValue, diceDetail } = this.rollEffectValue(String(value));
+    const { effectValue, diceDetail } = await this.rollEffectValueWithSource(
+      String(value),
+      { purpose: 'effect' },
+      diceSource,
+    );
     const results = this.applyValueToTargets(effectType, effectValue, context);
 
     return {
@@ -767,7 +836,8 @@ export class FlowCompiler {
    */
   private async executeScaledEffectNode(
     node: FlowNodeDef,
-    context: FlowExecutionContext
+    context: FlowExecutionContext,
+    diceSource?: FlowDiceSource
   ): Promise<NodeExecutionResult> {
     const config = node.config;
     const effectType = config?.effectType === 'healing' ? 'healing' : 'damage';
@@ -801,7 +871,11 @@ export class FlowCompiler {
 
     const matchedTier = tiers.find(t => scaleValue >= t.level) ?? tiers[tiers.length - 1];
 
-    const { effectValue, diceDetail } = this.rollEffectValue(matchedTier.value);
+    const { effectValue, diceDetail } = await this.rollEffectValueWithSource(
+      matchedTier.value,
+      { purpose: 'effect', expr: matchedTier.value },
+      diceSource,
+    );
     const results = this.applyValueToTargets(effectType, effectValue, context);
 
     return {
@@ -898,7 +972,8 @@ export class FlowCompiler {
    */
   private async executeConcentrationCheckNode(
     node: FlowNodeDef,
-    context: FlowExecutionContext
+    context: FlowExecutionContext,
+    diceSource?: FlowDiceSource
   ): Promise<NodeExecutionResult> {
     // 专注检定：PC 经角色卡取体质调整值；纯 NPC 参战者直接读六维 constitution
     const casterCharacter = this.resolveCharacter(context.casterId, context);
@@ -917,7 +992,7 @@ export class FlowCompiler {
       ? casterCharacter.abilities?.[ability]?.score ?? 10
       : typeof casterCombatant?.constitution === 'number' ? casterCombatant.constitution : 10;
     const abilityModifierValue = Math.floor((abilityScore - 10) / 2);
-    const d20Roll = rollDie(20);
+    const d20Roll = await this.rollCheckD20({ purpose: 'concentration', targetId: context.casterId, dc }, diceSource);
     const total = d20Roll + abilityModifierValue;
     const success = total >= dc;
 
