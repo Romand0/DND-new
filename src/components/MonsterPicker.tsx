@@ -1,5 +1,6 @@
 // src/components/MonsterPicker.tsx
-// 从怪物图鉴选取：整屏选择器（交互对齐 SpellPicker），数据源与 /monsters 页（MonsterList）完全一致——都走 npcTemplateStore。
+// 从怪物图鉴选取：整屏选择器（交互对齐 SpellPicker），数据源与 /monsters 页（MonsterList）完全一致——都走 npcTemplateStore，
+// 打开时同样先 fetchAll() 拉 D1 云端全量（空库会自动上云种子），本地缓存只作离线兜底。
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, BookOpen, X } from 'lucide-react';
@@ -35,12 +36,29 @@ export default function MonsterPicker({ isOpen, onClose, onSelect, selectedId, e
   const [typeFilter, setTypeFilter] = useState<CreatureType | 'all'>('all');
   const [crFilter, setCrFilter] = useState<string | 'all'>('all');
   const [sizeFilter, setSizeFilter] = useState<CreatureSize | 'all'>('all');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
+    let cancelled = false;
     const refresh = () => setTemplates(npcTemplateStore.getAll());
     refresh();
-    return npcTemplateStore.subscribe(refresh);
+    const unsubscribe = npcTemplateStore.subscribe(refresh);
+
+    // 与 MonsterList 一致：D1 为真源，先展示本地缓存，再拉云端覆盖
+    setLoading(true);
+    npcTemplateStore.fetchAll()
+      .catch(() => { /* 离线时保留本地缓存 */ })
+      .finally(() => {
+        if (cancelled) return;
+        refresh();
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [isOpen]);
 
   const ALL_CREATURE_TYPES: CreatureType[] = Object.keys(CREATURE_TYPE_LABELS) as CreatureType[];
@@ -163,7 +181,7 @@ export default function MonsterPicker({ isOpen, onClose, onSelect, selectedId, e
         <div className="flex-1 overflow-y-auto p-6">
           {templates.length === 0 ? (
             <div className="text-center py-12 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-              {emptyHint || '怪物图鉴暂无数据'}
+              {loading ? '正在从云端加载图鉴…' : (emptyHint || '怪物图鉴暂无数据')}
             </div>
           ) : sorted.length === 0 ? (
             <div className="text-center py-12 text-sm dark:text-text-dark-muted light:text-text-light-muted">
