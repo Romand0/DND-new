@@ -1163,6 +1163,29 @@ export default function CombatSession() {
           canUseBonusAction={canUseBonusAction(spellModal.caster.id)}
           onTargetChange={(c) => setSpellModal(m => (m ? { ...m, target: c } : m))}
           onClose={() => setSpellModal(null)}
+          onFlowResolved={(payload) => {
+            // 流程施放与手动管线同一动作语义：按施法时间扣动作
+            if (isOneActionCast(payload.castingTime)) {
+              consumeCombatantAction(spellModal.caster.id);
+            }
+            if (isBonusActionCast(payload.castingTime)) {
+              consumeCombatantBonusAction(spellModal.caster.id);
+            }
+            // 逐目标 HP 回写（编译器纯计算，落地在此）；NPC 归 0 标记昏迷，与手动结算语义一致
+            payload.targetResults.forEach(tr => {
+              const c = record?.combatants.find(x => x.id === tr.combatantId);
+              if (!c) return;
+              const status = (!c.isPc && tr.effectType === 'damage' && tr.newHp <= 0)
+                ? 'unconscious' as const
+                : undefined;
+              handleApplyDamage(tr.combatantId, tr.newHp, status);
+            });
+            // 先攻表格摘要（FlowRunStep 生成的单行紧凑文本）
+            const cell = resolveWriteCell(spellModal.caster.id);
+            if (cell) {
+              appendRoundRecord(cell.round, cell.combatantId, payload.summary);
+            }
+          }}
           onCastResolved={(info) => {
             // 施法时间 = "1 动作" 的法术消耗 1 个动作（无论是否命中/被豁免）
             if (isOneActionCast(info.castingTime)) {

@@ -60,16 +60,29 @@
 
 ### 0.5 运行成熟度（编写时的现实约束）
 
-以当前代码为准（本节更新于 2026-10-19，Phase 2 之后）：
+以当前代码为准（本节更新于 2026-10-21，Phase 3 战斗接入之后）：
 
 - `FlowCompiler.executeFlow` **按边遍历整张图**：从 `cast_start` 出发，按出边 `trigger` 匹配结果状态（on_success/on_failure/on_partial/on_true/on_false/on_complete）深度优先推进；每节点至多执行一次（visited 防环），执行轨迹逐节点写入 `context.log`（FlowLogEntry），节点输出缓存进 `context.results`。多目标判定节点（saving_throw / attack_roll）的状态反映聚合结果：全成=success、全败=failure、混合=partial，使分流边真实可用。
 - `condition_branch` 已接入白名单安全求值器（`src/lib/flowExpression.ts`，替代裸 eval）；作用域注入 `state` / `results` / `spell` / `caster` / `targets` / `prev`。`custom` 节点保留 eval 逃逸舱（风险自负）。
-- 数值缺陷已修：`saving_throw` 属性调整值按 `AbilityScore.score` 重算（旧代码对象减法得 NaN 恒失败）；`attack_roll` 加值走 `getSpellAttackBonus`、目标 AC 读 `armorClass`（旧硬编码 5/15），自然 20 必中 / 自然 1 必失；`apply_effect` 骰式 `NdM+K` 完整投掷（旧代码 8d6 只掷一颗），一次掷骰全目标共用；`concentration_check` 体质调整值同款修复。
-- `cast_start` 距离检查：施法者与目标均有沙盘位置（`context.positions`）时按切比雪夫 × 5 尺真实校验；缺位置数据时跳过并标注 `assumed: true`。施法时间检查恒可用（动作消耗属战斗态，Phase 3 接入）。
-- **战斗内流程执行尚未接通**：`executeFlow` 目前无生产调用方；战斗施法走 `CombatSpellModal` 的步骤化流程（useCastSteps 状态机）。身份映射（Combatant ↔ Character）与执行内核统一是 Phase 3 范围。
-- 因此一份流程当前的价值是：**可评审、可校验、可视化、可绑定、可独立跑通执行轨迹**的结构化机制规格；与战斗实时状态的联动仍待 Phase 3。
+- 数值缺陷已修：`saving_throw` 属性调整值按 `AbilityScore.score` 重算（旧代码对象减法得 NaN 恒失败）；`attack_roll` 加值走 `getSpellAttackBonus`、目标 AC 读参战者 `ac`（角色卡 `armorClass` 兜底），自然 20 必中 / 自然 1 必失；`apply_effect` 骰式 `NdM+K` 完整投掷（旧代码 8d6 只掷一颗），一次掷骰全目标共用；`concentration_check` 体质调整值同款修复。
+- `cast_start` 距离检查：施法者与目标均有沙盘位置（`context.positions`）时按切比雪夫 × 5 尺真实校验；缺位置数据时跳过并标注 `assumed: true`。
+- **战斗接入已通（Phase 3 核心）**：`CombatSpellModal` 选定法术时按 spellId 查绑定 → 有绑定正式流程（`flowStore.getPublished`，本地缓存缺失自动 `pullRemote`）→ 进入「按流程施放」（`src/components/combat/FlowRunStep.tsx`）→ 组装 `FlowExecutionContext`（casterId/targets = 参战者 id、`combatants` 身份映射、positions = 沙盘）执行 → 逐节点日志渲染 → 确认后经 `onFlowResolved` 由 `CombatSession` 回写逐目标参战者 HP + 按施法时间扣动作 + 先攻表格摘要。**编译器纯计算不落库**：HP 变化只进 results（oldHp/newHp），重复执行不叠加扣血。
+- **身份映射语义**：`context.combatants` 存在时 id 即参战者 id——纯 NPC 参战者豁免 = 属性调整值 + 熟练属性 × 熟练加值（读参战者六维/proficientSaves/proficiencyBonus），AC 读 `combatant.ac`，HP 读参战者；PC 参战者经 characterId 回落角色卡（getSaveBonus / getSpellSaveDC / getSpellAttackBonus）。无映射（非战斗场景）时 id 直接当角色卡 ID（旧行为）。NPC 施法者启发式：DC = 8 + 熟练加值 + 精神三维最大调整值；法术攻击加值同款。
+- 因此一份流程的价值是：**可评审、可校验、可视化、可绑定、可独立跑通执行轨迹、可在战斗中一键施放**的结构化机制规格。
 
 编写时按此现实表述：把节点图当作「精确且可审查的规格」来写，并对每个节点标注它是否已有运行支撑（见 §5 自审）。不要把「图上有这个节点」等同于「运行时已经实现该机制」。
+
+---
+
+### 0.6 战斗施放的边方向语义（易错）
+
+检定节点的 status 聚合语义决定分流方向，**接反了会在「豁免成功」时造成伤害**：
+
+- `saving_throw`：全部目标**豁免通过** = status `success`；全部**未通过** = `failure`。因此「豁免失败才受伤」的标准伤害拓扑是：
+  - `saving_throw` —`on_failure`→ 效果节点（scaled_effect / apply_effect）
+  - `saving_throw` —`on_success`→ `cast_end`（豁免通过，法术无效）
+- `attack_roll`：全部**命中** = `success`。伤害拓扑：`attack_roll` —`on_success`→ 效果节点，`on_failure`→ `cast_end`。
+- FlowRunStep 逐节点日志会显示每个目标的 d20/加值/DC/通过与否与 HP 变化行，接反方向在预演时会立刻显形。
 
 ---
 

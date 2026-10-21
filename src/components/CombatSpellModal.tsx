@@ -2,23 +2,27 @@
 // 从沙盘「法术」按钮触发：浏览法术 → 步骤化施放（前置检查/目标/检定/效果/收尾）
 // 副作用延迟原则：HP/动作/先攻表格/castLogs 全部在收尾确认时一次性应用（见 hooks/combat/useCastSteps）。
 import { useEffect, useMemo, useState } from 'react';
-import { X, BookOpen, ChevronLeft } from 'lucide-react';
+import { X, BookOpen, ChevronLeft, Workflow } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
+import flowStore from '@/data/flowStore';
+import { fetchBindingsBySpell } from '@/lib/api';
 import combatStore, { computeCombatantAc } from '@/data/combatStore';
 import { useCastSteps } from '@/hooks/combat/useCastSteps';
 import type { Combatant } from '@/types/combat';
 import type { Character, Equipment } from '@/types/character';
 import type { Spell } from '@/types/spell';
+import type { FlowDefinition } from '@/types/flow';
 import SpellStepBar from './combat/SpellStepBar';
 import SpellPreCastStep from './combat/SpellPreCastStep';
 import SpellTargetStep from './combat/SpellTargetStep';
 import SpellCheckStep, { type SpellCheckOutcome, type SpellCheckType } from './combat/SpellCheckStep';
 import SpellEffectStep, { parseDice, renderSpellDice, type SpellEffectType } from './combat/SpellEffectStep';
 import SpellFinishStep from './combat/SpellFinishStep';
+import FlowRunStep, { type FlowCastPayload } from './combat/FlowRunStep';
 
-type Stage = 'list' | 'cast';
+type Stage = 'list' | 'flow' | 'cast';
 
 interface Props {
   caster: Combatant;        // 施法者（攻击者位）
@@ -40,6 +44,11 @@ interface Props {
   canUseBonusAction?: boolean;
   /** 目标确认步骤内更换目标时同步回宿主（HP 应用与先攻表格按新目标结算） */
   onTargetChange?: (c: Combatant) => void;
+  /**
+   * 按流程施放完成：宿主回写逐目标参战者 HP + 动作消耗 + 先攻表格摘要。
+   * 有绑定正式流程的法术才会走此路径；未提供时流程入口隐藏。
+   */
+  onFlowResolved?: (payload: FlowCastPayload) => void;
   /** 施放完成：回传完整信息由 main 写入先攻表格与应用 HP 变化（契约冻结） */
   onCastResolved: (info: {
     spellName: string;
@@ -59,7 +68,7 @@ interface Props {
 }
 
 // 单张法术卡片
-function SpellCard({ spell, level, active, onPick }: { spell: Spell; level: number; active: boolean; onPick: () => void }) {
+function SpellCard({ spell, level, active, onPick, hasFlow }: { spell: Spell; level: number; active: boolean; onPick: () => void; hasFlow?: boolean }) {
   return (
     <button
       onClick={onPick}
@@ -74,6 +83,12 @@ function SpellCard({ spell, level, active, onPick }: { spell: Spell; level: numb
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
           {level === 0 ? '戏法' : `${level}环`}
         </span>
+        {hasFlow && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 inline-flex items-center gap-0.5">
+            <Workflow className="w-2.5 h-2.5" />
+            流程
+          </span>
+        )}
         {spell.concentration && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">专注</span>
         )}
@@ -104,7 +119,7 @@ function SpellCard({ spell, level, active, onPick }: { spell: Spell; level: numb
 
 export default function CombatSpellModal({
   caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory,
-  recordId, currentRound, combatantPositions, canUseAction = true, canUseBonusAction, onTargetChange,
+  recordId, currentRound, combatantPositions, canUseAction = true, canUseBonusAction, onTargetChange, onFlowResolved,
 }: Props) {
   // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
   const targetCharacter = useMemo<Character | null>(() => {
@@ -120,6 +135,9 @@ export default function CombatSpellModal({
 
   const [stage, setStage] = useState<Stage>('list');
   const [selectedSpell, setSelectedSpell] = useState<Spell | null>(null);
+  // 流程施放：spellId → 绑定的正式流程（挂载时从云端拉一次绑定关系；拉取失败静默降级手动管线）
+  const [flowBindings, setFlowBindings] = useState<Map<string, string>>(new Map());
+  const [boundFlow, setBoundFlow] = useState<FlowDefinition | null>(null);
 
   // 目标确认步骤内可更换目标：本地生效目标 + 通知宿主同步（HP/先攻按新目标结算）
   const [effectiveTarget, setEffectiveTarget] = useState<Combatant>(target);
@@ -165,6 +183,27 @@ export default function CombatSpellModal({
     return list;
   }, [character]);
 
+  // 挂载时拉取每个已知法术的绑定关系（取首个绑定的正式流程）；失败静默——流程入口消失但手动施放不受影响
+  useEffect(() => {
+    if (knownSpells.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      const map = new Map<string, string>();
+      await Promise.all(knownSpells.map(async ({ spell }) => {
+        try {
+          const list = await fetchBindingsBySpell(spell.id);
+          if (Array.isArray(list) && list.length > 0 && list[0]?.flow_id) {
+            map.set(spell.id, list[0].flow_id);
+          }
+        } catch {
+          // 单个法术拉取失败不影响其余
+        }
+      }));
+      if (!cancelled) setFlowBindings(map);
+    })();
+    return () => { cancelled = true; };
+  }, [knownSpells]);
+
   // 是否同队伍（决定效果类型可选项）
   const sameTeam = !!caster && !!effectiveTarget && (caster.isPc === effectiveTarget.isPc);
 
@@ -174,9 +213,30 @@ export default function CombatSpellModal({
     return rec?.combatants ?? [caster, effectiveTarget];
   }, [recordId, caster.id, effectiveTarget.id]);
 
-  // 选定法术进入施放阶段：初始化步骤序列（成分/动作门禁在前置检查步骤内做，不再 alert 打断）
-  const handlePickSpell = (spell: Spell) => {
+  // 选定法术进入施放阶段：有绑定正式流程 → 流程施放；否则步骤化手动管线
+  // （成分/动作门禁在前置检查步骤内做，不再 alert 打断）
+  const handlePickSpell = async (spell: Spell) => {
     setSelectedSpell(spell);
+
+    // 绑定流程解析：本地缓存优先，缺失时拉云端正式版（pullRemote 会写入本地缓存）
+    const flowId = flowBindings.get(spell.id);
+    if (flowId) {
+      let f = flowStore.getPublished(flowId);
+      if (!f) {
+        try {
+          const remote = await flowStore.pullRemote(flowId);
+          f = remote ? flowStore.getPublished(remote.id) : undefined;
+        } catch {
+          // 云端不可用：回落手动管线
+        }
+      }
+      if (f) {
+        setBoundFlow(f);
+        setStage('flow');
+        return;
+      }
+    }
+
     setStage('cast');
     cast.begin('ac');
     setCheckOutcome(null);
@@ -187,9 +247,10 @@ export default function CombatSpellModal({
     setCalculated(null);
   };
 
-  // 返回法术列表：无痕中止当前轨迹
+  // 返回法术列表：无痕中止当前轨迹（含流程施放轨迹）
   const handleBackToList = () => {
     setStage('list');
+    setBoundFlow(null);
     cast.abort();
     setCheckOutcome(null);
     setResolvedAmount(0);
@@ -347,6 +408,7 @@ export default function CombatSpellModal({
                         spell={spell}
                         level={level}
                         active={selectedSpell?.id === spell.id}
+                        hasFlow={flowBindings.has(spell.id)}
                         onPick={() => handlePickSpell(spell)}
                       />
                     ))}
@@ -355,7 +417,24 @@ export default function CombatSpellModal({
             </>
           )}
 
-          {/* 阶段 2：步骤化施放 */}
+          {/* 阶段 2a：按流程施放（绑定正式流程时优先入口） */}
+          {stage === 'flow' && selectedSpell && boundFlow && (
+            <FlowRunStep
+              flow={boundFlow}
+              spell={selectedSpell}
+              caster={caster}
+              target={effectiveTarget}
+              allCombatants={allCombatants}
+              combatantPositions={combatantPositions}
+              onBack={handleBackToList}
+              onApplied={(payload) => {
+                onFlowResolved?.(payload);
+                onClose();
+              }}
+            />
+          )}
+
+          {/* 阶段 2b：步骤化施放 */}
           {stage === 'cast' && selectedSpell && currentStep && (
             <>
               {/* 法术卡片（参考） */}

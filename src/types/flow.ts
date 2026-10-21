@@ -2,6 +2,7 @@
 // 把游戏机制过程编码为可视化流程图，节点=环节，边=衔接关系
 
 import type { Spell } from './spell';
+import type { Combatant } from './combat';
 
 // ======================
 // 一、节点（Node）—— 游戏环节的原子单元
@@ -761,6 +762,12 @@ export interface FlowExecutionContext {
   log: FlowLogEntry[];               // 执行日志
   /** 沙盘位置字典（key 与 casterId/targets 同一身份空间），切比雪夫距离校验用；缺省时距离检查跳过 */
   positions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /**
+   * 参战者身份映射（战斗施法时注入）：key 与 casterId/targets 同一身份空间（参战者 id）。
+   * 编译器解析施法者/目标时优先查参战者——NPC 豁免/AC 直接读参战者字段（六维+proficientSaves+proficiencyBonus/ac），
+   * PC 参战者经 characterId 回落角色卡；无映射（非战斗场景）时 id 直接当角色卡 ID 解析（旧行为）。
+   */
+  combatants?: Record<string, Combatant>;
 }
 
 /** 单条执行日志 */

@@ -1,7 +1,9 @@
 // DSL 编译器 - 节点执行引擎
 // 将流程图中的节点转换为可执行的逻辑
 // Phase 2：图遍历执行（按边驱动 + trigger 匹配）、安全表达式求值、真实数据注入
-// （施法加值/AC/属性修正/完整骰式/沙盘距离）。战斗身份映射（Combatant ↔ Character）留 Phase 3。
+// （施法加值/AC/属性修正/完整骰式/沙盘距离）。
+// Phase 3：战斗身份映射落地——context.combatants 注入参战者映射，NPC 豁免/AC/HP 直读
+// 参战者字段，PC 经 characterId 回落角色卡；效果结算纯计算不落库（由战斗弹窗确认后回写）。
 import type {
   FlowDefinition,
   FlowNodeDef,
@@ -14,6 +16,7 @@ import type {
   FlowLogEntry
 } from '@/types/flow';
 import type { Character, AbilityKey } from '@/types/character';
+import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
@@ -32,6 +35,21 @@ function abilityModifier(char: Character, ability: string): number {
   return Math.floor((entry.score - 10) / 2);
 }
 
+/** 从 Combatant 六维字段安全取属性调整值（NPC 参战者无角色卡） */
+function combatantAbilityModifier(c: Combatant, ability: string): number {
+  const score = (c as unknown as Record<string, unknown>)[ability];
+  return typeof score === 'number' ? Math.floor((score - 10) / 2) : 0;
+}
+
+/** NPC 参战者施法属性启发式：无角色卡时取精神三维（智/感/魅）最大调整值（怪物天生施法属性的常见落点） */
+function combatantCastingModifier(c: Combatant): number {
+  return Math.max(
+    combatantAbilityModifier(c, 'intelligence'),
+    combatantAbilityModifier(c, 'wisdom'),
+    combatantAbilityModifier(c, 'charisma'),
+  );
+}
+
 /** 节点结果到出边 trigger 的匹配（§2.2 边目录语义） */
 function triggerMatches(trigger: string, result: NodeExecutionResult): boolean {
   switch (trigger) {
@@ -46,6 +64,35 @@ function triggerMatches(trigger: string, result: NodeExecutionResult): boolean {
 }
 
 export class FlowCompiler {
+  // ======================
+  // 身份解析（战斗参战者 ↔ 角色卡）
+  // ======================
+
+  /** 按身份取参战者：combatants 映射存在时 id 即参战者 id；无映射（非战斗场景）恒 null */
+  private resolveCombatant(id: string, context: FlowExecutionContext): Combatant | null {
+    return context.combatants?.[id] ?? null;
+  }
+
+  /**
+   * 按身份取角色卡：PC 参战者经 characterId 引用；无 combatants 映射（非战斗场景）时
+   * id 直接当角色卡 ID（旧行为）；纯 NPC 参战者返回 null。
+   */
+  private resolveCharacter(id: string, context: FlowExecutionContext): Character | null {
+    const combatant = context.combatants?.[id];
+    if (combatant) {
+      return combatant.characterId ? characterStore.get(combatant.characterId) : null;
+    }
+    if (!context.combatants) return characterStore.get(id);
+    return null;
+  }
+
+  /** 目标豁免加值：纯 NPC 参战者 = 属性调整值 + 熟练属性 × 熟练加值（与 SpellCheckStep 推导一致） */
+  private npcSaveBonus(c: Combatant, ability: AbilityKey): number {
+    const mod = combatantAbilityModifier(c, ability);
+    const pb = typeof c.proficiencyBonus === 'number' ? c.proficiencyBonus : 0;
+    return mod + (c.proficientSaves?.includes(ability) ? pb : 0);
+  }
+
   /**
    * 执行流程：从 cast_start 入口按边遍历整张图。
    * 每个节点至多执行一次（visited 守卫防环）；执行轨迹写入 context.log（FlowLogEntry），
@@ -174,7 +221,12 @@ export class FlowCompiler {
       };
     }
 
-    const caster = characterStore.get(context.casterId);
+    // 施法者身份：PC 参战者经 characterId 查角色卡；纯 NPC 参战者用最小桩（成分/施法时间检查降级通过）
+    const casterCharacter = this.resolveCharacter(context.casterId, context);
+    const casterCombatant = this.resolveCombatant(context.casterId, context);
+    const caster: Character = casterCharacter ?? (casterCombatant
+      ? { name: casterCombatant.name, canSpeak: true, canGesticulate: true } as unknown as Character
+      : null as unknown as Character);
     if (!caster) {
       return {
         status: 'failure',
@@ -460,18 +512,25 @@ export class FlowCompiler {
     const ability = config?.ability || 'dexterity';
 
     // DC 语义：留空 = 施法者法术豁免 DC（8 + 施法属性调整值 + 熟练）；显式数字 = 固定 DC（非法数字回落 10）
+    // 施法者无角色卡（纯 NPC 参战者）时启发式：8 + 熟练加值 + 精神三维最大调整值
     let dc: number;
     const rawDc = config?.dc?.toString().trim() ?? '';
     if (rawDc === '') {
-      const caster = characterStore.get(context.casterId);
-      const casterDc = caster ? characterStore.getSpellSaveDC(caster) : null;
-      if (casterDc === null) {
-        return {
-          status: 'failure',
-          output: { error: 'DC 未配置且施法者无法术豁免 DC（NPC 施法者待身份映射支持）' },
-        };
+      const casterCharacter = this.resolveCharacter(context.casterId, context);
+      const casterDc = casterCharacter ? characterStore.getSpellSaveDC(casterCharacter) : null;
+      if (casterDc !== null) {
+        dc = casterDc;
+      } else {
+        const casterCombatant = this.resolveCombatant(context.casterId, context);
+        if (!casterCombatant) {
+          return {
+            status: 'failure',
+            output: { error: 'DC 未配置且施法者无法术豁免 DC' },
+          };
+        }
+        const pb = typeof casterCombatant.proficiencyBonus === 'number' ? casterCombatant.proficiencyBonus : 2;
+        dc = 8 + pb + combatantCastingModifier(casterCombatant);
       }
-      dc = casterDc;
     } else {
       dc = parseInt(rawDc, 10);
       if (isNaN(dc)) dc = 10;
@@ -480,8 +539,9 @@ export class FlowCompiler {
     const results: any[] = [];
 
     for (const targetId of context.targets) {
-      const target = characterStore.get(targetId);
-      if (!target) {
+      const targetCombatant = this.resolveCombatant(targetId, context);
+      const targetCharacter = this.resolveCharacter(targetId, context);
+      if (!targetCombatant && !targetCharacter) {
         results.push({
           targetId,
           success: false,
@@ -490,13 +550,21 @@ export class FlowCompiler {
         continue;
       }
 
-      // 豁免加值：PC 走角色卡熟练豁免；数据缺失时回退属性调整值
-      let saveBonus = abilityModifier(target, ability);
-      try {
-        saveBonus = characterStore.getSaveBonus(target, ability as AbilityKey);
-      } catch {
-        // getSaveBonus 不可用时保持属性调整值兜底
+      // 豁免加值：纯 NPC 参战者走参战者字段；PC（有角色卡）走角色卡熟练豁免；数据缺失时回退属性调整值
+      let saveBonus: number;
+      if (targetCharacter) {
+        try {
+          saveBonus = characterStore.getSaveBonus(targetCharacter, ability as AbilityKey);
+        } catch {
+          saveBonus = abilityModifier(targetCharacter, ability);
+        }
+      } else {
+        saveBonus = this.npcSaveBonus(targetCombatant, ability as AbilityKey);
       }
+      const targetName = targetCombatant?.name ?? targetCharacter?.name ?? targetId;
+      const abilityScore = targetCharacter
+        ? targetCharacter.abilities?.[ability as AbilityKey]?.score
+        : (targetCombatant as unknown as Record<string, unknown>)[ability];
 
       const d20Roll = rollDie(20);
       const total = d20Roll + saveBonus;
@@ -504,9 +572,9 @@ export class FlowCompiler {
 
       results.push({
         targetId,
-        targetName: target.name,
+        targetName,
         ability,
-        abilityScore: target.abilities?.[ability as AbilityKey]?.score,
+        abilityScore,
         saveBonus,
         dc,
         d20Roll,
@@ -543,21 +611,29 @@ export class FlowCompiler {
     node: FlowNodeDef,
     context: FlowExecutionContext
   ): Promise<NodeExecutionResult> {
-    const caster = characterStore.get(context.casterId);
-    if (!caster) {
-      return {
-        status: 'failure',
-        output: { error: '施法者不存在' }
-      };
+    // 施法者攻击加值：有角色卡走 getSpellAttackBonus；纯 NPC 参战者启发式 = 熟练加值 + 精神三维最大调整值
+    const casterCharacter = this.resolveCharacter(context.casterId, context);
+    let spellAttackBonus: number;
+    if (casterCharacter) {
+      spellAttackBonus = characterStore.getSpellAttackBonus(casterCharacter) ?? 0;
+    } else {
+      const casterCombatant = this.resolveCombatant(context.casterId, context);
+      if (!casterCombatant) {
+        return {
+          status: 'failure',
+          output: { error: '施法者不存在' }
+        };
+      }
+      const pb = typeof casterCombatant.proficiencyBonus === 'number' ? casterCombatant.proficiencyBonus : 2;
+      spellAttackBonus = pb + combatantCastingModifier(casterCombatant);
     }
-
-    const spellAttackBonus = characterStore.getSpellAttackBonus(caster) ?? 0;
 
     const results: any[] = [];
 
     for (const targetId of context.targets) {
-      const target = characterStore.get(targetId);
-      if (!target) {
+      const targetCombatant = this.resolveCombatant(targetId, context);
+      const targetCharacter = this.resolveCharacter(targetId, context);
+      if (!targetCombatant && !targetCharacter) {
         results.push({
           targetId,
           hit: false,
@@ -568,13 +644,19 @@ export class FlowCompiler {
 
       const d20Roll = rollDie(20);
       const attackTotal = d20Roll + spellAttackBonus;
-      const targetAC = typeof target.armorClass === 'number' ? target.armorClass : 15;
+      // 目标 AC：参战者 ac 优先（战斗背包不参与重算，弹窗侧已传入计算后的值时可在此覆盖），
+      // 角色卡 armorClass 兜底，均无按 15 估算
+      const targetAC = typeof targetCombatant?.ac === 'number'
+        ? targetCombatant.ac
+        : typeof (targetCharacter as unknown as { armorClass?: number } | null)?.armorClass === 'number'
+          ? (targetCharacter as unknown as { armorClass: number }).armorClass
+          : 15;
       // D&D 5e：自然 20 必中，自然 1 必失
       const hit = d20Roll === 20 ? true : d20Roll === 1 ? false : attackTotal >= targetAC;
 
       results.push({
         targetId,
-        targetName: target.name,
+        targetName: targetCombatant?.name ?? targetCharacter?.name ?? targetId,
         attackBonus: spellAttackBonus,
         d20Roll,
         attackTotal,
@@ -622,7 +704,7 @@ export class FlowCompiler {
       state: context.stateSnapshot ?? {},
       results: resultsObj,
       spell: context.spellId ? spellStore.getById(context.spellId) : null,
-      caster: characterStore.get(context.casterId),
+      caster: this.resolveCharacter(context.casterId, context) ?? this.resolveCombatant(context.casterId, context),
       targets: context.targets,
       prev: resultsObj.results ?? null,
     };
@@ -711,7 +793,8 @@ export class FlowCompiler {
       scaleValue = spell?.level ?? 0;
       scaleSource = spell ? `${spell.name}（环位 ${scaleValue}）` : '（未指定法术，按 0 环）';
     } else {
-      const caster = characterStore.get(context.casterId);
+      // 施法者等级：PC 参战者经角色卡；纯 NPC 参战者无等级概念按 0 级
+      const caster = this.resolveCharacter(context.casterId, context);
       scaleValue = caster?.level ?? 0;
       scaleSource = caster ? `${caster.name}（角色等级 ${scaleValue}）` : '（未指定施法者，按 0 级）';
     }
@@ -756,12 +839,18 @@ export class FlowCompiler {
   }
 
   /** 将数值效果结算到全部目标（伤害/治疗，含 HP 更新），返回逐目标结果 */
+  /**
+   * 将数值效果结算到全部目标（伤害/治疗），返回逐目标结果。
+   * 纯计算不落库：HP 变化只写进 results（oldHp/newHp），由调用方（战斗弹窗确认后）
+   * 经参战者 HP 路径回写——编译器保持无副作用，重复执行不叠加扣血。
+   */
   private applyValueToTargets(effectType: 'damage' | 'healing', effectValue: number, context: FlowExecutionContext) {
     const results: any[] = [];
 
     for (const targetId of context.targets) {
-      const target = characterStore.get(targetId);
-      if (!target) {
+      const targetCombatant = this.resolveCombatant(targetId, context);
+      const targetCharacter = this.resolveCharacter(targetId, context);
+      if (!targetCombatant && !targetCharacter) {
         results.push({
           targetId,
           success: false,
@@ -770,34 +859,34 @@ export class FlowCompiler {
         continue;
       }
 
-      // 应用效果
-      let newHp = target.currentHp;
+      // HP 来源：参战者优先（currentHp 缺省按 maxHp 满血），角色卡兜底
+      const oldHp = targetCombatant
+        ? (typeof targetCombatant.currentHp === 'number' ? targetCombatant.currentHp : (targetCombatant.maxHp ?? 0))
+        : (targetCharacter?.currentHp ?? 0);
+      const maxHp = targetCombatant ? (targetCombatant.maxHp ?? 0) : (targetCharacter?.maxHp ?? 0);
+
+      let newHp = oldHp;
       let effectApplied = false;
 
       if (effectType === 'damage') {
-        newHp = Math.max(0, target.currentHp - effectValue);
+        newHp = Math.max(0, oldHp - effectValue);
         effectApplied = true;
       } else if (effectType === 'healing') {
-        newHp = Math.min(target.maxHp, target.currentHp + effectValue);
+        newHp = Math.min(maxHp, oldHp + effectValue);
         effectApplied = true;
       }
       // 其他效果类型可以在这里扩展
 
       results.push({
         targetId,
-        targetName: target.name,
+        targetName: targetCombatant?.name ?? targetCharacter?.name ?? targetId,
         effectType,
         effectValue,
-        oldHp: target.currentHp,
+        oldHp,
         newHp,
-        effectApplied
+        effectApplied,
+        isCombatant: !!targetCombatant
       });
-
-      // 更新角色状态（简化处理）
-      if (effectApplied) {
-        // 实际实现中需要调用 characterStore 更新
-        target.currentHp = newHp;
-      }
     }
 
     return results;
@@ -811,8 +900,10 @@ export class FlowCompiler {
     node: FlowNodeDef,
     context: FlowExecutionContext
   ): Promise<NodeExecutionResult> {
-    const caster = characterStore.get(context.casterId);
-    if (!caster) {
+    // 专注检定：PC 经角色卡取体质调整值；纯 NPC 参战者直接读六维 constitution
+    const casterCharacter = this.resolveCharacter(context.casterId, context);
+    const casterCombatant = this.resolveCombatant(context.casterId, context);
+    if (!casterCharacter && !casterCombatant) {
       return {
         status: 'failure',
         output: { error: '施法者不存在' }
@@ -822,7 +913,9 @@ export class FlowCompiler {
     // 专注检定：体质属性 vs DC 10
     const ability = 'constitution';
     const dc = 10;
-    const abilityScore = caster.abilities?.[ability]?.score ?? 10;
+    const abilityScore = casterCharacter
+      ? casterCharacter.abilities?.[ability]?.score ?? 10
+      : typeof casterCombatant?.constitution === 'number' ? casterCombatant.constitution : 10;
     const abilityModifierValue = Math.floor((abilityScore - 10) / 2);
     const d20Roll = rollDie(20);
     const total = d20Roll + abilityModifierValue;
