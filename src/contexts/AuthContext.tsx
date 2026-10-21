@@ -3,7 +3,10 @@ import React, { createContext, useContext, useState, useEffect, type ReactNode }
 interface User {
   id: string;
   username: string;
+  /** 游戏身份：dm / player，属于具体战役的扮演身份 */
   role: 'dm' | 'player';
+  /** 站点管理员：独立于游戏身份，决定编辑与后台权限 */
+  isAdmin: boolean;
   avatar?: string | null;
 }
 
@@ -11,7 +14,10 @@ interface AuthContextType {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
+  /** 游戏身份是否为 DM（仅用于文案/标签，不代表站点权限） */
   isDM: boolean;
+  /** 站点管理员：所有编辑、后台管理入口以此为准 */
+  isAdmin: boolean;
   loading: boolean;
   login: (token: string, user: User) => Promise<void>;
   logout: () => void;
@@ -31,10 +37,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const savedToken = localStorage.getItem('auth_token');
     const savedUser = localStorage.getItem('auth_user');
 
+    // 旧版 DM Token 验证标记已废弃，统一由账号 is_admin 决定权限
+    localStorage.removeItem('dm_token_verified');
+
     if (savedToken && savedUser) {
       setToken(savedToken);
       try {
-        setUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser) as User;
+        // 兼容旧缓存：迁移前 role=dm 即管理员，后续以 /api/auth/me 的 isAdmin 为准
+        setUser({ ...parsed, isAdmin: parsed.isAdmin ?? parsed.role === 'dm' });
       } catch {
         // 用户信息损坏，清除登录状态
         localStorage.removeItem('auth_token');
@@ -48,6 +59,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     if (!token) return;
 
+    let cancelled = false;
     const verifyToken = async () => {
       try {
         const res = await fetch('/api/auth/me', {
@@ -56,13 +68,27 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (!res.ok) {
           // token 无效或过期，清除登录状态
           logout();
+          return;
         }
+        const data = await res.json();
+        if (cancelled || !data?.user) return;
+        // 以服务端为准刷新身份，管理员授予/撤销无需重新登录即可生效
+        const next: User = {
+          id: data.user.id,
+          username: data.user.username,
+          role: data.user.role,
+          isAdmin: !!data.user.isAdmin,
+          avatar: data.user.avatar ?? null,
+        };
+        setUser(next);
+        localStorage.setItem('auth_user', JSON.stringify(next));
       } catch {
         // 网络错误，保留当前状态
       }
     };
 
     verifyToken();
+    return () => { cancelled = true; };
   }, [token]);
 
   // login 返回 Promise，确保 setState flush 完再 resolve
@@ -100,6 +126,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         token,
         isAuthenticated: !!token && !!user,
         isDM: user?.role === 'dm',
+        isAdmin: user?.isAdmin === true,
         loading,
         login,
         logout,

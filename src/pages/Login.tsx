@@ -33,9 +33,6 @@ const Login: React.FC = () => {
       // 必须 await，等 setState flush 完再 navigate，否则 ProtectedRoute 会读到 isAuthenticated=false
       await login(data.token, data.user);
 
-      // 调试：确认 token 是否存进去了
-      alert('TOKEN: ' + (data.token ? data.token.substring(0, 15) + '...' : 'NO TOKEN'));
-
       // 跳转到首页
       navigate('/');
     } catch (err) {

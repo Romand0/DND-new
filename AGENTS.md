@@ -22,7 +22,7 @@
 | 改回合待办（持续效果提醒） | `src/components/TurnTodoBoard.tsx` + `src/data/combatStore.ts` 的 `addTurnTodo / removeTurnTodo / toggleTurnTodo / resetTurnTodosForRound` | 待办数据内嵌在 CombatRecord，与 equipmentChanges 同层级；只在放映模式 + 已开始放映时显示 |
 | 改沙盘交互（双指缩放、白圈、拾取） | `src/components/Battleground.tsx` | 触摸事件链（pointerdown→move→up→click）脆弱，改之前先通读一遍 |
 | 改云 API 接口 | `functions/api/**/*.ts` + `src/lib/api.ts` | 改后端必须同步改前端 api 客户端；D1 操作在 SQL 里，别丢 WHERE |
-| 改登录 / 权限 | `src/contexts/AuthContext.tsx` + `functions/_utils.ts` | AuthContext 里 user/isDM/isAuthenticated 是三大派生，不要加冲突的局部判断 |
+| 改登录 / 权限 | `src/contexts/AuthContext.tsx` + `functions/_utils.ts` | AuthContext 里 user/isAdmin/isAuthenticated 是三大派生（isDM 仅是游戏身份），不要加冲突的局部判断 |
 | 改样式 / 主题 | Tailwind class（内联）+ `public/css/main.css`（全局 token） | 不要手写 CSS 文件，尽量用 Tailwind；暗黑模式 class 后缀 `-dark` |
 | 加新功能页面 | 建 `src/pages/Xxx.tsx` → 在 `src/App.tsx` 注册路由 → 在 `Layout` / `PlayerLayout` 对应菜单里加入口 | |
 | 改数据库表结构 | `migrations/NNNN_name.sql`（新建迁移文件，不要改旧的）+ `functions/_utils.ts` 对应类型 | 迁移文件追加式，D1 手动 apply |
@@ -57,13 +57,13 @@
 │  后端（Cloudflare Pages Functions + D1 SQL 数据库）         │
 │  functions/api/*：auth(登录注册) / admin(账号管理) /        │
 │    characters / equipments / spells / import / upload       │
-│  functions/_utils.ts：JWT、DM Token、密码哈希、SQL 连接    │
-│  认证双轨：JWT（普通账户） + DM Token（站点超级管理员）    │
+│  functions/_utils.ts：JWT、is_admin、密码哈希、SQL 连接    │
+│  权限模型：账号 is_admin（站点权限）+ role（游戏身份）      │
 ├─────────────────────────────────────────────────────────────┤
 │  数据种子 / 静态资源                                        │
 │  data/players/*.json：预置角色卡（可被覆盖）                │
 │  src/data/equipments.json、spells.json：预置装备库/法术库  │
-│  migrations/*.sql：D1 建表迁移（0001~0003）                │
+│  migrations/*.sql：D1 建表迁移（0001~0009）                │
 │  public/images/*：静态图片                                  │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -103,14 +103,14 @@ BrowserRouter
 │     ├── /spells, /spells/:id           SpellList / Detail
 │     ├── /combat                        CombatList     战斗记录列表
 │     └── /combat/:sessionId             CombatSession  战斗追踪主页面
-└── [DM 端] /*                                         ProtectedRoute(requireDM) + RoleShell → Layout
+└── [DM 端] /*                                         ProtectedRoute(requireAdmin) + RoleShell → Layout
       ├── /                              Home           DM 工作台概览
       ├── /characters[/:id]              CharacterList / Detail   角色卡 CRUD
       ├── /inventory                     InventoryPage  物资库（含宝藏入口卡片）
       │     └── /inventory/treasures[/new|/:id/edit|/:id/distribute]  宝藏三页
       ├── /inventory/trade               TradePage      交易
       ├── /settings                      Settings       嵌套壳，重定向到 /settings/admin
-      │     ├── admin                     AdminAuth      DM Token 输入验证
+      │     ├── admin                     AdminAuth      权限与身份说明
       │     ├── accounts                  AdminAccounts  账户一览表格
       │     ├── migration                 MigrationBackup 迁移备份
       │     └── data                      DataManagement 数据管理（导入导出）
@@ -122,9 +122,10 @@ BrowserRouter
 ```
 
 > **守卫规则**：
-> - `ProtectedRoute` 无参数 → 仅需登录（JWT 或 DM Token）
-> - `ProtectedRoute requireDM` → 需 `user.role === 'dm'`（玩家角色会被 RoleShell 分流）
-> - `AdminAccounts` / `MigrationBackup` / `DataManagement` → 还需通过 DM Token 验证（localStorage `dm_token_verified === 'true'`）
+> - `ProtectedRoute` 无参数 → 仅需登录（账号 JWT）
+> - `ProtectedRoute requireAdmin` → 需 `user.isAdmin === true`（非管理员会被 RoleShell 分流到玩家端）
+> - 站点权限只认账号 `users.is_admin`；`role`（dm/player）仅是游戏身份，不授予任何站点权限
+> - DM Token 仅保留为服务端应急通道（`authenticateRequest` 的兜底分支），前端不再配置
 
 ### 2.2 目录速查（`src/`）
 
@@ -221,7 +222,7 @@ src/
 │   └── attackBonus.ts      攻击加值计算（character.ts 能力的独立函数化）
 │
 ├── contexts/
-│   ├── AuthContext.tsx     User / token / isAuthenticated / isDM / login / logout / updateUser
+│   ├── AuthContext.tsx     User / token / isAuthenticated / isAdmin / isDM / login / logout / updateUser
 │   └── ThemeContext.tsx    暗黑模式（目前只做了结构，未完全打通 class）
 │
 └── pages/             39 个页面（见上方路由图）—— 页面 = 组合 components + 调用 data/* store CRUD
@@ -235,8 +236,8 @@ src/
 functions/
 ├── _utils.ts           认证 & SQL 工具（所有 API 共用）
 │   ├── getDb()                     D1 连接（DB binding）
-│   ├── verifyDmToken(header)       仅 DM Token 校验
-│   ├── authenticateRequest(req)    JWT 优先，DM Token 兜底
+│   ├── verifyDmToken(header)       DM Token 校验（应急通道）
+│   ├── authenticateRequest(req)    JWT → 查库校验 role/is_admin，DM Token 应急兜底
 │   ├── signJwt(userId, role)       7 天 JWT 生成
 │   ├── hashPassword(pw)            SHA-256 + salt 32 字节
 │   └── verifyPassword(pw, hash)    比对
@@ -251,13 +252,13 @@ functions/
     │   ├── PATCH  me.ts               更新用户名/头像
     │   └── GET    verify.ts           校验 session
     │
-    ├── admin/users/                管理员端点（仅 DM Token）
+    ├── admin/users/                管理员端点（需 is_admin）
     │   ├── GET    index.ts            LEFT JOIN sessions 查在线
     │   ├── PATCH  [id].ts             改 role（player/dm）
     │   ├── DELETE [id].ts
     │   └── POST   [id]/password.ts    重置密码
     │
-    ├── characters/                 角色卡 CRUD（JWT 或 DM Token）
+    ├── characters/                 角色卡 CRUD（JWT + is_admin 写权限）
     │   ├── GET    index.ts
     │   ├── POST   index.ts
     │   ├── GET    [id].ts
@@ -287,11 +288,13 @@ functions/
         └── POST   avatar.ts           R2 上传头像（压缩后 ≤256px）
 ```
 
-**认证双轨**（`functions/_utils.ts` `authenticateRequest`）：前端 `src/lib/api.ts` 对应两套 header：
-- `authHeaders()`：JWT 在 `Authorization: Bearer <>`，没有时回退 DM Token 在 `X-DM-Token`
-- `adminAuthHeaders()`：只带 `X-DM-Token`，仅用于账号管理等超级管理员端点
+**认证与权限**（`functions/_utils.ts` `authenticateRequest`）：
+- JWT 在 `Authorization: Bearer <>`；验签后再查库读取 `role` / `is_admin`，保证授予或撤销管理员后立即生效
+- 写端点统一判断 `auth.isAdmin`；`role`（dm/player）只作为游戏身份返回给前端
+- DM Token 仅在 JWT 无效时作为服务端应急后门（`isAdmin: true`），前端无输入入口
+- `src/lib/api.ts` 的 `authHeaders()` 与 `adminAuthHeaders()` 都走账号 JWT
 
-**数据库迁移**：`migrations/0001_init.sql`（characters/equipments/spells 三张表）→ `0002_sessions.sql`（sessions 表，判定在线）→ `0003_avatar.sql`（users.avatar 列）。迁移是追加式，不要修改已有的迁移文件。
+**数据库迁移**：`0001_init.sql`（characters/equipments/spells）→ `0002_sessions.sql`（sessions）→ `0003_avatar.sql`（users.avatar）→ … → `0008_npc_templates.sql`（图鉴）→ `0009_site_admin.sql`（users.is_admin，站点管理员独立于游戏身份）。迁移是追加式，不要修改已有的迁移文件；未执行 0009 时后端会回退旧字段并按 `role=dm` 兼容管理员。
 
 ---
 
@@ -409,12 +412,13 @@ CombatSession
 
 ### 5.4 双轨认证：`src/lib/api.ts` + `functions/_utils.ts`
 
-**为什么用**：普通用户走 JWT（7 天），DM 走站点 Token（独立于账户体系）。玩家端访问 /player/* 只用 JWT，DM 端管理（账户一览/迁移/数据管理）只用 DM Token，其余端点（角色/装备 CRUD）两者都接受（"有 JWT 用 JWT，没 JWT 但有 DM Token 也放行"）。
+**为什么用**：站点管理员是账号属性（`users.is_admin`），与「本场游戏的 DM」解耦——同一个人可以在 A 战役当 DM、在 B 战役当玩家，但这不影响他是否拥有站点编辑权。JWT 携带身份快照，但 `authenticateRequest` 每次都会查库取权威值，撤销管理员立即生效。DM Token 退化为服务端应急通道，只在没有任何管理员账号时用于救场。
 
 **做新端点时**：
-- 敏感管理员端点（改角色/删账号）：仅 `verifyDmToken`
-- 普通业务：`authenticateRequest`（双轨兜底）
-- 一定别把 DM Token 放在 URL 参数里，必须走 header `X-DM-Token`
+- 需要写权限：`const auth = await authenticateRequest(request, env)`，再判断 `auth.isAdmin`（未登录 401 / 非管理员 403）
+- 需要登录但只读：验 JWT 即可（如角色卡列表）
+- 管理员端点：同样走 `authenticateRequest`，不要再用 `verifyDmToken`
+- 前端权限判断一律用 `useAuth().isAdmin`；`isDM` 只用于展示游戏身份
 
 ### 5.5 拖拽锚点保持：Battleground 双指缩放
 
@@ -651,7 +655,7 @@ getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消�
 - 顶部 `import { authenticateRequest, getDb, ... } from '../_utils'`
 - 前端 `src/lib/api.ts` 加对应函数，用 `apiFetch(path, { method, headers: authHeaders(), body: JSON.stringify(...) })`
 - 返回类型加泛型：`export async function xxx<T = any>(): Promise<T>`
-- 需要管理员权限的用 `adminAuthHeaders()`（仅 DM Token）
+- 需要管理员权限的用 `adminAuthHeaders()`（账号 JWT，服务端校验 is_admin）
 
 ---
 
@@ -668,7 +672,7 @@ npm run build
 npm run preview
 ```
 
-> `npm run dev` 时页面刷新不出来？90% 是路由守卫（ProtectedRoute / requireDM）判断错了，先看 `AuthContext` 的 isDM 是不是 false、localStorage `auth_token` 在不在。
+> `npm run dev` 时页面刷新不出来？90% 是路由守卫（ProtectedRoute / requireAdmin）判断错了，先看 `AuthContext` 的 isAdmin 是不是 false、localStorage `auth_token` 在不在。
 
 ---
 

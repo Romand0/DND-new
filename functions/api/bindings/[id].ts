@@ -24,7 +24,7 @@ export async function onRequestDelete(context: any): Promise<Response> {
   const { request, env, params } = context;
   const auth = await authenticateRequest(request, env);
   if (!auth) return errorResponse(401, '未授权');
-  if (auth.role !== 'dm') return errorResponse(403, '需要 DM 权限');
+  if (!auth.isAdmin) return errorResponse(403, '需要站点管理员权限');
 
   const { id } = params;
 

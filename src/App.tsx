@@ -48,11 +48,11 @@ import TreasureEdit from '@/pages/TreasureEdit';
 import TreasureDistribute from '@/pages/TreasureDistribute';
 import { BindingService } from '@/services/bindingService';
 
-// 根路径壳：按 role 分流，永远返回 Layout 保证 Outlet 存在
+// 根路径壳：站点管理员进入 DM 工作台，其余账号回玩家端
 function RoleShell() {
-  const { user } = useAuth();
-  // loading 由 ProtectedRoute 层吞掉，这里 user 一定已就绪
-  if (user?.role === 'player') {
+  const { isAdmin } = useAuth();
+  // loading 由 ProtectedRoute 层吞掉，这里状态一定已就绪
+  if (!isAdmin) {
     return <Navigate to="/player/home" replace />;
   }
   return <Layout />;
@@ -104,7 +104,7 @@ export default function App() {
               <Route path="/player/account" element={<UserProfile />} />
             </Route>
 
-            {/* 公共资料库：DM 和玩家都能访问，走 Layout（variant 按 isDM 推导） */}
+            {/* 公共资料库：DM 和玩家都能访问，走 Layout（variant 按 isAdmin 推导） */}
             <Route
               element={
                 <ProtectedRoute>
@@ -128,11 +128,11 @@ export default function App() {
               <Route path="/flow-editor/:id/view" element={<FlowView />} />
             </Route>
 
-            {/* DM 端（完整导航栏）- 需要登录 + DM 角色 */}
+            {/* DM 端（完整导航栏）- 需要登录 + 站点管理员 */}
             <Route
               path="/"
               element={
-                <ProtectedRoute requireDM>
+                <ProtectedRoute requireAdmin>
                   <RoleShell />
                 </ProtectedRoute>
               }

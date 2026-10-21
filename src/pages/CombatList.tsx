@@ -8,7 +8,7 @@ import { Zap, Trash2, Download, Upload, FileJson } from 'lucide-react';
 import QuickCreateCombatDialog, { type QuickCreateResult } from '@/components/combat/QuickCreateCombatDialog';
 
 export default function CombatList() {
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [records, setRecords] = useState<CombatRecord[]>([]);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
@@ -107,7 +107,7 @@ export default function CombatList() {
   };
 
   // 非DM直接踢回首页
-  if (!isDM) {
+  if (!isAdmin) {
     console.log('[CombatList] 非DM用户，跳转首页');
     return <Navigate to="/" replace />;
   }

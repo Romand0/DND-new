@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function EquipmentDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
   const [item, setItem] = useState<EquipmentItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,7 +41,7 @@ export default function EquipmentDetail() {
   useEffect(() => { load(); }, [id]);
 
   const handleSave = async (updatedItem: EquipmentItem) => {
-    if (!isDM || !id) return;
+    if (!isAdmin || !id) return;
     setSaving(true);
     setError('');
     try {
@@ -59,7 +59,7 @@ export default function EquipmentDetail() {
   };
 
   const handleDelete = async () => {
-    if (!isDM || !id) return;
+    if (!isAdmin || !id) return;
     setSaving(true);
     setError('');
     try {
@@ -120,7 +120,7 @@ export default function EquipmentDetail() {
             )}
           </div>
         </div>
-        {isDM && (
+        {isAdmin && (
           <div className="flex gap-2">
             <button onClick={() => setEditorOpen(true)}
               className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light">

@@ -1,10 +1,11 @@
 // functions/api/admin/users/[id]/characters/[characterId].ts
 // 账号角色绑定：DELETE 解绑一个角色卡，仅接受 DM_TOKEN 认证
-import { jsonResponse, errorResponse, handleOptions, verifyDmToken } from '../../../../../_utils';
+import { jsonResponse, errorResponse, handleOptions, authenticateRequest } from '../../../../../_utils';
 
 interface Env {
   DB: D1Database;
   DM_TOKEN: string;
+  JWT_SECRET: string;
 }
 
 // 查询某账号绑定的角色卡（LEFT JOIN 保留已删除角色的悬空绑定）
@@ -33,8 +34,12 @@ export async function onRequestDelete(context: any): Promise<Response> {
   const id = context.params?.id as string;
   const characterId = context.params?.characterId as string;
 
-  if (!verifyDmToken(request, env)) {
-    return errorResponse(401, 'DM Token 无效');
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
+    return errorResponse(401, '未登录或凭证无效');
+  }
+  if (!auth.isAdmin) {
+    return errorResponse(403, '需要站点管理员权限');
   }
 
   try {

@@ -306,12 +306,11 @@ export async function deleteEquipments(ids: string[]): Promise<void> {
   await Promise.all(ids.map(id => deleteEquipment(id)));
 }
 
-// ============ 账号一览（仅 DM Token 管理端点）============
-// 管理端点只认 DM_TOKEN，显式传 DM Token 头覆盖默认的 JWT 优先逻辑
+// ============ 账号一览（站点管理员端点）============
+// 权限绑定账号：用当前账号 JWT；未登录时回退 DM Token 应急通道
 
 function adminAuthHeaders(): Record<string, string> {
-  const dmToken = getDmToken();
-  return dmToken ? { Authorization: `Bearer ${dmToken}` } : {};
+  return authHeaders();
 }
 
 export async function fetchAdminUsers<T = any>(): Promise<T> {
@@ -323,6 +322,15 @@ export async function updateUserRole<T = any>(id: string, role: 'player' | 'dm')
     method: 'PATCH',
     headers: adminAuthHeaders(),
     body: JSON.stringify({ role }),
+  });
+}
+
+/** 授予/撤销站点管理员权限（与游戏身份 role 独立） */
+export async function updateUserAdmin<T = any>(id: string, isAdmin: boolean): Promise<T> {
+  return apiFetch<T>(`/admin/users/${id}`, {
+    method: 'PATCH',
+    headers: adminAuthHeaders(),
+    body: JSON.stringify({ isAdmin }),
   });
 }
 

@@ -15,7 +15,6 @@ import {
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 
-const VERIFIED_KEY = 'dm_token_verified';
 const MAX_AVATAR_SIZE = 256;
 
 /** 将图片压缩到 MAX_AVATAR_SIZE 内，返回 base64 data URL */
@@ -44,7 +43,7 @@ async function compressImage(file: File): Promise<string> {
 
 export default function UserProfile() {
   const navigate = useNavigate();
-  const { user, token, updateUser, logout } = useAuth();
+  const { user, token, isAdmin, updateUser, logout } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -60,9 +59,8 @@ export default function UserProfile() {
   const [pwError, setPwError] = useState('');
   const [pwNotice, setPwNotice] = useState('');
 
-  // 权限：DM Token 持有者派生（成员/管理员），与账号一览页判定一致
-  const isVerifiedAdmin = localStorage.getItem(VERIFIED_KEY) === 'true';
-  const permissionLabel = isVerifiedAdmin ? '管理员' : '成员';
+  // 站点权限与游戏身份分离：权限看 isAdmin，游戏身份看 role
+  const permissionLabel = isAdmin ? '管理员' : '成员';
   const typeLabel = user?.role === 'dm' ? 'DM' : '玩家';
 
   const openEdit = () => {

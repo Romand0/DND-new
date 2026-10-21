@@ -26,10 +26,19 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return errorResponse(400, 'Username and password are required');
   }
 
-  // 查找用户
-  const user = await env.DB.prepare('SELECT id, username, password_hash, role, avatar FROM users WHERE username = ?')
-    .bind(username.trim())
-    .first<{ id: string; username: string; password_hash: string; role: string; avatar: string | null }>();
+  // 查找用户（未执行 0009 迁移时回退旧字段，按 role=dm 兼容管理员）
+  type UserRow = { id: string; username: string; password_hash: string; role: string; is_admin: number; avatar: string | null };
+  let user: UserRow | null = null;
+  try {
+    user = await env.DB.prepare('SELECT id, username, password_hash, role, is_admin, avatar FROM users WHERE username = ?')
+      .bind(username.trim())
+      .first<UserRow>();
+  } catch {
+    const legacy = await env.DB.prepare('SELECT id, username, password_hash, role, avatar FROM users WHERE username = ?')
+      .bind(username.trim())
+      .first<Omit<UserRow, 'is_admin'>>();
+    user = legacy ? { ...legacy, is_admin: legacy.role === 'dm' ? 1 : 0 } : null;
+  }
 
   if (!user) {
     return errorResponse(401, 'Invalid username or password');
@@ -53,7 +62,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   let token: string;
   try {
     const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907'; // 环境变量没注入时用这个兜底
-    token = await signJwt({ sub: user.id, role: user.role }, jwtSecret);
+    token = await signJwt({ sub: user.id, role: user.role, isAdmin: user.is_admin === 1 }, jwtSecret);
   } catch (e) {
     console.error('signJwt failed:', e);
     return errorResponse(500, 'Token generation failed: ' + (e instanceof Error ? e.message : String(e)));
@@ -76,6 +85,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   return jsonResponse({
     token,
-    user: { id: user.id, username: user.username, role: user.role, avatar: user.avatar || null },
+    user: { id: user.id, username: user.username, role: user.role, isAdmin: user.is_admin === 1, avatar: user.avatar || null },
   });
 };

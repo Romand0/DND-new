@@ -4,11 +4,11 @@ import { useAuth } from '../contexts/AuthContext';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requireDM?: boolean;
+  requireAdmin?: boolean;
 }
 
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireDM = false }) => {
-  const { isAuthenticated, isDM, loading } = useAuth();
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireAdmin = false }) => {
+  const { isAuthenticated, isAdmin, loading } = useAuth();
 
   // 加载中，显示加载页（父 Route 元素层级，子路由暂不挂，正常）
   if (loading) {
@@ -24,8 +24,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireDM = f
     return <Navigate to="/login" replace />;
   }
 
-  // 需要 DM 权限但不是 DM，直接踢到玩家端首页（避免两次跳转）
-  if (requireDM && !isDM) {
+  // 需要站点管理员权限但不是管理员，直接踢到玩家端首页（避免两次跳转）
+  if (requireAdmin && !isAdmin) {
     return <Navigate to="/player/home" replace />;
   }
 

@@ -21,7 +21,7 @@ function categoryLabel(category?: string): string {
 export default function FlowView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
 
   const [flow, setFlow] = useState<FlowDefinition | null>(null);
   const [loading, setLoading] = useState(true);
@@ -64,7 +64,7 @@ export default function FlowView() {
   }, [id]);
 
   const handleDelete = () => {
-    if (!isDM || !id) return;
+    if (!isAdmin || !id) return;
     setSaving(true);
     flowStore.delete(id);
     navigate('/flows');
@@ -102,7 +102,7 @@ export default function FlowView() {
         >
           <ArrowLeft className="w-4 h-4" /> 返回列表
         </button>
-        {isDM && (
+        {isAdmin && (
           <div className="flex gap-2">
             <button
               onClick={() => navigate(`/flow-editor/${id}`)}
@@ -193,7 +193,7 @@ export default function FlowView() {
       </div>
 
       {/* 法术绑定管理（DM） */}
-      {isDM && (
+      {isAdmin && (
         <div className="rounded-xl border p-6 dark:border-border-dark light:border-border-light">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold flex items-center gap-2 dark:text-text-dark light:text-text-light">

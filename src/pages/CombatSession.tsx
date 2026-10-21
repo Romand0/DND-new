@@ -46,7 +46,7 @@ export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
   const [record, setRecord] = useState<CombatRecord | null>(null);
   const [editingCell, setEditingCell] = useState<{ round: number; combatantId: string } | null>(null);
   // ✅ 新增：控制角色选择弹窗的显示状态（仅点击按钮触发，不影响加载逻辑）
@@ -388,7 +388,7 @@ export default function CombatSession() {
   });
 
   // 原内容：完全保留，一个字都没改（权限校验逻辑不变）
-  if (!isDM) {
+  if (!isAdmin) {
     return (
       <div className="max-w-4xl mx-auto p-4">
         <button onClick={() => navigate('/combat')} className="text-primary hover:underline flex items-center gap-1">

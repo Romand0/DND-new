@@ -24,7 +24,7 @@ const SUBCATEGORY_MAP: Record<string, string[]> = {
 
 export default function EquipmentList() {
   const navigate = useNavigate();
-  const { isDM } = useAuth();
+  const { isAdmin } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [funcFilter, setFuncFilter] = useState('全部');
@@ -149,7 +149,7 @@ export default function EquipmentList() {
 
   // ---- 批量删除 ----
   const handleBatchDelete = async () => {
-    if (!isDM || selectedIds.size === 0) return;
+    if (!isAdmin || selectedIds.size === 0) return;
     setSaving(true);
     setError('');
     try {
@@ -166,7 +166,7 @@ export default function EquipmentList() {
 
   // ---- 单条 CRUD（不变）----
   const handleSave = async (item: EquipmentItem) => {
-  if (!isDM) return;
+  if (!isAdmin) return;
   setSaving(true);
   setError('');
   try {
@@ -193,7 +193,7 @@ export default function EquipmentList() {
 
 
   const handleDelete = async (id: string) => {
-    if (!isDM) return;
+    if (!isAdmin) return;
     setSaving(true);
     setError('');
     try {
@@ -213,8 +213,8 @@ export default function EquipmentList() {
     try { await load(); } catch (e: any) { setError('云端加载失败：' + (e.message || '')); } finally { setSyncing(false); }
   };
 
-  const handleEdit = (item: EquipmentItem) => { if (!isDM) return; setEditingItem(item); setEditorOpen(true); };
-  const handleAddNew = () => { if (!isDM) return; setEditingItem(undefined); setEditorOpen(true); };
+  const handleEdit = (item: EquipmentItem) => { if (!isAdmin) return; setEditingItem(item); setEditorOpen(true); };
+  const handleAddNew = () => { if (!isAdmin) return; setEditingItem(undefined); setEditorOpen(true); };
 
   const formatPrice = (item: EquipmentItem) => `${item.price.amount} ${item.price.unit}`;
 
@@ -247,7 +247,7 @@ export default function EquipmentList() {
             className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
           />
         </div>
-        {isDM && (
+        {isAdmin && (
           <div className="flex gap-2">
             {/* 非选择模式：只显新增 + 批量操作入口 */}
             {!selectMode && (
@@ -325,7 +325,7 @@ export default function EquipmentList() {
       </div>
 
       {/* 全选行：仅选择模式 + DM + 有数据 */}
-      {isDM && selectMode && filteredEquipments.length > 0 && (
+      {isAdmin && selectMode && filteredEquipments.length > 0 && (
         <label className="flex items-center gap-2 cursor-pointer select-none px-1">
           <input type="checkbox" checked={allFilteredSelected} onChange={toggleSelectAll}
             className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
@@ -343,7 +343,7 @@ export default function EquipmentList() {
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* checkbox：仅选择模式 + DM */}
-                {isDM && selectMode && (
+                {isAdmin && selectMode && (
                   <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)}
                     className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0" />
                 )}
@@ -366,7 +366,7 @@ export default function EquipmentList() {
                 </div>
               </div>
               {/* 右侧：编辑/删除（一直有，DM 下） */}
-              {isDM && (
+              {isAdmin && (
                 <div className="flex gap-1 shrink-0">
                   <button onClick={() => handleEdit(item)} className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light" title="编辑"><Edit className="w-4 h-4" /></button>
                   <button onClick={() => setDeleteConfirm(item.id)} className="p-2 rounded hover:bg-danger/20 text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>

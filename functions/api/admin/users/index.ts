@@ -1,31 +1,53 @@
 // functions/api/admin/users/index.ts
-// 账号管理列表：仅接受 DM_TOKEN 认证
-import { jsonResponse, errorResponse, handleOptions, verifyDmToken } from '../../../_utils';
+// 账号管理列表：需要站点管理员权限
+import { jsonResponse, errorResponse, handleOptions, authenticateRequest } from '../../../_utils';
 
 interface Env {
   DB: D1Database;
   DM_TOKEN: string;
+  JWT_SECRET: string;
 }
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env } = context;
 
-  if (!verifyDmToken(request, env)) {
-    return errorResponse(401, 'DM Token 无效');
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
+    return errorResponse(401, '未登录或凭证无效');
+  }
+  if (!auth.isAdmin) {
+    return errorResponse(403, '需要站点管理员权限');
   }
 
   try {
     const nowMs = Date.now();
-    const result = await env.DB
-      .prepare(
-        `SELECT u.id, u.username, u.role, u.created_at,
-                (s.exp IS NOT NULL AND s.exp > ?1) AS online
-         FROM users u
-         LEFT JOIN sessions s ON s.user_id = u.id
-         ORDER BY u.created_at ASC`
-      )
-      .bind(nowMs)
-      .all();
+    // 未执行 0009 迁移时回退旧字段，按 role=dm 兼容管理员
+    let legacyMode = false;
+    let result: any;
+    try {
+      result = await env.DB
+        .prepare(
+          `SELECT u.id, u.username, u.role, u.is_admin, u.created_at,
+                  (s.exp IS NOT NULL AND s.exp > ?1) AS online
+           FROM users u
+           LEFT JOIN sessions s ON s.user_id = u.id
+           ORDER BY u.created_at ASC`
+        )
+        .bind(nowMs)
+        .all();
+    } catch {
+      legacyMode = true;
+      result = await env.DB
+        .prepare(
+          `SELECT u.id, u.username, u.role, u.created_at,
+                  (s.exp IS NOT NULL AND s.exp > ?1) AS online
+           FROM users u
+           LEFT JOIN sessions s ON s.user_id = u.id
+           ORDER BY u.created_at ASC`
+        )
+        .bind(nowMs)
+        .all();
+    }
 
     // 已绑定的角色卡：LEFT JOIN 保留已被删除角色的悬空绑定（name 为 null）
     const bindResult = await env.DB
@@ -54,6 +76,7 @@ export async function onRequestGet(context: any): Promise<Response> {
       id: row.id,
       username: row.username,
       role: row.role,
+      isAdmin: legacyMode ? row.role === 'dm' : row.is_admin === 1,
       createdAt: row.created_at,
       online: row.online === 1,
       characters: boundByUser.get(row.id) || [],

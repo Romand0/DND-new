@@ -12,14 +12,14 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return errorResponse(405, 'Method not allowed');
   }
 
-  let body: { username?: string; password?: string; role?: string };
+  let body: { username?: string; password?: string };
   try {
     body = await request.json();
   } catch {
     return errorResponse(400, 'Invalid JSON body');
   }
 
-  const { username, password, role } = body;
+  const { username, password } = body;
 
   // 验证输入
   if (!username || typeof username !== 'string' || username.trim().length < 2) {
@@ -28,8 +28,8 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (!password || typeof password !== 'string' || password.length < 6) {
     return errorResponse(400, 'Password must be at least 6 characters');
   }
-  const validRoles = ['dm', 'player'];
-  const finalRole = role && validRoles.includes(role) ? role : 'player';
+  // 游戏身份（dm/player）属于具体战役，不在注册时自选；站点管理员由首个账号引导产生
+  const finalRole = 'player';
 
   // 检查用户名是否已存在
   const existing = await env.DB.prepare('SELECT id FROM users WHERE username = ?')
@@ -45,20 +45,32 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     console.warn('[register] JWT_SECRET not set in env, using fallback');
   }
 
+  // 首个注册账号自动成为站点管理员，避免部署后无人可管理
+  const countRow = await env.DB.prepare('SELECT COUNT(*) AS c FROM users').first<{ c: number }>();
+  const isAdmin = (countRow?.c ?? 0) === 0;
+
   // 哈希密码
   const passwordHash = await hashPassword(password);
   const userId = crypto.randomUUID();
   const now = Date.now();
 
-  // 插入新用户
-  await env.DB.prepare(
-    'INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)'
-  )
-    .bind(userId, username.trim(), passwordHash, finalRole, now)
-    .run();
+  // 插入新用户（未执行 0009 迁移时退回旧表结构，避免注册中断）
+  try {
+    await env.DB.prepare(
+      'INSERT INTO users (id, username, password_hash, role, is_admin, created_at) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+      .bind(userId, username.trim(), passwordHash, finalRole, isAdmin ? 1 : 0, now)
+      .run();
+  } catch {
+    await env.DB.prepare(
+      'INSERT INTO users (id, username, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)'
+    )
+      .bind(userId, username.trim(), passwordHash, finalRole, now)
+      .run();
+  }
 
   // 生成 JWT
-  const token = await signJwt({ sub: userId, role: finalRole }, jwtSecret);
+  const token = await signJwt({ sub: userId, role: finalRole, isAdmin }, jwtSecret);
 
   // 记录会话：用于账号一览页的登录状态推算（过期时间与 signJwt 的 7 天一致）
   try {
@@ -77,6 +89,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   return jsonResponse({
     token,
-    user: { id: userId, username: username.trim(), role: finalRole, avatar: null },
+    user: { id: userId, username: username.trim(), role: finalRole, isAdmin, avatar: null },
   });
 };

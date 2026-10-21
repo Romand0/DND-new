@@ -17,12 +17,11 @@ import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import CharacterPicker from '@/components/CharacterPicker';
 
-const VERIFIED_KEY = 'dm_token_verified';
-
 interface UserRow {
   id: string;
   username: string;
   role: 'player' | 'dm';
+  isAdmin: boolean;
   createdAt: number;
   online: boolean;
   characters: api.BoundCharacter[];
@@ -30,6 +29,7 @@ interface UserRow {
 
 type ModalState =
   | { type: 'role'; user: UserRow }
+  | { type: 'admin'; user: UserRow }
   | { type: 'delete'; user: UserRow }
   | { type: 'password'; user: UserRow }
   | { type: 'unbind'; user: UserRow; character: api.BoundCharacter }
@@ -37,7 +37,7 @@ type ModalState =
 
 export default function AdminAccounts() {
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, logout } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,15 +45,13 @@ export default function AdminAccounts() {
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState('');
   const [pendingRole, setPendingRole] = useState<'player' | 'dm'>('player');
+  const [pendingAdmin, setPendingAdmin] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [modalError, setModalError] = useState('');
   // 正在为其绑定角色的账号（非空即打开角色选择器）
   const [bindTarget, setBindTarget] = useState<UserRow | null>(null);
   // 当前展开完整 ID 的账号
   const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  // 当前浏览者是否为已通过验证的 DM Token 持有者
-  const isVerifiedAdmin = localStorage.getItem(VERIFIED_KEY) === 'true';
 
   const loadUsers = useCallback(async () => {
     setLoading(true);
@@ -62,11 +60,10 @@ export default function AdminAccounts() {
       const res = await api.fetchAdminUsers<{ users: UserRow[] }>();
       setUsers(res.users || []);
     } catch (e: any) {
-      // 401：DM Token 无效，清除本地 token 并引导重新认证
-      if (e?.message?.includes('401') || e?.message?.includes('DM Token')) {
-        api.setDmToken(null);
-        localStorage.removeItem(VERIFIED_KEY);
-        navigate('/settings/admin');
+      // 401：登录失效，回到登录页；403：当前账号已不是站点管理员
+      if (e?.message?.includes('401')) {
+        logout();
+        navigate('/login');
         return;
       }
       setError(e?.message || '加载失败');
@@ -92,6 +89,22 @@ export default function AdminAccounts() {
       await api.updateUserRole(modal.user.id, pendingRole);
       setModal(null);
       showNotice(`已更新 ${modal.user.username} 的权限`);
+      loadUsers();
+    } catch (e: any) {
+      setModalError(e?.message || '修改失败');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleAdminChange = async () => {
+    if (!modal || modal.type !== 'admin') return;
+    setSubmitting(true);
+    setModalError('');
+    try {
+      await api.updateUserAdmin(modal.user.id, pendingAdmin);
+      setModal(null);
+      showNotice(`已${pendingAdmin ? '授予' : '撤销'} ${modal.user.username} 的站点管理员权限`);
       loadUsers();
     } catch (e: any) {
       setModalError(e?.message || '修改失败');
@@ -194,7 +207,7 @@ export default function AdminAccounts() {
               账号一览
             </h2>
             <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-              查看和管理全部注册账号。仅持有 DM Token 的管理员可见。
+              查看和管理全部注册账号。站点管理员权限独立于游戏身份，按账号授予。
             </p>
           </div>
           <button
@@ -240,8 +253,8 @@ export default function AdminAccounts() {
                 <tr className="text-left dark:text-text-dark-muted light:text-text-light-muted border-b dark:border-border-dark light:border-border-light">
                   <th className="py-2 pr-6 font-medium">名称</th>
                   <th className="py-2 pr-6 font-medium">ID</th>
-                  <th className="py-2 pr-6 font-medium">权限</th>
-                  <th className="py-2 pr-6 font-medium">身份</th>
+                  <th className="py-2 pr-6 font-medium">游戏身份</th>
+                  <th className="py-2 pr-6 font-medium">站点权限</th>
                   <th className="py-2 pr-6 font-medium">登录状态</th>
                   <th className="py-2 pr-6 font-medium">绑定角色</th>
                   <th className="py-2 font-medium">操作</th>
@@ -250,7 +263,7 @@ export default function AdminAccounts() {
               <tbody>
                 {users.map((u) => {
                   const self = isSelf(u.id);
-                  const admin = self && isVerifiedAdmin;
+                  const admin = u.isAdmin;
                   const expanded = expandedId === u.id;
                   return (
                     <tr
@@ -355,9 +368,26 @@ export default function AdminAccounts() {
                               setModal({ type: 'role', user: u });
                             }}
                             className="p-1.5 rounded hover:bg-primary/10 text-primary transition-colors"
-                            title="修改权限"
+                            title="修改游戏身份"
                           >
                             <Pencil className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (self) return;
+                              setPendingAdmin(!u.isAdmin);
+                              setModalError('');
+                              setModal({ type: 'admin', user: u });
+                            }}
+                            disabled={self}
+                            className={`p-1.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${
+                              u.isAdmin
+                                ? 'hover:bg-amber-500/10 text-amber-500'
+                                : 'hover:bg-primary/10 text-primary'
+                            }`}
+                            title={self ? '不能修改自己的管理员权限' : u.isAdmin ? '撤销站点管理员' : '授予站点管理员'}
+                          >
+                            <ShieldCheck className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => {
@@ -404,7 +434,8 @@ export default function AdminAccounts() {
           >
             <div className="flex items-center justify-between">
               <h3 className="font-semibold dark:text-text-dark light:text-text-light">
-                {modal.type === 'role' && '修改权限'}
+                {modal.type === 'role' && '修改游戏身份'}
+                {modal.type === 'admin' && '修改站点权限'}
                 {modal.type === 'delete' && '删除账号'}
                 {modal.type === 'password' && '重置密码'}
                 {modal.type === 'unbind' && '解绑角色'}
@@ -431,6 +462,32 @@ export default function AdminAccounts() {
                       }`}
                     >
                       {r === 'dm' ? 'DM' : '玩家'}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {modal.type === 'admin' && (
+              <>
+                <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                  账号：<span className="font-medium dark:text-text-dark light:text-text-light">{modal.user.username}</span>
+                </p>
+                <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  站点管理员拥有编辑与后台管理权限，与「本场游戏的 DM」是两套身份。
+                </p>
+                <div className="flex gap-2">
+                  {[false, true].map((v) => (
+                    <button
+                      key={String(v)}
+                      onClick={() => setPendingAdmin(v)}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
+                        pendingAdmin === v
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5'
+                      }`}
+                    >
+                      {v ? '管理员' : '成员'}
                     </button>
                   ))}
                 </div>
@@ -487,6 +544,8 @@ export default function AdminAccounts() {
                 onClick={
                   modal.type === 'role'
                     ? handleRoleChange
+                    : modal.type === 'admin'
+                    ? handleAdminChange
                     : modal.type === 'delete'
                     ? handleDelete
                     : modal.type === 'unbind'
@@ -511,7 +570,7 @@ export default function AdminAccounts() {
       <div className="rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light p-4">
         <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
-          身份为管理员仅适用于当前持有并已验证 DM Token 的登录账号；修改权限或重置密码后，该账号需重新登录生效。
+          站点管理员权限绑定账号，不依赖 DM Token；授予/撤销或重置密码后，该账号需重新登录生效。游戏身份（DM/玩家）仅作扮演标识，不影响站点权限。
         </p>
       </div>
 

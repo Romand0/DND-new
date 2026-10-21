@@ -47,28 +47,57 @@ export function verifyDmToken(request: Request, env: Env): boolean {
   return token === env.DM_TOKEN;
 }
 
-// ---------- 统一认证（JWT 优先，DM_TOKEN 兜底） ----------
-// 用于写端点（POST/PUT/DELETE），兼容账号系统 JWT 和超级管理员 DM_TOKEN
+// ---------- 统一认证（JWT 优先，DM_TOKEN 应急兜底） ----------
+// 用于写端点（POST/PUT/DELETE）。
+// 站点操作权限只看账号的 is_admin，与游戏身份 role（dm/player）解耦；
+// DM_TOKEN 仅作为无管理员账号时的服务端应急通道，前端不再使用。
+
+export interface AuthIdentity {
+  sub: string;
+  /** 游戏身份：dm / player，仅作角色扮演层面的标识 */
+  role: string;
+  /** 站点管理员：拥有编辑与后台管理权限 */
+  isAdmin: boolean;
+}
 
 export async function authenticateRequest(
   request: Request,
   env: Env
-): Promise<{ sub: string; role: string } | null> {
+): Promise<AuthIdentity | null> {
   const authHeader = request.headers.get('Authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   const token = authHeader.slice(7);
 
   // 先试 JWT
+  let payload: { sub: string; role: string } | null = null;
   try {
     const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-    return await verifyJwt(token, jwtSecret);
+    payload = await verifyJwt(token, jwtSecret);
   } catch {
-    // JWT 失败，继续试 DM_TOKEN
+    payload = null;
   }
 
-  // 再试 DM_TOKEN
-  if (token === env.DM_TOKEN) {
-    return { sub: 'dm-token-user', role: 'dm' };
+  if (payload) {
+    // 以数据库为准：管理员授予/撤销立即生效，不依赖 7 天有效的 JWT 快照
+    try {
+      const row = await env.DB
+        .prepare('SELECT role, is_admin FROM users WHERE id = ?')
+        .bind(payload.sub)
+        .first<{ role: string; is_admin: number }>();
+      if (row) {
+        return { sub: payload.sub, role: row.role, isAdmin: row.is_admin === 1 };
+      }
+      // 账号已被删除：保留非管理员身份，写操作会被拒绝
+      return { sub: payload.sub, role: payload.role, isAdmin: false };
+    } catch {
+      // 数据库瞬时异常或未执行 0009 迁移：退回 JWT 快照，兼容旧 role=dm 管理员
+      return { sub: payload.sub, role: payload.role, isAdmin: payload.role === 'dm' };
+    }
+  }
+
+  // 再试 DM_TOKEN（应急）
+  if (env.DM_TOKEN && token === env.DM_TOKEN) {
+    return { sub: 'dm-token-user', role: 'dm', isAdmin: true };
   }
 
   return null;
