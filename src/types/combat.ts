@@ -82,6 +82,12 @@ export interface Combatant {
   isUnconscious?: boolean;
   /** 失能（Incapacitated）：无法执行任何动作或反应，actions 视为 0；模拟模式下同样生效 */
   isIncapacitated?: boolean;
+  /**
+   * 专注状态（D&D 5e）：施展专注类法术成功后自动声明开始。
+   * 通行证语义——专注类法术维持的前提；可主动停止、可被伤害豁免失败打断、
+   * 失能/昏迷/死亡时禁用（cleanupBrokenConcentration）。战斗临时状态，随 CombatRecord 保留。
+   */
+  concentration?: { spellName: string; startedRound: number };
   /** 死亡豁免失败次数（D&D 5e：累计 3 次即死亡） */
   deathSaveFailures?: number;
   /** 死亡豁免成功次数（D&D 5e：累计 3 次即稳定） */
@@ -368,7 +374,8 @@ export type TurnTodoType =
   | 'damage_roll'
   | 'condition_check'
   | 'concentration_check'
-  | 'death_save';
+  | 'death_save'
+  | 'concentration_save';
 
 /** 任务类型标签映射 */
 export const TURN_TODO_TYPE_LABELS: Record<TurnTodoType, string> = {
@@ -377,6 +384,7 @@ export const TURN_TODO_TYPE_LABELS: Record<TurnTodoType, string> = {
   condition_check: '状态检查',
   concentration_check: '专注检定',
   death_save: '死亡豁免',
+  concentration_save: '专注豁免',
 };
 
 /** 回合待办事项 */
@@ -388,6 +396,11 @@ export interface TurnTodo {
   startRound: number;
   endRound: number; // -1 = 无限期
   executed: boolean;
+  /**
+   * 类型专属附加数据。'concentration_save' 携带 { dc, spellName, ability }，
+   * 豁免结算（applyConcentrationSaveResult）从这里读 DC；其他类型可不带。
+   */
+  payload?: { dc?: number; spellName?: string; ability?: string };
 }
 
 export interface CombatRecord {

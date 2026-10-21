@@ -279,6 +279,24 @@ export default function CombatSession() {
     playbackMode: record?.mode === 'playback',
   });
 
+  // 专注声明（D&D 5e）：成功施展专注类法术后由 onCastResolved / onFlowResolved 调用。
+  // 已有专注时施放另一个专注法术 → 中断旧的并开始新的，返回的表格备注由调用方拼接进摘要文本。
+  const beginConcentration = (combatantId: string, spellName: string): string | null => {
+    if (!record?.id) return null;
+    const latest = combatStore.get(record.id);
+    const caster = latest?.combatants.find(c => c.id === combatantId);
+    if (!latest || !caster) return null;
+    const prev = caster.concentration;
+    combatStore.update(record.id, {
+      combatants: latest.combatants.map(c =>
+        c.id === combatantId ? { ...c, concentration: { spellName, startedRound: currentTurn?.round ?? 0 } } : c,
+      ),
+      updatedAt: Date.now(),
+    });
+    // 重施同一法术：重置计时但无需"中断"说明（5e 语义上仍是失去再开始）
+    return prev && prev.spellName !== spellName ? `，中断了对「${prev.spellName}」的专注` : null;
+  };
+
   // 投掷武器掉落：由 hook 接管（executeThrownDrop 需显式传入 record）
   const { executeThrownDrop } = useThrownDrop(record?.id ?? null);
 
@@ -1180,10 +1198,15 @@ export default function CombatSession() {
                 : undefined;
               handleApplyDamage(tr.combatantId, tr.newHp, status);
             });
-            // 先攻表格摘要（FlowRunStep 生成的单行紧凑文本）
+            // 先攻表格摘要（FlowRunStep 生成的单行紧凑文本）；专注替换备注追加在末尾
+            let flowSummary = payload.summary;
+            if (payload.concentration && payload.success) {
+              const concNote = beginConcentration(spellModal.caster.id, payload.spellName);
+              if (concNote) flowSummary += concNote;
+            }
             const cell = resolveWriteCell(spellModal.caster.id);
             if (cell) {
-              appendRoundRecord(cell.round, cell.combatantId, payload.summary);
+              appendRoundRecord(cell.round, cell.combatantId, flowSummary);
             }
           }}
           onCastResolved={(info) => {
@@ -1197,7 +1220,12 @@ export default function CombatSession() {
             }
             // 1. 应用 HP / 状态（伤害扣血、治疗加血，handleApplyDamage 直接覆盖 newHp）
             handleApplyDamage(spellModal.target.id, info.newHp, info.status);
-            // 2. 写入先攻表格：xxx 施展 xxx 成功/失败，对 xxx 造成 xxx 点伤害/恢复 xxx 点生命值
+            // 2. 专注类法术成功施展 → 声明/替换专注（失败不触发）
+            let concNote: string | null = null;
+            if (info.concentration && info.success) {
+              concNote = beginConcentration(spellModal.caster.id, info.spellName);
+            }
+            // 3. 写入先攻表格：xxx 施展 xxx 成功/失败，对 xxx 造成 xxx 点伤害/恢复 xxx 点生命值
             const cell = resolveWriteCell(spellModal.caster.id);
             if (cell) {
               let text = `${spellModal.caster.name} 施展 ${info.spellName}${info.success ? '成功' : '失败'}`;
@@ -1206,6 +1234,7 @@ export default function CombatSession() {
                 if (info.status === 'unconscious') text += '，将其击昏';
                 else if (info.status === 'dead') text += '，将其杀死';
               }
+              if (concNote) text += concNote;
               appendRoundRecord(cell.round, cell.combatantId, text);
             }
           }}

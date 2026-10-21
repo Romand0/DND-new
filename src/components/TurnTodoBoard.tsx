@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Plus, X, Trash2, Check, Dices } from 'lucide-react';
 import combatStore from '@/data/combatStore';
+import { characterStore } from '@/data/characterStore';
 import { useNumberInput, useTextInput } from '@/hooks/useInput';
 import type { CombatRecord, Combatant, TurnTodo, TurnTodoType } from '@/types/combat';
 import { TURN_TODO_TYPE_LABELS } from '@/types/combat';
@@ -37,6 +38,19 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
   const [deathRollInput, setDeathRollInput] = useState('');
   // 上一次死亡豁免结算结果（用于在弹窗内回显）
   const [deathResult, setDeathResult] = useState<{ roll: number; outcome: string } | null>(null);
+
+  // 专注豁免弹窗：待办快照（结算后待办即被移除，弹窗改从快照渲染）
+  const [concDialogTodo, setConcDialogTodo] = useState<TurnTodo | null>(null);
+  const [concRollInput, setConcRollInput] = useState('');
+  const [concResult, setConcResult] = useState<{
+    maintained: boolean;
+    d20: number;
+    conMod: number;
+    dc: number;
+    total: number;
+    spellName?: string;
+    casterName: string;
+  } | null>(null);
 
   // 创建表单：用 useNumberInput / useTextInput 分离"输入态字符串"与"业务值"
   // 这样用户清空输入框时不会被立刻填回默认值（onChange 不兜底，onBlur 时才补全）
@@ -102,6 +116,10 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
     if (todo.executed) return;
     if (todo.type === null) {
       combatStore.toggleTurnTodo(record.id, todo.id);
+    } else if (todo.type === 'concentration_save') {
+      setConcDialogTodo(todo);
+      setConcRollInput('');
+      setConcResult(null);
     } else {
       setActiveTodo(todo);
       setDeathRollInput('');
@@ -124,6 +142,8 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
       return;
     }
     const result = combatStore.applyDeathSaveResult(record.id, activeTodo.id, roll);
+    // 死亡 / 复活后同步清扫专注状态（失能/昏迷/死亡无法维持专注）
+    combatStore.cleanupBrokenConcentration(record.id);
     if (!result) {
       setActiveTodo(null);
       return;
@@ -170,6 +190,30 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
     setTimeout(() => {
       setActiveTodo(null);
     }, 1200);
+  };
+
+  // 专注豁免掷骰结算：一次性待办（成功=维持，失败=专注中断），结算后待办即移除
+  const handleConcentrationSaveRoll = (autoRoll?: number) => {
+    if (!concDialogTodo) return;
+    const roll = autoRoll ?? parseInt(concRollInput, 10);
+    if (isNaN(roll) || roll < 1 || roll > 20) {
+      alert('请输入 1-20 之间的 d20 数值');
+      return;
+    }
+    const result = combatStore.applyConcentrationSaveResult(record.id, concDialogTodo.id, roll);
+    if (!result) {
+      setConcDialogTodo(null);
+      return;
+    }
+    setConcResult({
+      maintained: result.maintained,
+      d20: result.d20,
+      conMod: result.conMod,
+      dc: result.dc,
+      total: result.total,
+      spellName: result.spellName,
+      casterName: combatants.find(c => c.id === concDialogTodo.combatantId)?.name ?? '?',
+    });
   };
 
   return (
@@ -356,6 +400,19 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
         />
       )}
 
+      {/* 专注豁免专用弹窗（伤害触发的体质豁免，DC = max(10, 伤害/2)） */}
+      {concDialogTodo && (
+        <ConcentrationSaveDialog
+          todo={concDialogTodo}
+          combatant={combatants.find(c => c.id === concDialogTodo.combatantId) ?? null}
+          rollInput={concRollInput}
+          setRollInput={setConcRollInput}
+          result={concResult}
+          onRoll={handleConcentrationSaveRoll}
+          onClose={() => setConcDialogTodo(null)}
+        />
+      )}
+
       {/* 其他类型任务弹窗（预留接口） */}
       {activeTodo && activeTodo.type !== 'death_save' && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -516,6 +573,133 @@ function DeathSaveDialog({
           <div className="px-2 py-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 border dark:border-border-dark light:border-border-light mb-3">
             <p className="text-xs dark:text-text-dark light:text-text-light">
               {result.outcome}
+            </p>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            className="flex-1 px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm hover:bg-white/5 transition-colors"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 体质豁免调整值：PC 从角色卡取 modifier，NPC 从属性值推算 */
+function constitutionSaveMod(combatant: Combatant | null): number {
+  if (!combatant) return 0;
+  if (combatant.isPc && combatant.characterId) {
+    return characterStore.get(combatant.characterId)?.abilities.constitution.modifier ?? 0;
+  }
+  return Math.floor(((combatant.constitution ?? 10) - 10) / 2);
+}
+
+interface ConcentrationSaveDialogProps {
+  todo: TurnTodo;
+  combatant: Combatant | null;
+  rollInput: string;
+  setRollInput: (v: string) => void;
+  result: {
+    maintained: boolean;
+    d20: number;
+    conMod: number;
+    dc: number;
+    total: number;
+    spellName?: string;
+    casterName: string;
+  } | null;
+  onRoll: (autoRoll?: number) => void;
+  onClose: () => void;
+}
+
+function ConcentrationSaveDialog({
+  todo,
+  combatant,
+  rollInput,
+  setRollInput,
+  result,
+  onRoll,
+  onClose,
+}: ConcentrationSaveDialogProps) {
+  const spellName = todo.payload?.spellName ?? '未知法术';
+  const dc = todo.payload?.dc ?? 10;
+  const conMod = constitutionSaveMod(combatant);
+  const cName = combatant?.name ?? '?';
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="w-full max-w-sm rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">专注豁免</h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded hover:bg-white/10"
+          >
+            <X className="w-5 h-5 dark:text-text-dark light:text-text-light" />
+          </button>
+        </div>
+
+        <p className="text-sm dark:text-text-dark light:text-text-light mb-1">
+          {cName} · 正在维持「{spellName}」
+        </p>
+        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-3">
+          DC {dc} · 体质调整值 {conMod >= 0 ? `+${conMod}` : conMod}
+        </p>
+
+        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-3">
+          d20 + 体质调整值 ≥ DC 则维持专注；失败则法术中断。
+        </p>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            type="number"
+            min={1}
+            max={20}
+            value={rollInput}
+            onChange={e => setRollInput(e.target.value)}
+            placeholder="手动输入 d20 (1-20)"
+            disabled={!!result}
+            className="flex-1 px-2 py-1.5 text-sm rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light disabled:opacity-40 disabled:cursor-not-allowed"
+          />
+          <button
+            onClick={() => onRoll(Math.floor(Math.random() * 20) + 1)}
+            disabled={!!result}
+            className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors flex items-center gap-1 disabled:opacity-40 disabled:cursor-not-allowed"
+            title="自动掷骰"
+          >
+            <Dices className="w-4 h-4" />
+            掷骰
+          </button>
+        </div>
+
+        <button
+          onClick={() => onRoll()}
+          disabled={!rollInput || !!result}
+          className="w-full px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed mb-3"
+        >
+          提交结果
+        </button>
+
+        {result && (
+          <div
+            className={`px-2 py-2 rounded-lg border mb-3 ${
+              result.maintained
+                ? 'dark:bg-emerald-500/10 light:bg-emerald-500/10 border-emerald-500/40'
+                : 'dark:bg-red-500/10 light:bg-red-500/10 border-red-500/40'
+            }`}
+          >
+            <p className={`text-sm font-medium ${result.maintained ? 'text-emerald-500' : 'text-red-500'}`}>
+              {result.maintained ? '豁免成功，维持专注' : '豁免失败，专注中断'}
+            </p>
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
+              d20 {result.d20} {result.conMod >= 0 ? `+${result.conMod}` : result.conMod} ={' '}
+              {result.total} vs DC {result.dc}
+              {!result.maintained && ` ·「${result.spellName ?? spellName}」效果结束`}
             </p>
           </div>
         )}

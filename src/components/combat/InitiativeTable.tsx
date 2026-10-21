@@ -83,6 +83,15 @@ export default function InitiativeTable(props: Props) {
                     <span className="inline-flex items-center gap-1">
                       <Pencil className="w-3 h-3 opacity-50 shrink-0" />
                       <span>{c.name}</span>
+                      {/* 专注徽标：正在维持专注类法术 */}
+                      {c.concentration && (
+                        <span
+                          className="shrink-0 px-1 py-0.5 rounded bg-amber-500/20 text-amber-500 text-[10px] font-normal"
+                          title={`维持专注：「${c.concentration.spellName}」（自第 ${c.concentration.startedRound} 轮起）`}
+                        >
+                          专注
+                        </span>
+                      )}
                     </span>
                   </button>
                 </div>

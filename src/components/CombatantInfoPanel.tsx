@@ -385,6 +385,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
             {combatant.isIncapacitated && (
               <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-purple-600/20 text-purple-400">失能</span>
             )}
+            {combatant.concentration && (
+              <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500">专注</span>
+            )}
           </h3>
           <button
             onClick={onClose}
@@ -739,6 +742,52 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   </div>
                 </div>
               </div>
+
+              {/* 状态卡片：专注（施法者正在维持的专注类法术，可主动停止） */}
+              {combatant.concentration && (
+                <div className="rounded-lg border border-amber-500/40 overflow-hidden">
+                  <button
+                    onClick={() => toggleStatusExpand('concentration')}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium dark:text-text-dark light:text-text-light">专注</span>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500">
+                        {combatant.concentration.spellName}
+                      </span>
+                    </div>
+                    {expandedStatuses.has('concentration') ? (
+                      <ChevronUp className="w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+                    )}
+                  </button>
+                  {expandedStatuses.has('concentration') && (
+                    <div className="px-3 pb-3 space-y-1.5 border-t border-amber-500/40 pt-2">
+                      <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                        自第 {combatant.concentration.startedRound} 轮开始维持；受到伤害时需做体质豁免（DC = max(10, 伤害/2)）。
+                      </p>
+                      <button
+                        onClick={() => {
+                          const rec = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
+                          if (!rec) return;
+                          const latest = combatStore.get(rec.id);
+                          if (!latest) return;
+                          combatStore.update(rec.id, {
+                            combatants: latest.combatants.map(c =>
+                              c.id === combatant.id ? { ...c, concentration: undefined } : c,
+                            ),
+                            updatedAt: Date.now(),
+                          });
+                        }}
+                        className="w-full px-3 py-1.5 rounded-lg border border-amber-500/40 text-amber-500 text-xs hover:bg-amber-500/10 transition-colors"
+                      >
+                        停止专注
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 状态卡片：失能 */}
               {combatant.isIncapacitated && (

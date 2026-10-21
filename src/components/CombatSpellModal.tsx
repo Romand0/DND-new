@@ -64,6 +64,7 @@ interface Props {
     d20Final?: number;             // 最终 d20
     d20Bonus?: number;             // 检定加值
     d20Total?: number;             // 检定总值
+    concentration?: boolean;       // 专注类法术标记（成功施展时宿主声明专注状态）
   }) => void;
 }
 
@@ -230,6 +231,12 @@ export default function CombatSpellModal({
     return rec?.combatants ?? [caster, effectiveTarget];
   }, [recordId, caster.id, effectiveTarget.id]);
 
+  // 施法者当前专注的法术（实时取 store：弹窗内的 caster 是快照，声明/替换后 props 不会自动刷新）
+  const activeConcentration = useMemo(() => {
+    if (!recordId) return undefined;
+    return combatStore.get(recordId)?.combatants.find(c => c.id === caster.id)?.concentration;
+  }, [recordId, caster.id]);
+
   // 选定法术进入施放阶段：有绑定正式流程 → 流程施放；否则步骤化手动管线
   // （成分/动作门禁在前置检查步骤内做，不再 alert 打断）
   const handlePickSpell = async (spell: Spell) => {
@@ -347,6 +354,7 @@ export default function CombatSpellModal({
       d20Final: checkOutcome?.d20,
       d20Bonus: checkOutcome?.bonus,
       d20Total: checkOutcome?.total,
+      concentration: selectedSpell.concentration === true,
     });
     onClose();
   };
@@ -432,6 +440,13 @@ export default function CombatSpellModal({
                 </div>
               )}
             </>
+          )}
+
+          {/* 专注替换提示：已有专注时再施专注类法术（5e：打断旧的才开始新的） */}
+          {stage !== 'list' && selectedSpell?.concentration && activeConcentration && (
+            <div className="px-3 py-2 rounded-lg border border-amber-500/40 dark:bg-amber-500/10 light:bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400">
+              当前正在维持「{activeConcentration.spellName}」——施放此法术将中断它并开始新的专注。
+            </div>
           )}
 
           {/* 阶段 2a：按流程施放（绑定正式流程时优先入口） */}

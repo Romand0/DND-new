@@ -814,6 +814,12 @@ const combatStore = {
         : c
     );
     list[idx] = { ...list[idx], combatants, updatedAt: Date.now() };
+    // 失能瞬间即打断专注（D&D 5e）：失能移除后专注无法恢复，清理在此即时执行
+    if (combatants.some(c => c.id === combatantId && c.isIncapacitated && c.concentration)) {
+      list[idx].combatants = combatants.map(c =>
+        c.id === combatantId ? { ...c, concentration: undefined } : c
+      );
+    }
     save(list);
   },
 
@@ -1052,6 +1058,83 @@ const combatStore = {
     record.updatedAt = Date.now();
     save(records);
     return { combatant: record.combatants[idx], outcome };
+  },
+
+  /**
+   * 专注豁免结算（一次性待办：处理完即移除）。
+   * d20 + 体质调整值 vs DC（payload.dc，缺省 10）：
+   * 成功 → 维持专注；失败 → 清除专注状态。体质豁免加值（NPC 熟练豁免）计提在调用方的 d20 之外时
+   * 不在此处重复计算——此处只取属性调整值，熟练加值由待办创建方并入 payload.dc 或由 DM 手动折算。
+   * 返回结算详情供弹窗展示；待办不存在 / 已移除时返回 null。
+   */
+  applyConcentrationSaveResult(
+    recordId: string,
+    todoId: string,
+    roll: number,
+  ): {
+    maintained: boolean;
+    d20: number;
+    conMod: number;
+    dc: number;
+    total: number;
+    spellName?: string;
+    combatant: Combatant;
+  } | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const todo = record.turnTodos?.find(t => t.id === todoId);
+    if (!todo || todo.type !== 'concentration_save') return null;
+    const idx = record.combatants.findIndex(c => c.id === todo.combatantId);
+    if (idx === -1) return null;
+    const c = record.combatants[idx];
+
+    const conMod = c.isPc && c.characterId
+      ? characterStore.get(c.characterId)?.abilities.constitution.modifier ?? 0
+      : Math.floor(((c.constitution ?? 10) - 10) / 2);
+    const dc = todo.payload?.dc ?? 10;
+    const total = roll + conMod;
+    const maintained = total >= dc;
+
+    // 一次性待办：无论成败都移除（成功=维持闭环，失败=专注已断）
+    if (record.turnTodos) {
+      record.turnTodos = record.turnTodos.filter(t => t.id !== todoId);
+    }
+    if (!maintained) {
+      record.combatants[idx] = { ...c, concentration: undefined };
+    }
+    record.updatedAt = Date.now();
+    save(records);
+    return {
+      maintained,
+      d20: roll,
+      conMod,
+      dc,
+      total,
+      spellName: todo.payload?.spellName,
+      combatant: record.combatants[idx],
+    };
+  },
+
+  /**
+   * 专注状态清扫：失能 / 昏迷 / 死亡的参战者无法维持专注（D&D 5e）。
+   * 在 HP 变更、死亡豁免结算、状态编辑后调用；有变更才 save，避免无谓 notify。
+   */
+  cleanupBrokenConcentration(recordId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    let changed = false;
+    record.combatants = record.combatants.map(c => {
+      if (c.concentration && (c.isDead || c.isUnconscious || c.isIncapacitated)) {
+        changed = true;
+        return { ...c, concentration: undefined };
+      }
+      return c;
+    });
+    if (!changed) return;
+    record.updatedAt = Date.now();
+    save(records);
   },
 
   /**

@@ -55,6 +55,27 @@ export function useDamageAndHp(
     });
     combatStore.update(record.id, { combatants: updatedCombatants, updatedAt: Date.now() });
 
+    // 专注豁免（D&D 5e）：非失能性伤害且 HP 仍 > 0 时触发体质豁免，
+    // DC = max(10, floor(伤害/2))。HP 归零时专注直接被失能/昏迷打断（cleanup 清除），豁免失去意义。
+    const updatedTarget = updatedCombatants.find(c => c.id === targetId);
+    const damage = Math.max(0, (target?.currentHp ?? 0) - newHp);
+    if (playbackMode && damage > 0 && newHp > 0 && updatedTarget?.concentration) {
+      const dc = Math.max(10, Math.floor(damage / 2));
+      const startRound = currentTurn ? currentTurn.round : 0;
+      combatStore.addTurnTodo(record.id, {
+        combatantId: targetId,
+        name: `专注豁免：${updatedTarget.concentration.spellName}`,
+        type: 'concentration_save',
+        startRound,
+        endRound: -1,
+        payload: {
+          dc,
+          spellName: updatedTarget.concentration.spellName,
+          ability: 'constitution',
+        },
+      });
+    }
+
     if (playbackMode && isPc) {
       const nowDown = newHp <= 0 && effectiveStatus === 'unconscious';
       if (nowDown) {
@@ -75,6 +96,7 @@ export function useDamageAndHp(
     }
     if (playbackMode) autoFillDownedMarkers();
     combatStore.cleanupDeathSaveTodos(record.id);
+    combatStore.cleanupBrokenConcentration(record.id);
   };
 
   /**

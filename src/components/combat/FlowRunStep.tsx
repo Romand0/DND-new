@@ -32,6 +32,8 @@ export interface FlowCastPayload {
   targetResults: FlowCastTargetResult[];
   /** 先攻表格摘要文本 */
   summary: string;
+  /** 专注类法术标记（成功施展时宿主声明专注状态） */
+  concentration?: boolean;
 }
 
 interface Props {
@@ -216,6 +218,7 @@ export default function FlowRunStep({
       amount: success ? (mainEffect?.effectValue ?? 0) : 0,
       targetResults,
       summary,
+      concentration: spell.concentration === true,
     });
   };
 
