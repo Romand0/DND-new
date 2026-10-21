@@ -194,6 +194,37 @@ export async function deleteSpell(id: string): Promise<void> {
   await apiFetch(`/spells/${id}`, { method: 'DELETE' });
 }
 
+// ============ NPC 模板（怪物图鉴） ============
+export async function fetchAllNpcTemplates<T = any[]>(): Promise<T> {
+  return apiFetch<T>('/templates');
+}
+
+export async function createNpcTemplate<T = any>(data: T): Promise<T> {
+  return apiFetch<T>('/templates', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/** 批量导入模板（幂等：template_id 唯一约束，已存在被忽略）；421 条种子按 50/批分块由服务端执行 */
+export async function batchImportNpcTemplates(items: any[]): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>('/templates', {
+    method: 'POST',
+    body: JSON.stringify(items),
+  });
+}
+
+export async function updateNpcTemplate<T = any>(id: string, data: T): Promise<T> {
+  return apiFetch<T>(`/templates/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteNpcTemplate(id: string): Promise<void> {
+  await apiFetch(`/templates/${id}`, { method: 'DELETE' });
+}
+
 // ============ 角色选项库（种族/背景/职业） ============
 export async function fetchAllOptions<T = any[]>(): Promise<T> {
   return apiFetch<T>('/options');

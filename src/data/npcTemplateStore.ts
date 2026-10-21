@@ -1,6 +1,7 @@
 import type { NpcTemplate, CreatureSize, CreatureType } from '@/types/combat';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
 import seedTemplates from '@/data/npcTemplates.json';
+import * as api from '@/lib/api';
 
 // 反查表：旧文本 → 枚举
 const REVERSE_SIZE_MAP: Record<string, CreatureSize> = Object.fromEntries(
@@ -191,6 +192,45 @@ const npcTemplateStore = {
     return [...load()].sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
+  /**
+   * 从云端拉取全量模板并覆盖本地缓存（D1 为真源）。
+   * 云端为空且本机有种子、从未上种过时，自动把 421 条种子批量推上云（幂等：
+   * template_id 唯一约束，多浏览器并发只落一份），成功后重新拉取覆盖本地。
+   */
+  async fetchAll(): Promise<NpcTemplate[]> {
+    let remote: NpcTemplate[] = [];
+    try {
+      remote = await api.fetchAllNpcTemplates<NpcTemplate[]>();
+    } catch (err) {
+      console.error('[npcTemplateStore] 从后端加载失败:', err);
+      return load();
+    }
+
+    if (remote.length === 0 && (seedTemplates as any[]).length > 0) {
+      const flagKey = 'dnd-npc-templates-cloud-seeded';
+      if (!localStorage.getItem(flagKey)) {
+        try {
+          const seedRows = (seedTemplates as any[]).map(seedToTemplate);
+          await api.batchImportNpcTemplates(seedRows);
+          localStorage.setItem(flagKey, 'true');
+          remote = await api.fetchAllNpcTemplates<NpcTemplate[]>();
+        } catch (err) {
+          console.error('[npcTemplateStore] 种子上云失败（下次拉取重试）:', err);
+        }
+      }
+    }
+
+    if (remote.length > 0) {
+      // 按 template_id（稳定身份）合并：云端覆盖本地同源行，本地独有的自定义模板保留；
+      // 同时消解种子多浏览器各发 uuid 造成的 template_id 重复
+      const byKey = new Map<string, NpcTemplate>();
+      load().forEach(t => byKey.set(t.templateId, t));
+      remote.forEach(r => { if (r?.templateId) byKey.set(r.templateId, r); });
+      save(Array.from(byKey.values()));
+    }
+    return load();
+  },
+
   get(id: string): NpcTemplate | null {
     const found = load().find(t => t.id === id) ?? null;
     if (!found) return null;
@@ -209,6 +249,7 @@ const npcTemplateStore = {
     const templates = load();
     templates.push(newTemplate);
     save(templates);
+    api.createNpcTemplate(newTemplate).catch(err => console.error('[npcTemplateStore] 云端创建失败:', err));
     return newTemplate;
   },
 
@@ -223,12 +264,14 @@ const npcTemplateStore = {
       updatedAt: Date.now(),
     };
     save(templates);
+    api.updateNpcTemplate(id, templates[index]).catch(err => console.error('[npcTemplateStore] 云端更新失败:', err));
     return templates[index];
   },
 
   delete(id: string): void {
     const templates = load().filter(t => t.id !== id);
     save(templates);
+    api.deleteNpcTemplate(id).catch(err => console.error('[npcTemplateStore] 云端删除失败:', err));
   },
 
   clear(): void {

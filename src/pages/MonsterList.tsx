@@ -104,6 +104,11 @@ export default function MonsterList() {
 
   useEffect(() => { load(); }, []);
 
+  // 云端同步：D1 为真源；首次部署时库为空会自动把 421 条种子批量上云（幂等），完成后 notify 刷新列表
+  useEffect(() => {
+    npcTemplateStore.fetchAll().catch(() => { /* 离线时保留本地缓存 */ });
+  }, []);
+
   // 静态枚举（不再依赖数据）
   const ALL_CREATURE_TYPES: CreatureType[] = Object.keys(CREATURE_TYPE_LABELS) as CreatureType[];
   const ALL_CREATURE_SIZES: CreatureSize[] = [0, 1, 2, 3, 4, 5];
