@@ -36,6 +36,12 @@ export interface Attack {
   twoHandedDamage?: string;
   /** 武器是否已装填（"装填"属性：当前弹匣状态，true=已装填可射击，false=需装填） */
   loaded?: boolean;
+  /** 攻击是否视为魔法（装备库 magicCategory === '魔法物品' 或文本标注） */
+  magical?: boolean;
+  /** 武器是否镀银 */
+  silvered?: boolean;
+  /** 武器是否精金 */
+  adamantine?: boolean;
 }
 
 export interface SpellSlots {
@@ -91,6 +97,8 @@ export interface Equipment {
   source?: string;
   dataResource?: string;
   subtype?: string;
+  /** 装备库的魔法分类（背包实例继承，用于判定攻击是否魔法） */
+  magicCategory?: '魔法物品' | '非魔法物品';
 }
 
 export interface Currency {

@@ -174,6 +174,20 @@ export function validateForPublish(flow: FlowDefinition): { valid: boolean; erro
         warnings.push(`节点 ${index}（攻击检定）缺少攻击类型配置`);
       }
     }
+    if (node.type === 'apply_effect' || node.type === 'scaled_effect') {
+      const effectType = node.config?.effectType ?? 'damage';
+      const components = Array.isArray(node.config?.damageComponents)
+        ? node.config.damageComponents.filter((c: any) => c?.value)
+        : [];
+      if (effectType === 'damage' && !node.config?.damageType && components.length === 0) {
+        warnings.push(`节点 ${index}（伤害效果）缺少伤害类型，结算时不会应用抗性`);
+      }
+      components.forEach((component: any, componentIndex: number) => {
+        if (!component?.type) {
+          warnings.push(`节点 ${index}（伤害效果）第 ${componentIndex + 1} 个伤害分量缺少伤害类型，该分量不会应用抗性`);
+        }
+      });
+    }
   });
 
   return { valid: errors.length === 0, errors, warnings };

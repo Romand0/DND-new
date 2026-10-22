@@ -36,6 +36,7 @@ export default function CombatList() {
         ac: c.ac,
         maxHp: c.maxHp,
         currentHp: c.currentHp,
+        tempHp: c.tempHp,
         isPc: true,
         characterId: c.characterId,
         speed: c.speed,

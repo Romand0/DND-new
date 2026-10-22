@@ -13,6 +13,7 @@ export interface QuickCreateResult {
     ac: number;
     maxHp: number;
     currentHp: number;
+    tempHp?: number;
     speed: number;
   }>;
 }
@@ -91,6 +92,7 @@ export default function QuickCreateCombatDialog(props: Props) {
         ac: char.armorClass ?? 0,
         maxHp: char.maxHp ?? 0,
         currentHp: char.currentHp ?? char.maxHp ?? 0,
+        tempHp: char.tempHp ?? 0,
         speed: char.speed ?? 30,
       });
     }

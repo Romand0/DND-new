@@ -27,6 +27,7 @@ import {
   getCombatInventory,
 } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
+import { formatDamageBreakdown } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
@@ -354,8 +355,8 @@ export default function CombatSession() {
     getEffectiveAc,
     canUseAction: (id: string) => canUseAction(id),
     consumeCombatantAction: (id: string) => consumeCombatantAction(id),
-    handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead') =>
-      handleApplyDamage(targetId, newHp, status),
+    handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead', damageAmount?: number) =>
+      handleApplyDamage(targetId, newHp, status, damageAmount),
     recordOperation,
   });
 
@@ -1181,13 +1182,15 @@ export default function CombatSession() {
           disadvantage={damageModal.disadvantage}
           isCritical={damageModal.isCritical}
           isTwoHandedWield={damageModal.isTwoHandedWield}
-          onApplyDamage={({ damage, newHp, status }) => {
+          onApplyDamage={({ damage, newHp, status, resolution }) => {
             // 1. 应用 HP / 状态
-            handleApplyDamage(damageModal.target.id, newHp, status);
+            handleApplyDamage(damageModal.target.id, newHp, status, damage);
             // 2. 记录操作（放映写表格 / 模拟写日志，简化格式 + 目标 HP 变动）
             const oldHp = damageModal.target.currentHp;
             let text = `《${damageModal.attack.name}》→ ${damageModal.target.name}：【${damage}】伤害`;
             if (oldHp != null) text += `，HP【${oldHp}→${newHp}】`;
+            const breakdown = formatDamageBreakdown(resolution);
+            if (breakdown) text += `，${breakdown}`;
             if (status === 'unconscious') text += '，击昏';
             else if (status === 'dead') text += '，杀死';
             recordOperation(damageModal.attacker.id, text, 'damage');
@@ -1238,7 +1241,7 @@ export default function CombatSession() {
               const status = (!c.isPc && tr.effectType === 'damage' && tr.newHp <= 0)
                 ? 'unconscious' as const
                 : undefined;
-              handleApplyDamage(tr.combatantId, tr.newHp, status);
+              handleApplyDamage(tr.combatantId, tr.newHp, status, tr.effectType === 'damage' ? tr.finalValue : undefined);
             });
             // 摘要文本（FlowRunStep 生成的单行紧凑文本）；专注替换备注追加在末尾
             let flowSummary = payload.summary;
@@ -1258,7 +1261,7 @@ export default function CombatSession() {
               consumeCombatantBonusAction(spellModal.caster.id);
             }
             // 1. 应用 HP / 状态（伤害扣血、治疗加血，handleApplyDamage 直接覆盖 newHp）
-            handleApplyDamage(spellModal.target.id, info.newHp, info.status);
+            handleApplyDamage(spellModal.target.id, info.newHp, info.status, info.effectType === 'damage' ? info.amount : undefined);
             // 2. 专注类法术成功施展 → 声明/替换专注（失败不触发）
             let concNote: string | null = null;
             if (info.concentration && info.success) {
@@ -1273,6 +1276,7 @@ export default function CombatSession() {
               text = `《${info.spellName}》→ ${spellModal.target.name}：${num}${info.effectType === 'damage' ? '伤害' : '生命'}`;
               const oldHp = spellModal.target.currentHp;
               if (oldHp != null) text += `，HP【${oldHp}→${info.newHp}】`;
+              if (info.affinityDetail) text += `，${info.affinityDetail}`;
               if (info.status === 'unconscious') text += '，击昏';
               else if (info.status === 'dead') text += '，杀死';
             } else {

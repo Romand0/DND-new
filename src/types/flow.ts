@@ -2,6 +2,7 @@
 // 把游戏机制过程编码为可视化流程图，节点=环节，边=衔接关系
 
 import type { Spell } from './spell';
+import type { DamageSource } from './damage';
 import type { Combatant } from './combat';
 
 // ======================
@@ -642,7 +643,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       key: 'damageType',
       label: '伤害类型',
       type: 'select',
-      required: false,
+      required: true,
       options: [
         { label: '火焰', value: 'fire' },
         { label: '寒冷', value: 'cold' },
@@ -658,6 +659,57 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '挥砍', value: 'slashing' },
         { label: '钝击', value: 'bludgeoning' },
       ],
+    },
+    {
+      key: 'damageComponents',
+      label: '多类型伤害分量',
+      type: 'array',
+      required: false,
+      description: '填写后忽略单骰式与伤害类型；每个分量独立掷骰并分别结算抗性',
+      children: [
+        {
+          key: 'type',
+          label: '伤害类型',
+          type: 'select',
+          required: true,
+          options: [
+            { label: '火焰', value: 'fire' },
+            { label: '寒冷', value: 'cold' },
+            { label: '闪电', value: 'lightning' },
+            { label: '酸蚀', value: 'acid' },
+            { label: '毒素', value: 'poison' },
+            { label: '力场', value: 'force' },
+            { label: '黯蚀', value: 'necrotic' },
+            { label: '光耀', value: 'radiant' },
+            { label: '心灵', value: 'psychic' },
+            { label: '雷鸣', value: 'thunder' },
+            { label: '穿刺', value: 'piercing' },
+            { label: '挥砍', value: 'slashing' },
+            { label: '钝击', value: 'bludgeoning' },
+          ],
+        },
+        { key: 'value', label: '骰式', type: 'dice', required: true, placeholder: '如 2d6' },
+      ],
+    },
+    {
+      key: 'halfDamageOnSave',
+      label: '豁免成功时半伤',
+      type: 'boolean',
+      required: false,
+      defaultValue: false,
+      description: '读取最近一次豁免节点结果；目标豁免成功时先把每个伤害分量减半，再结算抗性',
+    },
+    {
+      key: 'damageSource',
+      label: '伤害来源',
+      type: 'select',
+      required: false,
+      options: [
+        { label: '自动（按法术）', value: 'auto' },
+        { label: '魔法', value: 'magical' },
+        { label: '非魔法', value: 'nonmagical' },
+      ],
+      defaultValue: 'auto',
     },
   ],
 
@@ -706,9 +758,8 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       key: 'damageType',
       label: '伤害类型',
       type: 'select',
-      required: false,
+      required: true,
       options: [
-        { label: '（未指定）', value: '' },
         { label: '火焰', value: 'fire' },
         { label: '寒冷', value: 'cold' },
         { label: '闪电', value: 'lightning' },
@@ -723,6 +774,26 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '挥砍', value: 'slashing' },
         { label: '钝击', value: 'bludgeoning' },
       ],
+    },
+    {
+      key: 'damageSource',
+      label: '伤害来源',
+      type: 'select',
+      required: false,
+      options: [
+        { label: '自动（按法术）', value: 'auto' },
+        { label: '魔法', value: 'magical' },
+        { label: '非魔法', value: 'nonmagical' },
+      ],
+      defaultValue: 'auto',
+    },
+    {
+      key: 'halfDamageOnSave',
+      label: '豁免成功时半伤',
+      type: 'boolean',
+      required: false,
+      defaultValue: false,
+      description: '读取最近一次豁免节点结果；目标豁免成功时先把每个伤害分量减半，再结算抗性',
     },
   ],
 
@@ -768,6 +839,8 @@ export interface FlowExecutionContext {
    * PC 参战者经 characterId 回落角色卡；无映射（非战斗场景）时 id 直接当角色卡 ID 解析（旧行为）。
    */
   combatants?: Record<string, Combatant>;
+  /** 伤害来源（施法注入：法术为魔法；缺省按法术处理） */
+  damageSource?: DamageSource;
 }
 
 /** 单条执行日志 */

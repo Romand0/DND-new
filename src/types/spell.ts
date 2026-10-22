@@ -21,4 +21,6 @@ export interface Spell {
   heightenedEffect?: string;
   materialInfo?: string;
   bindingsCount?: number;  // 绑定的流程数量
+  /** 伤害类型（可选；缺省时施法弹窗会尝试从描述推断，DM 可手动改） */
+  damageType?: string;
 }

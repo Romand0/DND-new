@@ -7,7 +7,7 @@ export interface UseManualRecordProps {
   canUseAction: (id: string) => boolean;
   consumeCombatantAction: (id: string) => void;
   getEffectiveAc: (c: any) => number;
-  handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead') => void;
+  handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead', damageAmount?: number) => void;
   /** 统一记录入口（放映写表格 / 模拟写日志） */
   recordOperation: (combatantId: string | null, text: string, kind: OperationLogEntry['kind']) => void;
 }
@@ -59,14 +59,19 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         text = `《${manualAttackMethod}》→ ${target.name}：【${dmg}】伤害`;
         if (target.currentHp !== undefined) {
           const oldHp = target.currentHp;
-          const newHp = Math.max(0, oldHp - dmg);
-          text += `，HP【${oldHp}→${newHp}】`;
+          // 预览与落地一致：临时 HP 先吸收，剩余伤害再扣当前 HP
+          const tempHp = Math.max(0, target.tempHp ?? 0);
+          const tempAbsorbed = Math.min(tempHp, dmg);
+          const newHp = Math.max(0, oldHp - (dmg - tempAbsorbed));
+          text += `，HP【${oldHp}→${manualIsKill ? 0 : newHp}】`;
+          if (tempAbsorbed > 0) text += `，临时HP吸收${tempAbsorbed}`;
           if (manualIsKill) {
             const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
-            handleApplyDamage(target.id, newHp, status);
+            // 手动击倒优先于临时 HP：补足穿透伤害确保 HP 归零
+            handleApplyDamage(target.id, newHp, status, Math.max(dmg, tempAbsorbed + oldHp));
             text += target.isPc ? `，击昏` : `，杀死`;
           } else {
-            handleApplyDamage(target.id, newHp);
+            handleApplyDamage(target.id, newHp, undefined, dmg);
           }
         } else if (manualIsKill) {
           alert('目标缺少当前 HP，无法判定击倒');

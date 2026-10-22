@@ -4,6 +4,9 @@ import { X, Swords, Dices, Calculator } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import type { Combatant, NpcAttack, AdvantageReason } from '@/types/combat';
 import type { Attack } from '@/types/character';
+import type { DamageResolution } from '@/types/damage';
+import { createUntypedResolution, formatDamageBreakdown, inferWeaponDamageSource, normalizeDamageType, resolveDamage } from '@/data/damageRules';
+import { getCombatantAffinities } from '@/data/combatAffinities';
 
 interface Props {
   attacker: Combatant;
@@ -19,11 +22,15 @@ interface Props {
    * 同时返回完整信息用于 main 写入先攻表格 */
   onApplyDamage: (payload: {
     damage: number;
+    /** 抗性前原始伤害（重击加骰后） */
+    baseDamage: number;
     newHp: number;
     status?: 'unconscious' | 'dead';
     diceValues: number[];   // 实际输入/摇出的各骰子值
     damageBonus: number;    // 伤害加值
     isCritical: boolean;    // 是否重击（由主方传入）
+    /** 抗性结算明细（未声明伤害类型时为 untyped 结果） */
+    resolution: DamageResolution;
   }) => void;
   onClose: () => void;
   /** 由攻击检定阶段带入，决定是否为重击 */
@@ -114,14 +121,14 @@ export default function CombatDamageModal({
   // NPC 致命伤害时的状态决定：昏迷 / 死亡
   const [downedStatus, setDownedStatus] = useState<'unconscious' | 'dead' | null>(null);
 
-  // 计算总伤害
+  // 计算总伤害：重击只翻倍伤害骰，不翻倍固定加值
   const computeTotal = (): number => {
-    let sum = parsed.bonus;
+    let diceSum = 0;
     for (const v of diceValues) {
       const n = parseInt(v, 10);
-      if (!isNaN(n)) sum += n;
+      if (!isNaN(n)) diceSum += n;
     }
-    return sum;
+    return parsed.bonus + (isCritical ? diceSum * 2 : diceSum);
   };
 
   const handleCalc = () => {
@@ -152,14 +159,30 @@ export default function CombatDamageModal({
     setDownedStatus(null);
   };
 
+  const damageType = useMemo(() => normalizeDamageType(attack.damageType), [attack.damageType]);
+  const resolution = useMemo<DamageResolution | null>(() => {
+    if (calculated === null) return null;
+    if (!damageType) return createUntypedResolution(calculated);
+    return resolveDamage(
+      [{ type: damageType, amount: calculated }],
+      getCombatantAffinities(target),
+      inferWeaponDamageSource(attack),
+    );
+  }, [calculated, damageType, target, attack]);
+
   // HP 计算
   const maxHp = target.maxHp ?? 0;
   const currentHp = target.currentHp ?? 0;
-  const damage = calculated ?? 0;
-  const newHp = Math.max(0, currentHp - damage);
+  const baseDamage = calculated ?? 0;
+  const damage = resolution?.final ?? baseDamage;
+  // 临时 HP 先于当前 HP 吸收伤害（与 handleApplyDamage 落地算法一致）
+  const tempHp = Math.max(0, target.tempHp ?? 0);
+  const tempAbsorbed = Math.min(tempHp, damage);
+  const hpDamage = damage - tempAbsorbed;
+  const newHp = Math.max(0, currentHp - hpDamage);
   const actuallyLost = currentHp - newHp; // 实际扣血（不会超过当前血量）
-  // 致命伤害：伤害值 ≥ 当前剩余 HP（即新 HP 归零）
-  const isLethal = calculated !== null && damage >= currentHp && currentHp > 0;
+  // 致命伤害：穿透临时 HP 后的伤害 ≥ 当前剩余 HP（即新 HP 归零）
+  const isLethal = calculated !== null && hpDamage >= currentHp && currentHp > 0;
   // 仅 NPC 需要决定昏迷/死亡（角色机制暂不考虑）
   const needDownedDecision = isLethal && !target.isPc;
 
@@ -183,11 +206,13 @@ export default function CombatDamageModal({
     const diceNums = diceValues.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
     onApplyDamage({
       damage,
+      baseDamage,
       newHp,
       status: needDownedDecision ? downedStatus! : undefined,
       diceValues: diceNums,
       damageBonus: parsed.bonus,
       isCritical,
+      resolution: resolution ?? createUntypedResolution(baseDamage),
     });
     onClose();
   };
@@ -246,7 +271,7 @@ export default function CombatDamageModal({
             <div className="font-medium text-sm dark:text-text-dark light:text-text-light">{attack.name}</div>
             <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap gap-x-3">
               <span>伤害骰 {damageStr}</span>
-              {attack.damageType && <span>{attack.damageType}</span>}
+              {damageType && <span>{damageType}</span>}
               {hasTwoHandedDamage && (
                 <span className="text-blue-500">
                   {isTwoHandedWield ? '双手握持' : '单手握持'}
@@ -338,6 +363,16 @@ export default function CombatDamageModal({
                   <span className="font-bold text-danger">{damage}</span>
                   <span className="dark:text-text-dark-muted light:text-text-light-muted"> 点伤害</span>
                 </div>
+                {resolution && (resolution.anyResisted || resolution.anyImmune || resolution.anyVulnerable) && (
+                  <div className="mt-1.5 text-xs text-amber-500">
+                    {formatDamageBreakdown(resolution)}
+                  </div>
+                )}
+                {resolution && resolution.notes.length > 0 && (
+                  <div className="mt-1 text-[11px] dark:text-text-dark-muted light:text-text-light-muted">
+                    {resolution.notes.join('；')}
+                  </div>
+                )}
               </div>
 
               {/* HP 影响 */}
@@ -376,6 +411,11 @@ export default function CombatDamageModal({
                     <span className="text-red-500 font-medium">已倒下</span>
                   )}
                 </div>
+                {tempAbsorbed > 0 && (
+                  <div className="text-[11px] text-sky-500 mt-1">
+                    临时生命值吸收 {tempAbsorbed} 点（剩余 {tempHp - tempAbsorbed}）
+                  </div>
+                )}
               </div>
 
               {/* NPC 致命伤害：昏迷 / 死亡 决定 */}

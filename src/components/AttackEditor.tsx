@@ -184,6 +184,7 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
   };
 
   const parseWeaponData = (weapon: Equipment) => {
+    const weaponText = [weapon.name, weapon.description ?? '', ...(weapon.properties ?? [])].join(' ');
     const result: Partial<Omit<Attack, 'id'>> & { subtype?: string } = {
       name: weapon.name,
       subtype: weapon.subtype,
@@ -192,6 +193,9 @@ export default function AttackEditor({ attack, weapons = [], character, onSave, 
       damageType: weapon.damageType || '挥砍',
       range: '5 尺',
       attackBonus: '',
+      magical: weapon.magicCategory === '魔法物品' || /魔法武器/.test(weaponText),
+      silvered: /镀银|银质|银制/.test(weaponText),
+      adamantine: /精金/.test(weaponText),
     };
 
     // 解析 A/B 射程：支持 "射程20/60" / "20/60尺" / "20/60" / "20/60 尺" 等

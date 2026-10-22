@@ -1,6 +1,7 @@
 // src/types/combat.ts
 import type { CastStepLog } from './castStep';
 import type { AbilityKey } from './character';
+import type { DamageAffinitySet } from './damage';
 
 // ===== 新增：体型枚举 =====
 /** 体型级别：0=微型, 1=小型, 2=中型, 3=大型, 4=巨型, 5=超巨型 */
@@ -117,6 +118,8 @@ export interface Combatant {
   childId?: string;
   /** 模板 ID 引用（从模板创建时带入） */
   templateId?: string;
+  /** 伤害抗性/易伤/免疫快照（从模板创建时解析并固化，旧记录可按 templateId 回退） */
+  damageAffinities?: DamageAffinitySet;
   /** NPC 攻击方式（从模板带入） */
   attacks?: NpcAttack[];
   /** 当前可用动作数（放映模式每回合恢复，模拟模式无限） */
@@ -238,6 +241,12 @@ export interface NpcAttack {
   loaded?: boolean;
   /** 双手/多用伤害之外的附加文本（如 "外加1d8"、豁免型攻击的命中效果） */
   note?: string;
+  /** 攻击是否视为魔法 */
+  magical?: boolean;
+  /** 武器是否镀银 */
+  silvered?: boolean;
+  /** 武器是否精金 */
+  adamantine?: boolean;
 }
 
 export interface RoundAction {
