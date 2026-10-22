@@ -204,7 +204,7 @@ export default function FlowRunStep({
       parts.push(mainSave.success ? '豁免通过' : '豁免失败');
     }
     if (mainEffect && !mainEffect.error) {
-      parts.push(`【${mainEffect.effectValue}】${effectType === 'damage' ? '伤害' : '生命'}（HP ${mainEffect.oldHp}→${mainEffect.newHp}）`);
+      parts.push(`【${mainEffect.effectValue}】${effectType === 'damage' ? '伤害' : '生命'}，HP【${mainEffect.oldHp}→${mainEffect.newHp}】`);
     } else if (mainSave?.success) {
       parts.push('无效');
     }

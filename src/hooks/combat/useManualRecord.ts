@@ -57,14 +57,20 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
         kind = 'damage';
         text = `《${manualAttackMethod}》→ ${target.name}：【${dmg}】伤害`;
-        if (manualIsKill && target.currentHp !== undefined) {
-          const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
-          const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
-          handleApplyDamage(target.id, newHp, status);
-          text += target.isPc ? `，击昏` : `，杀死`;
-        } else if (target.currentHp !== undefined) {
-          const newHp = Math.max(0, target.currentHp - dmg);
-          handleApplyDamage(target.id, newHp);
+        if (target.currentHp !== undefined) {
+          const oldHp = target.currentHp;
+          const newHp = Math.max(0, oldHp - dmg);
+          text += `，HP【${oldHp}→${newHp}】`;
+          if (manualIsKill) {
+            const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
+            handleApplyDamage(target.id, newHp, status);
+            text += target.isPc ? `，击昏` : `，杀死`;
+          } else {
+            handleApplyDamage(target.id, newHp);
+          }
+        } else if (manualIsKill) {
+          alert('目标缺少当前 HP，无法判定击倒');
+          return;
         }
       }
       recordOperation(combatantId, text, kind);
@@ -82,12 +88,14 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       }
       const tgt = record.combatants.find(c => c.id === targetHpId);
       if (!tgt) return;
-      const newHp = Math.min(tgt.maxHp ?? tgt.currentHp ?? 0, (tgt.currentHp ?? 0) + amount);
+      const oldHp = tgt.currentHp;
+      const newHp = Math.min(tgt.maxHp ?? oldHp ?? 0, (oldHp ?? 0) + amount);
       handleApplyDamage(tgt.id, newHp);
       const isSelf = targetHpId === combatantId;
-      const text = isSelf
+      let text = isSelf
         ? `《${manualHealMethod}》→ 自己：【+${amount}】生命`
         : `《${manualHealMethod}》→ ${targetName}：【+${amount}】生命`;
+      if (oldHp != null) text += `，HP【${oldHp}→${newHp}】`;
       recordOperation(combatantId, text, 'heal');
     }
 

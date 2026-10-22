@@ -1184,8 +1184,10 @@ export default function CombatSession() {
           onApplyDamage={({ damage, newHp, status }) => {
             // 1. 应用 HP / 状态
             handleApplyDamage(damageModal.target.id, newHp, status);
-            // 2. 记录操作（放映写表格 / 模拟写日志，简化格式）
+            // 2. 记录操作（放映写表格 / 模拟写日志，简化格式 + 目标 HP 变动）
+            const oldHp = damageModal.target.currentHp;
             let text = `《${damageModal.attack.name}》→ ${damageModal.target.name}：【${damage}】伤害`;
+            if (oldHp != null) text += `，HP【${oldHp}→${newHp}】`;
             if (status === 'unconscious') text += '，击昏';
             else if (status === 'dead') text += '，杀死';
             recordOperation(damageModal.attacker.id, text, 'damage');
@@ -1269,6 +1271,8 @@ export default function CombatSession() {
             } else if (info.amount > 0) {
               const num = info.effectType === 'damage' ? `【${info.amount}】` : `【+${info.amount}】`;
               text = `《${info.spellName}》→ ${spellModal.target.name}：${num}${info.effectType === 'damage' ? '伤害' : '生命'}`;
+              const oldHp = spellModal.target.currentHp;
+              if (oldHp != null) text += `，HP【${oldHp}→${info.newHp}】`;
               if (info.status === 'unconscious') text += '，击昏';
               else if (info.status === 'dead') text += '，杀死';
             } else {
