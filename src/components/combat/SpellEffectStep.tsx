@@ -6,6 +6,7 @@ import { Dices, Calculator, SkipForward } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 // 骰式解析唯一事实源在 utils/diceExpr.ts（flowCompiler 共用），此处再导出保持既有导入路径
 import { parseDice } from '@/utils/diceExpr';
+import { DAMAGE_TYPE_OPTIONS, type DamageType } from '@/types/damage';
 export { parseDice } from '@/utils/diceExpr';
 export type { ParsedDice } from '@/utils/diceExpr';
 
@@ -37,6 +38,9 @@ interface Props {
   /** 无检定场景开放效果类型切换（敌方=伤害 / 友方=治疗） */
   allowEffectTypeChoice: boolean;
   sameTeam: boolean;
+  /** 本次伤害类型；null 表示未指定（不应用抗性） */
+  damageType: DamageType | null;
+  onDamageTypeChange: (t: DamageType | null) => void;
   diceExpr: string;
   effectDiceValues: string[];
   calculated: number | null;
@@ -54,7 +58,7 @@ interface Props {
 }
 
 export default function SpellEffectStep({
-  effectType, allowEffectTypeChoice, sameTeam, diceExpr, effectDiceValues, calculated,
+  effectType, allowEffectTypeChoice, sameTeam, damageType, onDamageTypeChange, diceExpr, effectDiceValues, calculated,
   onEffectTypeChange, onDiceExprChange, onEffectDieChange, onDicePoolReset, onRollDice, onCalc, onConfirm, onSkip,
 }: Props) {
   const parsedEffect = useMemo(() => parseDice(diceExpr), [diceExpr]);
@@ -109,6 +113,30 @@ export default function SpellEffectStep({
           <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mt-1.5">
             {sameTeam ? '友方目标：仅可骰治疗' : '敌方目标：仅可骰伤害'}
           </div>
+        </div>
+      )}
+
+      {/* 伤害类型：抗性/易伤/免疫结算依据 */}
+      {effectType === 'damage' && (
+        <div>
+          <label className="text-sm font-medium dark:text-text-dark light:text-text-light block mb-1.5">
+            伤害类型
+          </label>
+          <select
+            value={damageType ?? ''}
+            onChange={(e) => onDamageTypeChange((e.target.value || null) as DamageType | null)}
+            className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+          >
+            <option value="">未指定（不应用抗性）</option>
+            {DAMAGE_TYPE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          {!damageType && (
+            <div className="text-[11px] text-amber-500 mt-1">
+              未选择伤害类型，目标的抗性/易伤/免疫不会生效
+            </div>
+          )}
         </div>
       )}
 
@@ -189,7 +217,9 @@ export default function SpellEffectStep({
         }`}>
           <div className={`text-lg font-bold ${effectType === 'damage' ? 'text-danger' : 'text-green-500'}`}>{calculated}</div>
           <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
-            {effectType === 'damage' ? '点伤害' : '点生命值'}（合计 {total}，已按表达式加值）
+            {effectType === 'damage'
+              ? `点伤害（抗性前合计 ${total}，收尾步骤结算抗性）`
+              : `点生命值（合计 ${total}，已按表达式加值）`}
           </div>
         </div>
       )}

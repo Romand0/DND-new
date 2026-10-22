@@ -16,8 +16,16 @@ export interface FlowCastTargetResult {
   combatantId: string;
   name: string;
   effectType: 'damage' | 'healing';
+  /** 抗性前原始值（保留用于日志/审计） */
   effectValue: number;
+  /** 抗性结算后的最终值（HP 扣减依据） */
+  finalValue: number;
+  damageType?: string | null;
+  affinitySummary?: string;
+  notes?: string[];
   newHp: number;
+  /** 被临时生命值吸收的伤害量（0 表示未触发） */
+  tempAbsorbed?: number;
 }
 
 /** 流程施放完成回传（契约：CombatSession.onFlowResolved 消费） */
@@ -119,6 +127,7 @@ export default function FlowRunStep({
         positions: combatantPositions,
         // 参战者身份映射：编译器按参战者解析豁免/AC/HP（NPC 免角色卡）
         combatants: Object.fromEntries(allCombatants.map(c => [c.id, c])),
+        damageSource: { kind: 'spell', magical: true },
       };
       // 骰源：手动模式下每个检定/效果骰暂停等输入；自动模式直接回落编译器随机
       await flowCompiler.executeFlow(flow, context, async (req) => {
@@ -181,21 +190,34 @@ export default function FlowRunStep({
 
   const handleApply = () => {
     const effectResults: any[] = Array.isArray(effectOutput?.results) ? effectOutput.results : [];
+    const saveResults: any[] = Array.isArray(saveOutput?.results) ? saveOutput.results : [];
+    const halfOnSave = effectOutput?.halfDamageOnSave === true;
+    // 豁免成功且未配置半伤时，该目标不应用效果；半伤时仍应用减半后的结果。
+    const isNegated = (targetId: string) => {
+      const save = saveResults.find(r => r.targetId === targetId);
+      return !!save?.success && !halfOnSave;
+    };
     const targetResults: FlowCastTargetResult[] = effectResults
-      .filter(r => !r.error && r.effectApplied)
+      .filter(r => !r.error && r.effectApplied && !isNegated(r.targetId))
       .map(r => ({
         combatantId: r.targetId,
         name: r.targetName,
         effectType: r.effectType as 'damage' | 'healing',
         effectValue: r.effectValue as number,
+        finalValue: (r.finalValue ?? r.effectValue) as number,
+        damageType: r.damageType ?? null,
+        affinitySummary: r.affinitySummary,
+        notes: Array.isArray(r.notes) ? r.notes : [],
         newHp: r.newHp as number,
+        tempAbsorbed: typeof r.tempAbsorbed === 'number' ? r.tempAbsorbed : 0,
       }));
 
     const mainEffect = effectResults.find(r => r.targetId === target.id) ?? effectResults[0];
-    const mainSave = Array.isArray(saveOutput?.results)
-      ? saveOutput.results.find((r: any) => r.targetId === target.id)
-      : undefined;
-    const success = saveOutput ? (mainSave ? !mainSave.success : true) : !!mainEffect?.effectApplied;
+    const mainSave = saveResults.find((r: any) => r.targetId === target.id);
+    const mainNegated = !!mainSave?.success && !halfOnSave;
+    const success = saveOutput
+      ? (mainSave ? (!mainSave.success || halfOnSave) : true)
+      : !!mainEffect?.effectApplied;
     const effectType = effectOutput?.effectType === 'healing' ? 'heal' as const : 'damage' as const;
 
     // 摘要（先攻表格单元格宽度有限，保持一行紧凑；《》【】为渲染器标记：法术名/数值高亮）
@@ -203,9 +225,24 @@ export default function FlowRunStep({
     if (mainSave) {
       parts.push(mainSave.success ? '豁免通过' : '豁免失败');
     }
-    if (mainEffect && !mainEffect.error) {
-      parts.push(`【${mainEffect.effectValue}】${effectType === 'damage' ? '伤害' : '生命'}，HP【${mainEffect.oldHp}→${mainEffect.newHp}】`);
-    } else if (mainSave?.success) {
+    if (mainEffect && !mainEffect.error && !mainNegated) {
+      const finalValue = mainEffect.finalValue ?? mainEffect.effectValue;
+      const affinityLabel = mainEffect.affinitySummary === 'immunity'
+        ? '免疫'
+        : mainEffect.affinitySummary === 'both'
+          ? '抗性+易伤'
+          : mainEffect.affinitySummary === 'resistance'
+            ? '抗性'
+            : mainEffect.affinitySummary === 'vulnerability'
+              ? '易伤'
+              : '';
+      const valueText = finalValue !== mainEffect.effectValue
+        ? `${mainEffect.effectValue}→${finalValue}`
+        : `${finalValue}`;
+      const halfLabel = mainEffect.halved ? '，豁免半伤' : '';
+      const tempLabel = mainEffect.tempAbsorbed > 0 ? `，临时HP吸收${mainEffect.tempAbsorbed}` : '';
+      parts.push(`【${valueText}】${effectType === 'damage' ? '伤害' : '生命'}，HP【${mainEffect.oldHp}→${mainEffect.newHp}】${affinityLabel ? `，${affinityLabel}` : ''}${halfLabel}${tempLabel}`);
+    } else if (mainNegated) {
       parts.push('无效');
     }
     const summary = `《${spell.name}》→ ${target.name}：${parts.join('，')}`;
@@ -215,7 +252,7 @@ export default function FlowRunStep({
       castingTime: spell.castingTime,
       success,
       effectType,
-      amount: success ? (mainEffect?.effectValue ?? 0) : 0,
+      amount: success ? (mainEffect?.finalValue ?? mainEffect?.effectValue ?? 0) : 0,
       targetResults,
       summary,
       concentration: spell.concentration === true,
@@ -378,6 +415,18 @@ export default function FlowRunStep({
             {/* 骰值明细（apply_effect 无缩放时） */}
             {!data?.scaleSource && (data?.dice?.values?.length ?? 0) > 0 && (
               <div className="opacity-90">骰值 [{data.dice.values.join(', ')}]{data.dice.bonus ? `+${data.dice.bonus}` : ''}{data.dice.manual ? '（手动）' : ''}</div>
+            )}
+            {/* 多类型伤害分量骰值 */}
+            {Array.isArray(data?.diceList) && data.diceList.length > 0 && (
+              <div className="space-y-1 opacity-90">
+                {data.diceList.map((d: any, j: number) => (
+                  <div key={j}>
+                    {d.type ?? '未声明类型'} {d.expression ?? ''}
+                    {Array.isArray(d.values) && d.values.length > 0 ? ` · 骰值 [${d.values.join(', ')}]` : ''}
+                    {d.bonus ? `+${d.bonus}` : ''}
+                  </div>
+                ))}
+              </div>
             )}
             {/* HP 变更明细 */}
             {Array.isArray(data?.results) && data.results.some((r: any) => r.newHp !== undefined) && (

@@ -67,6 +67,7 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
       ac: selectedPc.armorClass,
       maxHp: selectedPc.maxHp,
       currentHp: selectedPc.currentHp,
+      tempHp: selectedPc.tempHp ?? 0,
       isDead: selectedPc.currentHp <= 0,
       isPc: true,
       characterId: selectedPc.id,

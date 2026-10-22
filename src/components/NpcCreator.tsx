@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Plus, Save, Keyboard, Users, User, ArrowLeft, Edit3, Check, Pencil, BookOpen } from 'lucide-react';
 import type { NpcTemplate, NpcAttack, Combatant, CreatureSize, CreatureType } from '@/types/combat';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
+import { DAMAGE_TYPE_OPTIONS } from '@/types/damage';
+import { buildCombatantAffinities } from '@/data/combatAffinities';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import MonsterPicker from '@/components/MonsterPicker';
 import { rollDice } from '@/data/diceService';
@@ -13,7 +15,7 @@ const ABILITY_LABELS: Record<AbilityKey, string> = {
   intelligence: '智力', wisdom: '感知', charisma: '魅力',
 };
 
-const DAMAGE_TYPES = ['挥砍', '穿刺', '钝击', '火焰', '冰冻', '闪电', '毒素', '雷鸣', '心灵', '光耀', '暗蚀', '力场'];
+const DAMAGE_TYPES = DAMAGE_TYPE_OPTIONS.map((option) => option.value);
 const WEAPON_PROPERTIES = ['灵巧', '重型', '轻型', '装填', '射程', '触及', '特殊', '双手', '投掷', '弹药', '多用'];
 const MUTUALLY_EXCLUSIVE: Record<string, string> = { '射程': '投掷', '投掷': '射程' };
 
@@ -39,6 +41,9 @@ interface NpcEditState {
   proficientSaves: AbilityKey[];
   /** 熟练加值（从模板带入，自定义 NPC 默认 2） */
   proficiencyBonus: number;
+  damageResistances: string[];
+  damageImmunities: string[];
+  damageVulnerabilities: string[];
 }
 
 function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEditState {
@@ -66,6 +71,9 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
       creatureType: template.creatureType as CreatureType,
     proficientSaves: template.savingThrows ?? [],
     proficiencyBonus: template.proficiencyBonus ?? 2,
+    damageResistances: [...(template.damageResistances ?? [])],
+    damageImmunities: [...(template.damageImmunities ?? [])],
+    damageVulnerabilities: [...(template.damageVulnerabilities ?? [])],
   };
 }
 
@@ -95,6 +103,7 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     // 携带熟练信息用于豁免加值自动计算（调整值 + 熟练属性 × PB）
     proficientSaves: state.proficientSaves,
     proficiencyBonus: state.proficiencyBonus,
+    damageAffinities: buildCombatantAffinities(state),
   };
 }
 
@@ -147,6 +156,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
       name: '',
       abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
       proficientSaves: [], proficiencyBonus: 2,
+      damageResistances: [], damageImmunities: [], damageVulnerabilities: [],
       hp: 10, speed: 30, ac: 10, attacks: [],
       d20, initiative: d20 + 0,
     });
@@ -161,6 +171,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
         name: '',
         abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
       proficientSaves: [], proficiencyBonus: 2,
+        damageResistances: [], damageImmunities: [], damageVulnerabilities: [],
         hp: 10, speed: 30, ac: 10, attacks: [],
         d20, initiative: d20 + 0,
       });
@@ -622,6 +633,9 @@ function NpcEditor(props: NpcEditorProps) {
       creatureType: state.creatureType as CreatureType,
         savingThrows: state.proficientSaves.length > 0 ? state.proficientSaves : undefined,
         proficiencyBonus: state.proficiencyBonus,
+        damageResistances: state.damageResistances.length > 0 ? state.damageResistances : undefined,
+        damageImmunities: state.damageImmunities.length > 0 ? state.damageImmunities : undefined,
+        damageVulnerabilities: state.damageVulnerabilities.length > 0 ? state.damageVulnerabilities : undefined,
       });
     }
     onSave();
@@ -1038,6 +1052,10 @@ function TemplateEditor({ template, onCancel, onSave }: TemplateEditorProps) {
       attacks,
       creatureSize,
       creatureType,
+      damageResistances: template.damageResistances,
+      damageImmunities: template.damageImmunities,
+      damageVulnerabilities: template.damageVulnerabilities,
+      conditionImmunities: template.conditionImmunities,
     });
   };
 

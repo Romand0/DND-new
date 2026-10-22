@@ -14,6 +14,9 @@ import type { Combatant } from '@/types/combat';
 import type { Character, Equipment } from '@/types/character';
 import type { Spell } from '@/types/spell';
 import type { FlowDefinition } from '@/types/flow';
+import type { DamageResolution, DamageType } from '@/types/damage';
+import { createUntypedResolution, extractDamageType, formatDamageBreakdown, normalizeDamageType, resolveDamage, spellDamageSource } from '@/data/damageRules';
+import { getCombatantAffinities } from '@/data/combatAffinities';
 import SpellStepBar from './combat/SpellStepBar';
 import SpellPreCastStep from './combat/SpellPreCastStep';
 import SpellTargetStep from './combat/SpellTargetStep';
@@ -56,7 +59,10 @@ interface Props {
     castingTime?: string;
     success: boolean;              // 检定是否成功（无检定场景恒 true）
     effectType: 'damage' | 'heal'; // 伤害 / 治疗
-    amount: number;                // 最终数值
+    amount: number;                // 最终数值（抗性结算后）
+    baseAmount?: number;           // 抗性前原始数值
+    damageType?: string;           // 本次伤害类型
+    affinityDetail?: string;       // 抗性明细（如“火焰 24→12（抗性）”）
     newHp: number;                 // 应用后的 HP
     status?: 'unconscious' | 'dead'; // NPC 致命伤害附带状态
     checkType: 'ac' | 'save' | 'none'; // 使用的检定方式
@@ -146,6 +152,8 @@ export default function CombatSpellModal({
   // 目标确认步骤内可更换目标：本地生效目标 + 通知宿主同步（HP/先攻按新目标结算）
   const [effectiveTarget, setEffectiveTarget] = useState<Combatant>(target);
   useEffect(() => { setEffectiveTarget(target); }, [target.id]);
+  // 换目标后旧的抗性明细不再适用
+  useEffect(() => { setDamageResolution(null); }, [effectiveTarget.id]);
 
   // 检定结果（检定步骤上报，收尾与 onCastResolved 使用）
   const [checkOutcome, setCheckOutcome] = useState<SpellCheckOutcome | null>(null);
@@ -154,6 +162,8 @@ export default function CombatSpellModal({
 
   // 效果骰池状态（效果步骤受控）
   const [effectType, setEffectType] = useState<SpellEffectType>('damage');
+  const [damageType, setDamageType] = useState<DamageType | null>(null);
+  const [damageResolution, setDamageResolution] = useState<DamageResolution | null>(null);
   const [diceExpr, setDiceExpr] = useState('');
   const [effectDiceValues, setEffectDiceValues] = useState<string[]>([]);
   const [calculated, setCalculated] = useState<number | null>(null);
@@ -266,6 +276,8 @@ export default function CombatSpellModal({
     setCheckOutcome(null);
     setResolvedAmount(0);
     setEffectType('damage');
+    setDamageType(normalizeDamageType(spell.damageType) ?? extractDamageType(spell.description));
+    setDamageResolution(null);
     setDiceExpr('');
     setEffectDiceValues([]);
     setCalculated(null);
@@ -278,6 +290,7 @@ export default function CombatSpellModal({
     cast.abort();
     setCheckOutcome(null);
     setResolvedAmount(0);
+    setDamageResolution(null);
     setDiceExpr('');
     setEffectDiceValues([]);
     setCalculated(null);
@@ -287,6 +300,7 @@ export default function CombatSpellModal({
   const handleCheckComplete = (t: Exclude<SpellCheckType, 'none'>, outcome: SpellCheckOutcome) => {
     setCheckOutcome(outcome);
     setEffectType('damage');
+    setDamageResolution(null);
     if (t === 'ac') {
       cast.completeCurrent(
         outcome.success ? 'success' : 'failure',
@@ -347,6 +361,9 @@ export default function CombatSpellModal({
       success: cast.checkType === 'none' ? true : (checkOutcome?.success ?? true),
       effectType,
       amount: resolvedAmount,
+      baseAmount: damageResolution?.base ?? resolvedAmount,
+      damageType: damageType ?? undefined,
+      affinityDetail: formatDamageBreakdown(damageResolution) || undefined,
       newHp,
       status,
       checkType: cast.checkType,
@@ -523,11 +540,13 @@ export default function CombatSpellModal({
                   effectType={effectType}
                   allowEffectTypeChoice={cast.checkType === 'none'}
                   sameTeam={sameTeam}
+                  damageType={damageType}
+                  onDamageTypeChange={(type) => { setDamageType(type); setDamageResolution(null); setCalculated(null); }}
                   diceExpr={diceExpr}
                   effectDiceValues={effectDiceValues}
                   calculated={calculated}
-                  onEffectTypeChange={setEffectType}
-                  onDiceExprChange={(expr) => { setDiceExpr(expr); setEffectDiceValues([]); setCalculated(null); }}
+                  onEffectTypeChange={(type) => { setEffectType(type); setDamageResolution(null); setCalculated(null); }}
+                  onDiceExprChange={(expr) => { setDiceExpr(expr); setEffectDiceValues([]); setCalculated(null); setDamageResolution(null); }}
                   onEffectDieChange={(idx, val) => {
                     setEffectDiceValues(prev => {
                       const next = [...prev];
@@ -535,6 +554,7 @@ export default function CombatSpellModal({
                       return next;
                     });
                     setCalculated(null);
+                    setDamageResolution(null);
                   }}
                   onDicePoolReset={() => {
                     // 表达式变化后按新 count 重建槽位（旧 modal 同款行为）
@@ -545,11 +565,26 @@ export default function CombatSpellModal({
                   onRollDice={handleRollEffectDice}
                   onCalc={handleCalcEffect}
                   onConfirm={(amount) => {
-                    setResolvedAmount(amount);
-                    cast.completeCurrent('success', `${effectType === 'damage' ? '造成' : '恢复'} ${amount} 点`, { amount, effectType });
+                    const resolution = effectType === 'damage'
+                      ? (damageType
+                          ? resolveDamage([{ type: damageType, amount }], getCombatantAffinities(effectiveTarget), spellDamageSource())
+                          : createUntypedResolution(amount))
+                      : null;
+                    const finalAmount = resolution?.final ?? amount;
+                    setResolvedAmount(finalAmount);
+                    setDamageResolution(resolution);
+                    const detail = formatDamageBreakdown(resolution);
+                    cast.completeCurrent('success', `${effectType === 'damage' ? '造成' : '恢复'} ${finalAmount} 点${detail ? `（${detail}）` : ''}`, {
+                      amount: finalAmount,
+                      baseAmount: amount,
+                      effectType,
+                      damageType,
+                      resolution,
+                    });
                   }}
                   onSkip={() => {
                     setResolvedAmount(0);
+                    setDamageResolution(null);
                     setCalculated(0);
                     cast.completeCurrent('success', '跳过效果（0）', { amount: 0, effectType, skipped: true });
                   }}
@@ -567,6 +602,7 @@ export default function CombatSpellModal({
                   checkSummary={checkSummary}
                   effectType={effectType}
                   amount={resolvedAmount}
+                  resolution={damageResolution}
                   steps={cast.steps}
                   onConfirm={handleFinishConfirm}
                 />

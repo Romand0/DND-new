@@ -26,6 +26,9 @@ import { rollDie, rollDice } from '@/data/diceService';
 import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS, type SomaticBlockingCondition } from '@/data/somaticCheck';
 import { parseDice } from '@/utils/diceExpr';
 import { evaluateExpression } from '@/lib/flowExpression';
+import { createUntypedResolution, normalizeDamageType, resolveDamage } from '@/data/damageRules';
+import { getCombatantAffinities } from '@/data/combatAffinities';
+import type { DamageSource, DamageType } from '@/types/damage';
 
 /** 六属性全名（AbilityKey 收窄用） */
 const ABILITY_KEYS: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
@@ -807,21 +810,40 @@ export class FlowCompiler {
     const config = node.config;
     const effectType = config?.effectType || 'damage';
     const value = config?.value || '0';
+    const damageType = config?.damageType || '';
+    const halfDamageOnSave = config?.halfDamageOnSave === true;
 
-    const { effectValue, diceDetail } = await this.rollEffectValueWithSource(
-      String(value),
-      { purpose: 'effect' },
-      diceSource,
+    const rolled = await this.rollEffectComponents(config, effectType, diceSource);
+    const results = this.applyValueToTargets(
+      effectType,
+      rolled.components,
+      context,
+      this.resolveNodeDamageSource(config, context),
+      halfDamageOnSave,
     );
-    const results = this.applyValueToTargets(effectType, effectValue, context);
+    const damageTypes = Array.from(new Set(
+      rolled.components.map(c => c.type).filter((t): t is DamageType => !!t)
+    ));
 
     return {
       status: 'success',
       output: {
         effectType,
         value,
-        dice: diceDetail,
+        damageType: damageTypes.length === 1 ? damageTypes[0] : (normalizeDamageType(damageType) ?? damageType),
+        dice: rolled.isMulti ? null : rolled.components[0]?.dice ?? null,
+        diceList: rolled.isMulti
+          ? rolled.components.map(c => ({ type: c.type ?? null, expression: c.expr, ...(c.dice ?? {}) }))
+          : undefined,
+        damageComponents: rolled.isMulti
+          ? rolled.components.map(c => ({ type: c.type ?? null, expression: c.expr, base: c.amount }))
+          : undefined,
+        halfDamageOnSave,
         results,
+        totalFinal: results.reduce((sum, r) => sum + (typeof r.finalValue === 'number' ? r.finalValue : 0), 0),
+        anyResisted: results.some(r => r.resisted),
+        anyImmune: results.some(r => r.immune),
+        anyVulnerable: results.some(r => r.vulnerable),
         message: `效果应用完成，${results.filter(r => r.effectApplied).length}个目标受影响`
       }
     };
@@ -876,13 +898,20 @@ export class FlowCompiler {
       { purpose: 'effect', expr: matchedTier.value },
       diceSource,
     );
-    const results = this.applyValueToTargets(effectType, effectValue, context);
+    const normalizedType = normalizeDamageType(damageType);
+    const results = this.applyValueToTargets(
+      effectType,
+      [{ type: normalizedType ?? undefined, amount: effectValue, expr: matchedTier.value }],
+      context,
+      this.resolveNodeDamageSource(config, context),
+      config?.halfDamageOnSave === true,
+    );
 
     return {
       status: 'success',
       output: {
         effectType,
-        damageType,
+        damageType: normalizeDamageType(damageType) ?? damageType,
         scaleBy,
         scaleValue,
         scaleSource,
@@ -890,9 +919,80 @@ export class FlowCompiler {
         tiers,
         dice: diceDetail,
         results,
+        totalFinal: results.reduce((sum, r) => sum + (typeof r.finalValue === 'number' ? r.finalValue : 0), 0),
+        anyResisted: results.some(r => r.resisted),
+        anyImmune: results.some(r => r.immune),
+        anyVulnerable: results.some(r => r.vulnerable),
         message: `分级效果（${scaleBy === 'spell_level' ? '环位' : '角色等级'} ${scaleValue} → ${matchedTier.value}），${results.filter(r => r.effectApplied).length}个目标受影响`
       }
     };
+  }
+
+  /**
+   * 掷效果骰。配置了 damageComponents（且效果为伤害）时逐分量掷骰；
+   * 否则沿用 value + damageType 的单分量路径。
+   */
+  private async rollEffectComponents(
+    config: any,
+    effectType: string,
+    diceSource?: FlowDiceSource,
+  ): Promise<{
+    components: { type?: DamageType; amount: number; expr: string; dice: any }[];
+    isMulti: boolean;
+  }> {
+    const configured = effectType === 'damage' && Array.isArray(config?.damageComponents)
+      ? config.damageComponents
+          .map((c: any) => ({ type: String(c?.type ?? ''), value: String(c?.value ?? '') }))
+          .filter((c: { value: string }) => c.value.trim() !== '')
+      : [];
+
+    if (configured.length > 0) {
+      const components: { type?: DamageType; amount: number; expr: string; dice: any }[] = [];
+      for (const component of configured) {
+        const { effectValue, diceDetail } = await this.rollEffectValueWithSource(
+          component.value,
+          { purpose: 'effect', expr: component.value },
+          diceSource,
+        );
+        components.push({
+          type: normalizeDamageType(component.type) ?? undefined,
+          amount: effectValue,
+          expr: component.value,
+          dice: diceDetail,
+        });
+      }
+      return { components, isMulti: true };
+    }
+
+    const expr = String(config?.value ?? '0');
+    const { effectValue, diceDetail } = await this.rollEffectValueWithSource(
+      expr,
+      { purpose: 'effect' },
+      diceSource,
+    );
+    return {
+      components: [{
+        type: normalizeDamageType(config?.damageType) ?? undefined,
+        amount: effectValue,
+        expr,
+        dice: diceDetail,
+      }],
+      isMulti: false,
+    };
+  }
+
+  /** 最近一次豁免节点对指定目标的结果；用于 halfDamageOnSave */
+  private getLatestSaveSuccess(context: FlowExecutionContext, targetId: string): boolean | undefined {
+    const outputs = Array.from(context.results.values());
+    for (let i = outputs.length - 1; i >= 0; i--) {
+      const output = outputs[i];
+      if (!output || !Array.isArray(output.results)) continue;
+      const hit = output.results.find(
+        (r: any) => r?.targetId === targetId && typeof r?.success === 'boolean' && r?.dc !== undefined,
+      );
+      if (hit) return hit.success;
+    }
+    return undefined;
   }
 
   /** 解析并投掷骰式：一次掷骰，全目标共用（含纯加值回退） */
@@ -912,14 +1012,28 @@ export class FlowCompiler {
     }
   }
 
-  /** 将数值效果结算到全部目标（伤害/治疗，含 HP 更新），返回逐目标结果 */
+  /** 节点配置可覆盖伤害来源；auto 时沿用施法上下文（默认法术=魔法） */
+  private resolveNodeDamageSource(config: any, context: FlowExecutionContext): DamageSource {
+    const override = config?.damageSource;
+    if (override === 'magical') return { kind: 'spell', magical: true };
+    if (override === 'nonmagical') return { kind: 'effect', magical: false };
+    return context.damageSource ?? { kind: 'spell', magical: true };
+  }
+
   /**
    * 将数值效果结算到全部目标（伤害/治疗），返回逐目标结果。
    * 纯计算不落库：HP 变化只写进 results（oldHp/newHp），由调用方（战斗弹窗确认后）
    * 经参战者 HP 路径回写——编译器保持无副作用，重复执行不叠加扣血。
    */
-  private applyValueToTargets(effectType: 'damage' | 'healing', effectValue: number, context: FlowExecutionContext) {
+  private applyValueToTargets(
+    effectType: string,
+    components: { type?: DamageType; amount: number; expr: string }[],
+    context: FlowExecutionContext,
+    damageSourceOverride?: DamageSource,
+    halfDamageOnSave = false,
+  ) {
     const results: any[] = [];
+    const damageSource: DamageSource = damageSourceOverride ?? context.damageSource ?? { kind: 'spell', magical: true };
 
     for (const targetId of context.targets) {
       const targetCombatant = this.resolveCombatant(targetId, context);
@@ -938,28 +1052,96 @@ export class FlowCompiler {
         ? (typeof targetCombatant.currentHp === 'number' ? targetCombatant.currentHp : (targetCombatant.maxHp ?? 0))
         : (targetCharacter?.currentHp ?? 0);
       const maxHp = targetCombatant ? (targetCombatant.maxHp ?? 0) : (targetCharacter?.maxHp ?? 0);
+      const tempHpBefore = targetCombatant ? Math.max(0, targetCombatant.tempHp ?? 0) : 0;
+
+      // 半伤豁免：先减半分量，再进入抗性/易伤结算（顺序与设计文档一致）
+      const saveSuccess = halfDamageOnSave ? this.getLatestSaveSuccess(context, targetId) : undefined;
+      const halved = saveSuccess === true;
+      const targetParts = components.map(c => ({
+        type: c.type,
+        amount: halved ? Math.floor(c.amount / 2) : c.amount,
+      }));
+      const effectValue = targetParts.reduce((sum, c) => sum + c.amount, 0);
+      const hasTypedPart = targetParts.some(c => !!c.type);
+      const untypedNote = '存在未声明伤害类型的伤害分量，仅通用抗性可能生效';
 
       let newHp = oldHp;
       let effectApplied = false;
+      let finalValue = effectValue;
+      let tempAbsorbed = 0;
+      let tempHpAfter = tempHpBefore;
+      let resolution = effectType === 'damage'
+        ? (hasTypedPart
+            ? resolveDamage(targetParts, getCombatantAffinities(targetCombatant), damageSource)
+            : createUntypedResolution(effectValue))
+        : null;
 
       if (effectType === 'damage') {
-        newHp = Math.max(0, oldHp - effectValue);
+        finalValue = resolution?.final ?? effectValue;
+        // 临时 HP 先于当前 HP 扣减（D&D 5e）；预览与实际落地保持同一算法
+        tempAbsorbed = Math.min(tempHpBefore, finalValue);
+        tempHpAfter = tempHpBefore - tempAbsorbed;
+        newHp = Math.max(0, oldHp - (finalValue - tempAbsorbed));
         effectApplied = true;
+        if (hasTypedPart && targetParts.some(c => !c.type) && !resolution?.notes.includes(untypedNote)) {
+          resolution = {
+            ...resolution!,
+            notes: [...(resolution?.notes ?? []), untypedNote],
+          };
+        }
       } else if (effectType === 'healing') {
         newHp = Math.min(maxHp, oldHp + effectValue);
         effectApplied = true;
       }
       // 其他效果类型可以在这里扩展
 
+      const damageTypes = Array.from(new Set(
+        targetParts.map(c => c.type).filter((t): t is DamageType => !!t)
+      ));
+
       results.push({
         targetId,
         targetName: targetCombatant?.name ?? targetCharacter?.name ?? targetId,
         effectType,
         effectValue,
+        finalValue,
+        damageType: damageTypes.length === 1 ? damageTypes[0] : null,
+        damageComponents: targetParts.map((c, i) => ({
+          type: c.type ?? null,
+          expression: components[i]?.expr ?? '',
+          base: c.amount,
+          final: resolution?.components[i]?.final ?? c.amount,
+          affinity: resolution?.components[i]?.affinity ?? 'none',
+        })),
+        halved,
         oldHp,
         newHp,
+        tempHpBefore,
+        tempAbsorbed,
+        tempHpAfter,
         effectApplied,
-        isCombatant: !!targetCombatant
+        isCombatant: !!targetCombatant,
+        resisted: resolution?.anyResisted ?? false,
+        immune: resolution?.anyImmune ?? false,
+        vulnerable: resolution?.anyVulnerable ?? false,
+        notes: resolution?.notes ?? [],
+        affinitySummary: resolution
+          ? (resolution.anyImmune
+              ? 'immunity'
+              : resolution.anyResisted && resolution.anyVulnerable
+                ? 'both'
+                : resolution.anyResisted
+                  ? 'resistance'
+                  : resolution.anyVulnerable
+                    ? 'vulnerability'
+                    : 'none')
+          : 'none',
+        affinityBreakdown: resolution?.components.map(c => ({
+          type: c.type ?? null,
+          base: c.base,
+          final: c.final,
+          affinity: c.affinity,
+        })) ?? [],
       });
     }
 

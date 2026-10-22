@@ -99,6 +99,7 @@ export default function MonsterEditor({ isOpen, onClose, onSave, template }: Mon
     }
 
     const newTemplate: NpcTemplate = {
+      ...(template ?? {}),
       id: template?.id || crypto.randomUUID(),
       templateId: templateId.trim(),
       name: name.trim(),

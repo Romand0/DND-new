@@ -6,6 +6,8 @@ import type { Combatant } from '@/types/combat';
 import type { CastStepState } from '@/hooks/combat/useCastSteps';
 import type { SpellCheckType } from './SpellCheckStep';
 import type { SpellEffectType } from './SpellEffectStep';
+import type { DamageResolution } from '@/types/damage';
+import { formatDamageBreakdown } from '@/data/damageRules';
 
 const STEP_LABELS: Record<string, string> = {
   cast_start: '前置检查',
@@ -32,22 +34,28 @@ interface Props {
   checkSummary?: string;
   effectType: SpellEffectType;
   amount: number;
+  /** 抗性结算明细（手动管线伤害） */
+  resolution?: DamageResolution | null;
   steps: readonly CastStepState[];
   onConfirm: (result: { newHp: number; status?: 'unconscious' | 'dead' }) => void;
 }
 
 export default function SpellFinishStep({
   spellName, castingTime, caster, target, checkType, checkSuccess, checkSummary,
-  effectType, amount, steps, onConfirm,
+  effectType, amount, resolution, steps, onConfirm,
 }: Props) {
   // HP 预览（自 CombatSpellModal 迁入）
   const maxHp = target.maxHp ?? 0;
   const currentHp = target.currentHp ?? 0;
+  // 临时 HP 先于当前 HP 吸收伤害（与 handleApplyDamage 落地算法一致）
+  const tempHp = Math.max(0, target.tempHp ?? 0);
+  const tempAbsorbed = effectType === 'damage' ? Math.min(tempHp, amount) : 0;
+  const hpDamage = effectType === 'damage' ? amount - tempAbsorbed : 0;
   const newHp = effectType === 'damage'
-    ? Math.max(0, currentHp - amount)
+    ? Math.max(0, currentHp - hpDamage)
     : Math.min(maxHp, currentHp + amount);
   const actualChange = effectType === 'damage' ? currentHp - newHp : newHp - currentHp;
-  const isLethal = effectType === 'damage' && amount > 0 && amount >= currentHp && currentHp > 0;
+  const isLethal = effectType === 'damage' && hpDamage > 0 && hpDamage >= currentHp && currentHp > 0;
   const needDownedDecision = isLethal && !target.isPc;
   const [downedStatus, setDownedStatus] = useState<'unconscious' | 'dead' | null>(null);
 
@@ -134,6 +142,21 @@ export default function SpellFinishStep({
             <span className="dark:text-text-dark-muted light:text-text-light-muted">最大 {maxHp}</span>
             {newHp <= 0 && <span className="text-red-500 font-medium">已倒下</span>}
           </div>
+          {tempAbsorbed > 0 && (
+            <div className="text-[11px] text-sky-500 mt-1">
+              临时生命值吸收 {tempAbsorbed} 点（剩余 {tempHp - tempAbsorbed}）
+            </div>
+          )}
+          {resolution && (resolution.anyResisted || resolution.anyImmune || resolution.anyVulnerable) && (
+            <div className="mt-1.5 text-xs text-amber-500">
+              {formatDamageBreakdown(resolution)}
+            </div>
+          )}
+          {resolution && resolution.notes.length > 0 && (
+            <div className="mt-1 text-[11px] dark:text-text-dark-muted light:text-text-light-muted">
+              {resolution.notes.join('；')}
+            </div>
+          )}
         </div>
       )}
 

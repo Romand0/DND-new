@@ -426,6 +426,7 @@ function load(): CombatRecord[] {
           speed,
           childId: c.childId ?? undefined,
           templateId: c.templateId ?? undefined,
+          damageAffinities: c.damageAffinities && typeof c.damageAffinities === 'object' ? c.damageAffinities : undefined,
           attacks: Array.isArray(c.attacks) ? c.attacks : undefined,
           actions,
           movementUsed: typeof c.movementUsed === 'number' && Number.isFinite(c.movementUsed) ? Math.max(0, Math.trunc(c.movementUsed)) : 0,

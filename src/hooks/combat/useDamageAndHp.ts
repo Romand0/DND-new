@@ -20,24 +20,39 @@ export function useDamageAndHp(
     targetId: string,
     newHp: number,
     status?: 'unconscious' | 'dead',
+    damageAmount?: number,
   ) => {
     if (!record) return;
     const target = record.combatants.find(c => c.id === targetId);
     const wasUnconscious = target?.isUnconscious ?? false;
     const isPc = target?.isPc ?? false;
+
+    // 临时生命值先于当前生命值扣减（D&D 5e）。damageAmount 用于保留溢出伤害：
+    // 调用方常把 newHp 钳到 0，仅靠 oldHp - newHp 会丢失“超杀”部分，导致临时 HP 吸收过多。
+    const oldHp = target?.currentHp ?? 0;
+    const incomingDamage = Math.max(0, damageAmount ?? (oldHp - newHp));
+    const tempHpBefore = Math.max(0, target?.tempHp ?? 0);
+    const tempAbsorbed = Math.min(tempHpBefore, incomingDamage);
+    const tempHpAfter = tempHpBefore - tempAbsorbed;
+    const effectiveHp = incomingDamage > 0
+      ? Math.max(0, oldHp - (incomingDamage - tempAbsorbed))
+      : newHp;
     const effectiveStatus: 'unconscious' | 'dead' | undefined =
-      status ?? (newHp <= 0 && isPc ? 'unconscious' : undefined);
+      effectiveHp <= 0
+        ? (status ?? (isPc ? 'unconscious' : undefined))
+        : undefined;
 
     const updatedCombatants = record.combatants.map(c => {
       if (c.id !== targetId) return c;
-      if (newHp <= 0 && effectiveStatus === 'dead') {
-        return { ...c, currentHp: newHp, isDead: true, isUnconscious: false };
+      if (effectiveHp <= 0 && effectiveStatus === 'dead') {
+        return { ...c, currentHp: effectiveHp, tempHp: tempHpAfter, isDead: true, isUnconscious: false };
       }
-      if (newHp <= 0 && effectiveStatus === 'unconscious') {
+      if (effectiveHp <= 0 && effectiveStatus === 'unconscious') {
         const firstDown = !wasUnconscious;
         return {
           ...c,
-          currentHp: newHp,
+          currentHp: effectiveHp,
+          tempHp: tempHpAfter,
           isDead: false,
           isUnconscious: true,
           deathSaveFailures: firstDown ? 0 : (c.deathSaveFailures ?? 0),
@@ -46,7 +61,8 @@ export function useDamageAndHp(
       }
       return {
         ...c,
-        currentHp: newHp,
+        currentHp: effectiveHp,
+        tempHp: tempHpAfter,
         isDead: false,
         isUnconscious: false,
         deathSaveFailures: 0,
@@ -58,9 +74,9 @@ export function useDamageAndHp(
     // 专注豁免（D&D 5e）：非失能性伤害且 HP 仍 > 0 时触发体质豁免，
     // DC = max(10, floor(伤害/2))。HP 归零时专注直接被失能/昏迷打断（cleanup 清除），豁免失去意义。
     const updatedTarget = updatedCombatants.find(c => c.id === targetId);
-    const damage = Math.max(0, (target?.currentHp ?? 0) - newHp);
-    if (playbackMode && damage > 0 && newHp > 0 && updatedTarget?.concentration) {
-      const dc = Math.max(10, Math.floor(damage / 2));
+    // 专注 DC 基于承受的伤害量（含被临时 HP 吸收的部分），而非当前 HP 实际降幅
+    if (playbackMode && incomingDamage > 0 && effectiveHp > 0 && updatedTarget?.concentration) {
+      const dc = Math.max(10, Math.floor(incomingDamage / 2));
       const startRound = currentTurn ? currentTurn.round : 0;
       combatStore.addTurnTodo(record.id, {
         combatantId: targetId,
@@ -77,7 +93,7 @@ export function useDamageAndHp(
     }
 
     if (playbackMode && isPc) {
-      const nowDown = newHp <= 0 && effectiveStatus === 'unconscious';
+      const nowDown = effectiveHp <= 0 && effectiveStatus === 'unconscious';
       if (nowDown) {
         const existing = combatStore.get(record.id)?.turnTodos?.some(
           t => t.type === 'death_save' && t.combatantId === targetId,
