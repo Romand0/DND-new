@@ -451,10 +451,21 @@ function load(): CombatRecord[] {
             targetId: typeof s.targetId === 'string' ? s.targetId : undefined,
             requireTargetNearFromId: !!s.requireTargetNearFromId,
             expireOnCombatantId: typeof s.expireOnCombatantId === 'string' ? s.expireOnCombatantId : undefined,
-            consumed: !!s.consumed,
-            createdRound: typeof s.createdRound === 'number' && Number.isFinite(s.createdRound) ? s.createdRound : 0,
-            expireRound: typeof s.expireRound === 'number' && Number.isFinite(s.expireRound) ? s.expireRound : -1,
+          consumed: !!s.consumed,
+          createdRound: typeof s.createdRound === 'number' && Number.isFinite(s.createdRound) ? s.createdRound : 0,
+          expireRound: typeof s.expireRound === 'number' && Number.isFinite(s.expireRound) ? s.expireRound : -1,
           })) : [],
+          // 专注状态（战斗临时数据，随记录持久化；非法结构静默丢弃）
+          concentration: (() => {
+            const cc = c.concentration;
+            if (!cc || typeof cc !== 'object' || typeof cc.spellName !== 'string' || !cc.spellName) return undefined;
+            return {
+              spellName: cc.spellName,
+              startedRound: typeof cc.startedRound === 'number' && Number.isFinite(cc.startedRound) ? Math.trunc(cc.startedRound) : 0,
+            };
+          })(),
+          // 语音可用状态（失能 toggle 写入；缺省 undefined = 未手动置灰）
+          canSpeak: typeof c.canSpeak === 'boolean' ? c.canSpeak : undefined,
         };
       });
       return {
@@ -485,6 +496,20 @@ function load(): CombatRecord[] {
         castLogs: Array.isArray(r.castLogs) ? r.castLogs.filter(
           (l: any) => l && typeof l === 'object' && typeof l.id === 'string' && typeof l.castId === 'string'
         ) : [],
+        // 模拟模式操作日志（白名单重建：缺此项会在刷新后丢日志，且下次保存把日志永久抹掉）
+        operationLog: Array.isArray(r.operationLog) ? r.operationLog.filter(
+          (e: any) => e && typeof e === 'object'
+            && typeof e.id === 'string'
+            && typeof e.timestamp === 'number' && Number.isFinite(e.timestamp)
+            && typeof e.text === 'string'
+            && typeof e.kind === 'string',
+        ).map((e: any) => ({
+          id: e.id,
+          timestamp: e.timestamp,
+          combatantId: typeof e.combatantId === 'string' ? e.combatantId : undefined,
+          kind: e.kind,
+          text: e.text,
+        })) : [],
         createdAt: Number(r.createdAt) || Date.now(),
         updatedAt: Number(r.updatedAt) || Date.now(),
       };
