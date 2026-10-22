@@ -34,7 +34,7 @@ export default function InitiativeTable(props: Props) {
   } = props;
 
   return (
-    <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
+    <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light max-w-[900px]">
       <table className="w-full text-sm border-collapse">
         <thead>
           <tr className="dark:bg-card-dark light:bg-card-light">
@@ -44,7 +44,7 @@ export default function InitiativeTable(props: Props) {
             {combatants.map((c, idx) => {
               const downed = c.isDead || c.isUnconscious;
               return (
-              <th key={c.id} className={`p-2 pt-7 border-r dark:border-border-dark light:border-border-light min-w-[120px] relative group ${downed ? 'opacity-40' : ''}`}>
+              <th key={c.id} className={`p-2 pt-7 border-r dark:border-border-dark light:border-border-light min-w-[120px] max-w-[200px] relative group ${downed ? 'opacity-40' : ''}`}>
                 <div className="absolute top-1 left-1 w-6 h-6 rounded-full dark:bg-gray-600 dark:text-white light:bg-gray-300 light:text-black text-xs font-bold flex items-center justify-center">
                   {idx + 1}
                   {/* 死亡：在数字标记上打红叉 */}
@@ -72,7 +72,7 @@ export default function InitiativeTable(props: Props) {
                   <button
                     type="button"
                     onClick={() => onOpenInfoPanel(c)}
-                    className="font-medium truncate flex-1 text-left px-1.5 py-0.5 rounded-md border border-transparent
+                    className="font-medium truncate flex-1 min-w-0 text-left px-1.5 py-0.5 rounded-md border border-transparent
                                dark:text-text-dark light:text-text-light
                                dark:hover:border-primary/40 dark:hover:bg-primary/10
                                light:hover:border-primary/40 light:hover:bg-primary/10
@@ -164,7 +164,7 @@ export default function InitiativeTable(props: Props) {
                   return (
                     <td
                       key={c.id}
-                      className="p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] dark:bg-yellow-500/10 light:bg-yellow-100/50 text-center"
+                      className="p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] max-w-[200px] dark:bg-yellow-500/10 light:bg-yellow-100/50 text-center"
                       title="被突袭：本回合被突袭，失去先攻"
                     >
                       <span className="text-xs font-medium text-yellow-600 dark:text-yellow-400">被突袭</span>
@@ -175,7 +175,7 @@ export default function InitiativeTable(props: Props) {
                 return (
                   <td
                     key={c.id}
-                    className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] transition-colors relative ${
+                    className={`p-2 border-r dark:border-border-dark light:border-border-light min-w-[120px] max-w-[200px] transition-colors relative ${
                       isSelected ? 'bg-primary/10 ring-2 ring-inset ring-primary/30' : cellClickable ? 'hover:bg-white/5 cursor-pointer' : 'opacity-60'
                     } ${isCurrentTurn ? 'ring-2 ring-yellow-400 dark:ring-yellow-300 animate-pulse bg-yellow-400/10 dark:bg-yellow-300/10' : ''}`}
                     onClick={(e) => {
@@ -321,7 +321,7 @@ export default function InitiativeTable(props: Props) {
                         )}
                       </div>
                     ) : (
-                      <div className="whitespace-pre-wrap text-xs min-h-[2em]">{action || ''}</div>
+                      <div className="whitespace-pre-wrap break-words text-xs min-h-[2em]">{action || ''}</div>
                     )}
                   </td>
                 );
