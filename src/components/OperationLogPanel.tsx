@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import type { Combatant, CombatRecord, OperationLogEntry } from '@/types/combat';
 import combatStore from '@/data/combatStore';
+import { renderLogText } from '@/lib/logRichText';
 
 interface Props {
   record: CombatRecord;
@@ -132,7 +133,7 @@ export default function OperationLogPanel(props: Props) {
                         </span>
                       )}
                     </div>
-                    <div className="text-sm dark:text-text-dark light:text-text-light break-words">{e.text}</div>
+                    <div className="text-sm dark:text-text-dark light:text-text-light break-words">{renderLogText(e.text)}</div>
                   </div>
                 </li>
               );

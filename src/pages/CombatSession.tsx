@@ -296,7 +296,7 @@ export default function CombatSession() {
       updatedAt: Date.now(),
     });
     // 重施同一法术：重置计时但无需"中断"说明（5e 语义上仍是失去再开始）
-    return prev && prev.spellName !== spellName ? `，中断了对「${prev.spellName}」的专注` : null;
+    return prev && prev.spellName !== spellName ? `，中断《${prev.spellName}》专注` : null;
   };
 
   // 投掷武器掉落：由 hook 接管（executeThrownDrop 需显式传入 record）
@@ -1010,7 +1010,7 @@ export default function CombatSession() {
           // 从网格移除物品 token
           battlegroundStore.removeItemToken(record.id, itemToken.id);
           // 记录操作（放映写表格 / 模拟写日志）
-          recordOperation(picker.id, `${picker.name} 拾起了 ${itemToken.name}`, 'loot');
+          recordOperation(picker.id, `拾起《${itemToken.name}》`, 'loot');
         }}
         onRemoveItem={(combatantId, item) => {
           // 从战斗背包删除物品：通过变更信息漏斗
@@ -1157,7 +1157,7 @@ export default function CombatSession() {
                 updatedAt: Date.now(),
               });
             }
-            const text = `对 ${attackModal.target.name} 的攻击未命中，${missInfo.attackName}打偏了`;
+            const text = `《${missInfo.attackName}》→ ${attackModal.target.name}：未命中`;
             recordOperation(attackModal.attacker.id, text, 'attack');
             // 投掷武器掉落：未命中也掉落
             if (attackModal.attackerPos && attackModal.targetPos) {
@@ -1185,9 +1185,9 @@ export default function CombatSession() {
             // 1. 应用 HP / 状态
             handleApplyDamage(damageModal.target.id, newHp, status);
             // 2. 记录操作（放映写表格 / 模拟写日志，简化格式）
-            let text = `对 ${damageModal.target.name} 的攻击命中，用${damageModal.attack.name}造成${damage}点伤害`;
-            if (status === 'unconscious') text += '，将其击昏';
-            else if (status === 'dead') text += '，将其杀死';
+            let text = `《${damageModal.attack.name}》→ ${damageModal.target.name}：【${damage}】伤害`;
+            if (status === 'unconscious') text += '，击昏';
+            else if (status === 'dead') text += '，杀死';
             recordOperation(damageModal.attacker.id, text, 'damage');
             // 3. 投掷武器掉落：命中也掉落
             const bg = record ? battlegroundStore.get(record.id) : null;
@@ -1262,12 +1262,17 @@ export default function CombatSession() {
             if (info.concentration && info.success) {
               concNote = beginConcentration(spellModal.caster.id, info.spellName);
             }
-            // 3. 记录操作：xxx 施展 xxx 成功/失败，对 xxx 造成 xxx 点伤害/恢复 xxx 点生命值
-            let text = `${spellModal.caster.name} 施展 ${info.spellName}${info.success ? '成功' : '失败'}`;
-            if (info.success && info.amount > 0) {
-              text += `，对 ${spellModal.target.name}${info.effectType === 'damage' ? `造成${info.amount}点伤害` : `恢复${info.amount}点生命值`}`;
-              if (info.status === 'unconscious') text += '，将其击昏';
-              else if (info.status === 'dead') text += '，将其杀死';
+            // 3. 记录操作（简化格式：成功省略，直接说效果；失败才标注）
+            let text: string;
+            if (!info.success) {
+              text = `《${info.spellName}》施法失败`;
+            } else if (info.amount > 0) {
+              const num = info.effectType === 'damage' ? `【${info.amount}】` : `【+${info.amount}】`;
+              text = `《${info.spellName}》→ ${spellModal.target.name}：${num}${info.effectType === 'damage' ? '伤害' : '生命'}`;
+              if (info.status === 'unconscious') text += '，击昏';
+              else if (info.status === 'dead') text += '，杀死';
+            } else {
+              text = `《${info.spellName}》生效`;
             }
             if (concNote) text += concNote;
             recordOperation(spellModal.caster.id, text, 'spell');
@@ -1353,7 +1358,7 @@ export default function CombatSession() {
                       // 消耗 1 个动作
                       consumeCombatantAction(from.id);
                       // 记录操作（放映写表格 / 模拟写日志）
-                      recordOperation(from.id, `对 ${f.name} 的行动展开协助`, 'record');
+                      recordOperation(from.id, `协助 ${f.name}`, 'record');
                       setHelpModal(null);
                     }}
                     className="w-full text-left px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/60 hover:bg-primary/5 transition-colors"
@@ -1627,7 +1632,7 @@ export default function CombatSession() {
               // 消耗 1 个动作
               consumeCombatantAction(infoPanelCombatant.id);
               // 记录操作（放映写表格 / 模拟写日志）
-              recordOperation(infoPanelCombatant.id, `${infoPanelCombatant.name} 使用疾走，获得额外 ${battleSpeed} 尺移动力`, 'move');
+              recordOperation(infoPanelCombatant.id, `疾走：+【${battleSpeed}】尺移动`, 'move');
               // 显示结果弹窗
               const movementUsed = c.movementUsed ?? 0;
               const availableMovement = battleSpeed + newDashExtra - movementUsed;

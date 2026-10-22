@@ -51,17 +51,17 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       let text = '';
       let kind: OperationLogEntry['kind'] = 'attack';
       if (!hit) {
-        text = `对 ${target.name} 的攻击未命中，${manualAttackMethod}打偏了`;
+        text = `《${manualAttackMethod}》→ ${target.name}：未命中`;
       } else {
         const dmg = parseInt(manualDamage, 10);
         if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
         kind = 'damage';
-        text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害`;
+        text = `《${manualAttackMethod}》→ ${target.name}：【${dmg}】伤害`;
         if (manualIsKill && target.currentHp !== undefined) {
           const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
           const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
           handleApplyDamage(target.id, newHp, status);
-          text += target.isPc ? `，将其击昏` : `，将其杀死`;
+          text += target.isPc ? `，击昏` : `，杀死`;
         } else if (target.currentHp !== undefined) {
           const newHp = Math.max(0, target.currentHp - dmg);
           handleApplyDamage(target.id, newHp);
@@ -86,8 +86,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       handleApplyDamage(tgt.id, newHp);
       const isSelf = targetHpId === combatantId;
       const text = isSelf
-        ? `用${manualHealMethod}恢复了自己${amount}点生命值`
-        : `用${manualHealMethod}恢复了${targetName} ${amount}点生命值`;
+        ? `《${manualHealMethod}》→ 自己：【+${amount}】生命`
+        : `《${manualHealMethod}》→ ${targetName}：【+${amount}】生命`;
       recordOperation(combatantId, text, 'heal');
     }
 

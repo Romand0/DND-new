@@ -198,17 +198,17 @@ export default function FlowRunStep({
     const success = saveOutput ? (mainSave ? !mainSave.success : true) : !!mainEffect?.effectApplied;
     const effectType = effectOutput?.effectType === 'healing' ? 'heal' as const : 'damage' as const;
 
-    // 摘要：豁免行 + 效果行（先攻表格单元格宽度有限，保持一行紧凑）
+    // 摘要（先攻表格单元格宽度有限，保持一行紧凑；《》【】为渲染器标记：法术名/数值高亮）
     const parts: string[] = [];
     if (mainSave) {
-      parts.push(`${mainSave.targetName} ${mainSave.ability === 'wisdom' ? '感知' : mainSave.ability === 'dexterity' ? '敏捷' : mainSave.ability === 'strength' ? '力量' : mainSave.ability === 'constitution' ? '体质' : mainSave.ability === 'intelligence' ? '智力' : '魅力'}豁免${mainSave.success ? '成功' : '失败'}（${mainSave.d20Roll}+${mainSave.saveBonus} vs DC ${mainSave.dc}）`);
+      parts.push(mainSave.success ? '豁免通过' : '豁免失败');
     }
     if (mainEffect && !mainEffect.error) {
-      parts.push(`${mainEffect.targetName}${effectType === 'damage' ? `受到${mainEffect.effectValue}点伤害` : `恢复${mainEffect.effectValue}点生命值`}（HP ${mainEffect.oldHp}→${mainEffect.newHp}）`);
-    } else if (saveOutput && mainSave?.success) {
-      parts.push('豁免通过，法术无效');
+      parts.push(`【${mainEffect.effectValue}】${effectType === 'damage' ? '伤害' : '生命'}（HP ${mainEffect.oldHp}→${mainEffect.newHp}）`);
+    } else if (mainSave?.success) {
+      parts.push('无效');
     }
-    const summary = `${caster.name} 以流程施放 ${spell.name}：${parts.join('，')}`;
+    const summary = `《${spell.name}》→ ${target.name}：${parts.join('，')}`;
 
     onApplied({
       spellName: spell.name,

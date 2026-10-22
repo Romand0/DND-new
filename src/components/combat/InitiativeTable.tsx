@@ -1,5 +1,6 @@
 import { X, Play, Pencil, Keyboard, Undo2, Trash2 } from 'lucide-react';
 import type { Combatant, RoundAction } from '@/types/combat';
+import { renderLogText } from '@/lib/logRichText';
 
 interface Props {
   combatants: Combatant[];
@@ -321,7 +322,7 @@ export default function InitiativeTable(props: Props) {
                         )}
                       </div>
                     ) : (
-                      <div className="whitespace-pre-wrap break-words text-xs min-h-[2em]">{action || ''}</div>
+                      <div className="whitespace-pre-wrap break-words text-xs min-h-[2em]">{renderLogText(action || '')}</div>
                     )}
                   </td>
                 );
