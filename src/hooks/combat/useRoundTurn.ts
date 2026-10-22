@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CombatRecord, Combatant, RoundAction, TurnSnapshot } from '@/types/combat';
+import type { CombatRecord, Combatant, RoundAction, TurnSnapshot, OperationLogEntry } from '@/types/combat';
 import battlegroundStore from '@/data/battlegroundStore';
 import combatStore from '@/data/combatStore';
 import * as snapDb from '@/lib/combatSnapshots';
@@ -251,6 +251,20 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     handleCellChange(round, combatantId, finalText);
   };
 
+  // ✅ 统一操作记录入口：按 record.mode 分流——放映写先攻表格（resolveWriteCell 内部处理
+  // 未开始/暂停时写最后一轮），模拟模式写操作日志。跟随 mode 保证「看到的与记下的」一致：
+  // 模拟模式 UI 是日志面板，放映模式 UI 是表格（未开始/暂停也显示表格）。
+  // （模拟模式无回合概念，rounds 表格无意义；combatantId 可空=全局操作，放映时全局操作不落表格）
+  const recordOperation = (combatantId: string | null, text: string, kind: OperationLogEntry['kind']) => {
+    if (!record) return;
+    if (record.mode === 'playback' && combatantId) {
+      const cell = resolveWriteCell(combatantId);
+      if (cell) appendRoundRecord(cell.round, cell.combatantId, text);
+      return;
+    }
+    combatStore.addOperationLog(record.id, { combatantId: combatantId ?? undefined, kind, text });
+  };
+
   // ✅ 拍某回合的快照：记录此回合开始时的 combatants / rounds / 沙盘
   // 每次进入新回合（播放起始、确认完成回合后）调用一次
   // 注意：直接从 combatStore 读取最新值，避免 record state 还未重新渲染导致读到旧数据
@@ -408,6 +422,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     checkAndAutoAdvance,
     resolveWriteCell,
     appendRoundRecord,
+    recordOperation,
     takeTurnSnapshot,
     applyRollback,
     confirmEndTurn,

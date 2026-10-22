@@ -435,8 +435,23 @@ export interface CombatRecord {
     };
     /** 施法步骤日志（按 castId 分组的扁平追加数组，副作用延迟原则下仅在收尾时批量写入） */
     castLogs?: CastStepLog[];
+    /** 模拟模式操作日志（无回合概念，按时间顺序记录参战者操作；放映模式写 rounds 不写此字段） */
+    operationLog?: OperationLogEntry[];
     createdAt: number;
     updatedAt: number;
+}
+
+/** 模拟模式操作日志条目 */
+export interface OperationLogEntry {
+    id: string;
+    /** 记录时间戳（真实时间） */
+    timestamp: number;
+    /** 操作主体 combatantId（全局操作可缺省） */
+    combatantId?: string;
+    /** 操作类别：用于日志面板图标/配色 */
+    kind: 'attack' | 'damage' | 'heal' | 'spell' | 'status' | 'move' | 'loot' | 'record';
+    /** 操作描述文本 */
+    text: string;
 }
 
 /**

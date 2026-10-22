@@ -11,6 +11,7 @@ import { useRoundTurn } from '@/hooks/combat/useRoundTurn';
 import { useSurprise } from '@/hooks/combat/useSurprise';
 import { useThrownDrop } from '@/hooks/combat/useThrownDrop';
 import InitiativeTable from '@/components/combat/InitiativeTable';
+import OperationLogPanel from '@/components/OperationLogPanel';
 import InitiativeRollDialog from '@/components/combat/InitiativeRollDialog';
 import InitiativeTiebreakerDialog from '@/components/combat/InitiativeTiebreakerDialog';
 import ManualRecordDialog from '@/components/combat/ManualRecordDialog';
@@ -88,6 +89,8 @@ export default function CombatSession() {
 
   // ✅ 选中格状态（先攻表格操作 + 手动记录弹窗依赖）
   const [selectedCell, setSelectedCell] = useState<{ round: number; combatantId: string } | null>(null);
+  // ✅ 模拟模式手动记录：先选操作主体（无表格格子可选，round 用 -1 占位）
+  const [manualPickerOpen, setManualPickerOpen] = useState(false);
   // ✅ 参战者信息面板（点击表头名称按钮打开，等价沙盘双击弹窗）
   const [infoPanelCombatant, setInfoPanelCombatant] = useState<Combatant | null>(null);
   // ✅ 战斗结束回传弹窗
@@ -122,8 +125,7 @@ export default function CombatSession() {
     handleCellChange,
     findNextValidTurn,
     checkAndAutoAdvance,
-    resolveWriteCell,
-    appendRoundRecord,
+    recordOperation,
     takeTurnSnapshot,
     applyRollback,
     confirmEndTurn,
@@ -354,8 +356,7 @@ export default function CombatSession() {
     consumeCombatantAction: (id: string) => consumeCombatantAction(id),
     handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead') =>
       handleApplyDamage(targetId, newHp, status),
-    handleCellChange: (round: number, combatantId: string, value: string) =>
-      handleCellChange(round, combatantId, value),
+    recordOperation,
   });
 
   // 手动记录入口：重置全部字段后打开弹窗（表格两处调用 + 沙盘共用同一重置序列）
@@ -569,14 +570,17 @@ export default function CombatSession() {
                   <span className="hidden sm:inline">批量删除</span>
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleAddRound}
-                className="px-2 sm:px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">新增轮次</span>
-              </button>
+              {/* 新增轮次：仅放映模式（模拟模式无回合概念） */}
+              {record.mode === 'playback' && (
+                <button
+                  type="button"
+                  onClick={handleAddRound}
+                  className="px-2 sm:px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">新增轮次</span>
+                </button>
+              )}
             </>
           )}
         </div>
@@ -618,6 +622,39 @@ export default function CombatSession() {
             >
               创建NPC
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ✅ 模拟模式手动记录：先选操作主体（放映模式的主体来自表格格子，模拟模式无格子可点） */}
+      {manualPickerOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+          <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">选择操作主体</h3>
+              <button onClick={() => setManualPickerOpen(false)} className="p-1 rounded hover:bg-white/10">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {record.combatants.filter(c => !c.isDead).map(c => (
+                <button
+                  key={c.id}
+                  onClick={() => {
+                    setSelectedCell({ round: -1, combatantId: c.id });
+                    setManualPickerOpen(false);
+                    openManualRecord();
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/60 hover:bg-primary/5 transition-colors"
+                >
+                  <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{c.name}</div>
+                  <div className="text-xs opacity-60">
+                    {c.isPc ? '玩家角色' : 'NPC'}
+                    {c.maxHp != null && c.maxHp > 0 ? ` · HP ${c.currentHp}/${c.maxHp}` : ''}
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -760,30 +797,41 @@ export default function CombatSession() {
         />
       )}
 
-      <InitiativeTable
-        combatants={record.combatants}
-        rounds={record.rounds}
-        batchMode={batchMode}
-        selectedIds={selectedIds}
-        onToggleSelect={toggleSelect}
-        onOpenInfoPanel={setInfoPanelCombatant}
-        onRemoveCombatant={handleRemoveCombatant}
-        onOpenSurpriseAttack={openSurpriseAttackModal}
-        selectedCell={selectedCell}
-        onSelectCell={setSelectedCell}
-        editingCell={editingCell}
-        onSetEditingCell={setEditingCell}
-        onCellChange={handleCellChange}
-        isPlayback={record.mode === 'playback'}
-        playbackStarted={playbackStarted}
-        playbackPaused={playbackPaused}
-        currentTurn={currentTurn}
-        onStartPlayback={startPlayback}
-        onOpenManualRecord={openManualRecord}
-        onOpenRewind={(round: number, combatantId: string, combatantIdx: number) =>
-          setRewindModal({ round, combatantId, combatantIdx, firstClickDone: false })
-        }
-      />
+      {/* 放映模式：先攻表格（轮次×参战者行动矩阵）。
+          模拟模式：无回合概念，表格退化为单格堆叠，改为操作日志面板；
+          批量编辑（batchMode）依赖表格复选框，批量进行中仍显示表格。 */}
+      {record.mode !== 'playback' && !batchMode ? (
+        <OperationLogPanel
+          record={record}
+          combatants={record.combatants}
+          onOpenManualRecord={() => setManualPickerOpen(true)}
+        />
+      ) : (
+        <InitiativeTable
+          combatants={record.combatants}
+          rounds={record.rounds}
+          batchMode={batchMode}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onOpenInfoPanel={setInfoPanelCombatant}
+          onRemoveCombatant={handleRemoveCombatant}
+          onOpenSurpriseAttack={openSurpriseAttackModal}
+          selectedCell={selectedCell}
+          onSelectCell={setSelectedCell}
+          editingCell={editingCell}
+          onSetEditingCell={setEditingCell}
+          onCellChange={handleCellChange}
+          isPlayback={record.mode === 'playback'}
+          playbackStarted={playbackStarted}
+          playbackPaused={playbackPaused}
+          currentTurn={currentTurn}
+          onStartPlayback={startPlayback}
+          onOpenManualRecord={openManualRecord}
+          onOpenRewind={(round: number, combatantId: string, combatantIdx: number) =>
+            setRewindModal({ round, combatantId, combatantIdx, firstClickDone: false })
+          }
+        />
+      )}
 
       {/* ✅ 新增：网格沙盘 —— 展示参战者位置与移动 */}
       <Battleground
@@ -961,11 +1009,8 @@ export default function CombatSession() {
 
           // 从网格移除物品 token
           battlegroundStore.removeItemToken(record.id, itemToken.id);
-          // 写入先攻表格
-          const cell = resolveWriteCell(picker.id);
-          if (cell) {
-            appendRoundRecord(cell.round, cell.combatantId, `${picker.name} 拾起了 ${itemToken.name}`);
-          }
+          // 记录操作（放映写表格 / 模拟写日志）
+          recordOperation(picker.id, `${picker.name} 拾起了 ${itemToken.name}`, 'loot');
         }}
         onRemoveItem={(combatantId, item) => {
           // 从战斗背包删除物品：通过变更信息漏斗
@@ -1112,10 +1157,8 @@ export default function CombatSession() {
                 updatedAt: Date.now(),
               });
             }
-            const cell = resolveWriteCell(attackModal.attacker.id);
-            if (!cell) return;
             const text = `对 ${attackModal.target.name} 的攻击未命中，${missInfo.attackName}打偏了`;
-            appendRoundRecord(cell.round, cell.combatantId, text);
+            recordOperation(attackModal.attacker.id, text, 'attack');
             // 投掷武器掉落：未命中也掉落
             if (attackModal.attackerPos && attackModal.targetPos) {
               executeThrownDrop(
@@ -1141,14 +1184,11 @@ export default function CombatSession() {
           onApplyDamage={({ damage, newHp, status }) => {
             // 1. 应用 HP / 状态
             handleApplyDamage(damageModal.target.id, newHp, status);
-            // 2. 写入先攻表格（简化格式）
-            const cell = resolveWriteCell(damageModal.attacker.id);
-            if (cell) {
-              let text = `对 ${damageModal.target.name} 的攻击命中，用${damageModal.attack.name}造成${damage}点伤害`;
-              if (status === 'unconscious') text += '，将其击昏';
-              else if (status === 'dead') text += '，将其杀死';
-              appendRoundRecord(cell.round, cell.combatantId, text);
-            }
+            // 2. 记录操作（放映写表格 / 模拟写日志，简化格式）
+            let text = `对 ${damageModal.target.name} 的攻击命中，用${damageModal.attack.name}造成${damage}点伤害`;
+            if (status === 'unconscious') text += '，将其击昏';
+            else if (status === 'dead') text += '，将其杀死';
+            recordOperation(damageModal.attacker.id, text, 'damage');
             // 3. 投掷武器掉落：命中也掉落
             const bg = record ? battlegroundStore.get(record.id) : null;
             if (bg) {
@@ -1198,16 +1238,13 @@ export default function CombatSession() {
                 : undefined;
               handleApplyDamage(tr.combatantId, tr.newHp, status);
             });
-            // 先攻表格摘要（FlowRunStep 生成的单行紧凑文本）；专注替换备注追加在末尾
+            // 摘要文本（FlowRunStep 生成的单行紧凑文本）；专注替换备注追加在末尾
             let flowSummary = payload.summary;
             if (payload.concentration && payload.success) {
               const concNote = beginConcentration(spellModal.caster.id, payload.spellName);
               if (concNote) flowSummary += concNote;
             }
-            const cell = resolveWriteCell(spellModal.caster.id);
-            if (cell) {
-              appendRoundRecord(cell.round, cell.combatantId, flowSummary);
-            }
+            recordOperation(spellModal.caster.id, flowSummary, 'spell');
           }}
           onCastResolved={(info) => {
             // 施法时间 = "1 动作" 的法术消耗 1 个动作（无论是否命中/被豁免）
@@ -1225,18 +1262,15 @@ export default function CombatSession() {
             if (info.concentration && info.success) {
               concNote = beginConcentration(spellModal.caster.id, info.spellName);
             }
-            // 3. 写入先攻表格：xxx 施展 xxx 成功/失败，对 xxx 造成 xxx 点伤害/恢复 xxx 点生命值
-            const cell = resolveWriteCell(spellModal.caster.id);
-            if (cell) {
-              let text = `${spellModal.caster.name} 施展 ${info.spellName}${info.success ? '成功' : '失败'}`;
-              if (info.success && info.amount > 0) {
-                text += `，对 ${spellModal.target.name}${info.effectType === 'damage' ? `造成${info.amount}点伤害` : `恢复${info.amount}点生命值`}`;
-                if (info.status === 'unconscious') text += '，将其击昏';
-                else if (info.status === 'dead') text += '，将其杀死';
-              }
-              if (concNote) text += concNote;
-              appendRoundRecord(cell.round, cell.combatantId, text);
+            // 3. 记录操作：xxx 施展 xxx 成功/失败，对 xxx 造成 xxx 点伤害/恢复 xxx 点生命值
+            let text = `${spellModal.caster.name} 施展 ${info.spellName}${info.success ? '成功' : '失败'}`;
+            if (info.success && info.amount > 0) {
+              text += `，对 ${spellModal.target.name}${info.effectType === 'damage' ? `造成${info.amount}点伤害` : `恢复${info.amount}点生命值`}`;
+              if (info.status === 'unconscious') text += '，将其击昏';
+              else if (info.status === 'dead') text += '，将其杀死';
             }
+            if (concNote) text += concNote;
+            recordOperation(spellModal.caster.id, text, 'spell');
           }}
         />
       )}
@@ -1318,14 +1352,8 @@ export default function CombatSession() {
                       ]);
                       // 消耗 1 个动作
                       consumeCombatantAction(from.id);
-                      // 写入回合记录
-                      if (currentTurn) {
-                        appendRoundRecord(
-                          currentTurn.round,
-                          from.id,
-                          `对 ${f.name} 的行动展开协助`,
-                        );
-                      }
+                      // 记录操作（放映写表格 / 模拟写日志）
+                      recordOperation(from.id, `对 ${f.name} 的行动展开协助`, 'record');
                       setHelpModal(null);
                     }}
                     className="w-full text-left px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/60 hover:bg-primary/5 transition-colors"
@@ -1598,11 +1626,8 @@ export default function CombatSession() {
               });
               // 消耗 1 个动作
               consumeCombatantAction(infoPanelCombatant.id);
-              // 写入先攻表格
-              const cell = resolveWriteCell(infoPanelCombatant.id);
-              if (cell) {
-                appendRoundRecord(cell.round, cell.combatantId, `${infoPanelCombatant.name} 使用疾走，获得额外 ${battleSpeed} 尺移动力`);
-              }
+              // 记录操作（放映写表格 / 模拟写日志）
+              recordOperation(infoPanelCombatant.id, `${infoPanelCombatant.name} 使用疾走，获得额外 ${battleSpeed} 尺移动力`, 'move');
               // 显示结果弹窗
               const movementUsed = c.movementUsed ?? 0;
               const availableMovement = battleSpeed + newDashExtra - movementUsed;

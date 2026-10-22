@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { CombatRecord } from '@/types/combat';
+import type { CombatRecord, OperationLogEntry } from '@/types/combat';
 
 export interface UseManualRecordProps {
   selectedCell: { round: number; combatantId: string } | null;
@@ -8,14 +8,15 @@ export interface UseManualRecordProps {
   consumeCombatantAction: (id: string) => void;
   getEffectiveAc: (c: any) => number;
   handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead') => void;
-  handleCellChange: (round: number, combatantId: string, value: string) => void;
+  /** 统一记录入口（放映写表格 / 模拟写日志） */
+  recordOperation: (combatantId: string | null, text: string, kind: OperationLogEntry['kind']) => void;
 }
 
 export function useManualRecord(record: CombatRecord | null, props: UseManualRecordProps) {
   const {
     selectedCell, setSelectedCell,
     canUseAction, consumeCombatantAction,
-    getEffectiveAc, handleApplyDamage, handleCellChange,
+    getEffectiveAc, handleApplyDamage, recordOperation,
   } = props;
 
   const [manualRecordOpen, setManualRecordOpen] = useState(false);
@@ -48,11 +49,13 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       if (!tgtAc && tgtAc !== 0) { alert('目标缺少 AC，无法判定命中'); return; }
       const hit = roll >= tgtAc;
       let text = '';
+      let kind: OperationLogEntry['kind'] = 'attack';
       if (!hit) {
         text = `对 ${target.name} 的攻击未命中，${manualAttackMethod}打偏了`;
       } else {
         const dmg = parseInt(manualDamage, 10);
         if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
+        kind = 'damage';
         text = `对 ${target.name} 的攻击命中，用${manualAttackMethod}造成${dmg}点伤害`;
         if (manualIsKill && target.currentHp !== undefined) {
           const newHp = Math.max(0, (target.currentHp ?? 0) - dmg);
@@ -64,7 +67,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
           handleApplyDamage(target.id, newHp);
         }
       }
-      handleCellChange(round, combatantId, text);
+      recordOperation(combatantId, text, kind);
       consumeCombatantAction(combatantId);
     } else if (manualRecordType === 'recovery') {
       if (!manualHealMethod.trim()) { alert('请填写恢复方式'); return; }
@@ -85,7 +88,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       const text = isSelf
         ? `用${manualHealMethod}恢复了自己${amount}点生命值`
         : `用${manualHealMethod}恢复了${targetName} ${amount}点生命值`;
-      handleCellChange(round, combatantId, text);
+      recordOperation(combatantId, text, 'heal');
     }
 
     setManualRecordOpen(false);

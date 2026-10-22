@@ -1,4 +1,4 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, OperationLogEntry } from '@/types/combat';
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import type { Equipment, Character } from '@/types/character';
@@ -800,6 +800,35 @@ const combatStore = {
     record.turnTodos = record.turnTodos.map(t =>
       t.id === todoId ? { ...t, executed: !t.executed } : t
     );
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 模拟模式：追加一条操作日志（放映模式写 rounds，本函数仅在模拟模式被 recordOperation 调用） */
+  addOperationLog(
+    recordId: string,
+    entry: { combatantId?: string; kind: OperationLogEntry['kind']; text: string },
+  ): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const newEntry: OperationLogEntry = {
+      id: crypto.randomUUID(),
+      timestamp: Date.now(),
+      combatantId: entry.combatantId,
+      kind: entry.kind,
+      text: entry.text,
+    };
+    record.operationLog = [...(record.operationLog ?? []), newEntry];
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  clearOperationLog(recordId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    record.operationLog = [];
     record.updatedAt = Date.now();
     save(records);
   },
