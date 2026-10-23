@@ -89,6 +89,8 @@ const [spellTableIdentifier, setSpellTableIdentifier] = useState('');
 
   // ---- 怪物图鉴导入状态 ----
   const [monsterOverwrite, setMonsterOverwrite] = useState(false);
+  const [cloudRefreshBusy, setCloudRefreshBusy] = useState(false);
+  const [cloudRefreshResult, setCloudRefreshResult] = useState('');
   const [monsterResult, setMonsterResult] = useState<{ created: number; updated: number; skipped: number } | null>(null);
 const [spellTableContent, setSpellTableContent] = useState('');
 const [spellTableSaveResult, setSpellTableSaveResult] = useState<{ success: boolean; message: string } | null>(null);
@@ -903,6 +905,28 @@ const handleMonsterImport = () => {
           {monsterResult && (
             <div className="text-xs text-green-500">
               新增 {monsterResult.created} / 更新 {monsterResult.updated} / 跳过 {monsterResult.skipped}
+            </div>
+          )}
+          <button
+            onClick={async () => {
+              setCloudRefreshBusy(true);
+              try {
+                const r = await npcTemplateStore.reimportSeedsToCloud();
+                setCloudRefreshResult(`已覆盖推送 ${r.pushed} 条种子到云端，拉取 ${r.loaded} 条`);
+              } catch (err: any) {
+                setCloudRefreshResult(`云端刷新失败：${err?.message || '未知错误'}`);
+              } finally {
+                setCloudRefreshBusy(false);
+              }
+            }}
+            disabled={cloudRefreshBusy}
+            className="px-4 py-2 rounded-lg border border-primary text-primary text-sm font-medium hover:bg-primary/10 disabled:opacity-50"
+          >
+            {cloudRefreshBusy ? '云端刷新中…' : '同步种子到云端（覆盖同源模板）'}
+          </button>
+          {cloudRefreshResult && (
+            <div className={cloudRefreshResult.includes('失败') ? 'text-xs text-red-500' : 'text-xs text-green-500'}>
+              {cloudRefreshResult}
             </div>
           )}
         </div>

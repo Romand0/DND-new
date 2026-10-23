@@ -124,6 +124,9 @@ function joinNext(lines, i) {
   if (/^生命值[:：]?\s*\d+$/.test(cur) && /^[（(]/.test(next)) return cur + next;
   if (/^(护甲等级|速度|挑战等级)[:：]$/.test(cur)) return cur + next;
   if (/(力量|敏捷|体质|智力|感知|魅力)$/.test(cur)) return cur + next;
+  // 条目名的英文断行（如「吸取生命Life」+「Drain。半巫妖…」）：中文名+英文结尾，下一行以英文开头
+  // 且 40 字内出现「（」或「。」（条目名结束信号）——不设长度上限，避免长正文断行时名称被并进上一条
+  if (/[\u4e00-\u9fa5][A-Za-z]+$/.test(cur) && /^[A-Za-z][A-Za-z'’\- ]{0,40}[（。]/.test(next)) return cur + next;
   if (/[\u4e00-\u9fa5A-Za-z)]$/.test(cur) && /^[A-Za-z]/.test(next) && cur.length < 60 && next.length < 40) return cur + next;
   return cur;
 }
@@ -285,20 +288,40 @@ function parseSensesLanguages(cardLines) {
   return { senses, languages };
 }
 
-/** 动作区条目 → NpcAttack（武器攻击行）或 traits（非攻击条目） */
+/** 动作区条目 → NpcAttack（武器攻击行）或 traits（非攻击条目）。
+ * 状态机：「名称（参数）。正文」开启条目，其后的非攻击/非标题行并入条目正文（跨行描述）；
+ * 章节标题（动作/传奇动作/区域效应…）重置条目链，标题后的导语行与效应列表行不污染上一条目。
+ * 注意：joined 只是逐行拼接预览（长度与 card.lines 一致），卡名/体型判定须读原始行。
+ */
 function parseActionsAndTraits(cardLines, file, cardName) {
   const attacks = [];
   const traits = [];
-  let inAction = false;
-  for (const line of cardLines) {
-    if (/^(动作|Actions)$/.test(line) || /^动作Actions$/.test(line)) { inAction = true; continue; }
-    if (/^(附赠动作|反应|传奇动作)/.test(line)) { inAction = true; continue; }
+  const isTypeLine = (l) => /^(微型|小型|中型|中形|大型|巨型|超巨型|超大型)/.test(l || '');
+  // 真正的下一卡名称行 = 「中文+英文」无句号且 1~2 行内出现体型行（卡名英文也可能被 Word 断成两行，
+  // 如「远古黑龙Ancient Black」+「Dragon」+体型行）；条目名的英文断行中间态（「吸取生命Life」+「Drain。…」）
+  // 后续是英文正文行，据此区分
+  const isNextCardName = (l, i) => {
+    if (!/^[\u4e00-\u9fa5（）()·、\-0-9]+[A-Za-z][A-Za-z'’\- ]*$/.test(l)) return false;
+    if (isTypeLine(cardLines[i + 1])) return true;
+    return /^[A-Za-z][A-Za-z'’\- ]*$/.test(cardLines[i + 1] || '') && isTypeLine(cardLines[i + 2]);
+  };
+  let current = null;
+  for (let i = 0; i < cardLines.length; i++) {
+    const line = cardLines[i];
+    if (/^(动作|附赠动作|反应|传奇动作)(Actions|Bonus Actions|Reactions|Legendary Actions)?$/.test(line)
+      || /^(特质|特性)(Traits?)?$/.test(line)) { current = null; continue; }
+    if (/^(区域效应|Regional Effects|巢穴动作|Lair Actions)/.test(line)) { current = null; continue; }
     const atk = parseAttackLine(line);
-    if (atk) { attacks.push(atk); continue; }
-    const tm = line.match(/^([\u4e00-\u9fa5]{1,12}[A-Za-z'’\- ]*)(?:（([0-9\/日\/周]+[^）]*)）)?。\s*(.+)$/);
-    if (tm && tm[3] && tm[3].length > 6) {
-      traits.push({ name: (tm[1] || '').trim(), text: `${tm[2] ? `（${tm[2]}）` : ''}${tm[3].trim()}`.trim() });
+    if (atk) { attacks.push(atk); current = null; continue; }
+    if (isNextCardName(line, i)) break;
+    const tm = line.match(/^([\u4e00-\u9fa5]{1,20}[A-Za-z'’\- ]*)(?:（([^）]{1,30})）)?。\s*(.+)$/);
+    if (tm && tm[3].length > 2) {
+      current = { name: (tm[1] || '').trim(), text: `${tm[2] ? `（${tm[2]}）` : ''}${tm[3].trim()}`.trim() };
+      traits.push(current);
+      continue;
     }
+    // 延续行：特性描述的跨行后续（正文断行/列表），并入当前条目
+    if (current && line.length > 1) current.text += line;
   }
   return { attacks, traits };
 }

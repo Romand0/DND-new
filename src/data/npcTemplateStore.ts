@@ -280,6 +280,20 @@ const npcTemplateStore = {
 
   importSeed,
 
+  /**
+   * 种子覆盖刷新云端（D1 真源）：解析脚本修复（如特性截断）后，把 421 条种子
+   * 以 upsert 重新推云覆盖同 template_id 行，再全量拉取覆盖本地缓存。
+   * 自定义模板（templateId 不在种子集）不受影响。
+   */
+  async reimportSeedsToCloud(): Promise<{ pushed: number; loaded: number }> {
+    const rows = (seedTemplates as any[]).map(seedToTemplate);
+    for (let i = 0; i < rows.length; i += 50) {
+      await api.batchImportNpcTemplates(rows.slice(i, i + 50), { overwrite: true });
+    }
+    const loaded = await this.fetchAll();
+    return { pushed: rows.length, loaded: loaded.length };
+  },
+
   /** 图鉴种子模板数量（导入卡片展示用） */
   seedCount(): number {
     return (seedTemplates as any[]).length;

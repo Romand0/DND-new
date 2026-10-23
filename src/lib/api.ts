@@ -207,10 +207,13 @@ export async function createNpcTemplate<T = any>(data: T): Promise<T> {
 }
 
 /** 批量导入模板（幂等：template_id 唯一约束，已存在被忽略）；421 条种子按 50/批分块由服务端执行 */
-export async function batchImportNpcTemplates(items: any[]): Promise<{ count: number }> {
-  return apiFetch<{ count: number }>('/templates', {
+export async function batchImportNpcTemplates(
+  items: any[],
+  options: { overwrite?: boolean } = {},
+): Promise<{ count: number; overwrite?: boolean }> {
+  return apiFetch<{ count: number; overwrite?: boolean }>('/templates', {
     method: 'POST',
-    body: JSON.stringify(items),
+    body: JSON.stringify(options.overwrite ? { overwrite: true, items } : items),
   });
 }
 
