@@ -277,7 +277,7 @@ export default function CombatSession() {
   const { combatInventories, getEffectiveAc } = useCombatInventories(record);
 
   // HP / 昏迷 / 死亡豁免待办生命周期：由 hook 接管
-  const { handleApplyDamage, autoFillDownedMarkers } = useDamageAndHp(record, {
+  const { handleApplyDamage, handleApplyHealing, autoFillDownedMarkers } = useDamageAndHp(record, {
     currentTurn,
     playbackMode: record?.mode === 'playback',
   });
@@ -355,8 +355,8 @@ export default function CombatSession() {
     getEffectiveAc,
     canUseAction: (id: string) => canUseAction(id),
     consumeCombatantAction: (id: string) => consumeCombatantAction(id),
-    handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead', damageAmount?: number) =>
-      handleApplyDamage(targetId, newHp, status, damageAmount),
+    handleApplyDamage: (event) => handleApplyDamage(event),
+    handleApplyHealing,
     recordOperation,
   });
 
@@ -1183,16 +1183,26 @@ export default function CombatSession() {
           isCritical={damageModal.isCritical}
           isTwoHandedWield={damageModal.isTwoHandedWield}
           onApplyDamage={({ damage, newHp, status, resolution }) => {
-            // 1. 应用 HP / 状态
-            handleApplyDamage(damageModal.target.id, newHp, status, damage);
+            // 1. 应用 HP / 状态：伤害量由攻击方结算结果直接传入
+            const result = handleApplyDamage({
+              targetId: damageModal.target.id,
+              amount: damage,
+              status,
+              sourceId: damageModal.attacker.id,
+              sourceName: damageModal.attacker.name,
+              sourceKind: 'weapon',
+              damageType: damageModal.attack.damageType,
+            });
             // 2. 记录操作（放映写表格 / 模拟写日志，简化格式 + 目标 HP 变动）
-            const oldHp = damageModal.target.currentHp;
+            const oldHp = result?.oldHp ?? damageModal.target.currentHp;
+            const actualNewHp = result?.newHp ?? newHp;
             let text = `《${damageModal.attack.name}》→ ${damageModal.target.name}：【${damage}】伤害`;
-            if (oldHp != null) text += `，HP【${oldHp}→${newHp}】`;
+            if (oldHp != null) text += `，HP【${oldHp}→${actualNewHp}】`;
+            if (result?.tempAbsorbed) text += `，临时HP吸收${result.tempAbsorbed}`;
             const breakdown = formatDamageBreakdown(resolution);
             if (breakdown) text += `，${breakdown}`;
-            if (status === 'unconscious') text += '，击昏';
-            else if (status === 'dead') text += '，杀死';
+            if (result?.status === 'unconscious') text += '，击昏';
+            else if (result?.status === 'dead') text += '，杀死';
             recordOperation(damageModal.attacker.id, text, 'damage');
             // 3. 投掷武器掉落：命中也掉落
             const bg = record ? battlegroundStore.get(record.id) : null;
@@ -1238,10 +1248,20 @@ export default function CombatSession() {
             payload.targetResults.forEach(tr => {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
-              const status = (!c.isPc && tr.effectType === 'damage' && tr.newHp <= 0)
-                ? 'unconscious' as const
-                : undefined;
-              handleApplyDamage(tr.combatantId, tr.newHp, status, tr.effectType === 'damage' ? tr.finalValue : undefined);
+              if (tr.effectType === 'damage') {
+                const status = (!c.isPc && tr.newHp <= 0) ? 'unconscious' as const : undefined;
+                handleApplyDamage({
+                  targetId: tr.combatantId,
+                  amount: tr.finalValue,
+                  status,
+                  sourceId: spellModal.caster.id,
+                  sourceName: spellModal.caster.name,
+                  sourceKind: 'spell',
+                  damageType: tr.damageType ?? undefined,
+                });
+              } else {
+                handleApplyHealing(tr.combatantId, tr.finalValue);
+              }
             });
             // 摘要文本（FlowRunStep 生成的单行紧凑文本）；专注替换备注追加在末尾
             let flowSummary = payload.summary;
@@ -1260,8 +1280,20 @@ export default function CombatSession() {
             if (isBonusActionCast(info.castingTime)) {
               consumeCombatantBonusAction(spellModal.caster.id);
             }
-            // 1. 应用 HP / 状态（伤害扣血、治疗加血，handleApplyDamage 直接覆盖 newHp）
-            handleApplyDamage(spellModal.target.id, info.newHp, info.status, info.effectType === 'damage' ? info.amount : undefined);
+            // 1. 应用 HP / 状态：伤害/治疗量由施法方结算结果直接传入
+            if (info.effectType === 'damage') {
+              handleApplyDamage({
+                targetId: spellModal.target.id,
+                amount: info.amount,
+                status: info.status,
+                sourceId: spellModal.caster.id,
+                sourceName: spellModal.caster.name,
+                sourceKind: 'spell',
+                damageType: info.damageType,
+              });
+            } else {
+              handleApplyHealing(spellModal.target.id, info.amount);
+            }
             // 2. 专注类法术成功施展 → 声明/替换专注（失败不触发）
             let concNote: string | null = null;
             if (info.concentration && info.success) {

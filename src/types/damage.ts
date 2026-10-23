@@ -95,6 +95,43 @@ export interface DamageSource {
   adamantine?: boolean;
 }
 
+/**
+ * 一次伤害应用事件：由攻击方在结算完成后构造，伤害量是攻击方已知的最终值
+ * （抗性/易伤后、临时 HP 吸收前），不依赖目标 HP 差值反推。
+ */
+export interface DamageApplication {
+  targetId: string;
+  /** 最终伤害量（抗性/易伤后、临时 HP 吸收前） */
+  amount: number;
+  /** 攻击方身份，用于专注豁免待办与日志 */
+  sourceId?: string;
+  sourceName?: string;
+  sourceKind?: DamageSourceKind | 'manual';
+  damageType?: string;
+  /** 致命时由攻击方指定的目标状态 */
+  status?: 'unconscious' | 'dead';
+}
+
+/** 伤害应用结果：实际落地后的目标状态，供日志与界面复用 */
+export interface DamageApplyResult {
+  targetId: string;
+  oldHp: number;
+  newHp: number;
+  /** 本次最终伤害量（含被临时 HP 吸收的部分） */
+  damage: number;
+  tempAbsorbed: number;
+  tempHpAfter: number;
+  status?: 'unconscious' | 'dead';
+}
+
+/** 治疗应用结果 */
+export interface HealApplyResult {
+  targetId: string;
+  oldHp: number;
+  newHp: number;
+  healed: number;
+}
+
 export type AffinityKind = 'resistance' | 'vulnerability' | 'immunity';
 
 /** 单次结算的最终亲和结果；both = 抗性与易伤同时命中 */

@@ -1,5 +1,6 @@
 import combatStore from '@/data/combatStore';
-import type { CombatRecord, Combatant } from '@/types/combat';
+import type { CombatRecord } from '@/types/combat';
+import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
 
 export interface UseDamageAndHpProps {
   currentTurn: { round: number; combatantId: string } | null;
@@ -12,46 +13,27 @@ export function useDamageAndHp(
 ) {
   const { currentTurn, playbackMode } = props;
 
-  /**
-   * 应用伤害：写入 combatant HP / 昏迷/死亡状态，自动管理死亡豁免待办生命周期。
-   * PC HP ≤ 0 未传 status 时自动判定为昏迷。
-   */
-  const handleApplyDamage = (
+  /** 写入目标 HP / 存活状态，返回更新后的参战者数组 */
+  const writeCombatantHp = (
     targetId: string,
     newHp: number,
-    status?: 'unconscious' | 'dead',
-    damageAmount?: number,
+    tempHpAfter: number,
+    status: 'unconscious' | 'dead' | undefined,
+    wasUnconscious: boolean,
   ) => {
-    if (!record) return;
-    const target = record.combatants.find(c => c.id === targetId);
-    const wasUnconscious = target?.isUnconscious ?? false;
-    const isPc = target?.isPc ?? false;
-
-    // 临时生命值先于当前生命值扣减（D&D 5e）。damageAmount 用于保留溢出伤害：
-    // 调用方常把 newHp 钳到 0，仅靠 oldHp - newHp 会丢失“超杀”部分，导致临时 HP 吸收过多。
-    const oldHp = target?.currentHp ?? 0;
-    const incomingDamage = Math.max(0, damageAmount ?? (oldHp - newHp));
-    const tempHpBefore = Math.max(0, target?.tempHp ?? 0);
-    const tempAbsorbed = Math.min(tempHpBefore, incomingDamage);
-    const tempHpAfter = tempHpBefore - tempAbsorbed;
-    const effectiveHp = incomingDamage > 0
-      ? Math.max(0, oldHp - (incomingDamage - tempAbsorbed))
-      : newHp;
-    const effectiveStatus: 'unconscious' | 'dead' | undefined =
-      effectiveHp <= 0
-        ? (status ?? (isPc ? 'unconscious' : undefined))
-        : undefined;
-
-    const updatedCombatants = record.combatants.map(c => {
+    if (!record) return [];
+    const latest = combatStore.get(record.id);
+    if (!latest) return [];
+    const updatedCombatants = latest.combatants.map(c => {
       if (c.id !== targetId) return c;
-      if (effectiveHp <= 0 && effectiveStatus === 'dead') {
-        return { ...c, currentHp: effectiveHp, tempHp: tempHpAfter, isDead: true, isUnconscious: false };
+      if (newHp <= 0 && status === 'dead') {
+        return { ...c, currentHp: newHp, tempHp: tempHpAfter, isDead: true, isUnconscious: false };
       }
-      if (effectiveHp <= 0 && effectiveStatus === 'unconscious') {
+      if (newHp <= 0 && status === 'unconscious') {
         const firstDown = !wasUnconscious;
         return {
           ...c,
-          currentHp: effectiveHp,
+          currentHp: newHp,
           tempHp: tempHpAfter,
           isDead: false,
           isUnconscious: true,
@@ -61,7 +43,7 @@ export function useDamageAndHp(
       }
       return {
         ...c,
-        currentHp: effectiveHp,
+        currentHp: newHp,
         tempHp: tempHpAfter,
         isDead: false,
         isUnconscious: false,
@@ -70,16 +52,41 @@ export function useDamageAndHp(
       };
     });
     combatStore.update(record.id, { combatants: updatedCombatants, updatedAt: Date.now() });
+    return updatedCombatants;
+  };
 
-    // 专注豁免（D&D 5e）：非失能性伤害且 HP 仍 > 0 时触发体质豁免，
-    // DC = max(10, floor(伤害/2))。HP 归零时专注直接被失能/昏迷打断（cleanup 清除），豁免失去意义。
-    const updatedTarget = updatedCombatants.find(c => c.id === targetId);
-    // 专注 DC 基于承受的伤害量（含被临时 HP 吸收的部分），而非当前 HP 实际降幅
-    if (playbackMode && incomingDamage > 0 && effectiveHp > 0 && updatedTarget?.concentration) {
-      const dc = Math.max(10, Math.floor(incomingDamage / 2));
+  /**
+   * 应用伤害：伤害量由攻击方显式传入（抗性/易伤后、临时 HP 吸收前），
+   * 不再用目标 HP 差值反推。临时 HP 先吸收，剩余扣当前 HP。
+   */
+  const handleApplyDamage = (event: DamageApplication): DamageApplyResult | null => {
+    if (!record) return null;
+    const latest = combatStore.get(record.id);
+    const target = latest?.combatants.find(c => c.id === event.targetId);
+    if (!latest || !target) return null;
+
+    const wasUnconscious = target.isUnconscious ?? false;
+    const isPc = target.isPc ?? false;
+    const oldHp = target.currentHp ?? 0;
+    const damage = Math.max(0, Math.floor(event.amount));
+    const tempHpBefore = Math.max(0, target.tempHp ?? 0);
+    const tempAbsorbed = Math.min(tempHpBefore, damage);
+    const tempHpAfter = tempHpBefore - tempAbsorbed;
+    const hpDamage = damage - tempAbsorbed;
+    const newHp = Math.max(0, oldHp - hpDamage);
+    const status: 'unconscious' | 'dead' | undefined =
+      newHp <= 0 ? (event.status ?? (isPc ? 'unconscious' : undefined)) : undefined;
+
+    const updatedCombatants = writeCombatantHp(event.targetId, newHp, tempHpAfter, status, wasUnconscious);
+
+    // 专注豁免（D&D 5e）：DC = max(10, floor(承受伤害/2))。
+    // 伤害量来自攻击方结算，包含被临时 HP 吸收的部分；HP 归零时专注直接中断。
+    const updatedTarget = updatedCombatants.find(c => c.id === event.targetId);
+    if (playbackMode && damage > 0 && newHp > 0 && updatedTarget?.concentration) {
+      const dc = Math.max(10, Math.floor(damage / 2));
       const startRound = currentTurn ? currentTurn.round : 0;
       combatStore.addTurnTodo(record.id, {
-        combatantId: targetId,
+        combatantId: event.targetId,
         name: `专注豁免：${updatedTarget.concentration.spellName}`,
         type: 'concentration_save',
         startRound,
@@ -88,31 +95,66 @@ export function useDamageAndHp(
           dc,
           spellName: updatedTarget.concentration.spellName,
           ability: 'constitution',
+          damage,
+          sourceId: event.sourceId,
+          sourceName: event.sourceName,
+          sourceKind: event.sourceKind,
+          damageType: event.damageType,
         },
       });
     }
 
-    if (playbackMode && isPc) {
-      const nowDown = effectiveHp <= 0 && effectiveStatus === 'unconscious';
-      if (nowDown) {
-        const existing = combatStore.get(record.id)?.turnTodos?.some(
-          t => t.type === 'death_save' && t.combatantId === targetId,
-        );
-        if (!existing) {
-          const startRound = currentTurn ? currentTurn.round : 0;
-          combatStore.addTurnTodo(record.id, {
-            combatantId: targetId,
-            name: '死亡豁免',
-            type: 'death_save',
-            startRound,
-            endRound: -1,
-          });
-        }
+    if (playbackMode && isPc && newHp <= 0 && status === 'unconscious') {
+      const existing = combatStore.get(record.id)?.turnTodos?.some(
+        t => t.type === 'death_save' && t.combatantId === event.targetId,
+      );
+      if (!existing) {
+        const startRound = currentTurn ? currentTurn.round : 0;
+        combatStore.addTurnTodo(record.id, {
+          combatantId: event.targetId,
+          name: '死亡豁免',
+          type: 'death_save',
+          startRound,
+          endRound: -1,
+        });
       }
     }
+
     if (playbackMode) autoFillDownedMarkers();
     combatStore.cleanupDeathSaveTodos(record.id);
     combatStore.cleanupBrokenConcentration(record.id);
+
+    return {
+      targetId: event.targetId,
+      oldHp,
+      newHp,
+      damage,
+      tempAbsorbed,
+      tempHpAfter,
+      status,
+    };
+  };
+
+  /** 应用治疗：数值由施法/恢复方显式传入，HP 不超过上限，临时 HP 保持不变 */
+  const handleApplyHealing = (targetId: string, amount: number): HealApplyResult | null => {
+    if (!record) return null;
+    const latest = combatStore.get(record.id);
+    const target = latest?.combatants.find(c => c.id === targetId);
+    if (!latest || !target) return null;
+
+    const wasUnconscious = target.isUnconscious ?? false;
+    const oldHp = target.currentHp ?? 0;
+    const maxHp = target.maxHp ?? oldHp;
+    const healedAmount = Math.max(0, Math.floor(amount));
+    const newHp = Math.min(maxHp, oldHp + healedAmount);
+    const tempHpAfter = Math.max(0, target.tempHp ?? 0);
+
+    writeCombatantHp(targetId, newHp, tempHpAfter, undefined, wasUnconscious);
+
+    if (playbackMode) autoFillDownedMarkers();
+    combatStore.cleanupDeathSaveTodos(record.id);
+
+    return { targetId, oldHp, newHp, healed: newHp - oldHp };
   };
 
   /**
@@ -138,5 +180,5 @@ export function useDamageAndHp(
     if (changed) combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
   };
 
-  return { handleApplyDamage, autoFillDownedMarkers };
+  return { handleApplyDamage, handleApplyHealing, autoFillDownedMarkers };
 }

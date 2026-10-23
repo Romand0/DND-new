@@ -31,7 +31,7 @@ src/pages/CombatSession.tsx（组装层，1580 行）
 | 2 | `usePlayback`（L171） | `(record, props)` props 含 useRoundTurn 的 playbackStarted/currentTurn 直传 | playbackPaused、pausedTurnRef、playbackSnapshotRef、exitPlaybackModalOpen、pendingRestartPlayback | commitModeChange、handleModeChange、finalizeExitPlayback、pausePlayback、resumePlayback、startPlayback、handleRestartPlayback、startPlaybackFromBeginning |
 | 3 | `useActions`（L197） | `(record, { playbackStarted, playbackPaused, currentTurn })` | 无（纯计算 + store 写入） | currentMode、isPlaybackActive、canUseAction、canUseBonusAction、consumeCombatantAction、consumeCombatantBonusAction、markLoadingAttacked、resetCombatantActions |
 | 4 | `useCombatInventories`（L275） | `(record)` | 无 | combatInventories（背包派生 Memo）、getEffectiveAc |
-| 5 | `useDamageAndHp`（L278） | `(record, props)` | 无 | handleApplyDamage（含死亡豁免待办触发）、autoFillDownedMarkers |
+| 5 | `useDamageAndHp`（L278） | `(record, props)` | 无 | handleApplyDamage（DamageApplication 事件：伤害量/来源/状态，含死亡豁免待办触发）、handleApplyHealing、autoFillDownedMarkers |
 | 6 | `useThrownDrop`（L284） | `(recordId)` | 无 | executeThrownDrop（显式 `record` 入参，返回 ItemToken）、calcThrownDropPos、chebyDist |
 | 7 | `useSurprise`（L316） | `(record, props)` | surpriseAttackOpen、surpriseAttackRound、surprisedCombatants | openSurpriseAttackModal、closeSurpriseAttackModal、toggleSurprisedCombatant、confirmSurpriseAttack（onConfirmed 联动从头播放） |
 | 8 | `useManualRecord`（L340） | `(record, props)` | manualRecord* 9 组弹窗 state | confirmManualRecord、cancelManualRecord |
