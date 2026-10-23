@@ -465,13 +465,15 @@ newTranslate = startTranslate + (startScale - newScale) × startMid + (curMid - 
 
 ### 5.9 状态驱动待办自动生命周期：`death_save` 模式
 
-**为什么用**：死亡豁免（D&D 5e 标准规则）是「状态触发型」待办——PC HP 归零进入昏迷的瞬间就应该开始提醒，HP 恢复或死亡时自动结束。靠 DM 手动 add/remove 待办极易漏。把触发条件编码到 `handleApplyDamage` 里：检测到 `target.isPc && newHp<=0 && status==='unconscious'` 时自动 `addTurnTodo`，HP 变化后调 `cleanupDeathSaveTodos` 让待办随状态结束。
+**为什么用**：死亡豁免（D&D 5e 标准规则）是「状态触发型」待办——PC HP 归零进入昏迷的瞬间就应该开始提醒，HP 恢复或死亡时自动结束。靠 DM 手动 add/remove 待办极易漏。把触发条件编码到 `handleApplyDamage` 里：检测到 `target.isPc && result.newHp<=0 && result.status==='unconscious'` 时自动 `addTurnTodo`，HP 变化后调 `cleanupDeathSaveTodos` 让待办随状态结束。
 
 **终止条件编码在 store 而非 todo 字段**：用户需求里写「终止条件：HP>0」是**业务规则**，不是 todo 数据结构里的 `endRound`。`TurnTodo.endRound=-1`（无限期）+ `cleanupDeathSaveTodos` 的状态扫描一起实现「状态终止」。这样 `resetTurnTodosForRound` 的回合重置逻辑不会误清状态型待办，待办只在 `cleanup` 显式判定终止时移除。
 
 **昏迷 PC 仍要推进回合**：`findNextValidTurn` 默认跳过 `昏迷` 单元格（昏迷角色不能行动），但带未执行 `death_save` 待办的昏迷 PC 例外——D&D 5e 规定昏迷角色在自己回合开始时做死亡豁免。所以 `findNextValidTurn` 增加例外分支：`昏迷` 单元格若对应 combatant 有 active death_save todo（`!executed && startRound<=round && endRound=-1||>=round`），仍返回该回合。掷骰后 `executed=true`，本回合后续扫描自然跳过；下一回合 `resetTurnTodosForRound` 重置为 false，PC 回合再次推进。
 
 **做新的状态触发型待办时**（比如「中毒每回合扣血」「断魂术每回合检定」）：复用这套模式——在 HP / 状态变更点（`handleApplyDamage` 或类似入口）调 `addTurnTodo` + `cleanupXxxTodos`，让待办与角色状态绑定，而不是让 DM 手动管理生命周期。
+
+伤害落地统一走 `handleApplyDamage(DamageApplication)`：攻击方把结算后的最终伤害量、来源、致命状态一并传入，hook 内部处理临时 HP 吸收、HP 写入、死亡豁免与专注豁免；治疗走 `handleApplyHealing(targetId, amount)`。不要在调用方用 `newHp` 差值反推伤害量。
 
 ### 5.10 受控输入 hook：`useNumberInput` / `useTextInput`（`hooks/useInput.ts`）
 

@@ -406,10 +406,20 @@ export interface TurnTodo {
   endRound: number; // -1 = 无限期
   executed: boolean;
   /**
-   * 类型专属附加数据。'concentration_save' 携带 { dc, spellName, ability }，
+   * 类型专属附加数据。'concentration_save' 携带 DC、维持的法术与本次伤害来源，
    * 豁免结算（applyConcentrationSaveResult）从这里读 DC；其他类型可不带。
    */
-  payload?: { dc?: number; spellName?: string; ability?: string };
+  payload?: {
+    dc?: number;
+    spellName?: string;
+    ability?: string;
+    /** 本次承受的最终伤害量（抗性后、临时 HP 吸收前） */
+    damage?: number;
+    sourceId?: string;
+    sourceName?: string;
+    sourceKind?: string;
+    damageType?: string;
+  };
 }
 
 export interface CombatRecord {

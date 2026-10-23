@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { CombatRecord, OperationLogEntry } from '@/types/combat';
+import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
 
 export interface UseManualRecordProps {
   selectedCell: { round: number; combatantId: string } | null;
@@ -7,7 +8,8 @@ export interface UseManualRecordProps {
   canUseAction: (id: string) => boolean;
   consumeCombatantAction: (id: string) => void;
   getEffectiveAc: (c: any) => number;
-  handleApplyDamage: (targetId: string, newHp: number, status?: 'unconscious' | 'dead', damageAmount?: number) => void;
+  handleApplyDamage: (event: DamageApplication) => DamageApplyResult | null;
+  handleApplyHealing: (targetId: string, amount: number) => HealApplyResult | null;
   /** 统一记录入口（放映写表格 / 模拟写日志） */
   recordOperation: (combatantId: string | null, text: string, kind: OperationLogEntry['kind']) => void;
 }
@@ -16,7 +18,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
   const {
     selectedCell, setSelectedCell,
     canUseAction, consumeCombatantAction,
-    getEffectiveAc, handleApplyDamage, recordOperation,
+    getEffectiveAc, handleApplyDamage, handleApplyHealing, recordOperation,
   } = props;
 
   const [manualRecordOpen, setManualRecordOpen] = useState(false);
@@ -59,20 +61,24 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         text = `《${manualAttackMethod}》→ ${target.name}：【${dmg}】伤害`;
         if (target.currentHp !== undefined) {
           const oldHp = target.currentHp;
-          // 预览与落地一致：临时 HP 先吸收，剩余伤害再扣当前 HP
           const tempHp = Math.max(0, target.tempHp ?? 0);
-          const tempAbsorbed = Math.min(tempHp, dmg);
-          const newHp = Math.max(0, oldHp - (dmg - tempAbsorbed));
-          text += `，HP【${oldHp}→${manualIsKill ? 0 : newHp}】`;
-          if (tempAbsorbed > 0) text += `，临时HP吸收${tempAbsorbed}`;
-          if (manualIsKill) {
-            const status: 'unconscious' | 'dead' = target.isPc ? 'unconscious' : 'dead';
-            // 手动击倒优先于临时 HP：补足穿透伤害确保 HP 归零
-            handleApplyDamage(target.id, newHp, status, Math.max(dmg, tempAbsorbed + oldHp));
-            text += target.isPc ? `，击昏` : `，杀死`;
-          } else {
-            handleApplyDamage(target.id, newHp, undefined, dmg);
-          }
+          const status: 'unconscious' | 'dead' | undefined = manualIsKill
+            ? (target.isPc ? 'unconscious' : 'dead')
+            : undefined;
+          // 手动击倒优先于临时 HP：补足穿透伤害确保 HP 归零
+          const amount = manualIsKill ? Math.max(dmg, oldHp + tempHp) : dmg;
+          const result = handleApplyDamage({
+            targetId: target.id,
+            amount,
+            status,
+            sourceId: attacker?.id,
+            sourceName: manualAttackMethod,
+            sourceKind: 'manual',
+          });
+          const newHp = result?.newHp ?? Math.max(0, oldHp - dmg);
+          text += `，HP【${oldHp}→${newHp}】`;
+          if (result?.tempAbsorbed) text += `，临时HP吸收${result.tempAbsorbed}`;
+          if (manualIsKill) text += target.isPc ? `，击昏` : `，杀死`;
         } else if (manualIsKill) {
           alert('目标缺少当前 HP，无法判定击倒');
           return;
@@ -94,8 +100,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       const tgt = record.combatants.find(c => c.id === targetHpId);
       if (!tgt) return;
       const oldHp = tgt.currentHp;
-      const newHp = Math.min(tgt.maxHp ?? oldHp ?? 0, (oldHp ?? 0) + amount);
-      handleApplyDamage(tgt.id, newHp);
+      const result = handleApplyHealing(tgt.id, amount);
+      const newHp = result?.newHp ?? Math.min(tgt.maxHp ?? oldHp ?? 0, (oldHp ?? 0) + amount);
       const isSelf = targetHpId === combatantId;
       let text = isSelf
         ? `《${manualHealMethod}》→ 自己：【+${amount}】生命`

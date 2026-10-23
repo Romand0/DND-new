@@ -647,9 +647,18 @@ function ConcentrationSaveDialog({
         <p className="text-sm dark:text-text-dark light:text-text-light mb-1">
           {cName} · 正在维持「{spellName}」
         </p>
-        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-3">
-          DC {dc} · 体质调整值 {conMod >= 0 ? `+${conMod}` : conMod}
-        </p>
+        <div className="mb-3">
+          <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+            DC {dc} · 体质调整值 {conMod >= 0 ? `+${conMod}` : conMod}
+          </p>
+          {todo.payload?.damage != null && (
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+              承受伤害 {todo.payload.damage}
+              {todo.payload.damageType ? ` · ${todo.payload.damageType}` : ''}
+              {todo.payload.sourceName ? ` · 来源 ${todo.payload.sourceName}` : ''}
+            </p>
+          )}
+        </div>
 
         <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-3">
           d20 + 体质调整值 ≥ DC 则维持专注；失败则法术中断。
