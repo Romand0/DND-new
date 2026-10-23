@@ -28,7 +28,8 @@ export type StatusManagerWithApply = StatusManager & {
     targetId: string,
     statusId: string,
     scope?: StatusScope,
-    combatId?: string
+    combatId?: string,
+    options?: { instanceEffects?: Effect[]; durationRounds?: number }
   ): StatusInstance;
 };
 
@@ -158,9 +159,19 @@ export function createStatusManager(): StatusManagerWithApply {
       const effects: Effect[] = [];
 
       for (const instance of activeInstances) {
+        // 读时惰性过期：advanceRound 未被调用（如模拟模式）时，时间届满的实例视为已结束
+        if (instance.expiresAt && Date.now() >= instance.expiresAt) {
+          this.declareEnd(instance.instanceId);
+          continue;
+        }
         const definition = statusLibrary.get(instance.definitionId);
         if (definition) {
           effects.push(...definition.effects);
+        }
+        // 实例级效果（applyEffect options 注入）：通用状态的参数载体
+        const instanceEffects = instance.metadata?.effects;
+        if (Array.isArray(instanceEffects)) {
+          effects.push(...(instanceEffects as Effect[]));
         }
       }
 
@@ -173,21 +184,33 @@ export function createStatusManager(): StatusManagerWithApply {
      * 应用状态到参战者（自动联动 canGesticulate / canSpeak）
      * 当施加的状态在 SOMATIC_BLOCKING_STATES 中时，会在返回结果中携带
      * 需要联动更新的参战者字段，由调用方负责写入 combatStore。
+     *
+     * options.instanceEffects：实例级效果（如流程注入的 damage_resistance config），
+     * getEffects 时与 definition.effects 合并——通用状态（damage_affinity）靠它
+     * 携带具体参数，状态库零改动。
+     * options.durationRounds：按回合计时的持续时间，>0 时注入 expiresAt
+     * （definition.duration 恒为 permanent 的通用状态由这里驱动消退）。
      */
     applyEffect(
       targetId: string,
       statusId: string,
       scope: StatusScope = 'combat',
-      combatId?: string
+      combatId?: string,
+      options?: { instanceEffects?: Effect[]; durationRounds?: number }
     ): StatusInstance {
       // 应用状态
       const instance = this.declareStart(statusId, targetId, scope, combatId);
 
-      // 当施加以下状态时，自动设置 canGesticulate = false
       const definition = statusLibrary.get(statusId);
 
       if (definition?.combatantPatch) {
         instance.metadata = { ...instance.metadata, combatantPatch: definition.combatantPatch };
+      }
+      if (options?.instanceEffects && options.instanceEffects.length > 0) {
+        instance.metadata = { ...instance.metadata, effects: options.instanceEffects };
+      }
+      if (options?.durationRounds && options.durationRounds > 0) {
+        instance.expiresAt = Date.now() + options.durationRounds * 6000;
       }
 
       return instance;

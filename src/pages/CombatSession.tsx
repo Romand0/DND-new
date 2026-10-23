@@ -27,6 +27,7 @@ import {
   getCombatInventory,
 } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
+import { globalStatusManager } from '@/data/statusManager';
 import { formatDamageBreakdown } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
@@ -1248,6 +1249,16 @@ export default function CombatSession() {
             payload.targetResults.forEach(tr => {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
+              if (tr.effectType === 'status') {
+                // 状态落地：通用伤害修饰引擎（实例级效果 + 回合时长由流程注入）
+                if (tr.statusId) {
+                  globalStatusManager.applyEffect(tr.combatantId, tr.statusId, 'combat', record?.id, {
+                    ...(tr.statusEffects && tr.statusEffects.length > 0 ? { instanceEffects: tr.statusEffects } : {}),
+                    ...(tr.durationRounds && tr.durationRounds > 0 ? { durationRounds: tr.durationRounds } : {}),
+                  });
+                }
+                return;
+              }
               if (tr.effectType === 'damage') {
                 const status = (!c.isPc && tr.newHp <= 0) ? 'unconscious' as const : undefined;
                 handleApplyDamage({
@@ -1259,7 +1270,7 @@ export default function CombatSession() {
                   sourceKind: 'spell',
                   damageType: tr.damageType ?? undefined,
                 });
-              } else {
+              } else if (tr.effectType === 'healing') {
                 handleApplyHealing(tr.combatantId, tr.finalValue);
               }
             });

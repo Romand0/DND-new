@@ -287,6 +287,33 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'star',
       },
     });
+
+    // 通用伤害修饰状态（引擎）：抗性/免疫/易伤的载体实例。具体伤害类型、来源限制、
+    // 持续时长全部由施加方（流程 apply_effect status 节点）注入 instance.metadata，
+    // 经 combatAffinities.buildStatusAffinities 合并进伤害结算——新增防护类法术
+    // 只需配节点参数，状态库零改动。
+    // 约定：instance.metadata.effects: Effect[]（type: damage_resistance 等，
+    // config: { types?, sourceKind?, magical?...}）；durationRounds>0 时注入 expiresAt。
+    this.register({
+      id: 'damage_affinity',
+      name: '伤害修饰',
+      description: '临时性的伤害抗性/免疫/易伤效果载体，具体类型由施加方定义。',
+      shortDescription: '临时伤害修饰',
+      startTrigger: {
+        type: 'manual',
+        description: '由流程施放（如防护类法术）或 DM 手动附加。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '持续时间届满自动消退，或手动解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'amber',
+        icon: 'shield',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {

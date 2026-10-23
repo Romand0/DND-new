@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { CombatRecord, Combatant, RoundAction, TurnSnapshot, OperationLogEntry } from '@/types/combat';
 import battlegroundStore from '@/data/battlegroundStore';
 import combatStore from '@/data/combatStore';
+import { globalStatusManager } from '@/data/statusManager';
 import * as snapDb from '@/lib/combatSnapshots';
 
 // 再导出共享类型：stale usePlayback（P4 迁移前）仍从此处 import TurnSnapshot
@@ -176,6 +177,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     }
     // 检查是否需要新开一轮
     const nextRound = currentTurn.round + 1;
+    // 回合推进时清扫按回合计时的状态实例（通用伤害修饰等：expiresAt 时间比对）
+    globalStatusManager.advanceRound(record.id);
     if (nextRound >= record.rounds.length) {
       const newRound: RoundAction = {};
       record.combatants.forEach(c => {

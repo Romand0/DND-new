@@ -28,10 +28,38 @@ import { parseDice } from '@/utils/diceExpr';
 import { evaluateExpression } from '@/lib/flowExpression';
 import { createUntypedResolution, normalizeDamageType, resolveDamage } from '@/data/damageRules';
 import { getCombatantAffinities } from '@/data/combatAffinities';
+import statusLibrary from '@/data/statusLibrary';
+import type { Effect } from '@/types/status';
 import type { DamageSource, DamageType } from '@/types/damage';
 
 /** 六属性全名（AbilityKey 收窄用） */
 const ABILITY_KEYS: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+
+/** 通用伤害修饰状态 ID（statusLibrary 注册，抗性/免疫/易伤实例的统一载体） */
+const GENERIC_AFFINITY_STATUS_ID = 'damage_affinity';
+
+/** 伤害类型中文标签（摘要文本用） */
+const DAMAGE_TYPE_LABELS: Record<string, string> = {
+  bludgeoning: '钝击', piercing: '穿刺', slashing: '挥砍', fire: '火焰', cold: '寒冷',
+  lightning: '闪电', acid: '酸蚀', poison: '毒素', force: '力场', necrotic: '黯蚀',
+  radiant: '光耀', psychic: '心灵', thunder: '雷鸣',
+};
+
+const SOURCE_KIND_LABELS: Record<string, string> = { weapon: '武器', spell: '法术', effect: '效果' };
+
+/** 生成人类可读的效果描述（摘要/状态说明共用） */
+function buildAffinityDescription(
+  affinityKind: string,
+  types: string[],
+  sourceKind?: string
+): string {
+  const kindLabel = affinityKind === 'immunity' ? '免疫' : affinityKind === 'vulnerability' ? '易伤' : '抗性';
+  const scopeLabel = sourceKind ? `${SOURCE_KIND_LABELS[sourceKind] ?? sourceKind}攻击造成的` : '';
+  const typesLabel = types.length > 0
+    ? types.map(t => DAMAGE_TYPE_LABELS[t] ?? t).join('/')
+    : '全部类型';
+  return `获得${kindLabel}：${scopeLabel}${typesLabel}伤害`;
+}
 
 /** 从 Character.abilities 安全取属性调整值（AbilityScore {score, modifier}） */
 function abilityModifier(char: Character, ability: string): number {
@@ -812,6 +840,96 @@ export class FlowCompiler {
     const value = config?.value || '0';
     const damageType = config?.damageType || '';
     const halfDamageOnSave = config?.halfDamageOnSave === true;
+
+    // 状态附加（通用伤害修饰引擎）：节点配置 affinityKind/damageTypes/sourceKind/durationRounds
+    // → 产出待落地记录（statusId 固定 damage_affinity + 实例级 effects），由战斗确认侧
+    // （CombatSession.onFlowResolved）统一调 globalStatusManager.applyEffect 写入。
+    // 与 HP 同款「编译器不落库」原则：重复执行预演不会叠加施加状态。
+    // 新增防护类法术（任意伤害类型/来源组合）只需配节点参数，状态库与编译器零改动。
+    if (effectType === 'status') {
+      const affinityKind = String(config?.affinityKind ?? 'resistance');
+      const effectTypeMap: Record<string, Effect['type']> = {
+        resistance: 'damage_resistance',
+        immunity: 'damage_immunity',
+        vulnerability: 'damage_vulnerability',
+      };
+      const mappedEffectType = effectTypeMap[affinityKind];
+      if (!mappedEffectType) {
+        return {
+          status: 'failure',
+          output: { error: `未知的伤害修饰类型「${affinityKind}」（可选 resistance/immunity/vulnerability）` },
+        };
+      }
+      const types = String(config?.damageTypes ?? '')
+        .split(/[,，、\s]+/)
+        .map(s => s.trim())
+        .filter(Boolean);
+      const sourceKindRaw = String(config?.sourceKind ?? '');
+      const sourceKind = ['weapon', 'spell', 'effect'].includes(sourceKindRaw) ? sourceKindRaw : undefined;
+      const durationRounds = Math.max(0, Math.floor(Number(config?.durationRounds ?? 0)) || 0);
+
+      const effect: Effect = {
+        id: `flow.damage_affinity.${affinityKind}`,
+        type: mappedEffectType,
+        target: 'self',
+        config: {
+          ...(types.length > 0 ? { types } : {}),
+          ...(sourceKind ? { sourceKind } : {}),
+        },
+        description: buildAffinityDescription(affinityKind, types, sourceKind),
+      };
+      const affinityDefinition = statusLibrary.get(GENERIC_AFFINITY_STATUS_ID);
+      if (!affinityDefinition) {
+        return {
+          status: 'failure',
+          output: { error: '状态库缺少通用伤害修饰状态（damage_affinity），请检查 statusLibrary' },
+        };
+      }
+      const results = context.targets.map((targetId) => {
+        const targetCombatant = this.resolveCombatant(targetId, context);
+        const targetCharacter = this.resolveCharacter(targetId, context);
+        if (!targetCombatant && !targetCharacter) {
+          return { targetId, success: false, effectApplied: false, error: '目标不存在' };
+        }
+        const currentHp = targetCombatant
+          ? (typeof targetCombatant.currentHp === 'number' ? targetCombatant.currentHp : (targetCombatant.maxHp ?? 0))
+          : (targetCharacter?.currentHp ?? 0);
+        return {
+          targetId,
+          success: true,
+          effectApplied: true,
+          effectType: 'status',
+          statusId: GENERIC_AFFINITY_STATUS_ID,
+          statusName: affinityDefinition.name,
+          statusEffects: [effect],
+          durationRounds,
+          effectValue: 0,
+          finalValue: 0,
+          oldHp: currentHp,
+          newHp: currentHp,
+          tempAbsorbed: 0,
+          notes: [] as string[],
+          message: effect.description ?? `附加状态：${affinityDefinition.name}`,
+        };
+      });
+      return {
+        status: 'success',
+        output: {
+          effectType,
+          statusId: GENERIC_AFFINITY_STATUS_ID,
+          statusName: affinityDefinition.name,
+          affinityKind,
+          value: '0',
+          dice: null,
+          results,
+          totalFinal: 0,
+          anyResisted: false,
+          anyImmune: false,
+          anyVulnerable: false,
+          message: `状态附加完成，${results.filter(r => r.success).length}个目标受影响`,
+        },
+      };
+    }
 
     const rolled = await this.rollEffectComponents(config, effectType, diceSource);
     const results = this.applyValueToTargets(

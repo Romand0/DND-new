@@ -10,15 +10,16 @@ import { flowCompiler } from '@/lib/flowCompiler';
 import type { FlowDefinition, FlowExecutionContext, FlowLogEntry, FlowDiceRequest } from '@/types/flow';
 import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
+import type { Effect } from '@/types/status';
 
 /** 单目标结算结果（回传宿主回写参战者 HP） */
 export interface FlowCastTargetResult {
   combatantId: string;
   name: string;
-  effectType: 'damage' | 'healing';
+  effectType: 'damage' | 'healing' | 'status';
   /** 抗性前原始值（保留用于日志/审计） */
   effectValue: number;
-  /** 抗性结算后的最终值（HP 扣减依据） */
+  /** 抗性结算后的最终值（HP 扣减依据；status 恒 0） */
   finalValue: number;
   damageType?: string | null;
   affinitySummary?: string;
@@ -26,6 +27,13 @@ export interface FlowCastTargetResult {
   newHp: number;
   /** 被临时生命值吸收的伤害量（0 表示未触发） */
   tempAbsorbed?: number;
+  /** effectType='status' 时：待落地的状态库 ID（宿主确认后调 globalStatusManager.applyEffect） */
+  statusId?: string;
+  statusName?: string;
+  /** effectType='status' 时：实例级效果规格（通用伤害修饰引擎的参数载体） */
+  statusEffects?: Effect[];
+  /** effectType='status' 时：按回合自动消退的时长（0 = 直到手动解除） */
+  durationRounds?: number;
 }
 
 /** 流程施放完成回传（契约：CombatSession.onFlowResolved 消费） */
@@ -34,7 +42,7 @@ export interface FlowCastPayload {
   castingTime?: string;
   /** 主目标受影响（豁免失败/被命中）；豁免成功或无效果节点时 false */
   success: boolean;
-  effectType: 'damage' | 'heal';
+  effectType: 'damage' | 'heal' | 'status';
   /** 主目标数值（无效果时 0） */
   amount: number;
   targetResults: FlowCastTargetResult[];
@@ -202,7 +210,7 @@ export default function FlowRunStep({
       .map(r => ({
         combatantId: r.targetId,
         name: r.targetName,
-        effectType: r.effectType as 'damage' | 'healing',
+        effectType: r.effectType as 'damage' | 'healing' | 'status',
         effectValue: r.effectValue as number,
         finalValue: (r.finalValue ?? r.effectValue) as number,
         damageType: r.damageType ?? null,
@@ -210,6 +218,10 @@ export default function FlowRunStep({
         notes: Array.isArray(r.notes) ? r.notes : [],
         newHp: r.newHp as number,
         tempAbsorbed: typeof r.tempAbsorbed === 'number' ? r.tempAbsorbed : 0,
+        statusId: typeof r.statusId === 'string' ? r.statusId : undefined,
+        statusName: typeof r.statusName === 'string' ? r.statusName : undefined,
+        statusEffects: Array.isArray(r.statusEffects) ? (r.statusEffects as Effect[]) : undefined,
+        durationRounds: typeof r.durationRounds === 'number' ? r.durationRounds : undefined,
       }));
 
     const mainEffect = effectResults.find(r => r.targetId === target.id) ?? effectResults[0];
@@ -218,14 +230,22 @@ export default function FlowRunStep({
     const success = saveOutput
       ? (mainSave ? (!mainSave.success || halfOnSave) : true)
       : !!mainEffect?.effectApplied;
-    const effectType = effectOutput?.effectType === 'healing' ? 'heal' as const : 'damage' as const;
+    const effectType: 'damage' | 'heal' | 'status' =
+      effectOutput?.effectType === 'healing' ? 'heal' as const
+      : effectOutput?.effectType === 'status' ? 'status' as const
+      : 'damage' as const;
 
     // 摘要（先攻表格单元格宽度有限，保持一行紧凑；《》【】为渲染器标记：法术名/数值高亮）
     const parts: string[] = [];
     if (mainSave) {
       parts.push(mainSave.success ? '豁免通过' : '豁免失败');
     }
-    if (mainEffect && !mainEffect.error && !mainNegated) {
+    if (mainEffect && !mainEffect.error && !mainNegated && effectType === 'status') {
+      const desc = typeof mainEffect.message === 'string' && mainEffect.message
+        ? mainEffect.message
+        : `附加状态【${mainEffect.statusName ?? ''}】`;
+      parts.push(desc);
+    } else if (mainEffect && !mainEffect.error && !mainNegated) {
       const finalValue = mainEffect.finalValue ?? mainEffect.effectValue;
       const affinityLabel = mainEffect.affinitySummary === 'immunity'
         ? '免疫'
