@@ -8,6 +8,15 @@
 
 ## 版块 0：适用范围、产物与权威来源
 
+### 0.0 阶段背景：工具箱建设期，保持引擎意识
+
+当前处于**法术流程开发的初期**：真实法术的效果内容远超预设节点所能涵盖的范围。这是一个**边添加流程、边完善工具箱**的过程——每接一个新法术，都是对现有节点/引擎能力边界的一次探测。因此约定：
+
+1. **机制超出节点能力 ≠ 只能 custom 占位**。先依次评估：(a) 该机制是否是某个通用能力的一个实例（如「对部分伤害类型抗性」是伤害修饰引擎的一个参数组合）？(b) 现有节点加一个配置字段能否覆盖？(c) 是否值得为此新增节点类型（§4 门槛）？
+2. **引擎优先，实例最小化**：能参数化进节点配置/引擎实例的，写入通用载体——statusLibrary 只注册 `damage_affinity` 一条通用伤害修饰状态，具体抗什么/来源限不限/持续多久全部由流程节点配置注入实例；为单个法术在工具箱里开专用条目属于硬编码反模式。
+3. **必要时应与用户讨论**：遇到节点覆盖不了的机制，向用户说明差距与候选方案（配置扩展 / 引擎扩展 / 新节点类型 / custom 占位），共同决定工具箱演进方向后再动代码，避免单方面替工具箱定型。
+4. **回填文档**：每次为工具箱新增能力后，同步更新本文档（§0.5 运行成熟度 / §2.1 节点目录 / §3.1 配置契约），保持「代码 = 权威真相」与文档一致。
+
 ### 0.1 何时使用
 
 - 用户给出一段描述性文本，要求「写成流程 / DSL / 节点图 / 可在控制台创建」。
@@ -148,7 +157,7 @@
 | `saving_throw` | 属性豁免检定 | 产生成功/失败分流 | 有（真实调整值+熟练加值；NPC 目标待 Phase 3） |
 | `attack_roll` | 法术攻击检定 | 产生命中/未命中分流 | 有（真实加值/AC + 自然 20/1；NPC 目标待 Phase 3） |
 | `condition_branch` | 条件分流 | 必须有两个出口 | 有（白名单安全求值器） |
-| `apply_effect` | 伤害/治疗/状态结算 | 效果终点 | 有（完整 NdM+K 掷骰；不与检定结果联动，Phase 3） |
+| `apply_effect` | 伤害/治疗/状态结算 | 效果终点 | 有（完整 NdM+K 掷骰；status 走通用伤害修饰引擎已可落地，见 §3.1） |
 | `scaled_effect` | 分级效果：按施法者角色等级或法术环位自动取值的伤害/治疗 | 效果终点 | 有（分档表取档 + 掷骰；一次掷骰全目标共用） |
 | `concentration_check` | 专注检定（体质 DC 10） | 持续法术收尾 | 有 |
 | `cast_end` | 流程收尾 | 流程出口 | 有（仅日志） |
@@ -321,8 +330,14 @@ cast_start → select_target → saving_throw → scaled_effect → cast_end
 | 键 | 类型 | 必填 | 说明 |
 |----|------|------|------|
 | `effectType` | select | 是 | `damage` / `healing` / `status` |
-| `value` | dice/string | 是 | `8d6`、`3d8+5`；状态类可写强度表达式 |
-| `damageType` | select | 否 | 13 种伤害类型之一；运行时尚不参与结算，仍应正确填写 |
+| `value` | dice/string | 是 | `8d6`、`3d8+5`；status 路径不读骰，传 `"0"` 占位 |
+| `damageType` | select | 否 | 13 种伤害类型之一；damage/healing 路径参与抗性结算（resolveDamage） |
+| `affinityKind` | select | status 必填 | `resistance`（减半）/ `immunity`（归零）/ `vulnerability`（翻倍）——通用伤害修饰引擎的修饰方向 |
+| `damageTypes` | text | 否 | 逗号分隔英文键（如 `bludgeoning,piercing,slashing`）；留空 = 全部类型 |
+| `sourceKind` | select | 否 | `""`（不限）/ `weapon` / `spell` / `effect`——限定伤害来源（如剑刃防护仅武器） |
+| `durationRounds` | number | 否 | >0 按回合计时自动消退（约 6 秒/回合近似）；0/缺省 = 直到手动解除 |
+
+**status 落地链路**（已实装）：节点配置 → 编译器产出待落地记录（statusId 固定 `damage_affinity` + 实例级 Effect，纯计算不落库）→ 战斗确认侧 `globalStatusManager.applyEffect` 写入实例 → `combatAffinities` 合并进伤害结算。任意伤害类型/来源组合直接配节点参数，状态库与编译器零改动（§0.0 引擎意识的落地样例）。
 
 `condition_branch`
 
@@ -454,7 +469,8 @@ startX = 100, startY = 100, spacingX = 200, spacingY = 150
 |------|-----------|------|
 | `saving_throw` | 调整值按 AbilityScore.score 重算，PC 走 getSaveBonus 熟练豁免 | NPC 目标（非 Character）查不到，Phase 3 身份映射解决 |
 | `attack_roll` | 加值走 getSpellAttackBonus，AC 读 target.armorClass，自然 20/1 特判 | 目标无 armorClass 字段时回退 15 |
-| `apply_effect` | parseDice 完整解析 NdM+K，一次掷骰全目标共用 | 不与检定结果联动（半伤/暴击），Phase 3 执行内核处理 |
+| `apply_effect` | parseDice 完整解析 NdM+K，一次掷骰全目标共用；伤害路径接 resolveDamage 抗性结算 | 不与检定结果联动（半伤/暴击按 halfDamageOnSave 配置） |
+| `apply_effect(status)` | 通用伤害修饰引擎：产出待落地记录，确认时经 globalStatusManager.applyEffect 写入实例（实例级 effects + durationRounds），combatAffinities 合并结算；advanceRound/读时惰性过期双保险清理 | expiresAt 按现实时间近似回合；状态暂无独立徽标 UI |
 | `condition_branch` | 白名单求值器（flowExpression），未知变量/语法错误 → failure | 仅支持只读表达式，无赋值/调用 |
 | `cast_start` | 有沙盘位置时切比雪夫真实距离校验；无位置跳过并标 assumed | 施法时间恒可用（动作消耗 Phase 3 接入） |
 | `concentration_check` | 体质调整值按 score 重算，DC 10 | dc 配置键不存在（§0.4），固定 10 |
