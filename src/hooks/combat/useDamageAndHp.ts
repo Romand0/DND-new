@@ -70,12 +70,31 @@ export function useDamageAndHp(
     const oldHp = target.currentHp ?? 0;
     const damage = Math.max(0, Math.floor(event.amount));
     const tempHpBefore = Math.max(0, target.tempHp ?? 0);
+
+    // 0 伤害（免疫/全吸收）不写状态，避免把昏迷或死亡目标“唤醒”
+    if (damage <= 0 && !event.status) {
+      const currentStatus: 'unconscious' | 'dead' | undefined =
+        target.isDead ? 'dead' : (target.isUnconscious ? 'unconscious' : undefined);
+      return {
+        targetId: event.targetId,
+        oldHp,
+        newHp: oldHp,
+        damage: 0,
+        tempAbsorbed: 0,
+        tempHpAfter: tempHpBefore,
+        status: currentStatus,
+      };
+    }
+
     const tempAbsorbed = Math.min(tempHpBefore, damage);
     const tempHpAfter = tempHpBefore - tempAbsorbed;
     const hpDamage = damage - tempAbsorbed;
     const newHp = Math.max(0, oldHp - hpDamage);
+    // 尸体不会被伤害“复活”；NPC 未指定致命状态时默认死亡，避免 0 HP 仍站立
     const status: 'unconscious' | 'dead' | undefined =
-      newHp <= 0 ? (event.status ?? (isPc ? 'unconscious' : undefined)) : undefined;
+      newHp <= 0
+        ? (target.isDead ? 'dead' : (event.status ?? (isPc ? 'unconscious' : 'dead')))
+        : undefined;
 
     const updatedCombatants = writeCombatantHp(event.targetId, newHp, tempHpAfter, status, wasUnconscious);
 
@@ -146,6 +165,9 @@ export function useDamageAndHp(
     const oldHp = target.currentHp ?? 0;
     const maxHp = target.maxHp ?? oldHp;
     const healedAmount = Math.max(0, Math.floor(amount));
+    if (healedAmount <= 0) {
+      return { targetId, oldHp, newHp: oldHp, healed: 0 };
+    }
     const newHp = Math.min(maxHp, oldHp + healedAmount);
     const tempHpAfter = Math.max(0, target.tempHp ?? 0);
 
