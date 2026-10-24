@@ -17,6 +17,7 @@ import type { FlowDefinition } from '@/types/flow';
 import type { DamageResolution, DamageType } from '@/types/damage';
 import { createUntypedResolution, extractDamageType, formatDamageBreakdown, normalizeDamageType, resolveDamage, spellDamageSource } from '@/data/damageRules';
 import { getCombatantAffinities } from '@/data/combatAffinities';
+import { parseSpellRange } from '@/utils/spellRange';
 import SpellStepBar from './combat/SpellStepBar';
 import SpellPreCastStep from './combat/SpellPreCastStep';
 import SpellTargetStep from './combat/SpellTargetStep';
@@ -252,6 +253,13 @@ export default function CombatSpellModal({
   const handlePickSpell = async (spell: Spell) => {
     setSelectedSpell(spell);
 
+    // 自身类法术（射程「自身」）：目标恒为施法者自己——手动管线跳过 select_target
+    // 步骤，流程施放直接以自己为目标（select_target mode=self 的流程节点同样无需换目标）
+    const selfCast = parseSpellRange(spell.range).self;
+    if (selfCast) {
+      setEffectiveTarget(caster);
+    }
+
     // 绑定流程解析：本地缓存优先，缺失时拉云端正式版（pullRemote 会写入本地缓存）
     const flowId = flowBindings.get(spell.id);
     if (flowId) {
@@ -272,7 +280,7 @@ export default function CombatSpellModal({
     }
 
     setStage('cast');
-    cast.begin('ac');
+    cast.begin('ac', selfCast);
     setCheckOutcome(null);
     setResolvedAmount(0);
     setEffectType('damage');

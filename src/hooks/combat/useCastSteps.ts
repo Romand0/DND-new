@@ -9,11 +9,13 @@ export type CastCheckType = 'ac' | 'save' | 'none';
 
 /**
  * 步骤序列推导：按检定方式裁剪中间步骤。
- * 恒有 cast_start / select_target / apply_effect / cast_end；
- * checkType='none' 时无检定步骤（apply_effect 恒保留，纯 buff 法术由 DM 走「跳过效果」出口记 0）。
+ * 恒有 cast_start / apply_effect / cast_end；skipTarget=true（自身类法术）时
+ * 跳过 select_target（目标恒为施法者自己）；checkType='none' 时无检定步骤
+ * （apply_effect 恒保留，纯 buff 法术由 DM 走「跳过效果」出口记 0）。
  */
-export function buildCastStepTypes(checkType: CastCheckType): CastStepType[] {
-  const types: CastStepType[] = ['cast_start', 'select_target'];
+export function buildCastStepTypes(checkType: CastCheckType, skipTarget = false): CastStepType[] {
+  const types: CastStepType[] = ['cast_start'];
+  if (!skipTarget) types.push('select_target');
   if (checkType === 'ac') types.push('attack_roll');
   else if (checkType === 'save') types.push('saving_throw');
   types.push('apply_effect', 'cast_end');
@@ -30,8 +32,8 @@ export interface CastStepState {
   completedAt?: number;
 }
 
-function initState(checkType: CastCheckType): CastStepState[] {
-  return buildCastStepTypes(checkType).map((type, i) => ({
+function initState(checkType: CastCheckType, skipTarget = false): CastStepState[] {
+  return buildCastStepTypes(checkType, skipTarget).map((type, i) => ({
     type,
     status: i === 0 ? 'active' : 'pending',
     forced: false,
@@ -42,22 +44,24 @@ export function useCastSteps() {
   const castIdRef = useRef(`cast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
   const [steps, setSteps] = useState<CastStepState[]>(() => initState('ac'));
   const [checkType, setCheckType] = useState<CastCheckType>('ac');
+  const [skipTarget, setSkipTarget] = useState(false);
 
   const currentIndex = steps.findIndex(s => s.status === 'active');
   const allDone = steps.length > 0 && steps.every(s => s.status !== 'pending' && s.status !== 'active');
 
-  /** 开始一次新施法：重置 castId 与步骤序列 */
-  const begin = useCallback((ct: CastCheckType) => {
+  /** 开始一次新施法：重置 castId 与步骤序列（skipTarget = 自身类法术跳过目标选择） */
+  const begin = useCallback((ct: CastCheckType, skip = false) => {
     castIdRef.current = `cast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setCheckType(ct);
-    setSteps(initState(ct));
+    setSkipTarget(skip);
+    setSteps(initState(ct, skip));
   }, []);
 
   /** 检定类型切换（仅发生在检定步骤确认前）：重建序列，保留已完成的 cast_start / select_target 前缀 */
   const rebuild = useCallback((ct: CastCheckType) => {
     setCheckType(ct);
     setSteps(prev => {
-      const nextTypes = buildCastStepTypes(ct);
+      const nextTypes = buildCastStepTypes(ct, skipTarget);
       // 从头逐位匹配：类型相同且已完成（非 pending/active）的步骤保留为前缀
       const kept: CastStepState[] = [];
       for (let i = 0; i < nextTypes.length; i++) {
@@ -75,7 +79,7 @@ export function useCastSteps() {
           : ({ type, status: i === kept.length ? 'active' : 'pending', forced: false } as CastStepState)
       );
     });
-  }, []);
+  }, [skipTarget]);
 
   /** 完成当前步骤并推进（status 为三态之一；失败同样推进——失败轨迹也要进日志） */
   const completeCurrent = useCallback((status: CastStepStatus, message: string, data?: Record<string, unknown>) => {
@@ -98,8 +102,8 @@ export function useCastSteps() {
 
   /** 无痕中止：清空全部轨迹（关闭弹窗 = 无副作用） */
   const abort = useCallback(() => {
-    setSteps(initState(checkType));
-  }, [checkType]);
+    setSteps(initState(checkType, skipTarget));
+  }, [checkType, skipTarget]);
 
   /** 收尾时取全量日志（只含已完成步骤） */
   const collectLogs = useCallback((): CastStepLog[] => {
@@ -121,6 +125,7 @@ export function useCastSteps() {
     currentIndex,
     allDone,
     checkType,
+    skipTarget,
     begin,
     rebuild,
     completeCurrent,

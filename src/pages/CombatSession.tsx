@@ -1642,18 +1642,14 @@ export default function CombatSession() {
             }}
             onCastClick={() => {
               if (!record) return;
-              const potentialTarget = record.combatants.find(
-                c => c.id !== infoPanelCombatant.id && !c.isDead,
-              );
-              if (potentialTarget) {
-                setSpellModal({
-                  caster: infoPanelCombatant,
-                  target: potentialTarget,
-                });
-                setInfoPanelCombatant(null);
-              } else {
-                setInfoPanelCombatant(null);
-              }
+              // 通道 2：操作栏施法 = 先在弹窗内选法术，再按法术对象类型选目标
+              // （自身类法术在选法术后直接跳过目标确认；单体法术在目标确认步骤
+              // 列表选人 + 射程门禁）。入口目标恒为施法者自己（通道 1 拖拽才带目标）
+              setSpellModal({
+                caster: infoPanelCombatant,
+                target: infoPanelCombatant,
+              });
+              setInfoPanelCombatant(null);
             }}
             onDashClick={() => {
               if (!record || !infoPanelCombatant) return;
