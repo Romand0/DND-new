@@ -25,7 +25,7 @@ export default function TradePage() {
 
   // 加载角色库（characterStore 内部会从后端同步，这里读取本地缓存）
   useEffect(() => {
-    setCharacters(characterStore.getAll());
+    setCharacters(characterStore.getAllVisible());
   }, []);
 
   const filteredCharacters = useMemo(() => {

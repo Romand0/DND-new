@@ -204,7 +204,7 @@ export default function CombatSession() {
     ? new Set(record.combatants.map(c => c.characterId).filter(Boolean))
     : new Set<string>();
   // ✅ 新增：从角色库读取未参战的PC（仅读取，不修改）
-  const availableChars = characterStore.getAll().filter(char => 
+  const availableChars = characterStore.getAllVisible().filter(char => 
     !existingCharIds.has(char.id)
   );
 
@@ -471,6 +471,51 @@ export default function CombatSession() {
     checkTieAndOpen(newId);
   };
 
+  // 试验场：一键生成默认数值人偶（属性全 10、HP 20、AC 10、速度 30、徒手攻击、先攻随机 1-20）。
+  // 底层自动创建影子角色卡（isSandbox，不上云、角色列表隐藏），使人偶复用完整 PC
+  // 装备手持/穿戴/AC 重算/弹药派生链路；敌我仅 isPc 与命名区分。
+  const spawnDummy = (hostile: boolean) => {
+    if (!record) return;
+    const existingCount = record.combatants.filter(c => c.name.includes('试验体·')).length;
+    const name = `试验体·${hostile ? '敌' : '友'}${existingCount + 1}`;
+    const char = characterStore.createSandbox({
+      name,
+      maxHp: 20,
+      currentHp: 20,
+      armorClass: 10,
+      speed: 30,
+    });
+    handleBatchCreateNpc([
+      {
+        name,
+        initiative: Math.floor(Math.random() * 20) + 1,
+        ac: 10,
+        maxHp: 20,
+        currentHp: 20,
+        tempHp: 0,
+        isPc: !hostile,
+        characterId: char.id,
+        speed: 30,
+        note: '试验场人偶',
+        actions: 1,
+        bonusActions: 1,
+        attacks: [
+          {
+            name: '徒手击打',
+            attackBonus: '+0',
+            damage: '1d4',
+            damageType: '钝击',
+            range: '5尺',
+            properties: [],
+            subtype: 'melee',
+            normalRange: 1,
+            maxRange: 1,
+          },
+        ],
+      },
+    ]);
+  };
+
   const handleBatchCreateNpc = (combatantsData: Omit<Combatant, 'id'>[]) => {
     const newCombatants: Combatant[] = combatantsData.map(data => ({
       ...data,
@@ -561,6 +606,27 @@ export default function CombatSession() {
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">添加参战者</span>
               </button>
+              {/* 试验场：一键生成默认数值人偶（沙包），影子角色卡承载完整 PC 派生链路 */}
+              {record.isProvingGround && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => spawnDummy(true)}
+                    className="px-2 sm:px-3 py-2 rounded-lg border border-red-300 dark:border-red-900 text-red-600 dark:text-red-400 text-sm flex items-center gap-1 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">敌对人偶</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => spawnDummy(false)}
+                    className="px-2 sm:px-3 py-2 rounded-lg border border-green-300 dark:border-green-900 text-green-600 dark:text-green-400 text-sm flex items-center gap-1 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">己方人偶</span>
+                  </button>
+                </>
+              )}
               {/* 批量删除：放映模式下不提供（放映模式用回溯代替） */}
               {record.mode !== 'playback' && (
                 <button
@@ -1230,6 +1296,7 @@ export default function CombatSession() {
         <CombatSpellModal
           caster={spellModal.caster}
           target={spellModal.target}
+          isProvingGround={record?.isProvingGround ?? false}
           targetCharacter={spellModal.target.characterId ? characterStore.get(spellModal.target.characterId) : null}
           targetCombatInventory={getCombatInventory(record, spellModal.target)}
           combatantPositions={combatantPositions}
@@ -1581,6 +1648,8 @@ export default function CombatSession() {
         return (
           <CombatantInfoPanel
             combatant={infoPanelCombatant}
+            isProvingGround={record?.isProvingGround ?? false}
+            provingRecord={record?.isProvingGround ? record : null}
             onClose={() => setInfoPanelCombatant(null)}
             combatants={record?.combatants ?? []}
             tokenMap={tokenMap}

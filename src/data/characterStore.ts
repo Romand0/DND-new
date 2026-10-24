@@ -164,6 +164,110 @@ function getAllCharacters(): Character[] {
   return getStore();
 }
 
+/** 可见角色列表：过滤试验场影子卡（影子卡仅通过 characterId 被战斗链路引用） */
+function getAllVisibleCharacters(): Character[] {
+  return getStore().filter(c => !c.isSandbox);
+}
+
+/**
+ * 创建试验场影子角色卡：仅写本地（不同步云端），带 isSandbox 标记。
+ * 影子卡使试验场人偶复用完整 PC 装备/法术派生链路。
+ */
+function createSandboxCharacter(data: Partial<Character>): Character {
+  const chars = getStore();
+  const now = Date.now();
+  const char: Character = {
+    id: crypto.randomUUID(),
+    name: data.name ?? '试验体',
+    gender: data.gender ?? '',
+    profession: data.profession ?? { class: '' },
+    level: data.level ?? 1,
+    proficiencyBonus: data.proficiencyBonus ?? 2,
+    race: data.race ?? '',
+    background: data.background ?? '',
+    alignment: data.alignment ?? '',
+    experience: data.experience ?? 0,
+    size: data.size ?? '中',
+    passivePerception: data.passivePerception ?? 10,
+    hitDice: data.hitDice ?? { type: 'd8', total: 1, used: 0 },
+    currency: data.currency ?? { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
+    skills: data.skills ?? {
+      acrobatics: { proficient: false, extra: 0 },
+      animalHandling: { proficient: false, extra: 0 },
+      arcana: { proficient: false, extra: 0 },
+      athletics: { proficient: false, extra: 0 },
+      deception: { proficient: false, extra: 0 },
+      history: { proficient: false, extra: 0 },
+      insight: { proficient: false, extra: 0 },
+      intimidation: { proficient: false, extra: 0 },
+      investigation: { proficient: false, extra: 0 },
+      medicine: { proficient: false, extra: 0 },
+      nature: { proficient: false, extra: 0 },
+      perception: { proficient: false, extra: 0 },
+      performance: { proficient: false, extra: 0 },
+      persuasion: { proficient: false, extra: 0 },
+      religion: { proficient: false, extra: 0 },
+      sleightOfHand: { proficient: false, extra: 0 },
+      stealth: { proficient: false, extra: 0 },
+      survival: { proficient: false, extra: 0 },
+    },
+    proficiencies: data.proficiencies ?? {
+      armor: [],
+      weapons: [],
+      tools: [],
+      languages: [],
+      savingThrows: [],
+    },
+    abilities: data.abilities ?? {
+      strength: { score: 10, modifier: 0 },
+      dexterity: { score: 10, modifier: 0 },
+      constitution: { score: 10, modifier: 0 },
+      intelligence: { score: 10, modifier: 0 },
+      wisdom: { score: 10, modifier: 0 },
+      charisma: { score: 10, modifier: 0 },
+    },
+    maxHp: data.maxHp ?? 20,
+    currentHp: data.currentHp ?? 20,
+    tempHp: data.tempHp ?? 0,
+    armorClass: data.armorClass ?? 10,
+    speed: data.speed ?? 30,
+    equipment: data.equipment ?? [],
+    attacks: data.attacks ?? [],
+    spells: data.spells ?? {
+      cantrips: [],
+      custom: [],
+      spellSlots: {
+        level1: { max: 0, used: 0 },
+        level2: { max: 0, used: 0 },
+        level3: { max: 0, used: 0 },
+        level4: { max: 0, used: 0 },
+        level5: { max: 0, used: 0 },
+        level6: { max: 0, used: 0 },
+        level7: { max: 0, used: 0 },
+        level8: { max: 0, used: 0 },
+        level9: { max: 0, used: 0 },
+      },
+    },
+    features: data.features ?? [],
+    appearance: data.appearance ?? '',
+    personality: data.personality ?? '',
+    ideals: data.ideals ?? '',
+    bonds: data.bonds ?? '',
+    flaws: data.flaws ?? '',
+    wornArmorId: data.wornArmorId ?? null,
+    wornOutfitId: data.wornOutfitId ?? null,
+    heldLeft: data.heldLeft ?? { state: 'ready', equipmentId: null },
+    heldRight: data.heldRight ?? { state: 'ready', equipmentId: null },
+    ...(data as Partial<Character>),
+    // isSandbox 强制为 true（不可被 data 覆盖）
+    isSandbox: true,
+  };
+  recalculateArmorClass(char);
+  chars.push(char);
+  saveStore(chars);
+  return char;
+}
+
 function getCharacter(charId: string): Character | null {
   const chars = getStore();
   const found = chars.find((c) => c.id === charId) || null;
@@ -239,9 +343,12 @@ async function loadAllFromBackend(): Promise<Character[]> {
 async function replaceAllFromBackend(): Promise<Character[]> {
   const chars = await loadAllFromBackend();
   const migrated = chars.map((c: any) => migrateCharacter(c));
+  // 保留本地试验场影子卡（云端不存在，全量替换会把它们洗掉导致人偶装备派生失效）
+  const localSandbox = getStore().filter(c => c.isSandbox);
+  const merged = [...migrated, ...localSandbox.filter(s => !migrated.some(m => m.id === s.id))];
   // 直接写入 localStorage 并更新缓存，不触发 syncCharacterToBackend
-  charactersCache = migrated;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+  charactersCache = merged;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
   scheduleBackup();
   return migrated;
 }
@@ -2138,6 +2245,8 @@ function changeSubclass(charId: string, newSubclassId: string): void {
 export const characterStore = {
   // 存储层
   getAll: getAllCharacters,
+  getAllVisible: getAllVisibleCharacters,
+  createSandbox: createSandboxCharacter,
   get: getCharacter,
   save: saveCharacter,
   add: addCharacter,

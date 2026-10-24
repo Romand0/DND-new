@@ -850,7 +850,7 @@ export default function TreasureDistribute() {
               </button>
             </div>
             <div className="space-y-2">
-              {characterStore.getAll().map((char) => (
+              {characterStore.getAllVisible().map((char) => (
                 <button
                   key={char.id}
                   onClick={() => {

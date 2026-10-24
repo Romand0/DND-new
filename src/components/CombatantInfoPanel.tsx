@@ -4,9 +4,11 @@ import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from
 import { characterStore } from '@/data/characterStore';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
-import type { Combatant, NpcAttack, EquipmentChanges, CreatureSize, CreatureType } from '@/types/combat';
+import type { Combatant, NpcAttack, EquipmentChanges, CreatureSize, CreatureType, CombatRecord } from '@/types/combat';
 import { ACTION_LABELS, ALL_ACTIONS, CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
+import ProvingDashboard from './combat/ProvingDashboard';
+import StatusAttachPanel from './combat/StatusAttachPanel';
 
 interface Props {
   combatant: Combatant;
@@ -33,10 +35,14 @@ interface Props {
   onCastClick?: () => void;
   /** 点击「疾走」动作时回调 */
   onDashClick?: () => void;
+  /** 试验场模式：开放仪表盘 tab 与状态附加面板 */
+  isProvingGround?: boolean;
+  /** 试验场战斗记录（仪表盘数据源：回合数/记录 ID） */
+  provingRecord?: CombatRecord | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onAttackClick, onCastClick, onDashClick }: Props) {
-  const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions'>('info');
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onAttackClick, onCastClick, onDashClick, isProvingGround = false, provingRecord = null }: Props) {
+  const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
   const [expandedRangeAttackId, setExpandedRangeAttackId] = useState<string | null>(null);
@@ -428,6 +434,18 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
               }`}
             >
               背包
+            </button>
+          )}
+          {isProvingGround && (
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex-1 py-2 text-xs font-medium transition-colors ${
+                activeTab === 'dashboard'
+                  ? 'border-b-2 border-primary text-primary'
+                  : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+              }`}
+            >
+              仪表盘
             </button>
           )}
           <button
@@ -839,6 +857,13 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
             </div>
           )}
 
+          {/* 试验场：状态附加面板（任意参战者附加/解除状态库任意状态） */}
+          {activeTab === 'status' && isProvingGround && provingRecord && (
+            <div className="mt-3 pt-3 border-t dark:border-border-dark light:border-border-light">
+              <StatusAttachPanel recordId={provingRecord.id} combatant={combatant} />
+            </div>
+          )}
+
           {activeTab === 'inventory' && combatInventory && (
             <div className="space-y-3">
               {/* 变更信息按钮 */}
@@ -944,6 +969,15 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 )}
               </div>
             </div>
+          )}
+
+          {activeTab === 'dashboard' && isProvingGround && provingRecord && (
+            <ProvingDashboard
+              record={provingRecord}
+              combatant={combatant}
+              character={character}
+              combatInventory={combatInventory}
+            />
           )}
 
           {activeTab === 'actions' && (

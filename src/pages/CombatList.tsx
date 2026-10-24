@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
-import { Zap, Trash2, Download, Upload, FileJson } from 'lucide-react';
+import { Zap, Trash2, Download, Upload, FileJson, FlaskConical } from 'lucide-react';
 import QuickCreateCombatDialog, { type QuickCreateResult } from '@/components/combat/QuickCreateCombatDialog';
 
 export default function CombatList() {
@@ -107,6 +107,28 @@ export default function CombatList() {
     navigate(targetPath, { replace: false });
   };
 
+  // 进入试验场：复用常驻试验场记录（首次自动创建 + 初始化沙盘）
+  const handleEnterProvingGrounds = () => {
+    try {
+      let proving = combatStore.getAll().find(r => r.isProvingGround);
+      if (!proving) {
+        proving = combatStore.create('试验场', []);
+        combatStore.update(proving.id, {
+          isProvingGround: true,
+          mode: 'simulation',
+          rounds: [{}],
+          updatedAt: Date.now(),
+        });
+        battlegroundStore.getOrCreate(proving.id);
+        console.log('[CombatList] 创建试验场记录，ID:', proving.id);
+      }
+      navigate(`/combat/${proving.id}`, { replace: false });
+    } catch (e) {
+      console.error('[CombatList] 进入试验场失败:', e);
+      alert('进入试验场失败，请重试');
+    }
+  };
+
   // 非DM直接踢回首页
   if (!isAdmin) {
     console.log('[CombatList] 非DM用户，跳转首页');
@@ -140,6 +162,14 @@ export default function CombatList() {
             <input type="file" accept=".json" className="hidden" onChange={handleImport} />
           </label>
           <button
+            onClick={handleEnterProvingGrounds}
+            className="px-3 py-2 text-sm border border-accent text-accent hover:bg-accent/10 rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
+            title="沙盒试验场：快速生成人偶、全库调用、状态附加、精密仪表盘"
+          >
+            <FlaskConical className="w-3.5 h-3.5" />
+            试验场
+          </button>
+          <button
             onClick={() => setQuickCreateOpen(true)}
             className="px-3 py-2 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors flex items-center gap-1.5 whitespace-nowrap"
           >
@@ -166,8 +196,13 @@ export default function CombatList() {
             >
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold dark:text-text-dark light:text-text-light truncate hover:text-primary transition-colors">
+                  <h3 className="font-semibold dark:text-text-dark light:text-text-light truncate hover:text-primary transition-colors flex items-center gap-2">
                     {record.title}
+                    {record.isProvingGround && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/30 shrink-0">
+                        试验场
+                      </span>
+                    )}
                   </h3>
                   <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted mt-1">
                     参战者：{record.combatants.length}人 | 创建于：{new Date(record.createdAt).toLocaleString()}

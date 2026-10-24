@@ -8,6 +8,7 @@ import { characterStore } from '@/data/characterStore';
 import combatStore from '@/data/combatStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
 import AdvDisadvToggle from '../AdvDisadvToggle';
+import { computeSaveBonus } from '@/lib/saveBonus';
 import type { Combatant, CheckScene, AdvantageResult } from '@/types/combat';
 import type { Character, AbilityKey } from '@/types/character';
 
@@ -71,37 +72,12 @@ export default function SpellCheckStep({
     intelligence: '智力', wisdom: '感知', charisma: '魅力',
   };
 
-  // 豁免加值构成（推导链展示：属性值 → 调整值 (+ 熟练) → 豁免加值）
+  // 豁免加值构成（推导链展示：属性值 → 调整值 (+ 熟练) → 豁免加值；与仪表盘同源）
   const saveBreakdown = (() => {
     if (checkType !== 'save') return null;
     const abilityKey = SAVE_ATTR_MAP[saveAttribute];
     if (!abilityKey) return null;
-    const abilityLabel = ABILITY_LABEL_MAP[abilityKey];
-    if (targetCharacter) {
-      const mod = targetCharacter.abilities?.[abilityKey]?.modifier ?? 0;
-      const total = characterStore.getSaveBonus(targetCharacter, abilityKey);
-      const profPart = total - mod;
-      const score = targetCharacter.abilities?.[abilityKey]?.score;
-      return {
-        total,
-        formula: `${abilityLabel} ${score ?? '?'} → 调整值 ${fmtBonus(mod)}` +
-          (profPart > 0 ? ` + 熟练 ${profPart}` : '（无熟练）') +
-          ` → 豁免 ${fmtBonus(total)}`,
-        fromCharacter: true,
-      };
-    }
-    const score = target[abilityKey as keyof Combatant] as number | undefined;
-    if (typeof score !== 'number') return null;
-    const mod = Math.floor((score - 10) / 2);
-    const profPart = target.proficientSaves?.includes(abilityKey) ? (target.proficiencyBonus ?? 2) : 0;
-    const total = mod + profPart;
-    return {
-      total,
-      formula: `${abilityLabel} ${score} → 调整值 ${fmtBonus(mod)}` +
-        (profPart > 0 ? ` + 图鉴熟练 ${profPart}` : '（无熟练）') +
-        ` → 豁免 ${fmtBonus(total)}`,
-      fromCharacter: false,
-    };
+    return computeSaveBonus(target, targetCharacter, abilityKey);
   })();
 
   // DC 来源拆解（与 calcSpellSaveDC 公式一致：8 基础 + 施法属性调整值 + 熟练；熟练部分反推保持与实际 DC 严格一致）

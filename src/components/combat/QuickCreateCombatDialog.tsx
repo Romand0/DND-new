@@ -36,7 +36,7 @@ export default function QuickCreateCombatDialog(props: Props) {
     if (!open) return;
     const defaultTitle = `战斗记录 ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     setTitle(defaultTitle);
-    const chars = characterStore.getAll();
+    const chars = characterStore.getAllVisible();
     setAllChars(chars);
     const ids = new Set(chars.map(c => c.id));
     setSelectedIds(ids);

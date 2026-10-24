@@ -36,7 +36,7 @@ import type { DamageSource, DamageType } from '@/types/damage';
 const ABILITY_KEYS: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
 /** 通用伤害修饰状态 ID（statusLibrary 注册，抗性/免疫/易伤实例的统一载体） */
-const GENERIC_AFFINITY_STATUS_ID = 'damage_affinity';
+export const GENERIC_AFFINITY_STATUS_ID = 'damage_affinity';
 
 /** 伤害类型中文标签（摘要文本用） */
 const DAMAGE_TYPE_LABELS: Record<string, string> = {

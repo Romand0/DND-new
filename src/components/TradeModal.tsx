@@ -87,7 +87,7 @@ export default function TradeModal({ characterId, onClose }: Props) {
 
   // 所有可选角色（除自己）
   const otherCharacters = useMemo(() => {
-    return characterStore.getAll().filter(c => c.id !== characterId);
+    return characterStore.getAllVisible().filter(c => c.id !== characterId);
   }, [characterId]);
 
   // 装备库（买入用）：从 D1 数据库实时读取，仿照物资库页面（EquipmentList）实现

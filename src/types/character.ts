@@ -159,6 +159,8 @@ export interface Feature {
 export interface Character {
   id: string;
   name: string;
+  /** 试验场影子卡标记：由试验场人偶生成自动创建，角色列表隐藏、不参与云端同步 */
+  isSandbox?: boolean;
   gender: 'male' | 'female' | 'other' | '';
   profession: {
     class: string;

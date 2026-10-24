@@ -429,6 +429,8 @@ export interface CombatRecord {
   rounds: RoundAction[];
   /** 战斗模式：'simulation' 模拟模式（无回合），'playback' 放映模式（有回合） */
   mode?: 'simulation' | 'playback';
+  /** 试验场标记：沙盒测试会话（入口一键进入、人偶快速生成、全库调用、仪表盘） */
+  isProvingGround?: boolean;
   /** 回合待办列表（放映模式专用） */
   turnTodos?: TurnTodo[];
   /**

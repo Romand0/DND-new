@@ -475,6 +475,7 @@ function load(): CombatRecord[] {
         combatants,
         rounds: r.rounds ?? [],
         mode: r.mode,
+        isProvingGround: r.isProvingGround ?? false,
         turnTodos: (r.turnTodos || []).map((t: any) => ({
           id: t.id ?? crypto.randomUUID(),
           combatantId: t.combatantId ?? '',

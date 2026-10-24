@@ -38,7 +38,7 @@ export default function SyncButton() {
     setStatus('syncing');
     setResults([]);
 
-    const characters = characterStore.getAll();
+    const characters = characterStore.getAllVisible();
     const newResults: SyncResult[] = [];
 
     // 只上传角色卡

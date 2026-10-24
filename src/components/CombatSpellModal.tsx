@@ -46,6 +46,8 @@ interface Props {
   canUseAction?: boolean;
   /** 施法者是否还有可用附赠动作次数（附赠动作施法时间法术需要消耗） */
   canUseBonusAction?: boolean;
+  /** 试验场模式：法术列表开放全库（不限于角色卡已学），支持名称搜索 */
+  isProvingGround?: boolean;
   /** 目标确认步骤内更换目标时同步回宿主（HP 应用与先攻表格按新目标结算） */
   onTargetChange?: (c: Combatant) => void;
   /**
@@ -128,6 +130,7 @@ function SpellCard({ spell, level, active, onPick, hasFlow }: { spell: Spell; le
 export default function CombatSpellModal({
   caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory,
   recordId, currentRound, combatantPositions, canUseAction = true, canUseBonusAction, onTargetChange, onFlowResolved,
+  isProvingGround = false,
 }: Props) {
   // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
   const targetCharacter = useMemo<Character | null>(() => {
@@ -182,7 +185,12 @@ export default function CombatSpellModal({
   const spellSaveDC = character ? characterStore.getSpellSaveDC(character) : null;
 
   // 法术列表
+  const [spellSearch, setSpellSearch] = useState('');
   const knownSpells = useMemo<{ spell: Spell; level: number }[]>(() => {
+    // 试验场：全员开放法术库全量（测试施法者与受术者双向效果）
+    if (isProvingGround) {
+      return spellStore.getAll().map(s => ({ spell: s, level: s.level }));
+    }
     if (!character) return [];
     const all = spellStore.getAll();
     const byName = (name: string) => all.find(s => s.name === name);
@@ -196,7 +204,7 @@ export default function CombatSpellModal({
       if (s) list.push({ spell: s, level: s.level });
     });
     return list;
-  }, [character, spellCacheTick]);
+  }, [character, spellCacheTick, isProvingGround]);
 
   // 挂载时刷新法术库缓存为云端真值（失败保留现有缓存），随后绑定查询才能命中云端 spell_id
   useEffect(() => {
@@ -443,15 +451,29 @@ export default function CombatSpellModal({
           {/* 阶段 1：法术列表 */}
           {stage === 'list' && (
             <>
+              {isProvingGround && (
+                <input
+                  type="text"
+                  value={spellSearch}
+                  onChange={e => setSpellSearch(e.target.value)}
+                  placeholder="搜索法术名称…"
+                  className="mb-2 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-1.5 text-sm dark:text-text-dark light:text-text-light"
+                />
+              )}
               {knownSpells.length === 0 ? (
                 <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8">
-                  {character ? '角色卡未配置法术' : 'NPC 暂不支持施法'}
+                  {isProvingGround ? '法术库为空' : character ? '角色卡未配置法术' : 'NPC 暂不支持施法'}
                 </div>
               ) : (
                 <div className="space-y-2">
                   {knownSpells
                     .slice()
                     .sort((a, b) => a.level - b.level || a.spell.name.localeCompare(b.spell.name))
+                    .filter(({ spell }) =>
+                      !isProvingGround ||
+                      spellSearch.trim() === '' ||
+                      spell.name.toLowerCase().includes(spellSearch.trim().toLowerCase()),
+                    )
                     .map(({ spell, level }) => (
                       <SpellCard
                         key={spell.id}

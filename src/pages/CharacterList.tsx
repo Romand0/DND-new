@@ -21,7 +21,7 @@ export default function CharacterList() {
     setLoading(true);
     setError(null);
     try {
-      const chars = (characterStore.getAll() || []).filter((c: any) => c && c.id && c.name);
+      const chars = (characterStore.getAllVisible() || []).filter((c: any) => c && c.id && c.name);
       setCharacters(chars);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载失败';
