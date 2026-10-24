@@ -1889,15 +1889,15 @@ if (character) {
                               <div>
                                 成分:{' '}
                                 {[
-                                  spellInfo.components.verbal && 'V',
-                                  spellInfo.components.somatic && 'S',
-                                  spellInfo.components.material && 'M',
+                                  spellInfo.components?.verbal && 'V',
+                                  spellInfo.components?.somatic && 'S',
+                                  spellInfo.components?.material && 'M',
                                 ]
                                   .filter(Boolean)
                                   .join(', ')}
                               </div>
                             </div>
-                            {spellInfo.components.material && spellInfo.materialInfo && (
+                            {spellInfo.components?.material && spellInfo.materialInfo && (
                               <div className="mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                                 材料: {spellInfo.materialInfo}
                               </div>
@@ -2000,15 +2000,15 @@ if (character) {
                               <div>
                                 成分:{' '}
                                 {[
-                                  spellInfo.components.verbal && 'V',
-                                  spellInfo.components.somatic && 'S',
-                                  spellInfo.components.material && 'M',
+                                  spellInfo.components?.verbal && 'V',
+                                  spellInfo.components?.somatic && 'S',
+                                  spellInfo.components?.material && 'M',
                                 ]
                                   .filter(Boolean)
                                   .join(', ')}
                               </div>
                             </div>
-                            {spellInfo.components.material && spellInfo.materialInfo && (
+                            {spellInfo.components?.material && spellInfo.materialInfo && (
                               <div className="mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                                 材料: {spellInfo.materialInfo}
                               </div>

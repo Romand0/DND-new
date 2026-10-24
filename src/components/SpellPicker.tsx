@@ -258,9 +258,9 @@ export default function SpellPicker({
                     </div>
                     <div className="text-sm font-mono dark:text-text-dark-muted light:text-text-light-muted">
                       {[
-                        spell.components.verbal && 'V',
-                        spell.components.somatic && 'S',
-                        spell.components.material && 'M',
+                        spell.components?.verbal && 'V',
+                        spell.components?.somatic && 'S',
+                        spell.components?.material && 'M',
                       ]
                         .filter(Boolean)
                         .join(',')}

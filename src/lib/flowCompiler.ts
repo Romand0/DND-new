@@ -417,16 +417,16 @@ export class FlowCompiler {
     // 生成自动检查报告文本
     const autoChecks: string[] = [];
 
-    // 添加成分检查
+    // 添加成分检查（components 可能缺失：用户自定义/云端导入的法术不一定带该字段）
     if (config.autoChecks.components) {
       const componentChecks: string[] = [];
-      if (spell.components.verbal) {
+      if (spell.components?.verbal) {
         componentChecks.push(`施法者可言语: ${caster.canSpeak !== false ? '是' : '否'}`);
       }
-      if (spell.components.somatic) {
+      if (spell.components?.somatic) {
         componentChecks.push(`施法者可做手势: ${components.somaticDetail?.canGesticulate !== false ? '是' : '否'}`);
       }
-      if (spell.components.material) {
+      if (spell.components?.material) {
         componentChecks.push(`材料组件: 已准备`);
       }
       if (componentChecks.length > 0) {
