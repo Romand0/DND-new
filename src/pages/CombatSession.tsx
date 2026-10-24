@@ -45,6 +45,98 @@ import TurnTodoBoard from '@/components/TurnTodoBoard';
 import CombatantInfoPanel from '@/components/CombatantInfoPanel';
 import CombatCommitModal from '@/components/CombatCommitModal';
 
+// ===== 试验场人偶预设（模块级，spawnDummy 与存量数据迁移共用） =====
+// 注意：normalRange / maxRange 单位是英尺（与 parseWeaponData 解析约定一致）；纯近战武器不要传（会被误判为远程导致近战射程段丢失）
+const PROVING_GROUND_ATTACKS: NpcAttack[] = [
+  {
+    name: '徒手击打',
+    attackBonus: '+0',
+    damage: '1d4',
+    damageType: '钝击',
+    range: '5尺',
+    properties: [],
+    subtype: 'melee',
+  },
+  {
+    name: '长剑',
+    attackBonus: '+0',
+    damage: '1d8',
+    damageType: '挥砍',
+    range: '5尺',
+    properties: ['多功能', '单手/双手'],
+    subtype: 'melee',
+  },
+  {
+    name: '匕首',
+    attackBonus: '+0',
+    damage: '1d4',
+    damageType: '穿刺',
+    range: '5尺',
+    properties: ['灵巧', '轻型', '投掷', '20/60尺'],
+    subtype: 'melee',
+    normalRange: 20,
+    maxRange: 60,
+  },
+  {
+    name: '长弓',
+    attackBonus: '+0',
+    damage: '1d8',
+    damageType: '穿刺',
+    range: '150/600尺',
+    properties: ['弹药', '双手', '150/600尺'],
+    subtype: 'ranged',
+    normalRange: 150,
+    maxRange: 600,
+  },
+  {
+    name: '轻弩',
+    attackBonus: '+0',
+    damage: '1d8',
+    damageType: '穿刺',
+    range: '80/320尺',
+    properties: ['弹药', '装填', '双手', '80/320尺'],
+    subtype: 'ranged',
+    normalRange: 80,
+    maxRange: 320,
+    loaded: true,
+  },
+];
+
+const PROVING_GROUND_EQUIPMENT: Character['equipment'] = [
+  { id: 'longsword', childId: 'sandbox-longsword', name: '长剑', quantity: 1, category: '武器', damageDice: '1d8', damageType: '挥砍' },
+  { id: 'dagger', childId: 'sandbox-dagger', name: '匕首', quantity: 2, category: '武器', damageDice: '1d4', damageType: '穿刺' },
+  { id: 'bow', childId: 'sandbox-longbow', name: '长弓', quantity: 1, category: '武器', damageDice: '1d8', damageType: '穿刺' },
+  { childId: 'sandbox-arrows', name: '箭矢', quantity: 999, category: '弹药', unit: '发' },
+  { id: 'lightcrossbow', childId: 'sandbox-lightcrossbow', name: '轻弩', quantity: 1, category: '武器', damageDice: '1d8', damageType: '穿刺' },
+  { childId: 'sandbox-bolts', name: '弩矢', quantity: 999, category: '弹药', unit: '发' },
+];
+
+// 存量试验场数据迁移：旧版人偶只有徒手攻击（且射程字段单位错误）、影子卡无装备包。
+// 幂等：已是最新预设的 combatant / 影子卡自动跳过。
+function migrateProvingGroundData(record: CombatRecord) {
+  let combatantsChanged = false;
+  const combatants = record.combatants.map(c => {
+    if (c.note === '试验场人偶' && (c.attacks?.length ?? 0) < PROVING_GROUND_ATTACKS.length) {
+      combatantsChanged = true;
+      return { ...c, attacks: PROVING_GROUND_ATTACKS.map(a => ({ ...a })) };
+    }
+    return c;
+  });
+  if (combatantsChanged) {
+    combatStore.update(record.id, { combatants });
+  }
+  record.combatants.forEach(c => {
+    if (c.note !== '试验场人偶' || !c.characterId) return;
+    const char = characterStore.get(c.characterId);
+    if (char && char.isSandbox && (char.equipment?.length ?? 0) === 0) {
+      characterStore.update(c.characterId, {
+        equipment: PROVING_GROUND_EQUIPMENT.map(e => ({ ...e })),
+        heldRight: { state: 'ready', equipmentId: 'sandbox-longsword' },
+      });
+    }
+  });
+}
+
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -223,6 +315,14 @@ export default function CombatSession() {
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [record?.id, record?.mode, playbackStarted]);
+
+  // 试验场存量数据迁移（幂等：旧人偶补攻击预设、影子卡补装备包）
+  useEffect(() => {
+    if (record?.isProvingGround) {
+      migrateProvingGroundData(record);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [record?.id]);
 
   const lastSavedPlaybackState = useRef<string>('');
 
@@ -498,15 +598,7 @@ export default function CombatSession() {
       currentHp: 20,
       armorClass: 10,
       speed: 30,
-      // 预置武器包：任意武器可用；弹药数量给大数值，试验场内弹药不扣减（无限子弹）
-      equipment: [
-        { id: 'longsword', childId: 'sandbox-longsword', name: '长剑', quantity: 1, category: '武器', damageDice: '1d8', damageType: '挥砍' },
-        { id: 'dagger', childId: 'sandbox-dagger', name: '匕首', quantity: 2, category: '武器', damageDice: '1d4', damageType: '穿刺' },
-        { id: 'bow', childId: 'sandbox-longbow', name: '长弓', quantity: 1, category: '武器', damageDice: '1d8', damageType: '穿刺' },
-        { childId: 'sandbox-arrows', name: '箭矢', quantity: 999, category: '弹药', unit: '发' },
-        { id: 'lightcrossbow', childId: 'sandbox-lightcrossbow', name: '轻弩', quantity: 1, category: '武器', damageDice: '1d8', damageType: '穿刺' },
-        { childId: 'sandbox-bolts', name: '弩矢', quantity: 999, category: '弹药', unit: '发' },
-      ],
+      equipment: PROVING_GROUND_EQUIPMENT.map(e => ({ ...e })),
       heldRight: { state: 'ready', equipmentId: 'sandbox-longsword' },
     });
     handleBatchCreateNpc([
@@ -523,60 +615,7 @@ export default function CombatSession() {
         note: '试验场人偶',
         actions: 1,
         bonusActions: 1,
-        attacks: [
-          {
-            name: '徒手击打',
-            attackBonus: '+0',
-            damage: '1d4',
-            damageType: '钝击',
-            range: '5尺',
-            properties: [],
-            subtype: 'melee',
-          },
-          {
-            name: '长剑',
-            attackBonus: '+0',
-            damage: '1d8',
-            damageType: '挥砍',
-            range: '5尺',
-            properties: ['多功能', '单手/双手'],
-            subtype: 'melee',
-          },
-          {
-            name: '匕首',
-            attackBonus: '+0',
-            damage: '1d4',
-            damageType: '穿刺',
-            range: '5尺',
-            properties: ['灵巧', '轻型', '投掷', '20/60尺'],
-            subtype: 'melee',
-            normalRange: 20,
-            maxRange: 60,
-          },
-          {
-            name: '长弓',
-            attackBonus: '+0',
-            damage: '1d8',
-            damageType: '穿刺',
-            range: '150/600尺',
-            properties: ['弹药', '双手', '150/600尺'],
-            subtype: 'ranged',
-            normalRange: 150,
-            maxRange: 600,
-          },
-          {
-            name: '轻弩',
-            attackBonus: '+0',
-            damage: '1d8',
-            damageType: '穿刺',
-            range: '80/320尺',
-            properties: ['弹药', '装填', '双手', '80/320尺'],
-            subtype: 'ranged',
-            normalRange: 80,
-            maxRange: 320,
-            loaded: true,
-          },
-        ],
+        attacks: PROVING_GROUND_ATTACKS.map(a => ({ ...a })),
       },
     ]);
   };
