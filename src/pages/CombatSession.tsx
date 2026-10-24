@@ -297,6 +297,20 @@ export default function CombatSession() {
       ),
       updatedAt: Date.now(),
     });
+    // 专注维持待办：与 concentration 字段同生命周期。
+    // 替换/重施时先删旧再建新（endRound=-1 无限期，由 concludeConcentrationMaintain
+    // 勾选结束、豁免失败/失能/死亡由 cleanup 自动移除）。
+    // 模拟与放映模式都创建——试验场测试专注法术同样需要维持提醒。
+    (combatStore.get(record.id)?.turnTodos ?? [])
+      .filter(t => t.type === 'concentration_maintain' && t.combatantId === combatantId)
+      .forEach(t => combatStore.removeTurnTodo(record.id, t.id));
+    combatStore.addTurnTodo(record.id, {
+      combatantId,
+      name: `维持专注：${spellName}`,
+      type: 'concentration_maintain',
+      startRound: currentTurn?.round ?? 0,
+      endRound: -1,
+    });
     // 重施同一法术：重置计时但无需"中断"说明（5e 语义上仍是失去再开始）
     return prev && prev.spellName !== spellName ? `，中断《${prev.spellName}》专注` : null;
   };
@@ -963,6 +977,8 @@ export default function CombatSession() {
         onPanelAttackClick={openAttackFor}
         onPanelCastClick={openCastFor}
         onPanelDashClick={dashFor}
+        isProvingGround={record.isProvingGround ?? false}
+        provingRecord={record.isProvingGround ? record : null}
         combatInventories={combatInventories}
         equipmentChangesMap={record.equipmentChanges}
         onUpdateChanges={(combatantId, changes) => {

@@ -797,6 +797,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             ),
                             updatedAt: Date.now(),
                           });
+                          // 手动停止专注：「维持专注」待办同步清扫（与字段同生命周期）
+                          combatStore.cleanupConcentrationMaintainTodos(rec.id);
                         }}
                         className="w-full px-3 py-1.5 rounded-lg border border-amber-500/40 text-amber-500 text-xs hover:bg-amber-500/10 transition-colors"
                       >

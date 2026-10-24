@@ -1158,6 +1158,12 @@ const combatStore = {
     }
     if (!maintained) {
       record.combatants[idx] = { ...c, concentration: undefined };
+      // 专注已断：该参战者的「维持专注」待办同步移除（与字段同生命周期）
+      if (record.turnTodos) {
+        record.turnTodos = record.turnTodos.filter(
+          t => !(t.type === 'concentration_maintain' && t.combatantId === c.id)
+        );
+      }
     }
     record.updatedAt = Date.now();
     save(records);
@@ -1188,7 +1194,45 @@ const combatStore = {
       }
       return c;
     });
-    if (!changed) return;
+    if (changed) {
+      record.updatedAt = Date.now();
+      save(records);
+    }
+    // 专注字段消失后，「维持专注」待办同步清扫（与字段同生命周期）
+    this.cleanupConcentrationMaintainTodos(recordId);
+  },
+
+  /**
+   * 结束专注维持（DM 点击「维持专注」待办 = 宣告法术 duration 到期或主动放弃）：
+   * 清除参战者专注字段并移除待办，单一原子操作。
+   */
+  concludeConcentrationMaintain(recordId: string, todoId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record || !record.turnTodos) return;
+    const todo = record.turnTodos.find(t => t.id === todoId);
+    if (!todo || todo.type !== 'concentration_maintain') return;
+    record.turnTodos = record.turnTodos.filter(t => t.id !== todoId);
+    record.combatants = record.combatants.map(c =>
+      c.id === todo.combatantId && c.concentration ? { ...c, concentration: undefined } : c
+    );
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 专注维持待办清扫：专注字段已消失（被打断/替换/失能/参战者删除）的待办同步移除 */
+  cleanupConcentrationMaintainTodos(recordId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record || !record.turnTodos) return;
+    const before = record.turnTodos.length;
+    record.turnTodos = record.turnTodos.filter(t => {
+      if (t.type !== 'concentration_maintain') return true;
+      const c = record.combatants.find(x => x.id === t.combatantId);
+      if (!c) return false;
+      return !!c.concentration;
+    });
+    if (record.turnTodos.length === before) return;
     record.updatedAt = Date.now();
     save(records);
   },

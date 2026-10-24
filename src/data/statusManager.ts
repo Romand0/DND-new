@@ -144,9 +144,17 @@ export function createStatusManager(): StatusManagerWithApply {
     // --- 查询 ---
 
     getActiveStatuses(targetId: string, scope?: StatusScope): StatusInstance[] {
-      return store.instances.filter(
-        i => i.targetId === targetId && i.isActive && (!scope || i.scope === scope)
-      );
+      const now = Date.now();
+      return store.instances.filter(i => {
+        if (i.targetId !== targetId || !i.isActive) return false;
+        if (scope && i.scope !== scope) return false;
+        // 读时惰性过期：与 getEffects 同一判定，展示层（仪表盘/状态面板）与效果引擎保持一致
+        if (i.expiresAt && now >= i.expiresAt) {
+          this.declareEnd(i.instanceId);
+          return false;
+        }
+        return true;
+      });
     },
 
     hasEffect(targetId: string, effectType: EffectType, scope?: StatusScope): boolean {

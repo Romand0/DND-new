@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken } from '@/types/battleground';
-import type { Combatant, EquipmentChanges } from '@/types/combat';
+import type { Combatant, CombatRecord, EquipmentChanges } from '@/types/combat';
 import type { Equipment } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
 
@@ -44,6 +44,10 @@ interface Props {
   onPanelCastClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：疾走动作（交由 main 结算移动力） */
   onPanelDashClick?: (combatant: Combatant) => void;
+  /** 双击棋子信息面板：试验场标记（仪表盘 tab / 状态附加面板 / 法术全库的开关） */
+  isProvingGround?: boolean;
+  /** 双击棋子信息面板：试验场记录引用（ProvingDashboard 数据源） */
+  provingRecord?: CombatRecord | null;
   /** 战斗模式：'simulation' 模拟模式（无回合，动作无限），'playback' 放映模式（有回合，动作有限） */
   mode?: 'simulation' | 'playback';
   /** 是否处于有效放映回合（放映中且未暂停）；移动消耗判定依赖此值 */
@@ -61,7 +65,7 @@ interface Props {
   onSelectionChange?: (combatantId: string | null) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, isProvingGround = false, provingRecord = null }: Props) {
   const navigate = useNavigate();
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
@@ -1547,6 +1551,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   equipmentChanges={equipmentChangesMap?.[doubleClickedCombatant.id]}
                   onUpdateChanges={onUpdateChanges ? (changes) => onUpdateChanges(doubleClickedCombatant.id, changes) : undefined}
                   actions={doubleClickedCombatant.actions}
+                  isProvingGround={isProvingGround}
+                  provingRecord={provingRecord}
                   onHelpClick={() => onPanelHelpClick?.(doubleClickedCombatant)}
                   onAttackClick={() => onPanelAttackClick?.(doubleClickedCombatant)}
                   onCastClick={() => onPanelCastClick?.(doubleClickedCombatant)}

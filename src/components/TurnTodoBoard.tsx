@@ -116,6 +116,11 @@ export default function TurnTodoBoard({ record, currentTurn, combatants }: Props
     if (todo.executed) return;
     if (todo.type === null) {
       combatStore.toggleTurnTodo(record.id, todo.id);
+    } else if (todo.type === 'concentration_maintain') {
+      // 点击维持待办 = DM 宣告专注结束（法术 duration 到期或主动放弃）：清专注字段 + 移除待办
+      if (confirm(`确认结束该专注维持？（${todo.name}）`)) {
+        combatStore.concludeConcentrationMaintain(record.id, todo.id);
+      }
     } else if (todo.type === 'concentration_save') {
       setConcDialogTodo(todo);
       setConcRollInput('');

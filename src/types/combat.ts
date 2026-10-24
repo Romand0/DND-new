@@ -384,7 +384,8 @@ export type TurnTodoType =
   | 'condition_check'
   | 'concentration_check'
   | 'death_save'
-  | 'concentration_save';
+  | 'concentration_save'
+  | 'concentration_maintain';
 
 /** 任务类型标签映射 */
 export const TURN_TODO_TYPE_LABELS: Record<TurnTodoType, string> = {
@@ -394,6 +395,7 @@ export const TURN_TODO_TYPE_LABELS: Record<TurnTodoType, string> = {
   concentration_check: '专注检定',
   death_save: '死亡豁免',
   concentration_save: '专注豁免',
+  concentration_maintain: '专注维持',
 };
 
 /** 回合待办事项 */
