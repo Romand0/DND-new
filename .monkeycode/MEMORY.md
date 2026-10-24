@@ -30,3 +30,13 @@
   - 徒手击打已豁免「未手持/手部不可用」检查（CombatAttackModal getAttackStatus）
   - 沙盘棋子位置存 battlegroundStore（localStorage dnd-battlegrounds 的 tokens），不在 combatant.tokenPos；试验场放置流程 = 点「未放置」区芯片（高亮 bg-primary 确认选中）→ 点沙盘格子
   - 无头测试定位沙盘格子：querySelector('div.grid.origin-top-left') 读 children[0] 的 boundingRect（cell 约 22px）算目标格中心坐标，勿用视觉估算坐标
+
+[Project Knowledge Summary]
+- Date: 2026-10-24
+- Context: Discovered by Agent while E2E verifying blade-ward flow cast resistance in proving ground
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 无头 E2E 沙盘交互的格心坐标必须每次实时读取：战斗日志每新增一条 OperationLogPanel 增高约 66px，沙盘网格整体下移，缓存 geo 会导致后续点击命中错误格子（棋子 onDoubleClick 收不到事件）
+  - 沙盘 E2E 选择器要点：攻击方式条目是 div.rounded-lg.border.p-3（非 button）；CombatantInfoPanel 根元素是 fixed inset-0 z-50 全屏透明遮罩，面板开着时沙盘所有点击被挡，须先点面板标题栏 svg.lucide-x 按钮关闭；攻击检定按钮链 = 填 d20 →「确定」→「确认命中，进入伤害结算」→ 伤害弹窗填骰值 →「计算」
+  - 云端 POST /api/spells 导入的法术可能缺 components 字段，cast_start 读 components.verbal 会崩——已全链路加可选链防护；自造测试法术记得带 components
+  - 防护类法术流程施放 → 抗性落地链路已 E2E 验证通：流程施放（FlowRunStep 执行流程）→ statusManager.applyEffect → 战斗日志「获得抗性」→ 敌方近战攻击 CombatDamageModal 结算减半（8→4）→ HP 扣减正确；用户端若无效优先排查浏览器缓存旧 bundle（硬刷新）与流程节点 config 参数（affinityKind/damageTypes/sourceKind 拼写）
