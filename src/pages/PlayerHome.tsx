@@ -15,7 +15,11 @@ export default function PlayerHome() {
     setError(null);
     try {
       const data = await fetchAllCharacters<Character[]>();
-      const sorted = (data || []).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+      // 云端历史数据可能残留试验场影子卡（缺 isSandbox 标记），按名字前缀兜底过滤
+      const visible = (data || []).filter(
+        (c: any) => !c.isSandbox && !String(c.name || '').startsWith('试验体·'),
+      );
+      const sorted = visible.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
       setPlayers(sorted);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载失败';

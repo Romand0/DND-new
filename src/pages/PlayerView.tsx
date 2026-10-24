@@ -19,7 +19,11 @@ export default function PlayerView() {
     setError(null);
     try {
       const all = await fetchAllCharacters<Character[]>();
-      const found = (all || []).find((c) => c.id === playerId) || null;
+      const found =
+        (all || []).find(
+          (c: any) =>
+            c.id === playerId && !c.isSandbox && !String(c.name || '').startsWith('试验体·'),
+        ) || null;
       if (!found) {
         setError('角色不存在或已被删除');
         setCharacter(null);

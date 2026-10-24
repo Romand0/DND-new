@@ -294,6 +294,11 @@ function saveCharacter(charData: Character): Character {
   }
   
   saveStore(chars);
+  // 试验场影子卡仅存本地：任何写路径（装备/HP 变更等）都禁止把影子卡推上云端，
+  // 否则云端拉回的影子卡会混进角色列表（历史脏数据可能缺 isSandbox 标记）
+  if (charWithTimestamps.isSandbox) {
+    return charWithTimestamps;
+  }
   syncCharacterToBackend(charWithTimestamps).catch((err) => {
     console.error('[characterStore] 同步到后端失败:', err);
   });
@@ -342,7 +347,11 @@ async function loadAllFromBackend(): Promise<Character[]> {
 // 从后端加载所有角色并替换本地缓存（不触发反向同步）
 async function replaceAllFromBackend(): Promise<Character[]> {
   const chars = await loadAllFromBackend();
-  const migrated = chars.map((c: any) => migrateCharacter(c));
+  // 云端不该存在影子卡：过滤显式标记，并按「试验体·」名字前缀兜底
+  // （历史版本可能把缺标记的影子卡推上云，拉回后会在角色列表露出）
+  const migrated = chars
+    .map((c: any) => migrateCharacter(c))
+    .filter((c: any) => !c.isSandbox && !String(c.name || '').startsWith('试验体·'));
   // 保留本地试验场影子卡（云端不存在，全量替换会把它们洗掉导致人偶装备派生失效）
   const localSandbox = getStore().filter(c => c.isSandbox);
   const merged = [...migrated, ...localSandbox.filter(s => !migrated.some(m => m.id === s.id))];
