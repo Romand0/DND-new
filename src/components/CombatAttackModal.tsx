@@ -120,8 +120,9 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left', combatInventory) : false;
   const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right', combatInventory) : false;
 
-  // 攻击列表
-  const attacks: (Attack | NpcAttack)[] = character?.attacks || attacker.attacks || [];
+  // 攻击列表：角色卡有条目用角色卡，否则回落参战者自带攻击（试验场影子卡 attacks 为空数组，武器条目在参战者上）
+  const attacks: (Attack | NpcAttack)[] =
+    character?.attacks && character.attacks.length > 0 ? character.attacks : attacker.attacks || [];
 
   // ========= 射程判定辅助函数（复用 CombatantInfoPanel 的逻辑） =========
   // usageMode: 投掷武器的使用方式（近战/投掷）；纯远程或纯近战武器忽略此参数
@@ -311,7 +312,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     if (character) {
       const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
       const rightMatch = heldRightItem && heldRightItem.name === attack.name;
-      const isHeld = leftMatch || rightMatch;
+      // 徒手打击无需武器（任何生物默认可用）
+      const isHeld = leftMatch || rightMatch || attack.name === '徒手击打';
 
       if (!isHeld) return { usable: false, reason: '未手持' };
 
@@ -323,8 +325,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       }
 
       const handUsable = (leftMatch && leftUsable) || (rightMatch && rightUsable);
-      // 装填武器跳过 handUsable 检查（装备层面的双手判定会被 isWeaponUsable 拦截）
-      if (!handUsable && !isLoadingWeapon(attack)) {
+      // 装填武器跳过 handUsable 检查（装备层面的双手判定会被 isWeaponUsable 拦截）；徒手无装备同样跳过
+      if (!handUsable && !isLoadingWeapon(attack) && attack.name !== '徒手击打') {
         return { usable: false, reason: '手部不可用' };
       }
 

@@ -498,6 +498,16 @@ export default function CombatSession() {
       currentHp: 20,
       armorClass: 10,
       speed: 30,
+      // 预置武器包：任意武器可用；弹药数量给大数值，试验场内弹药不扣减（无限子弹）
+      equipment: [
+        { id: 'longsword', childId: 'sandbox-longsword', name: '长剑', quantity: 1, category: '武器', damageDice: '1d8', damageType: '挥砍' },
+        { id: 'dagger', childId: 'sandbox-dagger', name: '匕首', quantity: 2, category: '武器', damageDice: '1d4', damageType: '穿刺' },
+        { id: 'bow', childId: 'sandbox-longbow', name: '长弓', quantity: 1, category: '武器', damageDice: '1d8', damageType: '穿刺' },
+        { childId: 'sandbox-arrows', name: '箭矢', quantity: 999, category: '弹药', unit: '发' },
+        { id: 'lightcrossbow', childId: 'sandbox-lightcrossbow', name: '轻弩', quantity: 1, category: '武器', damageDice: '1d8', damageType: '穿刺' },
+        { childId: 'sandbox-bolts', name: '弩矢', quantity: 999, category: '弹药', unit: '发' },
+      ],
+      heldRight: { state: 'ready', equipmentId: 'sandbox-longsword' },
     });
     handleBatchCreateNpc([
       {
@@ -522,8 +532,49 @@ export default function CombatSession() {
             range: '5尺',
             properties: [],
             subtype: 'melee',
-            normalRange: 1,
-            maxRange: 1,
+          },
+          {
+            name: '长剑',
+            attackBonus: '+0',
+            damage: '1d8',
+            damageType: '挥砍',
+            range: '5尺',
+            properties: ['多功能', '单手/双手'],
+            subtype: 'melee',
+          },
+          {
+            name: '匕首',
+            attackBonus: '+0',
+            damage: '1d4',
+            damageType: '穿刺',
+            range: '5尺',
+            properties: ['灵巧', '轻型', '投掷', '20/60尺'],
+            subtype: 'melee',
+            normalRange: 20,
+            maxRange: 60,
+          },
+          {
+            name: '长弓',
+            attackBonus: '+0',
+            damage: '1d8',
+            damageType: '穿刺',
+            range: '150/600尺',
+            properties: ['弹药', '双手', '150/600尺'],
+            subtype: 'ranged',
+            normalRange: 150,
+            maxRange: 600,
+          },
+          {
+            name: '轻弩',
+            attackBonus: '+0',
+            damage: '1d8',
+            damageType: '穿刺',
+            range: '80/320尺',
+            properties: ['弹药', '装填', '双手', '80/320尺'],
+            subtype: 'ranged',
+            normalRange: 80,
+            maxRange: 320,
+            loaded: true,
           },
         ],
       },
@@ -1208,6 +1259,8 @@ export default function CombatSession() {
           playbackTurnActive={isPlaybackActive()}
           onLoadedChange={(key, loaded) => {
             if (!record) return;
+            // 试验场免重装填：装填武器射击后保持已装填状态（拒绝置 false）
+            if (record.isProvingGround && !loaded) return;
             combatStore.update(record.id, {
               loadedWeapons: {
                 ...(record.loadedWeapons || {}),
@@ -1225,8 +1278,8 @@ export default function CombatSession() {
               markLoadingAttacked(attackModal.attacker.id);
             }
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
-            // 弹药属性武器：消耗弹药（无论命中/未命中）
-            if (info.ammoConsumed && record) {
+            // 弹药属性武器：消耗弹药（无论命中/未命中）；试验场无限弹药，跳过扣减
+            if (info.ammoConsumed && record && !record.isProvingGround) {
               const currentChanges = record.equipmentChanges?.[attackModal.attacker.id];
               const newChanges = applyEquipmentChange(currentChanges, (ch) => {
                 const ammoId = info.ammoConsumed!.ammoChildId;
@@ -1274,8 +1327,8 @@ export default function CombatSession() {
               markLoadingAttacked(attackModal.attacker.id);
             }
             // 未命中：写入先攻表格（简化格式）
-            // 弹药属性武器：消耗弹药（无论命中/未命中）
-            if (missInfo.ammoConsumed && record) {
+            // 弹药属性武器：消耗弹药（无论命中/未命中）；试验场无限弹药，跳过扣减
+            if (missInfo.ammoConsumed && record && !record.isProvingGround) {
               const currentChanges = record.equipmentChanges?.[attackModal.attacker.id];
               const newChanges = applyEquipmentChange(currentChanges, (ch) => {
                 const ammoId = missInfo.ammoConsumed!.ammoChildId;
