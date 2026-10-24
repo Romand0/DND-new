@@ -25,8 +25,10 @@ function loadFromCache(): Spell[] {
 }
 
 function saveToCache(spells: Spell[]): void {
-  cachedSpells = spells;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(spells));
+  // 防御：过滤缺 name 的畸形条目（任何来源的单条脏数据都不应污染整个库缓存）
+  const valid = (Array.isArray(spells) ? spells : []).filter(s => s && typeof s === 'object' && !!s.name);
+  cachedSpells = valid;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
   notifyListeners();
 }
 

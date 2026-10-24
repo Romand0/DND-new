@@ -559,6 +559,60 @@ export default function CombatSession() {
     });
   };
 
+  // ============ 动作入口统一函数（操作栏面板与沙盘双击面板共用） ============
+  const openHelpFor = (c: Combatant) => {
+    setHelpModal({ from: c });
+  };
+
+  const openAttackFor = (c: Combatant) => {
+    // 攻击需要目标，若已有上次选中的敌人优先；否则提示等手动选择
+    const potentialTarget = record.combatants.find(x => x.id !== c.id && !x.isDead);
+    if (potentialTarget) {
+      const bg = battlegroundStore.get(record.id);
+      const tokens = bg?.tokens ?? [];
+      const aPos = tokens.find(t => t.combatantId === c.id);
+      const tPos = tokens.find(t => t.combatantId === potentialTarget.id);
+      setAttackModal({
+        attacker: c,
+        target: potentialTarget,
+        attackerPos: aPos ? { col: aPos.col, row: aPos.row } : undefined,
+        targetPos: tPos ? { col: tPos.col, row: tPos.row } : undefined,
+      });
+      setInfoPanelCombatant(null);
+    } else {
+      alert('当前没有可攻击的目标');
+    }
+  };
+
+  const openCastFor = (c: Combatant) => {
+    // 通道 2：操作栏施法 = 先在弹窗内选法术，再按法术对象类型选目标
+    // （自身类法术在选法术后直接跳过目标确认；单体法术在目标确认步骤
+    // 列表选人 + 射程门禁）。入口目标恒为施法者自己（通道 1 拖拽才带目标）
+    setSpellModal({ caster: c, target: c });
+  };
+
+  const dashFor = (c: Combatant) => {
+    if (!canUseAction(c.id)) {
+      alert('该参战者本回合已没有可用动作');
+      return;
+    }
+    // 疾走：额外获得等于战斗速度的可用移动力（dashExtraMovement += battleSpeed）
+    // 注意：疾走不改变 speedModifier，只增加 dashExtraMovement
+    const battleSpeed = (c.speed ?? 30) + (c.speedModifier ?? 0);
+    const newDashExtra = (c.dashExtraMovement ?? 0) + battleSpeed;
+    combatStore.update(record.id, {
+      combatants: record.combatants.map(x =>
+        x.id === c.id ? { ...x, dashExtraMovement: newDashExtra } : x
+      ),
+      updatedAt: Date.now(),
+    });
+    // 消耗 1 个动作
+    consumeCombatantAction(c.id);
+    // 记录操作（放映写表格 / 模拟写日志）
+    recordOperation(c.id, `疾走：+【${battleSpeed}】尺移动`, 'move');
+    alert(`专注于疾跑，获得 ${battleSpeed} 尺额外移动力`);
+  };
+
   // 原内容：完全保留，一个字都没改（页面结构主体不变）
   return (
     <div className="max-w-full mx-auto p-4 space-y-4">
@@ -905,6 +959,10 @@ export default function CombatSession() {
       <Battleground
         sessionId={record.id}
         combatants={record.combatants}
+        onPanelHelpClick={openHelpFor}
+        onPanelAttackClick={openAttackFor}
+        onPanelCastClick={openCastFor}
+        onPanelDashClick={dashFor}
         combatInventories={combatInventories}
         equipmentChangesMap={record.equipmentChanges}
         onUpdateChanges={(combatantId, changes) => {
@@ -1683,76 +1741,14 @@ export default function CombatSession() {
             }}
             actions={infoPanelCombatant.actions}
             bonusActions={infoPanelCombatant.bonusActions}
-            onHelpClick={() => {
-              if (!record) return;
-              setHelpModal({ from: infoPanelCombatant });
-            }}
-            onAttackClick={() => {
-              if (!record) return;
-              // 攻击需要目标，若已有上次选中的敌人优先；否则关闭面板等手动选择
-              const potentialTarget = record.combatants.find(
-                c => c.id !== infoPanelCombatant.id && !c.isDead,
-              );
-              if (potentialTarget) {
-                const bg = battlegroundStore.get(record.id);
-                const tokens = bg?.tokens ?? [];
-                const aPos = tokens.find(t => t.combatantId === infoPanelCombatant.id);
-                const tPos = tokens.find(t => t.combatantId === potentialTarget.id);
-                setAttackModal({
-                  attacker: infoPanelCombatant,
-                  target: potentialTarget,
-                  attackerPos: aPos ? { col: aPos.col, row: aPos.row } : undefined,
-                  targetPos: tPos ? { col: tPos.col, row: tPos.row } : undefined,
-                });
-                setInfoPanelCombatant(null);
-              } else {
-                setInfoPanelCombatant(null);
-              }
-            }}
+            onHelpClick={() => openHelpFor(infoPanelCombatant)}
+            onAttackClick={() => openAttackFor(infoPanelCombatant)}
             onCastClick={() => {
-              if (!record) return;
-              // 通道 2：操作栏施法 = 先在弹窗内选法术，再按法术对象类型选目标
-              // （自身类法术在选法术后直接跳过目标确认；单体法术在目标确认步骤
-              // 列表选人 + 射程门禁）。入口目标恒为施法者自己（通道 1 拖拽才带目标）
-              setSpellModal({
-                caster: infoPanelCombatant,
-                target: infoPanelCombatant,
-              });
+              openCastFor(infoPanelCombatant);
               setInfoPanelCombatant(null);
             }}
             onDashClick={() => {
-              if (!record || !infoPanelCombatant) return;
-              // 检查是否有动作可用
-              if (!canUseAction(infoPanelCombatant.id)) {
-                alert('该参战者本回合已没有可用动作');
-                return;
-              }
-              // 计算基础速度
-              const c = record.combatants.find(x => x.id === infoPanelCombatant.id);
-              if (!c) return;
-              const baseSpeed = c.speed ?? 30;
-              const currentModifier = c.speedModifier ?? 0;
-              const battleSpeed = baseSpeed + currentModifier;
-              // 疾走：额外获得等于战斗速度的可用移动力（dashExtraMovement += battleSpeed）
-              // 注意：疾走不改变 speedModifier，只增加 dashExtraMovement
-              const currentDashExtra = c.dashExtraMovement ?? 0;
-              const newDashExtra = currentDashExtra + battleSpeed;
-              combatStore.update(record.id, {
-                combatants: record.combatants.map(x =>
-                  x.id === infoPanelCombatant.id
-                    ? { ...x, dashExtraMovement: newDashExtra }
-                    : x
-                ),
-                updatedAt: Date.now(),
-              });
-              // 消耗 1 个动作
-              consumeCombatantAction(infoPanelCombatant.id);
-              // 记录操作（放映写表格 / 模拟写日志）
-              recordOperation(infoPanelCombatant.id, `疾走：+【${battleSpeed}】尺移动`, 'move');
-              // 显示结果弹窗
-              const movementUsed = c.movementUsed ?? 0;
-              const availableMovement = battleSpeed + newDashExtra - movementUsed;
-              alert(`专注于疾跑，获得 ${battleSpeed} 尺额外移动力`);
+              dashFor(infoPanelCombatant);
               setInfoPanelCombatant(null);
             }}
           />

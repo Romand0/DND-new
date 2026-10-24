@@ -36,6 +36,14 @@ interface Props {
   equipmentChangesMap?: Record<string, EquipmentChanges>;
   /** 直接更新某参战者的变更信息（变更信息编辑弹窗用） */
   onUpdateChanges?: (combatantId: string, changes: EquipmentChanges) => void;
+  /** 双击棋子信息面板：协助动作（交由 main 打开协助弹窗） */
+  onPanelHelpClick?: (combatant: Combatant) => void;
+  /** 双击棋子信息面板：攻击动作（交由 main 打开攻击检定弹窗） */
+  onPanelAttackClick?: (combatant: Combatant) => void;
+  /** 双击棋子信息面板：施法动作（交由 main 打开施法弹窗） */
+  onPanelCastClick?: (combatant: Combatant) => void;
+  /** 双击棋子信息面板：疾走动作（交由 main 结算移动力） */
+  onPanelDashClick?: (combatant: Combatant) => void;
   /** 战斗模式：'simulation' 模拟模式（无回合，动作无限），'playback' 放映模式（有回合，动作有限） */
   mode?: 'simulation' | 'playback';
   /** 是否处于有效放映回合（放映中且未暂停）；移动消耗判定依赖此值 */
@@ -53,7 +61,7 @@ interface Props {
   onSelectionChange?: (combatantId: string | null) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick }: Props) {
   const navigate = useNavigate();
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
@@ -1539,6 +1547,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   equipmentChanges={equipmentChangesMap?.[doubleClickedCombatant.id]}
                   onUpdateChanges={onUpdateChanges ? (changes) => onUpdateChanges(doubleClickedCombatant.id, changes) : undefined}
                   actions={doubleClickedCombatant.actions}
+                  onHelpClick={() => onPanelHelpClick?.(doubleClickedCombatant)}
+                  onAttackClick={() => onPanelAttackClick?.(doubleClickedCombatant)}
+                  onCastClick={() => onPanelCastClick?.(doubleClickedCombatant)}
+                  onDashClick={() => onPanelDashClick?.(doubleClickedCombatant)}
                 />
       )}
     </div>

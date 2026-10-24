@@ -6,7 +6,16 @@ export async function onRequestGet(context: any): Promise<Response> {
     const result = await env.DB
       .prepare('SELECT id, name, level, school, data, updated_at FROM spells ORDER BY level ASC, name ASC')
       .all();
-    const items = result.results.map((row: any) => JSON.parse(row.data));
+    // data 列是完整对象快照；为空/畸形时回退行级字段，防止单条脏数据污染整个列表
+    const items = result.results.map((row: any) => {
+      try {
+        const parsed = JSON.parse(row.data);
+        if (parsed && typeof parsed === 'object' && parsed.name) return parsed;
+      } catch {
+        // fallthrough
+      }
+      return { id: row.id, name: row.name, level: row.level, school: row.school, updatedAt: row.updated_at };
+    });
     return jsonResponse(items);
   } catch (e: any) {
     return errorResponse(e.message || '数据库查询失败', 500);
