@@ -48,8 +48,8 @@
 - Instructions:
   - 状态过期双轨制（statusManager）：expirePolicy=manual（模拟模式，永续待 StatusAttachPanel 手动取消）vs rounds（放映模式，expiresAtRound=startRound+durationRounds 绝对回合判定）vs combatantTurn（持续到锚定参战者下一次回合开始，剑刃防护 2024 版语义）；真实时间戳 expiresAt 仅保留给 minutes/hours 型 duration 定义
   - applyEffect 落地时按 record.mode 定性过期策略；getEffects/getActiveStatuses 的 StatusRoundCtx（currentRound/turnCombatantId/turnRound）由调用方经 getCombatRoundCtx(recordId)（combatAffinities 导出）从 record.playbackState.currentTurn 推导，模拟模式无回合上下文 → 保守不过期
-  - combatantTurn 判定：currentTurn.combatantId === anchorCombatantId && turnRound > startRound（同轮内不会再次轮到同一人）；无 turnCombatantId 上下文时 advanceRound 清扫跳过，靠 getEffects 查询时惰性判定
-  - 流程 apply_effect 节点 config.durationType='untilCasterTurn' 表示「直到施法者下一次回合」，FlowRunStep → CombatSession onFlowResolved 透传 untilNextTurn + anchorCombatantId=spellModal.caster.id
+  - combatantTurn 判定：currentTurn.combatantId === anchorCombatantId && turnRound >= startRound + (turnCount ?? 1)（N=1 下一回合，2=下下回合…同轮内不会再次轮到同一人）；无 turnCombatantId 上下文时 advanceRound 清扫跳过，靠 getEffects 查询时惰性判定
+  - 流程 apply_effect 节点 config.durationType='untilCasterTurn' + durationTurns=N 表示「直到施法者第 N 个回合」，FlowRunStep → CombatSession onFlowResolved 透传 untilNextTurn + anchorCombatantId=spellModal.caster.id + turnCount
   - 回合推进衰减入口 useRoundTurn.advanceTurn 里 globalStatusManager.advanceRound(record.id, { currentRound: nextRound })
 
 [Project Knowledge Summary]
