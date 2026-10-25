@@ -57,13 +57,27 @@ export function mergeAffinitySets(
 }
 
 /**
+ * 从战斗记录推导回合上下文（供状态过期判定）。
+ * 放映模式传当前回合（currentTurn 优先，回退最后一轮下标）；模拟模式无回合概念，返回空。
+ */
+export function getCombatRoundCtx(recordId?: string): { currentRound?: number } {
+  if (!recordId) return {};
+  const record = combatStore.get(recordId);
+  if (!record || record.mode !== 'playback') return {};
+  const round =
+    record.playbackState?.currentTurn?.round ??
+    (record.rounds.length > 0 ? record.rounds.length - 1 : 0);
+  return { currentRound: round };
+}
+
+/**
  * 把状态效果转换为亲和条目。
  * 约定：effect.type 为 damage_resistance / damage_vulnerability / damage_immunity，
  * effect.config 支持 damageType / types / magical / silvered / adamantine / sourceKind。
  * 未提供伤害类型时表示不限类型（如“所有伤害”）。
  */
-export function buildStatusAffinities(targetId: string): DamageAffinitySet | null {
-  const effects = globalStatusManager.getEffects(targetId);
+export function buildStatusAffinities(targetId: string, roundCtx?: { currentRound?: number }): DamageAffinitySet | null {
+  const effects = globalStatusManager.getEffects(targetId, undefined, roundCtx);
   const set = EMPTY_AFFINITY_SET();
   let found = false;
 
@@ -132,5 +146,5 @@ export function getCombatantAffinities(
     }
   }
 
-  return mergeAffinitySets(base, buildStatusAffinities(combatant.id));
+  return mergeAffinitySets(base, buildStatusAffinities(combatant.id, getCombatRoundCtx(recordId)));
 }

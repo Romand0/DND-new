@@ -146,7 +146,13 @@ export interface StatusInstance {
   isActive: boolean;             // 是否激活
   declaredAt: number;            // 声明开始时间戳
   declaredEndAt?: number;       // 声明结束时间戳（如已结束）
-  expiresAt?: number;           // 预计过期时间（由持续时间计算）
+  expiresAt?: number;           // 预计过期时间（minutes/hours 型 duration 按真实时间计算）
+
+  // 回合驱动过期（放映模式）：与 expiresAt（真实时间）互斥使用
+  durationRounds?: number;      // 按回合计的持续时长（流程/面板配置）
+  startRound?: number;          // 施放时的绝对回合数
+  expiresAtRound?: number;      // 过期绝对回合 = startRound + durationRounds
+  expirePolicy?: 'rounds' | 'manual'; // rounds=按回合自动过期；manual=永续待手动取消（模拟模式）
 
   // --- 元数据（运行时） ---
   metadata?: Record<string, any>; // 额外运行时数据
@@ -186,17 +192,17 @@ export interface StatusManager {
   /** 声明状态结束（检测器触发或手动） */
   declareEnd(instanceId: string): StatusInstance | null;
 
-  /** 查询目标的所有激活状态 */
-  getActiveStatuses(targetId: string, scope?: StatusScope): StatusInstance[];
+  /** 查询目标的所有激活状态；ctx.currentRound 供回合驱动过期判定（放映模式传当前回合） */
+  getActiveStatuses(targetId: string, scope?: StatusScope, ctx?: { currentRound?: number }): StatusInstance[];
 
   /** 检查目标是否具有特定效果 */
   hasEffect(targetId: string, effectType: EffectType, scope?: StatusScope): boolean;
 
   /** 获取目标的所有效果列表（用于优劣势判定、动作阻止等） */
-  getEffects(targetId: string, scope?: StatusScope): Effect[];
+  getEffects(targetId: string, scope?: StatusScope, ctx?: { currentRound?: number }): Effect[];
 
   /** 回合推进：处理持续时间衰减、触发结束检测 */
-  advanceRound(combatId: string): void;
+  advanceRound(combatId: string, currentRound?: number): void;
 
   /** 清理过期状态 */
   cleanupExpired(): void;

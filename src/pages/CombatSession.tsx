@@ -1483,11 +1483,16 @@ export default function CombatSession() {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
               if (tr.effectType === 'status') {
-                // 状态落地：通用伤害修饰引擎（实例级效果 + 回合时长由流程注入）
+                // 状态落地：通用伤害修饰引擎（实例级效果 + 回合时长由流程注入）。
+                // 过期策略按施放时的战斗模式定性：放映模式按回合自动过期；模拟模式永续待手动取消
                 if (tr.statusId) {
+                  const isPlayback = record?.mode === 'playback';
                   globalStatusManager.applyEffect(tr.combatantId, tr.statusId, 'combat', record?.id, {
                     ...(tr.statusEffects && tr.statusEffects.length > 0 ? { instanceEffects: tr.statusEffects } : {}),
                     ...(tr.durationRounds && tr.durationRounds > 0 ? { durationRounds: tr.durationRounds } : {}),
+                    ...(isPlayback
+                      ? { combatMode: 'playback' as const, startRound: currentTurn?.round ?? Math.max(0, (record?.rounds.length ?? 1) - 1) }
+                      : { combatMode: 'simulation' as const }),
                   });
                 }
                 return;

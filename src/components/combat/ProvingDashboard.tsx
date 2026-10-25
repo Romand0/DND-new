@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Dices, Gauge } from 'lucide-react';
 import { computeCombatantAc } from '@/data/combatStore';
-import { getCombatantAffinities } from '@/data/combatAffinities';
+import { getCombatantAffinities, getCombatRoundCtx } from '@/data/combatAffinities';
 import { globalStatusManager } from '@/data/statusManager';
 import { detectAdvantage, resolveRollMode } from '@/data/advantageRules';
 import { rollDice } from '@/data/diceService';
@@ -49,8 +49,8 @@ export default function ProvingDashboard({ record, combatant, character, combatI
 
   const activeCount = useMemo(() => {
     void tick;
-    return globalStatusManager.getActiveStatuses(combatant.id, 'combat').length;
-  }, [combatant.id, tick]);
+    return globalStatusManager.getActiveStatuses(combatant.id, 'combat', getCombatRoundCtx(record.id)).length;
+  }, [combatant.id, record.id, tick]);
 
   const affinities = useMemo(() => {
     void tick;

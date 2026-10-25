@@ -177,8 +177,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     }
     // 检查是否需要新开一轮
     const nextRound = currentTurn.round + 1;
-    // 回合推进时清扫按回合计时的状态实例（通用伤害修饰等：expiresAt 时间比对）
-    globalStatusManager.advanceRound(record.id);
+    // 回合推进时清扫按回合计时的状态实例（expirePolicy='rounds' 按绝对回合判定）
+    globalStatusManager.advanceRound(record.id, nextRound);
     if (nextRound >= record.rounds.length) {
       const newRound: RoundAction = {};
       record.combatants.forEach(c => {

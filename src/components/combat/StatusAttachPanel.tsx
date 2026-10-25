@@ -6,6 +6,8 @@ import { Plus, X, Zap } from 'lucide-react';
 import statusLibrary from '@/data/statusLibrary';
 import { globalStatusManager } from '@/data/statusManager';
 import { GENERIC_AFFINITY_STATUS_ID } from '@/lib/flowCompiler';
+import { getCombatRoundCtx } from '@/data/combatAffinities';
+import combatStore from '@/data/combatStore';
 import type { Combatant } from '@/types/combat';
 import type { Effect, StatusDefinition, StatusInstance } from '@/types/status';
 
@@ -59,8 +61,13 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
 
   const activeInstances = useMemo(() => {
     void tick;
-    return globalStatusManager.getActiveStatuses(combatant.id, 'combat');
-  }, [combatant.id, tick]);
+    return globalStatusManager.getActiveStatuses(combatant.id, 'combat', getCombatRoundCtx(recordId));
+  }, [combatant.id, recordId, tick]);
+
+  const isPlayback = useMemo(
+    () => combatStore.get(recordId)?.mode === 'playback',
+    [recordId, tick],
+  );
 
   const allDefinitions = useMemo(() => statusLibrary.list(), []);
   const activeDefIds = useMemo(
@@ -102,6 +109,7 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
         (sourceKind ? `（来源：${SOURCE_KINDS.find(s => s.key === sourceKind)?.label}）` : ''),
     };
     try {
+      const isPlayback = combatStore.get(recordId)?.mode === 'playback';
       globalStatusManager.applyEffect(
         combatant.id,
         GENERIC_AFFINITY_STATUS_ID,
@@ -110,6 +118,11 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
         {
           instanceEffects: [effect],
           ...(durationRounds > 0 ? { durationRounds } : {}),
+          ...(durationRounds > 0 && isPlayback
+            ? { combatMode: 'playback' as const, startRound: getCombatRoundCtx(recordId).currentRound ?? 0 }
+            : durationRounds > 0
+              ? { combatMode: 'simulation' as const }
+              : {}),
         },
       );
       setTick(t => t + 1);
@@ -119,6 +132,15 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
   };
 
   const remainingText = (instance: StatusInstance): string => {
+    if (instance.expirePolicy === 'manual') {
+      return instance.durationRounds ? `模拟模式·不限回合（配置 ${instance.durationRounds} 回合）` : '手动取消';
+    }
+    if (instance.expirePolicy === 'rounds' && instance.expiresAtRound != null) {
+      const ctx = getCombatRoundCtx(recordId);
+      if (ctx.currentRound == null) return `持续 ${instance.durationRounds} 回合`;
+      const left = instance.expiresAtRound - ctx.currentRound;
+      return left <= 0 ? '本回合结束' : `剩 ${left} 回合`;
+    }
     if (!instance.expiresAt) return '永久';
     const ms = instance.expiresAt - Date.now();
     if (ms <= 0) return '即将过期';

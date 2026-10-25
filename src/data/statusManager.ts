@@ -29,7 +29,14 @@ export type StatusManagerWithApply = StatusManager & {
     statusId: string,
     scope?: StatusScope,
     combatId?: string,
-    options?: { instanceEffects?: Effect[]; durationRounds?: number }
+    options?: {
+      instanceEffects?: Effect[];
+      durationRounds?: number;
+      /** 施放时的绝对回合（放映模式）；模拟模式无回合概念，缺省即永续 */
+      startRound?: number;
+      /** 战斗模式：playback=按回合过期；simulation=永续待手动取消 */
+      combatMode?: 'simulation' | 'playback';
+    }
   ): StatusInstance;
 };
 
@@ -62,6 +69,17 @@ export function createStatusManager(): StatusManagerWithApply {
       return Date.now() + definition.duration.value * 3600000;
     }
     return undefined;
+  }
+
+  /** 判定一个实例在给定回合上下文下是否已到期 */
+  function isExpiredByRound(
+    instance: StatusInstance,
+    ctx?: { currentRound?: number },
+  ): boolean {
+    if (instance.expirePolicy !== 'rounds' || instance.expiresAtRound == null) return false;
+    // 无回合上下文（模拟模式 / 调用方未传）：保守不过期，效果保留待手动取消
+    if (ctx?.currentRound == null) return false;
+    return ctx.currentRound >= instance.expiresAtRound;
   }
 
   return {
@@ -143,13 +161,18 @@ export function createStatusManager(): StatusManagerWithApply {
 
     // --- 查询 ---
 
-    getActiveStatuses(targetId: string, scope?: StatusScope): StatusInstance[] {
+    getActiveStatuses(targetId: string, scope?: StatusScope, ctx?: { currentRound?: number }): StatusInstance[] {
       const now = Date.now();
       return store.instances.filter(i => {
         if (i.targetId !== targetId || !i.isActive) return false;
         if (scope && i.scope !== scope) return false;
-        // 读时惰性过期：与 getEffects 同一判定，展示层（仪表盘/状态面板）与效果引擎保持一致
-        if (i.expiresAt && now >= i.expiresAt) {
+        // 回合驱动过期：放映模式按当前回合判定；模拟模式（无回合上下文）保留待手动取消
+        if (isExpiredByRound(i, ctx)) {
+          this.declareEnd(i.instanceId);
+          return false;
+        }
+        // 真实时间过期：minutes/hours 型 duration 专用；rounds 策略实例不受时间影响
+        if (i.expirePolicy !== 'rounds' && i.expiresAt && now >= i.expiresAt) {
           this.declareEnd(i.instanceId);
           return false;
         }
@@ -162,16 +185,11 @@ export function createStatusManager(): StatusManagerWithApply {
       return effects.some(e => e.type === effectType);
     },
 
-    getEffects(targetId: string, scope?: StatusScope): Effect[] {
-      const activeInstances = this.getActiveStatuses(targetId, scope);
+    getEffects(targetId: string, scope?: StatusScope, ctx?: { currentRound?: number }): Effect[] {
+      const activeInstances = this.getActiveStatuses(targetId, scope, ctx);
       const effects: Effect[] = [];
 
       for (const instance of activeInstances) {
-        // 读时惰性过期：advanceRound 未被调用（如模拟模式）时，时间届满的实例视为已结束
-        if (instance.expiresAt && Date.now() >= instance.expiresAt) {
-          this.declareEnd(instance.instanceId);
-          continue;
-        }
         const definition = statusLibrary.get(instance.definitionId);
         if (definition) {
           effects.push(...definition.effects);
@@ -204,7 +222,12 @@ export function createStatusManager(): StatusManagerWithApply {
       statusId: string,
       scope: StatusScope = 'combat',
       combatId?: string,
-      options?: { instanceEffects?: Effect[]; durationRounds?: number }
+      options?: {
+        instanceEffects?: Effect[];
+        durationRounds?: number;
+        startRound?: number;
+        combatMode?: 'simulation' | 'playback';
+      }
     ): StatusInstance {
       // 应用状态
       const instance = this.declareStart(statusId, targetId, scope, combatId);
@@ -218,7 +241,19 @@ export function createStatusManager(): StatusManagerWithApply {
         instance.metadata = { ...instance.metadata, effects: options.instanceEffects };
       }
       if (options?.durationRounds && options.durationRounds > 0) {
-        instance.expiresAt = Date.now() + options.durationRounds * 6000;
+        instance.durationRounds = options.durationRounds;
+        if (options.combatMode === 'playback' && options.startRound != null) {
+          // 放映模式：回合驱动，绝对回合到期自动结束
+          instance.expirePolicy = 'rounds';
+          instance.startRound = options.startRound;
+          instance.expiresAtRound = options.startRound + options.durationRounds;
+          // 清掉可能来自 definition 的时间戳，避免展示层误读
+          instance.expiresAt = undefined;
+        } else {
+          // 模拟模式（或无回合数据）：永续，由 DM 手动取消（StatusAttachPanel）
+          instance.expirePolicy = 'manual';
+          instance.expiresAt = undefined;
+        }
       }
 
       return instance;
@@ -226,22 +261,30 @@ export function createStatusManager(): StatusManagerWithApply {
 
     // --- 维护 ---
 
-    advanceRound(combatId: string): void {
+    advanceRound(combatId: string, currentRound?: number): void {
       // 处理回合推进：衰减持续时间
       const combatInstances = store.instances.filter(
         i => i.combatId === combatId && i.isActive
       );
 
       for (const instance of combatInstances) {
+        // 回合驱动实例：绝对回合到期即结束
+        if (instance.expirePolicy === 'rounds' && instance.expiresAtRound != null) {
+          if (currentRound != null && currentRound >= instance.expiresAtRound) {
+            this.declareEnd(instance.instanceId);
+            const definition = statusLibrary.get(instance.definitionId);
+            if (definition) {
+              emit({ type: 'expire', instance, definition, timestamp: Date.now() });
+            }
+          }
+          continue;
+        }
         const definition = statusLibrary.get(instance.definitionId);
         if (!definition) continue;
 
-        // 如果是按回合计时的，处理衰减
-        if (definition.duration.type === 'rounds' && instance.expiresAt) {
-          // 每回合减少剩余回合数
-          // 简化：直接用时间戳比对
+        // 时间驱动实例（minutes/hours 型 duration）：按真实时间比对
+        if (definition.duration.type !== 'rounds' && instance.expiresAt) {
           if (Date.now() >= instance.expiresAt) {
-            // 过期了，触发结束
             this.declareEnd(instance.instanceId);
             emit({
               type: 'expire',
