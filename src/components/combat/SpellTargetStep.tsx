@@ -11,13 +11,15 @@ interface Props {
   target: Combatant;
   combatants: Combatant[];
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /** 确认按钮文案（默认「目标确认，进入检定」；流程施放传「目标确认，开始施法流程」） */
+  confirmLabel?: string;
   onSelectTarget: (combatant: Combatant) => void;
   onConfirm: (message: string, data: Record<string, unknown>) => void;
   onForce: (message: string, data: Record<string, unknown>) => void;
 }
 
 export default function SpellTargetStep({
-  spell, caster, target, combatants, combatantPositions, onSelectTarget, onConfirm, onForce,
+  spell, caster, target, combatants, combatantPositions, confirmLabel, onSelectTarget, onConfirm, onForce,
 }: Props) {
   const range = parseSpellRange(spell.range);
 
@@ -107,7 +109,7 @@ export default function SpellTargetStep({
           onClick={() => onConfirm(confirmMessage, data)}
           className="w-full py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors"
         >
-          目标确认，进入检定
+          {confirmLabel ?? '目标确认，进入检定'}
         </button>
       ) : (
         <>

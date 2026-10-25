@@ -87,8 +87,10 @@ export interface Combatant {
    * 专注状态（D&D 5e）：施展专注类法术成功后自动声明开始。
    * 通行证语义——专注类法术维持的前提；可主动停止、可被伤害豁免失败打断、
    * 失能/昏迷/死亡时禁用（cleanupBrokenConcentration）。战斗临时状态，随 CombatRecord 保留。
+   * statusIds：本次施法通过流程附加的状态实例 ID（如防护能量的抗性），
+   * 专注结束时由 combatStore.removeConcentrationStatuses 统一联动移除。
    */
-  concentration?: { spellName: string; startedRound: number };
+  concentration?: { spellName: string; startedRound: number; statusIds?: string[] };
   /** 死亡豁免失败次数（D&D 5e：累计 3 次即死亡） */
   deathSaveFailures?: number;
   /** 死亡豁免成功次数（D&D 5e：累计 3 次即稳定） */

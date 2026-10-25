@@ -384,16 +384,22 @@ export default function CombatSession() {
   });
 
   // 专注声明（D&D 5e）：成功施展专注类法术后由 onCastResolved / onFlowResolved 调用。
-  // 已有专注时施放另一个专注法术 → 中断旧的并开始新的，返回的表格备注由调用方拼接进摘要文本。
-  const beginConcentration = (combatantId: string, spellName: string): string | null => {
+  // statusIds：本次施法流程附加的状态实例 ID（防护能量的抗性等），专注结束时联动移除。
+  // 已有专注时施放另一个专注法术 → 中断旧的并开始新的（旧专注挂载的状态同步移除），
+  // 返回的表格备注由调用方拼接进摘要文本。
+  const beginConcentration = (combatantId: string, spellName: string, statusIds?: string[]): string | null => {
     if (!record?.id) return null;
     const latest = combatStore.get(record.id);
     const caster = latest?.combatants.find(c => c.id === combatantId);
     if (!latest || !caster) return null;
     const prev = caster.concentration;
+    // 替换/重施：旧专注挂载的状态实例同步结束（5e：失去旧的才开始新的）
+    combatStore.removeConcentrationStatuses(prev);
     combatStore.update(record.id, {
       combatants: latest.combatants.map(c =>
-        c.id === combatantId ? { ...c, concentration: { spellName, startedRound: currentTurn?.round ?? 0 } } : c,
+        c.id === combatantId
+          ? { ...c, concentration: { spellName, startedRound: currentTurn?.round ?? 0, ...(statusIds?.length ? { statusIds } : {}) } }
+          : c,
       ),
       updatedAt: Date.now(),
     });
@@ -1460,6 +1466,7 @@ export default function CombatSession() {
       {/* ✅ 新增：法术施放弹窗 —— 独立于攻击检定的交互流程 */}
       {spellModal && (
         <CombatSpellModal
+          recordId={record?.id}
           caster={spellModal.caster}
           target={spellModal.target}
           isProvingGround={record?.isProvingGround ?? false}
@@ -1479,6 +1486,8 @@ export default function CombatSession() {
               consumeCombatantBonusAction(spellModal.caster.id);
             }
             // 逐目标 HP 回写（编译器纯计算，落地在此）；NPC 归 0 标记昏迷，与手动结算语义一致
+            // 附加的状态实例 ID 收集进 concentration.statusIds：专注断 → 效果断
+            const appliedStatusIds: string[] = [];
             payload.targetResults.forEach(tr => {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
@@ -1491,7 +1500,7 @@ export default function CombatSession() {
                 if (tr.statusId) {
                   const isPlayback = record?.mode === 'playback';
                   const castRound = currentTurn?.round ?? Math.max(0, (record?.rounds.length ?? 1) - 1);
-                  globalStatusManager.applyEffect(tr.combatantId, tr.statusId, 'combat', record?.id, {
+                  const statusInstance = globalStatusManager.applyEffect(tr.combatantId, tr.statusId, 'combat', record?.id, {
                     ...(tr.statusEffects && tr.statusEffects.length > 0 ? { instanceEffects: tr.statusEffects } : {}),
                     ...(tr.durationRounds && tr.durationRounds > 0 ? { durationRounds: tr.durationRounds } : {}),
                     ...(isPlayback
@@ -1504,6 +1513,7 @@ export default function CombatSession() {
                         }
                       : { combatMode: 'simulation' as const }),
                   });
+                  appliedStatusIds.push(statusInstance.instanceId);
                 }
                 return;
               }
@@ -1525,7 +1535,7 @@ export default function CombatSession() {
             // 摘要文本（FlowRunStep 生成的单行紧凑文本）；专注替换备注追加在末尾
             let flowSummary = payload.summary;
             if (payload.concentration && payload.success) {
-              const concNote = beginConcentration(spellModal.caster.id, payload.spellName);
+              const concNote = beginConcentration(spellModal.caster.id, payload.spellName, appliedStatusIds);
               if (concNote) flowSummary += concNote;
             }
             recordOperation(spellModal.caster.id, flowSummary, 'spell');

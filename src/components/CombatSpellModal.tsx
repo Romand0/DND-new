@@ -26,7 +26,7 @@ import SpellEffectStep, { parseDice, renderSpellDice, type SpellEffectType } fro
 import SpellFinishStep from './combat/SpellFinishStep';
 import FlowRunStep, { type FlowCastPayload } from './combat/FlowRunStep';
 
-type Stage = 'list' | 'flow' | 'cast';
+type Stage = 'list' | 'flow-target' | 'flow' | 'cast';
 
 interface Props {
   caster: Combatant;        // 施法者（攻击者位）
@@ -288,7 +288,10 @@ export default function CombatSpellModal({
       }
       if (f) {
         setBoundFlow(f);
-        setStage('flow');
+        // 流程含 select_target 且法术非「自身」射程 → 先选目标（触及类：防护能量等）；
+        // 自身类法术目标恒为施法者，直接进入流程执行
+        const flowNeedsTarget = !selfCast && f.nodes.some(n => n.type === 'select_target');
+        setStage(flowNeedsTarget ? 'flow-target' : 'flow');
         return;
       }
     }
@@ -500,6 +503,21 @@ export default function CombatSpellModal({
             <div className="px-3 py-2 rounded-lg border border-amber-500/40 dark:bg-amber-500/10 light:bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400">
               当前正在维持「{activeConcentration.spellName}」——施放此法术将中断它并开始新的专注。
             </div>
+          )}
+
+          {/* 阶段 2a-前置：流程选目标（触及类流程法术，select_target 节点驱动） */}
+          {stage === 'flow-target' && selectedSpell && boundFlow && (
+            <SpellTargetStep
+              spell={selectedSpell}
+              caster={caster}
+              target={effectiveTarget}
+              combatants={allCombatants}
+              combatantPositions={combatantPositions}
+              confirmLabel="目标确认，开始施法流程"
+              onSelectTarget={(c) => { setEffectiveTarget(c); onTargetChange?.(c); }}
+              onConfirm={() => setStage('flow')}
+              onForce={() => setStage('flow')}
+            />
           )}
 
           {/* 阶段 2a：按流程施放（绑定正式流程时优先入口） */}

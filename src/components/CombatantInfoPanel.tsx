@@ -791,6 +791,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           if (!rec) return;
                           const latest = combatStore.get(rec.id);
                           if (!latest) return;
+                          const self = latest.combatants.find(c => c.id === combatant.id);
+                          // 手动停止：联动移除本次专注挂载的状态实例（防护能量的抗性等）
+                          combatStore.removeConcentrationStatuses(self?.concentration);
                           combatStore.update(rec.id, {
                             combatants: latest.combatants.map(c =>
                               c.id === combatant.id ? { ...c, concentration: undefined } : c,

@@ -1,6 +1,7 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, OperationLogEntry } from '@/types/combat';
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
+import { globalStatusManager } from './statusManager';
 import type { Equipment, Character } from '@/types/character';
 
 const STORAGE_KEY = 'dnd-combat-records';
@@ -872,11 +873,25 @@ const combatStore = {
     list[idx] = { ...list[idx], combatants, updatedAt: Date.now() };
     // 失能瞬间即打断专注（D&D 5e）：失能移除后专注无法恢复，清理在此即时执行
     if (combatants.some(c => c.id === combatantId && c.isIncapacitated && c.concentration)) {
+      const broken = combatants.find(c => c.id === combatantId && c.isIncapacitated);
+      this.removeConcentrationStatuses(broken?.concentration);
       list[idx].combatants = combatants.map(c =>
         c.id === combatantId ? { ...c, concentration: undefined } : c
       );
     }
     save(list);
+  },
+
+  /**
+   * 专注中断联动：移除本次专注声明挂载的状态实例（流程附加的抗性等）。
+   * 状态实例在 globalStatusManager（纯内存）中按 instanceId 全局定位，
+   * 与专注字段同生命周期——专注断则流程附加的效果断（「专注，至多 X」语义闭环）。
+   * 幂等：declareEnd 对已结束实例为 no-op。
+   */
+  removeConcentrationStatuses(concentration?: Combatant['concentration']): void {
+    for (const statusId of concentration?.statusIds ?? []) {
+      globalStatusManager.declareEnd(statusId);
+    }
   },
 
   resetTurnTodosForRound(recordId: string, round: number): void {
@@ -1157,6 +1172,8 @@ const combatStore = {
       record.turnTodos = record.turnTodos.filter(t => t.id !== todoId);
     }
     if (!maintained) {
+      // 专注已断：先联动移除本次专注挂载的状态实例，再清字段
+      this.removeConcentrationStatuses(c.concentration);
       record.combatants[idx] = { ...c, concentration: undefined };
       // 专注已断：该参战者的「维持专注」待办同步移除（与字段同生命周期）
       if (record.turnTodos) {
@@ -1187,6 +1204,12 @@ const combatStore = {
     const record = records.find(r => r.id === recordId);
     if (!record) return;
     let changed = false;
+    // 失能/昏迷/死亡的参战者：先联动移除各自专注挂载的状态实例，再清字段
+    record.combatants.forEach(c => {
+      if (c.concentration && (c.isDead || c.isUnconscious || c.isIncapacitated)) {
+        this.removeConcentrationStatuses(c.concentration);
+      }
+    });
     record.combatants = record.combatants.map(c => {
       if (c.concentration && (c.isDead || c.isUnconscious || c.isIncapacitated)) {
         changed = true;
@@ -1213,6 +1236,9 @@ const combatStore = {
     const todo = record.turnTodos.find(t => t.id === todoId);
     if (!todo || todo.type !== 'concentration_maintain') return;
     record.turnTodos = record.turnTodos.filter(t => t.id !== todoId);
+    const target = record.combatants.find(c => c.id === todo.combatantId);
+    // 主动结束（duration 到期/放弃）：联动移除本次专注挂载的状态实例
+    this.removeConcentrationStatuses(target?.concentration);
     record.combatants = record.combatants.map(c =>
       c.id === todo.combatantId && c.concentration ? { ...c, concentration: undefined } : c
     );
