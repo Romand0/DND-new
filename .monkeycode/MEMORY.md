@@ -40,3 +40,12 @@
   - 沙盘 E2E 选择器要点：攻击方式条目是 div.rounded-lg.border.p-3（非 button）；CombatantInfoPanel 根元素是 fixed inset-0 z-50 全屏透明遮罩，面板开着时沙盘所有点击被挡，须先点面板标题栏 svg.lucide-x 按钮关闭；攻击检定按钮链 = 填 d20 →「确定」→「确认命中，进入伤害结算」→ 伤害弹窗填骰值 →「计算」
   - 云端 POST /api/spells 导入的法术可能缺 components 字段，cast_start 读 components.verbal 会崩——已全链路加可选链防护；自造测试法术记得带 components
   - 防护类法术流程施放 → 抗性落地链路已 E2E 验证通：流程施放（FlowRunStep 执行流程）→ statusManager.applyEffect → 战斗日志「获得抗性」→ 敌方近战攻击 CombatDamageModal 结算减半（8→4）→ HP 扣减正确；用户端若无效优先排查浏览器缓存旧 bundle（硬刷新）与流程节点 config 参数（affinityKind/damageTypes/sourceKind 拼写）
+
+[Project Knowledge Summary]
+- Date: 2026-10-25
+- Context: Discovered by Agent while fixing status duration expiring by real time instead of rounds
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 状态过期双轨制（statusManager）：expirePolicy=manual（模拟模式，永续待 StatusAttachPanel 手动取消）vs rounds（放映模式，expiresAtRound=startRound+durationRounds 绝对回合判定）；真实时间戳 expiresAt 仅保留给 minutes/hours 型 duration 定义
+  - applyEffect 落地时按 record.mode 定性过期策略；getEffects/getActiveStatuses 的 currentRound 上下文由调用方经 getCombatRoundCtx(recordId)（combatAffinities 导出）从 record.playbackState.currentTurn 推导，模拟模式无回合上下文 → 保守不过期
+  - 回合推进衰减入口 useRoundTurn.advanceTurn 里 globalStatusManager.advanceRound(record.id, nextRound)
