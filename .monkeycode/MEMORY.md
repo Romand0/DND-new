@@ -46,6 +46,18 @@
 - Context: Discovered by Agent while fixing status duration expiring by real time instead of rounds
 - Category: Troubleshooting & Debugging
 - Instructions:
-  - 状态过期双轨制（statusManager）：expirePolicy=manual（模拟模式，永续待 StatusAttachPanel 手动取消）vs rounds（放映模式，expiresAtRound=startRound+durationRounds 绝对回合判定）；真实时间戳 expiresAt 仅保留给 minutes/hours 型 duration 定义
-  - applyEffect 落地时按 record.mode 定性过期策略；getEffects/getActiveStatuses 的 currentRound 上下文由调用方经 getCombatRoundCtx(recordId)（combatAffinities 导出）从 record.playbackState.currentTurn 推导，模拟模式无回合上下文 → 保守不过期
-  - 回合推进衰减入口 useRoundTurn.advanceTurn 里 globalStatusManager.advanceRound(record.id, nextRound)
+  - 状态过期双轨制（statusManager）：expirePolicy=manual（模拟模式，永续待 StatusAttachPanel 手动取消）vs rounds（放映模式，expiresAtRound=startRound+durationRounds 绝对回合判定）vs combatantTurn（持续到锚定参战者下一次回合开始，剑刃防护 2024 版语义）；真实时间戳 expiresAt 仅保留给 minutes/hours 型 duration 定义
+  - applyEffect 落地时按 record.mode 定性过期策略；getEffects/getActiveStatuses 的 StatusRoundCtx（currentRound/turnCombatantId/turnRound）由调用方经 getCombatRoundCtx(recordId)（combatAffinities 导出）从 record.playbackState.currentTurn 推导，模拟模式无回合上下文 → 保守不过期
+  - combatantTurn 判定：currentTurn.combatantId === anchorCombatantId && turnRound > startRound（同轮内不会再次轮到同一人）；无 turnCombatantId 上下文时 advanceRound 清扫跳过，靠 getEffects 查询时惰性判定
+  - 流程 apply_effect 节点 config.durationType='untilCasterTurn' 表示「直到施法者下一次回合」，FlowRunStep → CombatSession onFlowResolved 透传 untilNextTurn + anchorCombatantId=spellModal.caster.id
+  - 回合推进衰减入口 useRoundTurn.advanceTurn 里 globalStatusManager.advanceRound(record.id, { currentRound: nextRound })
+
+[Project Knowledge Summary]
+- Date: 2026-10-25
+- Context: Discovered by Agent while E2E testing playback-mode flow cast (combatantTurn expiry) in proving ground
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 放映模式开始放映链：切「放映模式」按钮 → 点先攻表格格子 ▶ 按钮 → 突袭弹窗（「确定（0）」全角括号）→ 当前回合横幅出现
+  - InfoPanel 关闭必须点标题栏的第一个 svg.lucide-x；状态条目的删除 X 是面板内最后一个 lucide-x，用 .last() 会误删状态
+  - 流程施放两段式：法术弹窗选法术 →「执行流程」（跑节点）→「确认应用」（onFlowResolved 落地状态）
+  - 棋子定位用 [title*="参战者名"]（格子 title=名字）；施法会消耗动作（ACT 0），新回合自动恢复
