@@ -64,6 +64,17 @@
 
 [Project Knowledge Summary]
 - Date: 2026-10-25
+- Context: Discovered by Agent while E2E testing flow-stage target picker and concentration-status linkage (protection from energy)
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - InfoPanel 打开后默认停在「快捷」tab；专注卡片与 StatusAttachPanel（状态清单/附加表单）在「状态」tab，E2E 找状态相关按钮前先点「状态」tab
+  - 状态断言必须收窄到 InfoPanel 内文（div.fixed.inset-0.z-50.last() 的 innerText）：整页 innerText 会被战斗日志历史行与 StatusAttachPanel 附加表单的静态「抗性/免疫/易伤」按钮文案污染，产生假阳/假阴
+  - 放映模式开参战者面板：列表卡片 button[title*="参战者详情"]（hasText 过滤名字）比沙盘格双击稳（双击第二次点击可能落在弹出的遮罩上把它关掉）
+  - 专注-状态联动：concentration.statusIds 记录流程附加的状态实例 ID，combatStore.removeConcentrationStatuses 在五处结束路径统一 declareEnd；替换/重施专注法术时旧状态同步结束
+  - 已修复存量 bug：CombatSession 此前未向 CombatSpellModal 传 recordId，弹窗内 allCombatants/activeConcentration 永远退化为 [caster, target] fallback（触及类法术换目标列表只有施法者一人）
+
+[Project Knowledge Summary]
+- Date: 2026-10-25
 - Context: Discovered by Agent while diagnosing user report "flow badge disappeared, casting degraded to manual" (root cause: user deleted/recreated the character; chain silently misaligned)
 - Category: Troubleshooting & Debugging
 - Instructions:
