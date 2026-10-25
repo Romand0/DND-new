@@ -61,3 +61,12 @@
   - InfoPanel 关闭必须点标题栏的第一个 svg.lucide-x；状态条目的删除 X 是面板内最后一个 lucide-x，用 .last() 会误删状态
   - 流程施放两段式：法术弹窗选法术 →「执行流程」（跑节点）→「确认应用」（onFlowResolved 落地状态）
   - 棋子定位用 [title*="参战者名"]（格子 title=名字）；施法会消耗动作（ACT 0），新回合自动恢复
+
+[Project Knowledge Summary]
+- Date: 2026-10-25
+- Context: Discovered by Agent while diagnosing user report "flow badge disappeared, casting degraded to manual" (root cause: user deleted/recreated the character; chain silently misaligned)
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 流程徽标/流程施放三环链路：角色卡法术条目（存名字）→ CombatSpellModal knownSpells 按名字从 spellStore 缓存解析出法术对象（带 id）→ fetchBindingsBySpell(spell.id) 查云端绑定。任一环错位（角色/缓存陈旧、id 脱节）= 徽标消失 + 静默退回手动管线，且全部 silent catch 无诊断信息（现已加 console.warn，前缀 [CombatSpellModal]）
+  - 排查口诀：浏览器 Console 跑 fetch('/api/spells') + fetch('/api/bindings/by-spell/'+id) 对照 id 是否对得上；徽标与手动退化同源（flowBindings Map 空），编译器错误只影响流程执行环节，无法让徽标消失
+  - spellStore 缓存刷新时机 = 法术弹窗挂载时 fetchAll()（云端真值覆盖缓存），非 proving ground 的 knownSpells 依赖 character.spells（名字数组）+ byName 匹配
