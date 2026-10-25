@@ -212,8 +212,9 @@ export default function CombatSpellModal({
     (async () => {
       try {
         await spellStore.fetchAll();
-      } catch {
+      } catch (e) {
         // 离线：用现有缓存（种子或上次同步），绑定查询可能落空但不影响手动施放
+        console.warn('[CombatSpellModal] 法术库云端刷新失败，绑定可能按旧 id 查询落空:', e);
       }
       if (!cancelled) setSpellCacheTick(t => t + 1);
     })();
@@ -231,9 +232,13 @@ export default function CombatSpellModal({
           const list = await fetchBindingsBySpell(spell.id);
           if (Array.isArray(list) && list.length > 0 && list[0]?.flow_id) {
             map.set(spell.id, list[0].flow_id);
+          } else {
+            // 有法术但查不到绑定：多半是缓存 id 与云端绑定 spell_id 脱节（角色/缓存陈旧）
+            console.warn('[CombatSpellModal] 法术无绑定流程（缓存 id 可能与云端绑定脱节）:', spell.name, spell.id);
           }
-        } catch {
+        } catch (e) {
           // 单个法术拉取失败不影响其余
+          console.warn('[CombatSpellModal] 绑定拉取失败，流程徽标降级手动:', spell.name, spell.id, e);
         }
       }));
       if (!cancelled) setFlowBindings(map);
@@ -276,8 +281,9 @@ export default function CombatSpellModal({
         try {
           const remote = await flowStore.pullRemote(flowId);
           f = remote ? flowStore.getPublished(remote.id) : undefined;
-        } catch {
+        } catch (e) {
           // 云端不可用：回落手动管线
+          console.warn('[CombatSpellModal] 绑定流程云端拉取失败，回落手动管线:', flowId, e);
         }
       }
       if (f) {
