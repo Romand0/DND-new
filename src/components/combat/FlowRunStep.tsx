@@ -36,6 +36,8 @@ export interface FlowCastTargetResult {
   durationRounds?: number;
   /** effectType='status' 时：持续到目标方（施法者）下一次回合开始（如剑刃防护「直到你的下一回合」） */
   untilNextTurn?: boolean;
+  /** untilNextTurn 时轮到施法者的第 N 个回合结束（1=下一回合，2=下下回合…） */
+  turnCount?: number;
 }
 
 /** 流程施放完成回传（契约：CombatSession.onFlowResolved 消费） */
@@ -225,6 +227,7 @@ export default function FlowRunStep({
         statusEffects: Array.isArray(r.statusEffects) ? (r.statusEffects as Effect[]) : undefined,
         durationRounds: typeof r.durationRounds === 'number' ? r.durationRounds : undefined,
         untilNextTurn: r.untilNextTurn === true,
+        turnCount: typeof r.turnCount === 'number' ? r.turnCount : undefined,
       }));
 
     const mainEffect = effectResults.find(r => r.targetId === target.id) ?? effectResults[0];

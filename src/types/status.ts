@@ -161,8 +161,9 @@ export interface StatusInstance {
   durationRounds?: number;      // 按回合计的持续时长（流程/面板配置）
   startRound?: number;          // 施放时的绝对回合数
   expiresAtRound?: number;      // 过期绝对回合 = startRound + durationRounds（expirePolicy='rounds'）
-  anchorCombatantId?: string;   // 锚定参战者（expirePolicy='combatantTurn'：下一次轮到该参战者时结束）
-  expirePolicy?: 'rounds' | 'manual' | 'combatantTurn'; // rounds=按回合自动过期；manual=永续待手动取消（模拟模式）；combatantTurn=持续到锚定参战者下一次回合开始
+  anchorCombatantId?: string;   // 锚定参战者（expirePolicy='combatantTurn'：轮到该参战者的第 N 个回合时结束）
+  turnCount?: number;           // expirePolicy='combatantTurn'：经过的锚定者回合数，>=N 即过期（默认 1=下一回合，2=下下回合…）
+  expirePolicy?: 'rounds' | 'manual' | 'combatantTurn'; // rounds=按回合自动过期；manual=永续待手动取消（模拟模式）；combatantTurn=轮到锚定参战者第 N 个回合时结束
 
   // --- 元数据（运行时） ---
   metadata?: Record<string, any>; // 额外运行时数据

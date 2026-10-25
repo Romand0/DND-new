@@ -1498,7 +1498,9 @@ export default function CombatSession() {
                       ? {
                           combatMode: 'playback' as const,
                           startRound: castRound,
-                          ...(tr.untilNextTurn ? { untilNextTurn: true, anchorCombatantId: spellModal.caster.id } : {}),
+                          ...(tr.untilNextTurn
+                            ? { untilNextTurn: true, anchorCombatantId: spellModal.caster.id, turnCount: tr.turnCount }
+                            : {}),
                         }
                       : { combatMode: 'simulation' as const }),
                   });

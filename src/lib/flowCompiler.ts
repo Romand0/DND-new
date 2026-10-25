@@ -874,6 +874,8 @@ export class FlowCompiler {
         };
       }
       const untilCasterTurn = durationTypeRaw === 'untilCasterTurn';
+      // untilCasterTurn 的回合数：1=下一回合，2=下下回合…（非法值回退 1）
+      const turnCount = Math.max(1, Math.floor(Number(config?.durationTurns ?? 1)) || 1);
       const durationRounds = Math.max(0, Math.floor(Number(config?.durationRounds ?? 0)) || 0);
 
       const effect: Effect = {
@@ -911,7 +913,7 @@ export class FlowCompiler {
           statusName: affinityDefinition.name,
           statusEffects: [effect],
           durationRounds,
-          ...(untilCasterTurn ? { untilNextTurn: true } : {}),
+          ...(untilCasterTurn ? { untilNextTurn: true, turnCount } : {}),
           effectValue: 0,
           finalValue: 0,
           oldHp: currentHp,

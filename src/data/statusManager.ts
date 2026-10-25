@@ -90,8 +90,10 @@ export function createStatusManager(): StatusManagerWithApply {
       // 无当前行动者上下文：保守不过期
       if (ctx?.turnCombatantId == null) return false;
       const turnRound = ctx.turnRound ?? ctx.currentRound ?? 0;
-      // 施放发生在自己回合内（currentTurn 已指向施法者），下一次轮到必然是更晚的回合
-      return ctx.turnCombatantId === instance.anchorCombatantId && turnRound > instance.startRound;
+      // 轮到锚定者第 N 个回合时结束（N=1 即「下一次轮到」）；施放发生在自己回合内时，
+      // 下一次轮到必然是更晚的回合；同轮内不会再次轮到同一人
+      return ctx.turnCombatantId === instance.anchorCombatantId
+        && turnRound >= instance.startRound + (instance.turnCount ?? 1);
     }
     return false;
   }
@@ -241,11 +243,13 @@ export function createStatusManager(): StatusManagerWithApply {
         durationRounds?: number;
         startRound?: number;
         combatMode?: 'simulation' | 'playback';
-        /** true = 持续到 anchorCombatantId 的下一次回合开始（如剑刃防护「直到你的下一回合」） */
-        untilNextTurn?: boolean;
-        /** untilNextTurn 的锚定参战者（通常为施法者） */
-        anchorCombatantId?: string;
-      }
+      /** true = 持续到 anchorCombatantId 的下一次回合开始（如剑刃防护「直到你的下一回合」） */
+      untilNextTurn?: boolean;
+      /** untilNextTurn 的锚定参战者（通常为施法者） */
+      anchorCombatantId?: string;
+      /** 轮到锚定者的第 N 个回合时结束（1=下一回合，2=下下回合…；缺省 1） */
+      turnCount?: number;
+    }
     ): StatusInstance {
       // 应用状态
       const instance = this.declareStart(statusId, targetId, scope, combatId);
@@ -262,9 +266,10 @@ export function createStatusManager(): StatusManagerWithApply {
         instance.durationRounds = options.durationRounds;
         if (options.combatMode === 'playback' && options.startRound != null) {
           if (options.untilNextTurn && options.anchorCombatantId) {
-            // 「直到施法者下一次回合」：锚定参战者回合策略（如剑刃防护 2024 版）
+            // 「直到施法者第 N 回合」：锚定参战者回合策略（如剑刃防护 2024 版，N=1）
             instance.expirePolicy = 'combatantTurn';
             instance.anchorCombatantId = options.anchorCombatantId;
+            instance.turnCount = options.turnCount && options.turnCount >= 1 ? Math.floor(options.turnCount) : 1;
             instance.startRound = options.startRound;
           } else {
             // 放映模式：回合驱动，绝对回合到期自动结束
@@ -283,6 +288,7 @@ export function createStatusManager(): StatusManagerWithApply {
         // durationRounds 未配置但显式要求 untilNextTurn：同样按锚定参战者回合策略
         instance.expirePolicy = 'combatantTurn';
         instance.anchorCombatantId = options.anchorCombatantId;
+        instance.turnCount = options.turnCount && options.turnCount >= 1 ? Math.floor(options.turnCount) : 1;
         instance.startRound = options.startRound;
         instance.expiresAt = undefined;
       }

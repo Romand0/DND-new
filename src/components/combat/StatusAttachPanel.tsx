@@ -52,6 +52,7 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
   const [sourceKind, setSourceKind] = useState('');
   const [durationRounds, setDurationRounds] = useState(0);
   const [untilNextTurn, setUntilNextTurn] = useState(false);
+  const [turnCount, setTurnCount] = useState(1);
   const [error, setError] = useState('');
 
   // 状态实例无订阅通道：操作后手动 tick + 轮询兜底过期/倒计时刷新
@@ -125,7 +126,9 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
                 combatMode: 'playback' as const,
                 startRound: getCombatRoundCtx(recordId).currentRound ?? 0,
                 // 锚定目标自身：「持续到其下一回合」= 持续到该参战者下一次回合开始
-                ...(untilNextTurn ? { untilNextTurn: true, anchorCombatantId: combatant.id } : {}),
+                ...(untilNextTurn
+                  ? { untilNextTurn: true, anchorCombatantId: combatant.id, turnCount: Math.max(1, Math.floor(turnCount) || 1) }
+                  : {}),
               }
             : durationSpecified
               ? { combatMode: 'simulation' as const }
@@ -143,13 +146,14 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
       return instance.durationRounds ? `模拟模式·不限回合（配置 ${instance.durationRounds} 回合）` : '手动取消';
     }
     if (instance.expirePolicy === 'combatantTurn') {
-      // 锚定参战者回合：轮到锚定者且回合数已超过施放回合时，查询层会判定过期
+      // 锚定参战者回合：轮到锚定者第 N 个回合时，查询层会判定过期
       const ctx = getCombatRoundCtx(recordId);
       const turnRound = ctx.turnRound ?? ctx.currentRound ?? 0;
-      if (ctx.turnCombatantId != null && ctx.turnCombatantId === instance.anchorCombatantId && turnRound > (instance.startRound ?? 0)) {
+      const n = instance.turnCount ?? 1;
+      if (ctx.turnCombatantId != null && ctx.turnCombatantId === instance.anchorCombatantId && turnRound >= (instance.startRound ?? 0) + n) {
         return '本次行动后结束';
       }
-      return '到其下一回合';
+      return n === 1 ? '到其下一回合' : `到其下 ${n} 个回合`;
     }
     if (instance.expirePolicy === 'rounds' && instance.expiresAtRound != null) {
       const ctx = getCombatRoundCtx(recordId);
@@ -265,9 +269,20 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
             type="checkbox"
             checked={untilNextTurn}
             onChange={e => setUntilNextTurn(e.target.checked)}
-            title="持续到该参战者的下一次回合开始（如剑刃防护「直到你的下一回合」）"
+            title="持续到该参战者的第 N 个回合开始（如剑刃防护「直到你的下一回合」）"
           />
-          <span className="dark:text-text-dark-muted light:text-text-light-muted shrink-0">到其下一回合</span>
+          <span className="dark:text-text-dark-muted light:text-text-light-muted shrink-0">到其第</span>
+          <input
+            type="number"
+            min={1}
+            value={turnCount}
+            onChange={e => setTurnCount(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
+            onBlur={() => setTurnCount(Math.max(1, Math.floor(Number(turnCount)) || 1))}
+            disabled={!untilNextTurn}
+            className="w-12 rounded border border-gray-200 dark:border-gray-700 bg-transparent text-xs px-1 py-1 disabled:opacity-50 dark:text-text-dark light:text-text-light"
+            title="1 = 下一回合，2 = 下下回合…"
+          />
+          <span className="dark:text-text-dark-muted light:text-text-light-muted shrink-0">回合</span>
           <input
             type="number"
             min={0}
