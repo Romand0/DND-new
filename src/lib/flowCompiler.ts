@@ -866,6 +866,14 @@ export class FlowCompiler {
         .filter(Boolean);
       const sourceKindRaw = String(config?.sourceKind ?? '');
       const sourceKind = ['weapon', 'spell', 'effect'].includes(sourceKindRaw) ? sourceKindRaw : undefined;
+      const durationTypeRaw = String(config?.durationType ?? 'rounds');
+      if (durationTypeRaw !== 'rounds' && durationTypeRaw !== 'untilCasterTurn') {
+        return {
+          status: 'failure',
+          output: { error: `未知的持续时间类型「${durationTypeRaw}」（可选 rounds/untilCasterTurn）` },
+        };
+      }
+      const untilCasterTurn = durationTypeRaw === 'untilCasterTurn';
       const durationRounds = Math.max(0, Math.floor(Number(config?.durationRounds ?? 0)) || 0);
 
       const effect: Effect = {
@@ -903,6 +911,7 @@ export class FlowCompiler {
           statusName: affinityDefinition.name,
           statusEffects: [effect],
           durationRounds,
+          ...(untilCasterTurn ? { untilNextTurn: true } : {}),
           effectValue: 0,
           finalValue: 0,
           oldHp: currentHp,

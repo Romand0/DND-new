@@ -131,6 +131,15 @@ export interface StatusDefinition {
 /** 适用域：全域（Character）vs 局域（Combatant） */
 export type StatusScope = 'global' | 'combat';
 
+/** 回合上下文：回合驱动过期判定依据（放映模式由调用方从 currentTurn 推导） */
+export interface StatusRoundCtx {
+  currentRound?: number;
+  /** 当前行动者（currentTurn.combatantId），供 combatantTurn 策略判定 */
+  turnCombatantId?: string;
+  /** 当前行动者的回合数（与 currentRound 同源，语义上独立携带） */
+  turnRound?: number;
+}
+
 /** 状态实例 —— 附着在角色/参战者上的"激活状态" */
 export interface StatusInstance {
   // --- 关联 ---
@@ -151,8 +160,9 @@ export interface StatusInstance {
   // 回合驱动过期（放映模式）：与 expiresAt（真实时间）互斥使用
   durationRounds?: number;      // 按回合计的持续时长（流程/面板配置）
   startRound?: number;          // 施放时的绝对回合数
-  expiresAtRound?: number;      // 过期绝对回合 = startRound + durationRounds
-  expirePolicy?: 'rounds' | 'manual'; // rounds=按回合自动过期；manual=永续待手动取消（模拟模式）
+  expiresAtRound?: number;      // 过期绝对回合 = startRound + durationRounds（expirePolicy='rounds'）
+  anchorCombatantId?: string;   // 锚定参战者（expirePolicy='combatantTurn'：下一次轮到该参战者时结束）
+  expirePolicy?: 'rounds' | 'manual' | 'combatantTurn'; // rounds=按回合自动过期；manual=永续待手动取消（模拟模式）；combatantTurn=持续到锚定参战者下一次回合开始
 
   // --- 元数据（运行时） ---
   metadata?: Record<string, any>; // 额外运行时数据
@@ -192,17 +202,17 @@ export interface StatusManager {
   /** 声明状态结束（检测器触发或手动） */
   declareEnd(instanceId: string): StatusInstance | null;
 
-  /** 查询目标的所有激活状态；ctx.currentRound 供回合驱动过期判定（放映模式传当前回合） */
-  getActiveStatuses(targetId: string, scope?: StatusScope, ctx?: { currentRound?: number }): StatusInstance[];
+  /** 查询目标的所有激活状态；ctx 供回合驱动过期判定（放映模式传当前回合/当前行动者） */
+  getActiveStatuses(targetId: string, scope?: StatusScope, ctx?: StatusRoundCtx): StatusInstance[];
 
   /** 检查目标是否具有特定效果 */
   hasEffect(targetId: string, effectType: EffectType, scope?: StatusScope): boolean;
 
   /** 获取目标的所有效果列表（用于优劣势判定、动作阻止等） */
-  getEffects(targetId: string, scope?: StatusScope, ctx?: { currentRound?: number }): Effect[];
+  getEffects(targetId: string, scope?: StatusScope, ctx?: StatusRoundCtx): Effect[];
 
   /** 回合推进：处理持续时间衰减、触发结束检测 */
-  advanceRound(combatId: string, currentRound?: number): void;
+  advanceRound(combatId: string, ctx?: StatusRoundCtx): void;
 
   /** 清理过期状态 */
   cleanupExpired(): void;

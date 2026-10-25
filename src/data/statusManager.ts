@@ -6,6 +6,7 @@ import type {
   StatusDefinition,
   StatusManager,
   StatusScope,
+  StatusRoundCtx,
   Effect,
   EffectType,
   StatusChangeEvent,
@@ -36,6 +37,10 @@ export type StatusManagerWithApply = StatusManager & {
       startRound?: number;
       /** 战斗模式：playback=按回合过期；simulation=永续待手动取消 */
       combatMode?: 'simulation' | 'playback';
+      /** true = 持续到 anchorCombatantId 的下一次回合开始（如剑刃防护「直到你的下一回合」） */
+      untilNextTurn?: boolean;
+      /** untilNextTurn 的锚定参战者（通常为施法者） */
+      anchorCombatantId?: string;
     }
   ): StatusInstance;
 };
@@ -74,12 +79,21 @@ export function createStatusManager(): StatusManagerWithApply {
   /** 判定一个实例在给定回合上下文下是否已到期 */
   function isExpiredByRound(
     instance: StatusInstance,
-    ctx?: { currentRound?: number },
+    ctx?: StatusRoundCtx,
   ): boolean {
-    if (instance.expirePolicy !== 'rounds' || instance.expiresAtRound == null) return false;
-    // 无回合上下文（模拟模式 / 调用方未传）：保守不过期，效果保留待手动取消
-    if (ctx?.currentRound == null) return false;
-    return ctx.currentRound >= instance.expiresAtRound;
+    if (instance.expirePolicy === 'rounds' && instance.expiresAtRound != null) {
+      // 无回合上下文（模拟模式 / 调用方未传）：保守不过期，效果保留待手动取消
+      if (ctx?.currentRound == null) return false;
+      return ctx.currentRound >= instance.expiresAtRound;
+    }
+    if (instance.expirePolicy === 'combatantTurn' && instance.anchorCombatantId && instance.startRound != null) {
+      // 无当前行动者上下文：保守不过期
+      if (ctx?.turnCombatantId == null) return false;
+      const turnRound = ctx.turnRound ?? ctx.currentRound ?? 0;
+      // 施放发生在自己回合内（currentTurn 已指向施法者），下一次轮到必然是更晚的回合
+      return ctx.turnCombatantId === instance.anchorCombatantId && turnRound > instance.startRound;
+    }
+    return false;
   }
 
   return {
@@ -161,7 +175,7 @@ export function createStatusManager(): StatusManagerWithApply {
 
     // --- 查询 ---
 
-    getActiveStatuses(targetId: string, scope?: StatusScope, ctx?: { currentRound?: number }): StatusInstance[] {
+    getActiveStatuses(targetId: string, scope?: StatusScope, ctx?: StatusRoundCtx): StatusInstance[] {
       const now = Date.now();
       return store.instances.filter(i => {
         if (i.targetId !== targetId || !i.isActive) return false;
@@ -185,7 +199,7 @@ export function createStatusManager(): StatusManagerWithApply {
       return effects.some(e => e.type === effectType);
     },
 
-    getEffects(targetId: string, scope?: StatusScope, ctx?: { currentRound?: number }): Effect[] {
+    getEffects(targetId: string, scope?: StatusScope, ctx?: StatusRoundCtx): Effect[] {
       const activeInstances = this.getActiveStatuses(targetId, scope, ctx);
       const effects: Effect[] = [];
 
@@ -227,6 +241,10 @@ export function createStatusManager(): StatusManagerWithApply {
         durationRounds?: number;
         startRound?: number;
         combatMode?: 'simulation' | 'playback';
+        /** true = 持续到 anchorCombatantId 的下一次回合开始（如剑刃防护「直到你的下一回合」） */
+        untilNextTurn?: boolean;
+        /** untilNextTurn 的锚定参战者（通常为施法者） */
+        anchorCombatantId?: string;
       }
     ): StatusInstance {
       // 应用状态
@@ -243,10 +261,17 @@ export function createStatusManager(): StatusManagerWithApply {
       if (options?.durationRounds && options.durationRounds > 0) {
         instance.durationRounds = options.durationRounds;
         if (options.combatMode === 'playback' && options.startRound != null) {
-          // 放映模式：回合驱动，绝对回合到期自动结束
-          instance.expirePolicy = 'rounds';
-          instance.startRound = options.startRound;
-          instance.expiresAtRound = options.startRound + options.durationRounds;
+          if (options.untilNextTurn && options.anchorCombatantId) {
+            // 「直到施法者下一次回合」：锚定参战者回合策略（如剑刃防护 2024 版）
+            instance.expirePolicy = 'combatantTurn';
+            instance.anchorCombatantId = options.anchorCombatantId;
+            instance.startRound = options.startRound;
+          } else {
+            // 放映模式：回合驱动，绝对回合到期自动结束
+            instance.expirePolicy = 'rounds';
+            instance.startRound = options.startRound;
+            instance.expiresAtRound = options.startRound + options.durationRounds;
+          }
           // 清掉可能来自 definition 的时间戳，避免展示层误读
           instance.expiresAt = undefined;
         } else {
@@ -254,6 +279,12 @@ export function createStatusManager(): StatusManagerWithApply {
           instance.expirePolicy = 'manual';
           instance.expiresAt = undefined;
         }
+      } else if (options?.untilNextTurn && options.combatMode === 'playback' && options.startRound != null && options.anchorCombatantId) {
+        // durationRounds 未配置但显式要求 untilNextTurn：同样按锚定参战者回合策略
+        instance.expirePolicy = 'combatantTurn';
+        instance.anchorCombatantId = options.anchorCombatantId;
+        instance.startRound = options.startRound;
+        instance.expiresAt = undefined;
       }
 
       return instance;
@@ -261,7 +292,7 @@ export function createStatusManager(): StatusManagerWithApply {
 
     // --- 维护 ---
 
-    advanceRound(combatId: string, currentRound?: number): void {
+    advanceRound(combatId: string, ctx?: StatusRoundCtx): void {
       // 处理回合推进：衰减持续时间
       const combatInstances = store.instances.filter(
         i => i.combatId === combatId && i.isActive
@@ -270,7 +301,18 @@ export function createStatusManager(): StatusManagerWithApply {
       for (const instance of combatInstances) {
         // 回合驱动实例：绝对回合到期即结束
         if (instance.expirePolicy === 'rounds' && instance.expiresAtRound != null) {
-          if (currentRound != null && currentRound >= instance.expiresAtRound) {
+          if (ctx?.currentRound != null && ctx.currentRound >= instance.expiresAtRound) {
+            this.declareEnd(instance.instanceId);
+            const definition = statusLibrary.get(instance.definitionId);
+            if (definition) {
+              emit({ type: 'expire', instance, definition, timestamp: Date.now() });
+            }
+          }
+          continue;
+        }
+        // 锚定参战者回合实例：下一次轮到锚定者时结束
+        if (instance.expirePolicy === 'combatantTurn') {
+          if (isExpiredByRound(instance, ctx)) {
             this.declareEnd(instance.instanceId);
             const definition = statusLibrary.get(instance.definitionId);
             if (definition) {

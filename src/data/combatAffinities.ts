@@ -2,6 +2,7 @@
 // 并合并当前生效的状态效果提供的抗性/易伤/免疫。
 import type { Combatant, NpcTemplate } from '@/types/combat';
 import type { AffinityEntry, DamageAffinitySet, DamageSourceKind, DamageType } from '@/types/damage';
+import type { StatusRoundCtx } from '@/types/status';
 import { normalizeDamageType, parseDamageAffinities } from '@/data/damageRules';
 import combatStore from '@/data/combatStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
@@ -58,16 +59,21 @@ export function mergeAffinitySets(
 
 /**
  * 从战斗记录推导回合上下文（供状态过期判定）。
- * 放映模式传当前回合（currentTurn 优先，回退最后一轮下标）；模拟模式无回合概念，返回空。
+ * 放映模式传当前回合与当前行动者；模拟模式无回合概念，返回空。
  */
-export function getCombatRoundCtx(recordId?: string): { currentRound?: number } {
+export function getCombatRoundCtx(recordId?: string): {
+  currentRound?: number;
+  turnCombatantId?: string;
+  turnRound?: number;
+} {
   if (!recordId) return {};
   const record = combatStore.get(recordId);
   if (!record || record.mode !== 'playback') return {};
-  const round =
-    record.playbackState?.currentTurn?.round ??
-    (record.rounds.length > 0 ? record.rounds.length - 1 : 0);
-  return { currentRound: round };
+  const turn = record.playbackState?.currentTurn;
+  if (turn) {
+    return { currentRound: turn.round, turnCombatantId: turn.combatantId, turnRound: turn.round };
+  }
+  return { currentRound: record.rounds.length > 0 ? record.rounds.length - 1 : 0 };
 }
 
 /**
@@ -76,7 +82,7 @@ export function getCombatRoundCtx(recordId?: string): { currentRound?: number } 
  * effect.config 支持 damageType / types / magical / silvered / adamantine / sourceKind。
  * 未提供伤害类型时表示不限类型（如“所有伤害”）。
  */
-export function buildStatusAffinities(targetId: string, roundCtx?: { currentRound?: number }): DamageAffinitySet | null {
+export function buildStatusAffinities(targetId: string, roundCtx?: StatusRoundCtx): DamageAffinitySet | null {
   const effects = globalStatusManager.getEffects(targetId, undefined, roundCtx);
   const set = EMPTY_AFFINITY_SET();
   let found = false;

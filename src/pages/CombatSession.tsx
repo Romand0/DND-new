@@ -1483,15 +1483,23 @@ export default function CombatSession() {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
               if (tr.effectType === 'status') {
-                // 状态落地：通用伤害修饰引擎（实例级效果 + 回合时长由流程注入）。
-                // 过期策略按施放时的战斗模式定性：放映模式按回合自动过期；模拟模式永续待手动取消
+                // 状态落地：通用伤害修饰引擎（实例级效果 + 持续时间由流程注入）。
+                // 过期策略按施放时的战斗模式定性：
+                //   放映模式 + untilNextTurn → 锚定施法者回合（「直到你的下一回合」，如剑刃防护）
+                //   放映模式 + durationRounds → 绝对回合自动过期
+                //   模拟模式 → 永续待手动取消
                 if (tr.statusId) {
                   const isPlayback = record?.mode === 'playback';
+                  const castRound = currentTurn?.round ?? Math.max(0, (record?.rounds.length ?? 1) - 1);
                   globalStatusManager.applyEffect(tr.combatantId, tr.statusId, 'combat', record?.id, {
                     ...(tr.statusEffects && tr.statusEffects.length > 0 ? { instanceEffects: tr.statusEffects } : {}),
                     ...(tr.durationRounds && tr.durationRounds > 0 ? { durationRounds: tr.durationRounds } : {}),
                     ...(isPlayback
-                      ? { combatMode: 'playback' as const, startRound: currentTurn?.round ?? Math.max(0, (record?.rounds.length ?? 1) - 1) }
+                      ? {
+                          combatMode: 'playback' as const,
+                          startRound: castRound,
+                          ...(tr.untilNextTurn ? { untilNextTurn: true, anchorCombatantId: spellModal.caster.id } : {}),
+                        }
                       : { combatMode: 'simulation' as const }),
                   });
                 }
