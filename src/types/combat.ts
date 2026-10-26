@@ -134,6 +134,8 @@ export interface Combatant {
   bonusActions?: number;
   /** 待消费的优劣势标记列表（发起者赋予此参战者的一次性优劣势来源，如协助/法术效果） */
   pendingAdvantageSources?: PendingAdvantageSource[];
+  /** 次数型检定奖惩（如激励：剩余次数耗尽即消失；状态型奖惩走 statusManager 不在此列） */
+  pendingCheckModifiers?: PendingCheckModifier[];
   /** 言语能力：能否说话或发出声音（true=可以，false=不可以）。默认真，某些状态可剥夺 */
   canSpeak?: boolean;
   /** 手势能力：能否执行 S（手势）成分（true=可以，false=不可以）。默认 true。以下情况置 false：
@@ -589,4 +591,128 @@ export interface PendingAdvantageSource {
   createdRound: number;
   /** 过期回合（含）；-1 = 永久直到消费（与 expireOnCombatantId 任一命中即过期） */
   expireRound: number;
+}
+
+// =======================
+// 检定奖惩接口类型（checkModifierRules 引擎用）
+// =======================
+//
+// 概念区分（与优劣势引擎互补，两者可同时生效）：
+//   - 优劣势（advantageRules）：改变「掷几个 d20、取哪个」，是离散的掷骰方式切换
+//   - 奖惩（本引擎）：在最终 d20 上「加减一个骰子结果」，是数值平移，可与优劣势叠加
+//     例：优势 + 祝福术(1d4) = 掷 2 个 d20 取高，再加 1d4
+//
+// 载体双轨：
+//   - 状态型（durationType='status'）：录进 statusManager 实例（Effect.type='check_modifier'），
+//     随状态过期/专注联动/手动解除一并结束
+//   - 次数型（durationType='uses'）：录进 Combatant.pendingCheckModifiers，
+//     每次命中消耗 1 次，耗尽即从列表移除
+
+/** 奖惩方向：奖励加值 / 惩罚减值 */
+export type CheckModifierMode = 'bonus' | 'penalty';
+
+/** 奖惩的骰子规格（sides=0 表示纯固定值平移） */
+export interface CheckModifierDice {
+  /** 骰子个数（如 1d4 的 1）；0 = 无骰，仅用 flatBonus */
+  count: number;
+  /** 骰面数（如 1d4 的 4）；0 = 无骰 */
+  sides: number;
+  /** 固定加值（如 d4+1 的 +1；无骰时即最终值） */
+  flatBonus?: number;
+}
+
+/**
+ * 次数型检定奖惩（激励、诗人激励等「消耗一次」型来源）。
+ * 状态型奖惩不走此结构，直接以 statusManager 实例效果承载。
+ */
+export interface PendingCheckModifier {
+  /** 唯一实例 ID（crypto.randomUUID()） */
+  id: string;
+  /** 施加者 combatantId（可为空，表示环境/物品来源） */
+  fromId?: string;
+  /** 施加者名称（UI 展示用，防止 fromId 失效后丢失信息） */
+  fromName?: string;
+  /** 来源说明（如「激励」「诗人激励」） */
+  reason: string;
+  /** 奖励或惩罚 */
+  mode: CheckModifierMode;
+  /** 骰子规格（dice.sides=0 时为纯固定值） */
+  dice: CheckModifierDice;
+  /** 适用范围：'any' = 全部；'attack'/'check' 为通配组；也可指定具体场景 */
+  scene: CheckScene | CheckSceneGroup | 'any';
+  /**
+   * 是否强制使用。
+   * - true（强制，惩罚通常如此）：检定结算自动计入，玩家无法拒绝
+   * - false（可选，奖励常见）：弹窗展示开关，玩家自行决定是否使用本次奖惩
+   * 惩罚强制语义在引擎侧兜底：penalty 恒按强制处理，忽略此字段
+   */
+  forced: boolean;
+  /** 剩余可用次数（每次实际计入检定后 -1，归零即移除） */
+  remainingUses: number;
+  /** 总次数（仅用于 UI 展示「3/3」进度） */
+  totalUses: number;
+  /** 是否已消费（次数型为 false 表示仍可触发；保留字段与优劣势标记同构） */
+  consumed: boolean;
+  /** 创建回合（审计用） */
+  createdRound: number;
+  /** 过期回合（含）；-1 = 不过期，仅受 remainingUses 限制 */
+  expireRound: number;
+}
+
+/**
+ * 状态型奖惩的参数载体（存在 StatusInstance.metadata.effects 的 Effect.config 上）。
+ * 状态型奖惩继承状态本身的过期（rounds/combatantTurn/manual）与专注联动，
+ * 引擎只读效果参数，不自行管理生命周期。
+ */
+export interface CheckModifierEffectConfig {
+  /** 奖励或惩罚 */
+  mode: CheckModifierMode;
+  /** 骰子规格 */
+  dice: CheckModifierDice;
+  /** 适用范围：'any' = 全部；'attack'/'check' 为通配组；也可指定具体场景 */
+  scene: CheckScene | CheckSceneGroup | 'any';
+  /** 是否强制（惩罚恒强制） */
+  forced: boolean;
+  /** 来源说明（如「祝福术」） */
+  label?: string;
+  /** 施加者 combatantId（用于日志归属与 UI 展示） */
+  fromId?: string;
+  /** 施加者名称 */
+  fromName?: string;
+}
+
+/** 单条命中的奖惩（引擎输出，UI 展示 + 结算依据） */
+export interface CheckModifierHit {
+  /** 命中来源标识：状态型 = status:{instanceId}；次数型 = pending:{id} */
+  sourceKey: string;
+  /** 载体类型 */
+  carrier: 'status' | 'pending';
+  /** 状态实例 ID（carrier='status' 时用于消费/展示） */
+  instanceId?: string;
+  /** 次数型标记 ID（carrier='pending' 时用于消费） */
+  pendingId?: string;
+  /** 来源说明 */
+  label: string;
+  /** 奖励或惩罚 */
+  mode: CheckModifierMode;
+  /** 骰子规格 */
+  dice: CheckModifierDice;
+  /** 是否强制（惩罚恒 true） */
+  forced: boolean;
+  /** 是否已由玩家勾选启用（可选型默认 false，强制型恒 true） */
+  enabled: boolean;
+  /** 剩余次数（次数型；状态型为 undefined） */
+  remainingUses?: number;
+  /** 施加者名称（展示用） */
+  fromName?: string;
+}
+
+/** 引擎检测结果：一次检定上可用的全部奖惩 */
+export interface CheckModifierResult {
+  /** 命中的奖惩条目（顺序：强制在前，可选在后；同组按施加顺序） */
+  hits: CheckModifierHit[];
+  /** 是否存在任一强制项（UI 提示「本次检定有强制奖惩」） */
+  hasForced: boolean;
+  /** 是否存在任一可选项（UI 需渲染开关） */
+  hasOptional: boolean;
 }

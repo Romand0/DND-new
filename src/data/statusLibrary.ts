@@ -314,6 +314,30 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'shield',
       },
     });
+
+    // 检定奖惩（祝福术 / 灾祸术 等）：实例级效果承载具体参数
+    // （effect.type='check_modifier'，config 见 types/combat.ts CheckModifierEffectConfig）。
+    // 与 damage_affinity 同款通用载体：新增奖惩类法术只需流程节点配参数，状态库零改动。
+    this.register({
+      id: 'check_modifier',
+      name: '检定奖惩',
+      description: '临时性的检定数值平移效果载体（如祝福术 1d4），具体参数由施加方定义。',
+      shortDescription: '临时检定奖惩',
+      startTrigger: {
+        type: 'manual',
+        description: '由流程施放或 DM 手动附加。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '持续时间届满自动消退，或手动解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'violet',
+        icon: 'dice',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {

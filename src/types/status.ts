@@ -32,6 +32,8 @@ export type EffectType =
   | 'damage_vulnerability'   // 易伤（预留）
   | 'damage_resistance'      // 抗性（预留）
   | 'damage_immunity'        // 免疫（预留）
+  // 检定奖惩（引擎见 data/checkModifierRules.ts）
+  | 'check_modifier'         // 检定数值平移（如祝福术 1d4，config 见 CheckModifierEffectConfig）
   // 感知（预留）
   | 'sight_block'            // 目盲（预留）
   | 'hearing_block'          // 耳聋（预留）

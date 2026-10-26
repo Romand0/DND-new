@@ -1,4 +1,4 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, OperationLogEntry } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry } from '@/types/combat';
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import { globalStatusManager } from './statusManager';
@@ -1022,6 +1022,111 @@ const combatStore = {
   /** 读取未消费的待消费标记列表（只读） */
   getPendingAdvantages(combatant: Combatant): PendingAdvantageSource[] {
     return (combatant.pendingAdvantageSources || []).filter(s => !s.consumed);
+  },
+
+  // =======================
+  // 次数型检定奖惩（check_modifier 次数通道）
+  // 状态型奖惩由 statusManager 承载，不需要这些接口。
+  // =======================
+
+  /** 添加一条次数型检定奖惩（如激励：3 次） */
+  addPendingCheckModifier(
+    recordId: string,
+    combatantId: string,
+    mod: Omit<PendingCheckModifier, 'id' | 'consumed' | 'remainingUses' | 'totalUses'> & {
+      uses?: number;
+      remainingUses?: number;
+    },
+  ): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const total = Math.max(1, Math.floor(Number(mod.uses ?? mod.remainingUses ?? 1)) || 1);
+    const full: PendingCheckModifier = {
+      id: crypto.randomUUID(),
+      fromId: mod.fromId,
+      fromName: mod.fromName,
+      reason: mod.reason,
+      mode: mod.mode,
+      dice: mod.dice,
+      scene: mod.scene,
+      forced: mod.mode === 'penalty' ? true : mod.forced === true,
+      remainingUses: total,
+      totalUses: total,
+      consumed: false,
+      createdRound: mod.createdRound,
+      expireRound: mod.expireRound,
+    };
+    const combatant = record.combatants[idx];
+    record.combatants[idx] = {
+      ...combatant,
+      pendingCheckModifiers: [...(combatant.pendingCheckModifiers || []), full],
+    };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /**
+   * 消费次数型奖惩：每次命中 -1，归零即从列表移除。
+   * 状态型奖惩不走这里（随状态自身过期/解除）。
+   */
+  consumePendingCheckModifiers(recordId: string, combatantId: string, ids: string[]): void {
+    if (!ids || ids.length === 0) return;
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const combatant = record.combatants[idx];
+    const list = combatant.pendingCheckModifiers || [];
+    const idSet = new Set(ids);
+    let changed = false;
+    const next: PendingCheckModifier[] = [];
+    for (const item of list) {
+      if (!idSet.has(item.id)) { next.push(item); continue; }
+      changed = true;
+      const remaining = item.remainingUses - 1;
+      if (remaining > 0) next.push({ ...item, remainingUses: remaining });
+      // remaining <= 0：不推入 → 移除
+    }
+    if (!changed) return;
+    record.combatants[idx] = { ...combatant, pendingCheckModifiers: next };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 清理过期的次数型奖惩（回合推进时调用；expireRound=-1 永不过期） */
+  clearExpiredCheckModifiers(recordId: string, combatantId: string, currentRound: number): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const combatant = record.combatants[idx];
+    const list = combatant.pendingCheckModifiers || [];
+    const next = list.filter(m => m.expireRound === -1 || m.expireRound >= currentRound);
+    if (next.length === list.length) return;
+    record.combatants[idx] = { ...combatant, pendingCheckModifiers: next };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 手动移除一条次数型奖惩（DM 面板用） */
+  removePendingCheckModifier(recordId: string, combatantId: string, id: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    const combatant = record.combatants[idx];
+    const list = combatant.pendingCheckModifiers || [];
+    const next = list.filter(m => m.id !== id);
+    if (next.length === list.length) return;
+    record.combatants[idx] = { ...combatant, pendingCheckModifiers: next };
+    record.updatedAt = Date.now();
+    save(records);
   },
 
   /**
