@@ -81,3 +81,26 @@
   - 流程徽标/流程施放三环链路：角色卡法术条目（存名字）→ CombatSpellModal knownSpells 按名字从 spellStore 缓存解析出法术对象（带 id）→ fetchBindingsBySpell(spell.id) 查云端绑定。任一环错位（角色/缓存陈旧、id 脱节）= 徽标消失 + 静默退回手动管线，且全部 silent catch 无诊断信息（现已加 console.warn，前缀 [CombatSpellModal]）
   - 排查口诀：浏览器 Console 跑 fetch('/api/spells') + fetch('/api/bindings/by-spell/'+id) 对照 id 是否对得上；徽标与手动退化同源（flowBindings Map 空），编译器错误只影响流程执行环节，无法让徽标消失
   - spellStore 缓存刷新时机 = 法术弹窗挂载时 fetchAll()（云端真值覆盖缓存），非 proving ground 的 knownSpells 依赖 character.spells（名字数组）+ byName 匹配
+
+[Project Knowledge Summary]
+- Date: 2026-10-26
+- Context: Discovered by Agent while implementing the check-modifier (检定奖惩) engine end to end
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 检定奖惩双载体：状态型走 globalStatusManager 实例 Effect(type='check_modifier')，随状态 duration/专注/手动解除过期；次数型走 Combatant.pendingCheckModifiers，每次检定确认 -1、归零即移除（expireRound=-1 不过期）。引擎 src/data/checkModifierRules.ts 纯只读检测，消费由调用方确认后执行
+  - 与优劣势互补：优劣势决定掷几个 d20 取哪个，奖惩在最终 d20 上做数值平移，两者可叠加（优势 + 祝福术 = 2d20 取高再 +1d4）
+  - 惩罚恒强制：引擎与编译器都把 penalty 的 forced 强制为 true（忽略配置的 false）；奖励的 forced=false 时由 CheckModifierPanel 开关控制是否启用（enabledSourceKeys 传 status:<instanceId> / pending:<pendingId>）
+  - 新增奖惩类法术只需在 apply_effect 节点配 6 个 modifier* 参数（方向/骰式/固定值/范围/强制/次数），引擎与状态库零改动；编译器纯计算不落库，CombatSession.onFlowResolved 统一落地（uses>0 → addPendingCheckModifier，否则 applyEffect）
+  - parseDice 对无法识别的表达式不抛错而是回落 {count:1,sides:0}，编译器必须显式判定「有骰数无面数」为非法，否则签出永远掷 0 的奖惩
+
+[Project Knowledge Summary]
+- Date: 2026-10-26
+- Context: Discovered by Agent while E2E testing attack-roll modifier panel and counter decrement
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 攻击检定入口在 InfoPanel「操作」tab（ALL_ACTIONS 里的攻击按钮），攻击列表条目是 div.rounded-lg.border.p-3 而非 button，用 div 选择器点击才进检定阶段
+  - 攻击弹窗必须收到 recordId 才会消费次数型奖惩/优劣势 pending 标记；CombatSession 传参漏了 recordId 时面板能显示奖惩但次数永不扣减（已修）
+  - CombatantInfoPanel 的 combatant 若是打开时快照，面板自身发起的变更（附加奖惩/状态/手持）不会反映；Battleground 与 CombatSession 两处渲染都必须从最新 combatants 实时派生（liveCombatant）
+  - 攻击相邻格才可用：placed 棋子距离 2 格时所有攻击都显示「不在射程内」或「未手持」，E2E 需把目标放在攻击者相邻格
+  - E2E 断言用固定顺序：附加奖惩 → 状态 tab 见「次数型奖惩（1）」→ 操作 tab 攻击 → 徒手击打 → 填 d20 + 奖惩骰 → 确定 → 确认命中 → 重开面板验「剩余 2/3 次」
+  - 纯引擎/编译器单测无需浏览器：jiti（node_modules/jiti）可直接 import .ts + alias '@'，补 globalThis.localStorage 桩与 context.results=new Map()，flow 边必须带 trigger:'on_complete'
