@@ -1,5 +1,5 @@
 import type { FlowDefinition, FlowNodeType } from '@/types/flow';
-import { NODE_CONFIG_SCHEMA } from '@/types/flow';
+import { NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
 
 // ===== 增强的校验函数，提供节点级别错误 =====
 export interface ValidationError {
@@ -50,6 +50,7 @@ export function validateFlowWithDetails(flow: FlowDefinition): ValidationError[]
       const schema = NODE_CONFIG_SCHEMA[node.type as FlowNodeType];
       if (schema) {
         for (const field of schema) {
+          if (!isConfigFieldVisible(field, node.config)) continue;
           if (field.required && (node.config[field.key] === undefined || node.config[field.key] === null || node.config[field.key] === '')) {
             errors.push({
               type: 'node',
