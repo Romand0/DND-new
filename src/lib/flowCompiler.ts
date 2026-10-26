@@ -18,7 +18,7 @@ import type {
   FlowDiceRequest
 } from '@/types/flow';
 import type { Character, AbilityKey } from '@/types/character';
-import type { Combatant } from '@/types/combat';
+import type { Combatant, CheckScene, CheckSceneGroup, CheckModifierMode, CheckModifierDice } from '@/types/combat';
 import type { Spell } from '@/types/spell';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
@@ -37,6 +37,18 @@ const ABILITY_KEYS: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'in
 
 /** 通用伤害修饰状态 ID（statusLibrary 注册，抗性/免疫/易伤实例的统一载体） */
 export const GENERIC_AFFINITY_STATUS_ID = 'damage_affinity';
+
+/** 通用检定奖惩状态 ID（statusLibrary 注册，状态型奖惩实例的统一载体） */
+export const GENERIC_CHECK_MODIFIER_STATUS_ID = 'check_modifier';
+
+/** 奖惩骰式可读文本（如 "1d4"、"1d4+1"、"2"） */
+function formatModifierDice(dice: CheckModifierDice): string {
+  const count = Math.max(0, Math.floor(Number(dice.count) || 0));
+  const sides = Math.max(0, Math.floor(Number(dice.sides) || 0));
+  const flat = Number(dice.flatBonus ?? 0);
+  if (count > 0 && sides > 0) return flat !== 0 ? `${count}d${sides}${flat > 0 ? '+' : ''}${flat}` : `${count}d${sides}`;
+  return String(flat);
+}
 
 /** 伤害类型中文标签（摘要文本用） */
 const DAMAGE_TYPE_LABELS: Record<string, string> = {
@@ -840,6 +852,149 @@ export class FlowCompiler {
     const value = config?.value || '0';
     const damageType = config?.damageType || '';
     const halfDamageOnSave = config?.halfDamageOnSave === true;
+
+    // 检定奖惩（祝福术/灾祸术 等）：与状态附加同款「编译器不落库」原则。
+    // 产出待落地记录（statusId 固定 check_modifier + 实例级 effects），由 CombatSession.onFlowResolved
+    // 统一落地：uses>0 → 写 combatant.pendingCheckModifiers（次数型）；
+    //            uses=0 → globalStatusManager.applyEffect（状态型，随专注/回合过期）。
+    // 新增奖惩类法术只需配节点参数（方向/骰式/范围/强制/次数），引擎与状态库零改动。
+    if (effectType === 'check_modifier') {
+      const MODIFIER_STATUS_ID = 'check_modifier';
+      const modeRaw = String(config?.modifierMode ?? 'bonus');
+      if (modeRaw !== 'bonus' && modeRaw !== 'penalty') {
+        return {
+          status: 'failure',
+          output: { error: `未知的奖惩方向「${modeRaw}」（可选 bonus/penalty）` },
+        };
+      }
+      const modifierMode = modeRaw as CheckModifierMode;
+      let diceSpec: CheckModifierDice = { count: 0, sides: 0, flatBonus: 0 };
+      const diceExpr = String(config?.modifierDice ?? '').trim();
+      if (diceExpr) {
+        try {
+          const parsed = parseDice(diceExpr);
+          diceSpec = {
+            count: Math.max(0, parsed.count),
+            sides: Math.max(0, parsed.sides),
+            flatBonus: parsed.bonus || 0,
+          };
+          // parseDice 对无法识别的表达式不抛错而是回落 {count:1,sides:0}，
+          // 这里必须显式判定「有骰数却无面数」为非法，否则会签出永远掷 0 的奖惩
+          if (diceSpec.count > 0 && diceSpec.sides <= 0) {
+            return {
+              status: 'failure',
+              output: { error: `奖惩骰式「${diceExpr}」无法解析` },
+            };
+          }
+        } catch {
+          return {
+            status: 'failure',
+            output: { error: `奖惩骰式「${diceExpr}」无法解析` },
+          };
+        }
+      }
+      const flatBonus = Number(config?.modifierFlat ?? 0);
+      if (Number.isFinite(flatBonus) && flatBonus !== 0) {
+        diceSpec = { ...diceSpec, flatBonus: (diceSpec.flatBonus ?? 0) + flatBonus };
+      }
+      if (diceSpec.count <= 0 && diceSpec.sides <= 0 && Math.abs(diceSpec.flatBonus ?? 0) <= 0) {
+        return {
+          status: 'failure',
+          output: { error: '检定奖惩缺少骰式或固定值（至少配置其一）' },
+        };
+      }
+      const sceneRaw = String(config?.modifierScene ?? 'any');
+      const ALLOWED_SCENES = new Set([
+        'any', 'attack', 'check', 'attack_melee', 'attack_ranged', 'attack_thrown',
+        'spell_attack', 'ability_check', 'skill_check', 'saving_throw',
+      ]);
+      if (!ALLOWED_SCENES.has(sceneRaw)) {
+        return {
+          status: 'failure',
+          output: { error: `未知的适用范围「${sceneRaw}」` },
+        };
+      }
+      const scene = sceneRaw as CheckScene | CheckSceneGroup | 'any';
+      const forcedRaw = config?.modifierForced;
+      // 兼容布尔与字符串两种写法（表单 select 存字符串）
+      const forced = modifierMode === 'penalty'
+        ? true
+        : !(forcedRaw === false || forcedRaw === 'false' || forcedRaw === '0');
+      const uses = Math.max(0, Math.floor(Number(config?.modifierUses ?? 0)) || 0);
+
+      // 状态型沿用状态附加的持续时间语义（rounds / untilCasterTurn）
+      const durationTypeRaw = String(config?.durationType ?? 'rounds');
+      const untilCasterTurn = durationTypeRaw === 'untilCasterTurn';
+      const turnCount = Math.max(1, Math.floor(Number(config?.durationTurns ?? 1)) || 1);
+      const durationRounds = Math.max(0, Math.floor(Number(config?.durationRounds ?? 0)) || 0);
+
+      const effect: Effect = {
+        id: `flow.check_modifier.${modifierMode}`,
+        type: 'check_modifier',
+        target: 'self',
+        config: {
+          mode: modifierMode,
+          dice: diceSpec,
+          scene,
+          forced,
+        },
+        description: `检定${modifierMode === 'penalty' ? '惩罚' : '奖励'} ${formatModifierDice(diceSpec)}`,
+      };
+      const definition = statusLibrary.get(MODIFIER_STATUS_ID);
+      if (!definition) {
+        return {
+          status: 'failure',
+          output: { error: '状态库缺少检定奖惩状态（check_modifier），请检查 statusLibrary' },
+        };
+      }
+      const results = context.targets.map((targetId) => {
+        const targetCombatant = this.resolveCombatant(targetId, context);
+        const targetCharacter = this.resolveCharacter(targetId, context);
+        if (!targetCombatant && !targetCharacter) {
+          return { targetId, success: false, effectApplied: false, error: '目标不存在' };
+        }
+        const currentHp = targetCombatant
+          ? (typeof targetCombatant.currentHp === 'number' ? targetCombatant.currentHp : (targetCombatant.maxHp ?? 0))
+          : (targetCharacter?.currentHp ?? 0);
+        return {
+          targetId,
+          success: true,
+          effectApplied: true,
+          effectType: 'check_modifier',
+          statusId: MODIFIER_STATUS_ID,
+          statusName: definition.name,
+          statusEffects: [effect],
+          durationRounds,
+          ...(untilCasterTurn ? { untilNextTurn: true, turnCount } : {}),
+          modifierUses: uses,
+          effectValue: 0,
+          finalValue: 0,
+          oldHp: currentHp,
+          newHp: currentHp,
+          tempAbsorbed: 0,
+          notes: [] as string[],
+          message: effect.description ?? `附加检定奖惩：${definition.name}`,
+        };
+      });
+      return {
+        status: 'success',
+        output: {
+          effectType,
+          statusId: MODIFIER_STATUS_ID,
+          statusName: definition.name,
+          modifierMode,
+          modifierUses: uses,
+          value: '0',
+          dice: null,
+          results,
+          totalFinal: 0,
+          anyResisted: false,
+          anyImmune: false,
+          anyVulnerable: false,
+          message: `检定奖惩附加完成，${results.filter(r => r.success).length}个目标受影响`,
+        },
+      };
+    }
 
     // 状态附加（通用伤害修饰引擎）：节点配置 affinityKind/damageTypes/sourceKind/durationRounds
     // → 产出待落地记录（statusId 固定 damage_affinity + 实例级 effects），由战斗确认侧

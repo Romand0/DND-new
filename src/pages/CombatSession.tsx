@@ -1292,6 +1292,8 @@ export default function CombatSession() {
         <CombatAttackModal
           attacker={attackModal.attacker}
           target={attackModal.target}
+          recordId={record?.id}
+          currentRound={currentTurn?.round}
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
           combatantPositions={combatantPositions}
@@ -1491,7 +1493,7 @@ export default function CombatSession() {
             payload.targetResults.forEach(tr => {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
-              if (tr.effectType === 'status') {
+              if (tr.effectType === 'status' || tr.effectType === 'check_modifier') {
                 // 状态落地：通用伤害修饰引擎（实例级效果 + 持续时间由流程注入）。
                 // 过期策略按施放时的战斗模式定性：
                 //   放映模式 + untilNextTurn → 锚定施法者回合（「直到你的下一回合」，如剑刃防护）
@@ -1500,6 +1502,24 @@ export default function CombatSession() {
                 if (tr.statusId) {
                   const isPlayback = record?.mode === 'playback';
                   const castRound = currentTurn?.round ?? Math.max(0, (record?.rounds.length ?? 1) - 1);
+                  // 次数型检定奖惩（如激励）：写参战者计数通道，不进状态系统
+                  // （次数用完即消失，与状态过期语义不同）
+                  if (tr.effectType === 'check_modifier' && (tr.modifierUses ?? 0) > 0) {
+                    const cfg = (tr.statusEffects?.[0]?.config ?? {}) as Record<string, unknown>;
+                    combatStore.addPendingCheckModifier(record.id, tr.combatantId, {
+                      fromId: spellModal.caster.id,
+                      fromName: spellModal.caster.name,
+                      reason: payload.spellName,
+                      mode: (cfg.mode as 'bonus' | 'penalty') ?? 'bonus',
+                      dice: (cfg.dice as { count: number; sides: number; flatBonus?: number }) ?? { count: 0, sides: 0, flatBonus: 0 },
+                      scene: (cfg.scene as any) ?? 'any',
+                      forced: cfg.forced === true,
+                      uses: tr.modifierUses,
+                      createdRound: castRound,
+                      expireRound: -1,
+                    });
+                    return;
+                  }
                   const statusInstance = globalStatusManager.applyEffect(tr.combatantId, tr.statusId, 'combat', record?.id, {
                     ...(tr.statusEffects && tr.statusEffects.length > 0 ? { instanceEffects: tr.statusEffects } : {}),
                     ...(tr.durationRounds && tr.durationRounds > 0 ? { durationRounds: tr.durationRounds } : {}),
@@ -1828,6 +1848,9 @@ export default function CombatSession() {
 
       {/* ✅ 参战者信息面板（点击表头名称按钮打开，等价沙盘双击弹窗） */}
       {infoPanelCombatant && (() => {
+        // 面板内的参战者数据必须实时跟 record 走：打开面板存的是快照，
+        // 面板内部自己发起的变更（附加奖惩/状态/手持）否则读不到新值
+        const liveCombatant = record?.combatants.find(c => c.id === infoPanelCombatant.id) ?? infoPanelCombatant;
         const bg = record?.id ? battlegroundStore.get(record.id) : null;
         const tokens = bg?.tokens ?? [];
         const tokenMap: { get: (id: string) => { col: number; row: number } | undefined } = {
@@ -1838,18 +1861,18 @@ export default function CombatSession() {
         };
         return (
           <CombatantInfoPanel
-            combatant={infoPanelCombatant}
+            combatant={liveCombatant}
             isProvingGround={record?.isProvingGround ?? false}
             provingRecord={record?.isProvingGround ? record : null}
             onClose={() => setInfoPanelCombatant(null)}
             combatants={record?.combatants ?? []}
             tokenMap={tokenMap}
-            combatInventory={combatInventories?.[infoPanelCombatant.id]}
+            combatInventory={combatInventories?.[liveCombatant.id]}
             onRemoveItem={(item) => {
               if (!record) return;
               // 从战斗背包移除：写 EquipmentChanges.removedChildIds
               const childId = item.childId || item.id;
-              const prev = record.equipmentChanges?.[infoPanelCombatant.id];
+              const prev = record.equipmentChanges?.[liveCombatant.id];
               const removed = Array.from(new Set([...(prev?.removedChildIds ?? []), childId]));
               combatStore.update(record.id, {
                 equipmentChanges: {
@@ -1872,16 +1895,16 @@ export default function CombatSession() {
                 },
               });
             }}
-            actions={infoPanelCombatant.actions}
-            bonusActions={infoPanelCombatant.bonusActions}
-            onHelpClick={() => openHelpFor(infoPanelCombatant)}
-            onAttackClick={() => openAttackFor(infoPanelCombatant)}
+            actions={liveCombatant.actions}
+            bonusActions={liveCombatant.bonusActions}
+            onHelpClick={() => openHelpFor(liveCombatant)}
+            onAttackClick={() => openAttackFor(liveCombatant)}
             onCastClick={() => {
-              openCastFor(infoPanelCombatant);
+              openCastFor(liveCombatant);
               setInfoPanelCombatant(null);
             }}
             onDashClick={() => {
-              dashFor(infoPanelCombatant);
+              dashFor(liveCombatant);
               setInfoPanelCombatant(null);
             }}
           />
