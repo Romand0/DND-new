@@ -60,7 +60,7 @@
 | cast_start | `autoChecks.components.enabled` 等嵌套结构 | `autoChecks.components`（布尔）、`autoChecks.range`、`autoChecks.time`；另有 `overrideComponents/overrideRange/overrideTime` |
 | select_target | `targetType` / `targetCount` | `mode` / `maxCount` |
 | saving_throw | `saveAbility` / `saveDC` | `ability` / `dc` |
-| apply_effect | `effectName` / `duration` / `magnitude` / `stackable` | `effectType` / `value` / `damageType` |
+| apply_effect | `effectName` / `duration` / `magnitude` / `stackable` | `effectType` / `value` / `damageType` / `affinityKind` / `modifier*` / `duration*` |
 | condition_branch | `branches` / `defaultBranch` / `timeout` | `condition` |
 | attack_roll | `attackBonus` / `targetAC` / `criticalRange` 等 | 无配置，运行时硬编码加成 5、AC 15 |
 | concentration_check | `dc` / `damageHalf` | 无配置，运行时硬编码体质 DC 10 |
@@ -115,7 +115,7 @@
 | 伤害骰 | `XdY+Z` | `apply_effect.value` |
 | 伤害类型 | 映射到 13 种 DSL 值 | `apply_effect.damageType` |
 | 半伤 | 豁免成功是否减半 | 影响边与效果说明 |
-| 效果类别 | 伤害/治疗/状态 | `apply_effect.effectType` |
+| 效果类别 | 伤害/治疗/状态/检定奖惩 | `apply_effect.effectType` |
 | 持续与专注 | 时长、是否专注 | 是否需要 `concentration_check` |
 | 升环 / 戏法缩放 | 分档取值表 | 用 `scaled_effect`（见 2.3，禁分支链） |
 | 特殊分支 | 阈值、条件、二次选择 | 决定分支节点与边 |
@@ -157,7 +157,7 @@
 | `saving_throw` | 属性豁免检定 | 产生成功/失败分流 | 有（真实调整值+熟练加值；NPC 目标待 Phase 3） |
 | `attack_roll` | 法术攻击检定 | 产生命中/未命中分流 | 有（真实加值/AC + 自然 20/1；NPC 目标待 Phase 3） |
 | `condition_branch` | 条件分流 | 必须有两个出口 | 有（白名单安全求值器） |
-| `apply_effect` | 伤害/治疗/状态结算 | 效果终点 | 有（完整 NdM+K 掷骰；status 走通用伤害修饰引擎已可落地，见 §3.1） |
+| `apply_effect` | 伤害/治疗/状态/检定奖惩结算 | 效果终点 | 有（完整 NdM+K 掷骰；status 走通用伤害修饰引擎、check_modifier 走检定奖惩引擎，均可落地，见 §3.1） |
 | `scaled_effect` | 分级效果：按施法者角色等级或法术环位自动取值的伤害/治疗 | 效果终点 | 有（分档表取档 + 掷骰；一次掷骰全目标共用） |
 | `concentration_check` | 专注检定（体质 DC 10） | 持续法术收尾 | 有 |
 | `cast_end` | 流程收尾 | 流程出口 | 有（仅日志） |
@@ -222,6 +222,12 @@ cast_start → select_target → apply_effect(healing) → cast_end
 
 ```
 cast_start → select_target → saving_throw → apply_effect(status) → cast_end
+```
+
+检定奖惩（如祝福术、灾祸术）：
+
+```
+cast_start → select_target → apply_effect(check_modifier) → cast_end
 ```
 
 持续/专注：
@@ -329,15 +335,28 @@ cast_start → select_target → saving_throw → scaled_effect → cast_end
 
 | 键 | 类型 | 必填 | 说明 |
 |----|------|------|------|
-| `effectType` | select | 是 | `damage` / `healing` / `status` |
-| `value` | dice/string | 是 | `8d6`、`3d8+5`；status 路径不读骰，传 `"0"` 占位 |
-| `damageType` | select | 否 | 13 种伤害类型之一；damage/healing 路径参与抗性结算（resolveDamage） |
+| `effectType` | select | 是 | `damage` / `healing` / `status` / `check_modifier` |
+| `value` | dice/string | 伤害/治疗必填 | `8d6`、`3d8+5`；status 与 check_modifier 路径不读骰，传 `"0"` 占位 |
+| `damageType` | select | 否 | 13 种伤害类型之一；damage 路径参与抗性结算（resolveDamage） |
+| `damageComponents` | array | 否 | `[{ type, value }]`；填写后忽略 `value`/`damageType`，逐分量掷骰并分别结算抗性 |
+| `halfDamageOnSave` | boolean | 否 | 豁免成功时每个伤害分量先减半，再结算抗性 |
+| `damageSource` | select | 否 | `auto` / `magical` / `nonmagical`；影响抗性来源过滤 |
 | `affinityKind` | select | status 必填 | `resistance`（减半）/ `immunity`（归零）/ `vulnerability`（翻倍）——通用伤害修饰引擎的修饰方向 |
 | `damageTypes` | text | 否 | 逗号分隔英文键（如 `bludgeoning,piercing,slashing`）；留空 = 全部类型 |
 | `sourceKind` | select | 否 | `""`（不限）/ `weapon` / `spell` / `effect`——限定伤害来源（如剑刃防护仅武器） |
-| `durationRounds` | number | 否 | >0 按回合计时自动消退（约 6 秒/回合近似）；0/缺省 = 直到手动解除 |
+| `durationType` | select | 否 | `rounds`（按回合）/ `untilCasterTurn`（到施法者下一回合）；status 与 check_modifier 共用 |
+| `durationRounds` | number | 否 | `durationType=rounds` 时生效；>0 按回合计时自动消退，0/缺省 = 直到手动解除 |
+| `durationTurns` | number | 否 | `durationType=untilCasterTurn` 时生效；1=下一回合，2=下下回合 |
+| `modifierMode` | select | check_modifier 必填 | `bonus`（加值）/ `penalty`（减值） |
+| `modifierDice` | dice | 否 | 每次触发检定额外投掷的奖惩骰（如祝福术 `1d4`）；留空表示仅固定值 |
+| `modifierFlat` | number | 否 | 与奖惩骰同时生效的固定加值 |
+| `modifierScene` | select | 否 | `any` / `attack` / `attack_melee` / `attack_ranged` / `attack_thrown` / `spell_attack` / `check` / `ability_check` / `skill_check` / `saving_throw` |
+| `modifierForced` | select | 否 | `true`（自动计入）/ `false`（玩家可选）；惩罚恒为强制 |
+| `modifierUses` | number | 否 | `0` = 状态型（随状态到期）；`>0` = 计次消耗（如激励 3 次用完消失） |
 
-**status 落地链路**（已实装）：节点配置 → 编译器产出待落地记录（statusId 固定 `damage_affinity` + 实例级 Effect，纯计算不落库）→ 战斗确认侧 `globalStatusManager.applyEffect` 写入实例 → `combatAffinities` 合并进伤害结算。任意伤害类型/来源组合直接配节点参数，状态库与编译器零改动（§0.0 引擎意识的落地样例）。
+字段按 `effectType` 条件显示（`visibleWhen`）：编辑器只渲染当前类型适用的字段，发布校验也只要求可见字段必填；切换 `effectType` 时编辑器会自动补齐新出现字段的默认值。手写 JSON 时可以省略不相关字段。
+
+**status / check_modifier 落地链路**（已实装）：节点配置 → 编译器产出待落地记录（statusId 固定 `damage_affinity` / `check_modifier` + 实例级 Effect，纯计算不落库）→ 战斗确认侧 `CombatSession.onFlowResolved` 统一落地：status 走 `globalStatusManager.applyEffect` 写入实例并合并进 `combatAffinities` 伤害结算；check_modifier 按 `modifierUses` 分流到次数型 `pendingCheckModifiers` 或状态型 `globalStatusManager`。专注法术的附加状态随专注中断一并移除。任意伤害类型/来源/检定场景组合直接配节点参数，状态库与编译器零改动（§0.0 引擎意识的落地样例）。
 
 `condition_branch`
 

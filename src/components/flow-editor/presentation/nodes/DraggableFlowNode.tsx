@@ -7,7 +7,7 @@ import React, { useRef, useEffect } from 'react';
 import { CSS } from '@dnd-kit/utilities';
 import { useDraggable } from '@dnd-kit/core';
 import { resolveNodeIcon } from '@/utils/flow-editor/node-icon';
-import { NODE_TYPE_REGISTRY } from '@/types/flow';
+import { NODE_TYPE_REGISTRY, NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
 import { NODE_W } from '@/utils/flow-editor/constants';
 import type { FlowNodeDef, FlowDefinition, NodeTypeMeta } from '@/types/flow';
 
@@ -176,7 +176,10 @@ export default function DraggableFlowNode({
         {/* 节点配置预览 */}
         {node.config && Object.keys(node.config).length > 0 && (
           <div className="text-[9px] sm:text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5 max-h-20 overflow-y-auto">
-            {Object.entries(node.config).map(([k, v]) => (
+            {Object.entries(node.config).filter(([k]) => {
+              const field = (NODE_CONFIG_SCHEMA[node.type] ?? []).find(f => f.key === k);
+              return !field || isConfigFieldVisible(field, node.config);
+            }).map(([k, v]) => (
               <div key={k} className="truncate pr-1" title={`${k}: ${String(v)}`}>
                 <span className="font-medium">{k}:</span> 
                 <span className="truncate ml-1">{String(v)}</span>

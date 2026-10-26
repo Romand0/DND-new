@@ -1,6 +1,6 @@
 import React from 'react';
 import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
-import { NODE_CONFIG_SCHEMA } from '@/types/flow';
+import { NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
 import type { FlowNodeDef, ConfigFieldSchema } from '@/types/flow';
 
 interface NodeConfigFormProps {
@@ -14,8 +14,9 @@ export default function NodeConfigForm({
   updateNodeConfig,
   isDark,
 }: NodeConfigFormProps) {
-  // 获取节点类型的配置 Schema
-  const fields = NODE_CONFIG_SCHEMA[node.type] ?? [];
+  // 获取节点类型的配置 Schema，并按当前 config 过滤掉不适用的字段
+  const fields = (NODE_CONFIG_SCHEMA[node.type] ?? [])
+    .filter(field => isConfigFieldVisible(field, node.config));
 
   return (
     <div className="mb-3">

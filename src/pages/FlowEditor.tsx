@@ -61,7 +61,7 @@ import type {
 } from '@/types/flow';
 import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow, ensureNodePositions } from '@/types/flow';
 import { tidyFlowLayout, hasDegeneratePositions } from '@/utils/flow-editor/topology-layout';
-import { NODE_CONFIG_SCHEMA, FlowNodeType } from '@/types/flow';
+import { NODE_CONFIG_SCHEMA, isConfigFieldVisible, FlowNodeType } from '@/types/flow';
 // FLOW_CATEGORIES, parseFlowId, buildFlowId 已移至 FlowPropertiesCategories 组件
 import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
 import { validateFlowWithDetails, validateForPublish, type ValidationError, getAutoFixSuggestions } from '@/utils/flow-editor/validation';
@@ -506,12 +506,15 @@ flowStore.saveViewportSnapshot(flowId, {
   }
 
   // ===== 添加节点（自动防重叠） =====
-  /** 递归收集 schema 的默认值（含嵌套 object） */
-  const collectSchemaDefaults = useCallback((fields: ConfigFieldSchema[]): Record<string, any> => {
+  /** 递归收集 schema 的默认值（含嵌套 object）；按已收集值跳过当前不可见字段 */
+  const collectSchemaDefaults = useCallback((fields: ConfigFieldSchema[], current: Record<string, any> = {}): Record<string, any> => {
     const defaults: Record<string, any> = {};
+    // 本地副本：可见性判断需要边收集边读取，但不修改调用方传入的 config
+    const evaluated = { ...current };
     for (const f of fields) {
+      if (!isConfigFieldVisible(f, evaluated)) continue;
       if (f.type === 'object' && f.children) {
-        const childDefaults = collectSchemaDefaults(f.children);
+        const childDefaults = collectSchemaDefaults(f.children, evaluated[f.key] ?? {});
         defaults[f.key] = Object.keys(childDefaults).length > 0 ? childDefaults : (f.defaultValue ?? {});
       } else {
         // 为所有字段提供默认值，防止 undefined
@@ -541,6 +544,7 @@ flowStore.saveViewportSnapshot(flowId, {
           }
         }
       }
+      evaluated[f.key] = defaults[f.key];
     }
     return defaults;
   }, []);
@@ -548,7 +552,10 @@ flowStore.saveViewportSnapshot(flowId, {
   const addNode = useCallback((typeMeta: NodeTypeMeta, position: { x: number; y: number }) => {
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     // 从 Schema 合并默认值（Schema 优先，兜底 defaultConfig）
-    const schemaDefaults = collectSchemaDefaults(NODE_CONFIG_SCHEMA[typeMeta.type] ?? []);
+    const schemaDefaults = collectSchemaDefaults(
+      NODE_CONFIG_SCHEMA[typeMeta.type] ?? [],
+      { ...(typeMeta.defaultConfig ?? {}) },
+    );
     const newNode: FlowNodeDef = {
       id, type: typeMeta.type, label: typeMeta.label,
       position: { x: position.x, y: position.y },
@@ -584,14 +591,19 @@ flowStore.saveViewportSnapshot(flowId, {
   const updateNodeConfig = useCallback(debounce((nodeId: string, key: string, value: any) => {
     setFlow(prev => ({
       ...prev,
-      nodes: prev.nodes.map(n =>
-        n.id === nodeId
-          ? { ...n, config: { ...n.config, [key]: value } }
-          : n
-      ),
+      nodes: prev.nodes.map(n => {
+        if (n.id !== nodeId) return n;
+        const config = { ...n.config, [key]: value };
+        // 切换 effectType 等条件字段后，新出现的字段可能还没有默认值，按可见性补齐
+        const defaults = collectSchemaDefaults(NODE_CONFIG_SCHEMA[n.type] ?? [], { ...config });
+        for (const [k, v] of Object.entries(defaults)) {
+          if (config[k] === undefined) config[k] = v;
+        }
+        return { ...n, config };
+      }),
       updatedAt: Date.now(),
     }));
-  }, 300), []);
+  }, 300), [collectSchemaDefaults]);
 
   // ===== 更新节点位置（拖拽后应用 delta + 碰撞检测） =====
   const updateNodePositionByDelta = useCallback((nodeId: string, delta: { x: number; y: number }) => {

@@ -8,16 +8,28 @@
 
 | 字段 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| `effectType` | select | 是 | `damage` | `damage` / `healing` / `status` |
-| `value` | dice | 是 | `8d6` | 效果骰表达式，如 `8d6`、`3d8+5` |
+| `effectType` | select | 是 | `damage` | `damage` / `healing` / `status` / `check_modifier` |
+| `value` | dice | 伤害/治疗时必填 | `8d6` | 效果骰表达式，如 `8d6`、`3d8+5` |
 | `damageType` | select | 伤害时必填 | - | 标准伤害类型（火焰/寒冷/闪电/强酸/毒素/力场/黯蚀/光耀/心灵/雷鸣/穿刺/挥砍/钝击） |
 | `damageComponents` | array | 否 | - | 多类型伤害分量，元素为 `{ type, value }`；填写后忽略 `value` 与 `damageType`，逐分量掷骰并分别结算抗性 |
 | `halfDamageOnSave` | boolean | 否 | `false` | 读取最近一次豁免节点的结果；目标豁免成功时先把每个伤害分量减半，再结算抗性 |
 | `damageSource` | select | 否 | `auto` | `auto`（沿用上下文，默认法术=魔法）/ `magical` / `nonmagical` |
+| `affinityKind` | select | 状态时必填 | `resistance` | `resistance` / `immunity` / `vulnerability` |
+| `damageTypes` | text | 否 | 空=全部 | 逗号分隔 DSL 伤害类型；留空表示全部类型 |
+| `sourceKind` | select | 否 | 不限 | `weapon` / `spell` / `effect`；限定伤害来源 |
+| `durationType` | select | 否 | `rounds` | `rounds`（按回合）/ `untilCasterTurn`（到施法者下一回合） |
+| `durationRounds` | number | 否 | 空 | `>0` 时按回合计时自动消退；空或 0 表示手动解除 |
+| `durationTurns` | number | 否 | `1` | 仅 `untilCasterTurn`：1=下一回合，2=下下回合 |
+| `modifierMode` | select | 奖惩时必填 | `bonus` | `bonus`（奖励）/ `penalty`（惩罚） |
+| `modifierDice` | dice | 否 | `1d4` | 每次触发检定额外投掷的奖惩骰 |
+| `modifierFlat` | number | 否 | 空 | 与奖惩骰同时生效的固定加值 |
+| `modifierScene` | select | 否 | `any` | 适用的检定类型（任意/攻击/近战/远程/投掷/法术攻击/属性/技能/豁免） |
+| `modifierForced` | select | 否 | `true` | 强制自动计入 / 玩家可选；惩罚恒为强制 |
+| `modifierUses` | number | 否 | `0` | `0`=状态型（随状态到期）；`>0`=计次消耗 |
 
-历史配置中的英文伤害类型值（`fire`、`cold` 等）会在结算时自动归一化为标准中文类型。
+字段按 `effectType` 条件显示：表单只渲染当前类型适用的字段，发布校验也只要求可见字段必填。历史配置中的英文伤害类型值（`fire`、`cold` 等）会在结算时自动归一化为标准中文类型。
 
-`status` 类型当前没有结算逻辑：不修改 HP，状态附加请使用战斗弹窗的待办/状态功能。
+`status` 与 `check_modifier` 不修改 HP，编译器只产出待落地记录（`statusId` + 实例级 `statusEffects`），由 `CombatSession.onFlowResolved` 统一写入状态库：`status` 落到通用 `damage_affinity`，`check_modifier` 按 `modifierUses` 落到次数型 `pendingCheckModifiers` 或状态型 `globalStatusManager`。
 
 ## 结算规则
 

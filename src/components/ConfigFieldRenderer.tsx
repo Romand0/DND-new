@@ -1,4 +1,5 @@
 import type { ConfigFieldSchema } from '@/types/flow';
+import { isConfigFieldVisible } from '@/types/flow';
 import SpellPickerField from './SpellPickerField';
 
 interface Props {
@@ -90,7 +91,7 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark, p
       return (
         <div className="space-y-3">
           <h4 className="text-sm font-medium">{schema.label}</h4>
-          {schema.children?.filter(c => !c.hidden).map((child) => (
+          {schema.children?.filter(c => isConfigFieldVisible(c, value)).map((child) => (
             <ConfigFieldRenderer
               key={child.key}
               schema={child}
@@ -129,6 +130,7 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark, p
       const itemDefaults = () => {
         const item: any = {};
         for (const child of schema.children ?? []) {
+          if (!isConfigFieldVisible(child, item)) continue;
           item[child.key] = child.defaultValue ?? (child.type === 'number' ? 0 : '');
         }
         return item;
@@ -137,7 +139,7 @@ export default function ConfigFieldRenderer({ schema, value, onChange, isDark, p
         <div className="space-y-2">
           {rows.map((row, idx) => (
             <div key={idx} className="flex items-center gap-1.5">
-              {(schema.children ?? []).map(child => (
+              {(schema.children ?? []).filter(child => isConfigFieldVisible(child, row)).map(child => (
                 <div key={child.key} className="flex-1 min-w-0">
                   <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">{child.label}</div>
                   <ConfigFieldRenderer

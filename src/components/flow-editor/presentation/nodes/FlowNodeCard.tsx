@@ -1,6 +1,6 @@
 import React from 'react';
 import type { FlowNodeDef } from '@/types/flow';
-import { NODE_TYPE_REGISTRY } from '@/types/flow';
+import { NODE_TYPE_REGISTRY, NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
 import { NODE_W } from '@/utils/flow-editor/constants';
 import { resolveNodeIcon } from '@/utils/flow-editor/node-icon';
 
@@ -17,7 +17,11 @@ interface FlowNodeCardProps {
  */
 export default function FlowNodeCard({ node, x, y, nodeRef }: FlowNodeCardProps) {
   const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
-  const configEntries = node.config ? Object.entries(node.config) : [];
+  const schema = NODE_CONFIG_SCHEMA[node.type] ?? [];
+  const configEntries = Object.entries(node.config ?? {}).filter(([key]) => {
+    const field = schema.find(f => f.key === key);
+    return !field || isConfigFieldVisible(field, node.config);
+  });
 
   return (
     <div

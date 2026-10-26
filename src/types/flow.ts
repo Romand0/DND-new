@@ -468,6 +468,17 @@ export interface SelectOption {
   value: string;   // 存入 config 的 DSL 编码
 }
 
+/** 字段可见性条件：基于同节点 config 的某个键做静态判断 */
+export interface ConfigFieldVisibility {
+  key?: string;
+  equals?: unknown;
+  in?: unknown[];
+  notEquals?: unknown;
+  truthy?: boolean;
+  /** 同时满足多个条件 */
+  allOf?: ConfigFieldVisibility[];
+}
+
 /** 单个配置字段的 Schema */
 export interface ConfigFieldSchema {
   key: string;                    // config 中的键名（DSL 层）
@@ -482,6 +493,28 @@ export interface ConfigFieldSchema {
   /** 指向同层级中存储法术回填摘要的 key */
   spellSummaryKey?: string;
   hidden?: boolean;               // 是否隐藏字段（不渲染控件）
+  /** 条件可见：不满足时编辑器不渲染、发布校验不要求必填 */
+  visibleWhen?: ConfigFieldVisibility;
+}
+
+/** 判断字段在给定节点 config 下是否可见；缺省条件视为始终可见 */
+export function isConfigFieldVisible(
+  field: ConfigFieldSchema,
+  config?: Record<string, any>,
+): boolean {
+  if (field.hidden) return false;
+  const condition = field.visibleWhen;
+  if (!condition) return true;
+  if (Array.isArray(condition.allOf) && !condition.allOf.every(c => isConfigFieldVisible({ key: '', label: '', type: 'text', visibleWhen: c }, config))) {
+    return false;
+  }
+  if (!condition.key) return true;
+  const value = config?.[condition.key];
+  if (Array.isArray(condition.in)) return condition.in.includes(value);
+  if ('equals' in condition) return value === condition.equals;
+  if ('notEquals' in condition) return value !== condition.notEquals;
+  if (typeof condition.truthy === 'boolean') return Boolean(value) === condition.truthy;
+  return true;
 }
 
 /** 节点类型 → 配置字段列表 */
@@ -632,47 +665,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       ],
       defaultValue: 'damage',
     },
-    {
-      key: 'affinityKind',
-      label: '伤害修饰类型',
-      type: 'select',
-      options: [
-        { label: '抗性（伤害减半）', value: 'resistance' },
-        { label: '免疫（伤害归零）', value: 'immunity' },
-        { label: '易伤（伤害翻倍）', value: 'vulnerability' },
-      ],
-      defaultValue: 'resistance',
-      description: 'effectType=status 时生效：通用伤害修饰引擎，任意类型组合走同一条路',
-    },
-    {
-      key: 'damageTypes',
-      label: '伤害类型列表',
-      type: 'text',
-      placeholder: '逗号分隔英文键，如 bludgeoning,piercing,slashing；留空 = 全部类型',
-      description: 'effectType=status 时生效；键值见 13 种 DSL 伤害类型（bludgeoning/piercing/slashing/fire/cold/lightning/acid/poison/force/necrotic/radiant/psychic/thunder）',
-      defaultValue: null,
-    },
-    {
-      key: 'sourceKind',
-      label: '来源限制',
-      type: 'select',
-      options: [
-        { label: '不限来源', value: '' },
-        { label: '仅武器攻击', value: 'weapon' },
-        { label: '仅法术', value: 'spell' },
-        { label: '仅效果', value: 'effect' },
-      ],
-      defaultValue: '',
-      description: 'effectType=status 时生效：限定伤害来源（如剑刃防护仅武器攻击）',
-    },
-    {
-      key: 'durationRounds',
-      label: '持续回合数',
-      type: 'number',
-      placeholder: '0 或留空 = 直到手动解除',
-      description: 'effectType=status 时生效：>0 时状态按回合计时自动消退（约 6 秒/回合）',
-      defaultValue: null,
-    },
+    // ── 伤害 / 治疗 ──
     {
       key: 'value',
       label: '骰子表达式',
@@ -680,6 +673,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       required: true,
       placeholder: '如 8d6、3d8+5',
       defaultValue: '8d6',
+      visibleWhen: { key: 'effectType', in: ['damage', 'healing'] },
     },
     {
       key: 'damageType',
@@ -701,6 +695,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '挥砍', value: 'slashing' },
         { label: '钝击', value: 'bludgeoning' },
       ],
+      visibleWhen: { key: 'effectType', equals: 'damage' },
     },
     {
       key: 'damageComponents',
@@ -708,6 +703,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       type: 'array',
       required: false,
       description: '填写后忽略单骰式与伤害类型；每个分量独立掷骰并分别结算抗性',
+      visibleWhen: { key: 'effectType', equals: 'damage' },
       children: [
         {
           key: 'type',
@@ -740,6 +736,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       required: false,
       defaultValue: false,
       description: '读取最近一次豁免节点结果；目标豁免成功时先把每个伤害分量减半，再结算抗性',
+      visibleWhen: { key: 'effectType', equals: 'damage' },
     },
     {
       key: 'damageSource',
@@ -752,19 +749,99 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '非魔法', value: 'nonmagical' },
       ],
       defaultValue: 'auto',
+      visibleWhen: { key: 'effectType', equals: 'damage' },
     },
-    // ── 检定奖惩（effectType='check_modifier' 时生效）──
+    // ── 状态附加 ──
+    {
+      key: 'affinityKind',
+      label: '伤害修饰类型',
+      type: 'select',
+      required: true,
+      options: [
+        { label: '抗性（伤害减半）', value: 'resistance' },
+        { label: '免疫（伤害归零）', value: 'immunity' },
+        { label: '易伤（伤害翻倍）', value: 'vulnerability' },
+      ],
+      defaultValue: 'resistance',
+      description: '通用伤害修饰引擎，任意类型组合走同一条路',
+      visibleWhen: { key: 'effectType', equals: 'status' },
+    },
+    {
+      key: 'damageTypes',
+      label: '伤害类型列表',
+      type: 'text',
+      placeholder: '逗号分隔英文键，如 bludgeoning,piercing,slashing；留空 = 全部类型',
+      description: '13 种 DSL 伤害类型：bludgeoning/piercing/slashing/fire/cold/lightning/acid/poison/force/necrotic/radiant/psychic/thunder',
+      defaultValue: null,
+      visibleWhen: { key: 'effectType', equals: 'status' },
+    },
+    {
+      key: 'sourceKind',
+      label: '来源限制',
+      type: 'select',
+      options: [
+        { label: '不限来源', value: '' },
+        { label: '仅武器攻击', value: 'weapon' },
+        { label: '仅法术', value: 'spell' },
+        { label: '仅效果', value: 'effect' },
+      ],
+      defaultValue: '',
+      description: '限定伤害来源（如剑刃防护仅武器攻击）',
+      visibleWhen: { key: 'effectType', equals: 'status' },
+    },
+    // ── 状态 / 奖惩共用的持续时间 ──
+    {
+      key: 'durationType',
+      label: '持续时间类型',
+      type: 'select',
+      options: [
+        { label: '按回合数', value: 'rounds' },
+        { label: '直到施法者下一回合', value: 'untilCasterTurn' },
+      ],
+      defaultValue: 'rounds',
+      description: '状态与检定奖惩共用；模拟模式下会转为手动解除',
+      visibleWhen: { key: 'effectType', in: ['status', 'check_modifier'] },
+    },
+    {
+      key: 'durationRounds',
+      label: '持续回合数',
+      type: 'number',
+      placeholder: '0 或留空 = 直到手动解除',
+      description: '>0 时按回合计时自动消退（约 6 秒/回合）',
+      defaultValue: null,
+      visibleWhen: {
+        allOf: [
+          { key: 'effectType', in: ['status', 'check_modifier'] },
+          { key: 'durationType', equals: 'rounds' },
+        ],
+      },
+    },
+    {
+      key: 'durationTurns',
+      label: '持续到第几个施法者回合',
+      type: 'number',
+      placeholder: '1 = 到施法者下一回合，2 = 下下回合',
+      defaultValue: 1,
+      visibleWhen: {
+        allOf: [
+          { key: 'effectType', in: ['status', 'check_modifier'] },
+          { key: 'durationType', equals: 'untilCasterTurn' },
+        ],
+      },
+    },
+    // ── 检定奖惩 ──
     {
       key: 'modifierMode',
       label: '奖惩方向',
       type: 'select',
-      required: false,
+      required: true,
       options: [
         { label: '奖励（加值）', value: 'bonus' },
         { label: '惩罚（减值）', value: 'penalty' },
       ],
       defaultValue: 'bonus',
-      description: '奖惩方向：奖励在检定值上加，惩罚在检定值上减',
+      description: '奖励在检定值上加，惩罚在检定值上减',
+      visibleWhen: { key: 'effectType', equals: 'check_modifier' },
     },
     {
       key: 'modifierDice',
@@ -774,6 +851,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       placeholder: '如 1d4；留空 = 无骰仅固定值',
       description: '每次触发检定额外投掷并计入的骰子（如祝福术 1d4）',
       defaultValue: '1d4',
+      visibleWhen: { key: 'effectType', equals: 'check_modifier' },
     },
     {
       key: 'modifierFlat',
@@ -783,6 +861,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       placeholder: '如 1；可留空',
       description: '与奖惩骰式同时生效（如 1d4+1 的 +1）',
       defaultValue: null,
+      visibleWhen: { key: 'effectType', equals: 'check_modifier' },
     },
     {
       key: 'modifierScene',
@@ -803,6 +882,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       ],
       defaultValue: 'any',
       description: '奖惩适用的检定类型（可多类法术共用同一引擎）',
+      visibleWhen: { key: 'effectType', equals: 'check_modifier' },
     },
     {
       key: 'modifierForced',
@@ -815,6 +895,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       ],
       defaultValue: 'true',
       description: '惩罚恒为强制；奖励可选时检定弹窗会出现使用开关',
+      visibleWhen: { key: 'effectType', equals: 'check_modifier' },
     },
     {
       key: 'modifierUses',
@@ -824,6 +905,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       placeholder: '0 = 随状态持续生效；>0 = 计次消耗',
       description: '0 表示状态型奖惩（随状态到期）；>0 表示次数型（如激励 3 次，用完消失）',
       defaultValue: 0,
+      visibleWhen: { key: 'effectType', equals: 'check_modifier' },
     },
   ],
 
@@ -888,6 +970,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '挥砍', value: 'slashing' },
         { label: '钝击', value: 'bludgeoning' },
       ],
+      visibleWhen: { key: 'effectType', equals: 'damage' },
     },
     {
       key: 'damageSource',
@@ -900,6 +983,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '非魔法', value: 'nonmagical' },
       ],
       defaultValue: 'auto',
+      visibleWhen: { key: 'effectType', equals: 'damage' },
     },
     {
       key: 'halfDamageOnSave',
@@ -908,6 +992,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       required: false,
       defaultValue: false,
       description: '读取最近一次豁免节点结果；目标豁免成功时先把每个伤害分量减半，再结算抗性',
+      visibleWhen: { key: 'effectType', equals: 'damage' },
     },
   ],
 
