@@ -2,13 +2,13 @@
 // 数据源 statusLibrary.list() 与 globalStatusManager，与战斗引擎同一状态机。
 // damage_affinity 通用伤害修饰按 flowCompiler status 分支同构的 Effect 注入（实例级）。
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, X, Zap } from 'lucide-react';
+import { Plus, X, Zap, Dices } from 'lucide-react';
 import statusLibrary from '@/data/statusLibrary';
 import { globalStatusManager } from '@/data/statusManager';
 import { GENERIC_AFFINITY_STATUS_ID } from '@/lib/flowCompiler';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
 import combatStore from '@/data/combatStore';
-import type { Combatant } from '@/types/combat';
+import type { CheckModifierMode, CheckScene, Combatant } from '@/types/combat';
 import type { Effect, StatusDefinition, StatusInstance } from '@/types/status';
 
 const AFFINITY_KINDS = [
@@ -33,6 +33,17 @@ const DAMAGE_TYPES = [
   { key: 'psychic', label: '心灵' },
 ];
 
+/** 奖惩适用范围候选（DM 手动附加用） */
+const MODIFIER_SCENES: Array<{ key: CheckScene | 'any' | 'attack' | 'check'; label: string }> = [
+  { key: 'any', label: '任意检定' },
+  { key: 'attack', label: '攻击检定' },
+  { key: 'check', label: '属性/技能检定' },
+  { key: 'attack_melee', label: '近战攻击' },
+  { key: 'attack_ranged', label: '远程攻击' },
+  { key: 'spell_attack', label: '法术攻击' },
+  { key: 'saving_throw', label: '豁免检定' },
+];
+
 const SOURCE_KINDS = [
   { key: '', label: '全部来源' },
   { key: 'weapon', label: '武器' },
@@ -54,6 +65,17 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
   const [untilNextTurn, setUntilNextTurn] = useState(false);
   const [turnCount, setTurnCount] = useState(1);
   const [error, setError] = useState('');
+  // 检定奖惩手动附加（状态型）：方向/骰子/范围/强制/持续
+  const [modMode, setModMode] = useState<CheckModifierMode>('bonus');
+  const [modDiceCount, setModDiceCount] = useState(1);
+  const [modDiceSides, setModDiceSides] = useState(4);
+  const [modFlat, setModFlat] = useState(0);
+  const [modScene, setModScene] = useState<'any' | 'attack' | 'check' | 'attack_melee' | 'attack_ranged' | 'spell_attack' | 'saving_throw'>('any');
+  const [modForced, setModForced] = useState(true);
+  const [modDurationRounds, setModDurationRounds] = useState(0);
+  const [modLabel, setModLabel] = useState('祝福术');
+  // 次数型奖惩手动附加
+  const [modUses, setModUses] = useState(3);
 
   // 状态实例无订阅通道：操作后手动 tick + 轮询兜底过期/倒计时刷新
   useEffect(() => {
@@ -141,6 +163,68 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
     }
   };
 
+  /** 附加状态型检定奖惩（随状态过期/专注联动/手动解除） */
+  const handleAttachModifier = () => {
+    setError('');
+    const dice = { count: Math.max(0, Math.floor(modDiceCount) || 0), sides: Math.max(0, Math.floor(modDiceSides) || 0), flatBonus: Number(modFlat) || 0 };
+    if (dice.count <= 0 || dice.sides <= 0) {
+      if (Math.abs(dice.flatBonus) === 0) {
+        setError('请配置骰子或固定值');
+        return;
+      }
+    }
+    const effect: Effect = {
+      id: `manual.check_modifier.${modMode}`,
+      type: 'check_modifier',
+      target: 'self',
+      config: {
+        mode: modMode,
+        dice,
+        scene: modScene,
+        forced: modMode === 'penalty' ? true : modForced,
+        label: modLabel.trim() || '检定奖惩',
+      },
+      description: `${modLabel.trim() || '检定奖惩'}：${modMode === 'penalty' ? '惩罚' : '奖励'} ${dice.count > 0 && dice.sides > 0 ? `${dice.count}d${dice.sides}` : ''}${dice.flatBonus ? `${dice.flatBonus > 0 ? '+' : ''}${dice.flatBonus}` : ''}`,
+    };
+    try {
+      const playback = combatStore.get(recordId)?.mode === 'playback';
+      globalStatusManager.applyEffect(combatant.id, 'check_modifier', 'combat', recordId, {
+        instanceEffects: [effect],
+        ...(modDurationRounds > 0 ? { durationRounds: modDurationRounds } : {}),
+        ...(modDurationRounds > 0 && playback
+          ? { combatMode: 'playback' as const, startRound: getCombatRoundCtx(recordId).currentRound ?? 0 }
+          : modDurationRounds > 0
+            ? { combatMode: 'simulation' as const }
+            : {}),
+      });
+      setTick(t => t + 1);
+    } catch (e) {
+      setError(`附加检定奖惩失败：${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  /** 附加次数型检定奖惩（次数用完即消失，如激励） */
+  const handleAttachModifierUses = () => {
+    setError('');
+    const dice = { count: Math.max(0, Math.floor(modDiceCount) || 0), sides: Math.max(0, Math.floor(modDiceSides) || 0), flatBonus: Number(modFlat) || 0 };
+    if (dice.count <= 0 && Math.abs(dice.flatBonus) === 0) {
+      setError('请配置骰子或固定值');
+      return;
+    }
+    combatStore.addPendingCheckModifier(recordId, combatant.id, {
+      fromName: combatant.name,
+      reason: modLabel.trim() || '检定奖惩',
+      mode: modMode,
+      dice,
+      scene: modScene,
+      forced: modMode === 'penalty' ? true : modForced,
+      uses: Math.max(1, Math.floor(modUses) || 1),
+      createdRound: getCombatRoundCtx(recordId).currentRound ?? 0,
+      expireRound: -1,
+    });
+    setTick(t => t + 1);
+  };
+
   const remainingText = (instance: StatusInstance): string => {
     if (instance.expirePolicy === 'manual') {
       return instance.durationRounds ? `模拟模式·不限回合（配置 ${instance.durationRounds} 回合）` : '手动取消';
@@ -215,6 +299,50 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
           </div>
         )}
       </div>
+
+      {/* 次数型奖惩清单（不进状态系统，单独展示） */}
+      {(() => {
+        const pendingMods = (combatant.pendingCheckModifiers ?? []).filter(m => m.remainingUses > 0);
+        if (pendingMods.length === 0) return null;
+        return (
+          <div>
+            <h4 className="text-xs font-semibold dark:text-text-dark light:text-text-light mb-2">
+              次数型奖惩（{pendingMods.length}）
+            </h4>
+            <div className="space-y-1.5">
+              {pendingMods.map(m => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between text-xs rounded border border-gray-200 dark:border-gray-700 px-2 py-1.5"
+                >
+                  <div className="min-w-0">
+                    <div className="font-medium dark:text-text-dark light:text-text-light truncate">
+                      {m.reason}
+                      <span className={`ml-1.5 text-[10px] ${m.mode === 'penalty' ? 'text-amber-400' : 'text-emerald-400'}`}>
+                        {m.mode === 'penalty' ? '惩罚' : '奖励'}
+                      </span>
+                    </div>
+                    <div className="dark:text-text-dark-muted light:text-text-light-muted truncate">
+                      剩余 {m.remainingUses}/{m.totalUses} 次 · {m.dice.count > 0 ? `${m.dice.count}d${m.dice.sides}` : ''}
+                      {m.dice.flatBonus ? `${m.dice.flatBonus > 0 ? '+' : ''}${m.dice.flatBonus}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      combatStore.removePendingCheckModifier(recordId, combatant.id, m.id);
+                      setTick(t => t + 1);
+                    }}
+                    className="ml-2 shrink-0 p-1 rounded text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
+                    title="移除"
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 通用伤害修饰 */}
       <div className="rounded border border-dashed border-gray-300 dark:border-gray-600 p-2.5 space-y-2">
@@ -300,6 +428,100 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
         >
           <Plus size={12} /> 附加伤害修饰
         </button>
+      </div>
+
+      {/* 检定奖惩（手动附加：状态型 / 次数型） */}
+      <div className="rounded border border-dashed border-gray-300 dark:border-gray-600 p-2.5 space-y-2">
+        <h4 className="text-xs font-semibold dark:text-text-dark light:text-text-light flex items-center gap-1">
+          <Dices size={12} /> 检定奖惩（祝福术 / 激励）
+        </h4>
+        <div className="flex gap-1">
+          {(['bonus', 'penalty'] as CheckModifierMode[]).map(m => (
+            <button
+              key={m}
+              onClick={() => setModMode(m)}
+              className={`flex-1 text-xs py-1 rounded ${
+                modMode === m ? 'bg-accent text-white' : 'bg-gray-100 dark:bg-gray-800 dark:text-text-dark-muted light:text-text-light-muted'
+              }`}
+            >
+              {m === 'bonus' ? '奖励（+）' : '惩罚（-）'}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5 items-center text-xs">
+          <input
+            value={modLabel}
+            onChange={e => setModLabel(e.target.value)}
+            placeholder="来源名（如祝福术）"
+            className="flex-1 min-w-24 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 dark:text-text-dark light:text-text-light"
+          />
+          <input
+            type="number" min={0} value={modDiceCount}
+            onChange={e => setModDiceCount(Math.max(0, Math.floor(Number(e.target.value)) || 0))}
+            className="w-12 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 text-center dark:text-text-dark light:text-text-light"
+            title="骰子个数"
+          />
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">d</span>
+          <input
+            type="number" min={0} value={modDiceSides}
+            onChange={e => setModDiceSides(Math.max(0, Math.floor(Number(e.target.value)) || 0))}
+            className="w-12 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 text-center dark:text-text-dark light:text-text-light"
+            title="骰面数"
+          />
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">+</span>
+          <input
+            type="number" value={modFlat}
+            onChange={e => setModFlat(Number(e.target.value) || 0)}
+            className="w-12 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 text-center dark:text-text-dark light:text-text-light"
+            title="固定加值"
+          />
+        </div>
+        <div className="flex flex-wrap gap-1.5 items-center text-xs">
+          <select
+            value={modScene}
+            onChange={e => setModScene(e.target.value as typeof modScene)}
+            className="flex-1 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 dark:text-text-dark light:text-text-light"
+          >
+            {MODIFIER_SCENES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+          <label className="flex items-center gap-1 dark:text-text-dark-muted light:text-text-light-muted">
+            <input
+              type="checkbox"
+              checked={modMode === 'penalty' ? true : modForced}
+              disabled={modMode === 'penalty'}
+              onChange={e => setModForced(e.target.checked)}
+            />
+            强制
+          </label>
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">持续</span>
+          <input
+            type="number" min={0} value={modDurationRounds}
+            onChange={e => setModDurationRounds(Math.max(0, Math.floor(Number(e.target.value)) || 0))}
+            className="w-14 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 text-center dark:text-text-dark light:text-text-light"
+            title="0 = 永续待手动取消"
+          />
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">回合</span>
+        </div>
+        <button
+          onClick={handleAttachModifier}
+          className="w-full text-xs py-1.5 rounded bg-accent text-white hover:opacity-90 flex items-center justify-center gap-1"
+        >
+          <Plus size={12} /> 附加状态型奖惩
+        </button>
+        <div className="flex gap-1.5 items-center text-xs">
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">次数</span>
+          <input
+            type="number" min={1} value={modUses}
+            onChange={e => setModUses(Math.max(1, Math.floor(Number(e.target.value)) || 1))}
+            className="w-14 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 text-center dark:text-text-dark light:text-text-light"
+          />
+          <button
+            onClick={handleAttachModifierUses}
+            className="flex-1 text-xs py-1.5 rounded border border-accent text-accent hover:bg-accent/10"
+          >
+            附加次数型奖惩（用完消失）
+          </button>
+        </div>
       </div>
 
       {/* 状态库全量 */}

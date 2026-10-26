@@ -158,6 +158,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       // 进入新参战者回合时清理过期优劣势（§5.13 设计行为，页面此前漏调，接线时补齐）：
       // (1) 该参战者本身 expireRound 过期
       combatStore.clearExpiredAdvantage(record.id, next.combatantId, next.round);
+      // (1b) 该参战者的次数型检定奖惩过期清理（expireRound=-1 的保留，靠次数耗尽）
+      combatStore.clearExpiredCheckModifiers(record.id, next.combatantId, next.round);
       // (2) 所有以该参战者回合锚点过期的 pending（如协助动作：发出者下回合前）
       combatStore.clearAdvantageByExpireCombatant(record.id, next.combatantId);
       setCurrentTurn(next);
@@ -192,6 +194,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
         combatStore.clearExpiredAdvantage(record.id, firstInNew.combatantId, firstInNew.round);
+        combatStore.clearExpiredCheckModifiers(record.id, firstInNew.combatantId, firstInNew.round);
         combatStore.clearAdvantageByExpireCombatant(record.id, firstInNew.combatantId);
         setCurrentTurn(firstInNew);
         resetCombatantActions(firstInNew.combatantId);
@@ -206,6 +209,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       const firstInNext = findNextValidTurn(nextRound, 0);
       if (firstInNext) {
         combatStore.clearExpiredAdvantage(record.id, firstInNext.combatantId, firstInNext.round);
+        combatStore.clearExpiredCheckModifiers(record.id, firstInNext.combatantId, firstInNext.round);
         combatStore.clearAdvantageByExpireCombatant(record.id, firstInNext.combatantId);
         setCurrentTurn(firstInNext);
         resetCombatantActions(firstInNext.combatantId);

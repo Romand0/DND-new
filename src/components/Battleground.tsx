@@ -1540,25 +1540,30 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       </div>
 
       {/* 双击棋子弹出信息窗口 */}
-      {doubleClickedCombatant && (
-        <CombatantInfoPanel
-                  combatant={doubleClickedCombatant}
+      {doubleClickedCombatant && (() => {
+        // 面板数据实时跟 combatants 走：面板自身发起的变更（附加奖惩/状态/手持）
+        // 若读打开时的快照就会看不到，导致操作后 UI 不刷新
+        const live = combatants.find(c => c.id === doubleClickedCombatant.id) ?? doubleClickedCombatant;
+        return (
+          <CombatantInfoPanel
+                  combatant={live}
                   onClose={() => setDoubleClickedCombatant(null)}
                   combatants={combatants}
                   tokenMap={tokenMap}
-                  combatInventory={combatInventories?.[doubleClickedCombatant.id]}
-                  onRemoveItem={onRemoveItem ? (item) => onRemoveItem(doubleClickedCombatant.id, item) : undefined}
-                  equipmentChanges={equipmentChangesMap?.[doubleClickedCombatant.id]}
-                  onUpdateChanges={onUpdateChanges ? (changes) => onUpdateChanges(doubleClickedCombatant.id, changes) : undefined}
-                  actions={doubleClickedCombatant.actions}
+                  combatInventory={combatInventories?.[live.id]}
+                  onRemoveItem={onRemoveItem ? (item) => onRemoveItem(live.id, item) : undefined}
+                  equipmentChanges={equipmentChangesMap?.[live.id]}
+                  onUpdateChanges={onUpdateChanges ? (changes) => onUpdateChanges(live.id, changes) : undefined}
+                  actions={live.actions}
                   isProvingGround={isProvingGround}
                   provingRecord={provingRecord}
-                  onHelpClick={() => onPanelHelpClick?.(doubleClickedCombatant)}
-                  onAttackClick={() => onPanelAttackClick?.(doubleClickedCombatant)}
-                  onCastClick={() => onPanelCastClick?.(doubleClickedCombatant)}
-                  onDashClick={() => onPanelDashClick?.(doubleClickedCombatant)}
+                  onHelpClick={() => onPanelHelpClick?.(live)}
+                  onAttackClick={() => onPanelAttackClick?.(live)}
+                  onCastClick={() => onPanelCastClick?.(live)}
+                  onDashClick={() => onPanelDashClick?.(live)}
                 />
-      )}
+        );
+      })()}
     </div>
   );
 }

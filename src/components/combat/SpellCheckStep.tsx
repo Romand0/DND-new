@@ -7,7 +7,10 @@ import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import combatStore from '@/data/combatStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
+import { detectCheckModifiers, computeModifierTotal, collectDiceRequests, getAppliedModifierRefs, type CheckModifierContext } from '@/data/checkModifierRules';
+import { getCombatRoundCtx } from '@/data/combatAffinities';
 import AdvDisadvToggle from '../AdvDisadvToggle';
+import CheckModifierPanel from './CheckModifierPanel';
 import { computeSaveBonus } from '@/lib/saveBonus';
 import type { Combatant, CheckScene, AdvantageResult } from '@/types/combat';
 import type { Character, AbilityKey } from '@/types/character';
@@ -62,6 +65,9 @@ export default function SpellCheckStep({
   const [targetSaveBonus, setTargetSaveBonus] = useState<string>('');
   const [lockedDice, setLockedDice] = useState<Set<number>>(new Set());
   const [manualMode, setManualMode] = useState<'none' | 'advantage' | 'disadvantage'>('none');
+  // 检定奖惩：可选条目启用集合 + 各条目已掷骰值
+  const [enabledModifierKeys, setEnabledModifierKeys] = useState<Set<string>>(new Set());
+  const [modifierRolledValues, setModifierRolledValues] = useState<Record<string, string[]>>({});
 
   const spellAttackBonus = casterCharacter ? characterStore.getSpellAttackBonus(casterCharacter) : null;
   const spellSaveDC = casterCharacter ? characterStore.getSpellSaveDC(casterCharacter) : null;
@@ -128,6 +134,32 @@ export default function SpellCheckStep({
   const autoResult: AdvantageResult = detectAdvantage(advantageContext);
   const { mode: rollMode, reasons: modeReasons } = resolveRollMode(manualMode, autoResult);
   const isDual = rollMode !== 'none';
+
+  // 检定奖惩：主体为「本次掷骰方」——法术攻击看施法者，豁免看目标
+  const modifierSubject = checkType === 'save' ? target : caster;
+  const modifierContext: CheckModifierContext = {
+    scene: (checkType === 'save' ? 'saving_throw' : 'spell_attack') as CheckScene,
+    combatant: modifierSubject,
+    currentRound,
+    recordId,
+    roundCtx: getCombatRoundCtx(recordId),
+    enabledSourceKeys: enabledModifierKeys,
+  };
+  const modifierResult = detectCheckModifiers(modifierContext);
+
+  // 结算本次奖惩（仅启用项）
+  const resolveModifierTotal = (): number => {
+    const rolledByKey: Record<string, number[]> = {};
+    for (const hit of modifierResult.hits) {
+      if (!hit.enabled) continue;
+      const raw = modifierRolledValues[hit.sourceKey];
+      if (Array.isArray(raw) && raw.length === hit.dice.count) {
+        const nums = raw.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+        if (nums.length === hit.dice.count) rolledByKey[hit.sourceKey] = nums;
+      }
+    }
+    return computeModifierTotal(modifierResult, rolledByKey).total;
+  };
 
   // 应用 d20 输入变化：自然 20/自然 1 即时出结果（注意 save 场景成功语义反转）
   const applyDiceValues = (newValues: string[]) => {
@@ -204,6 +236,8 @@ export default function SpellCheckStep({
       let isNatural20: boolean;
       let success: boolean;
       const targetAc = effectiveTargetAc || 0;
+      // 检定奖惩合计（自然 20/1 仍优先，普通比对阶段并入）
+      const modTotal = resolveModifierTotal();
       // 优先级：自然 20 > 自然 1 > 普通比对
       if (isDual && parsed.some(n => n === 20)) {
         d20 = 20; isNatural1 = false; isNatural20 = true; success = true;
@@ -213,19 +247,22 @@ export default function SpellCheckStep({
         d20 = isDual ? (rollMode === 'advantage' ? Math.max(...parsed) : Math.min(...parsed)) : parsed[0];
         isNatural1 = d20 === 1;
         isNatural20 = d20 === 20;
-        success = isNatural20 ? true : isNatural1 ? false : d20 + bonus >= targetAc;
+        success = isNatural20 ? true : isNatural1 ? false : d20 + bonus + modTotal >= targetAc;
       }
       if (recordId) {
         const pendingIds = getMatchedPendingSourceIds(autoResult);
         if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, caster.id, pendingIds);
+        const { pendingIds: modPendingIds } = getAppliedModifierRefs(modifierResult);
+        if (modPendingIds.length > 0) combatStore.consumePendingCheckModifiers(recordId, caster.id, modPendingIds);
       }
-      onComplete('ac', { d20, bonus, total: d20 + bonus, isNatural1, isNatural20, success });
+      onComplete('ac', { d20, bonus, total: d20 + bonus + modTotal, isNatural1, isNatural20, success });
       return;
     }
 
     if (checkType === 'save' && spellSaveDC !== null) {
       const saveBonusNum = parseInt(targetSaveBonus, 10);
       const bonus = isNaN(saveBonusNum) ? 0 : saveBonusNum;
+      const modTotal = resolveModifierTotal();
       let d20: number;
       let isNatural1: boolean;
       let isNatural20: boolean;
@@ -238,15 +275,19 @@ export default function SpellCheckStep({
         d20 = isDual ? (rollMode === 'advantage' ? Math.max(...parsed) : Math.min(...parsed)) : parsed[0];
         isNatural1 = d20 === 1;
         isNatural20 = d20 === 20;
-        const saveTotal = d20 + bonus;
+        // 奖惩必须先计入：豁免是「总值 ≥ DC = 抵抗成功」，奖惩直接影响成败
+        const saveTotal = d20 + bonus + resolveModifierTotal();
         // 豁免总值 ≥ DC = 抵抗（失败）；< DC = 失败（成功命中）
         success = isNatural20 ? false : isNatural1 ? true : saveTotal < spellSaveDC;
       }
       if (recordId) {
         const pendingIds = getMatchedPendingSourceIds(autoResult);
         if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, caster.id, pendingIds);
+        // 次数型奖惩记在掷骰方（豁免场景为目标）名下
+        const { pendingIds: modPendingIds } = getAppliedModifierRefs(modifierResult);
+        if (modPendingIds.length > 0) combatStore.consumePendingCheckModifiers(recordId, modifierSubject.id, modPendingIds);
       }
-      onComplete('save', { d20, bonus, total: d20 + bonus, isNatural1, isNatural20, success });
+      onComplete('save', { d20, bonus, total: d20 + bonus + modTotal, isNatural1, isNatural20, success });
     }
   };
 
@@ -337,6 +378,31 @@ export default function SpellCheckStep({
           </div>
         )}
       </div>
+
+      {/* 检定奖惩（祝福术/灾厄术等）：豁免场景主体为目标，法术攻击场景为施法者 */}
+      {modifierResult.hits.length > 0 && (
+        <CheckModifierPanel
+          result={modifierResult}
+          enabledKeys={enabledModifierKeys}
+          onToggle={(key, on) => {
+            setEnabledModifierKeys(prev => {
+              const next = new Set(prev);
+              if (on) next.add(key); else next.delete(key);
+              return next;
+            });
+          }}
+          rolledValues={modifierRolledValues}
+          onRolledChange={(key, values) => setModifierRolledValues(prev => ({ ...prev, [key]: values }))}
+          onRollAll={() => {
+            const reqs = collectDiceRequests(modifierResult);
+            const next: Record<string, string[]> = { ...modifierRolledValues };
+            for (const req of reqs) {
+              next[req.sourceKey] = rollDice({ sides: req.sides as 4 | 6 | 8 | 10 | 12 | 20, count: req.count, mode: 'independent' }).values.map(String);
+            }
+            setModifierRolledValues(next);
+          }}
+        />
+      )}
 
       {/* d20 输入 */}
       <div>

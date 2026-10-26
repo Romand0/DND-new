@@ -6,6 +6,9 @@ import { characterStore } from '@/data/characterStore';
 import { computeCombatantAc } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
+import { detectCheckModifiers, computeModifierTotal, collectDiceRequests, getAppliedModifierRefs, resolveModifierValue, type CheckModifierContext } from '@/data/checkModifierRules';
+import { getCombatRoundCtx } from '@/data/combatAffinities';
+import CheckModifierPanel from './combat/CheckModifierPanel';
 import AdvDisadvToggle from './AdvDisadvToggle';
 import type { Combatant, NpcAttack, CheckScene } from '@/types/combat';
 import type { AdvantageReason, AdvantageResult } from '@/types/combat';
@@ -85,7 +88,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const [selectedAttack, setSelectedAttack] = useState<Attack | NpcAttack | null>(null);
   // d20 投掷值：普通模式长度 1，优/劣势模式长度 2
   const [d20Values, setD20Values] = useState<string[]>(['']);
-  const [rollResult, setRollResult] = useState<{ d20: number; bonus: number; total: number; isNatural1: boolean; isNatural20: boolean; hit: boolean; disadvantage: boolean } | null>(null);
+  const [rollResult, setRollResult] = useState<{ d20: number; bonus: number; modifierTotal?: number; total: number; isNatural1: boolean; isNatural20: boolean; hit: boolean; disadvantage: boolean } | null>(null);
   // 手动决定的检定模式（与自动检测的优劣势合并；优势/劣势互斥）
   const [manualMode, setManualMode] = useState<'none' | 'advantage' | 'disadvantage'>('none');
   // 投掷武器的使用方式：近战 / 投掷（选择攻击方式后确定）
@@ -96,6 +99,9 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   const [lockedDice, setLockedDice] = useState<Set<number>>(new Set());
   // 多用武器：是否双手握持（影响伤害骰）
   const [isTwoHandedWield, setIsTwoHandedWield] = useState(false);
+  // 检定奖惩：玩家启用的可选条目（sourceKey 集合）+ 各条目已掷骰值
+  const [enabledModifierKeys, setEnabledModifierKeys] = useState<Set<string>>(new Set());
+  const [modifierRolledValues, setModifierRolledValues] = useState<Record<string, string[]>>({});
 
   // 获取 PC 的角色卡数据（NPC 无 character）
   const character = useMemo(() => {
@@ -420,6 +426,30 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     return getMatchedPendingSourceIds(auto);
   };
 
+  // ========= 检定奖惩检测（接入 checkModifierRules 引擎） =========
+  // 与优劣势并行：优劣势决定掷几个 d20，奖惩在最终 d20 上加减骰值。
+  const buildModifierContext = (attack: Attack | NpcAttack, usageMode?: UsageMode): CheckModifierContext => {
+    const advCtx = buildAdvantageContext(attack, usageMode);
+    return {
+      scene: advCtx.scene,
+      combatant: attacker,
+      currentRound,
+      recordId,
+      roundCtx: getCombatRoundCtx(recordId),
+      enabledSourceKeys: enabledModifierKeys,
+    };
+  };
+
+  const getModifierResult = (attack: Attack | NpcAttack, usageMode?: UsageMode) => {
+    return detectCheckModifiers(buildModifierContext(attack, usageMode));
+  };
+
+  // 本次奖惩合计（仅启用项；未填骰值的用期望值近似，用于预览）
+  const getModifierPreviewTotal = (attack: Attack | NpcAttack, usageMode?: UsageMode): number => {
+    const result = getModifierResult(attack, usageMode);
+    return computeModifierTotal(result).total;
+  };
+
   // 为投掷武器选择默认使用方式：
   // 优先无劣势 > 优势 > 劣势最少；打平则近战在上
   const pickDefaultUsageMode = (attack: Attack | NpcAttack): UsageMode => {
@@ -510,6 +540,17 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     if (mode !== 'none' && parsed.length < 2) return;
 
     const bonus = getAttackBonus(selectedAttack);
+    // 检定奖惩：取已启用条目 + 本面板骰值输入结算（自然 20/1 仍优先判定命中语义）
+    const modResult = getModifierResult(selectedAttack, usageMode ?? undefined);
+    const rolledByKey: Record<string, number[]> = {};
+    for (const hit of modResult.hits) {
+      if (!hit.enabled) continue;
+      const raw = modifierRolledValues[hit.sourceKey];
+      if (Array.isArray(raw) && raw.length === hit.dice.count) {
+        rolledByKey[hit.sourceKey] = raw.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+      }
+    }
+    const modifierTotal = computeModifierTotal(modResult, rolledByKey).total;
     // 优势/劣势下任一骰为自然 20：直接命中（优先于自然 1 与取高/低规则）
     const hasNatural20 = mode !== 'none' && parsed.some(n => n === 20);
     let d20: number;
@@ -526,10 +567,10 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       d20 = mode === 'advantage' ? Math.max(...parsed) : mode === 'disadvantage' ? Math.min(...parsed) : parsed[0];
       isNatural1 = d20 === 1;
       isNatural20 = d20 === 20;
-      hit = isNatural20 ? true : isNatural1 ? false : d20 + bonus >= effectiveTargetAc;
+      hit = isNatural20 ? true : isNatural1 ? false : d20 + bonus + modifierTotal >= effectiveTargetAc;
     }
-    const total = d20 + bonus;
-    setRollResult({ d20, bonus, total, isNatural1, isNatural20, hit, disadvantage: mode === 'disadvantage' });
+    const total = d20 + bonus + modifierTotal;
+    setRollResult({ d20, bonus, modifierTotal, total, isNatural1, isNatural20, hit, disadvantage: mode === 'disadvantage' });
   };
 
   // 确认结果
@@ -548,6 +589,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       d20Final: rollResult.d20,
       bonus: rollResult.bonus,
       total: rollResult.total,
+      modifierTotal: rollResult.modifierTotal,
       isNatural1: rollResult.isNatural1,
       usageMode: usageMode ?? undefined,
       isTwoHandedWield: isVersatileWeapon(selectedAttack) ? isTwoHandedWield : undefined,
@@ -565,6 +607,12 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       const pendingIds = getPendingIds(selectedAttack, usageMode ?? undefined);
       if (pendingIds.length > 0) {
         combatStore.consumePendingAdvantage(recordId, attacker.id, pendingIds);
+      }
+      // 消费次数型检定奖惩（状态型随状态自身过期，不在此消费）
+      const modResult = getModifierResult(selectedAttack, usageMode ?? undefined);
+      const { pendingIds: modPendingIds } = getAppliedModifierRefs(modResult);
+      if (modPendingIds.length > 0) {
+        combatStore.consumePendingCheckModifiers(recordId, attacker.id, modPendingIds);
       }
     }
 
@@ -881,6 +929,40 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                 </div>
               )}
 
+              {/* 检定奖惩（祝福术/灾厄术等）：强制项自动计入，可选奖励由玩家开关 */}
+              {(() => {
+                const modResult = getModifierResult(selectedAttack, usageMode ?? undefined);
+                if (modResult.hits.length === 0) return null;
+                return (
+                  <CheckModifierPanel
+                    result={modResult}
+                    enabledKeys={enabledModifierKeys}
+                    onToggle={(key, on) => {
+                      setEnabledModifierKeys(prev => {
+                        const next = new Set(prev);
+                        if (on) next.add(key); else next.delete(key);
+                        return next;
+                      });
+                      setRollResult(null);
+                    }}
+                    rolledValues={modifierRolledValues}
+                    onRolledChange={(key, values) => {
+                      setModifierRolledValues(prev => ({ ...prev, [key]: values }));
+                      setRollResult(null);
+                    }}
+                    onRollAll={() => {
+                      const reqs = collectDiceRequests(modResult);
+                      const next: Record<string, string[]> = { ...modifierRolledValues };
+                      for (const req of reqs) {
+                        next[req.sourceKey] = rollDice({ sides: req.sides as 4 | 6 | 8 | 10 | 12 | 20, count: req.count, mode: 'independent' }).values.map(String);
+                      }
+                      setModifierRolledValues(next);
+                      setRollResult(null);
+                    }}
+                  />
+                );
+              })()}
+
               {/* 多用武器：自动检测握持方式（左右手为同一武器时双手，否则单手） */}
               {isVersatileWeapon(selectedAttack) && (() => {
                 const autoTwoHanded = isWieldingTwoHanded(selectedAttack);
@@ -957,8 +1039,20 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     <span className="dark:text-text-dark light:text-text-light">{previewD20}</span>
                     <span className="dark:text-text-dark-muted light:text-text-light-muted">+</span>
                     <span className="text-primary">{getAttackBonus(selectedAttack)}</span>
+                    {(() => {
+                      const modTotal = getModifierPreviewTotal(selectedAttack, usageMode ?? undefined);
+                      if (modTotal === 0) return null;
+                      return (
+                        <>
+                          <span className={`${modTotal > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {modTotal > 0 ? `+${modTotal.toFixed(1)}` : modTotal.toFixed(1)}
+                          </span>
+                          <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">奖惩</span>
+                        </>
+                      );
+                    })()}
                     <span className="dark:text-text-dark-muted light:text-text-light-muted">=</span>
-                    <span className="text-danger">{previewD20 + getAttackBonus(selectedAttack)}</span>
+                    <span className="text-danger">{previewD20 + getAttackBonus(selectedAttack) + getModifierPreviewTotal(selectedAttack, usageMode ?? undefined)}</span>
                   </div>
                   <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">攻击检定值</div>
                 </div>
@@ -981,6 +1075,17 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                     <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">对方 AC </span>
                     <span className="text-lg font-bold text-danger">{effectiveTargetAc || 0}</span>
                   </div>
+
+                  {/* 检定奖惩明细（结算后回显） */}
+                  {rollResult.modifierTotal !== undefined && rollResult.modifierTotal !== 0 && (
+                    <div className="text-center text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      检定值 {rollResult.d20} + {rollResult.bonus} 攻击加值
+                      <span className={rollResult.modifierTotal > 0 ? 'text-emerald-400' : 'text-amber-400'}>
+                        {' '}{rollResult.modifierTotal > 0 ? '+' : ''}{rollResult.modifierTotal} 奖惩
+                      </span>
+                      {' '}= {rollResult.total}
+                    </div>
+                  )}
 
                   {/* 列式判定 */}
                   <div className={`rounded-lg p-4 text-center font-bold text-base sm:text-lg ${
