@@ -104,3 +104,20 @@
   - 攻击相邻格才可用：placed 棋子距离 2 格时所有攻击都显示「不在射程内」或「未手持」，E2E 需把目标放在攻击者相邻格
   - E2E 断言用固定顺序：附加奖惩 → 状态 tab 见「次数型奖惩（1）」→ 操作 tab 攻击 → 徒手击打 → 填 d20 + 奖惩骰 → 确定 → 确认命中 → 重开面板验「剩余 2/3 次」
   - 纯引擎/编译器单测无需浏览器：jiti（node_modules/jiti）可直接 import .ts + alias '@'，补 globalThis.localStorage 桩与 context.results=new Map()，flow 边必须带 trigger:'on_complete'
+
+[Project Knowledge Summary]
+- Date: 2026-10-27
+- Context: Discovered by Agent while implementing the status-driven advantage engine and flow advantage node end to end
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 优劣势三层来源：自动检测器（registerDetector，目前 equipment/positional/pending/condition 四个）、待消费标记（Combatant.pendingAdvantageSources，确认后才消费）、手动覆盖（ManualMode，优先级最高）。合并规则 resolveRollMode：手动 > 自动；自动优劣势同时存在互相抵消
+  - 通用载体设计：状态 Effect(type='advantage') 的 config 用 AdvantageEffectConfig{mode, scene, ability?, appliesTo:'self'|'incoming', label?, fromId?, fromName?}，一个类型覆盖所有场景（含 attack/check/save），新法术只需在 apply_effect 配 advantage* 参数，引擎与状态库零改动
+  - appliesTo 语义是关键区分：self = 影响持有者自己掷骰（如中毒 → 自身攻击/检定劣势），incoming = 影响针对持有者的检定（如昏迷/麻痹/石化/震慑 → 攻击者获得优势）。detectCondition 双向扫描：roller 侧读 self，counterpart 侧读 incoming
+  - 属性限制只在 ctx.saveAbility 存在时参与比对（豁免/属性检定场景）；攻击与技能检定传 undefined 时不限制
+  - legacy 兼容：LEGACY_EFFECT_SCENE 把 attack_disadvantage/check_disadvantage/save_disadvantage/incoming_attack_advantage/own_attack_disadvantage 等固定类型映射到场景，老状态定义无需改写即可被统一引擎识别
+  - 状态实例 effects 合并顺序：globalStatusManager.getEffects 合并 definition.effects + instance.metadata.effects（惰性过期），检测器一次遍历同时处理通用 advantage 与 legacy 固定类型
+  - AdvantageContext 需要 recordId + roundCtx 才能读到战斗中真实状态（getCombatRoundCtx(recordId) 仅放映模式返回回合上下文，模拟模式返回 {}）；漏传会导致状态型优劣势在战斗中静默失效
+  - 检定主体语义易错点：豁免场景的「掷骰方」是 target 而非 caster。SpellCheckStep 构造上下文时 roller=save?target:caster、counterpart 取另一方，attacker/attackerCharacter 都要跟着切换，消费 pending 用 roller.id（曾用 caster.id 导致目标身上的标记漏检漏消费）
+  - 流程 effectType='advantage' 沿用 status 的 durationType 语义（rounds / untilCasterTurn），非法 mode/scene/appliesTo/durationType 记 failure 日志而非静默；编译器纯计算不落库，CombatSession.onFlowResolved 统一落地
+  - 手动附加面板（StatusAttachPanel）的优劣势区走 statusId='advantage' + instanceEffects 路径，与流程节点共用同一套状态生命周期，避免两套数据源
+  - 另修存量 bug：CombatantInfoPanel 的 attacks 取 character?.attacks || combatant.attacks 时空数组为 truthy，导致试验场影子卡武器列表空白；改为 length>0 判定后回落（与 CombatAttackModal 一致）

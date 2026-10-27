@@ -41,6 +41,36 @@ export const GENERIC_AFFINITY_STATUS_ID = 'damage_affinity';
 /** 通用检定奖惩状态 ID（statusLibrary 注册，状态型奖惩实例的统一载体） */
 export const GENERIC_CHECK_MODIFIER_STATUS_ID = 'check_modifier';
 
+/** 通用优劣势状态 ID（statusLibrary 注册，状态型优劣势实例的统一载体） */
+export const GENERIC_ADVANTAGE_STATUS_ID = 'advantage';
+
+/** 六属性中文标签（优劣势描述用） */
+const ABILITY_LABELS: Record<string, string> = {
+  strength: '力量', dexterity: '敏捷', constitution: '体质',
+  intelligence: '智力', wisdom: '感知', charisma: '魅力',
+};
+
+/** 优劣势场景中文标签（摘要文本用） */
+const ADVANTAGE_SCENE_LABELS: Record<string, string> = {
+  any: '任意检定',
+  attack: '攻击检定',
+  check: '属性/技能检定',
+  attack_melee: '近战攻击',
+  attack_ranged: '远程攻击',
+  attack_thrown: '投掷攻击',
+  spell_attack: '法术攻击',
+  ability_check: '属性检定',
+  skill_check: '技能检定',
+  saving_throw: '豁免检定',
+};
+
+/** 优劣势效果的可读描述（如「获得攻击检定优势」） */
+function buildAdvantageDescription(mode: 'advantage' | 'disadvantage', scene: string, ability?: string): string {
+  const sceneLabel = ADVANTAGE_SCENE_LABELS[scene] ?? scene;
+  const abilityLabel = ability ? `${ABILITY_LABELS[ability] ?? ability}` : '';
+  return `获得${sceneLabel}${abilityLabel}${mode === 'advantage' ? '优势' : '劣势'}`;
+}
+
 /** 奖惩骰式可读文本（如 "1d4"、"1d4+1"、"2"） */
 function formatModifierDice(dice: CheckModifierDice): string {
   const count = Math.max(0, Math.floor(Number(dice.count) || 0));
@@ -992,6 +1022,121 @@ export class FlowCompiler {
           anyImmune: false,
           anyVulnerable: false,
           message: `检定奖惩附加完成，${results.filter(r => r.success).length}个目标受影响`,
+        },
+      };
+    }
+
+    // 优劣势（妖火、克敌先机、真知术 等）：与 check_modifier 同款「编译器不落库」原则。
+    // 产出待落地记录（statusId 固定 advantage + 实例级 effects），由 CombatSession.onFlowResolved
+    // 统一落地：globalStatusManager.applyEffect（状态型，随专注/回合过期）。
+    // 方向/场景/属性限制全部走节点参数，advantageRules 引擎与状态库零改动。
+    if (effectType === 'advantage') {
+      const ADVANTAGE_STATUS_ID = GENERIC_ADVANTAGE_STATUS_ID;
+      const modeRaw = String(config?.advantageMode ?? 'advantage');
+      if (modeRaw !== 'advantage' && modeRaw !== 'disadvantage') {
+        return {
+          status: 'failure',
+          output: { error: `未知的优劣势方向「${modeRaw}」（可选 advantage/disadvantage）` },
+        };
+      }
+      const advMode = modeRaw as 'advantage' | 'disadvantage';
+      const sceneRaw = String(config?.advantageScene ?? 'any');
+      const ALLOWED_SCENES = new Set([
+        'any', 'attack', 'check', 'attack_melee', 'attack_ranged', 'attack_thrown',
+        'spell_attack', 'ability_check', 'skill_check', 'saving_throw',
+      ]);
+      if (!ALLOWED_SCENES.has(sceneRaw)) {
+        return {
+          status: 'failure',
+          output: { error: `未知的优劣势适用范围「${sceneRaw}」` },
+        };
+      }
+      const scene = sceneRaw as CheckScene | CheckSceneGroup | 'any';
+      const abilityRaw = String(config?.advantageAbility ?? '');
+      const ability = ABILITY_KEYS.includes(abilityRaw as AbilityKey) ? abilityRaw as AbilityKey : undefined;
+      const appliesToRaw = String(config?.advantageAppliesTo ?? 'self');
+      if (appliesToRaw !== 'self' && appliesToRaw !== 'incoming') {
+        return {
+          status: 'failure',
+          output: { error: `未知的优劣势作用方向「${appliesToRaw}」（可选 self/incoming）` },
+        };
+      }
+
+      // 状态型沿用状态附加的持续时间语义（rounds / untilCasterTurn）
+      const durationTypeRaw = String(config?.durationType ?? 'rounds');
+      if (durationTypeRaw !== 'rounds' && durationTypeRaw !== 'untilCasterTurn') {
+        return {
+          status: 'failure',
+          output: { error: `未知的持续时间类型「${durationTypeRaw}」（可选 rounds/untilCasterTurn）` },
+        };
+      }
+      const untilCasterTurn = durationTypeRaw === 'untilCasterTurn';
+      const turnCount = Math.max(1, Math.floor(Number(config?.durationTurns ?? 1)) || 1);
+      const durationRounds = Math.max(0, Math.floor(Number(config?.durationRounds ?? 0)) || 0);
+
+      const effect: Effect = {
+        id: `flow.advantage.${advMode}.${scene}${ability ? `.${ability}` : ''}`,
+        type: 'advantage',
+        target: 'self',
+        config: {
+          mode: advMode,
+          scene,
+          appliesTo: appliesToRaw,
+          ...(ability ? { ability } : {}),
+        },
+        description: buildAdvantageDescription(advMode, scene, ability),
+      };
+      const definition = statusLibrary.get(ADVANTAGE_STATUS_ID);
+      if (!definition) {
+        return {
+          status: 'failure',
+          output: { error: '状态库缺少通用优劣势状态（advantage），请检查 statusLibrary' },
+        };
+      }
+      const results = context.targets.map((targetId) => {
+        const targetCombatant = this.resolveCombatant(targetId, context);
+        const targetCharacter = this.resolveCharacter(targetId, context);
+        if (!targetCombatant && !targetCharacter) {
+          return { targetId, success: false, effectApplied: false, error: '目标不存在' };
+        }
+        const currentHp = targetCombatant
+          ? (typeof targetCombatant.currentHp === 'number' ? targetCombatant.currentHp : (targetCombatant.maxHp ?? 0))
+          : (targetCharacter?.currentHp ?? 0);
+        return {
+          targetId,
+          success: true,
+          effectApplied: true,
+          effectType: 'advantage',
+          statusId: ADVANTAGE_STATUS_ID,
+          statusName: definition.name,
+          statusEffects: [effect],
+          durationRounds,
+          ...(untilCasterTurn ? { untilNextTurn: true, turnCount } : {}),
+          advantageMode: advMode,
+          effectValue: 0,
+          finalValue: 0,
+          oldHp: currentHp,
+          newHp: currentHp,
+          tempAbsorbed: 0,
+          notes: [] as string[],
+          message: effect.description ?? `附加优劣势：${definition.name}`,
+        };
+      });
+      return {
+        status: 'success',
+        output: {
+          effectType,
+          statusId: ADVANTAGE_STATUS_ID,
+          statusName: definition.name,
+          advantageMode: advMode,
+          value: '0',
+          dice: null,
+          results,
+          totalFinal: 0,
+          anyResisted: false,
+          anyImmune: false,
+          anyVulnerable: false,
+          message: `优劣势附加完成，${results.filter(r => r.success).length}个目标受影响`,
         },
       };
     }

@@ -108,6 +108,33 @@ class StatusLibraryImpl implements StatusLibrary {
       },
     });
 
+    // 通用优劣势状态（引擎）：攻击/检定/豁免的优势或劣势载体。具体方向、场景、
+    // 属性限制全部由施加方（流程 apply_effect advantage 节点）注入 instance.metadata，
+    // 经 advantageRules 的 condition 检测器读入检定结算——新增优劣势类法术
+    // （妖火、克敌先机、真知术…）只需配节点参数，引擎与状态库零改动。
+    // 约定：instance.metadata.effects: Effect[]（type: 'advantage'，
+    // config: AdvantageEffectConfig{mode, scene, ability?, appliesTo?, label?}）。
+    this.register({
+      id: 'advantage',
+      name: '优劣势',
+      description: '临时性的攻击/检定/豁免优势或劣势载体，具体方向与范围由施加方定义。',
+      shortDescription: '临时优劣势',
+      startTrigger: {
+        type: 'manual',
+        description: '由流程施放（如妖火、克敌先机）或 DM 手动附加。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '持续时间届满自动消退，或手动解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'sky',
+        icon: 'trending-up',
+      },
+    });
+
     // 预留：中毒（Poisoned）
     this.register({
       id: 'poisoned',
@@ -128,13 +155,13 @@ class StatusLibraryImpl implements StatusLibrary {
           id: 'poisoned.attack_disadvantage',
           type: 'attack_disadvantage',
           target: 'self',
-          description: '攻击检定劣势（预留）',
+          description: '攻击检定劣势',
         },
         {
           id: 'poisoned.check_disadvantage',
           type: 'check_disadvantage',
           target: 'self',
-          description: '属性检定劣势（预留）',
+          description: '属性检定劣势',
         },
       ],
       ui: {
@@ -184,7 +211,21 @@ class StatusLibraryImpl implements StatusLibrary {
           type: 'custom',
           target: 'self',
           config: { autoFail: ['strength', 'dexterity'] },
-          description: '力量和敏捷豁免自动失败（预留）',
+          description: '力量和敏捷豁免自动失败',
+        },
+        {
+          id: 'unconscious.incoming_attack_advantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'advantage', scene: 'attack', appliesTo: 'incoming' },
+          description: '针对你的攻击检定有优势',
+        },
+        {
+          id: 'unconscious.own_attack_disadvantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'disadvantage', scene: 'attack', appliesTo: 'self' },
+          description: '你的攻击检定有劣势',
         },
       ],
 
@@ -234,7 +275,15 @@ class StatusLibraryImpl implements StatusLibrary {
         description: '手动声明：法术持续时间届满或解除。',
       },
       duration: { type: 'permanent' },
-      effects: [],
+      effects: [
+        {
+          id: 'paralyzed.incoming_attack_advantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'advantage', scene: 'attack', appliesTo: 'incoming' },
+          description: '针对你的攻击检定有优势',
+        },
+      ],
       combatantPatch: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
       ui: {
         badgeColor: 'purple',
@@ -257,7 +306,15 @@ class StatusLibraryImpl implements StatusLibrary {
         description: '手动声明：解除石化效果后恢复。',
       },
       duration: { type: 'permanent' },
-      effects: [],
+      effects: [
+        {
+          id: 'petrified.incoming_attack_advantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'advantage', scene: 'attack', appliesTo: 'incoming' },
+          description: '针对你的攻击检定有优势',
+        },
+      ],
       combatantPatch: { isIncapacitated: true, canGesticulate: false, canSpeak: false },
       ui: {
         badgeColor: 'gray',
@@ -280,7 +337,15 @@ class StatusLibraryImpl implements StatusLibrary {
         description: '手动声明：效果持续时间届满或豁免成功解除。',
       },
       duration: { type: 'permanent' },
-      effects: [],
+      effects: [
+        {
+          id: 'stunned.incoming_attack_advantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'advantage', scene: 'attack', appliesTo: 'incoming' },
+          description: '针对你的攻击检定有优势',
+        },
+      ],
       combatantPatch: { isIncapacitated: true, canGesticulate: false },
       ui: {
         badgeColor: 'yellow',

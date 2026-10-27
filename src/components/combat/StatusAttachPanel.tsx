@@ -2,13 +2,13 @@
 // 数据源 statusLibrary.list() 与 globalStatusManager，与战斗引擎同一状态机。
 // damage_affinity 通用伤害修饰按 flowCompiler status 分支同构的 Effect 注入（实例级）。
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, X, Zap, Dices } from 'lucide-react';
+import { Plus, X, Zap, Dices, TrendingUp } from 'lucide-react';
 import statusLibrary from '@/data/statusLibrary';
 import { globalStatusManager } from '@/data/statusManager';
-import { GENERIC_AFFINITY_STATUS_ID } from '@/lib/flowCompiler';
+import { GENERIC_ADVANTAGE_STATUS_ID, GENERIC_AFFINITY_STATUS_ID } from '@/lib/flowCompiler';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
 import combatStore from '@/data/combatStore';
-import type { CheckModifierMode, CheckScene, Combatant } from '@/types/combat';
+import type { AdvantageEffectConfig, CheckModifierMode, CheckScene, Combatant } from '@/types/combat';
 import type { Effect, StatusDefinition, StatusInstance } from '@/types/status';
 
 const AFFINITY_KINDS = [
@@ -44,6 +44,30 @@ const MODIFIER_SCENES: Array<{ key: CheckScene | 'any' | 'attack' | 'check'; lab
   { key: 'saving_throw', label: '豁免检定' },
 ];
 
+/** 优劣势适用范围候选（DM 手动附加用） */
+const ADVANTAGE_SCENES: Array<{ key: string; label: string }> = [
+  { key: 'any', label: '任意检定' },
+  { key: 'attack', label: '攻击检定（全部）' },
+  { key: 'check', label: '属性/技能检定（全部）' },
+  { key: 'attack_melee', label: '近战攻击' },
+  { key: 'attack_ranged', label: '远程攻击' },
+  { key: 'attack_thrown', label: '投掷攻击' },
+  { key: 'spell_attack', label: '法术攻击' },
+  { key: 'ability_check', label: '属性检定' },
+  { key: 'skill_check', label: '技能检定' },
+  { key: 'saving_throw', label: '豁免检定' },
+];
+
+/** 优劣势可限制的属性候选 */
+const ADVANTAGE_ABILITIES: Array<{ key: string; label: string }> = [
+  { key: 'strength', label: '力量' },
+  { key: 'dexterity', label: '敏捷' },
+  { key: 'constitution', label: '体质' },
+  { key: 'intelligence', label: '智力' },
+  { key: 'wisdom', label: '感知' },
+  { key: 'charisma', label: '魅力' },
+];
+
 const SOURCE_KINDS = [
   { key: '', label: '全部来源' },
   { key: 'weapon', label: '武器' },
@@ -76,6 +100,13 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
   const [modLabel, setModLabel] = useState('祝福术');
   // 次数型奖惩手动附加
   const [modUses, setModUses] = useState(3);
+  // 优劣势手动附加（状态型）：方向/范围/属性/作用方向/持续
+  const [advMode, setAdvMode] = useState<'advantage' | 'disadvantage'>('advantage');
+  const [advScene, setAdvScene] = useState<'any' | 'attack' | 'check' | 'attack_melee' | 'attack_ranged' | 'attack_thrown' | 'spell_attack' | 'ability_check' | 'skill_check' | 'saving_throw'>('attack');
+  const [advAbility, setAdvAbility] = useState<'' | 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma'>('');
+  const [advAppliesTo, setAdvAppliesTo] = useState<'self' | 'incoming'>('self');
+  const [advDurationRounds, setAdvDurationRounds] = useState(0);
+  const [advLabel, setAdvLabel] = useState('妖火');
 
   // 状态实例无订阅通道：操作后手动 tick + 轮询兜底过期/倒计时刷新
   useEffect(() => {
@@ -223,6 +254,39 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
       expireRound: -1,
     });
     setTick(t => t + 1);
+  };
+
+  /** 附加状态型优劣势（随状态过期/专注联动/手动解除） */
+  const handleAttachAdvantage = () => {
+    setError('');
+    const effect: Effect = {
+      id: `manual.advantage.${advMode}.${advScene}${advAbility ? `.${advAbility}` : ''}`,
+      type: 'advantage',
+      target: 'self',
+      config: {
+        mode: advMode,
+        scene: advScene,
+        appliesTo: advAppliesTo,
+        ...(advAbility ? { ability: advAbility } : {}),
+        label: advLabel.trim() || '优劣势',
+      } satisfies AdvantageEffectConfig,
+      description: `${advLabel.trim() || '优劣势'}：${advMode === 'advantage' ? '优势' : '劣势'}`,
+    };
+    try {
+      const playback = combatStore.get(recordId)?.mode === 'playback';
+      globalStatusManager.applyEffect(combatant.id, GENERIC_ADVANTAGE_STATUS_ID, 'combat', recordId, {
+        instanceEffects: [effect],
+        ...(advDurationRounds > 0 ? { durationRounds: advDurationRounds } : {}),
+        ...(advDurationRounds > 0 && playback
+          ? { combatMode: 'playback' as const, startRound: getCombatRoundCtx(recordId).currentRound ?? 0 }
+          : advDurationRounds > 0
+            ? { combatMode: 'simulation' as const }
+            : {}),
+      });
+      setTick(t => t + 1);
+    } catch (e) {
+      setError(`附加优劣势失败：${e instanceof Error ? e.message : String(e)}`);
+    }
   };
 
   const remainingText = (instance: StatusInstance): string => {
@@ -522,6 +586,75 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
             附加次数型奖惩（用完消失）
           </button>
         </div>
+      </div>
+
+      {/* 优劣势（手动附加：状态型） */}
+      <div className="rounded border border-dashed border-gray-300 dark:border-gray-600 p-2.5 space-y-2">
+        <h4 className="text-xs font-semibold dark:text-text-dark light:text-text-light flex items-center gap-1">
+          <TrendingUp size={12} /> 优劣势（妖火 / 克敌先机）
+        </h4>
+        <div className="flex gap-1">
+          {(['advantage', 'disadvantage'] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => setAdvMode(m)}
+              className={`flex-1 text-xs py-1 rounded ${
+                advMode === m ? 'bg-accent text-white' : 'bg-gray-100 dark:bg-gray-800 dark:text-text-dark-muted light:text-text-light-muted'
+              }`}
+            >
+              {m === 'advantage' ? '优势（取高）' : '劣势（取低）'}
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-1.5 items-center text-xs">
+          <input
+            value={advLabel}
+            onChange={e => setAdvLabel(e.target.value)}
+            placeholder="来源名（如妖火）"
+            className="flex-1 min-w-24 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 dark:text-text-dark light:text-text-light"
+          />
+          <select
+            value={advScene}
+            onChange={e => setAdvScene(e.target.value as typeof advScene)}
+            className="flex-1 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 dark:text-text-dark light:text-text-light"
+          >
+            {ADVANTAGE_SCENES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          </select>
+        </div>
+        <div className="flex flex-wrap gap-1.5 items-center text-xs">
+          <select
+            value={advAbility}
+            onChange={e => setAdvAbility(e.target.value as typeof advAbility)}
+            className="flex-1 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 dark:text-text-dark light:text-text-light"
+            title="仅对指定属性的豁免/检定生效"
+          >
+            <option value="">不限属性</option>
+            {ADVANTAGE_ABILITIES.map(a => <option key={a.key} value={a.key}>{a.label}</option>)}
+          </select>
+          <select
+            value={advAppliesTo}
+            onChange={e => setAdvAppliesTo(e.target.value as 'self' | 'incoming')}
+            className="flex-1 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 dark:text-text-dark light:text-text-light"
+            title="作用方向"
+          >
+            <option value="self">影响其自身检定</option>
+            <option value="incoming">影响针对其的检定</option>
+          </select>
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">持续</span>
+          <input
+            type="number" min={0} value={advDurationRounds}
+            onChange={e => setAdvDurationRounds(Math.max(0, Math.floor(Number(e.target.value)) || 0))}
+            className="w-14 rounded border border-gray-200 dark:border-gray-700 bg-transparent px-1 py-1 text-center dark:text-text-dark light:text-text-light"
+            title="0 = 永续待手动取消"
+          />
+          <span className="dark:text-text-dark-muted light:text-text-light-muted">回合</span>
+        </div>
+        <button
+          onClick={handleAttachAdvantage}
+          className="w-full text-xs py-1.5 rounded bg-accent text-white hover:opacity-90 flex items-center justify-center gap-1"
+        >
+          <Plus size={12} /> 附加优劣势
+        </button>
       </div>
 
       {/* 状态库全量 */}

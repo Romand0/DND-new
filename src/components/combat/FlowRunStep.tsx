@@ -16,7 +16,7 @@ import type { Effect } from '@/types/status';
 export interface FlowCastTargetResult {
   combatantId: string;
   name: string;
-  effectType: 'damage' | 'healing' | 'status' | 'check_modifier';
+  effectType: 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage';
   /** 抗性前原始值（保留用于日志/审计） */
   effectValue: number;
   /** 抗性结算后的最终值（HP 扣减依据；status 恒 0） */
@@ -48,7 +48,7 @@ export interface FlowCastPayload {
   castingTime?: string;
   /** 主目标受影响（豁免失败/被命中）；豁免成功或无效果节点时 false */
   success: boolean;
-  effectType: 'damage' | 'heal' | 'status' | 'check_modifier';
+  effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage';
   /** 主目标数值（无效果时 0） */
   amount: number;
   targetResults: FlowCastTargetResult[];
@@ -216,7 +216,7 @@ export default function FlowRunStep({
       .map(r => ({
         combatantId: r.targetId,
         name: r.targetName,
-        effectType: r.effectType as 'damage' | 'healing' | 'status' | 'check_modifier',
+        effectType: r.effectType as 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage',
         effectValue: r.effectValue as number,
         finalValue: (r.finalValue ?? r.effectValue) as number,
         damageType: r.damageType ?? null,
@@ -239,10 +239,11 @@ export default function FlowRunStep({
     const success = saveOutput
       ? (mainSave ? (!mainSave.success || halfOnSave) : true)
       : !!mainEffect?.effectApplied;
-    const effectType: 'damage' | 'heal' | 'status' | 'check_modifier' =
+    const effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' =
       effectOutput?.effectType === 'healing' ? 'heal' as const
       : effectOutput?.effectType === 'status' ? 'status' as const
       : effectOutput?.effectType === 'check_modifier' ? 'check_modifier' as const
+      : effectOutput?.effectType === 'advantage' ? 'advantage' as const
       : 'damage' as const;
 
     // 摘要（先攻表格单元格宽度有限，保持一行紧凑；《》【】为渲染器标记：法术名/数值高亮）
@@ -264,6 +265,11 @@ export default function FlowRunStep({
         ? `（${mainEffect.modifierUses} 次）`
         : '';
       parts.push(`${desc}${usesLabel}`);
+    } else if (mainEffect && !mainEffect.error && !mainNegated && effectType === 'advantage') {
+      const desc = typeof mainEffect.message === 'string' && mainEffect.message
+        ? mainEffect.message
+        : `附加优劣势【${mainEffect.statusName ?? ''}】`;
+      parts.push(desc);
     } else if (mainEffect && !mainEffect.error && !mainNegated) {
       const finalValue = mainEffect.finalValue ?? mainEffect.effectValue;
       const affinityLabel = mainEffect.affinitySummary === 'immunity'

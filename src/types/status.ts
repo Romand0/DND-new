@@ -22,12 +22,16 @@ export type EffectType =
   | 'speed_set'              // 速度设为特定值
   | 'speed_halved'           // 速度减半（预留）
   | 'speed_zero'             // 速度归零（预留）
-  // 豁免/检定（预留）
-  | 'save_disadvantage'      // 特定豁免劣势（预留）
-  | 'check_disadvantage'     // 特定检定劣势（预留）
-  // 攻击（预留）
-  | 'attack_disadvantage'    // 攻击劣势（预留）
-  | 'attack_advantage'       // 攻击优势（预留）
+  // 豁免/检定
+  | 'save_advantage'         // 特定豁免优势
+  | 'save_disadvantage'      // 特定豁免劣势
+  | 'check_advantage'        // 特定检定优势
+  | 'check_disadvantage'     // 特定检定劣势
+  // 攻击
+  | 'attack_disadvantage'    // 攻击劣势
+  | 'attack_advantage'       // 攻击优势
+  // 通用优劣势（引擎见 data/advantageRules.ts，config 见 AdvantageEffectConfig）
+  | 'advantage'              // 任意场景优劣势（方向+场景+能力限制由实例参数决定）
   // 伤害（预留）
   | 'damage_vulnerability'   // 易伤（预留）
   | 'damage_resistance'      // 抗性（预留）

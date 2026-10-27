@@ -74,6 +74,8 @@ export default function ProvingDashboard({ record, combatant, character, combatI
       attacker: combatant,
       attackerCharacter: character,
       saveAbility: key,
+      recordId: record.id,
+      roundCtx: getCombatRoundCtx(record.id),
     });
     const { mode } = resolveRollMode('none', auto);
     // 优势 = 2d20 取高；劣势 = 2d20 取低

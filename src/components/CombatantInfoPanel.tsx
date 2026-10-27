@@ -66,7 +66,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     return () => clearInterval(interval);
   }, []);
 
-  const attacks: (Attack | NpcAttack)[] = character?.attacks || combatant.attacks || [];
+  // 角色卡 attacks 非空才用，否则回落参战者 attacks——试验场影子卡的 attacks 恒为空数组，
+  // 武器条目实际挂在 combatant.attacks 上（与 CombatAttackModal 的取值逻辑保持一致）
+  const attacks: (Attack | NpcAttack)[] = character?.attacks && character.attacks.length > 0
+    ? character.attacks
+    : combatant.attacks || [];
   const rawHeldLeftId = character?.heldLeft?.equipmentId ?? null;
   const rawHeldRightId = character?.heldRight?.equipmentId ?? null;
   // 手持物品：仅从战斗背包查找（战斗场景下），物品被消耗后自然为 null

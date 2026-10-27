@@ -539,7 +539,7 @@ export type AdvantageSourceKind =
   | 'positional'   // 位置相关（5 尺远程、射程段）
   | 'pending'      // 待消费标记（协助动作、法术效果等一次性来源）
   | 'action'       // 动作相关（dodge/hide 等，本次仅预留）
-  | 'condition'    // 状态相关（中毒/束缚等，本次仅预留）
+  | 'condition'    // 状态相关（中毒/束缚/倒地/隐形等，来自 statusManager 状态效果）
   | 'manual';      // DM 手动覆盖
 
 /** 优劣势原因条目 */
@@ -550,6 +550,8 @@ export interface AdvantageReason {
   label: string;
   /** 关联的 pendingSourceId（如来自待消费标记） */
   pendingSourceId?: string;
+  /** 关联的状态实例 ID（kind='condition' 时，用于 UI 追溯来源状态） */
+  statusInstanceId?: string;
 }
 
 /** 优劣势检测结果 */
@@ -676,6 +678,35 @@ export interface CheckModifierEffectConfig {
   /** 来源说明（如「祝福术」） */
   label?: string;
   /** 施加者 combatantId（用于日志归属与 UI 展示） */
+  fromId?: string;
+  /** 施加者名称 */
+  fromName?: string;
+}
+
+/**
+ * 状态型优劣势的参数载体（存在 StatusInstance.metadata.effects 的 Effect.config 上）。
+ * 生命周继承状态本身（回合过期 / 专注联动 / 手动解除），引擎只读参数。
+ *
+ * 与 PendingAdvantageSource 的分工：
+ *   - pending 是「发起者赋予他人」的一次性标记，检定确认后消费
+ *   - 本配置是「附着在持有者身上」的持续状态，随状态存在而反复生效
+ */
+export interface AdvantageEffectConfig {
+  /** 优势或劣势 */
+  mode: 'advantage' | 'disadvantage';
+  /** 适用范围：'any' = 全部；'attack'/'check' 为通配组；也可指定具体场景 */
+  scene: CheckScene | CheckSceneGroup | 'any';
+  /** 限制豁免/检定属性（如「敏捷豁免劣势」只对 dexterity 生效）；缺省 = 不限属性 */
+  ability?: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
+  /**
+   * 效果作用方向：
+   *   - 'self'（缺省）= 作用于持有者自己的检定（如中毒 → 自己攻击劣势）
+   *   - 'incoming' = 作用于「针对持有者」的检定（如昏迷 → 攻击者对其有优势）
+   */
+  appliesTo?: 'self' | 'incoming';
+  /** 来源说明（如「中毒」「妖火」） */
+  label?: string;
+  /** 施加者 combatantId（UI 归属展示） */
   fromId?: string;
   /** 施加者名称 */
   fromName?: string;

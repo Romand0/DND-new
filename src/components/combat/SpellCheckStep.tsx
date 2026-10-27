@@ -120,16 +120,22 @@ export default function SpellCheckStep({
     setTargetSaveBonus(String(bonus));
   }, [checkType, saveAttribute, targetCharacter, target]);
 
-  // 优劣势模式：法术攻击走 spell_attack 场景，豁免走 saving_throw 场景
+  // 优劣势模式：法术攻击走 spell_attack 场景，豁免走 saving_throw 场景。
+  // 主体恒为「本次掷骰方」：法术攻击是施法者掷骰，豁免是目标掷骰——
+  // 掷骰方挂在 ctx.attacker（引擎的 self 侧），另一方挂在 ctx.target（incoming 侧）。
+  const roller = checkType === 'save' ? target : caster;
+  const counterpart = checkType === 'save' ? caster : target;
   const advantageContext: AdvantageContext = {
     scene: (checkType === 'save' ? 'saving_throw' : 'spell_attack') as CheckScene,
     currentRound,
-    attacker: caster,
-    target,
-    attackerCharacter: casterCharacter,
-    targetCharacter: targetCharacter ?? null,
+    attacker: roller,
+    target: counterpart,
+    attackerCharacter: checkType === 'save' ? (targetCharacter ?? null) : casterCharacter,
+    targetCharacter: checkType === 'save' ? casterCharacter : (targetCharacter ?? null),
     saveAbility: checkType === 'save' ? SAVE_ATTR_MAP[saveAttribute] : undefined,
     combatantPositions,
+    recordId,
+    roundCtx: getCombatRoundCtx(recordId),
   };
   const autoResult: AdvantageResult = detectAdvantage(advantageContext);
   const { mode: rollMode, reasons: modeReasons } = resolveRollMode(manualMode, autoResult);
@@ -251,9 +257,9 @@ export default function SpellCheckStep({
       }
       if (recordId) {
         const pendingIds = getMatchedPendingSourceIds(autoResult);
-        if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, caster.id, pendingIds);
+        if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, roller.id, pendingIds);
         const { pendingIds: modPendingIds } = getAppliedModifierRefs(modifierResult);
-        if (modPendingIds.length > 0) combatStore.consumePendingCheckModifiers(recordId, caster.id, modPendingIds);
+        if (modPendingIds.length > 0) combatStore.consumePendingCheckModifiers(recordId, roller.id, modPendingIds);
       }
       onComplete('ac', { d20, bonus, total: d20 + bonus + modTotal, isNatural1, isNatural20, success });
       return;
@@ -282,7 +288,7 @@ export default function SpellCheckStep({
       }
       if (recordId) {
         const pendingIds = getMatchedPendingSourceIds(autoResult);
-        if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, caster.id, pendingIds);
+        if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, roller.id, pendingIds);
         // 次数型奖惩记在掷骰方（豁免场景为目标）名下
         const { pendingIds: modPendingIds } = getAppliedModifierRefs(modifierResult);
         if (modPendingIds.length > 0) combatStore.consumePendingCheckModifiers(recordId, modifierSubject.id, modPendingIds);

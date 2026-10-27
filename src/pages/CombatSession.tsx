@@ -1493,7 +1493,7 @@ export default function CombatSession() {
             payload.targetResults.forEach(tr => {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
-              if (tr.effectType === 'status' || tr.effectType === 'check_modifier') {
+              if (tr.effectType === 'status' || tr.effectType === 'check_modifier' || tr.effectType === 'advantage') {
                 // 状态落地：通用伤害修饰引擎（实例级效果 + 持续时间由流程注入）。
                 // 过期策略按施放时的战斗模式定性：
                 //   放映模式 + untilNextTurn → 锚定施法者回合（「直到你的下一回合」，如剑刃防护）

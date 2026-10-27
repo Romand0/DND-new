@@ -9,8 +9,12 @@ import type {
   AdvantageResult,
   ManualMode,
   PendingAdvantageSource,
+  AdvantageEffectConfig,
 } from '@/types/combat';
 import type { Attack, Character } from '@/types/character';
+import type { Effect } from '@/types/status';
+import { globalStatusManager } from './statusManager';
+import statusLibrary from './statusLibrary';
 
 // =======================
 // 场景匹配（通配组 → 具体场景）
@@ -52,6 +56,10 @@ export interface AdvantageContext {
   targetPos?: { col: number; row: number } | null;
   distanceCells?: number;
   saveAbility?: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
+  /** 战斗记录 ID（状态型优劣势查 active 实例时的 combatId） */
+  recordId?: string;
+  /** 回合上下文（状态型过期判定；放映模式由 getCombatRoundCtx 提供） */
+  roundCtx?: { currentRound?: number; turnCombatantId?: string; turnRound?: number };
   /** 所有参战者沙盘位置映射（combatantId → 坐标）。
    *  跨参战者相对距离判定（如协助：攻击对象在发出者 5 尺内）时需要；
    *  未传入时 requireTargetNearFromId 标记将无法命中。 */
@@ -177,6 +185,89 @@ function detectPositional(ctx: AdvantageContext): AdvantageResult {
 }
 
 // =======================
+// 内置检测器 4：condition（扫描状态系统的优劣势效果）
+// =======================
+
+/** 旧式效果类型 → 优劣势语义（状态库中直接声明的固定效果，如中毒） */
+const LEGACY_EFFECT_SCENE: Record<string, { scene: CheckScene | CheckSceneGroup | 'any'; mode: 'advantage' | 'disadvantage' }> = {
+  attack_advantage: { scene: 'attack', mode: 'advantage' },
+  attack_disadvantage: { scene: 'attack', mode: 'disadvantage' },
+  check_advantage: { scene: 'check', mode: 'advantage' },
+  check_disadvantage: { scene: 'check', mode: 'disadvantage' },
+  save_advantage: { scene: 'saving_throw', mode: 'advantage' },
+  save_disadvantage: { scene: 'saving_throw', mode: 'disadvantage' },
+};
+
+/**
+ * 从一侧参战者的状态实例里提取优劣势条目。
+ * @param appliesTo 只取指定作用方向（self = 持有者自己的检定，incoming = 针对持有者的检定）
+ */
+function collectSideConditions(
+  combatant: Combatant | null | undefined,
+  appliesTo: 'self' | 'incoming',
+  ctx: AdvantageContext,
+): AdvantageResult {
+  const advantage: AdvantageReason[] = [];
+  const disadvantage: AdvantageReason[] = [];
+  const instances = globalStatusManager.getActiveStatuses(combatant.id, 'combat', ctx.roundCtx);
+
+  for (const instance of instances) {
+    const definition = statusLibrary.get(instance.definitionId);
+    const statusLabel = definition?.name ?? instance.definitionId;
+    const instanceEffects: Effect[] = [
+      ...(definition?.effects ?? []),
+      ...(Array.isArray(instance.metadata?.effects) ? (instance.metadata.effects as Effect[]) : []),
+    ];
+    for (const eff of instanceEffects) {
+      // 通用载体：参数在 config 上
+      let cfg: AdvantageEffectConfig | null = null;
+      if (eff.type === 'advantage') {
+        const raw = eff.config as AdvantageEffectConfig | undefined;
+        if (raw && (raw.mode === 'advantage' || raw.mode === 'disadvantage')) cfg = raw;
+      } else if (LEGACY_EFFECT_SCENE[eff.type as string]) {
+        const legacy = LEGACY_EFFECT_SCENE[eff.type as string];
+        cfg = { mode: legacy.mode, scene: legacy.scene, label: statusLabel };
+      }
+      if (!cfg) continue;
+      // 方向过滤：缺省 self（状态挂在谁身上就影响谁自己的检定）
+      const direction = cfg.appliesTo ?? 'self';
+      if (direction !== appliesTo) continue;
+      if (!sceneMatches(cfg.scene, ctx.scene)) continue;
+      // 属性限制：仅在豁免/属性检定场景有 ctx 属性可比对
+      if (cfg.ability && ctx.saveAbility && cfg.ability !== ctx.saveAbility) continue;
+      const baseLabel = cfg.label ?? eff.description ?? statusLabel;
+      const reason: AdvantageReason = {
+        kind: 'condition',
+        label: cfg.fromName ? `${baseLabel}（来自 ${cfg.fromName}）` : baseLabel,
+        statusInstanceId: instance.instanceId,
+      };
+      if (cfg.mode === 'advantage') advantage.push(reason);
+      else disadvantage.push(reason);
+    }
+  }
+  return { advantage, disadvantage };
+}
+
+function detectCondition(ctx: AdvantageContext): AdvantageResult {
+  const advantage: AdvantageReason[] = [];
+  const disadvantage: AdvantageReason[] = [];
+  const roller = ctx.attacker;
+  if (roller) {
+    const own = collectSideConditions(roller, 'self', ctx);
+    advantage.push(...own.advantage);
+    disadvantage.push(...own.disadvantage);
+  }
+  // 对方身上标记「针对持有者的检定」的效果（如昏迷 → 攻击者对其有优势）
+  const counterpart = ctx.target && ctx.target.id !== roller?.id ? ctx.target : null;
+  if (counterpart) {
+    const incoming = collectSideConditions(counterpart, 'incoming', ctx);
+    advantage.push(...incoming.advantage);
+    disadvantage.push(...incoming.disadvantage);
+  }
+  return { advantage, disadvantage };
+}
+
+// =======================
 // 内置检测器 3：pending（扫描待消费标记）
 // =======================
 
@@ -275,10 +366,9 @@ export function getMatchedPendingSourceIds(auto: AdvantageResult): string[] {
 registerDetector('equipment', detectEquipment);
 registerDetector('positional', detectPositional);
 registerDetector('pending', detectPending);
+registerDetector('condition', detectCondition);
 
 // 预留接入点注释（不实现，仅说明）：
 // - action: dodge（被攻击者回避 → 攻击劣势）、hide（隐匿检定）
 //   registerDetector('action', (ctx) => { ... });
-// - condition: 中毒/束缚/倒地/隐形等状态（待 condition 系统建立后注册）
-//   registerDetector('condition', (ctx) => { ... });
 // - environment: 光照/遮蔽（待光照系统建立后注册）
