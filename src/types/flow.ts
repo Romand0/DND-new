@@ -800,8 +800,8 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '直到施法者下一回合', value: 'untilCasterTurn' },
       ],
       defaultValue: 'rounds',
-      description: '状态与检定奖惩共用；模拟模式下会转为手动解除',
-      visibleWhen: { key: 'effectType', in: ['status', 'check_modifier'] },
+      description: '状态、检定奖惩与优劣势共用；模拟模式下会转为手动解除',
+      visibleWhen: { key: 'effectType', in: ['status', 'check_modifier', 'advantage'] },
     },
     {
       key: 'durationRounds',
@@ -812,7 +812,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       defaultValue: null,
       visibleWhen: {
         allOf: [
-          { key: 'effectType', in: ['status', 'check_modifier'] },
+          { key: 'effectType', in: ['status', 'check_modifier', 'advantage'] },
           { key: 'durationType', equals: 'rounds' },
         ],
       },
@@ -825,7 +825,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       defaultValue: 1,
       visibleWhen: {
         allOf: [
-          { key: 'effectType', in: ['status', 'check_modifier'] },
+          { key: 'effectType', in: ['status', 'check_modifier', 'advantage'] },
           { key: 'durationType', equals: 'untilCasterTurn' },
         ],
       },
@@ -920,6 +920,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       ],
       defaultValue: 'advantage',
       description: '攻击/检定/豁免掷骰时用两个 d20 取高或取低',
+      visibleWhen: { key: 'effectType', equals: 'advantage' },
     },
     {
       key: 'advantageScene',
@@ -940,6 +941,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       ],
       defaultValue: 'any',
       description: '优劣势适用的检定类型（如妖火 = 攻击检定）',
+      visibleWhen: { key: 'effectType', equals: 'advantage' },
     },
     {
       key: 'advantageAbility',
@@ -957,6 +959,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       ],
       defaultValue: '',
       description: '仅对指定属性的豁免/检定生效（如「敏捷豁免优势」）；留空 = 不限',
+      visibleWhen: { key: 'effectType', equals: 'advantage' },
     },
     {
       key: 'advantageAppliesTo',
@@ -969,6 +972,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       ],
       defaultValue: 'self',
       description: 'self = 影响持有者掷骰（如中毒）；incoming = 影响他人对持有者的检定（如昏迷时攻击者有优势）',
+      visibleWhen: { key: 'effectType', equals: 'advantage' },
     },
   ],
 
