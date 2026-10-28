@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Grid3x3, Pencil, Eraser, Hand } from 'lucide-react';
+import { Grid3x3, Pencil, Eraser, Hand, Flame } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import combatStore from '@/data/combatStore';
-import { GRID_PRESETS } from '@/types/battleground';
-import type { Battleground as BG } from '@/types/battleground';
+import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
+import type { Battleground as BG, BattlegroundZone, ZoneType } from '@/types/battleground';
 import type { Combatant } from '@/types/combat';
+import { useNumberInput } from '@/hooks/useInput';
 
 type Tool = 'brush' | 'eraser' | 'hand';
+
+/** 画笔对象：边界墙（涂白）或某类地形区域 */
+type PaintMode = 'wall' | ZoneType;
+
+/** 绘图模式创建的区域统一标记，保存时只替换这一批，保留法术生成的其他区域 */
+const BRUSH_SOURCE = '绘图';
 
 export default function BattlegroundEditor() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -18,6 +25,16 @@ export default function BattlegroundEditor() {
 
   // 草稿涂白格子
   const [draftCells, setDraftCells] = useState<Set<string>>(new Set());
+
+  // 画笔对象：边界墙 or 地形区域类型
+  const [paintMode, setPaintMode] = useState<PaintMode>('wall');
+
+  // 草稿区域（仅绘图模式创建的，保存时与法术区域合并）
+  const [draftZones, setDraftZones] = useState<BattlegroundZone[]>([]);
+
+  // 自定义区域的伤害与持续回合（仅 paintMode='custom' 时使用）
+  const customAmountInput = useNumberInput(5, { fallback: 0 });
+  const customDurationInput = useNumberInput(0, { fallback: 0 });
 
   // 缩放与平移
   const [scale, setScale] = useState(1);
@@ -38,6 +55,7 @@ export default function BattlegroundEditor() {
     const data = battlegroundStore.getOrCreate(sessionId);
     setBg(data);
     setDraftCells(new Set(data.paintedCells || []));
+    setDraftZones((data.zones ?? []).filter(z => z.source === BRUSH_SOURCE));
     const unsub = battlegroundStore.subscribe(() => {
       setBg(battlegroundStore.get(sessionId));
     });
@@ -127,12 +145,53 @@ export default function BattlegroundEditor() {
     setTranslate(clamped);
   };
 
+  /** 当前画笔的区域预设（自定义时用表单值覆盖伤害与时长） */
+  const activeZonePreset = paintMode === 'wall' ? null : ZONE_PRESETS[paintMode];
+
   const applyPaint = (key: string, mode: 'paint' | 'erase') => {
-    setDraftCells(prev => {
-      const next = new Set(prev);
-      if (mode === 'paint') next.add(key);
-      else next.delete(key);
-      return next;
+    if (paintMode === 'wall') {
+      setDraftCells(prev => {
+        const next = new Set(prev);
+        if (mode === 'paint') next.add(key);
+        else next.delete(key);
+        return next;
+      });
+      return;
+    }
+    // 区域绘制：同一类型在草稿里合并成一个区域（DM 连续涂抹多格）
+    const zoneType = paintMode;
+    setDraftZones(prev => {
+      const idx = prev.findIndex(z => z.type === zoneType && z.source === BRUSH_SOURCE);
+      if (mode === 'erase') {
+        if (idx === -1) return prev;
+        const zones = [...prev];
+        const cells = zones[idx].cells.filter(c => c !== key);
+        if (cells.length === 0) zones.splice(idx, 1);
+        else zones[idx] = { ...zones[idx], cells };
+        return zones;
+      }
+      if (idx === -1) {
+        const preset = ZONE_PRESETS[zoneType];
+        const isCustom = zoneType === 'custom';
+        const amount = isCustom ? Math.max(0, customAmountInput.value ?? 0) : (preset.damage?.amount ?? 0);
+        return [...prev, {
+          id: `zone-brush-${zoneType}`,
+          type: zoneType,
+          label: preset.label,
+          cells: [key],
+          color: preset.color,
+          damage: amount > 0
+            ? { amount, damageType: preset.damage?.damageType ?? '火焰', magical: preset.damage?.magical === true }
+            : undefined,
+          durationRounds: isCustom ? Math.max(0, customDurationInput.value ?? 0) : preset.durationRounds,
+          source: BRUSH_SOURCE,
+          hitRounds: {},
+        }];
+      }
+      const zones = [...prev];
+      if (zones[idx].cells.includes(key)) return prev;
+      zones[idx] = { ...zones[idx], cells: [...zones[idx].cells, key] };
+      return zones;
     });
   };
 
@@ -259,16 +318,30 @@ export default function BattlegroundEditor() {
     }
   };
 
-  const handleSave = () => {
+  /** 保存：涂白格子整体覆盖；区域只覆盖「绘图模式创建的」那部分，保留法术生成区域 */
+  const persistDraft = () => {
     if (!sessionId) return;
     battlegroundStore.setPaintedCells(sessionId, [...draftCells]);
+    const existing = battlegroundStore.getZones(sessionId).filter(z => z.source !== BRUSH_SOURCE);
+    const brushZones = draftZones.map(z => ({
+      ...z,
+      // 绘图创建的区域没有回合概念：永久，由 DM 手动移除
+      createdRound: undefined,
+      expireRound: undefined,
+    }));
+    battlegroundStore.setZones(sessionId, [...existing, ...brushZones]);
+  };
+
+  const handleSave = () => {
+    if (!sessionId) return;
+    persistDraft();
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
   };
 
   const handleSaveAndExit = () => {
     if (!sessionId) return;
-    battlegroundStore.setPaintedCells(sessionId, [...draftCells]);
+    persistDraft();
     navigate(`/combat/${sessionId}`);
   };
 
@@ -316,6 +389,7 @@ export default function BattlegroundEditor() {
             const combatantId = cellToken.get(key);
             const combatant = combatantId ? combatantMap.get(combatantId) : null;
             const isPainted = draftCells.has(key);
+            const zonesHere = draftZones.filter(z => z.cells.includes(key));
             return (
               <div key={key}
                 className={`border flex items-center justify-center relative ${
@@ -325,6 +399,9 @@ export default function BattlegroundEditor() {
                 }`}
                 style={{ width: cellSize, height: cellSize }}
               >
+                {zonesHere.length > 0 && (
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: zonesHere[0].color }} />
+                )}
                 {combatant && (
                   <div className="rounded-full flex items-center justify-center font-bold text-white opacity-30 pointer-events-none"
                     style={{ width: cellSize - 6, height: cellSize - 6, fontSize: cellSize > 22 ? 11 : 9,
@@ -341,6 +418,49 @@ export default function BattlegroundEditor() {
           {Math.round(scale * 100)}%
         </div>
       </div>
+
+      {/* 画笔对象选择 */}
+      <div className="flex items-center justify-center gap-2 px-4 pt-3 flex-wrap">
+        <span className="text-xs opacity-60">画笔对象</span>
+        <button onClick={() => setPaintMode('wall')}
+          className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+            paintMode === 'wall' ? 'bg-primary text-white' : 'border dark:border-border-dark light:border-border-light hover:bg-white/5'
+          }`}>
+          边界墙
+        </button>
+        {(Object.keys(ZONE_PRESETS) as ZoneType[]).map((t) => (
+          <button key={t} onClick={() => setPaintMode(t)}
+            className={`px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1 ${
+              paintMode === t ? 'bg-primary text-white' : 'border dark:border-border-dark light:border-border-light hover:bg-white/5'
+            }`}>
+            {t === 'fire' && <Flame className="w-3.5 h-3.5" />}
+            <span>{ZONE_PRESETS[t].label}</span>
+          </button>
+        ))}
+      </div>
+      {paintMode === 'custom' && (
+        <div className="flex items-center justify-center gap-3 px-4 pt-2 text-xs">
+          <label className="flex items-center gap-1">
+            <span className="opacity-60">伤害</span>
+            <input type="number" value={customAmountInput.text}
+              onChange={e => customAmountInput.onChange(e.target.value)}
+              onBlur={customAmountInput.onBlur}
+              className="w-16 rounded px-2 py-1 border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-white" />
+          </label>
+          <label className="flex items-center gap-1">
+            <span className="opacity-60">持续回合（0=永久）</span>
+            <input type="number" value={customDurationInput.text}
+              onChange={e => customDurationInput.onChange(e.target.value)}
+              onBlur={customDurationInput.onBlur}
+              className="w-16 rounded px-2 py-1 border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-white" />
+          </label>
+        </div>
+      )}
+      {activeZonePreset && (
+        <div className="px-4 pt-2 text-center text-xs opacity-55">
+          {activeZonePreset.description}
+        </div>
+      )}
 
       {/* 底边工具栏 */}
       <div className="flex items-center justify-center gap-2 px-4 py-3 border-t dark:border-border-dark light:border-border-light">

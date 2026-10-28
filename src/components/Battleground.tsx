@@ -4,7 +4,7 @@ import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, M
 import { useNavigate } from 'react-router-dom';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
-import type { Battleground as BG, GridSize, ItemToken } from '@/types/battleground';
+import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone } from '@/types/battleground';
 import type { Combatant, CombatRecord, EquipmentChanges } from '@/types/combat';
 import type { Equipment } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
@@ -63,9 +63,11 @@ interface Props {
   onRefundMovement?: (combatantId: string, feet: number) => void;
   /** 选中参战者变更（沙盘单击棋子触发）—— 父层用它同步左上角 HUD */
   onSelectionChange?: (combatantId: string | null) => void;
+  /** 棋子移动到新格子后触发（父层结算地形区域「进入区域」伤害） */
+  onTokenMoved?: (combatantId: string, pos: { col: number; row: number }) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, isProvingGround = false, provingRecord = null }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, isProvingGround = false, provingRecord = null, onTokenMoved }: Props) {
   const navigate = useNavigate();
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
@@ -198,6 +200,19 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   const paintedSet = useMemo(() => {
     return new Set(bg?.paintedCells || []);
   }, [bg?.paintedCells]);
+
+  // 地形区域索引："col,row" -> 区域列表（支持同一格多个区域叠加）
+  const zoneCellMap = useMemo(() => {
+    const m = new Map<string, BattlegroundZone[]>();
+    (bg?.zones ?? []).forEach((z) => {
+      z.cells.forEach((key) => {
+        const arr = m.get(key) || [];
+        arr.push(z);
+        m.set(key, arr);
+      });
+    });
+    return m;
+  }, [bg?.zones]);
 
   // 放映模式下：边界格（涂白格）不可放置棋子
   const isCellBlocked = (col: number, row: number): boolean => {
@@ -655,6 +670,18 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
   };
 
+  /**
+   * 移动棋子并通知父层（父层结算地形区域「进入区域」伤害）。
+   * 只有真正换了格子才通知：初次放置（无旧坐标）不触发，避免摆放阶段被区域误伤。
+   */
+  const moveToken = (combatantId: string, col: number, row: number) => {
+    const from = tokenMap.get(combatantId);
+    battlegroundStore.placeToken(sessionId, { combatantId, col, row });
+    if (from && (from.col !== col || from.row !== row)) {
+      onTokenMoved?.(combatantId, { col, row });
+    }
+  };
+
   // 点击格子：只有未发生拖拽时才触发
   const handleCellClick = (col: number, row: number) => {
     if (readOnly) return;
@@ -671,6 +698,13 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       if (paintedSet.has(key)) {
         battlegroundStore.togglePaintedCell(sessionId, key);
       }
+      // 地形区域擦除：该格从所属区域的格子集合里移除，区域空了则整块删除
+      const zonesHere = zoneCellMap.get(key) ?? [];
+      zonesHere.forEach(z => {
+        const cells = z.cells.filter(c => c !== key);
+        if (cells.length === 0) battlegroundStore.removeZone(sessionId, z.id);
+        else battlegroundStore.updateZone(sessionId, z.id, { cells });
+      });
       return;
     }
     // 公共：执行移动前的移动力合法性校验 + 消耗回调。返回 true 允许执行 placeToken
@@ -731,7 +765,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           return;
         }
         if (src && !attemptMove(selectedCombatantId, src, { col, row })) return;
-        battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
+        moveToken(selectedCombatantId, col, row);
         setSelectedCombatantId(null);
         return;
       }
@@ -766,7 +800,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       }
       const src = tokenMap.get(selectedCombatantId);
       if (src && !attemptMove(selectedCombatantId, src, { col, row })) return;
-      battlegroundStore.placeToken(sessionId, { combatantId: selectedCombatantId, col, row });
+      moveToken(selectedCombatantId, col, row);
       setSelectedCombatantId(null);
       return;
     }
@@ -997,6 +1031,38 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
         <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted min-h-[2rem] leading-4">
           {modeHint}
         </div>
+        {/* 地形区域清单：DM 可手动移除（油瓶烧完、法术解除） */}
+        {(bg?.zones?.length ?? 0) > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">
+              区域
+            </span>
+            {(bg?.zones ?? []).map((z) => (
+              <span
+                key={z.id}
+                className="px-2 py-1 text-xs rounded-full border flex items-center gap-1.5 dark:border-border-dark light:border-border-light"
+                title={z.damage ? `${z.damage.amount} 点${z.damage.damageType}伤害` : '无伤害'}
+              >
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ background: z.color }} />
+                <span>{z.label}</span>
+                <span className="opacity-60">
+                  {z.cells.length}格
+                  {z.damage ? ` · ${z.damage.amount}${z.damage.damageType}` : ''}
+                  {typeof z.expireRound === 'number' ? ` · 至第${z.expireRound + 1}轮` : ''}
+                </span>
+                {!readOnly && !playbackOnlyMovableId && (
+                  <button
+                    onClick={() => battlegroundStore.removeZone(sessionId, z.id)}
+                    className="text-danger hover:text-danger/80"
+                    title="移除该区域"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 网格 —— 手势平移与缩放 */}
@@ -1050,6 +1116,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             const isLocked = lockedTargetId === combatantId;
             // 放映模式下当前回合角色
             const isActiveTurn = activeTurnCombatantId === combatantId;
+            const zonesHere = zoneCellMap.get(key) || [];
             return (
               <div
                 key={i}
@@ -1066,6 +1133,17 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                 style={{ width: cellSize, height: cellSize }}
                 title={combatant ? combatant.name : itemsHere.length > 0 ? itemsHere.map(t => t.name).join(', ') : `${col},${row}`}
               >
+                {/* 地形区域着色（最底层，不拦截指针事件） */}
+                {zonesHere.length > 0 && (
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background: zonesHere[0].color,
+                      boxShadow: zonesHere.length > 1 ? `inset 0 0 0 2px ${zonesHere[1].color}` : undefined,
+                    }}
+                  />
+                )}
+
                 {/* 掉落物品 token：武器图标，位于角色下层 */}
                 {itemsHere.length > 0 && (() => {
                   const item = itemsHere[0];
@@ -1124,11 +1202,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                             alert('不能将棋子放置在边界格上');
                             return;
                           }
-                          battlegroundStore.placeToken(sessionId, {
-                            combatantId: selectedCombatantId,
-                            col,
-                            row,
-                          });
+                          moveToken(selectedCombatantId, col, row);
                           setSelectedCombatantId(null);
                           return;
                         }
@@ -1142,11 +1216,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                             alert('不能将棋子放置在边界格上');
                             return;
                           }
-                          battlegroundStore.placeToken(sessionId, {
-                            combatantId: selectedCombatantId,
-                            col,
-                            row,
-                          });
+                          moveToken(selectedCombatantId, col, row);
                           setSelectedCombatantId(null);
                           return;
                         }
