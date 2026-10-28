@@ -12,11 +12,23 @@ import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
 import type { Effect } from '@/types/status';
 
+/** 流程创建的待落地地形区域（编译器纯计算，位置与回合由宿主补全） */
+export interface FlowCastZoneSpec {
+  type: 'fire' | 'poison' | 'difficult' | 'custom';
+  label: string;
+  cells: string[];
+  color: string;
+  damage?: { amount: number; damageType: string; magical?: boolean };
+  /** 持续回合数；0 = 永久（需手动移除） */
+  durationRounds: number;
+  source?: string;
+}
+
 /** 单目标结算结果（回传宿主回写参战者 HP） */
 export interface FlowCastTargetResult {
   combatantId: string;
   name: string;
-  effectType: 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage';
+  effectType: 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage' | 'zone';
   /** 抗性前原始值（保留用于日志/审计） */
   effectValue: number;
   /** 抗性结算后的最终值（HP 扣减依据；status 恒 0） */
@@ -40,6 +52,8 @@ export interface FlowCastTargetResult {
   turnCount?: number;
   /** effectType='check_modifier' 时：使用次数（0 = 状态型随状态过期，>0 = 次数型） */
   modifierUses?: number;
+  /** effectType='zone' 时：待落地到沙盘的地形区域规格 */
+  zone?: FlowCastZoneSpec;
 }
 
 /** 流程施放完成回传（契约：CombatSession.onFlowResolved 消费） */
@@ -48,7 +62,7 @@ export interface FlowCastPayload {
   castingTime?: string;
   /** 主目标受影响（豁免失败/被命中）；豁免成功或无效果节点时 false */
   success: boolean;
-  effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage';
+  effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' | 'zone';
   /** 主目标数值（无效果时 0） */
   amount: number;
   targetResults: FlowCastTargetResult[];
@@ -216,7 +230,7 @@ export default function FlowRunStep({
       .map(r => ({
         combatantId: r.targetId,
         name: r.targetName,
-        effectType: r.effectType as 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage',
+        effectType: r.effectType as 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage' | 'zone',
         effectValue: r.effectValue as number,
         finalValue: (r.finalValue ?? r.effectValue) as number,
         damageType: r.damageType ?? null,
@@ -231,6 +245,7 @@ export default function FlowRunStep({
         untilNextTurn: r.untilNextTurn === true,
         turnCount: typeof r.turnCount === 'number' ? r.turnCount : undefined,
         modifierUses: typeof r.modifierUses === 'number' ? r.modifierUses : undefined,
+        zone: r.zone && typeof r.zone === 'object' ? (r.zone as FlowCastZoneSpec) : undefined,
       }));
 
     const mainEffect = effectResults.find(r => r.targetId === target.id) ?? effectResults[0];
@@ -239,11 +254,12 @@ export default function FlowRunStep({
     const success = saveOutput
       ? (mainSave ? (!mainSave.success || halfOnSave) : true)
       : !!mainEffect?.effectApplied;
-    const effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' =
+    const effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' | 'zone' =
       effectOutput?.effectType === 'healing' ? 'heal' as const
       : effectOutput?.effectType === 'status' ? 'status' as const
       : effectOutput?.effectType === 'check_modifier' ? 'check_modifier' as const
       : effectOutput?.effectType === 'advantage' ? 'advantage' as const
+      : effectOutput?.effectType === 'zone' ? 'zone' as const
       : 'damage' as const;
 
     // 摘要（先攻表格单元格宽度有限，保持一行紧凑；《》【】为渲染器标记：法术名/数值高亮）
@@ -269,6 +285,11 @@ export default function FlowRunStep({
       const desc = typeof mainEffect.message === 'string' && mainEffect.message
         ? mainEffect.message
         : `附加优劣势【${mainEffect.statusName ?? ''}】`;
+      parts.push(desc);
+    } else if (mainEffect && !mainEffect.error && !mainNegated && effectType === 'zone') {
+      const desc = typeof mainEffect.message === 'string' && mainEffect.message
+        ? mainEffect.message
+        : '区域生成';
       parts.push(desc);
     } else if (mainEffect && !mainEffect.error && !mainNegated) {
       const finalValue = mainEffect.finalValue ?? mainEffect.effectValue;

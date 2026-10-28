@@ -31,6 +31,7 @@ import { getCombatantAffinities } from '@/data/combatAffinities';
 import statusLibrary from '@/data/statusLibrary';
 import type { Effect } from '@/types/status';
 import type { DamageSource, DamageType } from '@/types/damage';
+import { ZONE_PRESETS, type ZoneType } from '@/types/battleground';
 
 /** 六属性全名（AbilityKey 收窄用） */
 const ABILITY_KEYS: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
@@ -1137,6 +1138,99 @@ export class FlowCompiler {
           anyImmune: false,
           anyVulnerable: false,
           message: `优劣势附加完成，${results.filter(r => r.success).length}个目标受影响`,
+        },
+      };
+    }
+
+    // 地形区域（着火、毒云 等）：与状态附加同款「编译器不落库」原则。
+    // 产出待落地记录（effectType='zone' + 区域规格），由 CombatSession.onFlowResolved
+    // 调 battlegroundStore.addZone 写入沙盘；伤害结算留给回合推进时的 zoneRules。
+    // 新增区域类法术（油腻术、蛛网术、火墙）只需配节点参数，zoneRules 与沙盘零改动。
+    if (effectType === 'zone') {
+      const zoneTypeRaw = String(config?.zoneType ?? 'fire');
+      if (!['fire', 'poison', 'difficult', 'custom'].includes(zoneTypeRaw)) {
+        return {
+          status: 'failure',
+          output: { error: `未知的区域类型「${zoneTypeRaw}」（可选 fire/poison/difficult/custom）` },
+        };
+      }
+      const zoneType = zoneTypeRaw as ZoneType;
+      const preset = ZONE_PRESETS[zoneType];
+      const amountRaw = config?.zoneDamageAmount;
+      const amount = amountRaw === null || amountRaw === undefined || amountRaw === ''
+        ? (preset.damage?.amount ?? 0)
+        : Math.max(0, Math.floor(Number(amountRaw)) || 0);
+      const typeRaw = String(config?.zoneDamageType ?? '').trim();
+      // 兼容中文（火焰）与英文键（fire）两种写法
+      const damageType: DamageType = normalizeDamageType(typeRaw) ?? preset.damage?.damageType ?? '火焰';
+      const durationRaw = config?.zoneDurationRounds;
+      const durationRounds = durationRaw === null || durationRaw === undefined || durationRaw === ''
+        ? preset.durationRounds
+        : Math.max(0, Math.floor(Number(durationRaw)) || 0);
+      const magicalRaw = config?.zoneMagical;
+      const magical = magicalRaw === undefined || magicalRaw === null
+        ? (preset.damage?.magical ?? true)
+        : !(magicalRaw === false || magicalRaw === 'false' || magicalRaw === '0');
+      const radius = Math.max(0, Math.floor(Number(config?.zoneRadius ?? 0)) || 0);
+
+      // 回合数（createdRound / expireRound）由落地侧（CombatSession）按当前回合计算：
+      // 编译器保持纯计算，不读战斗记录，避免预演与真实回合解耦。
+
+      const results = context.targets.map((targetId) => {
+        const targetCombatant = this.resolveCombatant(targetId, context);
+        const targetCharacter = this.resolveCharacter(targetId, context);
+        const pos = context.positions?.[targetId] ?? null;
+        if (!targetCombatant && !targetCharacter) {
+          return { targetId, success: false, effectApplied: false, error: '目标不存在' };
+        }
+        if (!pos) {
+          return { targetId, success: false, effectApplied: false, error: '目标未放置在沙盘上，无法确定区域位置' };
+        }
+        const cells: string[] = [];
+        for (let dc = -radius; dc <= radius; dc++) {
+          for (let dr = -radius; dr <= radius; dr++) {
+            cells.push(`${pos.col + dc},${pos.row + dr}`);
+          }
+        }
+        const currentHp = targetCombatant
+          ? (typeof targetCombatant.currentHp === 'number' ? targetCombatant.currentHp : (targetCombatant.maxHp ?? 0))
+          : (targetCharacter?.currentHp ?? 0);
+        return {
+          targetId,
+          targetName: targetCombatant?.name ?? targetCharacter?.name ?? targetId,
+          success: true,
+          effectApplied: true,
+          effectType: 'zone',
+          zone: {
+            type: zoneType,
+            label: preset.label,
+            cells,
+            color: preset.color,
+            ...(amount > 0 ? { damage: { amount, damageType, magical } } : {}),
+            durationRounds,
+            source: context.spellId,
+          },
+          effectValue: 0,
+          finalValue: 0,
+          oldHp: currentHp,
+          newHp: currentHp,
+          tempAbsorbed: 0,
+          notes: [] as string[],
+          message: `生成【${preset.label}】${cells.length}格${durationRounds > 0 ? `，持续${durationRounds}轮` : ''}${amount > 0 ? `，${amount}点${damageType}伤害` : ''}`,
+        };
+      });
+      return {
+        status: 'success',
+        output: {
+          effectType,
+          value: '0',
+          dice: null,
+          results,
+          totalFinal: 0,
+          anyResisted: false,
+          anyImmune: false,
+          anyVulnerable: false,
+          message: `区域生成完成，${results.filter(r => r.success).length}个目标位置受影响`,
         },
       };
     }
