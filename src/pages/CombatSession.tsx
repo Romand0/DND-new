@@ -10,6 +10,7 @@ import { usePlayback } from '@/hooks/combat/usePlayback';
 import { useRoundTurn } from '@/hooks/combat/useRoundTurn';
 import { useSurprise } from '@/hooks/combat/useSurprise';
 import { useThrownDrop } from '@/hooks/combat/useThrownDrop';
+import { useZoneEffects } from '@/hooks/combat/useZoneEffects';
 import InitiativeTable from '@/components/combat/InitiativeTable';
 import OperationLogPanel from '@/components/OperationLogPanel';
 import InitiativeRollDialog from '@/components/combat/InitiativeRollDialog';
@@ -28,7 +29,7 @@ import {
 } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
-import { formatDamageBreakdown } from '@/data/damageRules';
+import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
@@ -230,6 +231,9 @@ export default function CombatSession() {
     rollbackSnapshotRef,
     autoAdvanceRef,
     autoAdvanceTimerRef,
+    // 惰性解引用：useZoneEffects 定义在本调用之后（依赖 handleApplyDamage）
+    resolveEndTurnZone: (combatantId, round) => resolveEndTurnZone(combatantId, round),
+    expireZonesForRound: (round) => { expireZonesForRound(round); },
   });
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
@@ -424,6 +428,21 @@ export default function CombatSession() {
   // 投掷武器掉落：由 hook 接管（executeThrownDrop 需显式传入 record）
   const { executeThrownDrop } = useThrownDrop(record?.id ?? null);
 
+  // 地形区域效果（着火等）：进入区域 / 回合结束时结算伤害，按回合清理过期区域。
+  // recordOperation 依赖 useRoundTurn 已返回；applyDamage 走统一伤害入口。
+  const { handleTokenMoved, resolveEndTurnZone, expireZonesForRound } = useZoneEffects(record, {
+    applyDamage: handleApplyDamage,
+    recordOperation: (combatantId, text, kind) => recordOperation(combatantId, text, kind),
+  });
+
+  // 沙盘变更信号：棋子移动只写 battlegroundStore，不经过 combatStore，
+  // 因此位置字典必须额外订阅沙盘，否则流程/射程判定会读到过期坐标。
+  const [battlegroundTick, setBattlegroundTick] = useState(0);
+  useEffect(() => {
+    if (!record?.id) return;
+    return battlegroundStore.subscribe(() => setBattlegroundTick(t => t + 1));
+  }, [record?.id]);
+
   // 所有参战者沙盘位置字典（用于跨参战者距离判定：协助动作 5 尺约束等）
   const combatantPositions = useMemo(() => {
     if (!record?.id) return null;
@@ -435,7 +454,8 @@ export default function CombatSession() {
       map[t.combatantId] = { col: t.col, row: t.row };
     }
     return map;
-  }, [record?.id, record?.combatants.length, record?.updatedAt]);
+    // battlegroundTick：棋子位置变化不写战斗记录，需要显式依赖触发重算
+  }, [record?.id, record?.combatants.length, record?.updatedAt, battlegroundTick]);
 
   // 突袭回合标记：状态与弹窗逻辑由 hook 接管；onConfirmed 负责与「从头播放」流程联动
   const {
@@ -1117,6 +1137,13 @@ export default function CombatSession() {
         onSelectionChange={(id) => {
           setSandboxSelectedId(id);
         }}
+        onTokenMoved={(combatantId, pos) => {
+          // 进入地形区域（着火等）→ 立即结算：油瓶规则「进入区域即受伤」
+          const round = record.mode === 'playback'
+            ? (isPlaybackActive() ? (currentTurn?.round ?? 0) : Math.max(0, record.rounds.length - 1))
+            : 0;
+          handleTokenMoved(combatantId, pos, round);
+        }}
         onRequestAttack={(attacker, target) => {
           // 动作校验：放映模式可用动作耗尽时禁止发起攻击
           if (!canUseAction(attacker.id)) {
@@ -1493,6 +1520,35 @@ export default function CombatSession() {
             payload.targetResults.forEach(tr => {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
+              if (tr.effectType === 'zone') {
+                // 地形区域落地：编译器只产出格子与规格，回合边界在此按当前回合补齐。
+                // 模拟模式无回合概念 → createdRound=0 且不设 expireRound（手动移除）。
+                if (!tr.zone || !record) return;
+                const isPlaybackZone = record.mode === 'playback';
+                const castRound = isPlaybackZone
+                  ? (currentTurn?.round ?? Math.max(0, record.rounds.length - 1))
+                  : 0;
+                const duration = tr.zone.durationRounds ?? 0;
+                battlegroundStore.addZone(record.id, {
+                  type: tr.zone.type,
+                  label: tr.zone.label,
+                  cells: tr.zone.cells,
+                  color: tr.zone.color,
+                  damage: tr.zone.damage
+                    ? {
+                        amount: tr.zone.damage.amount,
+                        damageType: (normalizeDamageType(tr.zone.damage.damageType) ?? '火焰'),
+                        magical: tr.zone.damage.magical === true,
+                      }
+                    : undefined,
+                  createdRound: castRound,
+                  durationRounds: duration,
+                  ...(isPlaybackZone && duration > 0 ? { expireRound: castRound + duration - 1 } : {}),
+                  source: payload.spellName,
+                  hitRounds: {},
+                });
+                return;
+              }
               if (tr.effectType === 'status' || tr.effectType === 'check_modifier' || tr.effectType === 'advantage') {
                 // 状态落地：通用伤害修饰引擎（实例级效果 + 持续时间由流程注入）。
                 // 过期策略按施放时的战斗模式定性：

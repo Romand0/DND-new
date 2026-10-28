@@ -18,12 +18,17 @@ export interface UseRoundTurnProps {
   }>;
   autoAdvanceRef: React.MutableRefObject<boolean>;
   autoAdvanceTimerRef: React.MutableRefObject<number | null>;
+  /** 结束回合时的地形区域结算（惰性解引用：实现定义在本 hook 之后的 useDamageAndHp） */
+  resolveEndTurnZone?: (combatantId: string, round: number) => void;
+  /** 进入新回合时清理过期地形区域 */
+  expireZonesForRound?: (round: number) => void;
 }
 
 export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnProps) {
   const {
     resetCombatantActions, isPlaybackActive, setCommitModalOpen,
     rollbackSnapshotRef, autoAdvanceRef, autoAdvanceTimerRef,
+    resolveEndTurnZone, expireZonesForRound,
   } = props;
 
   // ✅ 放映模式状态（usePlayback 尚未接线，先由本 hook 持有，P4 迁移时复用）
@@ -149,6 +154,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       autoAdvanceRef.current = false;
     }
     if (!currentTurn || !record) return;
+    // 结束回合的地形区域伤害必须在切换回合前结算（此时棋子仍在原格）
+    resolveEndTurnZone?.(currentTurn.combatantId, currentTurn.round);
     const currentIdx = record.combatants.findIndex(c => c.id === currentTurn.combatantId);
     const next = findNextValidTurn(currentTurn.round, currentIdx + 1);
     if (next) {
@@ -181,6 +188,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     const nextRound = currentTurn.round + 1;
     // 回合推进时清扫按回合计时的状态实例（rounds 型按绝对回合；combatantTurn 型靠 getEffects 实时判定）
     globalStatusManager.advanceRound(record.id, { currentRound: nextRound });
+    // 地形区域按回合计时到期（油瓶 2 轮等），并清理上回合的受伤登记
+    expireZonesForRound?.(nextRound);
     if (nextRound >= record.rounds.length) {
       const newRound: RoundAction = {};
       record.combatants.forEach(c => {
@@ -285,6 +294,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       combatants: latest.combatants.map(c => ({ ...c })),
       rounds: latest.rounds.map(r => ({ ...r })),
       battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
+      zones: (bg?.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })),
       equipmentChanges: latest.equipmentChanges
         ? Object.fromEntries(
             Object.entries(latest.equipmentChanges).map(([k, v]) => [
@@ -389,8 +399,9 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
         : undefined,
       updatedAt: Date.now(),
     });
-    // 4) 还原沙盘
+    // 4) 还原沙盘（棋子 + 地形区域）
     battlegroundStore.setTokens(record.id, snap.battleground.map(t => ({ ...t })));
+    battlegroundStore.setZones(record.id, (snap.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })));
     // 5) 当前回合跳到此回合格
     setCurrentTurn({ round, combatantId });
     // 6) 此回合格在回溯后需要重新拍快照：清掉内存+IDB 中旧快照，下次进入重拍

@@ -78,6 +78,7 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
         combatants: record.combatants.map(c => ({ ...c })),
         rounds: record.rounds.map(r => ({ ...r })),
         battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
+        zones: (bg?.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })),
         equipmentChanges: latestForSnapshot?.equipmentChanges
           ? Object.fromEntries(
               Object.entries(latestForSnapshot.equipmentChanges).map(([k, v]) => [
@@ -117,6 +118,7 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
           updatedAt: Date.now(),
         });
         battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
+        battlegroundStore.setZones(record.id, (init.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })));
       } else if (playbackSnapshotRef.current) {
         // fallback：只恢复了沙盘
         battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
@@ -179,6 +181,7 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
     const init = rollbackSnapshotRef.current.initial;
     if (init) {
       battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
+      battlegroundStore.setZones(record.id, (init.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })));
     } else if (playbackSnapshotRef.current) {
       // fallback：兼容旧逻辑
       battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
@@ -248,6 +251,7 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
     const init = rollbackSnapshotRef.current.initial;
     if (init) {
       battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
+      battlegroundStore.setZones(record.id, (init.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })));
       // 恢复参战者状态 + 回合记录 + 装备变更到初始快照（完整回溯）
       combatStore.update(record.id, {
         combatants: init.combatants.map(c => ({ ...c })),

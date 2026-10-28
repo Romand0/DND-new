@@ -268,6 +268,8 @@ export interface TurnSnapshot {
   rounds: RoundAction[];
   battleground: any[];
   equipmentChanges?: Record<string, EquipmentChanges>;
+  /** 沙盘地形区域快照（回溯时连同棋子一起还原） */
+  zones?: import('@/types/battleground').BattlegroundZone[];
 }
 
 /**
