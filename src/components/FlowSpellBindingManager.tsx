@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import type { Spell } from '@/types/spell';
 import { BindingService } from '@/services/bindingService';
 import { bindingStore } from '@/data/bindingStore';
@@ -42,6 +42,19 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
   }, [flowId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // 同名判定：法术名与流程名完全一致（忽略大小写与首尾空格）
+  const isSameNameAsFlow = useCallback((spell: Spell) => {
+    const key = flowName.trim().toLowerCase();
+    return key !== '' && spell.name.trim().toLowerCase() === key;
+  }, [flowName]);
+
+  // 可选法术列表；与流程同名的条目稳定置顶（Array.sort 自 ES2019 起稳定），便于直接绑定同名法术
+  const sortedAvailableSpells = useMemo(() => {
+    return [...availableSpells].sort(
+      (a, b) => Number(isSameNameAsFlow(b)) - Number(isSameNameAsFlow(a))
+    );
+  }, [availableSpells, isSameNameAsFlow]);
 
   // 🔑 同样的订阅
   useEffect(() => {
@@ -123,14 +136,19 @@ export const FlowSpellBindingManager: React.FC<FlowSpellBindingManagerProps> = (
       )}
 
       {/* 可选的法术 */}
-      {availableSpells.length > 0 && (
+      {sortedAvailableSpells.length > 0 && (
         <div className="available-spells">
-          <h5>可选法术 ({availableSpells.length})</h5>
+          <h5>可选法术 ({sortedAvailableSpells.length})</h5>
           <ul className="space-y-2">
-            {availableSpells.map(spell => (
+            {sortedAvailableSpells.map(spell => (
               <li key={spell.id} className="flex justify-between items-center p-2 bg-gray-50 rounded">
                 <div>
-                  <span className="font-medium">{spell.name}</span>
+                  <span className="font-medium">
+                    {spell.name}
+                    {isSameNameAsFlow(spell) && (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] align-middle bg-primary/15 text-primary">同名</span>
+                    )}
+                  </span>
                   <span className="text-sm text-gray-500 ml-2">
                     {spell.level}环 {spell.school}
                   </span>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X, BookOpen, Link, Unlink, Search } from 'lucide-react';
 import flowStore from '@/data/flowStore';
 import { buildFlowId, parseFlowId, nameToSlug } from '@/types/flow';
@@ -240,9 +240,15 @@ export default function FlowConsole({ onClose }: Props) {
     return Array.from(classes).sort();
   }, [boundSpells, availableSpells]);
 
-  // 筛选后的可选法术列表
+  // 同名判定：法术名与当前流程名完全一致（忽略大小写与首尾空格）
+  const isSameNameAsFlow = useCallback((spell: Spell) => {
+    const key = selectedFlowName.trim().toLowerCase();
+    return key !== '' && spell.name.trim().toLowerCase() === key;
+  }, [selectedFlowName]);
+
+  // 筛选后的可选法术列表；与流程同名的条目稳定置顶（Array.sort 自 ES2019 起稳定），便于直接绑定同名法术
   const filteredAvailableSpells = useMemo(() => {
-    return availableSpells.filter((spell) => {
+    const matched = availableSpells.filter((spell) => {
       if (spellSearch) {
         const q = spellSearch.toLowerCase();
         if (
@@ -260,7 +266,10 @@ export default function FlowConsole({ onClose }: Props) {
       }
       return true;
     });
-  }, [availableSpells, spellSearch, spellLevelFilter, spellClassFilter]);
+    return [...matched].sort(
+      (a, b) => Number(isSameNameAsFlow(b)) - Number(isSameNameAsFlow(a))
+    );
+  }, [availableSpells, spellSearch, spellLevelFilter, spellClassFilter, isSameNameAsFlow]);
 
   // 从 API 加载指定流程的绑定关系，并与数据库法术表求交集/差集
   const loadFlowBindings = async (flowName: string) => {
@@ -657,7 +666,12 @@ export default function FlowConsole({ onClose }: Props) {
                       {filteredAvailableSpells.map(spell => (
                         <div key={spell.id} className="flex items-center justify-between gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded">
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium text-sm truncate">{spell.name}</div>
+                            <div className="font-medium text-sm truncate">
+                              {spell.name}
+                              {isSameNameAsFlow(spell) && (
+                                <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] align-middle bg-primary/15 text-primary">同名</span>
+                              )}
+                            </div>
                             <div className="text-xs text-gray-500 truncate">
                               {levelLabels[spell.level] ?? `${spell.level}环`} · {spell.school}
                             </div>
