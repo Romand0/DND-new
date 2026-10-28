@@ -121,3 +121,18 @@
   - 流程 effectType='advantage' 沿用 status 的 durationType 语义（rounds / untilCasterTurn），非法 mode/scene/appliesTo/durationType 记 failure 日志而非静默；编译器纯计算不落库，CombatSession.onFlowResolved 统一落地
   - 手动附加面板（StatusAttachPanel）的优劣势区走 statusId='advantage' + instanceEffects 路径，与流程节点共用同一套状态生命周期，避免两套数据源
   - 另修存量 bug：CombatantInfoPanel 的 attacks 取 character?.attacks || combatant.attacks 时空数组为 truthy，导致试验场影子卡武器列表空白；改为 length>0 判定后回落（与 CombatAttackModal 一致）
+
+[Project Knowledge Summary]
+- Date: 2026-10-28
+- Context: Discovered by Agent while implementing the terrain zone system (paint editor + flow node + combat effects)
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 沙盘地形区域数据挂在 Battleground.zones（localStorage dnd-battlegrounds），不是 CombatRecord：区域是战斗临时数据，随沙盘走、可随战斗丢弃；规则基线 PHB2014 油瓶（5 尺方形 / 2 轮 / 5 点火焰非魔法 / 同生物每回合一次）
+  - 「进入区域」伤害在 Battleground.moveToken 里通知父层（onTokenMoved），只有 from 存在且换格才触发——初次放置不伤，避免摆放阶段被误伤；点击与拖拽两条路径都走 moveToken
+  - 「回合结束于区域内」由 useRoundTurn 完成回合前调 resolveEndTurnZone；新回合 expireZonesForRound 清理过期区域（expireRound < currentRound）并裁掉非当前回合的 hitRounds（否则上回合记录会永久阻止再次触发）
+  - 同回合同区域去重双保险：useZoneEffects.firedRef（会话内即时，不等 store 回写）+ zone.hitRounds（跨帧持久）；模拟模式 round=0 时两层都跳过，因为没有回合概念
+  - 编译器 zone 节点纯计算不落库：只产出 cells + 规格 + durationRounds，createdRound/expireRound 由 CombatSession.onFlowResolved 按当前回合补齐（模拟模式 createdRound=0 且不设 expireRound = 手动移除）
+  - durationRounds 是区域规格字段（回显用），过期判定只认 expireRound；两字段都要在 normalizeZone 里兜底，否则老数据/新数据回显会丢
+  - 绘图编辑器区域统一 source='绘图'，保存时只替换这一批，保留法术生成区域；绘图区域无回合概念（永久，DM 手动移除）
+  - 流程 zone 节点依赖 context.positions 取目标坐标，未放置在沙盘时记 failure「目标未放置在沙盘上」。注意：CombatSession 的 combatantPositions 曾只依赖战斗记录字段，棋子移动不触发重算导致流程读到过期坐标（表现为「0个目标位置受影响」）——已加 battlegroundStore 订阅 + battlegroundTick 依赖
+  - zone 落地的伤害走统一 handleApplyDamage（sourceKind='effect'），抗性/易伤/免疫在 zoneRules.computeZoneDamage 内经 resolveDamage 预结算，不要绕过
