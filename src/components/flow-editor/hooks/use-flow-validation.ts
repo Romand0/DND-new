@@ -32,10 +32,19 @@ export function useFlowValidation(flow: FlowDefinition): UseFlowValidationReturn
   // 自动修复 Hook
   const autoFix = useAutoFix(flow);
 
+  // 发布门禁与保存同源：用 validateForPublish 判定，避免「面板显示可发布、保存却失败」
+  const collectErrors = useCallback((target: FlowDefinition): ValidationError[] => {
+    const result = validateForPublish(target);
+    if (result.valid) return [];
+    const details = 'details' in result ? result.details : undefined;
+    if (details && details.length > 0) return details;
+    return [{ type: 'global', message: ('error' in result ? result.error : undefined) || '流程校验未通过' }];
+  }, []);
+
   // 实时验证（防抖500ms）
   useEffect(() => {
     const timer = setTimeout(() => {
-      const errors = validateFlowWithDetails(flow);
+      const errors = collectErrors(flow);
       setValidationErrors(errors);
       setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
       
@@ -45,15 +54,15 @@ export function useFlowValidation(flow: FlowDefinition): UseFlowValidationReturn
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [flow, showValidation]);
+  }, [flow, showValidation, collectErrors]);
 
   // 手动验证
   const runValidation = useCallback(() => {
-    const errors = validateFlowWithDetails(flow);
+    const errors = collectErrors(flow);
     setValidationErrors(errors);
     setShowValidation(true);
     setValidationStatus(errors.length === 0 ? 'valid' : 'invalid');
-  }, [flow]);
+  }, [flow, collectErrors]);
 
   // 计算属性
   const isValid = useMemo(() => validationErrors.length === 0, [validationErrors]);

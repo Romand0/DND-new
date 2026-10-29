@@ -63,11 +63,17 @@ export default function FlowView() {
     });
   }, [id]);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!isAdmin || !id) return;
     setSaving(true);
-    flowStore.delete(id);
-    navigate('/flows');
+    try {
+      await flowStore.remove(id);
+      navigate('/flows');
+    } catch (e: any) {
+      setError(e?.message || '删除失败');
+      setSaving(false);
+      setDeleteConfirm(false);
+    }
   };
 
   if (loading) {
@@ -225,7 +231,7 @@ export default function FlowView() {
           <div className="relative w-full max-w-sm rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl">
             <h3 className="text-lg font-bold mb-2 dark:text-text-dark light:text-text-light">确认删除</h3>
             <p className="text-sm mb-6 dark:text-text-dark-muted light:text-text-light-muted">
-              确定要删除流程「{flow.name}」吗？此操作不可撤销。
+              将从云端正式库彻底删除流程「{flow.name}」，删除后无法恢复，已绑定的法术会失去对应流程。
             </p>
             <div className="flex justify-end gap-3">
               <button

@@ -31,15 +31,23 @@ export default function FlowList() {
     (f.tags || []).some(t => t.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleCreate = async () => {
-    const f = await flowStore.create('');
-    navigate(`/flow-editor/${f.id}`);
+  const handleCreate = () => {
+    // 新建流程只存在于编辑器内存中：退出未发布即丢弃，发布后才落云端
+    navigate('/flow-editor/new');
   };
 
-  const handleDelete = () => {
-    if (deleteId) {
-      flowStore.delete(deleteId);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    setDeleting(true);
+    try {
+      await flowStore.remove(deleteId);
       setDeleteId(null);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : '删除失败');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -53,13 +61,13 @@ export default function FlowList() {
     URL.revokeObjectURL(url);
   };
 
-  const handleImport = (file: File) => {
+  const handleImport = async (file: File) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       const json = e.target?.result as string;
-      const imported = flowStore.import(json);
+      const imported = await flowStore.import(json);
       if (!imported) {
-        alert('导入失败：文件格式不正确');
+        alert('导入失败：文件格式不正确或校验未通过');
       }
     };
     reader.readAsText(file);
@@ -67,7 +75,7 @@ export default function FlowList() {
 
   const handlePublish = async (flow: FlowDefinition) => {
     try {
-      await flowStore.publish(flow.id);
+      await flowStore.publish(flow);
     } catch (err) {
       alert(err instanceof Error ? err.message : '发布失败');
     }
@@ -79,10 +87,10 @@ export default function FlowList() {
   };
 
   const handleUnpublish = async (flow: FlowDefinition) => {
-    if (confirm(`确定要撤下"${flow.name}"吗？撤下后将变为草稿状态。`)) {
+    if (confirm(`确定要撤下"${flow.name}"吗？撤下后将从正式库移除，战斗引擎不再可见。`)) {
       try {
         await flowStore.unpublish(flow.id);
-        alert('流程已成功撤下并转为草稿状态');
+        alert('流程已撤下：云端正式版移入草稿表，战斗引擎不再可见');
       } catch (err) {
         alert(err instanceof Error ? err.message : '撤下失败');
       }
@@ -200,29 +208,43 @@ export default function FlowList() {
                   </div>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
                     <button
-                      onClick={() => handlePublish(f)}
+                      onClick={() => navigate(`/flow-editor/${f.id}`)}
                       className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                      title="发布为正式版"
+                      title="进入编辑器修改（保存即发布）"
                     >
-                      <CloudUpload className="w-3 h-3" />
-                      发布
+                      <Edit3 className="w-3 h-3" />
+                      编辑
                     </button>
-                    <button
-                      onClick={() => handlePullRemote(f)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
-                      title="用正式版覆盖本地草稿"
-                    >
-                      <CloudDownload className="w-3 h-3" />
-                      拉取正式版
-                    </button>
-                    <button
-                      onClick={() => handleUnpublish(f)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-red-400 hover:bg-red-400/10 transition-colors"
-                      title="从正式库撤下"
-                    >
-                      <CloudOff className="w-3 h-3" />
-                      撤下
-                    </button>
+                    {(!f.publishedVersion || f.publishedVersion === 0) && (
+                      <button
+                        onClick={() => handlePublish(f)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
+                        title="把这份遗留的本地流程发布为正式版"
+                      >
+                        <CloudUpload className="w-3 h-3" />
+                        发布
+                      </button>
+                    )}
+                    {!!f.publishedVersion && f.publishedVersion > 0 && (
+                      <button
+                        onClick={() => handlePullRemote(f)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
+                        title="用云端正式版刷新本地镜像"
+                      >
+                        <CloudDownload className="w-3 h-3" />
+                        刷新镜像
+                      </button>
+                    )}
+                    {!!f.publishedVersion && f.publishedVersion > 0 && (
+                      <button
+                        onClick={() => handleUnpublish(f)}
+                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-amber-500 hover:bg-amber-500/10 transition-colors"
+                        title="从正式库撤下（移入草稿表，不再对战斗引擎可见）"
+                      >
+                        <CloudOff className="w-3 h-3" />
+                        撤下
+                      </button>
+                    )}
                   </div>
                   {f.description && (
                     <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 line-clamp-2">
@@ -275,20 +297,22 @@ export default function FlowList() {
           <div className="dark:bg-card-dark light:bg-card-light rounded-xl p-6 max-w-sm w-full">
             <h3 className="font-bold dark:text-text-dark light:text-text-light mb-2">确认删除</h3>
             <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mb-4">
-              删除后无法恢复，是否继续？
+              将从云端正式库彻底删除该流程，删除后无法恢复。已绑定的法术会失去对应流程。
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => setDeleteId(null)}
+                disabled={deleting}
                 className="flex-1 py-2 rounded-lg border dark:border-border-dark light:border-border-light text-sm"
               >
                 取消
               </button>
               <button
                 onClick={handleDelete}
-                className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm"
+                disabled={deleting}
+                className="flex-1 py-2 rounded-lg bg-red-500 text-white text-sm disabled:opacity-60"
               >
-                删除
+                {deleting ? '删除中...' : '删除'}
               </button>
             </div>
           </div>

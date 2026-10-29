@@ -1,118 +1,121 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import type { Spell } from '@/types/spell';
 import { spellStore } from '@/data/spellStore';
 import { bindingStore } from '@/data/bindingStore';
 import { BindingService } from '@/services/bindingService';
+import { fetchBindingsByFlow } from '@/lib/api';
 import { resolveAutoChecksFromSpell } from '@/types/flow';
 
+type FlowLike = { id?: string; spellId?: string; nodes?: Array<{ type: string; config?: any }> };
+
 /**
- * 法术绑定 Hook - 管理流程与法术的绑定关系
- * @param flow - 当前流程定义
- * @param setFlow - 更新流程的函数
- * @param showToast - 显示提示消息的函数
+ * 法术绑定 Hook。
+ *
+ * 编辑态纯内存：handleSetSpell 只改 flow.spellId 与 cast_start 的 autoChecks，
+ * 不写本地、不调云端。真正的绑定关系在「保存/发布」成功后由 syncBinding 统一落地，
+ * 因为云端绑定需要流程记录已存在（新建流程发布前没有云端行）。
  */
 export function useSpellBinding(
-  flow: { id?: string; spellId?: string; nodes?: Array<{ type: string; config?: any }> },
+  flow: FlowLike,
   setFlow: (updater: (prev: any) => any) => void,
   showToast: (type: 'success' | 'error', message: string) => void
 ) {
-  // 法术绑定状态
-  const [boundSpell, setBoundSpell] = useState<Spell | null>(null);
-  const [showSpellPicker, setShowSpellPicker] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
-  
-  // 绑定法术到流程
-  const handleBindSpell = useCallback(async (spellId: string) => {
-    if (!flow.id) return;
+  const boundSpell = useMemo<Spell | null>(
+    () => (flow.spellId ? spellStore.getById(flow.spellId) ?? null : null),
+    [flow.spellId]
+  );
 
+  // 只改内存：绑定选择、解绑都走这一个入口
+  const handleSetSpell = useCallback((spellId: string | undefined) => {
+    if (!spellId) {
+      setFlow(prev => ({ ...prev, spellId: undefined }));
+      return;
+    }
+
+    const spell = spellStore.getById(spellId);
+    if (!spell) {
+      showToast('error', '法术不存在');
+      return;
+    }
+
+    const { autoChecks, summary } = resolveAutoChecksFromSpell(spell);
+
+    setFlow(prev => {
+      const nodes = (prev.nodes ?? []).map((n: any) => {
+        if (n.type !== 'cast_start' || !n.config) return n;
+        return {
+          ...n,
+          config: {
+            ...n.config,
+            autoChecks: {
+              ...n.config.autoChecks,
+              ...autoChecks,
+              componentsDetail: summary.components,
+              rangeDetail: summary.range,
+              timeDetail: summary.time,
+            },
+          },
+        };
+      });
+      return { ...prev, spellId, nodes };
+    });
+
+    showToast('success', `已绑定法术并自动配置：${spell.name}`);
+  }, [setFlow, showToast]);
+
+  /**
+   * 把内存中的 spellId 同步为云端绑定（发布成功后调用）。
+   * 云端只允许「流程存在」后绑定，因此必须等 publish 落库再调用。
+   * spellId 为空表示解绑：清掉该流程的所有绑定。
+   */
+  const syncBinding = useCallback(async (flowId: string, spellId: string | undefined) => {
+    if (!flowId) return;
+    setSyncing(true);
     try {
-      await BindingService.bindSpellToFlow(spellId, flow.id);
-      const spell = spellStore.getById(spellId);
-      if (spell) {
-        // 自动回填 autoChecks 配置
-        const { autoChecks, dsl, summary } = resolveAutoChecksFromSpell(spell);
-        
-        // 更新 flow 的 autoChecks 配置
-        setFlow(prev => {
-          const updatedFlow = { ...prev, spellId };
-          
-          // 查找 cast_start 节点并更新其 config
-          const castStartNode = updatedFlow.nodes?.find(n => n.type === 'cast_start');
-          if (castStartNode && castStartNode.config) {
-            castStartNode.config = {
-              ...castStartNode.config,
-              autoChecks: {
-                ...castStartNode.config.autoChecks,
-                ...autoChecks,
-                componentsDetail: summary.components,
-                rangeDetail: summary.range,
-                timeDetail: summary.time,
-              },
-            };
-          }
-          
-          return updatedFlow;
-        });
-        
-        setBoundSpell(spell);
-        setShowSpellPicker(false);
-        
-        // 显示提示
-        showToast('success', `已绑定法术并自动配置：${spell.name}`);
+      const existing = await fetchBindingsByFlow<any[]>(flowId);
+      const list = Array.isArray(existing) ? existing : [];
+
+      if (!spellId) {
+        for (const b of list) await BindingService.unbindSpellFromFlow(b.id);
+        return;
       }
-    } catch (error) {
-      console.error('法术绑定失败:', error);
-      showToast('error', '法术绑定失败');
-    }
-  }, [flow.id, setFlow, showToast]);
 
-  // 解绑法术
-  const handleUnbindSpell = useCallback(async () => {
-    if (!flow.id || !flow.spellId) return;
-
-    try {
-      // 获取绑定ID
-      const bindings = bindingStore.getBySpellId(flow.spellId);
-      if (bindings.length > 0) {
-        await BindingService.unbindSpellFromFlow(bindings[0].id);
-        setBoundSpell(null);
-        setFlow(prev => ({ ...prev, spellId: undefined }));
+      if (list.some(b => b.spell_id === spellId)) {
+        // 已经有了目标绑定，清掉其余多余绑定即可
+        for (const b of list) {
+          if (b.spell_id !== spellId) await BindingService.unbindSpellFromFlow(b.id);
+        }
+        return;
       }
-    } catch (error) {
-      console.error('法术解绑失败:', error);
-      showToast('error', '法术解绑失败');
-    }
-  }, [flow.id, flow.spellId, setFlow, showToast]);
 
-  // 当流程ID变化时，同步绑定状态
-  useEffect(() => {
-    if (flow.spellId) {
-      const spell = spellStore.getById(flow.spellId);
-      setBoundSpell(spell || null);
-    } else {
-      setBoundSpell(null);
+      // 一个流程只保留一条绑定：先清掉指向其他法术的旧绑定
+      for (const b of list) {
+        await BindingService.unbindSpellFromFlow(b.id);
+      }
+      await BindingService.bindSpellToFlow(spellId, flowId);
+    } catch (error) {
+      console.error('同步法术绑定失败:', error);
+      showToast('error', '法术绑定同步失败');
+    } finally {
+      setSyncing(false);
     }
-  }, [flow.spellId]);
+  }, [showToast]);
 
   return {
-    // 文件
     BindingService,
     bindingStore,
-    
-    // 状态
+
     boundSpell,
-    setBoundSpell,
-    showSpellPicker,
-    
-    // 操作方法
-    handleBindSpell,
-    handleUnbindSpell,
-    setShowSpellPicker,
-    
-    // 计算属性
+    syncing,
+
+    handleSetSpell,
+    syncBinding,
+
     isSpellBound: !!boundSpell,
     boundSpellName: boundSpell?.name || '',
     boundSpellLevel: boundSpell?.level || 0,
     boundSpellSchool: boundSpell?.school || '',
   };
-    }
+}

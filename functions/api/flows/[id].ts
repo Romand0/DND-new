@@ -291,6 +291,7 @@ export async function onRequestDelete(context: any): Promise<Response> {
   if (!auth.isAdmin) return errorResponse(403, '需要站点管理员权限');
   
   const timestamp = now();
+  const purge = new URL(request.url).searchParams.get('purge') === '1';
   
   try {
     // 1. 先获取要撤下的流程数据
@@ -303,6 +304,14 @@ export async function onRequestDelete(context: any): Promise<Response> {
     }
     
     const flowData = JSON.parse((flowRow as any).data);
+    
+    // 彻底删除（purge=1）：不迁移草稿，并清掉草稿行与法术绑定
+    if (purge) {
+      await env.DB.prepare('DELETE FROM spell_flow_bindings WHERE flow_id = ?').bind(params.id).run();
+      await env.DB.prepare('DELETE FROM flow_drafts WHERE parent_id = ?').bind(params.id).run();
+      await env.DB.prepare('DELETE FROM flows WHERE id = ?').bind(params.id).run();
+      return jsonResponse({ success: true, message: '流程已彻底删除' });
+    }
     
     // 2. 将数据迁移到草稿表，重置 publishedVersion 为 0
     const draftData = {

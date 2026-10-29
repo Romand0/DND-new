@@ -2,7 +2,7 @@ import React from 'react';
 import { CheckCircle, AlertCircle, Sparkles, X } from 'lucide-react';
 import type { FlowDefinition } from '@/types/flow';
 import { validateFlowId } from '@/lib/idUtils';
-import SpellPickerField from '@/components/SpellPickerField';
+import flowStore from '@/data/flowStore';
 
 interface FlowPropertiesHeaderProps {
   flow: FlowDefinition;
@@ -111,12 +111,12 @@ export function FlowPropertiesHeader({
           >
             <Sparkles className="w-3.5 h-3.5" />
           </button>
-          {/* 重命名按钮：仅此触发校验 + 写入 */}
+          {/* 重命名按钮：仅此触发校验 + 写入内存（发布时按新 ID 落云端） */}
           <button
             type="button"
             disabled={!idDirty}
             onClick={() => {
-              const allIds = []; // TODO: 需要从 flowStore 获取
+              const allIds = flowStore.getAll().map(f => f.id);
               const errors = validateFlowId(draftId, allIds, flow.id);
               if (errors.length > 0) {
                 setIdErrors(errors);
@@ -127,17 +127,10 @@ export function FlowPropertiesHeader({
                 setIdErrors([]);
                 return;
               }
-              // 合法 → 写入
-              // TODO: 需要调用 flowStore.renameId
-              const result = null; // 临时占位
-              if (result) {
-                // setFlow(result);
-                setIdDirty(false);
-                setIdErrors([]);
-                // navigate(`/flow-editor/${draftId}`, { replace: true });
-              } else {
-                setIdErrors(['重命名失败：源流程未在库中找到或目标 ID 已被占用']);
-              }
+              // 合法 → 只改内存 ID；保存/发布时新 ID 落云端并删除旧 ID
+              setFlow(prev => ({ ...prev, id: draftId, updatedAt: Date.now() }));
+              setIdDirty(false);
+              setIdErrors([]);
             }}
             className={`shrink-0 px-2 py-1.5 rounded text-xs font-medium transition-colors ${
               idDirty
