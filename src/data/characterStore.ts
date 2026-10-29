@@ -226,6 +226,15 @@ function createSandboxCharacter(data: Partial<Character>): Character {
       wisdom: { score: 10, modifier: 0 },
       charisma: { score: 10, modifier: 0 },
     },
+    // 初始属性值基线：老数据缺省时快照当前 abilities，此后加减按钮只写 abilities，基线保持不变
+    baseAbilities: data.baseAbilities ?? data.abilities ?? {
+      strength: { score: 10, modifier: 0 },
+      dexterity: { score: 10, modifier: 0 },
+      constitution: { score: 10, modifier: 0 },
+      intelligence: { score: 10, modifier: 0 },
+      wisdom: { score: 10, modifier: 0 },
+      charisma: { score: 10, modifier: 0 },
+    },
     maxHp: data.maxHp ?? 20,
     currentHp: data.currentHp ?? 20,
     tempHp: data.tempHp ?? 0,
@@ -531,7 +540,15 @@ function createBlankCharacter(name?: string): Character {
       wisdom: { score: 10, modifier: 0 },
       charisma: { score: 10, modifier: 0 },
     },
-    
+    baseAbilities: {
+      strength: { score: 10, modifier: 0 },
+      dexterity: { score: 10, modifier: 0 },
+      constitution: { score: 10, modifier: 0 },
+      intelligence: { score: 10, modifier: 0 },
+      wisdom: { score: 10, modifier: 0 },
+      charisma: { score: 10, modifier: 0 },
+    },
+
     proficiencyBonus: 2,
     passivePerception: 10,
     armorClass: 10,
