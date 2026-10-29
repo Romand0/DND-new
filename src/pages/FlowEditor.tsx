@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 
 // 防抖函数
 function debounce(func: Function, wait: number) {
@@ -15,8 +15,6 @@ function debounce(func: Function, wait: number) {
 import { useFlowEditorToast } from '@/components/flow-editor/hooks/use-flow-editor-toast';
 import { useFlowValidation } from '@/components/flow-editor/hooks/use-flow-validation';
 import { useAutoFix } from '@/components/flow-editor/hooks/use-auto-fix';
-import { useDragEffects } from '@/components/flow-editor/hooks/use-drag-effects';
-import { useNodeSizeMeasurement } from '@/components/flow-editor/hooks/use-node-size-measurement';
 import { useFlowStatistics } from '@/components/flow-editor/hooks/use-flow-statistics';
 import { FlowPropertiesHeader } from '@/components/flow-editor/presentation/properties/FlowPropertiesHeader';
 import FlowPropertiesCategories from '@/components/flow-editor/presentation/properties/FlowPropertiesCategories';
@@ -25,28 +23,14 @@ import FlowPropertiesNodeEditor from '@/components/flow-editor/presentation/prop
 import FlowPropertiesStatistics from '@/components/flow-editor/presentation/properties/FlowPropertiesStatistics';
 import EdgePropertiesPanel from '@/components/flow-editor/presentation/properties/EdgePropertiesPanel';
 import { FlowNodePalette } from '@/components/flow-editor/presentation/nodes/FlowNodePalette';
-import { FlowCanvasArea } from '@/components/flow-editor/presentation/canvas/FlowCanvasArea';
+import FlowTopologyEditorCanvas from '@/components/flow-editor/presentation/canvas/FlowTopologyEditorCanvas';
 import { FlowEditorToolbar } from '@/components/flow-editor/FlowEditorToolbar';
 import { FlowEditorFunctionBar } from '@/components/flow-editor/FlowEditorFunctionBar';
 import SpellPicker from '@/components/SpellPicker';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  DndContext,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  useDraggable,
-  DragOverlay,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
-import {
-  ArrowLeft, X, Plus, Trash2, Save, AlertCircle, CheckCircle,
-  Loader2, MousePointer, GitBranch, Zap, Target, Shield, Heart, Skull,
-  ChevronRight, RotateCcw,
-  PanelLeft, PanelRight, Sparkles, CloudUpload,
-  Search, Filter,
+  AlertCircle, CheckCircle,
+  Loader2, GitBranch, Zap,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
@@ -59,26 +43,14 @@ import type {
   NodeTypeMeta,
   ConfigFieldSchema,
 } from '@/types/flow';
-import { NODE_TYPE_REGISTRY, groupNodeTypesByCategory, validateFlow, ensureNodePositions } from '@/types/flow';
-import { tidyFlowLayout, hasDegeneratePositions } from '@/utils/flow-editor/topology-layout';
-import { NODE_CONFIG_SCHEMA, isConfigFieldVisible, FlowNodeType } from '@/types/flow';
+import { groupNodeTypesByCategory } from '@/types/flow';
+import { tidyFlowLayout, layoutTopology } from '@/utils/flow-editor/topology-layout';
+import { NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
+import { insertNodeAfter, appendIsolatedNode, moveNodeWithinRank, canInsertAfter } from '@/utils/flow-editor/topology-edit';
 // FLOW_CATEGORIES, parseFlowId, buildFlowId 已移至 FlowPropertiesCategories 组件
-import { NODE_W, NODE_H, CARD_NODE_W, CARD_NODE_H, SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
-import { validateFlowWithDetails, validateForPublish, type ValidationError, getAutoFixSuggestions } from '@/utils/flow-editor/validation';
-import { resolveNodeIcon } from '@/utils/flow-editor/node-icon';
-import { nodesOverlap, findNonOverlappingPositionV2, setActiveSpatialGrid } from '@/utils/flow-editor/collision';
-import { getSmartEdgePath, getSmartArrowPos, getSmartLabelPos, getSmartEdgeDecoratedEndpoints, sampleSmartEdgeToPolyline } from '@/utils/flow-editor/edge-connection';
-import DraggableFlowNode from '@/components/flow-editor/presentation/nodes/DraggableFlowNode';
-import PaletteDragItem from '@/components/flow-editor/presentation/nodes/PaletteDragItem';
-import NodeCardGhost from '@/components/flow-editor/presentation/nodes/NodeCardGhost';
-import ExtraConfigField from '@/components/flow-editor/presentation/properties/ExtraConfigField';
+import { SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
 import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
-
-import ConfigFieldRenderer from '@/components/ConfigFieldRenderer';
-import SpellIdPicker from '@/components/SpellIdPicker';
-import NodeListPanel from '@/components/NodeListPanel';
-import { generateFlowId, validateFlowId } from '@/lib/idUtils';
-import { SpatialGrid } from '@/utils/spatialGrid';
+import { generateFlowId } from '@/lib/idUtils';
 
 
 
@@ -117,12 +89,13 @@ export default function FlowEditor() {
   const flow = flowState.flow;
   const flowLoaded = flowState.loaded;
   // 编辑器操作更新（保持 loaded 不变）
+  // 每次结构变更后按拓扑重算坐标：编辑态坐标恒为派生值，落盘也保持整洁
   const setFlow = useCallback((updater: FlowDefinition | ((prev: FlowDefinition) => FlowDefinition)) => {
     setFlowState(prev => {
       const next = typeof updater === 'function'
         ? (updater as (p: FlowDefinition) => FlowDefinition)(prev.flow)
         : updater;
-      return { flow: next, loaded: prev.loaded };
+      return { flow: tidyFlowLayout(next), loaded: prev.loaded };
     });
   }, []);
   // 数据加载完成（置 loaded，结束占位）
@@ -137,13 +110,11 @@ export default function FlowEditor() {
     
     const loaded = flowStore.getById(flowId);
     if (loaded) {
-      // 坐标缺失或重复堆叠时按拓扑重排（与查看模式同款分层布局），保证可编辑
-      const flowWithPositions = hasDegeneratePositions(loaded)
-        ? tidyFlowLayout(loaded)
-        : ensureNodePositions(loaded);
-      setLoadedFlow(flowWithPositions);
-      flowRef.current = flowWithPositions;
-      flowNameInput.setExternal(flowWithPositions.name);
+      // 编辑态坐标全部由拓扑派生，落盘坐标仅作兼容：加载时统一归一化
+      const normalized = tidyFlowLayout(loaded);
+      setLoadedFlow(normalized);
+      flowRef.current = normalized;
+      flowNameInput.setExternal(normalized.name);
     } else {
       // 流程在本地不存在，尝试从远程拉取
       (async () => {
@@ -151,13 +122,10 @@ export default function FlowEditor() {
           await flowStore.fetchRemote();
           const remote = flowStore.getById(flowId);
           if (remote) {
-            // 坐标缺失或重复堆叠时按拓扑重排（与查看模式同款分层布局）
-            const flowWithPositions = hasDegeneratePositions(remote)
-              ? tidyFlowLayout(remote)
-              : ensureNodePositions(remote);
-            setLoadedFlow(flowWithPositions);
-            flowRef.current = flowWithPositions;
-            flowNameInput.setExternal(flowWithPositions.name);
+            const normalized = tidyFlowLayout(remote);
+            setLoadedFlow(normalized);
+            flowRef.current = normalized;
+            flowNameInput.setExternal(normalized.name);
           } else {
             // 确实不存在，回退列表页
             navigate('/flows', { replace: true });
@@ -173,6 +141,8 @@ export default function FlowEditor() {
   useEffect(() => { flowRef.current = flow; });
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  // 从左侧环节库添加节点时的插入锚点（卡片「后插」按钮设置）
+  const [insertAnchorId, setInsertAnchorId] = useState<string | null>(null);
   
   // ===== 确保 flowStore 引用最新 =====
   const flowStoreRef = useRef(flowStore);
@@ -213,13 +183,6 @@ export default function FlowEditor() {
   const [exitModalOpen, setExitModalOpen] = useState(false);
   const skipNameSync = useRef(true);
   
-  // ===== 节点尺寸测量 =====
-  const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const { nodeSizes } = useNodeSizeMeasurement({
-    nodes: flow.nodes,
-    canvasScale,
-  });
-
   // ===== 发布提示 toast =====
   const { toast, showToast } = useFlowEditorToast();
 
@@ -302,21 +265,6 @@ export default function FlowEditor() {
     setCanvasScale(prev => Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round((prev + delta) * 100) / 100)));
   }, []);
 
-  // ===== dnd-kit 传感器：Pointer（鼠标）+ Touch（触屏） =====
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 3, // 5→3，更早激活
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 150,    // 250→150，触屏响应提速 100ms
-        tolerance: 8,  // 5→8，允许更大手指抖动不取消
-      },
-    }),
-  );
-
   // ===== 同步 flowName（跳过首次挂载，避免覆盖从 flowStore 恢复的名称） =====
   useEffect(() => {
     if (skipNameSync.current) {
@@ -363,9 +311,10 @@ export default function FlowEditor() {
     const loadFlow = () => {
       const loaded = flowStore.getById(flowId);
       if (loaded && loaded.id !== flowRef.current?.id) {
-        console.log('FlowEditor: 重新加载流程数据', flowId);
-        setLoadedFlow(loaded);
-        flowNameInput.setExternal(loaded.name);
+        // 编辑态读取的坐标一律来自拓扑派生，先归一化再进编辑器
+        const normalized = tidyFlowLayout(loaded);
+        setLoadedFlow(normalized);
+        flowNameInput.setExternal(normalized.name);
         setSelectedNodeId(null);
         setSelectedEdgeId(null);
       }
@@ -384,10 +333,10 @@ export default function FlowEditor() {
       if (loaded && loaded.id === current.id 
           && loaded.updatedAt !== current.updatedAt) {
         requestAnimationFrame(() => {
-          console.log('FlowEditor: 重新加载流程数据', flowId);
-          setLoadedFlow(loaded);
-          flowRef.current = loaded;
-          flowNameInput.setExternal(loaded.name);
+          const normalized = tidyFlowLayout(loaded);
+          setLoadedFlow(normalized);
+          flowRef.current = normalized;
+          flowNameInput.setExternal(normalized.name);
           setSelectedNodeId(null);
           setSelectedEdgeId(null);
         });
@@ -481,7 +430,8 @@ flowStore.saveViewportSnapshot(flowId, {
     const snapshot = flowId ? flowStore.getViewportSnapshot(flowId) : null;
     if (snapshot && canvas) {
       if (typeof snapshot.scale === 'number' && snapshot.scale > 0) setCanvasScale(snapshot.scale);
-      setCanvasTranslate({ x: snapshot.translateX, y: snapshot.translateY });
+      // 编辑态画布不做自由平移，恢复视图时只还原缩放与滚动位置
+      setCanvasTranslate({ x: 0, y: 0 });
       setShowLeftPanel(snapshot.showLeftPanel);
       setShowRightPanel(snapshot.showRightPanel);
       canvas.scrollLeft = snapshot.scrollX;
@@ -549,43 +499,74 @@ flowStore.saveViewportSnapshot(flowId, {
     return defaults;
   }, []);
 
-  const addNode = useCallback((typeMeta: NodeTypeMeta, position: { x: number; y: number }) => {
+  /** 构造新节点：Schema 默认值优先，defaultConfig 兜底 */
+  const buildNewNode = useCallback((typeMeta: NodeTypeMeta): FlowNodeDef => {
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    // 从 Schema 合并默认值（Schema 优先，兜底 defaultConfig）
     const schemaDefaults = collectSchemaDefaults(
       NODE_CONFIG_SCHEMA[typeMeta.type] ?? [],
       { ...(typeMeta.defaultConfig ?? {}) },
     );
-    const newNode: FlowNodeDef = {
-      id, type: typeMeta.type, label: typeMeta.label,
-      position: { x: position.x, y: position.y },
+    return {
+      id,
+      type: typeMeta.type,
+      label: typeMeta.label,
       config: { ...typeMeta.defaultConfig, ...schemaDefaults },
     };
-    // 新节点防重叠放置（智能退避 + 空间索引）
-    const finalPos = findNonOverlappingPositionV2(newNode, flow.nodes, NODE_W, NODE_H, dragEffects.spatialGridRef.current, canvasScale);
-    newNode.position = finalPos;
-    setFlow(prev => ({ ...prev, nodes: [...prev.nodes, newNode], updatedAt: Date.now() }));
-    setSelectedNodeId(id);
+  }, [collectSchemaDefaults]);
+
+  // ===== 添加节点：有插入锚点时插到锚点之后，否则追加为孤立节点 =====
+  const addNode = useCallback((typeMeta: NodeTypeMeta) => {
+    const newNode = buildNewNode(typeMeta);
+    // 显式「后插」优先，否则以当前选中节点作为锚点
+    const candidate = insertAnchorId ?? selectedNodeId;
+    const anchorId = candidate && flow.nodes.some(n => n.id === candidate) ? candidate : null;
+
+    if (anchorId && !canInsertAfter(flow, anchorId)) {
+      // 分支节点的出边多于一条，无法判断插入位置：改为孤立节点并提示手动连接
+      setFlow(prev => appendIsolatedNode(prev, newNode));
+      showToast('info', '该节点有多个分支，已追加为独立环节，请手动连接');
+    } else {
+      setFlow(prev => (
+        anchorId ? insertNodeAfter(prev, anchorId, newNode) : appendIsolatedNode(prev, newNode)
+      ));
+    }
+    setInsertAnchorId(null);
+    setSelectedNodeId(newNode.id);
     setSelectedEdgeId(null);
-  }, [flow.nodes, canvasScale]);
+  }, [buildNewNode, insertAnchorId, selectedNodeId, flow, setFlow, showToast]);
+
+  // ===== 卡片「后插」：选中该节点并等待从左侧环节库挑选类型 =====
+  const beginInsertAfter = useCallback((nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    setSelectedEdgeId(null);
+    setInsertAnchorId(nodeId);
+    setShowLeftPanel(true);
+  }, []);
+
+  // ===== 层内左右移动 =====
+  const moveWithinRank = useCallback((nodeId: string, direction: -1 | 1) => {
+    setFlow(prev => moveNodeWithinRank(prev, nodeId, direction));
+  }, []);
+
 
   // ===== 删除节点 =====
   const deleteNode = useCallback((nodeId: string) => {
     setFlow(prev => {
-      const updatedFlow = {
+      const updatedFlow = tidyFlowLayout({
         ...prev,
         nodes: prev.nodes.filter(n => n.id !== nodeId),
         edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
         updatedAt: Date.now(),
-      };
-      
-      // 同步到 flowStore（单一真相源）
+      });
+
+      // 同步到 flowStore（单一真相源），落盘坐标与编辑态一致
       flowStoreRef.current.save(updatedFlow);
-      
+
       return updatedFlow;
     });
     if (selectedNodeId === nodeId) setSelectedNodeId(null);
-  }, [selectedNodeId]);
+    if (insertAnchorId === nodeId) setInsertAnchorId(null);
+  }, [selectedNodeId, insertAnchorId]);
 
   // ===== 更新节点配置 =====
   const updateNodeConfig = useCallback(debounce((nodeId: string, key: string, value: any) => {
@@ -604,26 +585,6 @@ flowStore.saveViewportSnapshot(flowId, {
       updatedAt: Date.now(),
     }));
   }, 300), [collectSchemaDefaults]);
-
-  // ===== 更新节点位置（拖拽后应用 delta + 碰撞检测） =====
-  const updateNodePositionByDelta = useCallback((nodeId: string, delta: { x: number; y: number }) => {
-    setFlow(prev => {
-      const target = prev.nodes.find(n => n.id === nodeId);
-      if (!target) return prev;
-      const proposed = {
-        x: Math.max(0, target.position.x + delta.x / canvasScale),
-        y: Math.max(0, target.position.y + delta.y / canvasScale),
-      };
-      const testNode = { ...target, position: proposed };
-      const others = prev.nodes.filter(n => n.id !== nodeId);
-      const finalPos = findNonOverlappingPositionV2(testNode, others, NODE_W, NODE_H, dragEffects.spatialGridRef.current, canvasScale);
-      return {
-        ...prev,
-        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, position: finalPos } : n),
-        updatedAt: Date.now(),
-      };
-    });
-  }, []);
 
   // ===== 添加边 =====
   const addEdge = useCallback((fromId: string, toId: string, trigger: string) => {
@@ -678,6 +639,9 @@ flowStore.saveViewportSnapshot(flowId, {
   const handleCanvasClick = useCallback(() => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setInsertAnchorId(null);
+    setIsConnecting(false);
+    setConnectFromId(null);
   }, []);
 
   // ===== 画布事件：节点点击（选择或连接） =====
@@ -685,13 +649,15 @@ flowStore.saveViewportSnapshot(flowId, {
     if (isConnecting) {
       if (connectFromId && connectFromId !== nodeId) {
         addEdge(connectFromId, nodeId, connectTrigger);
-        setIsConnecting(false);
-        setConnectFromId(null);
       }
+      // 再次点击源节点等同于取消连接
+      setIsConnecting(false);
+      setConnectFromId(null);
       return;
     }
     setSelectedNodeId(nodeId);
     setSelectedEdgeId(null);
+    setInsertAnchorId(null);
   }, [isConnecting, connectFromId, connectTrigger, addEdge]);
 
   // ===== 开始连接模式 =====
@@ -699,6 +665,7 @@ flowStore.saveViewportSnapshot(flowId, {
     setIsConnecting(true);
     setConnectFromId(nodeId);
     setSelectedNodeId(nodeId);
+    setInsertAnchorId(null);
   }, []);
 
   // ===== 取消连接模式 =====
@@ -712,15 +679,6 @@ flowStore.saveViewportSnapshot(flowId, {
 
   // ===== 自动修复逻辑（已迁移至 useAutoFix Hook） =====
   const autoFix = useAutoFix(flow);
-
-  // ===== 拖拽效果（已迁移至 useDragEffects Hook） =====
-  const dragEffects = useDragEffects({
-    flow,
-    canvasScale,
-    canvasTranslate,
-    addNode,
-    updateNodePositionByDelta,
-  });
 
   // ===== 缓存同步 =====
   const syncWithCache = useCallback(async () => {
@@ -755,7 +713,11 @@ flowStore.saveViewportSnapshot(flowId, {
     setSaveStatus('saving');
     // 用 requestAnimationFrame 制造一帧延迟，让 "saving" 态先渲染
     requestAnimationFrame(() => {
-      const updatedFlow = { ...flow, name: flowNameInput.value || flow.name, updatedAt: Date.now() };
+      const updatedFlow = tidyFlowLayout({
+        ...flow,
+        name: flowNameInput.value || flow.name,
+        updatedAt: Date.now(),
+      });
 
       flowStore.save(updatedFlow);
       setFlow(updatedFlow);
@@ -842,10 +804,11 @@ flowStore.saveViewportSnapshot(flowId, {
     selectedEdge?.dataMap ? JSON.stringify(selectedEdge.dataMap, null, 2) : ''
   );
 
-  // ===== 计算 SVG 连线路径 =====
-  function getEdgePath(edge: FlowEdgeDef): string | null {
-    return getSmartEdgePath(edge, flow.nodes, nodeSizes);
-  }
+  // ===== 画布内容尺寸：与拓扑派生布局保持一致，避免固定空白滚动区 =====
+  const canvasSize = useMemo(() => {
+    const layout = layoutTopology(flow);
+    return { width: layout.width, height: layout.height };
+  }, [flow]);
 
   // ===== 节点分类面板 =====
   const nodeGroups = groupNodeTypesByCategory();
@@ -901,15 +864,6 @@ flowStore.saveViewportSnapshot(flowId, {
             box-shadow: none;
           }
         }
-        
-        .flow-node-card {
-          will-change: transform;        /* 提示浏览器提前提升为合成层 */
-          contain: layout style paint;   /* 限制重排范围 */
-        }
-        
-        .flow-node-card.animate-move {
-          transition: transform 300ms cubic-bezier(0.2, 0, 0, 1);  /* ease-out 曲线，结束不突兀 */
-        }
       `}</style>
       <FlowEditorToolbar
         flowName={flow.name}
@@ -951,18 +905,22 @@ flowStore.saveViewportSnapshot(flowId, {
       )}
 
       {/* ===== 内容区域（左面板 + 画布 + 右面板） ===== */}
-      <DndContext
-        sensors={sensors}
-        onDragStart={dragEffects.handleDragStart}
-        onDragMove={dragEffects.handleDragMove}
-        onDragEnd={dragEffects.handleDragEnd}
-      >
-        <div className="flex-1 flex overflow-hidden relative">
-          <FlowNodePalette
+      <div className="flex-1 flex overflow-hidden relative">
+        <FlowNodePalette
           showLeftPanel={showLeftPanel}
           onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
           nodeGroups={nodeGroups}
-          isDark={false}
+          isDark={isDark}
+          onAdd={addNode}
+          insertHint={(() => {
+            const anchor = insertAnchorId
+              ? flow.nodes.find(n => n.id === insertAnchorId)
+              : (selectedNodeId ? flow.nodes.find(n => n.id === selectedNodeId) : undefined);
+            if (!anchor) return '点击条目将追加为新环节';
+            return canInsertAfter(flow, anchor.id)
+              ? `将插入到「${anchor.label}」之后`
+              : `「${anchor.label}」分支过多，将追加为独立环节`;
+          })()}
         />
 
         {/* 左侧遮罩（窄屏抽屉打开时） */}
@@ -984,37 +942,43 @@ flowStore.saveViewportSnapshot(flowId, {
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
           >
+            {/* 外层占据缩放后的尺寸，内层按 1:1 画布坐标绘制再整体缩放 */}
             <div
               className="relative origin-top-left"
               style={{
-                width: 3000 * canvasScale,
-                height: 2000 * canvasScale,
-                transform: `translate(${canvasTranslate.x}px, ${canvasTranslate.y}px) scale(${canvasScale})`,
+                width: canvasSize.width * canvasScale,
+                height: canvasSize.height * canvasScale,
               }}
             >
+              <div
+                className="absolute top-0 left-0 origin-top-left"
+                style={{
+                  width: canvasSize.width,
+                  height: canvasSize.height,
+                  transform: `translate(${canvasTranslate.x}px, ${canvasTranslate.y}px) scale(${canvasScale})`,
+                }}
+              >
             {/* 画布区域 */}
-            <FlowCanvasArea
+            <FlowTopologyEditorCanvas
               flow={flow}
               selectedNodeId={selectedNodeId}
               selectedEdgeId={selectedEdgeId}
               connectFromId={connectFromId}
-              dragEffects={dragEffects}
               canvasScale={canvasScale}
-              nodeSizes={nodeSizes}
               isDark={isDark}
-              onNodeClick={handleNodeClick}
-              onCanvasClick={handleCanvasClick}
-              onStartConnecting={startConnecting}
-              onDeleteNode={deleteNode}
-              onRefSet={(nodeId, ref) => {
-                if (ref) {
-                  nodeRefs.current.set(nodeId, ref);
-                } else {
-                  nodeRefs.current.delete(nodeId);
-                }
+              onNodeSelect={handleNodeClick}
+              onEdgeSelect={(edgeId) => {
+                setSelectedEdgeId(edgeId);
+                setSelectedNodeId(null);
+                setInsertAnchorId(null);
               }}
-              validation={validation}
+              onCanvasClick={handleCanvasClick}
+              onInsertAfter={beginInsertAfter}
+              onStartConnecting={startConnecting}
+              onMoveWithinRank={moveWithinRank}
+              onDeleteNode={deleteNode}
             />
+              </div>
           </div>
         </div>
        </div>
@@ -1200,51 +1164,25 @@ flowStore.saveViewportSnapshot(flowId, {
                   }
                 }}
                 onNodeFocus={(nodeId) => {
-                  // 跳转到节点：移动画布视图使该节点处于画布窗口正中央
+                  // 节点已带画布变换，直接用视口矩形换算滚动量，居中即可
                   const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
-                  if (nodeElement && canvasRef.current) {
-                    const canvasRect = canvasRef.current.getBoundingClientRect();
+                  const canvas = canvasRef.current;
+                  if (nodeElement && canvas) {
+                    const canvasRect = canvas.getBoundingClientRect();
                     const nodeRect = nodeElement.getBoundingClientRect();
-                    
-                    // 获取节点的实际位置（考虑画布变换）
-                    const canvasTransform = canvasRef.current.querySelector('.relative');
-                    if (canvasTransform) {
-                      const transformStyle = window.getComputedStyle(canvasTransform);
-                      const transform = transformStyle.transform;
-                      
-                      // 解析 transform 矩阵获取缩放和平移信息
-                      let scaleX = 1, scaleY = 1, translateX = 0, translateY = 0;
-                      if (transform && transform !== 'none') {
-                        const matrix = new DOMMatrix(transform);
-                        scaleX = matrix.a;
-                        scaleY = matrix.d;
-                        translateX = matrix.e;
-                        translateY = matrix.f;
-                      }
-                      
-                      // 计算节点在画布中的实际坐标（考虑缩放和平移）
-                      const nodeCanvasX = nodeRect.left - canvasRect.left - translateX;
-                      const nodeCanvasY = nodeRect.top - canvasRect.top - translateY;
-                      
-                      // 计算滚动位置，使节点居中（考虑缩放后的节点大小）
-                      const scaledNodeWidth = nodeRect.width * scaleX;
-                      const scaledNodeHeight = nodeRect.height * scaleY;
-                      
-                      const scrollLeft = nodeCanvasX - canvasRect.width / 2 + scaledNodeWidth / 2;
-                      const scrollTop = nodeCanvasY - canvasRect.height / 2 + scaledNodeHeight / 2;
-                      
-                      // 确保滚动位置在有效范围内
-                      const maxScrollLeft = canvasRef.current.scrollWidth - canvasRect.width;
-                      const maxScrollTop = canvasRef.current.scrollHeight - canvasRect.height;
-                      
-                      canvasRef.current.scrollTo({
-                        left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
-                        top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
-                        behavior: 'smooth'
-                      });
-                    }
+                    const scrollLeft = canvas.scrollLeft + (nodeRect.left - canvasRect.left)
+                      - canvasRect.width / 2 + nodeRect.width / 2;
+                    const scrollTop = canvas.scrollTop + (nodeRect.top - canvasRect.top)
+                      - canvasRect.height / 2 + nodeRect.height / 2;
+                    const maxScrollLeft = canvas.scrollWidth - canvasRect.width;
+                    const maxScrollTop = canvas.scrollHeight - canvasRect.height;
+                    canvas.scrollTo({
+                      left: Math.max(0, Math.min(scrollLeft, maxScrollLeft)),
+                      top: Math.max(0, Math.min(scrollTop, maxScrollTop)),
+                      behavior: 'smooth',
+                    });
                   }
-                  
+
                   // 窄屏下收起右侧栏
                   if (window.innerWidth < 1024) {
                     setShowRightPanel(false);
@@ -1266,28 +1204,20 @@ flowStore.saveViewportSnapshot(flowId, {
           onClick={() => setShowRightPanel(false)}
         />
       )}
+      </div>
+
+
+
+      {/* ===== 提示 toast ===== */}
+      {toast && (
+        <div
+          className={`fixed top-20 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 rounded-lg text-xs font-medium text-white shadow-lg whitespace-nowrap ${
+            toast.type === 'success' ? 'bg-green-600/90' : toast.type === 'error' ? 'bg-red-600/90' : 'bg-primary/90'
+          }`}
+        >
+          {toast.msg}
         </div>
-        <DragOverlay dropAnimation={null}>
-          {dragEffects.crossLayerDrag.meta && dragEffects.crossLayerDrag.fingerPos && (
-            <div
-              className="pointer-events-none fixed z-50"
-              style={{
-                left: dragEffects.crossLayerDrag.fingerPos.x - CARD_NODE_W / 2,
-                top: dragEffects.crossLayerDrag.fingerPos.y - CARD_NODE_H / 2,
-                width: CARD_NODE_W,
-                height: CARD_NODE_H,
-                transform: 'scale(1.05)',
-                opacity: dragEffects.crossLayerDrag.phase === 'crossing' ? 0.7 : 0.9,
-                transition: 'opacity 150ms ease',
-              }}
-            >
-              <NodeCardGhost meta={dragEffects.crossLayerDrag.meta} />
-            </div>
-          )}
-        </DragOverlay>
-      </DndContext>
-
-
+      )}
 
       {/* ===== 退出确认弹窗 ===== */}
       {exitModalOpen && (
@@ -1327,23 +1257,3 @@ flowStore.saveViewportSnapshot(flowId, {
     </div>
   );
 }
-
-/** 将一条直线段按 spacing 间距采样为多段折线的 path d 属性，供 marker-mid 使用 */
-function sampleEdgeToPolyline(
-  from: { x: number; y: number },
-  to: { x: number; y: number },
-  spacing: number = 16  // 1rem ≈ 16px
-): string {
-  // 临时创建 EdgeEndpoint 对象以匹配 sampleSmartEdgeToPolyline 的签名
-  const fromWithSide: any = { ...from, side: 'bottom' as any };
-  const toWithSide: any = { ...to, side: 'top' as any };
-  return sampleSmartEdgeToPolyline(fromWithSide, toWithSide, spacing);
-}
-
-
-
-
-
-
-
-
