@@ -28,12 +28,14 @@ import {
   ArrowUpDown,
   Download,
   Library,
+  Settings2,
 } from 'lucide-react';
-import type { Character, AbilityKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
+import type { Character, Abilities, AbilityScore, AbilityKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
+import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
@@ -134,6 +136,94 @@ function Section({
   );
 }
 
+const ABILITY_KEYS: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
+
+const formatModifier = (score: number | undefined): string => {
+  if (score == null) return '+0';
+  const mod = characterStore.calcModifier(score);
+  return mod >= 0 ? `+${mod}` : `${mod}`;
+};
+
+interface BaseAbilitiesDialogProps {
+  character: Character;
+  onClose: () => void;
+  onSave: (abilities: Abilities) => void;
+}
+
+// 仅在打开时条件挂载：useNumberInput 的初始值即预填值，无需 setExternal 同步
+function BaseAbilitiesDialog({ character, onClose, onSave }: BaseAbilitiesDialogProps) {
+  const strengthInput = useNumberInput(character.baseAbilities?.strength?.score ?? character.abilities.strength.score, { fallback: 10 });
+  const dexterityInput = useNumberInput(character.baseAbilities?.dexterity?.score ?? character.abilities.dexterity.score, { fallback: 10 });
+  const constitutionInput = useNumberInput(character.baseAbilities?.constitution?.score ?? character.abilities.constitution.score, { fallback: 10 });
+  const intelligenceInput = useNumberInput(character.baseAbilities?.intelligence?.score ?? character.abilities.intelligence.score, { fallback: 10 });
+  const wisdomInput = useNumberInput(character.baseAbilities?.wisdom?.score ?? character.abilities.wisdom.score, { fallback: 10 });
+  const charismaInput = useNumberInput(character.baseAbilities?.charisma?.score ?? character.abilities.charisma.score, { fallback: 10 });
+
+  const inputs: Record<AbilityKey, UseNumberInputResult> = {
+    strength: strengthInput,
+    dexterity: dexterityInput,
+    constitution: constitutionInput,
+    intelligence: intelligenceInput,
+    wisdom: wisdomInput,
+    charisma: charismaInput,
+  };
+
+  const handleSave = () => {
+    const next = {} as Abilities;
+    for (const key of ABILITY_KEYS) {
+      const score = inputs[key].value;
+      if (score == null || score < 1 || score > 30) {
+        alert('请输入 1-30 之间的有效属性值');
+        return;
+      }
+      next[key] = { score, modifier: characterStore.calcModifier(score) };
+    }
+    onSave(next);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl">
+        <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">初始属性值</h3>
+        <p className="text-sm mb-4 dark:text-text-dark-muted light:text-text-light-muted">
+          {character.baseAbilities
+            ? '已设置基线，可随时修改；加减按钮调整的当前属性值不受影响'
+            : '基线未设置，已预填当前属性值，保存后成为静态基线'}
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {ABILITY_KEYS.map((key) => (
+            <div key={key}>
+              <label className="block text-xs mb-1 dark:text-text-dark-muted light:text-text-light-muted">
+                {abilityLabels[key]}（{formatModifier(inputs[key].value)}）
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={inputs[key].text}
+                onChange={(e) => inputs[key].onChange(e.target.value)}
+                onBlur={inputs[key].onBlur}
+                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-end gap-3 mt-5">
+          <button onClick={onClose}
+            className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10">
+            取消
+          </button>
+          <button onClick={handleSave}
+            className="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg">
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CharacterDetail({
   readOnly = false,
   externalCharacter = null,
@@ -183,6 +273,7 @@ export default function CharacterDetail({
   const [equipmentEditorOpen, setEquipmentEditorOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [baseAbilitiesOpen, setBaseAbilitiesOpen] = useState(false);
   const [statsEditorOpen, setStatsEditorOpen] = useState(false);
   const [statsForm, setStatsForm] = useState({
     currentHp: 0,
@@ -338,6 +429,13 @@ export default function CharacterDetail({
       },
     });
     reloadChar();
+  };
+
+  const handleSaveBaseAbilities = (baseAbilities: Abilities) => {
+    if (!id) return;
+    characterStore.update(id, { baseAbilities });
+    reloadChar();
+    setBaseAbilitiesOpen(false);
   };
 
   const handleAddAttack = () => {
@@ -720,9 +818,6 @@ if (character) {
       wisdom: { score: 10, modifier: 0 },
       charisma: { score: 10, modifier: 0 },
     };
-  }
-  if (!character.baseAbilities) {
-    character.baseAbilities = { ...character.abilities };
   }
   if (!character.skills) {
     character.skills = {
@@ -1120,6 +1215,15 @@ if (character) {
       </div>
 
       <Section title="属性值" icon={Zap}>
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            初始属性值：{character.baseAbilities ? '已设置' : '未设置'}
+          </span>
+          <button onClick={() => setBaseAbilitiesOpen(true)} title="查看或编辑初始属性值基线"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
+            <Settings2 className="w-4 h-4" /> 查看 / 编辑
+          </button>
+        </div>
         <ErrorBoundary fallback={
     <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
       属性值区块渲染异常，请尝试重新同步角色数据
@@ -1165,10 +1269,6 @@ if (character) {
                 {character.abilities[ability].modifier >= 0
                   ? `+${character.abilities[ability].modifier}`
                   : character.abilities[ability].modifier}
-              </div>
-              {/* 静态基线：只随 baseAbilities 展示，加减按钮永远改 abilities，此行保持不变 */}
-              <div className="mt-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                初始 {character.baseAbilities?.[ability]?.score ?? character.abilities[ability].score}
               </div>
             </div>
           ))}
@@ -2504,6 +2604,15 @@ if (character) {
             setAttackEditorOpen(false);
             setEditingAttack(null);
           }}
+        />
+      )}
+
+      {/* 初始属性值弹窗（查看 / 编辑基线） */}
+      {baseAbilitiesOpen && character && (
+        <BaseAbilitiesDialog
+          character={character}
+          onClose={() => setBaseAbilitiesOpen(false)}
+          onSave={handleSaveBaseAbilities}
         />
       )}
 
