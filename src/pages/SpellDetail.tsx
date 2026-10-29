@@ -232,27 +232,27 @@ export default function SpellDetail() {
 
   return (
     <div className="space-y-6">
-      {/* 顶部导航 + DM 操作 */}
+      {/* 顶部导航 + DM 操作（移动端仅图标省空间，title 兜底语义） */}
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate('/spells')}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light">
-          <ArrowLeft className="w-4 h-4" /> 返回列表
+        <button onClick={() => navigate('/spells')} title="返回列表"
+          className="inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light">
+          <ArrowLeft className="w-4 h-4" /> <span className="hidden sm:inline">返回列表</span>
         </button>
         <div className="flex gap-2">
           <button onClick={() => setCopyOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light"
+            className="inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light"
             title="复制法术全部信息到粘贴框">
-            <Copy className="w-4 h-4" /> 复制法术
+            <Copy className="w-4 h-4" /> <span className="hidden sm:inline">复制法术</span>
           </button>
           {isAdmin && (
             <>
-              <button onClick={() => setEditorOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
-                <Edit2 className="w-4 h-4" /> 编辑
+              <button onClick={() => setEditorOpen(true)} title="编辑"
+                className="inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
+                <Edit2 className="w-4 h-4" /> <span className="hidden sm:inline">编辑</span>
               </button>
-              <button onClick={() => setDeleteConfirm(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20">
-                <Trash2 className="w-4 h-4" /> 删除
+              <button onClick={() => setDeleteConfirm(true)} title="删除"
+                className="inline-flex items-center gap-2 px-2.5 sm:px-4 py-2 rounded-lg bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20">
+                <Trash2 className="w-4 h-4" /> <span className="hidden sm:inline">删除</span>
               </button>
             </>
           )}
