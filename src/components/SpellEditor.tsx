@@ -50,6 +50,7 @@ const [formData, setFormData] = useState<Spell>({
     hasHeightened: false,
     heightenedEffect: '',
     materialInfo: '',
+    source: '玩家手册 2014',
   });
 
   const [classInput, setClassInput] = useState('');
@@ -59,7 +60,8 @@ const [formData, setFormData] = useState<Spell>({
 
   useEffect(() => {
     if (spell) {
-      setFormData({ ...spell });
+      // 老数据缺 source 时补默认值；已保存为空串的保持为空（?? 只兜 undefined）
+      setFormData({ ...spell, source: spell.source ?? '玩家手册 2014' });
     } else {
       setFormData({
         id: '',
@@ -76,6 +78,7 @@ const [formData, setFormData] = useState<Spell>({
         hasHeightened: false,
         heightenedEffect: '',
         materialInfo: '',
+        source: '玩家手册 2014',
       });
     }
     setError('');
@@ -316,6 +319,19 @@ const [formData, setFormData] = useState<Spell>({
           )}
 
         
+          <div>
+            <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+              来源
+            </label>
+            <input
+              type="text"
+              value={formData.source || ''}
+              onChange={(e) => setFormData({ ...formData, source: e.target.value })}
+              placeholder="例如：玩家手册 2014"
+              className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary text-sm"
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
               描述
