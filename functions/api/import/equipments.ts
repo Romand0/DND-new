@@ -267,7 +267,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           damageType: type,
           description: '',
           properties,
-          source: '',
+          source: '玩家手册 2014',
           dataResource: '5E不全书',
           category,
         });
@@ -310,7 +310,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           description: descMap.get(name) || '', // ← 用翻译后的名查描述
           subtype: currentGroup || '',
           properties: armorProperties,
-          source: '',
+          source: '玩家手册 2014',
           dataResource: '5E不全书',
           category,
         });
@@ -331,7 +331,7 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
           damageType: '',
           description: descStr,
           properties: [],
-          source: '',
+          source: '玩家手册 2014',
           dataResource: '5E不全书',
           category,
         });

@@ -19,7 +19,8 @@
       "法师",
       "术士"
     ],
-    "notes": "戏法，升环无额外效果"
+    "notes": "戏法，升环无额外效果",
+    "source": "玩家手册 2014"
   },
   {
     "id": "sacred-flame",
@@ -38,7 +39,8 @@
     "classes": [
       "牧师"
     ],
-    "notes": "戏法"
+    "notes": "戏法",
+    "source": "玩家手册 2014"
   },
   {
     "id": "produce-flame",
@@ -57,7 +59,8 @@
     "classes": [
       "德鲁伊"
     ],
-    "notes": "戏法"
+    "notes": "戏法",
+    "source": "玩家手册 2014"
   },
   {
     "id": "vicious-mockery",
@@ -76,7 +79,8 @@
     "classes": [
       "吟游诗人"
     ],
-    "notes": "戏法，吟游诗人标志性法术"
+    "notes": "戏法，吟游诗人标志性法术",
+    "source": "玩家手册 2014"
   },
   {
     "id": "sleep",
@@ -101,7 +105,8 @@
     "notes": "",
     "hasHeightened": true,
     "materialInfo": "一把细沙、玫瑰花瓣或一只蟋蟀",
-    "heightenedEffect": "2 环或更高环位施展此法术时，每高 1 环多掷 2d8。"
+    "heightenedEffect": "2 环或更高环位施展此法术时，每高 1 环多掷 2d8。",
+    "source": "玩家手册 2014"
   },
   {
     "id": "charm-person",
@@ -125,7 +130,8 @@
     ],
     "notes": "",
     "hasHeightened": true,
-    "heightenedEffect": "2 环或更高法术位施展该法术时，你使用的法术位每比一环高一环，法术就能多影响一个目标。而各目标之间距离不能超过 30 尺。"
+    "heightenedEffect": "2 环或更高法术位施展该法术时，你使用的法术位每比一环高一环，法术就能多影响一个目标。而各目标之间距离不能超过 30 尺。",
+    "source": "玩家手册 2014"
   },
   {
     "id": "invisibility",
@@ -147,7 +153,8 @@
       "法师",
       "术士"
     ],
-    "notes": "材料成分：一个眼罩，由一小片薄纱制成"
+    "notes": "材料成分：一个眼罩，由一小片薄纱制成",
+    "source": "玩家手册 2014"
   },
   {
     "id": "knock",
@@ -169,7 +176,8 @@
       "法师",
       "术士"
     ],
-    "notes": "材料成分：一块小而碎的骨头"
+    "notes": "材料成分：一块小而碎的骨头",
+    "source": "玩家手册 2014"
   },
   {
     "id": "misty-step",
@@ -193,7 +201,8 @@
       "圣武士",
       "游侠"
     ],
-    "notes": "附赠动作施法，非常实用"
+    "notes": "附赠动作施法，非常实用",
+    "source": "玩家手册 2014"
   },
   {
     "id": "fireball",
@@ -214,7 +223,8 @@
       "法师",
       "术士"
     ],
-    "notes": "材料成分：一颗硫黄球和一团蝙蝠粪"
+    "notes": "材料成分：一颗硫黄球和一团蝙蝠粪",
+    "source": "玩家手册 2014"
   },
   {
     "id": "haste",
@@ -236,7 +246,8 @@
       "法师",
       "术士"
     ],
-    "notes": "材料成分：一根甘草根"
+    "notes": "材料成分：一根甘草根",
+    "source": "玩家手册 2014"
   },
   {
     "id": "counterspell",
@@ -259,7 +270,8 @@
       "圣武士",
       "游侠"
     ],
-    "notes": "反应动作施放"
+    "notes": "反应动作施放",
+    "source": "玩家手册 2014"
   },
   {
     "id": "greater-invisibility",
@@ -281,7 +293,8 @@
       "法师",
       "术士"
     ],
-    "notes": "攻击和施法不会解除隐形"
+    "notes": "攻击和施法不会解除隐形",
+    "source": "玩家手册 2014"
   },
   {
     "id": "healing-word",
@@ -304,7 +317,8 @@
     ],
     "notes": "",
     "hasHeightened": true,
-    "heightenedEffect": "2 环或更高法术位施展该法术时，你使用的法术位每比一环高一环，治疗量就增加 1d4 点。"
+    "heightenedEffect": "2 环或更高法术位施展该法术时，你使用的法术位每比一环高一环，治疗量就增加 1d4 点。",
+    "source": "玩家手册 2014"
   },
   {
     "id": "dissonant-whispers",
@@ -325,7 +339,8 @@
     ],
     "notes": "",
     "hasHeightened": true,
-    "heightenedEffect": "2 环或更高法术位施展该法术时，你使用的法术位每比一环高一环，法术的伤害就增加 1d6。"
+    "heightenedEffect": "2 环或更高法术位施展该法术时，你使用的法术位每比一环高一环，法术的伤害就增加 1d6。",
+    "source": "玩家手册 2014"
   },
   {
     "id": "mage-hand",
@@ -346,7 +361,8 @@
       "术士",
       "法师"
     ],
-    "notes": ""
+    "notes": "",
+    "source": "玩家手册 2014"
   },
   {
     "id": "tashas-hideous-laughter",
@@ -369,6 +385,7 @@
     "notes": "",
     "hasHeightened": false,
     "heightenedEffect": "",
-    "materialInfo": "一些小甜饼以及一片空中飘荡的羽毛"
+    "materialInfo": "一些小甜饼以及一片空中飘荡的羽毛",
+    "source": "玩家手册 2014"
   }
 ]
