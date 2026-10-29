@@ -1,6 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
-import PaletteDragItem from './PaletteDragItem';
+import PaletteAddItem from './PaletteAddItem';
 import { NodeTypeMeta } from '@/types/flow';
 
 interface FlowNodePaletteProps {
@@ -8,6 +8,10 @@ interface FlowNodePaletteProps {
   onToggleLeftPanel: () => void;
   nodeGroups: Record<string, NodeTypeMeta[]>;
   isDark: boolean;
+  /** 点击条目添加节点：拓扑编辑以结构操作为主，不使用拖拽 */
+  onAdd: (meta: NodeTypeMeta) => void;
+  /** 当前插入目标提示（选中节点或末尾） */
+  insertHint?: string;
 }
 
 export const FlowNodePalette: React.FC<FlowNodePaletteProps> = ({
@@ -15,6 +19,8 @@ export const FlowNodePalette: React.FC<FlowNodePaletteProps> = ({
   onToggleLeftPanel,
   nodeGroups,
   isDark,
+  onAdd,
+  insertHint,
 }) => {
   return (
     <div className={`${
@@ -31,30 +37,26 @@ export const FlowNodePalette: React.FC<FlowNodePaletteProps> = ({
             <X className="w-4 h-4" />
           </button>
         </div>
-        
+
         {/* 桌面端标题 */}
         <h2 className="text-sm font-semibold dark:text-text-dark light:text-text-light mb-4 hidden lg:block text-left lg:text-center">环节库</h2>
-        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-6 text-left lg:text-center">
-          拖拽节点卡片添加到画布
+        <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-2 text-left lg:text-center">
+          点击条目添加环节
         </p>
-        
-        {/* 移动端滚动提示 */}
-        <div className="lg:hidden mb-4 text-center">
-          <p className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-            ← 左右滑动查看更多节点类型
-          </p>
-        </div>
-        
+        <p className="text-[10px] text-primary mb-5 text-left lg:text-center truncate" title={insertHint}>
+          {insertHint}
+        </p>
+
         {/* 节点分类列表 */}
         <div className="space-y-6">
           {Object.entries(nodeGroups).map(([category, metas]) => (
             <div key={category}>
-              <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-4 text-left lg:text-center">
+              <h3 className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted uppercase tracking-wide mb-3 text-left lg:text-center">
                 {category}
               </h3>
-              <div className="flex flex-wrap gap-2 lg:gap-3">
+              <div className="flex flex-wrap gap-2">
                 {metas.map(meta => (
-                  <PaletteDragItem key={meta.type} meta={meta} />
+                  <PaletteAddItem key={meta.type} meta={meta} onAdd={onAdd} />
                 ))}
               </div>
             </div>
