@@ -1,5 +1,8 @@
-import type { FlowDefinition, FlowPublishStatus } from '../types/flow';
+import type { FlowDefinition } from '../types/flow';
+import { parseFlowId } from '../types/flow';
 import { apiFetch } from '../lib/api';
+import { validateForPublish } from '../utils/flow-editor/validation';
+import { createBlankFlow } from './flowFactory';
 
 /**
  * 深度清理对象中的 undefined 值
@@ -69,10 +72,10 @@ function cleanFlowDefinition(flow: FlowDefinition): FlowDefinition {
 }
 
 // ====== 存储键 ======
-// 统一流程缓存：草稿态与已发布态共用一个 localStorage 键，靠 publishedVersion 区分
-// （0 / 缺省 = 草稿，> 0 = 已发布）。编辑直接写入此缓存，发布时再同步到后端。
-// 旧版本曾拆分为 dnd-flow-published / dnd-flow-drafts 两个键，首次加载时自动迁移合并。
-const STORAGE_KEY = 'dnd-flows';              // 统一缓存（草稿 + 已发布）
+// 本地缓存是「云端正式版的只读镜像」：编辑器不再把未保存内容写入这里。
+// 编辑态只存在于 FlowEditor 组件内存中，退出即丢弃；保存即发布到云端。
+// 旧版本曾把草稿写入同一键，首次加载时仍会做一次迁移合并（migrateLegacy）。
+const STORAGE_KEY = 'dnd-flows';              // 正式版镜像缓存
 const LEGACY_PUBLISHED_KEY = 'dnd-flow-published';
 const LEGACY_DRAFTS_KEY = 'dnd-flow-drafts';
 const VIEWPORT_KEY = 'dnd-flow-viewport-snapshots';
@@ -162,8 +165,8 @@ const flowStore = {
     };
   },
 
-  /** 导入流程 */
-  import(json: string): FlowDefinition | undefined {
+  /** 导入流程（写入云端正式版，成功后镜像同步） */
+  async import(json: string): Promise<FlowDefinition | undefined> {
     try {
       const imported = JSON.parse(json);
       if (!imported.id || !imported.name) {
@@ -176,8 +179,7 @@ const flowStore = {
         throw new Error(`导入失败: ${validation.errors.join(', ')}`);
       }
 
-      // 写入统一缓存（upsert）
-      return this.save(imported);
+      return await this.publish(imported as FlowDefinition);
     } catch (error) {
       console.error('导入失败:', error);
       return undefined;
@@ -210,7 +212,10 @@ const flowStore = {
     return { valid: errors.length === 0, errors };
   },
 
-  /** 拉取远程流程并覆盖本地（用于「拉取正式版」） */
+  /**
+   * 拉取远程正式版并写入本地镜像（用于「拉取正式版」与战斗引擎按需取用）。
+   * 云端是唯一真相，因此这里直接以远程内容覆盖镜像。
+   */
   async pullRemote(id: string): Promise<FlowDefinition | undefined> {
     try {
       const response = await apiFetch(`/flows/${id}`);
@@ -235,15 +240,6 @@ const flowStore = {
     return flows.find(f => f.id === id);
   },
 
-  /** 计算三态标签 */
-  getPublishStatus(id: string): FlowPublishStatus {
-    const flow = flows.find(f => f.id === id);
-    if (!flow || !flow.publishedVersion || flow.publishedVersion === 0) {
-      return { kind: 'draft' };
-    }
-    return { kind: 'published', version: flow.publishedVersion };
-  },
-
   /** 获取单个已发布版（只读，战斗引擎用此路径） */
   getPublished(id: string): FlowDefinition | undefined {
     const flow = flows.find(f => f.id === id);
@@ -252,7 +248,10 @@ const flowStore = {
 
   // ──────────── 写入 ────────────
 
-  /** 保存流程（upsert 到统一缓存，不触发后端同步；后端同步由发布完成） */
+  /**
+   * 写入本地镜像（不触发云端同步）。
+   * 仅供拉取正式版 / 远程合并 / 导入后落镜像使用；编辑器不再走这里保存草稿。
+   */
   save(flow: FlowDefinition): FlowDefinition {
     if (!flow.id || !flow.name) {
       throw new Error('流程数据不完整');
@@ -285,7 +284,7 @@ const flowStore = {
     return updated;
   },
 
-  /** 删除流程（仅本地缓存，撤下请用 unpublish） */
+  /** 仅移除本地镜像（不触碰云端；需要删云端请用 remove） */
   delete(id: string): boolean {
     const next = flows.filter(f => f.id !== id);
     if (next.length === flows.length) return false;
@@ -297,55 +296,53 @@ const flowStore = {
 
   // ──────────── 新建 ────────────
 
-  /** 创建全新流程（未发布草稿，直接写入统一缓存） */
-  async create(name: string = '未命名流程'): Promise<FlowDefinition> {
-    const id = 'flow-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-    const flow: FlowDefinition = {
-      id, name, description: '', nodes: [], edges: [],
-      tags: [], version: 1,
-      createdAt: Date.now(), updatedAt: Date.now(),
-    };
-
-    flows.push(flow);
-    writeCache(flows);
-    notify();
-    return flow;
+  /** 生成空白流程（纯内存对象，不写任何持久层）；发布后才会出现在列表里 */
+  create(name: string = '未命名流程'): FlowDefinition {
+    return createBlankFlow(name);
   },
 
   // ──────────── 发布 ────────────
 
   /**
-   * 发布：验证 → 覆写后端已发布版 → 更新本地统一缓存中的发布信息。
-   * 这是编辑内容同步到后端的路径。
+   * 发布：本地校验 → 覆写云端正式版 → 同步本地镜像。
+   * 编辑器不再先写本地草稿，直接把内存中的流程传进来；发布成功即成为唯一真相。
    */
-  async publish(parentId: string): Promise<FlowDefinition | undefined> {
-    const flow = flows.find(f => f.id === parentId);
-    if (!flow) return undefined;
+  async publish(flow: FlowDefinition): Promise<FlowDefinition> {
+    if (!flow?.id) throw new Error('流程数据不完整');
 
-    // 验证流程
-    const validation = await apiFetch(`/flows/validate/${parentId}`);
-    if (validation.errors && validation.errors.length > 0) {
-      throw new Error(`发布失败: ${validation.errors.join(', ')}`);
+    const validation = validateForPublish(flow);
+    if (!validation.valid) {
+      const detail = 'details' in validation && validation.details
+        ? validation.details.map(d => d.message).join('; ')
+        : (validation as { error?: string }).error || '流程校验未通过';
+      throw new Error(`发布失败: ${detail}`);
     }
 
+    // 类别以 ID 前缀为准：避免 category 与 id 漂移导致后端按旧类别入库
+    const withCategory: FlowDefinition = {
+      ...flow,
+      category: parseFlowId(flow.id).category,
+      status: 'published',
+    };
+
     // 深度清理
-    const sanitizedFlow = cleanFlowDefinition(flow);
+    const sanitizedFlow = cleanFlowDefinition(withCategory);
 
     // PUT 到 D1：覆写已发布版
-    const published = await apiFetch(`/flows/${parentId}`, {
+    const published = await apiFetch(`/flows/${flow.id}`, {
       method: 'PUT',
       body: JSON.stringify(sanitizedFlow),
     });
 
     const updated: FlowDefinition = {
-      ...flow,
+      ...withCategory,
       status: 'published',
       publishedVersion: published.publishedVersion,
       publishedAt: published.publishedAt ?? Math.floor(Date.now() / 1000),
       updatedAt: Date.now(),
     };
 
-    const idx = flows.findIndex(f => f.id === parentId);
+    const idx = flows.findIndex(f => f.id === flow.id);
     if (idx >= 0) flows[idx] = updated;
     else flows.push(updated);
     writeCache(flows);
@@ -353,19 +350,33 @@ const flowStore = {
     return updated;
   },
 
-  /** 撤下（从后端移除，本地回退为草稿态） */
+  /** 撤下：云端正式版移入草稿表，本地镜像随之移除 */
   async unpublish(id: string): Promise<void> {
     await apiFetch(`/flows/${id}`, { method: 'DELETE' });
 
-    const idx = flows.findIndex(f => f.id === id);
-    if (idx >= 0) {
-      flows[idx] = {
-        ...flows[idx],
-        status: 'draft',
-        publishedVersion: 0,
-        publishedAt: null,
-        updatedAt: Date.now(),
-      };
+    const next = flows.filter(f => f.id !== id);
+    if (next.length !== flows.length) {
+      flows = next;
+      writeCache(flows);
+    }
+    notify();
+  },
+
+  /**
+   * 删除：从云端彻底删除（不留下草稿行），并移除本地镜像。
+   * 云端不存在时按已删除处理，避免幽灵记录卡在镜像里。
+   */
+  async remove(id: string): Promise<void> {
+    try {
+      await apiFetch(`/flows/${id}?purge=1`, { method: 'DELETE' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      if (!message.includes('流程不存在')) throw error;
+    }
+
+    const next = flows.filter(f => f.id !== id);
+    if (next.length !== flows.length) {
+      flows = next;
       writeCache(flows);
     }
     notify();
@@ -374,61 +385,30 @@ const flowStore = {
   // ──────────── 远程同步 ────────────
 
   /**
-   * 拉取远程已发布流程并合并进统一缓存。
-   * 本地已存在的流程以本地内容为准（可能包含尚未发布的编辑），仅同步发布版本信息。
+   * 拉取云端正式版覆盖本地镜像。
+   *
+   * 镜像是只读副本，云端才是唯一真相：远程存在的流程整条以远程内容替换，
+   * 云端已删除/撤下的流程从镜像里移除。唯一保留的是「从未发布过的遗留本地流程」
+   * （publishedVersion 为 0 且云端无同名记录），它们还没有云端身份，删掉就找不回了。
    */
   async fetchRemote(): Promise<void> {
     const remote = await apiFetch('/flows');
     const remoteList: FlowDefinition[] = Array.isArray(remote) ? remote : [];
 
-    const byId = new Map(flows.map(f => [f.id, f]));
+    const merged = new Map<string, FlowDefinition>();
     for (const rf of remoteList) {
       if (!rf?.id) continue;
-      const local = byId.get(rf.id);
-      if (!local) {
-        byId.set(rf.id, { ...rf, publishedVersion: rf.publishedVersion ?? 0 });
-      } else {
-        const remoteVersion = rf.publishedVersion ?? 0;
-        const localVersion = local.publishedVersion ?? 0;
-        const version = Math.max(localVersion, remoteVersion);
-        byId.set(rf.id, {
-          ...local,
-          publishedVersion: version,
-          publishedAt: rf.publishedAt ?? local.publishedAt,
-          status: version > 0 ? 'published' : local.status,
-        });
-      }
+      merged.set(rf.id, { ...rf, publishedVersion: rf.publishedVersion ?? 0 });
     }
 
-    flows = Array.from(byId.values());
+    for (const local of flows) {
+      const version = local.publishedVersion ?? 0;
+      if (version === 0 && !merged.has(local.id)) merged.set(local.id, local);
+    }
+
+    flows = Array.from(merged.values());
     writeCache(flows);
     notify();
-  },
-
-  // ──────────── 兼容性方法（保持向后兼容） ────────────
-
-  /** 判断流程是否处于草稿态（未发布） */
-  isDraftDirty(flow: FlowDefinition): boolean {
-    return !flow.publishedVersion || flow.publishedVersion === 0;
-  },
-
-  /** 变更流程 ID（类别/名称变更时） */
-  retargetId(oldId: string, newId: string): FlowDefinition | undefined {
-    if (oldId === newId) return flows.find(f => f.id === oldId);
-    if (flows.some(f => f.id === newId)) return undefined; // 新 ID 冲突
-
-    const idx = flows.findIndex(f => f.id === oldId);
-    if (idx === -1) return undefined;
-
-    flows[idx] = { ...flows[idx], id: newId, updatedAt: Date.now() };
-    writeCache(flows);
-    notify();
-    return flows[idx];
-  },
-
-  /** 重命名流程 ID（retargetId 的别名） */
-  renameId(oldId: string, newId: string): FlowDefinition | undefined {
-    return this.retargetId(oldId, newId);
   },
 
   // ──────────── 视图快照 ────────────
@@ -476,14 +456,19 @@ const flowStore = {
    * 接收一份完整 FlowDefinition 并覆写 D1，同时更新本地统一缓存。
    */
   async publishDirect(flow: FlowDefinition): Promise<FlowDefinition> {
-    const sanitizedFlow = cleanFlowDefinition(flow);
+    const withCategory: FlowDefinition = {
+      ...flow,
+      category: parseFlowId(flow.id).category,
+      status: 'published',
+    };
+    const sanitizedFlow = cleanFlowDefinition(withCategory);
     const published = await apiFetch(`/flows/${flow.id}`, {
       method: 'PUT',
       body: JSON.stringify(sanitizedFlow),
     });
 
     const updated: FlowDefinition = {
-      ...flow,
+      ...withCategory,
       status: 'published',
       publishedVersion: published.publishedVersion,
       publishedAt: published.publishedAt ?? Math.floor(Date.now() / 1000),
@@ -498,66 +483,6 @@ const flowStore = {
     return updated;
   },
 
-  // ──────────── 批量操作 ────────────
-
-  /** 批量创建流程 */
-  async batchCreate(input: FlowDefinition[]): Promise<{ success: FlowDefinition[]; failed: { flow: FlowDefinition; reason: string }[] }> {
-    const success: FlowDefinition[] = [];
-    const failed: { flow: FlowDefinition; reason: string }[] = [];
-
-    for (const flow of input) {
-      try {
-        const result = await this.create(flow.name);
-        success.push(result);
-      } catch (err: any) {
-        failed.push({ flow, reason: err.message || '创建失败' });
-      }
-    }
-
-    return { success, failed };
-  },
-
-  /** 批量更新流程 */
-  async batchUpdate(updates: { id: string; data: Partial<FlowDefinition> }[]): Promise<{ success: FlowDefinition[]; failed: { id: string; reason: string }[] }> {
-    const success: FlowDefinition[] = [];
-    const failed: { id: string; reason: string }[] = [];
-
-    for (const update of updates) {
-      try {
-        const result = this.update(update.id, update.data);
-        if (result) {
-          success.push(result);
-        } else {
-          failed.push({ id: update.id, reason: '流程不存在' });
-        }
-      } catch (err: any) {
-        failed.push({ id: update.id, reason: err.message || '更新失败' });
-      }
-    }
-
-    return { success, failed };
-  },
-
-  /** 批量删除流程 */
-  async batchDelete(ids: string[]): Promise<{ success: string[]; failed: { id: string; reason: string }[] }> {
-    const success: string[] = [];
-    const failed: { id: string; reason: string }[] = [];
-
-    for (const id of ids) {
-      try {
-        const result = this.delete(id);
-        if (result) {
-          success.push(id);
-        } else {
-          failed.push({ id, reason: '流程不存在' });
-        }
-      } catch (err: any) {
-        failed.push({ id, reason: err.message || '删除失败' });
-      }
-    }
-
-    return { success, failed };
-  }
 
 };
 

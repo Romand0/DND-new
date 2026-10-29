@@ -71,25 +71,6 @@ export interface FlowEdgeDef {
   config?: Record<string, any>;      // 边配置（新增）
 }
 
-// ==================== 新增 ====================
-
-/** 草稿定义：从已发布流程 fork 出来的工作副本 */
-export interface FlowDraft {
-  id: string;                    // 草稿唯一标识
-  data: FlowDefinition;         // 草稿内容（可自由修改）
-  dataVersion: number;           // 数据版本号（与 flow.version 保持一致）
-  draftVersion: number;          // 草稿版本号（递增）
-  createdAt: number;             // 草稿创建时间
-  updatedAt: number;             // 草稿更新时间
-  isSynced: boolean;             // 是否已同步到数据库
-  metadata?: {                   // 元数据（可选）
-    source: 'local' | 'remote'; // 数据来源
-    syncAttempts: number;       // 同步尝试次数
-    sessionId?: string;         // 会话标识（防止多标签页冲突）
-    userAgent?: string;          // 用户代理信息
-  };
-}
-
 // ==================== FlowDefinition 变更 ====================
 
 /** 流程定义：一段完整的游戏机制编码 */
@@ -118,28 +99,6 @@ export interface FlowDefinition {
   data?: any;
   // ---- 删除 ----
   // 不再需要用 updatedAt vs publishedAt 推断脏状态
-}
-
-// ==================== 三态枚举 ====================
-
-/** 流程在列表中的显示状态（替代时间戳推断） */
-export type FlowPublishStatus =
-  | { kind: 'draft' }                                          // 从未发布
-  | { kind: 'published'; version: number }                     // 已发布，无草稿
-  | { kind: 'modified'; version: number; draftUpdatedAt: number }; // 已发布 + 有草稿
-
-/** 计算三态：纯存在性判断，无时间戳依赖 */
-export function computePublishStatus(
-  flow: FlowDefinition,
-  draft: FlowDraft | undefined
-): FlowPublishStatus {
-  if (!flow.publishedVersion || flow.publishedVersion === 0) {
-    return { kind: 'draft' };
-  }
-  if (!draft) {
-    return { kind: 'published', version: flow.publishedVersion };
-  }
-  return { kind: 'modified', version: flow.publishedVersion, draftUpdatedAt: draft.updatedAt };
 }
 
 // ======================

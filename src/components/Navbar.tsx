@@ -44,47 +44,28 @@ const playerNavItems = [
   { path: '/player/spells', label: '法术库', icon: Sparkles },
 ];
 
-const AUTOSAVE_KEY = 'dnd-flow-editor-autosave';
-
-function LastDraftLink({ onClose }: { onClose: () => void }) {
+function RecentFlowLink({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
-
-  const handleClick = () => {
-    const allFlows = flowStore.getAll();
-    if (allFlows.length > 0) {
-      const latest = allFlows.reduce((a, b) => (a.updatedAt || 0) > (b.updatedAt || 0) ? a : b);
-      navigate(`/flow-editor/${latest.id}`);
-      onClose();
-      return;
-    }
-    try {
-      const raw = localStorage.getItem(AUTOSAVE_KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        if (data?.flow?.id) {
-          flowStore.create(data.flow.name || '未命名流程');
-          const flows = flowStore.getAll();
-          const newest = flows[flows.length - 1];
-          if (newest) {
-            flowStore.update(newest.id, data.flow);
-            navigate(`/flow-editor/${newest.id}`);
-            onClose();
-            return;
-          }
-        }
-      }
-    } catch { /* ignore */ }
-    navigate('/settings/flows');
-    onClose();
-  };
 
   const allFlows = flowStore.getAll();
   const latestFlow = allFlows.length > 0
     ? allFlows.reduce((a, b) => (a.updatedAt || 0) > (b.updatedAt || 0) ? a : b)
     : null;
+
+  const handleClick = () => {
+    // 编辑态不落本地，没有可恢复的草稿：直接打开最近一次发布的流程
+    if (latestFlow) {
+      navigate(`/flow-editor/${latestFlow.id}`);
+      onClose();
+      return;
+    }
+    navigate('/settings/flows');
+    onClose();
+  };
+
   const subtitle = latestFlow
     ? `${latestFlow.name || '未命名'} · ${latestFlow.nodes.length} 节点`
-    : '无草稿';
+    : '暂无流程';
 
   return (
     <button
@@ -358,7 +339,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
 
                   {/* 分割线 */}
                   <div className="border-t border-border-dark" />
-                  <LastDraftLink onClose={() => setToolsOpen(false)} />
+                  <RecentFlowLink onClose={() => setToolsOpen(false)} />
                 </div>
               )}
             </div>

@@ -2,7 +2,6 @@ import React from 'react';
 import { FlowCategory } from '@/types/flow';
 import { FLOW_CATEGORIES, parseFlowId, buildFlowId } from '@/types/flow';
 import flowStore from '@/data/flowStore';
-import { useNavigate } from 'react-router-dom';
 
 interface FlowPropertiesCategoriesProps {
   currentFlowId: string;
@@ -10,29 +9,30 @@ interface FlowPropertiesCategoriesProps {
   disabled?: boolean;
 }
 
+/**
+ * 流程类别切换：只改内存中的 ID 前缀，不写任何存储。
+ * 冲突检查基于本地镜像（云端正式版列表）。
+ */
 export default function FlowPropertiesCategories({
   currentFlowId,
   onCategoryChange,
   disabled = false,
 }: FlowPropertiesCategoriesProps) {
-  const navigate = useNavigate();
-
   const handleCategoryChange = (category: FlowCategory) => {
     if (disabled) return;
 
     const { slug } = parseFlowId(currentFlowId);
     const newId = buildFlowId(category, slug);
-    
+
     if (newId === currentFlowId) return;
 
-    // 检查 ID 冲突
-    const result = flowStore.retargetId(currentFlowId, newId);
-    if (result) {
-      onCategoryChange(newId);
-      navigate(`/flow-editor/${newId}`, { replace: true });
-    } else {
+    const taken = flowStore.getAll().some(f => f.id === newId);
+    if (taken) {
       alert('ID 冲突，该类别+标识符已被占用');
+      return;
     }
+
+    onCategoryChange(newId);
   };
 
   const { category: currentCategory } = parseFlowId(currentFlowId);

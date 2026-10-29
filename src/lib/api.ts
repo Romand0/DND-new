@@ -416,48 +416,6 @@ export async function uploadAvatar<T = { url: string }>(dataUrl: string): Promis
 }
 
 // ============ 流程管理 ============
-export async function fetchAllFlows<T = any[]>(): Promise<T> {
-  return apiFetch<T>('/flows');
-}
-
-export async function createFlow<T = any>(data: T): Promise<T> {
-  return apiFetch<T>('/flows', {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function updateFlow<T = any>(id: string, data: T): Promise<T> {
-  return apiFetch<T>(`/flows/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function deleteFlow(id: string): Promise<void> {
-  await apiFetch(`/flows/${id}`, { method: 'DELETE' });
-}
-
-export async function publishFlow<T = any>(id: string): Promise<T> {
-  return apiFetch<T>(`/flows/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify({ status: 'published' }),
-  });
-}
-
-// ============ 实时同步API ============
-export async function syncFlowDraft<T = any>(id: string, data: T): Promise<void> {
-  return apiFetch<void>(`/flows/draft/${id}`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-}
-
-export async function validateFlowForPublish<T = any>(id: string): Promise<T> {
-  return apiFetch<T>(`/flows/validate/${id}`);
-}
-
-export async function clearFlowDraft<T = any>(id: string): Promise<void> {
-  return apiFetch<void>(`/flows/draft/${id}`, { method: 'DELETE' });
-}
+// 流程的读写统一下沉到 flowStore（唯一入口），这里不再提供裸 CRUD 包装，
+// 避免出现绕过镜像/校验/绑定同步的第二条写路径。
 

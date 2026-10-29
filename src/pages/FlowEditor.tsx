@@ -35,7 +35,6 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useTextInput } from '@/hooks/useInput';
 import flowStore from '@/data/flowStore';
-import { apiFetch } from '@/lib/api';
 import type {
   FlowDefinition,
   FlowNodeDef,
@@ -43,14 +42,17 @@ import type {
   NodeTypeMeta,
   ConfigFieldSchema,
 } from '@/types/flow';
-import { groupNodeTypesByCategory } from '@/types/flow';
+import { groupNodeTypesByCategory, parseFlowId } from '@/types/flow';
 import { tidyFlowLayout, layoutTopology } from '@/utils/flow-editor/topology-layout';
 import { NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
 import { insertNodeAfter, appendIsolatedNode, moveNodeWithinRank, canInsertAfter } from '@/utils/flow-editor/topology-edit';
 // FLOW_CATEGORIES, parseFlowId, buildFlowId 已移至 FlowPropertiesCategories 组件
 import { SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
 import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
-import { generateFlowId } from '@/lib/idUtils';
+import { createBlankFlow } from '@/data/flowFactory';
+
+/** 新建流程的占位路由 ID：此时流程只存在于编辑器内存中 */
+const NEW_FLOW_ID = 'new';
 
 
 
@@ -102,12 +104,42 @@ export default function FlowEditor() {
   const setLoadedFlow = useCallback((f: FlowDefinition) => {
     setFlowState({ flow: f, loaded: true });
   }, []);
+  // ===== 编辑会话不落本地：编辑器 state 是唯一真相源 =====
+  // 只有「发布」会把内容写入云端并同步本地镜像；退出未发布则改动丢弃。
   const flowRef = useRef<FlowDefinition | null>(null);
+
+  // ===== 未发布改动检测 =====
+  // 编辑态不落盘，需要靠内容签名判断「与加载时相比是否改过」
+  const baselineRef = useRef('');
+  // 基线法术绑定：只有用户真的改过绑定才同步云端，避免「镜像无 spellId」误清空已有绑定
+  const baselineSpellIdRef = useRef<string | undefined>(undefined);
+  const flowSignature = useCallback((f: FlowDefinition) => JSON.stringify({
+    name: f.name,
+    description: f.description ?? '',
+    tags: f.tags ?? [],
+    nodes: f.nodes,
+    edges: f.edges,
+    spellId: f.spellId ?? null,
+  }), []);
+  const isDirty = flowLoaded && baselineRef.current !== '' && baselineRef.current !== flowSignature(flow);
   
-  // 初始化加载流程数据
+  // 初始化加载流程数据（只读镜像；镜像缺失时从云端取正式版）
   useEffect(() => {
     if (!flowId) return;
-    
+
+    // 切换流程时重置基线：脏检测与绑定同步都以「本次加载的内容」为准
+    baselineRef.current = '';
+    baselineSpellIdRef.current = undefined;
+
+    // 新建流程：只存在于编辑器内存，publish 之后才产生云端记录
+    if (flowId === NEW_FLOW_ID) {
+      const blank = createBlankFlow();
+      setLoadedFlow(blank);
+      flowRef.current = blank;
+      flowNameInput.setExternal(blank.name);
+      return;
+    }
+
     const loaded = flowStore.getById(flowId);
     if (loaded) {
       // 编辑态坐标全部由拓扑派生，落盘坐标仅作兼容：加载时统一归一化
@@ -116,7 +148,7 @@ export default function FlowEditor() {
       flowRef.current = normalized;
       flowNameInput.setExternal(normalized.name);
     } else {
-      // 流程在本地不存在，尝试从远程拉取
+      // 镜像里没有，尝试从云端取正式版
       (async () => {
         try {
           await flowStore.fetchRemote();
@@ -144,11 +176,6 @@ export default function FlowEditor() {
   // 从左侧环节库添加节点时的插入锚点（卡片「后插」按钮设置）
   const [insertAnchorId, setInsertAnchorId] = useState<string | null>(null);
   
-  // ===== 确保 flowStore 引用最新 =====
-  const flowStoreRef = useRef(flowStore);
-  useEffect(() => {
-    flowStoreRef.current = flowStore;
-  }, [flowStore]);
   const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectFromId, setConnectFromId] = useState<string | null>(null);
@@ -164,11 +191,9 @@ export default function FlowEditor() {
   const [idErrors, setIdErrors] = useState<string[]>([]);
   const [idDirty, setIdDirty] = useState(false);  // 草稿是否偏离正式值
   const [spellPickerOpen, setSpellPickerOpen] = useState(false);
-  const [selectedSpellId, setSelectedSpellId] = useState<string | null>(null);
   
   // ===== 草稿编辑会话：自动保存状态 =====
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
   // 法术绑定状态已迁移至 useSpellBinding
   // flow.id 外部变更时同步草稿（如加载草稿、autosave 恢复）
   useEffect(() => {
@@ -276,75 +301,13 @@ export default function FlowEditor() {
 
 
 
-  // ===== 手动保存机制（作为实时同步的备份） =====
-  const manualSave = useCallback(() => {
-    if (flow && flow.id) {
-      setSaveStatus('saving');
-      flowStore.save(flow);
-      setSaveStatus('saved');
-      setLastSavedAt(Date.now());
-    }
-  }, [flow]);
-
-  // 定期自动保存（作为额外保障）
-  useEffect(() => {
-    if (!flow || !flow.id) return;
-    
-    const interval = setInterval(() => {
-      manualSave();
-    }, 30000); // 每30秒自动保存一次
-    
-    return () => clearInterval(interval);
-  }, [flow, manualSave]);
+  // 编辑态不自动落盘：没有草稿可恢复，退出即丢弃未发布改动。
 
 
 
   // ===== 缓存同步状态 =====
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced'>('idle');
 
-  // ===== flow 加载：流程切换时从 flowStore 读取，并订阅数据变化 =====
-  // 编辑器 state 是唯一真相源，store 只做持久化；
-  // 添加订阅机制，但避免循环更新（只在数据真正变化时更新）
-  useEffect(() => {
-    if (!flowId) return;
-    
-    const loadFlow = () => {
-      const loaded = flowStore.getById(flowId);
-      if (loaded && loaded.id !== flowRef.current?.id) {
-        // 编辑态读取的坐标一律来自拓扑派生，先归一化再进编辑器
-        const normalized = tidyFlowLayout(loaded);
-        setLoadedFlow(normalized);
-        flowNameInput.setExternal(normalized.name);
-        setSelectedNodeId(null);
-        setSelectedEdgeId(null);
-      }
-    };
-    
-    // 初始加载
-    loadFlow();
-    
-    // 订阅 flowStore 变化，但只在真正有数据变化时才重新加载
-    const unsubscribe = flowStore.subscribe(() => {
-      const current = flowRef.current;
-      if (!current) return;
-      
-      const loaded = flowStore.getById(flowId);
-      // 精确守卫：仅当 store 中的 updatedAt 不同于当前编辑器时才覆写
-      if (loaded && loaded.id === current.id 
-          && loaded.updatedAt !== current.updatedAt) {
-        requestAnimationFrame(() => {
-          const normalized = tidyFlowLayout(loaded);
-          setLoadedFlow(normalized);
-          flowRef.current = normalized;
-          flowNameInput.setExternal(normalized.name);
-          setSelectedNodeId(null);
-          setSelectedEdgeId(null);
-        });
-      }
-    });
-    
-    return unsubscribe;
-  }, [flowId]);
 
   // ===== 位置快照：保存（画布滚动 + 缩放 + 面板展开状态，按流程 ID 持久化） =====
   const viewportRef = useRef({
@@ -438,22 +401,6 @@ flowStore.saveViewportSnapshot(flowId, {
       canvas.scrollTop  = snapshot.scrollY;
     }
   }, [flowId]);
-
-  // ===== 创建空流程 =====
-  function createEmptyFlow(): FlowDefinition {
-    return {
-      id: generateFlowId(),
-      name: '未命名流程',
-      description: '',
-      nodes: [],
-      edges: [],
-      tags: [],
-      version: 1,
-      status: 'draft',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-  }
 
   // ===== 添加节点（自动防重叠） =====
   /** 递归收集 schema 的默认值（含嵌套 object）；按已收集值跳过当前不可见字段 */
@@ -551,19 +498,12 @@ flowStore.saveViewportSnapshot(flowId, {
 
   // ===== 删除节点 =====
   const deleteNode = useCallback((nodeId: string) => {
-    setFlow(prev => {
-      const updatedFlow = tidyFlowLayout({
-        ...prev,
-        nodes: prev.nodes.filter(n => n.id !== nodeId),
-        edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
-        updatedAt: Date.now(),
-      });
-
-      // 同步到 flowStore（单一真相源），落盘坐标与编辑态一致
-      flowStoreRef.current.save(updatedFlow);
-
-      return updatedFlow;
-    });
+    setFlow(prev => tidyFlowLayout({
+      ...prev,
+      nodes: prev.nodes.filter(n => n.id !== nodeId),
+      edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
+      updatedAt: Date.now(),
+    }));
     if (selectedNodeId === nodeId) setSelectedNodeId(null);
     if (insertAnchorId === nodeId) setInsertAnchorId(null);
   }, [selectedNodeId, insertAnchorId]);
@@ -680,86 +620,93 @@ flowStore.saveViewportSnapshot(flowId, {
   // ===== 自动修复逻辑（已迁移至 useAutoFix Hook） =====
   const autoFix = useAutoFix(flow);
 
-  // ===== 缓存同步 =====
+  // ===== 用云端正式版覆盖编辑器 =====
+  // 编辑态不落盘，本地改动随时会被丢弃，因此覆盖前先确认
   const syncWithCache = useCallback(async () => {
-    if (syncStatus === 'syncing') return;
-    
+    if (syncStatus === 'syncing' || !flowId || flowId === NEW_FLOW_ID) return;
+    if (isDirty && !confirm('云端正式版会覆盖当前未发布的改动，确定继续吗？')) return;
+
     setSyncStatus('syncing');
     try {
-      // 这里可以添加与远程缓存的同步逻辑
-      // 目前只是模拟同步过程
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const remote = await flowStore.pullRemote(flowId);
+      if (!remote) {
+        showToast('error', '云端没有该流程的正式版');
+        return;
+      }
+      const normalized = tidyFlowLayout(remote);
+      setLoadedFlow(normalized);
+      flowRef.current = normalized;
+      flowNameInput.setExternal(normalized.name);
+      baselineRef.current = flowSignature(normalized);
+      baselineSpellIdRef.current = normalized.spellId;
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
       setSyncStatus('synced');
+      showToast('success', `已载入云端正式版 v${normalized.publishedVersion ?? 0}`);
       setTimeout(() => setSyncStatus('idle'), 2000);
     } catch (error) {
       setSyncStatus('idle');
-      console.error('同步失败:', error);
+      showToast('error', error instanceof Error ? error.message : '同步失败');
     }
-  }, [syncStatus]);
+  }, [syncStatus, flowId, isDirty, setLoadedFlow, flowNameInput, flowSignature, showToast]);
 
   // ===== 清空画布 =====
   const clearCanvas = useCallback(() => {
-    if (confirm('确定要清空当前画布吗？所有节点和连线将被删除。')) {
-      setFlow(createEmptyFlow());
-      flowNameInput.setExternal('未命名流程');
+    if (confirm('确定要清空当前画布吗？所有节点和连线将被删除（流程 ID 与名称保留）。')) {
+      setFlow(prev => ({ ...prev, nodes: [], edges: [], updatedAt: Date.now() }));
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
     }
   }, []);
 
   // ===== 保存 =====
-  // 编辑直接写入统一缓存，实时保存到本地存储
-  const saveFlow = useCallback(() => {
+  // 编辑态只在内存里，保存即发布到云端：写入正式版并同步本地镜像。
+  const saveFlow = useCallback(async () => {
     setSaveStatus('saving');
-    // 用 requestAnimationFrame 制造一帧延迟，让 "saving" 态先渲染
-    requestAnimationFrame(() => {
+    try {
       const updatedFlow = tidyFlowLayout({
         ...flow,
         name: flowNameInput.value || flow.name,
         updatedAt: Date.now(),
       });
 
-      flowStore.save(updatedFlow);
-      setFlow(updatedFlow);
+      const published = await flowStore.publish(updatedFlow);
+
+      // 已发布流程改了 ID：新 ID 已落云端，旧 ID 随之删除，避免两条正式版并存
+      const renamed = flowId !== NEW_FLOW_ID && !!flowId && published.id !== flowId;
+
+      // 绑定关系依赖云端流程记录：改过绑定或换了 ID 才同步，避免误清空既有绑定
+      const bindingChanged = (baselineSpellIdRef.current ?? '') !== (published.spellId ?? '');
+      if (bindingChanged || renamed) {
+        await spellBinding.syncBinding(published.id, published.spellId);
+      }
+
+      // 旧 ID 的云端行（含其绑定）在新 ID 落库后再清理
+      if (renamed) {
+        await flowStore.remove(flowId);
+      }
+
+      // 新建流程发布成功后，URL 从占位符切到真实 ID
+      if (flowId === NEW_FLOW_ID || renamed) {
+        navigate(`/flow-editor/${published.id}`, { replace: true });
+      }
+
+      baselineRef.current = flowSignature(published);
+      baselineSpellIdRef.current = published.spellId;
+      setFlow(published);
+      flowNameInput.setExternal(published.name);
+      setSaveStatus('saved');
       setSyncStatus('synced');
-
-      // 如果是新建流程（flowId 为占位符），保存后跳转到真实 ID 的编辑页
-      if (flowId && flowId !== updatedFlow.id) {
-        navigate(`/flow-editor/${updatedFlow.id}`, { replace: true });
-      }
-
+      validation.setShowValidation(false);
+      showToast('success', `已发布 v${published.publishedVersion}`);
       setTimeout(() => setSaveStatus('idle'), 2000);
-    });
-  }, [flow, flowNameInput.value, flowId, navigate]);
-
-  // ===== 发布正式版 =====
-  const handlePublish = useCallback(async () => {
-    try {
-      // 1. 验证本地草稿
-      const validation = await apiFetch(`/flows/validate/${flow.id}`);
-      if (validation.errors && validation.errors.length > 0) {
-        showToast('error', `发布失败: ${validation.errors.join(', ')}`);
-        return;
-      }
-
-      // 2. 发布到生产环境
-      const published = await flowStore.publish(flow.id);
-      if (published) {
-        // 发布后统一缓存已更新，采用 store 中的最新数据
-        const refreshed = flowStore.getById(flow.id);
-        if (refreshed) {
-          setFlow(refreshed);
-          flowNameInput.setExternal(refreshed.name);
-        }
-        showToast('success', `已发布 v${published.publishedVersion}`);
-
-        // 发布成功后隐藏验证面板
-        validation.setShowValidation(false);
-      }
     } catch (err) {
-      showToast('error', err instanceof Error ? err.message : '发布失败');
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      showToast('error', err instanceof Error ? err.message : '保存失败');
+      throw err;
     }
-  }, [flow, showToast, validation]);
+  }, [flow, flowNameInput, flowId, navigate, setFlow, showToast, spellBinding, flowSignature]);
 
   // ===== 整理布局：按拓扑分层重排（与查看模式同款布局），写回流程并随自动保存持久化 =====
   const handleTidyLayout = useCallback(() => {
@@ -769,27 +716,27 @@ flowStore.saveViewportSnapshot(flowId, {
     showToast('success', '已按拓扑结构整理布局');
   }, [flow, setFlow, showToast]);
 
-  // ===== 组件卸载时保存当前草稿 =====
+  // ===== 基线建立 + 未发布改动保护 =====
+  // 加载完成后把当前内容记为基线；之后与基线不一致才拦截关闭
+  useEffect(() => {
+    if (!flowLoaded) return;
+    if (baselineRef.current === '') {
+      baselineRef.current = flowSignature(flow);
+      baselineSpellIdRef.current = flow.spellId;
+    }
+  }, [flowLoaded, flow, flowSignature]);
 
   useEffect(() => {
-    const saveCurrent = () => {
-      const current = flowRef.current;
-      if (current?.id) flowStore.save(current);
-    };
-
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      saveCurrent();
+      if (!isDirty) return;
       event.preventDefault();
       event.returnValue = '';
       return '';
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      saveCurrent();  // 仅在组件真正卸载时执行
-    };
-  }, [flowId]);  // ← 移除 flow 依赖
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isDirty]);
 
   // ===== 获取选中节点 =====
   const selectedNode = flow.nodes.find(n => n.id === selectedNodeId) || null;
@@ -872,7 +819,6 @@ flowStore.saveViewportSnapshot(flowId, {
         validationStatus={validation.validationStatus}
         syncStatus={syncStatus}
         onExit={() => setExitModalOpen(true)}
-        onPublish={handlePublish}
         onSave={saveFlow}
         onTidyLayout={handleTidyLayout}
         onFlowNameChange={(value) => flowNameInput.onChange(value)}
@@ -1121,21 +1067,22 @@ flowStore.saveViewportSnapshot(flowId, {
               />
               <FlowPropertiesCategories
                 currentFlowId={flow.id}
-                onCategoryChange={(newId) => setFlow(flowStore.getById(newId) || createEmptyFlow())}
+                onCategoryChange={(newId) =>
+                  setFlow(prev => ({
+                    ...prev,
+                    id: newId,
+                    category: parseFlowId(newId).category,
+                    updatedAt: Date.now(),
+                  }))
+                }
               />
 
               <FlowPropertiesSpellBinding
-                flowId={flow.id}
                 spellId={flow.spellId}
                 isDark={isDark}
                 onSpellChange={(newSpellId) => {
-                  if (newSpellId) {
-                    spellBinding.handleBindSpell(newSpellId);
-                  } else {
-                    spellBinding.handleUnbindSpell();
-                  }
+                  spellBinding.handleSetSpell(newSpellId);
                 }}
-                showToast={showToast}
               />
 
               {/* ===== 流程统计 ===== */}
@@ -1224,10 +1171,32 @@ flowStore.saveViewportSnapshot(flowId, {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="rounded-lg p-6 max-w-sm w-full mx-4 bg-white dark:bg-card-dark border dark:border-border-dark light:border-border-light shadow-xl">
             <h3 className="text-base font-bold mb-2">退出编辑器</h3>
-            <p className="text-sm opacity-60 mb-4">是否保存当前流程？</p>
+            <p className="text-sm opacity-60 mb-4">
+              {isDirty ? '当前改动尚未发布，退出后这些改动会丢失。' : '当前内容已发布，可以直接退出。'}
+            </p>
             <div className="flex flex-col gap-2">
-              <button onClick={() => { saveFlow(); navigate('/'); }} className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90">保存并退出</button>
-              <button onClick={() => navigate('/')} className="px-4 py-2 text-sm rounded-lg border border-red-400 text-red-400 hover:bg-red-400/10">丢弃</button>
+              {isDirty && (
+                <button
+                  onClick={async () => {
+                    try {
+                      await saveFlow();
+                      setExitModalOpen(false);
+                      navigate('/flows');
+                    } catch {
+                      // saveFlow 已提示失败原因，留在编辑器让用户处理
+                    }
+                  }}
+                  className="px-4 py-2 text-sm rounded-lg bg-primary text-white hover:bg-primary/90"
+                >
+                  发布并退出
+                </button>
+              )}
+              <button
+                onClick={() => { setExitModalOpen(false); navigate('/flows'); }}
+                className={`px-4 py-2 text-sm rounded-lg border ${isDirty ? 'border-red-400 text-red-400 hover:bg-red-400/10' : 'border-primary text-primary hover:bg-primary/10'}`}
+              >
+                {isDirty ? '丢弃改动并退出' : '退出'}
+              </button>
               <button onClick={() => setExitModalOpen(false)} className="px-4 py-2 text-sm rounded-lg border dark:border-border-dark light:border-border-light hover:bg-white/5">取消</button>
             </div>
           </div>

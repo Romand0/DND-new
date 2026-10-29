@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, CloudUpload, Save, CheckCircle, AlertCircle, Loader2, Wand2 } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, AlertCircle, Loader2, Wand2 } from 'lucide-react';
 import { useTextInput } from '@/hooks/useInput';
 
 interface FlowEditorToolbarProps {
@@ -9,7 +9,6 @@ interface FlowEditorToolbarProps {
   validationStatus: 'valid' | 'invalid';
   syncStatus: 'idle' | 'syncing' | 'synced';
   onExit: () => void;
-  onPublish: () => void;
   onSave: () => void;
   onTidyLayout: () => void;
   onFlowNameChange: (value: string) => void;
@@ -23,7 +22,6 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
   validationStatus,
   syncStatus,
   onExit,
-  onPublish,
   onSave,
   onTidyLayout,
   onFlowNameChange,
@@ -67,29 +65,18 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
           <span className="hidden sm:inline">整理布局</span>
         </button>
         <button
-          onClick={onPublish}
-          disabled={validationStatus === 'invalid'}
-          className={`
-            flex items-center gap-1 px-3 py-1.5 h-10 rounded-lg text-xs font-medium border transition-colors min-w-[80px]
-            ${validationStatus === 'valid'
-              ? 'border-green-500 text-green-500 hover:border-green-400 hover:text-green-400 hover:bg-green-500/10'
-              : 'border-gray-400 text-gray-400 cursor-not-allowed'
-            }
-          `}
-        >
-          <CloudUpload className="w-3.5 h-3.5" />
-          <span className="truncate">{flowStatus === 'published' ? '更新' : '发布'}</span>
-        </button>
-        <button
           onClick={onSave}
-          disabled={saveStatus === 'saving'}
+          disabled={saveStatus === 'saving' || validationStatus === 'invalid'}
+          title={validationStatus === 'invalid' ? '流程校验未通过，无法发布' : '保存即发布到云端正式版'}
           className={`
-            flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium
+            flex items-center gap-1 px-3 py-1.5 h-10 rounded-lg text-xs font-medium
             transition-all duration-300
             ${saveStatus === 'saved'
               ? 'bg-emerald-500 text-white scale-95'
               : saveStatus === 'saving'
               ? 'bg-primary/60 text-white/70 cursor-wait'
+              : validationStatus === 'invalid'
+              ? 'bg-gray-400 text-white/70 cursor-not-allowed'
               : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
             }
           `}
@@ -97,6 +84,7 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
           {saveStatus === 'saving' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           {saveStatus === 'saved' && <CheckCircle className="w-3.5 h-3.5" />}
           {saveStatus === 'idle' && <Save className="w-3.5 h-3.5" />}
+          <span className="truncate">{flowStatus === 'published' ? '保存并发布' : '发布'}</span>
         </button>
       </div>
     </div>
