@@ -721,6 +721,9 @@ if (character) {
       charisma: { score: 10, modifier: 0 },
     };
   }
+  if (!character.baseAbilities) {
+    character.baseAbilities = { ...character.abilities };
+  }
   if (!character.skills) {
     character.skills = {
       acrobatics: { proficient: false, extra: 0 },
@@ -1162,6 +1165,10 @@ if (character) {
                 {character.abilities[ability].modifier >= 0
                   ? `+${character.abilities[ability].modifier}`
                   : character.abilities[ability].modifier}
+              </div>
+              {/* 静态基线：只随 baseAbilities 展示，加减按钮永远改 abilities，此行保持不变 */}
+              <div className="mt-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                初始 {character.baseAbilities?.[ability]?.score ?? character.abilities[ability].score}
               </div>
             </div>
           ))}

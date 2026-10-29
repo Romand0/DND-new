@@ -174,6 +174,8 @@ export interface Character {
   size: string;
 
   abilities: Abilities;
+  /** 初始属性值：手填基线快照，不随 CharacterDetail 加减按钮变化（加减只写 abilities） */
+  baseAbilities?: Abilities;
   proficiencyBonus: number;
   passivePerception: number;
   armorClass: number;
