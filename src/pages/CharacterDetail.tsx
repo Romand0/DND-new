@@ -37,7 +37,7 @@ import { characterStore, SKILL_LABELS } from '@/data/characterStore';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
-import { computeMissingOptionFeatures } from '@/data/optionFeatures';
+import { computeMissingOptionFeatures, collectClassProficiencyEntries } from '@/data/optionFeatures';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
@@ -1220,9 +1220,11 @@ export default function CharacterDetail({
   };
 
   const handleClassSelect = (opt: CharacterOption) => {
+    // 熟练项块（护甲/武器/工具/技能任选）种子缺失，从手录表随职业特性一并写入
+    const profTraits = collectClassProficiencyEntries(opt.name).map((e) => ({ name: e.name, text: e.description }));
     applyOptionTraits(
       { profession: { ...character.profession, class: opt.name } },
-      opt.traits,
+      [...(opt.traits || []), ...profTraits],
       ['职业特性'],
       '职业特性',
       opt.name

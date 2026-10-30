@@ -6,6 +6,7 @@
 import type { CharacterOption } from '@/types/characterOption';
 import type { Character } from '@/types/character';
 import { optionStore } from '@/data/optionStore';
+import { getClassProficiencyInfo } from '@/data/classProficiencies';
 
 export interface OptionFeatureEntry {
   name: string;
@@ -13,6 +14,22 @@ export interface OptionFeatureEntry {
   category: '种族特质' | '亚种特质' | '职业特性' | '背景特性';
   source: string;
   level?: number;
+}
+
+/**
+ * 职业熟练项块条目（护甲/武器/工具/技能任选）。
+ * 种子数据从未包含该块（提取脚本丢失，见 classProficiencies.ts 头注），此处从手录表派生，
+ * 命名与背景派生条目同风格（技能熟练项/工具熟练项…，挂在职业特性分类下）。
+ */
+export function collectClassProficiencyEntries(className: string): OptionFeatureEntry[] {
+  const info = getClassProficiencyInfo(className);
+  if (!info) return [];
+  const out: OptionFeatureEntry[] = [];
+  if (info.armor) out.push({ name: '护甲熟练项', description: info.armor, category: '职业特性', source: className });
+  if (info.weapons) out.push({ name: '武器熟练项', description: info.weapons, category: '职业特性', source: className });
+  if (info.tools) out.push({ name: '工具熟练项', description: info.tools, category: '职业特性', source: className });
+  if (info.skills) out.push({ name: '技能熟练项', description: info.skills, category: '职业特性', source: className });
+  return out;
 }
 
 /** 收集角色已选选项链上的全部特性/特质条目（顺序：种族 → 亚种 → 背景 → 职业） */
@@ -66,9 +83,11 @@ export function collectOptionFeatureEntries(character: {
     }
   }
 
-  // 职业：traits 全量写入并携带 level，显示层按角色等级过滤
+  // 职业：traits 全量写入并携带 level，显示层按角色等级过滤；
+  // 熟练项块（护甲/武器/工具/技能任选）种子缺失，从手录表补齐
   const className = character.profession?.class;
   if (className) {
+    for (const e of collectClassProficiencyEntries(className)) push(e);
     const cls = optionStore.getByName(className, 'class');
     if (cls) {
       for (const t of cls.traits || []) {

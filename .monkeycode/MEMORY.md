@@ -136,3 +136,13 @@
   - 绘图编辑器区域统一 source='绘图'，保存时只替换这一批，保留法术生成区域；绘图区域无回合概念（永久，DM 手动移除）
   - 流程 zone 节点依赖 context.positions 取目标坐标，未放置在沙盘时记 failure「目标未放置在沙盘上」。注意：CombatSession 的 combatantPositions 曾只依赖战斗记录字段，棋子移动不触发重算导致流程读到过期坐标（表现为「0个目标位置受影响」）——已加 battlegroundStore 订阅 + battlegroundTick 依赖
   - zone 落地的伤害走统一 handleApplyDamage（sourceKind='effect'），抗性/易伤/免疫在 zoneRules.computeZoneDamage 内经 resolveDamage 预结算，不要绕过
+
+[Project Knowledge Summary]
+- Date: 2026-10-30
+- Context: Discovered by Agent while fixing "bard choose-3-skills never appears on character card"
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 职业种子缺整个「熟练项」块（护甲/武器/工具/技能任选）：extract-options.mjs 的 find('熟练项') 在职业章节收集不到，mechanics.proficiencies 全部为空串，features 只含带等级特性；原文在 data/DND5e_chm/玩家手册/职业/<职业>.html 的「熟练项 Proficiencies」小节（技能：自选X项技能）
+  - options.json 是种子兜底，optionStore 优先 localStorage(DND-character-options)/云端 D1 缓存——只改种子到不了既有浏览器；修选项数据要考虑缓存链，或在代码层建手录表（src/data/classProficiencies.ts 即此模式）
+  - 书里技能名与 SKILL_LABELS 不一致：求生→生存、医药→医疗、游说→说服；任选候选表必须用标准名，展示文本可保留原书措辞
+  - 验证选项解析模块：npx esbuild 打包真实模块（--tsconfig=tsconfig.app.json）+ options.json 拷同目录 + 动态 import 断言前 setTimeout 100ms

@@ -5,6 +5,7 @@ import type { AbilityKey, SkillKey } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
 import { optionStore } from '@/data/optionStore';
 import { SKILL_LABELS } from '@/data/characterStore';
+import { getClassProficiencyInfo } from '@/data/classProficiencies';
 
 export type ProfBonusKind = 'skill' | 'save' | 'tool' | 'weapon' | 'armor' | 'language';
 
@@ -225,6 +226,36 @@ function getProficiencyRules(option: CharacterOption): ProficiencyBonusRule[] {
   }
 
   parseTraitRules(option, option.traits || [], out);
+
+  // 职业熟练项块（护甲/武器/工具/技能任选）在种子中缺失（见 classProficiencies.ts 头注），
+  // 从手录表补齐任选规则：技能任选（如吟游诗人自选三项、游荡者四项）、工具任选（吟游诗人三种乐器）
+  if (option.category === 'class') {
+    const info = getClassProficiencyInfo(option.name);
+    if (info) {
+      if (info.skillsChoiceCount && !out.some((r) => r.kind === 'skill' && r.mode === 'flexible')) {
+        out.push({
+          id: `${option.id}#${out.length}`,
+          kind: 'skill',
+          mode: 'flexible',
+          count: info.skillsChoiceCount,
+          candidates: info.skillsCandidates,
+          sourceText: info.skills || '',
+          sourceLabel: label(option),
+        });
+      }
+      if (info.toolsChoiceCount && !out.some((r) => r.kind === 'tool' && r.mode === 'flexible')) {
+        out.push({
+          id: `${option.id}#${out.length}`,
+          kind: 'tool',
+          mode: 'flexible',
+          count: info.toolsChoiceCount,
+          candidates: info.toolsCandidates,
+          sourceText: info.tools || '',
+          sourceLabel: label(option),
+        });
+      }
+    }
+  }
   rulesCache.set(option.id, out);
   return out;
 }
