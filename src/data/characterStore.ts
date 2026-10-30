@@ -924,12 +924,8 @@ function updateFeature(charId: string, featureId: string, updatedData: Partial<F
   return char.features[index];
 }
 
-function deleteFeature(charId: string, featureId: string): void {
-  const char = getCharacter(charId);
-  if (!char) return;
-  char.features = char.features.filter((f) => f.id !== featureId);
-  saveCharacter(char as Character);
-}
+// 特性条目不提供删除：隐藏（localStorage DND-feature-hidden）已覆盖「不展示」诉求，
+// 删除会破坏选项链数据完整性；误删/历史删除用 CharacterDetail 的一键补全恢复
 
 // ---------- 戏法 (Cantrips) ----------
 function addCantrip(charId: string, cantripName: string): string[] | null {
@@ -2367,8 +2363,7 @@ export const characterStore = {
   
   addFeature,
   updateFeature,
-  deleteFeature,
-  
+
   addCantrip,
   removeCantrip,
   

@@ -37,6 +37,7 @@ import { characterStore, SKILL_LABELS } from '@/data/characterStore';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
+import { computeMissingOptionFeatures } from '@/data/optionFeatures';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
@@ -1240,10 +1241,26 @@ export default function CharacterDetail({
     reloadChar();
   };
 
-  const handleDeleteFeature = (featureId: string) => {
-    if (!id) return;
-    characterStore.deleteFeature(id, featureId);
+  // 强制补全：把选项链上所有特性/特质补进角色卡（缺失才追加，已有的保留用户编辑），
+  // 补偿移除「删除」后的数据完整性——任何来源造成的条目丢失都可一键恢复
+  const handleFillOptionFeatures = () => {
+    if (!id || !character) return;
+    const missing = computeMissingOptionFeatures(character);
+    if (missing.length === 0) {
+      alert('选项特性与特质已完整，无需补全');
+      return;
+    }
+    const fresh = missing.map((e) => ({
+      id: crypto.randomUUID(),
+      name: e.name,
+      description: e.description,
+      category: e.category,
+      source: e.source,
+      level: e.level,
+    }));
+    characterStore.update(id, { features: [...(character.features || []), ...fresh] });
     reloadChar();
+    alert(`已补全 ${missing.length} 条：\n${missing.map((e) => `${e.category} · ${e.name}`).join('\n')}`);
   };
 
   // 特性/特质卡片（主列表与底部隐藏折叠块共用）；inHiddenBlock 时眼睛按钮变为恢复
@@ -1280,13 +1297,6 @@ export default function CharacterDetail({
           title={inHiddenBlock ? '恢复显示' : '隐藏'}
         >
           {inHiddenBlock ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-        </button>
-        <button
-          onClick={() => handleDeleteFeature(feature.id!)}
-          className="p-1 rounded hover:bg-danger/20 text-danger flex-shrink-0"
-          title="移除此条目"
-        >
-          <Trash2 className="w-4 h-4" />
         </button>
       </div>
       {feature.description && (
@@ -2693,6 +2703,14 @@ if (character) {
 
           <Section title="特性与特质" icon={Sparkles}>
             <div className="space-y-2">
+              <button
+                onClick={handleFillOptionFeatures}
+                className="w-full py-1.5 text-xs rounded-lg border border-dashed transition-colors flex items-center justify-center gap-1.5 dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                title="把当前种族/亚种/背景/职业的全部特性与特质补进角色卡（缺失才追加，已有的保留）"
+              >
+                <Sparkles className="w-4 h-4" />
+                一键补全选项特性与特质
+              </button>
               {character.features
                 .filter(
                   // 职业特性按等级门槛显示（数据仍保留在卡上）；被 DM 隐藏的条目移入底部折叠块
@@ -2726,7 +2744,7 @@ if (character) {
               })()}
               {character.features.length === 0 && (
                 <div className="py-6 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                  暂无特性，可通过上方种族/职业/背景选择器从选项库填充
+                  暂无特性，可点击「一键补全」从选项库填充，或通过上方种族/职业/背景选择器更换选项
                 </div>
               )}
             </div>
