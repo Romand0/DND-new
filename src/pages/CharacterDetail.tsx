@@ -459,6 +459,14 @@ export default function CharacterDetail({
   const [, setOptionTick] = useState(0);
   useEffect(() => optionStore.subscribe(() => setOptionTick((t) => t + 1)), []);
 
+  // 打开角色时按基线重算一次最终属性值：选项缓存异步加载会改变规则集，
+  // 不重算则静态值滞留旧底、与属性解析口径漂移（基线未设置时 recompute 自动跳过）
+  useEffect(() => {
+    if (id && !externalCharacter) {
+      characterStore.recomputeAbilities(id);
+    }
+  }, [id, externalCharacter]);
+
   useEffect(() => {
   let cancelled = false;
   fetch('/api/spells')
