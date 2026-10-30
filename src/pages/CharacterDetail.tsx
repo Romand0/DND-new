@@ -28,7 +28,7 @@ import {
   Download,
   Library,
 } from 'lucide-react';
-import type { Character, Abilities, AbilityScore, AbilityKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
+import type { Character, Abilities, AbilityScore, AbilityKey, SkillKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
@@ -305,6 +305,255 @@ function AbilityBreakdownDialog({ character, onClose, onSave }: AbilityBreakdown
   );
 }
 
+interface ProficienciesDialogProps {
+  character: Character;
+  onClose: () => void;
+  onSave: (draft: {
+    skills: Character['skills'];
+    proficiencies: Character['proficiencies'];
+    saveExpertise: AbilityKey[];
+    saveBonusOverride: Partial<Record<AbilityKey, number>>;
+  }) => void;
+}
+
+// 熟练项统一弹窗：豁免/技能熟练与专精、豁免加值覆盖、四类熟练项芯片全部草稿态编辑，
+// 一次保存写回，取消整体放弃。加值预览用草稿构造影子角色复用 getGroupedSkills 的全部计算，
+// 保证与页面上各处消费同一份口径。
+function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialogProps) {
+  const [draft, setDraft] = useState(() => ({
+    skills: JSON.parse(JSON.stringify(character.skills ?? {})) as Character['skills'],
+    savingThrows: [...(character.proficiencies?.savingThrows ?? [])] as string[],
+    saveExpertise: [...(character.saveExpertise ?? [])],
+    saveBonusOverride: { ...(character.saveBonusOverride ?? {}) } as Partial<Record<AbilityKey, number>>,
+    categories: {
+      armor: [...(character.proficiencies?.armor ?? [])],
+      weapons: [...(character.proficiencies?.weapons ?? [])],
+      tools: [...(character.proficiencies?.tools ?? [])],
+      languages: [...(character.proficiencies?.languages ?? [])],
+    },
+  }));
+  const [newChip, setNewChip] = useState<Record<Exclude<ProficiencyCategory, 'savingThrows'>, string>>({ armor: '', weapons: '', tools: '', languages: '' });
+  // 覆盖值输入态：空串 = 未覆盖（回退属性调整值+熟练加值）
+  const [overrideText, setOverrideText] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const [k, v] of Object.entries(character.saveBonusOverride ?? {})) {
+      if (typeof v === 'number') init[k] = String(v);
+    }
+    return init;
+  });
+
+  const groups = characterStore.getGroupedSkills({
+    ...character,
+    skills: draft.skills,
+    proficiencies: { ...draft.categories, savingThrows: draft.savingThrows },
+    saveExpertise: draft.saveExpertise,
+    saveBonusOverride: draft.saveBonusOverride,
+  });
+
+  const toggleSkillProf = (key: SkillKey) => {
+    setDraft((prev) => {
+      const skill = { ...(prev.skills[key] ?? { proficient: false, extra: 0, expertise: false }) };
+      skill.proficient = !skill.proficient;
+      // 取消熟练时同步取消专精（与 store 的 toggleSkillProficiency 语义一致）
+      if (!skill.proficient) skill.expertise = false;
+      return { ...prev, skills: { ...prev.skills, [key]: skill } };
+    });
+  };
+  const toggleSkillExp = (key: SkillKey) => {
+    setDraft((prev) => {
+      const skill = prev.skills[key];
+      if (!skill?.proficient) return prev;
+      return { ...prev, skills: { ...prev.skills, [key]: { ...skill, expertise: !skill.expertise } } };
+    });
+  };
+  const toggleSaveProf = (key: AbilityKey) => {
+    setDraft((prev) => {
+      const has = prev.savingThrows.includes(key);
+      const savingThrows = has ? prev.savingThrows.filter((k) => k !== key) : [...prev.savingThrows, key];
+      // 取消熟练时同步取消专精
+      const saveExpertise = has ? prev.saveExpertise.filter((k) => k !== key) : prev.saveExpertise;
+      return { ...prev, savingThrows, saveExpertise };
+    });
+  };
+  const toggleSaveExp = (key: AbilityKey) => {
+    setDraft((prev) => {
+      if (!prev.savingThrows.includes(key)) return prev;
+      const saveExpertise = prev.saveExpertise.includes(key)
+        ? prev.saveExpertise.filter((k) => k !== key)
+        : [...prev.saveExpertise, key];
+      return { ...prev, saveExpertise };
+    });
+  };
+  const setOverride = (key: AbilityKey, raw: string) => {
+    setOverrideText((prev) => ({ ...prev, [key]: raw }));
+    setDraft((prev) => {
+      const saveBonusOverride = { ...prev.saveBonusOverride };
+      if (raw.trim() === '') delete saveBonusOverride[key];
+      else {
+        const n = parseInt(raw, 10);
+        if (!isNaN(n)) saveBonusOverride[key] = n;
+      }
+      return { ...prev, saveBonusOverride };
+    });
+  };
+  const addChip = (category: ProficiencyCategory) => {
+    const value = newChip[category].trim();
+    if (!value) return;
+    setDraft((prev) => ({ ...prev, categories: { ...prev.categories, [category]: [...prev.categories[category], value] } }));
+    setNewChip((prev) => ({ ...prev, [category]: '' }));
+  };
+  const removeChip = (category: ProficiencyCategory, index: number) => {
+    setDraft((prev) => ({ ...prev, categories: { ...prev.categories, [category]: prev.categories[category].filter((_, i) => i !== index) } }));
+  };
+
+  const handleSave = () => {
+    onSave({
+      skills: draft.skills,
+      proficiencies: { ...draft.categories, savingThrows: draft.savingThrows },
+      saveExpertise: draft.saveExpertise,
+      saveBonusOverride: draft.saveBonusOverride,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-2xl rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">熟练项</h3>
+        <p className="text-sm mb-4 dark:text-text-dark-muted light:text-text-light-muted">
+          勾选熟练、点亮星标设为专精；豁免加值可留空回退默认计算；保存后写回并刷新所有加值
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {groups.map((group) => (
+            <div key={group.attribute} className="p-3 rounded-xl border dark:bg-white/5 light:bg-white/50 dark:border-border-dark light:border-border-light">
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b dark:border-border-dark light:border-border-light">
+                <span className="text-sm font-bold dark:text-text-dark light:text-text-light">{group.attributeLabel}</span>
+                <span className="text-xs text-primary font-mono">
+                  {group.save.modifier >= 0 ? `+${group.save.modifier}` : group.save.modifier}
+                </span>
+              </div>
+              <div className={`flex items-center gap-2 p-1.5 rounded-lg mb-2 ${group.save.proficient ? 'bg-accent/10' : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'}`}>
+                <button
+                  onClick={() => toggleSaveExp(group.save.key)}
+                  disabled={!group.save.proficient}
+                  className={`w-4 h-4 flex items-center justify-center ${
+                    group.save.proficient
+                      ? group.save.expertise
+                        ? 'text-accent'
+                        : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-accent'
+                      : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+                  }`}
+                  title={group.save.proficient ? (group.save.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+                >
+                  <Star className={`w-3.5 h-3.5 ${group.save.expertise ? 'fill-accent' : ''}`} />
+                </button>
+                <input
+                  type="checkbox"
+                  checked={group.save.proficient}
+                  onChange={() => toggleSaveProf(group.save.key)}
+                  className="w-4 h-4 accent-accent"
+                />
+                <span className={`text-xs flex-1 ${group.save.proficient ? 'font-medium dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
+                  {group.save.label}
+                </span>
+                <input
+                  type="number"
+                  value={overrideText[group.save.key] ?? ''}
+                  onChange={(e) => setOverride(group.save.key, e.target.value)}
+                  placeholder={`${group.save.bonus >= 0 ? '+' : ''}${group.save.bonus}`}
+                  title="留空回退到属性调整值+熟练加值"
+                  className={`w-14 px-1.5 py-0.5 text-xs text-center font-mono rounded border bg-transparent outline-none dark:border-accent light:border-accent dark:text-text-dark light:text-text-light focus:border-accent ${
+                    group.save.overridden ? 'text-accent' : ''
+                  }`}
+                />
+              </div>
+              {group.skills.map((skill) => (
+                <div key={skill.key} className={`flex items-center gap-2 p-1.5 rounded-lg ${skill.proficient ? 'bg-primary/10' : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'}`}>
+                  <button
+                    onClick={() => toggleSkillExp(skill.key)}
+                    disabled={!skill.proficient}
+                    className={`w-4 h-4 flex items-center justify-center ${
+                      skill.proficient
+                        ? skill.expertise
+                          ? 'text-primary'
+                          : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
+                        : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
+                    }`}
+                    title={skill.proficient ? (skill.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${skill.expertise ? 'fill-primary' : ''}`} />
+                  </button>
+                  <input
+                    type="checkbox"
+                    checked={skill.proficient}
+                    onChange={() => toggleSkillProf(skill.key)}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <span className={`text-xs flex-1 ${skill.proficient ? 'font-medium dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
+                    {skill.label}
+                  </span>
+                  <span className={`text-xs font-mono font-bold w-8 text-right ${skill.proficient ? 'dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
+                    {skill.bonus >= 0 ? `+${skill.bonus}` : skill.bonus}
+                  </span>
+                </div>
+              ))}
+              {group.skills.length === 0 && (
+                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted text-center py-1">无关联技能</div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-4">
+          <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">护甲 / 武器 / 工具 / 语言</div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {displayedProficiencyCategories.map((category) => (
+              <div key={category}>
+                <label className="block text-xs mb-1.5 dark:text-text-dark-muted light:text-text-light-muted">{proficiencyLabels[category]}</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {draft.categories[category].length === 0 && (
+                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
+                  )}
+                  {draft.categories[category].map((item, index) => (
+                    <div key={index} className="flex items-center gap-1 px-2 py-1 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                      <span className="text-xs dark:text-text-dark light:text-text-light">{item}</span>
+                      <button onClick={() => removeChip(category, index)} className="p-0.5 rounded hover:bg-danger/20 text-danger flex-shrink-0">
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newChip[category]}
+                    onChange={(e) => setNewChip({ ...newChip, [category]: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Enter' && addChip(category)}
+                    placeholder="添加..."
+                    className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                  <button onClick={() => addChip(category)} className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-5">
+          <button onClick={onClose}
+            className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10">
+            取消
+          </button>
+          <button onClick={handleSave}
+            className="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg">
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CharacterDetail({
   readOnly = false,
   externalCharacter = null,
@@ -355,6 +604,7 @@ export default function CharacterDetail({
   const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [proficienciesOpen, setProficienciesOpen] = useState(false);
   const [statsEditorOpen, setStatsEditorOpen] = useState(false);
   const [statsForm, setStatsForm] = useState({
     currentHp: 0,
@@ -364,18 +614,9 @@ export default function CharacterDetail({
     speed: 0,
     proficiencyBonus: 2,
   });
-  const [newProficiency, setNewProficiency] = useState<Record<ProficiencyCategory, string>>({
-    armor: '',
-    weapons: '',
-    tools: '',
-    languages: '',
-    savingThrows: '',
-  });
   const [genderPickerOpen, setGenderPickerOpen] = useState(false);
   const [attackEditorOpen, setAttackEditorOpen] = useState(false);
   const [editingAttack, setEditingAttack] = useState<(Attack & { id: string }) | null>(null);
-  const [editingSaveKey, setEditingSaveKey] = useState<string | null>(null);
-  const [saveBonusInput, setSaveBonusInput] = useState('');
 
   useEditorState(spellPickerOpen, equipmentPickerOpen, equipmentEditorOpen, statsEditorOpen, genderPickerOpen, attackEditorOpen);
 
@@ -793,23 +1034,22 @@ export default function CharacterDetail({
     reloadChar();
   };
 
-  const handleAddProficiency = (category: ProficiencyCategory) => {
-    if (!id || !newProficiency[category].trim()) return;
-    characterStore.addProficiency(id, category, newProficiency[category].trim());
-    setNewProficiency({ ...newProficiency, [category]: '' });
-    reloadChar();
-  };
-
-  const handleRemoveProficiency = (category: ProficiencyCategory, index: number) => {
+  // 熟练项统一保存：技能/豁免熟练与专精、豁免加值覆盖、四类芯片一次写回
+  const handleSaveProficiencies = (draft: {
+    skills: Character['skills'];
+    proficiencies: Character['proficiencies'];
+    saveExpertise: AbilityKey[];
+    saveBonusOverride: Partial<Record<AbilityKey, number>>;
+  }) => {
     if (!id) return;
-    characterStore.removeProficiency(id, category, index);
+    characterStore.update(id, {
+      skills: draft.skills,
+      proficiencies: draft.proficiencies,
+      saveExpertise: draft.saveExpertise,
+      saveBonusOverride: draft.saveBonusOverride,
+    });
     reloadChar();
-  };
-
-  const handleUpdateProficiency = (category: ProficiencyCategory, index: number, value: string) => {
-    if (!id) return;
-    characterStore.updateProficiency(id, category, index, value);
-    reloadChar();
+    setProficienciesOpen(false);
   };
 
   const hpPercentage = character
@@ -1348,14 +1588,22 @@ if (character) {
         <span>载重：{carryCapacity} 磅</span>
       </div>
 
-      <Section title="技能与豁免" icon={Star}>
+      <Section title="熟练项" icon={Star}>
         <ErrorBoundary fallback={
     <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
-      技能与豁免区块渲染异常，请尝试重新同步角色数据
+      熟练项区块渲染异常，请尝试重新同步角色数据
     </div>
   }>
+        {!readOnly && (
+          <div className="flex justify-end mb-3">
+            <button onClick={() => setProficienciesOpen(true)} title="编辑技能/豁免熟练、专精与四类熟练项"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
+              <ScrollText className="w-4 h-4" /> 编辑熟练项
+            </button>
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          
+
           {(() => {
   try {
     const groups = characterStore.getGroupedSkills(character || {} as Character);
@@ -1375,8 +1623,8 @@ if (character) {
             {group.save.modifier >= 0 ? `+${group.save.modifier}` : group.save.modifier}
           </span>
         </div>
-        
-        {/* 豁免 */}
+
+        {/* 豁免（只读展示，编辑走「编辑熟练项」弹窗） */}
         <div
           className={`flex items-center gap-2 p-1.5 rounded-lg mb-2 transition-colors ${
             group.save.proficient
@@ -1384,34 +1632,17 @@ if (character) {
               : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
           }`}
         >
-          <button
-            onClick={() => {
-              if (group.save.proficient && id) {
-                characterStore.toggleSaveExpertise(id, group.save.key);
-                reloadChar();
-              }
-            }}
-            disabled={!group.save.proficient || !id}
-            className={`w-4 h-4 flex items-center justify-center ${
-              group.save.proficient
-                ? group.save.expertise
-                  ? 'text-accent'
-                  : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-accent'
-                : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
-            }`}
-            title={group.save.proficient ? (group.save.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
-          >
-            <Star className={`w-3.5 h-3.5 ${group.save.expertise ? 'fill-accent' : ''}`} />
-          </button>
+          <Star className={`w-3.5 h-3.5 flex-shrink-0 ${
+            group.save.expertise
+              ? 'fill-accent text-accent'
+              : group.save.proficient
+                ? 'dark:text-text-dark-muted light:text-text-light-muted'
+                : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30'
+          }`} />
           <input
             type="checkbox"
             checked={group.save.proficient}
-            onChange={() => {
-              if (id) {
-                characterStore.toggleSaveProficiency(id, group.save.key);
-                reloadChar();
-              }
-            }}
+            disabled
             className="w-4 h-4 accent-accent"
           />
           <span
@@ -1423,64 +1654,18 @@ if (character) {
           >
             {group.save.label}
           </span>
-          {editingSaveKey === group.save.key ? (
-            <input
-              type="number"
-              autoFocus
-              value={saveBonusInput}
-              onChange={e => setSaveBonusInput(e.target.value)}
-              onBlur={() => {
-                if (id) {
-                  const raw = saveBonusInput.trim();
-                  if (raw === '') {
-                    // 清空 = 清除覆盖，回退到默认计算值
-                    characterStore.setSaveBonusOverride(id, group.save.key, null);
-                  } else {
-                    const n = parseInt(raw, 10);
-                    if (!isNaN(n)) {
-                      characterStore.setSaveBonusOverride(id, group.save.key, n);
-                    }
-                  }
-                  reloadChar();
-                }
-                setEditingSaveKey(null);
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  (e.target as HTMLInputElement).blur();
-                } else if (e.key === 'Escape') {
-                  setEditingSaveKey(null);
-                }
-              }}
-              placeholder={`${group.save.bonus >= 0 ? '+' : ''}${group.save.bonus}`}
-              title="留空回退到属性调整值+熟练加值，Esc 取消"
-              className="w-14 px-1.5 py-0.5 text-xs text-center font-mono rounded border bg-transparent outline-none dark:border-accent light:border-accent dark:text-text-dark light:text-text-light focus:border-accent"
-            />
-          ) : (
-            <button
-              onClick={() => {
-                if (!id) return;
-                setEditingSaveKey(group.save.key);
-                setSaveBonusInput(
-                  group.save.overridden ? String(group.save.bonus) : ''
-                );
-              }}
-              disabled={!id}
-              className={`text-xs font-mono font-bold w-14 text-right rounded px-1 py-0.5 transition-colors ${
-                group.save.overridden
-                  ? 'text-accent dark:bg-accent/10 light:bg-accent/10'
-                  : group.save.proficient
-                    ? 'dark:text-text-dark light:text-text-light hover:bg-white/5'
-                    : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-white/5'
-              }`}
-              title={group.save.overridden ? '已自定义豁免加值，点击编辑（留空恢复默认）' : '点击自定义豁免加值'}
-            >
-              {group.save.bonus >= 0 ? `+${group.save.bonus}` : group.save.bonus}
-            </button>
-          )}
+          <span className={`text-xs font-mono font-bold w-14 text-right rounded px-1 py-0.5 ${
+            group.save.overridden
+              ? 'text-accent dark:bg-accent/10 light:bg-accent/10'
+              : group.save.proficient
+                ? 'dark:text-text-dark light:text-text-light'
+                : 'dark:text-text-dark-muted light:text-text-light-muted'
+          }`}>
+            {group.save.bonus >= 0 ? `+${group.save.bonus}` : group.save.bonus}
+          </span>
         </div>
-        
-        {/* 技能列表 */}
+
+        {/* 技能列表（只读展示） */}
         {group.skills.map((skill) => (
           <div
             key={skill.key}
@@ -1490,36 +1675,19 @@ if (character) {
                 : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
             }`}
           >
-            <button
-            onClick={() => {
-              if (skill.proficient && id) {
-                characterStore.toggleSkillExpertise(id, skill.key);
-                reloadChar();
-              }
-            }}
-            disabled={!skill.proficient || !id}
-            className={`w-4 h-4 flex items-center justify-center ${
-              skill.proficient
-                ? skill.expertise
-                  ? 'text-primary'
-                  : 'dark:text-text-dark-muted light:text-text-light-muted hover:text-primary'
-                : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30 cursor-not-allowed'
-            }`}
-            title={skill.proficient ? (skill.expertise ? '取消专精' : '设为专精') : '需要熟练才能专精'}
-          >
-            <Star className={`w-3.5 h-3.5 ${skill.expertise ? 'fill-primary' : ''}`} />
-          </button>
-          <input
-            type="checkbox"
-            checked={skill.proficient}
-            onChange={() => {
-              if (id) {
-                characterStore.toggleSkillProficiency(id, skill.key);
-                reloadChar();
-              }
-            }}
-            className="w-4 h-4 accent-primary"
-          />
+            <Star className={`w-3.5 h-3.5 flex-shrink-0 ${
+              skill.expertise
+                ? 'fill-primary text-primary'
+                : skill.proficient
+                  ? 'dark:text-text-dark-muted light:text-text-light-muted'
+                  : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30'
+            }`} />
+            <input
+              type="checkbox"
+              checked={skill.proficient}
+              disabled
+              className="w-4 h-4 accent-primary"
+            />
             <span
               className={`text-xs flex-1 ${
                 skill.proficient
@@ -1540,7 +1708,7 @@ if (character) {
             </span>
           </div>
         ))}
-        
+
         {group.skills.length === 0 && (
           <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted text-center py-1">
             无关联技能
@@ -1553,79 +1721,28 @@ if (character) {
     return <div className="text-sm text-danger col-span-full">技能区块渲染异常: {String(e)}</div>;
   }
 })()}
-
-      
         </div>
-          </ErrorBoundary>
-      </Section>
 
-      <Section title="熟练项" icon={Star}>
-        <ErrorBoundary fallback={
-    <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
-      熟练项区块渲染异常，请尝试重新同步角色数据
-    </div>
-  }>
-        <div className="flex flex-wrap gap-4">
+        {/* 四类熟练项摘要（只读展示） */}
+        <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t dark:border-border-dark light:border-border-light">
           {displayedProficiencyCategories.map((category) => {
             const items = character.proficiencies?.[category] || [];
             return (
-            <div key={category} className="flex-1 min-w-[200px] max-w-[320px]">
-              <label className="block text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
-                {proficiencyLabels[category]}
-              </label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {items.length === 0 && (
-                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
-                )}
-                {items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-1 px-2 py-1 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
-                  >
-                    {readOnly ? (
-                      <span className="text-xs dark:text-text-dark light:text-text-light">{item}</span>
-                    ) : (
-                      <>
-                        <input
-                          type="text"
-                          value={item}
-                          onChange={(e) => handleUpdateProficiency(category, index, e.target.value)}
-                          className="w-20 px-1 py-0.5 bg-transparent outline-none text-xs dark:text-text-dark light:text-text-light"
-                        />
-                        <button
-                          onClick={() => handleRemoveProficiency(category, index)}
-                          className="p-0.5 rounded hover:bg-danger/20 text-danger flex-shrink-0"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                ))}
-              </div>
-              {!readOnly && (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newProficiency[category]}
-                    onChange={(e) =>
-                      setNewProficiency({ ...newProficiency, [category]: e.target.value })
-                    }
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddProficiency(category)}
-                    placeholder="添加..."
-                    className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                  />
-                  <button
-                    onClick={() => handleAddProficiency(category)}
-                    className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors"
-                  >
-                    <Plus className="w-4 h-4" />
-                  </button>
+              <div key={category} className="min-w-[160px]">
+                <label className="block text-xs mb-1.5 dark:text-text-dark-muted light:text-text-light-muted">{proficiencyLabels[category]}</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {items.length === 0 && (
+                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
+                  )}
+                  {items.map((item, index) => (
+                    <span key={index} className="px-2 py-1 rounded-lg text-xs dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light">
+                      {item}
+                    </span>
+                  ))}
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
         </div>
           </ErrorBoundary>
       </Section>
@@ -2680,6 +2797,15 @@ if (character) {
           character={character}
           onClose={() => setBreakdownOpen(false)}
           onSave={handleSaveAbilityLayers}
+        />
+      )}
+
+      {/* 熟练项弹窗（技能/豁免熟练与专精 + 加值覆盖 + 四类芯片，统一保存） */}
+      {proficienciesOpen && character && !readOnly && (
+        <ProficienciesDialog
+          character={character}
+          onClose={() => setProficienciesOpen(false)}
+          onSave={handleSaveProficiencies}
         />
       )}
 
