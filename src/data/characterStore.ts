@@ -17,6 +17,7 @@ import type {
 import { getAvailableSubclasses, canChooseSubclass, getSubclassDisplayName } from './subclasses';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
+import { computeAbilityBreakdown } from './abilityBonus';
 
 // 从 localStorage 读取 auth_token，构造带 JWT 的 headers
 function getAuthHeaders(): Record<string, string> {
@@ -228,6 +229,8 @@ function createSandboxCharacter(data: Partial<Character>): Character {
     },
     // 初始属性值基线：仅 DM 在弹窗中显式设置后才有值；老数据留空，避免把当前值误冻结为"初始"
     baseAbilities: data.baseAbilities,
+    // 特性属性加值的任选结果：直通（undefined 合法，规则未完成时不计入最终值）
+    abilityBonusChoices: data.abilityBonusChoices,
     maxHp: data.maxHp ?? 20,
     currentHp: data.currentHp ?? 20,
     tempHp: data.tempHp ?? 0,
@@ -2285,6 +2288,24 @@ export const characterStore = {
   
   // 计算辅助
   calcModifier,
+  /**
+   * 从分层重算最终属性值并写回 abilities：初始基线 + 种族/亚种特性加值（含已完成的任选）。
+   * 基线未设置时跳过（老数据保持现状）；任选规则未选满则该部分暂不计入。
+   * 调用点：保存基线 / 任选变更 / 采纳或更换种族选项。
+   */
+  recomputeAbilities(id: string): void {
+    const char = getCharacter(id);
+    if (!char || !char.baseAbilities) return;
+    const breakdown = computeAbilityBreakdown(char);
+    if (!breakdown) return;
+    const ABILITY_KEYS = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
+    const abilities = {} as NonNullable<Character['abilities']>;
+    for (const key of ABILITY_KEYS) {
+      const total = breakdown.entries[key].total;
+      abilities[key] = { score: total, modifier: calcModifier(total) };
+    }
+    updateCharacter(id, { abilities });
+  },
   calcPassivePerception,
   recalculateArmorClass,
   getSkillBonus,
