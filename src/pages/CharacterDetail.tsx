@@ -27,7 +27,6 @@ import {
   ArrowUpDown,
   Download,
   Library,
-  Settings2,
 } from 'lucide-react';
 import type { Character, Abilities, AbilityScore, AbilityKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
@@ -35,7 +34,7 @@ import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
-import { computeAbilityBreakdown, collectCharacterAbilityBonuses, type AbilityBonusRule } from '@/data/abilityBonus';
+import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
@@ -138,20 +137,15 @@ function Section({
 
 const ABILITY_KEYS: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
-const formatModifier = (score: number | undefined): string => {
-  if (score == null) return '+0';
-  const mod = characterStore.calcModifier(score);
-  return mod >= 0 ? `+${mod}` : `${mod}`;
-};
-
-interface BaseAbilitiesDialogProps {
+interface AbilityBreakdownDialogProps {
   character: Character;
   onClose: () => void;
-  onSave: (abilities: Abilities) => void;
+  onSave: (baseAbilities: Abilities, abilityBonusChoices: Record<string, AbilityKey[]>) => void;
 }
 
-// 仅在打开时条件挂载：useNumberInput 的初始值即预填值，无需 setExternal 同步
-function BaseAbilitiesDialog({ character, onClose, onSave }: BaseAbilitiesDialogProps) {
+// 属性值统一弹窗：初始值行内可编辑 + 各特性加值组分解析 + 任选槽位选择，一次保存写回全部。
+// 仅在打开时条件挂载：useNumberInput 的初始值即预填值；任选草稿独立于已存数据，未保存的修改可整体取消。
+function AbilityBreakdownDialog({ character, onClose, onSave }: AbilityBreakdownDialogProps) {
   const strengthInput = useNumberInput(character.baseAbilities?.strength?.score ?? character.abilities.strength.score, { fallback: 10 });
   const dexterityInput = useNumberInput(character.baseAbilities?.dexterity?.score ?? character.abilities.dexterity.score, { fallback: 10 });
   const constitutionInput = useNumberInput(character.baseAbilities?.constitution?.score ?? character.abilities.constitution.score, { fallback: 10 });
@@ -168,47 +162,134 @@ function BaseAbilitiesDialog({ character, onClose, onSave }: BaseAbilitiesDialog
     charisma: charismaInput,
   };
 
+  const [draftChoices, setDraftChoices] = useState<Record<string, AbilityKey[]>>(() => character.abilityBonusChoices ?? {});
+  const rules = collectCharacterAbilityBonuses(character);
+  const flexibleRules = rules.filter((r) => r.mode === 'flexible');
+
+  // 实时预览：初始值取输入框当前业务值，任选取草稿（未保存的修改即时反映在组分与总和中）
+  const preview = buildAbilityEntries(
+    rules,
+    {
+      strength: inputs.strength.value ?? null,
+      dexterity: inputs.dexterity.value ?? null,
+      constitution: inputs.constitution.value ?? null,
+      intelligence: inputs.intelligence.value ?? null,
+      wisdom: inputs.wisdom.value ?? null,
+      charisma: inputs.charisma.value ?? null,
+    },
+    draftChoices
+  );
+
+  // 任选单槽变更（只改草稿，保存时统一写回）；空槽过滤后压缩，与已存数据结构保持一致
+  const setDraftChoice = (ruleId: string, slot: number, ability: AbilityKey | '') => {
+    setDraftChoices((prev) => {
+      const arr: (AbilityKey | '')[] = [...(prev[ruleId] ?? [])];
+      while (arr.length < slot + 1) arr.push('');
+      arr[slot] = ability;
+      const cleaned = arr.filter((v): v is AbilityKey => !!v);
+      const next = { ...prev };
+      if (cleaned.length === 0) delete next[ruleId];
+      else next[ruleId] = cleaned;
+      return next;
+    });
+  };
+
   const handleSave = () => {
-    const next = {} as Abilities;
+    const baseAbilities = {} as Abilities;
     for (const key of ABILITY_KEYS) {
       const score = inputs[key].value;
       if (score == null || score < 1 || score > 30) {
         alert('请输入 1-30 之间的有效属性值');
         return;
       }
-      next[key] = { score, modifier: characterStore.calcModifier(score) };
+      baseAbilities[key] = { score, modifier: characterStore.calcModifier(score) };
     }
-    onSave(next);
+    onSave(baseAbilities, draftChoices);
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl">
-        <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">初始属性值</h3>
+      <div className="relative w-full max-w-md rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">属性值解析</h3>
         <p className="text-sm mb-4 dark:text-text-dark-muted light:text-text-light-muted">
-          {character.baseAbilities
-            ? '已设置基线，可随时修改；加减按钮调整的当前属性值不受影响'
-            : '基线未设置，已预填当前属性值，保存后成为静态基线'}
+          初始值可直接修改，任选加值在下方选择；保存后写回并重算最终属性值
         </p>
-        <div className="grid grid-cols-2 gap-3">
-          {ABILITY_KEYS.map((key) => (
-            <div key={key}>
-              <label className="block text-xs mb-1 dark:text-text-dark-muted light:text-text-light-muted">
-                {abilityLabels[key]}（{formatModifier(inputs[key].value)}）
-              </label>
-              <input
-                type="number"
-                min={1}
-                max={30}
-                value={inputs[key].text}
-                onChange={(e) => inputs[key].onChange(e.target.value)}
-                onBlur={inputs[key].onBlur}
-                className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-              />
-            </div>
-          ))}
+        <div className="space-y-2">
+          {ABILITY_KEYS.map((key) => {
+            const entry = preview.entries[key];
+            return (
+              <div key={key} className="flex items-center gap-2 text-sm p-2 rounded-lg dark:bg-white/5 light:bg-white/50">
+                <span className="w-12 shrink-0 font-medium dark:text-text-dark light:text-text-light">{abilityLabels[key]}</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  title="初始属性值"
+                  value={inputs[key].text}
+                  onChange={(e) => inputs[key].onChange(e.target.value)}
+                  onBlur={inputs[key].onBlur}
+                  className="w-14 shrink-0 px-2 py-1 rounded-lg border text-center bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+                <div className="flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  {entry.parts.length === 0 && <span>（无加值）</span>}
+                  {entry.parts.map((p) => (
+                    <span key={p.ruleId} className="text-primary">
+                      {p.label} +{p.amount}
+                    </span>
+                  ))}
+                </div>
+                <span className="shrink-0 font-bold text-primary">= {entry.total}</span>
+              </div>
+            );
+          })}
         </div>
+        {flexibleRules.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">任选加值</div>
+            {flexibleRules.map((rule) => {
+              const chosen = draftChoices[rule.id] ?? [];
+              const complete = chosen.length >= (rule.count ?? 1);
+              return (
+                <div key={rule.id} className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg dark:bg-white/5 light:bg-white/50">
+                  <div className="text-sm">
+                    <span className="dark:text-text-dark light:text-text-light">{rule.sourceLabel}</span>
+                    <span className={`ml-2 text-xs ${complete ? 'dark:text-text-dark-muted light:text-text-light-muted' : 'text-warning'}`}>
+                      任选 {rule.count} 项各 +{rule.amount}{complete ? '' : '（待选择）'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {Array.from({ length: rule.count ?? 0 }).map((_, slot) => {
+                      const current = chosen[slot] ?? '';
+                      return (
+                        <select
+                          key={slot}
+                          value={current}
+                          onChange={(e) => setDraftChoice(rule.id, slot, e.target.value as AbilityKey | '')}
+                          className={`px-2 py-1 rounded-lg border text-xs bg-transparent outline-none ${
+                            current
+                              ? 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light'
+                              : 'border-warning text-warning'
+                          }`}
+                        >
+                          <option value="">选择...</option>
+                          {ABILITY_KEYS.filter((k) => k === current || !chosen.includes(k)).map((k) => (
+                            <option key={k} value={k}>{abilityLabels[k]}</option>
+                          ))}
+                        </select>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {preview.pendingFlexible.length > 0 && (
+          <p className="mt-3 text-xs text-warning dark:text-warning light:text-warning">
+            有 {preview.pendingFlexible.length} 条任选加值尚未选满，完成后会计入最终值。
+          </p>
+        )}
         <div className="flex justify-end gap-3 mt-5">
           <button onClick={onClose}
             className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10">
@@ -219,80 +300,6 @@ function BaseAbilitiesDialog({ character, onClose, onSave }: BaseAbilitiesDialog
             保存
           </button>
         </div>
-      </div>
-    </div>
-  );
-}
-
-interface AbilityBreakdownDialogProps {
-  character: Character;
-  onClose: () => void;
-  onEditBase: () => void;
-}
-
-// 组分解析弹窗：初始值 + 各特性加值 = 最终值；任选未完成的规则在底部提醒
-function AbilityBreakdownDialog({ character, onClose, onEditBase }: AbilityBreakdownDialogProps) {
-  const breakdown = computeAbilityBreakdown(character);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative w-full max-w-md rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl">
-        <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">属性值解析</h3>
-        {!breakdown ? (
-          <div>
-            <p className="text-sm mb-4 dark:text-text-dark-muted light:text-text-light-muted">
-              尚无可解析的组分：请先设置初始属性值基线，或选择带属性加成的种族/亚种。
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={onClose}
-                className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10">
-                关闭
-              </button>
-              <button onClick={onEditBase}
-                className="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg">
-                设置初始属性值
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="space-y-2">
-              {ABILITY_KEYS.map((key) => {
-                const entry = breakdown.entries[key];
-                return (
-                  <div key={key} className="flex items-center gap-2 text-sm p-2 rounded-lg dark:bg-white/5 light:bg-white/50">
-                    <span className="w-12 shrink-0 font-medium dark:text-text-dark light:text-text-light">{abilityLabels[key]}</span>
-                    <div className="flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                      <span>初始 {entry.base ?? '未设置'}</span>
-                      {entry.parts.map((p) => (
-                        <span key={p.ruleId} className="text-primary">
-                          {p.label} +{p.amount}
-                        </span>
-                      ))}
-                    </div>
-                    <span className="shrink-0 font-bold text-primary">= {entry.total}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {breakdown.pendingFlexible.length > 0 && (
-              <p className="mt-3 text-xs text-warning dark:text-warning light:text-warning">
-                有 {breakdown.pendingFlexible.length} 条任选加值尚未选满，完成后会计入最终值。
-              </p>
-            )}
-            <div className="flex justify-end gap-3 mt-4">
-              <button onClick={onClose}
-                className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10">
-                关闭
-              </button>
-              <button onClick={onEditBase}
-                className="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg">
-                编辑初始值
-              </button>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -347,7 +354,6 @@ export default function CharacterDetail({
   const [equipmentEditorOpen, setEquipmentEditorOpen] = useState(false);
   const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [baseAbilitiesOpen, setBaseAbilitiesOpen] = useState(false);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [statsEditorOpen, setStatsEditorOpen] = useState(false);
   const [statsForm, setStatsForm] = useState({
@@ -500,27 +506,13 @@ export default function CharacterDetail({
 } = useEquipmentActions(id, reloadChar);
 
     
-  const handleSaveBaseAbilities = (baseAbilities: Abilities) => {
+  // 统一保存：基线 + 任选选择一次写回，再重算最终属性值
+  const handleSaveAbilityLayers = (baseAbilities: Abilities, abilityBonusChoices: Record<string, AbilityKey[]>) => {
     if (!id) return;
-    characterStore.update(id, { baseAbilities });
+    characterStore.update(id, { baseAbilities, abilityBonusChoices });
     characterStore.recomputeAbilities(id);
     reloadChar();
-    setBaseAbilitiesOpen(false);
-  };
-
-  // 任选规则单槽变更：写入 abilityBonusChoices 后重算最终属性值
-  const handleBonusChoiceChange = (rule: AbilityBonusRule, slot: number, ability: AbilityKey | '') => {
-    if (!id) return;
-    const choices = { ...(character.abilityBonusChoices ?? {}) };
-    const prev: (AbilityKey | '')[] = [...(choices[rule.id] ?? [])];
-    while (prev.length < (rule.count ?? 0)) prev.push('');
-    prev[slot] = ability;
-    const cleaned = prev.filter((v): v is AbilityKey => !!v);
-    if (cleaned.length === 0) delete choices[rule.id];
-    else choices[rule.id] = cleaned;
-    characterStore.update(id, { abilityBonusChoices: choices });
-    characterStore.recomputeAbilities(id);
-    reloadChar();
+    setBreakdownOpen(false);
   };
 
   const handleAddAttack = () => {
@@ -1314,13 +1306,9 @@ if (character) {
             初始属性值：{character.baseAbilities ? '已设置' : '未设置'}
           </span>
           <div className="flex gap-2">
-            <button onClick={() => setBreakdownOpen(true)} title="解析最终属性值的组分与来源"
+            <button onClick={() => setBreakdownOpen(true)} title="查看并编辑初始值、特性加值与任选选择"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
               <ScrollText className="w-4 h-4" /> 属性解析
-            </button>
-            <button onClick={() => setBaseAbilitiesOpen(true)} title="查看或编辑初始属性值基线"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
-              <Settings2 className="w-4 h-4" /> 查看 / 编辑
             </button>
           </div>
         </div>
@@ -1351,57 +1339,7 @@ if (character) {
           ))}
         </div>
 
-        {/* 特性属性加值：固定规则展示，任选规则逐槽选择 */}
-        {(() => {
-          const bonusRules = collectCharacterAbilityBonuses(character);
-          if (bonusRules.length === 0) return null;
-          const choices = character.abilityBonusChoices ?? {};
-          return (
-            <div className="mt-4 space-y-2">
-              <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">特性属性加值</div>
-              {bonusRules.map((rule) => {
-                const chosen = choices[rule.id] ?? [];
-                const complete = rule.mode === 'fixed' || chosen.length >= (rule.count ?? 1);
-                return (
-                  <div key={rule.id} className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg dark:bg-white/5 light:bg-white/50">
-                    <div className="text-sm">
-                      <span className="dark:text-text-dark light:text-text-light">{rule.sourceLabel}</span>
-                      <span className={`ml-2 text-xs ${complete ? 'dark:text-text-dark-muted light:text-text-light-muted' : 'text-warning'}`}>
-                        {rule.mode === 'fixed'
-                          ? `${abilityLabels[rule.ability!]} +${rule.amount}`
-                          : `任选 ${rule.count} 项各 +${rule.amount}${complete ? '' : '（待选择）'}`}
-                      </span>
-                    </div>
-                    {rule.mode === 'flexible' && (
-                      <div className="flex items-center gap-1.5">
-                        {Array.from({ length: rule.count ?? 0 }).map((_, slot) => {
-                          const current = chosen[slot] ?? '';
-                          return (
-                            <select
-                              key={slot}
-                              value={current}
-                              onChange={(e) => handleBonusChoiceChange(rule, slot, e.target.value as AbilityKey | '')}
-                              className={`px-2 py-1 rounded-lg border text-xs bg-transparent outline-none ${
-                                current
-                                  ? 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light'
-                                  : 'border-warning text-warning'
-                              }`}
-                            >
-                              <option value="">选择...</option>
-                              {ABILITY_KEYS.filter((k) => k === current || !chosen.includes(k)).map((k) => (
-                                <option key={k} value={k}>{abilityLabels[k]}</option>
-                              ))}
-                            </select>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })()}
+        {/* 特性加值与任选槽位已并入「属性解析」弹窗统一编辑 */}
           </ErrorBoundary>
       </Section>
 
@@ -2736,24 +2674,12 @@ if (character) {
         />
       )}
 
-      {/* 初始属性值弹窗（查看 / 编辑基线） */}
-      {baseAbilitiesOpen && character && (
-        <BaseAbilitiesDialog
-          character={character}
-          onClose={() => setBaseAbilitiesOpen(false)}
-          onSave={handleSaveBaseAbilities}
-        />
-      )}
-
-      {/* 属性值解析弹窗（组分与来源） */}
+      {/* 属性值解析弹窗（初始值编辑 + 特性加值组分 + 任选槽位，统一保存） */}
       {breakdownOpen && character && (
         <AbilityBreakdownDialog
           character={character}
           onClose={() => setBreakdownOpen(false)}
-          onEditBase={() => {
-            setBreakdownOpen(false);
-            setBaseAbilitiesOpen(true);
-          }}
+          onSave={handleSaveAbilityLayers}
         />
       )}
 

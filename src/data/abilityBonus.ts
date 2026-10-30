@@ -184,19 +184,15 @@ export interface AbilityBreakdown {
 const ALL_ABILITIES: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
 
 /**
- * 组分解析：初始值 + 各加值 = 最终值。
+ * 组分解析核心（纯函数）：规则 + 初始值 + 任选选择 → 分解条目。
+ * 独立导出以便弹窗用草稿状态（未保存的初始值 / 任选选择）做实时预览。
  * 任选规则只在选择齐全（count 个互异属性）后计入。
  */
-export function computeAbilityBreakdown(character: {
-  baseAbilities?: Abilities;
-  race?: string;
-  abilityBonusChoices?: Record<string, AbilityKey[]>;
-}): AbilityBreakdown | null {
-  const rules = collectCharacterAbilityBonuses(character);
-  const choices = character.abilityBonusChoices ?? {};
-  const hasBase = !!character.baseAbilities;
-  if (!hasBase && rules.length === 0) return null;
-
+export function buildAbilityEntries(
+  rules: AbilityBonusRule[],
+  baseScores: Partial<Record<AbilityKey, number | null>>,
+  choices: Record<string, AbilityKey[]>
+): { entries: Record<AbilityKey, AbilityBreakdownEntry>; pendingFlexible: PendingFlexibleRule[] } {
   const entries = {} as Record<AbilityKey, AbilityBreakdownEntry>;
   const pendingFlexible: PendingFlexibleRule[] = [];
 
@@ -227,7 +223,7 @@ export function computeAbilityBreakdown(character: {
   }
 
   for (const key of ALL_ABILITIES) {
-    const base = hasBase ? character.baseAbilities?.[key]?.score ?? null : null;
+    const base = baseScores[key] ?? null;
     const parts = partsByAbility[key];
     entries[key] = {
       base,
@@ -236,5 +232,27 @@ export function computeAbilityBreakdown(character: {
     };
   }
 
+  return { entries, pendingFlexible };
+}
+
+/**
+ * 组分解析：初始值 + 各加值 = 最终值。
+ */
+export function computeAbilityBreakdown(character: {
+  baseAbilities?: Abilities;
+  race?: string;
+  abilityBonusChoices?: Record<string, AbilityKey[]>;
+}): AbilityBreakdown | null {
+  const rules = collectCharacterAbilityBonuses(character);
+  const hasBase = !!character.baseAbilities;
+  if (!hasBase && rules.length === 0) return null;
+
+  const baseScores: Partial<Record<AbilityKey, number | null>> = {};
+  for (const key of ALL_ABILITIES) {
+    baseScores[key] = hasBase ? character.baseAbilities?.[key]?.score ?? null : null;
+  }
+
+  const { entries, pendingFlexible } = buildAbilityEntries(rules, baseScores, character.abilityBonusChoices ?? {});
   return { entries, pendingFlexible, hasBase };
 }
+
