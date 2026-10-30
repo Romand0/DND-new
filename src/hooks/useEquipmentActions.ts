@@ -6,12 +6,12 @@ import * as api from '@/lib/api';
 
 export function useEquipmentActions(charId: string | undefined, refresh: () => void) {
   
-  const handleAddEquipmentFromLibrary = useCallback((item: any) => {
+  const handleAddEquipmentFromLibrary = useCallback((item: any, quantity?: number) => {
   if (!charId) return null;
   const tempEquipment: Equipment & { id: string; templateId?: string } = {
     id: `temp-${Date.now()}`,
     templateId: item.id,
-    quantity: undefined,
+    quantity: quantity ?? undefined,
     packSize: item.packSize,
     unit: item.unit,
     ...extractBaseFields(item),

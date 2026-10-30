@@ -1,5 +1,6 @@
 import type { Spell, SpellMaterial } from '@/types/spell';
 import type { Equipment } from '@/types/character';
+import { buildScrollItem, scrollItemToEquipment } from '@/data/spellScrolls';
 
 /**
  * 法术材料机制（M 成分）
@@ -298,24 +299,10 @@ export function buildMaterialEquipment(spell: Spell, req: MaterialRequirement): 
   };
 }
 
-/** 法术卷轴 → 角色背包装备（施法凭证，施放对应法术后消耗） */
+/** 法术卷轴 → 角色背包装备（施法凭证，施放对应法术后消耗）
+ *  与装备库中的虚拟卷轴条目共用同一 id 与字段，保证快捷补货 / 手动添加可互换 */
 export function buildScrollEquipment(spell: Spell): Partial<Equipment> {
-  const level = typeof spell.level === 'number' ? spell.level : 0;
-  return {
-    id: `spell-scroll-${spell.id}`,
-    name: `法术卷轴：${spell.name}`,
-    quantity: 1,
-    category: SCROLL_CATEGORY,
-    subtype: '法术卷轴',
-    weight: 0,
-    price: { amount: level === 0 ? 10 : 50 * level, unit: 'gp' },
-    description: `记录了《${spell.name}》的法术卷轴，持有者可消耗卷轴施放该法术。`,
-    scrollSpellId: spell.id,
-    scrollSpellName: spell.name,
-    scrollSpellLevel: level,
-    properties: [],
-    tags: [],
-  };
+  return scrollItemToEquipment(buildScrollItem(spell));
 }
 
 /** 材料需求是否已完全满足（不含消耗副作用），供快捷补货按钮判断 */

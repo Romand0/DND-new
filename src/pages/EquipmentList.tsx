@@ -7,6 +7,7 @@ import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucid
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, deleteEquipments } from '@/lib/api';
+import { isScrollEquipmentItem, loadScrollCatalog } from '@/data/spellScrolls';
 
 const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 const MAGIC_CATEGORIES = ['魔法物品', '非魔法物品'];
@@ -49,8 +50,12 @@ export default function EquipmentList() {
     setLoading(true);
     setError('');
     try {
-      const data = await fetchAllEquipments();
-      setEquipments(data);
+      // 卷轴为虚拟条目（来自法术库），与 D1 装备合并后统一展示
+      const [data, scrolls] = await Promise.all([
+        fetchAllEquipments(),
+        loadScrollCatalog().catch(() => [] as EquipmentItem[]),
+      ]);
+      setEquipments([...data, ...scrolls]);
     } catch (e: any) {
       setError(e.message || '加载失败');
     } finally {
@@ -213,7 +218,11 @@ export default function EquipmentList() {
     try { await load(); } catch (e: any) { setError('云端加载失败：' + (e.message || '')); } finally { setSyncing(false); }
   };
 
-  const handleEdit = (item: EquipmentItem) => { if (!isAdmin) return; setEditingItem(item); setEditorOpen(true); };
+  const handleEdit = (item: EquipmentItem) => {
+    if (!isAdmin || isScrollEquipmentItem(item)) return;
+    setEditingItem(item);
+    setEditorOpen(true);
+  };
   const handleAddNew = () => { if (!isAdmin) return; setEditingItem(undefined); setEditorOpen(true); };
 
   const formatPrice = (item: EquipmentItem) => `${item.price.amount} ${item.price.unit}`;
@@ -343,7 +352,7 @@ export default function EquipmentList() {
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* checkbox：仅选择模式 + DM */}
-                {isAdmin && selectMode && (
+                {isAdmin && selectMode && !isScrollEquipmentItem(item) && (
                   <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)}
                     className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0" />
                 )}
@@ -365,8 +374,11 @@ export default function EquipmentList() {
                   )}
                 </div>
               </div>
-              {/* 右侧：编辑/删除（一直有，DM 下） */}
-              {isAdmin && (
+              {/* 右侧：编辑/删除（一直有，DM 下；卷轴为法术库虚拟条目，只读） */}
+              {isAdmin && isScrollEquipmentItem(item) && (
+                <span className="text-[10px] px-2 py-1 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">法术卷轴 · 只读</span>
+              )}
+              {isAdmin && !isScrollEquipmentItem(item) && (
                 <div className="flex gap-1 shrink-0">
                   <button onClick={() => handleEdit(item)} className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light" title="编辑"><Edit className="w-4 h-4" /></button>
                   <button onClick={() => setDeleteConfirm(item.id)} className="p-2 rounded hover:bg-danger/20 text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>

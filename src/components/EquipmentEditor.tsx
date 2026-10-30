@@ -86,6 +86,14 @@ const [formData, setFormData] = useState<
   quantity: (item as any).quantity ?? (item as any).packSize ?? 1,
   unit: (item as any).unit || '',
   packSize: (item as any).packSize,
+  // 法术卷轴 / 材料身份字段：编辑保存时不能丢，否则物化后的装备无法关联法术
+  scrollSpellId: (item as any).scrollSpellId,
+  scrollSpellName: (item as any).scrollSpellName,
+  scrollSpellLevel: (item as any).scrollSpellLevel,
+  materialKey: (item as any).materialKey,
+  materialName: (item as any).materialName,
+  materialCostGp: (item as any).materialCostGp,
+  materialConsumed: (item as any).materialConsumed,
 });
 
 
