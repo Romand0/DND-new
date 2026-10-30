@@ -64,8 +64,13 @@ function pushFixed(
   });
 }
 
-function parseTraitRules(option: CharacterOption, traits: { text: string }[]): AbilityBonusRule[] {
-  const out: AbilityBonusRule[] = [];
+function parseTraitRules(
+  option: CharacterOption,
+  traits: { text: string }[],
+  out: AbilityBonusRule[]
+): void {
+  // 直接推进共享的 out：与 mechanics 规则共享同一去重池与全局序号，
+  // 否则文本解析在自己的局部数组里去重，mechanics 与文本会各出一条重复规则
 
   for (const t of traits) {
     const text = t.text || '';
@@ -106,8 +111,6 @@ function parseTraitRules(option: CharacterOption, traits: { text: string }[]): A
       if (ability) pushFixed(out, option, ability, Number(m[2]), text);
     }
   }
-
-  return out;
 }
 
 export function getAbilityBonusRules(option: CharacterOption): AbilityBonusRule[] {
@@ -127,8 +130,8 @@ export function getAbilityBonusRules(option: CharacterOption): AbilityBonusRule[
     }
   }
 
-  // 2) 特质文本解析（亚种唯一来源；同时兜底任选模式）
-  out.push(...parseTraitRules(option, option.traits ?? []));
+  // 2) 特质文本解析（亚种唯一来源；同时兜底任选模式），与 mechanics 共享去重池
+  parseTraitRules(option, option.traits ?? [], out);
 
   rulesCache.set(option.id, out);
   return out;
@@ -210,7 +213,8 @@ export function computeAbilityBreakdown(character: {
       continue;
     }
     if (rule.mode === 'flexible') {
-      const chosen = (choices[rule.id] ?? []).filter(Boolean);
+      // 去重防御：历史脏数据可能同槽重复，双计会比漏计更隐蔽
+      const chosen = [...new Set((choices[rule.id] ?? []).filter(Boolean))];
       const complete = chosen.length >= (rule.count ?? 1);
       if (complete) {
         for (const ability of chosen) {
