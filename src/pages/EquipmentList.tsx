@@ -8,12 +8,12 @@ import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, deleteEquipments } from '@/lib/api';
 
-const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 const MAGIC_CATEGORIES = ['魔法物品', '非魔法物品'];
 const TRADE_CATEGORIES = ['冒险物品', '贵重物品'];
 
 // 分类排序顺序（排除"全部"）
-const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 
 const SUBCATEGORY_MAP: Record<string, string[]> = {
   '武器': ['军用近战', '军用远程', '简易近战', '简易远程'],

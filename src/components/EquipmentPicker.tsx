@@ -3,10 +3,10 @@ import { X, Search, Package } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
 import { fetchAllEquipments } from '@/lib/api';
 
-const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 
 // 分类排序顺序（排除"全部"）
-const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '杂物', '自定义'];
+const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 
 interface EquipmentPickerProps {
   onSelect: (item: EquipmentItem) => void;

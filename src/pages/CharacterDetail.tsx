@@ -50,6 +50,7 @@ import CharacterEquipmentCard from '@/components/CharacterEquipmentCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useEquipmentActions } from '@/hooks/useEquipmentActions';
 import TradeModal from '@/components/TradeModal';
+import SpellMaterialRequirementBlock from '@/components/SpellMaterialRequirementBlock';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -512,7 +513,7 @@ export default function CharacterDetail({
 
   const handleSortEquipment = () => {
     if (!id || !character) return;
-    const categoryOrder = ['武器', '护甲', '法器', '工具', '药水', '杂物'];
+    const categoryOrder = ['武器', '护甲', '法器', '工具', '药水', '法术材料', '卷轴', '杂物'];
     const sorted = [...character.equipment].sort((a, b) => {
       const aIndex = categoryOrder.indexOf(a.category);
       const bIndex = categoryOrder.indexOf(b.category);
@@ -2009,6 +2010,15 @@ if (character) {
                                 材料: {spellInfo.materialInfo}
                               </div>
                             )}
+                            {spellInfo.components?.material && character && (
+                              <SpellMaterialRequirementBlock
+                                spell={spellInfo}
+                                character={character}
+                                inventory={character.equipment}
+                                onChanged={reloadChar}
+                                readOnly={readOnly}
+                              />
+                            )}
                             <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
                               {renderSpellDice(spellInfo.description)}
                             </div>
@@ -2119,6 +2129,15 @@ if (character) {
                               <div className="mb-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                                 材料: {spellInfo.materialInfo}
                               </div>
+                            )}
+                            {spellInfo.components?.material && character && (
+                              <SpellMaterialRequirementBlock
+                                spell={spellInfo}
+                                character={character}
+                                inventory={character.equipment}
+                                onChanged={reloadChar}
+                                readOnly={readOnly}
+                              />
                             )}
                             <div className="text-xs whitespace-pre-wrap dark:text-text-dark light:text-text-light">
                               {renderSpellDice(spellInfo.description)}

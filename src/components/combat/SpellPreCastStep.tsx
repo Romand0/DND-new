@@ -5,6 +5,8 @@ import { isOneActionCast, isBonusActionCast } from '@/types/combat';
 import type { Spell } from '@/types/spell';
 import { deriveCanGesticulate } from '@/data/somaticCheck';
 import { parseSpellRange } from '@/utils/spellRange';
+import SpellMaterialPanel from './SpellMaterialPanel';
+import type { MaterialEvaluation, MaterialRequirement } from '@/data/spellMaterials';
 
 export interface PrecastCheckItem {
   key: string;
@@ -18,11 +20,19 @@ interface Props {
   caster: Combatant;
   canUseAction: boolean;
   canUseBonusAction: boolean;
+  /** 材料成分评估结果（缺省视为已备，兼容旧调用） */
+  materialEvaluation?: MaterialEvaluation;
+  onCraftMaterial?: (req: MaterialRequirement) => void;
+  onCraftScroll?: () => void;
   onConfirm: (message: string, data: Record<string, unknown>) => void;
   onForce: (message: string, data: Record<string, unknown>) => void;
 }
 
-export default function SpellPreCastStep({ spell, caster, canUseAction, canUseBonusAction, onConfirm, onForce }: Props) {
+export default function SpellPreCastStep({
+  spell, caster, canUseAction, canUseBonusAction,
+  materialEvaluation, onCraftMaterial, onCraftScroll,
+  onConfirm, onForce,
+}: Props) {
   const items: PrecastCheckItem[] = [];
   const blockingConditions: string[] = [];
 
@@ -51,9 +61,20 @@ export default function SpellPreCastStep({ spell, caster, canUseAction, canUseBo
     });
   }
 
-  // 材料成分（M）：暂无运行时判定（法术材料包/法器默认已备），展示性条目
+  // 材料成分（M）：按施法者战斗背包评估（直接材料 / 材料包替代 / 对应卷轴）
   if (spell.components?.material) {
-    items.push({ key: 'M', label: '材料成分（M）', pass: true, detail: '默认已备（材料包/法器）' });
+    const evalResult = materialEvaluation;
+    const pass = evalResult ? evalResult.satisfied : true;
+    const detail = !evalResult
+      ? '默认已备（材料包/法器）'
+      : evalResult.viaScroll
+        ? '对应法术卷轴满足'
+        : evalResult.viaPouch
+          ? '材料包替代'
+          : pass
+            ? '材料齐备'
+            : `缺少：${evalResult.missing.map(m => m.name).join('、')}`;
+    items.push({ key: 'M', label: '材料成分（M）', pass, detail });
   }
 
   // 施法时间：1 动作 → canUseAction；1 附赠动作 → canUseBonusAction；其他（1 分钟/仪式）不做运行时校验
@@ -107,6 +128,15 @@ export default function SpellPreCastStep({ spell, caster, canUseAction, canUseBo
           </div>
         ))}
       </div>
+
+      {spell.components?.material && materialEvaluation && (
+        <SpellMaterialPanel
+          evaluation={materialEvaluation}
+          spellName={spell.name}
+          onCraftMaterial={onCraftMaterial}
+          onCraftScroll={onCraftScroll}
+        />
+      )}
 
       {allPass ? (
         <button

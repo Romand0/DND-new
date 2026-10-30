@@ -1501,6 +1501,35 @@ export default function CombatSession() {
           isProvingGround={record?.isProvingGround ?? false}
           targetCharacter={spellModal.target.characterId ? characterStore.get(spellModal.target.characterId) : null}
           targetCombatInventory={getCombatInventory(record, spellModal.target)}
+          casterCombatInventory={getCombatInventory(record, spellModal.caster)}
+          onConsumeMaterials={(items) => {
+            if (!record || record.isProvingGround) return;
+            const currentChanges = record.equipmentChanges?.[spellModal.caster.id];
+            const newChanges = applyEquipmentChange(currentChanges, (ch) => {
+              for (const item of items) {
+                const delta = -(item.quantity || 1);
+                const srcEq = (() => {
+                  const pc = spellModal.caster.characterId ? characterStore.get(spellModal.caster.characterId) : null;
+                  return pc?.equipment.find(e => (e.childId || e.id) === item.childId);
+                })();
+                const prevDelta = ch.quantityDeltas[item.childId] || 0;
+                const effectiveQty = (srcEq?.quantity ?? 1) + prevDelta;
+                if (effectiveQty + delta <= 0) {
+                  if (!ch.removedChildIds.includes(item.childId)) ch.removedChildIds.push(item.childId);
+                  delete ch.quantityDeltas[item.childId];
+                } else {
+                  ch.quantityDeltas[item.childId] = prevDelta + delta;
+                }
+              }
+            });
+            combatStore.update(record.id, {
+              equipmentChanges: {
+                ...(record.equipmentChanges || {}),
+                [spellModal.caster.id]: newChanges,
+              },
+              updatedAt: Date.now(),
+            });
+          }}
           combatantPositions={combatantPositions}
           canUseAction={canUseAction(spellModal.caster.id)}
           canUseBonusAction={canUseBonusAction(spellModal.caster.id)}
