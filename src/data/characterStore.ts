@@ -231,6 +231,8 @@ function createSandboxCharacter(data: Partial<Character>): Character {
     baseAbilities: data.baseAbilities,
     // 特性属性加值的任选结果：直通（undefined 合法，规则未完成时不计入最终值）
     abilityBonusChoices: data.abilityBonusChoices,
+    // 特性熟练项的任选结果：同上，直通
+    proficiencyChoices: data.proficiencyChoices,
     maxHp: data.maxHp ?? 20,
     currentHp: data.currentHp ?? 20,
     tempHp: data.tempHp ?? 0,
@@ -1403,7 +1405,8 @@ const SKILL_GROUP_CONFIG: Record<AbilityKey, { label: string; savingThrow: Abili
   charisma: { label: '魅力', savingThrow: 'charisma', skills: ['deception', 'intimidation', 'performance', 'persuasion'] },
 };
 
-const SKILL_LABELS: Record<SkillKey, string> = {
+// 命名导出：proficiencyBonus 模块做中文→技能键反查用（技能表为静态种子，无循环依赖）
+export const SKILL_LABELS: Record<SkillKey, string> = {
   athletics: '运动',
   acrobatics: '特技',
   sleightOfHand: '巧手',

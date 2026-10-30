@@ -178,6 +178,8 @@ export interface Character {
   baseAbilities?: Abilities;
   /** 特性属性加值的任选结果：key = 规则 ID（`${optionId}#${index}`），value = 已选属性（互异） */
   abilityBonusChoices?: Record<string, AbilityKey[]>;
+  /** 特性熟练项的任选结果：key = 规则 ID，value = 已选条目（技能/语言/工具中文名） */
+  proficiencyChoices?: Record<string, string[]>;
   proficiencyBonus: number;
   passivePerception: number;
   armorClass: number;
