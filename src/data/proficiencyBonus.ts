@@ -274,6 +274,35 @@ export interface GrantedChip {
   sourceLabel: string;
 }
 
+/** 手动来源标记（旧数据补充）：key = `skill:<skillKey>` / `save:<abilityKey>` / `<分类>:<条目名>` */
+export type ProficiencySourceMarks = Record<string, string>;
+
+const CHIP_CATEGORIES = ['armor', 'weapons', 'tools', 'languages'] as const;
+
+/** 拆分标记 key：技能/豁免进对应表，四类条目进 chipMarks；未知前缀忽略（容错旧数据） */
+export function splitSourceMarks(
+  marks: ProficiencySourceMarks | undefined
+): Pick<FinalProficiencies, 'skillMarks' | 'saveMarks' | 'chipMarks'> {
+  const out = {
+    skillMarks: {} as Partial<Record<SkillKey, string>>,
+    saveMarks: {} as Partial<Record<AbilityKey, string>>,
+    chipMarks: { armor: {}, weapons: {}, tools: {}, languages: {} } as FinalProficiencies['chipMarks'],
+  };
+  if (!marks) return out;
+  for (const [key, value] of Object.entries(marks)) {
+    if (!value) continue;
+    const idx = key.indexOf(':');
+    if (idx <= 0) continue;
+    const kind = key.slice(0, idx);
+    const name = key.slice(idx + 1);
+    if (!name) continue;
+    if (kind === 'skill') out.skillMarks[name as SkillKey] = value;
+    else if (kind === 'save') out.saveMarks[name as AbilityKey] = value;
+    else if ((CHIP_CATEGORIES as readonly string[]).includes(kind)) out.chipMarks[kind as 'armor'][name] = value;
+  }
+  return out;
+}
+
 export interface FinalProficiencies {
   /** 解析授予的技能：key → 来源标签列表（基线勾选另见 character.skills） */
   skillSources: Partial<Record<SkillKey, string[]>>;
@@ -281,6 +310,10 @@ export interface FinalProficiencies {
   saveSources: Partial<Record<AbilityKey, string[]>>;
   /** 解析授予的四类条目：基线芯片之外的额外项（按 name 去重） */
   grantedChips: Record<'armor' | 'weapons' | 'tools' | 'languages', GrantedChip[]>;
+  /** 手动来源标记（仅展示，不参与判定；来源标记不进 skillSources/saveSources 以免被误当成解析授予点亮勾选） */
+  skillMarks: Partial<Record<SkillKey, string>>;
+  saveMarks: Partial<Record<AbilityKey, string>>;
+  chipMarks: Record<'armor' | 'weapons' | 'tools' | 'languages', Record<string, string>>;
   /** 未选满的任选规则 */
   pendingFlexible: PendingProfFlexible[];
 }
@@ -298,6 +331,9 @@ export function buildFinalProficiencies(
     skillSources: {},
     saveSources: {},
     grantedChips: { armor: [], weapons: [], tools: [], languages: [] },
+    skillMarks: {},
+    saveMarks: {},
+    chipMarks: { armor: {}, weapons: {}, tools: {}, languages: {} },
     pendingFlexible: [],
   };
 
@@ -337,12 +373,18 @@ export function buildFinalProficiencies(
   return result;
 }
 
-/** 角色维度便捷入口：收集 + 合并一步到位（页面只读展示用） */
+/** 角色维度便捷入口：收集 + 合并 + 手动来源标记一步到位（页面只读展示用） */
 export function computeFinalProficiencies(character: {
   race?: string;
   background?: string;
   profession?: { class?: string };
   proficiencyChoices?: Record<string, string[]>;
+  proficiencySourceMarks?: Record<string, string>;
 }): FinalProficiencies {
-  return buildFinalProficiencies(collectProficiencyBonusRules(character), character.proficiencyChoices ?? {});
+  const final = buildFinalProficiencies(collectProficiencyBonusRules(character), character.proficiencyChoices ?? {});
+  const { skillMarks, saveMarks, chipMarks } = splitSourceMarks(character.proficiencySourceMarks);
+  final.skillMarks = skillMarks;
+  final.saveMarks = saveMarks;
+  final.chipMarks = chipMarks;
+  return final;
 }

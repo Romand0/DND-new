@@ -1,5 +1,5 @@
 // DM Toolkit - Character Detail Page Component
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useEditorState } from '@/data/editorState';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -27,6 +27,7 @@ import {
   ArrowUpDown,
   Download,
   Library,
+  Tag,
 } from 'lucide-react';
 import type { Character, Abilities, AbilityScore, AbilityKey, SkillKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
@@ -315,6 +316,7 @@ interface ProficienciesDialogProps {
     saveExpertise: AbilityKey[];
     saveBonusOverride: Partial<Record<AbilityKey, number>>;
     proficiencyChoices: Record<string, string[]>;
+    proficiencySourceMarks: Record<string, string>;
   }) => void;
 }
 
@@ -351,6 +353,10 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
   });
   // 任选规则的草稿选择（保存时写回 proficiencyChoices）
   const [draftChoices, setDraftChoices] = useState<Record<string, string[]>>(() => character.proficiencyChoices ?? {});
+  // 手动来源标记草稿（旧数据补充，key = skill:<键> / save:<键> / <分类>:<条目名>）
+  const [draftMarks, setDraftMarks] = useState<Record<string, string>>(() => character.proficiencySourceMarks ?? {});
+  const [editingMark, setEditingMark] = useState<string | null>(null);
+  const [markText, setMarkText] = useState('');
 
   // ① 选项解析：规则集 + 草稿任选 → 解析授予集
   const rules = collectProficiencyBonusRules(character);
@@ -442,6 +448,25 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
     });
   };
 
+  // 来源标记行内编辑：空文本 = 删除标记；Enter 或失焦提交
+  const startEditMark = (key: string) => {
+    setEditingMark(key);
+    setMarkText(draftMarks[key] ?? '');
+  };
+  const commitMark = () => {
+    if (!editingMark) return;
+    const key = editingMark;
+    const text = markText.trim();
+    setDraftMarks((prev) => {
+      const next = { ...prev };
+      if (text) next[key] = text;
+      else delete next[key];
+      return next;
+    });
+    setEditingMark(null);
+    setMarkText('');
+  };
+
   const handleSave = () => {
     onSave({
       skills: draft.skills,
@@ -449,6 +474,7 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
       saveExpertise: draft.saveExpertise,
       saveBonusOverride: draft.saveBonusOverride,
       proficiencyChoices: draftChoices,
+      proficiencySourceMarks: draftMarks,
     });
   };
 
@@ -458,7 +484,8 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
       <div className="relative w-full max-w-2xl rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl max-h-[90vh] overflow-y-auto">
         <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">熟练项解析</h3>
         <p className="text-sm mb-4 dark:text-text-dark-muted light:text-text-light-muted">
-          选项规则自动授予熟练；勾选为手填基线，二者并集为最终熟练项；任选加值在下方选择，保存后写回
+          选项规则自动授予熟练；勾选为手填基线，二者并集为最终熟练项；任选加值在下方选择，保存后写回。
+          熟练项旁的标签按钮可手动补充来源说明（适用于旧数据），仅作展示
         </p>
 
         {/* ① 角色选项解析：固定规则只读 + 任选槽位 */}
@@ -527,6 +554,20 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                 {saveSources && (
                   <span className="text-[10px] text-primary" title="选项解析授予">{saveSources.join('、')}</span>
                 )}
+                {group.save.proficient && (
+                  <button
+                    onClick={() => startEditMark(`save:${group.save.key}`)}
+                    title="手动来源标记（旧数据补充）"
+                    className={editingMark === `save:${group.save.key}` || draftMarks[`save:${group.save.key}`]
+                      ? 'text-primary'
+                      : 'dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary'}
+                  >
+                    <Tag className="w-3 h-3" />
+                  </button>
+                )}
+                {group.save.proficient && draftMarks[`save:${group.save.key}`] && (
+                  <span className="text-[10px] text-primary/80" title="手动来源标记">{draftMarks[`save:${group.save.key}`]}</span>
+                )}
                 <input
                   type="number"
                   value={overrideText[group.save.key] ?? ''}
@@ -538,10 +579,26 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                   }`}
                 />
               </div>
+              {editingMark === `save:${group.save.key}` && (
+                <div className="flex items-center gap-2 pl-6 mb-1">
+                  <Tag className="w-3 h-3 text-primary flex-shrink-0" />
+                  <input
+                    autoFocus
+                    type="text"
+                    value={markText}
+                    onChange={(e) => setMarkText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && commitMark()}
+                    onBlur={commitMark}
+                    placeholder="来源说明，如：职业 · 游荡者（旧数据）"
+                    className="flex-1 px-2 py-1 text-xs rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                  />
+                </div>
+              )}
               {group.skills.map((skill) => {
                 const sources = final.skillSources[skill.key];
                 return (
-                <div key={skill.key} className={`flex flex-wrap items-center gap-2 p-1.5 rounded-lg ${skill.proficient ? 'bg-primary/10' : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'}`}>
+                <Fragment key={skill.key}>
+                <div className={`flex flex-wrap items-center gap-2 p-1.5 rounded-lg ${skill.proficient ? 'bg-primary/10' : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'}`}>
                   <button
                     onClick={() => toggleSkillExp(skill.key)}
                     disabled={!skill.proficient}
@@ -569,10 +626,40 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                   {sources && (
                     <span className="text-[10px] text-primary" title="选项解析授予">{sources.join('、')}</span>
                   )}
+                  {skill.proficient && (
+                    <button
+                      onClick={() => startEditMark(`skill:${skill.key}`)}
+                      title="手动来源标记（旧数据补充）"
+                      className={editingMark === `skill:${skill.key}` || draftMarks[`skill:${skill.key}`]
+                        ? 'text-primary'
+                        : 'dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary'}
+                    >
+                      <Tag className="w-3 h-3" />
+                    </button>
+                  )}
+                  {skill.proficient && draftMarks[`skill:${skill.key}`] && (
+                    <span className="text-[10px] text-primary/80" title="手动来源标记">{draftMarks[`skill:${skill.key}`]}</span>
+                  )}
                   <span className={`text-xs font-mono font-bold w-8 text-right ${skill.proficient ? 'dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
                     {skill.bonus >= 0 ? `+${skill.bonus}` : skill.bonus}
                   </span>
                 </div>
+                {editingMark === `skill:${skill.key}` && (
+                  <div className="flex items-center gap-2 pl-6 my-1">
+                    <Tag className="w-3 h-3 text-primary flex-shrink-0" />
+                    <input
+                      autoFocus
+                      type="text"
+                      value={markText}
+                      onChange={(e) => setMarkText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && commitMark()}
+                      onBlur={commitMark}
+                      placeholder="来源说明，如：种族 · 半精灵（旧数据）"
+                      className="flex-1 px-2 py-1 text-xs rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                )}
+                </Fragment>
                 );
               })}
               {group.skills.length === 0 && (
@@ -660,6 +747,18 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                   {draft.categories[category].map((item, index) => (
                     <div key={index} className="flex items-center gap-1 px-2 py-1 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
                       <span className="text-xs dark:text-text-dark light:text-text-light">{item}</span>
+                      {draftMarks[`${category}:${item}`] && (
+                        <span className="text-[10px] text-primary/80" title="手动来源标记">{draftMarks[`${category}:${item}`]}</span>
+                      )}
+                      <button
+                        onClick={() => startEditMark(`${category}:${item}`)}
+                        title="手动来源标记（旧数据补充）"
+                        className={editingMark === `${category}:${item}` || draftMarks[`${category}:${item}`]
+                          ? 'text-primary'
+                          : 'dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary'}
+                      >
+                        <Tag className="w-3 h-3" />
+                      </button>
                       <button onClick={() => removeChip(category, index)} className="p-0.5 rounded hover:bg-danger/20 text-danger flex-shrink-0">
                         <X className="w-3 h-3" />
                       </button>
@@ -670,9 +769,37 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                       title={`选项解析授予：${g.sourceLabel}`}>
                       <span className="text-xs text-primary">{g.name}</span>
                       <span className="text-[10px] text-primary/70">{g.sourceLabel}</span>
+                      {draftMarks[`${category}:${g.name}`] && (
+                        <span className="text-[10px] text-primary/80" title="手动来源标记">+ {draftMarks[`${category}:${g.name}`]}</span>
+                      )}
+                      <button
+                        onClick={() => startEditMark(`${category}:${g.name}`)}
+                        title="手动来源标记（旧数据补充）"
+                        className={editingMark === `${category}:${g.name}` ? 'text-primary' : 'text-primary/50 hover:text-primary'}
+                      >
+                        <Tag className="w-3 h-3" />
+                      </button>
                     </div>
                   ))}
                 </div>
+                {editingMark?.startsWith(`${category}:`) && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="w-3 h-3 text-primary flex-shrink-0" />
+                    <span className="text-xs dark:text-text-dark light:text-text-light flex-shrink-0">
+                      {editingMark.slice(category.length + 1)}
+                    </span>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={markText}
+                      onChange={(e) => setMarkText(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && commitMark()}
+                      onBlur={commitMark}
+                      placeholder="来源说明，如：背景 · 士兵（旧数据）"
+                      className="flex-1 px-2 py-1 text-xs rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <input
                     type="text"
@@ -1187,13 +1314,14 @@ export default function CharacterDetail({
     reloadChar();
   };
 
-  // 熟练项统一保存：基线（技能/豁免熟练与专精、豁免加值覆盖、四类芯片）+ 选项任选选择一次写回
+  // 熟练项统一保存：基线（技能/豁免熟练与专精、豁免加值覆盖、四类芯片）+ 选项任选选择 + 手动来源标记一次写回
   const handleSaveProficiencies = (draft: {
     skills: Character['skills'];
     proficiencies: Character['proficiencies'];
     saveExpertise: AbilityKey[];
     saveBonusOverride: Partial<Record<AbilityKey, number>>;
     proficiencyChoices: Record<string, string[]>;
+    proficiencySourceMarks: Record<string, string>;
   }) => {
     if (!id) return;
     characterStore.update(id, {
@@ -1202,6 +1330,7 @@ export default function CharacterDetail({
       saveExpertise: draft.saveExpertise,
       saveBonusOverride: draft.saveBonusOverride,
       proficiencyChoices: draft.proficiencyChoices,
+      proficiencySourceMarks: draft.proficiencySourceMarks,
     });
     reloadChar();
     setProficienciesOpen(false);
@@ -1817,6 +1946,11 @@ if (character) {
           {saveSources && (
             <span className="text-[10px] text-primary" title="选项解析授予">{saveSources.join('、')}</span>
           )}
+          {saveFinal && profFinal.saveMarks[group.save.key] && (
+            <span className="text-[10px] text-primary/80 inline-flex items-center gap-0.5" title="手动来源标记">
+              <Tag className="w-3 h-3" />{profFinal.saveMarks[group.save.key]}
+            </span>
+          )}
           <span className={`text-xs font-mono font-bold w-14 text-right rounded px-1 py-0.5 ${
             group.save.overridden
               ? 'text-accent dark:bg-accent/10 light:bg-accent/10'
@@ -1866,6 +2000,11 @@ if (character) {
             {sources && (
               <span className="text-[10px] text-primary" title="选项解析授予">{sources.join('、')}</span>
             )}
+            {finalProf && profFinal.skillMarks[skill.key] && (
+              <span className="text-[10px] text-primary/80 inline-flex items-center gap-0.5" title="手动来源标记">
+                <Tag className="w-3 h-3" />{profFinal.skillMarks[skill.key]}
+              </span>
+            )}
             <span
               className={`text-xs font-mono font-bold w-8 text-right ${
                 finalProf
@@ -1894,11 +2033,13 @@ if (character) {
 })()}
         </div>
 
-        {/* 四类熟练项摘要（最终值只读展示：基线芯片 ∪ 选项解析授予） */}
+        {/* 四类熟练项摘要（最终值只读展示：基线芯片 ∪ 选项解析授予，含手动来源标记） */}
         <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t dark:border-border-dark light:border-border-light">
-          {displayedProficiencyCategories.map((category) => {
+          {(() => {
+            const profFinalChips = computeFinalProficiencies(character || {} as Character);
+            return displayedProficiencyCategories.map((category) => {
             const items = character.proficiencies?.[category] || [];
-            const granted = computeFinalProficiencies(character || {} as Character).grantedChips[category]
+            const granted = profFinalChips.grantedChips[category]
               .filter((g) => !items.includes(g.name));
             return (
               <div key={category} className="min-w-[160px]">
@@ -1907,21 +2048,31 @@ if (character) {
                   {items.length === 0 && granted.length === 0 && (
                     <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
                   )}
-                  {items.map((item, index) => (
+                  {items.map((item, index) => {
+                    const mark = profFinalChips.chipMarks[category][item];
+                    return (
                     <span key={index} className="px-2 py-1 rounded-lg text-xs dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light">
                       {item}
+                      {mark && (
+                        <span className="text-[10px] text-primary/80 ml-1" title="手动来源标记">{mark}</span>
+                      )}
                     </span>
-                  ))}
+                    );
+                  })}
                   {granted.map((g, i) => (
                     <span key={`granted-${i}`} className="px-2 py-1 rounded-lg text-xs bg-primary/10 text-primary"
                       title={`选项解析授予：${g.sourceLabel}`}>
                       {g.name} <span className="text-[10px] text-primary/70">{g.sourceLabel}</span>
+                      {profFinalChips.chipMarks[category][g.name] && (
+                        <span className="text-[10px] text-primary/80" title="手动来源标记">+ {profFinalChips.chipMarks[category][g.name]}</span>
+                      )}
                     </span>
                   ))}
                 </div>
               </div>
             );
-          })}
+            });
+          })()}
         </div>
           </ErrorBoundary>
       </Section>
