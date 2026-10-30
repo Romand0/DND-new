@@ -198,6 +198,9 @@ export interface Character {
   abilityBonusChoices?: Record<string, AbilityKey[]>;
   /** 特性熟练项的任选结果：key = 规则 ID，value = 已选条目（技能/语言/工具中文名） */
   proficiencyChoices?: Record<string, string[]>;
+  /** 手动来源标记（旧数据补充）：key = `skill:<skillKey>` / `save:<abilityKey>` / `<分类>:<条目名>`，
+   *  value = 来源说明（如「种族 · 精灵（旧数据）」）。仅用于展示，不参与熟练判定 */
+  proficiencySourceMarks?: Record<string, string>;
   proficiencyBonus: number;
   passivePerception: number;
   armorClass: number;

@@ -233,6 +233,8 @@ function createSandboxCharacter(data: Partial<Character>): Character {
     abilityBonusChoices: data.abilityBonusChoices,
     // 特性熟练项的任选结果：同上，直通
     proficiencyChoices: data.proficiencyChoices,
+    // 手动来源标记（旧数据补充）：直通
+    proficiencySourceMarks: data.proficiencySourceMarks,
     maxHp: data.maxHp ?? 20,
     currentHp: data.currentHp ?? 20,
     tempHp: data.tempHp ?? 0,
