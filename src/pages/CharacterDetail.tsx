@@ -32,9 +32,10 @@ import type { Character, Abilities, AbilityScore, AbilityKey, SkillKey, Proficie
 import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
-import { characterStore } from '@/data/characterStore';
+import { characterStore, SKILL_LABELS } from '@/data/characterStore';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
+import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
@@ -67,7 +68,7 @@ const proficiencyLabels: Record<ProficiencyCategory, string> = {
   savingThrows: '豁免熟练',
 };
 
-const displayedProficiencyCategories: ProficiencyCategory[] = ['armor', 'weapons', 'tools', 'languages'];
+const displayedProficiencyCategories: Exclude<ProficiencyCategory, 'savingThrows'>[] = ['armor', 'weapons', 'tools', 'languages'];
 
 function renderSpellDice(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -313,12 +314,19 @@ interface ProficienciesDialogProps {
     proficiencies: Character['proficiencies'];
     saveExpertise: AbilityKey[];
     saveBonusOverride: Partial<Record<AbilityKey, number>>;
+    proficiencyChoices: Record<string, string[]>;
   }) => void;
 }
 
-// 熟练项统一弹窗：豁免/技能熟练与专精、豁免加值覆盖、四类熟练项芯片全部草稿态编辑，
-// 一次保存写回，取消整体放弃。加值预览用草稿构造影子角色复用 getGroupedSkills 的全部计算，
-// 保证与页面上各处消费同一份口径。
+const PROF_KIND_LABEL: Record<string, string> = {
+  skill: '技能', save: '豁免', tool: '工具', weapon: '武器', armor: '护甲', language: '语言',
+};
+
+// 熟练项统一弹窗，四层模式与「属性值解析」一致：
+// ① 角色选项解析（固定规则只读展示 + 任选槽位选择，来源标记）
+// ② 基线设置（手填勾选/专精/覆盖值/四类芯片，全部草稿态）
+// ③ 最终值只读呈现（基线 ∪ 解析，经影子角色复用 getGroupedSkills 同口径计算）
+// ④ 数据源标记（每条解析授予均标注 种族/亚种/背景/职业 来源）
 function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialogProps) {
   const [draft, setDraft] = useState(() => ({
     skills: JSON.parse(JSON.stringify(character.skills ?? {})) as Character['skills'],
@@ -341,11 +349,25 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
     }
     return init;
   });
+  // 任选规则的草稿选择（保存时写回 proficiencyChoices）
+  const [draftChoices, setDraftChoices] = useState<Record<string, string[]>>(() => character.proficiencyChoices ?? {});
 
+  // ① 选项解析：规则集 + 草稿任选 → 解析授予集
+  const rules = collectProficiencyBonusRules(character);
+  const final = buildFinalProficiencies(rules, draftChoices);
+  const flexibleRules = rules.filter((r) => r.mode === 'flexible');
+
+  // ③ 影子角色：草稿基线 ∪ 解析授予，复用 getGroupedSkills 的全部计算
+  const shadowSkills: Character['skills'] = { ...draft.skills };
+  for (const key of Object.keys(final.skillSources) as SkillKey[]) {
+    const sk = shadowSkills[key];
+    shadowSkills[key] = { ...(sk ?? { proficient: false, extra: 0, expertise: false }), proficient: true };
+  }
+  const shadowSaves = [...new Set([...draft.savingThrows, ...(Object.keys(final.saveSources) as AbilityKey[])])];
   const groups = characterStore.getGroupedSkills({
     ...character,
-    skills: draft.skills,
-    proficiencies: { ...draft.categories, savingThrows: draft.savingThrows },
+    skills: shadowSkills,
+    proficiencies: { ...draft.categories, savingThrows: shadowSaves },
     saveExpertise: draft.saveExpertise,
     saveBonusOverride: draft.saveBonusOverride,
   });
@@ -396,14 +418,28 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
       return { ...prev, saveBonusOverride };
     });
   };
-  const addChip = (category: ProficiencyCategory) => {
+  const addChip = (category: Exclude<ProficiencyCategory, 'savingThrows'>) => {
     const value = newChip[category].trim();
     if (!value) return;
     setDraft((prev) => ({ ...prev, categories: { ...prev.categories, [category]: [...prev.categories[category], value] } }));
     setNewChip((prev) => ({ ...prev, [category]: '' }));
   };
-  const removeChip = (category: ProficiencyCategory, index: number) => {
+  const removeChip = (category: Exclude<ProficiencyCategory, 'savingThrows'>, index: number) => {
     setDraft((prev) => ({ ...prev, categories: { ...prev.categories, [category]: prev.categories[category].filter((_, i) => i !== index) } }));
+  };
+
+  // 任选单槽变更（只改草稿，保存时统一写回）；空槽过滤后压缩，与已存数据结构保持一致
+  const setDraftChoice = (ruleId: string, slot: number, value: string) => {
+    setDraftChoices((prev) => {
+      const arr: string[] = [...(prev[ruleId] ?? [])];
+      while (arr.length < slot + 1) arr.push('');
+      arr[slot] = value;
+      const cleaned = arr.filter(Boolean);
+      const next = { ...prev };
+      if (cleaned.length === 0) delete next[ruleId];
+      else next[ruleId] = cleaned;
+      return next;
+    });
   };
 
   const handleSave = () => {
@@ -412,6 +448,7 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
       proficiencies: { ...draft.categories, savingThrows: draft.savingThrows },
       saveExpertise: draft.saveExpertise,
       saveBonusOverride: draft.saveBonusOverride,
+      proficiencyChoices: draftChoices,
     });
   };
 
@@ -419,12 +456,42 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative w-full max-w-2xl rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl max-h-[90vh] overflow-y-auto">
-        <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">熟练项</h3>
+        <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">熟练项解析</h3>
         <p className="text-sm mb-4 dark:text-text-dark-muted light:text-text-light-muted">
-          勾选熟练、点亮星标设为专精；豁免加值可留空回退默认计算；保存后写回并刷新所有加值
+          选项规则自动授予熟练；勾选为手填基线，二者并集为最终熟练项；任选加值在下方选择，保存后写回
         </p>
+
+        {/* ① 角色选项解析：固定规则只读 + 任选槽位 */}
+        <div className="mb-4">
+          <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">选项解析规则</div>
+          {rules.length === 0 ? (
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+              角色尚未选择种族/背景/职业选项，或所选选项无熟练项规则。
+            </p>
+          ) : (
+            <div className="space-y-1.5">
+              {rules.filter((r) => r.mode === 'fixed').map((rule) => (
+                <div key={rule.id} className="flex flex-wrap items-center gap-2 p-2 rounded-lg dark:bg-white/5 light:bg-white/50">
+                  <span className="text-xs text-primary">{rule.sourceLabel}</span>
+                  <span className="text-sm dark:text-text-dark light:text-text-light">
+                    {PROF_KIND_LABEL[rule.kind]}
+                    {rule.kind === 'save' && rule.saveKey
+                      ? ` · ${abilityLabels[rule.saveKey]}`
+                      : rule.target
+                        ? ` · ${rule.target}`
+                        : ''}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 豁免与技能：基线勾选（可编辑）+ 来源标记 + 最终态 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {groups.map((group) => (
+          {groups.map((group) => {
+            const saveSources = final.saveSources[group.save.key];
+            return (
             <div key={group.attribute} className="p-3 rounded-xl border dark:bg-white/5 light:bg-white/50 dark:border-border-dark light:border-border-light">
               <div className="flex items-center gap-2 mb-2 pb-2 border-b dark:border-border-dark light:border-border-light">
                 <span className="text-sm font-bold dark:text-text-dark light:text-text-light">{group.attributeLabel}</span>
@@ -432,7 +499,7 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                   {group.save.modifier >= 0 ? `+${group.save.modifier}` : group.save.modifier}
                 </span>
               </div>
-              <div className={`flex items-center gap-2 p-1.5 rounded-lg mb-2 ${group.save.proficient ? 'bg-accent/10' : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'}`}>
+              <div className={`flex flex-wrap items-center gap-2 p-1.5 rounded-lg mb-2 ${group.save.proficient ? 'bg-accent/10' : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'}`}>
                 <button
                   onClick={() => toggleSaveExp(group.save.key)}
                   disabled={!group.save.proficient}
@@ -451,11 +518,15 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                   type="checkbox"
                   checked={group.save.proficient}
                   onChange={() => toggleSaveProf(group.save.key)}
+                  title="基线勾选（手动授予）"
                   className="w-4 h-4 accent-accent"
                 />
-                <span className={`text-xs flex-1 ${group.save.proficient ? 'font-medium dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
+                <span className={`text-xs flex-1 min-w-[3rem] ${group.save.proficient ? 'font-medium dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
                   {group.save.label}
                 </span>
+                {saveSources && (
+                  <span className="text-[10px] text-primary" title="选项解析授予">{saveSources.join('、')}</span>
+                )}
                 <input
                   type="number"
                   value={overrideText[group.save.key] ?? ''}
@@ -467,8 +538,10 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                   }`}
                 />
               </div>
-              {group.skills.map((skill) => (
-                <div key={skill.key} className={`flex items-center gap-2 p-1.5 rounded-lg ${skill.proficient ? 'bg-primary/10' : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'}`}>
+              {group.skills.map((skill) => {
+                const sources = final.skillSources[skill.key];
+                return (
+                <div key={skill.key} className={`flex flex-wrap items-center gap-2 p-1.5 rounded-lg ${skill.proficient ? 'bg-primary/10' : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'}`}>
                   <button
                     onClick={() => toggleSkillExp(skill.key)}
                     disabled={!skill.proficient}
@@ -487,30 +560,101 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                     type="checkbox"
                     checked={skill.proficient}
                     onChange={() => toggleSkillProf(skill.key)}
+                    title="基线勾选（手动授予）"
                     className="w-4 h-4 accent-primary"
                   />
-                  <span className={`text-xs flex-1 ${skill.proficient ? 'font-medium dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
+                  <span className={`text-xs flex-1 min-w-[3rem] ${skill.proficient ? 'font-medium dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
                     {skill.label}
                   </span>
+                  {sources && (
+                    <span className="text-[10px] text-primary" title="选项解析授予">{sources.join('、')}</span>
+                  )}
                   <span className={`text-xs font-mono font-bold w-8 text-right ${skill.proficient ? 'dark:text-text-dark light:text-text-light' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
                     {skill.bonus >= 0 ? `+${skill.bonus}` : skill.bonus}
                   </span>
                 </div>
-              ))}
+                );
+              })}
               {group.skills.length === 0 && (
                 <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted text-center py-1">无关联技能</div>
               )}
             </div>
-          ))}
+            );
+          })}
         </div>
+
+        {/* 任选规则槽位 */}
+        {flexibleRules.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">任选熟练项</div>
+            {flexibleRules.map((rule) => {
+              const chosen = draftChoices[rule.id] ?? [];
+              const complete = chosen.length >= (rule.count ?? 1);
+              const optionsForSlot = (slot: number) => {
+                if (rule.candidates) return rule.candidates;
+                if (rule.kind === 'skill') return Object.values(SKILL_LABELS);
+                return null; // 自由文本
+              };
+              return (
+                <div key={rule.id} className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg dark:bg-white/5 light:bg-white/50">
+                  <div className="text-sm">
+                    <span className="text-primary">{rule.sourceLabel}</span>
+                    <span className={`ml-2 dark:text-text-dark light:text-text-light`}>
+                      {PROF_KIND_LABEL[rule.kind]}任选 {rule.count} 项{rule.candidates ? `（${rule.candidates.join('/')}）` : ''}
+                    </span>
+                    <span className={`ml-2 text-xs ${complete ? 'dark:text-text-dark-muted light:text-text-light-muted' : 'text-warning'}`}>
+                      {complete ? '已选满' : '待选择'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {Array.from({ length: rule.count ?? 0 }).map((_, slot) => {
+                      const current = chosen[slot] ?? '';
+                      const options = optionsForSlot(slot);
+                      return options ? (
+                        <select
+                          key={slot}
+                          value={current}
+                          onChange={(e) => setDraftChoice(rule.id, slot, e.target.value)}
+                          className={`px-2 py-1 rounded-lg border text-xs bg-transparent outline-none ${
+                            current
+                              ? 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light'
+                              : 'border-warning text-warning'
+                          }`}
+                        >
+                          <option value="">选择...</option>
+                          {options.filter((o) => o === current || !chosen.includes(o)).map((o) => (
+                            <option key={o} value={o}>{o}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          key={slot}
+                          type="text"
+                          value={current}
+                          onChange={(e) => setDraftChoice(rule.id, slot, e.target.value)}
+                          placeholder="输入名称..."
+                          className="w-24 px-2 py-1 rounded-lg border text-xs bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* 四类熟练项：基线芯片（可编辑）+ 解析授予（来源标记） */}
         <div className="mt-4">
           <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">护甲 / 武器 / 工具 / 语言</div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {displayedProficiencyCategories.map((category) => (
+            {displayedProficiencyCategories.map((category) => {
+              const granted = final.grantedChips[category];
+              return (
               <div key={category}>
                 <label className="block text-xs mb-1.5 dark:text-text-dark-muted light:text-text-light-muted">{proficiencyLabels[category]}</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
-                  {draft.categories[category].length === 0 && (
+                  {draft.categories[category].length === 0 && granted.length === 0 && (
                     <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
                   )}
                   {draft.categories[category].map((item, index) => (
@@ -521,6 +665,13 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                       </button>
                     </div>
                   ))}
+                  {granted.filter((g) => !draft.categories[category].includes(g.name)).map((g, i) => (
+                    <div key={`granted-${i}`} className="flex items-center gap-1 px-2 py-1 rounded-lg bg-primary/10"
+                      title={`选项解析授予：${g.sourceLabel}`}>
+                      <span className="text-xs text-primary">{g.name}</span>
+                      <span className="text-[10px] text-primary/70">{g.sourceLabel}</span>
+                    </div>
+                  ))}
                 </div>
                 <div className="flex gap-2">
                   <input
@@ -528,7 +679,7 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                     value={newChip[category]}
                     onChange={(e) => setNewChip({ ...newChip, [category]: e.target.value })}
                     onKeyDown={(e) => e.key === 'Enter' && addChip(category)}
-                    placeholder="添加..."
+                    placeholder="添加基线..."
                     className="flex-1 px-2 py-1.5 text-sm rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                   />
                   <button onClick={() => addChip(category)} className="px-2 py-1.5 text-sm bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
@@ -536,9 +687,11 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
+
         <div className="flex justify-end gap-3 mt-5">
           <button onClick={onClose}
             className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10">
@@ -1034,12 +1187,13 @@ export default function CharacterDetail({
     reloadChar();
   };
 
-  // 熟练项统一保存：技能/豁免熟练与专精、豁免加值覆盖、四类芯片一次写回
+  // 熟练项统一保存：基线（技能/豁免熟练与专精、豁免加值覆盖、四类芯片）+ 选项任选选择一次写回
   const handleSaveProficiencies = (draft: {
     skills: Character['skills'];
     proficiencies: Character['proficiencies'];
     saveExpertise: AbilityKey[];
     saveBonusOverride: Partial<Record<AbilityKey, number>>;
+    proficiencyChoices: Record<string, string[]>;
   }) => {
     if (!id) return;
     characterStore.update(id, {
@@ -1047,6 +1201,7 @@ export default function CharacterDetail({
       proficiencies: draft.proficiencies,
       saveExpertise: draft.saveExpertise,
       saveBonusOverride: draft.saveBonusOverride,
+      proficiencyChoices: draft.proficiencyChoices,
     });
     reloadChar();
     setProficienciesOpen(false);
@@ -1610,7 +1765,12 @@ if (character) {
     if (!Array.isArray(groups)) {
       return <div className="text-sm text-danger col-span-full">技能数据异常，请重新同步角色</div>;
     }
-    return groups.map((group) => (
+    // 选项解析授予集：与基线并集构成最终熟练项（来源标记一并取出）
+    const profFinal = computeFinalProficiencies(character || {} as Character);
+    return groups.map((group) => {
+      const saveSources = profFinal.saveSources[group.save.key];
+      const saveFinal = group.save.proficient || !!saveSources;
+      return (
       <div
         key={group.attribute}
         className="p-3 rounded-xl border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light"
@@ -1624,10 +1784,10 @@ if (character) {
           </span>
         </div>
 
-        {/* 豁免（只读展示，编辑走「编辑熟练项」弹窗） */}
+        {/* 豁免（最终值只读展示，编辑走「编辑熟练项」弹窗） */}
         <div
-          className={`flex items-center gap-2 p-1.5 rounded-lg mb-2 transition-colors ${
-            group.save.proficient
+          className={`flex flex-wrap items-center gap-2 p-1.5 rounded-lg mb-2 transition-colors ${
+            saveFinal
               ? 'bg-accent/10'
               : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
           }`}
@@ -1635,29 +1795,32 @@ if (character) {
           <Star className={`w-3.5 h-3.5 flex-shrink-0 ${
             group.save.expertise
               ? 'fill-accent text-accent'
-              : group.save.proficient
+              : saveFinal
                 ? 'dark:text-text-dark-muted light:text-text-light-muted'
                 : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30'
           }`} />
           <input
             type="checkbox"
-            checked={group.save.proficient}
+            checked={saveFinal}
             disabled
             className="w-4 h-4 accent-accent"
           />
           <span
-            className={`text-xs flex-1 ${
-              group.save.proficient
+            className={`text-xs flex-1 min-w-[3rem] ${
+              saveFinal
                 ? 'font-medium dark:text-text-dark light:text-text-light'
                 : 'dark:text-text-dark-muted light:text-text-light-muted'
             }`}
           >
             {group.save.label}
           </span>
+          {saveSources && (
+            <span className="text-[10px] text-primary" title="选项解析授予">{saveSources.join('、')}</span>
+          )}
           <span className={`text-xs font-mono font-bold w-14 text-right rounded px-1 py-0.5 ${
             group.save.overridden
               ? 'text-accent dark:bg-accent/10 light:bg-accent/10'
-              : group.save.proficient
+              : saveFinal
                 ? 'dark:text-text-dark light:text-text-light'
                 : 'dark:text-text-dark-muted light:text-text-light-muted'
           }`}>
@@ -1665,12 +1828,15 @@ if (character) {
           </span>
         </div>
 
-        {/* 技能列表（只读展示） */}
-        {group.skills.map((skill) => (
+        {/* 技能列表（最终值只读展示） */}
+        {group.skills.map((skill) => {
+          const sources = profFinal.skillSources[skill.key];
+          const finalProf = skill.proficient || !!sources;
+          return (
           <div
             key={skill.key}
-            className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors ${
-              skill.proficient
+            className={`flex flex-wrap items-center gap-2 p-1.5 rounded-lg transition-colors ${
+              finalProf
                 ? 'bg-primary/10'
                 : 'dark:bg-bg-dark/50 light:bg-bg-light-2/50'
             }`}
@@ -1678,28 +1844,31 @@ if (character) {
             <Star className={`w-3.5 h-3.5 flex-shrink-0 ${
               skill.expertise
                 ? 'fill-primary text-primary'
-                : skill.proficient
+                : finalProf
                   ? 'dark:text-text-dark-muted light:text-text-light-muted'
                   : 'dark:text-text-dark-muted/30 light:text-text-light-muted/30'
             }`} />
             <input
               type="checkbox"
-              checked={skill.proficient}
+              checked={finalProf}
               disabled
               className="w-4 h-4 accent-primary"
             />
             <span
-              className={`text-xs flex-1 ${
-                skill.proficient
+              className={`text-xs flex-1 min-w-[3rem] ${
+                finalProf
                   ? 'font-medium dark:text-text-dark light:text-text-light'
                   : 'dark:text-text-dark-muted light:text-text-light-muted'
               }`}
             >
               {skill.label}
             </span>
+            {sources && (
+              <span className="text-[10px] text-primary" title="选项解析授予">{sources.join('、')}</span>
+            )}
             <span
               className={`text-xs font-mono font-bold w-8 text-right ${
-                skill.proficient
+                finalProf
                   ? 'dark:text-text-dark light:text-text-light'
                   : 'dark:text-text-dark-muted light:text-text-light-muted'
               }`}
@@ -1707,7 +1876,8 @@ if (character) {
               {skill.bonus >= 0 ? `+${skill.bonus}` : skill.bonus}
             </span>
           </div>
-        ))}
+          );
+        })}
 
         {group.skills.length === 0 && (
           <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted text-center py-1">
@@ -1715,7 +1885,8 @@ if (character) {
           </div>
         )}
       </div>
-    ));
+      );
+    });
   } catch (e) {
     console.error('技能区块渲染错误:', e);
     return <div className="text-sm text-danger col-span-full">技能区块渲染异常: {String(e)}</div>;
@@ -1723,20 +1894,28 @@ if (character) {
 })()}
         </div>
 
-        {/* 四类熟练项摘要（只读展示） */}
+        {/* 四类熟练项摘要（最终值只读展示：基线芯片 ∪ 选项解析授予） */}
         <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t dark:border-border-dark light:border-border-light">
           {displayedProficiencyCategories.map((category) => {
             const items = character.proficiencies?.[category] || [];
+            const granted = computeFinalProficiencies(character || {} as Character).grantedChips[category]
+              .filter((g) => !items.includes(g.name));
             return (
               <div key={category} className="min-w-[160px]">
                 <label className="block text-xs mb-1.5 dark:text-text-dark-muted light:text-text-light-muted">{proficiencyLabels[category]}</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {items.length === 0 && (
+                  {items.length === 0 && granted.length === 0 && (
                     <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">无</span>
                   )}
                   {items.map((item, index) => (
                     <span key={index} className="px-2 py-1 rounded-lg text-xs dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light">
                       {item}
+                    </span>
+                  ))}
+                  {granted.map((g, i) => (
+                    <span key={`granted-${i}`} className="px-2 py-1 rounded-lg text-xs bg-primary/10 text-primary"
+                      title={`选项解析授予：${g.sourceLabel}`}>
+                      {g.name} <span className="text-[10px] text-primary/70">{g.sourceLabel}</span>
                     </span>
                   ))}
                 </div>
