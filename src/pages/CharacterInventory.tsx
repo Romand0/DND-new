@@ -174,9 +174,9 @@ const totalValue = character.equipment.reduce(
     setEquipmentEditorOpen(true);
   };
 
-  const handleAddEquipmentFromLibrary = (item: EquipmentItem) => {
+  const handleAddEquipmentFromLibrary = (item: EquipmentItem, quantity?: number) => {
   if (!id) return;
-  const temp = hookHandleAddEquipmentFromLibrary(item);
+  const temp = hookHandleAddEquipmentFromLibrary(item, quantity);
   if (temp) {
     setEditingEquipment(temp);
     setEquipmentEditorOpen(true);

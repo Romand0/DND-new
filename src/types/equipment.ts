@@ -29,4 +29,22 @@ export interface EquipmentItem {
 
   /** ③ 交易体系：冒险物品 / 贵重物品。缺省 = '冒险物品' */
   tradeCategory?: '贵重物品' | '冒险物品';
+
+  // ---- 法术卷轴（虚拟条目：由法术库生成，不落 D1）----
+  /** 卷轴对应的法术 id */
+  scrollSpellId?: string;
+  /** 卷轴对应的法术名称 */
+  scrollSpellName?: string;
+  /** 卷轴法术环级 */
+  scrollSpellLevel?: number;
+
+  // ---- 法术材料（虚拟条目：由法术需求生成）----
+  /** 材料归一化匹配键 */
+  materialKey?: string;
+  /** 材料展示名 */
+  materialName?: string;
+  /** 材料价值（gp） */
+  materialCostGp?: number;
+  /** 是否为耗材 */
+  materialConsumed?: boolean;
 }

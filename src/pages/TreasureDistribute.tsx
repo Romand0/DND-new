@@ -22,6 +22,7 @@ import type {
 } from '@/types/treasure';
 import type { Character, Equipment } from '@/types/character';
 import treasureStore from '@/data/treasureStore';
+import { extractBaseFields } from '@/data/equipmentFactory';
 import { characterStore } from '@/data/characterStore';
 import { sortInventory } from '@/data/combatStore';
 
@@ -454,16 +455,20 @@ export default function TreasureDistribute() {
       let updatedEquipment = [...char.equipment];
       dist.items.forEach((item) => {
         const childId = crypto.randomUUID();
+        const snapshot = treasure.items.find((t) => t.id === item.id)?.equipmentSnapshot;
         const newEquip: Equipment = {
-          id: item.id,
+          // 快照携带的装备字段（含法术卷轴 / 材料身份）整体透传，避免分配时丢失关联
+          ...(snapshot ? extractBaseFields(snapshot) : {}),
+          // 装备模板 id 优先用快照（卷轴/材料靠它关联法术），缺失时回落宝藏条目 id
+          id: snapshot?.id || item.id,
           childId,
           name: item.name,
           quantity: item.quantity,
-          category: treasure.items.find((t) => t.id === item.id)?.equipmentSnapshot?.category || '杂项',
-          weight: treasure.items.find((t) => t.id === item.id)?.equipmentSnapshot?.weight,
+          category: snapshot?.category || '杂项',
+          weight: snapshot?.weight,
           price: item.unitPrice
             ? treasurePriceToEquipmentPrice(item.unitPrice)
-            : undefined,
+            : (snapshot?.price as Equipment['price']),
         };
         updatedEquipment.push(newEquip);
       });

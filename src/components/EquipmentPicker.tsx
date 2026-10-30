@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { X, Search, Package } from 'lucide-react';
+import { X, Search, Package, ScrollText, Minus, Plus } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
 import { fetchAllEquipments } from '@/lib/api';
+import { isScrollEquipmentItem, loadScrollCatalog } from '@/data/spellScrolls';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 
@@ -9,7 +10,8 @@ const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', 
 const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 
 interface EquipmentPickerProps {
-  onSelect: (item: EquipmentItem) => void;
+  /** quantity 仅对卷轴等可批量物化的虚拟条目有意义，缺省 1 */
+  onSelect: (item: EquipmentItem, quantity?: number) => void;
   onClose: () => void;
 }
 
@@ -18,12 +20,30 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
   const [selectedCategory, setSelectedCategory] = useState('全部');
   const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  // 卷轴选中后的数量确认（点击卷轴不立即加入，先选张数）
+  const [scrollPick, setScrollPick] = useState<{ item: EquipmentItem; qty: number } | null>(null);
 
   useEffect(() => {
-    fetchAllEquipments()
-      .then((data) => setEquipments(data))
-      .catch((e) => console.error('装备选择器加载失败', e))
-      .finally(() => setLoading(false));
+    let cancelled = false;
+    Promise.all([
+      fetchAllEquipments().catch((e) => {
+        console.error('装备选择器加载失败', e);
+        return [] as EquipmentItem[];
+      }),
+      // 卷轴为虚拟条目：由法术库即时生成，不占 D1
+      loadScrollCatalog().catch((e) => {
+        console.error('卷轴目录加载失败', e);
+        return [] as EquipmentItem[];
+      }),
+    ])
+      .then(([equipments, scrolls]) => {
+        if (cancelled) return;
+        setEquipments([...equipments, ...scrolls]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
   }, []);
 
   const filteredEquipments = useMemo(() => {
@@ -115,6 +135,48 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
             共 {filteredEquipments.length} 件装备
           </div>
 
+          {scrollPick && (
+            <div className="mb-3 rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-2">
+              <div className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light">
+                <ScrollText className="w-4 h-4 text-primary shrink-0" />
+                <span className="font-medium truncate">{scrollPick.item.name}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">获得张数</span>
+                <button
+                  onClick={() => setScrollPick(p => p ? { ...p, qty: Math.max(1, p.qty - 1) } : p)}
+                  className="p-1 rounded border dark:border-border-dark light:border-border-light hover:bg-white/10"
+                ><Minus className="w-3.5 h-3.5" /></button>
+                <input
+                  type="number"
+                  min={1}
+                  value={scrollPick.qty}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setScrollPick(p => p ? { ...p, qty: Number.isFinite(n) && n >= 1 ? n : 1 } : p);
+                  }}
+                  className="w-16 px-2 py-1 text-sm text-center rounded border bg-transparent dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light"
+                />
+                <button
+                  onClick={() => setScrollPick(p => p ? { ...p, qty: p.qty + 1 } : p)}
+                  className="p-1 rounded border dark:border-border-dark light:border-border-light hover:bg-white/10"
+                ><Plus className="w-3.5 h-3.5" /></button>
+                <button
+                  onClick={() => {
+                    onSelect(scrollPick.item, scrollPick.qty);
+                    setScrollPick(null);
+                    onClose();
+                  }}
+                  className="ml-auto px-3 py-1 text-xs rounded-lg bg-primary text-white hover:bg-primary/90"
+                >确认获得</button>
+                <button
+                  onClick={() => setScrollPick(null)}
+                  className="px-3 py-1 text-xs rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light"
+                >取消</button>
+              </div>
+            </div>
+          )}
+
           {loading ? (
             <div className="text-center py-8 dark:text-text-dark-muted light:text-text-light-muted">
               加载中...
@@ -129,6 +191,10 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                 <button
                   key={item.id}
                   onClick={() => {
+                    if (isScrollEquipmentItem(item)) {
+                      setScrollPick({ item, qty: 1 });
+                      return;
+                    }
                     onSelect(item);
                     onClose();
                   }}
@@ -143,6 +209,9 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                         <span className="text-xs px-1.5 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
                           {item.category}
                         </span>
+                        {isScrollEquipmentItem(item) && (
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400">法术卷轴</span>
+                        )}
                       </div>
                       <p className="text-xs mt-1 dark:text-text-dark-muted light:text-text-light-muted line-clamp-2">
                         {item.description}

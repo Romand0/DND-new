@@ -57,16 +57,17 @@ export default function TreasureEdit() {
     }
   };
 
-  const addEquipment = (item: EquipmentItem) => {
+  const addEquipment = (item: EquipmentItem, quantity?: number) => {
+    const qty = quantity && quantity > 0 ? quantity : 1;
     const newItem: TreasureItem = {
       id: crypto.randomUUID(),
       name: item.name,
-      quantity: 1,
+      quantity: qty,
       unitPrice: undefined,
       category: item.category,
       subCategory: item.subtype || undefined,
       weight: item.weight,
-      equipmentSnapshot: { id: item.id, quantity: 1, ...extractBaseFields(item) },
+      equipmentSnapshot: { id: item.id, quantity: qty, ...extractBaseFields(item) },
     };
     setItems(prev => [...prev, newItem]);
     setShowEquipPicker(false);

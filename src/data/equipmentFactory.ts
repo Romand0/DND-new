@@ -31,5 +31,13 @@ export function extractBaseFields(
     dataResource: source.dataResource ?? '',
     magicCategory: source.magicCategory ?? '非魔法物品',
     tradeCategory: source.tradeCategory ?? '冒险物品',
+    // 法术附属品透传（卷轴 / 材料）：这些虚拟条目不属于装备库，但需要保留身份字段
+    scrollSpellId: source.scrollSpellId,
+    scrollSpellName: source.scrollSpellName,
+    scrollSpellLevel: source.scrollSpellLevel,
+    materialKey: source.materialKey,
+    materialName: source.materialName,
+    materialCostGp: source.materialCostGp,
+    materialConsumed: source.materialConsumed,
   };
 }
