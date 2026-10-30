@@ -12,7 +12,7 @@ const CATEGORIES = [
   { key: 'adventuring', label: '冒险用品' },
 ];
 
-const GAME_CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '杂物'];
+const GAME_CATEGORIES = ['武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物'];
 
 const IMPORT_CAT_TO_GAME: Record<string, string> = {
   weapons: '武器',

@@ -183,7 +183,7 @@ export function computeNetChanges(
  *   每个不同 childId 的装备都是独立的，**不合并**。
  */
 export function sortInventory(list: Equipment[]): Equipment[] {
-  const categoryOrder = ['武器', '护甲', '法器', '工具', '药水', '杂物'];
+  const categoryOrder = ['武器', '护甲', '法器', '工具', '药水', '法术材料', '卷轴', '杂物'];
   return [...list].sort((a, b) => {
     const aIndex = categoryOrder.indexOf(a.category || '');
     const bIndex = categoryOrder.indexOf(b.category || '');

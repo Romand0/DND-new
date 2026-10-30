@@ -23,6 +23,7 @@ import {
   ArrowLeft,
   Hand,
   X,
+  ScrollText,
 } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import EquipmentPicker from '@/components/EquipmentPicker';
@@ -42,6 +43,8 @@ const CATEGORIES = [
   { key: '护甲', label: '护甲', icon: Shield },
   { key: '药水', label: '药水', icon: FlaskConical },
   { key: '法器', label: '法器', icon: Wand2 },
+  { key: '法术材料', label: '法术材料', icon: PackageIcon },
+  { key: '卷轴', label: '卷轴', icon: ScrollText },
   { key: '工具', label: '工具', icon: Wrench },
   { key: '杂物', label: '杂物', icon: PackageIcon },
   { key: '自定义', label: '自定义', icon: MoreHorizontal },

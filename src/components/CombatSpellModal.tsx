@@ -24,6 +24,7 @@ import SpellTargetStep from './combat/SpellTargetStep';
 import SpellCheckStep, { type SpellCheckOutcome, type SpellCheckType } from './combat/SpellCheckStep';
 import SpellEffectStep, { parseDice, renderSpellDice, type SpellEffectType } from './combat/SpellEffectStep';
 import SpellFinishStep from './combat/SpellFinishStep';
+import { evaluateSpellMaterials, buildMaterialEquipment, buildScrollEquipment, type MaterialEvaluation, type MaterialRequirement } from '@/data/spellMaterials';
 import FlowRunStep, { type FlowCastPayload } from './combat/FlowRunStep';
 
 type Stage = 'list' | 'flow-target' | 'flow' | 'cast';
@@ -36,6 +37,8 @@ interface Props {
   targetCharacter?: Character | null;
   /** 可选：目标战斗背包，用于重算目标 AC */
   targetCombatInventory?: Equipment[];
+  /** 施法者战斗背包，用于材料成分（M）门禁 */
+  casterCombatInventory?: Equipment[];
   /** 战斗记录 ID（用于消费 pending 标记 + 收尾写入 castLogs） */
   recordId?: string;
   /** 当前回合数（用于 pending 过期判定） */
@@ -56,6 +59,8 @@ interface Props {
    */
   onFlowResolved?: (payload: FlowCastPayload) => void;
   /** 施放完成：回传完整信息由 main 写入先攻表格与应用 HP 变化（契约冻结） */
+  /** 收尾时消耗材料 / 卷轴（宿主写入战斗变更漏斗） */
+  onConsumeMaterials?: (items: { childId: string; name: string; quantity: number }[]) => void;
   onCastResolved: (info: {
     spellName: string;
     /** 施法时间原文（如 "1 动作"），用于动作机制判定 */
@@ -130,7 +135,7 @@ function SpellCard({ spell, level, active, onPick, hasFlow }: { spell: Spell; le
 export default function CombatSpellModal({
   caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory,
   recordId, currentRound, combatantPositions, canUseAction = true, canUseBonusAction, onTargetChange, onFlowResolved,
-  isProvingGround = false,
+  isProvingGround = false, casterCombatInventory, onConsumeMaterials,
 }: Props) {
   // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
   const targetCharacter = useMemo<Character | null>(() => {
@@ -152,6 +157,9 @@ export default function CombatSpellModal({
   // 法术库缓存刷新信号：knownSpells 按名字从本地缓存解析，而绑定按云端 spell_id 查询——
   // 本地缓存可能是种子回落（id 与云端不同源），必须先 fetchAll 刷新为云端真值再查绑定
   const [spellCacheTick, setSpellCacheTick] = useState(0);
+
+  // 材料成分：本次施法内补入的材料/卷轴（已写入角色背包；跨法术保留，避免切换法术时丢失评估）
+  const [craftedMaterials, setCraftedMaterials] = useState<Equipment[]>([]);
 
   // 目标确认步骤内可更换目标：本地生效目标 + 通知宿主同步（HP/先攻按新目标结算）
   const [effectiveTarget, setEffectiveTarget] = useState<Combatant>(target);
@@ -183,6 +191,37 @@ export default function CombatSpellModal({
     ? ({ strength: '力量', dexterity: '敏捷', constitution: '体质', intelligence: '智力', wisdom: '感知', charisma: '魅力' } as const)[spellAbilityKey]
     : null;
   const spellSaveDC = character ? characterStore.getSpellSaveDC(character) : null;
+
+  // 材料成分评估（直接材料 / 材料包替代 / 对应卷轴）
+  const materialEvaluation = useMemo<MaterialEvaluation | null>(() => {
+    if (!selectedSpell) return null;
+    // NPC 无角色卡背包、试验场无限资源：不做材料门禁（交由 DM 裁决）
+    if (!character || isProvingGround) return null;
+    if (!selectedSpell.components?.material) return null;
+    const inventory = [...(casterCombatInventory || []), ...craftedMaterials];
+    return evaluateSpellMaterials(selectedSpell, inventory);
+  }, [selectedSpell, casterCombatInventory, craftedMaterials, character, isProvingGround]);
+
+  // 快捷补货：把法术材料 / 卷轴加入施法者背包（PC 限定）
+  const handleCraftMaterial = (req: MaterialRequirement) => {
+    if (!selectedSpell || !character) return;
+    const existing = [...(casterCombatInventory || []), ...craftedMaterials]
+      .find(it => (it.materialKey || it.name) === req.name || it.materialKey === req.key);
+    if (existing) return;
+    const data = buildMaterialEquipment(selectedSpell, req);
+    const added = characterStore.addEquipment(character.id, data);
+    if (added) setCraftedMaterials(prev => [...prev, added]);
+  };
+
+  const handleCraftScroll = () => {
+    if (!selectedSpell || !character) return;
+    const existing = [...(casterCombatInventory || []), ...craftedMaterials]
+      .find(it => it.scrollSpellId === selectedSpell.id);
+    if (existing) return;
+    const data = buildScrollEquipment(selectedSpell);
+    const added = characterStore.addEquipment(character.id, data);
+    if (added) setCraftedMaterials(prev => [...prev, added]);
+  };
 
   // 法术列表
   const [spellSearch, setSpellSearch] = useState('');
@@ -380,6 +419,9 @@ export default function CombatSpellModal({
     if (recordId && logs.length > 0) {
       combatStore.appendCastLogs(recordId, logs);
     }
+    if (materialEvaluation && materialEvaluation.consumption.length > 0) {
+      onConsumeMaterials?.(materialEvaluation.consumption);
+    }
     onCastResolved({
       spellName: selectedSpell.name,
       castingTime: selectedSpell.castingTime,
@@ -529,8 +571,14 @@ export default function CombatSpellModal({
               target={effectiveTarget}
               allCombatants={allCombatants}
               combatantPositions={combatantPositions}
+              materialEvaluation={materialEvaluation}
+              onCraftMaterial={handleCraftMaterial}
+              onCraftScroll={handleCraftScroll}
               onBack={handleBackToList}
               onApplied={(payload) => {
+                if (materialEvaluation && materialEvaluation.consumption.length > 0) {
+                  onConsumeMaterials?.(materialEvaluation.consumption);
+                }
                 onFlowResolved?.(payload);
                 onClose();
               }}
@@ -553,6 +601,9 @@ export default function CombatSpellModal({
                   caster={caster}
                   canUseAction={canUseAction}
                   canUseBonusAction={canUseBonusAction === true}
+                  materialEvaluation={materialEvaluation ?? undefined}
+                  onCraftMaterial={handleCraftMaterial}
+                  onCraftScroll={handleCraftScroll}
                   onConfirm={(message, data) => cast.completeCurrent('success', message, data)}
                   onForce={(message, data) => cast.forceCurrent(message, data)}
                 />

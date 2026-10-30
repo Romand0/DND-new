@@ -99,6 +99,24 @@ export interface Equipment {
   subtype?: string;
   /** 装备库的魔法分类（背包实例继承，用于判定攻击是否魔法） */
   magicCategory?: '魔法物品' | '非魔法物品';
+
+  // ---- 法术附属品（施法材料 / 卷轴）：由法术临时生成，不属于装备库模板 ----
+  /** 归一化材料名（如「羊毛」「红宝石」），同类材料通用，多法术共享 */
+  materialKey?: string;
+  /** 材料原始名称（展示用） */
+  materialName?: string;
+  /** 生成来源法术 id（仅用于溯源展示，不参与匹配） */
+  materialSourceSpellId?: string;
+  /** 材料价值（gp）；用于「价值至少 X gp」的材料价值校验 */
+  materialCostGp?: number;
+  /** 该材料是否作为耗材（施放后消失） */
+  materialConsumed?: boolean;
+  /** 卷轴所对应的法术 id */
+  scrollSpellId?: string;
+  /** 卷轴所对应的法术名 */
+  scrollSpellName?: string;
+  /** 卷轴法术环级 */
+  scrollSpellLevel?: number;
 }
 
 export interface Currency {

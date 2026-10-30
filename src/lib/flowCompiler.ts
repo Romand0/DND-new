@@ -25,6 +25,7 @@ import { spellStore } from '@/data/spellStore';
 import { rollDie, rollDice } from '@/data/diceService';
 import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS, type SomaticBlockingCondition } from '@/data/somaticCheck';
 import { parseDice } from '@/utils/diceExpr';
+import { evaluateSpellMaterials } from '@/data/spellMaterials';
 import { evaluateExpression } from '@/lib/flowExpression';
 import { createUntypedResolution, normalizeDamageType, resolveDamage } from '@/data/damageRules';
 import { getCombatantAffinities } from '@/data/combatAffinities';
@@ -470,7 +471,12 @@ export class FlowCompiler {
         componentChecks.push(`施法者可做手势: ${components.somaticDetail?.canGesticulate !== false ? '是' : '否'}`);
       }
       if (spell.components?.material) {
-        componentChecks.push(`材料组件: 已准备`);
+        const md = (components as any).materialDetail;
+        if (!md) componentChecks.push('材料组件: 已准备');
+        else if (md.viaScroll) componentChecks.push('材料组件: 卷轴满足');
+        else if (md.viaPouch) componentChecks.push('材料组件: 材料包替代');
+        else if (md.satisfied) componentChecks.push('材料组件: 材料齐备');
+        else componentChecks.push(`材料组件: 缺少 ${(md.missingNames || []).join('、')}`);
       }
       if (componentChecks.length > 0) {
         autoChecks.push(`成分检查: ${componentChecks.join(', ')}`);
@@ -543,13 +549,32 @@ export class FlowCompiler {
       };
     }
 
-    // M 检查（暂无运行时判定，跳过）
+    // M 检查：PC 有角色卡背包装备时按材料机制评估（材料/材料包/卷轴），
+    // NPC 桩无装备数据时降级通过（战斗门禁由施法弹窗的战斗背包评估兜底）
+    let materialDetail: any;
+    if (spell.components?.material) {
+      const equipment = Array.isArray((combatant as any)?.equipment)
+        ? ((combatant as any).equipment as import('@/types/character').Equipment[])
+        : null;
+      if (equipment) {
+        // 仅作信息展示，不加入 missing：材料门禁以施法弹窗的战斗背包评估为准
+        // （编译器拿到的是角色源背包，不含战斗中拾取/消耗）
+        const evalResult = evaluateSpellMaterials(spell, equipment);
+        materialDetail = {
+          satisfied: evalResult.satisfied,
+          viaPouch: evalResult.viaPouch,
+          viaScroll: evalResult.viaScroll,
+          missingNames: evalResult.missing.map(m => m.name),
+        };
+      }
+    }
 
     return {
       required,
       available: missing.length === 0,
       missing: missing.length > 0 ? missing : undefined,
       somaticDetail,
+      materialDetail,
     };
   }
 

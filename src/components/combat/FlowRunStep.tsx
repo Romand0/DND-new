@@ -11,6 +11,8 @@ import type { FlowDefinition, FlowExecutionContext, FlowLogEntry, FlowDiceReques
 import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
 import type { Effect } from '@/types/status';
+import SpellMaterialPanel from './SpellMaterialPanel';
+import type { MaterialEvaluation, MaterialRequirement } from '@/data/spellMaterials';
 
 /** 流程创建的待落地地形区域（编译器纯计算，位置与回合由宿主补全） */
 export interface FlowCastZoneSpec {
@@ -79,6 +81,10 @@ interface Props {
   target: Combatant;
   allCombatants: Combatant[];
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /** 材料成分评估（流程施放页顶部展示 + 阻止未满足时执行） */
+  materialEvaluation?: MaterialEvaluation;
+  onCraftMaterial?: (req: MaterialRequirement) => void;
+  onCraftScroll?: () => void;
   onBack: () => void;
   onApplied: (payload: FlowCastPayload) => void;
 }
@@ -92,7 +98,8 @@ const STATUS_STYLES: Record<FlowLogEntry['status'], string> = {
 };
 
 export default function FlowRunStep({
-  flow, spell, caster, target, allCombatants, combatantPositions, onBack, onApplied,
+  flow, spell, caster, target, allCombatants, combatantPositions,
+  materialEvaluation, onCraftMaterial, onCraftScroll, onBack, onApplied,
 }: Props) {
   const [log, setLog] = useState<FlowLogEntry[]>([]);
   const [ran, setRan] = useState(false);
@@ -338,6 +345,16 @@ export default function FlowRunStep({
         </div>
       </div>
 
+      {spell.components?.material && materialEvaluation && (
+        <SpellMaterialPanel
+          evaluation={materialEvaluation}
+          spellName={spell.name}
+          onCraftMaterial={onCraftMaterial}
+          onCraftScroll={onCraftScroll}
+          compact
+        />
+      )}
+
       {/* 手动掷骰开关（默认开：现场投骰后输入；关 = 全自动随机） */}
       <label className="flex items-center gap-1.5 text-xs dark:text-text-dark-muted light:text-text-light-muted cursor-pointer select-none">
         <input
@@ -353,7 +370,7 @@ export default function FlowRunStep({
       <div className="flex items-center gap-2">
         <button
           onClick={handleRun}
-          disabled={running}
+          disabled={running || (materialEvaluation ? !materialEvaluation.satisfied : false)}
           className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
         >
           <Play className="w-4 h-4" />
