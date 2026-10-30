@@ -887,6 +887,13 @@ export default function CharacterDetail({
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [proficienciesOpen, setProficienciesOpen] = useState(false);
+  // 数据来源对话框：技能/豁免/四类条目的解析授予与手动标记汇总展示（页面只读区徽标点击展开）
+  const [sourceDialog, setSourceDialog] = useState<{
+    name: string;
+    kindLabel: string;
+    parsed: string[];
+    manual?: string;
+  } | null>(null);
   const [statsEditorOpen, setStatsEditorOpen] = useState(false);
   const [statsForm, setStatsForm] = useState({
     currentHp: 0,
@@ -1956,13 +1963,20 @@ if (character) {
           >
             {group.save.label}
           </span>
-          {saveSources && (
-            <span className="text-[10px] text-primary" title="选项解析授予">{saveSources.join('、')}</span>
-          )}
-          {saveFinal && profFinal.saveMarks[group.save.key] && (
-            <span className="text-[10px] text-primary/80 inline-flex items-center gap-0.5" title="手动来源标记">
-              <Tag className="w-3 h-3" />{profFinal.saveMarks[group.save.key]}
-            </span>
+          {(saveSources || profFinal.saveMarks[group.save.key]) && (
+            <button
+              data-readonly-keep
+              onClick={() => setSourceDialog({
+                name: group.save.label,
+                kindLabel: '豁免',
+                parsed: saveSources ?? [],
+                manual: profFinal.saveMarks[group.save.key],
+              })}
+              className="p-1 rounded hover:bg-accent/10 text-accent flex-shrink-0"
+              title="查看数据来源"
+            >
+              <Tag className="w-3.5 h-3.5" />
+            </button>
           )}
           <span className={`text-xs font-mono font-bold w-14 text-right rounded px-1 py-0.5 ${
             group.save.overridden
@@ -2010,13 +2024,20 @@ if (character) {
             >
               {skill.label}
             </span>
-            {sources && (
-              <span className="text-[10px] text-primary" title="选项解析授予">{sources.join('、')}</span>
-            )}
-            {finalProf && profFinal.skillMarks[skill.key] && (
-              <span className="text-[10px] text-primary/80 inline-flex items-center gap-0.5" title="手动来源标记">
-                <Tag className="w-3 h-3" />{profFinal.skillMarks[skill.key]}
-              </span>
+            {(sources || profFinal.skillMarks[skill.key]) && (
+              <button
+                data-readonly-keep
+                onClick={() => setSourceDialog({
+                  name: skill.label,
+                  kindLabel: '技能',
+                  parsed: sources ?? [],
+                  manual: profFinal.skillMarks[skill.key],
+                })}
+                className="p-1 rounded hover:bg-primary/10 text-primary flex-shrink-0"
+                title="查看数据来源"
+              >
+                <Tag className="w-3.5 h-3.5" />
+              </button>
             )}
             <span
               className={`text-xs font-mono font-bold w-8 text-right ${
@@ -2064,23 +2085,47 @@ if (character) {
                   {items.map((item, index) => {
                     const mark = profFinalChips.chipMarks[category][item];
                     return (
-                    <span key={index} className="px-2 py-1 rounded-lg text-xs dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light">
+                    <span key={index} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light">
                       {item}
                       {mark && (
-                        <span className="text-[10px] text-primary/80 ml-1" title="手动来源标记">{mark}</span>
+                        <button
+                          data-readonly-keep
+                          onClick={() => setSourceDialog({
+                            name: item,
+                            kindLabel: proficiencyLabels[category],
+                            parsed: [],
+                            manual: mark,
+                          })}
+                          className="p-0.5 rounded hover:bg-primary/10 text-primary"
+                          title="查看数据来源"
+                        >
+                          <Tag className="w-3 h-3" />
+                        </button>
                       )}
                     </span>
                     );
                   })}
-                  {granted.map((g, i) => (
-                    <span key={`granted-${i}`} className="px-2 py-1 rounded-lg text-xs bg-primary/10 text-primary"
-                      title={`选项解析授予：${g.sourceLabel}`}>
-                      {g.name} <span className="text-[10px] text-primary/70">{g.sourceLabel}</span>
-                      {profFinalChips.chipMarks[category][g.name] && (
-                        <span className="text-[10px] text-primary/80" title="手动来源标记">+ {profFinalChips.chipMarks[category][g.name]}</span>
-                      )}
+                  {granted.map((g, i) => {
+                    const mark = profFinalChips.chipMarks[category][g.name];
+                    return (
+                    <span key={`granted-${i}`} className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-primary/10 text-primary">
+                      {g.name}
+                      <button
+                        data-readonly-keep
+                        onClick={() => setSourceDialog({
+                          name: g.name,
+                          kindLabel: proficiencyLabels[category],
+                          parsed: [g.sourceLabel],
+                          manual: mark,
+                        })}
+                        className="p-0.5 rounded hover:bg-primary/10 text-primary/70 hover:text-primary"
+                        title="查看数据来源"
+                      >
+                        <Tag className="w-3 h-3" />
+                      </button>
                     </span>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -3176,6 +3221,57 @@ if (character) {
           onClose={() => setProficienciesOpen(false)}
           onSave={handleSaveProficiencies}
         />
+      )}
+
+      {/* 数据来源弹窗（页面只读区徽标点击展开；解析授予与手动标记分区展示） */}
+      {sourceDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setSourceDialog(null)} />
+          <div className="relative w-full max-w-sm rounded-xl border p-5 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl">
+            <div className="flex items-center gap-2 mb-3">
+              <Tag className="w-4 h-4 text-primary flex-shrink-0" />
+              <h3 className="text-base font-bold flex-1 dark:text-text-dark light:text-text-light">
+                数据来源 · {sourceDialog.name}
+              </h3>
+              <button
+                data-readonly-keep
+                onClick={() => setSourceDialog(null)}
+                className="p-1 rounded hover:bg-danger/10 text-danger flex-shrink-0"
+                title="关闭"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="text-xs mb-3 dark:text-text-dark-muted light:text-text-light-muted">
+              {sourceDialog.kindLabel}
+            </div>
+            {sourceDialog.parsed.length === 0 && !sourceDialog.manual && (
+              <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">暂无来源记录</p>
+            )}
+            {sourceDialog.parsed.length > 0 && (
+              <div className="mb-3">
+                <div className="text-xs mb-1.5 dark:text-text-dark-muted light:text-text-light-muted">选项解析授予</div>
+                <div className="space-y-1.5">
+                  {sourceDialog.parsed.map((s, i) => (
+                    <div key={i} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-primary/10">
+                      <Sparkles className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                      <span className="text-xs text-primary">{s}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {sourceDialog.manual && (
+              <div>
+                <div className="text-xs mb-1.5 dark:text-text-dark-muted light:text-text-light-muted">手动来源标记</div>
+                <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                  <Tag className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <span className="text-xs dark:text-text-dark light:text-text-light">{sourceDialog.manual}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* DM 模式下显示浮动同步按钮 */}
