@@ -111,6 +111,8 @@ export interface Equipment {
   materialCostGp?: number;
   /** 该材料是否作为耗材（施放后消失） */
   materialConsumed?: boolean;
+  /** 稀有度（2024 DMG）：普通 / 非普通 / 珍稀 / 极珍稀 / 传说 */
+  rarity?: string;
   /** 卷轴所对应的法术 id */
   scrollSpellId?: string;
   /** 卷轴所对应的法术名 */
