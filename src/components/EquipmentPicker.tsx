@@ -209,6 +209,9 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                         <span className="text-xs px-1.5 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
                           {item.category}
                         </span>
+                        {item.rarity && (
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400">{item.rarity}</span>
+                        )}
                         {isScrollEquipmentItem(item) && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400">法术卷轴</span>
                         )}

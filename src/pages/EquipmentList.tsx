@@ -361,6 +361,7 @@ export default function EquipmentList() {
                   <div className="flex items-center gap-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
                     <span>{item.category}</span>
                     {item.subtype && <span>· {item.subtype}</span>}
+                    {item.rarity && <span className="text-amber-400">· {item.rarity}</span>}
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-sm">
                     <span className="flex items-center gap-1 dark:text-text-dark light:text-text-light"><Coins className="w-3.5 h-3.5 text-accent" /> {formatPrice(item)}</span>

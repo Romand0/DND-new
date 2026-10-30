@@ -30,6 +30,9 @@ export interface EquipmentItem {
   /** ③ 交易体系：冒险物品 / 贵重物品。缺省 = '冒险物品' */
   tradeCategory?: '贵重物品' | '冒险物品';
 
+  /** 稀有度（2024 DMG）：普通 / 非普通 / 珍稀 / 极珍稀 / 传说 */
+  rarity?: string;
+
   // ---- 法术卷轴（虚拟条目：由法术库生成，不落 D1）----
   /** 卷轴对应的法术 id */
   scrollSpellId?: string;

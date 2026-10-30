@@ -63,7 +63,8 @@ export default function TreasureEdit() {
       id: crypto.randomUUID(),
       name: item.name,
       quantity: qty,
-      unitPrice: undefined,
+      // 装备库条目自带定价（卷轴按 2024 DMG 环级价目），带入宝藏后仍可手动改写
+      unitPrice: item.price?.amount ? { amount: item.price.amount, unit: item.price.unit } : undefined,
       category: item.category,
       subCategory: item.subtype || undefined,
       weight: item.weight,
