@@ -176,6 +176,8 @@ export interface Character {
   abilities: Abilities;
   /** 初始属性值：手填基线快照，不随 CharacterDetail 加减按钮变化（加减只写 abilities） */
   baseAbilities?: Abilities;
+  /** 特性属性加值的任选结果：key = 规则 ID（`${optionId}#${index}`），value = 已选属性（互异） */
+  abilityBonusChoices?: Record<string, AbilityKey[]>;
   proficiencyBonus: number;
   passivePerception: number;
   armorClass: number;

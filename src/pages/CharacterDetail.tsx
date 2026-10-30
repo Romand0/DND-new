@@ -17,7 +17,6 @@ import {
   Scale,
   Sparkles,
   Plus,
-  Minus,
   Trash2,
   ChevronDown,
   ChevronUp,
@@ -36,6 +35,7 @@ import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore } from '@/data/characterStore';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
+import { computeAbilityBreakdown, collectCharacterAbilityBonuses, type AbilityBonusRule } from '@/data/abilityBonus';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
@@ -224,6 +224,80 @@ function BaseAbilitiesDialog({ character, onClose, onSave }: BaseAbilitiesDialog
   );
 }
 
+interface AbilityBreakdownDialogProps {
+  character: Character;
+  onClose: () => void;
+  onEditBase: () => void;
+}
+
+// 组分解析弹窗：初始值 + 各特性加值 = 最终值；任选未完成的规则在底部提醒
+function AbilityBreakdownDialog({ character, onClose, onEditBase }: AbilityBreakdownDialogProps) {
+  const breakdown = computeAbilityBreakdown(character);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="relative w-full max-w-md rounded-xl border p-6 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light shadow-2xl">
+        <h3 className="text-lg font-bold mb-1 dark:text-text-dark light:text-text-light">属性值解析</h3>
+        {!breakdown ? (
+          <div>
+            <p className="text-sm mb-4 dark:text-text-dark-muted light:text-text-light-muted">
+              尚无可解析的组分：请先设置初始属性值基线，或选择带属性加成的种族/亚种。
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={onClose}
+                className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10">
+                关闭
+              </button>
+              <button onClick={onEditBase}
+                className="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg">
+                设置初始属性值
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="space-y-2">
+              {ABILITY_KEYS.map((key) => {
+                const entry = breakdown.entries[key];
+                return (
+                  <div key={key} className="flex items-center gap-2 text-sm p-2 rounded-lg dark:bg-white/5 light:bg-white/50">
+                    <span className="w-12 shrink-0 font-medium dark:text-text-dark light:text-text-light">{abilityLabels[key]}</span>
+                    <div className="flex-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      <span>初始 {entry.base ?? '未设置'}</span>
+                      {entry.parts.map((p) => (
+                        <span key={p.ruleId} className="text-primary">
+                          {p.label} +{p.amount}
+                        </span>
+                      ))}
+                    </div>
+                    <span className="shrink-0 font-bold text-primary">= {entry.total}</span>
+                  </div>
+                );
+              })}
+            </div>
+            {breakdown.pendingFlexible.length > 0 && (
+              <p className="mt-3 text-xs text-warning dark:text-warning light:text-warning">
+                有 {breakdown.pendingFlexible.length} 条任选加值尚未选满，完成后会计入最终值。
+              </p>
+            )}
+            <div className="flex justify-end gap-3 mt-4">
+              <button onClick={onClose}
+                className="px-4 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10">
+                关闭
+              </button>
+              <button onClick={onEditBase}
+                className="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-lg">
+                编辑初始值
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function CharacterDetail({
   readOnly = false,
   externalCharacter = null,
@@ -274,6 +348,7 @@ export default function CharacterDetail({
   const [editingEquipment, setEditingEquipment] = useState<(Equipment & { id: string }) | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [baseAbilitiesOpen, setBaseAbilitiesOpen] = useState(false);
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
   const [statsEditorOpen, setStatsEditorOpen] = useState(false);
   const [statsForm, setStatsForm] = useState({
     currentHp: 0,
@@ -417,25 +492,27 @@ export default function CharacterDetail({
 } = useEquipmentActions(id, reloadChar);
 
     
-  const updateAbilityScore = (ability: AbilityKey, score: number | null) => {
-    if (!id) return;
-    // 当 score 为 null 时，设置为 0
-    const finalScore = score ?? 0;
-    const modifier = characterStore.calcModifier(finalScore);
-    characterStore.update(id, {
-      abilities: {
-        ...character!.abilities,
-        [ability]: { score: finalScore, modifier },
-      },
-    });
-    reloadChar();
-  };
-
   const handleSaveBaseAbilities = (baseAbilities: Abilities) => {
     if (!id) return;
     characterStore.update(id, { baseAbilities });
+    characterStore.recomputeAbilities(id);
     reloadChar();
     setBaseAbilitiesOpen(false);
+  };
+
+  // 任选规则单槽变更：写入 abilityBonusChoices 后重算最终属性值
+  const handleBonusChoiceChange = (rule: AbilityBonusRule, slot: number, ability: AbilityKey | '') => {
+    if (!id) return;
+    const choices = { ...(character.abilityBonusChoices ?? {}) };
+    const prev: (AbilityKey | '')[] = [...(choices[rule.id] ?? [])];
+    while (prev.length < (rule.count ?? 0)) prev.push('');
+    prev[slot] = ability;
+    const cleaned = prev.filter((v): v is AbilityKey => !!v);
+    if (cleaned.length === 0) delete choices[rule.id];
+    else choices[rule.id] = cleaned;
+    characterStore.update(id, { abilityBonusChoices: choices });
+    characterStore.recomputeAbilities(id);
+    reloadChar();
   };
 
   const handleAddAttack = () => {
@@ -596,6 +673,11 @@ export default function CharacterDetail({
   const handleRaceSelect = (opt: CharacterOption) => {
     // 换种族时亚种特质一并失效（旧亚种归属旧种族）
     applyOptionTraits({ race: opt.name }, opt.traits, ['种族特质', '亚种特质'], '种族特质', opt.name);
+    // 旧种族的任选加值记录随种族失效，重算最终属性值
+    if (id) {
+      characterStore.update(id, { abilityBonusChoices: {} });
+      characterStore.recomputeAbilities(id);
+    }
     reloadChar();
   };
 
@@ -607,6 +689,10 @@ export default function CharacterDetail({
       '亚种特质',
       opt.parentName || opt.name
     );
+    if (id) {
+      characterStore.update(id, { abilityBonusChoices: {} });
+      characterStore.recomputeAbilities(id);
+    }
     reloadChar();
   };
 
@@ -1219,10 +1305,16 @@ if (character) {
           <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
             初始属性值：{character.baseAbilities ? '已设置' : '未设置'}
           </span>
-          <button onClick={() => setBaseAbilitiesOpen(true)} title="查看或编辑初始属性值基线"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
-            <Settings2 className="w-4 h-4" /> 查看 / 编辑
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setBreakdownOpen(true)} title="解析最终属性值的组分与来源"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
+              <ScrollText className="w-4 h-4" /> 属性解析
+            </button>
+            <button onClick={() => setBaseAbilitiesOpen(true)} title="查看或编辑初始属性值基线"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark hover:bg-white/10 light:border-border-light light:text-text-light">
+              <Settings2 className="w-4 h-4" /> 查看 / 编辑
+            </button>
+          </div>
         </div>
         <ErrorBoundary fallback={
     <div className="p-4 text-sm text-danger border border-danger/30 rounded-lg">
@@ -1238,32 +1330,9 @@ if (character) {
               <div className="text-xs uppercase tracking-wide mb-1 dark:text-text-dark-muted light:text-text-light-muted">
                 {abilityLabels[ability]}
               </div>
-              <div className="flex items-center justify-center gap-1">
-                <button
-                  onClick={() => {
-                    const currentScore = character.abilities[ability].score;
-                    if (currentScore > 1) {
-                      updateAbilityScore(ability, currentScore - 1);
-                    }
-                  }}
-                  className="w-8 h-8 rounded-lg bg-white/50 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-primary/30 flex items-center justify-center transition-colors"
-                >
-                  <Minus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
-                </button>
-                <span className="w-12 py-1 text-2xl font-bold text-center dark:text-text-dark light:text-text-light">
-                  {character.abilities[ability].score}
-                </span>
-                <button
-                  onClick={() => {
-                    const currentScore = character.abilities[ability].score;
-                    if (currentScore < 30) {
-                      updateAbilityScore(ability, currentScore + 1);
-                    }
-                  }}
-                  className="w-8 h-8 rounded-lg bg-white/50 dark:bg-white/10 hover:bg-primary/20 dark:hover:bg-primary/30 flex items-center justify-center transition-colors"
-                >
-                  <Plus className="w-4 h-4 dark:text-text-dark light:text-text-light" />
-                </button>
+              {/* 最终属性值 = 初始基线 + 特性加值，由 recomputeAbilities 写回，静态展示 */}
+              <div className="text-2xl font-bold py-1 dark:text-text-dark light:text-text-light">
+                {character.abilities[ability].score}
               </div>
               <div className="mt-1 text-lg font-semibold text-primary">
                 {character.abilities[ability].modifier >= 0
@@ -1273,6 +1342,58 @@ if (character) {
             </div>
           ))}
         </div>
+
+        {/* 特性属性加值：固定规则展示，任选规则逐槽选择 */}
+        {(() => {
+          const bonusRules = collectCharacterAbilityBonuses(character);
+          if (bonusRules.length === 0) return null;
+          const choices = character.abilityBonusChoices ?? {};
+          return (
+            <div className="mt-4 space-y-2">
+              <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">特性属性加值</div>
+              {bonusRules.map((rule) => {
+                const chosen = choices[rule.id] ?? [];
+                const complete = rule.mode === 'fixed' || chosen.length >= (rule.count ?? 1);
+                return (
+                  <div key={rule.id} className="flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg dark:bg-white/5 light:bg-white/50">
+                    <div className="text-sm">
+                      <span className="dark:text-text-dark light:text-text-light">{rule.sourceLabel}</span>
+                      <span className={`ml-2 text-xs ${complete ? 'dark:text-text-dark-muted light:text-text-light-muted' : 'text-warning'}`}>
+                        {rule.mode === 'fixed'
+                          ? `${abilityLabels[rule.ability!]} +${rule.amount}`
+                          : `任选 ${rule.count} 项各 +${rule.amount}${complete ? '' : '（待选择）'}`}
+                      </span>
+                    </div>
+                    {rule.mode === 'flexible' && (
+                      <div className="flex items-center gap-1.5">
+                        {Array.from({ length: rule.count ?? 0 }).map((_, slot) => {
+                          const current = chosen[slot] ?? '';
+                          return (
+                            <select
+                              key={slot}
+                              value={current}
+                              onChange={(e) => handleBonusChoiceChange(rule, slot, e.target.value as AbilityKey | '')}
+                              className={`px-2 py-1 rounded-lg border text-xs bg-transparent outline-none ${
+                                current
+                                  ? 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light'
+                                  : 'border-warning text-warning'
+                              }`}
+                            >
+                              <option value="">选择...</option>
+                              {ABILITY_KEYS.filter((k) => k === current || !chosen.includes(k)).map((k) => (
+                                <option key={k} value={k}>{abilityLabels[k]}</option>
+                              ))}
+                            </select>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
           </ErrorBoundary>
       </Section>
 
@@ -2613,6 +2734,18 @@ if (character) {
           character={character}
           onClose={() => setBaseAbilitiesOpen(false)}
           onSave={handleSaveBaseAbilities}
+        />
+      )}
+
+      {/* 属性值解析弹窗（组分与来源） */}
+      {breakdownOpen && character && (
+        <AbilityBreakdownDialog
+          character={character}
+          onClose={() => setBreakdownOpen(false)}
+          onEditBase={() => {
+            setBreakdownOpen(false);
+            setBaseAbilitiesOpen(true);
+          }}
         />
       )}
 
