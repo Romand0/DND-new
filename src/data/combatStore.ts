@@ -1,6 +1,7 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry } from '@/types/combat';
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
+import { equipmentStore } from './equipmentStore';
 import { globalStatusManager } from './statusManager';
 import type { Equipment, Character } from '@/types/character';
 
@@ -298,23 +299,28 @@ export function computeCombatantAc(
   let armorBonus = 0;
   let dexCap: number | null = null;
 
-  // wornArmorId：必须在战斗背包存在
+  // wornArmorId：必须在战斗背包存在。AC 基础值读装备模板 acBase（字符串，如 "16"/"+2"），
+  // 与 characterStore.recalculateArmorClass 保持同源——旧代码读 acValue（字段从未存在）导致穿甲 AC 恒 10+敏。
+  // 旧背包实例 acBase 为空串（补值前从模板加入），按实例 id（=模板 id）回查装备库模板兜底
   if (character.wornArmorId) {
     const armor = inventory.find(e => (e.childId || e.id) === character.wornArmorId);
     if (armor) {
       const subtype = armor.subtype || '';
-      const acValue = (armor as any).acValue as number | undefined;
-      const baseAc = typeof acValue === 'number' ? acValue : 10;
-      if (subtype.includes('重型') || subtype.includes('重甲')) {
-        armorBonus = baseAc - 10; // 重甲：敏捷不加
-        dexCap = 0;
-      } else if (subtype.includes('中型') || subtype.includes('中甲')) {
-        armorBonus = baseAc - 10;
-        dexCap = 2;
-      } else {
-        // 轻甲
-        armorBonus = baseAc - 10;
-        dexCap = null;
+      const templateAcBase = (armor as any).acBase || equipmentStore.getById(armor.id)?.acBase || '';
+      const parsed = typeof templateAcBase === 'string' ? Number(templateAcBase) : typeof templateAcBase === 'number' ? templateAcBase : NaN;
+      if (!isNaN(parsed) && parsed > 0) {
+        const baseAc = parsed;
+        if (subtype.includes('重型') || subtype.includes('重甲')) {
+          armorBonus = baseAc - 10; // 重甲：敏捷不加
+          dexCap = 0;
+        } else if (subtype.includes('中型') || subtype.includes('中甲')) {
+          armorBonus = baseAc - 10;
+          dexCap = 2;
+        } else {
+          // 轻甲
+          armorBonus = baseAc - 10;
+          dexCap = null;
+        }
       }
     }
   }
@@ -330,12 +336,13 @@ export function computeCombatantAc(
       break;
     }
   }
-  // 穿戴服装 + bonus（通常服装不提供 AC，但兼容已有逻辑）
+  // 穿戴服装 + bonus（通常服装不提供 AC，但兼容已有逻辑；字段同盔甲走 acBase）
   if (character.wornOutfitId && !character.wornArmorId) {
     const outfit = inventory.find(e => (e.childId || e.id) === character.wornOutfitId);
     if (outfit) {
-      const acVal = (outfit as any).acValue as number | undefined;
-      if (typeof acVal === 'number' && acVal > ac) ac = acVal;
+      const outfitRaw = (outfit as any).acBase;
+      const outfitParsed = typeof outfitRaw === 'string' ? Number(outfitRaw) : typeof outfitRaw === 'number' ? outfitRaw : NaN;
+      if (!isNaN(outfitParsed) && outfitParsed > ac) ac = outfitParsed;
     }
   }
   return ac;
