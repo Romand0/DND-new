@@ -68,18 +68,19 @@ export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
 
   // POST：批量导入
   if (method === 'POST') {
-    const body = await context.request.json() as { items: Array<Record<string, any>> };
+    const body = await context.request.json() as { items?: Array<Record<string, any>>; entities?: Array<Record<string, any>> };
     const db = context.env.DB;
     const stmts: D1PreparedStatement[] = [];
 
-    if (!body.items || (body as any).entities?.length === 0) {
+    // 历史请求体形态混用过 items/entities，统一收口；空列表直接拒绝（D1 batch 空数组会抛错）
+    const list = body.items ?? body.entities ?? [];
+    if (!Array.isArray(list) || list.length === 0) {
       return new Response(JSON.stringify({ error: '导入列表为空', success: 0, fail: 0 }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json' }
+        status: 400, headers: { 'Content-Type': 'application/json' }
       });
     }
 
-    for (const item of ((body as any).entities || body.items)) {
+    for (const item of list) {
       try {
         const existing = await db.prepare(
           "SELECT id FROM spells WHERE json_extract(data, '$.id') = ?"
