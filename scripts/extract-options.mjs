@@ -659,6 +659,8 @@ function extractClasses() {
         rows = [merged, ...rows.slice(2)];
       }
       const header = rows[0];
+      // 契约施法者列（魔契师）：所有法术位同环阶，职业表以数值列代替环阶列
+      const CASTING_COLS = ['已知戏法', '已知法术', '法术位', '法术位环阶', '已知祈唤'];
       const idx = { level: -1, prof: -1, features: -1, slots: {} };
       header.forEach((c, i) => {
         const col = String(c).replace(/\s/g, '');
@@ -666,6 +668,7 @@ function extractClasses() {
         else if (col.includes('熟练加值')) idx.prof = i;
         else if (col.includes('职业特性')) idx.features = i;
         else if (/^[一二三四五六七八九1-9]环/.test(col)) idx.slots[i] = col;
+        else if (CASTING_COLS.includes(col)) idx.slots[i] = col;
       });
       table = rows
         .slice(1)
@@ -684,7 +687,9 @@ function extractClasses() {
           const slots = {};
           for (const [i, label] of Object.entries(idx.slots)) {
             const v = r[Number(i)];
-            if (v && v !== '—' && v !== '-') slots[label] = v;
+            // 「—」「－」表示该级无此环法术位，保留原值维持每行键完整（UI 兜底显示），
+            // 避免低等级行缺键导致渲染端表头退化
+            if (v) slots[label] = v;
           }
           if (Object.keys(slots).length) row.slots = slots;
           return row;

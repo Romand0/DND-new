@@ -80,7 +80,22 @@ function TraitList({ traits, title }: { traits: OptionTrait[]; title: string }) 
 
 function ClassTable({ table }: { table: ClassTableRow[] }) {
   if (!table.length) return null;
-  const slotLabels = Object.keys(table.find((r) => r.slots)?.slots || {});
+  // 法术位列取全部行键并集：低等级行的环阶列是「—」，按首行取键会退化成只有 1 环
+  const ZH_RING: Record<string, number> = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+  const ringNum = (l: string): number | null => {
+    const m = l.match(/^([一二三四五六七八九1-9])环$/);
+    return m ? (ZH_RING[m[1]] ?? Number(m[1])) : null;
+  };
+  const slotLabels = Object.keys(
+    table.reduce<Record<string, string>>((acc, r) => Object.assign(acc, r.slots), {})
+  ).sort((a, b) => {
+    const ra = ringNum(a);
+    const rb = ringNum(b);
+    if (ra !== null && rb !== null) return ra - rb;
+    if (ra !== null) return -1;
+    if (rb !== null) return 1;
+    return 0; // 契约施法列（已知法术/法术位等）保持并集出现序
+  });
   return (
     <div className="mb-4">
       <h4 className="text-sm font-semibold text-gray-300 mb-2">职业表</h4>
