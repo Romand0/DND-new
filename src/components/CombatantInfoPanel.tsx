@@ -1010,13 +1010,26 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   </div>
                 </div>
               </div>
-              {/* 模板特质提醒：多重攻击构成 / 再生（每回合开始恢复，失效条件由 DM 判断） */}
-              {(combatant.multiattack || combatant.regenAmount) && (
+              {/* 模板特质提醒：多重攻击构成 / 天生施法 / 再生（每回合开始恢复，失效条件由 DM 判断） */}
+              {(combatant.multiattack || combatant.spellcasting || combatant.regenAmount) && (
                 <div className="space-y-1.5">
                   {combatant.multiattack && (
                     <div className="rounded-lg bg-amber-500/10 p-2 text-xs text-amber-400">
                       多重攻击：
                       {combatant.multiattack.map(m => `${m.name}×${m.count}`).join(' + ')}
+                    </div>
+                  )}
+                  {combatant.spellcasting && (
+                    <div className="rounded-lg bg-violet-500/10 p-2 text-xs text-violet-400 space-y-1">
+                      <div>
+                        天生施法：DC{combatant.spellcasting.dc}（{combatant.spellcasting.ability}）
+                        {typeof combatant.spellcasting.attackBonus === 'number' ? `，命中 +${combatant.spellcasting.attackBonus}` : ''}
+                      </div>
+                      {(combatant.spellcasting.groups ?? []).map(g => (
+                        <div key={g.ring} className="text-violet-400/80">
+                          {g.ring}：{g.spells.join('、')}
+                        </div>
+                      ))}
                     </div>
                   )}
                   {combatant.regenAmount && (

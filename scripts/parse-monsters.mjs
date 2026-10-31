@@ -212,6 +212,40 @@ function parseRegeneration(traits) {
   return { amount, negate: t.text.match(/若它受到([\u4e00-\u9fa5]{2,12}伤害)/)?.[1] };
 }
 
+// 天生施法/施法：抽施法属性/DC/攻击命中 + 环阶分组法术列表。
+// CHM 缺字（「智?」「魅?」）放宽映射；重复污染段的法术名跨段与段内双重去重；
+// 原文未印 DC 或无环阶标记的单法术条目解析失败，保留 traits 原文
+function parseSpellcasting(traits) {
+  const t = (traits ?? []).find((x) => /^(天生施法|施法|契约施法|邪术施法)/.test(x.name ?? ''));
+  if (!t) return undefined;
+  const text = t.text ?? '';
+  const dcs = [...text.matchAll(/DC(\d{1,2})/g)].map((m) => parseInt(m[1], 10));
+  const abFull = text.match(/属性为(力量|敏捷|体质|智力|感知|魅力)/)?.[1];
+  const ability = abFull ?? ({ 智: '智力', 魅: '魅力', 感: '感知', 力: '力量', 敏: '敏捷', 体: '体质' })[text.match(/属性为(智|魅|感|力|敏|体)\??/)?.[1] ?? ''];
+  if (!dcs.length || !ability) return undefined;
+  const attackBonus = parseInt(text.match(/命中\s*\+?\s*(\d{1,2})/)?.[1] ?? '', 10);
+  // 环阶标记：「戏法（随意）：」「1环（3法术位）：」「随意：」（括号注记可选）
+  const parts = text.split(/(戏法|\d环|随意)\s*(?:（[^）：]*)?）?：/);
+  const groups = [];
+  for (let i = 1; i < parts.length - 1; i += 2) {
+    const ring = parts[i];
+    const spells = [...new Set(parts[i + 1].split(/[，、；,]/)
+      .map((s) => s.trim().match(/^[\u4e00-\u9fa5]{2,12}/)?.[0])
+      .filter(Boolean))];
+    if (!spells.length) continue;
+    const g = groups.find((x) => x.ring === ring);
+    if (g) g.spells = [...new Set(g.spells.concat(spells))];
+    else groups.push({ ring, spells });
+  }
+  if (!groups.length) return undefined;
+  return {
+    ability,
+    dc: dcs[0],
+    attackBonus: Number.isFinite(attackBonus) ? attackBonus : undefined,
+    groups,
+  };
+}
+
 function parseTypeLine(line) {
   // 「中型类人（兽人），混乱邪恶」/「大型野兽，中立」/「巨型构造体，通常中立（绝对守序）」
   const sizeMatch = line.match(/^([微小中大超巨]型)/);
@@ -600,6 +634,7 @@ function parseFile(filePath, dir) {
       multiattack: parseMultiattack(traits),
       breathWeapon: parseBreathWeapon(traits),
       regeneration: parseRegeneration(traits),
+      spellcasting: parseSpellcasting(traits),
       attacks: attacks.map((a) => ({
         name: a.name, attackBonus: a.attackBonus, damage: a.damage, damageType: a.damageType,
         range: a.range, properties: a.properties, normalRange: a.normalRange, maxRange: a.maxRange,

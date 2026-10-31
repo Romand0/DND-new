@@ -130,6 +130,13 @@ export interface Combatant {
   legendaryResistanceTotal?: number;
   /** 多重攻击结构（从模板带入，动作面板显示构成提醒） */
   multiattack?: { count: number; name: string }[];
+  /** 天生施法（从模板带入：施法属性/DC/命中/法术列表，动作面板展示） */
+  spellcasting?: {
+    ability: string;
+    dc: number;
+    attackBonus?: number;
+    groups?: { ring: string; spells: string[] }[];
+  };
   /** 再生恢复量（每回合开始，从模板再生特质带入） */
   regenAmount?: number;
   /** 再生失效条件（如「火焰伤害」；受该类伤害时再生下回合失效，由 DM 判断） */
@@ -243,6 +250,13 @@ export interface NpcTemplate {
   breathWeapon?: { name: string; recharge?: string; shape?: string; dc?: number; ability?: string; damage?: string; damageDice?: string; damageType?: string; halfOnSave?: boolean }[];
   /** 再生（每回合开始恢复量） */
   regeneration?: { amount: number; negate?: string };
+  /** 天生施法（解析自特质：施法属性/DC/攻击命中/环阶分组法术列表；原文未印 DC 或单法术条目解析失败保留 traits） */
+  spellcasting?: {
+    ability: string;
+    dc: number;
+    attackBonus?: number;
+    groups?: { ring: string; spells: string[] }[];
+  };
   /** 解析来源目录（去重消歧用） */
   sourceDir?: string;
 }

@@ -335,6 +335,29 @@
         "text": "侍僧作为1级施法者，其施法属性为感知（法术豁免DC12，法术攻击命中+4）。侍僧备有以下牧师法术：12，法术攻击命中+4）。侍僧备有以下牧师法术：戏法（随意）：光亮术light，圣火术sacredflame，奇术thaumaturgyflame，奇术thaumaturgy1环（3法术位）：祝福术bless，疗伤术curewounds，庇护术sanctuarywounds，庇护术sanctuary"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "光亮术",
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "祝福术",
+            "疗伤术",
+            "庇护术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "短棍",
@@ -3656,6 +3679,63 @@
         "name": "爪击攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 18,
+      "attackBonus": 10,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "圣火术",
+            "维生术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "侦测善恶",
+            "侦测魔法"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "次等复原术",
+            "诚实之域"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "解除魔法",
+            "巧言术"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "放逐术",
+            "行动自如"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "炎击术",
+            "高等复原术"
+          ]
+        },
+        {
+          "ring": "6环",
+          "spells": [
+            "英雄宴"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -4025,6 +4105,22 @@
         "text": "奥法罗斯魔用魔法将自己传送至多60尺，到达任何它可以看到且未占据空间，其随身携带或着装的装备也将随之一并进行传送。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "易容术",
+            "黑暗术",
+            "灼热",
+            "隐形术",
+            "魔法飞弹"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -4101,6 +4197,88 @@
         "text": "大法师作为18级施法者，其施法属性为智力（法术豁免DC17，法术攻击命中+9）。大法师可随意施展易容术disguise17，法术攻击命中+9）。大法师可随意施展易容术disguiseself和隐形术invisibility，且准备了以下法师法术：self和隐形术invisibility，且准备了以下法师法术：戏法（随意）：火焰箭firebolt，光亮术light，法师之手mage hand，魔法伎俩prestidigitation，电爪shockinggraspgrasp1环（4法术位）：侦测魔法detect magic，鉴定术identify，法师护甲magearmor*，魔法飞弹magic missilearmor*，魔法飞弹magic missile2环（3法术位）：侦测思想detect thoughts，镜影术mirrorimage，迷踪步misty stepimage，迷踪步misty step3环（3法术位）：法术反制counterspell，飞行术fly，闪电束lightningboltbolt4环（3法术位）：放逐术banishment，火焰护盾fireshield，石肤术stoneskin＊shield，石肤术stoneskin＊5环（3法术位）：寒冰锥cone of cold，探知术Scrying，力场墙wall offorceforce6环（1法术位）：法术无效结界globe ofinvulnerabilityinvulnerability7环（1法术位）：传送术teleport8环（1法术位）：心灵屏障mindblank*blank*9环（1法术位）：时间停止timestopstop*大法师在进入战斗前对自身施展这些带标记的法术。"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 17,
+      "attackBonus": 9,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "火焰箭",
+            "光亮术",
+            "法师之手",
+            "魔法伎俩",
+            "电爪"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "鉴定术",
+            "法师护甲",
+            "魔法飞弹"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "侦测思想",
+            "镜影术",
+            "迷踪步"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "法术反制",
+            "飞行术",
+            "闪电束"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "放逐术",
+            "火焰护盾",
+            "石肤术"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "寒冰锥",
+            "探知术",
+            "力场墙"
+          ]
+        },
+        {
+          "ring": "6环",
+          "spells": [
+            "法术无效结界"
+          ]
+        },
+        {
+          "ring": "7环",
+          "spells": [
+            "传送术"
+          ]
+        },
+        {
+          "ring": "8环",
+          "spells": [
+            "心灵屏障"
+          ]
+        },
+        {
+          "ring": "9环",
+          "spells": [
+            "时间停止"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "匕首",
@@ -6457,6 +6635,50 @@
         "text": "纳迦作为一名5级施法者（法术豁免DC12，法术攻击命中+4）其施法时只需要相应的言语成分。12，法术攻击命中+4）其施法时只需要相应的言语成分。如果该纳迦生前是一只守秘纳迦，则其施法属性为感知，且准备了以下的牧师法术：戏法（随意）：修复术mending，圣火术sacredflame，奇术thaumaturgyflame，奇术thaumaturgy1环（4法术位）：命令术command，虔诚护盾shieldof faithof faith2环（3法术位）：安定心神calmemotions，定身类人holdemotions，定身类人holdpersonperson3环（2法术位）：降咒bestowcursecurse如果该纳迦生前是一只阴魂纳迦，则其施法属性为智力，且准备了以下法师法术：戏法（随意）：法师之手magehand，次级幻象minorhand，次级幻象minorillusion，冷冻射线rayillusion，冷冻射线rayof frostof frost1环（4法术位）：魅惑类人charmperson，睡眠术sleepperson，睡眠术sleep2环（3法术位）：侦测思想detectthoughts，定身类人holdthoughts，定身类人holdpersonperson3环（2法术位）：闪电束lightningboltbolt"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "修复术",
+            "圣火术",
+            "奇术",
+            "法师之手",
+            "次级幻象",
+            "冷冻射线"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "虔诚护盾",
+            "魅惑类人",
+            "睡眠术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "安定心神",
+            "定身类人",
+            "侦测思想"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "降咒",
+            "则其施法属性为智力",
+            "且准备了以下法师法术",
+            "闪电束"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -8482,6 +8704,28 @@
         "text": "羽蛇可以用魔法变形为挑战等级等于或低于其自身的类人生物或野兽，也可以同样用该动作恢复其真实形态。在死亡时，它也会回复其真实形态。它携带或着装的任何装备都将转变为适应新形态，或是直接吸收为新形态的一部分（依照羽蛇的意愿）。Shape。羽蛇可以用魔法变形为挑战等级等于或低于其自身的类人生物或野兽，也可以同样用该动作恢复其真实形态。在死亡时，它也会回复其真实形态。它携带或着装的任何装备都将转变为适应新形态，或是直接吸收为新形态的一部分（依照羽蛇的意愿）。在新形态之下，羽蛇将保留其游戏数据和对话能力，但其AC、移动方式、力量、敏捷和其他动作项将被新形态的对应条目取代，即它同时获得新形态具有而它本身不具备的数据与能力（不包括职业特性、传奇动作以及巢穴动作）。如果新形态有啃咬攻击，羽蛇也可以在该形态下使用自己的啃咬。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "侦测魔法",
+            "侦测思想",
+            "造粮术",
+            "疗伤术",
+            "次等复原术",
+            "防护毒素",
+            "庇护术",
+            "护盾术",
+            "高等复原术",
+            "探知术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -8755,6 +8999,36 @@
         "name": "近战攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 11,
+      "attackBonus": 3,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "光亮术",
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "致伤术",
+            "虔诚护盾"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "灵体武器"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "匕首",
@@ -8975,6 +9249,28 @@
         "name": "巨锤攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "侦测魔法",
+            "塑石术",
+            "地动术",
+            "巧言术",
+            "气化形体",
+            "隐形术",
+            "魅影杀手",
+            "位面转移",
+            "石墙术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "拳击",
@@ -9219,6 +9515,48 @@
         "name": "长剑攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 18,
+      "attackBonus": 10,
+      "groups": [
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "强令对决",
+            "炽焰斩"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "魔化武器"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "解除魔法",
+            "元素武器"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "放逐术",
+            "惊惧斩"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "湮灭波"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "长剑",
@@ -9323,6 +9661,27 @@
     ],
     "regeneration": {
       "amount": 10
+    },
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 15,
+      "attackBonus": 7,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "侦测思想",
+            "隐形术",
+            "法师之手",
+            "高级幻影",
+            "火球术",
+            "飞行术",
+            "巧言术",
+            "位面转移"
+          ]
+        }
+      ]
     },
     "attacks": [
       {
@@ -9680,6 +10039,19 @@
         "name": "近战攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 17,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "死者复活"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "硬头锤",
@@ -9897,6 +10269,28 @@
         "name": "弯刀攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 17,
+      "attackBonus": 9,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "侦测魔法",
+            "雷鸣波",
+            "巧言术",
+            "御风而行",
+            "造物术",
+            "气化形体",
+            "隐形术",
+            "高级幻影",
+            "位面转移"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "弯刀",
@@ -10324,6 +10718,19 @@
         "text": "蛛化卓尔作为7级施法者，其施法属性为感知（法术豁免DC14，法术攻击命中+6），它准备了如下的牧师法术：14，法术攻击命中+6），它准备了如下的牧师法术：戏法（随意）：毒气喷涌poisonspray，奇术thaumaturgyspray，奇术thaumaturgy1环（4法术位）：灾祸术bane，侦测魔法detectmagic，magic，庇护术sanctuary2环（3法术位）：定身类人holdperson，沉默术silenceperson，沉默术silence3环（3法术位）：鹰眼术clairvoyance，解除魔法dispelmagicmagic4环（2法术位）：预言术divination，行动自如freedomof movementof movement"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -10420,6 +10827,19 @@
         "text": "在日光照射下，卓尔的攻击检定具有劣势，其依赖视觉的感知（察觉）检定也具有劣势。Sensitivity。在日光照射下，卓尔的攻击检定具有劣势，其依赖视觉的感知（察觉）检定也具有劣势。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 11,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "短剑",
@@ -10520,6 +10940,20 @@
         "name": "短剑攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火",
+            "浮空术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "短剑",
@@ -10619,6 +11053,20 @@
         "text": "（1/日）卓尔使用魔法召唤一只小恶魔quasit，或者以50%成功率召唤一只幽影恶魔shadowDemon（1/日）。卓尔使用魔法召唤一只小恶魔quasit，或者以50%成功率召唤一只幽影恶魔shadowdemon。所召唤的恶魔出现在召唤者身边60尺范围内一处未被占据的位置，并作为召唤者的盟友行动。该恶魔不能召唤其他恶魔并持续存在10分钟，或者直至召唤者或其本身死亡。召唤者可以用一个动作解除恶魔的召唤。demon。所召唤的恶魔出现在召唤者身边60尺范围内一处未被占据的位置，并作为召唤者的盟友行动。该恶魔不能召唤其他恶魔并持续存在10分钟，或者直至召唤者或其本身死亡。召唤者可以用一个动作解除恶魔的召唤。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火",
+            "浮空术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "法杖",
@@ -10724,6 +11172,20 @@
         "name": "刑鞭攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火",
+            "浮空术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "刑鞭",
@@ -10793,6 +11255,37 @@
         "text": "德鲁伊作为4级施法者，其施法属性为感知（法术豁免DC12，法术攻击命中+4）。德鲁伊准备了以下德鲁伊法术：12，法术攻击命中+4）。德鲁伊准备了以下德鲁伊法术：戏法（随意）：德鲁伊伎俩druidcraft，燃火术produceflame，橡棍术shillelaghflame，橡棍术shillelagh1环（4法术位）：纠缠术entangle，大步奔行longstrider，动物交谈speakwith animals，雷鸣波thunderwavewith animals，雷鸣波thunderwave2环（3法术位）：动物信使animalmessenger，树肤术barkskinmessenger，树肤术barkskin"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "德鲁伊伎俩",
+            "燃火术",
+            "橡棍术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "纠缠术",
+            "大步奔行",
+            "动物交谈",
+            "雷鸣波"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "动物信使",
+            "树肤术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "长棍",
@@ -10875,6 +11368,21 @@
         "text": "树精指定30尺内她能看见的一个类人生物或野兽。若该目标也能看见树精，则其必须进行一次DCCharm。树精指定30尺内她能看见的一个类人生物或野兽。若该目标也能看见树精，则其必须进行一次DC14的感知豁免，豁免失败者将被树精的魔法所魅惑。被魅惑的生物将该树精视为一个可信且必须顺从和保护的朋友。尽管目标并不受树精控制，但它依然会满足树精的要求，或是尽量按她意愿行事。树精及其盟友每次对该目标造成伤害时，目标都可以再进行一次该豁免，并在豁免成功时终止其身上的效应。否则，该效应将持续24小时。树精死亡或身处与目标不同的另一存在位面时效应也将终止，而她也可以用一个附赠动作终止该效应。如果某目标的豁免检定成功，则该目标在随后24小时内免疫该树精的妖精魅惑。树精能以该方式同时魅惑至多一个类人生物和至多三只野兽。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "德鲁伊伎俩",
+            "神莓术",
+            "行动无踪",
+            "橡棍术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "短棒",
@@ -11338,6 +11846,25 @@
         "name": "它的投掷火焰"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 15,
+      "attackBonus": 7,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "巧言术",
+            "气化形体",
+            "隐形术",
+            "高级幻影",
+            "位面转移",
+            "火墙术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "弯刀",
@@ -11567,6 +12094,26 @@
         "text": "（消耗2动作）至高天用巨锤击打地面引发一次地颤。除至高天自身外所有身处其周边60尺内的其他生物都必须进行一次DCStrike（消耗2动作）。至高天用巨锤击打地面引发一次地颤。除至高天自身外所有身处其周边60尺内的其他生物都必须进行一次DC25的力量豁免，豁免失败者将应击倒地。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 23,
+      "attackBonus": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "高等复原术",
+            "行动无踪",
+            "水下呼吸",
+            "水上行走",
+            "驱逐善恶",
+            "地震术",
+            "火焰风暴",
+            "位面转移"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "巨锤",
@@ -12325,6 +12872,39 @@
         "name": "火焰射线攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 13,
+      "attackBonus": 5,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "法师之手"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "魔法飞弹",
+            "护盾术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "朦胧术",
+            "炽焰法球"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "火球术"
+          ]
+        }
+      ]
+    },
     "attacks": [],
     "source": "怪物图鉴 2014",
     "sourceDir": "不死生物",
@@ -15405,6 +15985,23 @@
         "name": "银剑攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 13,
+      "attackBonus": 5,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "法师之手",
+            "迷踪步",
+            "回避侦测",
+            "巧言术",
+            "心灵遥控"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "银剑",
@@ -15644,6 +16241,23 @@
         "name": "徒手打击"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "法师之手",
+            "跳跃术",
+            "识破隐形",
+            "护盾术每项",
+            "位面转移"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "徒手打击",
@@ -15733,6 +16347,21 @@
         "name": "拳击"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 16,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "黑暗术",
+            "侦测魔法",
+            "解除魔法",
+            "律令震慑"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "钳击",
@@ -16177,6 +16806,20 @@
         "text": "侏儒天生施法属性为智力（法术豁免DCSpellcasting。侏儒天生施法属性为智力（法术豁免DC11）。侏儒天生具有以下法术的施法能力，且不需要任何相应的材料成分：11）。侏儒天生具有以下法术的施法能力，且不需要任何相应的材料成分：随意：回避侦测nondetection（仅自身）每项1/日：目盲/耳聋术 blindness/deafness，朦胧术blur，易容术disguiseselfself"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 11,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "回避侦测",
+            "朦胧术",
+            "易容术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "战镐",
@@ -16896,6 +17539,25 @@
     "regeneration": {
       "amount": 10
     },
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "侦测思想",
+            "隐形术",
+            "法师之手",
+            "高级幻影",
+            "飞行术",
+            "火球术",
+            "巧言术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -17094,6 +17756,20 @@
         "text": "鬼婆以魔法变为隐形，直到它发动攻击，施展法术或终止专注（如同专注法术）。隐形时，它不会留下任何存在的物理线索，因此不会被任何非魔法的手段侦查到。它随身携带的所有装备也一并进入隐形状态。Passage。鬼婆以魔法变为隐形，直到它发动攻击，施展法术或终止专注（如同专注法术）。隐形时，它不会留下任何存在的物理线索，因此不会被任何非魔法的手段侦查到。它随身携带的所有装备也一并进入隐形状态。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "次级幻象",
+            "恶言相加"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -17199,6 +17875,21 @@
     ],
     "regeneration": {
       "amount": 10
+    },
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "侦测思想",
+            "法师之手",
+            "隐形术"
+          ]
+        }
+      ]
     },
     "attacks": [
       {
@@ -17776,6 +18467,63 @@
         "text": "纳迦作为一名11级施法者，其施法属性为感知（法术豁免DC16，法术攻击命中+8）。它施法时只需相应的言语成分。该纳迦准备了以下的牧师法术：16，法术攻击命中+8）。它施法时只需相应的言语成分。该纳迦准备了以下的牧师法术：戏法（随意）：修复术mending，圣火术sacredflame，奇术thaumaturgyflame，奇术thaumaturgy1环（4法术位）：命令术command，疗伤术curewounds，虔诚护盾shieldwounds，虔诚护盾shieldof faithof faith2环（3法术位）：安定心神calmemotions，定身类人holdemotions，定身类人holdpersonperson3环（3法术位）：降咒bestowcurse，鹰眼术clairvoyancecurse，鹰眼术clairvoyance4环（3法术位）：放逐术banishment，行动自如freedomof movementof movement5环（2法术位）：焰击术flamestrike，指使术geasstrike，指使术geas6环（1法术位）：真知术trueseeingseeing"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 16,
+      "attackBonus": 8,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "修复术",
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "疗伤术",
+            "虔诚护盾"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "安定心神",
+            "定身类人"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "降咒",
+            "鹰眼术"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "放逐术",
+            "行动自如"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "焰击术",
+            "指使术"
+          ]
+        },
+        {
+          "ring": "6环",
+          "spells": [
+            "真知术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -17898,6 +18646,58 @@
         "name": "爪击攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 16,
+      "attackBonus": 8,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "法师之手",
+            "次级幻象",
+            "法师伎俩"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "鉴定术",
+            "护盾术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "黑暗术",
+            "物件定位术",
+            "暗示术"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "解除魔法",
+            "移除诅咒",
+            "巧言术"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "放逐术",
+            "高等隐形术"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "通晓传奇"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -20917,6 +21717,22 @@
         "name": "爪击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "易容术",
+            "高级幻影",
+            "镜影术",
+            "探知",
+            "暗示术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -21116,6 +21932,88 @@
         "text": "（消耗3动作）巫妖身边20尺范围内所有非不死的生物，必须进行一次DCLife（消耗3动作）。巫妖身边20尺范围内所有非不死的生物，必须进行一次DC18的体质豁免以对抗该魔法，豁免失败者将受到21（6d6）点暗蚀伤害，豁免成功则伤害减半。"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 20,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "法师之手",
+            "魔法伎俩",
+            "冷冻射线"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "魔法飞弹",
+            "护盾术",
+            "雷鸣波"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "侦测思想",
+            "隐形术",
+            "马友夫强酸箭",
+            "镜影术"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "活化死尸",
+            "反制法术",
+            "解除魔法",
+            "火球术"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "枯萎术",
+            "任意门"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "死云术",
+            "探知术"
+          ]
+        },
+        {
+          "ring": "6环",
+          "spells": [
+            "解离术",
+            "法术无效结界"
+          ]
+        },
+        {
+          "ring": "7环",
+          "spells": [
+            "死亡一指",
+            "位面转移"
+          ]
+        },
+        {
+          "ring": "8环",
+          "spells": [
+            "支配怪物",
+            "律令震慑"
+          ]
+        },
+        {
+          "ring": "9环",
+          "spells": [
+            "律令死亡"
+          ]
+        }
+      ]
+    },
     "attacks": [],
     "source": "怪物图鉴 2014",
     "sourceDir": "不死生物",
@@ -21437,6 +22335,42 @@
         "name": "爪击攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "德鲁伊伎俩",
+            "燃火术",
+            "荆棘之鞭"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "纠缠术",
+            "云雾术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "灼热金属",
+            "荆棘丛生"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "咒唤兽群",
+            "植物滋长"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -21629,6 +22563,59 @@
         "text": "魔法师作为9级施法者，其施法属性为智力（法术豁免DC14，法术攻击命中+6）。魔法师准备了以下法师法术：14，法术攻击命中+6）。魔法师准备了以下法师法术：戏法（随意）：火焰箭fire bolt，光亮术light，法师之手magehand，魔法伎俩prestidigitationhand，魔法伎俩prestidigitation1环（4法术位）：侦测魔法detect magic，法师护甲magearmor，魔法飞弹magic missile，护盾术shieldarmor，魔法飞弹magic missile，护盾术shield2环（3法术位）：迷踪步mistystep，暗示术suggestionstep，暗示术suggestion3环（3法术位）：法术反制counterspell，火球术fireball，飞行术fly4环（3法术位）：高等隐形术greaterinvisibility，冰风暴ice storminvisibility，冰风暴ice storm5环（1法术位）：寒冰锥cone ofcoldcold"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "火焰箭",
+            "光亮术",
+            "法师之手",
+            "魔法伎俩"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "法师护甲",
+            "魔法飞弹",
+            "护盾术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "迷踪步",
+            "暗示术"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "法术反制",
+            "火球术",
+            "飞行术"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "高等隐形术",
+            "冰风暴"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "寒冰锥"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "匕首",
@@ -22087,6 +23074,29 @@
         "name": "三叉戟攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 16,
+      "attackBonus": 8,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "造水",
+            "侦测善恶",
+            "侦测魔法",
+            "云雾术",
+            "净化粮食",
+            "水中呼吸",
+            "水上行走",
+            "操控水体",
+            "气化形体",
+            "隐形术",
+            "位面转移"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "三叉戟",
@@ -22798,6 +23808,20 @@
         "text": "（充能5~6）夺心魔以魔法发射出心灵能量并覆盖一处60尺的锥状区域。区域内每个生物必须进行一次DCBlast（充能5~6）。夺心魔以魔法发射出心灵能量并覆盖一处60尺的锥状区域。区域内每个生物必须进行一次DC15的智力豁免，豁免失败者将受22（4d8+4）点心灵伤害并被震慑1分钟。被震慑生物可以在每次其自己的回合结束时再次进行该豁免，豁免成功则终止自己身上的该效应。"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测思想",
+            "浮空术",
+            "位面转移"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "触须",
@@ -23358,6 +24382,63 @@
         "text": "（消耗2动作）木乃伊领主以魔法变成一个沙旋风，并移动至多60尺再恢复其原形态。处于沙风暴形态时，木乃伊领主免疫所有伤害，并且免疫擒抱、石化、应击倒地、束缚和震慑等状态。动作完成后，木乃伊领主的着装和携带的装备依然保持在其身上。of Sand（消耗2动作）。木乃伊领主以魔法变成一个沙旋风，并移动至多60尺再恢复其原形态。处于沙风暴形态时，木乃伊领主免疫所有伤害，并且免疫擒抱、石化、应击倒地、束缚和震慑等状态。动作完成后，木乃伊领主的着装和携带的装备依然保持在其身上。"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 17,
+      "attackBonus": 9,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "光导箭",
+            "虔诚护盾"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "沉默术",
+            "灵体武器"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "活化死尸",
+            "解除魔法"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "预言术",
+            "信仰守卫"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "疫病术",
+            "疫病虫群"
+          ]
+        },
+        {
+          "ring": "6环",
+          "spells": [
+            "重伤术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "腐朽拳击",
@@ -23867,6 +24948,22 @@
         "text": "（1/日）处于以太位面时，鬼婆以魔法触碰一个物质位面里睡梦中的类人生物。若目标受法术防护善恶ProtectionHaunting（1/日）。处于以太位面时，鬼婆以魔法触碰一个物质位面里睡梦中的类人生物。若目标受法术防护善恶Protectionfrom Evil and Good或防护法阵magiccircle影响，则可防止这次接触。如果接触完成，目标将见到可怕的异像。如果异像持续不少于1小时，目标将失去它本次休息的得益，且其生命值上限减损5（1d10）。如果该减损效果导致目标生命值上限降为0，则目标死亡。如果此时目标的阵营为邪恶，则目标的灵魂将被困于鬼婆的灵魂袋中。目标生命值上限的减损效应将一直维持，直到接受法术高等复原术GreaterRestoration或类似法术的治疗。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "魔法飞弹",
+            "衰弱射线",
+            "睡眠术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -24581,6 +25678,22 @@
     "regeneration": {
       "amount": 10
     },
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "黑暗术",
+            "隐形术",
+            "寒冰锥",
+            "气化形体",
+            "睡眠术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -24728,6 +25841,35 @@
         "text": "兽人作为3级施法者，其施法属性为感知（法术豁免DC11，法术攻击命中+3）。该兽人准备了以下牧师法术：11，法术攻击命中+3）。该兽人准备了以下牧师法术：戏法（随意）：神导术guidance，抵抗术resistance，奇术thaumaturgy1环（4法术位）：祝福术bless，命令术command2环（2法术位）：卜筮术augury，灵体武器spiritualweapon（矛）weapon（矛）"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 11,
+      "attackBonus": 3,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "神导术",
+            "抵抗术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "祝福术",
+            "命令术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "卜筮术",
+            "灵体武器"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "矛",
@@ -25615,6 +26757,20 @@
         "name": "用尾击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 21,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "火球术",
+            "火墙术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -25718,6 +26874,27 @@
         "text": "皮克精变为隐形直至其失去专注（等同于专注法术）。该皮克精着装或携带的任何装备也会随之一同隐形。Invisibility。皮克精变为隐形直至其失去专注（等同于专注法术）。该皮克精着装或携带的任何装备也会随之一同隐形。"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "德鲁伊伎俩",
+            "舞光术",
+            "侦测善恶",
+            "侦测思想",
+            "解除魔法",
+            "纠缠术",
+            "飞行术",
+            "魅影之力",
+            "变形术",
+            "睡眠术"
+          ]
+        }
+      ]
+    },
     "attacks": [],
     "source": "怪物图鉴 2014",
     "sourceDir": "精类",
@@ -25804,6 +26981,24 @@
         "name": "近战攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 20,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "隐形术",
+            "驱逐善恶",
+            "焰击术",
+            "死者复活",
+            "控制天气",
+            "疫病虫群"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "巨剑",
@@ -26126,6 +27321,43 @@
         "text": "祭司作为5级施法者，其施法属性为感知（法术豁免DC13，法术攻击命中+5）。祭司习有以下牧师法术：13，法术攻击命中+5）。祭司习有以下牧师法术：戏法（随意）：光亮术light，圣火术sacredflame，奇术thaumaturgyflame，奇术thaumaturgy1环（4法术位）：疗伤术cure wounds，光导箭guidingbolt，庇护术sanctuarybolt，庇护术sanctuary2环（3法术位）：次等复原术lesser restoration，灵体武器spiritualweaponweapon3环（2法术位）：解除魔法dispel magic，灵体卫士spiritguardiansguardians"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 13,
+      "attackBonus": 5,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "光亮术",
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "疗伤术",
+            "光导箭",
+            "庇护术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "次等复原术",
+            "灵体武器"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "解除魔法",
+            "灵体卫士"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "硬头锤",
@@ -26510,6 +27742,22 @@
         "name": "爪击攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 11,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "羽落术",
+            "法师之手",
+            "变巨",
+            "灼热金属",
+            "镜影术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -26796,6 +28044,29 @@
         "name": "爪击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 18,
+      "attackBonus": 10,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测思想",
+            "易容术",
+            "法师之手",
+            "次级幻象",
+            "侦测魔法",
+            "隐形术",
+            "高级幻影",
+            "暗示术",
+            "飞行术",
+            "位面转移",
+            "真知术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "爪击",
@@ -28132,6 +29403,42 @@
         "name": "爪击"
       }
     ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "神导术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "祝福术",
+            "侦测魔法",
+            "光导箭"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "灵体武器"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "群体治愈真言",
+            "巧言术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -29509,6 +30816,22 @@
         "name": "巨剑攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 25,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "隐形术",
+            "复生术",
+            "驱逐善恶",
+            "操控天气"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "巨剑",
@@ -29942,6 +31265,56 @@
         "text": "纳迦作为一名10级施法者，其施法属性为智力（法术豁免DC14，法术攻击命中+6）。它施法时只需相应的言语成分。该纳迦准备了以下法师法术：14，法术攻击命中+6）。它施法时只需相应的言语成分。该纳迦准备了以下法师法术：戏法（随意）：法师之手magehand，次级幻象minorhand，次级幻象minorillusion，冷冻射线rayillusion，冷冻射线rayof frostof frost1环（4法术位）：魅惑类人charmperson，侦测魔法detectperson，侦测魔法detectmagic，睡眠术sleepmagic，睡眠术sleep2环（3法术位）：侦测思想detectthoughts，定身类人holdthoughts，定身类人holdpersonperson3环（3法术位）：闪电束lightningbolt，水下呼吸waterbolt，水下呼吸waterbreathingbreathing4环（3法术位）：枯萎术blight，任意门dimensiondoordoor5环（2法术位）：支配类人dominatepersonperson"
       }
     ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "法师之手",
+            "次级幻象",
+            "冷冻射线"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "魅惑类人",
+            "侦测魔法",
+            "睡眠术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "侦测思想",
+            "定身类人"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "闪电束",
+            "水下呼吸"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "枯萎术",
+            "任意门"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "支配类人"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -30538,6 +31911,22 @@
         "name": "巨剑攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 17,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "羽落术",
+            "浮空术",
+            "光亮术",
+            "水下呼吸"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "巨剑",
@@ -32093,6 +33482,27 @@
         "name": "近战攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 17,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "易容术",
+            "鹰眼术",
+            "黑暗术",
+            "侦测魔法",
+            "侦测思想",
+            "解除魔法",
+            "隐形术",
+            "恐惧术",
+            "火墙术",
+            "集体暗示术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "长剑",
@@ -32284,6 +33694,22 @@
         "name": "角击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "德鲁伊伎俩",
+            "行动无踪",
+            "驱逐善恶",
+            "纠缠术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "蹄击",
@@ -34568,6 +35994,19 @@
         "name": "近战攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测思想",
+            "蛛网术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "猛击",
@@ -35915,6 +37354,18 @@
         "name": "啃咬"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "化兽为友"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -36048,6 +37499,18 @@
         "name": "啃咬攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "化兽为友"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "啃咬",
@@ -36208,6 +37671,19 @@
         "name": "近战攻击"
       }
     ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "化兽为友",
+            "暗示术"
+          ]
+        }
+      ]
+    },
     "attacks": [
       {
         "name": "弯刀",
