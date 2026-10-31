@@ -162,6 +162,47 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     setHandRefreshKey(k => k + 1);
   };
 
+  // 双击不可用攻击 → 自动调整手持为该攻击的适用状态（相关物品存在于背包时）
+  const autoAdjustHandsForAttack = (attack: Attack | NpcAttack) => {
+    if (!character) return;
+    const inv = combatInventory ?? character.equipment;
+    const match = inv.find(e => e.name === attack.name && (e.childId || e.id));
+    if (!match) {
+      alert(`背包中没有「${attack.name}」`);
+      return;
+    }
+    const slotId = (match.childId || match.id)!;
+    const twoHanded = attack.properties?.includes('双手') ?? false;
+    if (twoHanded) {
+      // 双手武器：清空两手后同一物品握双手（holdItem 支持同物品入双手）
+      characterStore.unholdItem(character.id, 'both');
+      characterStore.holdItem(character.id, slotId, 'left', combatInventory);
+      characterStore.holdItem(character.id, slotId, 'right', combatInventory);
+    } else {
+      // 单手武器：优先空手（右 → 左），两手全满替换右手（主手习惯）
+      const rightEmpty = !character.heldRight.equipmentId;
+      const leftEmpty = !character.heldLeft.equipmentId;
+      const hand: 'left' | 'right' = rightEmpty ? 'right' : leftEmpty ? 'left' : 'right';
+      if (hand === 'right' && !rightEmpty) characterStore.unholdItem(character.id, 'right');
+      characterStore.holdItem(character.id, slotId, hand, combatInventory);
+      // 弹药武器：另一手无对应弹药（且非空手）时，放弹药或腾空以满足装填前置
+      if (isAmmoWeapon(attack)) {
+        const other: 'left' | 'right' = hand === 'left' ? 'right' : 'left';
+        const otherSlot = other === 'left' ? character.heldLeft : character.heldRight;
+        const ammoNames = getAmmoNames(attack);
+        const otherIsAmmo = otherSlot.equipmentId
+          ? inv.some(e => (e.childId || e.id) === otherSlot.equipmentId && ammoNames.includes(e.name))
+          : true;
+        if (!otherIsAmmo) {
+          const ammo = inv.find(e => ammoNames.includes(e.name) && (e.childId || e.id));
+          if (ammo) characterStore.holdItem(character.id, (ammo.childId || ammo.id)!, other, combatInventory);
+          else characterStore.unholdItem(character.id, other);
+        }
+      }
+    }
+    setHandRefreshKey(k => k + 1);
+  };
+
   // 攻击列表：角色卡有条目用角色卡，否则回落参战者自带攻击（试验场影子卡 attacks 为空数组，武器条目在参战者上）
   const attacks: (Attack | NpcAttack)[] =
     character?.attacks && character.attacks.length > 0 ? character.attacks : attacker.attacks || [];
@@ -783,11 +824,13 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                       );
                     })}
                   </div>
-                  {/* 物品选择列表：战斗背包（已穿戴的盔甲/服装由 holdItem 拦截并提示） */}
+                  {/* 物品选择列表：战斗背包（同一物品可再选入另一手实现双手握持；
+                      已穿戴的盔甲/服装由 holdItem 拦截并提示） */}
                   {pickingHand && (() => {
                     const list = combatInventory ?? character.equipment;
-                    const heldIds = [heldLeftId, heldRightId].filter(Boolean);
-                    const candidates = list.filter(e => (e.childId || e.id) && !heldIds.includes((e.childId || e.id)!));
+                    // 仅排除已在目标手的物品（点了也只会返回「已在手」）；另一手的物品保留以支持双手同持
+                    const targetHeldId = pickingHand === 'left' ? heldLeftId : heldRightId;
+                    const candidates = list.filter(e => (e.childId || e.id) && (e.childId || e.id) !== targetHeldId);
                     return (
                       <div className="mt-2 rounded-lg border dark:border-border-dark light:border-border-light max-h-40 overflow-y-auto">
                         {candidates.length === 0 && (
@@ -865,6 +908,13 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                       // 非投掷武器或已展开的投掷武器：直接进入（投掷武器用当前 usageMode）
                       handleEnterRoll(thrown ? (usageMode ?? previewMode) : undefined);
                     }}
+                    onDoubleClick={(e) => {
+                      // 不可用项双击：自动调整手持为适用状态（可用项单击已进入检定，无需双击）
+                      if (status.usable) return;
+                      e.stopPropagation();
+                      autoAdjustHandsForAttack(attack);
+                    }}
+                    title={status.usable ? undefined : '双击自动调整手持状态'}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex-1 min-w-0">
@@ -906,7 +956,10 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                         </div>
                       </div>
                       {!status.usable && status.reason && (
-                        <span className="text-xs text-red-400 ml-2 shrink-0">{status.reason}</span>
+                        <span className="text-xs text-red-400 ml-2 shrink-0">
+                          {status.reason}
+                          <span className="dark:text-text-dark-muted light:text-text-light-muted ml-1">· 双击自动换持</span>
+                        </span>
                       )}
                     </div>
 
