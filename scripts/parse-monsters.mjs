@@ -306,50 +306,83 @@ function parseActionsAndTraits(cardLines, file, cardName) {
     return /^[A-Za-z][A-Za-z'’\- ]*$/.test(cardLines[i + 1] || '') && isTypeLine(cardLines[i + 2]);
   };
   let current = null;
+  let currentAtk = null; // 拆行排版（单元格逐行）时后续行并入攻击对象做二次解析
   for (let i = 0; i < cardLines.length; i++) {
     const line = cardLines[i];
     if (/^(动作|附赠动作|反应|传奇动作)(Actions|Bonus Actions|Reactions|Legendary Actions)?$/.test(line)
-      || /^(特质|特性)(Traits?)?$/.test(line)) { current = null; continue; }
-    if (/^(区域效应|Regional Effects|巢穴动作|Lair Actions)/.test(line)) { current = null; continue; }
+      || /^(特质|特性)(Traits?)?$/.test(line)) { current = null; currentAtk = null; continue; }
+    if (/^(区域效应|Regional Effects|巢穴动作|Lair Actions)/.test(line)) { current = null; currentAtk = null; continue; }
     const atk = parseAttackLine(line);
-    if (atk) { attacks.push(atk); current = null; continue; }
+    if (atk) {
+      if (!atk.name && currentAtk) {
+        // 空名攻击 = joinNext 重复行产物（名称行已拼入上一条攻击头），并入上一条继续解析
+        currentAtk._raw = (currentAtk._raw || '') + line;
+        enrichAttack(currentAtk, currentAtk._raw);
+      } else {
+        attacks.push(atk);
+        currentAtk = atk;
+        currentAtk._raw = line; // 首行即攻击头，后续行并入后可完整重算 note/伤害
+        current = null;
+      }
+      continue;
+    }
     if (isNextCardName(line, i)) break;
     const tm = line.match(/^([\u4e00-\u9fa5]{1,20}[A-Za-z'’\- ]*)(?:（([^）]{1,30})）)?。\s*(.+)$/);
     if (tm && tm[3].length > 2) {
       current = { name: (tm[1] || '').trim(), text: `${tm[2] ? `（${tm[2]}）` : ''}${tm[3].trim()}`.trim() };
+      currentAtk = null;
       traits.push(current);
       continue;
     }
     // 延续行：特性描述的跨行后续（正文断行/列表），并入当前条目
-    if (current && line.length > 1) current.text += line;
+    if (current && line.length > 1) { current.text += line; continue; }
+    // 拆行攻击的后续行（命中/加值/触及/伤害段各自成行）：拼入原始串重跑伤害解析
+    if (currentAtk && line.length > 1 && !/^[A-Za-z][A-Za-z'’\- ]*$/.test(line)) {
+      // 护栏：长叙述行（下卡正文/风味文本）与重复行（joinNext 重复拼接产物）不并入
+      if (line.length > 60 || (currentAtk._raw || '').includes(line)) { currentAtk = null; continue; }
+      currentAtk._raw = (currentAtk._raw || '') + line;
+      enrichAttack(currentAtk, currentAtk._raw);
+    }
   }
   return { attacks, traits };
 }
 
 function parseAttackLine(line) {
   // 「巨斧Greataxe。近战武器攻击：命中+6，触及5尺，单一目标。命中：15（1d12+4外加1d8）点挥砍伤害。」
-  if (!/武器攻击[:：]/.test(line)) return null;
+  // 「武器攻击：」须在行首或句号后——多重攻击条目正文（「…发动三次武器攻击：一次尾击…」）不是攻击
+  if (!/(?:^|。)\s*(?:近战|远程|法术)?(?:或)?(?:近战|远程|法术)?武器攻击[:：]/.test(line)) return null;
   const nameM = line.match(/^([\u4e00-\u9fa5]{1,12})([A-Za-z'’\- ]*)(?:（[^）]*）)?。\s*/);
   const name = nameM ? nameM[1] : '';
   const nameEn = nameM && nameM[2] ? nameM[2].trim() : '';
   const bonusM = line.match(/命中\s*([+\-]\d{1,2})/);
   const reachM = line.match(/触及\s*(\d{1,3})\s*尺/);
   const rangeM = line.match(/射程\s*(\d{1,3})\s*\/\s*(\d{1,3})\s*尺/);
-  const dmgM = line.match(/命中[:：]\s*\d{1,3}\s*（([0-9dD+\-\s外加]+?)）\s*点\s*(\S{2,4}?)伤害/);
+  // 「点」可选：龙类等写作「命中：17（2d10+6）穿刺伤害」（无「点」）；
+  // 「近战时/远程时」前缀（标枪双模式：「命中：近战时9（2d6+2）…，或远程时5（1d6+2）…」）；
+  // 前缀「命中」或「伤害」（铁魔像：「命中+13，触及5尺，单一目标。伤害20（3d8+7）点钝击伤害」）；
+  // 骰子字符类含 ?−－＋：gb18030 解码失败时减号会变成 ?/−，全角加号出现在部分条目；
+  // 「的」可选：毒虫罗斯魔 CHM 版缺字「9（2d4+4）的挥砍伤。」
+  const dmgM = line.match(/(?:命中|伤害)[:：]?\s*(?:近战时|远程时)?\s*\d{1,3}\s*（([0-9dD+\-?−－＋\s外加]+?)）\s*(?:点|的)?\s*(\S{2,4}?)伤(?:害)?/);
+  // 无括号固定伤害（CR0 野兽/飞蛇/铁魔像）：「命中：1点穿刺伤害」「伤害：1点穿刺伤害」「伤害20（3d8+7）点钝击伤害」
+  const plainDmgM = !dmgM
+    ? line.match(/(?:命中|伤害)[:：]?\s*(\d{1,3})\s*点?([\u4e00-\u9fa5]{2,4}?)伤害/)
+    : null;
   const saveHitM = line.match(/命中[:：]\s*([^。]{2,80})。/);
-  const afterDmgM = line.match(/点[\u4e00-\u9fa5]{2,4}伤害[，。]?\s*(.*)$/);
+  const afterDmgM = line.match(/点?[\u4e00-\u9fa5]{2,4}伤害[，。]?\s*(.*)$/);
   const isRanged = /远程/.test(line);
   let normalRange = reachM ? parseInt(reachM[1], 10) : undefined;
   let maxRange = normalRange;
   if (rangeM) { normalRange = parseInt(rangeM[1], 10); maxRange = parseInt(rangeM[2], 10); }
   if (normalRange === undefined) { normalRange = 5; maxRange = 5; }
-  const parenDice = dmgM ? dmgM[1].replace(/\s+/g, '').toLowerCase() : '';
+  // 解码失败的减号归一化（1d4?1 / 1d4−1 / 1d4－1 / 1d4＋1 → 1d4-1 / 1d4+1）
+  const parenDice = dmgM ? dmgM[1].replace(/[?−－]/g, '-').replace(/[＋]/g, '+').replace(/\s+/g, '').toLowerCase() : '';
   const diceOnly = (parenDice.match(/\d+d\d+(?:[+\-]\d+)?/) || [])[0] || parenDice;
   const extraDice = parenDice.slice(diceOnly.length).trim();
   const twoHandM = line.match(/双手[^。]*?攻击时\s*\d{1,3}\s*（([0-9dD+\-]+)）/);
   const twoHandedDamage = twoHandM ? twoHandM[1].toLowerCase() : undefined;
-  const damageType = dmgM ? dmgM[2] : '';
-  const damage = diceOnly;
+  const damageType = dmgM ? dmgM[2] : (plainDmgM ? plainDmgM[2] : '');
+  // 无括号格式伤害为固定点数（原书省略骰式）
+  const damage = diceOnly || (plainDmgM ? plainDmgM[1] : '');
   if (!damage && dmgM) fieldIssue('', name, 'attack.damage', line.slice(0, 60));
   const props = [];
   if (/双手/.test(line)) props.push('多用');
@@ -357,7 +390,9 @@ function parseAttackLine(line) {
   if (/精细/.test(line)) props.push('精细');
   if (/轻/.test(line)) props.push('轻');
   const afterText = afterDmgM && afterDmgM[1] ? afterDmgM[1].trim() : '';
-  const note = [extraDice, afterText].filter(Boolean).join('；').slice(0, 200) ||
+  // [^。]：note 只取到下一句号——跨行拼合可能带入下卡叙事文本（如飞蛇卡尾部的风味段）
+  const afterDmgNote = afterText.split(/。/)[0].replace(/^[，,、]/, '').trim();
+  const note = [extraDice, afterDmgNote].filter(Boolean).join('；').slice(0, 200) ||
     (!damage && saveHitM ? saveHitM[1].trim().slice(0, 200) : '');
   return {
     name,
@@ -368,6 +403,55 @@ function parseAttackLine(line) {
     normalRange, maxRange,
     note,
   };
+}
+
+/** 拆行攻击的二次解析：后续单元格行拼入 _raw 后补齐伤害/加值/附注 */
+function enrichAttack(atk, raw) {
+  const dmgM = raw.match(/(?:命中|伤害)[:：]?\s*(?:近战时|远程时)?\s*\d{1,3}\s*（([0-9dD+\-?−－＋\s外加]+?)）\s*(?:点|的)?\s*(\S{2,4}?)伤(?:害)?/)
+    || raw.match(/伤害[:：]?\s*\d{1,3}\s*（([0-9dD+\-?−－＋\s]+?)）\s*(?:点|的)?\s*([\u4e00-\u9fa5]{2,4}?)伤(?:害)?/);
+  const plainDmgM = !dmgM
+    ? raw.match(/(?:命中|伤害)[:：]?\s*(\d{1,3})\s*点?([\u4e00-\u9fa5]{2,4}?)伤害/)
+    : null;
+  if (dmgM) {
+    const parenDice = dmgM[1].replace(/[?−－]/g, '-').replace(/[＋]/g, '+').replace(/\s+/g, '').toLowerCase();
+    const diceOnly = (parenDice.match(/\d+d\d+(?:[+\-]\d+)?/) || [])[0] || parenDice;
+    if (diceOnly && !atk.damage) atk.damage = diceOnly;
+    const extraDice = parenDice.slice(diceOnly.length).trim();
+    if (extraDice && !atk.note) atk.note = extraDice;
+    if (dmgM[2] && !atk.damageType) atk.damageType = dmgM[2];
+  } else if (plainDmgM) {
+    if (!atk.damage) atk.damage = plainDmgM[1];
+    if (plainDmgM[2] && !atk.damageType) atk.damageType = plainDmgM[2];
+  }
+  if (!atk.attackBonus) {
+    const bonusM = raw.match(/命中\s*([+\-]\d{1,2})/);
+    if (bonusM) atk.attackBonus = bonusM[1];
+  }
+  if (atk.normalRange === 5 && atk.maxRange === 5) {
+    const reachM = raw.match(/触及\s*(\d{1,3})\s*尺/);
+    const rangeM = raw.match(/射程\s*(\d{1,3})\s*\/\s*(\d{1,3})\s*尺/);
+    if (rangeM) {
+      atk.normalRange = parseInt(rangeM[1], 10);
+      atk.maxRange = parseInt(rangeM[2], 10);
+      atk.range = `射程${atk.normalRange}/${atk.maxRange}尺`;
+    } else if (reachM) {
+      atk.normalRange = parseInt(reachM[1], 10);
+      atk.maxRange = atk.normalRange;
+      atk.range = `触及${atk.normalRange}尺`;
+    }
+  }
+  // note 重算：有主伤害时取伤害后的补充段（豁免/外加描述）；豁免型取最长命中段（raw 可能被
+  // joinNext 重复行污染，首个匹配会截断在重复行句号处）
+  const afterTextM = raw.match(/点?[\u4e00-\u9fa5]{2,4}伤害[，。]?\s*([^。]*)/);
+  const saveHits = [...raw.matchAll(/命中[:：]\s*([^。]{2,200})。/g)].map((m) => m[1]);
+  const recalcNote = atk.damage
+    ? (afterTextM && afterTextM[1] ? afterTextM[1].replace(/^[，,、。]/, '').trim() : '')
+    : (saveHits.length ? saveHits.reduce((a, b) => (b.length > a.length ? b : a)).trim() : '');
+  if (recalcNote) atk.note = recalcNote.slice(0, 200);
+  else if (!atk.note) {
+    const saveHitM = saveHits[0];
+    if (saveHitM) atk.note = saveHitM.trim().slice(0, 200);
+  }
 }
 
 /** 目录名 → CreatureType 枚举值 */
@@ -420,6 +504,11 @@ function parseFile(filePath, dir) {
     const resist = parseResistGroups(joined, rel, nameInfo.name);
     const sl = parseSensesLanguages(joined);
     const { attacks, traits } = parseActionsAndTraits(joined, rel, nameInfo.name);
+    if (process.env.DBG_MONSTER && nameInfo.name.includes(process.env.DBG_MONSTER)) {
+      console.error(`===== ${rel} =====`);
+      console.error('JOINED 动作区行流:', joined.slice(card.anchorIdx, card.anchorIdx + 60));
+      console.error('attacks:', JSON.stringify(attacks, null, 1));
+    }
     const descriptionLines = [];
     for (let i = card.nameIdx + 1; i < card.anchorIdx && i < card.nameIdx + 4; i++) {
       const l = lines[i];

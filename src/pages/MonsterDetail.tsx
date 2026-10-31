@@ -272,6 +272,11 @@ export default function MonsterDetail() {
                         ))}
                       </div>
                     )}
+                    {attack.note && (
+                      <div className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                        {attack.note}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

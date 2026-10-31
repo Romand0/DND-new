@@ -256,7 +256,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点寒冷伤害。"
+        "note": "外加7（2d6）点寒冷伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -412,13 +412,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+11",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d10+6",
+        "damageType": "穿刺",
         "range": "触及10尺",
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "17（2d10+6）穿刺伤害，外加4（1d8）强酸伤害"
+        "note": "外加4（1d8）强酸伤害"
       },
       {
         "name": "爪击",
@@ -533,7 +533,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加5（1d10）点闪电伤害。"
+        "note": "外加5（1d10）点闪电伤害"
       },
       {
         "name": "爪击",
@@ -1188,13 +1188,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+11",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d10+6",
+        "damageType": "穿刺",
         "range": "触及10尺",
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "17（2d10+6）穿刺伤害，外加7（2d6）毒素伤害"
+        "note": "外加7（2d6）毒素伤害"
       },
       {
         "name": "爪击",
@@ -1309,7 +1309,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加7（2d6）点火焰伤害。"
+        "note": "外加7（2d6）点火焰伤害"
       },
       {
         "name": "爪击",
@@ -1562,7 +1562,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加4（1d8）点寒冷伤害。"
+        "note": "外加4（1d8）点寒冷伤害"
       },
       {
         "name": "爪击",
@@ -1656,13 +1656,12 @@
       {
         "name": "猛击",
         "attackBonus": "+8",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d8+5",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "14（2d8+5）钝击伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -1830,7 +1829,7 @@
         "properties": [],
         "normalRange": 15,
         "maxRange": 15,
-        "note": "外加9（2d8）点强酸伤害。"
+        "note": "外加9（2d8）点强酸伤害"
       },
       {
         "name": "爪击",
@@ -1945,7 +1944,7 @@
         "properties": [],
         "normalRange": 15,
         "maxRange": 15,
-        "note": "外加11（2d10）点闪电伤害。"
+        "note": "外加11（2d10）点闪电伤害"
       },
       {
         "name": "爪击",
@@ -2608,13 +2607,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+15",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d10+8",
+        "damageType": "穿刺",
         "range": "触及15尺",
         "properties": [],
         "normalRange": 15,
         "maxRange": 15,
-        "note": "19（2d10+8）穿刺伤害，外加10（3d6）毒素伤害"
+        "note": "外加10（3d6）毒素伤害"
       },
       {
         "name": "爪击",
@@ -2729,7 +2728,7 @@
         "properties": [],
         "normalRange": 15,
         "maxRange": 15,
-        "note": "外加14（4d6）点火焰伤害。"
+        "note": "外加14（4d6）点火焰伤害"
       },
       {
         "name": "爪击",
@@ -2982,7 +2981,7 @@
         "properties": [],
         "normalRange": 15,
         "maxRange": 15,
-        "note": "外加9（2d8）点寒冷伤害。"
+        "note": "外加9（2d8）点寒冷伤害"
       },
       {
         "name": "爪击",
@@ -3239,7 +3238,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加3（1d6）点强酸伤害。如果目标为大型或更小体型的生物，则目标被擒抱（逃脱DC13）。直至擒抱结束前，掘地虫只能啃咬该被擒抱生物，且对其发动的攻击检定具有优势。"
+        "note": "外加3（1d6）点强酸伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -3289,7 +3288,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标是一个生物，则目标必须进行一次DC"
+        "note": "如果目标是一个生物，则目标必须进行一次DC14的力量豁免，豁免失败则应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -3468,7 +3467,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进?一次DC"
+        "note": "目标必须进?一次DC14的体质豁免，豁免失败者将受到10（3d6）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -3543,7 +3542,8 @@
         "range": "射程20/60尺",
         "properties": [],
         "normalRange": 20,
-        "maxRange": 60
+        "maxRange": 60,
+        "note": "变体：魔宠Variant:任何施法者（比如大法师或魔法师）施展法术寻获魔宠find"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -3628,7 +3628,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DC15的体质豁免检定，豁免失败则受到24（7d6）点毒素伤害，豁免成功则伤害减半"
       },
       {
         "name": "",
@@ -3639,7 +3639,7 @@
         "properties": [],
         "normalRange": 80,
         "maxRange": 320,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DC15的体质豁免，豁免失败则受到24（7d6）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -3692,13 +3692,13 @@
       {
         "name": "刮擦",
         "attackBonus": "+1",
-        "damage": "",
-        "damageType": "",
+        "damage": "1d4-1",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "1（1d4?1）点挥砍伤害"
+        "note": "一株启蒙灌木awakened shrub是由法术启蒙术awaken或其他类似魔法赋予智能和移动能力的普通灌木"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -3806,7 +3806,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "高大的斧嘴鸟Axe Beak长着强壮的腿和巨大的楔状喙，是一种不会飞的鸟"
       }
     ],
     "description": "Beak",
@@ -3879,7 +3880,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "双手持用时8（1d10+3）点钝击伤害，外加3（1d6）点火焰伤害。"
+        "note": "双手持用时8（1d10+3）点钝击伤害，外加3（1d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -3928,13 +3929,12 @@
       {
         "name": "啃咬",
         "attackBonus": "+1",
-        "damage": "",
-        "damageType": "",
+        "damage": "1d4-1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1（1d4?1）点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -3983,13 +3983,12 @@
       {
         "name": "啃咬",
         "attackBonus": "+2",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -4080,7 +4079,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加13（3d8）点闪电伤害。如果炎魔骰出暴击，则其掷三次伤害骰而非两次。"
+        "note": "外加13（3d8）点闪电伤害"
       },
       {
         "name": "鞭击",
@@ -4091,7 +4090,7 @@
         "properties": [],
         "normalRange": 30,
         "maxRange": 30,
-        "note": "外加10（2d6）点火焰伤害。被命中的目标必须进行一次DC"
+        "note": "外加10（2d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -4152,17 +4151,8 @@
           "轻"
         ],
         "normalRange": 80,
-        "maxRange": 320
-      },
-      {
-        "name": "",
-        "attackBonus": "+3",
-        "damage": "1d8+1",
-        "damageType": "穿刺",
-        "range": "射程80/320尺",
-        "properties": [],
-        "normalRange": 80,
-        "maxRange": 320
+        "maxRange": 320,
+        "note": "Crossbow"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -4335,17 +4325,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "3d6+2",
-        "damageType": "暗蚀",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "Touch"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -4426,21 +4407,15 @@
         "text": "该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。Resistance。该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
       },
       {
+        "name": "多重攻击Multiattack",
+        "text": "猬魔发动三次武器攻击：一次尾击，两次爪击。或者它也可以使用两次投掷烈焰。"
+      },
+      {
         "name": "投掷烈焰HurlFlame",
         "text": "远程法术攻击：命中+5，射程150尺，单一目标。命中：10（3d6）点火焰伤害。火焰将点燃所有未被着装或携带的可燃物件。Flame。远程法术攻击：命中+5，射程150尺，单一目标。命中：10（3d6）点火焰伤害。火焰将点燃所有未被着装或携带的可燃物件。"
       }
     ],
     "attacks": [
-      {
-        "name": "多重攻击",
-        "attackBonus": "",
-        "damage": "",
-        "damageType": "",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
-      },
       {
         "name": "爪击",
         "attackBonus": "+6",
@@ -4610,7 +4585,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点毒素伤害。"
+        "note": "外加7（2d6）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -4663,13 +4638,12 @@
       {
         "name": "啃咬",
         "attackBonus": "+0",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -4845,7 +4819,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加17（2d10+6）点挥砍伤害。如果青足龙蛇没有勒住其他生物，则该目标被擒抱（逃脱DC16）并受束缚直至擒抱终止。"
+        "note": "外加17（2d10+6）点挥砍伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -5185,7 +5159,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加2（1d4）点强酸伤害。"
+        "note": "外加2（1d4）点强酸伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -5264,7 +5238,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加18（4d8）点强酸伤害。此外，目标着装的非魔法护甲将被部分溶解，其提供的AC将永久遭受-1减值且累计叠加。AC被降至10时，则该护甲被摧毁。"
+        "note": "外加18（4d8）点强酸伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -5549,7 +5523,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是一类人生物，则其必须成功通过一次DC"
+        "note": "如果目标是一类人生物，则其必须成功通过一次DC15的体质豁免否则感染称为混沌噬菌体chaos"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -5707,7 +5681,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加17（5d6）点毒素伤害。目标必须进行一次DC"
+        "note": "外加17（5d6）点毒素伤害"
       },
       {
         "name": "钩镰",
@@ -5718,7 +5692,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标是一巨型更小体型的生物，则目标被擒抱（逃脱DC14）。直至擒抱结束前，该魔鬼不能用其钩镰攻击其他目标。"
+        "note": "如果目标是一巨型更小体型的生物，则目标被擒抱（逃脱DC14）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -5780,7 +5754,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加10（3d6）点毒素伤害。"
+        "note": "外加10（3d6）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -6085,13 +6059,13 @@
       {
         "name": "标枪",
         "attackBonus": "+4",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d6+2",
+        "damageType": "穿刺",
         "range": "射程30/120尺",
         "properties": [],
         "normalRange": 30,
         "maxRange": 120,
-        "note": "或远程时5（1d6+2）点穿刺伤害。"
+        "note": "或远程时5（1d6+2）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -6175,13 +6149,13 @@
       {
         "name": "标枪",
         "attackBonus": "+5",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d6+3",
+        "damageType": "穿刺",
         "range": "射程30/120尺",
         "properties": [],
         "normalRange": 30,
         "maxRange": 120,
-        "note": "或远程时6（1d6+3）点穿刺伤害。"
+        "note": "或远程时6（1d6+3）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -6333,7 +6307,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+1",
-        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害。"
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -6437,7 +6411,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+4",
-        "note": "或使用双手发动近战攻击时8（1d8+4）点穿刺伤害，外加3（1d6）点火焰伤害。"
+        "note": "或使用双手发动近战攻击时8（1d8+4）点穿刺伤害，外加3（1d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -6622,13 +6596,12 @@
       {
         "name": "爪击",
         "attackBonus": "+0",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点挥砍伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -6804,7 +6777,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果该魔鬼没擒抱其他目标，则该目标被擒抱（逃脱DC14）。直至擒抱结束，该目标在每个其自己回合开始时受到7（2d6）点穿刺伤害。"
+        "note": "如果该魔鬼没擒抱其他目标，则该目标被擒抱（逃脱DC14）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -6883,7 +6856,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加24（7d6）点暗蚀伤害。目标生物的生命值上限减损等于该暗蚀伤害的数值。如果该效应将目标生物的生命值上限降至0，则该生物死亡。该生物生命值上限的减损将一直持续至其完成一次长休，或者持续至其受法术如高等复原术greater"
+        "note": "外加24（7d6）点暗蚀伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -7042,7 +7015,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标是大型或更小体型的生物则被擒抱（逃脱DC 14），甲伏怪无法同时擒抱两个以上的生物。"
+        "note": "如果目标是大型或更小体型的生物则被擒抱（逃脱DC 14），甲伏怪无法同时擒抱两个以上的生物"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -7127,8 +7100,8 @@
       {
         "name": "猛击",
         "attackBonus": "+8",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d10+5",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
@@ -7213,7 +7186,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "若目标为大型或更小体型，则斗篷怪附着于目标身上。如果斗篷怪的攻击具有优势，则附着到目标头部，并导致目标陷入目盲且在附着期间无法呼吸。附着时，斗篷怪只能啃咬被附着的目标，且其攻击检定具有优势。斗篷怪可以消耗5尺移动力脱离附着。任何生物（包括被附着的目标），都可以用动作进行一次DC"
+        "note": "若目标为大型或更小体型，则斗篷怪附着于目标身上"
       },
       {
         "name": "尾击",
@@ -7467,7 +7440,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标被擒抱（逃脱 DC 14）。直至擒抱解除，目标被束缚且该蛇不能紧缚另一个目标。"
+        "note": "且目标被擒抱（逃脱 DC 14）"
       }
     ],
     "description": "Snake",
@@ -7624,7 +7597,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DC13的体质豁免，豁免失败则陷入24小时的中毒状态"
       },
       {
         "name": "绞缠",
@@ -7635,7 +7608,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "目标被擒抱（逃脱DC15）。擒抱终止前该目标被束缚。另外，羽蛇不能同时绞缠另一个目标。"
+        "note": "目标被擒抱（逃脱DC15）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -7689,13 +7662,12 @@
       {
         "name": "爪击",
         "attackBonus": "+0",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点钝击伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -7756,7 +7728,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "3（1d4+2）的钝击或挥砍伤害（由蠕行之爪自选）"
+        "note": "（由蠕行之爪自选）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -7816,7 +7788,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标被擒抱（逃脱DC12）。直至擒抱解除，目标陷入被束缚状态，且该鳄鱼不能啃咬另一个目标。"
+        "note": "且目标被擒抱（逃脱DC12）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -8110,7 +8082,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果该目标是一个巨型或更小体型的生物，则目标必须进行一次DC"
+        "note": "如果该目标是一个巨型或更小体型的生物，则目标必须进行一次DC18的力量检定，检定失败则应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -8178,7 +8150,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且暗幕魔兽附着于目标身上。若目标为大型或更小体型且暗幕魔兽的攻击具有优势，则其附着于目标头部，并导致目标目盲且被附着期间无法呼吸。"
+        "note": "且暗幕魔兽附着于目标身上"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -8334,7 +8306,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或双手使用时10（1d10+5）点挥砍伤害，外加18（4d8）点暗蚀伤害。"
+        "note": "或双手使用时10（1d10+5）点挥砍伤害，外加18（4d8）点暗蚀伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -8424,7 +8396,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点暗蚀伤害。"
+        "note": "外加7（2d6）点暗蚀伤害"
       },
       {
         "name": "爪击",
@@ -8435,18 +8407,18 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点暗蚀伤害。"
+        "note": "外加7（2d6）点暗蚀伤害"
       },
       {
         "name": "巨剑",
         "attackBonus": "+9",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d6+5",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "12（2d6+5）挥砍伤害外加7（2d6）点暗蚀伤害"
+        "note": "外加7（2d6）点暗蚀伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -8774,7 +8746,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加18（4d8）点光耀伤害。"
+        "note": "外加18（4d8）点光耀伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -8842,7 +8814,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是生物，则目标必须进行一次DC 13的力量豁免，豁免失败者将应击倒地。"
+        "note": "如果目标是生物，则目标必须进行一次DC 13的力量豁免，豁免失败者将应击倒地"
       }
     ],
     "description": "Wolf",
@@ -8906,7 +8878,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加3（1d6）点穿刺伤害。"
+        "note": "外加3（1d6）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -9199,7 +9171,7 @@
         "properties": [],
         "normalRange": 15,
         "maxRange": 15,
-        "note": "如果目标是一个生物，则它必须进行一次DC"
+        "note": "如果目标是一个生物，则它必须进行一次DC20的力量豁免，豁免失败则被从龙龟的方向推离10尺并应击倒地"
       }
     ],
     "description": "超巨型龙类，绝对中立",
@@ -9363,7 +9335,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加9（2d8）点毒素伤害。"
+        "note": "外加9（2d8）点毒素伤害"
       },
       {
         "name": "长剑",
@@ -9376,7 +9348,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "双手持时8（1d10+3）点挥砍伤害。"
+        "note": "双手持时8（1d10+3）点挥砍伤害"
       },
       {
         "name": "长弓",
@@ -9387,7 +9359,7 @@
         "properties": [],
         "normalRange": 150,
         "maxRange": 600,
-        "note": "外加4（1d8）毒素伤害。"
+        "note": "外加4（1d8）毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -9469,18 +9441,7 @@
         "properties": [],
         "normalRange": 30,
         "maxRange": 120,
-        "note": "目标必须进行一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d6+2",
-        "damageType": "穿刺",
-        "range": "射程30/120尺",
-        "properties": [],
-        "normalRange": 30,
-        "maxRange": 120,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DCCrossbow"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -9564,7 +9525,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加10（3d6）毒素伤害。"
+        "note": "外加10（3d6）毒素伤害"
       },
       {
         "name": "手弩",
@@ -9575,18 +9536,7 @@
         "properties": [],
         "normalRange": 30,
         "maxRange": 120,
-        "note": "目标必须进行一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+7",
-        "damage": "1d6+4",
-        "damageType": "穿刺",
-        "range": "射程30/120尺",
-        "properties": [],
-        "normalRange": 30,
-        "maxRange": 120,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DCCrossbow"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -9677,7 +9627,7 @@
         "normalRange": 5,
         "maxRange": 5,
         "twoHandedDamage": "1d8-1",
-        "note": "或使用双手攻击时3（1d8-1）点钝击伤害，外加3（1d6）点毒素伤害。"
+        "note": "或使用双手攻击时3（1d8-1）点钝击伤害，外加3（1d6）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -9773,7 +9723,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加17（5d6）点毒素伤害。"
+        "note": "外加17（5d6）点毒素伤害"
       }
     ],
     "description": "Lolth",
@@ -9844,7 +9794,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "使用双手攻击时为4（1d8）点钝击伤害，使用橡棍术"
+        "note": "使用双手攻击时为4（1d8）点钝击伤害，使用橡棍术时为6（1d8+2）点伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -9924,7 +9874,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或使用橡棍术时8（1d8+4）点钝击伤害。"
+        "note": "或使用橡棍术时8（1d8+4）点钝击伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -9993,18 +9943,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "在变巨时为11（2d8+2）点穿刺伤害。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d8+2",
-        "damageType": "穿刺",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "在变巨时为11（2d8+2）点穿刺伤害。"
+        "note": "在变巨时为11（2d8+2）点穿刺伤害"
       },
       {
         "name": "标枪",
@@ -10015,7 +9954,7 @@
         "properties": [],
         "normalRange": 30,
         "maxRange": 120,
-        "note": "在变巨时为9（2d6+2）点穿刺伤害。"
+        "note": "在变巨时为9（2d6+2）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -10294,13 +10233,12 @@
       {
         "name": "猛击",
         "attackBonus": "+8",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d8+5",
+        "damageType": "钝击",
         "range": "触及10尺",
         "properties": [],
         "normalRange": 10,
-        "maxRange": 10,
-        "note": "14（2d8+5）钝击伤害"
+        "maxRange": 10
       }
     ],
     "source": "怪物图鉴 2014",
@@ -10372,7 +10310,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点火焰伤害。"
+        "note": "外加7（2d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -10601,7 +10539,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标是生物，则必须进行一次DC"
+        "note": "如果目标是生物，则必须进行一次DC15的体质豁免，豁免失败则直至至高天的下一回合结束前陷入震慑"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -10689,7 +10627,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或双手持用时9（1d10+4）点挥砍伤害，外加13（3d8）点毒素伤害。"
+        "note": "或双手持用时9（1d10+4）点挥砍伤害，外加13（3d8）点毒素伤害"
       },
       {
         "name": "长弓",
@@ -10700,7 +10638,7 @@
         "properties": [],
         "normalRange": 150,
         "maxRange": 600,
-        "note": "外加13（3d8）点毒素伤害。目标必须进行一次DC"
+        "note": "外加13（3d8）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -10784,7 +10722,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加4（1d8）点毒素伤害。目标必须进行一次DC"
+        "note": "外加4（1d8）点毒素伤害"
       },
       {
         "name": "爪击",
@@ -10816,18 +10754,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标被擒抱（逃脱DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d4+2",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "且目标被擒抱（逃脱DC12）。直至擒抱结束前，目标不能呼吸，且伊特怪对它进行的攻击检定具有优势。"
+        "note": "且目标被擒抱（逃脱DCGarrote"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -10982,13 +10909,12 @@
       {
         "name": "啃咬",
         "attackBonus": "",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -11059,7 +10985,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是一个生物或可燃的物件，目标将被点燃。此后直至有生物用动作扑灭该目标身上的火焰前，该目标在每一个其自身回合开始时受到5（1d10）点火焰伤害。"
+        "note": "如果目标是一个生物或可燃的物件，目标将被点燃"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -11205,7 +11131,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加3（1d6）点火焰伤害。"
+        "note": "外加3（1d6）点火焰伤害"
       },
       {
         "name": "尾击",
@@ -11216,7 +11142,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加3（1d6）点火焰伤害。"
+        "note": "外加3（1d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -11387,8 +11313,8 @@
       {
         "name": "猛击",
         "attackBonus": "+7",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d8+4",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
@@ -11474,7 +11400,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加2（1d4）点强酸伤害。目标在其自己每一回合结束时必须进行一次DC"
+        "note": "外加2（1d4）点强酸伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -11523,13 +11449,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+6",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（3d4）点毒素伤害。"
+        "note": "外加7（3d4）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -12020,13 +11946,13 @@
       {
         "name": "触击",
         "attackBonus": "+0",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "毒性",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "该生物必须进行一次DC"
+        "note": "该生物必须进行一次DC10的体质豁免，豁免失败则目标感染致命爆发特质中所述的疾病"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -12172,7 +12098,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标不是亡灵，则目标必须进行一次DC"
+        "note": "如果目标不是亡灵，则目标必须进行一次DC10的体质豁免，豁免失败则陷入1分钟的麻痹状态"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -12262,17 +12188,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
-      },
-      {
-        "name": "",
-        "attackBonus": "+5",
-        "damage": "4d6+3",
-        "damageType": "暗蚀",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "Touch"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -12534,7 +12451,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标被擒抱（逃脱DC16）。直到擒抱解除前目标被束缚，且该蛇不能绞缠另一目标。"
+        "note": "且目标被擒抱（逃脱DC16）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -12594,7 +12511,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标被擒抱（逃脱DC11）。该蟹有两只前爪，它只能用每只前爪擒抱一个目标。"
+        "note": "目标被擒抱（逃脱DC11）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -12658,7 +12575,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标被擒抱（逃脱DC12）。直至擒抱解除，目标陷入被束缚状态，且该鳄鱼不能啃咬另一目标。"
+        "note": "目标被擒抱（逃脱DC12）"
       },
       {
         "name": "尾击",
@@ -12669,7 +12586,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标是生物，则其必须成功通过一次DC"
+        "note": "如果目标是生物，则其必须成功通过一次DC16的力量豁免，否则将应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -12792,7 +12709,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "巨火甲虫giant fire"
       }
     ],
     "description": "Beetle",
@@ -12906,7 +12824,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "且目标必须进行一次DC11的体质豁免，豁免失败则受到10（3d6）点毒素伤害，豁免成功则伤害减半。"
+        "note": "且目标必须进行一次DC11的体质豁免，豁免失败则受到10（3d6）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "description": "Snake",
@@ -12969,7 +12887,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "变体：致病巨鼠Variant: Diseased GiantRats"
       },
       {
         "name": "啃咬",
@@ -13035,7 +12954,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标被擒抱（逃脱DC12）。蝎子有两只钳爪，其每只爪子只能擒抱一个目标。"
+        "note": "且目标被擒抱（逃脱DC12）"
       },
       {
         "name": "钉刺",
@@ -13046,7 +12965,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标必须成功通过一次DC"
+        "note": "且目标必须成功通过一次DC12的体质豁免，否则将受到22（4d10）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -13167,7 +13086,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "在深海出没的巨鲨giant shark身长达30尺"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -13352,7 +13272,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受到7（2d6）点毒素伤害，豁免成功则伤害减半。如果该毒素伤害将目标生命值降至0，则目标伤势稳定但中毒1小时。恢复生命值无法让目标摆脱该中毒效应，且其在以该方式中毒期间同时陷入麻痹。"
+        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受到7（2d6）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "description": "Spider",
@@ -13531,7 +13451,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受10（3d6）点毒素伤害。如果该毒素伤害将目标的生命值降至0，则该目标伤势稳定但仍持续中毒1小时。恢复生命值无法解除该中毒效应，且以该方式中毒时目标同时还将陷入麻痹。"
+        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受10（3d6）点毒素伤害"
       }
     ],
     "description": "Centipede",
@@ -13678,7 +13598,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标被擒抱（逃脱DC 11）。直至擒抱结束前，该目标被束缚，而青蛙无法啃咬其他目标。"
+        "note": "目标被擒抱（逃脱DC 11）"
       }
     ],
     "description": "Frog",
@@ -13797,7 +13717,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "变体：巨蜥特质Variant: Giant Lizard Traits一些巨蜥具有以下一项或全部两项特质"
       }
     ],
     "description": "Lizard",
@@ -13874,7 +13795,7 @@
         "properties": [],
         "normalRange": 15,
         "maxRange": 15,
-        "note": "如果目标是一生物，则其被擒抱（逃脱DC 16）。直至擒抱终止前，该目标被束缚，且章鱼无法再对另一目标使用其触须攻击。"
+        "note": "如果目标是一生物，则其被擒抱（逃脱DC 16）"
       }
     ],
     "description": "Octopus",
@@ -13942,7 +13863,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "巨猫头鹰giantowls通常会是妖精和其他木族生物的朋友，而且还会充当其林地领域的警卫"
       }
     ],
     "description": "Owl",
@@ -14011,7 +13933,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受到9（2d8）点毒素伤害，豁免成功则伤害减半。如果该毒素伤害将目标生命值降至0，则目标伤势稳定但中毒1小时。恢复生命值无法让目标摆脱该中毒效应，且其在以该方式中毒期间同时陷入麻痹。"
+        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受到9（2d8）点毒素伤害，豁免成功则伤害减半"
       },
       {
         "name": "蛛网",
@@ -14086,7 +14008,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加5（1d10）点毒素伤害，且目标被擒抱（逃脱DC 13）。直至擒抱结束前，该目标被束缚，而蟾蜍无法啃咬其他目标。"
+        "note": "外加5（1d10）点毒素伤害，且目标被擒抱（逃脱DC 13）"
       }
     ],
     "description": "Toad",
@@ -14164,7 +14086,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "巨秃鹰giant"
       }
     ],
     "description": "Vulture",
@@ -14234,7 +14157,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果该目标为中型或更小体型，则它必须进行一次DC"
+        "note": "如果该目标为中型或更小体型，则它必须进行一次DC10的力量豁免，豁免失败则应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -14297,18 +14220,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加10（3d6）点心灵伤害。该攻击视为魔法武器攻击。当目标以星界躯体（等同于使用法术星界投影astral"
-      },
-      {
-        "name": "",
-        "attackBonus": "+9",
-        "damage": "2d6+6",
-        "damageType": "挥砍",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "外加10（3d6）点心灵伤害。该攻击视为魔法武器攻击。当目标以星界躯体（等同于使用法术星界投影astralprojection）受该攻击的重击命中时，该吉斯洋基人可以切断连接该目标与其物质躯体的连接银线，并代替所造成的所有伤害。"
+        "note": "外加10（3d6）点心灵伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -14371,7 +14283,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点心灵伤害。"
+        "note": "外加7（2d6）点心灵伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -14448,18 +14360,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加9（2d8）点心灵伤害。该攻击视为魔法武器攻击。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d8+2",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "外加9（2d8）点心灵伤害。该攻击视为魔法武器攻击。"
+        "note": "外加9（2d8）点心灵伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -14540,18 +14441,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加13（3d8）点心灵伤害。该攻击视为魔法武器攻击。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+7",
-        "damage": "2d6+4",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "外加13（3d8）点心灵伤害。该攻击视为魔法武器攻击。"
+        "note": "外加13（3d8）点心灵伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -14630,18 +14520,17 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标生物为中型或者更小体型，则目标被擒抱（逃脱DC15）。迷诱魔拥有两只钳子，因此不能同时擒抱两个以上的生物。"
+        "note": "如果目标生物为中型或者更小体型，则目标被擒抱（逃脱DC15）"
       },
       {
         "name": "拳击",
         "attackBonus": "+9",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d4+2",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "7（2d4＋2）点钝击伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -14724,7 +14613,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "2d8+4",
-        "note": "或使用双手发动近战攻击时13（2d8+4）点穿刺伤害。"
+        "note": "或使用双手发动近战攻击时13（2d8+4）点穿刺伤害"
       },
       {
         "name": "盾击",
@@ -14735,18 +14624,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是一个中型或更小体型生物，则目标生物必须成功通过一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+7",
-        "damage": "2d4+4",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "如果目标是一个中型或更小体型生物，则目标生物必须成功通过一次DC"
+        "note": "如果目标是一个中型或更小体型生物，则目标生物必须成功通过一次DCBash"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -14814,7 +14692,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+2",
-        "note": "或使用双手发动近战攻击时6（1d8+2）点穿刺伤害。"
+        "note": "或使用双手发动近战攻击时6（1d8+2）点穿刺伤害"
       },
       {
         "name": "长弓",
@@ -14887,7 +14765,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DC12的体质豁免，豁免失败则受到7（2d6）点毒素伤害"
       },
       {
         "name": "爪击",
@@ -15055,17 +14933,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d8+2",
-        "damageType": "穿刺",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "Pick"
       },
       {
         "name": "毒标",
@@ -15076,18 +14945,7 @@
         "properties": [],
         "normalRange": 30,
         "maxRange": 120,
-        "note": "目标必须进行一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d4+2",
-        "damageType": "穿刺",
-        "range": "射程30/120尺",
-        "properties": [],
-        "normalRange": 30,
-        "maxRange": 120,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DCDart"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -15550,7 +15408,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是生物，则该生物必须进行一次DC"
+        "note": "如果目标是生物，则该生物必须进行一次DC21的力量豁免，豁免失败则应击倒地"
       },
       {
         "name": "顶撞",
@@ -15643,7 +15501,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点强酸伤害。此外，如果目标着装非魔法的金属护甲，则该护甲被部分腐蚀，其提供的AC遭受-1减值且累计叠加。AC被降至10时，则该护甲被摧毁。"
+        "note": "外加7（2d6）点强酸伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -15752,7 +15610,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "史拉亡蟾DeathSlaad"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -15829,7 +15688,7 @@
         "properties": [],
         "normalRange": 2,
         "maxRange": 2,
-        "note": "外加3（1d6）点毒素伤害。"
+        "note": "外加3（1d6）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -16413,18 +16272,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加2（1d4）点穿刺伤害。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+5",
-        "damage": "1d4+3",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "外加2（1d4）点穿刺伤害。"
+        "note": "外加2（1d4）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -16482,7 +16330,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+1",
-        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害。"
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
       }
     ],
     "description": "Guard",
@@ -16553,7 +16401,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "且目标必须进行一次DC"
+        "note": "且目标必须进行一次DC15的体质豁免，豁免失败则受45（10d8）点毒素伤害，豁免成功则伤害减半"
       },
       {
         "name": "喷毒",
@@ -16563,17 +16411,8 @@
         "range": "射程15/30尺",
         "properties": [],
         "normalRange": 15,
-        "maxRange": 30
-      },
-      {
-        "name": "",
-        "attackBonus": "+8",
-        "damage": "",
-        "damageType": "",
-        "range": "射程15/30尺",
-        "properties": [],
-        "normalRange": 15,
-        "maxRange": 30
+        "maxRange": 30,
+        "note": "该目标必须进行一次DC15的体质豁免，豁免失败则受45（10d8）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -16729,7 +16568,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或使用双手时14（2d10+3）点挥砍伤害。"
+        "note": "或使用双手时14（2d10+3）点挥砍伤害"
       },
       {
         "name": "标枪",
@@ -16861,13 +16700,12 @@
       {
         "name": "禽爪",
         "attackBonus": "+5",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点挥砍伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -16937,7 +16775,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点火焰伤害。"
+        "note": "外加7（2d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -17024,7 +16862,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或使用双手时9（1d10+4）点挥砍伤害。"
+        "note": "或使用双手时9（1d10+4）点挥砍伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -17311,7 +17149,7 @@
         "normalRange": 5,
         "maxRange": 5,
         "twoHandedDamage": "1d10+1",
-        "note": "或双手攻击时6（1d10+1）点挥砍伤害。"
+        "note": "或双手攻击时6（1d10+1）点挥砍伤害"
       },
       {
         "name": "长弓",
@@ -17466,7 +17304,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或使用双手时8（1d10+3）点挥砍伤害。"
+        "note": "或使用双手时8（1d10+3）点挥砍伤害"
       },
       {
         "name": "盾击",
@@ -17477,18 +17315,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标为大型或更小体型生物，则其必须成功通过一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+9",
-        "damage": "1d4+3",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "如果目标为大型或更小体型生物，则其必须成功通过一次DC"
+        "note": "如果目标为大型或更小体型生物，则其必须成功通过一次DCBash"
       },
       {
         "name": "标枪",
@@ -17552,8 +17379,8 @@
       {
         "name": "啃咬",
         "attackBonus": "+4",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
@@ -18000,7 +17827,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加10（3d6）点寒冷伤害。"
+        "note": "外加10（3d6）点寒冷伤害"
       },
       {
         "name": "爪击",
@@ -18011,7 +17838,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加10（3d6）点寒冷伤害。"
+        "note": "外加10（3d6）点寒冷伤害"
       },
       {
         "name": "尾击",
@@ -18022,7 +17849,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加10（3d6）点寒冷伤害。"
+        "note": "外加10（3d6）点寒冷伤害"
       },
       {
         "name": "冰矛",
@@ -18033,7 +17860,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加10（3d6）点寒冷伤害。如果目标是一个生物，则其必须进行一次DC"
+        "note": "外加10（3d6）点寒冷伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -18117,7 +17944,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加2（1d4）点寒冷伤害。"
+        "note": "外加2（1d4）点寒冷伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -18215,7 +18042,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DC11的体质豁免，豁免失败则受到10（3d6）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -18565,8 +18392,8 @@
       {
         "name": "猛击",
         "attackBonus": "+13",
-        "damage": "",
-        "damageType": "",
+        "damage": "3d8+7",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
@@ -18575,8 +18402,8 @@
       {
         "name": "剑击",
         "attackBonus": "+13",
-        "damage": "",
-        "damageType": "",
+        "damage": "3d10+7",
+        "damageType": "挥砍",
         "range": "触及10尺",
         "properties": [],
         "normalRange": 10,
@@ -18953,7 +18780,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "重弩HeavyCrossbow"
       },
       {
         "name": "",
@@ -19128,7 +18956,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是一个被克拉肯擒抱的大型或更小体型生物，则该生物被吞下并终止其被受擒状态。被吞下的生物陷入目盲与被束缚状态，其对来自克拉肯体外的攻击与其他效应处于全身掩护，并在每个克拉肯的回合开始时受42（12d6）点强酸伤害。"
+        "note": "如果目标是一个被克拉肯擒抱的大型或更小体型生物，则该生物被吞下并终止其被受擒状态"
       },
       {
         "name": "触须",
@@ -19139,7 +18967,7 @@
         "properties": [],
         "normalRange": 30,
         "maxRange": 30,
-        "note": "且目标被擒抱（逃脱DC18）。直至擒抱终止前，该生物陷被束缚。克拉肯拥有十条触须，每条触须都可以擒抱一个目标。"
+        "note": "且目标被擒抱（逃脱DC18）"
       }
     ],
     "description": "超巨型怪兽（泰坦），混乱邪恶",
@@ -19228,7 +19056,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+1",
-        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害。"
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
       },
       {
         "name": "捕网",
@@ -19239,7 +19067,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "（AC 10）后便可将其破坏并无损的释放其内的生物。"
+        "note": "（AC 10）后便可将其破坏并无损的释放其内的生物"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -19323,7 +19151,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加14（4d6）点闪电伤害。"
+        "note": "外加14（4d6）点闪电伤害"
       },
       {
         "name": "徒手打击",
@@ -19431,7 +19259,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标为中型或更小体型生物，则目标生物被擒抱（逃脱DC 14）。在擒抱终止前，寇涛无法对另一目标使用钳杖。"
+        "note": "如果目标为中型或更小体型生物，则目标生物被擒抱（逃脱DC 14）"
       },
       {
         "name": "啃咬",
@@ -19452,7 +19280,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加3（1d6）点闪电伤害，直至寇涛的下一回合开始前，目标将无法执行反应。"
+        "note": "外加3（1d6）点闪电伤害，直至寇涛的下一回合开始前，目标将无法执行反应"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -19844,13 +19672,12 @@
       {
         "name": "啃咬",
         "attackBonus": "+0",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -19931,17 +19758,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d6+2",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "Club"
       },
       {
         "name": "标枪",
@@ -19961,17 +19779,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d6+2",
-        "damageType": "穿刺",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "Shield"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -20051,7 +19860,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或鳄鱼形态时7（1d10+2）点穿刺伤害。如果蜥蜴人处于鳄鱼形态且目标是一大型或更小体型生物，则该目标被擒抱（逃脱DC12）。直至该擒抱效应终止前，该目标受束缚，且该蜥蜴人无法再啃咬其他目标。如果该蜥蜴人恢复其真实形态，则该擒抱效应终止。"
+        "note": "或鳄鱼形态时7（1d10+2）点穿刺伤害"
       },
       {
         "name": "爪击",
@@ -20165,7 +19974,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+3",
-        "note": "或用双手发动近战攻击时7（1d8+3）点穿刺伤害。"
+        "note": "或用双手发动近战攻击时7（1d8+3）点穿刺伤害"
       }
     ],
     "description": "Queen",
@@ -20232,7 +20041,8 @@
         "range": "射程20/60尺",
         "properties": [],
         "normalRange": 20,
-        "maxRange": 60
+        "maxRange": 60,
+        "note": "变体：魔宠Variant:任何施法者（比如大法师或魔法师）施展法术寻获魔宠find"
       }
     ],
     "description": "Mage",
@@ -20312,7 +20122,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加2（1d4）点火焰伤害。"
+        "note": "外加2（1d4）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -20377,7 +20187,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标为一生物或一可燃物件，则目标被点燃。直至有一个生物用一个动作将其火焰扑灭前，目标生物在每个其自己的回合结束时受3（1d6）点火焰伤害。"
+        "note": "如果目标为一生物或一可燃物件，则目标被点燃"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -20441,7 +20251,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "栖息于亚极地到亚热带不同气候环境中的猛犸mammoth，是长着厚毛皮和长牙的象类生物"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -20578,17 +20389,8 @@
         "range": "射程100/200尺",
         "properties": [],
         "normalRange": 100,
-        "maxRange": 200
-      },
-      {
-        "name": "",
-        "attackBonus": "+5",
-        "damage": "1d8+3",
-        "damageType": "穿刺",
-        "range": "射程100/200尺",
-        "properties": [],
-        "normalRange": 100,
-        "maxRange": 200
+        "maxRange": 200,
+        "note": "Spike"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -20669,7 +20471,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "2d8+6",
-        "note": "或使用双手发动近战攻击时15（2d8+6）点穿刺伤害。"
+        "note": "或使用双手发动近战攻击时15（2d8+6）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -20769,7 +20571,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标生物为中型或者更小体型，则目标被擒抱（逃脱DC19）。在擒抱结束前，目标受束缚。擒抱时，六臂蛇魔的尾击可以直接命中该目标，同时其不能对其他目标发动尾击攻击。"
+        "note": "如果目标生物为中型或者更小体型，则目标被擒抱（逃脱DC19）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -20829,7 +20631,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是生物，则其必须进行一次DC"
+        "note": "如果目标是生物，则其必须进行一次DC11的力量豁免，豁免失败则应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -20905,18 +20707,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加14（4d6）点毒素伤害。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+5",
-        "damage": "1d4+2",
-        "damageType": "穿刺",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "外加14（4d6）点毒素伤害。"
+        "note": "外加14（4d6）点毒素伤害"
       },
       {
         "name": "短剑",
@@ -20937,7 +20728,7 @@
         "properties": [],
         "normalRange": 150,
         "maxRange": 600,
-        "note": "外加7（2d6）点毒素伤害。"
+        "note": "外加7（2d6）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -21068,7 +20859,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标为巨型或更小体型生物，则目标必须进行力量检定并与梅洛的力量检定对抗，对抗失败者将被梅洛向其所在方向拉近20尺。"
+        "note": "如果目标为巨型或更小体型生物，则目标必须进行力量检定并与梅洛的力量检定对抗，对抗失败者将被梅洛向其所在方向拉近20尺"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -21150,13 +20941,12 @@
       {
         "name": "爪击",
         "attackBonus": "+7",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d4+4",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "9（2d4+4）的挥砍伤"
+        "maxRange": 5
       },
       {
         "name": "三叉戟",
@@ -21170,7 +20960,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+4",
-        "note": "或用双手发动近战攻击时8（1d8+4）点穿刺伤害。"
+        "note": "或用双手发动近战攻击时8（1d8+4）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -21246,7 +21036,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "若拟身怪处于物件形态，则该目标受其黏着特质影响。"
+        "note": "若拟身怪处于物件形态，则该目标受其黏着特质影响"
       },
       {
         "name": "啃咬",
@@ -21257,7 +21047,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加4（1d8）点强酸伤害。"
+        "note": "外加4（1d8）点强酸伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -21360,18 +21150,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果该伤害使目标的生命值降至0，则夺心魔抽出并吃掉目标的大脑并以此杀死目标。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+7",
-        "damage": "",
-        "damageType": "",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "如果该伤害使目标的生命值降至0，则夺心魔抽出并吃掉目标的大脑并以此杀死目标。"
+        "note": "目标受55（10d10）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -21792,18 +21571,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加10（3d6）点暗蚀伤害。如果目标是生物，则目标必须成功通过一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+5",
-        "damage": "2d6+3",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "外加10（3d6）点暗蚀伤害。如果目标是生物，则目标必须成功通过一次DC"
+        "note": "外加10（3d6）点暗蚀伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -21922,18 +21690,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加21（6d6）点暗蚀伤害。如果目标是生物，则目标必须成功通过一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+9",
-        "damage": "3d6+4",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "外加21（6d6）点暗蚀伤害。如果目标是生物，则目标必须成功通过一次DC"
+        "note": "外加21（6d6）点暗蚀伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -22000,7 +21757,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加5（2d4）点毒素伤害。"
+        "note": "外加5（2d4）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -22119,7 +21876,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（3d4）点毒素伤害。"
+        "note": "外加7（3d4）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -22182,7 +21939,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加2（1d4）点毒素伤害。"
+        "note": "外加2（1d4）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -22496,7 +22253,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点火焰伤害。"
+        "note": "外加7（2d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -22827,7 +22584,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加3（1d6）强酸伤害。"
+        "note": "外加3（1d6）强酸伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -22897,13 +22654,13 @@
       {
         "name": "触须",
         "attackBonus": "+4",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标其被擒抱（逃脱DC 10）。直至擒抱终止前，该目标被束缚，且章鱼无法再对另一目标使用其触须攻击。"
+        "note": "且目标其被擒抱（逃脱DC 10）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -22967,7 +22724,8 @@
         "range": "射程30/120尺",
         "properties": [],
         "normalRange": 30,
-        "maxRange": 120
+        "maxRange": 120,
+        "note": "半食人魔Half-Ogre（半兽食人魔Ogrillon）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -23126,7 +22884,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "或在中型小型形态时9（1d10+4）点挥砍伤害。"
+        "note": "或在中型小型形态时9（1d10+4）点挥砍伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -23180,13 +22938,12 @@
       {
         "name": "巨斧",
         "attackBonus": "+5",
-        "damage": "",
-        "damageType": "",
+        "damage": "1d12+3",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "9（1d12+3）挥砍伤害"
+        "maxRange": 5
       },
       {
         "name": "标枪",
@@ -23267,7 +23024,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "2d8+3",
-        "note": "外加1d8；或用双手发动近战攻击时12（2d8+3）点穿刺伤害。"
+        "note": "外加1d8；或用双手发动近战攻击时12（2d8+3）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -23357,7 +23114,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "2d8+4",
-        "note": "外加1d8；或用双手发动近战攻击时13（2d8+4）点穿刺伤害。"
+        "note": "外加1d8；或用双手发动近战攻击时13（2d8+4）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -23510,7 +23267,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加4（1d8）点穿刺伤害。如果目标为中型或更小体型，则目标被擒抱（逃脱DC13）并被束缚直至擒抱终止。食腐兽有两根触须，因而可以同时擒抱两个目标。"
+        "note": "外加4（1d8）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -23572,13 +23329,12 @@
       {
         "name": "禽爪",
         "attackBonus": "+3",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点挥砍伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -23646,8 +23402,8 @@
       {
         "name": "爪击",
         "attackBonus": "+7",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d8+5",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
@@ -24003,7 +23759,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "每下落10尺造成3（1d6）穿刺伤害，至高值为21（6d6）"
+        "note": "至高值为21（6d6）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -24109,7 +23865,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加21（6d6）点火焰伤害。"
+        "note": "外加21（6d6）点火焰伤害"
       },
       {
         "name": "尾击",
@@ -24271,7 +24027,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加22（5d8）光耀伤害。"
+        "note": "外加22（5d8）光耀伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -24378,13 +24134,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+5",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DC10的体质豁免，豁免失败则受到5（2d4）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -24461,7 +24217,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "变体：穴居熊Variant: Cave Bear"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -24784,7 +24541,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标是一大型或更小体型生物。则目标必须成功通过一次DC"
+        "note": "如果目标是一大型或更小体型生物"
       },
       {
         "name": "尾刺",
@@ -24795,18 +24552,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "且目标必须进行一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+14",
-        "damage": "3d6+9",
-        "damageType": "穿刺",
-        "range": "触及10尺",
-        "properties": [],
-        "normalRange": 10,
-        "maxRange": 10,
-        "note": "且目标必须进行一次DC"
+        "note": "且目标必须进行一次DCStinger"
       }
     ],
     "description": "超巨型怪兽，无阵营",
@@ -24954,7 +24700,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "变体：幽邃熊怪索诺祭司Variant:幽邃熊怪索诺祭司既是一名普通的幽邃熊怪，同时还拥有挑战等级3（700XP）和以下额外特质"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25005,21 +24752,13 @@
       {
         "name": "多重攻击Multiattack",
         "text": "孢子奴仆发动两次爪击攻击。"
-      }
-    ],
-    "attacks": [
+      },
       {
-        "name": "爪击",
-        "attackBonus": "+5",
-        "damage": "",
-        "damageType": "",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "6（1d6+3）的挥砍伤害"
+        "name": "爪击Claw",
+        "text": "近身武器攻击：命中+5，触及5尺，单一目标。命中：6（1d6+3）的挥砍伤害。"
       }
     ],
+    "attacks": [],
     "source": "怪物图鉴 2014",
     "sourceDir": "植物",
     "creatureSize": 2,
@@ -25157,13 +24896,12 @@
       {
         "name": "啃咬",
         "attackBonus": "",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25237,7 +24975,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是生物则目标生物被诅咒。该魔法诅咒在目标随后进行的一次短休或长休时生效，此时目标的思绪中将充满恐怖的影像及梦境。被诅咒的目标无法从完成的短休或长休中获益。该诅咒持续至被法术移除诅咒remove"
+        "note": "如果目标是生物则目标生物被诅咒"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25286,13 +25024,12 @@
       {
         "name": "啃咬",
         "attackBonus": "+0",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25346,13 +25083,12 @@
       {
         "name": "喙啄",
         "attackBonus": "+4",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25423,7 +25159,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加3（1d6）点火焰伤害。"
+        "note": "外加3（1d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25511,7 +25247,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是一类人生物，则其必须成功通过一次DC"
+        "note": "如果目标是一类人生物，则其必须成功通过一次DC14的体质豁免否则感染疾病史拉蟾微卵minusculeslaad egg"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25636,7 +25372,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加10（3d6）点火焰伤害。如果目标是一个生物，则目标被擒抱（逃脱DC17），直至擒抱终止前目标被束缚，且百足魔兽不能再对其他目标使用啃咬攻击。"
+        "note": "外加10（3d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25728,7 +25464,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果该目标生物是还魂鬼的誓仇对象，则目标额外受14（4d6）点钝击伤害。还魂鬼也可以选择不造成伤害，而是擒抱该生物（逃脱DC14），前提是该目标体型必须为大型或更小体型。"
+        "note": "如果该目标生物是还魂鬼的誓仇对象，则目标额外受14（4d6）点钝击伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -25911,7 +25647,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标被擒抱（逃脱DC19）。直至擒抱终止前，该目标被束缚，且该鹏鸟无法用其禽爪攻击另一个目标。"
+        "note": "目标被擒抱（逃脱DC19）"
       }
     ],
     "description": "超巨型怪兽，无阵营",
@@ -26310,7 +26046,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+1",
-        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害。"
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -26410,7 +26146,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "2d8+4",
-        "note": "或用双手发动近战攻击时13（2d8+4）点穿刺伤害。"
+        "note": "或用双手发动近战攻击时13（2d8+4）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -26573,7 +26309,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "2d8+4",
-        "note": "或使用双手发动近战攻击时13（2d8+4）点穿刺伤害，外加3（1d6）点火焰伤害。"
+        "note": "或使用双手发动近战攻击时13（2d8+4）点穿刺伤害，外加3（1d6）点火焰伤害"
       },
       {
         "name": "尾击",
@@ -26584,7 +26320,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加7（2d6）点火焰伤害，且目标被擒抱（逃脱DC14）。直至该擒抱终止前，该目标被束缚，此时火蜥蜴的尾击可直接命中该目标，但该火蜥蜴无法再以尾击攻击其他目标。"
+        "note": "外加7（2d6）点火焰伤害，且目标被擒抱（逃脱DC14）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -26749,7 +26485,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是一生物，则目标必须进行一次DC"
+        "note": "如果目标是一生物，则目标必须进行一次DC11的感知豁免，豁免失败则陷入恐慌直到稻草人的下一回合结束"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -26793,13 +26529,13 @@
       {
         "name": "钉刺",
         "attackBonus": "+2",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标必须成功通过一次DC 9的体质豁免，否则受到4（1d8）点毒素伤害，豁免成功则伤害减半。"
+        "note": "且目标必须成功通过一次DC 9的体质豁免，否则受到4（1d8）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -27087,18 +26823,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且目标力量值降低1d4。如果目标的力量因此降至0，则目标死亡。否则，其力量的减损效应会持续到该目标完成一次短休或长休为止。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "2d6+2",
-        "damageType": "暗蚀",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "且目标力量值降低1d4。如果目标的力量因此降至0，则目标死亡。否则，其力量的减损效应会持续到该目标完成一次短休或长休为止。"
+        "note": "且目标力量值降低1d4"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -27191,7 +26916,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或者当幽影恶魔的攻击检定具有优势时17（4d6+3）点心灵伤害。"
+        "note": "或者当幽影恶魔的攻击检定具有优势时17（4d6+3）点心灵伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -27613,7 +27338,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "变体：史拉蟾之心Variant:"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -27802,7 +27528,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加27（6d8）光耀伤害。"
+        "note": "外加27（6d8）光耀伤害"
       },
       {
         "name": "杀戮长弓",
@@ -27813,18 +27539,7 @@
         "properties": [],
         "normalRange": 150,
         "maxRange": 600,
-        "note": "外加27（6d8）点光耀伤害。如果目标为生物，且其生命值为100或更低，则目标生物必须进行一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+13",
-        "damage": "2d8+6",
-        "damageType": "穿刺",
-        "range": "射程150/600尺",
-        "properties": [],
-        "normalRange": 150,
-        "maxRange": 600,
-        "note": "外加27（6d8）点光耀伤害。如果目标为生物，且其生命值为100或更低，则目标生物必须进行一次DC"
+        "note": "外加27（6d8）点光耀伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -27983,18 +27698,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须成功通过一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "3d6",
-        "damageType": "暗蚀",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "目标必须成功通过一次DC"
+        "note": "目标必须成功通过一次DCDrain"
       },
       {
         "name": "斥力猛击",
@@ -28004,17 +27708,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "3d6",
-        "damageType": "力场",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "Slam"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -28076,13 +27771,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+4",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须进行一次DC 9的体质豁免，豁免失败则受到2（1d4）点毒素伤害。"
+        "note": "目标必须进行一次DC 9的体质豁免，豁免失败则受到2（1d4）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -28183,18 +27878,7 @@
         "properties": [],
         "normalRange": 20,
         "maxRange": 80,
-        "note": "外加3（1d6）点火焰伤害。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d4+2",
-        "damageType": "穿刺",
-        "range": "射程20/80尺",
-        "properties": [],
-        "normalRange": 20,
-        "maxRange": 80,
-        "note": "外加3（1d6）点火焰伤害。"
+        "note": "外加3（1d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -28263,7 +27947,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "该目标必须进行一次DCDC"
+        "note": "该目标必须进行一次DCDC13的体质豁免，豁免失败则受31（7d8）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -28325,19 +28009,18 @@
       {
         "name": "长剑",
         "attackBonus": "+2",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "挥砍",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点挥砍伤害"
+        "maxRange": 5
       },
       {
         "name": "短弓",
         "attackBonus": "+6",
-        "damage": "",
-        "damageType": "",
+        "damage": "2",
+        "damageType": "穿刺",
         "range": "射程40/160尺",
         "properties": [],
         "normalRange": 40,
@@ -28443,17 +28126,8 @@
         "range": "射程30/120尺",
         "properties": [],
         "normalRange": 30,
-        "maxRange": 120
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d6+2",
-        "damageType": "穿刺",
-        "range": "射程30/120尺",
-        "properties": [],
-        "normalRange": 30,
-        "maxRange": 120
+        "maxRange": 120,
+        "note": "Crossbow"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -28521,7 +28195,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加2（1d4）点火焰伤害。"
+        "note": "外加2（1d4）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -28571,18 +28245,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "且蚊蝠贴在目标身上。贴上身之后，蚊蝠将不再发动攻击，而目标生物在该蚊蝠的回合开始时将因失血而使其生命值受5（1d4+3）的损失。"
-      },
-      {
-        "name": "",
-        "attackBonus": "+5",
-        "damage": "1d4+3",
-        "damageType": "穿刺",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "且蚊蝠贴在目标身上。贴上身之后，蚊蝠将不再发动攻击，而目标生物在该蚊蝠的回合开始时将因失血而使其生命值受5（1d4+3）的损失。"
+        "note": "且蚊蝠贴在目标身上"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -28668,7 +28331,7 @@
         "properties": [],
         "normalRange": 60,
         "maxRange": 240,
-        "note": "如果目标是一个生物，则目标生物必需进行一次DC"
+        "note": "如果目标是一个生物，则目标生物必需进行一次DC17的力量豁免，豁免失败者将应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -28745,8 +28408,8 @@
       {
         "name": "猛击",
         "attackBonus": "+10",
-        "damage": "",
-        "damageType": "",
+        "damage": "3d8+6",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
@@ -28929,7 +28592,7 @@
         "properties": [],
         "normalRange": 0,
         "maxRange": 0,
-        "note": "或者集群生命值等于或低于一半时2（1d4）点穿刺伤害。"
+        "note": "或者集群生命值等于或低于一半时2（1d4）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -29025,7 +28688,7 @@
         "properties": [],
         "normalRange": 0,
         "maxRange": 0,
-        "note": "或者集群生命值等于或低于一半时5（2d4）点穿刺伤害。"
+        "note": "或者集群生命值等于或低于一半时5（2d4）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -29093,7 +28756,7 @@
         "properties": [],
         "normalRange": 0,
         "maxRange": 0,
-        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害。该目标必须进行一次DC"
+        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -29169,7 +28832,7 @@
         "properties": [],
         "normalRange": 0,
         "maxRange": 0,
-        "note": "或者集群生命值等于或低于一半时7（2d6）点穿刺伤害。"
+        "note": "或者集群生命值等于或低于一半时7（2d6）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -29241,7 +28904,7 @@
         "properties": [],
         "normalRange": 0,
         "maxRange": 0,
-        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害。"
+        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -29314,7 +28977,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害。"
+        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -29420,7 +29083,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标是一生物，则目标被擒抱（逃脱DC20），直至擒抱终止前目标被束缚，且巨兽不能再对其他目标使用啃咬攻击。"
+        "note": "如果目标是一生物，则目标被擒抱（逃脱DC20），直至擒抱终止前目标被束缚，且巨兽不能再对其他目标使用啃咬攻击"
       },
       {
         "name": "爪击",
@@ -29451,7 +29114,7 @@
         "properties": [],
         "normalRange": 20,
         "maxRange": 20,
-        "note": "如果目标是一生物，则目标必须成功通过一次DC"
+        "note": "如果目标是一生物，则目标必须成功通过一次DC20的力量豁免否则将应击倒地"
       }
     ],
     "description": "超巨型怪兽（泰坦），无阵营",
@@ -29553,7 +29216,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "变体：螳螂人武器与灵能Variant: Thri-kreen Weapons andPsionics"
       },
       {
         "name": "螳螂戟",
@@ -29646,17 +29310,8 @@
         "range": "射程100/400尺",
         "properties": [],
         "normalRange": 100,
-        "maxRange": 400
-      },
-      {
-        "name": "",
-        "attackBonus": "+2",
-        "damage": "1d10",
-        "damageType": "穿刺",
-        "range": "射程100/400尺",
-        "properties": [],
-        "normalRange": 100,
-        "maxRange": 400
+        "maxRange": 400,
+        "note": "Crossbow"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -29872,7 +29527,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+1",
-        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害。"
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
       }
     ],
     "description": "Warrior",
@@ -30219,7 +29874,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标为一个中型或更小体型的生物，则目标被擒抱（逃脱DC17）。被擒抱期间该目标陷入束缚状态，且暴龙不能啃咬其他目标。"
+        "note": "如果目标为一个中型或更小体型的生物，则目标被擒抱（逃脱DC17）"
       },
       {
         "name": "尾击",
@@ -30333,7 +29988,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或双手使用时8（1d10+3）点挥砍伤害。"
+        "note": "或双手使用时8（1d10+3）点挥砍伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -30578,7 +30233,7 @@
         "normalRange": 5,
         "maxRange": 5,
         "twoHandedDamage": "1d10+3",
-        "note": "或使用双手攻击时8（1d10+3）点挥砍伤害。"
+        "note": "或使用双手攻击时8（1d10+3）点挥砍伤害"
       },
       {
         "name": "短剑",
@@ -30598,17 +30253,8 @@
         "range": "射程100/400尺",
         "properties": [],
         "normalRange": 100,
-        "maxRange": 400
-      },
-      {
-        "name": "",
-        "attackBonus": "+3",
-        "damage": "1d10+1",
-        "damageType": "穿刺",
-        "range": "射程100/400尺",
-        "properties": [],
-        "normalRange": 100,
-        "maxRange": 400
+        "maxRange": 400,
+        "note": "Crossbow"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -30675,7 +30321,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标为大型或更小体型则其受擒抱（逃脱DC12）。直至该擒抱终止前，该目标受束缚，而该枯萎怪无法绞缠另一个目标。"
+        "note": "如果目标为大型或更小体型则其受擒抱（逃脱DC12）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -30737,17 +30383,8 @@
         "range": "触及10尺",
         "properties": [],
         "normalRange": 10,
-        "maxRange": 10
-      },
-      {
-        "name": "",
-        "attackBonus": "+2",
-        "damage": "1d8",
-        "damageType": "暗蚀",
-        "range": "触及10尺",
-        "properties": [],
-        "normalRange": 10,
-        "maxRange": 10
+        "maxRange": 10,
+        "note": "Touch"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -30955,7 +30592,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "变体：战马护甲Variant: WarhorseArmor"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -31088,13 +30726,12 @@
       {
         "name": "猛击",
         "attackBonus": "+7",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d8+4",
+        "damageType": "钝击",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "13（2d8+4）钝击伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -31168,7 +30805,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "如果目标体型为中型或更小体型，则目标被擒抱（逃脱DC13）并向水诡所在方向拉近5尺。直至擒抱终止前，目标被束缚，同时水诡尝试淹没目标，而水诡也不能同时绞缠其他目标。"
+        "note": "如果目标体型为中型或更小体型，则目标被擒抱（逃脱DC13）并向水诡所在方向拉近5尺"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -31226,13 +30863,12 @@
       {
         "name": "啃咬",
         "attackBonus": "+5",
-        "damage": "",
-        "damageType": "",
+        "damage": "1",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5,
-        "note": "1点穿刺伤害"
+        "maxRange": 5
       }
     ],
     "source": "怪物图鉴 2014",
@@ -31304,7 +30940,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是类人生物，则目标必须成功通过一次DC"
+        "note": "如果目标是类人生物，则目标必须成功通过一次DC14的体质豁免避免，否则将受到熊人兽化诅咒"
       },
       {
         "name": "爪击",
@@ -31324,17 +30960,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
-      },
-      {
-        "name": "",
-        "attackBonus": "+7",
-        "damage": "1d12+4",
-        "damageType": "挥砍",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "axe（仅类人与半人形态）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -31420,7 +31047,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是类人生物，则其必须成功通过一次DC"
+        "note": "如果目标是类人生物，则其必须成功通过一次DC12的体质豁免否则将承受野猪人兽化诅咒"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -31496,7 +31123,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是类人生物，则目标必须成功通过一次DC"
+        "note": "如果目标是类人生物，则目标必须成功通过一次DC11的体质豁免否则将遭受鼠人兽化诅咒"
       },
       {
         "name": "短剑",
@@ -31516,17 +31143,8 @@
         "range": "射程30/120尺",
         "properties": [],
         "normalRange": 30,
-        "maxRange": 120
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d6+2",
-        "damageType": "穿刺",
-        "range": "射程30/120尺",
-        "properties": [],
-        "normalRange": 30,
-        "maxRange": 120
+        "maxRange": 120,
+        "note": "Crossbow（仅类人与半人形态）"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -31606,7 +31224,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是类人生物，则目标必须成功通过一次DC"
+        "note": "如果目标是类人生物，则目标必须成功通过一次DC13的体质豁免否则将承受虎人兽化诅咒"
       },
       {
         "name": "爪击",
@@ -31631,13 +31249,12 @@
       {
         "name": "长弓",
         "attackBonus": "+4",
-        "damage": "",
-        "damageType": "",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
         "range": "射程150/600尺",
         "properties": [],
         "normalRange": 150,
-        "maxRange": 600,
-        "note": "6（1d8+2）穿刺伤害"
+        "maxRange": 600
       }
     ],
     "description": "中形类人生物（人类，变形生物），绝对中立",
@@ -31713,7 +31330,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是类人生物，则目标必须成功通过一次DC"
+        "note": "如果目标是类人生物，则目标必须成功通过一次DC12的体质豁免，否则将遭受狼人兽化诅咒"
       },
       {
         "name": "爪击",
@@ -31737,7 +31354,7 @@
         "normalRange": 20,
         "maxRange": 60,
         "twoHandedDamage": "1d8+2",
-        "note": "或使用双手做近战攻击时6（1d8+2）点穿刺伤害。"
+        "note": "或使用双手做近战攻击时6（1d8+2）点穿刺伤害"
       }
     ],
     "description": "中形类人生物（人类，变形生物），混乱邪恶",
@@ -31808,7 +31425,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加2（1d4）点寒冷伤害。"
+        "note": "外加2（1d4）点寒冷伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -31886,18 +31503,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须成功通过一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+4",
-        "damage": "1d6+2",
-        "damageType": "暗蚀",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "目标必须成功通过一次DC"
+        "note": "目标必须成功通过一次DCDrain"
       },
       {
         "name": "长剑",
@@ -31910,7 +31516,7 @@
         ],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "或用双手时7（1d10+2）点挥砍伤害。"
+        "note": "或用双手时7（1d10+2）点挥砍伤害"
       },
       {
         "name": "长弓",
@@ -32076,17 +31682,8 @@
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
-      },
-      {
-        "name": "",
-        "attackBonus": "+5",
-        "damage": "1d6+3",
-        "damageType": "钝击",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "Rock"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -32164,7 +31761,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是生物，则目标必须进行一次DC"
+        "note": "如果目标是生物，则目标必须进行一次DC14的力量豁免，豁免失败则应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -32226,12 +31823,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+4",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d4+2",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
-        "maxRange": 5
+        "maxRange": 5,
+        "note": "如果目标是生物，则目标必须进行一次DC 11的力量豁免，豁免失败则应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -32291,7 +31889,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "如果目标是生物，则目标必须进行一次DC"
+        "note": "如果目标是生物，则目标必须进行一次DC13的力量豁免，豁免失败则应击倒地"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -32375,18 +31973,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标必须成功通过一次DC"
-      },
-      {
-        "name": "",
-        "attackBonus": "+6",
-        "damage": "4d8+3",
-        "damageType": "暗蚀",
-        "range": "触及5尺",
-        "properties": [],
-        "normalRange": 5,
-        "maxRange": 5,
-        "note": "目标必须成功通过一次DC"
+        "note": "目标必须成功通过一次DCDrain"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -32466,7 +32053,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "目标必须进行一次DC"
+        "note": "目标必须进行一次DC15的体质豁免，豁免失败则受24（7d6）点毒素伤害，豁免成功则伤害减半"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -32636,7 +32223,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加3（1d6）点寒冷伤害。"
+        "note": "外加3（1d6）点寒冷伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -32740,7 +32327,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "（蜘蛛形态时为穿刺伤害），外加21（6d6）点毒素伤害。"
+        "note": "（蜘蛛形态时为穿刺伤害），外加21（6d6）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -32813,13 +32400,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+7",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d10+4",
+        "damageType": "穿刺",
         "range": "触及10尺",
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "15（2d10+4）穿刺伤害，外加4（1d8）强酸伤害"
+        "note": "外加4（1d8）强酸伤害"
       },
       {
         "name": "爪击",
@@ -32904,7 +32491,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加5（1d10）点闪电伤害。"
+        "note": "外加5（1d10）点闪电伤害"
       },
       {
         "name": "爪击",
@@ -33395,7 +32982,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加7（2d6）点毒素伤害。"
+        "note": "外加7（2d6）点毒素伤害"
       },
       {
         "name": "爪击",
@@ -33480,7 +33067,7 @@
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "外加3（1d6）点火焰伤害。"
+        "note": "外加3（1d6）点火焰伤害"
       },
       {
         "name": "爪击",
@@ -33548,7 +33135,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点火焰伤害。"
+        "note": "外加7（2d6）点火焰伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -33721,13 +33308,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+7",
-        "damage": "",
-        "damageType": "",
+        "damage": "2d10+4",
+        "damageType": "穿刺",
         "range": "触及10尺",
         "properties": [],
         "normalRange": 10,
         "maxRange": 10,
-        "note": "15（2d10+4）穿刺伤害，外加4（1d8）点寒冷伤害"
+        "note": "外加4（1d8）点寒冷伤害"
       },
       {
         "name": "爪击",
@@ -33811,13 +33398,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+7",
-        "damage": "",
-        "damageType": "",
+        "damage": "1d6+4",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "7（1d6+4）的穿刺伤害，外加10（3d6）点毒素伤害"
+        "note": "外加10（3d6）点毒素伤害"
       },
       {
         "name": "绞缠",
@@ -33848,7 +33435,7 @@
         "properties": [],
         "normalRange": 150,
         "maxRange": 600,
-        "note": "外加10（3d6）点毒素伤害。"
+        "note": "外加10（3d6）点毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
@@ -33934,13 +33521,13 @@
       {
         "name": "啃咬",
         "attackBonus": "+5",
-        "damage": "",
-        "damageType": "",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "5（1d4+3）的穿刺伤害，外加7（2d6）点毒素伤害"
+        "note": "外加7（2d6）点毒素伤害"
       },
       {
         "name": "弯刀",
@@ -33961,7 +33548,7 @@
         "properties": [],
         "normalRange": 150,
         "maxRange": 600,
-        "note": "外加7（2d6）点毒素伤害。"
+        "note": "外加7（2d6）点毒素伤害"
       },
       {
         "name": "啃咬",
@@ -33972,18 +33559,18 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "外加7（2d6）点毒素伤害。"
+        "note": "外加7（2d6）点毒素伤害"
       },
       {
         "name": "啃咬",
         "attackBonus": "+5",
-        "damage": "",
-        "damageType": "",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
         "range": "触及5尺",
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "5（1d4+3）的穿刺伤害，外加7（2d6）点毒素伤害"
+        "note": "外加7（2d6）点毒素伤害"
       },
       {
         "name": "绞缠",
@@ -33994,7 +33581,7 @@
         "properties": [],
         "normalRange": 5,
         "maxRange": 5,
-        "note": "目标被擒抱（逃脱DC13）。直至擒抱终止前，目标受束缚，且蛇人无法绞缠其他目标。"
+        "note": "目标被擒抱（逃脱DC13）"
       },
       {
         "name": "弯刀",
@@ -34104,7 +33691,7 @@
         "properties": [],
         "normalRange": 80,
         "maxRange": 320,
-        "note": "外加7（2d6）毒素伤害。"
+        "note": "外加7（2d6）毒素伤害"
       }
     ],
     "source": "怪物图鉴 2014",
