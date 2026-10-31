@@ -2060,8 +2060,8 @@
     "xp": 33000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "混乱邪恶",
     "ac": 22,
     "acNote": "天生护甲",
@@ -2191,6 +2191,7 @@
     "description": "超巨型龙类，混乱邪恶",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -2201,8 +2202,8 @@
     "xp": 50000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "守序邪恶",
     "ac": 22,
     "acNote": "天生护甲",
@@ -2329,6 +2330,7 @@
     "description": "超巨型龙类，守序邪恶",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -2339,8 +2341,8 @@
     "xp": 25000,
     "proficiencyBonus": 6,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "混乱善良",
     "ac": 20,
     "acNote": "天生护甲",
@@ -2492,6 +2494,7 @@
     "description": "超巨型龙类，混乱善良",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -2502,8 +2505,8 @@
     "xp": 41000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "守序善良",
     "ac": 22,
     "acNote": "天生护甲",
@@ -2655,6 +2658,7 @@
     "description": "超巨型龙类，守序善良",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -2665,8 +2669,8 @@
     "xp": 33000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "混乱善良",
     "ac": 21,
     "acNote": "天生护甲",
@@ -2814,6 +2818,7 @@
     "description": "超巨型龙类，混乱善良",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -2824,8 +2829,8 @@
     "xp": 62000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "守序善良",
     "ac": 22,
     "acNote": "天生护甲",
@@ -2981,6 +2986,7 @@
     "description": "超巨型龙类，守序善良",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -2991,8 +2997,8 @@
     "xp": 41000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "守序邪恶",
     "ac": 21,
     "acNote": "天生护甲",
@@ -3137,6 +3143,7 @@
     "description": "超巨型龙类，守序邪恶",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -3147,8 +3154,8 @@
     "xp": 62000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "混乱邪恶",
     "ac": 22,
     "acNote": "天生护甲",
@@ -3275,6 +3282,7 @@
     "description": "超巨型龙类，混乱邪恶",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -3285,8 +3293,8 @@
     "xp": 50000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "守序善良",
     "ac": 22,
     "acNote": "天生护甲",
@@ -3438,6 +3446,7 @@
     "description": "超巨型龙类，守序善良",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -3448,8 +3457,8 @@
     "xp": 25000,
     "proficiencyBonus": 6,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "混乱邪恶",
     "ac": 20,
     "acNote": "天生护甲",
@@ -3580,6 +3589,7 @@
     "description": "超巨型龙类，混乱邪恶",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -10454,8 +10464,8 @@
     "xp": 18000,
     "proficiencyBonus": 6,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型龙类",
+    "size": "超巨型",
+    "type": "龙类",
     "alignment": "绝对中立",
     "ac": 20,
     "acNote": "天生护甲",
@@ -10560,6 +10570,7 @@
     "description": "超巨型龙类，绝对中立",
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
+    "creatureSize": 5,
     "creatureType": "dragon"
   },
   {
@@ -21214,8 +21225,8 @@
     "xp": 50000,
     "proficiencyBonus": 7,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型怪兽（泰坦）",
+    "size": "超巨型",
+    "type": "怪兽（泰坦）",
     "alignment": "混乱邪恶",
     "ac": 18,
     "acNote": "天生护甲",
@@ -21322,6 +21333,7 @@
     "description": "超巨型怪兽（泰坦），混乱邪恶",
     "source": "怪物图鉴 2014",
     "sourceDir": "怪兽",
+    "creatureSize": 5,
     "creatureType": "monstrosity"
   },
   {
@@ -27524,8 +27536,8 @@
     "xp": 13000,
     "proficiencyBonus": 5,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型怪兽",
+    "size": "超巨型",
+    "type": "怪兽",
     "alignment": "无阵营",
     "ac": 18,
     "acNote": "天生护甲",
@@ -27597,6 +27609,7 @@
     "description": "超巨型怪兽，无阵营",
     "source": "怪物图鉴 2014",
     "sourceDir": "怪兽",
+    "creatureSize": 5,
     "creatureType": "monstrosity"
   },
   {
@@ -28721,8 +28734,8 @@
     "xp": 7200,
     "proficiencyBonus": 4,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型怪兽",
+    "size": "超巨型",
+    "type": "怪兽",
     "alignment": "无阵营",
     "ac": 15,
     "acNote": "天生护甲",
@@ -28800,6 +28813,7 @@
     "description": "超巨型怪兽，无阵营",
     "source": "怪物图鉴 2014",
     "sourceDir": "怪兽",
+    "creatureSize": 5,
     "creatureType": "monstrosity"
   },
   {
@@ -32423,8 +32437,8 @@
     "xp": 155000,
     "proficiencyBonus": 9,
     "pbDerived": true,
-    "size": "",
-    "type": "超巨型怪兽（泰坦）",
+    "size": "超巨型",
+    "type": "怪兽（泰坦）",
     "alignment": "无阵营",
     "ac": 25,
     "acNote": "天生护甲",
@@ -32568,6 +32582,7 @@
     "description": "超巨型怪兽（泰坦），无阵营",
     "source": "怪物图鉴 2014",
     "sourceDir": "怪兽",
+    "creatureSize": 5,
     "creatureType": "monstrosity"
   },
   {
@@ -34755,8 +34770,8 @@
     "xp": 1100,
     "proficiencyBonus": 2,
     "pbDerived": true,
-    "size": "",
-    "type": "中形类人生物（人类，变形生物）",
+    "size": "中形",
+    "type": "类人生物（人类，变形生物）",
     "alignment": "绝对中立",
     "ac": 12,
     "acNote": "12",
@@ -34865,6 +34880,7 @@
     "description": "中形类人生物（人类，变形生物），绝对中立",
     "source": "怪物图鉴 2014",
     "sourceDir": "类人生物",
+    "creatureSize": 2,
     "creatureType": "humanoid"
   },
   {
@@ -34875,8 +34891,8 @@
     "xp": 700,
     "proficiencyBonus": 2,
     "pbDerived": true,
-    "size": "",
-    "type": "中形类人生物（人类，变形生物）",
+    "size": "中形",
+    "type": "类人生物（人类，变形生物）",
     "alignment": "混乱邪恶",
     "ac": 12,
     "acNote": "类人形态下11，狼与半人形态下12（天生护甲）",
@@ -34965,6 +34981,7 @@
     "description": "中形类人生物（人类，变形生物），混乱邪恶",
     "source": "怪物图鉴 2014",
     "sourceDir": "类人生物",
+    "creatureSize": 2,
     "creatureType": "humanoid"
   },
   {

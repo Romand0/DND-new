@@ -7,9 +7,44 @@ import * as api from '@/lib/api';
 const REVERSE_SIZE_MAP: Record<string, CreatureSize> = Object.fromEntries(
   Object.entries(CREATURE_SIZE_LABELS).map(([k, v]) => [v, Number(k) as CreatureSize])
 );
-const REVERSE_TYPE_MAP: Record<string, CreatureType> = Object.fromEntries(
-  Object.entries(CREATURE_TYPE_LABELS) as [string, string][]
-) as Record<string, CreatureType>;
+// 图鉴原文种类主词 → 枚举（原文常带括号注记/旧译变体，精确匹配会大量 miss）
+const TYPE_ALIAS_MAP: Record<string, CreatureType> = {
+  ...Object.fromEntries(Object.entries(CREATURE_TYPE_LABELS) as [string, CreatureType][]),
+  类人: 'humanoid',
+  构装: 'construct',
+  亡灵: 'undead',
+  不死: 'undead',
+  妖精: 'fey',
+  天族: 'celestial',
+};
+const TYPE_PREFIX_RE = /^(超巨型|超大型|微型|小型|中型|中形|大型|巨型)/;
+
+/** 图鉴种类原文 → 枚举（剥体型前缀 / 集群后缀 / 括号注记后按别名归一） */
+function resolveCreatureType(raw: unknown): CreatureType | undefined {
+  if (typeof raw !== 'string' || raw.length === 0) return undefined;
+  const candidates = [raw];
+  const stripped = raw.replace(TYPE_PREFIX_RE, '').trim();
+  if (stripped) candidates.push(stripped);
+  const deSwarm = stripped.replace(/的.*?集群$/, '').trim();
+  if (deSwarm) candidates.push(deSwarm);
+  for (const c of candidates) {
+    const head = c.split(/[（(/]/)[0].trim();
+    for (const key of [c, head]) {
+      const hit = TYPE_ALIAS_MAP[key];
+      if (hit) return hit;
+    }
+  }
+  return undefined;
+}
+
+/** 图鉴体型原文 → 枚举（「中形」「超大型」等旧译一并归一） */
+function resolveCreatureSize(raw: unknown): CreatureSize | undefined {
+  if (typeof raw === 'number') return raw as CreatureSize;
+  if (typeof raw !== 'string') return undefined;
+  if (raw in REVERSE_SIZE_MAP) return REVERSE_SIZE_MAP[raw];
+  const legacy: Record<string, CreatureSize> = { 中形: 2, 超大型: 5 };
+  return legacy[raw];
+}
 
 const STORAGE_KEY = 'dnd-npc-templates';
 type Listener = () => void;
@@ -57,8 +92,8 @@ function normalizeTemplate(t: any): NpcTemplate {
       maxRange: a.maxRange,
       twoHandedDamage: a.twoHandedDamage,
     })),
-    creatureSize: (t.creatureSize as CreatureSize | undefined) ?? REVERSE_SIZE_MAP[t.size],
-    creatureType: (t.creatureType as CreatureType | undefined) ?? REVERSE_TYPE_MAP[t.type],
+    creatureSize: (t.creatureSize as CreatureSize | undefined) ?? resolveCreatureSize(t.size),
+    creatureType: (t.creatureType as CreatureType | undefined) ?? resolveCreatureType(t.type),
     createdAt: t.createdAt ?? Date.now(),
     updatedAt: t.updatedAt ?? Date.now(),
     cr: t.cr,

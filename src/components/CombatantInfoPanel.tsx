@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from 'lucide-react';
 
 import { characterStore } from '@/data/characterStore';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
+import npcTemplateStore from '@/data/npcTemplateStore';
 import combatStore from '@/data/combatStore';
 import type { Combatant, NpcAttack, EquipmentChanges, CreatureSize, CreatureType, CombatRecord } from '@/types/combat';
 import { ACTION_LABELS, ALL_ACTIONS, CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
@@ -50,6 +51,18 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   const [invFilter, setInvFilter] = useState<string>('全部');
 
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+
+  // 旧参战者（体型/种类/AC 固化前创建）缺失字段时从图鉴模板反查兜底
+  const fallbackTemplate = useMemo(
+    () => (combatant.templateId ? npcTemplateStore.getAll().find(t => t.templateId === combatant.templateId) ?? null : null),
+    [combatant.templateId],
+  );
+  const displaySize = combatant.creatureSize ?? fallbackTemplate?.creatureSize;
+  const displayType = combatant.creatureType ?? fallbackTemplate?.creatureType;
+  // PC 走装备算法；NPC/无角色卡用参战者自带 AC，缺失时回落模板值
+  const displayAc = combatant.isPc && character
+    ? computeCombatantAc(combatant, character, combatInventory)
+    : combatant.ac ?? fallbackTemplate?.ac ?? 0;
 
   // 失能切换所需：反查该参战者所属战斗记录（本组件无 record prop，通过 combatStore 获取）
   const record = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id)) ?? null;
@@ -492,7 +505,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
               <div className="flex justify-between text-xs">
                 <span className="dark:text-text-dark-muted light:text-text-light-muted">AC</span>
                 <span className="font-medium dark:text-text-dark light:text-text-light">
-                  {computeCombatantAc(combatant, character, combatInventory) ?? '—'}
+                  {displayAc}
                 </span>
               </div>
 
@@ -500,14 +513,14 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
               <div className="flex justify-between text-xs">
                 <span className="dark:text-text-dark-muted light:text-text-light-muted">体型</span>
                 <span className="font-medium dark:text-text-dark light:text-text-light">
-                  {CREATURE_SIZE_LABELS[combatant.creatureSize ?? 0] || '—'}
+                  {displaySize !== undefined ? CREATURE_SIZE_LABELS[displaySize] : '—'}
                 </span>
               </div>
 
               <div className="flex justify-between text-xs">
                 <span className="dark:text-text-dark-muted light:text-text-light-muted">种类</span>
                 <span className="font-medium dark:text-text-dark light:text-text-light">
-                  {CREATURE_TYPE_LABELS[combatant.creatureType] || '—'}
+                  {displayType ? CREATURE_TYPE_LABELS[displayType] : '—'}
                 </span>
               </div>
 
