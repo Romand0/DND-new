@@ -41,4 +41,6 @@ export interface Spell {
   bindingsCount?: number;  // 绑定的流程数量
   /** 伤害类型（可选；缺省时施法弹窗会尝试从描述推断，DM 可手动改） */
   damageType?: string;
+  /** 法术描述内嵌表格（Wikidot 语法：`|| 表头 ||` + `| 行 |`，导入器自动提取 / 手动维护） */
+  table?: string;
 }
