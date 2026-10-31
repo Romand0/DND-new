@@ -3,8 +3,8 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, MoreHorizontal, Package, Pencil, PenTool } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import battlegroundStore from '@/data/battlegroundStore';
-import { GRID_PRESETS } from '@/types/battleground';
-import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone } from '@/types/battleground';
+import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
+import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone, ZoneType } from '@/types/battleground';
 import type { Combatant, CombatRecord, EquipmentChanges } from '@/types/combat';
 import type { Equipment } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
@@ -202,6 +202,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   }, [bg?.paintedCells]);
 
   // 地形区域索引："col,row" -> 区域列表（支持同一格多个区域叠加）
+  // 全量版供擦除/伤害结算等数据操作使用；显示版按激活图层过滤
   const zoneCellMap = useMemo(() => {
     const m = new Map<string, BattlegroundZone[]>();
     (bg?.zones ?? []).forEach((z) => {
@@ -212,6 +213,30 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       });
     });
     return m;
+  }, [bg?.zones]);
+
+  // 图层切换：null = 隐藏全部地形涂色（边界墙 paintedCells 常显，不受图层影响）
+  const [activeLayer, setActiveLayer] = useState<ZoneType | null>(null);
+  const displayedZoneCellMap = useMemo(() => {
+    if (activeLayer === null) return new Map<string, BattlegroundZone[]>();
+    const m = new Map<string, BattlegroundZone[]>();
+    (bg?.zones ?? []).forEach((z) => {
+      if (z.type !== activeLayer) return;
+      z.cells.forEach((key) => {
+        const arr = m.get(key) || [];
+        arr.push(z);
+        m.set(key, arr);
+      });
+    });
+    return m;
+  }, [bg?.zones, activeLayer]);
+  // 出现过的区域类型（图层按钮只列实际存在的类型）
+  const presentZoneTypes = useMemo(() => {
+    const set: ZoneType[] = [];
+    (bg?.zones ?? []).forEach((z) => {
+      if (!set.includes(z.type)) set.push(z.type);
+    });
+    return set;
   }, [bg?.zones]);
 
   // 放映模式下：边界格（涂白格）不可放置棋子
@@ -1037,6 +1062,35 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">
               区域
             </span>
+            {/* 图层切换：同一时间只显示一种类型的区域涂色（边界墙常显）；清单始终全显供管理 */}
+            {presentZoneTypes.length > 1 && (
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => setActiveLayer(null)}
+                  className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                    activeLayer === null
+                      ? 'bg-primary text-white border-primary'
+                      : 'dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10'
+                  }`}
+                  title="隐藏所有地形涂色（保留边界墙）"
+                >
+                  隐藏
+                </button>
+                {presentZoneTypes.map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setActiveLayer(activeLayer === type ? null : type)}
+                    className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                      activeLayer === type
+                        ? 'bg-primary text-white border-primary'
+                        : 'dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-primary/10'
+                    }`}
+                  >
+                    {ZONE_PRESETS[type].label}
+                  </button>
+                ))}
+              </div>
+            )}
             {(bg?.zones ?? []).map((z) => (
               <span
                 key={z.id}
@@ -1116,7 +1170,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             const isLocked = lockedTargetId === combatantId;
             // 放映模式下当前回合角色
             const isActiveTurn = activeTurnCombatantId === combatantId;
-            const zonesHere = zoneCellMap.get(key) || [];
+            const zonesHere = displayedZoneCellMap.get(key) || [];
             return (
               <div
                 key={i}

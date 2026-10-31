@@ -1057,6 +1057,7 @@ export default function CombatSession() {
           record={record}
           combatants={record.combatants}
           onOpenManualRecord={() => setManualPickerOpen(true)}
+          onOpenInfoPanel={setInfoPanelCombatant}
         />
       ) : (
         <InitiativeTable
