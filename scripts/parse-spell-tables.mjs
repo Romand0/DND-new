@@ -75,11 +75,16 @@ for (const file of files) {
 }
 
 // 生成增量 SQL：table 写入 + description 删压平串（嵌套 REPLACE 清理残留双空格）
+// table 是多行 Wikidot 文本——D1 Console 检测不了含真实换行的字符串字面量，用 CHAR(10) 拼接单行化
+function sqlTableLiteral(table) {
+  return table.split('\n').map((l) => `'${sqlEscape(l)}'`).join(' || CHAR(10) || ');
+}
+
 let sql = '-- 法术描述表格自动提取（node scripts/parse-spell-tables.mjs 生成）\n';
 sql += '-- json_set 写入 $.table；description 用 REPLACE 删除表格压平残留文本\n\n';
 for (const r of results) {
   sql += `-- ${r.name}（${r.file}）\n`;
-  sql += `UPDATE spells SET data = json_set(data, '$.table', '${sqlEscape(r.table)}', '$.description',\n`;
+  sql += `UPDATE spells SET data = json_set(data, '$.table', ${sqlTableLiteral(r.table)}, '$.description',\n`;
   sql += `  REPLACE(REPLACE(json_extract(data, '$.description'), '${sqlEscape(r.flat)}', ' '), '  ', ' '))\n`;
   sql += `WHERE json_extract(data, '$.id') = '${r.id}';\n\n`;
 }
