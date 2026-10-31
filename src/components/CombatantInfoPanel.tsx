@@ -1010,6 +1010,23 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   </div>
                 </div>
               </div>
+              {/* 模板特质提醒：多重攻击构成 / 再生（每回合开始恢复，失效条件由 DM 判断） */}
+              {(combatant.multiattack || combatant.regenAmount) && (
+                <div className="space-y-1.5">
+                  {combatant.multiattack && (
+                    <div className="rounded-lg bg-amber-500/10 p-2 text-xs text-amber-400">
+                      多重攻击：
+                      {combatant.multiattack.map(m => `${m.name}×${m.count}`).join(' + ')}
+                    </div>
+                  )}
+                  {combatant.regenAmount && (
+                    <div className="rounded-lg bg-green-500/10 p-2 text-xs text-green-400">
+                      再生：每回合开始恢复 {combatant.regenAmount} 点生命值
+                      {combatant.regenNegate ? `（受到${combatant.regenNegate}则下回合失效）` : ''}
+                    </div>
+                  )}
+                </div>
+              )}
               {/* 动作类型列表（攻击/施法已实现，其余为预留接口占位） */}
               <div>
                 <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">

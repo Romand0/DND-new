@@ -128,6 +128,12 @@ export interface Combatant {
   legendaryResistanceLeft?: number;
   /** 传奇抗性总次数（战斗开始时定死，用于 UI 显示「剩 N/总 M」） */
   legendaryResistanceTotal?: number;
+  /** 多重攻击结构（从模板带入，动作面板显示构成提醒） */
+  multiattack?: { count: number; name: string }[];
+  /** 再生恢复量（每回合开始，从模板再生特质带入） */
+  regenAmount?: number;
+  /** 再生失效条件（如「火焰伤害」；受该类伤害时再生下回合失效，由 DM 判断） */
+  regenNegate?: string;
   /** NPC 攻击方式（从模板带入） */
   attacks?: NpcAttack[];
   /** 当前可用动作数（放映模式每回合恢复，模拟模式无限） */
@@ -231,6 +237,12 @@ export interface NpcTemplate {
   speedNotes?: string;
   /** 结构化特性条目（数据卡「特性」区，如 好斗/灵活） */
   traits?: { name: string; text: string }[];
+  /** 多重攻击结构（解析自同名特质；解析失败无此字段，原文保留在 traits） */
+  multiattack?: { count: number; name: string }[];
+  /** 吐息武器（解析自特质：充能/形状/DC/豁免属性/伤害；引言与纯效果型无伤害属合理） */
+  breathWeapon?: { name: string; recharge?: string; shape?: string; dc?: number; ability?: string; damage?: string; damageDice?: string; damageType?: string; halfOnSave?: boolean }[];
+  /** 再生（每回合开始恢复量） */
+  regeneration?: { amount: number; negate?: string };
   /** 解析来源目录（去重消歧用） */
   sourceDir?: string;
 }

@@ -152,6 +152,66 @@ function slugify(nameEn, name, dir) {
   return name.replace(/\s+/g, '-');
 }
 
+// ===== 特质结构化解析（多重攻击 / 吐息武器 / 再生）：解析失败返回 undefined，原文保留在 traits =====
+
+const ZH_NUM = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 };
+
+// 多重攻击：「再发动三次攻击，一次啃咬和两次爪击」/「发动三次触须攻击」
+// 按 [，。、；和及] 分段后逐段抽「(数词)次(武器名)」；总述段「三次攻击」无信息量，跳过
+function parseMultiattack(traits) {
+  const t = (traits ?? []).find((x) => /^多重攻击/.test(x.name ?? ''));
+  if (!t) return undefined;
+  const items = [];
+  for (const seg of (t.text ?? '').split(/[，。、；和及]/)) {
+    const m = seg.trim().match(/([一二两三四五六七八九十\d])次(?:发动|使用|进行|的)?([\u4e00-\u9fa5]{2,8})$/);
+    if (!m) continue;
+    const name = m[2];
+    if (name === '攻击') continue;
+    const n = ZH_NUM[m[1]] ?? parseInt(m[1], 10);
+    if (n > 0) items.push({ count: n, name });
+  }
+  return items.length > 0 ? items : undefined;
+}
+
+// 吐息武器：抽充能/形状/DC/豁免属性/伤害/成功减半。
+// 引言条目（「可以使用下列吐息武器之一：」）与过短文本跳过；纯效果型（斥力/迟缓/催眠）无伤害属合理
+function parseBreathWeapon(traits) {
+  const list = (traits ?? []).filter((x) => /吐息|喷吐/.test(x.name ?? ''));
+  if (!list.length) return undefined;
+  const out = [];
+  for (const t of list) {
+    const text = t.text ?? '';
+    if (text.includes('下列吐息武器之一') || text.length < 40) continue;
+    const recharge = text.match(/充能([\d~]+)/)?.[1];
+    const shape = text.match(/覆盖(?:一处|)?[\d一-九十百]+尺[^，。]*?(锥状|线状|柱状|立方)/)?.[0];
+    const dc = text.match(/DC\s*(\d{1,2})/);
+    if (!dc) continue;
+    // 「受45（10d8）点寒冷伤害」——CHM 原文常缺「到」字
+    const dmg = text.match(/受(?:到)?(\d+)\s*（([^）]+)）点([\u4e00-\u9fa5]{2,4})伤害/);
+    out.push({
+      name: (t.name.match(/^[一-龥]+/) || [t.name])[0],
+      recharge: recharge ? `充能${recharge}` : undefined,
+      shape: shape || undefined,
+      dc: parseInt(dc[1], 10),
+      ability: text.match(/DC\s*\d{1,2}的?(力量|敏捷|体质|智力|感知|魅力)/)?.[1],
+      damage: dmg?.[1],
+      damageDice: dmg?.[2],
+      damageType: dmg?.[3],
+      halfOnSave: /减半/.test(text),
+    });
+  }
+  return out.length > 0 ? out : undefined;
+}
+
+// 再生：「回合开始时恢复10点生命值」+ 可选失效条件（「若它受到火焰或强酸伤害」）
+function parseRegeneration(traits) {
+  const t = (traits ?? []).find((x) => /^再生/.test(x.name ?? ''));
+  if (!t) return undefined;
+  const amount = parseInt((t.text ?? '').match(/恢复(\d+)点生命值/)?.[1] ?? '', 10);
+  if (!Number.isFinite(amount)) return undefined;
+  return { amount, negate: t.text.match(/若它受到([\u4e00-\u9fa5]{2,12}伤害)/)?.[1] };
+}
+
 function parseTypeLine(line) {
   // 「中型类人（兽人），混乱邪恶」/「大型野兽，中立」/「巨型构造体，通常中立（绝对守序）」
   const sizeMatch = line.match(/^([微小中大超巨]型)/);
@@ -537,6 +597,9 @@ function parseFile(filePath, dir) {
       languages: sl.languages,
       ...resist,
       traits,
+      multiattack: parseMultiattack(traits),
+      breathWeapon: parseBreathWeapon(traits),
+      regeneration: parseRegeneration(traits),
       attacks: attacks.map((a) => ({
         name: a.name, attackBonus: a.attackBonus, damage: a.damage, damageType: a.damageType,
         range: a.range, properties: a.properties, normalRange: a.normalRange, maxRange: a.maxRange,

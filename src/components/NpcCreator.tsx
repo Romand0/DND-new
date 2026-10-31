@@ -45,6 +45,11 @@ interface NpcEditState {
   magicResistance: boolean;
   /** 传奇抗性总次数（模板特质「传奇抗性」按 CR÷3 上取整，自定义 NPC 默认 0） */
   legendaryResistanceTotal: number;
+  /** 多重攻击结构（从模板解析带入，动作面板提醒用） */
+  multiattack?: { count: number; name: string }[];
+  /** 再生恢复量与失效条件（从模板解析带入） */
+  regenAmount?: number;
+  regenNegate?: string;
   damageResistances: string[];
   damageImmunities: string[];
   damageVulnerabilities: string[];
@@ -75,10 +80,22 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
     hp: template.maxHp,
     speed: template.speed,
     ac: template.ac,
-    // 模板特质「魔法武器」→ 全部武器攻击视为魔法（伤害结算 inferWeaponDamageSource 命中 attack.magical）
-    attacks: hasMagicalWeapon
-      ? template.attacks.map(a => ({ ...a, magical: true }))
-      : [...template.attacks],
+    // 吐息武器结构化 → 追加为攻击条目（数值入列供攻击弹窗展示；豁免流程由 DM 按 note 手动结算）
+    attacks: [
+      ...(template.breathWeapon ?? []).map(b => ({
+        name: b.name,
+        attackBonus: '0',
+        damage: b.damageDice ?? b.damage ?? '',
+        damageType: b.damageType ?? '',
+        range: b.shape ?? '',
+        properties: [] as string[],
+        note: [b.recharge, b.shape, b.dc ? `DC${b.dc}${b.ability ?? ''}豁免` : '', b.halfOnSave ? '豁免成功则伤害减半' : '']
+          .filter(Boolean).join('，'),
+      })),
+      ...(hasMagicalWeapon
+        ? template.attacks.map(a => ({ ...a, magical: true }))
+        : [...template.attacks]),
+    ],
     d20,
     initiative: d20 + dexMod,
     templateId: template.templateId,
@@ -89,6 +106,9 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
     proficiencyBonus: template.proficiencyBonus ?? 2,
     magicResistance: hasMagicResistance,
     legendaryResistanceTotal: legendaryTotal,
+    multiattack: template.multiattack,
+    regenAmount: template.regeneration?.amount,
+    regenNegate: template.regeneration?.negate,
     damageResistances: [...(template.damageResistances ?? [])],
     damageImmunities: [...(template.damageImmunities ?? [])],
     damageVulnerabilities: [...(template.damageVulnerabilities ?? [])],
@@ -125,6 +145,9 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     magicResistance: state.magicResistance,
     legendaryResistanceLeft: state.legendaryResistanceTotal,
     legendaryResistanceTotal: state.legendaryResistanceTotal,
+    multiattack: state.multiattack,
+    regenAmount: state.regenAmount,
+    regenNegate: state.regenNegate,
     damageAffinities: buildCombatantAffinities(state),
   };
 }
@@ -748,6 +771,33 @@ function NpcEditor(props: NpcEditorProps) {
             type="number"
             value={state.speed}
             onChange={(e) => setState(prev => prev ? { ...prev, speed: parseInt(e.target.value) || 0 } : null)}
+            className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+
+      {/* 特质开关：从模板识别自动带入，自定义/手动创建的 NPC 可在此补录 */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">魔法抗性</label>
+          <label className="flex items-center gap-2 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light cursor-pointer">
+            <input
+              type="checkbox"
+              checked={state.magicResistance}
+              onChange={(e) => setState(prev => prev ? { ...prev, magicResistance: e.target.checked } : null)}
+              className="w-4 h-4 accent-amber-500"
+            />
+            <span className="text-xs dark:text-text-dark light:text-text-light">法术豁免优势</span>
+          </label>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">传奇抗性次数</label>
+          <input
+            type="number"
+            min={0}
+            value={state.legendaryResistanceTotal}
+            onChange={(e) => setState(prev => prev ? { ...prev, legendaryResistanceTotal: Math.max(0, parseInt(e.target.value) || 0) } : null)}
+            placeholder="0 = 无"
             className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
           />
         </div>
