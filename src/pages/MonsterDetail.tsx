@@ -191,7 +191,29 @@ export default function MonsterDetail() {
           <div className="space-y-3">
             <div>
               <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">特性</div>
-              <div className="text-sm dark:text-text-dark light:text-text-light whitespace-pre-wrap">{template.features || '无'}</div>
+              {(template.traits?.length ?? 0) > 0 ? (
+                <div className="space-y-2">
+                  {template.traits!.map((t, i) => (
+                    <div key={i} className="text-sm dark:text-text-dark light:text-text-light">
+                      {/* 图鉴提取的条目名是中英粘连（如「俯冲攻击DiveAttack」），拆为「中文名（英文名）」展示 */}
+                      {(() => {
+                        const m = t.name.match(/^([\u4e00-\u9fff（）·]+)\s*(.*)$/);
+                        const zh = m ? m[1] : t.name;
+                        const en = m && m[2] ? m[2].replace(/\s+/g, ' ').trim() : '';
+                        return (
+                          <>
+                            <span className="font-medium">{zh}</span>
+                            {en && <span className="text-xs text-gray-500 ml-1">（{en}）</span>}
+                            <span className="ml-2">{t.text}</span>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm dark:text-text-dark light:text-text-light whitespace-pre-wrap">{template.features || '无'}</div>
+              )}
             </div>
             <div>
               <div className="text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">感官</div>
