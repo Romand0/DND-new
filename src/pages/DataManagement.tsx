@@ -83,6 +83,13 @@ const [spellBulkEditResult, setSpellBulkEditResult] = useState<{
   typeErrors: string[];
   unknownFields: string[];
 } | null>(null);
+// 预览抓取错误提示（此前静默失败：Functions 内 cheerio 超出 Workers 10ms CPU 限额，仅最小的戏法文件能过线）
+const [spellError, setSpellError] = useState<string | null>(null);
+// 从 JSON 直接导入（绕开预览抓取）：本地脚本 scripts/export-spells-import.mjs 预生成每环 JSON
+const [showDirectImport, setShowDirectImport] = useState(false);
+const [directImportJson, setDirectImportJson] = useState('');
+const [directImporting, setDirectImporting] = useState(false);
+const [directImportResult, setDirectImportResult] = useState<{ success: number; fail: number; error?: string } | null>(null);
 
   // ---- 法术表格编辑状态 ----
 const [spellTableIdentifier, setSpellTableIdentifier] = useState('');
@@ -281,17 +288,58 @@ const [spellTableSaveResult, setSpellTableSaveResult] = useState<{ success: bool
 const fetchSpellPreview = async () => {
   setSpellLoading(true);
   setSpellResult(null);
+  setSpellError(null);
   setSpellBulkEditResult(null);
   try {
     const res = await fetch(`/api/import/spells?ring=${spellRing}`);
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      setSpellError(`预览失败（HTTP ${res.status}）${text.slice(0, 120)}`);
+      setSpellLoading(false);
+      return;
+    }
     const data = await res.json();
     const items = data.data || [];
     setSpellPreview(items);
     setSpellSelected(new Set(items.map((i: any) => i.id)));
   } catch (err) {
     console.error('获取法术预览失败', err);
+    setSpellError(`预览失败：${String(err)}`);
   }
   setSpellLoading(false);
+};
+
+// 从 JSON 直接导入：不依赖预览抓取，粘贴 scripts/export-spells-import.mjs 产出的环级 JSON
+const confirmDirectImport = async () => {
+  setDirectImportResult(null);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(directImportJson);
+  } catch (e) {
+    setDirectImportResult({ success: 0, fail: 0, error: `JSON 解析失败: ${String(e)}` });
+    return;
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    setDirectImportResult({ success: 0, fail: 0, error: '顶层必须是 JSON 数组且非空' });
+    return;
+  }
+  setDirectImporting(true);
+  try {
+    const res = await fetch('/api/import/spells', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: parsed }),
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      setDirectImportResult({ success: 0, fail: parsed.length, error: result.error ?? `HTTP ${res.status}` });
+    } else {
+      setDirectImportResult({ success: result.success ?? 0, fail: result.fail ?? 0 });
+    }
+  } catch (err) {
+    setDirectImportResult({ success: 0, fail: parsed.length, error: String(err) });
+  }
+  setDirectImporting(false);
 };
 
 const toggleSpell = (id: string) => {
@@ -706,6 +754,58 @@ const handleMonsterImport = () => {
     >
       {spellLoading ? '加载中...' : '获取预览'}
     </button>
+  </div>
+
+  {spellError && (
+    <div className="mb-3 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-xs text-danger">
+      <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+      <span>{spellError}</span>
+    </div>
+  )}
+
+  {/* 从 JSON 直接导入：预览抓取受 Workers CPU 限额影响时，用本地脚本预生成的 JSON 绕开 */}
+  <div className="mb-4 rounded-lg border dark:border-border-dark light:border-border-light">
+    <button
+      onClick={() => setShowDirectImport(!showDirectImport)}
+      className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-left hover:opacity-80"
+    >
+      {showDirectImport ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+      从 JSON 直接导入（预览失败时用此入口）
+    </button>
+    {showDirectImport && (
+      <div className="p-3 border-t dark:border-border-dark/50 light:border-border-light/50 space-y-2">
+        <p className="text-xs opacity-60">
+          粘贴 <code>scripts/export-spells-import.mjs</code> 产出的环级 JSON（如 spells-import/五环.json），整环覆盖导入（同名 id UPSERT）。
+        </p>
+        <textarea
+          value={directImportJson}
+          onChange={(e) => setDirectImportJson(e.target.value)}
+          placeholder='[{"id":"bless", "name":"祝福术", ...}]'
+          className="w-full h-32 px-3 py-2 rounded-lg border bg-transparent outline-none font-mono text-xs dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+        />
+        <button
+          onClick={confirmDirectImport}
+          disabled={directImporting || directImportJson.trim().length === 0}
+          className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:opacity-90 disabled:opacity-50"
+        >
+          {directImporting ? '导入中...' : '导入'}
+        </button>
+        {directImportResult && (
+          <div className="text-xs space-y-1">
+            {directImportResult.error ? (
+              <div className="text-red-500">{directImportResult.error}</div>
+            ) : (
+              <>
+                <div className="text-green-500">导入成功: {directImportResult.success} 条</div>
+                {directImportResult.fail > 0 && (
+                  <div className="text-yellow-500">失败: {directImportResult.fail} 条</div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
+    )}
   </div>
 
   {/* 批量编辑面板 */}
