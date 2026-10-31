@@ -11,6 +11,8 @@ interface Props {
   record: CombatRecord;
   combatants: Combatant[];
   onOpenManualRecord: () => void;
+  /** 点击参战者快捷条回调（CombatSession 复用 infoPanelCombatant 面板挂载） */
+  onOpenInfoPanel?: (combatant: Combatant) => void;
 }
 
 const KIND_META: Record<OperationLogEntry['kind'], { icon: typeof Swords; cls: string; label: string }> = {
@@ -31,7 +33,7 @@ const fmtTime = (ts: number) => {
 };
 
 export default function OperationLogPanel(props: Props) {
-  const { record, combatants, onOpenManualRecord } = props;
+  const { record, combatants, onOpenManualRecord, onOpenInfoPanel } = props;
   // 订阅 store：日志写入后实时刷新（record prop 快照可能滞后一次渲染）
   const [log, setLog] = useState<OperationLogEntry[]>(record.operationLog ?? []);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -103,6 +105,28 @@ export default function OperationLogPanel(props: Props) {
           )}
         </div>
       </div>
+
+      {/* 参战者快捷条：模拟模式下无先攻表格（放映模式入口），点击直接打开 CombatantInfoPanel */}
+      {onOpenInfoPanel && combatants.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap px-3 py-2 border-b dark:border-border-dark light:border-border-light">
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">参战者</span>
+          {combatants.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onOpenInfoPanel(c)}
+              className={`px-2 py-0.5 text-xs rounded-full border transition-colors hover:bg-primary/10 ${
+                c.isPc
+                  ? 'border-info/40 bg-info/10 text-info'
+                  : 'border-danger/40 bg-danger/10 text-danger'
+              } ${c.isDead || c.isUnconscious ? 'opacity-50 line-through' : ''}`}
+              title="查看参战者信息"
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* 日志列表（倒序） */}
       <div className="max-h-[420px] overflow-y-auto">
