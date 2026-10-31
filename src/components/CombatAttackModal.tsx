@@ -102,12 +102,17 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   // 检定奖惩：玩家启用的可选条目（sourceKey 集合）+ 各条目已掷骰值
   const [enabledModifierKeys, setEnabledModifierKeys] = useState<Set<string>>(new Set());
   const [modifierRolledValues, setModifierRolledValues] = useState<Record<string, string[]>>({});
+  // 手部装备区改动后强刷（character memo 只依赖 characterId，store 写入新引用不会自动重算）
+  const [handRefreshKey, setHandRefreshKey] = useState(0);
+  // 「装备」选择器：正在为哪只手挑选物品（null = 关闭）
+  const [pickingHand, setPickingHand] = useState<'left' | 'right' | null>(null);
 
   // 获取 PC 的角色卡数据（NPC 无 character）
   const character = useMemo(() => {
     if (attacker.characterId) return characterStore.get(attacker.characterId);
     return null;
-  }, [attacker.characterId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attacker.characterId, handRefreshKey]);
 
   // PC 手持装备：仅从战斗背包查找（战斗场景下），物品被消耗后自然为 null
   const heldLeftId = character?.heldLeft?.equipmentId;
@@ -125,6 +130,37 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   // 可用性：物品不存在于战斗背包时视为不可用
   const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left', combatInventory) : false;
   const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right', combatInventory) : false;
+
+  // 手部装备操作：攻击流程内直接换手/卸下/装备（与 CombatantInfoPanel 手部区同源 API）
+  const handleHandUnhold = (hand: 'left' | 'right') => {
+    if (!character) return;
+    characterStore.unholdItem(character.id, hand);
+    setHandRefreshKey(k => k + 1);
+  };
+  const handleHandSwap = () => {
+    if (!character) return;
+    characterStore.update(character.id, {
+      heldLeft: { ...character.heldRight },
+      heldRight: { ...character.heldLeft },
+    });
+    setHandRefreshKey(k => k + 1);
+  };
+  const handleHandEquip = (item: Equipment, hand: 'left' | 'right') => {
+    if (!character) return;
+    // 悬空引用清理：目标手引用的物品已不在战斗背包时先清空，避免 holdItem 报「手不可用」
+    const rawSlot = hand === 'left' ? character.heldLeft : character.heldRight;
+    const rawId = rawSlot?.equipmentId ?? null;
+    const stillExists = rawId
+      ? (combatInventory
+        ? combatInventory.some(e => (e.childId || e.id) === rawId)
+        : character.equipment.some(e => (e.childId || e.id) === rawId))
+      : false;
+    if (rawId && !stillExists) characterStore.unholdItem(character.id, hand);
+    const result = characterStore.holdItem(character.id, (item.childId || item.id)!, hand, combatInventory);
+    if (!result.success) { alert(result.message); return; }
+    setPickingHand(null);
+    setHandRefreshKey(k => k + 1);
+  };
 
   // 攻击列表：角色卡有条目用角色卡，否则回落参战者自带攻击（试验场影子卡 attacks 为空数组，武器条目在参战者上）
   const attacks: (Attack | NpcAttack)[] =
@@ -690,6 +726,92 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
           {/* 阶段1：攻击方式列表 */}
           {stage === 'attacks' && (
             <div className="space-y-2">
+              {/* 手部装备区：攻击流程内直接调整手持（仅 PC；换手后攻击可用性实时重算） */}
+              {character && (
+                <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">手部装备</span>
+                    {(heldLeftItem || heldRightItem) && (
+                      <button
+                        onClick={handleHandSwap}
+                        className="text-xs px-2 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-primary/10 transition-colors"
+                      >
+                        左右互换
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(['left', 'right'] as const).map(hand => {
+                      const item = hand === 'left' ? heldLeftItem : heldRightItem;
+                      const usable = hand === 'left' ? leftUsable : rightUsable;
+                      return (
+                        <div key={hand} className={`rounded-lg border p-2 ${item && !usable ? 'border-amber-500/40' : 'dark:border-border-dark light:border-border-light'}`}>
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted shrink-0">
+                              {hand === 'left' ? '左手' : '右手'}
+                            </span>
+                            {item && (
+                              <span className={`text-[10px] shrink-0 ${usable ? 'text-green-500' : 'text-amber-500'}`}>
+                                {usable ? '可用' : '不可用'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs font-medium dark:text-text-dark light:text-text-light truncate mt-0.5" title={item?.name}>
+                            {item ? item.name : '空手'}
+                          </div>
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <button
+                              onClick={() => setPickingHand(pickingHand === hand ? null : hand)}
+                              className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                                pickingHand === hand
+                                  ? 'bg-primary text-white'
+                                  : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-primary/10'
+                              }`}
+                            >
+                              {pickingHand === hand ? '收起' : '装备'}
+                            </button>
+                            {item && (
+                              <button
+                                onClick={() => handleHandUnhold(hand)}
+                                className="text-[10px] px-1.5 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-red-500/10 transition-colors"
+                              >
+                                卸下
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* 物品选择列表：战斗背包（已穿戴的盔甲/服装由 holdItem 拦截并提示） */}
+                  {pickingHand && (() => {
+                    const list = combatInventory ?? character.equipment;
+                    const heldIds = [heldLeftId, heldRightId].filter(Boolean);
+                    const candidates = list.filter(e => (e.childId || e.id) && !heldIds.includes((e.childId || e.id)!));
+                    return (
+                      <div className="mt-2 rounded-lg border dark:border-border-dark light:border-border-light max-h-40 overflow-y-auto">
+                        {candidates.length === 0 && (
+                          <div className="text-xs text-center py-2 dark:text-text-dark-muted light:text-text-light-muted">
+                            {pickingHand === 'left' ? '左手' : '右手'}装备：无可选物品
+                          </div>
+                        )}
+                        {candidates.map(e => (
+                          <button
+                            key={(e.childId || e.id)!}
+                            onClick={() => handleHandEquip(e, pickingHand)}
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 text-xs dark:text-text-dark light:text-text-light hover:bg-primary/10 transition-colors text-left"
+                          >
+                            <span className="truncate">{e.name}</span>
+                            <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted shrink-0 ml-2">
+                              ×{e.quantity ?? 1}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
               {sortedAttacks.length === 0 && (
                 <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8">
                   暂无攻击方式
