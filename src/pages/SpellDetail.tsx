@@ -109,7 +109,7 @@ function buildSpellCopyText(spell: Spell): string {
   lines.push(`可用职业：${(spell.classes ?? []).join(', ')}`);
   if (spell.source) lines.push(`来源：${spell.source}`);
 
-  const table = (spell as any).table as string | undefined;
+  const table = spell.table as string | undefined;
   if (table) lines.push('', '表格：', wikidotToMarkdown(table));
 
   return lines.join('\n');
@@ -346,20 +346,20 @@ export default function SpellDetail() {
         </div>
 
         {/* 表格（Wikidot 语法） */}
-        {(spell as any).table && (
+        {spell.table && (
           <div>
             <h3 className="text-sm font-semibold mb-2 dark:text-text-dark light:text-text-light">表格</h3>
             <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="dark:bg-card-dark light:bg-card-light font-bold">
-                    {parseWikidotHeaders((spell as any).table).map((header, i) => (
+                    {parseWikidotHeaders(spell.table).map((header, i) => (
                       <th key={i} className="px-3 py-2 text-left whitespace-nowrap">{header}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {parseWikidotRows((spell as any).table).map((row, ri) => (
+                  {parseWikidotRows(spell.table).map((row, ri) => (
                     <tr key={ri} className={ri % 2 === 0 ? 'bg-green-50 dark:bg-green-900/20' : 'bg-white dark:bg-transparent'}>
                       {row.map((cell, ci) => (
                         <td key={ci} className="px-3 py-2 border-t dark:border-border-dark/50 light:border-border-light/50">{cell}</td>

@@ -34,6 +34,34 @@ function cleanText(s: string): string {
   return s.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * 法术块内 HTML 表格 → Wikidot 语法（与 SpellDetail 渲染契约对齐）：
+ * `|| 表头 ||` 行 + `| 单元格 |` 行。首行 TR 视为表头。
+ */
+function htmlTableToWikidot(tableHtml: string): string {
+  const cellText = (td: string) =>
+    td.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+  const rows: string[][] = [];
+  const trRe = /<TR[\s\S]*?<\/TR>/gi;
+  let trM: RegExpExecArray | null;
+  while ((trM = trRe.exec(tableHtml)) !== null) {
+    const cells: string[] = [];
+    const tdRe = /<T[D H][^>]*>[\s\S]*?<\/T[D H]>/gi;
+    let tdM: RegExpExecArray | null;
+    while ((tdM = tdRe.exec(trM[0])) !== null) {
+      cells.push(cellText(tdM[0]));
+    }
+    if (cells.length > 0) rows.push(cells);
+  }
+  if (rows.length === 0) return '';
+  const colCount = Math.max(...rows.map(r => r.length));
+  const pad = (r: string[]) => Array.from({ length: colCount }, (_, i) => r[i] ?? '');
+  return [
+    `|| ${pad(rows[0]).join(' || ')} ||`,
+    ...rows.slice(1).map(r => `| ${pad(r).join(' | ')} |`),
+  ].join('\n');
+}
+
 export const onRequest: PagesFunction<{ DB: D1Database }> = async (context) => {
   const url = new URL(context.request.url);
   const method = context.request.method;
@@ -119,6 +147,7 @@ if (existing) {
       classes: string[]; notes?: string;
       hasHeightened?: boolean; heightenedEffect?: string;
       ritual?: boolean; concentration?: boolean; source: string;
+      table?: string;
     }> = [];
 
     $('h4').each((_, el) => {
@@ -202,6 +231,13 @@ if (existing) {
 
       // description：从 mainHtml 剔已知块
       let descHtml = mainHtml;
+      // 表格块单独提取为结构化 table（Wikidot 语法），避免被 text() 压平成无结构文本
+      const tableHtmlMatch = descHtml.match(/<TABLE[\s\S]*?<\/TABLE>/i);
+      let spellTable: string | undefined;
+      if (tableHtmlMatch) {
+        spellTable = htmlTableToWikidot(tableHtmlMatch[0]);
+        descHtml = descHtml.replace(/<TABLE[\s\S]*?<\/TABLE>/gi, '');
+      }
       descHtml = descHtml.replace(/<EM[^>]*>[\s\S]*?<\/EM>\s*(?:<BR\s*\/?>)?/i, '');
       descHtml = descHtml.replace(/<(STRONG|b)>施法时间：<\/\1>[^<]*<BR\s*\/?>/gi, '');
       descHtml = descHtml.replace(/<(STRONG|b)>施法距离：<\/\1>[^<]*<BR\s*\/?>/gi, '');
@@ -232,6 +268,7 @@ if (existing) {
         duration: cleanText(duration).replace(/(\d)([\u4e00-\u9fff])/g, '$1 $2').replace(/([\u4e00-\u9fff])(\d)/g, '$1 $2'),
         components,
         description: formattedDesc,
+        table: spellTable,
         classes: mappedClasses,
         notes: notes ? cleanText(notes) : undefined,
         hasHeightened: hasHeightened || undefined,
