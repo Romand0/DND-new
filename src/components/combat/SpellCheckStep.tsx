@@ -23,6 +23,8 @@ export interface SpellCheckOutcome {
   isNatural1: boolean;
   isNatural20: boolean;
   success: boolean;
+  /** 本次失败经传奇抗性改判为成功（宿主收尾记入战斗日志） */
+  legendaryResistanceUsed?: boolean;
 }
 
 export type SpellCheckType = 'ac' | 'save' | 'none';
@@ -65,6 +67,8 @@ export default function SpellCheckStep({
   const [targetSaveBonus, setTargetSaveBonus] = useState<string>('');
   const [lockedDice, setLockedDice] = useState<Set<number>>(new Set());
   const [manualMode, setManualMode] = useState<'none' | 'advantage' | 'disadvantage'>('none');
+  // 传奇抗性改判确认：豁免失败且目标有剩余次数时拦截，由 DM 选择改为成功或接受失败
+  const [legendaryOffer, setLegendaryOffer] = useState<SpellCheckOutcome | null>(null);
   // 检定奖惩：可选条目启用集合 + 各条目已掷骰值
   const [enabledModifierKeys, setEnabledModifierKeys] = useState<Set<string>>(new Set());
   const [modifierRolledValues, setModifierRolledValues] = useState<Record<string, string[]>>({});
@@ -286,15 +290,38 @@ export default function SpellCheckStep({
         // 豁免总值 ≥ DC = 抵抗（失败）；< DC = 失败（成功命中）
         success = isNatural20 ? false : isNatural1 ? true : saveTotal < spellSaveDC;
       }
-      if (recordId) {
-        const pendingIds = getMatchedPendingSourceIds(autoResult);
-        if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, roller.id, pendingIds);
-        // 次数型奖惩记在掷骰方（豁免场景为目标）名下
-        const { pendingIds: modPendingIds } = getAppliedModifierRefs(modifierResult);
-        if (modPendingIds.length > 0) combatStore.consumePendingCheckModifiers(recordId, modifierSubject.id, modPendingIds);
+      const outcome: SpellCheckOutcome = { d20, bonus, total: d20 + bonus + modTotal, isNatural1, isNatural20, success };
+      // 传奇抗性拦截：失败且目标有剩余次数 → 停留确认，pending 消费与结果上报延迟到落定
+      if (!success && (target.legendaryResistanceLeft ?? 0) > 0) {
+        setLegendaryOffer(outcome);
+        return;
       }
-      onComplete('save', { d20, bonus, total: d20 + bonus + modTotal, isNatural1, isNatural20, success });
+      finalizeSave(outcome, false);
     }
+  };
+
+  // 豁免结果最终落定：消费 pending 标记 →（可选）扣传奇抗性 → 上报宿主
+  const finalizeSave = (outcome: SpellCheckOutcome, useLegendary: boolean) => {
+    setLegendaryOffer(null);
+    if (recordId) {
+      const pendingIds = getMatchedPendingSourceIds(autoResult);
+      if (pendingIds.length > 0) combatStore.consumePendingAdvantage(recordId, roller.id, pendingIds);
+      // 次数型奖惩记在掷骰方（豁免场景为目标）名下
+      const { pendingIds: modPendingIds } = getAppliedModifierRefs(modifierResult);
+      if (modPendingIds.length > 0) combatStore.consumePendingCheckModifiers(recordId, modifierSubject.id, modPendingIds);
+      if (useLegendary) {
+        const rec = combatStore.get(recordId);
+        if (rec) {
+          combatStore.update(recordId, {
+            combatants: rec.combatants.map(c => c.id === target.id
+              ? { ...c, legendaryResistanceLeft: Math.max(0, (c.legendaryResistanceLeft ?? 0) - 1) }
+              : c),
+            updatedAt: Date.now(),
+          });
+        }
+      }
+    }
+    onComplete('save', useLegendary ? { ...outcome, success: true, legendaryResistanceUsed: true } : outcome);
   };
 
   return (
@@ -475,14 +502,40 @@ export default function SpellCheckStep({
         </div>
       </div>
 
+      {/* 传奇抗性改判确认（豁免失败且有剩余次数时拦截） */}
+      {legendaryOffer && checkType === 'save' && (
+        <div className="rounded-lg bg-amber-500/10 border border-amber-500/40 p-2.5 space-y-2">
+          <div className="text-xs text-amber-400">
+            {target.name} 豁免失败（d20 {legendaryOffer.d20}+{legendaryOffer.bonus}={legendaryOffer.total} vs DC {spellSaveDC}）
+            ——可消耗传奇抗性将失败改为成功
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => finalizeSave(legendaryOffer, true)}
+              className="py-2 rounded-lg bg-amber-500 text-white text-xs font-medium hover:bg-amber-600 transition-colors"
+            >
+              改为成功（剩 {(target.legendaryResistanceLeft ?? 1) - 1}/{target.legendaryResistanceTotal ?? '-'}）
+            </button>
+            <button
+              onClick={() => finalizeSave(legendaryOffer, false)}
+              className="py-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light text-xs font-medium hover:bg-white/10 transition-colors"
+            >
+              接受失败
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 确定检定按钮 */}
-      <button
-        onClick={handleConfirmCheck}
-        disabled={!canConfirmCheck}
-        className="w-full py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        确定检定
-      </button>
+      {!legendaryOffer && (
+        <button
+          onClick={handleConfirmCheck}
+          disabled={!canConfirmCheck}
+          className="w-full py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          确定检定
+        </button>
+      )}
     </div>
   );
 }

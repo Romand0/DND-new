@@ -374,7 +374,7 @@ export default function CombatSpellModal({
     } else {
       cast.completeCurrent(
         outcome.success ? 'success' : 'failure',
-        `豁免 d20 ${outcome.d20}+${outcome.bonus}=${outcome.total} vs DC ${spellSaveDC ?? '-'}`,
+        `豁免 d20 ${outcome.d20}+${outcome.bonus}=${outcome.total} vs DC ${spellSaveDC ?? '-'}${outcome.legendaryResistanceUsed ? '，消耗传奇抗性改为成功' : ''}`,
         { ...outcome, checkType: 'save' },
       );
     }

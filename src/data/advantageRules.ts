@@ -360,6 +360,21 @@ export function getMatchedPendingSourceIds(auto: AdvantageResult): string[] {
 }
 
 // =======================
+// 内置检测器 5：trait（怪物特质识别，NpcCreator 从模板特质打标）
+// =======================
+
+// 魔法抗性（Magic Resistance）：对法术及魔法效应的豁免检定具有优势。
+// 豁免上下文无「来源是否法术」信息，一律给优势，由 DM 在对非魔法效应豁免时手动取消。
+function detectTrait(ctx: AdvantageContext): AdvantageResult {
+  if (ctx.scene !== 'saving_throw') return { advantage: [], disadvantage: [] };
+  if (!ctx.attacker?.magicResistance) return { advantage: [], disadvantage: [] };
+  return {
+    advantage: [{ kind: 'trait', label: '魔法抗性（对法术及魔法效应豁免优势）' }],
+    disadvantage: [],
+  };
+}
+
+// =======================
 // 模块初始化：注册内置检测器
 // =======================
 
@@ -367,6 +382,7 @@ registerDetector('equipment', detectEquipment);
 registerDetector('positional', detectPositional);
 registerDetector('pending', detectPending);
 registerDetector('condition', detectCondition);
+registerDetector('trait', detectTrait);
 
 // 预留接入点注释（不实现，仅说明）：
 // - action: dodge（被攻击者回避 → 攻击劣势）、hide（隐匿检定）

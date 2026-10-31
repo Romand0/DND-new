@@ -41,6 +41,10 @@ interface NpcEditState {
   proficientSaves: AbilityKey[];
   /** 熟练加值（从模板带入，自定义 NPC 默认 2） */
   proficiencyBonus: number;
+  /** 魔法抗性（模板特质「魔法抗性」识别，自定义 NPC 默认关闭） */
+  magicResistance: boolean;
+  /** 传奇抗性总次数（模板特质「传奇抗性」按 CR÷3 上取整，自定义 NPC 默认 0） */
+  legendaryResistanceTotal: number;
   damageResistances: string[];
   damageImmunities: string[];
   damageVulnerabilities: string[];
@@ -49,6 +53,15 @@ interface NpcEditState {
 function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEditState {
   const d20 = rollDice({ sides: 20, count: 1, mode: 'independent' }).values[0];
   const dexMod = calcModifier(template.dexterity);
+  const traits = template.traits ?? [];
+  const hasMagicResistance = traits.some(t => /^魔法抗性/.test(t.name));
+  const hasLegendaryResistance = traits.some(t => /^传奇抗性/.test(t.name));
+  const hasMagicalWeapon = traits.some(t => /^魔法武器/.test(t.name));
+  // 传奇抗性每日次数 = CR÷3 上取整（D&D 5e 成人蓝龙 CR17 → 6 次；模板无 CR 时按 3 次起步）
+  const crNum = parseFloat(template.cr ?? '');
+  const legendaryTotal = hasLegendaryResistance
+    ? Math.max(1, Number.isFinite(crNum) ? Math.ceil(crNum / 3) : 3)
+    : 0;
   return {
     name: index !== undefined ? `${template.name}${index + 1}` : template.name,
     abilities: {
@@ -62,7 +75,10 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
     hp: template.maxHp,
     speed: template.speed,
     ac: template.ac,
-    attacks: [...template.attacks],
+    // 模板特质「魔法武器」→ 全部武器攻击视为魔法（伤害结算 inferWeaponDamageSource 命中 attack.magical）
+    attacks: hasMagicalWeapon
+      ? template.attacks.map(a => ({ ...a, magical: true }))
+      : [...template.attacks],
     d20,
     initiative: d20 + dexMod,
     templateId: template.templateId,
@@ -71,6 +87,8 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
       creatureType: template.creatureType as CreatureType,
     proficientSaves: template.savingThrows ?? [],
     proficiencyBonus: template.proficiencyBonus ?? 2,
+    magicResistance: hasMagicResistance,
+    legendaryResistanceTotal: legendaryTotal,
     damageResistances: [...(template.damageResistances ?? [])],
     damageImmunities: [...(template.damageImmunities ?? [])],
     damageVulnerabilities: [...(template.damageVulnerabilities ?? [])],
@@ -103,6 +121,10 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     // 携带熟练信息用于豁免加值自动计算（调整值 + 熟练属性 × PB）
     proficientSaves: state.proficientSaves,
     proficiencyBonus: state.proficiencyBonus,
+    // 特质识别标志：魔法抗性进优劣势引擎；传奇抗性次数供豁免失败改判
+    magicResistance: state.magicResistance,
+    legendaryResistanceLeft: state.legendaryResistanceTotal,
+    legendaryResistanceTotal: state.legendaryResistanceTotal,
     damageAffinities: buildCombatantAffinities(state),
   };
 }
@@ -156,6 +178,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
       name: '',
       abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
       proficientSaves: [], proficiencyBonus: 2,
+      magicResistance: false, legendaryResistanceTotal: 0,
       damageResistances: [], damageImmunities: [], damageVulnerabilities: [],
       hp: 10, speed: 30, ac: 10, attacks: [],
       d20, initiative: d20 + 0,
@@ -171,6 +194,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
         name: '',
         abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
       proficientSaves: [], proficiencyBonus: 2,
+        magicResistance: false, legendaryResistanceTotal: 0,
         damageResistances: [], damageImmunities: [], damageVulnerabilities: [],
         hp: 10, speed: 30, ac: 10, attacks: [],
         d20, initiative: d20 + 0,

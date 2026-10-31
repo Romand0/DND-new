@@ -122,6 +122,12 @@ export interface Combatant {
   templateId?: string;
   /** 伤害抗性/易伤/免疫快照（从模板创建时解析并固化，旧记录可按 templateId 回退） */
   damageAffinities?: DamageAffinitySet;
+  /** 魔法抗性（Magic Resistance）：对法术及魔法效应的豁免检定具有优势；NpcCreator 从模板特质「魔法抗性」识别 */
+  magicResistance?: boolean;
+  /** 传奇抗性剩余次数（Legendary Resistance）：豁免失败可改为成功；按 CR÷3 上取整初始化 */
+  legendaryResistanceLeft?: number;
+  /** 传奇抗性总次数（战斗开始时定死，用于 UI 显示「剩 N/总 M」） */
+  legendaryResistanceTotal?: number;
   /** NPC 攻击方式（从模板带入） */
   attacks?: NpcAttack[];
   /** 当前可用动作数（放映模式每回合恢复，模拟模式无限） */
@@ -542,6 +548,7 @@ export type AdvantageSourceKind =
   | 'pending'      // 待消费标记（协助动作、法术效果等一次性来源）
   | 'action'       // 动作相关（dodge/hide 等，本次仅预留）
   | 'condition'    // 状态相关（中毒/束缚/倒地/隐形等，来自 statusManager 状态效果）
+  | 'trait'        // 特质相关（魔法抗性等，来自怪物图鉴特质识别）
   | 'manual';      // DM 手动覆盖
 
 /** 优劣势原因条目 */
