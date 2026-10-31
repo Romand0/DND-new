@@ -248,7 +248,8 @@ function parseSpellcasting(traits) {
 
 function parseTypeLine(line) {
   // 「中型类人（兽人），混乱邪恶」/「大型野兽，中立」/「巨型构造体，通常中立（绝对守序）」
-  const sizeMatch = line.match(/^([微小中大超巨]型)/);
+  // 「超巨型」三字、「中形」形字——必须用多分支枚举，单字符类会失配
+  const sizeMatch = line.match(/^(超巨型|超大型|微型|小型|中型|中形|大型|巨型)/);
   const size = sizeMatch ? sizeMatch[1] : '';
   const alignPart = line.includes('，') ? line.slice(line.lastIndexOf('，') + 1).trim() : '';
   const typePart = line.slice(size.length, line.lastIndexOf('，') > 0 ? line.lastIndexOf('，') : undefined).trim();
@@ -561,7 +562,8 @@ function dirToCreatureType(dir) {
 }
 
 function sizeToEnum(sizeCn) {
-  const map = { 微型: 0, 小型: 1, 中型: 2, 大型: 3, 巨型: 4, 超巨型: 5 };
+  // 「中形」= Medium 旧译、「超大型」= Gargantuan 旧译，均归一到标准枚举
+  const map = { 微型: 0, 小型: 1, 中型: 2, 中形: 2, 大型: 3, 巨型: 4, 超巨型: 5, 超大型: 5 };
   return map[sizeCn];
 }
 
