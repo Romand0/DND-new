@@ -6,6 +6,7 @@ import type { CharacterOption } from '@/types/characterOption';
 import { optionStore } from '@/data/optionStore';
 import { SKILL_LABELS } from '@/data/characterStore';
 import { getClassProficiencyInfo } from '@/data/classProficiencies';
+import { matchToolCategory, TOOL_CATEGORY_CANDIDATES } from '@/data/toolCategoryCandidates';
 
 export type ProfBonusKind = 'skill' | 'save' | 'tool' | 'weapon' | 'armor' | 'language';
 
@@ -131,6 +132,25 @@ function parseTraitRules(option: CharacterOption, traits: { name?: string; text:
       continue;
     }
 
+    // 类别型任选工具：「你获得一种乐器的熟练项。」「你具有一种赌具的熟练项。」
+    // （乐器/赌具措辞不含「工具」二字，flexTool 与 fixedTool 正则均无法覆盖，须在 fixedGear 前拦截）
+    const categoryToolTrait = text.match(/你(?:拥有|获得|具有)一种?(乐器|工匠工具|赌具)的熟练项/);
+    if (categoryToolTrait) {
+      const candidates = TOOL_CATEGORY_CANDIDATES[categoryToolTrait[1]] ?? [];
+      if (!out.some((r) => r.mode === 'flexible' && r.kind === 'tool')) {
+        out.push({
+          id: `${option.id}#${out.length}`,
+          kind: 'tool',
+          mode: 'flexible',
+          count: 1,
+          candidates,
+          sourceText: text,
+          sourceLabel: label(option),
+        });
+      }
+      continue;
+    }
+
     // 武器/护甲：「你拥有长剑、短剑、短弓和长弓的熟练项。」「你拥有轻甲和中甲的熟练项。」
     const fixedGear = text.match(/你(?:拥有|获得|具有)([^。]*?)的熟练项/);
     if (fixedGear) {
@@ -209,6 +229,14 @@ function getProficiencyRules(option: CharacterOption): ProficiencyBonusRule[] {
   }
   if (m.tools) {
     for (const name of m.tools.replace(/。$/, '').split(/[，,]/).map((s) => s.trim()).filter(Boolean)) {
+      // 类别型任选（一种乐器/一种工匠工具/一种赌具）→ flexible + 类别候选表
+      const categoryTool = matchToolCategory(name);
+      if (categoryTool) {
+        if (!out.some((r) => r.mode === 'flexible' && r.kind === 'tool')) {
+          out.push({ id: `${option.id}#${out.length}`, kind: 'tool', mode: 'flexible', count: 1, candidates: categoryTool.candidates, sourceText: m.tools, sourceLabel: label(option) });
+        }
+        continue;
+      }
       if (!out.some((r) => r.mode === 'fixed' && r.kind === 'tool' && r.target === name)) {
         out.push({ id: `${option.id}#${out.length}`, kind: 'tool', mode: 'fixed', target: name, sourceText: m.tools, sourceLabel: label(option) });
       }

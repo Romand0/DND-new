@@ -5,6 +5,9 @@
 // 到不了既有浏览器，故在代码层手录并作为唯一下游来源（补全 + 熟练项解析共用）。
 // skillsCandidates 使用 SKILL_LABELS 标准名（原文的 求生→生存、医药→医疗、游说→说服
 // 已归一），保证任选下拉与 SKILL_BY_ZH 反查可用；展示文本保留原书措辞。
+// 工具任选候选引用 toolCategoryCandidates（乐器/工匠工具/赌具类别表，源自装备章工具表）。
+
+import { TOOL_CATEGORY_CANDIDATES } from '@/data/toolCategoryCandidates';
 
 export interface ClassProficiencyInfo {
   /** 护甲熟练项展示文本 */
@@ -31,6 +34,7 @@ export const CLASS_PROFICIENCIES: Record<string, ClassProficiencyInfo> = {
     weapons: '简易武器、手弩、长剑、刺剑、短剑',
     tools: '自选三种乐器',
     toolsChoiceCount: 3,
+    toolsCandidates: TOOL_CATEGORY_CANDIDATES.乐器,
     skillsChoiceCount: 3,
     skills: '自选三项技能',
   },
@@ -74,6 +78,8 @@ export const CLASS_PROFICIENCIES: Record<string, ClassProficiencyInfo> = {
     weapons: '简易武器、短剑',
     tools: '选择一种工匠工具或一种乐器',
     toolsChoiceCount: 1,
+    // 工匠工具与乐器两类任选其一，候选为两类并集
+    toolsCandidates: [...TOOL_CATEGORY_CANDIDATES.工匠工具, ...TOOL_CATEGORY_CANDIDATES.乐器],
     skillsChoiceCount: 2,
     skillsCandidates: ['特技', '运动', '历史', '洞悉', '宗教', '隐匿'],
     skills: '从特技、运动、历史、洞悉、宗教、隐匿中选择两项',
