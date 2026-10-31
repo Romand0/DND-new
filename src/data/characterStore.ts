@@ -17,6 +17,7 @@ import type {
 import { getAvailableSubclasses, canChooseSubclass, getSubclassDisplayName } from './subclasses';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
+import { equipmentStore } from './equipmentStore';
 import { computeAbilityBreakdown } from './abilityBonus';
 
 // 从 localStorage 读取 auth_token，构造带 JWT 的 headers
@@ -1043,8 +1044,10 @@ function recalculateArmorClass(char: Character, combatInventory?: Equipment[]): 
 
   if (char.wornArmorId) {
     const armor = source.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId);
-    if (armor?.acBase) {
-      const baseAc = Number(armor.acBase);
+    // 旧背包实例 acBase 为空串（种子补值前从模板加入），按实例 id（=模板 id）回查装备库模板兜底
+    const armorAcBase = armor?.acBase || (armor ? equipmentStore.getById(armor.id)?.acBase : '') || '';
+    if (armorAcBase) {
+      const baseAc = Number(armorAcBase);
       const subtype = armor.subtype || '轻甲';
       switch (subtype) {
         case '轻甲':
