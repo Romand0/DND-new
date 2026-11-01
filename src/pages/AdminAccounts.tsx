@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   RefreshCw,
   ShieldCheck,
-  Pencil,
   Trash2,
   KeyRound,
   AlertCircle,
@@ -28,7 +27,6 @@ interface UserRow {
 }
 
 type ModalState =
-  | { type: 'role'; user: UserRow }
   | { type: 'admin'; user: UserRow }
   | { type: 'delete'; user: UserRow }
   | { type: 'password'; user: UserRow }
@@ -44,7 +42,6 @@ export default function AdminAccounts() {
   const [modal, setModal] = useState<ModalState>(null);
   const [submitting, setSubmitting] = useState(false);
   const [notice, setNotice] = useState('');
-  const [pendingRole, setPendingRole] = useState<'player' | 'dm'>('player');
   const [pendingAdmin, setPendingAdmin] = useState(false);
   const [newPassword, setNewPassword] = useState('');
   const [modalError, setModalError] = useState('');
@@ -79,22 +76,6 @@ export default function AdminAccounts() {
   const showNotice = (msg: string) => {
     setNotice(msg);
     setTimeout(() => setNotice(''), 2000);
-  };
-
-  const handleRoleChange = async () => {
-    if (!modal || modal.type !== 'role') return;
-    setSubmitting(true);
-    setModalError('');
-    try {
-      await api.updateUserRole(modal.user.id, pendingRole);
-      setModal(null);
-      showNotice(`已更新 ${modal.user.username} 的权限`);
-      loadUsers();
-    } catch (e: any) {
-      setModalError(e?.message || '修改失败');
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   const handleAdminChange = async () => {
@@ -288,14 +269,9 @@ export default function AdminAccounts() {
                         </button>
                       </td>
                       <td className="py-2 pr-6">
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-xs ${
-                            u.role === 'dm'
-                              ? 'bg-danger/15 text-danger'
-                              : 'bg-info/15 text-info'
-                          }`}
-                        >
-                          {u.role === 'dm' ? 'DM' : '玩家'}
+                        {/* users.role 全局列已停读：团组身份在各团组设置页按成员管理 */}
+                        <span className="px-2 py-0.5 rounded-full text-xs bg-info/15 text-info">
+                          按团组
                         </span>
                       </td>
                       <td className="py-2 pr-6">
@@ -346,11 +322,11 @@ export default function AdminAccounts() {
                               setError('');
                               setBindTarget(u);
                             }}
-                            disabled={u.role === 'player' && u.characters.length >= 3}
+                            disabled={!u.isAdmin && u.characters.length >= 3}
                             className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs border border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                             title={
-                              u.role === 'player' && u.characters.length >= 3
-                                ? '每个玩家最多绑定 3 个角色'
+                              !u.isAdmin && u.characters.length >= 3
+                                ? '每个账号最多绑定 3 个角色（站点管理员不限）'
                                 : '绑定角色'
                             }
                           >
@@ -361,17 +337,6 @@ export default function AdminAccounts() {
                       </td>
                       <td className="py-2">
                         <div className="flex items-center gap-1.5 whitespace-nowrap">
-                          <button
-                            onClick={() => {
-                              setPendingRole(u.role);
-                              setModalError('');
-                              setModal({ type: 'role', user: u });
-                            }}
-                            className="p-1.5 rounded hover:bg-primary/10 text-primary transition-colors"
-                            title="修改游戏身份"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </button>
                           <button
                             onClick={() => {
                               if (self) return;
@@ -434,7 +399,6 @@ export default function AdminAccounts() {
           >
             <div className="flex items-center justify-between">
               <h3 className="font-semibold dark:text-text-dark light:text-text-light">
-                {modal.type === 'role' && '修改游戏身份'}
                 {modal.type === 'admin' && '修改站点权限'}
                 {modal.type === 'delete' && '删除账号'}
                 {modal.type === 'password' && '重置密码'}
@@ -444,29 +408,6 @@ export default function AdminAccounts() {
                 <X className="w-4 h-4" />
               </button>
             </div>
-
-            {modal.type === 'role' && (
-              <>
-                <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                  账号：<span className="font-medium dark:text-text-dark light:text-text-light">{modal.user.username}</span>
-                </p>
-                <div className="flex gap-2">
-                  {(['player', 'dm'] as const).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => setPendingRole(r)}
-                      className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
-                        pendingRole === r
-                          ? 'border-primary bg-primary/10 text-primary'
-                          : 'dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5'
-                      }`}
-                    >
-                      {r === 'dm' ? 'DM' : '玩家'}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
 
             {modal.type === 'admin' && (
               <>
@@ -542,9 +483,7 @@ export default function AdminAccounts() {
               </button>
               <button
                 onClick={
-                  modal.type === 'role'
-                    ? handleRoleChange
-                    : modal.type === 'admin'
+                  modal.type === 'admin'
                     ? handleAdminChange
                     : modal.type === 'delete'
                     ? handleDelete

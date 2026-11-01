@@ -4,8 +4,10 @@ import { Link } from 'react-router-dom';
 import { Eye, RefreshCw, AlertCircle, Users, Shield } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { fetchAllCharacters } from '@/lib/api';
+import { useCampaign } from '@/contexts/CampaignContext';
 
 export default function PlayerHome() {
+  const { current } = useCampaign();
   const [players, setPlayers] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -89,7 +91,7 @@ export default function PlayerHome() {
           <div>
             <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">玩家角色列表</h1>
             <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-              只读模式 · 数据来自 DM 同步
+              {current ? `团组「${current.name}」 · 只读模式 · 数据来自 DM 同步` : '只读模式 · 数据来自 DM 同步'}
             </p>
           </div>
         </div>

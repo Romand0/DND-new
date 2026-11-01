@@ -54,12 +54,12 @@ export async function onRequestGet(context: any): Promise<Response> {
     return errorResponse(404, 'User not found');
   }
 
-  // 返回用户信息
+  // 返回用户信息（users.role 全局列已停读，团组身份由 /api/campaigns 提供）
   return jsonResponse({
     user: {
       id: user.id,
       username: user.username,
-      role: user.role,
+      role: 'player',
       isAdmin: user.is_admin === 1,
       avatar: user.avatar || null,
     },

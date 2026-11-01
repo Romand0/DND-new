@@ -85,6 +85,6 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   return jsonResponse({
     token,
-    user: { id: user.id, username: user.username, role: user.role, isAdmin: user.is_admin === 1, avatar: user.avatar || null },
+    user: { id: user.id, username: user.username, role: 'player', isAdmin: user.is_admin === 1, avatar: user.avatar || null },
   });
 };
