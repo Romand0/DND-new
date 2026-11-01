@@ -153,5 +153,6 @@
 - Category: Build Methods
 - Instructions:
   - functions/ 相对导入 _utils 的层数 = 该文件在 functions/api/ 下的目录深度：api/xxx.ts 用 ../_utils，api/xxx/yyy.ts 用 ../../_utils，嵌套 [param]/sub/index.ts 需逐层累加（曾因少算一层导致 CF 部署失败，本地 tsc 不查 functions/）
-  - 改动 functions/ 后提交前的全量校验：for f in $(find functions -name '*.ts'); do npx esbuild "$f" --loader:.ts=ts --outfile=/dev/null; done，ALL-OK 才推送
+  - 改动 functions/ 后提交前的全量校验必须加 --bundle（esbuild 默认 transform 模式不解析 import，相对路径写错照样通过）：for f in $(find functions -name '*.ts'); do npx esbuild "$f" --bundle --packages=external --loader:.ts=ts --format=esm --outfile=/dev/null; done，ALL-OK 才推送
+  - 层数速查：functions/api/xxx.ts 用 ../_utils；functions/api/xxx/yyy.ts 用 ../../_utils；functions/api/xxx/[p]/index.ts 用 ../../../_utils；functions/api/xxx/[p]/sub/index.ts 用 ../../../../_utils（从文件所在目录数到 functions/ 根）
   - wrangler.toml 缺 pages_build_output_dir 的警告无害（Pages 走 dashboard 构建配置），真正阻塞部署的是 Functions 打包错误
