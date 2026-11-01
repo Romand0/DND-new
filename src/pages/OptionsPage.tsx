@@ -41,10 +41,6 @@ function MechanicsBadges({ option }: { option: CharacterOption }) {
   if (m.speed) badges.push(`速度：${m.speed}尺`);
   if (m.darkvision) badges.push(`黑暗视觉：${m.darkvision}尺`);
   if (m.hitDie) badges.push(`生命骰：d${m.hitDie}`);
-  if (m.savingThrows?.length) badges.push(`豁免：${m.savingThrows.join('、')}`);
-  if (m.skills) badges.push(`技能：${m.skills}`);
-  if (m.languages) badges.push(`语言：${m.languages}`);
-  if (m.tools) badges.push(`工具：${m.tools}`);
   if (m.equipment) badges.push(`装备：${m.equipment}`);
   if (!badges.length) return null;
   return (
@@ -54,6 +50,31 @@ function MechanicsBadges({ option }: { option: CharacterOption }) {
           {b}
         </span>
       ))}
+    </div>
+  );
+}
+
+/** 熟练项集中卡片：同源全部熟练项（豁免/护甲武器/技能/工具/语言）合一张卡，替代散落徽标 */
+function ProficienciesCard({ option }: { option: CharacterOption }) {
+  const m = option.mechanics || {};
+  const groups: { label: string; value: string }[] = [];
+  if (m.savingThrows?.length) groups.push({ label: '豁免', value: m.savingThrows.join('、') });
+  if (m.proficiencies) groups.push({ label: '护甲与武器', value: m.proficiencies });
+  if (m.skills) groups.push({ label: '技能', value: m.skills });
+  if (m.tools) groups.push({ label: '工具', value: m.tools });
+  if (m.languages) groups.push({ label: '语言', value: m.languages });
+  if (groups.length === 0) return null;
+  return (
+    <div className="mb-4">
+      <h4 className="text-sm font-semibold text-gray-300 mb-2">熟练项</h4>
+      <div className="p-3 rounded-lg bg-white/5 border border-border-dark space-y-2">
+        {groups.map((g) => (
+          <div key={g.label} className="text-sm">
+            <span className="text-xs text-gray-500 mr-2 inline-block w-20">{g.label}</span>
+            <span className="text-gray-300">{g.value}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -170,6 +191,7 @@ function OptionCard({ option, expanded, onToggle }: { option: CharacterOption; e
               <AbilityBonusBadges bonus={option.mechanics.abilityBonus} />
             </div>
           )}
+          <ProficienciesCard option={option} />
           {option.table && <ClassTable table={option.table} />}
           <TraitList traits={option.traits} title={option.category === 'class' || option.category === 'subclass' ? '职业特性' : '种族特质'} />
           {option.parentTraits && <TraitList traits={option.parentTraits} title={`继承自${option.parentName}的特质`} />}
