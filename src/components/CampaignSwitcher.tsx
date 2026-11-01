@@ -2,7 +2,8 @@
 // 切换走 switchCampaign（整页 reload，保证全部分桶 store 重读当前团组）。
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronDown, Plus, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ChevronDown, Plus, Settings2, Users } from 'lucide-react';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { createCampaign, joinCampaign } from '@/lib/api';
 
@@ -111,6 +112,16 @@ export default function CampaignSwitcher() {
               凭邀请码加入
             </button>
           </div>
+          {current && (
+            <Link
+              to="/campaign"
+              onClick={() => setOpen(false)}
+              className="border-t border-border-dark px-3 py-2 flex items-center gap-2 text-xs text-gray-400 hover:text-primary transition-colors"
+            >
+              <Settings2 className="w-3.5 h-3.5" />
+              团组设置（成员 / 规则书集 / 邀请码）
+            </Link>
+          )}
         </div>
       )}
     </div>

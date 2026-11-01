@@ -179,6 +179,8 @@ export interface Feature {
 export interface Character {
   id: string;
   name: string;
+  /** 团组归属：NULL/undefined = 无归属（仅站点管理员可见跨团组视角） */
+  campaignId?: string | null;
   /** 试验场影子卡标记：由试验场人偶生成自动创建，角色列表隐藏、不参与云端同步 */
   isSandbox?: boolean;
   gender: 'male' | 'female' | 'other' | '';

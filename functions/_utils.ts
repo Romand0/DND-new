@@ -248,6 +248,80 @@ export function assertCampaignWrite(
   return kind === 'proposal';
 }
 
+// ---------- 团组图鉴库辅助（equipments/spells/character_options/npc_templates 四库共用） ----------
+// 可见性 = 团组私有条目 ∪ 规则书集内出版物条目（出版物 campaign_id 恒 NULL，存储团组无关）。
+
+export interface LibraryScope {
+  ctx: CampaignContext;
+  /** 全库视角（?scope=all 且站点管理员）：管理页维护出版物与全部条目用 */
+  scopeAll: boolean;
+}
+
+/** 图鉴库读取作用域：团组成员校验 + scope=all 判定；非成员返回 null */
+export async function resolveLibraryScope(
+  request: Request,
+  env: Env,
+  auth: AuthIdentity
+): Promise<LibraryScope | null> {
+  const ctx = await getCampaignContext(request, env, auth);
+  if (!ctx) return null;
+  const url = new URL(request.url);
+  const scopeAll = url.searchParams.get('scope') === 'all' && auth.isAdmin;
+  return { ctx, scopeAll };
+}
+
+/**
+ * 图鉴库列表过滤 SQL 片段。
+ * sourceExpr：出版物来源字段表达式（equipments/spells/npc_templates 用 json_extract(data,'$.source')，
+ * character_options 有独立 source 列）。
+ * 返回 binds 依次为 [campaignId, rulebooksJson]；scopeAll 时子句为空。
+ */
+export function libraryFilterClause(
+  scope: LibraryScope,
+  sourceExpr: string
+): { clause: string; binds: string[] } {
+  if (scope.scopeAll) return { clause: '', binds: [] };
+  return {
+    clause: `WHERE campaign_id = ? OR (campaign_id IS NULL AND ${sourceExpr} IN (SELECT value FROM json_each(?)))`,
+    binds: [scope.ctx.campaignId, JSON.stringify(scope.ctx.rulebooks)],
+  };
+}
+
+/** 单条目可读：出版物条目全员可见；私有条目仅归属团组成员；全库视角任意 */
+export function canReadEntry(scope: LibraryScope, entryCampaignId: string | null): boolean {
+  if (scope.scopeAll) return true;
+  if (entryCampaignId === null || entryCampaignId === '') return true;
+  return entryCampaignId === scope.ctx.campaignId;
+}
+
+/**
+ * 条目写权限：
+ *  · 新建/修改归属为本团组的条目 → 团组 DM 或站点管理员
+ *  · 出版物条目（归属 NULL）的修改/删除、跨团组转移归属 → 仅站点管理员（出版物全局共享）
+ */
+export function canWriteEntry(
+  scope: LibraryScope,
+  auth: AuthIdentity,
+  entryCampaignId: string | null
+): boolean {
+  if (auth.isAdmin) return true;
+  if (scope.ctx.role !== 'dm') return false;
+  return entryCampaignId === scope.ctx.campaignId;
+}
+
+/** 新条目归属判定：body 显式 campaignId === null 表示出版物条目（需站点管理员），否则当前团组私有 */
+export function resolveNewEntryCampaignId(
+  scope: LibraryScope,
+  auth: AuthIdentity,
+  bodyCampaignId: unknown
+): string | null {
+  if (bodyCampaignId === null) {
+    if (!auth.isAdmin) throw new Error('出版物条目仅站点管理员可创建');
+    return null;
+  }
+  return scope.ctx.campaignId;
+}
+
 // ---------- 请求体解析工具 ----------
 
 export async function readJsonBody<T>(request: Request): Promise<T | null> {

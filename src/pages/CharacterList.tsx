@@ -1,11 +1,14 @@
 // DM Toolkit - Character List Page Component
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Search, Trash2, Heart, Shield, Copy, Download, Upload, CheckSquare, Square } from 'lucide-react';
+import { Plus, Search, Trash2, Heart, Shield, Copy, Download, Upload, CheckSquare, Square, FolderInput } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { characterStore } from '@/data/characterStore';
+import { useCampaign } from '@/contexts/CampaignContext';
+import { updateCharacter } from '@/lib/api';
 
 export default function CharacterList() {
+  const { campaigns } = useCampaign();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
@@ -17,10 +20,16 @@ export default function CharacterList() {
     loadCharacters();
   }, []);
 
-  const loadCharacters = () => {
+  const loadCharacters = async () => {
     setLoading(true);
     setError(null);
     try {
+      // 云端按当前团组过滤 → 替换本地桶；失败时降级本地缓存
+      try {
+        await characterStore.replaceAllFromBackend();
+      } catch {
+        // ignore
+      }
       const chars = (characterStore.getAllVisible() || []).filter((c: any) => c && c.id && c.name);
       setCharacters(chars);
     } catch (err) {
@@ -29,6 +38,35 @@ export default function CharacterList() {
       setCharacters([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 移入/移出团组：整包数据（背包/手持/穿戴内嵌）随 campaign_id 列整体迁移
+  const handleMoveCampaign = async (char: Character) => {
+    if (campaigns.length === 0) {
+      alert('尚无其他团组，可先在顶栏切换器创建团组');
+      return;
+    }
+    const list = campaigns
+      .map((c, i) => `${i + 1}. ${c.name}${c.id === char.campaignId ? '（当前所在）' : ''}`)
+      .join('\n');
+    const input = prompt(`把「${char.name}」移入目标团组（输入序号）：\n${list}\n\n留空取消`);
+    if (!input) return;
+    const target = campaigns[parseInt(input, 10) - 1];
+    if (!target) {
+      alert('序号无效');
+      return;
+    }
+    if (target.id === char.campaignId) {
+      alert('该角色已在此团组');
+      return;
+    }
+    try {
+      await updateCharacter(char.id, { ...char, campaignId: target.id });
+      await loadCharacters();
+      alert(`已移入「${target.name}」；切换到该团组即可看到`);
+    } catch (e) {
+      alert(`移动失败：${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -357,6 +395,13 @@ export default function CharacterList() {
                       title="复制角色"
                     >
                       <Copy className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleMoveCampaign(char)}
+                      className="p-2 rounded-lg transition-colors dark:hover:bg-bg-dark dark:text-text-dark-muted dark:hover:text-text-dark light:hover:bg-bg-light-2 light:text:text-light-muted light:hover:text:text-light"
+                      title="移入其他团组"
+                    >
+                      <FolderInput className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setShowDeleteConfirm(char.id)}

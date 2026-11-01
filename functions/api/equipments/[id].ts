@@ -1,98 +1,134 @@
-import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now, verifyJwt } from '../../_utils';
+import {
+  jsonResponse,
+  errorResponse,
+  handleOptions,
+  authenticateRequest,
+  readJsonBody,
+  now,
+  resolveLibraryScope,
+  canReadEntry,
+  canWriteEntry,
+} from '../../_utils';
+
+type Row = { data: string; campaign_id: string | null };
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env, params } = context;
 
-  // 只验 JWT（不验 role，不验 DM_TOKEN）
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-  try {
-    await verifyJwt(authHeader.slice(7), jwtSecret);
-  } catch {
-    return errorResponse(401, 'Invalid or expired token');
+  const scope = await resolveLibraryScope(request, env, auth);
+  if (!scope) {
+    return errorResponse(403, '非该团组成员');
   }
 
   const id = params.id;
   try {
-    const result = await env.DB
-      .prepare('SELECT data FROM equipments WHERE id = ?')
+    const row = await env.DB
+      .prepare('SELECT data, campaign_id FROM equipments WHERE id = ?')
       .bind(id)
-      .first();
-    if (!result) {
-      return errorResponse('装备不存在', 404);
+      .first<Row>();
+    if (!row) {
+      return errorResponse(404, '装备不存在');
     }
-    return jsonResponse(JSON.parse(result.data as string));
+    // 跨团组私有条目按 404 处理：不向非归属成员暴露条目存在性
+    if (!canReadEntry(scope, row.campaign_id)) {
+      return errorResponse(404, '装备不存在');
+    }
+    return jsonResponse(JSON.parse(row.data));
   } catch (e: any) {
-    return errorResponse(e.message || '查询失败', 500);
+    return errorResponse(500, e.message || '查询失败');
   }
 }
 
 export async function onRequestPut(context: any): Promise<Response> {
   const { request, env, params } = context;
 
-  // 统一认证（JWT 优先，DM_TOKEN 兜底）+ 校验 DM 角色
   const auth = await authenticateRequest(request, env);
   if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  if (!auth.isAdmin) {
-    return errorResponse(403, '需要站点管理员权限');
+  const scope = await resolveLibraryScope(request, env, auth);
+  if (!scope) {
+    return errorResponse(403, '非该团组成员');
   }
 
   const id = params.id;
   const body = await readJsonBody(request);
   if (!body) {
-    return errorResponse('请求体为空', 400);
+    return errorResponse(400, '请求体为空');
   }
-  const timestamp = now();
-  const itemData = { ...body, id, updatedAt: timestamp };
   try {
+    const row = await env.DB
+      .prepare('SELECT campaign_id FROM equipments WHERE id = ?')
+      .bind(id)
+      .first<{ campaign_id: string | null }>();
+    if (!row) {
+      return errorResponse(404, '装备不存在');
+    }
+    const targetOwner = body.campaignId === null ? null : (body.campaignId ?? row.campaign_id);
+    // 修改或转移归属都需要权限：出版物件与跨团组转移仅站点管理员
+    if (!canWriteEntry(scope, auth, row.campaign_id) || (targetOwner !== row.campaign_id && !auth.isAdmin)) {
+      return errorResponse(403, '无权修改该条目');
+    }
+    const timestamp = now();
+    const itemData = { ...body, id, campaignId: targetOwner, updatedAt: timestamp };
     const result = await env.DB
-      .prepare('UPDATE equipments SET name = ?, category = ?, data = ?, updated_at = ? WHERE id = ?')
+      .prepare('UPDATE equipments SET name = ?, category = ?, data = ?, campaign_id = ?, updated_at = ? WHERE id = ?')
       .bind(
         body.name || '',
         body.category || '杂项',
         JSON.stringify(itemData),
+        targetOwner,
         timestamp,
         id,
       )
       .run();
     if (result.meta.changes === 0) {
-      return errorResponse('装备不存在', 404);
+      return errorResponse(404, '装备不存在');
     }
     return jsonResponse(itemData);
   } catch (e: any) {
-    return errorResponse(e.message || '更新失败', 500);
+    return errorResponse(500, e.message || '更新失败');
   }
 }
 
 export async function onRequestDelete(context: any): Promise<Response> {
   const { request, env, params } = context;
 
-  // 统一认证（JWT 优先，DM_TOKEN 兜底）+ 校验 DM 角色
   const auth = await authenticateRequest(request, env);
   if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  if (!auth.isAdmin) {
-    return errorResponse(403, '需要站点管理员权限');
+  const scope = await resolveLibraryScope(request, env, auth);
+  if (!scope) {
+    return errorResponse(403, '非该团组成员');
   }
 
   const id = params.id;
   try {
+    const row = await env.DB
+      .prepare('SELECT campaign_id FROM equipments WHERE id = ?')
+      .bind(id)
+      .first<{ campaign_id: string | null }>();
+    if (!row) {
+      return errorResponse(404, '装备不存在');
+    }
+    if (!canWriteEntry(scope, auth, row.campaign_id)) {
+      return errorResponse(403, '无权删除该条目');
+    }
     const result = await env.DB
       .prepare('DELETE FROM equipments WHERE id = ?')
       .bind(id)
       .run();
     if (result.meta.changes === 0) {
-      return errorResponse('装备不存在', 404);
+      return errorResponse(404, '装备不存在');
     }
     return jsonResponse({ success: true });
   } catch (e: any) {
-    return errorResponse(e.message || '删除失败', 500);
+    return errorResponse(500, e.message || '删除失败');
   }
 }
 

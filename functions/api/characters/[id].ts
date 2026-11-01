@@ -49,15 +49,23 @@ export async function onRequestPut(context: any): Promise<Response> {
   }
   const timestamp = now();
   const charData = { ...body, id, updatedAt: timestamp };
+  // 团组归属变更（移入/移出团组）：整包 data 内嵌附属数据（背包/手持/穿戴），列变更即整体迁移
+  const targetCampaign =
+    body.campaignId === null ? null : (typeof body.campaignId === 'string' && body.campaignId ? body.campaignId : undefined);
+  const campaignSets = targetCampaign !== undefined ? ', campaign_id = ?' : '';
+  const campaignBinds = targetCampaign !== undefined ? [targetCampaign] : [];
   try {
     const result = await env.DB
-      .prepare('UPDATE characters SET name = ?, class = ?, level = ?, race = ?, data = ?, updated_at = ? WHERE id = ?')
+      .prepare(
+        `UPDATE characters SET name = ?, class = ?, level = ?, race = ?, data = ?${campaignSets}, updated_at = ? WHERE id = ?`
+      )
       .bind(
         body.name || '',
         body.class || '',
         body.level || 1,
         body.race || '',
         JSON.stringify(charData),
+        ...campaignBinds,
         timestamp,
         id,
       )
