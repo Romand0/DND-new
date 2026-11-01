@@ -36,6 +36,27 @@ function notifyListeners(): void {
   listeners.forEach((fn) => fn());
 }
 
+// GitHub 源数据托底（public/spells-fallback.json 随 Pages 部署为同源静态资产）：
+// 云端 D1 不可用/空库且本地无缓存时兜底。会话级 flag 防反复拉取。
+let fallbackTried = false;
+
+async function loadFallback(): Promise<Spell[]> {
+  if (fallbackTried) return loadFromCache();
+  fallbackTried = true;
+  try {
+    const res = await fetch('/spells-fallback.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json() as Spell[];
+    if (Array.isArray(data) && data.length > 0) {
+      saveToCache(data);
+      return data;
+    }
+  } catch (err) {
+    console.error('[spellStore] 托底数据加载失败:', err);
+  }
+  return loadFromCache();
+}
+
 export const spellStore = {
   // 同步：从本地缓存读取
   getAll(): Spell[] {
@@ -65,11 +86,17 @@ export const spellStore = {
   async fetchAll(): Promise<Spell[]> {
     try {
       const data = await api.fetchAllSpells<Spell[]>();
-      saveToCache(data);
-      return data;
+      if (Array.isArray(data) && data.length > 0) {
+        saveToCache(data);
+        return data;
+      }
+      // 云端空库（首次部署/未导入）→ 托底
+      return await loadFallback();
     } catch (err) {
       console.error('[spellStore] 从后端加载失败:', err);
-      return loadFromCache();
+      // localStorage 有真缓存（区别于种子兜底）直接用；否则尝试托底，托底也失败再落种子
+      if (localStorage.getItem(STORAGE_KEY)) return loadFromCache();
+      return await loadFallback();
     }
   },
 
