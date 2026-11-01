@@ -2,6 +2,8 @@
 //   1. 必须被至少一只手持握（材料袋只要在背包里即可）
 //   2. 只有对应职业的法术能使用（法师/术士/魔契师/奥法骑士/诡术师 → 奥术法器，
 //      吟游诗人 → 乐器，牧师/圣武士 → 圣徽，德鲁伊/游侠 → 德鲁伊法器）
+// 分类完全依赖装备的分类标签：法器分类下的奥术法器 / 圣徽 / 德鲁伊法器子分类，
+// 乐器则位于工具分类下的「乐器」子分类。不按名称猜测。
 // 本模块为纯函数：不读写 store，不做副作用。
 import type { Character, Equipment } from '@/types/character';
 
@@ -14,31 +16,32 @@ export const FOCUS_KIND_LABEL: Record<FocusKind, string> = {
   instrument: '乐器',
 };
 
-/** 装备实例可充当的法器类型（一件物品可同时是多种，如木杖既是奥术法器也是德鲁伊法器） */
-export function focusKindsOfItem(item: { category?: string; subtype?: string; name?: string }): FocusKind[] {
+const FOCUS_CATEGORY = '法器';
+const TOOL_CATEGORY = '工具';
+const INSTRUMENT_SUBTYPE = '乐器';
+const POUCH_SUBTYPE = '材料袋';
+
+const SUBTYPE_TO_KIND: Record<string, FocusKind> = {
+  '奥术法器': 'arcane',
+  '德鲁伊法器': 'druidic',
+  '圣徽': 'holy',
+  [INSTRUMENT_SUBTYPE]: 'instrument',
+};
+
+/** 装备可充当的法器类型：法器分类按子分类判定，工具分类只认「乐器」子分类 */
+export function focusKindsOfItem(item: { category?: string; subtype?: string }): FocusKind[] {
   const subtype = item.subtype || '';
-  const name = item.name || '';
-  const kinds = new Set<FocusKind>();
+  // 材料袋属于法器分类，但它是材料包，走背包即可的替代路径，不算施法法器
+  if (subtype === POUCH_SUBTYPE) return [];
 
-  if (subtype === '奥术法器') kinds.add('arcane');
-  if (subtype === '德鲁伊法器') kinds.add('druidic');
-  if (subtype === '圣徽') kinds.add('holy');
-  if (subtype === '吟游诗人法器' || subtype === '乐器') kinds.add('instrument');
-
-  // 名称兜底：装备库没有细分 subtype 时按常见法器名判定
-  if (/圣徽|圣符|holy/i.test(name)) kinds.add('holy');
-  if (/乐器|鲁特琴|笛|竖琴|号角|鼓|琵琶/i.test(name)) kinds.add('instrument');
-  if (/水晶|法球|宝珠|权杖|魔杖|法杖|orb|crystal|wand|rod|staff/i.test(name)) {
-    kinds.add('arcane');
-    // 木杖在 5e 同时可作为德鲁伊法器
-    if (/法杖|staff/i.test(name)) kinds.add('druidic');
+  if (item.category === FOCUS_CATEGORY) {
+    const kind = SUBTYPE_TO_KIND[subtype];
+    return kind && kind !== 'instrument' ? [kind] : [];
   }
-
-  // 仅「法器」分类或乐器类工具才算，避免普通杂物误判；材料袋走材料包逻辑，不算法器
-  const isMaterialPouch = subtype === '材料袋' || /材料[包袋]/.test(name);
-  const isFocusCategory = !isMaterialPouch
-    && (item.category === '法器' || (item.category === '工具' && /乐器/.test(subtype + name)));
-  return isFocusCategory ? [...kinds] : [];
+  if (item.category === TOOL_CATEGORY && subtype === INSTRUMENT_SUBTYPE) {
+    return ['instrument'];
+  }
+  return [];
 }
 
 const CLASS_FOCUS_KINDS: Record<string, FocusKind[]> = {
@@ -79,7 +82,7 @@ export function allowedFocusKinds(character: Character | null | undefined): Focu
   return [...kinds];
 }
 
-/** 手持槽引用的装备 ID 集合（优先 childId，回退模板 id） */
+/** 手持槽引用的装备 ID 集合（优先级 childId，回退模板 id） */
 export function getHeldEquipmentIds(character: Character | null | undefined): string[] {
   if (!character) return [];
   return [character.heldLeft?.equipmentId, character.heldRight?.equipmentId].filter(
@@ -93,7 +96,7 @@ function equipmentIdOf(item: Equipment): string {
 
 /**
  * 该装备能否作为施法者的法器使用：
- *   - 分类/名称命中法器
+ *   - 分类/子分类命中法器
  *   - 手持槽中存在（至少单手握持）
  *   - 法器类型在角色职业允许范围内
  */
@@ -153,7 +156,8 @@ export function diagnoseFocus(
 }
 
 /** 展示用：该装备命中的法器类型标签 */
-export function focusKindLabel(item: { category?: string; subtype?: string; name?: string }): string {
-  const kinds = focusKindsOfItem(item);
-  return kinds.map((k) => FOCUS_KIND_LABEL[k]).join(' / ');
+export function focusKindLabel(item: { category?: string; subtype?: string }): string {
+  return focusKindsOfItem(item)
+    .map((k) => FOCUS_KIND_LABEL[k])
+    .join(' / ');
 }

@@ -212,8 +212,11 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                         {item.subtype === '材料袋' && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400">材料包</span>
                         )}
-                        {item.subtype && item.subtype !== '材料袋' && ['奥术法器', '德鲁伊法器', '圣徽', '吟游诗人法器'].includes(item.subtype) && (
+                        {item.subtype && ['奥术法器', '德鲁伊法器', '圣徽'].includes(item.subtype) && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400">施法法器</span>
+                        )}
+                        {item.category === '工具' && item.subtype === '乐器' && (
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-purple-500/10 text-purple-400">施法法器·乐器</span>
                         )}
                         {item.rarity && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400">{item.rarity}</span>
