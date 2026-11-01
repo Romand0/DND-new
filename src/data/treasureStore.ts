@@ -1,6 +1,7 @@
 // 宝藏数据存储 —— localStorage + 内存缓存
 import type { Treasure, DistributionRecord } from '@/types/treasure';
 import { scopedKey } from '@/data/campaignScope';
+import { syncListDiff, pullArtifactsOnce } from '@/data/artifactSync';
 
 const storageKey = () => scopedKey('dnd-treasures');
 const DISTRIBUTION_KEY = 'dnd-treasure-distributions';
@@ -47,6 +48,7 @@ function load(): Treasure[] {
 }
 
 function save(list: Treasure[]): void {
+  const prev = cache;
   cache = list;
   try {
     localStorage.setItem(storageKey(), JSON.stringify(list));
@@ -54,6 +56,19 @@ function save(list: Treasure[]): void {
   } catch (e) {
     console.error('宝藏保存失败:', e);
   }
+  // 云端异步备份：diff 增改删，防抖批量上传
+  syncListDiff('treasure', prev, list, t => t.id);
+}
+
+/** 云端拉取当前团组宝藏并整体替换本地（惰性首拉一次，失败静默保持本地） */
+async function syncFromBackend(): Promise<void> {
+  await pullArtifactsOnce<Treasure[]>('treasure', list => {
+    cache = list;
+    try {
+      localStorage.setItem(storageKey(), JSON.stringify(list));
+    } catch { /* 存储满时保留内存态 */ }
+    notify();
+  });
 }
 
 function loadDistributions(): DistributionRecord[] {
@@ -79,6 +94,7 @@ function saveDistributions(list: DistributionRecord[]): void {
 
 const treasureStore = {
   getAll(): Treasure[] {
+    void syncFromBackend();
     return [...load()].sort((a, b) => b.updatedAt - a.updatedAt);
   },
 

@@ -1,5 +1,6 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry } from '@/types/combat';
 import { scopedKey } from '@/data/campaignScope';
+import { syncListDiff, pullArtifactsOnce } from '@/data/artifactSync';
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
@@ -535,6 +536,7 @@ function load(): CombatRecord[] {
 }
 
 function save(records: CombatRecord[]): void {
+  const prev = recordsCache;
   recordsCache = records;
   try {
     localStorage.setItem(storageKey(), JSON.stringify(records));
@@ -542,6 +544,23 @@ function save(records: CombatRecord[]): void {
   } catch (e) {
     console.error('战斗记录保存失败:', e);
   }
+  // 云端异步备份（fire-and-forget）：diff 增改删，防抖批量上传
+  syncListDiff('combat', prev, records, r => r.id);
+}
+
+/** 云端拉取当前团组战斗记录并整体替换本地（惰性首拉一次，失败静默保持本地） */
+async function syncFromBackend(): Promise<void> {
+  await pullArtifactsOnce<CombatRecord[]>('combat', list => {
+    // 先落 storage 再走 load() 归一化（equipmentChanges 三件套等字段兜底全在 load 内）
+    recordsCache = null;
+    try {
+      localStorage.setItem(storageKey(), JSON.stringify(list));
+    } catch {
+      return;
+    }
+    load();
+    notify();
+  });
 }
 
 // =======================
@@ -552,6 +571,8 @@ const combatStore = {
    * 获取所有战斗记录（按更新时间倒序）
    */
   getAll(): CombatRecord[] {
+    // 惰性首拉云端（进程内仅一次，失败/未登录静默）
+    void syncFromBackend();
     return [...load()].sort((a, b) => b.updatedAt - a.updatedAt);
   },
 

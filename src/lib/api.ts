@@ -497,3 +497,21 @@ export async function joinCampaign<T = Campaign & { joined: boolean }>(code: str
     body: JSON.stringify({ code }),
   });
 }
+
+// ---------- 团组制品（六类纯本地数据上云：combat/treasure/note/battleground/calendar/gametime/proposal） ----------
+
+export async function fetchArtifacts<T = any[]>(kind: string): Promise<T> {
+  return apiFetch<T>(`/artifacts/${kind}`, { headers: authHeaders() });
+}
+
+export async function putArtifact<T = any>(kind: string, artId: string, data: unknown): Promise<T> {
+  return apiFetch<T>(`/artifacts/${kind}/${encodeURIComponent(artId)}`, {
+    method: 'PUT',
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteArtifact(kind: string, artId: string): Promise<void> {
+  await apiFetch(`/artifacts/${kind}/${encodeURIComponent(artId)}`, { method: 'DELETE', headers: authHeaders() });
+}
