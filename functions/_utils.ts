@@ -189,6 +189,65 @@ export async function verifyPassword(password: string, storedHash: string): Prom
 
   return computedHash === hashHex;
 }
+// ---------- 团组上下文 ----------
+// 团组是顶层组织单元：一场跑团战役的数据容器（角色卡/战斗/宝藏/笔记/沙盘/日历/时间均归属团组，
+// 图鉴四库按团组规则书集筛选出版物条目 ∪ 本团组自定义条目）。流程库与账号体系保持团组无关。
+
+export const DEFAULT_CAMPAIGN_ID = 'campaign-default';
+
+export interface CampaignContext {
+  campaignId: string;
+  role: 'dm' | 'player';
+  rulebooks: string[];
+}
+
+/**
+ * 从 X-Campaign-Id 头解析团组并校验请求账号为该团组成员。
+ * 头缺失时回退默认团组（存量客户端兼容）；非成员返回 null，调用方据此 403。
+ */
+export async function getCampaignContext(
+  request: Request,
+  env: Env,
+  auth: AuthIdentity
+): Promise<CampaignContext | null> {
+  const headerId = request.headers.get('X-Campaign-Id');
+  const campaignId = headerId || DEFAULT_CAMPAIGN_ID;
+  const member = await env.DB
+    .prepare('SELECT role FROM campaign_members WHERE campaign_id = ? AND user_id = ?')
+    .bind(campaignId, auth.sub)
+    .first<{ role: string }>();
+  if (!member) return null;
+  const camp = await env.DB
+    .prepare('SELECT rulebooks FROM campaigns WHERE id = ?')
+    .bind(campaignId)
+    .first<{ rulebooks: string }>();
+  let rulebooks: string[] = [];
+  try {
+    rulebooks = JSON.parse(camp?.rulebooks || '[]');
+  } catch {
+    rulebooks = [];
+  }
+  return {
+    campaignId,
+    role: member.role === 'dm' ? 'dm' : 'player',
+    rulebooks,
+  };
+}
+
+/**
+ * 团组作用域写操作校验：DM 或站点管理员放行；普通成员拒绝。
+ * kind='proposal' 时成员放行（玩家提案单向递送通道，审批后经 DM 中转入库）。
+ */
+export function assertCampaignWrite(
+  ctx: CampaignContext | null,
+  auth: AuthIdentity,
+  kind?: string
+): boolean {
+  if (!ctx) return false;
+  if (auth.isAdmin || ctx.role === 'dm') return true;
+  return kind === 'proposal';
+}
+
 // ---------- 请求体解析工具 ----------
 
 export async function readJsonBody<T>(request: Request): Promise<T | null> {

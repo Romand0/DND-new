@@ -14,6 +14,7 @@ import type {
   HandState,
   Currency,
 } from '@/types/character';
+import { scopedKey } from '@/data/campaignScope';
 import { getAvailableSubclasses, canChooseSubclass, getSubclassDisplayName } from './subclasses';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
@@ -28,7 +29,7 @@ function getAuthHeaders(): Record<string, string> {
   return headers;
 }
 
-const STORAGE_KEY = 'DND';
+const storageKey = () => scopedKey('DND');
 const BACKUP_KEY = 'dm-characters-backup';
 const BACKUP_INTERVAL = 30000;
 
@@ -41,7 +42,7 @@ let charactersCache: Character[] | null = null;
 // 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY) charactersCache = null;
+    if (e.key === storageKey()) charactersCache = null;
   });
 }
 
@@ -148,7 +149,7 @@ function migrateStore(chars: any[]): Character[] {
 function getStore(): Character[] {
   if (charactersCache) return charactersCache;
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(storageKey());
     const chars = data ? JSON.parse(data) : [];
     return migrateStore(chars);
   } catch {
@@ -158,7 +159,7 @@ function getStore(): Character[] {
 
 function saveStore(store: Character[]): void {
   charactersCache = store;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  localStorage.setItem(storageKey(), JSON.stringify(store));
   scheduleBackup();
 }
 
@@ -367,7 +368,7 @@ async function replaceAllFromBackend(): Promise<Character[]> {
   const merged = [...migrated, ...localSandbox.filter(s => !migrated.some(m => m.id === s.id))];
   // 直接写入 localStorage 并更新缓存，不触发 syncCharacterToBackend
   charactersCache = merged;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+  localStorage.setItem(storageKey(), JSON.stringify(merged));
   scheduleBackup();
   return migrated;
 }
@@ -389,7 +390,7 @@ function scheduleBackup(): void {
 
 function createBackup(): void {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(storageKey());
     if (data) {
       const backup = {
         timestamp: Date.now(),

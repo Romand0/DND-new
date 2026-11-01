@@ -26,6 +26,7 @@ import calendarStore from '@/data/calendarStore';
 import flowStore from '@/data/flowStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import CampaignSwitcher from '@/components/CampaignSwitcher';
 
 const allNavItems = [
   { path: '/characters', label: '角色卡库', icon: Users },
@@ -172,6 +173,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
                 DM Toolkit
               </span>
             </Link>
+            <CampaignSwitcher />
           </div>
 
           {/* 导航项横向可滑动：overflow-x-auto + touch-pan-x 让横向手势滚动导航条本身，
