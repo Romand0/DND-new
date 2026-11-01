@@ -1,25 +1,39 @@
-import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now, verifyJwt } from '../../_utils';
+import {
+  jsonResponse,
+  errorResponse,
+  handleOptions,
+  authenticateRequest,
+  readJsonBody,
+  now,
+  resolveLibraryScope,
+  libraryFilterClause,
+  resolveNewEntryCampaignId,
+} from '../../_utils';
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env } = context;
 
-  // 只验 JWT（不验 role，不验 DM_TOKEN）
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-  try {
-    await verifyJwt(authHeader.slice(7), jwtSecret);
-  } catch {
-    return errorResponse(401, 'Invalid or expired token');
+  const scope = await resolveLibraryScope(request, env, auth);
+  if (!scope) {
+    return errorResponse(403, '非该团组成员');
   }
 
   try {
+    const { clause, binds } = libraryFilterClause(scope, "json_extract(data, '$.source')");
     const result = await env.DB
-      .prepare('SELECT id, name, category, data, updated_at FROM equipments ORDER BY updated_at DESC')
+      .prepare(`SELECT id, name, category, data, campaign_id, updated_at FROM equipments ${clause} ORDER BY updated_at DESC`)
+      .bind(...binds)
       .all();
-    const items = result.results.map((row: any) => JSON.parse(row.data));
+    // campaignId 以 data 内字段为准（写路径双写），旧条目从独立列兜底合并
+    const items = result.results.map((row: any) => {
+      const parsed = JSON.parse(row.data);
+      if (parsed.campaignId === undefined && row.campaign_id) parsed.campaignId = row.campaign_id;
+      return parsed;
+    });
     return jsonResponse(items);
   } catch (e: any) {
     return errorResponse(e.message || '数据库查询失败', 500);
@@ -29,13 +43,13 @@ export async function onRequestGet(context: any): Promise<Response> {
 export async function onRequestPost(context: any): Promise<Response> {
   const { request, env } = context;
 
-  // 统一认证（JWT 优先，DM_TOKEN 兜底）+ 校验 DM 角色
   const auth = await authenticateRequest(request, env);
   if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  if (!auth.isAdmin) {
-    return errorResponse(403, '需要站点管理员权限');
+  const scope = await resolveLibraryScope(request, env, auth);
+  if (!scope) {
+    return errorResponse(403, '非该团组成员');
   }
 
   const body = await readJsonBody(request);
@@ -45,51 +59,73 @@ export async function onRequestPost(context: any): Promise<Response> {
     const timestamp = now();
     const validItems = body.filter((item: any) => item && typeof item.id === 'string' && item.id.length > 0);
     if (validItems.length === 0) {
-      return errorResponse('数组中没有有效的装备数据（缺少 id）', 400);
+      return errorResponse(400, '数组中没有有效的装备数据（缺少 id）');
     }
+    // 逐条解析归属（批量里允许混合出版物条目与团组私有条目）
+    let ownerFailed: string | null = null;
     const stmt = env.DB.prepare(
-      'INSERT OR REPLACE INTO equipments (id, name, category, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO equipments (id, name, category, data, campaign_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
     );
     const batch = validItems.map((item: any) => {
       const itemData = { ...item, createdAt: item.createdAt || timestamp, updatedAt: timestamp };
+      let ownerId: string | null = scope.ctx.campaignId;
+      if (item.campaignId === null) {
+        if (!auth.isAdmin) {
+          ownerFailed = item.id;
+          return null;
+        }
+        ownerId = null;
+      }
+      itemData.campaignId = ownerId;
       return stmt.bind(
         item.id,
         item.name || '',
         item.category || '杂项',
         JSON.stringify(itemData),
+        ownerId,
         item.createdAt || timestamp,
         timestamp,
       );
     });
+    if (ownerFailed) {
+      return errorResponse(403, `出版物条目仅站点管理员可创建（id: ${ownerFailed}）`);
+    }
     try {
       await env.DB.batch(batch);
       return jsonResponse({ count: validItems.length });
     } catch (e: any) {
-      return errorResponse(`批量导入失败: ${e.message || '未知数据库错误'}`, 500);
+      return errorResponse(500, `批量导入失败: ${e.message || '未知数据库错误'}`);
     }
   }
 
   // 单条创建
   if (!body || !body.id || !body.name) {
-    return errorResponse('缺少必要字段: id, name', 400);
+    return errorResponse(400, '缺少必要字段: id, name');
+  }
+  let ownerId: string | null;
+  try {
+    ownerId = resolveNewEntryCampaignId(scope, auth, body.campaignId);
+  } catch (e: any) {
+    return errorResponse(403, e.message || '无权创建');
   }
   const timestamp = now();
-  const itemData = { ...body, createdAt: body.createdAt || timestamp, updatedAt: timestamp };
+  const itemData = { ...body, campaignId: ownerId, createdAt: body.createdAt || timestamp, updatedAt: timestamp };
   try {
     await env.DB
-      .prepare('INSERT INTO equipments (id, name, category, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .prepare('INSERT INTO equipments (id, name, category, data, campaign_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .bind(
         body.id,
         body.name,
         body.category || '杂项',
         JSON.stringify(itemData),
+        ownerId,
         timestamp,
         timestamp,
       )
       .run();
     return jsonResponse(itemData, 201);
   } catch (e: any) {
-    return errorResponse(e.message || '创建失败', 500);
+    return errorResponse(500, e.message || '创建失败');
   }
 }
 

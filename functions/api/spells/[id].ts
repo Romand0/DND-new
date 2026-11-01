@@ -1,32 +1,38 @@
-import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now, verifyJwt } from '../../_utils';
+import {
+  jsonResponse,
+  errorResponse,
+  handleOptions,
+  authenticateRequest,
+  readJsonBody,
+  now,
+  resolveLibraryScope,
+  canReadEntry,
+  canWriteEntry,
+} from '../../_utils';
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env, params } = context;
 
-  // 只验 JWT（不验 role，不验 DM_TOKEN）
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-  try {
-    await verifyJwt(authHeader.slice(7), jwtSecret);
-  } catch {
-    return errorResponse(401, 'Invalid or expired token');
+  const scope = await resolveLibraryScope(request, env, auth);
+  if (!scope) {
+    return errorResponse(403, '非该团组成员');
   }
 
   const id = params.id;
   try {
-    // 获取法术基本信息
     const spellResult = await env.DB
-      .prepare('SELECT data FROM spells WHERE id = ?')
+      .prepare('SELECT data, campaign_id FROM spells WHERE id = ?')
       .bind(id)
-      .first();
-    if (!spellResult) {
-      return errorResponse('法术不存在', 404);
+      .first<{ data: string; campaign_id: string | null }>();
+    if (!spellResult || !canReadEntry(scope, spellResult.campaign_id)) {
+      return errorResponse(404, '法术不存在');
     }
 
-    const spellData = JSON.parse(spellResult.data as string);
+    const spellData = JSON.parse(spellResult.data);
 
     // 获取绑定的流程信息
     const bindingsResult = await env.DB
@@ -53,74 +59,96 @@ export async function onRequestGet(context: any): Promise<Response> {
       bindingsCount: boundFlows.length
     });
   } catch (e: any) {
-    return errorResponse(e.message || '查询失败', 500);
+    return errorResponse(500, e.message || '查询失败');
   }
 }
 
 export async function onRequestPut(context: any): Promise<Response> {
   const { request, env, params } = context;
 
-  // 统一认证（JWT 优先，DM_TOKEN 兜底）+ 校验 DM 角色
   const auth = await authenticateRequest(request, env);
   if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  if (!auth.isAdmin) {
-    return errorResponse(403, '需要站点管理员权限');
+  const scope = await resolveLibraryScope(request, env, auth);
+  if (!scope) {
+    return errorResponse(403, '非该团组成员');
   }
 
   const id = params.id;
   const body = await readJsonBody(request);
   if (!body) {
-    return errorResponse('请求体为空', 400);
+    return errorResponse(400, '请求体为空');
   }
-  const timestamp = now();
-  const itemData = { ...body, id, updatedAt: timestamp };
   try {
+    const row = await env.DB
+      .prepare('SELECT campaign_id FROM spells WHERE id = ?')
+      .bind(id)
+      .first<{ campaign_id: string | null }>();
+    if (!row) {
+      return errorResponse(404, '法术不存在');
+    }
+    const targetOwner = body.campaignId === null ? null : (body.campaignId ?? row.campaign_id);
+    if (!canWriteEntry(scope, auth, row.campaign_id) || (targetOwner !== row.campaign_id && !auth.isAdmin)) {
+      return errorResponse(403, '无权修改该条目');
+    }
+    const timestamp = now();
+    const itemData = { ...body, id, campaignId: targetOwner, updatedAt: timestamp };
     const result = await env.DB
-      .prepare('UPDATE spells SET name = ?, level = ?, school = ?, data = ?, updated_at = ? WHERE id = ?')
+      .prepare('UPDATE spells SET name = ?, level = ?, school = ?, data = ?, campaign_id = ?, updated_at = ? WHERE id = ?')
       .bind(
         body.name || '',
         body.level || 0,
         body.school || '',
         JSON.stringify(itemData),
+        targetOwner,
         timestamp,
         id,
       )
       .run();
     if (result.meta.changes === 0) {
-      return errorResponse('法术不存在', 404);
+      return errorResponse(404, '法术不存在');
     }
     return jsonResponse(itemData);
   } catch (e: any) {
-    return errorResponse(e.message || '更新失败', 500);
+    return errorResponse(500, e.message || '更新失败');
   }
 }
 
 export async function onRequestDelete(context: any): Promise<Response> {
   const { request, env, params } = context;
 
-  // 统一认证（JWT 优先，DM_TOKEN 兜底）+ 校验 DM 角色
   const auth = await authenticateRequest(request, env);
   if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  if (!auth.isAdmin) {
-    return errorResponse(403, '需要站点管理员权限');
+  const scope = await resolveLibraryScope(request, env, auth);
+  if (!scope) {
+    return errorResponse(403, '非该团组成员');
   }
 
   const id = params.id;
   try {
+    const row = await env.DB
+      .prepare('SELECT campaign_id FROM spells WHERE id = ?')
+      .bind(id)
+      .first<{ campaign_id: string | null }>();
+    if (!row) {
+      return errorResponse(404, '法术不存在');
+    }
+    if (!canWriteEntry(scope, auth, row.campaign_id)) {
+      return errorResponse(403, '无权删除该条目');
+    }
     const result = await env.DB
       .prepare('DELETE FROM spells WHERE id = ?')
       .bind(id)
       .run();
     if (result.meta.changes === 0) {
-      return errorResponse('法术不存在', 404);
+      return errorResponse(404, '法术不存在');
     }
     return jsonResponse({ success: true });
   } catch (e: any) {
-    return errorResponse(e.message || '删除失败', 500);
+    return errorResponse(500, e.message || '删除失败');
   }
 }
 

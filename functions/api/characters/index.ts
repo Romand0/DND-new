@@ -1,28 +1,40 @@
-import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now ,verifyJwt} from '../../_utils';
+import {
+  jsonResponse,
+  errorResponse,
+  handleOptions,
+  authenticateRequest,
+  readJsonBody,
+  now,
+  getCampaignContext,
+  DEFAULT_CAMPAIGN_ID,
+} from '../../_utils';
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env } = context;
 
-  // 只验 JWT（不验 role，不验 DM_TOKEN）
-  const authHeader = request.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  const auth = await authenticateRequest(request, env);
+  if (!auth) {
     return errorResponse(401, 'Missing or invalid Authorization header');
   }
-  const jwtSecret = env.JWT_SECRET || 'cmy090907cmy090907cmy090907';
-  try {
-    await verifyJwt(authHeader.slice(7), jwtSecret);
-  } catch {
-    return errorResponse(401, 'Invalid or expired token');
+  // 团组作用域：仅返回当前团组的角色卡（存量无归属行已由 0012 回填默认团组）
+  const ctx = await getCampaignContext(request, env, auth);
+  if (!ctx) {
+    return errorResponse(403, '非该团组成员');
   }
 
   try {
     const result = await env.DB
-      .prepare('SELECT id, name, class, level, race, data, updated_at FROM characters ORDER BY updated_at DESC')
+      .prepare('SELECT id, name, class, level, race, data, campaign_id, updated_at FROM characters WHERE campaign_id = ? ORDER BY updated_at DESC')
+      .bind(ctx.campaignId || DEFAULT_CAMPAIGN_ID)
       .all();
-    const characters = result.results.map((row: any) => JSON.parse(row.data));
+    const characters = result.results.map((row: any) => {
+      const parsed = JSON.parse(row.data);
+      if (parsed.campaignId === undefined && row.campaign_id) parsed.campaignId = row.campaign_id;
+      return parsed;
+    });
     return jsonResponse(characters);
   } catch (e: any) {
-    return errorResponse(e.message || '数据库查询失败', 500);
+    return errorResponse(500, e.message || '数据库查询失败');
   }
 }
 
@@ -48,10 +60,11 @@ export async function onRequestPost(context: any): Promise<Response> {
       return errorResponse('数组中没有有效的角色数据（缺少 id）', 400);
     }
     const stmt = env.DB.prepare(
-      'INSERT OR REPLACE INTO characters (id, name, class, level, race, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      'INSERT OR REPLACE INTO characters (id, name, class, level, race, data, campaign_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     const batch = validItems.map((item: any) => {
       const charData = { ...item, createdAt: item.createdAt || timestamp, updatedAt: timestamp };
+      const ownerId = typeof item.campaignId === 'string' && item.campaignId ? item.campaignId : null;
       return stmt.bind(
         item.id,
         item.name || '',
@@ -59,6 +72,7 @@ export async function onRequestPost(context: any): Promise<Response> {
         item.level || 1,
         item.race || '',
         JSON.stringify(charData),
+        ownerId,
         item.createdAt || timestamp,
         timestamp,
       );
@@ -79,7 +93,7 @@ export async function onRequestPost(context: any): Promise<Response> {
   const charData = { ...body, createdAt: body.createdAt || timestamp, updatedAt: timestamp };
   try {
     await env.DB
-      .prepare('INSERT INTO characters (id, name, class, level, race, data, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .prepare('INSERT INTO characters (id, name, class, level, race, data, campaign_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(
         body.id,
         body.name,
@@ -87,13 +101,14 @@ export async function onRequestPost(context: any): Promise<Response> {
         body.level || 1,
         body.race || '',
         JSON.stringify(charData),
+        typeof body.campaignId === 'string' && body.campaignId ? body.campaignId : null,
         timestamp,
         timestamp,
       )
       .run();
     return jsonResponse(charData, 201);
   } catch (e: any) {
-    return errorResponse(e.message || '创建失败', 500);
+    return errorResponse(500, e.message || '创建失败');
   }
 }
 
