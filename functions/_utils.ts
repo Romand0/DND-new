@@ -212,10 +212,30 @@ export async function getCampaignContext(
 ): Promise<CampaignContext | null> {
   const headerId = request.headers.get('X-Campaign-Id');
   const campaignId = headerId || DEFAULT_CAMPAIGN_ID;
-  const member = await env.DB
+  let member = await env.DB
     .prepare('SELECT role FROM campaign_members WHERE campaign_id = ? AND user_id = ?')
     .bind(campaignId, auth.sub)
     .first<{ role: string }>();
+  // 默认团组成员缺失自愈：0012 批量回填可能未执行/遗漏，登录用户首次访问默认团组时按需登记
+  // （幂等 INSERT OR IGNORE，与回填语义一致：管理员=DM、其余=player）。其他团组必须凭邀请码加入。
+  if (!member && campaignId === DEFAULT_CAMPAIGN_ID) {
+    const campExists = await env.DB
+      .prepare('SELECT 1 FROM campaigns WHERE id = ?')
+      .bind(DEFAULT_CAMPAIGN_ID)
+      .first();
+    if (campExists) {
+      const role = auth.isAdmin ? 'dm' : 'player';
+      try {
+        await env.DB
+          .prepare('INSERT OR IGNORE INTO campaign_members (campaign_id, user_id, role, joined_at) VALUES (?, ?, ?, unixepoch())')
+          .bind(DEFAULT_CAMPAIGN_ID, auth.sub, role)
+          .run();
+        member = { role };
+      } catch {
+        return null;
+      }
+    }
+  }
   if (!member) return null;
   const camp = await env.DB
     .prepare('SELECT rulebooks FROM campaigns WHERE id = ?')
