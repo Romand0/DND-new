@@ -1,7 +1,7 @@
 // 凭邀请码加入团组
 // POST /api/campaigns/join   body {code} → 加入为玩家角色；已加入时幂等返回
 
-import { authenticateRequest, errorResponse, jsonResponse, now, readJsonBody } from '../_utils';
+import { authenticateRequest, errorResponse, jsonResponse, now, readJsonBody } from '../../_utils';
 
 export async function onRequestPost(context: { request: Request; env: { DB: D1Database } }) {
   const { request, env } = context;

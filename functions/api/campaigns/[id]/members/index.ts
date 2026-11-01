@@ -1,7 +1,7 @@
 // 团组成员列表
 // GET /api/campaigns/[id]/members   成员可见（含账号名）
 
-import { authenticateRequest, errorResponse, getCampaignContext, jsonResponse } from '../../../_utils';
+import { authenticateRequest, errorResponse, getCampaignContext, jsonResponse } from '../../../../_utils';
 
 export async function onRequestGet(context: { request: Request; env: { DB: D1Database }; params: { id: string } }) {
   const { request, env, params } = context;
