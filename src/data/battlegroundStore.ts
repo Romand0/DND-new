@@ -2,6 +2,7 @@
 import type { Battleground, GridSize, TokenPosition, ItemToken, BattlegroundZone } from '@/types/battleground';
 import { scopedKey } from '@/data/campaignScope';
 import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
+import { syncListDiff, pullArtifactsOnce } from '@/data/artifactSync';
 
 const storageKey = () => scopedKey('dnd-battlegrounds');
 type Listener = () => void;
@@ -65,6 +66,8 @@ function cloneBg(bg: Battleground): Battleground {
 }
 
 function loadAll(): Battleground[] {
+  // 惰性首拉云端（pullArtifactsOnce 进程内只拉一次，失败/未登录静默）
+  void syncFromBackend();
   if (battlegroundCache) return battlegroundCache;
   try {
     const raw = localStorage.getItem(storageKey());
@@ -101,6 +104,7 @@ function loadAll(): Battleground[] {
 }
 
 function saveAll(list: Battleground[]): void {
+  const prev = battlegroundCache;
   battlegroundCache = list;
   try {
     localStorage.setItem(storageKey(), JSON.stringify(list));
@@ -108,6 +112,19 @@ function saveAll(list: Battleground[]): void {
   } catch (e) {
     console.error('沙盘数据保存失败:', e);
   }
+  // 云端异步备份：diff 增改删（id = sessionId），防抖批量上传
+  syncListDiff('battleground', prev, list, b => b.sessionId);
+}
+
+/** 云端拉取当前团组沙盘并整体替换本地（惰性首拉一次，失败静默保持本地） */
+async function syncFromBackend(): Promise<void> {
+  await pullArtifactsOnce<Battleground[]>('battleground', list => {
+    battlegroundCache = list;
+    try {
+      localStorage.setItem(storageKey(), JSON.stringify(list));
+    } catch { /* 存储满时保留内存态 */ }
+    notify();
+  });
 }
 
 const battlegroundStore = {

@@ -1,4 +1,5 @@
 import { scopedKey } from '@/data/campaignScope';
+import { queueSingletonPut, pullArtifactsOnce } from '@/data/artifactSync';
 // 游戏内时间存储
 const storageKey = () => scopedKey('dnd-game-time');
 type Listener = () => void;
@@ -35,6 +36,7 @@ function load(): GameTime {
 function save(time: GameTime): void {
   try {
     localStorage.setItem(storageKey(), JSON.stringify(time));
+    queueSingletonPut('gametime', time);
     notify();
   } catch (e) {
     console.error('游戏时间保存失败:', e);
@@ -54,6 +56,15 @@ export function getTimeOfDay(hour: number, minute: number): string {
 
 const gameTimeStore = {
   get(): GameTime {
+    // 团组单例制品：惰性首拉一次（singleton），成功后写本地并通知
+    void pullArtifactsOnce<any>('gametime', data => {
+      const t = Array.isArray(data) ? data[0] : data;
+      if (!t || typeof t !== 'object') return;
+      try {
+        localStorage.setItem(storageKey(), JSON.stringify(t));
+      } catch { /* 存储满时忽略 */ }
+      notify();
+    });
     return load();
   },
 

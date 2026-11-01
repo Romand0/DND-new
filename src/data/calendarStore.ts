@@ -1,6 +1,7 @@
 // 游戏日历状态管理 — 哈普托斯历（Harptos Calendar）
 import { getYearDays, dayOfYearToDate, getRealWorldDayOfYear, isLeapYear } from './calendarData';
 import { scopedKey } from '@/data/campaignScope';
+import { queueSingletonPut, pullArtifactsOnce } from '@/data/artifactSync';
 import gameTimeStore from './gameTimeStore';
 
 const storageKey = () => scopedKey('dnd-game-calendar');
@@ -49,6 +50,7 @@ function load(): GameCalendar {
 function save(calendar: GameCalendar): void {
   try {
     localStorage.setItem(storageKey(), JSON.stringify(calendar));
+    queueSingletonPut('calendar', calendar);
     notify();
   } catch (e) {
     console.error('游戏日历保存失败:', e);
@@ -104,6 +106,15 @@ gameTimeStore.subscribe(onTimeChange);
 
 const calendarStore = {
   get(): GameCalendar {
+    // 团组单例制品：惰性首拉一次（singleton），成功后写本地并通知
+    void pullArtifactsOnce<any>('calendar', data => {
+      const s = Array.isArray(data) ? data[0] : data;
+      if (!s || typeof s !== 'object') return;
+      try {
+        localStorage.setItem(storageKey(), JSON.stringify(s));
+      } catch { /* 存储满时忽略 */ }
+      notify();
+    });
     return load();
   },
 
