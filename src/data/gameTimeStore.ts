@@ -1,5 +1,6 @@
+import { scopedKey } from '@/data/campaignScope';
 // 游戏内时间存储
-const STORAGE_KEY = 'dnd-game-time';
+const storageKey = () => scopedKey('dnd-game-time');
 type Listener = () => void;
 
 let listeners: Listener[] = [];
@@ -16,7 +17,7 @@ interface GameTime {
 
 function load(): GameTime {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return { hour: 8, minute: 0, updatedAt: Date.now() };
     const t: any = JSON.parse(raw);
     const h = Number(t.hour);
@@ -33,7 +34,7 @@ function load(): GameTime {
 
 function save(time: GameTime): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(time));
+    localStorage.setItem(storageKey(), JSON.stringify(time));
     notify();
   } catch (e) {
     console.error('游戏时间保存失败:', e);

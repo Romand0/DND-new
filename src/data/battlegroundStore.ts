@@ -1,8 +1,9 @@
 // 网格沙盘本地存储 —— 按 sessionId 索引，独立于战斗记录
 import type { Battleground, GridSize, TokenPosition, ItemToken, BattlegroundZone } from '@/types/battleground';
+import { scopedKey } from '@/data/campaignScope';
 import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
 
-const STORAGE_KEY = 'dnd-battlegrounds';
+const storageKey = () => scopedKey('dnd-battlegrounds');
 type Listener = () => void;
 
 let listeners: Listener[] = [];
@@ -14,7 +15,7 @@ let battlegroundCache: Battleground[] | null = null;
 // 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY) battlegroundCache = null;
+    if (e.key === storageKey()) battlegroundCache = null;
   });
 }
 
@@ -66,7 +67,7 @@ function cloneBg(bg: Battleground): Battleground {
 function loadAll(): Battleground[] {
   if (battlegroundCache) return battlegroundCache;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return [];
     const arr: unknown[] = JSON.parse(raw);
     return arr.map((b: any) => ({
@@ -102,7 +103,7 @@ function loadAll(): Battleground[] {
 function saveAll(list: Battleground[]): void {
   battlegroundCache = list;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    localStorage.setItem(storageKey(), JSON.stringify(list));
     notify();
   } catch (e) {
     console.error('沙盘数据保存失败:', e);

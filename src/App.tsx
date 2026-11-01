@@ -1,5 +1,6 @@
 // DM Toolkit - Application Router
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { CampaignProvider } from './contexts/CampaignContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -65,6 +66,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <CampaignProvider>
         <BrowserRouter>
           <TripleTapGesture />
           <KeyboardShortcutDetector>
@@ -176,6 +178,7 @@ export default function App() {
             </Routes>
           </KeyboardShortcutDetector>
         </BrowserRouter>
+        </CampaignProvider>
       </AuthProvider>
     </ThemeProvider>
   );

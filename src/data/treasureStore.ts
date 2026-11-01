@@ -1,7 +1,8 @@
 // 宝藏数据存储 —— localStorage + 内存缓存
 import type { Treasure, DistributionRecord } from '@/types/treasure';
+import { scopedKey } from '@/data/campaignScope';
 
-const STORAGE_KEY = 'dnd-treasures';
+const storageKey = () => scopedKey('dnd-treasures');
 const DISTRIBUTION_KEY = 'dnd-treasure-distributions';
 type Listener = () => void;
 
@@ -16,7 +17,7 @@ function notify(): void {
 function load(): Treasure[] {
   if (cache) return cache;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) return [];
     const list: unknown[] = JSON.parse(raw);
     cache = list.map((t: any) => ({
@@ -48,7 +49,7 @@ function load(): Treasure[] {
 function save(list: Treasure[]): void {
   cache = list;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+    localStorage.setItem(storageKey(), JSON.stringify(list));
     notify();
   } catch (e) {
     console.error('宝藏保存失败:', e);

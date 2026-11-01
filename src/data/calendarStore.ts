@@ -1,8 +1,9 @@
 // 游戏日历状态管理 — 哈普托斯历（Harptos Calendar）
 import { getYearDays, dayOfYearToDate, getRealWorldDayOfYear, isLeapYear } from './calendarData';
+import { scopedKey } from '@/data/campaignScope';
 import gameTimeStore from './gameTimeStore';
 
-const STORAGE_KEY = 'dnd-game-calendar';
+const storageKey = () => scopedKey('dnd-game-calendar');
 type Listener = () => void;
 
 let listeners: Listener[] = [];
@@ -19,7 +20,7 @@ export interface GameCalendar {
 
 function load(): GameCalendar {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) {
       return {
         dayOfYear: getRealWorldDayOfYear(),
@@ -47,7 +48,7 @@ function load(): GameCalendar {
 
 function save(calendar: GameCalendar): void {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(calendar));
+    localStorage.setItem(storageKey(), JSON.stringify(calendar));
     notify();
   } catch (e) {
     console.error('游戏日历保存失败:', e);

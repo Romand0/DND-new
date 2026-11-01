@@ -1,11 +1,12 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry } from '@/types/combat';
+import { scopedKey } from '@/data/campaignScope';
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
 import { globalStatusManager } from './statusManager';
 import type { Equipment, Character } from '@/types/character';
 
-const STORAGE_KEY = 'dnd-combat-records';
+const storageKey = () => scopedKey('dnd-combat-records');
 type Listener = () => void;
 
 // =======================
@@ -20,7 +21,7 @@ let recordsCache: CombatRecord[] | null = null;
 // 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY) recordsCache = null;
+    if (e.key === storageKey()) recordsCache = null;
   });
 }
 
@@ -368,7 +369,7 @@ export function applyEquipmentChange(
 function load(): CombatRecord[] {
   if (recordsCache) return recordsCache;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) {
       recordsCache = [];
       return recordsCache;
@@ -536,7 +537,7 @@ function load(): CombatRecord[] {
 function save(records: CombatRecord[]): void {
   recordsCache = records;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    localStorage.setItem(storageKey(), JSON.stringify(records));
     notify();
   } catch (e) {
     console.error('战斗记录保存失败:', e);

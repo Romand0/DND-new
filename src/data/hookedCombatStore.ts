@@ -1,4 +1,5 @@
-const STORAGE_KEY = 'dnd-hooked-combat';
+import { scopedKey } from '@/data/campaignScope';
+const storageKey = () => scopedKey('dnd-hooked-combat');
 
 export interface HookedCombat {
   id: string;
@@ -7,16 +8,16 @@ export interface HookedCombat {
 
 function load(): HookedCombat | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     return raw ? JSON.parse(raw) : null;
   } catch { return null; }
 }
 
 function save(hooked: HookedCombat | null) {
   if (hooked) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(hooked));
+    localStorage.setItem(storageKey(), JSON.stringify(hooked));
   } else {
-    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(storageKey());
   }
 }
 

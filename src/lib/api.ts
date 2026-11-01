@@ -1,4 +1,7 @@
 // API Client - 与 Cloudflare Pages Functions 后端通信
+import { getCampaignId } from '@/data/campaignScope';
+import type { Campaign, CampaignMember } from '@/types/campaign';
+
 const AUTH_TOKEN_KEY = 'auth_token';
 const DM_TOKEN_KEY = 'dm_token'; // 保留，兼容旧逻辑（设置页的 DM Token 验证）
 const API_BASE = '/api';
@@ -40,15 +43,19 @@ export function hasAuthToken(): boolean {
 
 // 请求头：优先带 JWT（账号系统），其次带 DM Token（旧设置页逻辑）
 function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {};
+  // 团组上下文：服务端按需读取（团组作用域端点校验成员资格与数据归属）
+  headers['X-Campaign-Id'] = getCampaignId();
   const authToken = getAuthToken();
   if (authToken) {
-    return { Authorization: `Bearer ${authToken}` };
+    headers.Authorization = `Bearer ${authToken}`;
+    return headers;
   }
   const dmToken = getDmToken();
   if (dmToken) {
-    return { Authorization: `Bearer ${dmToken}` };
+    headers.Authorization = `Bearer ${dmToken}`;
   }
-  return {};
+  return headers;
 }
 
 export async function apiFetch<T = any>(
@@ -419,3 +426,74 @@ export async function uploadAvatar<T = { url: string }>(dataUrl: string): Promis
 // 流程的读写统一下沉到 flowStore（唯一入口），这里不再提供裸 CRUD 包装，
 // 避免出现绕过镜像/校验/绑定同步的第二条写路径。
 
+
+// ============ 团组（Campaign）============
+// 成员关系即团组内身份：myRole 为 dm/player，作用域单场团组；站点权限仍走 is_admin。
+
+export async function fetchCampaigns<T = Campaign[]>(): Promise<T> {
+  return apiFetch<T>('/campaigns', { headers: authHeaders() });
+}
+
+export async function createCampaign<T = Campaign>(
+  name: string,
+  description = ''
+): Promise<T> {
+  return apiFetch<T>('/campaigns', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ name, description }),
+  });
+}
+
+export async function fetchCampaign<T = Campaign>(id: string): Promise<T> {
+  return apiFetch<T>(`/campaigns/${id}`, { headers: authHeaders() });
+}
+
+export async function updateCampaign<T = any>(
+  id: string,
+  patch: { name?: string; description?: string; rulebooks?: string[] }
+): Promise<T> {
+  return apiFetch<T>(`/campaigns/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function fetchCampaignMembers<T = CampaignMember[]>(id: string): Promise<T> {
+  return apiFetch<T>(`/campaigns/${id}/members`, { headers: authHeaders() });
+}
+
+export async function updateCampaignMemberRole<T = any>(
+  id: string,
+  userId: string,
+  role: 'dm' | 'player'
+): Promise<T> {
+  return apiFetch<T>(`/campaigns/${id}/members/${userId}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function removeCampaignMember<T = any>(id: string, userId: string): Promise<T> {
+  return apiFetch<T>(`/campaigns/${id}/members/${userId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+}
+
+export async function resetCampaignInviteCode<T = { inviteCode: string }>(id: string): Promise<T> {
+  return apiFetch<T>(`/campaigns/${id}/invite`, {
+    method: 'POST',
+    headers: authHeaders(),
+  });
+}
+
+export async function joinCampaign<T = Campaign & { joined: boolean }>(code: string): Promise<T> {
+  return apiFetch<T>('/campaigns/join', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ code }),
+  });
+}
