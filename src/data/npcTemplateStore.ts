@@ -255,7 +255,11 @@ const npcTemplateStore = {
 
     if (remote.length === 0 && (seedTemplates as any[]).length > 0) {
       const flagKey = 'dnd-npc-templates-cloud-seeded';
-      if (!localStorage.getItem(flagKey)) {
+      // 本地也为空时无视 flag 重推（此前 flag 已设但云端数据被过滤/丢失会永久卡死；
+      // template_id 唯一约束 + ON CONFLICT 幂等，多推无害）。本地有数据（如 DataManagement
+      // 导入的自定义版本）则不推，避免种子覆盖意图。
+      const localEmpty = load().length === 0;
+      if (localEmpty || !localStorage.getItem(flagKey)) {
         try {
           const seedRows = (seedTemplates as any[]).map(seedToTemplate);
           await api.batchImportNpcTemplates(seedRows);
