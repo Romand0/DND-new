@@ -7,7 +7,7 @@ import {
   handleOptions,
   readJsonBody,
   now,
-} from '../../../../_utils';
+} from '../../../_utils';
 
 // 与列表端点保持同一白名单
 const ARTIFACT_KINDS = ['combat', 'treasure', 'note', 'battleground', 'calendar', 'gametime', 'proposal'];
