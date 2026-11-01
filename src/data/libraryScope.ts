@@ -30,9 +30,16 @@ interface LibraryEntry {
   source?: string;
 }
 
+// source 规范化：早期种子/导入数据写的是不带年份的「玩家手册」，与默认规则书集值
+//「玩家手册 2014」不一致会导致图鉴被滤空——统一归并为带年份的标准名。
+export function normalizeSource(source?: string): string {
+  if (!source || source === '玩家手册') return '玩家手册 2014';
+  return source;
+}
+
 export function filterByCampaignScope<T extends LibraryEntry>(items: T[]): T[] {
   const cid = getCampaignId();
   return items.filter((it) =>
-    it.campaignId ? it.campaignId === cid : currentRulebooks.includes(it.source || '玩家手册 2014')
+    it.campaignId ? it.campaignId === cid : currentRulebooks.includes(normalizeSource(it.source))
   );
 }
