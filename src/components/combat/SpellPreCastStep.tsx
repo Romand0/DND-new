@@ -71,9 +71,11 @@ export default function SpellPreCastStep({
         ? '对应法术卷轴满足'
         : evalResult.viaPouch
           ? '材料包替代'
-          : pass
-            ? '材料齐备'
-            : `缺少：${evalResult.missing.map(m => m.name).join('、')}`;
+          : evalResult.viaFocus
+            ? `手持${evalResult.focusLabel || '法器'}替代`
+            : pass
+              ? '材料齐备'
+              : `缺少：${evalResult.missing.map(m => m.name).join('、')}`;
     items.push({ key: 'M', label: '材料成分（M）', pass, detail });
   }
 

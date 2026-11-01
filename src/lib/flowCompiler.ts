@@ -26,6 +26,7 @@ import { rollDie, rollDice } from '@/data/diceService';
 import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS, type SomaticBlockingCondition } from '@/data/somaticCheck';
 import { parseDice } from '@/utils/diceExpr';
 import { evaluateSpellMaterials } from '@/data/spellMaterials';
+import { getHeldEquipmentIds } from '@/data/spellFocus';
 import { evaluateExpression } from '@/lib/flowExpression';
 import { createUntypedResolution, normalizeDamageType, resolveDamage } from '@/data/damageRules';
 import { getCombatantAffinities } from '@/data/combatAffinities';
@@ -446,7 +447,7 @@ export class FlowCompiler {
     positions?: FlowExecutionContext['positions'],
     casterPos?: { col: number; row: number } | null,
   ): Promise<PreCastCheckReport> {
-    const components = this.checkComponents(spell, caster, []);
+    const components = this.checkComponents(spell, caster, [], caster);
     const range = this.checkRange(spell, config, targets, positions, casterPos);
     const time = this.checkTime(spell, config, caster);
 
@@ -475,6 +476,7 @@ export class FlowCompiler {
         if (!md) componentChecks.push('材料组件: 已准备');
         else if (md.viaScroll) componentChecks.push('材料组件: 卷轴满足');
         else if (md.viaPouch) componentChecks.push('材料组件: 材料包替代');
+        else if (md.viaFocus) componentChecks.push(`材料组件: 手持${md.focusLabel || '法器'}替代`);
         else if (md.satisfied) componentChecks.push('材料组件: 材料齐备');
         else componentChecks.push(`材料组件: 缺少 ${(md.missingNames || []).join('、')}`);
       }
@@ -511,6 +513,7 @@ export class FlowCompiler {
     spell: Spell,
     combatant: any,
     activeConditions: string[],
+    character?: Character | null,
   ) {
     const required: string[] = [];
     if (spell.components?.verbal)   required.push('V');
@@ -559,10 +562,15 @@ export class FlowCompiler {
       if (equipment) {
         // 仅作信息展示，不加入 missing：材料门禁以施法弹窗的战斗背包评估为准
         // （编译器拿到的是角色源背包，不含战斗中拾取/消耗）
-        const evalResult = evaluateSpellMaterials(spell, equipment);
+        const evalResult = evaluateSpellMaterials(spell, equipment, {
+          character,
+          heldIds: character ? getHeldEquipmentIds(character) : null,
+        });
         materialDetail = {
           satisfied: evalResult.satisfied,
           viaPouch: evalResult.viaPouch,
+          viaFocus: evalResult.viaFocus,
+          focusLabel: evalResult.focusLabel,
           viaScroll: evalResult.viaScroll,
           missingNames: evalResult.missing.map(m => m.name),
         };
