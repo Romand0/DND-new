@@ -200,6 +200,7 @@ function parseRingHtml(html) {
 mkdirSync(OUT, { recursive: true });
 const files = readdirSync(DIR).filter((f) => f.endsWith('.html'));
 let total = 0;
+const merged = [];
 for (const f of files) {
   const html = dec.decode(readFileSync(join(DIR, f)));
   const spells = parseRingHtml(html);
@@ -207,6 +208,11 @@ for (const f of files) {
   writeFileSync(join(OUT, `${ringName}.json`), JSON.stringify(spells, null, 2));
   const withTable = spells.filter((s) => s.table).length;
   total += spells.length;
+  merged.push(...spells);
   console.log(`${ringName}: ${spells.length} 条（含表格 ${withTable}）→ spells-import/${ringName}.json`);
 }
 console.log(`\n合计 ${total} 条。到 数据管理 → 法术导入 → 从 JSON 直接导入 逐环粘贴导入。`);
+
+// 托底数据：全量合并 → public/（随 Pages 部署为同源静态资产，spellStore.fetchAll 云端不可用时兜底）
+writeFileSync('public/spells-fallback.json', JSON.stringify(merged));
+console.log(`托底: public/spells-fallback.json（${merged.length} 条）`);
