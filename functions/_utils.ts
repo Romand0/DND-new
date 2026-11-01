@@ -213,17 +213,21 @@ export async function getCampaignContext(
 ): Promise<CampaignContext | null> {
   const headerId = request.headers.get('X-Campaign-Id');
   const campaignId = headerId || DEFAULT_CAMPAIGN_ID;
+  // 单次 JOIN 同时取成员角色与规则书集（每团组请求省一次 D1 往返）
   let member = await env.DB
-    .prepare('SELECT role FROM campaign_members WHERE campaign_id = ? AND user_id = ?')
+    .prepare(
+      'SELECT m.role, c.rulebooks FROM campaign_members m JOIN campaigns c ON c.id = m.campaign_id WHERE m.campaign_id = ? AND m.user_id = ?'
+    )
     .bind(campaignId, auth.sub)
-    .first<{ role: string }>();
+    .first<{ role: string; rulebooks: string }>();
   // 默认团组成员缺失自愈：0012 批量回填可能未执行/遗漏，登录用户首次访问默认团组时按需登记
   // （幂等 INSERT OR IGNORE，与回填语义一致：管理员=DM、其余=player）。其他团组必须凭邀请码加入。
+  let rulebooks: string[] = [];
   if (!member && campaignId === DEFAULT_CAMPAIGN_ID) {
     const campExists = await env.DB
-      .prepare('SELECT 1 FROM campaigns WHERE id = ?')
+      .prepare('SELECT rulebooks FROM campaigns WHERE id = ?')
       .bind(DEFAULT_CAMPAIGN_ID)
-      .first();
+      .first<{ rulebooks: string }>();
     if (campExists) {
       const role = auth.isAdmin ? 'dm' : 'player';
       try {
@@ -231,20 +235,15 @@ export async function getCampaignContext(
           .prepare('INSERT OR IGNORE INTO campaign_members (campaign_id, user_id, role, joined_at) VALUES (?, ?, ?, unixepoch())')
           .bind(DEFAULT_CAMPAIGN_ID, auth.sub, role)
           .run();
-        member = { role };
+        member = { role, rulebooks: campExists.rulebooks };
       } catch {
         return null;
       }
     }
   }
   if (!member) return null;
-  const camp = await env.DB
-    .prepare('SELECT rulebooks FROM campaigns WHERE id = ?')
-    .bind(campaignId)
-    .first<{ rulebooks: string }>();
-  let rulebooks: string[] = [];
   try {
-    rulebooks = JSON.parse(camp?.rulebooks || '[]');
+    rulebooks = JSON.parse(member.rulebooks || '[]');
   } catch {
     rulebooks = [];
   }

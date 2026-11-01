@@ -21,23 +21,25 @@ export default function CharacterList() {
   }, []);
 
   const loadCharacters = async () => {
-    setLoading(true);
     setError(null);
+    // 首屏即时：先渲染本地缓存（同步读），不等网络
     try {
-      // 云端按当前团组过滤 → 替换本地桶；失败时降级本地缓存
-      try {
-        await characterStore.replaceAllFromBackend();
-      } catch {
-        // ignore
-      }
-      const chars = (characterStore.getAllVisible() || []).filter((c: any) => c && c.id && c.name);
-      setCharacters(chars);
+      const localChars = (characterStore.getAllVisible() || []).filter((c: any) => c && c.id && c.name);
+      setCharacters(localChars);
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载失败';
       setError(msg);
       setCharacters([]);
     } finally {
       setLoading(false);
+    }
+    // 云端团组视图增量刷新（失败时保留本地展示，静默）
+    try {
+      await characterStore.replaceAllFromBackend();
+      const chars = (characterStore.getAllVisible() || []).filter((c: any) => c && c.id && c.name);
+      setCharacters(chars);
+    } catch {
+      // ignore
     }
   };
 

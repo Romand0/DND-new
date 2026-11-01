@@ -59,15 +59,16 @@ export default function CampaignSwitcher() {
     <div ref={rootRef} className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs max-w-[180px] bg-white/5 border border-border-dark hover:bg-white/10 transition-colors"
-        title="切换团组（一场跑团战役的数据空间）"
+        className="flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs max-w-[180px] bg-white/5 border border-border-dark hover:bg-white/10 transition-colors"
+        title={current ? `当前团组：${current.name}（点击切换）` : '切换团组（一场跑团战役的数据空间）'}
       >
         <Users className="w-3.5 h-3.5 text-primary flex-shrink-0" />
-        <span className="truncate text-gray-200">{current ? current.name : '未加入团组'}</span>
+        {/* 移动端只留图标：顶栏横向空间紧张，团组名在 title 与下拉面板里可见 */}
+        <span className="truncate text-gray-200 hidden sm:inline">{current ? current.name : '未加入团组'}</span>
         <ChevronDown className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-64 rounded-xl border border-border-dark bg-bg-dark shadow-xl z-50 overflow-hidden">
+        <div className="absolute left-0 top-full mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-xl border border-border-dark bg-bg-dark shadow-xl z-50 overflow-hidden">
           <div className="max-h-60 overflow-y-auto">
             {campaigns.length === 0 && (
               <div className="px-3 py-4 text-xs text-gray-500 text-center">

@@ -7,6 +7,7 @@ import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucid
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, deleteEquipments } from '@/lib/api';
+import { equipmentStore } from '@/data/equipmentStore';
 import { isScrollEquipmentItem, loadScrollCatalog } from '@/data/spellScrolls';
 
 const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
@@ -47,10 +48,14 @@ export default function EquipmentList() {
   useEditorState(editorOpen);
 
   const load = async () => {
-    setLoading(true);
     setError('');
+    // 首屏即时：先渲染本地缓存（同步读 + 团组过滤视图），不等网络
     try {
-      // 卷轴为虚拟条目（来自法术库），与 D1 装备合并后统一展示
+      setEquipments([...equipmentStore.getAll()]);
+    } catch { /* 本地缓存异常时继续走云端 */ }
+    setLoading(false);
+    // 云端校准增量刷新（卷轴为虚拟条目（来自法术库），与 D1 装备合并后统一展示）
+    try {
       const [data, scrolls] = await Promise.all([
         fetchAllEquipments(),
         loadScrollCatalog().catch(() => [] as EquipmentItem[]),
@@ -58,8 +63,6 @@ export default function EquipmentList() {
       setEquipments([...data, ...scrolls]);
     } catch (e: any) {
       setError(e.message || '加载失败');
-    } finally {
-      setLoading(false);
     }
   };
 

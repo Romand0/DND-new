@@ -5,6 +5,7 @@ import { Eye, RefreshCw, AlertCircle, Users, Shield } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { fetchAllCharacters } from '@/lib/api';
 import { useCampaign } from '@/contexts/CampaignContext';
+import { characterStore } from '@/data/characterStore';
 
 export default function PlayerHome() {
   const { current } = useCampaign();
@@ -13,8 +14,15 @@ export default function PlayerHome() {
   const [error, setError] = useState<string | null>(null);
 
   const loadPlayers = async () => {
-    setLoading(true);
     setError(null);
+    // 首屏即时：先渲染本地缓存（同步读），云端结果到达后增量刷新
+    try {
+      const localVisible = (characterStore.getAllVisible() || []).filter(
+        (c: any) => !c.isSandbox && !String(c.name || '').startsWith('试验体·'),
+      );
+      setPlayers(localVisible.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)));
+    } catch { /* 本地异常继续走云端 */ }
+    setLoading(false);
     try {
       const data = await fetchAllCharacters<Character[]>();
       // 云端历史数据可能残留试验场影子卡（缺 isSandbox 标记），按名字前缀兜底过滤
@@ -27,12 +35,10 @@ export default function PlayerHome() {
       const msg = err instanceof Error ? err.message : '加载失败';
       if (msg.includes('404') || msg.includes('未配置')) {
         setPlayers([]);
-      } else {
+      } else if (players.length === 0) {
         setError(msg);
         setPlayers([]);
       }
-    } finally {
-      setLoading(false);
     }
   };
 
