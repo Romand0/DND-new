@@ -146,3 +146,12 @@
   - options.json 是种子兜底，optionStore 优先 localStorage(DND-character-options)/云端 D1 缓存——只改种子到不了既有浏览器；修选项数据要考虑缓存链，或在代码层建手录表（src/data/classProficiencies.ts 即此模式）
   - 书里技能名与 SKILL_LABELS 不一致：求生→生存、医药→医疗、游说→说服；任选候选表必须用标准名，展示文本可保留原书措辞
   - 验证选项解析模块：npx esbuild 打包真实模块（--tsconfig=tsconfig.app.json）+ options.json 拷同目录 + 动态 import 断言前 setTimeout 100ms
+
+[Project Knowledge Summary]
+- Date: 2026-11-01
+- Context: Discovered by Agent after Cloudflare Pages deploy failed on Functions bundling (campaign deep endpoints)
+- Category: Build Methods
+- Instructions:
+  - functions/ 相对导入 _utils 的层数 = 该文件在 functions/api/ 下的目录深度：api/xxx.ts 用 ../_utils，api/xxx/yyy.ts 用 ../../_utils，嵌套 [param]/sub/index.ts 需逐层累加（曾因少算一层导致 CF 部署失败，本地 tsc 不查 functions/）
+  - 改动 functions/ 后提交前的全量校验：for f in $(find functions -name '*.ts'); do npx esbuild "$f" --loader:.ts=ts --outfile=/dev/null; done，ALL-OK 才推送
+  - wrangler.toml 缺 pages_build_output_dir 的警告无害（Pages 走 dashboard 构建配置），真正阻塞部署的是 Functions 打包错误
