@@ -302,7 +302,8 @@ export function libraryFilterClause(
 ): { clause: string; binds: string[] } {
   if (scope.scopeAll) return { clause: '', binds: [] };
   return {
-    clause: `WHERE campaign_id = ? OR (campaign_id IS NULL AND ${sourceExpr} IN (SELECT value FROM json_each(?)))`,
+    // 缺 source 的无归属旧数据按「玩家手册 2014」兜底（与前端 normalizeSource 同语义）
+    clause: `WHERE campaign_id = ? OR (campaign_id IS NULL AND COALESCE(${sourceExpr}, '玩家手册 2014') IN (SELECT value FROM json_each(?)))`,
     binds: [scope.ctx.campaignId, JSON.stringify(scope.ctx.rulebooks)],
   };
 }
