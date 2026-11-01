@@ -28,6 +28,7 @@ import {
   Download,
   Library,
   Tag,
+  RefreshCw,
 } from 'lucide-react';
 import type { Character, Abilities, AbilityScore, AbilityKey, SkillKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
@@ -37,7 +38,7 @@ import { characterStore, SKILL_LABELS } from '@/data/characterStore';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
-import { computeMissingOptionFeatures, collectClassProficiencyEntries } from '@/data/optionFeatures';
+import { collectClassProficiencyEntries, collectOptionFeatureEntries } from '@/data/optionFeatures';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
@@ -72,6 +73,16 @@ const proficiencyLabels: Record<ProficiencyCategory, string> = {
 };
 
 const displayedProficiencyCategories: Exclude<ProficiencyCategory, 'savingThrows'>[] = ['armor', 'weapons', 'tools', 'languages'];
+
+// 特性区熟练类派生条目 → 集中卡片分组行标签（与 collectOptionFeatureEntries 派生名一一对应）
+const proficiencyEntryLabels: Record<string, string> = {
+  护甲熟练项: '护甲',
+  武器熟练项: '武器',
+  工具熟练项: '工具',
+  技能熟练项: '技能',
+  语言: '语言',
+  装备: '装备',
+};
 
 function renderSpellDice(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -1250,16 +1261,20 @@ export default function CharacterDetail({
     reloadChar();
   };
 
-  // 强制补全：把选项链上所有特性/特质补进角色卡（缺失才追加，已有的保留用户编辑），
-  // 补偿移除「删除」后的数据完整性——任何来源造成的条目丢失都可一键恢复
-  const handleFillOptionFeatures = () => {
+  // 刷新：以选项库为准重新同步特性/特质（升级自旧的「补全」——补全只加缺失，库内容更新后
+  // 卡上残留旧版描述、库中已移除的条目也清不掉）。同步规则：
+  //  · 选项链期望集内的条目 → 用库最新版整组重建（描述/等级/来源随库走，库删卡也删）
+  //  · 期望集外的条目（手动添加的自建条目、旧数据遗留）→ 原样保留
+  // 隐藏状态按「分类:名称」存 localStorage，与条目 id 无关，重建后自然延续
+  const handleRefreshOptionFeatures = () => {
     if (!id || !character) return;
-    const missing = computeMissingOptionFeatures(character);
-    if (missing.length === 0) {
-      alert('选项特性与特质已完整，无需补全');
-      return;
-    }
-    const fresh = missing.map((e) => ({
+    const expected = collectOptionFeatureEntries(character);
+    const expectedKeys = new Set(expected.map((e) => `${e.category}:${e.name}`));
+    const oldFeatures = character.features || [];
+    const kept = oldFeatures.filter((f) => !expectedKeys.has(`${f.category || ''}:${f.name}`));
+    const oldKeys = new Set(oldFeatures.map((f) => `${f.category || ''}:${f.name}`));
+    const addedCount = expected.filter((e) => !oldKeys.has(`${e.category}:${e.name}`)).length;
+    const fresh = expected.map((e) => ({
       id: crypto.randomUUID(),
       name: e.name,
       description: e.description,
@@ -1267,9 +1282,29 @@ export default function CharacterDetail({
       source: e.source,
       level: e.level,
     }));
-    characterStore.update(id, { features: [...(character.features || []), ...fresh] });
+    characterStore.update(id, { features: [...fresh, ...kept] });
     reloadChar();
-    alert(`已补全 ${missing.length} 条：\n${missing.map((e) => `${e.category} · ${e.name}`).join('\n')}`);
+    alert(
+      `已按选项库刷新：同步 ${fresh.length} 条（其中新增 ${addedCount} 条），` +
+        `替换旧版 ${oldFeatures.length - kept.length} 条，保留自建 ${kept.length} 条`
+    );
+  };
+
+  // 集中熟练卡片行内编辑：熟练类条目描述直接改角色卡 features（不进整卡编辑器）
+  const [editProfId, setEditProfId] = useState<string | null>(null);
+  const [editProfText, setEditProfText] = useState('');
+  const saveProfDescription = () => {
+    if (!id || !editProfId) {
+      setEditProfId(null);
+      return;
+    }
+    characterStore.update(id, {
+      features: (character?.features || []).map((f) =>
+        f.id === editProfId ? { ...f, description: editProfText } : f
+      ),
+    });
+    reloadChar();
+    setEditProfId(null);
   };
 
   // 特性/特质卡片（主列表与底部隐藏折叠块共用）；inHiddenBlock 时眼睛按钮变为恢复
@@ -2751,23 +2786,86 @@ if (character) {
           <Section title="特性与特质" icon={Sparkles}>
             <div className="space-y-2">
               <button
-                onClick={handleFillOptionFeatures}
+                onClick={handleRefreshOptionFeatures}
                 className="w-full py-1.5 text-xs rounded-lg border border-dashed transition-colors flex items-center justify-center gap-1.5 dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
-                title="把当前种族/亚种/背景/职业的全部特性与特质补进角色卡（缺失才追加，已有的保留）"
+                title="以选项库为准重新同步：库最新内容写入角色卡，库中已移除的条目一并清掉，手动添加的自建条目保留"
               >
-                <Sparkles className="w-4 h-4" />
-                一键补全选项特性与特质
+                <RefreshCw className="w-4 h-4" />
+                刷新选项特性与特质
               </button>
-              {character.features
-                .filter(
+              {(() => {
+                // 熟练类派生条目（护甲/武器/工具/技能熟练项、语言、装备）收进一张集中卡片，
+                // 与图鉴选项页的熟练项卡片呈现同步；其余条目维持独立卡片
+                const visible = character.features.filter(
                   // 职业特性按等级门槛显示（数据仍保留在卡上）；被 DM 隐藏的条目移入底部折叠块
                   (f) =>
                     (f.category !== '职业特性' ||
                       !f.level ||
                       f.level <= (character.level || 1)) &&
                     !hiddenFeatures.has(`${f.category || ''}:${f.name}`)
-                )
-                 .map((feature) => renderFeatureCard(feature, false))}
+                );
+                const profGroup = visible.filter((f) => proficiencyEntryLabels[f.name]);
+                const normalGroup = visible.filter((f) => !proficiencyEntryLabels[f.name]);
+                return (
+                  <>
+                    {normalGroup.map((feature) => renderFeatureCard(feature, false))}
+                    {profGroup.length > 0 && (
+                      <div className="mt-1">
+                        <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
+                          熟练项
+                        </div>
+                        <div className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-2">
+                          {Object.entries(proficiencyEntryLabels).map(([entryName, label]) => {
+                            const group = profGroup.filter((f) => f.name === entryName);
+                            if (group.length === 0) return null;
+                            const editingRow = editProfId && group.some((f) => f.id === editProfId);
+                            return (
+                              <div key={entryName} className="text-sm">
+                                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted mr-2 inline-block w-10 flex-shrink-0">
+                                  {label}
+                                </span>
+                                {editingRow ? (
+                                  <textarea
+                                    autoFocus
+                                    value={editProfText}
+                                    onChange={(e) => setEditProfText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        saveProfDescription();
+                                      }
+                                      if (e.key === 'Escape') setEditProfId(null);
+                                    }}
+                                    onBlur={saveProfDescription}
+                                    rows={2}
+                                    className="w-full mt-1 p-2 rounded-lg border text-xs bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                                  />
+                                ) : (
+                                  <span className="dark:text-text-dark light:text-text-light">
+                                    {group.map((f) => f.description).join('；')}
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => {
+                                    setEditProfId(group[0].id);
+                                    setEditProfText(group[0].description);
+                                  }}
+                                  title="编辑描述"
+                                  className={editingRow
+                                    ? 'text-primary'
+                                    : 'dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary'}
+                                >
+                                  <Edit2 className="w-3 h-3 inline ml-1.5" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
               {(() => {
                 const hiddenList = character.features.filter((f) =>
                   hiddenFeatures.has(`${f.category || ''}:${f.name}`)
@@ -2791,7 +2889,7 @@ if (character) {
               })()}
               {character.features.length === 0 && (
                 <div className="py-6 text-center text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                  暂无特性，可点击「一键补全」从选项库填充，或通过上方种族/职业/背景选择器更换选项
+                  暂无特性，可点击「刷新」从选项库同步，或通过上方种族/职业/背景选择器更换选项
                 </div>
               )}
             </div>
