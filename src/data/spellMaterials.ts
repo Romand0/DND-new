@@ -1,6 +1,14 @@
 import type { Spell, SpellMaterial } from '@/types/spell';
-import type { Equipment } from '@/types/character';
+import type { Character, Equipment } from '@/types/character';
 import { buildScrollItem, scrollItemToEquipment } from '@/data/spellScrolls';
+import {
+  isUsableFocus,
+  focusKindLabel,
+  diagnoseFocus,
+  getHeldEquipmentIds,
+  FOCUS_KIND_LABEL,
+  type FocusDiagnosis,
+} from '@/data/spellFocus';
 
 /**
  * 法术材料机制（M 成分）
@@ -9,7 +17,9 @@ import { buildScrollItem, scrollItemToEquipment } from '@/data/spellScrolls';
  *   1. 法术直接给出的材料（如「一小块羊毛」）—— 按 name 归一化为 materialKey，
  *      同类材料跨法术通用；以「法术材料」分类进入角色背包，与普通装备同构。
  *   2. 材料包（装备库预设，category='法器' subtype='材料袋'）—— 可替代绝大多数材料，
- *      但价值型（价值至少 X gp）与耗材型（作为耗材）材料不能被替代。
+ *      但价值型（价值至少 X gp）与耗材型（作为耗材）材料不能被替代。放在背包即可，无需手持。
+ *   2b. 施法法器（圣徽 / 奥术法器 / 德鲁伊法器 / 乐器）—— 替代规则与材料包相同，
+ *      但必须被至少一只手持握，且法器类型要匹配施法者的职业（见 spellFocus.ts）。
  *   3. 卷轴（category='卷轴'）—— 法术的附属施法凭证，按 scrollSpellId 与法术绑定；
  *      持有对应卷轴时材料成分整体满足，施放后卷轴消耗。
  *
@@ -38,7 +48,7 @@ export interface MaterialRequirementSet {
   mode: MaterialRequirementMode;
 }
 
-export type MaterialItemStatus = 'have' | 'pouch' | 'missing';
+export type MaterialItemStatus = 'have' | 'pouch' | 'focus' | 'missing';
 
 export interface MaterialEvaluation {
   /** 材料成分是否满足（卷轴视作整体满足） */
@@ -47,6 +57,12 @@ export interface MaterialEvaluation {
   statuses: { requirement: MaterialRequirement; status: MaterialItemStatus }[];
   /** 通过材料包满足 */
   viaPouch: boolean;
+  /** 通过手持法器满足 */
+  viaFocus: boolean;
+  /** 本次满足所用到的法器类型标签（如「奥术法器」） */
+  focusLabel?: string;
+  /** 背包里有法器但当前不能用（未手持 / 职业不匹配），用于提示 DM */
+  focusHint?: FocusDiagnosis;
   /** 通过对应法术卷轴满足 */
   viaScroll: boolean;
   /** 需要消耗的背包实例（材料耗材 / 卷轴） */
@@ -188,7 +204,11 @@ function itemKey(item: Equipment): string {
  * 评估法术材料是否满足。
  * @param inventory 施法者当前可用的战斗背包（含变更漏斗派生结果）
  */
-export function evaluateSpellMaterials(spell: Spell, inventory: Equipment[] | null | undefined): MaterialEvaluation {
+export function evaluateSpellMaterials(
+  spell: Spell,
+  inventory: Equipment[] | null | undefined,
+  options?: { character?: Character | null; heldIds?: string[] | null },
+): MaterialEvaluation {
   const requirements = resolveMaterialRequirements(spell);
   const list = inventory || [];
 
@@ -198,6 +218,7 @@ export function evaluateSpellMaterials(spell: Spell, inventory: Equipment[] | nu
       requirements,
       statuses: [],
       viaPouch: false,
+      viaFocus: false,
       viaScroll: false,
       consumption: [],
       missing: [],
@@ -218,6 +239,7 @@ export function evaluateSpellMaterials(spell: Spell, inventory: Equipment[] | nu
       requirements,
       statuses: requirements.items.map((requirement) => ({ requirement, status: 'have' as MaterialItemStatus })),
       viaPouch: false,
+      viaFocus: false,
       viaScroll: true,
       consumption: [{ childId: (scroll.childId || scroll.id || ''), name: scroll.name, quantity: 1 }],
       missing: [],
@@ -225,6 +247,15 @@ export function evaluateSpellMaterials(spell: Spell, inventory: Equipment[] | nu
   }
 
   const hasPouch = list.some(isPouch);
+
+  // 手持且职业匹配的法器：材料包不可替代的材料（价值型/耗材型）同样不能用
+  const character = options?.character ?? null;
+  const heldIds = options?.heldIds ?? getHeldEquipmentIds(character);
+  const focusItem = character
+    ? list.find((it) => !isPouch(it) && !isScrollItem(it) && isUsableFocus(it, character, heldIds))
+    : undefined;
+  const focusLabel = focusItem ? focusKindLabel(focusItem) : undefined;
+  const focusHint = character ? diagnoseFocus(list, character, heldIds) ?? undefined : undefined;
 
   const statuses: MaterialEvaluation['statuses'] = [];
   const consumption: MaterialEvaluation['consumption'] = [];
@@ -257,6 +288,8 @@ export function evaluateSpellMaterials(spell: Spell, inventory: Equipment[] | nu
       }
     } else if (hasPouch && isPouchSubstitutable(requirement)) {
       statuses.push({ requirement, status: 'pouch' });
+    } else if (focusItem && isPouchSubstitutable(requirement)) {
+      statuses.push({ requirement, status: 'focus' });
     } else {
       statuses.push({ requirement, status: 'missing' });
       missing.push(requirement);
@@ -272,6 +305,9 @@ export function evaluateSpellMaterials(spell: Spell, inventory: Equipment[] | nu
     requirements,
     statuses,
     viaPouch: statuses.some((s) => s.status === 'pouch'),
+    viaFocus: statuses.some((s) => s.status === 'focus'),
+    focusLabel: statuses.some((s) => s.status === 'focus') ? focusLabel : undefined,
+    focusHint,
     viaScroll: false,
     consumption: satisfied ? consumption : [],
     missing: satisfied ? [] : missing,
@@ -305,7 +341,19 @@ export function buildScrollEquipment(spell: Spell): Partial<Equipment> {
   return scrollItemToEquipment(buildScrollItem(spell));
 }
 
+/** 提示文案：法器的两条额外约束未满足时告诉 DM 怎么改 */
+export function describeFocusHint(hint: FocusDiagnosis | undefined): string | null {
+  if (!hint) return null;
+  const label = hint.kinds.map((k) => FOCUS_KIND_LABEL[k]).join(' / ');
+  if (hint.issue === 'not-held') return `${hint.item.name}（${label}）需手持才能用于施法`;
+  return `${hint.item.name}（${label}）与当前职业不匹配`;
+}
+
 /** 材料需求是否已完全满足（不含消耗副作用），供快捷补货按钮判断 */
-export function isMaterialSatisfied(spell: Spell, inventory: Equipment[] | null | undefined): boolean {
-  return evaluateSpellMaterials(spell, inventory).satisfied;
+export function isMaterialSatisfied(
+  spell: Spell,
+  inventory: Equipment[] | null | undefined,
+  options?: { character?: Character | null; heldIds?: string[] | null },
+): boolean {
+  return evaluateSpellMaterials(spell, inventory, options).satisfied;
 }

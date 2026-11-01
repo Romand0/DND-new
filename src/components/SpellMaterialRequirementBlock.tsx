@@ -9,6 +9,8 @@ import {
   buildScrollEquipment,
   type MaterialRequirement,
 } from '@/data/spellMaterials';
+import { getHeldEquipmentIds } from '@/data/spellFocus';
+import { describeFocusHint } from '@/data/spellMaterials';
 
 interface Props {
   spell: Spell;
@@ -21,8 +23,12 @@ interface Props {
 
 export default function SpellMaterialRequirementBlock({ spell, character, inventory, onChanged, readOnly = false }: Props) {
   if (!spell.components?.material) return null;
-  const evaluation = evaluateSpellMaterials(spell, inventory);
+  const evaluation = evaluateSpellMaterials(spell, inventory, {
+    character,
+    heldIds: getHeldEquipmentIds(character),
+  });
   const hasAnyRequirement = evaluation.requirements.items.length > 0;
+  const focusHintText = describeFocusHint(evaluation.focusHint);
 
   const addMaterial = (req: MaterialRequirement) => {
     const existing = (inventory || []).find(it => it.materialKey === req.key);
@@ -52,9 +58,11 @@ export default function SpellMaterialRequirementBlock({ spell, character, invent
             ? '对应卷轴满足'
             : evaluation.viaPouch
               ? '材料包替代'
-              : evaluation.satisfied
-                ? '材料齐备'
-                : '材料缺失'}
+              : evaluation.viaFocus
+                ? `${evaluation.focusLabel || '法器'}替代`
+                : evaluation.satisfied
+                  ? '材料齐备'
+                  : '材料缺失'}
         </span>
       </div>
 
@@ -68,10 +76,12 @@ export default function SpellMaterialRequirementBlock({ spell, character, invent
                     ? 'bg-green-500/10 text-green-500'
                     : status === 'pouch'
                       ? 'bg-blue-500/10 text-blue-400'
-                      : 'bg-red-500/10 text-red-400'
+                      : status === 'focus'
+                        ? 'bg-purple-500/10 text-purple-400'
+                        : 'bg-red-500/10 text-red-400'
                 }`}
               >
-                {status === 'have' ? '持有' : status === 'pouch' ? '材料包' : '缺失'}
+                {status === 'have' ? '持有' : status === 'pouch' ? '材料包' : status === 'focus' ? '法器' : '缺失'}
               </span>
               <span className="dark:text-text-dark light:text-text-light">{requirement.description || requirement.name}</span>
               {requirement.costGp ? <span className="text-amber-400">≥ {requirement.costGp} gp</span> : null}
@@ -92,6 +102,10 @@ export default function SpellMaterialRequirementBlock({ spell, character, invent
         <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted">
           {spell.materialInfo || '材料成分（材料袋 / 法器可满足）'}
         </div>
+      )}
+
+      {!evaluation.satisfied && focusHintText && (
+        <div className="text-[11px] text-purple-400">{focusHintText}</div>
       )}
 
       {!evaluation.satisfied && !readOnly && (

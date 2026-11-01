@@ -25,6 +25,7 @@ import SpellCheckStep, { type SpellCheckOutcome, type SpellCheckType } from './c
 import SpellEffectStep, { parseDice, renderSpellDice, type SpellEffectType } from './combat/SpellEffectStep';
 import SpellFinishStep from './combat/SpellFinishStep';
 import { evaluateSpellMaterials, buildMaterialEquipment, buildScrollEquipment, type MaterialEvaluation, type MaterialRequirement } from '@/data/spellMaterials';
+import { getHeldEquipmentIds } from '@/data/spellFocus';
 import FlowRunStep, { type FlowCastPayload } from './combat/FlowRunStep';
 
 type Stage = 'list' | 'flow-target' | 'flow' | 'cast';
@@ -199,7 +200,11 @@ export default function CombatSpellModal({
     if (!character || isProvingGround) return null;
     if (!selectedSpell.components?.material) return null;
     const inventory = [...(casterCombatInventory || []), ...craftedMaterials];
-    return evaluateSpellMaterials(selectedSpell, inventory);
+    // 法器需要「手持 + 职业匹配」，材料袋只要在背包即可
+    return evaluateSpellMaterials(selectedSpell, inventory, {
+      character,
+      heldIds: getHeldEquipmentIds(character),
+    });
   }, [selectedSpell, casterCombatInventory, craftedMaterials, character, isProvingGround]);
 
   // 快捷补货：把法术材料 / 卷轴加入施法者背包（PC 限定）

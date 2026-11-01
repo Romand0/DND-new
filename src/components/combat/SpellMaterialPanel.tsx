@@ -2,6 +2,7 @@
 // 纯展示组件：材料评估与补货/消耗由宿主（CombatSpellModal）通过 props 注入。
 import { Check, X, ScrollText, Plus, AlertTriangle } from 'lucide-react';
 import type { MaterialEvaluation, MaterialRequirement } from '@/data/spellMaterials';
+import { describeFocusHint } from '@/data/spellMaterials';
 
 interface Props {
   evaluation: MaterialEvaluation;
@@ -12,9 +13,10 @@ interface Props {
   compact?: boolean;
 }
 
-const STATUS_LABEL: Record<'have' | 'pouch' | 'missing', string> = {
+const STATUS_LABEL: Record<'have' | 'pouch' | 'focus' | 'missing', string> = {
   have: '持有',
   pouch: '材料包替代',
+  focus: '法器替代',
   missing: '缺失',
 };
 
@@ -27,7 +29,8 @@ export default function SpellMaterialPanel({
 }: Props) {
   if (evaluation.requirements.items.length === 0) return null;
 
-  const { satisfied, viaPouch, viaScroll, statuses, missing, requirements } = evaluation;
+  const { satisfied, viaPouch, viaFocus, focusLabel, focusHint, viaScroll, statuses, missing, requirements } = evaluation;
+  const focusHintText = describeFocusHint(focusHint);
 
   return (
     <div className={`rounded-lg border p-3 space-y-2 ${satisfied ? 'dark:border-border-dark light:border-border-light' : 'border-amber-500/40 bg-amber-500/5'}`}>
@@ -45,9 +48,11 @@ export default function SpellMaterialPanel({
             ? '由对应法术卷轴满足'
             : viaPouch
               ? '由材料包替代'
-              : satisfied
-                ? '材料齐备'
-                : `缺少 ${missing.length} 项材料`}
+              : viaFocus
+                ? `由手持${focusLabel || '法器'}替代`
+                : satisfied
+                  ? '材料齐备'
+                  : `缺少 ${missing.length} 项材料`}
         </span>
       </div>
 
@@ -67,7 +72,9 @@ export default function SpellMaterialPanel({
                     ? 'bg-green-500/10 text-green-500'
                     : status === 'pouch'
                       ? 'bg-blue-500/10 text-blue-400'
-                      : 'bg-red-500/10 text-red-400'
+                      : status === 'focus'
+                        ? 'bg-purple-500/10 text-purple-400'
+                        : 'bg-red-500/10 text-red-400'
                 }`}
               >
                 {STATUS_LABEL[status]}
@@ -96,6 +103,13 @@ export default function SpellMaterialPanel({
         })}
       </div>
 
+      {!satisfied && focusHintText && (
+        <div className="flex items-start gap-1.5 text-[11px] text-purple-400">
+          <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+          <span>{focusHintText}</span>
+        </div>
+      )}
+
       {!satisfied && onCraftScroll && (
         <button
           onClick={onCraftScroll}
@@ -109,7 +123,7 @@ export default function SpellMaterialPanel({
       {!satisfied && !onCraftScroll && (
         <div className="flex items-start gap-1.5 text-[11px] text-amber-400">
           <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
-          <span>缺少材料时无法施放该法术（可用材料包替代，价值型与耗材型除外）</span>
+          <span>缺少材料时无法施放该法术（材料包 / 手持法器可替代，价值型与耗材型除外）</span>
         </div>
       )}
     </div>
