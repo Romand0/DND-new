@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import type { Campaign, CampaignRole } from '@/types/campaign';
 import { fetchCampaigns } from '@/lib/api';
 import { getCampaignId, setCurrentCampaignId } from '@/data/campaignScope';
+import { setRulebookScope } from '@/data/libraryScope';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface CampaignContextValue {
@@ -28,15 +29,21 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     if (!isAuthenticated) {
       setCampaigns([]);
+      setRulebookScope([]);
       return;
     }
     setLoading(true);
     try {
       const list = await fetchCampaigns<Campaign[]>();
-      setCampaigns(Array.isArray(list) ? list : []);
+      const arr = Array.isArray(list) ? list : [];
+      setCampaigns(arr);
+      // 团组视图过滤源：当前团组的规则书集（四库 getAll 实时读取）
+      const cur = arr.find((c) => c.id === getCampaignId()) || arr[0] || null;
+      setRulebookScope(cur?.rulebooks ?? []);
     } catch {
       // 云端不可用时保持空列表：current 为 null，Navbar 显示离线状态；本地分桶数据仍可读写
       setCampaigns([]);
+      setRulebookScope([]);
     } finally {
       setLoading(false);
     }

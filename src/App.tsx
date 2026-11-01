@@ -40,6 +40,7 @@ import LocalStorageManager from '@/pages/LocalStorageManager';
 import GameClockPage from '@/pages/GameClockPage';
 import CalendarPage from '@/pages/CalendarPage';
 import NotesPage from '@/pages/NotesPage';
+import CampaignSettings from '@/pages/CampaignSettings';
 import DicePage from '@/pages/DicePage';
 import UserProfile from '@/pages/UserProfile';
 import TripleTapGesture from '@/components/TripleTapGesture';
@@ -168,6 +169,7 @@ export default function App() {
               </Route>
               {/* 旧路径重定向，保兼容 */}
               <Route path="data-management" element={<Navigate to="/settings/data" replace />} />
+              <Route path="campaign" element={<CampaignSettings />} />
               <Route path="notes" element={<NotesPage />} />
               <Route path="clock" element={<GameClockPage />} />
               <Route path="calendar" element={<CalendarPage />} />
