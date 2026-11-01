@@ -258,16 +258,24 @@ const npcTemplateStore = {
       // 本地也为空时无视 flag 重推（此前 flag 已设但云端数据被过滤/丢失会永久卡死；
       // template_id 唯一约束 + ON CONFLICT 幂等，多推无害）。本地有数据（如 DataManagement
       // 导入的自定义版本）则不推，避免种子覆盖意图。
+      // 种子属出版物条目（campaign_id NULL），服务端仅站点管理员可写——普通成员推送
+      // 会 403，属预期：种子并入本地展示兜底，云端首次种植由管理员完成。
       const localEmpty = load().length === 0;
+      let seedRows: NpcTemplate[] | null = null;
       if (localEmpty || !localStorage.getItem(flagKey)) {
+        seedRows = (seedTemplates as any[]).map(seedToTemplate);
         try {
-          const seedRows = (seedTemplates as any[]).map(seedToTemplate);
           await api.batchImportNpcTemplates(seedRows);
           localStorage.setItem(flagKey, 'true');
           remote = await api.fetchAllNpcTemplates<NpcTemplate[]>();
         } catch (err) {
-          console.error('[npcTemplateStore] 种子上云失败（下次拉取重试）:', err);
+          console.error('[npcTemplateStore] 种子上云失败（普通成员无出版物写权限属预期，本地种子兜底）:', err);
         }
+      }
+      // 云端最终仍为空（未种植/普通成员）→ 种子并入本地缓存展示，等管理员首次种植后自动被云端覆盖
+      if (remote.length === 0 && seedRows && seedRows.length > 0) {
+        save(seedRows);
+        return load();
       }
     }
 
