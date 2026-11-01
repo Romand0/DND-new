@@ -51,6 +51,7 @@ export interface CharacterOption {
   category: OptionCategory;
   parentName: string;
   source: string;
+  campaignId?: string | null; // 归属团组（null/缺省 = 出版物条目，团组无关全局共享）
   description: string;
   mechanics: OptionMechanics;
   traits: OptionTrait[];

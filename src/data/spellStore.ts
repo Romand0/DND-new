@@ -2,9 +2,15 @@
 import type { Spell } from '@/types/spell';
 import initialSpells from '@/data/spells.json';
 import * as api from '@/lib/api';
+import { scopedKey, getCampaignId } from '@/data/campaignScope';
+import { filterByCampaignScope, subscribeLibraryScope } from '@/data/libraryScope';
 
 const STORAGE_KEY = 'DND-spells';
+const storageKey = () => scopedKey(STORAGE_KEY);
 let listeners: (() => void)[] = [];
+
+// 规则书集变化（切换团组/编辑规则书集）触发订阅页面刷新
+subscribeLibraryScope(() => notifyListeners());
 
 // 模块级解析缓存：库内容量达数百条时避免每次 getAll/getById 都全量 JSON.parse
 let cachedSpells: Spell[] | null = null;
@@ -12,7 +18,7 @@ let cachedSpells: Spell[] | null = null;
 function loadFromCache(): Spell[] {
   if (cachedSpells) return cachedSpells;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey());
     if (stored) {
       cachedSpells = JSON.parse(stored);
       return cachedSpells;
@@ -28,7 +34,7 @@ function saveToCache(spells: Spell[]): void {
   // 防御：过滤缺 name 的畸形条目（任何来源的单条脏数据都不应污染整个库缓存）
   const valid = (Array.isArray(spells) ? spells : []).filter(s => s && typeof s === 'object' && !!s.name);
   cachedSpells = valid;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(valid));
+  localStorage.setItem(storageKey(), JSON.stringify(valid));
   notifyListeners();
 }
 
@@ -58,8 +64,13 @@ async function loadFallback(): Promise<Spell[]> {
 }
 
 export const spellStore = {
-  // 同步：从本地缓存读取
+  // 同步：从本地缓存读取团组过滤视图
   getAll(): Spell[] {
+    return filterByCampaignScope(loadFromCache());
+  },
+
+  // 全库视角（图鉴管理页维护出版物与全部条目）
+  getAllRaw(): Spell[] {
     return loadFromCache();
   },
 
@@ -95,7 +106,7 @@ export const spellStore = {
     } catch (err) {
       console.error('[spellStore] 从后端加载失败:', err);
       // localStorage 有真缓存（区别于种子兜底）直接用；否则尝试托底，托底也失败再落种子
-      if (localStorage.getItem(STORAGE_KEY)) return loadFromCache();
+      if (localStorage.getItem(storageKey())) return loadFromCache();
       return await loadFallback();
     }
   },
@@ -106,10 +117,10 @@ export const spellStore = {
     const index = all.findIndex((s) => s.id === spell.id);
     let result: Spell;
     if (index >= 0) {
-      result = { ...all[index], ...spell };
+      result = { ...all[index], ...spell, campaignId: spell.campaignId ?? all[index].campaignId };
       all[index] = result;
     } else {
-      result = { ...spell };
+      result = { ...spell, campaignId: spell.campaignId ?? getCampaignId() };
       all.push(result);
     }
     saveToCache(all);

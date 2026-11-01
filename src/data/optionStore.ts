@@ -1,9 +1,15 @@
 // Character Option Store - 后端 API + localStorage 缓存 + 种子兜底
 import type { CharacterOption, OptionCategory, ClassTableRow, OptionTrait } from '@/types/characterOption';
 import * as api from '@/lib/api';
+import { scopedKey } from '@/data/campaignScope';
+import { filterByCampaignScope, subscribeLibraryScope } from '@/data/libraryScope';
 
 const STORAGE_KEY = 'DND-character-options';
+const storageKey = () => scopedKey(STORAGE_KEY);
 let listenerFns: (() => void)[] = [];
+
+// 规则书集变化（切换团组/编辑规则书集）触发订阅页面刷新
+subscribeLibraryScope(() => notifyListeners());
 
 // 种子 JSON 是嵌套结构（races 内含 subraces、classes 内含 subclasses），
 // 展平为与 D1 character_options 表同形状的扁平条目；条目已自带
@@ -90,7 +96,7 @@ import('@/data/options.json')
 function loadFromCache(): CharacterOption[] {
   if (cache) return cache;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(storageKey());
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -107,7 +113,7 @@ function loadFromCache(): CharacterOption[] {
 
 function saveToCache(options: CharacterOption[]): void {
   cache = options;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(options));
+  localStorage.setItem(storageKey(), JSON.stringify(options));
   notifyListeners();
 }
 
@@ -116,7 +122,13 @@ function notifyListeners(): void {
 }
 
 export const optionStore = {
+  // 团组过滤视图（角色选择器/图鉴页用）
   getAll(): CharacterOption[] {
+    return filterByCampaignScope(loadFromCache());
+  },
+
+  // 全库视角（图鉴管理页）
+  getAllRaw(): CharacterOption[] {
     return loadFromCache();
   },
 

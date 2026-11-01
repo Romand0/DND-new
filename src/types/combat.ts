@@ -166,6 +166,8 @@ export interface Combatant {
 
 export interface NpcTemplate {
   id: string;
+  /** 归属团组（null/缺省 = 出版物条目，团组无关全局共享） */
+  campaignId?: string | null;
   /** 用户自定义的模板唯一标识（如 "goblin"），用于识别同类 NPC */
   templateId: string;
   /** 模板显示名称（如 "哥布林"） */

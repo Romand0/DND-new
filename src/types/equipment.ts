@@ -22,6 +22,7 @@ export interface EquipmentItem {
   isCustom: boolean; // 是否为用户自定义装备
   tags: { key: string; value: string }[]; // 自由标签
   source?: string; // 出版来源，如 "玩家手册 2014"
+  campaignId?: string | null; // 归属团组（null/缺省 = 出版物条目，团组无关全局共享）
   dataResource?: string; // 数据来源网站，如 "5E不全书"
 
   /** ② 魔法体系：魔法物品 / 非魔法物品。缺省 = '非魔法物品' */

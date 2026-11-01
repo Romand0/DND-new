@@ -1,3 +1,5 @@
+import { scopedKey } from '@/data/campaignScope';
+import { filterByCampaignScope, subscribeLibraryScope } from '@/data/libraryScope';
 import type { NpcTemplate, CreatureSize, CreatureType } from '@/types/combat';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
 import seedTemplates from '@/data/npcTemplates.json';
@@ -47,9 +49,13 @@ function resolveCreatureSize(raw: unknown): CreatureSize | undefined {
 }
 
 const STORAGE_KEY = 'dnd-npc-templates';
+const storageKey = () => scopedKey(STORAGE_KEY);
 type Listener = () => void;
 
 let listeners: Listener[] = [];
+
+// 规则书集变化（切换团组/编辑规则书集）触发订阅页面刷新
+subscribeLibraryScope(() => notify());
 
 // 进程内缓存：避免每次读都全量 parse localStorage。
 // 所有写操作都必须经过 save()，否则缓存不会失效。
@@ -58,7 +64,7 @@ let templateCache: NpcTemplate[] | null = null;
 // 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === STORAGE_KEY) templateCache = null;
+    if (e.key === storageKey()) templateCache = null;
   });
 }
 
@@ -125,7 +131,7 @@ function normalizeTemplate(t: any): NpcTemplate {
 function load(): NpcTemplate[] {
   if (templateCache) return templateCache;
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey());
     if (!raw) {
       templateCache = [];
       return templateCache;
@@ -142,7 +148,7 @@ function load(): NpcTemplate[] {
 function save(templates: NpcTemplate[]): void {
   templateCache = templates;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+    localStorage.setItem(storageKey(), JSON.stringify(templates));
   } catch (e) {
     console.error('NPC模板保存失败:', e);
   }
@@ -183,7 +189,7 @@ function hydrateSeeds(): void {
   const merged = current.concat(seeds.map(seedToTemplate));
   templateCache = merged;
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    localStorage.setItem(storageKey(), JSON.stringify(merged));
     localStorage.setItem(SEEDED_FLAG_KEY, 'true');
   } catch (e) {
     console.error('图鉴种子预置失败:', e);
@@ -223,7 +229,13 @@ function importSeed(options: { overwrite?: boolean } = {}): ImportStats {
 }
 
 const npcTemplateStore = {
+  // 团组过滤视图（怪物图鉴页/参战创建器用）
   getAll(): NpcTemplate[] {
+    return filterByCampaignScope([...load()]).sort((a, b) => b.updatedAt - a.updatedAt);
+  },
+
+  // 全库视角（图鉴管理页）
+  getAllRaw(): NpcTemplate[] {
     return [...load()].sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
