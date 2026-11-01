@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCampaign } from '@/contexts/CampaignContext';
 import {
   UserCircle,
   Pencil,
@@ -44,6 +45,8 @@ async function compressImage(file: File): Promise<string> {
 export default function UserProfile() {
   const navigate = useNavigate();
   const { user, token, isAdmin, updateUser, logout } = useAuth();
+  const { campaignRole } = useCampaign();
+  const isCampaignDM = campaignRole === 'dm';
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -59,9 +62,9 @@ export default function UserProfile() {
   const [pwError, setPwError] = useState('');
   const [pwNotice, setPwNotice] = useState('');
 
-  // 站点权限与游戏身份分离：权限看 isAdmin，游戏身份看 role
+  // 站点权限与游戏身份分离：权限看 isAdmin，团组身份看 campaign_members（campaignRole）
   const permissionLabel = isAdmin ? '管理员' : '成员';
-  const typeLabel = user?.role === 'dm' ? 'DM' : '玩家';
+  const typeLabel = isCampaignDM ? 'DM' : campaignRole ? '玩家' : '未加入团组';
 
   const openEdit = () => {
     setUsernameDraft(user?.username || '');

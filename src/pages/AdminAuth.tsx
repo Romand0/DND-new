@@ -1,10 +1,13 @@
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, User as UserIcon, Info } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCampaign } from '@/contexts/CampaignContext';
 
 export default function AdminAuth() {
   const navigate = useNavigate();
-  const { user, isAdmin, isDM } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { campaignRole } = useCampaign();
+  const isDM = campaignRole === 'dm';
 
   return (
     <div className="space-y-6">
@@ -38,7 +41,7 @@ export default function AdminAuth() {
                 站点{isAdmin ? '管理员' : '成员'}
               </span>
               <span className={`px-2 py-0.5 rounded-full ${isDM ? 'bg-danger/15 text-danger' : 'bg-info/15 text-info'}`}>
-                游戏身份 {isDM ? 'DM' : '玩家'}
+                当前团组身份 {isDM ? 'DM' : campaignRole ? '玩家' : '未加入'}
               </span>
             </div>
           </div>

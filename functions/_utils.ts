@@ -79,16 +79,17 @@ export async function authenticateRequest(
 
   if (payload) {
     // 以数据库为准：管理员授予/撤销立即生效，不依赖 7 天有效的 JWT 快照
+    // 团组身份权威源 = campaign_members.role（getCampaignContext 查询），users.role 全局列已停读
     try {
       const row = await env.DB
-        .prepare('SELECT role, is_admin FROM users WHERE id = ?')
+        .prepare('SELECT is_admin FROM users WHERE id = ?')
         .bind(payload.sub)
-        .first<{ role: string; is_admin: number }>();
+        .first<{ is_admin: number }>();
       if (row) {
-        return { sub: payload.sub, role: row.role, isAdmin: row.is_admin === 1 };
+        return { sub: payload.sub, role: 'player', isAdmin: row.is_admin === 1 };
       }
       // 账号已被删除：保留非管理员身份，写操作会被拒绝
-      return { sub: payload.sub, role: payload.role, isAdmin: false };
+      return { sub: payload.sub, role: 'player', isAdmin: false };
     } catch {
       // 数据库瞬时异常或未执行 0009 迁移：退回 JWT 快照，兼容旧 role=dm 管理员
       return { sub: payload.sub, role: payload.role, isAdmin: payload.role === 'dm' };

@@ -75,7 +75,7 @@ export async function onRequestGet(context: any): Promise<Response> {
     const users = (result.results as any[]).map((row: any) => ({
       id: row.id,
       username: row.username,
-      role: row.role,
+      role: 'player',
       isAdmin: legacyMode ? row.role === 'dm' : row.is_admin === 1,
       createdAt: row.created_at,
       online: row.online === 1,
