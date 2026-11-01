@@ -63,7 +63,8 @@ CREATE TABLE campaign_members (
   joined_at INTEGER NOT NULL,
   PRIMARY KEY (campaign_id, user_id)
 );
--- 六类纯本地数据统一上云：kind ∈ combat|treasure|note|battleground|calendar|gametime
+-- 六类纯本地数据统一上云：kind ∈ combat|treasure|note|battleground|calendar|gametime|proposal
+-- proposal（R5b 预留位）：玩家可写、DM 可读审批，本期仅建通道
 CREATE TABLE campaign_artifacts (
   id TEXT NOT NULL,
   campaign_id TEXT NOT NULL,
@@ -99,16 +100,44 @@ ALTER TABLE npc_templates ADD COLUMN campaign_id TEXT;
 | /api/campaigns/[id]/invite | POST | DM | 重置邀请码 |
 | /api/campaigns/join | POST | 登录 | body {code} → 凭码加入（角色 player） |
 | /api/artifacts/[kind] | GET | 成员 | 该团组某 kind 全量列表 |
-| /api/artifacts/[kind]/[artId] | PUT/DELETE | DM 写、成员读 | 制品 UPSERT / 删除 |
+| /api/artifacts/[kind]/[artId] | PUT/DELETE | kind=proposal 时成员可写、其余 DM 写 | 制品 UPSERT / 删除 |
 
 **`functions/_utils.ts` 新增**：
 
 ```ts
-// 解析 X-Campaign-Id 头 → 校验成员资格 → 返回 { campaignId, role }；无头/非成员抛 401/403
+// 解析 X-Campaign-Id 头 → 校验成员资格 → 返回 { campaignId, role, rulebooks }；无头/非成员抛 401/403
 async function getCampaignContext(request, env, auth): Promise<CampaignContext>
-// 团组作用域写操作校验：role==='dm' 或 auth.isAdmin
-function assertCampaignWrite(ctx, auth): void
+// 团组作用域写操作校验：role==='dm' 或 auth.isAdmin；kind='proposal' 放行成员写（R5b）
+function assertCampaignWrite(ctx, auth, kind?): void
 ```
+
+**提案制品 data 结构约定（R5b 预留，本期只存不审）**：
+
+```ts
+interface ProposalArtifact {
+  targetType: 'equipment' | 'spell' | 'option' | 'npc';
+  action: 'create' | 'update';
+  targetId?: string;        // update 时的目标条目 id
+  payload: Record<string, unknown>;  // 提交的条目内容
+  status: 'pending' | 'approved' | 'rejected';
+  reviewedBy?: string;      // DM userId
+  reviewedAt?: number;
+}
+```
+
+审批转库的后置实现路径：DM 批准 → 服务端以 DM 权限把 payload 经既有图鉴写端点逻辑写入对应表（campaign_id=本团组）→ 提案 status 置 approved。UI（提案提交按钮/审批面板）后置。
+
+**三宝书 5E 分组（选择器层概念）**：
+
+```ts
+// src/data/publications.ts（新增）
+export const PUBLICATION_GROUPS = [
+  { name: '三宝书 5E', books: ['玩家手册 2014', '城主指南 2014', '怪物图鉴 2014'] },
+];
+export function listPublications(): string[]  // 四库 source 去重枚举 ∪ 分组内书名
+```
+
+campaigns.rulebooks 存具体书名数组；「三宝书 5E」作为规则书集编辑器的分组勾选快捷方式，持久化后展开为三本书名。出版物条目始终存于全局表（campaign_id=NULL），团组仅持筛选配置——R5a 解耦约束。
 
 **既有端点改造**：
 - characters/equipments/spells/options/npcs 全部端点：解析 campaign 上下文；读端点对团组作用域数据校验成员资格；写端点 `assertCampaignWrite`
@@ -168,9 +197,11 @@ export function scopedKey(base: string): string;  // `dnd-${cid}:${base}`
 1. **跨团组不可见**：任何团组作用域端点在 `X-Campaign-Id` 缺失、非成员、或制品/角色/条目归属他团时返回 403/404；A 团组成员无法通过枚举 id 读取 B 团组数据
 2. **身份权威源**：团组内玩家/DM 判定一律读 campaign_members；users.role 全局字段停止读取（保留列兼容旧代码路径，不删）
 3. **图鉴并集语义**：团组内查询结果 = rulebooks 集内出版物条目 ∪ 本团组 campaign_id 条目；两集合无交集（出版物条目 campaign_id 恒 NULL），无重复
-4. **附属数据跟随**：角色卡 data 为整包 JSON（背包/手持/穿戴内嵌），campaign_id 列变更即整体迁移，无部分迁移可能
-5. **迁移幂等**：默认团组固定 id + INSERT OR IGNORE + `WHERE campaign_id IS NULL` 守卫，重复执行零副作用
-6. **localStorage 分桶完整**：所有团组作用域 store 读写经过 scopedKey；流程库/绑定/编辑草稿/editorState 保持全局键
+4. **出版物零迁移**：出版物条目存储位置团组无关（R5a），规则书集变更仅改团组配置行；出版物条目更新对所有引用团组即时生效
+5. **DM 唯一写路径**：玩家对正式团组数据（角色/条目/制品）无写权限；唯一例外为 kind=proposal 提案制品（单向递送，R5b）
+6. **附属数据跟随**：角色卡 data 为整包 JSON（背包/手持/穿戴内嵌），campaign_id 列变更即整体迁移，无部分迁移可能
+7. **迁移幂等**：默认团组固定 id + INSERT OR IGNORE + `WHERE campaign_id IS NULL` 守卫，重复执行零副作用
+8. **localStorage 分桶完整**：所有团组作用域 store 读写经过 scopedKey；流程库/绑定/编辑草稿/editorState 保持全局键
 
 ## Error Handling
 
@@ -207,5 +238,5 @@ export function scopedKey(base: string): string;  // `dnd-${cid}:${base}`
 |------|------|------|
 | A 骨架 | 0011/0012 迁移 + campaigns API + CampaignContext + Navbar 切换器 + store 分桶（纯本地隔离） | 切团组数据互串检查 |
 | B 图鉴隔离 | 四库 campaignId 字段 + rulebooks 过滤 + 自建条目归属 + /campaigns 管理页 + 角色移团组 | 并集语义验收 |
-| C 上云 | artifacts API + 六类 store 云同步 | 断网/恢复验收 |
+| C 上云 | artifacts API + 六类 store 云同步（kind=proposal 通道一并就位，UI 后置） | 断网/恢复验收 |
 | D 收尾 | 存量回填验证 + 玩家端适配 + users.role 读取路径下线 | 全量手动清单 |
