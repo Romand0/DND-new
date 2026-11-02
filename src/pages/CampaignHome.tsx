@@ -14,12 +14,13 @@ import PlayerHome from '@/pages/PlayerHome';
 export default function CampaignHome() {
   const { campaignId } = useParams<{ campaignId: string }>();
   const { isAdmin } = useAuth();
-  const { campaigns, loading } = useCampaign();
+  // initialized 才能区分「确认无团组」与「成员列表尚未拉回」——后者直接回退会把入口弹回前厅
+  const { campaigns, initialized } = useCampaign();
   const navigate = useNavigate();
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (loading) return;
+    if (!initialized) return;
     if (campaigns.length === 0) {
       navigate('/', { replace: true });
       return;
@@ -39,7 +40,7 @@ export default function CampaignHome() {
       return;
     }
     setReady(true);
-  }, [campaigns, loading, campaignId, navigate]);
+  }, [campaigns, initialized, campaignId, navigate]);
 
   if (!ready) {
     return (

@@ -15,6 +15,8 @@ interface CampaignContextValue {
   current: Campaign | null;
   campaignRole: CampaignRole | null;
   loading: boolean;
+  /** 首次成员团组列表拉取已完成（登录后）：区分「确认无团组」与「列表未就绪」 */
+  initialized: boolean;
   switchCampaign: (id: string) => void;
   refresh: () => Promise<void>;
 }
@@ -25,11 +27,13 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!isAuthenticated) {
       setCampaigns([]);
       setRulebookScope([]);
+      setInitialized(true);
       return;
     }
     setLoading(true);
@@ -46,6 +50,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       setRulebookScope([]);
     } finally {
       setLoading(false);
+      setInitialized(true);
     }
   }, [isAuthenticated]);
 
@@ -72,6 +77,7 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
         current,
         campaignRole: current?.myRole ?? null,
         loading,
+        initialized,
         switchCampaign,
         refresh,
       }}
