@@ -11,11 +11,11 @@ Status: 待审核
 
 ## Glossary
 
-- **前厅**：团组之外的站点区域，含公开资料库与登录后的主页。
+- **前厅**：团组之外的站点区域，含公开资料库与团组外主页。
+- **团组外主页**：路由 `/`（登录后），团组卡片墙与站点功能区入口。
+- **团组内主页**：路由 `/c/:campaignId/home`，地址由团组 ID 组成；站点管理员看到 DM 主页（原 DM 工作台内容），其余成员看到玩家主页（原玩家首页内容）。
 - **出版物条目**：归属 `campaign_id IS NULL` 的四库条目（玩家手册 2014 / 怪物图鉴 2014 等种子），全局共享。
 - **团组条目**：归属某团组的自定义条目，仅该团组成员可见。
-- **主页**：登录后落地的真实首页（路由 `/`），承担团组列表卡片墙与各功能区入口。
-- **团组主页**：进入团组后的首个视图；站点管理员为 DM 工作台（`/workbench`），玩家为玩家首页（`/player/home`）。
 - **规则书集**：团组在团组设置中勾选的出版物集合，决定团组内四库视图的出版物可见范围。
 - **四库**：装备库、法术库、怪物图鉴、角色选项。
 
@@ -45,29 +45,40 @@ Status: 待审核
 4. WHEN 四库写端点（POST/PUT/DELETE）请求未携带有效 JWT, the system SHALL 返回 401。
 5. WHEN 请求携带有效 JWT, the system SHALL 按现行团组作用域逻辑返回（规则书集过滤 + 团组条目），行为与现状一致。
 
-### R3 真实主页
+### R3 团组外主页
 
 **User Story:** AS 已登录用户, I want 一个真实主页, so that 我在一个页面看到我的全部团组与站点入口。
 
 #### Acceptance Criteria
 
-1. WHEN 已登录用户打开 `/`, the system SHALL 展示主页（团组卡片墙 + 资料库入口 + 账号区 + 创建/加入团组入口）。
+1. WHEN 已登录用户打开 `/`, the system SHALL 展示团组外主页（团组卡片墙 + 资料库入口 + 账号区 + 创建/加入团组入口）。
 2. WHEN 已登录用户打开 `/`, the system SHALL 展示其加入的全部团组（名称、我的角色、规则书集摘要）。
-3. WHEN 已登录用户点击任一团组卡片, the system SHALL 将当前团组切换为该团组并进入对应团组主页（站点管理员进入 `/workbench`，其余进入 `/player/home`）。
+3. WHEN 已登录用户点击任一团组卡片, the system SHALL 导航至该团组的团组内主页 `/c/:campaignId/home`。
 4. WHEN 已登录用户尚无任何团组, the system SHALL 在团组区展示空态并引导创建团组或凭邀请码加入。
 5. WHEN 未登录访客打开 `/`, the system SHALL 重定向至登录页。
 
-### R4 从团组界面离开
+### R3.1 团组内主页
 
-**User Story:** AS 在团组内的站点管理员, I want 从 DM 工作台回到主页, so that 我可以挂起当前团组去查资料或管理账号而保留成员身份。
+**User Story:** AS 团组成员, I want 每个团组拥有以团组 ID 寻址的主页, so that 团组内入口与团组外主页清晰分离。
 
 #### Acceptance Criteria
 
-1. WHEN 站点管理员打开 DM 工作台（`/workbench`）, the system SHALL 在页面内提供「回到主页」入口。
-2. WHEN 用户在 DM 壳任一页面点击顶栏网站图标, the system SHALL 跳转至 `/workbench`。
-3. WHEN 用户点击「回到主页」, the system SHALL 保留其全部团组成员身份与当前团组记忆并展示主页。
-4. WHEN 用户回到主页后再次点击原团组卡片, the system SHALL 恢复到该团组视图。
-5. WHEN 用户在 DM 壳与玩家壳之外的任一导航栏中查找「回到主页」, the system SHALL 提供的常驻导航入口仅来自 DM 工作台页面（玩家在团组内通过 CampaignSwitcher 切换团组，主页入口收敛于工作台）。
+1. WHEN 团组成员打开 `/c/:campaignId/home`, the system SHALL 按身份展示对应主页：站点管理员展示 DM 主页（原 DM 工作台内容），其余成员展示玩家主页（原玩家首页内容）。
+2. WHEN 请求的 `:campaignId` 与本地当前团组记录存在差异且请求者为该团组成员, the system SHALL 将本地当前团组切换为 `:campaignId` 并整页刷新后渲染。
+3. IF 请求者已登录且 `:campaignId` 对应团组包含该用户, the system SHALL 正常渲染；`/player/home` 旧路径 SHALL 重定向至当前团组的 `/c/:campaignId/home`。
+4. IF `:campaignId` 对应团组已将请求者移出, the system SHALL 将当前团组回退为成员列表中的首个团组并导航至其团组内主页。
+
+### R4 从团组界面离开
+
+**User Story:** AS 在团组内的站点管理员, I want 从 DM 主页回到团组外主页, so that 我可以挂起当前团组去查资料或管理账号而保留成员身份。
+
+#### Acceptance Criteria
+
+1. WHEN 站点管理员打开 DM 主页, the system SHALL 在页面内提供「回到主页」入口（链接 `/`）。
+2. WHEN 用户在 DM 壳任一页面点击顶栏网站图标, the system SHALL 跳转至当前团组的团组内主页 `/c/:campaignId/home`。
+3. WHEN 用户点击「回到主页」, the system SHALL 保留其全部团组成员身份与当前团组记忆并展示团组外主页。
+4. WHEN 用户回到团组外主页后再次点击原团组卡片, the system SHALL 恢复到该团组的团组内主页。
+5. WHEN 用户在 DM 壳与玩家壳的导航栏中查找「回到主页」, the system SHALL 提供的常驻入口仅来自 DM 主页页面（玩家在团组内通过 CampaignSwitcher 切换团组，团组外主页入口收敛于 DM 主页）。
 
 ### R5 当前团组记忆保留
 
@@ -75,8 +86,8 @@ Status: 待审核
 
 #### Acceptance Criteria
 
-1. WHEN 用户进入某团组后离开登录会话再重新登录, the system SHALL 将当前团组恢复为该用户上次使用的团组。
-2. IF 用户上次使用的团组已将其移出, the system SHALL 将当前团组回退为其仍在的团组列表中的首个团组，主页卡片墙如实反映现有成员关系。
+1. WHEN 用户进入某团组后离开登录会话再重新登录, the system SHALL 在团组外主页的卡片墙上高亮其上次使用的团组（当前团组记录保留）。
+2. IF 用户上次使用的团组已将其移出, the system SHALL 将当前团组回退为其仍在的团组列表中的首个团组，团组外主页卡片墙如实反映现有成员关系。
 
 ### R6 无团组用户的写边界
 
@@ -88,16 +99,16 @@ Status: 待审核
 2. WHEN 无团组登录用户尝试新增自定义条目, the system SHALL 禁用新增入口并提示「加入或创建团组后再添加自定义条目」。
 3. WHEN 无团组登录用户访问主页, the system SHALL 展示创建/加入团组入口与出版物资料库入口。
 
-### R7 DM 工作台迁移与守卫调整
+### R7 团组内主页迁移与守卫调整
 
-**User Story:** AS 站点管理员, I want 原 DM 工作台保留完整功能, so that 主页改造后管理路径全部可用。
+**User Story:** AS 站点管理员, I want 原 DM 工作台以团组内主页形式保留完整功能, so that 团组外主页改造后管理路径全部可用。
 
 #### Acceptance Criteria
 
-1. WHEN 站点管理员从主页点击其 DM 团组卡片, the system SHALL 进入 `/workbench`（原 DM 工作台内容）。
-2. WHEN 非站点管理员访问 `/workbench` 或其余 DM 专属路由, the system SHALL 重定向至 `/player/home`。
+1. WHEN 站点管理员从团组外主页点击其 DM 团组卡片, the system SHALL 进入该团组的 DM 主页（`/c/:campaignId/home` 的管理员分支）。
+2. WHEN 非站点管理员访问团组内主页的管理员分支内容, the system SHALL 展示玩家主页分支内容（同一路由按身份分流）。
 3. WHEN DM 专属路由（角色卡、物资、设置、日历、时钟、骰子、笔记、账号等）被访问, the system SHALL 保持现行绝对路径与权限要求（登录 + 站点管理员）。
-4. WHEN 玩家端路由（`/player/*`）被访问, the system SHALL 保持现行结构与权限要求。
+4. WHEN 玩家端路由（`/player/*`）被访问, the system SHALL 保持现行结构与权限要求；`/player/home` SHALL 重定向至当前团组的团组内主页。
 
 ### R8 创建与加入团组入口归位
 
