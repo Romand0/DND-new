@@ -61,10 +61,11 @@ graph TD
 - 卡片点击进入团组：`setCurrentCampaignId(c.id)` 后 `window.location.assign(isAdmin ? '/workbench' : '/player/home')`。直接 assign 免去 switchCampaign 的二次 reload。
 - Workbench 保留原 Home 全部内容与依赖，路由挂 `/workbench`。
 
-### Navbar 增加「回到主页」出口
+### 顶栏网站图标与「回到主页」出口
 
-- Layout（variant dm）与 PlayerLayout（variant player）顶栏左侧加主页图标链接（`/`），与 CampaignSwitcher 并列。
-- CampaignSwitcher 下拉顶部同步加「回到主页」项（同目标，发现路径冗余可接受）。
+- Layout（DM 壳）顶栏网站图标链接改为 `/workbench`（现行指向 `/`）。
+- 「回到主页」入口仅存在于 Workbench 页面内（页头动作区按钮，链接 `/`）；Navbar / PlayerLayout / CampaignSwitcher 一律保持现状。
+- 玩家在团组内通过 CampaignSwitcher 直接切换团组；PlayerLayout 网站图标保持现行指向（玩家日常驻留团组视图，主页对玩家仅作 URL 直达备用）。
 
 ### 后端公开读分支（functions/_utils.ts + 四库端点）
 
@@ -122,7 +123,7 @@ export function publicLibraryClause(): { clause: string; binds: string[] } {
   2. 无痕窗口直接 GET `/api/equipments`：返回 JSON 全部为出版物条目。
   3. 登录无团组账号：主页空态引导可见、四库只读出版物、新增按钮禁用有提示。
   4. 登录在团组账号：主页卡片墙与规则书集摘要正确；点卡片进入 `/workbench`（admin）或 `/player/home`（player）。
-  5. 「回到主页」出口在 DM 与玩家导航栏均可达；回到主页后原团组卡可再次进入。
+  5. DM 壳顶栏网站图标跳 `/workbench`；Workbench 页内「回到主页」可达且回到主页后原团组卡可再次进入；玩家端导航栏无主页入口（切换团组走 CampaignSwitcher）。
   6. DM 路由回归：`/characters`、`/settings/data` 等绝对路径在 admin 登录下全部可用；非 admin 访问 `/workbench` 被踢到玩家端。
   7. 未登录写端点直测：POST `/api/equipments` 返回 401。
 

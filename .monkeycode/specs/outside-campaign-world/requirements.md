@@ -59,13 +59,15 @@ Status: 待审核
 
 ### R4 从团组界面离开
 
-**User Story:** AS 在团组内的用户, I want 随时回到主页, so that 我可以挂起当前团组去查资料或管理账号而保留成员身份。
+**User Story:** AS 在团组内的站点管理员, I want 从 DM 工作台回到主页, so that 我可以挂起当前团组去查资料或管理账号而保留成员身份。
 
 #### Acceptance Criteria
 
-1. WHEN 用户在任一登录后界面, the system SHALL 提供回到主页的导航入口（导航栏）。
-2. WHEN 用户点击回到主页, the system SHALL 保留其全部团组成员身份与当前团组记忆并展示主页。
-3. WHEN 用户回到主页后再次点击原团组卡片, the system SHALL 恢复到该团组视图。
+1. WHEN 站点管理员打开 DM 工作台（`/workbench`）, the system SHALL 在页面内提供「回到主页」入口。
+2. WHEN 用户在 DM 壳任一页面点击顶栏网站图标, the system SHALL 跳转至 `/workbench`。
+3. WHEN 用户点击「回到主页」, the system SHALL 保留其全部团组成员身份与当前团组记忆并展示主页。
+4. WHEN 用户回到主页后再次点击原团组卡片, the system SHALL 恢复到该团组视图。
+5. WHEN 用户在 DM 壳与玩家壳之外的任一导航栏中查找「回到主页」, the system SHALL 提供的常驻导航入口仅来自 DM 工作台页面（玩家在团组内通过 CampaignSwitcher 切换团组，主页入口收敛于工作台）。
 
 ### R5 当前团组记忆保留
 
