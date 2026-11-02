@@ -1,7 +1,7 @@
 // 宝藏数据存储 —— localStorage + 内存缓存
 import type { Treasure, DistributionRecord } from '@/types/treasure';
 import { scopedKey } from '@/data/campaignScope';
-import { syncListDiff, pullArtifactsOnce } from '@/data/artifactSync';
+import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
 
 const storageKey = () => scopedKey('dnd-treasures');
 const DISTRIBUTION_KEY = 'dnd-treasure-distributions';
@@ -60,12 +60,14 @@ function save(list: Treasure[]): void {
   syncListDiff('treasure', prev, list, t => t.id);
 }
 
-/** 云端拉取当前团组宝藏并整体替换本地（惰性首拉一次，失败静默保持本地） */
+/** 云端拉取当前团组宝藏并按 updatedAt 合并本地（惰性首拉一次，失败静默保持本地） */
 async function syncFromBackend(): Promise<void> {
   await pullArtifactsOnce<Treasure[]>('treasure', list => {
-    cache = list;
+    // 合并而非替换：本地刚写入尚未上云的宝藏（updatedAt 较新）不被云端旧快照回退
+    const merged = mergeByIdentity(load(), list, t => t.id, t => t.updatedAt);
+    cache = merged;
     try {
-      localStorage.setItem(storageKey(), JSON.stringify(list));
+      localStorage.setItem(storageKey(), JSON.stringify(merged));
     } catch { /* 存储满时保留内存态 */ }
     notify();
   });

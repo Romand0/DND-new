@@ -1,6 +1,6 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry } from '@/types/combat';
 import { scopedKey } from '@/data/campaignScope';
-import { syncListDiff, pullArtifactsOnce } from '@/data/artifactSync';
+import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
@@ -548,13 +548,14 @@ function save(records: CombatRecord[]): void {
   syncListDiff('combat', prev, records, r => r.id);
 }
 
-/** 云端拉取当前团组战斗记录并整体替换本地（惰性首拉一次，失败静默保持本地） */
+/** 云端拉取当前团组战斗记录并按 updatedAt 合并本地（惰性首拉一次，失败静默保持本地） */
 async function syncFromBackend(): Promise<void> {
   await pullArtifactsOnce<CombatRecord[]>('combat', list => {
-    // 先落 storage 再走 load() 归一化（equipmentChanges 三件套等字段兜底全在 load 内）
+    // 合并而非替换：本地刚写入尚未上云的记录（updatedAt 较新）不被云端旧快照回退
+    const merged = mergeByIdentity(load(), list, r => r.id, r => r.updatedAt);
     recordsCache = null;
     try {
-      localStorage.setItem(storageKey(), JSON.stringify(list));
+      localStorage.setItem(storageKey(), JSON.stringify(merged));
     } catch {
       return;
     }
