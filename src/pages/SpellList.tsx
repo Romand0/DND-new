@@ -1,6 +1,7 @@
 import { useState, useEffect, useLayoutEffect, useMemo, useCallback, useRef, memo, useDeferredValue } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCampaign } from '@/contexts/CampaignContext';
 import { useEditorState } from '@/data/editorState';
 import { spellStore } from '@/data/spellStore';
 import { Sparkles, Plus, Edit2, Trash2, Search } from 'lucide-react';
@@ -273,6 +274,7 @@ function MobileSpellCardList(props: VirtualListProps) {
 export default function SpellList() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { current } = useCampaign();
   const isDesktop = useIsDesktop();
 
   // 缓存优先：首帧同步读本地（含模块级解析缓存），网络请求降级为后台校准
@@ -429,9 +431,15 @@ export default function SpellList() {
           {syncError && <p className="mt-1 text-xs text-danger">{syncError}</p>}
         </div>
         {isAdmin && (
-          <button onClick={handleAdd} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
-            <Plus className="w-4 h-4" /> 新增法术
-          </button>
+          current ? (
+            <button onClick={handleAdd} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary-dark text-white rounded-lg transition-colors">
+              <Plus className="w-4 h-4" /> 新增法术
+            </button>
+          ) : (
+            <span className="self-center text-xs text-gray-500" title="加入或创建团组后再添加自定义条目">
+              加入或创建团组后再添加自定义条目
+            </span>
+          )
         )}
       </div>
 

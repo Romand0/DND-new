@@ -1,141 +1,178 @@
-// DM Toolkit - Home Page Component
-import { Link } from 'react-router-dom';
-import { Swords, Users, ScrollText, Coins, Sparkles, ChevronRight } from 'lucide-react';
+// 团组外主页（/，前厅枢纽）：团组卡片墙 + 资料库入口 + 账号区。
+// 卡片点击整页导航到团组内主页 /c/:campaignId/home（DM/玩家分流在主页壳内完成）。
+import { useState } from 'react';
+import { Link, Navigate } from 'react-router-dom';
+import { Swords, Plus, UserRound, BookOpen, Crown, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import PlayerHome from '@/pages/PlayerHome';
+import { useCampaign } from '@/contexts/CampaignContext';
+import { createCampaign, joinCampaign } from '@/lib/api';
 
-const features = [
-  {
-    icon: Users,
-    title: '角色卡库',
-    description: '管理所有玩家和NPC角色卡，完整的D&D 5e属性系统',
-    path: '/characters',
-    color: 'from-primary to-primary-dark',
-  },
-  {
-    icon: Swords,
-    title: '战斗记录',
-    description: '追踪战斗回合、伤害、状态效果，管理战斗流程',
-    path: '/combat',
-    color: 'from-danger to-danger/70',
-  },
-  {
-    icon: Coins,
-    title: '物资钱币',
-    description: '管理装备、货币、经验值变动记录，一目了然',
-    path: '/inventory',
-    color: 'from-accent to-accent-dark',
-  },
-  {
-    icon: Sparkles,
-    title: '法术管理',
-    description: '法术位追踪、法术书管理、施法记录',
-    path: '/spells',
-    color: 'from-info to-info/70',
-  },
-  {
-    icon: ScrollText,
-    title: '剧情笔记',
-    description: '记录剧情、NPC关系、世界设定，随时查阅',
-    path: '/notes',
-    color: 'from-success to-success/70',
-  },
+const LIB_ENTRIES = [
+  { path: '/equipment', label: '装备库', description: '武器、护甲与冒险装备出版物条目' },
+  { path: '/spells', label: '法术库', description: '全环阶法术出版物条目' },
+  { path: '/monsters', label: '怪物图鉴', description: '怪物图鉴 2014 全量模板' },
+  { path: '/options', label: '角色选项', description: '种族、职业与背景选项' },
 ];
 
 export default function Home() {
-  const { isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
+  const { campaigns, current, refresh } = useCampaign();
+  const [busy, setBusy] = useState(false);
 
-  // 非站点管理员：直接渲染玩家端首页
-  if (!isAdmin) {
-    return <PlayerHome />;
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
   }
 
-  // DM 模式：原有首页内容
+  const enterCampaign = (id: string) => {
+    window.location.assign(`/c/${id}/home`);
+  };
+
+  const handleCreate = async () => {
+    const name = prompt('输入新团组名称（一场跑团战役）');
+    if (!name || !name.trim()) return;
+    setBusy(true);
+    try {
+      const created = await createCampaign(name.trim());
+      await refresh();
+      enterCampaign(created.id);
+    } catch (e) {
+      alert(`创建失败：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleJoin = async () => {
+    const code = prompt('输入团组邀请码（向 DM 索取）');
+    if (!code || !code.trim()) return;
+    setBusy(true);
+    try {
+      const joined = await joinCampaign(code.trim());
+      await refresh();
+      enterCampaign(joined.id);
+    } catch (e) {
+      alert(`加入失败：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
-    <div className="space-y-16">
-      <section className="text-center py-16">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
-          <Swords className="w-4 h-4" />
-          DM Toolkit v1.0
-        </div>
-        <h1 className="text-5xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white">
-          地下城主的{' '}
-          <span style={{ background: 'linear-gradient(to right, #e63946, #d4a574)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            终极工具
-          </span>
-        </h1>
-        <p className="text-xl max-w-2xl mx-auto dark:text-text-dark-muted light:text-text-light-muted">
-          为D&D 5e打造的完整DM工具套件，从角色管理到战斗追踪，
-          让你专注于讲述精彩的故事
-        </p>
-        <div className="mt-10 flex items-center justify-center gap-4">
-          <Link
-            to="/characters"
-            className="inline-flex items-center gap-2 px-8 py-3 bg-primary hover:bg-primary-dark text-white font-semibold rounded-lg transition-colors"
-          >
-            开始使用
-            <ChevronRight className="w-5 h-5" />
-          </Link>
-        </div>
-      </section>
-
+    <div className="space-y-12">
+      {/* 团组卡片墙 */}
       <section>
-        <h2 className="text-2xl font-bold text-center mb-10 dark:text-text-dark light:text-text-light">
-          功能模块
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <Link
-                key={feature.path}
-                to={feature.path}
-                className="group p-6 rounded-xl border transition-all hover:shadow-xl hover:-translate-y-1 dark:bg-card-dark dark:border-border-dark dark:hover:border-primary/50 light:bg-card-light light:border-border-light light:hover:border-primary/50"
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">我的团组</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCreate}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-primary bg-primary/10 hover:bg-primary/20 transition-colors disabled:opacity-50"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              创建团组
+            </button>
+            <button
+              onClick={handleJoin}
+              disabled={busy}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-300 bg-white/5 border border-border-dark hover:bg-white/10 transition-colors disabled:opacity-50"
+            >
+              凭邀请码加入
+            </button>
+          </div>
+        </div>
+
+        {campaigns.length === 0 ? (
+          <div className="rounded-xl border border-border-dark bg-card-dark p-10 text-center">
+            <Swords className="w-10 h-10 text-gray-600 mx-auto mb-4" />
+            <p className="text-gray-400 mb-2">尚未加入任何团组</p>
+            <p className="text-xs text-gray-500">
+              创建团组成为 DM，或向你的 DM 索取邀请码加入；加入后即可使用角色卡、战斗记录等团组功能
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {campaigns.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => enterCampaign(c.id)}
+                className={`group text-left p-5 rounded-xl border transition-all hover:shadow-xl hover:-translate-y-0.5 bg-card-dark border-border-dark hover:border-primary/50 ${
+                  current?.id === c.id ? 'ring-1 ring-primary/60' : ''
+                }`}
               >
-                <div
-                  className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}
-                >
-                  <Icon className="w-7 h-7 text-white" />
+                <div className="flex items-start justify-between gap-2 mb-3">
+                  <h3 className="text-base font-semibold text-gray-200 truncate">{c.name}</h3>
+                  <span
+                    className={`shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] ${
+                      c.myRole === 'dm' ? 'bg-primary/15 text-primary' : 'bg-white/10 text-gray-300'
+                    }`}
+                  >
+                    {c.myRole === 'dm' ? <Crown className="w-3 h-3" /> : <UserRound className="w-3 h-3" />}
+                    {c.myRole === 'dm' ? 'DM' : '玩家'}
+                  </span>
                 </div>
-                <h3 className="text-lg font-semibold mb-2 dark:text-text-dark light:text-text-light">
-                  {feature.title}
-                </h3>
-                <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                  {feature.description}
-                </p>
-                <div className="mt-4 flex items-center gap-1 text-sm text-primary font-medium">
-                  进入模块
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-3">
+                  <BookOpen className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">
+                    {c.rulebooks.length > 0 ? c.rulebooks.join('、') : '未选择规则书'}
+                  </span>
                 </div>
-              </Link>
-            );
-          })}
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-gray-500">{current?.id === c.id ? '上次使用的团组' : ''}</span>
+                  <span className="inline-flex items-center gap-1 text-primary font-medium">
+                    进入团组
+                    <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* 公共资料库入口 */}
+      <section>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold dark:text-text-dark light:text-text-light">公共资料库</h2>
+          <span className="text-xs text-gray-500">出版物全量开放，访客亦可浏览</span>
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {LIB_ENTRIES.map((e) => (
+            <Link
+              key={e.path}
+              to={e.path}
+              className="group p-4 rounded-xl border border-border-dark bg-card-dark hover:border-primary/50 transition-all"
+            >
+              <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                <BookOpen className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <h3 className="text-sm font-semibold text-gray-200 mb-1">{e.label}</h3>
+              <p className="text-[11px] text-gray-500">{e.description}</p>
+            </Link>
+          ))}
         </div>
       </section>
 
-      <section className="rounded-2xl p-8 md:p-12 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent border dark:border-primary/30 light:border-primary/20">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4 dark:text-text-dark light:text-text-light">
-            数据安全，本地存储
-          </h2>
-          <p className="dark:text-text-dark-muted light:text-text-light-muted mb-6">
-            所有数据都保存在你的浏览器本地，支持一键导出备份和导入恢复。
-            自动实时备份机制，确保你的数据不会丢失。
-          </p>
-          <div className="flex items-center justify-center gap-4 text-sm">
-            <span className="flex items-center gap-1.5 dark:text-text-dark-muted light:text-text-light-muted">
-              <span className="w-2 h-2 rounded-full bg-success" />
-              localStorage 存储
+      {/* 账号区 */}
+      <section className="rounded-xl border border-border-dark bg-card-dark p-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-200 mb-1">账号</h2>
+          <p className="text-xs text-gray-500">个人资料、头像与密码管理</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-primary/15 text-primary">
+              <Crown className="w-3 h-3" />
+              站点管理员
             </span>
-            <span className="flex items-center gap-1.5 dark:text-text-dark-muted light:text-text-light-muted">
-              <span className="w-2 h-2 rounded-full bg-info" />
-              实时自动备份
-            </span>
-            <span className="flex items-center gap-1.5 dark:text-text-dark-muted light:text-text-light-muted">
-              <span className="w-2 h-2 rounded-full bg-accent" />
-              JSON 导入导出
-            </span>
-          </div>
+          )}
+          <Link
+            to="/account"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs text-gray-300 bg-white/5 border border-border-dark hover:bg-white/10 transition-colors"
+          >
+            <UserRound className="w-3.5 h-3.5" />
+            个人设置
+          </Link>
         </div>
       </section>
     </div>

@@ -27,6 +27,7 @@ import flowStore from '@/data/flowStore';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import CampaignSwitcher from '@/components/CampaignSwitcher';
+import { getCampaignId } from '@/data/campaignScope';
 
 const allNavItems = [
   { path: '/characters', label: '角色卡库', icon: Users },
@@ -165,7 +166,8 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2 shrink-0">
-            <Link to="/" className="flex items-center gap-2">
+            {/* 团组内顶栏：网站图标回团组内主页（前厅主页入口收敛于 DM 主页页内按钮） */}
+            <Link to={`/c/${getCampaignId()}/home`} className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <Swords className="w-6 h-6 text-white" />
               </div>
