@@ -10,6 +10,8 @@ export interface OptionTrait {
   text: string;
   // 生效等级（从文本「第X级」解析；无标注的按 1 级默认，仅职业特性使用）
   level?: number;
+  // 特性内嵌选项库（如战斗大师战技、武僧气技、魔契师魔印、术士超魔选项）
+  options?: OptionTrait[];
 }
 
 // 种族/职业的机械字段（自动化填卡用；v1 只读展示）

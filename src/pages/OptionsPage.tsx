@@ -92,6 +92,20 @@ function TraitList({ traits, title }: { traits: OptionTrait[]; title: string }) 
               {t.nameEn && <span className="ml-2 text-xs text-gray-500">{t.nameEn}</span>}
             </div>
             {t.text && <p className="mt-1 text-sm text-gray-400 leading-relaxed whitespace-pre-wrap">{t.text}</p>}
+            {t.options && t.options.length > 0 && (
+              <div className="mt-2 pl-3 border-l-2 border-white/10 space-y-2">
+                <div className="text-xs text-gray-500">可选条目（{t.options.length}）</div>
+                {t.options.map((o) => (
+                  <div key={o.name}>
+                    <div className="text-sm text-gray-300">
+                      {o.name}
+                      {o.nameEn && <span className="ml-2 text-xs text-gray-500">{o.nameEn}</span>}
+                    </div>
+                    {o.text && <p className="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">{o.text}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
