@@ -7,6 +7,7 @@ import {
   now,
   resolveLibraryScope,
   libraryFilterClause,
+  publicLibraryClause,
   canWriteEntry,
 } from '../../_utils';
 
@@ -16,17 +17,13 @@ export async function onRequestOptions(): Promise<Response> {
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env } = context;
+
+  // 未登录（访客公开浏览）与登录无团组用户均回退公开分支：仅出版物条目
   const auth = await authenticateRequest(request, env);
-  if (!auth) {
-    return errorResponse(401, 'Missing or invalid Authorization header');
-  }
-  const scope = await resolveLibraryScope(request, env, auth);
-  if (!scope) {
-    return errorResponse(403, '非该团组成员');
-  }
+  const scope = auth ? await resolveLibraryScope(request, env, auth) : null;
   try {
     // character_options 有独立 source 提取列，过滤用列表达式（其余库用 json_extract）
-    const { clause, binds } = libraryFilterClause(scope, 'source');
+    const { clause, binds } = scope ? libraryFilterClause(scope, 'source') : publicLibraryClause();
     const result = await env.DB
       .prepare(`SELECT id, name, category, parent_name, source, data, campaign_id, updated_at FROM character_options ${clause} ORDER BY category ASC, name ASC`)
       .bind(...binds)

@@ -10,22 +10,20 @@ import {
   now,
   resolveLibraryScope,
   libraryFilterClause,
+  publicLibraryClause,
 } from '../../_utils';
 
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env } = context;
 
+  // 未登录（访客公开浏览）与登录无团组用户均回退公开分支：仅出版物条目
   const auth = await authenticateRequest(request, env);
-  if (!auth) {
-    return errorResponse(401, 'Missing or invalid Authorization header');
-  }
-  const scope = await resolveLibraryScope(request, env, auth);
-  if (!scope) {
-    return errorResponse(403, '非该团组成员');
-  }
+  const scope = auth ? await resolveLibraryScope(request, env, auth) : null;
 
   try {
-    const { clause, binds } = libraryFilterClause(scope, "json_extract(data, '$.source')");
+    const { clause, binds } = scope
+      ? libraryFilterClause(scope, "json_extract(data, '$.source')")
+      : publicLibraryClause();
     const result = await env.DB
       .prepare(`SELECT id, name, template_id, cr, creature_type, data, campaign_id, updated_at FROM npc_templates ${clause} ORDER BY name ASC`)
       .bind(...binds)

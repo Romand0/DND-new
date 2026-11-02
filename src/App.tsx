@@ -5,8 +5,10 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import Layout from '@/components/Layout';
+import PublicLayout from '@/components/PublicLayout';
 import PlayerLayout from '@/components/PlayerLayout';
 import Home from '@/pages/Home';
+import CampaignHome from '@/pages/CampaignHome';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import CharacterList from '@/pages/CharacterList';
@@ -26,7 +28,6 @@ import InventoryPage from '@/pages/InventoryPage';
 import TradePage from '@/pages/TradePage';
 import EquipmentList from '@/pages/EquipmentList';
 import EquipmentDetail from '@/pages/EquipmentDetail';
-import PlayerHome from '@/pages/PlayerHome';
 import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 import DataManagement from '@/pages/DataManagement';
@@ -43,6 +44,7 @@ import NotesPage from '@/pages/NotesPage';
 import CampaignSettings from '@/pages/CampaignSettings';
 import DicePage from '@/pages/DicePage';
 import UserProfile from '@/pages/UserProfile';
+import { getCampaignId } from '@/data/campaignScope';
 import TripleTapGesture from '@/components/TripleTapGesture';
 import KeyboardShortcutDetector from '@/components/KeyboardShortcutDetector';
 import TreasureList from '@/pages/TreasureList';
@@ -50,7 +52,7 @@ import TreasureEdit from '@/pages/TreasureEdit';
 import TreasureDistribute from '@/pages/TreasureDistribute';
 import { BindingService } from '@/services/bindingService';
 
-// 根路径壳：站点管理员进入 DM 工作台，其余账号回玩家端
+// 根路径壳：DM 专属路由的布局壳（requireAdmin 由 ProtectedRoute 保证）
 function RoleShell() {
   const { isAdmin } = useAuth();
   // loading 由 ProtectedRoute 层吞掉，这里状态一定已就绪
@@ -58,6 +60,25 @@ function RoleShell() {
     return <Navigate to="/player/home" replace />;
   }
   return <Layout />;
+}
+
+// 四库自适应壳：登录用户用完整导航（菜单直达），未登录访客用前厅公开壳。
+// 无路由守卫——公开可读由后端保证，写入口由页面级登录态守卫收敛。
+function LibraryShellGate() {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center dark:bg-bg-dark light:bg-bg-light">
+        <div className="text-gray-500 dark:text-gray-400">加载中...</div>
+      </div>
+    );
+  }
+  return isAuthenticated ? <Layout /> : <PublicLayout />;
+}
+
+// 旧玩家首页路径：重定向到当前团组的团组内主页（保旧书签兼容）
+function PlayerHomeRedirect() {
+  return <Navigate to={`/c/${getCampaignId()}/home`} replace />;
 }
 
 export default function App() {
@@ -76,6 +97,37 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
+            {/* 公开资料库（前厅）：未登录访客可浏览出版物条目；登录用户走完整导航壳 */}
+            <Route element={<LibraryShellGate />}>
+              <Route path="/equipment" element={<EquipmentList />} />
+              <Route path="/equipment/:id" element={<EquipmentDetail />} />
+              <Route path="/spells" element={<SpellList />} />
+              <Route path="/spells/:id" element={<SpellDetail />} />
+              <Route path="/options" element={<OptionsPage />} />
+              <Route path="/monsters" element={<MonsterList />} />
+              <Route path="/monsters/:id" element={<MonsterDetail />} />
+            </Route>
+
+            {/* 团组外主页（前厅枢纽） */}
+            <Route
+              path="/"
+              element={
+                <ProtectedRoute>
+                  <Home />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* 团组内主页（以团组 ID 寻址；URL 驱动当前团组对齐，按身份分流 DM/玩家主页） */}
+            <Route
+              path="/c/:campaignId/home"
+              element={
+                <ProtectedRoute>
+                  <CampaignHome />
+                </ProtectedRoute>
+              }
+            />
+
             {/* 独立页面（需要登录） */}
             <Route
               path="/characters/:id/inventory"
@@ -85,7 +137,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-             
+
             {/* 玩家端（精简导航栏）- 需要登录 */}
             <Route
               element={
@@ -94,7 +146,7 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/player/home" element={<PlayerHome />} />
+              <Route path="/player/home" element={<PlayerHomeRedirect />} />
               <Route path="/player/:playerId" element={<PlayerView />} />
               <Route path="/player/:playerId/inventory" element={<PlayerInventory />} />
               <Route
@@ -107,7 +159,7 @@ export default function App() {
               <Route path="/player/account" element={<UserProfile />} />
             </Route>
 
-            {/* 公共资料库：DM 和玩家都能访问，走 Layout（variant 按 isAdmin 推导） */}
+            {/* 团组内数据页（战斗记录/流程编辑器）：需要登录，DM 与玩家都能访问 */}
             <Route
               element={
                 <ProtectedRoute>
@@ -115,35 +167,24 @@ export default function App() {
                 </ProtectedRoute>
               }
             >
-              <Route path="/equipment" element={<EquipmentList />} />
-              <Route path="/equipment/:id" element={<EquipmentDetail />} />
-              <Route path="/spells" element={<SpellList />} />
-              <Route path="/options" element={<OptionsPage />} />
-            <Route path="/monsters" element={<MonsterList />} />
-            <Route path="/monsters/:id" element={<MonsterDetail />} />
-              <Route path="/spells/:id" element={<SpellDetail />} />
               <Route path="/combat" element={<CombatList />} />
-              {/* ✅ 修改1：参数名从 :id 改为 :sessionId，和 CombatSession 里的 useParams 对齐 */}
-                    <Route path="/combat/:sessionId" element={<CombatSession />} />
-                    <Route path="/combat/:sessionId/battleground-editor" element={<BattlegroundEditor />} />
+              <Route path="/combat/:sessionId" element={<CombatSession />} />
+              <Route path="/combat/:sessionId/battleground-editor" element={<BattlegroundEditor />} />
               {/* 独立访问的流程编辑器路由 */}
               <Route path="/flow-editor/:id" element={<FlowEditor />} />
               <Route path="/flow-editor/:id/view" element={<FlowView />} />
             </Route>
 
-            {/* DM 端（完整导航栏）- 需要登录 + 站点管理员 */}
+            {/* DM 端（完整导航栏）- 需要登录 + 站点管理员；团组内主页在 /c/:campaignId/home */}
             <Route
-              path="/"
               element={
                 <ProtectedRoute requireAdmin>
                   <RoleShell />
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Home />} />
               <Route path="characters" element={<CharacterList />} />
               <Route path="characters/:id" element={<CharacterDetail />} />
-              {/* ✅ 修改2：删除旧占位符路由，战斗功能已实现，无需占位 */}
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="inventory/trade" element={<TradePage />} />
               <Route path="inventory/treasures" element={<TreasureList />} />
@@ -177,6 +218,9 @@ export default function App() {
               <Route path="account" element={<UserProfile />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
+
+            {/* 顶层兜底：未匹配路径回前厅主页 */}
+            <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </KeyboardShortcutDetector>
         </BrowserRouter>

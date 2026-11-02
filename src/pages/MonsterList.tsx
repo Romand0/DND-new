@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCampaign } from '@/contexts/CampaignContext';
 import { useEditorState } from '@/data/editorState';
 import { Search, Plus, Edit2, Trash2, GripVertical } from 'lucide-react';
 import {
@@ -58,6 +59,7 @@ function loadSizeFilter(): CreatureSize | 'all' {
 export default function MonsterList() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { current } = useCampaign();
   const [templates, setTemplates] = useState<NpcTemplate[]>([]);
   const [searchQuery, setSearchQuery] = useState(loadSearchQuery);
   const [typeFilter, setTypeFilter] = useState<CreatureType | 'all'>('all');
@@ -220,9 +222,15 @@ export default function MonsterList() {
           <p className="mt-1 text-sm dark:text-text-dark-muted light:text-text-light-muted">共 {templates.length} 个怪物模板</p>
         </div>
         {isAdmin && (
-          <button onClick={handleAdd} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors">
-            <Plus className="w-4 h-4" /> 新建怪物
-          </button>
+          current ? (
+            <button onClick={handleAdd} className="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-lg transition-colors">
+              <Plus className="w-4 h-4" /> 新建怪物
+            </button>
+          ) : (
+            <span className="self-center text-xs text-gray-500" title="加入或创建团组后再添加自定义条目">
+              加入或创建团组后再添加自定义条目
+            </span>
+          )
         )}
       </div>
 

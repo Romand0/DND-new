@@ -15,14 +15,9 @@ type Row = { data: string; campaign_id: string | null };
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env, params } = context;
 
+  // 未登录（访客公开浏览）与登录无团组用户按公开分支处理：仅出版物条目可读
   const auth = await authenticateRequest(request, env);
-  if (!auth) {
-    return errorResponse(401, 'Missing or invalid Authorization header');
-  }
-  const scope = await resolveLibraryScope(request, env, auth);
-  if (!scope) {
-    return errorResponse(403, '非该团组成员');
-  }
+  const scope = auth ? await resolveLibraryScope(request, env, auth) : null;
 
   const id = params.id;
   try {
@@ -32,6 +27,11 @@ export async function onRequestGet(context: any): Promise<Response> {
       .first<Row>();
     if (!row) {
       return errorResponse(404, '装备不存在');
+    }
+    if (!scope) {
+      // 公开分支：团组条目按 404 处理，不暴露条目存在性
+      if (row.campaign_id) return errorResponse(404, '装备不存在');
+      return jsonResponse(JSON.parse(row.data));
     }
     // 跨团组私有条目按 404 处理：不向非归属成员暴露条目存在性
     if (!canReadEntry(scope, row.campaign_id)) {

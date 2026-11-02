@@ -308,6 +308,14 @@ export function libraryFilterClause(
   };
 }
 
+/**
+ * 公开访客分支（未登录 / 登录但无团组上下文）：仅出版物条目（campaign_id IS NULL）。
+ * 出版物为全局共享资料（玩家手册 2014 / 怪物图鉴 2014 等），对所有人只读开放。
+ */
+export function publicLibraryClause(): { clause: string; binds: string[] } {
+  return { clause: 'WHERE campaign_id IS NULL', binds: [] };
+}
+
 /** 单条目可读：出版物条目全员可见；私有条目仅归属团组成员；全库视角任意 */
 export function canReadEntry(scope: LibraryScope, entryCampaignId: string | null): boolean {
   if (scope.scopeAll) return true;

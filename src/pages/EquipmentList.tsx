@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCampaign } from '@/contexts/CampaignContext';
 import { useEditorState } from '@/data/editorState';
 import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
@@ -27,6 +28,9 @@ const SUBCATEGORY_MAP: Record<string, string[]> = {
 export default function EquipmentList() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { current } = useCampaign();
+  // 无团组登录用户：出版物只读可见，自定义条目写入需团组归属（R6）
+  const noCampaignHint = isAdmin && !current;
 
   const [searchQuery, setSearchQuery] = useState('');
   const [funcFilter, setFuncFilter] = useState('全部');
@@ -260,6 +264,7 @@ export default function EquipmentList() {
           />
         </div>
         {isAdmin && (
+          current ? (
           <div className="flex gap-2">
             {/* 非选择模式：只显新增 + 批量操作入口 */}
             {!selectMode && (
@@ -286,6 +291,11 @@ export default function EquipmentList() {
               </>
             )}
           </div>
+          ) : (
+            <span className="self-center text-xs text-gray-500" title="加入或创建团组后再添加自定义条目">
+              加入或创建团组后再添加自定义条目
+            </span>
+          )
         )}
       </div>
 

@@ -13,14 +13,9 @@ import {
 export async function onRequestGet(context: any): Promise<Response> {
   const { request, env, params } = context;
 
+  // 未登录（访客公开浏览）与登录无团组用户按公开分支处理：仅出版物条目可读
   const auth = await authenticateRequest(request, env);
-  if (!auth) {
-    return errorResponse(401, 'Missing or invalid Authorization header');
-  }
-  const scope = await resolveLibraryScope(request, env, auth);
-  if (!scope) {
-    return errorResponse(403, '非该团组成员');
-  }
+  const scope = auth ? await resolveLibraryScope(request, env, auth) : null;
 
   const id = params.id;
   try {
@@ -28,7 +23,13 @@ export async function onRequestGet(context: any): Promise<Response> {
       .prepare('SELECT data, campaign_id FROM spells WHERE id = ?')
       .bind(id)
       .first<{ data: string; campaign_id: string | null }>();
-    if (!spellResult || !canReadEntry(scope, spellResult.campaign_id)) {
+    if (!spellResult) {
+      return errorResponse(404, '法术不存在');
+    }
+    if (!scope) {
+      // 公开分支：团组条目按 404 处理，不暴露条目存在性
+      if (spellResult.campaign_id) return errorResponse(404, '法术不存在');
+    } else if (!canReadEntry(scope, spellResult.campaign_id)) {
       return errorResponse(404, '法术不存在');
     }
 
