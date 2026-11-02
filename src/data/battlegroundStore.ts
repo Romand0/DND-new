@@ -2,7 +2,7 @@
 import type { Battleground, GridSize, TokenPosition, ItemToken, BattlegroundZone } from '@/types/battleground';
 import { scopedKey } from '@/data/campaignScope';
 import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
-import { syncListDiff, pullArtifactsOnce } from '@/data/artifactSync';
+import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
 
 const storageKey = () => scopedKey('dnd-battlegrounds');
 type Listener = () => void;
@@ -116,12 +116,14 @@ function saveAll(list: Battleground[]): void {
   syncListDiff('battleground', prev, list, b => b.sessionId);
 }
 
-/** 云端拉取当前团组沙盘并整体替换本地（惰性首拉一次，失败静默保持本地） */
+/** 云端拉取当前团组沙盘并按 updatedAt 合并本地（惰性首拉一次，失败静默保持本地） */
 async function syncFromBackend(): Promise<void> {
   await pullArtifactsOnce<Battleground[]>('battleground', list => {
-    battlegroundCache = list;
+    // 合并而非替换：本地刚写入尚未上云的沙盘（updatedAt 较新）不被云端旧快照回退
+    const merged = mergeByIdentity(loadAll(), list, b => b.sessionId, b => b.updatedAt);
+    battlegroundCache = merged;
     try {
-      localStorage.setItem(storageKey(), JSON.stringify(list));
+      localStorage.setItem(storageKey(), JSON.stringify(merged));
     } catch { /* 存储满时保留内存态 */ }
     notify();
   });

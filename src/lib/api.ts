@@ -504,14 +504,15 @@ export async function fetchArtifacts<T = any[]>(kind: string): Promise<T> {
   return apiFetch<T>(`/artifacts/${kind}`, { headers: authHeaders() });
 }
 
-export async function putArtifact<T = any>(kind: string, artId: string, data: unknown): Promise<T> {
+export async function putArtifact<T = any>(kind: string, artId: string, data: unknown, opts?: RequestInit): Promise<T> {
   return apiFetch<T>(`/artifacts/${kind}/${encodeURIComponent(artId)}`, {
     method: 'PUT',
     headers: authHeaders(),
     body: JSON.stringify(data),
+    ...opts,
   });
 }
 
-export async function deleteArtifact(kind: string, artId: string): Promise<void> {
-  await apiFetch(`/artifacts/${kind}/${encodeURIComponent(artId)}`, { method: 'DELETE', headers: authHeaders() });
+export async function deleteArtifact(kind: string, artId: string, opts?: RequestInit): Promise<void> {
+  await apiFetch(`/artifacts/${kind}/${encodeURIComponent(artId)}`, { method: 'DELETE', headers: authHeaders(), ...opts });
 }
