@@ -126,7 +126,8 @@ function joinNext(lines, i) {
   if (/(力量|敏捷|体质|智力|感知|魅力)$/.test(cur)) return cur + next;
   // 条目名的英文断行（如「吸取生命Life」+「Drain。半巫妖…」）：中文名+英文结尾，下一行以英文开头
   // 且 40 字内出现「（」或「。」（条目名结束信号）——不设长度上限，避免长正文断行时名称被并进上一条
-  if (/[\u4e00-\u9fa5][A-Za-z]+$/.test(cur) && /^[A-Za-z][A-Za-z'’\- ]{0,40}[（。]/.test(next)) return cur + next;
+  // 拼接处补空格：CHM 换行处原文是空格，直接连接会把 Devil'sSight 连成无空格串
+  if (/[\u4e00-\u9fa5][A-Za-z'’\- ]*$/.test(cur) && /^[A-Za-z][A-Za-z'’\- ]{0,40}[（。]/.test(next)) return cur + ' ' + next;
   if (/[\u4e00-\u9fa5A-Za-z)]$/.test(cur) && /^[A-Za-z]/.test(next) && cur.length < 60 && next.length < 40) return cur + next;
   return cur;
 }
@@ -402,17 +403,26 @@ function parseActionsAndTraits(cardLines, file, cardName) {
   };
   let current = null;
   let currentAtk = null; // 拆行排版（单元格逐行）时后续行并入攻击对象做二次解析
+  let pendingName = ''; // 纯名称行（CHM 断行排版：名称拼合后独占一行，正文另起一行）
   for (let i = 0; i < cardLines.length; i++) {
     const line = cardLines[i];
     if (/^(动作|附赠动作|反应|传奇动作)(Actions|Bonus Actions|Reactions|Legendary Actions)?$/.test(line)
-      || /^(特质|特性)(Traits?)?$/.test(line)) { current = null; currentAtk = null; continue; }
-    if (/^(区域效应|Regional Effects|巢穴动作|Lair Actions)/.test(line)) { current = null; currentAtk = null; continue; }
+      || /^(特质|特性)(Traits?)?$/.test(line)) { current = null; currentAtk = null; pendingName = ''; continue; }
+    if (/^(区域效应|Regional Effects|巢穴动作|Lair Actions)/.test(line)) { current = null; currentAtk = null; pendingName = ''; continue; }
     const atk = parseAttackLine(line);
     if (atk) {
-      if (!atk.name && currentAtk) {
-        // 空名攻击 = joinNext 重复行产物（名称行已拼入上一条攻击头），并入上一条继续解析
+      if (!atk.name && currentAtk && (currentAtk._raw || '').includes(line)) {
+        // 空名攻击且该行原文已在上条 raw 中 = 重复行产物，并入上一条继续解析
         currentAtk._raw = (currentAtk._raw || '') + line;
         enrichAttack(currentAtk, currentAtk._raw);
+      } else if (!atk.name && pendingName) {
+        // 空名攻击 + 前有纯名称行（「轻弩Light Crossbow。」+ 独立正文行）：补名称独立成条
+        atk.name = pendingName;
+        pendingName = '';
+        attacks.push(atk);
+        currentAtk = atk;
+        currentAtk._raw = line;
+        current = null;
       } else {
         attacks.push(atk);
         currentAtk = atk;
@@ -422,6 +432,9 @@ function parseActionsAndTraits(cardLines, file, cardName) {
       continue;
     }
     if (isNextCardName(line, i)) break;
+    // 纯名称行：「轻弩Light Crossbow。」——名称拼合后独占一行、无正文；记名等待下一空名攻击行消费
+    const nm = line.match(/^([\u4e00-\u9fa5]{1,12})([A-Za-z'’\- ]+)。$/);
+    if (nm) { pendingName = nm[1]; continue; }
     const tm = line.match(/^([\u4e00-\u9fa5]{1,20}[A-Za-z'’\- ]*)(?:（([^）]{1,30})）)?。\s*(.+)$/);
     if (tm && tm[3].length > 2) {
       current = { name: (tm[1] || '').trim(), text: `${tm[2] ? `（${tm[2]}）` : ''}${tm[3].trim()}`.trim() };
@@ -582,7 +595,14 @@ function parseFile(filePath, dir) {
       fieldIssue(rel, `#${cards.indexOf(card) + 1}`, 'name', `名称行缺失：${card.lines[0]?.slice(0, 40) || ''}`);
       continue;
     }
-    const joined = card.lines.map((_, i) => joinNext(card.lines, i));
+    // 拼合必须消费式：joinNext 命中时 next 行已被并入，不能再留在 joined 里，
+    // 否则残留的后半行会被延续行分支重复并入特性文本（劣魔「魔鬼视界」描述重复 bug）
+    const joined = [];
+    for (let li = 0; li < card.lines.length; ) {
+      const merged = joinNext(card.lines, li);
+      if (merged !== card.lines[li]) { joined.push(merged); li += 2; }
+      else { joined.push(card.lines[li]); li += 1; }
+    }
     const typeInfo = parseTypeLine(card.typeLine || '');
     const acHead = /[:：]$/.test(card.lines[0]) ? card.lines[0] + (card.lines[1] || '') : card.lines[0];
     const ac = parseAc(acHead);
