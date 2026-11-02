@@ -166,8 +166,8 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-2 shrink-0">
-            {/* 团组内顶栏：网站图标回团组内主页（前厅主页入口收敛于 DM 主页页内按钮） */}
-            <Link to={`/c/${getCampaignId()}/home`} className="flex items-center gap-2">
+            {/* 网站图标按上下文回主页：团组内回团组内主页，团组外（前厅）回团组外主页 */}
+            <Link to={location.pathname === '/' ? '/' : `/c/${getCampaignId()}/home`} className="flex items-center gap-2">
               <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <Swords className="w-6 h-6 text-white" />
               </div>
