@@ -138,6 +138,15 @@ export default function FlowRunStep({
     return undefined;
   }, [log]);
 
+  // 全部效果节点输出：多 apply_effect 法术（如灾祸术「攻击-1d4 → 豁免-1d4」串联）
+  // 每个节点的 results 都要独立落地，仅取最后一个会静默丢弃其余场景的奖惩实例
+  const effectOutputs = useMemo(() => {
+    return log
+      .filter(l => l.nodeType === 'apply_effect' || l.nodeType === 'scaled_effect')
+      .map(l => l.data as Record<string, any> | undefined)
+      .filter((d): d is Record<string, any> => !!d);
+  }, [log]);
+
   // 主豁免节点（success 语义：主目标豁免失败 = 法术生效）
   const saveOutput = useMemo(() => {
     for (let i = log.length - 1; i >= 0; i--) {
@@ -224,42 +233,47 @@ export default function FlowRunStep({
   const inputCls = 'w-20 rounded-lg px-2 py-1.5 text-sm text-center dark:bg-bg-dark light:bg-bg-light-2 dark:border-border-dark light:border-border-light border dark:text-text-dark light:text-text-light';
 
   const handleApply = () => {
-    const effectResults: any[] = Array.isArray(effectOutput?.results) ? effectOutput.results : [];
     const saveResults: any[] = Array.isArray(saveOutput?.results) ? saveOutput.results : [];
-    const halfOnSave = effectOutput?.halfDamageOnSave === true;
     // 豁免成功且未配置半伤时，该目标不应用效果；半伤时仍应用减半后的结果。
     const isNegated = (targetId: string) => {
       const save = saveResults.find(r => r.targetId === targetId);
-      return !!save?.success && !halfOnSave;
+      return !!save?.success && !saveOutput?.halfDamageOnSave;
     };
-    const targetResults: FlowCastTargetResult[] = effectResults
-      .filter(r => !r.error && r.effectApplied && !isNegated(r.targetId))
-      .map(r => ({
-        combatantId: r.targetId,
-        name: r.targetName,
-        effectType: r.effectType as 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage' | 'zone',
-        effectValue: r.effectValue as number,
-        finalValue: (r.finalValue ?? r.effectValue) as number,
-        damageType: r.damageType ?? null,
-        affinitySummary: r.affinitySummary,
-        notes: Array.isArray(r.notes) ? r.notes : [],
-        newHp: r.newHp as number,
-        tempAbsorbed: typeof r.tempAbsorbed === 'number' ? r.tempAbsorbed : 0,
-        statusId: typeof r.statusId === 'string' ? r.statusId : undefined,
-        statusName: typeof r.statusName === 'string' ? r.statusName : undefined,
-        statusEffects: Array.isArray(r.statusEffects) ? (r.statusEffects as Effect[]) : undefined,
-        durationRounds: typeof r.durationRounds === 'number' ? r.durationRounds : undefined,
-        untilNextTurn: r.untilNextTurn === true,
-        turnCount: typeof r.turnCount === 'number' ? r.turnCount : undefined,
-        modifierUses: typeof r.modifierUses === 'number' ? r.modifierUses : undefined,
-        zone: r.zone && typeof r.zone === 'object' ? (r.zone as FlowCastZoneSpec) : undefined,
-      }));
+    const targetResults: FlowCastTargetResult[] = effectOutputs.flatMap(output => {
+      const effectResults: any[] = Array.isArray(output?.results) ? output.results : [];
+      const halfOnSave = output?.halfDamageOnSave === true;
+      return effectResults
+        .filter(r => !r.error && r.effectApplied && !isNegated(r.targetId))
+        .map(r => ({
+          combatantId: r.targetId,
+          name: r.targetName,
+          effectType: r.effectType as 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage' | 'zone',
+          effectValue: r.effectValue as number,
+          finalValue: (r.finalValue ?? r.effectValue) as number,
+          damageType: r.damageType ?? null,
+          affinitySummary: r.affinitySummary,
+          notes: Array.isArray(r.notes) ? r.notes : [],
+          newHp: r.newHp as number,
+          tempAbsorbed: typeof r.tempAbsorbed === 'number' ? r.tempAbsorbed : 0,
+          statusId: typeof r.statusId === 'string' ? r.statusId : undefined,
+          statusName: typeof r.statusName === 'string' ? r.statusName : undefined,
+          statusEffects: Array.isArray(r.statusEffects) ? (r.statusEffects as Effect[]) : undefined,
+          durationRounds: typeof r.durationRounds === 'number' ? r.durationRounds : undefined,
+          untilNextTurn: r.untilNextTurn === true,
+          turnCount: typeof r.turnCount === 'number' ? r.turnCount : undefined,
+          modifierUses: typeof r.modifierUses === 'number' ? r.modifierUses : undefined,
+          zone: r.zone && typeof r.zone === 'object' ? (r.zone as FlowCastZoneSpec) : undefined,
+        }));
+    });
 
-    const mainEffect = effectResults.find(r => r.targetId === target.id) ?? effectResults[0];
+    const mainEffect = effectOutput && Array.isArray(effectOutput.results)
+      ? (effectOutput.results as any[]).find(r => r.targetId === target.id) ?? (effectOutput.results as any[])[0]
+      : undefined;
     const mainSave = saveResults.find((r: any) => r.targetId === target.id);
-    const mainNegated = !!mainSave?.success && !halfOnSave;
+    const mainHalfOnSave = effectOutput?.halfDamageOnSave === true;
+    const mainNegated = !!mainSave?.success && !mainHalfOnSave;
     const success = saveOutput
-      ? (mainSave ? (!mainSave.success || halfOnSave) : true)
+      ? (mainSave ? (!mainSave.success || mainHalfOnSave) : true)
       : !!mainEffect?.effectApplied;
     const effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' | 'zone' =
       effectOutput?.effectType === 'healing' ? 'heal' as const
