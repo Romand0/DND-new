@@ -21,7 +21,7 @@ function scheduleFlush() {
   }, FLUSH_DELAY_MS);
 }
 
-async function flush() {
+export async function flush(): Promise<void> {
   if (pending.size === 0) return;
   const ops = Array.from(pending.entries());
   pending.clear();
@@ -86,9 +86,14 @@ export async function pullArtifactsOnce<T = any[]>(
 ): Promise<T | null> {
   if (pulled.has(artifactKind) || !hasToken()) return null;
   pulled.add(artifactKind);
+  // 首拉前先把待上传队列冲出去：避免「本会话刚写入尚未上云」时拉到云端旧快照
+  await flush();
   try {
     const list = await fetchArtifacts<T>(artifactKind);
-    if (Array.isArray(list)) onReplace(list);
+    // 云端空列表不覆盖本地：本地优先架构下「云端无数据」意味着从未成功上传，
+    // 用它替换会抹掉本地已有内容（防抖丢失/上传失败时尤其致命）；
+    // 「在所有设备上删空」的同步以下次写入自然收敛
+    if (Array.isArray(list) && list.length > 0) onReplace(list);
     return list;
   } catch {
     return null;
@@ -98,4 +103,16 @@ export async function pullArtifactsOnce<T = any[]>(
 /** 团组单例制品（calendar/gametime）直接上传，id 固定 singleton */
 export function queueSingletonPut(artifactKind: string, data: unknown) {
   queueArtifactPut(artifactKind, 'singleton', data);
+}
+
+// 页面卸载时若防抖窗口未到，定时器会连同队列一起销毁（写入丢失的主因）。
+// 卸载钩子里尽力冲刷一次：fetch 已发出的小请求浏览器通常会放行完成
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    if (flushTimer !== null) {
+      window.clearTimeout(flushTimer);
+      flushTimer = null;
+      void flush();
+    }
+  });
 }
