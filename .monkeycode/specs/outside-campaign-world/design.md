@@ -47,6 +47,12 @@ graph TD
 - 团组内主页是唯一以团组 ID 寻址的团组内路由；URL 成为进入指定团组的入口，分桶 store 的当前团组在主页壳挂载时与 URL 对齐。
 - 公开资料库路由从「ProtectedRoute + Layout」移到「PublicLayout」（无守卫）；未登录直接渲染，已登录顶栏显示「进入主页」。
 
+### 视图分流模式准则（后续页面扩展遵循）
+
+- **壳级分流**：DM 与玩家的页面集、导航结构不同 → 玩家版路由进 `/player/*`（PlayerLayout 壳），DM 版挂 DM 壳绝对路径。双路由命名空间隔离（现行 `/inventory` vs `/player/inventory` 即此模式），适用于视图差异大的页面。
+- **页内身份分支**：同一入口 URL 双视图 → 单路由内按 `isAdmin` 渲染分支组件（`/c/:campaignId/home` 即此模式）。仅用于落地页 / 枢纽页，分支组件保持独立文件，避免单文件膨胀。
+- **渐进扩展预留**：若未来团组内页面普遍需要以团组 ID 寻址（如 `/c/:cid/characters`），把主页壳的「URL cid 对齐 + 成员校验」逻辑抽为通用 `CampaignScopeRoute` 壳逐路由复用；分桶 store 的对齐机制不变。
+
 ## Components and Interfaces
 
 ### 新增 PublicLayout（src/components/PublicLayout.tsx）
