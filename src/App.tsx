@@ -108,15 +108,17 @@ export default function App() {
               <Route path="/monsters/:id" element={<MonsterDetail />} />
             </Route>
 
-            {/* 团组外主页（前厅枢纽） */}
+            {/* 团组外主页（前厅枢纽；登录用户保留完整顶栏导航） */}
             <Route
               path="/"
               element={
                 <ProtectedRoute>
-                  <Home />
+                  <Layout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route index element={<Home />} />
+            </Route>
 
             {/* 团组内主页（以团组 ID 寻址；URL 驱动当前团组对齐，按身份分流 DM/玩家主页） */}
             <Route

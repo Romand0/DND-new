@@ -2,10 +2,12 @@
 // URL 是进入指定团组的入口：请求的 cid 与本地当前团组记录不一致时先对齐再整页刷新，
 // 保证 9 个分桶 store 落到目标团组桶；请求的团组已不含该用户时回退首个成员团组或前厅。
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { getCampaignId, setCurrentCampaignId } from '@/data/campaignScope';
+import Layout from '@/components/Layout';
+import PlayerLayout from '@/components/PlayerLayout';
 import DmHome from '@/pages/DmHome';
 import PlayerHome from '@/pages/PlayerHome';
 
@@ -47,5 +49,18 @@ export default function CampaignHome() {
     );
   }
 
-  return isAdmin ? <DmHome /> : <PlayerHome />;
+  // 壳按身份选择：DM 用完整导航（Navbar 菜单+同步按钮），玩家用精简导航
+  return (
+    <Routes>
+      {isAdmin ? (
+        <Route element={<Layout />}>
+          <Route path="*" element={<DmHome />} />
+        </Route>
+      ) : (
+        <Route element={<PlayerLayout />}>
+          <Route path="*" element={<PlayerHome />} />
+        </Route>
+      )}
+    </Routes>
+  );
 }
