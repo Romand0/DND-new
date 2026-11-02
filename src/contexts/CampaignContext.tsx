@@ -24,7 +24,9 @@ interface CampaignContextValue {
 const CampaignContext = createContext<CampaignContextValue | null>(null);
 
 export function CampaignProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  // authLoading 期间不拉取也不置 initialized：此时 isAuthenticated 恒为 false，
+  // 提前跑 refresh 会把「确认无团组」的标记置真，导致登录就绪后主页误判空列表弹回前厅
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(false);
   const [initialized, setInitialized] = useState(false);
@@ -55,8 +57,9 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   useEffect(() => {
+    if (authLoading) return;
     refresh();
-  }, [refresh]);
+  }, [refresh, authLoading]);
 
   // 当前 id 不在成员列表（被移出/清库）时回退首个团组
   const current = campaigns.find((c) => c.id === getCampaignId()) || campaigns[0] || null;
