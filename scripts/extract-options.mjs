@@ -577,12 +577,17 @@ function extractBackgrounds() {
   return backgrounds;
 }
 
-/** 按最近 header 收集描述：{name, en, text, context}[] */
-function collectFeatures(blocks) {
+/** 按最近 header 收集描述：{name, en, text, context}[]
+ * headingOpens=true 时 h4+ 标题也开启新条目（职业/子职域：气技/魔印等 h4 选项词条
+ * 与 header 词条同权进入条目流，由 mergeOptionEntries 统一归并）；背景域维持默认
+ * （h4「特性：」有 header 块镜像，heading 仅作边界，避免同名双条目）。 */
+function collectFeatures(blocks, { headingOpens = false } = {}) {
   const features = [];
   let cur = null;
   for (const b of blocks) {
-    if (b.kind === 'header') {
+    const opens =
+      b.kind === 'header' || (headingOpens && b.kind === 'heading' && b.level >= 4);
+    if (opens) {
       if (cur) features.push(cur);
       const { zh, en } = splitZhEn(b.text);
       cur = { name: zh, nameEn: en, text: '' };
@@ -598,6 +603,57 @@ function collectFeatures(blocks) {
     f.text = f.text.replace(/^[。\s：:]+/, '').trim();
   }
   return features;
+}
+
+// 「选项库特性」名单：这些特性之后的无等级词条（header 流 / h4 流）是该特性的
+// 选项集合（战斗大师战技、武僧气技、魔契师魔印、术士超魔选项、猎人战术、图腾精魄……），
+// 归并为所挂特性的 options 而非丢弃。名单内靠后同名优先（流紧跟其库特性时天然正确，
+// 跨越多个带等级特性时靠名字匹配兜底，如战技词条流出现在坚韧(15级)之后）
+const OPTION_LIB_NAMES = [
+  '卓越战技', '气', '魔能祈唤', '超魔法', '战斗风格', '防守战术', '多重攻击',
+  '图腾精魄', '荒野变形', '战斗荒野变形', '结社形态', '额外魔法奥秘', '魔法奥秘',
+];
+
+/**
+ * 条目流归并成特性列表：
+ * - levels[name]（职业表反推）或正文含「第X级」→ 独立特性（level）
+ * - 无等级条目 → 名单内有库特性（战斗风格/气/超魔法……）→ 挂该特性 options；
+ *   名单为空时按 keepLeadingUnleveled 决定保留为 1 级特性（PHB 1 级真特性普遍
+ *   不带等级前缀：奥术回想/德鲁伊语/契约魔法……）或丢弃（子职文件开头的名字/
+ *   叙事词条）。顺序判据靠不住（「戏法」「异界宗主」等 1 级条目自带等级数字，
+ *   会导致其后真特性被误判为选项），库归属一律以名单为准。
+ */
+function mergeOptionEntries(entries, { keepLeadingUnleveled = true, levels = {} } = {}) {
+  const features = [];
+  let droppedNoLevel = 0;
+  for (const f of entries) {
+    if (!f.name) continue;
+    // 职业表「职业特性」列是最权威的等级来源（正文缺等级标记的词条由此兜底）
+    if (levels[f.name]) {
+      features.push({ name: f.name, nameEn: f.nameEn, text: f.text, level: levels[f.name] });
+      continue;
+    }
+    // 「第4、8、12、16、19级」枚举形态：顿号前的首个数字也算等级起点
+    const m = f.text.match(/第\s*(\d+)\s*(?:级|[、，])/);
+    if (m) {
+      features.push({ name: f.name, nameEn: f.nameEn, text: f.text, level: Number(m[1]) });
+      continue;
+    }
+    const targets = features.filter((x) => OPTION_LIB_NAMES.includes(x.name));
+    const target = targets[targets.length - 1];
+    if (target && f.text) {
+      target.options = target.options || [];
+      // 主文件词条流可能含同名重复段（魔契师魔印在正文出现两轮），挂载按名字去重
+      if (!target.options.some((x) => x.name === f.name)) {
+        target.options.push({ name: f.name, nameEn: f.nameEn, text: f.text });
+      }
+    } else if (keepLeadingUnleveled) {
+      features.push({ name: f.name, nameEn: f.nameEn, text: f.text, level: 1 });
+    } else {
+      droppedNoLevel++;
+    }
+  }
+  return { features, droppedNoLevel };
 }
 
 /** 建议特征表：[[d8,特点],[1,文本]...] → {die, kind, entries[]} */
@@ -699,8 +755,8 @@ function extractClasses() {
       warn(`职业/${e.name}: 未找到职业表`);
     }
 
-    const features = collectFeatures(blocks);
-    const find = (kw) => features.find((f) => f.name.includes(kw));
+    const collected = collectFeatures(blocks, { headingOpens: true });
+    const find = (kw) => collected.find((f) => f.name.includes(kw));
 
     const hpF = find('生命骰');
     const profF = find('熟练项');
@@ -711,32 +767,42 @@ function extractClasses() {
     // 职业特性：每个职业在职业特性区之前有两段叙事 flavor（如「音乐与魔法/从经验中
     // 学习」）和一段「创建XXX」快速建卡引导，全部从「创建XXX」之后截取；德鲁伊语/
     // 专精/盗贼黑话等 1 级真特性位于其后，不受影响。无「创建XXX」时退化为仅排结构段
-    const structural = ['生命值', '生命骰', '熟练项', '装备', '快速建卡', '职业特性', '职业表', '施法', '法术'];
-    const createIdx = features.findIndex((f) => /^(创建|创造)/.test(f.name));
-    const featureSource = createIdx >= 0 ? features.slice(createIdx + 1) : features;
-    const classFeatures = featureSource
-      .filter((f) => f.text && !structural.some((s) => f.name.includes(s)) && f.nameEn)
-      .map((f) => ({
-        ...f,
-        // 生效等级：从文本首个「第X级」解析（如「从第1级起」「第4、8、12级」「第4、
-        // 第6、第19级」三种形态都要命中首个数字），无等级标注的一律为 1 级特性
-        // （PHB 1 级特性普遍不带等级前缀；「第10章」等章节引用因无「级」后缀不会误匹配）
-        level: Number((f.text.match(/第\s*(\d+)(?:\s*[、，,]\s*第?\s*\d+)*\s*级/) || [])[1] || 1),
-      }));
-
-    // h4 子选项（战斗风格等）挂回所属特性
-    const optionsByCtx = new Map();
-    for (const h of headings) {
-      if (h.level === 4 && h.text && h.text !== h2.text) {
-        const { zh, en } = splitZhEn(h.text);
-        optionsByCtx.set(h.text, { name: zh, nameEn: en });
-      }
+    const structural = ['生命值', '生命骰', '熟练项', '装备', '快速建卡', '职业特性', '职业表'];
+    const createIdx = collected.findIndex((f) => /^(创建|创造)/.test(f.name));
+    const featureSource = createIdx >= 0 ? collected.slice(createIdx + 1) : collected;
+    // 「施法/法术」用前缀匹配剔结构段（施法属性/法术位/法术豁免）——includes 会
+    // 误伤「谨慎法术」等超魔选项（词尾），startsWith 只命中词头
+    const PRIMARY_DROP_NAMES = ['法器', '圣树与圣木', '生成法术位'];
+    const STRUCTURAL_PREFIX = ['施法', '法术'];
+    const classEntries = featureSource.filter(
+      (f) =>
+        f.text &&
+        !PRIMARY_DROP_NAMES.includes(f.name) &&
+        !f.name.startsWith('边栏') &&
+        !STRUCTURAL_PREFIX.some((p) => f.name.startsWith(p)) &&
+        !structural.some((s) => f.name.includes(s)) &&
+        f.nameEn
+    );
+    // 职业表「职业特性」列反推等级（正文缺等级标记的词条由此兜底）。匹配前对表名和
+    // 条目名做归一：去「（…）」注记（引导神力（1/休））、去「选择/获得」前缀（选择神圣
+    // 誓言），并允许条目名的冒号前段（引导神力：驱散亡灵）命中主名。表优先；表外又无
+    // 等级标记的真特性（圣武士引导神力/背弃誓言、武僧气豁免、术士术法点——术士表中
+    // 术法点是独立数值列而非特性列）走硬编码名单补缺
+    const PROTECTED_FEATURE_LEVELS = { 引导神力: 3, 背弃誓言: 3, 气豁免: 7, 术法点: 2, 灵活施法: 18 };
+    const stripAnno = (s) => s.replace(/[（(][^）)]*[)）]/g, '').trim();
+    const levels = {};
+    const tblLevels = {};
+    if (table) for (const r of table) for (const fname of r.features) if (!tblLevels[fname]) tblLevels[fname] = r.level;
+    for (const e of classEntries) {
+      const hit = Object.entries(tblLevels).find(([tn]) => {
+        const t = stripAnno(tn).replace(/^(选择|获得)/, '');
+        const n = stripAnno(e.name);
+        return t === n || t === n.split(/[:：]/)[0].trim();
+      });
+      if (hit && !levels[e.name]) levels[e.name] = hit[1];
     }
-    for (const f of classFeatures) {
-      // collectFeatures 丢了 context，改由名字顺序近似：战斗风格选项在 h4 下
-      // 简化：跳过 optionOf 归属，v1 以 optionOf=false 全部平铺
-      f.optionOf = undefined;
-    }
+    for (const [n, lv] of Object.entries(PROTECTED_FEATURE_LEVELS)) if (!levels[n]) levels[n] = lv;
+    const { features: classFeatures } = mergeOptionEntries(classEntries, { levels });
 
     const cls = {
       id: slug(classEn || className),
@@ -757,6 +823,7 @@ function extractClasses() {
         nameEn: f.nameEn,
         text: f.text,
         level: f.level,
+        options: f.options,
       })),
       subclasses: [],
       dataResource: '5E不全书',
@@ -773,7 +840,23 @@ function extractClasses() {
       const subFiles = fs.readdirSync(subDir).filter((f) => f.endsWith('.html'));
       for (const sf of subFiles) {
         const sub = extractSubclass(subDir, sf, className);
-        if (sub) cls.subclasses.push(sub);
+        if (sub) {
+          cls.subclasses.push(sub);
+          continue;
+        }
+        // 概览页之外的独立选项库文件（如 魔能祈唤.html）：整文件条目挂到职业特性同名。
+        // 按条目名去重——主文件归并可能已把同名词条（链之/书之魔契）挂进 options
+        const lib = extractOptionLibrary(subDir, sf);
+        if (lib) {
+          const feat = cls.features.find((f) => f.name === lib.libName);
+          if (feat) {
+            feat.options = feat.options || [];
+            feat.options.push(...lib.options.filter((o) => !feat.options.some((x) => x.name === o.name)));
+            console.log(`    选项库 ${sf}：${lib.options.length} 条挂到特性「${lib.libName}」`);
+          } else {
+            warn(`职业/${className}/${sf}: 选项库「${lib.libName}」无同名职业特性，丢弃 ${lib.options.length} 条`);
+          }
+        }
       }
       console.log(`    子职业：[${cls.subclasses.map((s) => s.name).join('/')}]`);
     }
@@ -818,34 +901,16 @@ function extractSubclass(dir, file, parentName) {
   if (!nameText) return null;
   const { zh: subName, en: subEn } = splitZhEn(nameText.replace(/[。．]$/, ''));
 
-  // 特性以 L4 heading 出现，等级嵌在正文（如「从你第3级选择此范型起」）
-  const features = [];
-  let cur = null;
-  let droppedNoLevel = 0;
-  const flush = () => {
-    if (!cur) return;
-    const m = cur.text.match(/第\s*(\d+)\s*级/);
-    if (m) {
-      features.push({ name: cur.name, nameEn: cur.nameEn, text: cur.text, level: Number(m[1]) });
-    } else if (cur.name) {
-      droppedNoLevel++;
-    }
-    cur = null;
-  };
-  for (const b of blocks) {
-    if (b.kind === 'heading' && b.level >= 4) {
-      flush();
-      const { zh, en } = splitZhEn(b.text);
-      cur = { name: zh, nameEn: en, text: '' };
-    } else if (b.kind === 'heading' || b.kind === 'header' || b.kind === 'table') {
-      flush();
-    } else if (b.kind === 'text' && cur) {
-      cur.text += (cur.text ? ' ' : '') + b.text.replace(/^[。、：；]+/, '');
-    }
-  }
-  flush();
+  // 特性以 L4 heading 出现，等级嵌在正文（如「从你第3级选择此范型起」）；
+  // 无等级词条流（战技/精魄/战术选项，header 形态）经归并挂为库特性的 options。
+  // 「戏法/已知法术/战技/卓越骰/施放元素法术」是施法、卓越战技等主特性的内嵌分段
+  // 标题（正文描述某等级的子能力，PHB 表内无此行），单列丢弃避免成为顶层噪音
+  const entries = collectFeatures(blocks, { headingOpens: true });
+  const { features, droppedNoLevel } = mergeOptionEntries(entries, { keepLeadingUnleveled: false });
+  const SUBCLASS_DROP_NAMES = ['戏法', '已知法术', '战技', '卓越骰', '施放元素法术'];
+  const cleaned = features.filter((f) => !SUBCLASS_DROP_NAMES.includes(f.name));
 
-  if (!features.length) {
+  if (!cleaned.length) {
     warn(`子职业/${parentName}/${file}: 无带等级的特性，跳过（概览页，丢弃无等级条目 ${droppedNoLevel} 条）`);
     return null;
   }
@@ -857,12 +922,29 @@ function extractSubclass(dir, file, parentName) {
     category: 'subclass',
     parentName,
     source: '玩家手册 2014',
-    features,
+    features: cleaned,
     dataResource: '5E不全书',
   };
 }
 
 // ---------- 工具 ----------
+
+/** 独立选项库文件（如 魔契师/魔能祈唤.html）：整文件是某职业特性的选项集合，
+ * h4 条目 + 「先决条件」正文。条目全部转 options（正文含「先决条件：第X级」，
+ * 走 mergeOptionEntries 会被误判为带等级特性，故不过归并），库名取 h2。 */
+function extractOptionLibrary(dir, file) {
+  const { lines, tables } = normalize(decodeGbk(path.join(dir, file)));
+  const blocks = extractBlocks(lines, tables);
+  const h2 = blocks.find((b) => b.kind === 'heading' && b.level === 2);
+  if (!h2) return null;
+  const { zh } = splitZhEn(h2.text.replace(/\s+/g, ''));
+  if (!zh) return null;
+  const entries = collectFeatures(blocks, { headingOpens: true });
+  const options = entries
+    .filter((e) => e.name && e.text)
+    .map((e) => ({ name: e.name, nameEn: e.nameEn, text: e.text }));
+  return options.length ? { libName: zh, options } : null;
+}
 
 function slug(s) {
   return s
