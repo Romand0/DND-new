@@ -427,144 +427,6 @@ export default function FlowRunStep({
     });
   };
 
-  return (
-    <div className="space-y-3">
-      {/* 流程卡片头 */}
-      <div className="flex items-center gap-2 rounded-lg p-2.5 border dark:bg-bg-dark light:bg-bg-light-2 dark:border-border-dark/50 light:border-border-light/50">
-        <Workflow className="w-4 h-4 text-primary shrink-0" />
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium dark:text-text-dark light:text-text-light truncate">{flow.name}</div>
-          <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted">
-            {flow.nodes.length} 节点 · {flow.edges.length} 边{flow.publishedVersion ? ` · v${flow.publishedVersion}` : ''}
-          </div>
-        </div>
-      </div>
-
-      {spell.components?.material && materialEvaluation && (
-        <SpellMaterialPanel
-          evaluation={materialEvaluation}
-          spellName={spell.name}
-          onCraftMaterial={onCraftMaterial}
-          onCraftScroll={onCraftScroll}
-          compact
-        />
-      )}
-
-      {/* 手动掷骰开关（默认开：现场投骰后输入；关 = 全自动随机） */}
-      <label className="flex items-center gap-1.5 text-xs dark:text-text-dark-muted light:text-text-light-muted cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={manualDice}
-          onChange={e => setManualDice(e.target.checked)}
-          disabled={running}
-        />
-        手动掷骰（现场投骰后输入，每个检定/效果骰暂停确认）
-      </label>
-
-      {/* 执行 / 重跑 */}
-      <div className="flex items-center gap-2">
-        <button
-          onClick={handleRun}
-          disabled={running || (materialEvaluation ? !materialEvaluation.satisfied : false)}
-          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
-        >
-          <Play className="w-4 h-4" />
-          {running ? '执行中…' : ran ? '重新执行' : '执行流程'}
-        </button>
-        <button
-          onClick={onBack}
-          className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-black/5 dark:hover:bg-white/5"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          返回
-        </button>
-      </div>
-
-      {/* 悬停骰值请求：现场投骰后输入，或点自动掷交给编译器随机 */}
-      {pendingReq && (
-        <div className="rounded-lg p-3 border border-primary/40 bg-primary/5 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-medium dark:text-text-dark light:text-text-light">
-            <Dices className="w-4 h-4 text-primary shrink-0" />
-            <span>{pendingTitle}</span>
-            <span className="dark:text-text-dark-muted light:text-text-light-muted font-normal">—— 现场投骰后输入</span>
-          </div>
-          {pendingReq.purpose === 'effect' ? (
-            <div className="flex items-center gap-2 flex-wrap">
-              {diceInputs.map((v, i) => (
-                <input
-                  key={i}
-                  type="number"
-                  min={1}
-                  max={pendingReq.sides}
-                  value={v}
-                  onChange={e => setDiceInputs(arr => arr.map((x, j) => (j === i ? e.target.value : x)))}
-                  placeholder={`d${pendingReq.sides}`}
-                  autoFocus={i === 0}
-                  className={inputCls}
-                />
-              ))}
-              <button
-                onClick={confirmDice}
-                disabled={!diceValid}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
-              >
-                确认
-              </button>
-              <button
-                onClick={() => resolvePending(null)}
-                className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                <Dices className="w-3.5 h-3.5" />
-                自动掷
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={d20Input}
-                onChange={e => setD20Input(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') confirmD20(); }}
-                placeholder="d20"
-                autoFocus
-                className={inputCls}
-              />
-              <button
-                onClick={confirmD20}
-                disabled={!d20Valid}
-                className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
-              >
-                确认
-              </button>
-              <button
-                onClick={() => resolvePending(null)}
-                className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/5"
-              >
-                <Dices className="w-3.5 h-3.5" />
-                自动掷
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {error && (
-        <div className="flex items-start gap-2 rounded-lg p-2.5 text-xs text-red-400 bg-red-500/10 border border-red-500/30">
-          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-          <span className="break-all">{error}</span>
-        </div>
-      )}
-
-      {/* 执行日志（逐节点） */}
-      {ran && log.length === 0 && !error && (
-        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted p-2.5 rounded-lg border border-dashed dark:border-border-dark light:border-border-light">
-          流程无可执行节点（检查 cast_start 入口与边连接）
-        </div>
-      )}
-      {log.map((entry, i) => {
-        const data = entry.data as Record<string, any> | undefined;
   // ── 玩家引导视图：单步聚焦 + 通俗文案 + 大输入框 ──
   // 文案规则：说「谁要做什么、难度多少、请投什么骰」，隐藏节点/骰式/编译器术语
   if (variant === 'player') {
@@ -757,6 +619,144 @@ export default function FlowRunStep({
   }
 
   return (
+    <div className="space-y-3">
+      {/* 流程卡片头 */}
+      <div className="flex items-center gap-2 rounded-lg p-2.5 border dark:bg-bg-dark light:bg-bg-light-2 dark:border-border-dark/50 light:border-border-light/50">
+        <Workflow className="w-4 h-4 text-primary shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium dark:text-text-dark light:text-text-light truncate">{flow.name}</div>
+          <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted">
+            {flow.nodes.length} 节点 · {flow.edges.length} 边{flow.publishedVersion ? ` · v${flow.publishedVersion}` : ''}
+          </div>
+        </div>
+      </div>
+
+      {spell.components?.material && materialEvaluation && (
+        <SpellMaterialPanel
+          evaluation={materialEvaluation}
+          spellName={spell.name}
+          onCraftMaterial={onCraftMaterial}
+          onCraftScroll={onCraftScroll}
+          compact
+        />
+      )}
+
+      {/* 手动掷骰开关（默认开：现场投骰后输入；关 = 全自动随机） */}
+      <label className="flex items-center gap-1.5 text-xs dark:text-text-dark-muted light:text-text-light-muted cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={manualDice}
+          onChange={e => setManualDice(e.target.checked)}
+          disabled={running}
+        />
+        手动掷骰（现场投骰后输入，每个检定/效果骰暂停确认）
+      </label>
+
+      {/* 执行 / 重跑 */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={handleRun}
+          disabled={running || (materialEvaluation ? !materialEvaluation.satisfied : false)}
+          className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+        >
+          <Play className="w-4 h-4" />
+          {running ? '执行中…' : ran ? '重新执行' : '执行流程'}
+        </button>
+        <button
+          onClick={onBack}
+          className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-black/5 dark:hover:bg-white/5"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          返回
+        </button>
+      </div>
+
+      {/* 悬停骰值请求：现场投骰后输入，或点自动掷交给编译器随机 */}
+      {pendingReq && (
+        <div className="rounded-lg p-3 border border-primary/40 bg-primary/5 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium dark:text-text-dark light:text-text-light">
+            <Dices className="w-4 h-4 text-primary shrink-0" />
+            <span>{pendingTitle}</span>
+            <span className="dark:text-text-dark-muted light:text-text-light-muted font-normal">—— 现场投骰后输入</span>
+          </div>
+          {pendingReq.purpose === 'effect' ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              {diceInputs.map((v, i) => (
+                <input
+                  key={i}
+                  type="number"
+                  min={1}
+                  max={pendingReq.sides}
+                  value={v}
+                  onChange={e => setDiceInputs(arr => arr.map((x, j) => (j === i ? e.target.value : x)))}
+                  placeholder={`d${pendingReq.sides}`}
+                  autoFocus={i === 0}
+                  className={inputCls}
+                />
+              ))}
+              <button
+                onClick={confirmDice}
+                disabled={!diceValid}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+              >
+                确认
+              </button>
+              <button
+                onClick={() => resolvePending(null)}
+                className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <Dices className="w-3.5 h-3.5" />
+                自动掷
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={d20Input}
+                onChange={e => setD20Input(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') confirmD20(); }}
+                placeholder="d20"
+                autoFocus
+                className={inputCls}
+              />
+              <button
+                onClick={confirmD20}
+                disabled={!d20Valid}
+                className="rounded-lg px-3 py-1.5 text-xs font-medium bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+              >
+                确认
+              </button>
+              <button
+                onClick={() => resolvePending(null)}
+                className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                <Dices className="w-3.5 h-3.5" />
+                自动掷
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {error && (
+        <div className="flex items-start gap-2 rounded-lg p-2.5 text-xs text-red-400 bg-red-500/10 border border-red-500/30">
+          <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+          <span className="break-all">{error}</span>
+        </div>
+      )}
+
+      {/* 执行日志（逐节点） */}
+      {ran && log.length === 0 && !error && (
+        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted p-2.5 rounded-lg border border-dashed dark:border-border-dark light:border-border-light">
+          流程无可执行节点（检查 cast_start 入口与边连接）
+        </div>
+      )}
+      {log.map((entry, i) => {
+        const data = entry.data as Record<string, any> | undefined;
+        return (
           <div key={`${entry.nodeId}-${i}`} className={`rounded-lg p-2.5 border text-xs space-y-1.5 ${STATUS_STYLES[entry.status]}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">{nodeLabel.get(entry.nodeId) ?? entry.nodeId}</span>
