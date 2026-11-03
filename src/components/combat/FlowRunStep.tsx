@@ -293,6 +293,18 @@ export default function FlowRunStep({
       resolvePending(diceInputs.map(s => parseInt(s, 10)));
     }
   };
+  // 「帮我掷/自动掷」：随机掷好并填入输入框，停在现场等用户按「确定」才继续。
+  // 环节推进的确认权永远在用户手里，自动掷只代劳投骰本身。
+  const autoFillPending = () => {
+    if (!pendingReq) return;
+    if (pendingReq.purpose === 'effect') {
+      const count = pendingReq.count ?? 1;
+      const sides = pendingReq.sides ?? 6;
+      setDiceInputs(Array.from({ length: count }, () => String(1 + Math.floor(Math.random() * sides))));
+    } else {
+      setD20Input(String(1 + Math.floor(Math.random() * 20)));
+    }
+  };
 
   const pendingTitle = (() => {
     if (!pendingReq) return '';
@@ -566,7 +578,7 @@ export default function FlowRunStep({
                 确定
               </button>
               <button
-                onClick={() => resolvePending(null)}
+                onClick={autoFillPending}
                 className="rounded-lg px-4 py-2 text-sm border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-black/5 dark:hover:bg-white/5"
               >
                 帮我掷
@@ -702,7 +714,7 @@ export default function FlowRunStep({
                 确认
               </button>
               <button
-                onClick={() => resolvePending(null)}
+                onClick={autoFillPending}
                 className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <Dices className="w-3.5 h-3.5" />
@@ -730,7 +742,7 @@ export default function FlowRunStep({
                 确认
               </button>
               <button
-                onClick={() => resolvePending(null)}
+                onClick={autoFillPending}
                 className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/5"
               >
                 <Dices className="w-3.5 h-3.5" />
