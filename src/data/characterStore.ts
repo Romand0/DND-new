@@ -1987,8 +1987,8 @@ function getSpellSlotsByLevel(char: Character): {
 } | null {
   if (!hasSpellcasting(char)) return null;
 
-  const level = char.level || 1;
-  const levelIndex = Math.min(level - 1, 19);
+  const level = Number(char.level) || 1;
+  const levelIndex = Math.min(Math.max(0, Math.floor(level) - 1), 19);
   const casterType = getCasterType(char);
 
   if (casterType === CASTER_TYPE.FULL) {
@@ -2157,31 +2157,29 @@ function resetSpellSlots(charId: string): void {
     char.spells.spellSlots = {} as SpellSlots;
   }
 
+  // 长休语义 = 仅恢复（used 归零）。max 是角色属性，长休不得改写：
+  // 已有 max（含手动自定义值）一律保留，仅缺失的环位 key 用标准表补齐，
+  // 避免标准表与角色实际配置不符时把 max 覆盖成 0（表现为「清空」）
+  const ensureSlot = (levelKey: SpellSlotLevel, standardMax: number) => {
+    const existing = char.spells.spellSlots[levelKey];
+    if (!existing) {
+      char.spells.spellSlots[levelKey] = { max: standardMax, used: 0 };
+    } else {
+      // max 为 0 的历史脏数据（从未初始化/被清坏）用标准表兜底；有值即视为角色属性保留
+      if (!existing.max || existing.max <= 0) existing.max = standardMax;
+      existing.used = 0;
+    }
+  };
+
   if (config.casterType === 'full' || config.casterType === 'half') {
     const slotArray = config.slots || [];
     for (let i = 0; i < slotArray.length; i++) {
-      const levelNum = i + 1;
-      const levelKey = ('level' + levelNum) as SpellSlotLevel;
-      const maxForLevel = slotArray[i] || 0;
-      if (!char.spells.spellSlots[levelKey]) {
-        char.spells.spellSlots[levelKey] = { max: 0, used: 0 };
-      }
-      // 长休恢复至该环位最大值：同步 max 到标准表，used 归零
-      char.spells.spellSlots[levelKey].max = maxForLevel;
-      char.spells.spellSlots[levelKey].used = 0;
+      ensureSlot(('level' + (i + 1)) as SpellSlotLevel, slotArray[i] || 0);
     }
   }
 
   if (config.casterType === 'warlock') {
-    const slotLevel = config.slotLevel || 1;
-    const levelKey = ('level' + slotLevel) as SpellSlotLevel;
-    const maxForLevel = config.slots[0] || 0;
-    if (!char.spells.spellSlots[levelKey]) {
-      char.spells.spellSlots[levelKey] = { max: 0, used: 0 };
-    }
-    // 长休恢复至该环位最大值：同步 max 到标准表，used 归零
-    char.spells.spellSlots[levelKey].max = maxForLevel;
-    char.spells.spellSlots[levelKey].used = 0;
+    ensureSlot(('level' + (config.slotLevel || 1)) as SpellSlotLevel, config.slots[0] || 0);
   }
 
   saveCharacter(char as Character);
