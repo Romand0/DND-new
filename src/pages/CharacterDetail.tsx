@@ -2501,7 +2501,7 @@ if (character) {
                       return spellData.spellSlots.map((slot) => (
                         <div
                           key={slot.level}
-                          className="flex items-center gap-3 p-2.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
+                          className="flex items-center gap-3 py-2 px-1 rounded-lg"
                         >
                           <span className="w-12 shrink-0 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                             {slot.label}
@@ -2513,7 +2513,7 @@ if (character) {
                               const levelKey = 'level' + slot.level;
                               return (
                                 <div key={i} className="flex items-center">
-                                  {i > 0 && <span className="w-1.5 h-px bg-gray-400/70 dark:bg-gray-500/70" />}
+                                  {i > 0 && <span className="w-2 h-0.5 bg-gray-400/70 dark:bg-gray-500/70" />}
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -2522,18 +2522,24 @@ if (character) {
                                       handleUpdateSpellSlots(levelKey, 'used', Math.max(0, Math.min(slot.max, next)));
                                     }}
                                     title={filled ? '消耗一个环位' : '恢复一个环位'}
-                                    className={`w-4 h-4 rounded-full border transition-colors ${
-                                      filled
-                                        ? 'bg-primary border-primary'
-                                        : 'bg-transparent border-gray-500 dark:border-gray-400 hover:border-primary'
-                                    }`}
-                                  />
+                                    className="w-4.5 h-4.5 rounded-full border-2 border-gray-500 dark:border-gray-400 hover:border-primary p-[2px] transition-colors"
+                                  >
+                                    {/* 填充圆内嵌于环框，padding 露出间隙：实心=primary，空心=透明 */}
+                                    <span
+                                      className={`block w-full h-full rounded-full transition-colors ${
+                                        filled ? 'bg-primary' : 'bg-transparent'
+                                      }`}
+                                    />
+                                  </button>
                                 </div>
                               );
                             })}
                           </div>
-                          <span className="ml-auto text-xs tabular-nums dark:text-text-dark-muted light:text-text-light-muted">
-                            {slot.used}/{slot.max}
+                          <span
+                            className="ml-auto text-xs tabular-nums dark:text-text-dark-muted light:text-text-light-muted"
+                            title="可用 / 总量"
+                          >
+                            {slot.available}/{slot.max}
                           </span>
                         </div>
                       ));
