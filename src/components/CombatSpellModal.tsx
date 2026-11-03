@@ -293,6 +293,12 @@ export default function CombatSpellModal({
   // 是否同队伍（决定效果类型可选项）
   const sameTeam = !!caster && !!effectiveTarget && (caster.isPc === effectiveTarget.isPc);
 
+  // 流程施放 UI 皮肤：放映模式默认玩家引导视图（大输入框/通俗文案），DM 可随时切回详细视图
+  const [flowUiOverride, setFlowUiOverride] = useState<'dm' | 'player' | null>(null);
+  const flowUiVariant: 'dm' | 'player' = flowUiOverride ?? (
+    recordId && combatStore.get(recordId)?.mode === 'playback' ? 'player' : 'dm'
+  );
+
   // 参战者列表（目标更换用）
   const allCombatants = useMemo(() => {
     const rec = recordId ? combatStore.get(recordId) : null;
@@ -309,6 +315,7 @@ export default function CombatSpellModal({
   // （成分/动作门禁在前置检查步骤内做，不再 alert 打断）
   const handlePickSpell = async (spell: Spell) => {
     setSelectedSpell(spell);
+    setFlowUiOverride(null);
 
     // 自身类法术（射程「自身」）：目标恒为施法者自己——手动管线跳过 select_target
     // 步骤，流程施放直接以自己为目标（select_target mode=self 的流程节点同样无需换目标）
@@ -569,26 +576,38 @@ export default function CombatSpellModal({
 
           {/* 阶段 2a：按流程施放（绑定正式流程时优先入口） */}
           {stage === 'flow' && selectedSpell && boundFlow && (
-            <FlowRunStep
-              flow={boundFlow}
-              spell={selectedSpell}
-              caster={caster}
-              target={effectiveTarget}
-              allCombatants={allCombatants}
-              combatantPositions={combatantPositions}
-              recordId={recordId}
-              materialEvaluation={materialEvaluation}
-              onCraftMaterial={handleCraftMaterial}
-              onCraftScroll={handleCraftScroll}
-              onBack={handleBackToList}
-              onApplied={(payload) => {
-                if (materialEvaluation && materialEvaluation.consumption.length > 0) {
-                  onConsumeMaterials?.(materialEvaluation.consumption);
-                }
-                onFlowResolved?.(payload);
-                onClose();
-              }}
-            />
+            <>
+              {/* 视图皮肤切换：放映模式默认玩家引导视图，DM 可切回详细视图看节点日志 */}
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  onClick={() => setFlowUiOverride(flowUiVariant === 'player' ? 'dm' : 'player')}
+                  className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-black/5 dark:hover:bg-white/5"
+                >
+                  {flowUiVariant === 'player' ? '切换到详细视图' : '切换到玩家视图'}
+                </button>
+              </div>
+              <FlowRunStep
+                flow={boundFlow}
+                spell={selectedSpell}
+                caster={caster}
+                target={effectiveTarget}
+                allCombatants={allCombatants}
+                combatantPositions={combatantPositions}
+                recordId={recordId}
+                variant={flowUiVariant}
+                materialEvaluation={materialEvaluation}
+                onCraftMaterial={handleCraftMaterial}
+                onCraftScroll={handleCraftScroll}
+                onBack={handleBackToList}
+                onApplied={(payload) => {
+                  if (materialEvaluation && materialEvaluation.consumption.length > 0) {
+                    onConsumeMaterials?.(materialEvaluation.consumption);
+                  }
+                  onFlowResolved?.(payload);
+                  onClose();
+                }}
+              />
+            </>
           )}
 
           {/* 阶段 2b：步骤化施放 */}
