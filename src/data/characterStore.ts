@@ -1873,7 +1873,8 @@ const HALF_CASTER_SLOTS = [
 
 // 诡术师法术位（半职施法者，智力施法，最高4环）
 // 前2级无施法能力，3级开始获得法术位，最高只能施展4级法术
-const ROGUE_SPELLSLOTS = [
+// 1/3 施法者法术位推进表（PHB：游荡者·诡术师与战士·奥法骑士同表共用）
+const THIRD_CASTER_SLOTS = [
   [0, 0, 0, 0, 0],    // 1级：无施法能力
   [0, 0, 0, 0, 0],    // 2级：无施法能力
   [2, 0, 0, 0, 0],    // 3级：2个1环法术位
@@ -2005,23 +2006,6 @@ function getSpellSlotsByLevel(char: Character): {
   }
 
   if (casterType === CASTER_TYPE.HALF) {
-    // 诡术师使用特殊的法术位数组，最高只能施展4级法术
-    const className = getCharacterClass(char);
-    const subclass = char.profession?.subclass || (char as any).subclass;
-    if (className === '游荡者' && subclass === '诡术师') {
-      const slots = ROGUE_SPELLSLOTS[levelIndex] || ROGUE_SPELLSLOTS[0];
-      let maxLevel = 0;
-      for (let i = slots.length - 1; i >= 0; i--) {
-        if (slots[i] > 0) { maxLevel = i + 1; break; }
-      }
-      return {
-        slots: slots.slice(0, 5),
-        maxLevel,
-        casterType: 'half',
-        ability: 'intelligence', // 诡术师使用智力施法
-      };
-    }
-    
     // 其他半职施法者使用标准的半职施法者数组
     const slots = HALF_CASTER_SLOTS[levelIndex] || HALF_CASTER_SLOTS[0];
     let maxLevel = 0;
@@ -2047,6 +2031,23 @@ function getSpellSlotsByLevel(char: Character): {
       ability: CLASS_SPELLCASTING_ABILITY[getCharacterClass(char)] || 'charisma',
       knownSpells,
       mysticArcanum,
+    };
+  }
+
+  // 非施法职业的施法子职（1/3 施法者：游荡者:诡术师 / 战士:奥法骑士）：
+  // hasSpellcasting 已通过子职校验，走专属环位推进表（最高 4 环）
+  if (casterType === CASTER_TYPE.NONE) {
+    if (!getSpellListForCharacter(char)) return null;
+    const slots = THIRD_CASTER_SLOTS[levelIndex] || THIRD_CASTER_SLOTS[0];
+    let maxLevel = 0;
+    for (let i = slots.length - 1; i >= 0; i--) {
+      if (slots[i] > 0) { maxLevel = i + 1; break; }
+    }
+    return {
+      slots: slots.slice(0, 5),
+      maxLevel,
+      casterType: 'half',
+      ability: CLASS_SPELLCASTING_ABILITY[getCharacterClass(char)] || 'intelligence',
     };
   }
 
@@ -2076,7 +2077,6 @@ function getSpellSlotDisplayData(char: Character): {
   if (!config) return null;
 
   const charSlots = char.spells?.spellSlots || {};
-  const casterType = getCasterType(char);
 
   const ABILITY_LABELS: Record<AbilityKey, string> = {
     strength: '力量',
@@ -2087,7 +2087,8 @@ function getSpellSlotDisplayData(char: Character): {
     charisma: '魅力',
   };
 
-  if (casterType === CASTER_TYPE.FULL || casterType === CASTER_TYPE.HALF) {
+  // 按 getSpellSlotsByLevel 已归一的 casterType 分流（子职施法者职业表为 NONE，但 config 归一为 half）
+  if (config.casterType === 'full' || config.casterType === 'half') {
     const slotList = [];
     const slotArray = config.slots || [];
     for (let i = 0; i < slotArray.length; i++) {
@@ -2114,7 +2115,7 @@ function getSpellSlotDisplayData(char: Character): {
     };
   }
 
-  if (casterType === CASTER_TYPE.WARLOCK) {
+  if (config.casterType === 'warlock') {
     const slotCount = config.slots[0] || 0;
     const slotLevel = config.slotLevel || 1;
     const levelKey = ('level' + slotLevel) as SpellSlotLevel;
@@ -2148,8 +2149,6 @@ function resetSpellSlots(charId: string): void {
   const config = getSpellSlotsByLevel(char);
   if (!config) return;
 
-  const casterType = getCasterType(char);
-
   // 确保 spellSlots 对象存在
   if (!char.spells) {
     char.spells = { cantrips: [], spellSlots: {} as SpellSlots, custom: [] };
@@ -2158,7 +2157,7 @@ function resetSpellSlots(charId: string): void {
     char.spells.spellSlots = {} as SpellSlots;
   }
 
-  if (casterType === CASTER_TYPE.FULL || casterType === CASTER_TYPE.HALF) {
+  if (config.casterType === 'full' || config.casterType === 'half') {
     const slotArray = config.slots || [];
     for (let i = 0; i < slotArray.length; i++) {
       const levelNum = i + 1;
@@ -2173,7 +2172,7 @@ function resetSpellSlots(charId: string): void {
     }
   }
 
-  if (casterType === CASTER_TYPE.WARLOCK) {
+  if (config.casterType === 'warlock') {
     const slotLevel = config.slotLevel || 1;
     const levelKey = ('level' + slotLevel) as SpellSlotLevel;
     const maxForLevel = config.slots[0] || 0;
