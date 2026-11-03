@@ -248,8 +248,10 @@ cast_start → select_target → saving_throw → scaled_effect → cast_end
 
 - `scaleBy`：`caster_level`（戏法缩放，读施法者角色等级）| `spell_level`（升环施法，读当前法术环位）
 - `tiers`：分档表 `{ level: number; value: string }[]`，**建议按 level 从高到低排列**；执行时取首个「缩放值 ≥ level」的档（等价于最大可用档），全部不命中回落最低档
+- **公式模式三件套**（优先于 tiers，线性升环免枚举）：`baseLevel`（基准环位/等级）+ `baseDice`（基准骰式）+ `perLevelDice`（每高一级的增量骰式）。三键齐全时推导：`extra = scaleValue - baseLevel`，同骰面合并计数（基准 `3d6` + 3 × `1d6` → `6d6`，纯固定增量 `2` 也允许）；增量骰面与基准不一致时报配置错误。非均匀分档或异骰面升环仍用 `tiers`（公式缺任一键时回落 tiers，两者全缺报错）
 - `effectType`：`damage` | `healing`（状态不分档，仍走 `apply_effect`）
 - `damageType`：可选，同 `apply_effect.damageType` 映射
+- `halfDamageOnSave`：可选 boolean，豁免成功时伤害减半（代码支持，SKILL 表格此前漏列）
 
 示例——恶言相加（戏法，角色等级缩放）：
 

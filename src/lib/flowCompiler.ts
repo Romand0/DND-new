@@ -1536,10 +1536,17 @@ export class FlowCompiler {
       .map(t => ({ level: Number(t?.level), value: String(t?.value ?? '') }))
       .filter(t => Number.isFinite(t.level) && t.value !== '')
       .sort((a, b) => b.level - a.level);
-    if (tiers.length === 0) {
+
+    // 公式模式三件套：基准环位 + 基准骰式 + 每级增量骰式，齐全时优先于分档表
+    const baseLevel = Number(config?.baseLevel);
+    const baseDiceRaw = typeof config?.baseDice === 'string' ? config.baseDice.trim() : '';
+    const perLevelRaw = typeof config?.perLevelDice === 'string' ? config.perLevelDice.trim() : '';
+    const hasFormula = Number.isFinite(baseLevel) && baseDiceRaw !== '' && perLevelRaw !== '';
+
+    if (!hasFormula && tiers.length === 0) {
       return {
         status: 'failure',
-        output: { error: '分级效果节点缺少有效的分档表（tiers）' }
+        output: { error: '分级效果节点缺少有效配置：请提供 tiers 分档表，或同时填写 baseLevel / baseDice / perLevelDice 公式三件套' }
       };
     }
 
@@ -1557,11 +1564,40 @@ export class FlowCompiler {
       scaleSource = caster ? `${caster.name}（角色等级 ${scaleValue}）` : '（未指定施法者，按 0 级）';
     }
 
-    const matchedTier = tiers.find(t => scaleValue >= t.level) ?? tiers[tiers.length - 1];
+    // 表达式来源：公式三件套推导，否则取分档表命中行
+    let expr: string;
+    let matchedTier: { level: number; value: string };
+    let formulaNote = '';
+    if (hasFormula) {
+      const extra = Math.max(0, Math.floor(scaleValue) - baseLevel);
+      const base = parseDice(baseDiceRaw);
+      const per = parseDice(perLevelRaw);
+      const baseHasDice = base.sides > 0;
+      const perHasDice = per.sides > 0;
+      if (baseHasDice && perHasDice && base.sides !== per.sides) {
+        return {
+          status: 'failure',
+          output: { error: `公式模式的骰面不一致（基准 ${baseDiceRaw} 与增量 ${perLevelRaw}），无法合并为单段骰式；请统一骰面或改用 tiers 分档表` }
+        };
+      }
+      const sides = baseHasDice ? base.sides : per.sides;
+      const count = (baseHasDice ? base.count : 0) + (perHasDice ? per.count * extra : 0);
+      const bonus = base.bonus + per.bonus * extra;
+      expr = sides > 0 && count > 0
+        ? `${count}d${sides}${bonus > 0 ? `+${bonus}` : ''}`
+        : `${bonus}`;
+      matchedTier = { level: scaleValue, value: expr };
+      formulaNote = extra > 0
+        ? `基准 ${baseDiceRaw} + ${extra} × ${perLevelRaw}`
+        : `未超过基准 ${baseLevel} 级，按基准 ${baseDiceRaw}`;
+    } else {
+      matchedTier = tiers.find(t => scaleValue >= t.level) ?? tiers[tiers.length - 1];
+      expr = matchedTier.value;
+    }
 
     const { effectValue, diceDetail } = await this.rollEffectValueWithSource(
-      matchedTier.value,
-      { purpose: 'effect', expr: matchedTier.value },
+      expr,
+      { purpose: 'effect', expr },
       diceSource,
     );
     const normalizedType = normalizeDamageType(damageType);
@@ -1582,6 +1618,7 @@ export class FlowCompiler {
         scaleValue,
         scaleSource,
         matchedTier,
+        formula: formulaNote,
         tiers,
         dice: diceDetail,
         results,
@@ -1589,7 +1626,7 @@ export class FlowCompiler {
         anyResisted: results.some(r => r.resisted),
         anyImmune: results.some(r => r.immune),
         anyVulnerable: results.some(r => r.vulnerable),
-        message: `分级效果（${scaleBy === 'spell_level' ? '环位' : '角色等级'} ${scaleValue} → ${matchedTier.value}），${results.filter(r => r.effectApplied).length}个目标受影响`
+        message: `分级效果（${scaleBy === 'spell_level' ? '环位' : '角色等级'} ${scaleValue} → ${expr}${formulaNote ? `，${formulaNote}` : ''}），${results.filter(r => r.effectApplied).length}个目标受影响`
       }
     };
   }
