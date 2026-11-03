@@ -108,16 +108,10 @@ export default function App() {
               <Route path="/monsters/:id" element={<MonsterDetail />} />
             </Route>
 
-            {/* 团组外主页（前厅枢纽；登录用户保留完整顶栏导航） */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Home />} />
+            {/* 团组外主页（前厅枢纽）：未登录访客为着陆页（PublicLayout 顶栏含注册/登录入口），
+                登录用户走完整导航壳——守卫由 Home 内按登录态分流，未登录不强制跳转 */}
+            <Route element={<LibraryShellGate />}>
+              <Route path="/" element={<Home />} />
             </Route>
 
             {/* 团组内主页（以团组 ID 寻址；URL 驱动当前团组对齐，按身份分流 DM/玩家主页） */}

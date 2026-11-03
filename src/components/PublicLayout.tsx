@@ -58,13 +58,21 @@ export default function PublicLayout() {
                   进入主页
                 </Link>
               ) : (
-                <Link
-                  to="/login"
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white bg-primary hover:bg-primary-dark transition-colors"
-                >
-                  <LogIn className="w-3.5 h-3.5" />
-                  登录
-                </Link>
+                <>
+                  <Link
+                    to="/register"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-200 bg-white/5 border border-border-dark hover:bg-white/10 transition-colors"
+                  >
+                    注册
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-white bg-primary hover:bg-primary-dark transition-colors"
+                  >
+                    <LogIn className="w-3.5 h-3.5" />
+                    登录
+                  </Link>
+                </>
               )}
             </div>
           </div>

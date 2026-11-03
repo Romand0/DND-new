@@ -1,8 +1,8 @@
 // 团组外主页（/，前厅枢纽）：团组卡片墙 + 资料库入口 + 账号区。
 // 卡片点击整页导航到团组内主页 /c/:campaignId/home（DM/玩家分流在主页壳内完成）。
 import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { Swords, Plus, UserRound, BookOpen, Crown, ChevronRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Swords, Plus, UserRound, BookOpen, Crown, ChevronRight, LogIn, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { createCampaign, joinCampaign } from '@/lib/api';
@@ -19,13 +19,70 @@ export default function Home() {
   const { campaigns, current, refresh, initialized } = useCampaign();
   const [busy, setBusy] = useState(false);
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
   const enterCampaign = (id: string) => {
     window.location.assign(`/c/${id}/home`);
   };
+
+  // 四库快捷入口卡片（登录/未登录两种视图共用）
+  const libGrid = (
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {LIB_ENTRIES.map((e) => (
+        <Link
+          key={e.path}
+          to={e.path}
+          className="group p-4 rounded-xl border border-border-dark bg-card-dark hover:border-primary/50 transition-all"
+        >
+          <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <BookOpen className="w-4.5 h-4.5 text-primary" />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-200 mb-1">{e.label}</h3>
+          <p className="text-[11px] text-gray-500">{e.description}</p>
+        </Link>
+      ))}
+    </div>
+  );
+
+  // 未登录着陆视图：介绍 + 注册/登录引导 + 四库快捷入口（PublicLayout 顶栏亦有导航）
+  if (!isAuthenticated) {
+    return (
+      <div className="space-y-12">
+        <section className="text-center py-12">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center mx-auto mb-6">
+            <Swords className="w-9 h-9 text-white" />
+          </div>
+          <h1 className="text-3xl font-bold dark:text-text-dark light:text-text-light mb-3">DM Toolkit</h1>
+          <p className="text-sm text-gray-400 max-w-xl mx-auto mb-8 leading-relaxed">
+            龙与地下城 5e 跑团工作台：团组管理、角色卡、战斗追踪与法术流程编排。
+            公共资料库对访客全量开放，注册后即可创建团组开始跑团。
+          </p>
+          <div className="flex items-center justify-center gap-3">
+            <Link
+              to="/register"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm text-white bg-primary hover:bg-primary-dark transition-colors"
+            >
+              <UserPlus className="w-4 h-4" />
+              注册账号
+            </Link>
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-lg text-sm text-gray-200 bg-white/5 border border-border-dark hover:bg-white/10 transition-colors"
+            >
+              <LogIn className="w-4 h-4" />
+              登录
+            </Link>
+          </div>
+        </section>
+
+        <section>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-bold dark:text-text-dark light:text-text-light">公共资料库</h2>
+            <span className="text-xs text-gray-500">出版物全量开放，无需登录即可浏览</span>
+          </div>
+          {libGrid}
+        </section>
+      </div>
+    );
+  }
 
   const handleCreate = async () => {
     const name = prompt('输入新团组名称（一场跑团战役）');
@@ -140,21 +197,7 @@ export default function Home() {
           <h2 className="text-xl font-bold dark:text-text-dark light:text-text-light">公共资料库</h2>
           <span className="text-xs text-gray-500">出版物全量开放，访客亦可浏览</span>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {LIB_ENTRIES.map((e) => (
-            <Link
-              key={e.path}
-              to={e.path}
-              className="group p-4 rounded-xl border border-border-dark bg-card-dark hover:border-primary/50 transition-all"
-            >
-              <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
-                <BookOpen className="w-4.5 h-4.5 text-primary" />
-              </div>
-              <h3 className="text-sm font-semibold text-gray-200 mb-1">{e.label}</h3>
-              <p className="text-[11px] text-gray-500">{e.description}</p>
-            </Link>
-          ))}
-        </div>
+        {libGrid}
       </section>
 
       {/* 账号区 */}
