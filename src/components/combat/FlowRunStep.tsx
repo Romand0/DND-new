@@ -86,6 +86,8 @@ interface Props {
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
   /** 战斗记录 ID：注入后流程内检定（豁免/法术攻击）接入检定奖惩引擎（如灾祸术 -1d4） */
   recordId?: string;
+  /** UI 皮肤：dm=开发者向（节点日志/骰式细节）；player=引导向（单步聚焦/大输入框/通俗文案） */
+  variant?: 'dm' | 'player';
   /** 材料成分评估（流程施放页顶部展示 + 阻止未满足时执行） */
   materialEvaluation?: MaterialEvaluation;
   onCraftMaterial?: (req: MaterialRequirement) => void;
@@ -104,6 +106,7 @@ const STATUS_STYLES: Record<FlowLogEntry['status'], string> = {
 
 export default function FlowRunStep({
   flow, spell, caster, target, allCombatants, combatantPositions, recordId,
+  variant = 'dm',
   materialEvaluation, onCraftMaterial, onCraftScroll, onBack, onApplied,
 }: Props) {
   const [log, setLog] = useState<FlowLogEntry[]>([]);
@@ -126,6 +129,18 @@ export default function FlowRunStep({
     setD20Input('');
     setDiceInputs(pendingReq?.count ? Array.from({ length: pendingReq.count }, () => '') : []);
   }, [pendingReq]);
+
+  // 玩家视图的已完成骰值摘要（「豁免骰 14」「惩罚骰 3」），确认时记录
+  const [rollHistory, setRollHistory] = useState<string[]>([]);
+  const shortRollLabel = (req: FlowDiceRequest): string => {
+    if (req.label) return req.label.replace(/骰$/, '');
+    switch (req.purpose) {
+      case 'save': return '豁免骰';
+      case 'attack': return '攻击骰';
+      case 'concentration': return '专注骰';
+      default: return '效果骰';
+    }
+  };
 
   // 节点 ID → 标签（日志行标题）
   const nodeLabel = useMemo(() => {
@@ -266,8 +281,18 @@ export default function FlowRunStep({
     return Number.isFinite(n) && n >= 1 && n <= (pendingReq?.sides ?? 0);
   });
 
-  const confirmD20 = () => { if (d20Valid) resolvePending(parseInt(d20Input, 10)); };
-  const confirmDice = () => { if (diceValid) resolvePending(diceInputs.map(s => parseInt(s, 10))); };
+  const confirmD20 = () => {
+    if (d20Valid) {
+      if (variant === 'player' && pendingReq) setRollHistory(h => [...h, `${shortRollLabel(pendingReq)} ${d20Input}`]);
+      resolvePending(parseInt(d20Input, 10));
+    }
+  };
+  const confirmDice = () => {
+    if (diceValid) {
+      if (variant === 'player' && pendingReq) setRollHistory(h => [...h, `${shortRollLabel(pendingReq)} ${diceInputs.join(' + ')}`]);
+      resolvePending(diceInputs.map(s => parseInt(s, 10)));
+    }
+  };
 
   const pendingTitle = (() => {
     if (!pendingReq) return '';
@@ -540,7 +565,198 @@ export default function FlowRunStep({
       )}
       {log.map((entry, i) => {
         const data = entry.data as Record<string, any> | undefined;
-        return (
+  // ── 玩家引导视图：单步聚焦 + 通俗文案 + 大输入框 ──
+  // 文案规则：说「谁要做什么、难度多少、请投什么骰」，隐藏节点/骰式/编译器术语
+  if (variant === 'player') {
+    const ABILITY_NAMES: Record<string, string> = {
+      strength: '力量', dexterity: '敏捷', constitution: '体质',
+      intelligence: '智力', wisdom: '感知', charisma: '魅力',
+    };
+    // 当前请求的引导文案（主标题 + 副说明 + 骰种）
+    const guide = (() => {
+      if (!pendingReq) return null;
+      switch (pendingReq.purpose) {
+        case 'save':
+          return {
+            title: `${pendingReq.targetName ?? '目标'} 需要进行${ABILITY_NAMES[pendingReq.ability ?? ''] ?? ''}豁免`,
+            sub: `难度等级 DC ${pendingReq.dc ?? '?'}`,
+            die: 'd20',
+            hint: `投掷一颗 d20，把点数填进输入框（{目标}的豁免加值会自动计入）`,
+          };
+        case 'attack':
+          return {
+            title: `${caster.name} 对 ${pendingReq.targetName ?? '目标'} 发起法术攻击`,
+            sub: `目标防御 AC ${pendingReq.ac ?? '?'}`,
+            die: 'd20',
+            hint: '投掷一颗 d20，把点数填进输入框',
+          };
+        case 'concentration':
+          return {
+            title: `${caster.name} 需要进行专注检定`,
+            sub: `难度 DC ${pendingReq.dc ?? '?'}`,
+            die: 'd20',
+            hint: '投掷一颗 d20，把点数填进输入框',
+          };
+        default:
+          return {
+            title: pendingReq.label ?? '投掷法术效果骰',
+            sub: `骰组 ${pendingReq.expr ?? ''}${(pendingReq.count ?? 0) > 1 ? `（共 ${pendingReq.count} 颗，逐颗输入）` : ''}`,
+            die: `d${pendingReq.sides ?? '?'}`,
+            hint: (pendingReq.count ?? 0) > 1 ? `投掷 ${pendingReq.count} 颗 d${pendingReq.sides}，逐颗填入` : `投掷一颗 d${pendingReq.sides}，把点数填进输入框`,
+          };
+      }
+    })();
+    // 施法结果摘要（玩家可懂结论，替代节点日志）
+    const outcomeLines: string[] = [];
+    for (const entry of log) {
+      const data = entry.data as Record<string, any> | undefined;
+      if (Array.isArray(data?.results) && data.results.some((r: any) => r.dc !== undefined)) {
+        for (const r of data.results) {
+          if (r.error) continue;
+          outcomeLines.push(`${r.targetName} 豁免${r.success ? '通过' : '失败'}（${r.d20Roll} + ${r.saveBonus}${r.modifierTotal ? ` − ${Math.abs(r.modifierTotal)}` : ''} = ${r.total} vs DC ${r.dc}）`);
+        }
+      }
+      if (data?.attackTotal !== undefined) {
+        outcomeLines.push(`${caster.name} 的攻击${data.hit ? '命中' : '未命中'}（d20 ${data.d20Roll} = ${data.attackTotal} vs AC ${data.targetAC}）`);
+      }
+    }
+    const bigInputCls = 'w-28 rounded-xl border-2 border-primary px-3 py-3 text-2xl text-center font-semibold text-text-dark light:text-text-light dark:bg-bg-dark light:bg-bg-light-2 focus:outline-none focus:ring-2 focus:ring-primary/40';
+
+    return (
+      <div className="space-y-4">
+        {/* 施法标题 */}
+        <div className="text-center space-y-1 pt-1">
+          <div className="text-lg font-semibold dark:text-text-dark light:text-text-light">{spell.name}</div>
+          <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">{caster.name} 正在施展</div>
+        </div>
+
+        {materialEvaluation && !materialEvaluation.satisfied && (
+          <SpellMaterialPanel evaluation={materialEvaluation} spellName={spell.name} onCraftMaterial={onCraftMaterial} compact />
+        )}
+
+        {/* 未开始：大按钮 */}
+        {!ran && !running && (
+          <div className="space-y-2">
+            <button
+              onClick={handleRun}
+              disabled={materialEvaluation ? !materialEvaluation.satisfied : false}
+              className="w-full rounded-xl px-4 py-4 text-lg font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-50"
+            >
+              开始施法
+            </button>
+            <button onClick={onBack} className="w-full rounded-lg px-3 py-2 text-sm border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-black/5 dark:hover:bg-white/5">
+              返回
+            </button>
+          </div>
+        )}
+
+        {running && !pendingReq && (
+          <div className="text-center py-6 text-sm dark:text-text-dark-muted light:text-text-light-muted">施法进行中…</div>
+        )}
+
+        {/* 当前步骤大卡片 */}
+        {pendingReq && guide && (
+          <div className="rounded-2xl border-2 border-primary/50 bg-primary/5 p-5 space-y-4 text-center">
+            <div className="text-xl font-semibold dark:text-text-dark light:text-text-light">{guide.title}</div>
+            <div className="text-sm text-primary font-medium">{guide.sub}</div>
+            <div className="text-sm dark:text-text-dark light:text-text-light pt-1">
+              请投掷 <span className="font-bold">{guide.die}</span> 并输入结果
+            </div>
+            {pendingReq.purpose === 'effect' ? (
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                {diceInputs.map((v, i) => (
+                  <input
+                    key={i}
+                    type="number"
+                    min={1}
+                    max={pendingReq.sides}
+                    value={v}
+                    onChange={e => setDiceInputs(arr => arr.map((x, j) => (j === i ? e.target.value : x)))}
+                    onKeyDown={e => { if (e.key === 'Enter') confirmDice(); }}
+                    placeholder={`d${pendingReq.sides}`}
+                    autoFocus={i === 0}
+                    className={bigInputCls}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="flex justify-center">
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={d20Input}
+                  onChange={e => setD20Input(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') confirmD20(); }}
+                  placeholder={guide.die}
+                  autoFocus
+                  className={bigInputCls}
+                />
+              </div>
+            )}
+            <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">{guide.hint}</div>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={pendingReq.purpose === 'effect' ? confirmDice : confirmD20}
+                disabled={pendingReq.purpose === 'effect' ? !diceValid : !d20Valid}
+                className="rounded-xl px-8 py-2.5 text-base font-semibold bg-primary text-white hover:bg-primary/90 disabled:opacity-40"
+              >
+                确定
+              </button>
+              <button
+                onClick={() => resolvePending(null)}
+                className="rounded-lg px-4 py-2 text-sm border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-black/5 dark:hover:bg-white/5"
+              >
+                帮我掷
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 已完成骰值摘要 */}
+        {rollHistory.length > 0 && (
+          <div className="flex items-center gap-2 flex-wrap justify-center">
+            {rollHistory.map((h, i) => (
+              <span key={i} className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs bg-emerald-500/10 text-emerald-500 border border-emerald-500/30">
+                <Check className="w-3 h-3" />{h}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div className="flex items-start gap-2 rounded-lg p-2.5 text-xs text-red-400 bg-red-500/10 border border-red-500/30">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="break-all">{error}</span>
+          </div>
+        )}
+
+        {/* 施法结果 + 完成按钮 */}
+        {ran && !running && !pendingReq && (
+          <div className="space-y-3">
+            <div className="rounded-xl border border-primary/40 bg-primary/5 p-4 space-y-1.5 text-center">
+              <div className="text-sm font-semibold dark:text-text-dark light:text-text-light">施法完成</div>
+              {outcomeLines.length > 0 ? (
+                outcomeLines.map((l, i) => (
+                  <div key={i} className="text-xs dark:text-text-dark-muted light:text-text-light-muted">{l}</div>
+                ))
+              ) : (
+                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">效果已结算</div>
+              )}
+            </div>
+            <button
+              onClick={handleApply}
+              className="w-full rounded-xl px-4 py-3.5 text-base font-semibold bg-primary text-white hover:bg-primary/90"
+            >
+              完成施法
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
           <div key={`${entry.nodeId}-${i}`} className={`rounded-lg p-2.5 border text-xs space-y-1.5 ${STATUS_STYLES[entry.status]}`}>
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium">{nodeLabel.get(entry.nodeId) ?? entry.nodeId}</span>
