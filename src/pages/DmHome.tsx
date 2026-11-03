@@ -1,7 +1,7 @@
 // DM 主页（团组内主页的管理员分支，/c/:campaignId/home）：原 DM 工作台内容。
 // 页头提供「回到主页」——离开团组界面（前厅 / 团组外主页）的唯一常驻入口。
 import { Link } from 'react-router-dom';
-import { Swords, Users, ScrollText, Coins, Sparkles, ChevronRight, Home } from 'lucide-react';
+import { Swords, Users, ScrollText, Coins, Sparkles, ChevronRight, Home, Skull } from 'lucide-react';
 
 const features = [
   {
@@ -10,6 +10,13 @@ const features = [
     description: '管理所有玩家和NPC角色卡，完整的D&D 5e属性系统',
     path: '/characters',
     color: 'from-primary to-primary-dark',
+  },
+  {
+    icon: Skull,
+    title: 'NPC 图鉴',
+    description: '怪物模板库，一键投放参战者到战斗',
+    path: '/monsters',
+    color: 'from-danger to-danger/70',
   },
   {
     icon: Swords,
@@ -109,32 +116,6 @@ export default function DmHome() {
               </Link>
             );
           })}
-        </div>
-      </section>
-
-      <section className="rounded-2xl p-8 md:p-12 bg-gradient-to-br from-primary/20 via-accent/10 to-transparent border dark:border-primary/30 light:border-primary/20">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-2xl md:text-3xl font-bold mb-4 dark:text-text-dark light:text-text-light">
-            数据安全，本地存储
-          </h2>
-          <p className="dark:text-text-dark-muted light:text-text-light-muted mb-6">
-            所有数据都保存在你的浏览器本地，支持一键导出备份和导入恢复。
-            自动实时备份机制，确保你的数据不会丢失。
-          </p>
-          <div className="flex items-center justify-center gap-4 text-sm">
-            <span className="flex items-center gap-1.5 dark:text-text-dark-muted light:text-text-light-muted">
-              <span className="w-2 h-2 rounded-full bg-success" />
-              localStorage 存储
-            </span>
-            <span className="flex items-center gap-1.5 dark:text-text-dark-muted light:text-text-light-muted">
-              <span className="w-2 h-2 rounded-full bg-success" />
-              实时自动备份
-            </span>
-            <span className="flex items-center gap-1.5 dark:text-text-dark-muted light:text-text-light-muted">
-              <span className="w-2 h-2 rounded-full bg-success" />
-              JSON 导入导出
-            </span>
-          </div>
         </div>
       </section>
     </div>
