@@ -690,8 +690,14 @@ export class FlowCompiler {
             output: { error: 'DC 未配置且施法者无法术豁免 DC' },
           };
         }
-        const pb = typeof casterCombatant.proficiencyBonus === 'number' ? casterCombatant.proficiencyBonus : 2;
-        dc = 8 + pb + combatantCastingModifier(casterCombatant);
+        // 显式天生施法 DC（模板描述解析出的 spellcasting.dc）优先，启发式兜底
+        const sc = casterCombatant.spellcasting;
+        if (sc && typeof sc.dc === 'number') {
+          dc = sc.dc;
+        } else {
+          const pb = typeof casterCombatant.proficiencyBonus === 'number' ? casterCombatant.proficiencyBonus : 2;
+          dc = 8 + pb + combatantCastingModifier(casterCombatant);
+        }
       }
     } else {
       dc = parseInt(rawDc, 10);
@@ -783,7 +789,8 @@ export class FlowCompiler {
     context: FlowExecutionContext,
     diceSource?: FlowDiceSource
   ): Promise<NodeExecutionResult> {
-    // 施法者攻击加值：有角色卡走 getSpellAttackBonus；纯 NPC 参战者启发式 = 熟练加值 + 精神三维最大调整值
+    // 施法者攻击加值：有角色卡走 getSpellAttackBonus；纯 NPC 参战者优先读模板解析出的
+    // 天生施法 attackBonus（如「法术攻击命中+4」），缺失时启发式 = 熟练加值 + 精神三维最大调整值
     const casterCharacter = this.resolveCharacter(context.casterId, context);
     let spellAttackBonus: number;
     if (casterCharacter) {
@@ -796,8 +803,13 @@ export class FlowCompiler {
           output: { error: '施法者不存在' }
         };
       }
-      const pb = typeof casterCombatant.proficiencyBonus === 'number' ? casterCombatant.proficiencyBonus : 2;
-      spellAttackBonus = pb + combatantCastingModifier(casterCombatant);
+      const sc = casterCombatant.spellcasting;
+      if (sc && typeof sc.attackBonus === 'number') {
+        spellAttackBonus = sc.attackBonus;
+      } else {
+        const pb = typeof casterCombatant.proficiencyBonus === 'number' ? casterCombatant.proficiencyBonus : 2;
+        spellAttackBonus = pb + combatantCastingModifier(casterCombatant);
+      }
     }
 
     const results: any[] = [];

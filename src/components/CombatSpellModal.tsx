@@ -191,7 +191,10 @@ export default function CombatSpellModal({
   const spellAbilityLabel = spellAbilityKey
     ? ({ strength: '力量', dexterity: '敏捷', constitution: '体质', intelligence: '智力', wisdom: '感知', charisma: '魅力' } as const)[spellAbilityKey]
     : null;
-  const spellSaveDC = character ? characterStore.getSpellSaveDC(character) : null;
+  const spellSaveDC = character
+    ? characterStore.getSpellSaveDC(character)
+    // 纯 NPC 参战者：读模板解析出的天生施法 DC（如「法术豁免DC12」）
+    : (typeof caster.spellcasting?.dc === 'number' ? caster.spellcasting.dc : null);
 
   // 材料成分评估（直接材料 / 材料包替代 / 对应卷轴）
   const materialEvaluation = useMemo<MaterialEvaluation | null>(() => {
