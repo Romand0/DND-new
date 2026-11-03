@@ -2091,11 +2091,16 @@ function getSpellSlotDisplayData(char: Character): {
   if (config.casterType === 'full' || config.casterType === 'half') {
     const slotList = [];
     const slotArray = config.slots || [];
-    for (let i = 0; i < slotArray.length; i++) {
+    // 显示层 max 双源合并：存储值（角色属性）优先，标准表兜底，取大者。
+    // 标准表按等级推导，等级特殊/低环位子职（如 1 级诡术师手动配置 2 个 1 环位）
+    // 的存储 max 会被全 0 标准行清零显示——以存储为准才能忠实呈现角色实际法术位
+    for (let i = 0; i < 9; i++) {
       const levelNum = i + 1;
-      const max = slotArray[i] || 0;
+      const levelKey = ('level' + levelNum) as SpellSlotLevel;
+      const standardMax = slotArray[i] || 0;
+      const storedMax = charSlots[levelKey]?.max || 0;
+      const max = Math.max(storedMax, standardMax);
       if (max === 0) continue;
-      const levelKey = 'level' + levelNum as SpellSlotLevel;
       const used = charSlots[levelKey]?.used || 0;
       slotList.push({
         level: levelNum,
@@ -2116,9 +2121,10 @@ function getSpellSlotDisplayData(char: Character): {
   }
 
   if (config.casterType === 'warlock') {
-    const slotCount = config.slots[0] || 0;
     const slotLevel = config.slotLevel || 1;
     const levelKey = ('level' + slotLevel) as SpellSlotLevel;
+    // 同 FULL/HALF：存储 max 优先（契约施法者的魔爆/秘法奇物等可能调整环位数）
+    const slotCount = Math.max(config.slots[0] || 0, charSlots[levelKey]?.max || 0);
     const used = charSlots[levelKey]?.used || 0;
     return {
       ability: config.ability,
