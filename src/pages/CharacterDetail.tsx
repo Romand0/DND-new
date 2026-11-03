@@ -2493,55 +2493,48 @@ if (character) {
                   <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
                     法术位
                   </div>
-                  <div className="grid grid-cols-3 gap-2">
+                  {/* 图形化环位：一环一行，实心圆=可用、空心圆=已消耗；点击实心消耗 / 空心恢复 */}
+                  <div className="space-y-2">
                     {(() => {
                       const spellData = characterStore.getSpellSlotDisplayData(character);
                       if (!spellData) return null;
                       return spellData.spellSlots.map((slot) => (
                         <div
                           key={slot.level}
-                          className="p-2 rounded-lg text-center dark:bg-bg-dark light:bg-bg-light-2"
+                          className="flex items-center gap-3 p-2.5 rounded-lg dark:bg-bg-dark light:bg-bg-light-2"
                         >
-                          <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                          <span className="w-12 shrink-0 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                             {slot.label}
-                            {slot.isWarlock && <span className="ml-1 text-[10px]">(短休)</span>}
+                            {slot.isWarlock && <span className="ml-0.5 text-[10px]">短休</span>}
+                          </span>
+                          <div className="flex items-center">
+                            {Array.from({ length: slot.max }).map((_, i) => {
+                              const filled = i < slot.available;
+                              const levelKey = 'level' + slot.level;
+                              return (
+                                <div key={i} className="flex items-center">
+                                  {i > 0 && <span className="w-1.5 h-px bg-gray-400/70 dark:bg-gray-500/70" />}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      // store 端无边界防护，点击时 clamp 到 [0, max]
+                                      const next = filled ? slot.used + 1 : slot.used - 1;
+                                      handleUpdateSpellSlots(levelKey, 'used', Math.max(0, Math.min(slot.max, next)));
+                                    }}
+                                    title={filled ? '消耗一个环位' : '恢复一个环位'}
+                                    className={`w-4 h-4 rounded-full border transition-colors ${
+                                      filled
+                                        ? 'bg-primary border-primary'
+                                        : 'bg-transparent border-gray-500 dark:border-gray-400 hover:border-primary'
+                                    }`}
+                                  />
+                                </div>
+                              );
+                            })}
                           </div>
-                          <div className="flex items-center justify-center gap-1 mt-1">
-                            <input
-                              type="number"
-                              value={slot.used === 0 ? '' : slot.used}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === '') {
-                                  // 允许清空，暂不更新 store
-                                } else {
-                                  const num = parseInt(val);
-                                  if (!isNaN(num)) {
-                                    const levelKey = 'level' + slot.level;
-                                    handleUpdateSpellSlots(levelKey, 'used', num);
-                                  }
-                                }
-                              }}
-                              onBlur={(e) => {
-                                if (e.target.value === '') {
-                                  const levelKey = 'level' + slot.level;
-                                  handleUpdateSpellSlots(levelKey, 'used', 0);
-                                }
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                                  const levelKey = 'level' + slot.level;
-                                  handleUpdateSpellSlots(levelKey, 'used', 0);
-                                }
-                              }}
-                              placeholder="0"
-                              className="w-8 py-0.5 text-sm rounded bg-white/50 dark:bg-white/10 outline-none text-center dark:text-text-dark light:text-text-light"
-                            />
-                            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">/</span>
-                            <span className="w-8 py-0.5 text-sm text-center dark:text-text-dark-muted light:text-text-light-muted">
-                              {slot.max}
-                            </span>
-                          </div>
+                          <span className="ml-auto text-xs tabular-nums dark:text-text-dark-muted light:text-text-light-muted">
+                            {slot.used}/{slot.max}
+                          </span>
                         </div>
                       ));
                     })()}
