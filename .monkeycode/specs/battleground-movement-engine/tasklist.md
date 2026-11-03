@@ -3,39 +3,39 @@
 > 依据：`.monkeycode/specs/battleground-movement-engine/design.md`（架构/接口/键名以设计文档为准）与 `requirements.md`（R1–R5）。验证基线：`npx tsc --noEmit` + `npm run build`。
 
 - [ ] 1. battleGeometry 纯函数模块（新建 `src/data/battleGeometry.ts`）
-  - [ ] 1.1 实现 Bearing 类型与 bearing8 方位分类
+  - [x] 1.1 实现 Bearing 类型与 bearing8 方位分类
     - 8 扇区 + 'same' 分类；切比雪夫主轴归属（(2,1)→E）；零 store import（R1.1/R1.2，P1、P8）
-  - [ ] 1.2 实现 oppositeBearing、bearingSector、bearingDelta
+  - [x] 1.2 实现 oppositeBearing、bearingSector、bearingDelta
     - 取反对合；扇区 = 主方向 ± 45° 三方向集，恒不含反方向（R1.3/R1.4，P2、P3）
-  - [ ] 1.3 实现 planForcedMovePath 落位引擎
+  - [x] 1.3 实现 planForcedMovePath 落位引擎
     - 限深搜索（深度 ≤ maxCells），候选步 ∈ bearingSector；偏差角最小优先；isBlocked 闭包注入；truncated 标注（R4.1–R4.5，P4–P6）
   - [ ]* 1.4 搭建 vitest 并编写 battleGeometry 单测
     - P1–P6 性质用例 + 场景：直线通畅 / 第 2 格堵死绕行续走 / 三面围死截断 / 绕行步计入上限
 - [ ] 2. useForcedMove hook（新建 `src/hooks/combat/useForcedMove.ts`）
-  - [ ] 2.1 实现禁行集组装与 executeForcedMove
+  - [x] 2.1 实现禁行集组装与 executeForcedMove
     - isBlocked = isCellBlocked ∪ avoidCells ∪ cellToken 占用；placeToken 落位；移动力零消耗（R2.2/R2.3/R5.4，P7）
-  - [ ] 2.2 确认移动历史与放映快照兼容
+  - [x] 2.2 确认移动历史与放映快照兼容
     - 落位走 placeToken 即入 moveHistory/rollback 快照，零额外快照代码；bg null 返回 null（R2.4）
 - [ ] 3. ForcedMoveDialog 弹窗（新建 `src/components/ForcedMoveDialog.tsx`）
-  - [ ] 3.1 实现弹窗骨架：参照选择/方向裁决/距离输入
+  - [x] 3.1 实现弹窗骨架：参照选择/方向裁决/距离输入
     - 参照下拉（默认来源棋子）；远离/朝向单选；距离用 useNumberInput（R2.1）
-  - [ ] 3.2 实现方位裁决展示与阻断分支
+  - [x] 3.2 实现方位裁决展示与阻断分支
     - 实时文案「目标位于参照东北方，将向西南推离」；同格阻断确认；昏迷/死亡/失能阻断（R1.5、R2.5、错误处置表）
-  - [ ] 3.3 实现规避格 mini 网格点选
+  - [x] 3.3 实现规避格 mini 网格点选
     - 点击加入/移出本次规避集合，随确认产出 avoidCells（R5.3）
 - [ ] 4. 手动入口接线
-  - [ ] 4.1 CombatantInfoPanel 加按钮 + CombatSession 挂弹窗
+  - [x] 4.1 CombatantInfoPanel 加按钮 + CombatSession 挂弹窗
     - props 回调 onRequestForcedMove；state forcedMoveModal；确认回调接 executeForcedMove（R2.1）
 - [ ] 5. 流程绑定（编译器纯计算 + 统一落地）
-  - [ ] 5.1 flowCompiler 增加 effectType='forced_move' 分支
+  - [x] 5.1 flowCompiler 增加 effectType='forced_move' 分支
     - 解析 forcedMoveEnabled/fmDirectionMode/fmDistanceCells/fmAvoidRadius；产出 ForcedMovePlanDraft 草稿，目标未上沙盘阻断（R3.1/R3.2）
-  - [ ] 5.2 注册 apply_effect 参数 schema（FlowEditor 侧）
+  - [x] 5.2 注册 apply_effect 参数 schema（FlowEditor 侧）
     - 4 个 fm* config 字段进 ConfigFieldRenderer 渲染（R3.1）
-  - [ ] 5.3 onFlowResolved 增加 forced_move 落地分支
+  - [x] 5.3 onFlowResolved 增加 forced_move 落地分支
     - 以 plan.originId 重算参考位、调 executeForcedMove、战斗日志记录（R3.2/R3.3）
-- [ ] 6. 检查点 - 确保所有测试通过,如有疑问请询问用户
+- [x] 6. 检查点 - 确保所有测试通过,如有疑问请询问用户
 - [ ] 7. 整体验证
-  - [ ] 7.1 全量构建验证
+  - [x] 7.1 全量构建验证
     - `npx tsc --noEmit` + `npm run build` 通过（design.md 测试策略 2）
-  - [ ] 7.2 普通移动计费回归确认
+  - [x] 7.2 普通移动计费回归确认
     - attemptMove 直线计费与改动前一致；grep 确认未触碰 attemptMove/onConsumeMovement 语义（范围外承诺）

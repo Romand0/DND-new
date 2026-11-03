@@ -36,13 +36,15 @@ interface Props {
   onCastClick?: () => void;
   /** 点击「疾走」动作时回调 */
   onDashClick?: () => void;
+  /** 点击「强制位移」按钮时回调（DM 手动推离入口，CombatSession 挂弹窗与落位引擎） */
+  onForcedMoveClick?: () => void;
   /** 试验场模式：开放仪表盘 tab 与状态附加面板 */
   isProvingGround?: boolean;
   /** 试验场战斗记录（仪表盘数据源：回合数/记录 ID） */
   provingRecord?: CombatRecord | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onAttackClick, onCastClick, onDashClick, isProvingGround = false, provingRecord = null }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -1094,6 +1096,15 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     );
                   })}
                 </div>
+                {onForcedMoveClick && (
+                  <button
+                    type="button"
+                    onClick={onForcedMoveClick}
+                    className="mt-1.5 w-full px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light hover:bg-primary/15 active:scale-[0.98]"
+                  >
+                    强制位移（推离/推近）
+                  </button>
+                )}
               </div>
             </div>
           )}

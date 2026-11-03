@@ -10,6 +10,7 @@ import { flowCompiler } from '@/lib/flowCompiler';
 import { detectCheckModifiers, resolveModifierValue, getAppliedModifierRefs } from '@/data/checkModifierRules';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
 import combatStore from '@/data/combatStore';
+import type { ForcedMovePlanDraft } from '@/data/battleGeometry';
 import type { FlowDefinition, FlowExecutionContext, FlowLogEntry, FlowDiceRequest } from '@/types/flow';
 import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
@@ -33,7 +34,7 @@ export interface FlowCastZoneSpec {
 export interface FlowCastTargetResult {
   combatantId: string;
   name: string;
-  effectType: 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage' | 'zone';
+  effectType: 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage' | 'zone' | 'forced_move';
   /** 抗性前原始值（保留用于日志/审计） */
   effectValue: number;
   /** 抗性结算后的最终值（HP 扣减依据；status 恒 0） */
@@ -59,6 +60,8 @@ export interface FlowCastTargetResult {
   modifierUses?: number;
   /** effectType='zone' 时：待落地到沙盘的地形区域规格 */
   zone?: FlowCastZoneSpec;
+  /** effectType='forced_move' 时：待落地的位移计划（宿主调 useForcedMove.executeForcedMove） */
+  forcedMove?: ForcedMovePlanDraft;
 }
 
 /** 流程施放完成回传（契约：CombatSession.onFlowResolved 消费） */
@@ -67,7 +70,7 @@ export interface FlowCastPayload {
   castingTime?: string;
   /** 主目标受影响（豁免失败/被命中）；豁免成功或无效果节点时 false */
   success: boolean;
-  effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' | 'zone';
+  effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' | 'zone' | 'forced_move';
   /** 主目标数值（无效果时 0） */
   amount: number;
   targetResults: FlowCastTargetResult[];
@@ -340,7 +343,7 @@ export default function FlowRunStep({
         .map(r => ({
           combatantId: r.targetId,
           name: r.targetName,
-          effectType: r.effectType as 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage' | 'zone',
+          effectType: r.effectType as 'damage' | 'healing' | 'status' | 'check_modifier' | 'advantage' | 'zone' | 'forced_move',
           effectValue: r.effectValue as number,
           finalValue: (r.finalValue ?? r.effectValue) as number,
           damageType: r.damageType ?? null,
@@ -356,6 +359,7 @@ export default function FlowRunStep({
           turnCount: typeof r.turnCount === 'number' ? r.turnCount : undefined,
           modifierUses: typeof r.modifierUses === 'number' ? r.modifierUses : undefined,
           zone: r.zone && typeof r.zone === 'object' ? (r.zone as FlowCastZoneSpec) : undefined,
+          forcedMove: r.forcedMove && typeof r.forcedMove === 'object' ? (r.forcedMove as ForcedMovePlanDraft) : undefined,
         }));
     });
 
@@ -368,12 +372,13 @@ export default function FlowRunStep({
     const success = saveOutput
       ? (mainSave ? (!mainSave.success || mainHalfOnSave) : true)
       : !!mainEffect?.effectApplied;
-    const effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' | 'zone' =
+    const effectType: 'damage' | 'heal' | 'status' | 'check_modifier' | 'advantage' | 'zone' | 'forced_move' =
       effectOutput?.effectType === 'healing' ? 'heal' as const
       : effectOutput?.effectType === 'status' ? 'status' as const
       : effectOutput?.effectType === 'check_modifier' ? 'check_modifier' as const
       : effectOutput?.effectType === 'advantage' ? 'advantage' as const
       : effectOutput?.effectType === 'zone' ? 'zone' as const
+      : effectOutput?.effectType === 'forced_move' ? 'forced_move' as const
       : 'damage' as const;
 
     // 摘要（先攻表格单元格宽度有限，保持一行紧凑；《》【】为渲染器标记：法术名/数值高亮）
@@ -404,6 +409,11 @@ export default function FlowRunStep({
       const desc = typeof mainEffect.message === 'string' && mainEffect.message
         ? mainEffect.message
         : '区域生成';
+      parts.push(desc);
+    } else if (mainEffect && !mainEffect.error && !mainNegated && effectType === 'forced_move') {
+      const desc = typeof mainEffect.message === 'string' && mainEffect.message
+        ? mainEffect.message
+        : '强制位移裁决';
       parts.push(desc);
     } else if (mainEffect && !mainEffect.error && !mainNegated) {
       const finalValue = mainEffect.finalValue ?? mainEffect.effectValue;

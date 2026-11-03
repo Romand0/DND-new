@@ -25,6 +25,7 @@ import { spellStore } from '@/data/spellStore';
 import { rollDie, rollDice } from '@/data/diceService';
 import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS, type SomaticBlockingCondition } from '@/data/somaticCheck';
 import { parseDice } from '@/utils/diceExpr';
+import { bearing8, oppositeBearing, BEARING_LABELS } from '@/data/battleGeometry';
 import { evaluateSpellMaterials } from '@/data/spellMaterials';
 import { getHeldEquipmentIds } from '@/data/spellFocus';
 import { evaluateExpression } from '@/lib/flowExpression';
@@ -1286,6 +1287,92 @@ export class FlowCompiler {
           anyImmune: false,
           anyVulnerable: false,
           message: `区域生成完成，${results.filter(r => r.success).length}个目标位置受影响`,
+        },
+      };
+    }
+
+    // 强制位移：与地形区域同款「编译器不落库」原则。
+    // 产出待落地记录（effectType='forced_move' + 位移计划），由 CombatSession.onFlowResolved
+    // 调 useForcedMove.executeForcedMove 落位（单一落位引擎，手动入口共用）。
+    // 推离类法术/战技只需配节点参数（方向裁决/距离/规避半径），落位引擎与沙盘零改动。
+    if (effectType === 'forced_move') {
+      const directionModeRaw = String(config?.fmDirectionMode ?? 'away');
+      if (directionModeRaw !== 'away' && directionModeRaw !== 'toward') {
+        return {
+          status: 'failure',
+          output: { error: `未知的位移方向「${directionModeRaw}」（可选 away/toward）` },
+        };
+      }
+      const directionMode = directionModeRaw as 'away' | 'toward';
+      const distanceCells = Math.max(0, Math.floor(Number(config?.fmDistanceCells ?? 1)) || 0);
+      const avoidRadius = Math.max(0, Math.floor(Number(config?.fmAvoidRadius ?? 0)) || 0);
+      const originId = context.casterId;
+      const originPos = context.positions?.[originId] ?? null;
+
+      const results = context.targets.map((targetId) => {
+        const targetCombatant = this.resolveCombatant(targetId, context);
+        const targetCharacter = this.resolveCharacter(targetId, context);
+        const pos = context.positions?.[targetId] ?? null;
+        if (!targetCombatant && !targetCharacter) {
+          return { targetId, success: false, effectApplied: false, error: '目标不存在' };
+        }
+        if (!pos) {
+          return { targetId, success: false, effectApplied: false, error: '目标未放置在沙盘上，无法裁决位移方向' };
+        }
+        if (!originPos) {
+          return { targetId, success: false, effectApplied: false, error: '施法者未放置在沙盘上，无法裁决位移方向' };
+        }
+        const relative = bearing8(originPos, pos);
+        const bearing = directionMode === 'away' ? oppositeBearing(relative) : relative;
+        if (bearing === 'same') {
+          return { targetId, success: false, effectApplied: false, error: '施法者与目标同格，位移方向无定义' };
+        }
+        // 规避区：以目标当前位置为中心的方形展开（与 zone 的 cells 展开同款，flowCompiler zone 分支）
+        const avoidCells: string[] = [];
+        if (avoidRadius > 0) {
+          for (let dc = -avoidRadius; dc <= avoidRadius; dc++) {
+            for (let dr = -avoidRadius; dr <= avoidRadius; dr++) {
+              avoidCells.push(`${pos.col + dc},${pos.row + dr}`);
+            }
+          }
+        }
+        const currentHp = targetCombatant
+          ? (typeof targetCombatant.currentHp === 'number' ? targetCombatant.currentHp : (targetCombatant.maxHp ?? 0))
+          : (targetCharacter?.currentHp ?? 0);
+        return {
+          targetId,
+          targetName: targetCombatant?.name ?? targetCharacter?.name ?? targetId,
+          success: true,
+          effectApplied: true,
+          effectType: 'forced_move',
+          forcedMove: {
+            targetId,
+            originId,
+            bearing,
+            distanceCells,
+            avoidCells,
+          },
+          effectValue: 0,
+          finalValue: 0,
+          oldHp: currentHp,
+          newHp: currentHp,
+          tempAbsorbed: 0,
+          notes: [] as string[],
+          message: `裁决${directionMode === 'away' ? '远离' : '朝向'}施法者 → ${BEARING_LABELS[bearing]}，至多 ${distanceCells} 格`,
+        };
+      });
+      return {
+        status: 'success',
+        output: {
+          effectType,
+          value: '0',
+          dice: null,
+          results,
+          totalFinal: 0,
+          anyResisted: false,
+          anyImmune: false,
+          anyVulnerable: false,
+          message: `强制位移裁决完成，${results.filter(r => r.success).length}个目标受影响`,
         },
       };
     }

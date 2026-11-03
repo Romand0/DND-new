@@ -44,6 +44,8 @@ interface Props {
   onPanelCastClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：疾走动作（交由 main 结算移动力） */
   onPanelDashClick?: (combatant: Combatant) => void;
+  /** 双击棋子信息面板：强制位移按钮（交由 main 打开 ForcedMoveDialog） */
+  onPanelForcedMoveClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：试验场标记（仪表盘 tab / 状态附加面板 / 法术全库的开关） */
   isProvingGround?: boolean;
   /** 双击棋子信息面板：试验场记录引用（ProvingDashboard 数据源） */
@@ -67,7 +69,7 @@ interface Props {
   onTokenMoved?: (combatantId: string, pos: { col: number; row: number }) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, isProvingGround = false, provingRecord = null, onTokenMoved }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved }: Props) {
   const navigate = useNavigate();
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
@@ -1685,6 +1687,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onAttackClick={() => onPanelAttackClick?.(live)}
                   onCastClick={() => onPanelCastClick?.(live)}
                   onDashClick={() => onPanelDashClick?.(live)}
+                  onForcedMoveClick={() => onPanelForcedMoveClick?.(live)}
                 />
         );
       })()}

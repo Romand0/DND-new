@@ -10,6 +10,7 @@ import { usePlayback } from '@/hooks/combat/usePlayback';
 import { useRoundTurn } from '@/hooks/combat/useRoundTurn';
 import { useSurprise } from '@/hooks/combat/useSurprise';
 import { useThrownDrop } from '@/hooks/combat/useThrownDrop';
+import { useForcedMove } from '@/hooks/combat/useForcedMove';
 import { useZoneEffects } from '@/hooks/combat/useZoneEffects';
 import InitiativeTable from '@/components/combat/InitiativeTable';
 import OperationLogPanel from '@/components/OperationLogPanel';
@@ -44,6 +45,7 @@ import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
 import CombatantInfoPanel from '@/components/CombatantInfoPanel';
+import ForcedMoveDialog from '@/components/ForcedMoveDialog';
 import CombatCommitModal from '@/components/CombatCommitModal';
 
 // ===== 试验场人偶预设（模块级，spawnDummy 与存量数据迁移共用） =====
@@ -188,6 +190,8 @@ export default function CombatSession() {
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
   // ✅ 参战者信息面板（点击表头名称按钮打开，等价沙盘双击弹窗）
   const [infoPanelCombatant, setInfoPanelCombatant] = useState<Combatant | null>(null);
+  // ✅ 强制位移弹窗（参战者面板/沙盘双击面板入口，落位引擎见 useForcedMove）
+  const [forcedMoveTarget, setForcedMoveTarget] = useState<Combatant | null>(null);
   // ✅ 战斗结束回传弹窗
   const [commitModalOpen, setCommitModalOpen] = useState(false);
   // ✅ 沙盘最近单击选中的参战者 ID（用于左上 HUD 展示；若放映中有当前回合则以当前回合角色优先覆盖）
@@ -235,6 +239,9 @@ export default function CombatSession() {
     resolveEndTurnZone: (combatantId, round) => resolveEndTurnZone(combatantId, round),
     expireZonesForRound: (round) => { expireZonesForRound(round); },
   });
+
+  // 强制位移落位引擎（手动入口与流程绑定共用，design.md 单一落位引擎）
+  const { executeForcedMove } = useForcedMove(record?.id ?? null);
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -1094,6 +1101,7 @@ export default function CombatSession() {
         onPanelAttackClick={openAttackFor}
         onPanelCastClick={openCastFor}
         onPanelDashClick={dashFor}
+        onPanelForcedMoveClick={(c) => setForcedMoveTarget(c)}
         isProvingGround={record.isProvingGround ?? false}
         provingRecord={record.isProvingGround ? record : null}
         combatInventories={combatInventories}
@@ -1579,6 +1587,29 @@ export default function CombatSession() {
                 });
                 return;
               }
+              if (tr.effectType === 'forced_move') {
+                // 强制位移落地：编译器只产出计划（方向/距离/规避区），落位由 useForcedMove
+                // 统一执行（与手动入口同一落位引擎，design.md 单一事实源）。
+                if (!tr.forcedMove || !record) return;
+                const result = executeForcedMove(record, {
+                  targetId: tr.forcedMove.targetId,
+                  bearing: tr.forcedMove.bearing,
+                  distanceCells: tr.forcedMove.distanceCells,
+                  avoidCells: tr.forcedMove.avoidCells,
+                  originId: tr.forcedMove.originId,
+                });
+                if (result) {
+                  const moved = record.combatants.find(c => c.id === tr.forcedMove!.targetId);
+                  recordOperation(
+                    tr.forcedMove.targetId,
+                    result.path.length > 0
+                      ? `${moved?.name ?? '目标'}被《${payload.spellName}》强制位移 ${result.path.length} 格至 (${result.finalPos.col},${result.finalPos.row})${result.truncated ? '，途中受阻截断' : ''}`
+                      : `${moved?.name ?? '目标'}被《${payload.spellName}》强制位移：无路可推，原地不动`,
+                    'move',
+                  );
+                }
+                return;
+              }
               if (tr.effectType === 'status' || tr.effectType === 'check_modifier' || tr.effectType === 'advantage') {
                 // 状态落地：通用伤害修饰引擎（实例级效果 + 持续时间由流程注入）。
                 // 过期策略按施放时的战斗模式定性：
@@ -1993,11 +2024,41 @@ export default function CombatSession() {
               dashFor(liveCombatant);
               setInfoPanelCombatant(null);
             }}
+            onForcedMoveClick={() => setForcedMoveTarget(liveCombatant)}
           />
         );
        })()}
      
-     {/* 战斗结束回传弹窗 */}
+      {/* 强制位移弹窗（参战者面板 / 沙盘双击面板共用入口） */}
+      {forcedMoveTarget && record && (() => {
+        const bg = battlegroundStore.get(record.id);
+        const positions: Record<string, { col: number; row: number } | null | undefined> = {};
+        (bg?.tokens ?? []).forEach(t => { positions[t.combatantId] = { col: t.col, row: t.row }; });
+        const candidates = record.combatants.filter(c => c.id !== forcedMoveTarget.id);
+        return (
+          <ForcedMoveDialog
+            target={forcedMoveTarget}
+            candidates={candidates}
+            combatantPositions={positions}
+            defaultOriginId={null}
+            onClose={() => setForcedMoveTarget(null)}
+            onConfirm={(req) => {
+              const result = executeForcedMove(record, req);
+              if (!result) return;
+              const targetName = forcedMoveTarget.name;
+              const origin = record.combatants.find(c => c.id === req.originId);
+              const rel = origin ? `（参照：${origin.name}）` : '';
+              const text = result.path.length > 0
+                ? `${targetName}被强制位移${rel}：${result.path.length} 格${result.truncated ? '（途中受阻截断）' : ''}，落点 (${result.finalPos.col},${result.finalPos.row})`
+                : `${targetName}被强制位移${rel}：无路可推，原地不动`;
+              recordOperation(forcedMoveTarget.id, text, 'move');
+              setForcedMoveTarget(null);
+            }}
+          />
+        );
+      })()}
+
+      {/* 战斗结束回传弹窗 */}
     <CombatCommitModal
       recordId={sessionId}
       isOpen={commitModalOpen}
