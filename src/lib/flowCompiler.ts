@@ -120,7 +120,7 @@ function combatantAbilityModifier(c: Combatant, ability: string): number {
 }
 
 /** NPC 参战者施法属性启发式：无角色卡时取精神三维（智/感/魅）最大调整值（怪物天生施法属性的常见落点） */
-function combatantCastingModifier(c: Combatant): number {
+export function combatantCastingModifier(c: Combatant): number {
   return Math.max(
     combatantAbilityModifier(c, 'intelligence'),
     combatantAbilityModifier(c, 'wisdom'),

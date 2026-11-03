@@ -9,6 +9,7 @@ import combatStore from '@/data/combatStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
 import { detectCheckModifiers, computeModifierTotal, collectDiceRequests, getAppliedModifierRefs, type CheckModifierContext } from '@/data/checkModifierRules';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
+import { combatantCastingModifier } from '@/lib/flowCompiler';
 import AdvDisadvToggle from '../AdvDisadvToggle';
 import CheckModifierPanel from './CheckModifierPanel';
 import { computeSaveBonus } from '@/lib/saveBonus';
@@ -73,7 +74,11 @@ export default function SpellCheckStep({
   const [enabledModifierKeys, setEnabledModifierKeys] = useState<Set<string>>(new Set());
   const [modifierRolledValues, setModifierRolledValues] = useState<Record<string, string[]>>({});
 
-  const spellAttackBonus = casterCharacter ? characterStore.getSpellAttackBonus(casterCharacter) : null;
+  // 法术攻击加值：有角色卡走 store 派生；纯 NPC 参战者用启发式兜底
+  // （与 flowCompiler 的 spell_attack 节点同源：熟练 + 精神三维最大调整值）
+  const spellAttackBonus = casterCharacter
+    ? characterStore.getSpellAttackBonus(casterCharacter)
+    : (typeof caster.proficiencyBonus === 'number' ? caster.proficiencyBonus : 2) + combatantCastingModifier(caster);
   const spellSaveDC = casterCharacter ? characterStore.getSpellSaveDC(casterCharacter) : null;
 
   const fmtBonus = (n: number) => (n >= 0 ? `+${n}` : String(n));
