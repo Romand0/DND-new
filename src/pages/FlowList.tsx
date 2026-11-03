@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap, CloudUpload, CloudDownload, CloudOff, Zap as ZapIcon } from 'lucide-react';
+import { ChevronLeft, Plus, GitBranch, Trash2, Edit3, Search, Download, Upload, Zap, CloudUpload, CheckCircle2, Zap as ZapIcon } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import flowStore from '@/data/flowStore';
 import FlowConsole from '@/components/FlowConsole';
@@ -81,22 +81,6 @@ export default function FlowList() {
     }
   };
 
-  const handlePullRemote = async (flow: FlowDefinition) => {
-    const remote = await flowStore.pullRemote(flow.id);
-    if (!remote) alert('拉取失败：正式版不存在');
-  };
-
-  const handleUnpublish = async (flow: FlowDefinition) => {
-    if (confirm(`确定要撤下"${flow.name}"吗？撤下后将从正式库移除，战斗引擎不再可见。`)) {
-      try {
-        await flowStore.unpublish(flow.id);
-        alert('流程已撤下：云端正式版移入草稿表，战斗引擎不再可见');
-      } catch (err) {
-        alert(err instanceof Error ? err.message : '撤下失败');
-      }
-    }
-  };
-
   const formatDate = (ts?: number) =>
     ts ? new Date(ts).toLocaleString('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
 
@@ -172,119 +156,84 @@ export default function FlowList() {
               key={f.id}
               className="min-w-0 p-4 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary/40 transition-colors"
             >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <h3 className="min-w-0 font-semibold dark:text-text-dark light:text-text-light truncate">
-                      {f.name || '未命名流程'}
-                    </h3>
-                    {(() => {
-                      if (!f.publishedVersion || f.publishedVersion === 0) {
-                        return (
-                          <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] dark:bg-white/10 light:bg-gray-100 dark:text-text-dark-muted light:text-text-light-muted">
-                            草稿
-                          </span>
-                        );
-                      }
-                      return (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] bg-green-500/10 text-green-500">
-                          已发布 v{f.publishedVersion}
-                        </span>
-                      );
-                    })()}
-                  </div>
-                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap items-center gap-x-2">
-                    <span className="flex items-center gap-1">
-                      <Zap className="w-3 h-3" />{f.nodes.length} 节点
+              {/* 上半行：标题 + 投入应用标记 | 常用四按钮小间距挤一行 */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <h3 className="min-w-0 font-semibold dark:text-text-dark light:text-text-light truncate">
+                    {f.name || '未命名流程'}
+                  </h3>
+                  {(!f.publishedVersion || f.publishedVersion === 0) ? (
+                    <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[10px] dark:bg-white/10 light:bg-gray-100 dark:text-text-dark-muted light:text-text-light-muted">
+                      草稿
                     </span>
-                    <span>·</span>
-                    <span>{f.edges.length} 连线</span>
-                    {f.tags && f.tags.length > 0 && (
-                      <>
-                        <span>·</span>
-                        <span>{f.tags.join(', ')}</span>
-                      </>
-                    )}
-                  </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <button
-                      onClick={() => navigate(`/flow-editor/${f.id}`)}
-                      className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                      title="进入编辑器修改（保存即发布）"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      编辑
-                    </button>
-                    {(!f.publishedVersion || f.publishedVersion === 0) && (
-                      <button
-                        onClick={() => handlePublish(f)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
-                        title="把这份遗留的本地流程发布为正式版"
-                      >
-                        <CloudUpload className="w-3 h-3" />
-                        发布
-                      </button>
-                    )}
-                    {!!f.publishedVersion && f.publishedVersion > 0 && (
-                      <button
-                        onClick={() => handlePullRemote(f)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
-                        title="用云端正式版刷新本地镜像"
-                      >
-                        <CloudDownload className="w-3 h-3" />
-                        刷新镜像
-                      </button>
-                    )}
-                    {!!f.publishedVersion && f.publishedVersion > 0 && (
-                      <button
-                        onClick={() => handleUnpublish(f)}
-                        className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-amber-500 hover:bg-amber-500/10 transition-colors"
-                        title="从正式库撤下（移入草稿表，不再对战斗引擎可见）"
-                      >
-                        <CloudOff className="w-3 h-3" />
-                        撤下
-                      </button>
-                    )}
-                  </div>
-                  {f.description && (
-                    <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 line-clamp-2">
-                      {f.description}
-                    </p>
+                  ) : (
+                    <span className="shrink-0 flex" title="已绑定法术，投入应用">
+                      <CheckCircle2 className="w-4 h-4 text-green-500" />
+                    </span>
                   )}
-                  <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mt-1">
-                    更新于 {formatDate(f.updatedAt)}
-                  </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-0.5 shrink-0">
                   <button
                     onClick={() => handleExport(f)}
-                    className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light transition-colors"
-                    title="导出"
+                    className="p-1.5 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light transition-colors"
+                    title="下载"
                   >
                     <Download className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => navigate(`/flow-editor/${f.id}`)}
-                    className="p-2 rounded-lg hover:bg-primary/10 text-primary transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-primary/10 text-primary transition-colors"
                     title="编辑"
                   >
                     <Edit3 className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => navigate(`/flow-editor/${f.id}/view`)}
-                    className="p-2 rounded-lg hover:bg-accent/10 text-accent transition-colors"
-                    title="查看详情"
+                    className="p-1.5 rounded-lg hover:bg-accent/10 text-accent transition-colors"
+                    title="查看"
                   >
                     <ZapIcon className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setDeleteId(f.id)}
-                    className="p-2 rounded-lg hover:bg-red-400/10 text-red-400 transition-colors"
+                    className="p-1.5 rounded-lg hover:bg-red-400/10 text-red-400 transition-colors"
                     title="删除"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+              </div>
+              <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1 flex flex-wrap items-center gap-x-2">
+                <span className="flex items-center gap-1">
+                  <Zap className="w-3 h-3" />{f.nodes.length} 节点
+                </span>
+                <span>·</span>
+                <span>{f.edges.length} 连线</span>
+                {f.tags && f.tags.length > 0 && (
+                  <>
+                    <span>·</span>
+                    <span>{f.tags.join(', ')}</span>
+                  </>
+                )}
+              </div>
+              {(!f.publishedVersion || f.publishedVersion === 0) && (
+                <button
+                  onClick={() => handlePublish(f)}
+                  className="mt-2 flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-green-500/10 text-green-500 hover:bg-green-500/20 transition-colors"
+                  title="把这份遗留的本地流程发布为正式版"
+                >
+                  <CloudUpload className="w-3 h-3" />
+                  发布
+                </button>
+              )}
+              {/* 下半部分：完整流程描述 */}
+              {f.description && (
+                <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-2 whitespace-pre-wrap break-words">
+                  {f.description}
+                </p>
+              )}
+              <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted mt-1">
+                更新于 {formatDate(f.updatedAt)}
               </div>
             </div>
           ))}
