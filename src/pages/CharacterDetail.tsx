@@ -2436,21 +2436,10 @@ if (character) {
                     <span className="text-sm font-bold text-primary">
                       {abilityLabels[characterStore.getSpellcastingAbility(character) || 'intelligence']}
                     </span>
-                    {/* 可编辑：点击切换 */}
-                    {!readOnly && (
-                      <select
-                        value={characterStore.getSpellcastingAbility(character) || 'intelligence'}
-                        onChange={(e) => {
-                          characterStore.update(id!, { spellcastingAbility: e.target.value as AbilityKey });
-                          reloadChar();
-                        }}
-                        className="ml-1 text-xs px-1 py-0.5 rounded bg-transparent border dark:border-border-dark light:border-border-light outline-none text-primary"
-                      >
-                        {(['strength','dexterity','constitution','intelligence','wisdom','charisma'] as AbilityKey[]).map((k) => (
-                          <option key={k} value={k}>{abilityLabels[k]}</option>
-                        ))}
-                      </select>
-                    )}
+                    {/* 施法关键属性由职业决定（CLASS_SPELLCASTING_ABILITY），只读展示 */}
+                    <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                      由职业决定
+                    </span>
                   </div>
                   <button
                     onClick={() => {
@@ -2463,14 +2452,14 @@ if (character) {
                   </button>
                 </div>
 
-                {/* ★ 法术攻击加值 + 法术豁免 DC（施法者专有派生值，并排展示） */}
+                {/* ★ 法术攻击加值 + 法术豁免 DC（施法者专有派生值，移动端两行各占一项） */}
                 {(() => {
                   const saveDC = characterStore.calcSpellSaveDC(character);
                   if (saveDC === null) return null;
                   const attackBonus = characterStore.getSpellAttackBonus(character);
                   const fmtBonus = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
                   return (
-                    <div className="flex items-center gap-4 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                    <div className="flex flex-col gap-2 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
                       <div className="flex items-center gap-2">
                         <Crosshair className="w-4 h-4 text-accent" />
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
@@ -2479,11 +2468,11 @@ if (character) {
                         <span className="text-lg font-bold dark:text-text-dark light:text-text-light">
                           {attackBonus !== null ? fmtBonus(attackBonus) : '-'}
                         </span>
-                        <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                        <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted ml-auto">
                           = 熟练 {character.proficiencyBonus} + 属性调整值
                         </span>
                       </div>
-                      <div className="flex items-center gap-2 ml-auto">
+                      <div className="flex items-center gap-2">
                         <Shield className="w-4 h-4 text-info" />
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
                           法术豁免 DC
@@ -2491,7 +2480,7 @@ if (character) {
                         <span className="text-lg font-bold dark:text-text-dark light:text-text-light">
                           {saveDC}
                         </span>
-                        <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                        <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted ml-auto">
                           = 8 + {character.proficiencyBonus} + 属性调整值
                         </span>
                       </div>
