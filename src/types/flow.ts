@@ -1025,7 +1025,7 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
         { label: '朝向施法者（拉近）', value: 'toward' },
       ],
       defaultValue: 'away',
-      description: '以施法者为参照裁决位移方向；远离 = 取「施法者指向目标」的反向扇区',
+      description: '以施法者为参照裁决位移方向；远离 = 沿「施法者指向目标」扇区继续推离',
       visibleWhen: { key: 'effectType', equals: 'forced_move' },
     },
     {
