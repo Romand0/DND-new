@@ -37,7 +37,22 @@ export function normalizeSource(source?: string): string {
   return source;
 }
 
+// 访客态判断：与 AuthContext 共用同一 token 键。访客无团组与规则书集上下文，
+// 公开资料库语义下展示全部出版物条目（campaignId 非空的私有条目不外泄）。
+// 放在此处而非 CampaignContext：四库 store getAll 全部经过本函数，单一入口同时生效，
+// 且规则书集空数组在登录态是合法状态（团组未选规则书），无法用它区分访客。
+function isGuest(): boolean {
+  try {
+    return !localStorage.getItem('auth_token');
+  } catch {
+    return true;
+  }
+}
+
 export function filterByCampaignScope<T extends LibraryEntry>(items: T[]): T[] {
+  if (isGuest()) {
+    return items.filter((it) => !it.campaignId);
+  }
   const cid = getCampaignId();
   return items.filter((it) =>
     it.campaignId ? it.campaignId === cid : currentRulebooks.includes(normalizeSource(it.source))
