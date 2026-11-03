@@ -1323,7 +1323,8 @@ export class FlowCompiler {
           return { targetId, success: false, effectApplied: false, error: '施法者未放置在沙盘上，无法裁决位移方向' };
         }
         const relative = bearing8(originPos, pos);
-        const bearing = directionMode === 'away' ? oppositeBearing(relative) : relative;
+        // 远离 = 沿「施法者指向目标」方向继续推离；朝向 = 反扇区推向施法者（R1.3/R1.4）
+        const bearing = directionMode === 'away' ? relative : oppositeBearing(relative);
         if (bearing === 'same') {
           return { targetId, success: false, effectApplied: false, error: '施法者与目标同格，位移方向无定义' };
         }

@@ -140,11 +140,18 @@ export function planForcedMovePath(input: ForcedMoveInput): ForcedMovePath {
 
   const main = bearingDelta(bearing);
   const sector = bearingSector(bearing);
-  // 扇区内排序：主方向（偏差 0）优先，两个相邻方向随后——同深度下贪心先试直行
+  // 扇区内扩展顺序：主方向（偏差 0）严格最优先，两个相邻方向（偏差 1）随后。
+  // 轴向方位的邻居与主方向点积相同（|切比雪夫点积|=1），必须以偏差角 tie-break，
+  // 否则 BFS 先探索的邻居分支会在进度并列时压过直行路径（斜走 bug）。
+  const deviationOf = (d: { dc: number; dr: number }): number =>
+    d.dc === main.dc && d.dr === main.dr ? 0 : 1;
   const stepDirs = sector
     .filter(s => s !== 'same')
     .map(bearingDelta)
     .sort((a, b) => {
+      const da = deviationOf(a);
+      const db = deviationOf(b);
+      if (da !== db) return da - db;
       const pa = a.dc * main.dc + a.dr * main.dr;
       const pb = b.dc * main.dc + b.dr * main.dr;
       return pb - pa;

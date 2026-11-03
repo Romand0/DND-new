@@ -27,9 +27,10 @@ export default function ForcedMoveDialog({ target, candidates, combatantPosition
   const targetPos = combatantPositions[target.id] ?? null;
   const originPos = combatantPositions[originId] ?? null;
 
-  // 方位裁决：目标相对参照 → 远离取反扇区（R1.3/R1.4）
+  // 方位裁决：relative = 参照指向目标的扇区（目标在参照哪一方）。
+  // 远离 = 沿 relative 继续推离；朝向 = 取反扇区推向参照（R1.3/R1.4 修正后语义）
   const relativeBearing: Bearing = targetPos && originPos ? bearing8(originPos, targetPos) : 'same';
-  const moveBearing: Bearing = directionMode === 'away' ? oppositeBearing(relativeBearing) : relativeBearing;
+  const moveBearing: Bearing = directionMode === 'away' ? relativeBearing : oppositeBearing(relativeBearing);
   const sameCell = relativeBearing === 'same';
   const incapacitated = target.isUnconscious || target.isDead || target.isIncapacitated;
   const distance = distanceInput.value ?? 0;
