@@ -49,13 +49,15 @@ export function useForcedMove(recordId: string | null) {
       const bounds = gridBounds(bg.size);
       const paintedSet = new Set(bg.paintedCells ?? []);
       const avoidSet = new Set(req.avoidCells ?? []);
+      // 持续地形区（火堆/陷坑等）视为「明显危险的地域」：强制位移一律禁行（D&D 5e 推离规则）
+      const zoneSet = new Set((bg.zones ?? []).flatMap(z => z.cells ?? []));
       // 禁行集三源合并（design.md）：边界墙 ∪ 规避区 ∪ 其他棋子占用（排除被位移者自身）
       const occupied = new Set(
         bg.tokens.filter(t => t.combatantId !== req.targetId).map(t => `${t.col},${t.row}`),
       );
       const isBlocked = (col: number, row: number): boolean => {
         const key = `${col},${row}`;
-        return paintedSet.has(key) || avoidSet.has(key) || occupied.has(key);
+        return paintedSet.has(key) || avoidSet.has(key) || occupied.has(key) || zoneSet.has(key);
       };
 
       const plan = planForcedMovePath({
