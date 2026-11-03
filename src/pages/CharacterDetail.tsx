@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   Heart,
   Shield,
+  Crosshair,
   Zap,
   Footprints,
   Star,
@@ -2462,12 +2463,26 @@ if (character) {
                   </button>
                 </div>
 
-                {/* ★ 新增：法术豁免 DC（左侧空间留给未来的法术检定值） */}
+                {/* ★ 法术攻击加值 + 法术豁免 DC（施法者专有派生值，并排展示） */}
                 {(() => {
                   const saveDC = characterStore.calcSpellSaveDC(character);
                   if (saveDC === null) return null;
+                  const attackBonus = characterStore.getSpellAttackBonus(character);
+                  const fmtBonus = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
                   return (
                     <div className="flex items-center gap-4 p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2">
+                      <div className="flex items-center gap-2">
+                        <Crosshair className="w-4 h-4 text-accent" />
+                        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                          法术攻击加值
+                        </span>
+                        <span className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                          {attackBonus !== null ? fmtBonus(attackBonus) : '-'}
+                        </span>
+                        <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                          = 熟练 {character.proficiencyBonus} + 属性调整值
+                        </span>
+                      </div>
                       <div className="flex items-center gap-2 ml-auto">
                         <Shield className="w-4 h-4 text-info" />
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
