@@ -733,7 +733,11 @@ export class FlowCompiler {
         { purpose: 'save', targetId, targetName, ability, dc },
         diceSource,
       );
-      const total = d20Roll + saveBonus;
+      // 检定奖惩（如灾祸术 -1d4）：钩子返回奖惩总值（惩罚为负），随后计入检定总和
+      const modifierTotal = context.modifierResolver
+        ? await context.modifierResolver('saving_throw', targetId)
+        : 0;
+      const total = d20Roll + saveBonus + modifierTotal;
       const success = total >= dc;
 
       results.push({
@@ -742,6 +746,7 @@ export class FlowCompiler {
         ability,
         abilityScore,
         saveBonus,
+        modifierTotal,
         dc,
         d20Roll,
         total,
@@ -821,7 +826,11 @@ export class FlowCompiler {
         { purpose: 'attack', targetId, targetName: targetCombatant?.name ?? targetCharacter?.name ?? targetId, ac: targetAC },
         diceSource,
       );
-      const attackTotal = d20Roll + spellAttackBonus;
+      // 检定奖惩：法术攻击的掷骰方是施法者（奖惩挂施法者身上），惩罚计入攻击总和
+      const modifierTotal = context.modifierResolver
+        ? await context.modifierResolver('spell_attack', context.casterId)
+        : 0;
+      const attackTotal = d20Roll + spellAttackBonus + modifierTotal;
       // D&D 5e：自然 20 必中，自然 1 必失
       const hit = d20Roll === 20 ? true : d20Roll === 1 ? false : attackTotal >= targetAC;
 
@@ -829,6 +838,7 @@ export class FlowCompiler {
         targetId,
         targetName: targetCombatant?.name ?? targetCharacter?.name ?? targetId,
         attackBonus: spellAttackBonus,
+        modifierTotal,
         d20Roll,
         attackTotal,
         targetAC,

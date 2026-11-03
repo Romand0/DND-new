@@ -7,6 +7,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, Play, Check, AlertTriangle, Workflow, Dices } from 'lucide-react';
 import { flowCompiler } from '@/lib/flowCompiler';
+import { detectCheckModifiers, resolveModifierValue, getAppliedModifierRefs } from '@/data/checkModifierRules';
+import { getCombatRoundCtx } from '@/data/combatAffinities';
+import combatStore from '@/data/combatStore';
 import type { FlowDefinition, FlowExecutionContext, FlowLogEntry, FlowDiceRequest } from '@/types/flow';
 import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
@@ -81,6 +84,8 @@ interface Props {
   target: Combatant;
   allCombatants: Combatant[];
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /** 战斗记录 ID：注入后流程内检定（豁免/法术攻击）接入检定奖惩引擎（如灾祸术 -1d4） */
+  recordId?: string;
   /** 材料成分评估（流程施放页顶部展示 + 阻止未满足时执行） */
   materialEvaluation?: MaterialEvaluation;
   onCraftMaterial?: (req: MaterialRequirement) => void;
@@ -98,7 +103,7 @@ const STATUS_STYLES: Record<FlowLogEntry['status'], string> = {
 };
 
 export default function FlowRunStep({
-  flow, spell, caster, target, allCombatants, combatantPositions,
+  flow, spell, caster, target, allCombatants, combatantPositions, recordId,
   materialEvaluation, onCraftMaterial, onCraftScroll, onBack, onApplied,
 }: Props) {
   const [log, setLog] = useState<FlowLogEntry[]>([]);
@@ -161,18 +166,68 @@ export default function FlowRunStep({
     setPendingReq(null);
     pendingResolveRef.current = null;
     try {
-      const context: FlowExecutionContext = {
-        casterId: caster.id,
-        spellId: spell.id,
-        targets: [target.id],
-        results: new Map(),
-        stateSnapshot: {},
-        log: [],
-        positions: combatantPositions,
-        // 参战者身份映射：编译器按参战者解析豁免/AC/HP（NPC 免角色卡）
-        combatants: Object.fromEntries(allCombatants.map(c => [c.id, c])),
-        damageSource: { kind: 'spell', magical: true },
-      };
+      // 检定奖惩解析（灾祸术等 -1d4）：d20 输入后、结果宣布前，逐条弹奖惩骰输入框。
+  // 惩罚恒强制计入；可选奖励（无开关 UI）在流程路径自动不启用。次数型在计入后立即消费。
+  const resolveCheckModifierTotal = async (
+    scene: 'spell_attack' | 'saving_throw',
+    combatantId: string,
+  ): Promise<number> => {
+    if (!recordId) return 0;
+    const rec = combatStore.get(recordId);
+    const subject = rec?.combatants.find(c => c.id === combatantId) ?? null;
+    if (!subject) return 0;
+    const result = detectCheckModifiers({
+      scene,
+      combatant: subject,
+      recordId,
+      roundCtx: getCombatRoundCtx(recordId),
+    });
+    if (result.hits.length === 0) return 0;
+    let total = 0;
+    const appliedHits = [];
+    for (const hit of result.hits) {
+      if (!hit.enabled) continue;
+      let values: number[] | undefined;
+      if (hit.dice.count > 0 && hit.dice.sides > 0) {
+        if (manualDiceRef.current) {
+          const raw = await new Promise<number | number[] | null>(resolve => {
+            pendingResolveRef.current = resolve;
+            setPendingReq({
+              purpose: 'effect',
+              expr: `${hit.dice.count}d${hit.dice.sides}`,
+              count: hit.dice.count,
+              sides: hit.dice.sides,
+              label: `${hit.label} ${hit.mode === 'penalty' ? '惩罚' : '奖励'}骰`,
+            });
+          });
+          values = Array.isArray(raw) ? raw : undefined;
+        }
+        total += resolveModifierValue(hit, values);
+      } else {
+        total += resolveModifierValue(hit);
+      }
+      appliedHits.push(hit);
+    }
+    const refs = getAppliedModifierRefs({ hits: appliedHits, hasForced: false, hasOptional: false });
+    if (refs.pendingIds.length > 0) {
+      combatStore.consumePendingCheckModifiers(recordId, combatantId, refs.pendingIds);
+    }
+    return total;
+  };
+
+  const context: FlowExecutionContext = {
+    casterId: caster.id,
+    spellId: spell.id,
+    targets: [target.id],
+    results: new Map(),
+    stateSnapshot: {},
+    log: [],
+    positions: combatantPositions,
+    // 参战者身份映射：编译器按参战者解析豁免/AC/HP（NPC 免角色卡）
+    combatants: Object.fromEntries(allCombatants.map(c => [c.id, c])),
+    damageSource: { kind: 'spell', magical: true },
+    modifierResolver: resolveCheckModifierTotal,
+  };
       // 骰源：手动模式下每个检定/效果骰暂停等输入；自动模式直接回落编译器随机
       await flowCompiler.executeFlow(flow, context, async (req) => {
         if (!manualDiceRef.current) return null;
@@ -224,7 +279,8 @@ export default function FlowRunStep({
       case 'concentration':
         return `专注检定${pendingReq.dc != null ? ` vs DC ${pendingReq.dc}` : ''}`;
       case 'effect':
-        return `效果骰 ${pendingReq.expr ?? ''}（${pendingReq.count ?? 0} 颗 d${pendingReq.sides ?? '?'}）`;
+        return pendingReq.label
+          ?? `效果骰 ${pendingReq.expr ?? ''}（${pendingReq.count ?? 0} 颗 d${pendingReq.sides ?? '?'}）`;
       default:
         return '';
     }

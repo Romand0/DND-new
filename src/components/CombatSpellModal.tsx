@@ -576,6 +576,7 @@ export default function CombatSpellModal({
               target={effectiveTarget}
               allCombatants={allCombatants}
               combatantPositions={combatantPositions}
+              recordId={recordId}
               materialEvaluation={materialEvaluation}
               onCraftMaterial={handleCraftMaterial}
               onCraftScroll={handleCraftScroll}

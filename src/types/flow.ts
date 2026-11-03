@@ -1146,6 +1146,13 @@ export interface FlowExecutionContext {
   combatants?: Record<string, Combatant>;
   /** 伤害来源（施法注入：法术为魔法；缺省按法术处理） */
   damageSource?: DamageSource;
+  /**
+   * 检定奖惩解析钩子（流程施放注入）：检定节点算完 d20+加值后调用，
+   * 返回本次检定的奖惩总值（含方向，惩罚为负）。实现方负责引擎检测、
+   * 骰值输入 UI 与次数型消费。缺省时检定不附加奖惩。
+   * 5e 语义：仅攻击检定与豁免检定接入；专注检定属能力检定，不接。
+   */
+  modifierResolver?: (scene: 'spell_attack' | 'saving_throw', combatantId: string) => Promise<number>;
 }
 
 /** 单条执行日志 */
@@ -1180,6 +1187,8 @@ export interface FlowDiceRequest {
   expr?: string;
   count?: number;
   sides?: number;
+  /** 奖惩骰标注（如「灾祸术 惩罚」），UI 输入框标题优先展示 */
+  label?: string;
 }
 
 /**
