@@ -88,6 +88,8 @@ const proficiencyEntryLabels: Record<string, string> = {
 // ===== 特性作用方式分类（FeatureRole）=====
 // 徽标点击循环顺序：被动 → 主动 → 属性 → 被动
 const FEATURE_ROLE_ORDER: FeatureRole[] = ['passive', 'active', 'stat'];
+// 区块渲染顺序：主动技能（最大展示度）→ 被动技能 → 属性调整（融入数值，压缩在末尾）
+const FEATURE_RENDER_ORDER: FeatureRole[] = ['active', 'passive', 'stat'];
 
 const FEATURE_ROLE_META: Record<FeatureRole, { label: string; hint: string; chip: string }> = {
   active: { label: '主动技能', hint: '需主动运用（激励骰/战技等），战斗中便捷触发', chip: 'bg-primary/15 text-primary' },
@@ -98,7 +100,8 @@ const FEATURE_ROLE_META: Record<FeatureRole, { label: string; hint: string; chip
 // 作用方式派生：显式 role 优先，否则按名称关键词推断，兜底 passive。
 // 熟练/属性类名字归 stat；激励/战技/骰池等消耗型归 active；其余（精类血统/黑暗视觉/野性面具等）默认被动。
 const STAT_ROLE_NAME_RE = /体型|速度|属性|熟练|专精|语言|装备|护甲|武器|工具/;
-const ACTIVE_ROLE_NAME_RE = /激励|战技|卓越骰|骰池|充能|每回合|每日|次数/;
+// 主动技能关键词：激励/战技/骰池等消耗型，以及任何以动作形态施放的能力（决定/动作/附赠动作/反应）
+const ACTIVE_ROLE_NAME_RE = /激励|战技|卓越骰|骰池|充能|每回合|每日|次数|决定|动作|附赠动作|反应/;
 
 function deriveFeatureRole(f: Feature): FeatureRole {
   if (f.role) return f.role;
@@ -2964,7 +2967,7 @@ if (character) {
                 // 全部视角：主动技能（最大展示度）→ 被动技能 → 属性调整（融入数值，压缩在末尾）
                 return (
                   <>
-                    {(['active', 'passive', 'stat'] as FeatureRole[]).map((role) => {
+                    {FEATURE_RENDER_ORDER.map((role) => {
                       const list = groups[role];
                       if (list.length === 0) return null;
                       const meta = FEATURE_ROLE_META[role];
@@ -2987,9 +2990,15 @@ if (character) {
                 );
               })()}
               {(() => {
-                const hiddenList = character.features.filter((f) =>
-                  hiddenFeatures.has(`${f.category || ''}:${f.name}`)
-                );
+                // 隐藏条目跟随当前作用方式筛选：全部视角按渲染顺序排序；单选分类只显示该组的隐藏条目
+                const hiddenList = character.features
+                  .filter((f) => hiddenFeatures.has(`${f.category || ''}:${f.name}`))
+                  .filter((f) => featureRoleFilter === 'all' || deriveFeatureRole(f) === featureRoleFilter)
+                  .sort(
+                    (a, b) =>
+                      FEATURE_RENDER_ORDER.indexOf(deriveFeatureRole(a)) -
+                      FEATURE_RENDER_ORDER.indexOf(deriveFeatureRole(b))
+                  );
                 if (hiddenList.length === 0) return null;
                 return (
                   <>
