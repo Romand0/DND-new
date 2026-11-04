@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
-  ArrowLeft, GitBranch, Edit2, Trash2, Zap, ListTree, Network,
+  ArrowLeft, GitBranch, Edit2, Trash2, Zap, ListTree, Network, BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import flowStore from '@/data/flowStore';
 import { FlowSpellBindingManager } from '@/components/FlowSpellBindingManager';
+import { fetchBindingsByFlow } from '@/lib/api';
+import type { Spell } from '@/types/spell';
 import FlowGraphView from '@/components/flow-editor/presentation/canvas/FlowGraphView';
 import FlowStructureOutline from '@/components/flow-editor/presentation/FlowStructureOutline';
 import type { FlowDefinition } from '@/types/flow';
@@ -30,6 +32,7 @@ export default function FlowView() {
   const [saving, setSaving] = useState(false);
   const [bindingTab, setBindingTab] = useState(false);
   const [tab, setTab] = useState<ViewTab>('graph');
+  const [boundSpells, setBoundSpells] = useState<Spell[]>([]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -37,15 +40,25 @@ export default function FlowView() {
     if (local) {
       setFlow(local);
       setLoading(false);
-      return;
+    } else {
+      try {
+        await flowStore.fetchRemote();
+        setFlow(flowStore.getById(id) ?? null);
+      } catch (e: any) {
+        setError(e?.message || '加载失败');
+      } finally {
+        setLoading(false);
+      }
     }
+    // 关联法术：根据绑定关系识别，失败静默（只影响入口展示）
     try {
-      await flowStore.fetchRemote();
-      setFlow(flowStore.getById(id) ?? null);
-    } catch (e: any) {
-      setError(e?.message || '加载失败');
-    } finally {
-      setLoading(false);
+      const bindings = await fetchBindingsByFlow<any[]>(id);
+      const spells = bindings
+        .map(b => b.spell)
+        .filter((s: any) => s && s.id);
+      setBoundSpells(spells);
+    } catch {
+      /* 无绑定或接口不可用时入口隐藏 */
     }
   }, [id]);
 
@@ -150,6 +163,22 @@ export default function FlowView() {
             ) : (
               <span className="px-2 py-0.5 rounded-full text-xs font-medium dark:bg-white/10 light:bg-gray-100 dark:text-text-dark-muted light:text-text-light-muted">
                 草稿
+              </span>
+            )}
+            {boundSpells.length > 0 && (
+              <span className="inline-flex items-center gap-1.5">
+                <BookOpen className="w-3.5 h-3.5 dark:text-text-dark-muted light:text-text-light-muted" />
+                {boundSpells.map(spell => (
+                  <button
+                    key={spell.id}
+                    onClick={() => window.open(`/spells/${spell.id}`, '_blank')}
+                    title="在新标签页查看关联法术"
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-white/10 light:border-border-light light:text-text-light light:hover:bg-gray-100"
+                  >
+                    {spell.name}
+                    <span className="opacity-60">↗</span>
+                  </button>
+                ))}
               </span>
             )}
           </div>

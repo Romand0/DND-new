@@ -28,6 +28,8 @@ export interface TopologyLayoutOptions {
   nodeGap?: number;
   /** 画布内边距 */
   padding?: number;
+  /** 布局方向：TB=层级自上而下（默认），LR=层级自左向右（宽屏优先横向阅读） */
+  direction?: 'TB' | 'LR';
 }
 
 /**
@@ -113,10 +115,40 @@ export function layoutTopology(
   flow: FlowDefinition,
   options: TopologyLayoutOptions = {}
 ): TopologyLayout {
-  const { rankGap = 96, nodeGap = 48, padding = 48 } = options;
+  const { rankGap = 96, nodeGap = 48, padding = 48, direction = 'TB' } = options;
 
   const ranks = computeRanks(flow);
   const nodeMap = new Map(flow.nodes.map(n => [n.id, n]));
+
+  if (direction === 'LR') {
+    // 层级沿 x 轴展开（列），同层节点纵向排列，整列居中
+    const colHeights = ranks.map(
+      r => r.length * NODE_H + Math.max(0, r.length - 1) * nodeGap
+    );
+    const maxColHeight = Math.max(NODE_H, ...colHeights);
+
+    const positions = new Map<string, { x: number; y: number }>();
+    ranks.forEach((ids, r) => {
+      const colHeight = colHeights[r];
+      let y = padding + (maxColHeight - colHeight) / 2;
+      const x = padding + r * (NODE_W + rankGap);
+      ids.forEach(id => {
+        positions.set(id, { x, y });
+        y += NODE_H + nodeGap;
+      });
+    });
+
+    const nodes: TopologyNode[] = flow.nodes.map(n => ({
+      ...n,
+      position: positions.get(n.id) ?? { x: padding, y: padding },
+    }));
+
+    const rankCount = Math.max(1, ranks.length);
+    const width = padding * 2 + rankCount * NODE_W + Math.max(0, rankCount - 1) * rankGap;
+    const height = maxColHeight + padding * 2;
+
+    return { nodes, edges: flow.edges, width, height, ranks };
+  }
 
   const rankWidths = ranks.map(
     r => r.length * NODE_W + Math.max(0, r.length - 1) * nodeGap

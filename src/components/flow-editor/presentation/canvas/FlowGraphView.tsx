@@ -24,17 +24,26 @@ export default function FlowGraphView({ flow }: FlowGraphViewProps) {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  const layout = useMemo(() => layoutTopology(flow), [flow]);
+  // 宽容器（横屏）用 LR 布局沿阅读方向展开；竖屏保持 TB
+  const [direction, setDirection] = useState<'TB' | 'LR'>(() =>
+    typeof window !== 'undefined' && window.innerWidth > window.innerHeight ? 'LR' : 'TB'
+  );
+
+  const layout = useMemo(
+    () => layoutTopology(flow, { direction }),
+    [flow, direction]
+  );
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [autoFit, setAutoFit] = useState(true);
+  const [fitMode, setFitMode] = useState<'readable' | 'all' | 'none'>('readable');
 
   const { nodeSizes, setNodeRef } = useNodeSizeMeasurement({
     nodes: layout.nodes,
     canvasScale: scale,
   });
 
+  // 全图塞入视口（可能牺牲可读性）
   const fitToContainer = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -45,32 +54,53 @@ export default function FlowGraphView({ flow }: FlowGraphViewProps) {
     setScale(Math.max(0.2, Math.round(s * 100) / 100));
   }, [layout.width, layout.height]);
 
+  // 可读优先：全图适配若会缩得过小（<0.6），退化为单轴适配 + 滚动
+  // LR 布局保高度（横向滚动跟随阅读方向），TB 布局保宽度
+  const fitReadable = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const availW = el.clientWidth - 32;
+    const availH = el.clientHeight - 32;
+    if (availW <= 0 || availH <= 0) return;
+    const fitAll = Math.min(availW / layout.width, availH / layout.height, 1);
+    if (fitAll >= 0.6) {
+      setScale(Math.round(fitAll * 100) / 100);
+      return;
+    }
+    const axisFit = direction === 'LR'
+      ? Math.min(availH / layout.height, 1)
+      : Math.min(availW / layout.width, 1);
+    setScale(Math.max(0.6, Math.round(axisFit * 100) / 100));
+  }, [layout.width, layout.height, direction]);
+
   useEffect(() => {
-    if (autoFit) fitToContainer();
-  }, [autoFit, fitToContainer]);
+    if (fitMode === 'readable') fitReadable();
+    else if (fitMode === 'all') fitToContainer();
+  }, [fitMode, fitReadable, fitToContainer]);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const ro = new ResizeObserver(() => {
-      if (autoFit) fitToContainer();
+      if (fitMode === 'readable') fitReadable();
+      else if (fitMode === 'all') fitToContainer();
     });
     ro.observe(el);
     return () => ro.disconnect();
-  }, [autoFit, fitToContainer]);
+  }, [fitMode, fitReadable, fitToContainer]);
 
   const zoomBy = (delta: number) => {
-    setAutoFit(false);
+    setFitMode('none');
     setScale(s => Math.min(2, Math.max(0.2, Math.round((s + delta) * 100) / 100)));
   };
 
   const resetView = () => {
-    setAutoFit(false);
+    setFitMode('none');
     setScale(1);
   };
 
   const fitView = () => {
-    setAutoFit(true);
+    setFitMode('all');
     fitToContainer();
   };
 
