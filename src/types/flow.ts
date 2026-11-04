@@ -446,6 +446,8 @@ export interface ConfigFieldSchema {
   options?: SelectOption[];       // select 候选列表
   placeholder?: string;           // 输入提示
   required?: boolean;             // 是否必填
+  /** 空串视为合法值（如 saving_throw.dc 留空 = 施法者法术豁免 DC） */
+  allowEmpty?: boolean;
   defaultValue?: any;             // 默认值
   children?: ConfigFieldSchema[]; // object 类型的子字段
   description?: string;           // 字段说明（仅展示，不入 config）
@@ -590,8 +592,9 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       label: '难度等级 (DC)',
       type: 'template',
       required: true,
-      placeholder: '如 ${caster.spellSaveDc} 或固定值 15',
-      defaultValue: '${caster.spellSaveDc}',
+      allowEmpty: true,
+      placeholder: '留空 = 施法者法术豁免 DC；或固定值 15',
+      defaultValue: '',
     },
   ],
   attack_roll: [],

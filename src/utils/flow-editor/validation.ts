@@ -1,5 +1,7 @@
 import type { FlowDefinition, FlowNodeType } from '@/types/flow';
-import { NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
+import { NODE_CONFIG_SCHEMA, NODE_TYPE_REGISTRY, isConfigFieldVisible } from '@/types/flow';
+
+const VALID_NODE_TYPES = new Set(NODE_TYPE_REGISTRY.map(n => n.type));
 
 // ===== 增强的校验函数，提供节点级别错误 =====
 export interface ValidationError {
@@ -43,6 +45,8 @@ export function validateFlowWithDetails(flow: FlowDefinition): ValidationError[]
 
     if (!node.type || typeof node.type !== 'string') {
       errors.push({ type: 'node', id: node.id, message: `${nodeId}缺少节点类型` });
+    } else if (!VALID_NODE_TYPES.has(node.type as FlowNodeType)) {
+      errors.push({ type: 'node', id: node.id, message: `${nodeId}节点类型非法: ${node.type}` });
     }
 
     // 检查节点配置
@@ -51,7 +55,7 @@ export function validateFlowWithDetails(flow: FlowDefinition): ValidationError[]
       if (schema) {
         for (const field of schema) {
           if (!isConfigFieldVisible(field, node.config)) continue;
-          if (field.required && (node.config[field.key] === undefined || node.config[field.key] === null || node.config[field.key] === '')) {
+          if (field.required && !field.allowEmpty && (node.config[field.key] === undefined || node.config[field.key] === null || node.config[field.key] === '')) {
             errors.push({
               type: 'node',
               id: node.id,
@@ -63,9 +67,10 @@ export function validateFlowWithDetails(flow: FlowDefinition): ValidationError[]
       }
     }
 
-    // 检查位置
-    if (!node.position || typeof node.position.x !== 'number' || typeof node.position.y !== 'number') {
-      errors.push({ type: 'node', id: node.id, message: `${nodeId}位置坐标无效` });
+    // position 为可选字段：缺失时编辑器自动布局、运行时不需要坐标；
+    // 仅当写了 position 但字段形状错误时报错
+    if (node.position && (typeof node.position.x !== 'number' || typeof node.position.y !== 'number')) {
+      errors.push({ type: 'node', id: node.id, message: `${nodeId}位置坐标格式错误` });
     }
   }
 
@@ -222,12 +227,8 @@ function validatePublishSpecific(flow: FlowDefinition) {
     suggestions.push('删除或连接孤立的节点，确保所有节点都在流程路径中');
   }
 
-  // 检查循环引用
-  const hasCycles = detectCycles(flow);
-  if (hasCycles) {
-    issues.push('检测到可能的循环引用');
-    suggestions.push('检查流程是否存在无限循环，确保流程能够正常结束');
-  }
+  // 循环引用不阻断发布：运行时边遍历带 visited 防环，含回流边的图（如条件分支
+  // 回到上游重试）是合法拓扑；此前把「检测到循环」当发布错误属误判
 
   // 检查法术兼容性
   if (flow.spellId) {
@@ -247,38 +248,6 @@ function validatePublishSpecific(flow: FlowDefinition) {
   }
 
   return { valid: true };
-}
-
-// 检测循环引用
-function detectCycles(flow: FlowDefinition): boolean {
-  const visited = new Set<string>();
-  const recursionStack = new Set<string>();
-
-  const hasCycle = (nodeId: string): boolean => {
-    if (recursionStack.has(nodeId)) return true;
-    if (visited.has(nodeId)) return false;
-
-    visited.add(nodeId);
-    recursionStack.add(nodeId);
-
-    const outgoingEdges = flow.edges.filter(e => e.from === nodeId);
-    for (const edge of outgoingEdges) {
-      if (hasCycle(edge.to)) {
-        return true;
-      }
-    }
-
-    recursionStack.delete(nodeId);
-    return false;
-  };
-
-  for (const node of flow.nodes) {
-    if (!visited.has(node.id) && hasCycle(node.id)) {
-      return true;
-    }
-  }
-
-  return false;
 }
 
 // 检查法术兼容性
