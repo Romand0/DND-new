@@ -93,6 +93,20 @@ export default function InitiativeTable(props: Props) {
                           专注
                         </span>
                       )}
+                      {/* 激励骰徽标：持有未消费的次数型检定加值（吟游诗人激励等） */}
+                      {(() => {
+                        const mod = c.pendingCheckModifiers?.find(m => !m.consumed && m.remainingUses > 0);
+                        if (!mod) return null;
+                        const dieLabel = mod.dice.sides > 0 ? ` d${mod.dice.sides}` : '';
+                        return (
+                          <span
+                            className="shrink-0 px-1 py-0.5 rounded bg-sky-500/20 text-sky-400 text-[10px] font-normal"
+                            title={mod.reason}
+                          >
+                            激励{dieLabel}
+                          </span>
+                        );
+                      })()}
                     </span>
                   </button>
                 </div>

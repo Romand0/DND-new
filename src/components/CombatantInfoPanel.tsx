@@ -30,6 +30,8 @@ interface Props {
   bonusActions?: number;
   /** 点击「协助」动作时回调（由 CombatSession 实现友方选择 + pending 标记） */
   onHelpClick?: () => void;
+  /** 点击「吟游诗人激励」动作时回调（由 CombatSession 实现友方选择 + 附赠动作消耗） */
+  onBardicClick?: () => void;
   /** 点击「攻击」动作时回调（用于替代 info 面板内按钮，保持动作面板入口统一） */
   onAttackClick?: () => void;
   /** 点击「施法」动作时回调 */
@@ -44,7 +46,7 @@ interface Props {
   provingRecord?: CombatRecord | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -831,6 +833,60 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 </div>
               )}
 
+              {/* 状态卡片：激励骰（次数型检定奖惩，未消费项展示；支持手动移除） */}
+              {(combatant.pendingCheckModifiers || []).some(m => !m.consumed && m.remainingUses > 0) && (
+                <div className="rounded-lg border border-sky-500/40 overflow-hidden">
+                  <button
+                    onClick={() => toggleStatusExpand('bardic')}
+                    className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium dark:text-text-dark light:text-text-light">激励骰</span>
+                      {(combatant.pendingCheckModifiers || [])
+                        .filter(m => !m.consumed && m.remainingUses > 0)
+                        .map(m => (
+                          <span key={m.id} className="text-xs px-1.5 py-0.5 rounded bg-sky-500/20 text-sky-400">
+                            {m.dice.sides > 0 ? `d${m.dice.sides}` : `+${m.dice.flatBonus ?? 0}`}
+                          </span>
+                        ))}
+                    </div>
+                    {expandedStatuses.has('bardic') ? (
+                      <ChevronUp className="w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+                    ) : (
+                      <ChevronDown className="w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
+                    )}
+                  </button>
+                  {expandedStatuses.has('bardic') && (
+                    <div className="px-3 pb-3 space-y-1.5 border-t border-sky-500/40 pt-2">
+                      {(combatant.pendingCheckModifiers || [])
+                        .filter(m => !m.consumed && m.remainingUses > 0)
+                        .map(m => (
+                          <div key={m.id} className="flex items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted truncate">
+                                {m.reason}
+                              </p>
+                              <p className="text-[10px] opacity-60">
+                                剩余 {m.remainingUses} 次 · 攻击/法术/豁免/技能检定后可加值
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const rec = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
+                                if (!rec) return;
+                                combatStore.removePendingCheckModifier(rec.id, combatant.id, m.id);
+                              }}
+                              className="shrink-0 px-2 py-1 rounded border border-sky-500/40 text-sky-400 text-xs hover:bg-sky-500/10 transition-colors"
+                            >
+                              移除
+                            </button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* 状态卡片：失能 */}
               {combatant.isIncapacitated && (
                 <div className="rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">
@@ -1096,6 +1152,15 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     );
                   })}
                 </div>
+                {onBardicClick && (
+                  <button
+                    type="button"
+                    onClick={onBardicClick}
+                    className="mt-1.5 w-full px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light hover:bg-primary/15 active:scale-[0.98]"
+                  >
+                    吟游诗人激励（附赠动作）
+                  </button>
+                )}
                 {onForcedMoveClick && (
                   <button
                     type="button"

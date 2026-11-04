@@ -140,6 +140,20 @@ function migrateProvingGroundData(record: CombatRecord) {
   });
 }
 
+// 吟游诗人激励骰面派生：诗人 1-4 级 d6、5-9 d8、10-14 d10、15+ d12（5e 激励特性随等级成长）。
+// 非诗人（或 NPC/无角色卡）默认 d6——DM 对魔法物品等来源裁量发放。
+function getBardicDie(c: Combatant): { sides: number; label: string } {
+  const char = c.characterId ? characterStore.get(c.characterId) : null;
+  const cls = String(char?.profession?.class ?? (char as any)?.class ?? '');
+  if (cls.includes('吟游诗人') && char) {
+    const lv = typeof char.level === 'number' ? char.level : 1;
+    if (lv >= 15) return { sides: 12, label: 'd12' };
+    if (lv >= 10) return { sides: 10, label: 'd10' };
+    if (lv >= 5) return { sides: 8, label: 'd8' };
+  }
+  return { sides: 6, label: 'd6' };
+}
+
 export default function CombatSession() {
   // 原内容：完全保留，一个字都没改（和App.tsx路由参数完全对齐）
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -183,6 +197,7 @@ export default function CombatSession() {
   } | null>(null);
   // ✅ 新增：协助（Help）动作弹窗 —— 选择友方 → 挂 pending 优劣势标记
   const [helpModal, setHelpModal] = useState<{ from: Combatant } | null>(null);
+  const [bardicModal, setBardicModal] = useState<{ from: Combatant } | null>(null);
 
   // ✅ 选中格状态（先攻表格操作 + 手动记录弹窗依赖）
   const [selectedCell, setSelectedCell] = useState<{ round: number; combatantId: string } | null>(null);
@@ -701,6 +716,10 @@ export default function CombatSession() {
     setHelpModal({ from: c });
   };
 
+  const openBardicFor = (c: Combatant) => {
+    setBardicModal({ from: c });
+  };
+
   const openAttackFor = (c: Combatant) => {
     // 攻击需要目标，若已有上次选中的敌人优先；否则提示等手动选择
     const potentialTarget = record.combatants.find(x => x.id !== c.id && !x.isDead);
@@ -1098,6 +1117,7 @@ export default function CombatSession() {
         sessionId={record.id}
         combatants={record.combatants}
         onPanelHelpClick={openHelpFor}
+        onPanelBardicClick={openBardicFor}
         onPanelAttackClick={openAttackFor}
         onPanelCastClick={openCastFor}
         onPanelDashClick={dashFor}
@@ -1822,6 +1842,84 @@ export default function CombatSession() {
         );
       })()}
 
+      {/* 吟游诗人激励弹窗：附赠动作发放一枚消耗型检定加值骰（复用次数型奖惩引擎） */}
+      {bardicModal && record && (() => {
+        const from = bardicModal.from;
+        const die = getBardicDie(from);
+        const friendlies = record.combatants.filter(
+          c => c.id !== from.id && c.isPc === from.isPc && !c.isDead,
+        );
+        return (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={() => setBardicModal(null)}>
+            <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
+                  吟游诗人激励
+                </h3>
+                <button onClick={() => setBardicModal(null)} className="p-1 rounded hover:bg-white/10">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-2">
+                发出者：<span className="font-medium dark:text-text-dark light:text-text-light">{from.name}</span>
+              </p>
+              <ul className="text-xs dark:text-text-dark-muted light:text-text-light-muted space-y-0.5 mb-4 list-disc pl-5">
+                <li>效果：获得一枚{die.label}，进行能力检定 / 攻击检定 / 豁免检定后可将其结果加到检定值上（弹窗内自行决定是否使用）</li>
+                <li>类型：一次性消耗，用后即失效</li>
+                <li>有效期：10 分钟内（按战斗尺度等效整场战斗）</li>
+                <li>消耗：发出者的 1 个附赠动作</li>
+              </ul>
+              <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
+                选择激励对象（友方 · {friendlies.length}）
+              </div>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {friendlies.length === 0 && (
+                  <div className="text-xs opacity-60 text-center py-6">当前没有可选择的友方</div>
+                )}
+                {friendlies.map(f => {
+                  const held = (f.pendingCheckModifiers || []).some(m => !m.consumed && m.remainingUses > 0);
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        if (!record) return;
+                        const curRound = currentTurn?.round ?? 0;
+                        // scene='any' 覆盖攻击/法术/豁免/技能检定；forced=false 让玩家在检定弹窗自行决定是否使用
+                        combatStore.addPendingCheckModifier(record.id, f.id, {
+                          fromId: from.id,
+                          fromName: from.name,
+                          reason: `${from.name} 的吟游诗人激励（${die.label}）`,
+                          mode: 'bonus',
+                          dice: { count: 1, sides: die.sides, flatBonus: 0 },
+                          scene: 'any',
+                          forced: false,
+                          createdRound: curRound,
+                          expireRound: -1,
+                          uses: 1,
+                        });
+                        // 消耗 1 个附赠动作
+                        consumeCombatantBonusAction(from.id);
+                        recordOperation(from.id, `激励 ${f.name}（${die.label}）`, 'record');
+                        setBardicModal(null);
+                      }}
+                      className="w-full text-left px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/60 hover:bg-primary/5 transition-colors"
+                    >
+                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{f.name}</div>
+                      <div className="text-xs opacity-60">
+                        {f.isPc ? '玩家角色' : 'NPC'}
+                        {f.initiative ? ` · 先攻 ${f.initiative}` : ''}
+                        {held ? ' · 已持有激励骰' : ''}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ✅ 突袭选择弹窗 */}
       {surpriseAttackOpen && (
         <SurpriseAttackDialog
@@ -2015,6 +2113,7 @@ export default function CombatSession() {
             actions={liveCombatant.actions}
             bonusActions={liveCombatant.bonusActions}
             onHelpClick={() => openHelpFor(liveCombatant)}
+            onBardicClick={() => openBardicFor(liveCombatant)}
             onAttackClick={() => openAttackFor(liveCombatant)}
             onCastClick={() => {
               openCastFor(liveCombatant);

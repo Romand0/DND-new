@@ -38,6 +38,8 @@ interface Props {
   onUpdateChanges?: (combatantId: string, changes: EquipmentChanges) => void;
   /** 双击棋子信息面板：协助动作（交由 main 打开协助弹窗） */
   onPanelHelpClick?: (combatant: Combatant) => void;
+  /** 点击「吟游诗人激励」动作时回调（CombatSession 挂发放弹窗） */
+  onPanelBardicClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：攻击动作（交由 main 打开攻击检定弹窗） */
   onPanelAttackClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：施法动作（交由 main 打开施法弹窗） */
@@ -69,7 +71,7 @@ interface Props {
   onTokenMoved?: (combatantId: string, pos: { col: number; row: number }) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelBardicClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved }: Props) {
   const navigate = useNavigate();
   const [bg, setBg] = useState<BG | null>(null);
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
@@ -1684,6 +1686,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   isProvingGround={isProvingGround}
                   provingRecord={provingRecord}
                   onHelpClick={() => onPanelHelpClick?.(live)}
+                  onBardicClick={() => onPanelBardicClick?.(live)}
                   onAttackClick={() => onPanelAttackClick?.(live)}
                   onCastClick={() => onPanelCastClick?.(live)}
                   onDashClick={() => onPanelDashClick?.(live)}

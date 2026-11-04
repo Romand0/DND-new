@@ -466,6 +466,28 @@ function load(): CombatRecord[] {
           createdRound: typeof s.createdRound === 'number' && Number.isFinite(s.createdRound) ? s.createdRound : 0,
           expireRound: typeof s.expireRound === 'number' && Number.isFinite(s.expireRound) ? s.expireRound : -1,
           })) : [],
+          // 次数型检定奖惩（吟游诗人激励骰等；白名单重建，缺兜底会在刷新后丢骰且下次保存永久抹掉）
+          pendingCheckModifiers: Array.isArray(c.pendingCheckModifiers) ? c.pendingCheckModifiers.filter(
+            (m: any) => m && typeof m === 'object' && typeof m.id === 'string'
+          ).map((m: any) => ({
+            id: m.id,
+            fromId: typeof m.fromId === 'string' ? m.fromId : undefined,
+            fromName: typeof m.fromName === 'string' ? m.fromName : undefined,
+            reason: typeof m.reason === 'string' ? m.reason : '未命名奖惩',
+            mode: m.mode === 'penalty' ? 'penalty' : 'bonus',
+            dice: m.dice && typeof m.dice === 'object' ? {
+              count: typeof m.dice.count === 'number' && Number.isFinite(m.dice.count) ? Math.max(0, Math.trunc(m.dice.count)) : 0,
+              sides: typeof m.dice.sides === 'number' && Number.isFinite(m.dice.sides) ? Math.max(0, Math.trunc(m.dice.sides)) : 0,
+              flatBonus: typeof m.dice.flatBonus === 'number' && Number.isFinite(m.dice.flatBonus) ? m.dice.flatBonus : 0,
+            } : { count: 0, sides: 0, flatBonus: 0 },
+            scene: m.scene ?? 'any',
+            forced: !!m.forced,
+            remainingUses: typeof m.remainingUses === 'number' && Number.isFinite(m.remainingUses) ? Math.max(0, Math.trunc(m.remainingUses)) : 1,
+            totalUses: typeof m.totalUses === 'number' && Number.isFinite(m.totalUses) ? Math.max(1, Math.trunc(m.totalUses)) : 1,
+            consumed: !!m.consumed,
+            createdRound: typeof m.createdRound === 'number' && Number.isFinite(m.createdRound) ? Math.trunc(m.createdRound) : 0,
+            expireRound: typeof m.expireRound === 'number' && Number.isFinite(m.expireRound) ? m.expireRound : -1,
+          })) : [],
           // 专注状态（战斗临时数据，随记录持久化；非法结构静默丢弃）
           concentration: (() => {
             const cc = c.concentration;
