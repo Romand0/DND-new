@@ -43,6 +43,13 @@ const playerNavItems = [
   { path: '/player/spells', label: '法术库', icon: Sparkles },
 ];
 
+// 移动端菜单顶部「剧情工具」领域：DM 专属页面（玩家路由无此三页）
+const toolItems = [
+  { path: '/clock', label: '游戏时钟', icon: Clock },
+  { path: '/calendar', label: '日历', icon: Calendar },
+  { path: '/dice', label: '骰子', icon: Dices },
+];
+
 export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }) {
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
@@ -167,30 +174,54 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
 
       {mobileMenuOpen && (
         <div className="md:hidden max-h-[calc(100dvh-4rem)] overflow-y-auto overscroll-contain border-t border-border-dark bg-bg-dark">
-          <div className="px-4 py-3 space-y-1">
-            {/* 主导航组 */}
-            <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
-              导航
+          <div className="px-4 py-3 space-y-3">
+            {/* 剧情工具领域：三个仅图标按钮并排挤满一行（玩家端无对应路由，隐藏） */}
+            {!(variant === 'player' || isPlayerPath) && (
+              <div className="grid grid-cols-3 gap-2">
+              {toolItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname.startsWith(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    title={item.label}
+                    className={`flex items-center justify-center py-4 rounded-lg transition-colors ${
+                      isActive
+                        ? 'bg-primary/20 text-primary'
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6" />
+                  </Link>
+                );
+              })}
+              </div>
+            )}
+
+            {/* 跳转栏：两列网格，一行两项，缩短扫视距离 */}
+            <div className="grid grid-cols-2 gap-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname.startsWith(item.path);
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-primary/20 text-primary'
+                        : 'text-gray-300 hover:text-white hover:bg-white/10'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5 shrink-0" />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                );
+              })}
             </div>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname.startsWith(item.path);
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-primary/20 text-primary'
-                      : 'text-gray-300 hover:text-white hover:bg-white/10'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </Link>
-              );
-            })}
           </div>
         </div>
       )}
