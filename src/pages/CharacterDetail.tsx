@@ -30,6 +30,7 @@ import {
   Library,
   Tag,
   RefreshCw,
+  Search,
 } from 'lucide-react';
 import type { Character, Abilities, AbilityScore, AbilityKey, SkillKey, ProficiencyCategory, Equipment, Attack, Feature, FeatureRole } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
@@ -86,8 +87,6 @@ const proficiencyEntryLabels: Record<string, string> = {
 };
 
 // ===== 特性作用方式分类（FeatureRole）=====
-// 徽标点击循环顺序：被动 → 主动 → 属性 → 被动
-const FEATURE_ROLE_ORDER: FeatureRole[] = ['passive', 'active', 'stat'];
 // 区块渲染顺序：主动技能（最大展示度）→ 被动技能 → 属性调整（融入数值，压缩在末尾）
 const FEATURE_RENDER_ORDER: FeatureRole[] = ['active', 'passive', 'stat'];
 
@@ -911,26 +910,19 @@ export default function CharacterDetail({
   });
   const [hiddenFeaturesOpen, setHiddenFeaturesOpen] = useState(false);
   // 特性作用方式筛选（localStorage 持久，跨会话记住浏览视角）
-  const [featureRoleFilter, setFeatureRoleFilter] = useState<'all' | FeatureRole>(() => {
+  // 作用方式筛选页（无「全部」页：查找用搜索替代），旧 localStorage 里存的 'all' 视为无效回默认
+  const [featureRoleFilter, setFeatureRoleFilter] = useState<FeatureRole>(() => {
     try {
       const saved = localStorage.getItem('dnd-feature-role-filter');
-      if (saved === 'stat' || saved === 'passive' || saved === 'active' || saved === 'all') return saved;
+      if (saved === 'stat' || saved === 'passive' || saved === 'active') return saved;
     } catch { /* ignore */ }
-    return 'all';
+    return 'active';
   });
   useEffect(() => {
     try { localStorage.setItem('dnd-feature-role-filter', featureRoleFilter); } catch { /* ignore */ }
   }, [featureRoleFilter]);
-  // 手动覆盖作用方式：点击卡片分类徽标循环切换（passive → active → stat → passive），显式写回角色卡
-  const cycleFeatureRole = (feature: Feature) => {
-    if (!id) return;
-    const cur = deriveFeatureRole(feature);
-    const next = FEATURE_ROLE_ORDER[(FEATURE_ROLE_ORDER.indexOf(cur) + 1) % FEATURE_ROLE_ORDER.length];
-    characterStore.update(id, {
-      features: (character.features || []).map((f) => (f.id === feature.id ? { ...f, role: next } : f)),
-    });
-    reloadChar();
-  };
+  // 特性搜索：跨作用方式分类按名称与描述匹配（替代原「全部」页的查找职能）
+  const [featureSearch, setFeatureSearch] = useState('');
   // 隐藏操作需二次确认（防误触）；恢复显示无破坏性，直接执行
   const [hideConfirmKey, setHideConfirmKey] = useState<string | null>(null);
   const toggleFeatureHidden = (key: string) => {
@@ -1359,8 +1351,6 @@ export default function CharacterDetail({
 
   // 特性/特质卡片（主列表与底部隐藏折叠块共用）；inHiddenBlock 时眼睛按钮变为恢复
   const renderFeatureCard = (feature: Feature, inHiddenBlock: boolean) => {
-    const role = deriveFeatureRole(feature);
-    const roleMeta = FEATURE_ROLE_META[role];
     return (
     <div
       key={feature.id}
@@ -1378,18 +1368,6 @@ export default function CharacterDetail({
         {feature.category && (
           <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
             {feature.category}
-          </span>
-        )}
-        <button
-          onClick={() => cycleFeatureRole(feature)}
-          className={`px-1.5 py-0.5 rounded-full text-xs flex-shrink-0 ${roleMeta.chip}`}
-          title={`${roleMeta.label}——${roleMeta.hint}（点击切换分类）`}
-        >
-          {roleMeta.label}
-        </button>
-        {feature.source && (
-          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted truncate">
-            {feature.source}
           </span>
         )}
         <button
@@ -2856,11 +2834,10 @@ if (character) {
                 <RefreshCw className="w-4 h-4" />
                 刷新选项特性与特质
               </button>
-              {/* 作用方式筛选：主动技能（最大展示度）→ 被动技能 → 属性调整（融入数值，压缩展示） */}
+              {/* 作用方式分页（主动技能最大展示度 → 被动技能 → 属性调整融入数值）+ 跨分类搜索 */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                {(['all', 'active', 'passive', 'stat'] as const).map((key) => {
+                {(['active', 'passive', 'stat'] as FeatureRole[]).map((key) => {
                   const active = featureRoleFilter === key;
-                  const label = key === 'all' ? '全部' : FEATURE_ROLE_META[key].label;
                   return (
                     <button
                       key={key}
@@ -2871,10 +2848,20 @@ if (character) {
                           : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10'
                       }`}
                     >
-                      {label}
+                      {FEATURE_ROLE_META[key].label}
                     </button>
                   );
                 })}
+                <div className="relative flex-1 min-w-[160px] ml-auto">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 dark:text-text-dark-muted light:text-text-light-muted pointer-events-none" />
+                  <input
+                    type="text"
+                    value={featureSearch}
+                    onChange={(e) => setFeatureSearch(e.target.value)}
+                    placeholder="搜索特性名称或描述"
+                    className="w-full pl-8 pr-2 py-1 rounded-full border bg-transparent text-xs dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light placeholder-gray-400 focus:outline-none focus:border-primary"
+                  />
+                </div>
               </div>
               {(() => {
                 // 熟练类派生条目（护甲/武器/工具/技能熟练项、语言、装备）收进一张集中卡片，
@@ -2949,54 +2936,49 @@ if (character) {
                     </div>
                   </div>
                 ) : null;
-                // 单一分类筛选：只渲染该组（属性调整组附带熟练项集中卡片）
-                if (featureRoleFilter !== 'all') {
-                  const list = groups[featureRoleFilter];
-                  const showProfCard = featureRoleFilter === 'stat' ? profCard : null;
-                  if (list.length === 0 && !showProfCard) {
+                // 搜索模式：跨作用方式分类按名称与描述匹配（含熟练条目），平铺渲染
+                const kw = featureSearch.trim().toLowerCase();
+                if (kw) {
+                  const matched = visible.filter(
+                    (f) =>
+                      f.name.toLowerCase().includes(kw) ||
+                      (f.description || '').toLowerCase().includes(kw)
+                  );
+                  if (matched.length === 0) {
                     return (
                       <div className="py-4 text-center text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                        该分类下暂无特性（点击卡片上的分类徽标可手动调整归类）
+                        没有匹配「{featureSearch.trim()}」的特性
                       </div>
                     );
                   }
                   return (
-                    <>
-                      {list.map((feature) => renderFeatureCard(feature, false))}
-                      {showProfCard}
-                    </>
+                    <div className="space-y-2">
+                      {matched.map((feature) => renderFeatureCard(feature, false))}
+                    </div>
                   );
                 }
-                // 全部视角：主动技能（最大展示度）→ 被动技能 → 属性调整（融入数值，压缩在末尾）
+                // 分页模式：只渲染当前作用方式组（属性调整组附带熟练项集中卡片）
+                const list = groups[featureRoleFilter];
+                const showProfCard = featureRoleFilter === 'stat' ? profCard : null;
+                if (list.length === 0 && !showProfCard) {
+                  return (
+                    <div className="py-4 text-center text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      该分类下暂无特性
+                    </div>
+                  );
+                }
                 return (
                   <>
-                    {FEATURE_RENDER_ORDER.map((role) => {
-                      const list = groups[role];
-                      if (list.length === 0) return null;
-                      const meta = FEATURE_ROLE_META[role];
-                      return (
-                        <div key={role} className="mt-1">
-                          <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <span className={`text-xs font-medium ${meta.chip}`}>{meta.label}</span>
-                            <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
-                              {meta.hint}
-                            </span>
-                          </div>
-                          <div className="space-y-2">
-                            {list.map((feature) => renderFeatureCard(feature, false))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {profCard}
+                    {list.map((feature) => renderFeatureCard(feature, false))}
+                    {showProfCard}
                   </>
                 );
               })()}
               {(() => {
-                // 隐藏条目跟随当前作用方式筛选：全部视角按渲染顺序排序；单选分类只显示该组的隐藏条目
+                // 隐藏条目跟随当前作用方式分页，组间按渲染顺序排序
                 const hiddenList = character.features
                   .filter((f) => hiddenFeatures.has(`${f.category || ''}:${f.name}`))
-                  .filter((f) => featureRoleFilter === 'all' || deriveFeatureRole(f) === featureRoleFilter)
+                  .filter((f) => deriveFeatureRole(f) === featureRoleFilter)
                   .sort(
                     (a, b) =>
                       FEATURE_RENDER_ORDER.indexOf(deriveFeatureRole(a)) -
