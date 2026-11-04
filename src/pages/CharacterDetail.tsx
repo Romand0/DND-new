@@ -2892,9 +2892,12 @@ if (character) {
                         const group = profGroup.filter((f) => f.name === entryName);
                         if (group.length === 0) return null;
                         const editingRow = editProfId && group.some((f) => f.id === editProfId);
+                        // 合并行隐藏需携带全部组成条目的 key（confirm 弹窗按逗号拆分逐个 toggle）
+                        const rowKeys = group.map((f) => `${f.category || ''}:${f.name}`).join(',');
+                        const sourceCats = [...new Set(group.map((f) => f.category).filter(Boolean))];
                         return (
-                          <div key={entryName} className="text-sm">
-                            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted mr-2 inline-block w-10 flex-shrink-0">
+                          <div key={entryName} className="text-sm flex items-start gap-2">
+                            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted mr-1 inline-block w-10 flex-shrink-0 pt-0.5">
                               {label}
                             </span>
                             {editingRow ? (
@@ -2911,13 +2914,21 @@ if (character) {
                                 }}
                                 onBlur={saveProfDescription}
                                 rows={2}
-                                className="w-full mt-1 p-2 rounded-lg border text-xs bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                                className="flex-1 min-w-0 p-2 rounded-lg border text-xs bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
                               />
                             ) : (
-                              <span className="dark:text-text-dark light:text-text-light">
+                              <span className="flex-1 min-w-0 dark:text-text-dark light:text-text-light break-words">
                                 {group.map((f) => f.description).join('；')}
                               </span>
                             )}
+                            {sourceCats.map((c) => (
+                              <span
+                                key={c}
+                                className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0"
+                              >
+                                {c}
+                              </span>
+                            ))}
                             <button
                               onClick={() => {
                                 setEditProfId(group[0].id);
@@ -2925,10 +2936,17 @@ if (character) {
                               }}
                               title="编辑描述"
                               className={editingRow
-                                ? 'text-primary'
-                                : 'dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary'}
+                                ? 'text-primary flex-shrink-0 pt-0.5'
+                                : 'dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary flex-shrink-0 pt-0.5'}
                             >
-                              <Edit2 className="w-3 h-3 inline ml-1.5" />
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setHideConfirmKey(rowKeys)}
+                              title="隐藏"
+                              className="dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary flex-shrink-0 pt-0.5"
+                            >
+                              <EyeOff className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         );
@@ -3223,7 +3241,10 @@ if (character) {
               </button>
               <button
                 onClick={() => {
-                  if (hideConfirmKey) toggleFeatureHidden(hideConfirmKey);
+                  // 熟练项合并行携带多个条目 key（逗号分隔），逐个加入隐藏集合
+                  if (hideConfirmKey) {
+                    hideConfirmKey.split(',').forEach((k) => toggleFeatureHidden(k));
+                  }
                   setHideConfirmKey(null);
                 }}
                 className="flex-1 py-2 px-4 text-sm rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors"
