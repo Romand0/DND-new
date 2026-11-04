@@ -55,6 +55,9 @@ export async function onRequestPost(context: any): Promise<Response> {
   if (!Array.isArray(body)) {
     return errorResponse(400, '请传入选项数组');
   }
+  if (body.length === 0) {
+    return errorResponse(400, '选项数组为空');
+  }
   const validItems = body.filter((item: any) => item && typeof item.id === 'string' && item.id.length > 0 && typeof item.category === 'string');
   if (validItems.length === 0) {
     return errorResponse(400, '数组中没有有效的选项数据（缺少 id 或 category）');

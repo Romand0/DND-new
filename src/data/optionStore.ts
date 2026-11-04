@@ -84,8 +84,14 @@ let cache: CharacterOption[] | null = null;
 // localStorage / 云端已有数据时回调不覆盖既有缓存（!cache 判断）
 import('@/data/options.json')
   .then((m) => {
+    const flat = flattenSeed((m as any).default);
     if (!cache) {
-      cache = flattenSeed((m as any).default);
+      cache = flat;
+    }
+    // syncToCloud 推送的是 SEED_OPTIONS 引用（const 数组，只锁引用不锁内容）：
+    // chunk 到达后回填，否则推送选项种子永远是空数组，后端 400「缺少 id 或 category」
+    if (SEED_OPTIONS.length === 0) {
+      SEED_OPTIONS.push(...flat);
     }
     notifyListeners();
   })
@@ -167,6 +173,10 @@ export const optionStore = {
 
   // 种子条目同步到云端（供数据管理页触发）
   async syncToCloud(): Promise<number> {
+    if (SEED_OPTIONS.length === 0) {
+      // 种子 chunk 尚未到达（刷新后立即点击）或加载失败
+      throw new Error('选项种子尚未加载完成，请稍后重试');
+    }
     const res = await api.batchUpsertOptions(SEED_OPTIONS);
     return res.count;
   },
