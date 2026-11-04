@@ -1,8 +1,9 @@
 import React from 'react';
 import type { FlowNodeDef } from '@/types/flow';
-import { NODE_TYPE_REGISTRY, NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
+import { NODE_TYPE_REGISTRY } from '@/types/flow';
 import { NODE_W } from '@/utils/flow-editor/constants';
 import { resolveNodeIcon } from '@/utils/flow-editor/node-icon';
+import { describeNodeConfig } from '@/utils/flowDescribe';
 
 interface FlowNodeCardProps {
   node: FlowNodeDef;
@@ -13,15 +14,11 @@ interface FlowNodeCardProps {
 }
 
 /**
- * 只读节点卡片：仅描述节点的语义与配置摘要，不含拖拽/连接/删除等编辑交互。
+ * 只读节点卡片：节点的语义与自然语言配置摘要，不含拖拽/连接/删除等编辑交互。
  */
 export default function FlowNodeCard({ node, x, y, nodeRef }: FlowNodeCardProps) {
   const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
-  const schema = NODE_CONFIG_SCHEMA[node.type] ?? [];
-  const configEntries = Object.entries(node.config ?? {}).filter(([key]) => {
-    const field = schema.find(f => f.key === key);
-    return !field || isConfigFieldVisible(field, node.config);
-  });
+  const descriptions = describeNodeConfig(node);
 
   return (
     <div
@@ -30,7 +27,10 @@ export default function FlowNodeCard({ node, x, y, nodeRef }: FlowNodeCardProps)
       className="absolute select-none"
       style={{ left: x, top: y, width: NODE_W }}
     >
-      <div className="rounded-lg border-2 border-primary/30 dark:bg-bg-dark-2 light:bg-white shadow-sm p-2.5">
+      <div
+        className="rounded-lg border-2 border-primary/30 dark:bg-bg-dark-2 light:bg-white shadow-sm p-2.5"
+        title={descriptions.length > 0 ? descriptions.join('\n') : undefined}
+      >
         <div className="flex items-center gap-2 mb-1.5">
           <span
             className="w-5 h-5 rounded flex items-center justify-center text-white flex-shrink-0"
@@ -48,12 +48,11 @@ export default function FlowNodeCard({ node, x, y, nodeRef }: FlowNodeCardProps)
           </div>
         </div>
 
-        {configEntries.length > 0 && (
+        {descriptions.length > 0 && (
           <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5 max-h-16 overflow-hidden">
-            {configEntries.slice(0, 4).map(([k, v]) => (
-              <div key={k} className="truncate pr-1" title={`${k}: ${String(v)}`}>
-                <span className="font-medium">{k}:</span>
-                <span className="ml-1">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+            {descriptions.slice(0, 4).map((line, i) => (
+              <div key={i} className="truncate pr-1">
+                {line}
               </div>
             ))}
           </div>

@@ -3,6 +3,7 @@ import { ArrowRight, CornerDownRight } from 'lucide-react';
 import type { FlowDefinition } from '@/types/flow';
 import { NODE_TYPE_REGISTRY } from '@/types/flow';
 import { buildFlowOutline } from '@/utils/flow-editor/flow-outline';
+import { describeNodeConfig } from '@/utils/flowDescribe';
 
 interface FlowStructureOutlineProps {
   flow: FlowDefinition;
@@ -26,6 +27,7 @@ export default function FlowStructureOutline({ flow }: FlowStructureOutlineProps
     <ol className="space-y-3">
       {steps.map((step, index) => {
         const meta = NODE_TYPE_REGISTRY.find(m => m.type === step.node.type);
+        const descriptions = describeNodeConfig(step.node);
         return (
           <li key={step.node.id} className="relative pl-9">
             {/* 序号徽标 */}
@@ -44,6 +46,20 @@ export default function FlowStructureOutline({ flow }: FlowStructureOutlineProps
                 {step.typeLabel}
               </span>
             </div>
+
+            {descriptions.length > 0 && (
+              <ul className="mt-1.5 space-y-0.5">
+                {descriptions.map((line, i) => (
+                  <li
+                    key={i}
+                    className="flex items-start gap-1.5 text-xs dark:text-text-dark-muted light:text-text-light-muted"
+                  >
+                    <span className="mt-1.5 w-1 h-1 rounded-full flex-shrink-0 dark:bg-text-dark-muted light:bg-text-light-muted opacity-60" />
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
 
             {step.transitions.length === 0 ? (
               <div className="mt-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
