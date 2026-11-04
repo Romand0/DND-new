@@ -31,7 +31,7 @@ import {
   Tag,
   RefreshCw,
 } from 'lucide-react';
-import type { Character, Abilities, AbilityScore, AbilityKey, SkillKey, ProficiencyCategory, Equipment, Attack, Feature } from '@/types/character';
+import type { Character, Abilities, AbilityScore, AbilityKey, SkillKey, ProficiencyCategory, Equipment, Attack, Feature, FeatureRole } from '@/types/character';
 import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
@@ -84,6 +84,28 @@ const proficiencyEntryLabels: Record<string, string> = {
   语言: '语言',
   装备: '装备',
 };
+
+// ===== 特性作用方式分类（FeatureRole）=====
+// 徽标点击循环顺序：被动 → 主动 → 属性 → 被动
+const FEATURE_ROLE_ORDER: FeatureRole[] = ['passive', 'active', 'stat'];
+
+const FEATURE_ROLE_META: Record<FeatureRole, { label: string; hint: string; chip: string }> = {
+  active: { label: '主动技能', hint: '需主动运用（激励骰/战技等），战斗中便捷触发', chip: 'bg-primary/15 text-primary' },
+  passive: { label: '被动技能', hint: '常规流程中独立生效（天生优劣势/黑暗视觉/偷袭等）', chip: 'bg-sky-500/15 text-sky-500' },
+  stat: { label: '属性调整', hint: '融入角色数值（体型/速度/熟练/专精），无需单独关注', chip: 'bg-gray-500/15 text-gray-500' },
+};
+
+// 作用方式派生：显式 role 优先，否则按名称关键词推断，兜底 passive。
+// 熟练/属性类名字归 stat；激励/战技/骰池等消耗型归 active；其余（精类血统/黑暗视觉/野性面具等）默认被动。
+const STAT_ROLE_NAME_RE = /体型|速度|属性|熟练|专精|语言|装备|护甲|武器|工具/;
+const ACTIVE_ROLE_NAME_RE = /激励|战技|卓越骰|骰池|充能|每回合|每日|次数/;
+
+function deriveFeatureRole(f: Feature): FeatureRole {
+  if (f.role) return f.role;
+  if (STAT_ROLE_NAME_RE.test(f.name)) return 'stat';
+  if (ACTIVE_ROLE_NAME_RE.test(f.name)) return 'active';
+  return 'passive';
+}
 
 function renderSpellDice(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -882,6 +904,27 @@ export default function CharacterDetail({
     }
   });
   const [hiddenFeaturesOpen, setHiddenFeaturesOpen] = useState(false);
+  // 特性作用方式筛选（localStorage 持久，跨会话记住浏览视角）
+  const [featureRoleFilter, setFeatureRoleFilter] = useState<'all' | FeatureRole>(() => {
+    try {
+      const saved = localStorage.getItem('dnd-feature-role-filter');
+      if (saved === 'stat' || saved === 'passive' || saved === 'active' || saved === 'all') return saved;
+    } catch { /* ignore */ }
+    return 'all';
+  });
+  useEffect(() => {
+    try { localStorage.setItem('dnd-feature-role-filter', featureRoleFilter); } catch { /* ignore */ }
+  }, [featureRoleFilter]);
+  // 手动覆盖作用方式：点击卡片分类徽标循环切换（passive → active → stat → passive），显式写回角色卡
+  const cycleFeatureRole = (feature: Feature) => {
+    if (!id) return;
+    const cur = deriveFeatureRole(feature);
+    const next = FEATURE_ROLE_ORDER[(FEATURE_ROLE_ORDER.indexOf(cur) + 1) % FEATURE_ROLE_ORDER.length];
+    characterStore.update(id, {
+      features: (character.features || []).map((f) => (f.id === feature.id ? { ...f, role: next } : f)),
+    });
+    reloadChar();
+  };
   // 隐藏操作需二次确认（防误触）；恢复显示无破坏性，直接执行
   const [hideConfirmKey, setHideConfirmKey] = useState<string | null>(null);
   const toggleFeatureHidden = (key: string) => {
@@ -1309,7 +1352,10 @@ export default function CharacterDetail({
   };
 
   // 特性/特质卡片（主列表与底部隐藏折叠块共用）；inHiddenBlock 时眼睛按钮变为恢复
-  const renderFeatureCard = (feature: Feature, inHiddenBlock: boolean) => (
+  const renderFeatureCard = (feature: Feature, inHiddenBlock: boolean) => {
+    const role = deriveFeatureRole(feature);
+    const roleMeta = FEATURE_ROLE_META[role];
+    return (
     <div
       key={feature.id}
       className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-1.5"
@@ -1328,6 +1374,13 @@ export default function CharacterDetail({
             {feature.category}
           </span>
         )}
+        <button
+          onClick={() => cycleFeatureRole(feature)}
+          className={`px-1.5 py-0.5 rounded-full text-xs flex-shrink-0 ${roleMeta.chip}`}
+          title={`${roleMeta.label}——${roleMeta.hint}（点击切换分类）`}
+        >
+          {roleMeta.label}
+        </button>
         {feature.source && (
           <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted truncate">
             {feature.source}
@@ -1350,7 +1403,8 @@ export default function CharacterDetail({
         </p>
       )}
     </div>
-  );
+    );
+  };
 
   const handleRemoveCantrip = (index: number) => {
     if (!id) return;
@@ -2796,9 +2850,29 @@ if (character) {
                 <RefreshCw className="w-4 h-4" />
                 刷新选项特性与特质
               </button>
+              {/* 作用方式筛选：主动技能（最大展示度）→ 被动技能 → 属性调整（融入数值，压缩展示） */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(['all', 'active', 'passive', 'stat'] as const).map((key) => {
+                  const active = featureRoleFilter === key;
+                  const label = key === 'all' ? '全部' : FEATURE_ROLE_META[key].label;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setFeatureRoleFilter(key)}
+                      className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
+                        active
+                          ? 'bg-primary/15 text-primary'
+                          : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
               {(() => {
                 // 熟练类派生条目（护甲/武器/工具/技能熟练项、语言、装备）收进一张集中卡片，
-                // 与图鉴选项页的熟练项卡片呈现同步；其余条目维持独立卡片
+                // 与图鉴选项页的熟练项卡片呈现同步；其余条目按作用方式分组渲染
                 const visible = character.features.filter(
                   // 职业特性按等级门槛显示（数据仍保留在卡上）；被 DM 隐藏的条目移入底部折叠块
                   (f) =>
@@ -2809,63 +2883,106 @@ if (character) {
                 );
                 const profGroup = visible.filter((f) => proficiencyEntryLabels[f.name]);
                 const normalGroup = visible.filter((f) => !proficiencyEntryLabels[f.name]);
+                const groups: Record<FeatureRole, Feature[]> = {
+                  active: normalGroup.filter((f) => deriveFeatureRole(f) === 'active'),
+                  passive: normalGroup.filter((f) => deriveFeatureRole(f) === 'passive'),
+                  stat: normalGroup.filter((f) => deriveFeatureRole(f) === 'stat'),
+                };
+                // 熟练项集中卡片：熟练条目语义上属于属性调整层（融入数值），单选/全部视角都挂在属性组位置
+                const profCard = profGroup.length > 0 ? (
+                  <div className="mt-1">
+                    <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
+                      熟练项
+                    </div>
+                    <div className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-2">
+                      {Object.entries(proficiencyEntryLabels).map(([entryName, label]) => {
+                        const group = profGroup.filter((f) => f.name === entryName);
+                        if (group.length === 0) return null;
+                        const editingRow = editProfId && group.some((f) => f.id === editProfId);
+                        return (
+                          <div key={entryName} className="text-sm">
+                            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted mr-2 inline-block w-10 flex-shrink-0">
+                              {label}
+                            </span>
+                            {editingRow ? (
+                              <textarea
+                                autoFocus
+                                value={editProfText}
+                                onChange={(e) => setEditProfText(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && !e.shiftKey) {
+                                    e.preventDefault();
+                                    saveProfDescription();
+                                  }
+                                  if (e.key === 'Escape') setEditProfId(null);
+                                }}
+                                onBlur={saveProfDescription}
+                                rows={2}
+                                className="w-full mt-1 p-2 rounded-lg border text-xs bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                              />
+                            ) : (
+                              <span className="dark:text-text-dark light:text-text-light">
+                                {group.map((f) => f.description).join('；')}
+                              </span>
+                            )}
+                            <button
+                              onClick={() => {
+                                setEditProfId(group[0].id);
+                                setEditProfText(group[0].description);
+                              }}
+                              title="编辑描述"
+                              className={editingRow
+                                ? 'text-primary'
+                                : 'dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary'}
+                            >
+                              <Edit2 className="w-3 h-3 inline ml-1.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null;
+                // 单一分类筛选：只渲染该组（属性调整组附带熟练项集中卡片）
+                if (featureRoleFilter !== 'all') {
+                  const list = groups[featureRoleFilter];
+                  const showProfCard = featureRoleFilter === 'stat' ? profCard : null;
+                  if (list.length === 0 && !showProfCard) {
+                    return (
+                      <div className="py-4 text-center text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                        该分类下暂无特性（点击卡片上的分类徽标可手动调整归类）
+                      </div>
+                    );
+                  }
+                  return (
+                    <>
+                      {list.map((feature) => renderFeatureCard(feature, false))}
+                      {showProfCard}
+                    </>
+                  );
+                }
+                // 全部视角：主动技能（最大展示度）→ 被动技能 → 属性调整（融入数值，压缩在末尾）
                 return (
                   <>
-                    {normalGroup.map((feature) => renderFeatureCard(feature, false))}
-                    {profGroup.length > 0 && (
-                      <div className="mt-1">
-                        <div className="text-xs font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
-                          熟练项
+                    {(['active', 'passive', 'stat'] as FeatureRole[]).map((role) => {
+                      const list = groups[role];
+                      if (list.length === 0) return null;
+                      const meta = FEATURE_ROLE_META[role];
+                      return (
+                        <div key={role} className="mt-1">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <span className={`text-xs font-medium ${meta.chip}`}>{meta.label}</span>
+                            <span className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                              {meta.hint}
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {list.map((feature) => renderFeatureCard(feature, false))}
+                          </div>
                         </div>
-                        <div className="p-3 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 space-y-2">
-                          {Object.entries(proficiencyEntryLabels).map(([entryName, label]) => {
-                            const group = profGroup.filter((f) => f.name === entryName);
-                            if (group.length === 0) return null;
-                            const editingRow = editProfId && group.some((f) => f.id === editProfId);
-                            return (
-                              <div key={entryName} className="text-sm">
-                                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted mr-2 inline-block w-10 flex-shrink-0">
-                                  {label}
-                                </span>
-                                {editingRow ? (
-                                  <textarea
-                                    autoFocus
-                                    value={editProfText}
-                                    onChange={(e) => setEditProfText(e.target.value)}
-                                    onKeyDown={(e) => {
-                                      if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        saveProfDescription();
-                                      }
-                                      if (e.key === 'Escape') setEditProfId(null);
-                                    }}
-                                    onBlur={saveProfDescription}
-                                    rows={2}
-                                    className="w-full mt-1 p-2 rounded-lg border text-xs bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                                  />
-                                ) : (
-                                  <span className="dark:text-text-dark light:text-text-light">
-                                    {group.map((f) => f.description).join('；')}
-                                  </span>
-                                )}
-                                <button
-                                  onClick={() => {
-                                    setEditProfId(group[0].id);
-                                    setEditProfText(group[0].description);
-                                  }}
-                                  title="编辑描述"
-                                  className={editingRow
-                                    ? 'text-primary'
-                                    : 'dark:text-text-dark-muted/40 light:text-text-light-muted/40 hover:text-primary'}
-                                >
-                                  <Edit2 className="w-3 h-3 inline ml-1.5" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                      );
+                    })}
+                    {profCard}
                   </>
                 );
               })()}

@@ -166,6 +166,14 @@ export interface Proficiencies {
   savingThrows: string[];
 }
 
+/**
+ * 特性作用方式分类（与 category 来源分类正交）：
+ *  - stat：属性调整——融入角色具体数值（体型/速度/属性加成/专精/熟练项），玩家无需单独关注
+ *  - passive：被动技能——常规战斗流程中独立生效（天生优劣势/黑暗视觉/偷袭/战斗风格）
+ *  - active：主动技能——需主动运用（诗人激励/战技卓越骰等消耗型动作）
+ */
+export type FeatureRole = 'stat' | 'passive' | 'active';
+
 export interface Feature {
   id?: string;
   name: string;
@@ -174,6 +182,8 @@ export interface Feature {
   source?: string;
   // 生效等级：职业特性在角色未达到该级前隐藏显示（数据仍在卡上）
   level?: number;
+  /** 作用方式分类；缺省时读端按名称关键词派生（见 deriveFeatureRole），显式值优先 */
+  role?: FeatureRole;
 }
 
 export interface Character {
