@@ -87,19 +87,23 @@ const proficiencyEntryLabels: Record<string, string> = {
 };
 
 // ===== 特性作用方式分类（FeatureRole）=====
-// 区块渲染顺序：主动技能（最大展示度）→ 被动技能 → 属性调整（融入数值，压缩在末尾）
-const FEATURE_RENDER_ORDER: FeatureRole[] = ['active', 'passive', 'stat'];
+// 区块渲染顺序：主动技能（最大展示度）→ 被动技能 → 人物设定 → 属性调整（融入数值，压缩在末尾）
+const FEATURE_RENDER_ORDER: FeatureRole[] = ['active', 'passive', 'profile', 'stat'];
 
 const FEATURE_ROLE_META: Record<FeatureRole, { label: string; hint: string; chip: string }> = {
   active: { label: '主动技能', hint: '需主动运用（激励骰/战技等），战斗中便捷触发', chip: 'bg-primary/15 text-primary' },
   passive: { label: '被动技能', hint: '常规流程中独立生效（天生优劣势/黑暗视觉/偷袭等）', chip: 'bg-sky-500/15 text-sky-500' },
-  stat: { label: '属性调整', hint: '融入角色数值（体型/速度/熟练/专精），无需单独关注', chip: 'bg-gray-500/15 text-gray-500' },
+  profile: { label: '人物设定', hint: '年龄/阵营/体型/速度等基本设定信息', chip: 'bg-violet-500/15 text-violet-500' },
+  stat: { label: '属性调整', hint: '融入角色数值（熟练/专精/属性等），无需单独关注', chip: 'bg-gray-500/15 text-gray-500' },
 };
 
-// 作用方式派生：显式 role 优先，否则按名称关键词推断，兜底 passive。
-// 熟练/属性类名字归 stat（仅看名称，描述里这些词太常见会误伤）；
-// 激励/战技/骰池等消耗型归 active；其余（精类血统/黑暗视觉/野性面具等）默认被动。
-const STAT_ROLE_NAME_RE = /体型|速度|属性|熟练|专精|语言|装备|护甲|武器|工具/;
+// 作用方式派生：显式 role 优先，否则按名称/描述关键词推断，兜底 passive。
+// 判定顺序：人物设定（名称）→ 主动技能（名称）→ 属性调整（名称或描述）→ 主动技能（描述形态词）。
+// active 名称词优先于 stat 描述词：名称已明确动作形态的条目不被描述里的武器/护甲等泛词抢走。
+const PROFILE_ROLE_NAME_RE = /年龄|阵营|体型|速度/;
+const STAT_ROLE_NAME_RE = /属性|熟练|专精|语言|装备|护甲|武器|工具/;
+// 属性调整描述词：与名称同表（描述里讲熟练/专精/护甲/武器的条目归 stat）
+const STAT_ROLE_DESC_RE = /属性|熟练|专精|语言|装备|护甲|武器|工具/;
 // 主动技能关键词（名称）：激励/战技/骰池等消耗型，以及任何以动作形态施放的能力（决定/动作/附赠动作/反应）
 const ACTIVE_ROLE_NAME_RE = /激励|战技|卓越骰|骰池|充能|每回合|每日|次数|决定|动作|附赠动作|反应/;
 // 主动技能形态词（描述）：名称不含关键词但描述里以附赠动作/反应/额外动作施放的能力（如回气）
@@ -107,8 +111,11 @@ const ACTIVE_DESC_RE = /附赠动作|反应|一个动作|用你的动作|额外�
 
 function deriveFeatureRole(f: Feature): FeatureRole {
   if (f.role) return f.role;
-  if (STAT_ROLE_NAME_RE.test(f.name)) return 'stat';
-  if (ACTIVE_ROLE_NAME_RE.test(f.name) || ACTIVE_DESC_RE.test(f.description || '')) return 'active';
+  const desc = f.description || '';
+  if (PROFILE_ROLE_NAME_RE.test(f.name)) return 'profile';
+  if (ACTIVE_ROLE_NAME_RE.test(f.name)) return 'active';
+  if (STAT_ROLE_NAME_RE.test(f.name) || STAT_ROLE_DESC_RE.test(desc)) return 'stat';
+  if (ACTIVE_DESC_RE.test(desc)) return 'active';
   return 'passive';
 }
 
@@ -2836,7 +2843,7 @@ if (character) {
               </button>
               {/* 作用方式分页（主动技能最大展示度 → 被动技能 → 属性调整融入数值）+ 跨分类搜索 */}
               <div className="flex items-center gap-1.5 flex-wrap">
-                {(['active', 'passive', 'stat'] as FeatureRole[]).map((key) => {
+                {FEATURE_RENDER_ORDER.map((key) => {
                   const active = featureRoleFilter === key;
                   return (
                     <button
@@ -2879,6 +2886,7 @@ if (character) {
                 const groups: Record<FeatureRole, Feature[]> = {
                   active: normalGroup.filter((f) => deriveFeatureRole(f) === 'active'),
                   passive: normalGroup.filter((f) => deriveFeatureRole(f) === 'passive'),
+                  profile: normalGroup.filter((f) => deriveFeatureRole(f) === 'profile'),
                   stat: normalGroup.filter((f) => deriveFeatureRole(f) === 'stat'),
                 };
                 // 熟练项集中卡片：熟练条目语义上属于属性调整层（融入数值），单选/全部视角都挂在属性组位置

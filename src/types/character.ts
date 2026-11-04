@@ -172,7 +172,7 @@ export interface Proficiencies {
  *  - passive：被动技能——常规战斗流程中独立生效（天生优劣势/黑暗视觉/偷袭/战斗风格）
  *  - active：主动技能——需主动运用（诗人激励/战技卓越骰等消耗型动作）
  */
-export type FeatureRole = 'stat' | 'passive' | 'active';
+export type FeatureRole = 'stat' | 'passive' | 'active' | 'profile';
 
 export interface Feature {
   id?: string;
