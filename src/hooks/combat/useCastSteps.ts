@@ -11,10 +11,12 @@ export type CastCheckType = 'ac' | 'save' | 'none';
  * 步骤序列推导：按检定方式裁剪中间步骤。
  * 恒有 cast_start / apply_effect / cast_end；skipTarget=true（自身类法术）时
  * 跳过 select_target（目标恒为施法者自己）；checkType='none' 时无检定步骤
- * （apply_effect 恒保留，纯 buff 法术由 DM 走「跳过效果」出口记 0）。
+ * （apply_effect 恒保留，纯 buff 法术由 DM 走「跳过效果」出口记 0）；
+ * withConsume=true 时在 cast_start 之后插入 consume_slot（资源消耗：法术位环级 / 卷轴）。
  */
-export function buildCastStepTypes(checkType: CastCheckType, skipTarget = false): CastStepType[] {
+export function buildCastStepTypes(checkType: CastCheckType, skipTarget = false, withConsume = false): CastStepType[] {
   const types: CastStepType[] = ['cast_start'];
+  if (withConsume) types.push('consume_slot');
   if (!skipTarget) types.push('select_target');
   if (checkType === 'ac') types.push('attack_roll');
   else if (checkType === 'save') types.push('saving_throw');
@@ -32,8 +34,8 @@ export interface CastStepState {
   completedAt?: number;
 }
 
-function initState(checkType: CastCheckType, skipTarget = false): CastStepState[] {
-  return buildCastStepTypes(checkType, skipTarget).map((type, i) => ({
+function initState(checkType: CastCheckType, skipTarget = false, withConsume = false): CastStepState[] {
+  return buildCastStepTypes(checkType, skipTarget, withConsume).map((type, i) => ({
     type,
     status: i === 0 ? 'active' : 'pending',
     forced: false,
@@ -45,23 +47,25 @@ export function useCastSteps() {
   const [steps, setSteps] = useState<CastStepState[]>(() => initState('ac'));
   const [checkType, setCheckType] = useState<CastCheckType>('ac');
   const [skipTarget, setSkipTarget] = useState(false);
+  const [withConsume, setWithConsume] = useState(false);
 
   const currentIndex = steps.findIndex(s => s.status === 'active');
   const allDone = steps.length > 0 && steps.every(s => s.status !== 'pending' && s.status !== 'active');
 
-  /** 开始一次新施法：重置 castId 与步骤序列（skipTarget = 自身类法术跳过目标选择） */
-  const begin = useCallback((ct: CastCheckType, skip = false) => {
+  /** 开始一次新施法：重置 castId 与步骤序列（skipTarget = 自身类法术跳过目标选择；withConsume = 插入资源消耗步骤） */
+  const begin = useCallback((ct: CastCheckType, skip = false, consume = false) => {
     castIdRef.current = `cast-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     setCheckType(ct);
     setSkipTarget(skip);
-    setSteps(initState(ct, skip));
+    setWithConsume(consume);
+    setSteps(initState(ct, skip, consume));
   }, []);
 
-  /** 检定类型切换（仅发生在检定步骤确认前）：重建序列，保留已完成的 cast_start / select_target 前缀 */
+  /** 检定类型切换（仅发生在检定步骤确认前）：重建序列，保留已完成的 cast_start / consume_slot / select_target 前缀 */
   const rebuild = useCallback((ct: CastCheckType) => {
     setCheckType(ct);
     setSteps(prev => {
-      const nextTypes = buildCastStepTypes(ct, skipTarget);
+      const nextTypes = buildCastStepTypes(ct, skipTarget, withConsume);
       // 从头逐位匹配：类型相同且已完成（非 pending/active）的步骤保留为前缀
       const kept: CastStepState[] = [];
       for (let i = 0; i < nextTypes.length; i++) {
@@ -79,7 +83,7 @@ export function useCastSteps() {
           : ({ type, status: i === kept.length ? 'active' : 'pending', forced: false } as CastStepState)
       );
     });
-  }, [skipTarget]);
+  }, [skipTarget, withConsume]);
 
   /** 完成当前步骤并推进（status 为三态之一；失败同样推进——失败轨迹也要进日志） */
   const completeCurrent = useCallback((status: CastStepStatus, message: string, data?: Record<string, unknown>) => {

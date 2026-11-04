@@ -2,7 +2,7 @@
 // 从沙盘「法术」按钮触发：浏览法术 → 步骤化施放（前置检查/目标/检定/效果/收尾）
 // 副作用延迟原则：HP/动作/先攻表格/castLogs 全部在收尾确认时一次性应用（见 hooks/combat/useCastSteps）。
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, BookOpen, ChevronLeft, Workflow } from 'lucide-react';
+import { X, BookOpen, ChevronLeft, Workflow, ScrollText } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
@@ -11,7 +11,7 @@ import { fetchBindingsBySpell } from '@/lib/api';
 import combatStore, { computeCombatantAc } from '@/data/combatStore';
 import { useCastSteps } from '@/hooks/combat/useCastSteps';
 import type { Combatant } from '@/types/combat';
-import type { Character, Equipment } from '@/types/character';
+import type { Character, Equipment, SpellSlotLevel } from '@/types/character';
 import type { Spell } from '@/types/spell';
 import type { FlowDefinition } from '@/types/flow';
 import type { DamageResolution, DamageType } from '@/types/damage';
@@ -20,11 +20,12 @@ import { getCombatantAffinities } from '@/data/combatAffinities';
 import { parseSpellRange } from '@/utils/spellRange';
 import SpellStepBar from './combat/SpellStepBar';
 import SpellPreCastStep from './combat/SpellPreCastStep';
+import SpellConsumeStep, { type ScrollOption, type SlotOption } from './combat/SpellConsumeStep';
 import SpellTargetStep from './combat/SpellTargetStep';
 import SpellCheckStep, { type SpellCheckOutcome, type SpellCheckType } from './combat/SpellCheckStep';
 import SpellEffectStep, { parseDice, renderSpellDice, type SpellEffectType } from './combat/SpellEffectStep';
 import SpellFinishStep from './combat/SpellFinishStep';
-import { evaluateSpellMaterials, buildMaterialEquipment, buildScrollEquipment, type MaterialEvaluation, type MaterialRequirement } from '@/data/spellMaterials';
+import { evaluateSpellMaterials, isScrollItem, buildMaterialEquipment, buildScrollEquipment, type MaterialEvaluation, type MaterialRequirement } from '@/data/spellMaterials';
 import { getHeldEquipmentIds } from '@/data/spellFocus';
 import FlowRunStep, { type FlowCastPayload } from './combat/FlowRunStep';
 
@@ -84,7 +85,9 @@ interface Props {
 }
 
 // 单张法术卡片
-function SpellCard({ spell, level, active, onPick, hasFlow }: { spell: Spell; level: number; active: boolean; onPick: () => void; hasFlow?: boolean }) {
+// compact：列表态——只显示基本信息（描述/升环说明在选中施放后的参考卡展示）
+// scrollOnly：法术仅通过背包卷轴获得（未习得），加「仅卷轴」徽记
+function SpellCard({ spell, level, active, onPick, hasFlow, compact, scrollOnly }: { spell: Spell; level: number; active: boolean; onPick: () => void; hasFlow?: boolean; compact?: boolean; scrollOnly?: boolean }) {
   return (
     <button
       onClick={onPick}
@@ -99,6 +102,12 @@ function SpellCard({ spell, level, active, onPick, hasFlow }: { spell: Spell; le
         <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
           {level === 0 ? '戏法' : `${level}环`}
         </span>
+        {scrollOnly && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-400 inline-flex items-center gap-0.5">
+            <ScrollText className="w-2.5 h-2.5" />
+            仅卷轴
+          </span>
+        )}
         {hasFlow && (
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 inline-flex items-center gap-0.5">
             <Workflow className="w-2.5 h-2.5" />
@@ -118,12 +127,12 @@ function SpellCard({ spell, level, active, onPick, hasFlow }: { spell: Spell; le
         {spell.duration && <span>· {spell.duration}</span>}
         {spell.school && <span>· {spell.school}</span>}
       </div>
-      {spell.description && (
+      {!compact && spell.description && (
         <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1.5 leading-relaxed whitespace-pre-line">
           {renderSpellDice(spell.description)}
         </div>
       )}
-      {spell.heightenedEffect && (
+      {!compact && spell.heightenedEffect && (
         <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted mt-1.5 flex items-start gap-1.5">
           <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 shrink-0">升环</span>
           <span className="leading-relaxed">{spell.heightenedEffect}</span>
@@ -239,7 +248,7 @@ export default function CombatSpellModal({
     const stack = recordId ? combatStore.get(recordId)?.lastSpellCasts?.[caster.id] : undefined;
     lastCastRankRef.current = new Map((stack ?? []).map((id, i) => [id, i]));
   }, [stage, recordId, caster.id]);
-  const knownSpells = useMemo<{ spell: Spell; level: number }[]>(() => {
+  const knownSpells = useMemo<{ spell: Spell; level: number; scrollOnly?: boolean }[]>(() => {
     // 试验场：全员开放法术库全量（测试施法者与受术者双向效果）
     if (isProvingGround) {
       return spellStore.getAll().map(s => ({ spell: s, level: s.level }));
@@ -247,7 +256,7 @@ export default function CombatSpellModal({
     if (!character) return [];
     const all = spellStore.getAll();
     const byName = (name: string) => all.find(s => s.name === name);
-    const list: { spell: Spell; level: number }[] = [];
+    const list: { spell: Spell; level: number; scrollOnly?: boolean }[] = [];
     (character.spells?.cantrips || []).forEach(name => {
       const s = byName(name);
       if (s) list.push({ spell: s, level: 0 });
@@ -258,6 +267,30 @@ export default function CombatSpellModal({
     });
     return list;
   }, [character, spellCacheTick, isProvingGround]);
+
+  // 施法者背包（战斗派生 + 本次施法补入 + 角色卡兜底），用于卷轴法术识别
+  const casterInventory = useMemo<Equipment[]>(() => {
+    const fromChar = character?.equipment ?? [];
+    return [...(casterCombatInventory || []), ...craftedMaterials, ...fromChar];
+  }, [casterCombatInventory, craftedMaterials, character?.id]);
+
+  // 仅卷轴法术：背包里有对应卷轴但角色未习得 → 入列表并打「仅卷轴」徽记（卷轴环级优先于法术库环级）
+  const scrollOnlySpells = useMemo<{ spell: Spell; level: number; scrollOnly: boolean }[]>(() => {
+    if (!character || isProvingGround) return [];
+    const knownIds = new Set(knownSpells.map(k => k.spell.id));
+    const seen = new Set<string>();
+    const list: { spell: Spell; level: number; scrollOnly: boolean }[] = [];
+    casterInventory.forEach(item => {
+      if (!isScrollItem(item) || !item.scrollSpellId) return;
+      const id = item.scrollSpellId;
+      if (knownIds.has(id) || seen.has(id)) return;
+      const s = spellStore.getById(id);
+      if (!s) return;
+      seen.add(id);
+      list.push({ spell: s, level: typeof item.scrollSpellLevel === 'number' ? item.scrollSpellLevel : s.level, scrollOnly: true });
+    });
+    return list;
+  }, [character, isProvingGround, casterInventory, knownSpells, spellCacheTick]);
 
   // 挂载时刷新法术库缓存为云端真值（失败保留现有缓存），随后绑定查询才能命中云端 spell_id
   useEffect(() => {
@@ -357,7 +390,8 @@ export default function CombatSpellModal({
     }
 
     setStage('cast');
-    cast.begin('ac', selfCast);
+    // 资源消耗步骤：PC + 非试验场 + 非戏法时插入（NPC 无角色卡法术位、试验场无限资源、戏法免位）
+    cast.begin('ac', selfCast, !!character && !isProvingGround && spell.level > 0);
     setCheckOutcome(null);
     setResolvedAmount(0);
     setEffectType('damage');
@@ -433,6 +467,40 @@ export default function CombatSpellModal({
       : `豁免 d20 ${checkOutcome.d20}+${checkOutcome.bonus}=${checkOutcome.total} vs DC ${spellSaveDC ?? '-'}，${checkOutcome.success ? '法术命中' : '目标抵抗'}`;
   }, [checkOutcome, cast.checkType, effectiveTargetAc, spellSaveDC]);
 
+  // 资源消耗数据源：匹配卷轴选项 + 可用法术位（used < max 且环级 >= 法术基础环级）
+  const scrollOptions = useMemo<ScrollOption[]>(() => {
+    if (!selectedSpell || !character) return [];
+    return casterInventory
+      .filter(it => isScrollItem(it) && (
+        it.scrollSpellId === selectedSpell.id ||
+        (!!it.scrollSpellName && it.scrollSpellName === selectedSpell.name)
+      ))
+      .map(it => ({
+        childId: it.childId || it.id || '',
+        name: it.name,
+        level: typeof it.scrollSpellLevel === 'number' ? it.scrollSpellLevel : (selectedSpell.level || 1),
+      }))
+      .filter(s => s.childId);
+  }, [selectedSpell, character, casterInventory]);
+
+  const usableSlots = useMemo<SlotOption[]>(() => {
+    if (!selectedSpell || !character) return [];
+    const minLevel = Math.max(1, selectedSpell.level);
+    const out: SlotOption[] = [];
+    for (let lv = minLevel; lv <= 9; lv++) {
+      const key = `level${lv}` as SpellSlotLevel;
+      const slot = character.spells?.spellSlots?.[key];
+      if (slot && slot.max > slot.used) out.push({ level: lv, used: slot.used, max: slot.max });
+    }
+    return out;
+  }, [selectedSpell, character]);
+
+  // 该法术是否在角色卡上习得（卷轴法术未习得 → 只能走卷轴）
+  const isSpellLearned = useMemo(() => {
+    if (!selectedSpell || !character) return false;
+    return scrollOnlySpells.every(s => s.spell.id !== selectedSpell.id);
+  }, [selectedSpell, character, scrollOnlySpells]);
+
   // 收尾确认：副作用唯一出口——写 castLogs + 上报 onCastResolved（HP/动作/先攻表格由 main 应用）
   const handleFinishConfirm = ({ newHp, status }: { newHp: number; status?: 'unconscious' | 'dead' }) => {
     if (!selectedSpell) return;
@@ -443,9 +511,28 @@ export default function CombatSpellModal({
     if (recordId) {
       combatStore.recordSpellCast(recordId, caster.id, selectedSpell.id);
     }
-    if (materialEvaluation && materialEvaluation.consumption.length > 0) {
-      onConsumeMaterials?.(materialEvaluation.consumption);
+
+    // 资源消耗落地（延迟原则：consume_slot 步骤只记录决策，此处统一应用）
+    const consumeData = cast.steps.find(s => s.type === 'consume_slot' && s.data)?.data as
+      | { method?: string; slotLevel?: number; scrollChildId?: string; scrollName?: string }
+      | undefined;
+    if (consumeData?.method === 'slot' && character && typeof consumeData.slotLevel === 'number') {
+      const levelKey = `level${consumeData.slotLevel}` as SpellSlotLevel;
+      const latest = characterStore.get(character.id);
+      const slot = latest?.spells?.spellSlots?.[levelKey];
+      if (slot && slot.max > slot.used) {
+        characterStore.updateSpellSlots(character.id, levelKey, { used: slot.used + 1 });
+      }
     }
+    let consumptions = [...(materialEvaluation?.consumption ?? [])];
+    if (consumeData?.method === 'scroll' && consumeData.scrollChildId
+      && !consumptions.some(c => c.childId === consumeData.scrollChildId)) {
+      consumptions.push({ childId: consumeData.scrollChildId, name: consumeData.scrollName || '法术卷轴', quantity: 1 });
+    }
+    if (consumptions.length > 0) {
+      onConsumeMaterials?.(consumptions);
+    }
+
     onCastResolved({
       spellName: selectedSpell.name,
       castingTime: selectedSpell.castingTime,
@@ -535,13 +622,13 @@ export default function CombatSpellModal({
                   className="mb-2 w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-transparent px-3 py-1.5 text-sm dark:text-text-dark light:text-text-light"
                 />
               )}
-              {knownSpells.length === 0 ? (
+              {(knownSpells.length + scrollOnlySpells.length) === 0 ? (
                 <div className="text-center text-sm dark:text-text-dark-muted light:text-text-light-muted py-8">
                   {isProvingGround ? '法术库为空' : character ? '角色卡未配置法术' : 'NPC 暂不支持施法'}
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {knownSpells
+                  {[...knownSpells, ...scrollOnlySpells]
                     .slice()
                     .sort((a, b) => {
                       // 记忆权重：该参战者最近施放过的法术排前（按最近施放倒序），其余保持环阶+名称序。
@@ -557,13 +644,15 @@ export default function CombatSpellModal({
                       spellSearch.trim() === '' ||
                       spell.name.toLowerCase().includes(spellSearch.trim().toLowerCase()),
                     )
-                    .map(({ spell, level }) => (
+                    .map(({ spell, level, scrollOnly }) => (
                       <SpellCard
                         key={spell.id}
                         spell={spell}
                         level={level}
                         active={selectedSpell?.id === spell.id}
                         hasFlow={flowBindings.has(spell.id)}
+                        compact
+                        scrollOnly={scrollOnly}
                         onPick={() => handlePickSpell(spell)}
                       />
                     ))}
@@ -652,6 +741,17 @@ export default function CombatSpellModal({
                   materialEvaluation={materialEvaluation ?? undefined}
                   onCraftMaterial={handleCraftMaterial}
                   onCraftScroll={handleCraftScroll}
+                  onConfirm={(message, data) => cast.completeCurrent('success', message, data)}
+                  onForce={(message, data) => cast.forceCurrent(message, data)}
+                />
+              )}
+
+              {currentStep.type === 'consume_slot' && (
+                <SpellConsumeStep
+                  spell={selectedSpell}
+                  scrolls={scrollOptions}
+                  isLearned={isSpellLearned}
+                  usableSlots={usableSlots}
                   onConfirm={(message, data) => cast.completeCurrent('success', message, data)}
                   onForce={(message, data) => cast.forceCurrent(message, data)}
                 />

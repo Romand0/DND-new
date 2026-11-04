@@ -4,6 +4,7 @@ import type { CastStepState } from '@/hooks/combat/useCastSteps';
 
 const STEP_LABELS: Record<string, string> = {
   cast_start: '前置检查',
+  consume_slot: '资源消耗',
   select_target: '目标确认',
   attack_roll: '法术攻击',
   saving_throw: '豁免检定',

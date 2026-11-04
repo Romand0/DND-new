@@ -155,4 +155,22 @@
   - functions/ 相对导入 _utils 的层数 = 该文件在 functions/api/ 下的目录深度：api/xxx.ts 用 ../_utils，api/xxx/yyy.ts 用 ../../_utils，嵌套 [param]/sub/index.ts 需逐层累加（曾因少算一层导致 CF 部署失败，本地 tsc 不查 functions/）
   - 改动 functions/ 后提交前的全量校验必须加 --bundle（esbuild 默认 transform 模式不解析 import，相对路径写错照样通过）：for f in $(find functions -name '*.ts'); do npx esbuild "$f" --bundle --packages=external --loader:.ts=ts --format=esm --outfile=/dev/null; done，ALL-OK 才推送
   - 层数速查：functions/api/xxx.ts 用 ../_utils；functions/api/xxx/yyy.ts 用 ../../_utils；functions/api/xxx/[p]/index.ts 用 ../../../_utils；functions/api/xxx/[p]/sub/index.ts 用 ../../../../_utils（从文件所在目录数到 functions/ 根）
-  - wrangler.toml 缺 pages_build_output_dir 的警告无害（Pages 走 dashboard 构建配置），真正阻塞部署的是 Functions 打包错误
+   - wrangler.toml 缺 pages_build_output_dir 的警告无害（Pages 走 dashboard 构建配置），真正阻塞部署的是 Functions 打包错误
+
+[User Instruction Summary]
+- Date: 2026-11-04
+- Context: 网络不稳定期间 git push 连续重试消耗资源，用户明确要求停止
+- Instructions:
+  - git push 失败一次就停：执行 fetch+rebase+push 一个完整周期，若 push 仍被拒绝立即停止并报告，不反复重试消耗资源；网络恢复后用户会示意继续
+
+[Project Knowledge Summary]
+- Date: 2026-11-04
+- Context: Discovered by Agent while adding combat spell-cast consume step (scroll vs spell slots)
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - spellStore 读单条 API 是 getById(id)（无 .get(id)）；战斗背包卷轴法术入列表用 scrollSpellId→spellStore.getById
+  - 施法步骤机插新步骤三件套要同步：types/castStep.ts 类型 + useCastSteps.buildCastStepTypes/initState/begin 第三参（rebuild 依赖数组也要加 withConsume）+ SpellStepBar.STEP_LABELS
+  - 法术位消耗在收尾 handleFinishConfirm 统一落地（consume_slot 步骤只记 data.method/slotLevel），扣位前必须 characterStore.get 重读最新 used/max（useMemo 快照会陈旧），used<max 才写 updateSpellSlots({used: used+1})
+  - 卷轴消耗复用 onConsumeMaterials 漏斗：consumeData.scrollChildId 不在 materialEvaluation.consumption 里才追加，防止双重消耗
+  - CombatSpellModal 列表卡片 compact 化：SpellCard 的 description/heightenedEffect 仅非 compact（施放参考卡）渲染；列表阶段显示基本信息
+

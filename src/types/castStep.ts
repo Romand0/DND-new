@@ -6,6 +6,7 @@
 /** 施法步骤类型（FlowNodeType 战斗侧子集，见 types/flow.ts L11-20） */
 export type CastStepType =
   | 'cast_start'       // 前置检查（成分 / 施法时间 / 射程明细）
+  | 'consume_slot'     // 资源消耗（法术位环级选择 / 卷轴消耗）
   | 'select_target'    // 目标确认（距离检算 / 更换目标）
   | 'attack_roll'      // 法术攻击检定
   | 'saving_throw'     // 豁免检定
