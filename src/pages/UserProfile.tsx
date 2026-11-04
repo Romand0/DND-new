@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useCampaign } from '@/contexts/CampaignContext';
 import {
   UserCircle,
@@ -12,6 +12,8 @@ import {
   AlertCircle,
   Check,
   Loader2,
+  Settings,
+  ChevronDown,
 } from 'lucide-react';
 import * as api from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,9 +46,12 @@ async function compressImage(file: File): Promise<string> {
 
 export default function UserProfile() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, token, isAdmin, updateUser, logout } = useAuth();
   const { campaignRole } = useCampaign();
   const isCampaignDM = campaignRole === 'dm';
+  // 玩家端账号页（/player/account）没有站点设置页权限：设置入口仅 DM 端账号页显示
+  const isPlayerPage = location.pathname.startsWith('/player/');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [editOpen, setEditOpen] = useState(false);
@@ -55,6 +60,8 @@ export default function UserProfile() {
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState('');
 
+  // 修改密码默认收起为一栏，点击展开表单
+  const [pwOpen, setPwOpen] = useState(false);
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -236,55 +243,77 @@ export default function UserProfile() {
           </div>
         </div>
 
-        {/* 修改密码 */}
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium dark:text-text-dark light:text-text-light">
-            <KeyRound className="w-4 h-4" />
-            修改密码
-          </div>
-          <div className="space-y-2">
-            <input
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              placeholder="原密码"
-              className="w-full px-3 py-2 rounded-lg dark:bg-bg-dark-2 light:bg-gray-100 dark:border-border-dark light:border-border-light border text-sm dark:text-text-dark light:text-text-light placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="新密码（至少 6 位）"
-              className="w-full px-3 py-2 rounded-lg dark:bg-bg-dark-2 light:bg-gray-100 dark:border-border-dark light:border-border-light border text-sm dark:text-text-dark light:text-text-light placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="确认新密码"
-              className="w-full px-3 py-2 rounded-lg dark:bg-bg-dark-2 light:bg-gray-100 dark:border-border-dark light:border-border-light border text-sm dark:text-text-dark light:text-text-light placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
-            />
-          </div>
-          {pwError && (
-            <div className="flex items-center gap-1.5 text-xs text-danger">
-              <AlertCircle className="w-3.5 h-3.5" />
-              {pwError}
-            </div>
-          )}
-          {pwNotice && (
-            <div className="flex items-center gap-1.5 text-xs text-green-500">
-              <Check className="w-3.5 h-3.5" />
-              {pwNotice}
-            </div>
-          )}
+        {/* 设置页入口（仅 DM 端账号页）：顶栏齿轮已收进此处 */}
+        {!isPlayerPage && (
           <button
-            onClick={submitPassword}
-            disabled={changing}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-colors"
+            onClick={() => navigate('/settings')}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg dark:bg-bg-dark-2 light:bg-gray-100 hover:bg-white/5 transition-colors"
           >
-            {changing && <Loader2 className="w-4 h-4 animate-spin" />}
-            修改密码
+            <span className="flex items-center gap-2 text-sm font-medium dark:text-text-dark light:text-text-light">
+              <Settings className="w-4 h-4" />
+              设置
+            </span>
+            <span className="text-xs text-gray-400">账户管理 · 数据管理 · 流程库</span>
           </button>
+        )}
+
+        {/* 修改密码：默认收起为一栏，点击展开表单 */}
+        <div className="space-y-3">
+          <button
+            onClick={() => setPwOpen(!pwOpen)}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg dark:bg-bg-dark-2 light:bg-gray-100 hover:bg-white/5 transition-colors"
+          >
+            <span className="flex items-center gap-2 text-sm font-medium dark:text-text-dark light:text-text-light">
+              <KeyRound className="w-4 h-4" />
+              修改密码
+            </span>
+            <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${pwOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {pwOpen && (
+            <div className="space-y-2">
+              <input
+                type="password"
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                placeholder="原密码"
+                className="w-full px-3 py-2 rounded-lg dark:bg-bg-dark-2 light:bg-gray-100 dark:border-border-dark light:border-border-light border text-sm dark:text-text-dark light:text-text-light placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="新密码（至少 6 位）"
+                className="w-full px-3 py-2 rounded-lg dark:bg-bg-dark-2 light:bg-gray-100 dark:border-border-dark light:border-border-light border text-sm dark:text-text-dark light:text-text-light placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="确认新密码"
+                className="w-full px-3 py-2 rounded-lg dark:bg-bg-dark-2 light:bg-gray-100 dark:border-border-dark light:border-border-light border text-sm dark:text-text-dark light:text-text-light placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+              {pwError && (
+                <div className="flex items-center gap-1.5 text-xs text-danger">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {pwError}
+                </div>
+              )}
+              {pwNotice && (
+                <div className="flex items-center gap-1.5 text-xs text-green-500">
+                  <Check className="w-3.5 h-3.5" />
+                  {pwNotice}
+                </div>
+              )}
+              <button
+                onClick={submitPassword}
+                disabled={changing}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 transition-colors"
+              >
+                {changing && <Loader2 className="w-4 h-4 animate-spin" />}
+                修改密码
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 退出登录 */}
