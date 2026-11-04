@@ -508,6 +508,14 @@ function load(): CombatRecord[] {
         castLogs: Array.isArray(r.castLogs) ? r.castLogs.filter(
           (l: any) => l && typeof l === 'object' && typeof l.id === 'string' && typeof l.castId === 'string'
         ) : [],
+        // 各参战者最近施放法术栈（白名单重建：缺兜底会在刷新后丢记忆，下次保存永久抹掉）
+        lastSpellCasts: r.lastSpellCasts && typeof r.lastSpellCasts === 'object'
+          ? Object.fromEntries(
+              Object.entries(r.lastSpellCasts)
+                .filter(([, v]) => Array.isArray(v))
+                .map(([k, v]) => [k, (v as any[]).filter((s) => typeof s === 'string').slice(0, 10)]),
+            )
+          : undefined,
         // 模拟模式操作日志（白名单重建：缺此项会在刷新后丢日志，且下次保存把日志永久抹掉）
         operationLog: Array.isArray(r.operationLog) ? r.operationLog.filter(
           (e: any) => e && typeof e === 'object'
@@ -584,7 +592,7 @@ const combatStore = {
     const found = load().find(r => r.id === id) ?? null;
     if (!found) return null;
     // 浅拷贝：防止调用方 mutate 污染内存缓存（原实现每次 parse 天然隔离）
-    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds], turnTodos: found.turnTodos ? [...found.turnTodos] : undefined, castLogs: found.castLogs ? [...found.castLogs] : undefined };
+    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds], turnTodos: found.turnTodos ? [...found.turnTodos] : undefined, castLogs: found.castLogs ? [...found.castLogs] : undefined, lastSpellCasts: found.lastSpellCasts ? { ...found.lastSpellCasts } : undefined };
   },
 
   /**
@@ -689,6 +697,19 @@ const combatStore = {
     const record = this.get(recordId);
     if (!record) return;
     this.update(recordId, { castLogs: [...(record.castLogs ?? []), ...logs] });
+  },
+
+  /**
+   * 记录参战者一次施法（收尾确认时调用）：spellId 置于该参战者最近栈顶，
+   * 去重后截断保留最近 10 个。施法列表排序据此把上次施放的排前。
+   */
+  recordSpellCast(recordId: string, combatantId: string, spellId: string): void {
+    if (!recordId || !combatantId || !spellId) return;
+    const record = this.get(recordId);
+    if (!record) return;
+    const prev = record.lastSpellCasts?.[combatantId] ?? [];
+    const next = [spellId, ...prev.filter((id) => id !== spellId)].slice(0, 10);
+    this.update(recordId, { lastSpellCasts: { ...(record.lastSpellCasts ?? {}), [combatantId]: next } });
   },
 
   /**

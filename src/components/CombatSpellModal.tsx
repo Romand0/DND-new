@@ -1,7 +1,7 @@
 // 法术施放弹窗 —— 与攻击检定完全独立的交互流程
 // 从沙盘「法术」按钮触发：浏览法术 → 步骤化施放（前置检查/目标/检定/效果/收尾）
 // 副作用延迟原则：HP/动作/先攻表格/castLogs 全部在收尾确认时一次性应用（见 hooks/combat/useCastSteps）。
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X, BookOpen, ChevronLeft, Workflow } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
@@ -233,6 +233,12 @@ export default function CombatSpellModal({
 
   // 法术列表
   const [spellSearch, setSpellSearch] = useState('');
+  // 最近施放记忆（spellId → 越近 rank 越小）：stage 变化时重读战斗记录，保证刚施放完回来就置顶
+  const lastCastRankRef = useRef(new Map<string, number>());
+  useEffect(() => {
+    const stack = recordId ? combatStore.get(recordId)?.lastSpellCasts?.[caster.id] : undefined;
+    lastCastRankRef.current = new Map((stack ?? []).map((id, i) => [id, i]));
+  }, [stage, recordId, caster.id]);
   const knownSpells = useMemo<{ spell: Spell; level: number }[]>(() => {
     // 试验场：全员开放法术库全量（测试施法者与受术者双向效果）
     if (isProvingGround) {
@@ -434,6 +440,9 @@ export default function CombatSpellModal({
     if (recordId && logs.length > 0) {
       combatStore.appendCastLogs(recordId, logs);
     }
+    if (recordId) {
+      combatStore.recordSpellCast(recordId, caster.id, selectedSpell.id);
+    }
     if (materialEvaluation && materialEvaluation.consumption.length > 0) {
       onConsumeMaterials?.(materialEvaluation.consumption);
     }
@@ -534,7 +543,15 @@ export default function CombatSpellModal({
                 <div className="space-y-2">
                   {knownSpells
                     .slice()
-                    .sort((a, b) => a.level - b.level || a.spell.name.localeCompare(b.spell.name))
+                    .sort((a, b) => {
+                      // 记忆权重：该参战者最近施放过的法术排前（按最近施放倒序），其余保持环阶+名称序。
+                      // stage 变化（返回列表）时重读 store，刚完成的施放下次进列表即置顶。
+                      const rank = lastCastRankRef.current;
+                      const ra = rank.get(a.spell.id) ?? Number.MAX_SAFE_INTEGER;
+                      const rb = rank.get(b.spell.id) ?? Number.MAX_SAFE_INTEGER;
+                      if (ra !== rb) return ra - rb;
+                      return a.level - b.level || a.spell.name.localeCompare(b.spell.name);
+                    })
                     .filter(({ spell }) =>
                       !isProvingGround ||
                       spellSearch.trim() === '' ||
@@ -605,6 +622,9 @@ export default function CombatSpellModal({
                 onApplied={(payload) => {
                   if (materialEvaluation && materialEvaluation.consumption.length > 0) {
                     onConsumeMaterials?.(materialEvaluation.consumption);
+                  }
+                  if (recordId) {
+                    combatStore.recordSpellCast(recordId, caster.id, selectedSpell.id);
                   }
                   onFlowResolved?.(payload);
                   onClose();

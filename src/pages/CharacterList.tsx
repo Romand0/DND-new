@@ -20,12 +20,17 @@ export default function CharacterList() {
     loadCharacters();
   }, []);
 
+  // 列表顺序稳定按创建时间升序（位置可记忆）；旧数据缺 createdAt 排在前，同值保持原序。
+  // 云端拉回数组是 updated_at DESC 序（编辑过的浮顶），页面层排序覆盖它。
+  const sortForDisplay = (list: Character[]) =>
+    [...list].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+
   const loadCharacters = async () => {
     setError(null);
     // 首屏即时：先渲染本地缓存（同步读），不等网络
     try {
       const localChars = (characterStore.getAllVisible() || []).filter((c: any) => c && c.id && c.name);
-      setCharacters(localChars);
+      setCharacters(sortForDisplay(localChars));
     } catch (err) {
       const msg = err instanceof Error ? err.message : '加载失败';
       setError(msg);
@@ -37,7 +42,7 @@ export default function CharacterList() {
     try {
       await characterStore.replaceAllFromBackend();
       const chars = (characterStore.getAllVisible() || []).filter((c: any) => c && c.id && c.name);
-      setCharacters(chars);
+      setCharacters(sortForDisplay(chars));
     } catch {
       // ignore
     }

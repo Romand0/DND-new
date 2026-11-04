@@ -498,6 +498,8 @@ export interface CombatRecord {
     };
     /** 施法步骤日志（按 castId 分组的扁平追加数组，副作用延迟原则下仅在收尾时批量写入） */
     castLogs?: CastStepLog[];
+    /** 各参战者最近施放的法术栈（spellId，最近在前，截断保留），用于施法列表把上次施放的排前 */
+    lastSpellCasts?: Record<string, string[]>;
     /** 模拟模式操作日志（无回合概念，按时间顺序记录参战者操作；放映模式写 rounds 不写此字段） */
     operationLog?: OperationLogEntry[];
     createdAt: number;
