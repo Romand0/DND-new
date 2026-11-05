@@ -565,7 +565,7 @@ export class FlowCompiler {
         // （编译器拿到的是角色源背包，不含战斗中拾取/消耗）
         const evalResult = evaluateSpellMaterials(spell, equipment, {
           character,
-          heldIds: character ? getHeldEquipmentIds(character) : null,
+          heldIds: getHeldEquipmentIds(combatant),
         });
         materialDetail = {
           satisfied: evalResult.satisfied,

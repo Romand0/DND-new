@@ -44,9 +44,11 @@ interface Props {
   isProvingGround?: boolean;
   /** 试验场战斗记录（仪表盘数据源：回合数/记录 ID） */
   provingRecord?: CombatRecord | null;
+  /** 战斗记录 ID：战斗层手持读写落到该记录的参战者上（试验场传 provingRecord.id） */
+  recordId?: string;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -88,8 +90,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   const attacks: (Attack | NpcAttack)[] = character?.attacks && character.attacks.length > 0
     ? character.attacks
     : combatant.attacks || [];
-  const rawHeldLeftId = character?.heldLeft?.equipmentId ?? null;
-  const rawHeldRightId = character?.heldRight?.equipmentId ?? null;
+  const rawHeldLeftId = combatStore.getCombatantHandSlot(combatant, 'left').equipmentId;
+  const rawHeldRightId = combatStore.getCombatantHandSlot(combatant, 'right').equipmentId;
   // 手持物品：仅从战斗背包查找（战斗场景下），物品被消耗后自然为 null
   const heldLeftItem = rawHeldLeftId
     ? (combatInventory
@@ -101,58 +103,58 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
       ? combatInventory.find(e => (e.childId || e.id) === rawHeldRightId) ?? null
       : character?.equipment.find(e => (e.childId || e.id) === rawHeldRightId) ?? null)
     : null;
-  // 有效手持 ID：物品已不在战斗背包（被消耗/移除）时视为空手，避免 holdItem 报"手不可用"
+  // 有效手持 ID：物品已不在战斗背包（被消耗/移除）时视为空手，避免换手报"手不可用"
   const heldLeftId = heldLeftItem ? rawHeldLeftId : null;
   const heldRightId = heldRightItem ? rawHeldRightId : null;
-  // 可用性：物品不存在于战斗背包时视为不可用
-  const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left', combatInventory) : false;
-  const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right', combatInventory) : false;
+  // 可用性：物品不存在于战斗背包时视为不可用（state/双手检查在参战者手持槽上）
+  const leftUsable = heldLeftItem ? combatStore.isCombatantWeaponUsable(combatant, 'left', combatInventory) : false;
+  const rightUsable = heldRightItem ? combatStore.isCombatantWeaponUsable(combatant, 'right', combatInventory) : false;
 
   const handleHoldSelect = (item: Equipment, hand: 'left' | 'right') => {
-    if (!character) return;
-    // 若目标手仍持有已不在战斗背包中的物品（悬空引用），先清空，避免 holdItem 报"手不可用"
-    const rawSlot = hand === 'left' ? character.heldLeft : character.heldRight;
+    if (!recordId) return;
+    // 若目标手仍持有已不在战斗背包中的物品（悬空引用），先清空，避免换手报"手不可用"
+    const rawSlot = combatStore.getCombatantHandSlot(combatant, hand);
     const rawId = rawSlot?.equipmentId ?? null;
     const stillExists = rawId
       ? (combatInventory
         ? combatInventory.some(e => (e.childId || e.id) === rawId)
-        : character.equipment.some(e => (e.childId || e.id) === rawId))
+        : (character?.equipment.some(e => (e.childId || e.id) === rawId) ?? false))
       : false;
     if (rawId && !stillExists) {
-      characterStore.unholdItem(character.id, hand);
+      combatStore.unsetCombatantHand(recordId, combatant.id, hand);
     }
-    const result = characterStore.holdItem(character.id, (item.childId || item.id)!, hand, combatInventory);
+    const result = combatStore.setCombatantHand(recordId, combatant.id, (item.childId || item.id)!, hand, combatInventory);
     if (!result.success) alert(result.message);
     setRefreshKey(k => k + 1);
   };
 
   const handleUnhold = (hand: 'left' | 'right' | 'both') => {
-    if (!character) return;
-    characterStore.unholdItem(character.id, hand);
+    if (!recordId) return;
+    combatStore.unsetCombatantHand(recordId, combatant.id, hand);
     setRefreshKey(k => k + 1);
   };
 
   const handleSetAction = (hand: 'left' | 'right' | 'both') => {
-    if (!character) return;
-    characterStore.setHandAction(character.id, hand);
+    if (!recordId) return;
+    combatStore.setCombatantHandState(recordId, combatant.id, hand, 'action');
     setRefreshKey(k => k + 1);
   };
 
   const handleEndAction = (hand: 'left' | 'right' | 'both') => {
-    if (!character) return;
-    characterStore.endHandAction(character.id, hand);
+    if (!recordId) return;
+    combatStore.setCombatantHandState(recordId, combatant.id, hand, 'ready');
     setRefreshKey(k => k + 1);
   };
 
   const handleSetUnavailable = (hand: 'left' | 'right' | 'both') => {
-    if (!character) return;
-    characterStore.setHandUnavailable(character.id, hand);
+    if (!recordId) return;
+    combatStore.setCombatantHandState(recordId, combatant.id, hand, 'unavailable');
     setRefreshKey(k => k + 1);
   };
 
   const handleRestoreHand = (hand: 'left' | 'right' | 'both') => {
-    if (!character) return;
-    characterStore.restoreHand(character.id, hand);
+    if (!recordId) return;
+    combatStore.setCombatantHandState(recordId, combatant.id, hand, 'ready');
     setRefreshKey(k => k + 1);
   };
 
@@ -705,7 +707,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
               <div className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted">手持状态</div>
               <div className="grid grid-cols-2 gap-2">
                 {(() => {
-                  const slot = character.heldLeft;
+                  const slot = combatStore.getCombatantHandSlot(combatant, 'left');
                   const isUnavailable = slot.state === 'unavailable';
                   const isAction = slot.state === 'action';
                   const isReady = slot.state === 'ready';
@@ -750,7 +752,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 })()}
 
                 {(() => {
-                  const slot = character.heldRight;
+                  const slot = combatStore.getCombatantHandSlot(combatant, 'right');
                   const isUnavailable = slot.state === 'unavailable';
                   const isAction = slot.state === 'action';
                   const isReady = slot.state === 'ready';

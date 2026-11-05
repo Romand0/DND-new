@@ -128,8 +128,8 @@ export function useThrownDrop(recordId: string | null) {
     if (attacker.characterId) {
       const combatInventoryRaw = getCombatInventoryRaw(record, attacker);
       const char = characterStore.get(attacker.characterId);
-      const heldLeftId = char?.heldLeft?.equipmentId;
-      const heldRightId = char?.heldRight?.equipmentId;
+      const heldLeftId = char && record ? combatStore.getCombatantHandSlot(attacker, 'left').equipmentId : undefined;
+      const heldRightId = char && record ? combatStore.getCombatantHandSlot(attacker, 'right').equipmentId : undefined;
       let foundEquip: Equipment | null = null;
       for (const eq of combatInventoryRaw) {
         const slotId = eq.childId || eq.id;

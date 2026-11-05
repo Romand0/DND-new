@@ -5,7 +5,7 @@ import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
 import { globalStatusManager } from './statusManager';
-import type { Equipment, Character, SpellSlotLevel } from '@/types/character';
+import type { Equipment, Character, SpellSlotLevel, HandSlot, HandState } from '@/types/character';
 import type { StatusInstance } from '@/types/status';
 import statusLibrary from './statusLibrary';
 
@@ -331,8 +331,11 @@ export function computeCombatantAc(
   let ac = 10 + armorBonus;
   ac += dexCap === null ? dex : Math.min(dex, dexCap);
 
-  // 手持盾牌（必须在战斗背包）
-  const heldIds = [character.heldLeft?.equipmentId, character.heldRight?.equipmentId].filter(Boolean) as string[];
+  // 手持盾牌（必须在战斗背包；读参战者战斗层手持——进战时从角色卡备战槽初始化）
+  const heldIds = [
+    combatant.heldLeft?.equipmentId,
+    combatant.heldRight?.equipmentId,
+  ].filter(Boolean) as string[];
   for (const hid of heldIds) {
     const eq = inventory.find(e => (e.childId || e.id) === hid);
     if (eq?.subtype === '盾牌') {
@@ -1857,6 +1860,208 @@ const combatStore = {
     record.updatedAt = Date.now();
     save(records);
     return { roll, outcome, combatant: record.combatants[idx] };
+  },
+
+  // ============================================================
+  // 战斗层手持（参战者上；进战时从角色卡备战槽初始化，随记录回溯、结束不结算）
+  // ============================================================
+
+  /** 从角色卡备战槽生成参战者战斗层手持（双手武器同物品入双手；备战为空 → 空手） */
+  initCombatantHands(character: Character): { heldLeft: HandSlot; heldRight: HandSlot } {
+    const mk = (id: string | null | undefined): HandSlot => ({ state: 'ready', equipmentId: id ?? null });
+    return { heldLeft: mk(character.readiedLeft), heldRight: mk(character.readiedRight) };
+  },
+
+  /** 读参战者某手槽（旧记录缺省视为空手） */
+  getCombatantHandSlot(combatant: Combatant, hand: 'left' | 'right'): HandSlot {
+    return (hand === 'left' ? combatant.heldLeft : combatant.heldRight) ?? { state: 'ready', equipmentId: null };
+  },
+
+  /**
+   * 参战者武器可用性：state=ready + 物品存在于战斗背包（或源背包） + 双手武器需双手拿持
+   * @param combatInventory 战斗背包（含拾取物）；不传则用角色源背包
+   */
+  isCombatantWeaponUsable(
+    combatant: Combatant,
+    hand: 'left' | 'right',
+    combatInventory?: Equipment[],
+  ): boolean {
+    const slot = combatStore.getCombatantHandSlot(combatant, hand);
+    if (slot.state !== 'ready' || !slot.equipmentId) return false;
+    const source = combatInventory
+      ?? (combatant.characterId ? characterStore.get(combatant.characterId)?.equipment : null)
+      ?? [];
+    const equip = source.find(e => (e.childId || e.id) === slot.equipmentId);
+    if (!equip) return false;
+    if (characterStore.isTwoHandedWeapon(equip)) {
+      const other = combatStore.getCombatantHandSlot(combatant, hand === 'left' ? 'right' : 'left');
+      return other.state === 'ready' && other.equipmentId === slot.equipmentId;
+    }
+    return true;
+  },
+
+  /** 写参战者某手槽（内部：combatants 数组替换 + save 通知） */
+  setCombatantHandSlot(recordId: string, combatantId: string, hand: 'left' | 'right', slot: HandSlot): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx < 0) return;
+    const c = record.combatants[idx];
+    record.combatants[idx] = hand === 'left'
+      ? { ...c, heldLeft: slot }
+      : { ...c, heldRight: slot };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /**
+   * 切换参战者手持（互斥规则照搬原角色卡 holdItem：双手武器占两槽、盾牌/单手武器占一手）
+   * @param combatInventory 战斗背包（含拾取物），用于物品查找与已穿戴检查
+   */
+  setCombatantHand(
+    recordId: string,
+    combatantId: string,
+    equipId: string,
+    hand: 'left' | 'right' | 'auto' = 'auto',
+    combatInventory?: Equipment[],
+  ): { success: boolean; message: string } {
+    const record = combatStore.get(recordId);
+    if (!record) return { success: false, message: '战斗记录不存在' };
+    const combatant = record.combatants.find(c => c.id === combatantId);
+    if (!combatant) return { success: false, message: '参战者不存在' };
+    const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+
+    const source = combatInventory ?? character?.equipment ?? [];
+    const equip = source.find(e => e.childId === equipId || e.id === equipId);
+    if (!equip) return { success: false, message: '装备不存在' };
+    // 已穿戴的盔甲/服装不能手持
+    if (character) {
+      const sid = equip.childId || equip.id;
+      if (character.wornArmorId === sid || character.wornOutfitId === sid) {
+        return { success: false, message: '已穿戴的盔甲/服装不能手持' };
+      }
+    }
+
+    const slotId = equip.childId || equip.id;
+    if (!slotId) return { success: false, message: '装备缺少唯一标识' };
+
+    const left = combatStore.getCombatantHandSlot(combatant, 'left');
+    const right = combatStore.getCombatantHandSlot(combatant, 'right');
+    const canHold = (h: HandSlot): boolean => h.state === 'ready' && h.equipmentId === null;
+
+    const alreadyInLeft = left.equipmentId === slotId;
+    const alreadyInRight = right.equipmentId === slotId;
+    if (alreadyInLeft && alreadyInRight) {
+      return { success: true, message: `${equip.name} 已在双手` };
+    }
+
+    if ((alreadyInLeft || alreadyInRight) && hand !== 'auto') {
+      const target = hand === 'left' ? left : right;
+      if (target.equipmentId === slotId) {
+        return { success: true, message: `${equip.name} 已在${hand === 'left' ? '左手' : '右手'}` };
+      }
+      if (canHold(target)) {
+        combatStore.setCombatantHandSlot(recordId, combatantId, hand, { state: 'ready', equipmentId: slotId });
+        return { success: true, message: `${equip.name} 已双手握持` };
+      }
+      return { success: false, message: hand === 'left' ? '左手不可用' : '右手不可用' };
+    }
+
+    if (hand === 'auto') {
+      if (alreadyInLeft && canHold(right)) {
+        combatStore.setCombatantHandSlot(recordId, combatantId, 'right', { state: 'ready', equipmentId: slotId });
+        return { success: true, message: `${equip.name} 已双手握持` };
+      }
+      if (alreadyInRight && canHold(left)) {
+        combatStore.setCombatantHandSlot(recordId, combatantId, 'left', { state: 'ready', equipmentId: slotId });
+        return { success: true, message: `${equip.name} 已双手握持` };
+      }
+      if (canHold(right)) {
+        combatStore.setCombatantHandSlot(recordId, combatantId, 'right', { state: 'ready', equipmentId: slotId });
+        return { success: true, message: `${equip.name} 已持于右手` };
+      } else if (canHold(left)) {
+        combatStore.setCombatantHandSlot(recordId, combatantId, 'left', { state: 'ready', equipmentId: slotId });
+        return { success: true, message: `${equip.name} 已持于左手` };
+      }
+      return { success: false, message: '没有空闲的手' };
+    }
+
+    const target = hand === 'left' ? left : right;
+    if (!canHold(target)) {
+      return { success: false, message: hand === 'left' ? '左手不可用' : '右手不可用' };
+    }
+    combatStore.setCombatantHandSlot(recordId, combatantId, hand, { state: 'ready', equipmentId: slotId });
+    return { success: true, message: `${equip.name} 已持于${hand === 'left' ? '左手' : '右手'}` };
+  },
+
+  /** 放下参战者手中物品（hand='both' 清两手） */
+  unsetCombatantHand(recordId: string, combatantId: string, hand: 'left' | 'right' | 'both'): { success: boolean; message: string } {
+    const record = combatStore.get(recordId);
+    if (!record) return { success: false, message: '战斗记录不存在' };
+    const combatant = record.combatants.find(c => c.id === combatantId);
+    if (!combatant) return { success: false, message: '参战者不存在' };
+
+    let count = 0;
+    if (hand === 'left' || hand === 'both') {
+      if (combatStore.getCombatantHandSlot(combatant, 'left').equipmentId) {
+        combatStore.setCombatantHandSlot(recordId, combatantId, 'left', { state: 'ready', equipmentId: null });
+        count++;
+      }
+    }
+    if (hand === 'right' || hand === 'both') {
+      if (combatStore.getCombatantHandSlot(combatant, 'right').equipmentId) {
+        combatStore.setCombatantHandSlot(recordId, combatantId, 'right', { state: 'ready', equipmentId: null });
+        count++;
+      }
+    }
+    if (count === 0) return { success: false, message: '手中没有物品' };
+    return { success: true, message: `已放下 ${count} 件物品` };
+  },
+
+  /** 设置手状态（'action'=动作占位 | 'unavailable'=不可用 | 'ready'=恢复待用）；unavailable 会先放下物品 */
+  setCombatantHandState(
+    recordId: string,
+    combatantId: string,
+    hand: 'left' | 'right' | 'both',
+    state: HandState,
+  ): { success: boolean; message: string } {
+    const record = combatStore.get(recordId);
+    if (!record) return { success: false, message: '战斗记录不存在' };
+    const combatant = record.combatants.find(c => c.id === combatantId);
+    if (!combatant) return { success: false, message: '参战者不存在' };
+
+    let count = 0;
+    for (const h of ['left', 'right'] as const) {
+      if (hand !== h && hand !== 'both') continue;
+      const slot = combatStore.getCombatantHandSlot(combatant, h);
+      if (slot.state === state) continue;
+      if (state === 'ready') {
+        // 恢复待用：任意状态（action/unavailable）都可恢复为空手 ready
+        combatStore.setCombatantHandSlot(recordId, combatantId, h, { state: 'ready', equipmentId: null });
+        count++;
+      } else if (state === 'action') {
+        if (slot.state !== 'ready' || slot.equipmentId) continue;
+        combatStore.setCombatantHandSlot(recordId, combatantId, h, { state: 'action', equipmentId: null });
+        count++;
+      } else if (state === 'unavailable') {
+        // 不可用：持有的物品先放下（双手物品另一手同清）
+        if (slot.equipmentId) {
+          const eid = slot.equipmentId;
+          const other = combatStore.getCombatantHandSlot(combatant, h === 'left' ? 'right' : 'left');
+          if (other.equipmentId === eid) {
+            combatStore.setCombatantHandSlot(recordId, combatantId, h === 'left' ? 'right' : 'left', { state: 'ready', equipmentId: null });
+          }
+        }
+        combatStore.setCombatantHandSlot(recordId, combatantId, h, { state: 'unavailable', equipmentId: null });
+        count++;
+      }
+    }
+    if (count === 0) {
+      const label = state === 'ready' ? '没有需要恢复的手' : state === 'action' ? '没有可以设置动作的手' : '该手已处于不可用状态';
+      return { success: false, message: label };
+    }
+    return { success: true, message: `已更新 ${count} 只手状态` };
   },
 };
 

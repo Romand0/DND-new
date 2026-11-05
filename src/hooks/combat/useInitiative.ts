@@ -60,6 +60,8 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
     const dexMod = selectedPc.abilities?.dexterity?.modifier ?? 0;
     const initiative = d20 + dexMod;
     const newId = crypto.randomUUID();
+    // 战斗层手持初始化：从角色卡备战槽复制（进战自动拿起备战中的武器/盾牌）
+    const hands = combatStore.initCombatantHands(selectedPc);
     const newCombatant: Combatant = {
       id: newId,
       name: selectedPc.name,
@@ -74,6 +76,8 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
       speed: selectedPc.speed,
       note: '',
       actions: 1,
+      heldLeft: hands.heldLeft,
+      heldRight: hands.heldRight,
     };
     const updatedCombatants = [...record.combatants, newCombatant].sort(
       (a, b) => b.initiative - a.initiative

@@ -257,10 +257,10 @@ export interface Character {
   wornArmorId: string | null;
   /** 当前穿戴的服装引用 —— 优先存 childId，回退兼容 id */
   wornOutfitId: string | null;
-  /** 左手手持槽 */
-  heldLeft: HandSlot;
-  /** 右手手持槽 */
-  heldRight: HandSlot;
+  /** 备战左槽：进战斗时自动手持的背包物品 childId；null=空 */
+  readiedLeft: string | null;
+  /** 备战右槽：进战斗时自动手持的背包物品 childId；null=空 */
+  readiedRight: string | null;
   /** 言语能力：能否说话或发出声音（true=可以，false=不可以）。默认为 true，某些状态可剥夺 */
   canSpeak?: boolean;
   /** 姿势能力：能否做姿势成分（true=可以，false=不可以）。默认为 true，束缚等状态可剥夺 */

@@ -114,9 +114,9 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attacker.characterId, handRefreshKey]);
 
-  // PC 手持装备：仅从战斗背包查找（战斗场景下），物品被消耗后自然为 null
-  const heldLeftId = character?.heldLeft?.equipmentId;
-  const heldRightId = character?.heldRight?.equipmentId;
+  // PC 手持装备：战斗层手持（参战者上，进战时从角色卡备战槽初始化）；仅从战斗背包查找，物品被消耗后自然为 null
+  const heldLeftId = combatStore.getCombatantHandSlot(attacker, 'left').equipmentId;
+  const heldRightId = combatStore.getCombatantHandSlot(attacker, 'right').equipmentId;
   const heldLeftItem = heldLeftId
     ? (combatInventory
       ? combatInventory.find(e => (e.childId || e.id) === heldLeftId) ?? null
@@ -127,36 +127,34 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       ? combatInventory.find(e => (e.childId || e.id) === heldRightId) ?? null
       : character?.equipment.find(e => (e.childId || e.id) === heldRightId) ?? null)
     : null;
-  // 可用性：物品不存在于战斗背包时视为不可用
-  const leftUsable = character && heldLeftItem ? characterStore.isWeaponUsable(character, 'left', combatInventory) : false;
-  const rightUsable = character && heldRightItem ? characterStore.isWeaponUsable(character, 'right', combatInventory) : false;
+  // 可用性：物品不存在于战斗背包时视为不可用（state/双手检查在参战者手持槽上）
+  const leftUsable = heldLeftItem ? combatStore.isCombatantWeaponUsable(attacker, 'left', combatInventory) : false;
+  const rightUsable = heldRightItem ? combatStore.isCombatantWeaponUsable(attacker, 'right', combatInventory) : false;
 
-  // 手部装备操作：攻击流程内直接换手/卸下/装备（与 CombatantInfoPanel 手部区同源 API）
+  // 手部装备操作：战斗层手持读写（与 CombatantInfoPanel 手部区同源 API）
   const handleHandUnhold = (hand: 'left' | 'right') => {
-    if (!character) return;
-    characterStore.unholdItem(character.id, hand);
-    setHandRefreshKey(k => k + 1);
+    if (!recordId) return;
+    combatStore.unsetCombatantHand(recordId, attacker.id, hand);
   };
   const handleHandSwap = () => {
-    if (!character) return;
-    characterStore.update(character.id, {
-      heldLeft: { ...character.heldRight },
-      heldRight: { ...character.heldLeft },
-    });
-    setHandRefreshKey(k => k + 1);
+    if (!recordId) return;
+    const left = combatStore.getCombatantHandSlot(attacker, 'left');
+    const right = combatStore.getCombatantHandSlot(attacker, 'right');
+    combatStore.setCombatantHandSlot(recordId, attacker.id, 'left', right);
+    combatStore.setCombatantHandSlot(recordId, attacker.id, 'right', left);
   };
   const handleHandEquip = (item: Equipment, hand: 'left' | 'right') => {
-    if (!character) return;
-    // 悬空引用清理：目标手引用的物品已不在战斗背包时先清空，避免 holdItem 报「手不可用」
-    const rawSlot = hand === 'left' ? character.heldLeft : character.heldRight;
+    if (!recordId) return;
+    // 悬空引用清理：目标手引用的物品已不在战斗背包时先清空，避免换手报「手不可用」
+    const rawSlot = combatStore.getCombatantHandSlot(attacker, hand);
     const rawId = rawSlot?.equipmentId ?? null;
     const stillExists = rawId
       ? (combatInventory
         ? combatInventory.some(e => (e.childId || e.id) === rawId)
-        : character.equipment.some(e => (e.childId || e.id) === rawId))
+        : (character?.equipment.some(e => (e.childId || e.id) === rawId) ?? false))
       : false;
-    if (rawId && !stillExists) characterStore.unholdItem(character.id, hand);
-    const result = characterStore.holdItem(character.id, (item.childId || item.id)!, hand, combatInventory);
+    if (rawId && !stillExists) combatStore.unsetCombatantHand(recordId, attacker.id, hand);
+    const result = combatStore.setCombatantHand(recordId, attacker.id, (item.childId || item.id)!, hand, combatInventory);
     if (!result.success) { alert(result.message); return; }
     setPickingHand(null);
     setHandRefreshKey(k => k + 1);
@@ -164,7 +162,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
   // 双击不可用攻击 → 自动调整手持为该攻击的适用状态（相关物品存在于背包时）
   const autoAdjustHandsForAttack = (attack: Attack | NpcAttack) => {
-    if (!character) return;
+    if (!character || !recordId) return;
     const inv = combatInventory ?? character.equipment;
     const match = inv.find(e => e.name === attack.name && (e.childId || e.id));
     if (!match) {
@@ -173,30 +171,32 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     }
     const slotId = (match.childId || match.id)!;
     const twoHanded = attack.properties?.includes('双手') ?? false;
+    const leftSlot = combatStore.getCombatantHandSlot(attacker, 'left');
+    const rightSlot = combatStore.getCombatantHandSlot(attacker, 'right');
     if (twoHanded) {
-      // 双手武器：清空两手后同一物品握双手（holdItem 支持同物品入双手）
-      characterStore.unholdItem(character.id, 'both');
-      characterStore.holdItem(character.id, slotId, 'left', combatInventory);
-      characterStore.holdItem(character.id, slotId, 'right', combatInventory);
+      // 双手武器：清空两手后同一物品握双手
+      combatStore.unsetCombatantHand(recordId, attacker.id, 'both');
+      combatStore.setCombatantHand(recordId, attacker.id, slotId, 'left', combatInventory);
+      combatStore.setCombatantHand(recordId, attacker.id, slotId, 'right', combatInventory);
     } else {
       // 单手武器：优先空手（右 → 左），两手全满替换右手（主手习惯）
-      const rightEmpty = !character.heldRight.equipmentId;
-      const leftEmpty = !character.heldLeft.equipmentId;
+      const rightEmpty = !rightSlot.equipmentId;
+      const leftEmpty = !leftSlot.equipmentId;
       const hand: 'left' | 'right' = rightEmpty ? 'right' : leftEmpty ? 'left' : 'right';
-      if (hand === 'right' && !rightEmpty) characterStore.unholdItem(character.id, 'right');
-      characterStore.holdItem(character.id, slotId, hand, combatInventory);
+      if (hand === 'right' && !rightEmpty) combatStore.unsetCombatantHand(recordId, attacker.id, 'right');
+      combatStore.setCombatantHand(recordId, attacker.id, slotId, hand, combatInventory);
       // 弹药武器：另一手无对应弹药（且非空手）时，放弹药或腾空以满足装填前置
       if (isAmmoWeapon(attack)) {
         const other: 'left' | 'right' = hand === 'left' ? 'right' : 'left';
-        const otherSlot = other === 'left' ? character.heldLeft : character.heldRight;
+        const otherSlot = combatStore.getCombatantHandSlot(attacker, other);
         const ammoNames = getAmmoNames(attack);
         const otherIsAmmo = otherSlot.equipmentId
           ? inv.some(e => (e.childId || e.id) === otherSlot.equipmentId && ammoNames.includes(e.name))
           : true;
         if (!otherIsAmmo) {
           const ammo = inv.find(e => ammoNames.includes(e.name) && (e.childId || e.id));
-          if (ammo) characterStore.holdItem(character.id, (ammo.childId || ammo.id)!, other, combatInventory);
-          else characterStore.unholdItem(character.id, other);
+          if (ammo) combatStore.setCombatantHand(recordId, attacker.id, (ammo.childId || ammo.id)!, other, combatInventory);
+          else combatStore.unsetCombatantHand(recordId, attacker.id, other);
         }
       }
     }

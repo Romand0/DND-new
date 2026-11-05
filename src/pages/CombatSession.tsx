@@ -135,7 +135,7 @@ function migrateProvingGroundData(record: CombatRecord) {
     if (char && char.isSandbox && (char.equipment?.length ?? 0) === 0) {
       characterStore.update(c.characterId, {
         equipment: PROVING_GROUND_EQUIPMENT.map(e => ({ ...e })),
-        heldRight: { state: 'ready', equipmentId: 'sandbox-longsword' },
+        readiedRight: 'sandbox-longsword',
       });
     }
   });
@@ -650,7 +650,7 @@ export default function CombatSession() {
       armorClass: 10,
       speed: 30,
       equipment: PROVING_GROUND_EQUIPMENT.map(e => ({ ...e })),
-      heldRight: { state: 'ready', equipmentId: 'sandbox-longsword' },
+      readiedRight: 'sandbox-longsword',
     });
     handleBatchCreateNpc([
       {
@@ -2121,6 +2121,7 @@ export default function CombatSession() {
             combatant={liveCombatant}
             isProvingGround={record?.isProvingGround ?? false}
             provingRecord={record?.isProvingGround ? record : null}
+            recordId={record?.id}
             onClose={() => setInfoPanelCombatant(null)}
             combatants={record?.combatants ?? []}
             tokenMap={tokenMap}

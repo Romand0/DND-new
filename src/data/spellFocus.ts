@@ -82,10 +82,16 @@ export function allowedFocusKinds(character: Character | null | undefined): Focu
   return [...kinds];
 }
 
-/** 手持槽引用的装备 ID 集合（优先级 childId，回退模板 id） */
-export function getHeldEquipmentIds(character: Character | null | undefined): string[] {
-  if (!character) return [];
-  return [character.heldLeft?.equipmentId, character.heldRight?.equipmentId].filter(
+/**
+ * 手持槽引用的装备 ID 集合（战斗层手持，挂在参战者上，进战时从角色卡备战槽初始化）。
+ * holder 为 null（非战斗场景）返回 null，评估方按「跳过手持检查」处理——日常浏览视角
+ * 手持只在战斗中有意义（D&D 材料部件的手持要求在战斗内由参战者手持槽判定）。
+ */
+export function getHeldEquipmentIds(
+  holder: { heldLeft?: { equipmentId?: string | null }; heldRight?: { equipmentId?: string | null } } | null | undefined,
+): string[] | null {
+  if (!holder) return null;
+  return [holder.heldLeft?.equipmentId, holder.heldRight?.equipmentId].filter(
     (v): v is string => typeof v === 'string' && v.length > 0,
   );
 }

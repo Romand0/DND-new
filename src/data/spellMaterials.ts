@@ -3,9 +3,8 @@ import type { Character, Equipment } from '@/types/character';
 import { buildScrollItem, scrollItemToEquipment } from '@/data/spellScrolls';
 import {
   isUsableFocus,
-  focusKindLabel,
   diagnoseFocus,
-  getHeldEquipmentIds,
+  focusKindLabel,
   FOCUS_KIND_LABEL,
   type FocusDiagnosis,
 } from '@/data/spellFocus';
@@ -249,8 +248,9 @@ export function evaluateSpellMaterials(
   const hasPouch = list.some(isPouch);
 
   // 手持且职业匹配的法器：材料包不可替代的材料（价值型/耗材型）同样不能用
+  // heldIds 由调用方按场景传入（战斗=参战者手持；非战斗=null 跳过手持检查）
   const character = options?.character ?? null;
-  const heldIds = options?.heldIds ?? getHeldEquipmentIds(character);
+  const heldIds = options?.heldIds ?? null;
   const focusItem = character
     ? list.find((it) => !isPouch(it) && !isScrollItem(it) && isUsableFocus(it, character, heldIds))
     : undefined;

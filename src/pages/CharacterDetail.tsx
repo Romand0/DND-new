@@ -2282,17 +2282,11 @@ if (character) {
                 </div>
               ) : (
                 (character.attacks || []).map((attack) => {
-                  // 判断攻击是否"可用"：同名武器被手持且可用
+                  // 判断攻击是否"可用"：同名武器在备战槽中（备战数据代表进战斗会拿起）
                   const attackUsable = (() => {
-                    const heldLeftId = character.heldLeft?.equipmentId;
-                    const heldRightId = character.heldRight?.equipmentId;
-                    const leftItem = heldLeftId ? character.equipment.find(e => (e.childId || e.id) === heldLeftId) : null;
-                    const rightItem = heldRightId ? character.equipment.find(e => (e.childId || e.id) === heldRightId) : null;
-                    const leftMatch = leftItem && leftItem.name === attack.name;
-                    const rightMatch = rightItem && rightItem.name === attack.name;
-                    if (leftMatch && characterStore.isWeaponUsable(character, 'left')) return true;
-                    if (rightMatch && characterStore.isWeaponUsable(character, 'right')) return true;
-                    return false;
+                    const leftItem = character.readiedLeft ? character.equipment.find(e => (e.childId || e.id) === character.readiedLeft) : null;
+                    const rightItem = character.readiedRight ? character.equipment.find(e => (e.childId || e.id) === character.readiedRight) : null;
+                    return (leftItem && leftItem.name === attack.name) || (rightItem && rightItem.name === attack.name);
                   })();
                   return (
                   <div
@@ -2385,9 +2379,10 @@ if (character) {
                 
               {(character.equipment || []).slice(0, 5).map((item) => {
   const itemId = (item as any).childId || item.id;
-  const heldHand: 'L' | 'R' | null =
-    character.heldLeft?.equipmentId === itemId ? 'L' :
-    character.heldRight?.equipmentId === itemId ? 'R' : null;
+  const heldHand: 'L' | 'R' | 'B' | null =
+    character.readiedLeft === itemId && character.readiedRight === itemId ? 'B' :
+    character.readiedLeft === itemId ? 'L' :
+    character.readiedRight === itemId ? 'R' : null;
   return (
     <CharacterEquipmentCard
       key={itemId}

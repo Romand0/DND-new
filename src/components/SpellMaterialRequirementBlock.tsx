@@ -9,7 +9,6 @@ import {
   buildScrollEquipment,
   type MaterialRequirement,
 } from '@/data/spellMaterials';
-import { getHeldEquipmentIds } from '@/data/spellFocus';
 import { describeFocusHint } from '@/data/spellMaterials';
 
 interface Props {
@@ -23,9 +22,10 @@ interface Props {
 
 export default function SpellMaterialRequirementBlock({ spell, character, inventory, onChanged, readOnly = false }: Props) {
   if (!spell.components?.material) return null;
+  // 非战斗场景（角色详情法术卡）：跳过手持检查——手持只在战斗中有意义
   const evaluation = evaluateSpellMaterials(spell, inventory, {
     character,
-    heldIds: getHeldEquipmentIds(character),
+    heldIds: null,
   });
   const hasAnyRequirement = evaluation.requirements.items.length > 0;
   const focusHintText = describeFocusHint(evaluation.focusHint);

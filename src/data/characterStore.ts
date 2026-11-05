@@ -10,8 +10,6 @@ import type {
   ProficiencyCategory,
   SkillKey,
   AbilityKey,
-  HandSlot,
-  HandState,
   Currency,
 } from '@/types/character';
 import { scopedKey } from '@/data/campaignScope';
@@ -98,19 +96,20 @@ function migrateCharacter(char: any): Character {
       return eq;
     });
   }
-  // 迁移：添加手持槽位
-  if (!char.heldLeft || typeof char.heldLeft === 'string') {
-    // 兼容旧格式：heldLeftId 字符串 → 新 HandSlot 对象
-    const oldLeftId = char.heldLeftId as string | null;
-    const oldRightId = char.heldRightId as string | null;
-    char.heldLeft = { state: 'ready' as HandState, equipmentId: oldLeftId || null };
-    char.heldRight = { state: 'ready' as HandState, equipmentId: oldRightId || null };
-    delete char.heldLeftId;
-    delete char.heldRightId;
+  // 迁移：手持槽 → 备战槽（手持只在战斗中有意义，角色卡只保留「进战斗自动拿起」的备战数据）
+  // 旧数据三条路径：heldLeftId/heldRightId 字符串（更早格式）→ heldLeft/heldRight HandSlot → readiedLeft/readiedRight
+  if (char.readiedLeft === undefined || char.readiedRight === undefined) {
+    const legacyLeft = (char.heldLeftId as string | null)
+      ?? (char.heldLeft && typeof char.heldLeft === 'object' ? (char.heldLeft as any).equipmentId : null);
+    const legacyRight = (char.heldRightId as string | null)
+      ?? (char.heldRight && typeof char.heldRight === 'object' ? (char.heldRight as any).equipmentId : null);
+    char.readiedLeft = legacyLeft ?? null;
+    char.readiedRight = legacyRight ?? null;
   }
-  if (!char.heldRight) {
-    char.heldRight = { state: 'ready' as HandState, equipmentId: null };
-  }
+  delete char.heldLeft;
+  delete char.heldRight;
+  delete char.heldLeftId;
+  delete char.heldRightId;
   // 迁移：statuses（持久状态源）非数组时兜底 undefined，防止旧/异常数据污染
   if (char.statuses !== undefined && !Array.isArray(char.statuses)) {
     char.statuses = undefined;
@@ -136,10 +135,10 @@ function migrateStore(chars: any[]): Character[] {
       !('attackBonus' in a) || !('damageType' in a) || !('range' in a) || !('properties' in a)
     );
     const missingChildId = char.equipment?.some((eq: any) => !eq.childId);
-    const missingHeldSlots = !char.heldLeft || !char.heldRight || typeof char.heldLeft === 'string';
+    const missingReadiedSlots = char.readiedLeft === undefined || char.readiedRight === undefined;
     // profession 缺失或结构不对也必须迁移（旧数据可能只有 class 字段）
     const invalidProfession = !char.profession || typeof char.profession !== 'object' || typeof char.profession.class !== 'string';
-    if (hasOldAttackFields || missingNewAttackFields || missingHeldSlots || missingChildId || invalidProfession) {
+    if (hasOldAttackFields || missingNewAttackFields || missingReadiedSlots || missingChildId || invalidProfession) {
       migrated = true;
       return migrateCharacter(char);
     }
@@ -272,8 +271,8 @@ function createSandboxCharacter(data: Partial<Character>): Character {
     flaws: data.flaws ?? '',
     wornArmorId: data.wornArmorId ?? null,
     wornOutfitId: data.wornOutfitId ?? null,
-    heldLeft: data.heldLeft ?? { state: 'ready', equipmentId: null },
-    heldRight: data.heldRight ?? { state: 'ready', equipmentId: null },
+    readiedLeft: data.readiedLeft ?? null,
+    readiedRight: data.readiedRight ?? null,
     ...(data as Partial<Character>),
     // isSandbox 强制为 true（不可被 data 覆盖）
     isSandbox: true,
@@ -616,8 +615,8 @@ function createBlankCharacter(name?: string): Character {
     
     wornArmorId: null,
     wornOutfitId: null,
-    heldLeft: { state: 'ready', equipmentId: null },
-    heldRight: { state: 'ready', equipmentId: null },
+    readiedLeft: null,
+    readiedRight: null,
 
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -916,13 +915,13 @@ function deleteEquipment(charId: string, equipId: string): void {
   if (char.wornOutfitId === removed.id || char.wornOutfitId === removed.childId) {
     char.wornOutfitId = null;
   }
-  // 如果被删除的装备正在手持，清槽位
+  // 如果被删除的装备在备战槽，清槽位
   const removedSlotId = removed.childId || removed.id;
-  if (char.heldLeft.equipmentId === removedSlotId) {
-    char.heldLeft = { state: 'ready', equipmentId: null };
+  if (char.readiedLeft === removedSlotId) {
+    char.readiedLeft = null;
   }
-  if (char.heldRight.equipmentId === removedSlotId) {
-    char.heldRight = { state: 'ready', equipmentId: null };
+  if (char.readiedRight === removedSlotId) {
+    char.readiedRight = null;
   }
   char.equipment.splice(index, 1);
   saveCharacter(char as Character);
@@ -1094,23 +1093,13 @@ function recalculateArmorClass(char: Character, combatInventory?: Equipment[]): 
     char.armorClass = 10 + dexMod;
   }
 
-  // 盾牌：手持盾牌时 AC +2
-  const heldIds = [char.heldLeft?.equipmentId, char.heldRight?.equipmentId].filter(Boolean);
-  const hasShield = heldIds.some(id => {
-    const eq = source.find(e => e.childId === id || e.id === id);
-    return eq?.subtype === '盾牌';
-  });
-  if (hasShield) {
-    char.armorClass += 2;
-  }
+  // 备战数据代表「进战斗会拿起」，日常状态按未持盾处理（战斗中持盾 +2 在 computeCombatantAc 按参战者手持判定）
 }
 
 // ============================================================
-// 手持装备管理
+// 备战槽管理（角色卡持久备战数据：进战斗时自动拿起）
+// 战斗层手持（state 三态、切换）在 combatStore 的参战者上
 // ============================================================
-
-/** 空的手持槽（默认值） */
-const EMPTY_HAND: HandSlot = { state: 'ready', equipmentId: null };
 
 /** 判断装备是否为双手武器 */
 function isTwoHandedWeapon(item: Equipment): boolean {
@@ -1118,8 +1107,8 @@ function isTwoHandedWeapon(item: Equipment): boolean {
   return item.properties.includes('双手');
 }
 
-/** 判断装备是否可以手持（已穿戴的盔甲/服装不能手持） */
-function canBeHeld(char: Character, item: Equipment): boolean {
+/** 判断装备可以设入备战槽（已穿戴的盔甲/服装不能备战） */
+function canBeReadied(char: Character, item: Equipment): boolean {
   const slotId = item.childId || item.id;
   if (char.wornArmorId === slotId) return false;
   if (char.wornOutfitId === slotId) return false;
@@ -1127,128 +1116,79 @@ function canBeHeld(char: Character, item: Equipment): boolean {
 }
 
 /**
- * 判断某只手上拿持的武器是否"可用"（可用于攻击）
- * - 单手武器：拿持即可用
- * - 双手武器：仅双手拿持时可用
- * @param combatInventory 战斗场景下传入战斗背包（含拾取物），不传则用角色源背包
+ * 把背包物品设入备战槽（互斥规则：双手武器占两槽、盾牌/单手武器占一手）
+ * hand='auto' 时自动选槽：已在某槽 → 补另一手成双手；否则优先右手
  */
-function isWeaponUsable(char: Character, hand: 'left' | 'right', combatInventory?: Equipment[]): boolean {
-  const slot = hand === 'left' ? char.heldLeft : char.heldRight;
-  if (slot.state !== 'ready' || !slot.equipmentId) return false;
-  const source = combatInventory ?? char.equipment;
-  const equip = source.find(e => (e.childId || e.id) === slot.equipmentId);
-  if (!equip) return false;
-  if (isTwoHandedWeapon(equip)) {
-    // 双手武器需要两只手都拿持才可用
-    const otherSlot = hand === 'left' ? char.heldRight : char.heldLeft;
-    return otherSlot.state === 'ready' && otherSlot.equipmentId === slot.equipmentId;
-  }
-  return true;
-}
-
-/**
- * 手持物品
- * - 只有 state=ready 且 equipmentId=null 的手才能拿持
- * - 双手武器可以单手拿持，但只有双手拿持时才"可用"
- * @param combatInventory 战斗场景下传入战斗背包（含拾取物），不传则用角色源背包
- */
-function holdItem(
+function readyItem(
   charId: string,
   equipId: string,
   hand: 'left' | 'right' | 'auto' = 'auto',
-  combatInventory?: Equipment[]
 ): { success: boolean; message: string } {
   const char = getCharacter(charId);
   if (!char) return { success: false, message: '角色不存在' };
 
-  const source = combatInventory ?? char.equipment;
-  const equip = source.find(e => e.childId === equipId || e.id === equipId);
+  const equip = (char.equipment ?? []).find(e => e.childId === equipId || e.id === equipId);
   if (!equip) return { success: false, message: '装备不存在' };
-
-  if (!canBeHeld(char, equip)) {
-    return { success: false, message: '已穿戴的盔甲/服装不能手持' };
+  if (!canBeReadied(char, equip)) {
+    return { success: false, message: '已穿戴的盔甲/服装不能备战' };
   }
 
-  // 唯一标识：优先使用 childId，没有则使用 id
   const slotId = equip.childId || equip.id;
-  if (!slotId) {
-    return { success: false, message: '装备缺少唯一标识' };
-  }
+  if (!slotId) return { success: false, message: '装备缺少唯一标识' };
 
-  const canHoldInHand = (h: HandSlot): boolean =>
-    h.state === 'ready' && h.equipmentId === null;
-
-  // 检查该装备是否已经在某只手上
-  const alreadyInLeft = char.heldLeft.equipmentId === slotId;
-  const alreadyInRight = char.heldRight.equipmentId === slotId;
+  const alreadyInLeft = char.readiedLeft === slotId;
+  const alreadyInRight = char.readiedRight === slotId;
   if (alreadyInLeft && alreadyInRight) {
-    return { success: true, message: `${equip.name} 已在双手` };
+    return { success: true, message: `${equip.name} 已双手备战` };
   }
 
-  // 如果已经在一只手上，且用户指定另一只手，允许添加（双手武器情况）
   if ((alreadyInLeft || alreadyInRight) && hand !== 'auto') {
-    const targetSlot = hand === 'left' ? char.heldLeft : char.heldRight;
-    if (targetSlot.equipmentId === slotId) {
-      return { success: true, message: `${equip.name} 已在${hand === 'left' ? '左手' : '右手'}` };
+    const target = hand === 'left' ? char.readiedLeft : char.readiedRight;
+    if (target === slotId) {
+      return { success: true, message: `${equip.name} 已在${hand === 'left' ? '左手' : '右手'}备战` };
     }
-    // 另一只手已经有这个装备了，现在要放到这只手（双手武器）
-    if (canHoldInHand(targetSlot)) {
-      if (hand === 'left') {
-        char.heldLeft = { state: 'ready', equipmentId: slotId };
-      } else {
-        char.heldRight = { state: 'ready', equipmentId: slotId };
-      }
+    if (target === null) {
+      if (hand === 'left') char.readiedLeft = slotId; else char.readiedRight = slotId;
       saveCharacter(char as Character);
-      return { success: true, message: `${equip.name} 已双手握持` };
-    } else {
-      return { success: false, message: `${hand === 'left' ? '左手' : '右手'}不可用` };
+      return { success: true, message: `${equip.name} 已双手备战` };
     }
+    return { success: false, message: hand === 'left' ? '左手备战槽已被占用' : '右手备战槽已被占用' };
   }
 
   if (hand === 'auto') {
-    // 自动选择：优先选择已有同装备的手（双手武器），否则选空手
-    if (alreadyInLeft && canHoldInHand(char.heldRight)) {
-      char.heldRight = { state: 'ready', equipmentId: slotId };
+    if (alreadyInLeft && char.readiedRight === null) {
+      char.readiedRight = slotId;
       saveCharacter(char as Character);
-      return { success: true, message: `${equip.name} 已双手握持` };
+      return { success: true, message: `${equip.name} 已双手备战` };
     }
-    if (alreadyInRight && canHoldInHand(char.heldLeft)) {
-      char.heldLeft = { state: 'ready', equipmentId: slotId };
+    if (alreadyInRight && char.readiedLeft === null) {
+      char.readiedLeft = slotId;
       saveCharacter(char as Character);
-      return { success: true, message: `${equip.name} 已双手握持` };
+      return { success: true, message: `${equip.name} 已双手备战` };
     }
-    // 选择空手
-    if (canHoldInHand(char.heldRight)) {
-      char.heldRight = { state: 'ready', equipmentId: slotId };
+    if (char.readiedRight === null) {
+      char.readiedRight = slotId;
       saveCharacter(char as Character);
-      return { success: true, message: `${equip.name} 已持于右手` };
-    } else if (canHoldInHand(char.heldLeft)) {
-      char.heldLeft = { state: 'ready', equipmentId: slotId };
+      return { success: true, message: `${equip.name} 已备于右手` };
+    } else if (char.readiedLeft === null) {
+      char.readiedLeft = slotId;
       saveCharacter(char as Character);
-      return { success: true, message: `${equip.name} 已持于左手` };
-    } else {
-      return { success: false, message: '没有空闲的手' };
+      return { success: true, message: `${equip.name} 已备于左手` };
     }
+    return { success: false, message: '备战槽已满，请先卸下一件' };
   }
 
-  const targetSlot = hand === 'left' ? char.heldLeft : char.heldRight;
-  if (!canHoldInHand(targetSlot)) {
-    return { success: false, message: hand === 'left' ? '左手不可用' : '右手不可用' };
+  const target = hand === 'left' ? char.readiedLeft : char.readiedRight;
+  if (target !== null) {
+    return { success: false, message: hand === 'left' ? '左手备战槽已被占用' : '右手备战槽已被占用' };
   }
-
-  if (hand === 'left') {
-    char.heldLeft = { state: 'ready', equipmentId: slotId };
-  } else {
-    char.heldRight = { state: 'ready', equipmentId: slotId };
-  }
+  if (hand === 'left') char.readiedLeft = slotId; else char.readiedRight = slotId;
   saveCharacter(char as Character);
-  return { success: true, message: `${equip.name} 已持于${hand === 'left' ? '左手' : '右手'}` };
+  return { success: true, message: `${equip.name} 已备于${hand === 'left' ? '左手' : '右手'}` };
 }
 
-/**
- * 放下手中的物品（将手恢复为空/待用）
- */
-function unholdItem(
+/** 卸下备战槽（双手物品两槽同清走 'both'） */
+function unreadyItem(
   charId: string,
   hand: 'left' | 'right' | 'both'
 ): { success: boolean; message: string } {
@@ -1256,163 +1196,17 @@ function unholdItem(
   if (!char) return { success: false, message: '角色不存在' };
 
   let count = 0;
-  if (hand === 'left' || hand === 'both') {
-    if (char.heldLeft.equipmentId) {
-      char.heldLeft = { ...EMPTY_HAND };
-      count++;
-    }
-  }
-  if (hand === 'right' || hand === 'both') {
-    if (char.heldRight.equipmentId) {
-      char.heldRight = { ...EMPTY_HAND };
-      count++;
-    }
-  }
-
-  if (count === 0) {
-    return { success: false, message: '手中没有物品' };
-  }
-
-  saveCharacter(char as Character);
-  return { success: true, message: `已放下 ${count} 件物品` };
-}
-
-/**
- * 设置动作占位（手正在执行动作，不能拿物品也不能做其他事）
- * 只能在 ready 且空手时设置
- */
-function setHandAction(
-  charId: string,
-  hand: 'left' | 'right' | 'both'
-): { success: boolean; message: string } {
-  const char = getCharacter(charId);
-  if (!char) return { success: false, message: '角色不存在' };
-
-  let count = 0;
-  const trySetAction = (slot: HandSlot): HandSlot | null => {
-    if (slot.state === 'ready' && !slot.equipmentId) {
-      return { state: 'action', equipmentId: null };
-    }
-    return null;
-  };
-
-  if (hand === 'left' || hand === 'both') {
-    const updated = trySetAction(char.heldLeft);
-    if (updated) { char.heldLeft = updated; count++; }
-  }
-  if (hand === 'right' || hand === 'both') {
-    const updated = trySetAction(char.heldRight);
-    if (updated) { char.heldRight = updated; count++; }
-  }
-
-  if (count === 0) {
-    return { success: false, message: '没有可以设置动作的手' };
-  }
-
-  saveCharacter(char as Character);
-  return { success: true, message: `已设置 ${count} 只手为动作状态` };
-}
-
-/**
- * 结束动作（将 action 状态恢复为 ready）
- */
-function endHandAction(
-  charId: string,
-  hand: 'left' | 'right' | 'both'
-): { success: boolean; message: string } {
-  const char = getCharacter(charId);
-  if (!char) return { success: false, message: '角色不存在' };
-
-  let count = 0;
-  if ((hand === 'left' || hand === 'both') && char.heldLeft.state === 'action') {
-    char.heldLeft = { ...EMPTY_HAND };
+  if ((hand === 'left' || hand === 'both') && char.readiedLeft) {
+    char.readiedLeft = null;
     count++;
   }
-  if ((hand === 'right' || hand === 'both') && char.heldRight.state === 'action') {
-    char.heldRight = { ...EMPTY_HAND };
+  if ((hand === 'right' || hand === 'both') && char.readiedRight) {
+    char.readiedRight = null;
     count++;
   }
-
-  if (count === 0) {
-    return { success: false, message: '没有正在执行动作的手' };
-  }
-
+  if (count === 0) return { success: false, message: '备战槽为空' };
   saveCharacter(char as Character);
-  return { success: true, message: `已结束 ${count} 只手的动作` };
-}
-
-/**
- * 设置手为不可用状态（如禁锢、失能等）
- * 如果手中持有物品，会自动放下
- */
-function setHandUnavailable(
-  charId: string,
-  hand: 'left' | 'right' | 'both'
-): { success: boolean; message: string } {
-  const char = getCharacter(charId);
-  if (!char) return { success: false, message: '角色不存在' };
-
-  let count = 0;
-  if (hand === 'left' || hand === 'both') {
-    if (char.heldLeft.state !== 'unavailable') {
-      // 如果手持有物品，先放下
-      if (char.heldLeft.equipmentId) {
-        const eid = char.heldLeft.equipmentId;
-        if (char.heldRight.equipmentId === eid) {
-          char.heldRight = { ...EMPTY_HAND };
-        }
-      }
-      char.heldLeft = { state: 'unavailable', equipmentId: null };
-      count++;
-    }
-  }
-  if (hand === 'right' || hand === 'both') {
-    if (char.heldRight.state !== 'unavailable') {
-      if (char.heldRight.equipmentId) {
-        const eid = char.heldRight.equipmentId;
-        if (char.heldLeft.equipmentId === eid) {
-          char.heldLeft = { ...EMPTY_HAND };
-        }
-      }
-      char.heldRight = { state: 'unavailable', equipmentId: null };
-      count++;
-    }
-  }
-
-  if (count === 0) {
-    return { success: false, message: '该手已处于不可用状态' };
-  }
-
-  saveCharacter(char as Character);
-  return { success: true, message: `已将 ${count} 只手设为不可用` };
-}
-
-/**
- * 恢复不可用的手为待用状态
- */
-function restoreHand(
-  charId: string,
-  hand: 'left' | 'right' | 'both'
-): { success: boolean; message: string } {
-  const char = getCharacter(charId);
-  if (!char) return { success: false, message: '角色不存在' };
-
-  let count = 0;
-  if ((hand === 'left' || hand === 'both') && char.heldLeft.state === 'unavailable') {
-    char.heldLeft = { ...EMPTY_HAND };
-    count++;
-  }
-  if ((hand === 'right' || hand === 'both') && char.heldRight.state === 'unavailable') {
-    char.heldRight = { ...EMPTY_HAND };
-    count++;
-  }
-
-  if (count === 0) {
-    return { success: false, message: '没有不可用的手' };
-  }
-
-  saveCharacter(char as Character);
-  return { success: true, message: `已恢复 ${count} 只手` };
+  return { success: true, message: `已卸下 ${count} 件备战物品` };
 }
 
 
@@ -2419,15 +2213,10 @@ export const characterStore = {
   wearEquipment,
   unwearEquipment,
 
-  // 手持/放下
-  holdItem,
-  unholdItem,
+  // 备战槽（进战斗自动拿起；战斗层手持在 combatStore 参战者上）
+  readyItem,
+  unreadyItem,
   isTwoHandedWeapon,
-  isWeaponUsable,
-  setHandAction,
-  endHandAction,
-  setHandUnavailable,
-   restoreHand,
    
     // 子职业管理
     getAvailableSubclasses,

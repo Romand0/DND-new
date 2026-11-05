@@ -34,9 +34,9 @@ interface Props {
   onUpdateQuantity?: (itemId: string, delta: number) => void;
   onRefresh?: () => void;
   showQuantity?: boolean;
-  /** 手持状态：'L'=左手, 'R'=右手, null=未手持 */
-  heldHand?: 'L' | 'R' | null;
-  /** 点击手持标签的回调 */
+  /** 备战状态：'L'=备战左手, 'R'=备战右手, 'B'=双手备战, null=未备战 */
+  heldHand?: 'L' | 'R' | 'B' | null;
+  /** 点击备战标签的回调 */
   onHeldLabelClick?: () => void;
 }
 
@@ -59,7 +59,7 @@ export default function CharacterEquipmentCard({
   const wearable = isWearable(item);
   const holdable = isHoldable(item);
   const isWorn = item.tags?.some(t => t.key === '着装状态' && t.value === '已穿戴');
-  const isHeld = heldHand === 'L' || heldHand === 'R';
+  const isHeld = heldHand === 'L' || heldHand === 'R' || heldHand === 'B';
 
   return (
     <div className="rounded-lg border dark:bg-bg-dark dark:border-border-dark light:bg-bg-light-2 light:border-border-light overflow-hidden">
@@ -79,10 +79,10 @@ export default function CharacterEquipmentCard({
                     e.stopPropagation();
                     onHeldLabelClick?.();
                   }}
-                  className="flex-shrink-0 w-4 h-4 flex items-center justify-center rounded text-xs font-bold text-white bg-warning hover:bg-warning/80 transition-colors"
-                  title={`手持于${heldHand === 'L' ? '左手' : '右手'}，点击查看状态栏`}
+                  className="flex-shrink-0 h-4 px-1 flex items-center justify-center rounded text-xs font-bold text-white bg-warning hover:bg-warning/80 transition-colors"
+                  title={`备战中（${heldHand === 'L' ? '左手' : heldHand === 'R' ? '右手' : '双手'}）：进战斗时自动拿起`}
                 >
-                  {heldHand}
+                  备
                 </button>
               )}
             </div>
@@ -151,16 +151,16 @@ export default function CharacterEquipmentCard({
               </button>
             )}
 
-            {/* 手持/取消手持按钮（盾牌/武器/法器 + 有 characterId 时显示） */}
+            {/* 备战/取消备战按钮（盾牌/武器/法器 + 有 characterId 时显示） */}
             {holdable && characterId && (
               <button
                 onClick={() => {
                   if (isHeld) {
-                    const hand = heldHand === 'L' ? 'left' : 'right';
-                    const result = characterStore.unholdItem(characterId, hand);
+                    const hand = heldHand === 'L' ? 'left' : heldHand === 'R' ? 'right' : 'both';
+                    const result = characterStore.unreadyItem(characterId, hand);
                     if (!result.success) alert(result.message);
                   } else {
-                    const result = characterStore.holdItem(characterId, itemId, 'auto');
+                    const result = characterStore.readyItem(characterId, itemId, 'auto');
                     if (!result.success) alert(result.message);
                   }
                   onRefresh?.();
@@ -171,7 +171,7 @@ export default function CharacterEquipmentCard({
                     : 'bg-danger/10 text-danger hover:bg-danger/20'
                 }`}
               >
-                {isHeld ? '取消手持' : '手持'}
+                {isHeld ? '取消备战' : '备战'}
               </button>
             )}
 

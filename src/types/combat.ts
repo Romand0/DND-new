@@ -1,6 +1,6 @@
 // src/types/combat.ts
 import type { CastStepLog } from './castStep';
-import type { AbilityKey, SpellSlotLevel } from './character';
+import type { AbilityKey, SpellSlotLevel, HandSlot } from './character';
 import type { DamageAffinitySet } from './damage';
 
 // ===== 新增：体型枚举 =====
@@ -95,6 +95,10 @@ export interface Combatant {
   deathSaveFailures?: number;
   /** 死亡豁免成功次数（D&D 5e：累计 3 次即稳定） */
   deathSaveSuccesses?: number;
+  /** 战斗层手持左槽：进战时从角色卡备战槽初始化；战斗中切换只写此处，随记录回溯、结束不结算 */
+  heldLeft?: HandSlot;
+  /** 战斗层手持右槽：语义同 heldLeft */
+  heldRight?: HandSlot;
   isPc?: boolean;
   characterId?: string;
   note?: string;
