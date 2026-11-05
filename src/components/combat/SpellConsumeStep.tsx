@@ -64,7 +64,7 @@ export default function SpellConsumeStep({
     }
     if (method === 'slot' && selectedSlot) {
       onConfirm(
-        `消耗 ${slotLevel} 环法术位（${selectedSlot.used + 1}/${selectedSlot.max}）`,
+        `消耗 ${slotLevel} 环法术位（可用 ${selectedSlot.max - selectedSlot.used} → ${selectedSlot.max - selectedSlot.used - 1}/${selectedSlot.max}）`,
         { method: 'slot', slotLevel, levelKey: `level${slotLevel}` },
       );
     }
@@ -141,13 +141,14 @@ export default function SpellConsumeStep({
                 <button
                   key={s.level}
                   onClick={(e) => { e.stopPropagation(); setSlotLevel(s.level); setMethod('slot'); }}
+                  title="可用 / 总量"
                   className={`px-2 py-1 rounded text-[11px] border transition-colors ${
                     method === 'slot' && slotLevel === s.level
                       ? 'border-primary bg-primary/10 text-primary font-medium'
                       : 'dark:border-border-dark/60 light:border-border-light/60 dark:text-text-dark-muted light:text-text-light-muted'
                   }`}
                 >
-                  {s.level} 环（{s.used}/{s.max}）
+                  {s.level} 环（{s.max - s.used}/{s.max}）
                 </button>
               ))}
             </div>

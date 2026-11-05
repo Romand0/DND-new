@@ -197,13 +197,14 @@ function FlowConsumeBar({
           <button
             key={s.level}
             onClick={() => onChange({ method: 'slot', slotLevel: s.level })}
+            title="可用 / 总量"
             className={`px-2 py-1 rounded text-[11px] border transition-colors ${
               isSlot && s.level === value?.slotLevel
                 ? 'border-primary bg-primary/10 text-primary font-medium'
                 : 'dark:border-border-dark/60 light:border-border-light/60 dark:text-text-dark-muted light:text-text-light-muted'
             }`}
           >
-            {s.level} 环位（{s.used}/{s.max}）
+            {s.level} 环位（{s.max - s.used}/{s.max}）
           </button>
         ))}
       </div>
@@ -211,7 +212,7 @@ function FlowConsumeBar({
         <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted">
           {isScroll
             ? `将消耗卷轴「${selectedScroll?.name ?? value?.scrollName}」（${selectedScroll?.level ?? '?'} 环），不占法术位`
-            : `将消耗 ${value?.slotLevel} 环法术位（${selectedSlot?.used + 1}/${selectedSlot?.max}）${higher && spell.heightenedEffect ? `；升环效果：${spell.heightenedEffect}` : ''}`}
+            : `将消耗 ${value?.slotLevel} 环法术位（可用 ${selectedSlot ? selectedSlot.max - selectedSlot.used : '?'} → ${selectedSlot ? selectedSlot.max - selectedSlot.used - 1 : '?'}/${selectedSlot?.max ?? '?'}）${higher && spell.heightenedEffect ? `；升环效果：${spell.heightenedEffect}` : ''}`}
         </div>
       )}
     </div>
