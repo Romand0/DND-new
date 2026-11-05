@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
+import { characterStore } from '@/data/characterStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
 import { Zap, Trash2, Download, Upload, FileJson, FlaskConical, BadgeCheck } from 'lucide-react';
@@ -33,19 +34,25 @@ export default function CombatList() {
   const handleQuickCreateConfirm = (result: QuickCreateResult) => {
     try {
       // 1) 构造 combatants（按先攻高→低排序，同先攻保持输入顺序）
-      const combatantBases: Omit<Combatant, 'id'>[] = result.combatants.map(c => ({
-        name: c.name,
-        initiative: c.initiative,
-        ac: c.ac,
-        maxHp: c.maxHp,
-        currentHp: c.currentHp,
-        tempHp: c.tempHp,
-        isPc: true,
-        characterId: c.characterId,
-        speed: c.speed,
-        note: '',
-        actions: 1,
-      }));
+      const combatantBases: Omit<Combatant, 'id'>[] = result.combatants.map(c => {
+        // 战斗层手持初始化：与 CombatSession 手动添加 PC 同一链路（进战自动拿起备战中的武器）
+        const char = c.characterId ? characterStore.get(c.characterId) : null;
+        const hands = char ? combatStore.initCombatantHands(char) : null;
+        return {
+          name: c.name,
+          initiative: c.initiative,
+          ac: c.ac,
+          maxHp: c.maxHp,
+          currentHp: c.currentHp,
+          tempHp: c.tempHp,
+          isPc: true,
+          characterId: c.characterId,
+          speed: c.speed,
+          note: '',
+          actions: 1,
+          ...(hands ? { heldLeft: hands.heldLeft, heldRight: hands.heldRight } : {}),
+        };
+      });
       // 按先攻降序，稳定排序（index 作为 tiebreaker 保持原序）
       combatantBases.sort((a, b) => b.initiative - a.initiative);
 
