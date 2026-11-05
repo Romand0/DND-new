@@ -87,6 +87,11 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
               ]),
             )
           : undefined,
+        spellSlotChanges: latestForSnapshot?.spellSlotChanges
+          ? Object.fromEntries(
+              Object.entries(latestForSnapshot.spellSlotChanges).map(([k, v]) => [k, { ...v }]),
+            )
+          : undefined,
       };
       rollbackSnapshotRef.current = { initial: initialSnap, snapshots: {} };
       // 同步写入 IndexedDB：刷新/关闭页面后恢复可用
@@ -114,6 +119,9 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
                   { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
                 ]),
               )
+            : undefined,
+          spellSlotChanges: init.spellSlotChanges
+            ? Object.fromEntries(Object.entries(init.spellSlotChanges).map(([k, v]) => [k, { ...v }]))
             : undefined,
           updatedAt: Date.now(),
         });
@@ -252,7 +260,7 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
     if (init) {
       battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
       battlegroundStore.setZones(record.id, (init.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })));
-      // 恢复参战者状态 + 回合记录 + 装备变更到初始快照（完整回溯）
+      // 恢复参战者状态 + 回合记录 + 装备变更 + 法术位漏斗到初始快照（完整回溯）
       combatStore.update(record.id, {
         combatants: init.combatants.map(c => ({ ...c })),
         rounds: init.rounds.map(r => ({ ...r })),
@@ -263,6 +271,9 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
                 { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
               ]),
             )
+          : undefined,
+        spellSlotChanges: init.spellSlotChanges
+          ? Object.fromEntries(Object.entries(init.spellSlotChanges).map(([k, v]) => [k, { ...v }]))
           : undefined,
         updatedAt: Date.now(),
       });

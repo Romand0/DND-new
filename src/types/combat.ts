@@ -1,6 +1,6 @@
 // src/types/combat.ts
 import type { CastStepLog } from './castStep';
-import type { AbilityKey } from './character';
+import type { AbilityKey, SpellSlotLevel } from './character';
 import type { DamageAffinitySet } from './damage';
 
 // ===== 新增：体型枚举 =====
@@ -302,6 +302,8 @@ export interface TurnSnapshot {
   rounds: RoundAction[];
   battleground: any[];
   equipmentChanges?: Record<string, EquipmentChanges>;
+  /** 法术位消耗漏斗快照（回溯时与装备变更一起还原） */
+  spellSlotChanges?: Record<string, Partial<Record<SpellSlotLevel, number>>>;
   /** 沙盘地形区域快照（回溯时连同棋子一起还原） */
   zones?: import('@/types/battleground').BattlegroundZone[];
 }
@@ -480,6 +482,12 @@ export interface CombatRecord {
    * key 为 combatantId
    */
    equipmentChanges?: Record<string, EquipmentChanges>;
+   /**
+    * 法术位消耗漏斗（战斗期间的临时副本，与 equipmentChanges 同思想：不直接修改角色卡）。
+    * key 为 combatantId，内层 key 为 level1~level9，value 为本场战斗已消耗的法术位数量（正 delta）。
+    * 展示与可用性判定一律读「角色卡源 + delta 叠加」；战斗结束随记录丢弃，并入角色卡由战斗结算统一处理。
+    */
+   spellSlotChanges?: Record<string, Partial<Record<SpellSlotLevel, number>>>;
    /**
      * 装填武器状态：key 为 "{combatantId}:{attackId}" 或 "{combatantId}:{attackName}", value=true 已装填
      */

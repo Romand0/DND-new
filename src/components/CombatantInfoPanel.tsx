@@ -513,13 +513,15 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 </span>
               </div>
 
-              {/* 法术位（PC）：图形化环位，实心圆=可用、空心圆=已消耗；点击实心消耗 / 空心恢复（与角色详情页同款） */}
-              {combatant.isPc && character && (() => {
-                const spellData = characterStore.getSpellSlotDisplayData(character);
-                if (!spellData || spellData.spellSlots.length === 0) return null;
-                const slots = spellData.spellSlots;
-                const updateSlot = (levelKey: SpellSlotLevel, used: number) => {
-                  characterStore.updateSpellSlots(character.id, levelKey, { used });
+              {/* 法术位（PC）：战斗临时副本视图（角色卡源 + 本场消耗 delta 叠加）。
+                  实心圆=可用、空心圆=已消耗；点击实心消耗 / 空心恢复（与角色详情页同款交互，
+                  但只写战斗漏斗 spellSlotChanges，角色卡在战斗结算时统一并入） */}
+              {combatant.isPc && !isProvingGround && record && (() => {
+                const slots = combatStore.getCombatSpellSlotView(record.id, combatant.id);
+                if (!slots || slots.length === 0) return null;
+                const updateSlot = (levelKey: SpellSlotLevel, consume: boolean) => {
+                  if (consume) combatStore.consumeSpellSlot(record.id, combatant.id, levelKey);
+                  else combatStore.restoreSpellSlot(record.id, combatant.id, levelKey);
                   setRefreshKey(k => k + 1);
                 };
                 return (
@@ -528,7 +530,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       法术位
                     </div>
                     <div className="space-y-1.5">
-                      {slots.map((slot) => (
+                      {slots.map((slot) => {
+                        const levelKey = `level${slot.level}` as SpellSlotLevel;
+                        return (
                         <div key={slot.level} className="flex items-center gap-3 py-1 px-1 rounded-lg">
                           <span className="w-12 shrink-0 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                             {slot.label}
@@ -537,16 +541,12 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           <div className="flex items-center">
                             {Array.from({ length: slot.max }).map((_, i) => {
                               const filled = i < slot.available;
-                              const levelKey = `level${slot.level}` as SpellSlotLevel;
                               return (
                                 <div key={i} className="flex items-center">
                                   {i > 0 && <span className="w-2 h-0.5 bg-gray-400/70 dark:bg-gray-500/70" />}
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      const next = filled ? slot.used + 1 : slot.used - 1;
-                                      updateSlot(levelKey, Math.max(0, Math.min(slot.max, next)));
-                                    }}
+                                    onClick={() => updateSlot(levelKey, filled)}
                                     title={filled ? '消耗一个环位' : '恢复一个环位'}
                                     className="w-4.5 h-4.5 rounded-full border-2 border-gray-500 dark:border-gray-400 hover:border-primary p-[2px] transition-colors"
                                   >
@@ -562,12 +562,13 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           </div>
                           <span
                             className="ml-auto text-xs tabular-nums dark:text-text-dark-muted light:text-text-light-muted"
-                            title="可用 / 总量"
+                            title="可用 / 总量（战斗中消耗，结算时并入角色卡）"
                           >
                             {slot.available}/{slot.max}
                           </span>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 );

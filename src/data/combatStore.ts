@@ -5,7 +5,7 @@ import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
 import { globalStatusManager } from './statusManager';
-import type { Equipment, Character } from '@/types/character';
+import type { Equipment, Character, SpellSlotLevel } from '@/types/character';
 
 const storageKey = () => scopedKey('dnd-combat-records');
 type Listener = () => void;
@@ -518,6 +518,22 @@ function load(): CombatRecord[] {
           executed: !!t.executed,
         })),
         equipmentChanges,
+        // 法术位消耗漏斗（白名单重建：数字正值兜底，防止旧数据结构异常污染）
+        spellSlotChanges: (() => {
+          const src = r.spellSlotChanges;
+          const out: Record<string, Record<string, number>> = {};
+          if (src && typeof src === 'object') {
+            for (const [cid, levels] of Object.entries(src as Record<string, unknown>)) {
+              if (!levels || typeof levels !== 'object') continue;
+              const lv: Record<string, number> = {};
+              for (const [lk, n] of Object.entries(levels as Record<string, unknown>)) {
+                if (typeof n === 'number' && Number.isFinite(n) && n > 0) lv[lk] = n;
+              }
+              out[cid] = lv;
+            }
+          }
+          return out;
+        })(),
         loadedWeapons: r.loadedWeapons && typeof r.loadedWeapons === 'object' ? { ...r.loadedWeapons } : undefined,
         loadingAttackedThisRound: r.loadingAttackedThisRound && typeof r.loadingAttackedThisRound === 'object' ? { ...r.loadingAttackedThisRound } : undefined,
         playbackState: r.playbackState && typeof r.playbackState === 'object' ? {
@@ -864,6 +880,71 @@ const combatStore = {
     const availableMovement = (combatant.speed ?? 0) + (combatant.speedModifier ?? 0) + (combatant.dashExtraMovement ?? 0);
     if (!mode || mode === 'simulation' || !playbackActive) return availableMovement;
     return Math.max(0, availableMovement - (combatant.movementUsed ?? 0));
+  },
+
+  // =======================
+  // 法术位消耗漏斗（战斗临时副本：角色卡源不被触碰，展示/判定读「源 + delta」叠加）
+  // =======================
+
+  /** 读某参战者本场战斗已消耗的法术位 delta（levelKey → 消耗数；无记录返回 {}） */
+  getSpellSlotDeltas(recordId: string, combatantId: string): Partial<Record<SpellSlotLevel, number>> {
+    const record = load().find(r => r.id === recordId);
+    return { ...(record?.spellSlotChanges?.[combatantId] ?? {}) };
+  },
+
+  /** 消耗一个指定环位：delta+1。内部按「角色卡 used + delta < max」校验上限，超限 no-op 返回 false */
+  consumeSpellSlot(recordId: string, combatantId: string, levelKey: SpellSlotLevel): boolean {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return false;
+    const combatant = record.combatants.find(c => c.id === combatantId);
+    const char = combatant?.characterId ? characterStore.get(combatant.characterId) : null;
+    const slot = char?.spells?.spellSlots?.[levelKey];
+    if (!slot || slot.max <= 0) return false;
+    const delta = record.spellSlotChanges?.[combatantId]?.[levelKey] ?? 0;
+    if (slot.used + delta >= slot.max) return false;
+    if (!record.spellSlotChanges) record.spellSlotChanges = {};
+    const levels = { ...(record.spellSlotChanges[combatantId] ?? {}) };
+    levels[levelKey] = delta + 1;
+    record.spellSlotChanges = { ...record.spellSlotChanges, [combatantId]: levels };
+    record.updatedAt = Date.now();
+    save(records);
+    return true;
+  },
+
+  /** 恢复一个指定环位：delta-1（下限 0）。无已消耗记录时 no-op 返回 false */
+  restoreSpellSlot(recordId: string, combatantId: string, levelKey: SpellSlotLevel): boolean {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return false;
+    const delta = record.spellSlotChanges?.[combatantId]?.[levelKey] ?? 0;
+    if (delta <= 0) return false;
+    const levels = { ...(record.spellSlotChanges?.[combatantId] ?? {}) };
+    if (delta - 1 <= 0) delete levels[levelKey];
+    else levels[levelKey] = delta - 1;
+    record.spellSlotChanges = { ...(record.spellSlotChanges ?? {}), [combatantId]: levels };
+    record.updatedAt = Date.now();
+    save(records);
+    return true;
+  },
+
+  /**
+   * 战斗中的法术位视图：角色卡显示数据（双源 max 合并）+ 本场消耗 delta 叠加。
+   * 返回结构与 getSpellSlotDisplayData 的 spellSlots 一致（available 已扣除战斗消耗），供战斗侧 UI 直接渲染。
+   */
+  getCombatSpellSlotView(recordId: string, combatantId: string) {
+    const record = load().find(r => r.id === recordId);
+    const combatant = record?.combatants.find(c => c.id === combatantId);
+    const char = combatant?.characterId ? characterStore.get(combatant.characterId) : null;
+    if (!char) return null;
+    const display = characterStore.getSpellSlotDisplayData(char);
+    if (!display || display.spellSlots.length === 0) return null;
+    const deltas = record?.spellSlotChanges?.[combatantId] ?? {};
+    return display.spellSlots.map(slot => {
+      const delta = deltas[`level${slot.level}` as SpellSlotLevel] ?? 0;
+      const available = Math.max(0, slot.available - delta);
+      return { ...slot, available, used: slot.max - available };
+    });
   },
 
   // =======================

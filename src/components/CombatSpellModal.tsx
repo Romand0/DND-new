@@ -465,12 +465,14 @@ export default function CombatSpellModal({
         // 自身类法术目标恒为施法者，直接进入流程执行
         const flowNeedsTarget = !selfCast && f.nodes.some(n => n.type === 'select_target');
         // 流程施放的消耗默认值：本步骤内直接计算（usableSlots/scrollOptions 的 useMemo
-        // 仍指向上一个 selectedSpell，此处不能复用）；可用法术位优先，其次卷轴
+        // 仍指向上一个 selectedSpell，此处不能复用）；可用法术位优先，其次卷轴。
+        // 可用性叠加本场战斗已消耗 delta（漏斗思想：角色卡源 + delta = 战斗中真实余量）
         let defaultConsume: { method: 'slot' | 'scroll'; slotLevel?: number; scrollChildId?: string; scrollName?: string } | null = null;
+        const deltas = recordId ? combatStore.getSpellSlotDeltas(recordId, caster.id) : {};
         if (character && !isProvingGround && spell.level > 0) {
           for (let lv = Math.max(1, spell.level); lv <= 9; lv++) {
             const slot = character.spells?.spellSlots?.[`level${lv}` as SpellSlotLevel];
-            if (slot && slot.max > slot.used) {
+            if (slot && slot.max > slot.used + (deltas[`level${lv}` as SpellSlotLevel] ?? 0)) {
               defaultConsume = { method: 'slot', slotLevel: lv };
               break;
             }
@@ -587,15 +589,17 @@ export default function CombatSpellModal({
 
   const usableSlots = useMemo<SlotOption[]>(() => {
     if (!selectedSpell || !character) return [];
+    // 战斗临时副本叠加：可用性按「角色卡 used + 本场战斗 delta < max」判定（漏斗思想，角色卡源不被触碰）
+    const deltas = recordId ? combatStore.getSpellSlotDeltas(recordId, caster.id) : {};
     const minLevel = Math.max(1, selectedSpell.level);
     const out: SlotOption[] = [];
     for (let lv = minLevel; lv <= 9; lv++) {
       const key = `level${lv}` as SpellSlotLevel;
       const slot = character.spells?.spellSlots?.[key];
-      if (slot && slot.max > slot.used) out.push({ level: lv, used: slot.used, max: slot.max });
+      if (slot && slot.max > slot.used + (deltas[key] ?? 0)) out.push({ level: lv, used: slot.used + (deltas[key] ?? 0), max: slot.max });
     }
     return out;
-  }, [selectedSpell, character]);
+  }, [selectedSpell, character, recordId, caster.id]);
 
   // 该法术是否在角色卡上习得（卷轴法术未习得 → 只能走卷轴）
   const isSpellLearned = useMemo(() => {
@@ -615,16 +619,12 @@ export default function CombatSpellModal({
     }
 
     // 资源消耗落地（延迟原则：consume_slot 步骤只记录决策，此处统一应用）
+    // 法术位走战斗临时副本漏斗（与装备变更同思想）：只记 delta，战斗结算时统一并入角色卡
     const consumeData = cast.steps.find(s => s.type === 'consume_slot' && s.data)?.data as
       | { method?: string; slotLevel?: number; scrollChildId?: string; scrollName?: string }
       | undefined;
-    if (consumeData?.method === 'slot' && character && typeof consumeData.slotLevel === 'number') {
-      const levelKey = `level${consumeData.slotLevel}` as SpellSlotLevel;
-      const latest = characterStore.get(character.id);
-      const slot = latest?.spells?.spellSlots?.[levelKey];
-      if (slot && slot.max > slot.used) {
-        characterStore.updateSpellSlots(character.id, levelKey, { used: slot.used + 1 });
-      }
+    if (consumeData?.method === 'slot' && recordId && typeof consumeData.slotLevel === 'number') {
+      combatStore.consumeSpellSlot(recordId, caster.id, `level${consumeData.slotLevel}` as SpellSlotLevel);
     }
     let consumptions = [...(materialEvaluation?.consumption ?? [])];
     if (consumeData?.method === 'scroll' && consumeData.scrollChildId
@@ -822,13 +822,9 @@ export default function CombatSpellModal({
                 onBack={handleBackToList}
                 onApplied={(payload) => {
                   // 流程施放的资源消耗落地（延迟原则：流程确认应用时才写）
-                  if (flowConsume?.method === 'slot' && character && typeof flowConsume.slotLevel === 'number') {
-                    const levelKey = `level${flowConsume.slotLevel}` as SpellSlotLevel;
-                    const latest = characterStore.get(character.id);
-                    const slot = latest?.spells?.spellSlots?.[levelKey];
-                    if (slot && slot.max > slot.used) {
-                      characterStore.updateSpellSlots(character.id, levelKey, { used: slot.used + 1 });
-                    }
+                  // 法术位走战斗临时副本漏斗：只记 delta，角色卡源不被触碰
+                  if (flowConsume?.method === 'slot' && recordId && typeof flowConsume.slotLevel === 'number') {
+                    combatStore.consumeSpellSlot(recordId, caster.id, `level${flowConsume.slotLevel}` as SpellSlotLevel);
                   }
                   let consumptions = [...(materialEvaluation?.consumption ?? [])];
                   if (flowConsume?.method === 'scroll' && flowConsume.scrollChildId
