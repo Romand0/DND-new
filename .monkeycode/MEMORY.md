@@ -174,3 +174,10 @@
   - 卷轴消耗复用 onConsumeMaterials 漏斗：consumeData.scrollChildId 不在 materialEvaluation.consumption 里才追加，防止双重消耗
   - CombatSpellModal 列表卡片 compact 化：SpellCard 的 description/heightenedEffect 仅非 compact（施放参考卡）渲染；列表阶段显示基本信息
 
+[User Instruction Summary]
+- Date: 2026-11-05
+- Context: 法术位消耗最初实现为立即写角色卡（updateSpellSlots），用户纠正战斗场景数据反馈惯例
+- Instructions:
+  - 战斗场景中产生的一切变更（装备、HP、法术位、卷轴、材料等）都只写战斗临时副本（CombatRecord 漏斗/combatant 字段），角色卡在战斗全程只读
+  - 所有变更等到战斗结算时才统一并入角色卡；新增任何战斗内资源消耗机制时必须走漏斗模式（如 spellSlotChanges），禁止立即写 characterStore
+
