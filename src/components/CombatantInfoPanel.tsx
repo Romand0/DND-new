@@ -7,7 +7,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import combatStore from '@/data/combatStore';
 import type { Combatant, NpcAttack, EquipmentChanges, CreatureSize, CreatureType, CombatRecord } from '@/types/combat';
 import { ACTION_LABELS, ALL_ACTIONS, CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
-import type { Character, Attack, Equipment } from '@/types/character';
+import type { Character, Attack, Equipment, SpellSlotLevel } from '@/types/character';
 import ProvingDashboard from './combat/ProvingDashboard';
 import StatusAttachPanel from './combat/StatusAttachPanel';
 
@@ -512,6 +512,66 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   {displayAc}
                 </span>
               </div>
+
+              {/* 法术位（PC）：图形化环位，实心圆=可用、空心圆=已消耗；点击实心消耗 / 空心恢复（与角色详情页同款） */}
+              {combatant.isPc && character && (() => {
+                const spellData = characterStore.getSpellSlotDisplayData(character);
+                if (!spellData || spellData.spellSlots.length === 0) return null;
+                const slots = spellData.spellSlots;
+                const updateSlot = (levelKey: SpellSlotLevel, used: number) => {
+                  characterStore.updateSpellSlots(character.id, levelKey, { used });
+                  setRefreshKey(k => k + 1);
+                };
+                return (
+                  <div>
+                    <div className="text-sm font-medium mb-2 dark:text-text-dark-muted light:text-text-light-muted">
+                      法术位
+                    </div>
+                    <div className="space-y-1.5">
+                      {slots.map((slot) => (
+                        <div key={slot.level} className="flex items-center gap-3 py-1 px-1 rounded-lg">
+                          <span className="w-12 shrink-0 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                            {slot.label}
+                            {slot.isWarlock && <span className="ml-0.5 text-[10px]">短休</span>}
+                          </span>
+                          <div className="flex items-center">
+                            {Array.from({ length: slot.max }).map((_, i) => {
+                              const filled = i < slot.available;
+                              const levelKey = `level${slot.level}` as SpellSlotLevel;
+                              return (
+                                <div key={i} className="flex items-center">
+                                  {i > 0 && <span className="w-2 h-0.5 bg-gray-400/70 dark:bg-gray-500/70" />}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const next = filled ? slot.used + 1 : slot.used - 1;
+                                      updateSlot(levelKey, Math.max(0, Math.min(slot.max, next)));
+                                    }}
+                                    title={filled ? '消耗一个环位' : '恢复一个环位'}
+                                    className="w-4.5 h-4.5 rounded-full border-2 border-gray-500 dark:border-gray-400 hover:border-primary p-[2px] transition-colors"
+                                  >
+                                    <span
+                                      className={`block w-full h-full rounded-full transition-colors ${
+                                        filled ? 'bg-primary' : 'bg-transparent'
+                                      }`}
+                                    />
+                                  </button>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <span
+                            className="ml-auto text-xs tabular-nums dark:text-text-dark-muted light:text-text-light-muted"
+                            title="可用 / 总量"
+                          >
+                            {slot.available}/{slot.max}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* 体型和种类 */}
               <div className="flex justify-between text-xs">
