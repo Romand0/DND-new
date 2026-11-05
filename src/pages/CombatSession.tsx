@@ -15,6 +15,7 @@ import { useZoneEffects } from '@/hooks/combat/useZoneEffects';
 import InitiativeTable from '@/components/combat/InitiativeTable';
 import OperationLogPanel from '@/components/OperationLogPanel';
 import InitiativeRollDialog from '@/components/combat/InitiativeRollDialog';
+import SettlementDialog from '@/components/combat/SettlementDialog';
 import InitiativeTiebreakerDialog from '@/components/combat/InitiativeTiebreakerDialog';
 import ManualRecordDialog from '@/components/combat/ManualRecordDialog';
 import PlaybackToolbar from '@/components/combat/PlaybackToolbar';
@@ -37,7 +38,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
-import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2 } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2 } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
@@ -195,6 +196,8 @@ export default function CombatSession() {
     caster: Combatant;
     target: Combatant;
   } | null>(null);
+  // 战斗结算弹窗（并入角色卡 + 封存记录）
+  const [settlementOpen, setSettlementOpen] = useState(false);
   // ✅ 新增：协助（Help）动作弹窗 —— 选择友方 → 挂 pending 优劣势标记
   const [helpModal, setHelpModal] = useState<{ from: Combatant } | null>(null);
   const [bardicModal, setBardicModal] = useState<{ from: Combatant } | null>(null);
@@ -782,8 +785,17 @@ export default function CombatSession() {
           </h1>
         </div>
         <div className="flex gap-2 shrink-0">
-          {/* 放映模式不提供批量删除，强制隐藏 batchMode UI（如果切换时还在批量模式则关掉） */}
-          {(batchMode && record.mode !== 'playback') ? (
+          {/* 已封存：只读横幅内的结算标识；入口隐藏 */}
+          {record.settledAt ? (
+            <span className="px-2 sm:px-3 py-2 rounded-lg bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 text-sm flex items-center gap-1">
+              <CheckCircle2 className="w-4 h-4" />
+              <span className="hidden sm:inline">已结算 · 只读</span>
+              <span className="sm:hidden">已结算</span>
+            </span>
+          ) : (
+            <>
+              {/* 放映模式不提供批量删除，强制隐藏 batchMode UI（如果切换时还在批量模式则关掉） */}
+              {(batchMode && record.mode !== 'playback') ? (
             <>
               <button
                 type="button"
@@ -811,7 +823,8 @@ export default function CombatSession() {
               <button
                 type="button"
                 onClick={() => setShowCharSelect(true)}
-                className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
+                disabled={!!record.settledAt}
+                className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Users className="w-4 h-4" />
                 <span className="hidden sm:inline">添加参战者</span>
@@ -837,27 +850,42 @@ export default function CombatSession() {
                   </button>
                 </>
               )}
-              {/* 批量删除：放映模式下不提供（放映模式用回溯代替） */}
+              {/* 批量删除：放映模式下不提供（放映模式用回溯代替）；封存后禁用 */}
               {record.mode !== 'playback' && (
                 <button
                   type="button"
                   onClick={() => setBatchMode(true)}
-                  className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors"
+                  disabled={!!record.settledAt}
+                  className="px-2 sm:px-3 py-2 rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light text-sm flex items-center gap-1 hover:bg-white/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Trash2 className="w-4 h-4" />
                   <span className="hidden sm:inline">批量删除</span>
                 </button>
               )}
-              {/* 新增轮次：仅放映模式（模拟模式无回合概念） */}
+              {/* 新增轮次：仅放映模式（模拟模式无回合概念）；封存后禁用 */}
               {record.mode === 'playback' && (
                 <button
                   type="button"
                   onClick={handleAddRound}
-                  className="px-2 sm:px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors"
+                  disabled={!!record.settledAt}
+                  className="px-2 sm:px-3 py-2 rounded-lg bg-primary text-white text-sm flex items-center gap-1 hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Plus className="w-4 h-4" />
                   <span className="hidden sm:inline">新增轮次</span>
                 </button>
+              )}
+              {/* 战斗结算：试验场不提供（沙盘数据不并入角色卡） */}
+              {!record.isProvingGround && (
+                <button
+                  type="button"
+                  onClick={() => setSettlementOpen(true)}
+                  className="px-2 sm:px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm flex items-center gap-1 hover:bg-emerald-500 transition-colors"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">结束并结算</span>
+                </button>
+              )}
+                </>
               )}
             </>
           )}
@@ -951,6 +979,15 @@ export default function CombatSession() {
         }}
       />
 
+      {/* 战斗结算弹窗：并入角色卡 + 封存记录；成功后回列表 */}
+      {settlementOpen && (
+        <SettlementDialog
+          record={record}
+          onClose={() => setSettlementOpen(false)}
+          onSettled={() => navigate('/combat')}
+        />
+      )}
+
       {/* ✅ 新增：先攻平局排序弹窗 —— 触屏拖拽重排平局参战者 */}
       <InitiativeTiebreakerDialog
         open={tiebreakerOpen}
@@ -971,7 +1008,11 @@ export default function CombatSession() {
         mode={record.mode ?? 'simulation'}
         playbackStarted={playbackStarted}
         playbackPaused={playbackPaused}
-        onModeChange={handleModeChange}
+        onModeChange={(mode) => {
+          // 封存后只读：拦截放映模式切换（写操作通道）
+          if (record.settledAt) return;
+          handleModeChange(mode);
+        }}
         onRestartPlayback={handleRestartPlayback}
         onPausePlayback={pausePlayback}
         onResumePlayback={resumePlayback}
@@ -1116,6 +1157,7 @@ export default function CombatSession() {
       <Battleground
         sessionId={record.id}
         combatants={record.combatants}
+        readOnly={!!record.settledAt}
         onPanelHelpClick={openHelpFor}
         onPanelBardicClick={openBardicFor}
         onPanelAttackClick={openAttackFor}

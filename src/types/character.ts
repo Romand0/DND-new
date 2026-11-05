@@ -1,4 +1,6 @@
 // DM Toolkit - Character Type Definitions
+import type { StatusInstance } from './status';
+
 export interface AbilityScore {
   score: number;
   modifier: number;
@@ -263,6 +265,9 @@ export interface Character {
   canSpeak?: boolean;
   /** 姿势能力：能否做姿势成分（true=可以，false=不可以）。默认为 true，束缚等状态可剥夺 */
   canSomatic?: boolean;
+  /** 持久状态源：战斗结算继承的状态实例（global 域），下次开战自动挂载到参战者。
+   *  这是状态的唯一持久化位置——globalStatusManager 为纯内存运行时，刷新即失 */
+  statuses?: StatusInstance[];
 }
 
 /** 手持槽状态 */

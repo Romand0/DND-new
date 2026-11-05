@@ -4,14 +4,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import combatStore from '@/data/combatStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
-import { Zap, Trash2, Download, Upload, FileJson, FlaskConical } from 'lucide-react';
+import { Zap, Trash2, Download, Upload, FileJson, FlaskConical, BadgeCheck } from 'lucide-react';
 import QuickCreateCombatDialog, { type QuickCreateResult } from '@/components/combat/QuickCreateCombatDialog';
+import SettlementDialog from '@/components/combat/SettlementDialog';
 
 export default function CombatList() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const [records, setRecords] = useState<CombatRecord[]>([]);
   const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  // 战斗结算弹窗目标记录
+  const [settleTarget, setSettleTarget] = useState<CombatRecord | null>(null);
 
   // 加载战斗记录
   const loadRecords = useCallback(() => {
@@ -203,12 +206,42 @@ export default function CombatList() {
                         试验场
                       </span>
                     )}
+                    {record.settledAt && (
+                      <span
+                        className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 border border-emerald-600/30 shrink-0"
+                        title={`结算于 ${new Date(record.settledAt).toLocaleString()}`}
+                      >
+                        已结算
+                      </span>
+                    )}
                   </h3>
                   <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted mt-1">
                     参战者：{record.combatants.length}人 | 创建于：{new Date(record.createdAt).toLocaleString()}
+                    {record.settledAt && ` | 结算于：${new Date(record.settledAt).toLocaleString()}`}
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {/* 结算入口：试验场不提供（沙盘数据不并入角色卡）；已封存显示只读标识 */}
+                  {!record.isProvingGround && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (record.settledAt) {
+                          alert('该战斗已结算封存（只读）。');
+                          return;
+                        }
+                        setSettleTarget(record);
+                      }}
+                      className={`p-2 rounded-lg transition-colors ${
+                        record.settledAt
+                          ? 'text-emerald-600 dark:text-emerald-400'
+                          : 'text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/15'
+                      }`}
+                      title={record.settledAt ? '已结算封存（只读）' : '结束并结算：变更并入角色卡'}
+                    >
+                      <BadgeCheck className="w-4 h-4" />
+                    </button>
+                  )}
                   {/* ✅ 删除按钮始终显示，hover加深颜色，彻底解决不显示问题 */}
                   <button
                     onClick={(e) => handleDelete(e, record.id)}
@@ -230,6 +263,14 @@ export default function CombatList() {
         onClose={() => setQuickCreateOpen(false)}
         onConfirm={handleQuickCreateConfirm}
       />
+
+      {/* 战斗结算弹窗（列表入口）：成功后本地刷新由 store 订阅驱动 */}
+      {settleTarget && (
+        <SettlementDialog
+          record={settleTarget}
+          onClose={() => setSettleTarget(null)}
+        />
+      )}
     </div>
   );
 }

@@ -37,6 +37,7 @@ import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore, SKILL_LABELS } from '@/data/characterStore';
+import statusLibrary from '@/data/statusLibrary';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
@@ -2641,6 +2642,61 @@ if (character) {
                     })()}
                   </div>
                 </div>
+
+                {/* 持续状态（战斗结算继承的持久状态源，下次开战自动挂载） */}
+                {(() => {
+                  const statuses = (character.statuses ?? []).filter(
+                    s => s.isActive && (!s.expiresAt || s.expiresAt > Date.now()),
+                  );
+                  if (statuses.length === 0) return null;
+                  return (
+                    <div>
+                      <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">
+                        持续状态 ({statuses.length})
+                      </div>
+                      <div className="space-y-1.5">
+                        {statuses.map(s => {
+                          const def = statusLibrary.get(s.definitionId);
+                          let duration = '';
+                          if (s.expiresAt) {
+                            duration = `剩余约 ${Math.max(0, Math.ceil((s.expiresAt - Date.now()) / 60000))} 分钟`;
+                          } else if (s.metadata?.remainRounds) {
+                            duration = `原战斗内 ${s.metadata.remainRounds} 回合`;
+                          } else {
+                            duration = '持续生效（手动维持）';
+                          }
+                          return (
+                            <div
+                              key={s.instanceId}
+                              className="flex items-center gap-2 py-1.5 px-2 rounded-lg dark:bg-bg-dark light:bg-bg-light-2 text-xs"
+                            >
+                              <span className="flex-1 min-w-0">
+                                <span className="dark:text-text-dark light:text-text-light">{def?.name ?? s.definitionId}</span>
+                                <span className="ml-2 dark:text-text-dark-muted light:text-text-light-muted">{duration}</span>
+                                {def?.shortDescription && (
+                                  <span className="ml-2 dark:text-text-dark-muted light:text-text-light-muted opacity-80 truncate">
+                                    {def.shortDescription}
+                                  </span>
+                                )}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (!window.confirm(`结束状态「${def?.name ?? s.definitionId}」？`)) return;
+                                  characterStore.updateCharacterStatus(character.id, s.instanceId, 'remove');
+                                }}
+                                className="p-1 rounded text-danger hover:bg-danger/10 transition-colors shrink-0"
+                                title="结束该状态"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* 戏法 */}
                 <div>

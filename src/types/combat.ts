@@ -510,8 +510,77 @@ export interface CombatRecord {
     lastSpellCasts?: Record<string, string[]>;
     /** 模拟模式操作日志（无回合概念，按时间顺序记录参战者操作；放映模式写 rounds 不写此字段） */
     operationLog?: OperationLogEntry[];
+    /** 战斗结算封存时间戳（存在 = 已结算，记录只读、防重复结算） */
+    settledAt?: number;
     createdAt: number;
     updatedAt: number;
+}
+
+// ======================
+// 战斗结算（Settlement）
+// ======================
+
+/** 结算预览：单参战者一行的装备并入明细 */
+export interface SettlementEquipLine {
+  childId: string;
+  name: string;
+  /** 角色卡源数量（无源条目为 0） */
+  srcQty: number;
+  /** 结算后数量（0 = 整件移除） */
+  resultQty: number;
+  /** 是否因移除记录整件删除 */
+  removed: boolean;
+  /** 是否为战斗中新增条目（源没有，追加到背包） */
+  added: boolean;
+}
+
+/** 结算预览：法术位并入明细 */
+export interface SettlementSlotLine {
+  levelKey: string;
+  label: string;
+  /** 本场消耗数（spellSlotChanges delta） */
+  delta: number;
+  used: number;
+  max: number;
+}
+
+/** 结算预览：状态继承明细 */
+export interface SettlementStatusLine {
+  instance: import('./status').StatusInstance;
+  /** 是否可继承（false 时必须给出排除原因） */
+  inheritable: boolean;
+  excludeReason?: string;
+}
+
+/** 结算预览：单参战者分组 */
+export interface SettlementEntry {
+  combatantId: string;
+  characterId: string;
+  characterName: string;
+  /** 角色卡缺失标记（跳过并入） */
+  characterMissing?: boolean;
+  equipment: SettlementEquipLine[];
+  spellSlots: SettlementSlotLine[];
+  hp: { from: number; to: number } | null;
+  statuses: SettlementStatusLine[];
+}
+
+/** 结算预览（弹窗数据源，纯计算无副作用） */
+export interface SettlementPreview {
+  recordId: string;
+  entries: SettlementEntry[];
+}
+
+/** 结算勾选结果（DM 逐项勾选后提交） */
+export interface SettlementSelections {
+  /** combatantId → 勾选并入的 childId 列表 */
+  equipmentChildIds: Record<string, string[]>;
+  /** 勾选法术位并入的参战者 ID（整体并入该参战者全部环位） */
+  spellSlotCombatantIds: string[];
+  /** 勾选 HP 并入的参战者 ID */
+  hpCombatantIds: string[];
+  /** combatantId → 勾选继承的状态实例 ID 列表 */
+  statusInstanceIds: Record<string, string[]>;
 }
 
 /** 模拟模式操作日志条目 */

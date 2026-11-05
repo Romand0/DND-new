@@ -1,4 +1,4 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections } from '@/types/combat';
 import { scopedKey } from '@/data/campaignScope';
 import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
 import type { CastStepLog } from '@/types/castStep';
@@ -6,6 +6,8 @@ import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
 import { globalStatusManager } from './statusManager';
 import type { Equipment, Character, SpellSlotLevel } from '@/types/character';
+import type { StatusInstance } from '@/types/status';
+import statusLibrary from './statusLibrary';
 
 const storageKey = () => scopedKey('dnd-combat-records');
 type Listener = () => void;
@@ -508,6 +510,7 @@ function load(): CombatRecord[] {
         rounds: r.rounds ?? [],
         mode: r.mode,
         isProvingGround: r.isProvingGround ?? false,
+        settledAt: typeof r.settledAt === 'number' && Number.isFinite(r.settledAt) ? r.settledAt : undefined,
         turnTodos: (r.turnTodos || []).map((t: any) => ({
           id: t.id ?? crypto.randomUUID(),
           combatantId: t.combatantId ?? '',
@@ -945,6 +948,282 @@ const combatStore = {
       const available = Math.max(0, slot.available - delta);
       return { ...slot, available, used: slot.max - available };
     });
+  },
+
+  // =======================
+  // 战斗结算（Settlement）：变更并入角色卡 + 记录封存
+  // =======================
+
+  buildSettlementPreview(recordId: string): SettlementPreview | null {
+    // 法术位环级显示名（与 characterStore 内部常量同源，本地复制避免扩散内部 API）
+    const SPELL_LEVEL_LABELS: Record<number, string> = {
+      1: '1环', 2: '2环', 3: '3环', 4: '4环', 5: '5环',
+      6: '6环', 7: '7环', 8: '8环', 9: '9环',
+    };
+    const record = load().find(r => r.id === recordId);
+    if (!record || record.isProvingGround) return null;
+    const entries: SettlementEntry[] = [];
+
+    for (const c of record.combatants) {
+      if (!c.isPc || !c.characterId) continue;
+      const char = characterStore.get(c.characterId);
+      const entry: SettlementEntry = {
+        combatantId: c.id,
+        characterId: c.characterId,
+        characterName: c.name,
+        characterMissing: !char,
+        equipment: [],
+        spellSlots: [],
+        hp: null,
+        statuses: [],
+      };
+      entries.push(entry);
+      if (!char) continue;
+
+      // 装备净变化（与变更信息弹窗同语义：delta = combatQty - srcQty，removed 优先抵消）
+      const changes = record.equipmentChanges?.[c.id];
+      const qtyMap = computeChildQtyMap(char, changes);
+      for (const [cid, info] of qtyMap) {
+        if (info.combatQty === info.srcQty) continue;
+        entry.equipment.push({
+          childId: cid,
+          name: info.srcEq?.name || info.addedEq?.name || '未命名物品',
+          srcQty: info.srcQty,
+          resultQty: info.combatQty,
+          removed: info.combatQty === 0 && !!changes?.removedChildIds.includes(cid),
+          added: info.srcQty === 0 && info.combatQty > 0 && !!info.addedEq,
+        });
+      }
+
+      // 法术位消耗（delta > 0 才列出）
+      const slotDeltas = record.spellSlotChanges?.[c.id] ?? {};
+      for (const [levelKey, delta] of Object.entries(slotDeltas)) {
+        if (!delta || delta <= 0) continue;
+        const slot = char.spells?.spellSlots?.[levelKey as SpellSlotLevel];
+        const lvNum = parseInt(levelKey.replace('level', ''), 10) || 0;
+        entry.spellSlots.push({
+          levelKey,
+          label: SPELL_LEVEL_LABELS[lvNum] || levelKey,
+          delta,
+          used: slot?.used ?? 0,
+          max: slot?.max ?? 0,
+        });
+      }
+
+      // HP（角色卡当前 → 参战者当前 clamp，相等则无变更）
+      const targetHp = Math.max(0, Math.min(char.maxHp || 0, c.currentHp || 0));
+      if ((char.currentHp || 0) !== targetHp) {
+        entry.hp = { from: char.currentHp || 0, to: targetHp };
+      }
+
+      // 状态继承（内存活跃实例 + 排除判定）
+      const activeInstances = globalStatusManager.getActiveStatuses(c.id);
+      for (const inst of activeInstances) {
+        const excludeReason = this.evaluateStatusInheritable(inst, record, c);
+        entry.statuses.push({ instance: { ...inst }, inheritable: !excludeReason, excludeReason });
+      }
+      // 昏迷补全：参战者昏迷但无活跃 unconscious 实例 → 列出待生成项（instanceId 带 pending 前缀）
+      if (c.isUnconscious && !activeInstances.some(i => i.definitionId === 'unconscious')) {
+        entry.statuses.push({
+          instance: {
+            instanceId: `pending-unconscious-${c.id}`,
+            definitionId: 'unconscious',
+            targetId: c.id,
+            scope: 'combat',
+            isActive: true,
+            declaredAt: Date.now(),
+          },
+          inheritable: true,
+        });
+      }
+    }
+
+    return { recordId, entries };
+  },
+
+  /**
+   * 状态可继承性判定（纯函数）：返回排除原因，null = 可继承。
+   * 规则：参战者死亡终结一切；专注维持型依赖施法者存活且专注未断；定义丢失排除。
+   */
+  evaluateStatusInheritable(
+    inst: StatusInstance,
+    record: CombatRecord,
+    target: Combatant,
+  ): string | null {
+    if (target.isDead) return '参战者已死亡';
+    const definition = statusLibrary.get(inst.definitionId);
+    if (!definition) return '状态定义丢失';
+    // 专注维持：实例挂在某参战者专注声明下（concentration.statusIds）。
+    // 专注已断的实例已被 declareEnd 移出活跃列表，此处防御：声明缺失/施法者死亡失能 → 排除
+    const holder = record.combatants.find(cb => cb.concentration?.statusIds?.includes(inst.instanceId));
+    if (definition.duration.type === 'concentration' || holder) {
+      if (!holder) return '专注来源缺失';
+      if (holder.isDead) return '施法者已死亡';
+      if (holder.isIncapacitated) return '施法者已失能，专注中断';
+    }
+    return null;
+  },
+
+  /** 应用结算（唯一写入口）：仅应用勾选项；已封存/试验场 guard */
+  settleCombat(recordId: string, selections: SettlementSelections): boolean {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record || record.isProvingGround || record.settledAt) return false;
+    const now = Date.now();
+
+    for (const entry of record.combatants) {
+      if (!entry.isPc || !entry.characterId) continue;
+      const char = characterStore.get(entry.characterId);
+      if (!char) continue;
+      let charDirty = false;
+      const charUpdate: Partial<Character> = {};
+
+      // 1. 装备并入：勾选 childId 按 computeChildQtyMap 结果写回
+      const selectedEq = selections.equipmentChildIds[entry.id] || [];
+      if (selectedEq.length > 0) {
+        const changes = record.equipmentChanges?.[entry.id];
+        const qtyMap = computeChildQtyMap(char, changes);
+        // char.equipment 元素/数组与 store 缓存共享引用：全部改动在副本上做，最后统一写回
+        const workingEquipment = [...char.equipment];
+        const removedSet = new Set<string>();
+        for (const cid of selectedEq) {
+          const info = qtyMap.get(cid);
+          if (!info || info.combatQty === info.srcQty) continue;
+          if (info.combatQty === 0) {
+            // 整件移除（含 added 后又被移除的净零情况：srcQty=0 也走移除，跳过追加）
+            removedSet.add(cid);
+          } else if (info.srcQty > 0) {
+            // 更新源条目数量
+            const eqIdx = workingEquipment.findIndex(e => (e.childId || e.id) === cid);
+            if (eqIdx >= 0) workingEquipment[eqIdx] = { ...workingEquipment[eqIdx], quantity: info.combatQty };
+          } else if (info.addedEq) {
+            // 战斗新增：追加条目（childId 保留战斗实例值，唯一即可）
+            workingEquipment.push({ ...info.addedEq, childId: cid });
+          }
+        }
+        charUpdate.equipment = removedSet.size > 0
+          ? workingEquipment.filter(e => !removedSet.has(e.childId || e.id))
+          : workingEquipment;
+        charDirty = true;
+      }
+
+      // 2. 法术位并入：delta 累加 used，clamp [0, max]
+      if (selections.spellSlotCombatantIds.includes(entry.id)) {
+        const slotDeltas = record.spellSlotChanges?.[entry.id] ?? {};
+        for (const [levelKey, delta] of Object.entries(slotDeltas)) {
+          if (!delta || delta <= 0) continue;
+          const slot = char.spells?.spellSlots?.[levelKey as SpellSlotLevel];
+          if (!slot) continue;
+          const clamped = Math.max(0, Math.min(slot.max, slot.used + delta));
+          characterStore.updateSpellSlots(char.id, levelKey as SpellSlotLevel, { used: clamped });
+        }
+      }
+
+      // 3. HP 并入：参战者当前 HP clamp [0, maxHp] 写回（临时 HP 丢弃）
+      if (selections.hpCombatantIds.includes(entry.id)) {
+        charUpdate.currentHp = Math.max(0, Math.min(char.maxHp || 0, entry.currentHp || 0));
+        charDirty = true;
+      }
+
+      // 4. 状态继承：活跃实例转 global 域写回角色卡；战斗中已结束的挂载实例从角色卡移除
+      const selectedStatuses = selections.statusInstanceIds[entry.id] || [];
+      const charStatuses = Array.isArray(char.statuses) ? [...char.statuses] : [];
+      const activeInMemory = globalStatusManager.getActiveStatuses(entry.id);
+      let statusesTouched = false;
+
+      // 4a. 勾选继承：转域写回（同 instanceId 替换 / 新实例追加）
+      for (const inst of activeInMemory) {
+        if (!selectedStatuses.includes(inst.instanceId)) continue;
+        const excludeReason = this.evaluateStatusInheritable(inst, record, entry);
+        if (excludeReason) continue;
+        const wasRoundDriven = inst.expirePolicy === 'rounds' || inst.expirePolicy === 'combatantTurn';
+        const globalInst: StatusInstance = {
+          ...inst,
+          scope: 'global',
+          targetId: char.id,
+          combatId: undefined,
+          // 回合驱动型在战斗外无回合计数 → 转手动取消，剩余提示存 metadata
+          expirePolicy: wasRoundDriven ? 'manual' : inst.expirePolicy,
+          durationRounds: undefined,
+          startRound: undefined,
+          expiresAtRound: undefined,
+          anchorCombatantId: undefined,
+          turnCount: undefined,
+          metadata: wasRoundDriven
+            ? { ...(inst.metadata ?? {}), remainRounds: inst.durationRounds }
+            : { ...(inst.metadata ?? {}) },
+        };
+        const idx = charStatuses.findIndex(s => s.instanceId === inst.instanceId);
+        if (idx >= 0) charStatuses[idx] = globalInst;
+        else charStatuses.push(globalInst);
+        statusesTouched = true;
+        // 内存 combat 实例终结（写回完成，避免残留）
+        globalStatusManager.declareEnd(inst.instanceId);
+      }
+
+      // 4b. 已结束挂载实例清理：本战斗挂载的实例若战斗中已 declareEnd，同步从角色卡移除
+      for (const s of [...charStatuses]) {
+        const mem = globalStatusManager.getInstanceById(s.instanceId);
+        if (mem && mem.scope === 'combat' && mem.combatId === recordId && !mem.isActive) {
+          const idx = charStatuses.findIndex(x => x.instanceId === s.instanceId);
+          if (idx >= 0) {
+            charStatuses.splice(idx, 1);
+            statusesTouched = true;
+          }
+        }
+      }
+
+      // 4c. 昏迷补全：参战者昏迷、勾选了状态继承、且无活跃 unconscious 实例 → 生成持久实例
+      const hasActiveUnconscious = charStatuses.some(
+        s => s.definitionId === 'unconscious' && s.isActive && (!s.expiresAt || s.expiresAt > now),
+      ) || globalStatusManager.getActiveStatuses(entry.id).some(i => i.definitionId === 'unconscious');
+      if (entry.isUnconscious && selectedStatuses.length > 0 && !hasActiveUnconscious) {
+        charStatuses.push({
+          instanceId: `unconscious-${entry.id}-${now}`,
+          definitionId: 'unconscious',
+          targetId: char.id,
+          scope: 'global',
+          isActive: true,
+          declaredAt: now,
+          expirePolicy: 'manual',
+        });
+        statusesTouched = true;
+      }
+
+      if (statusesTouched) {
+        charUpdate.statuses = charStatuses;
+        charDirty = true;
+      }
+
+      if (charDirty) characterStore.update(char.id, charUpdate);
+    }
+
+    combatStore.update(recordId, { settledAt: now, updatedAt: now });
+    return true;
+  },
+
+  /**
+   * 下次开战挂载：把角色卡上仍活跃且未过期的持久状态复制进内存 combat 域。
+   * instanceId 保留原值 → 结算写回时按同 ID 替换角色卡条目（单例流转）。
+   */
+  mountCharacterStatuses(recordId: string, combatantId: string): void {
+    const record = load().find(r => r.id === recordId);
+    if (!record || record.isProvingGround) return;
+    const combatant = record.combatants.find(c => c.id === combatantId);
+    const char = combatant?.characterId ? characterStore.get(combatant.characterId) : null;
+    if (!char || !Array.isArray(char.statuses)) return;
+    const now = Date.now();
+    for (const inst of char.statuses) {
+      if (!inst.isActive) continue;
+      if (inst.expiresAt && now >= inst.expiresAt) continue;
+      if (inst.scope === 'combat' && inst.combatId && inst.combatId !== recordId) continue;
+      globalStatusManager.restoreInstance({
+        ...inst,
+        targetId: combatantId,
+        scope: 'combat',
+        combatId: recordId,
+      });
+    }
   },
 
   // =======================

@@ -87,6 +87,8 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
+    // 持久状态挂载：角色卡上仍在作用期内的状态（上次战斗结算继承）复制进本次战斗
+    combatStore.mountCharacterStatuses(record.id, newId);
     setInitiativeRollOpen(false);
     setSelectedPc(null);
     setD20Input('');

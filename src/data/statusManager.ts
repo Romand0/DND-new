@@ -175,7 +175,32 @@ export function createStatusManager(): StatusManagerWithApply {
       return instance;
     },
 
+    restoreInstance(instance: StatusInstance): StatusInstance {
+      // 叠加检查与 declareStart 同规则：同 definitionId+targetId 已有活跃实例时按 stacking 处理
+      const existing = store.instances.find(
+        i => i.definitionId === instance.definitionId && i.targetId === instance.targetId && i.isActive
+      );
+      if (existing) {
+        const def = statusLibrary.get(instance.definitionId);
+        const rule = def?.stacking?.rule ?? 'replace';
+        if (rule === 'ignore') return existing;
+        this.declareEnd(existing.instanceId);
+      }
+      const restored: StatusInstance = { ...instance };
+      store.instances.push(restored);
+      const definition = statusLibrary.get(instance.definitionId);
+      if (definition) {
+        emit({ type: 'start', instance: restored, definition, timestamp: Date.now() });
+      }
+      return restored;
+    },
+
     // --- 查询 ---
+
+    /** 按 instanceId 精确查实例（含已结束的，只读）——结算闭环判定用 */
+    getInstanceById(instanceId: string): StatusInstance | null {
+      return store.instances.find(i => i.instanceId === instanceId) ?? null;
+    },
 
     getActiveStatuses(targetId: string, scope?: StatusScope, ctx?: StatusRoundCtx): StatusInstance[] {
       const now = Date.now();

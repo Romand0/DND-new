@@ -15,6 +15,7 @@ import type {
   Currency,
 } from '@/types/character';
 import { scopedKey } from '@/data/campaignScope';
+import { globalStatusManager } from './statusManager';
 import { getAvailableSubclasses, canChooseSubclass, getSubclassDisplayName } from './subclasses';
 import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
@@ -109,6 +110,10 @@ function migrateCharacter(char: any): Character {
   }
   if (!char.heldRight) {
     char.heldRight = { state: 'ready' as HandState, equipmentId: null };
+  }
+  // 迁移：statuses（持久状态源）非数组时兜底 undefined，防止旧/异常数据污染
+  if (char.statuses !== undefined && !Array.isArray(char.statuses)) {
+    char.statuses = undefined;
   }
   return char as Character;
 }
@@ -651,6 +656,25 @@ function updateCharacter(charId: string, updatedData: Partial<Character>): Chara
   const char = getCharacter(charId);
   if (!char) return null;
   const updated = { ...char, ...updatedData, updatedAt: Date.now() };
+  return saveCharacter(updated);
+}
+
+/**
+ * 持久状态源操作：结束/移除一条状态实例。
+ * - 'end'：标记 isActive=false 并保留条目（历史记录）
+ * - 'remove'：整条移除
+ * 同步把内存 globalStatusManager 中同 instanceId 的实例 declareEnd（若存在），
+ * 保证「角色卡持久源」与「内存运行时」一致。
+ */
+function updateCharacterStatus(charId: string, instanceId: string, action: 'end' | 'remove'): Character | null {
+  const char = getCharacter(charId);
+  if (!char || !Array.isArray(char.statuses)) return null;
+  const next = char.statuses
+    .map(s => (s.instanceId === instanceId && action === 'end' ? { ...s, isActive: false, declaredEndAt: Date.now() } : s))
+    .filter(s => !(s.instanceId === instanceId && action === 'remove'));
+  const updated = { ...char, statuses: next, updatedAt: Date.now() };
+  // declareEnd 对不存在/已结束的 ID 是安全 no-op，直接调用保证内存运行时同步
+  globalStatusManager.declareEnd(instanceId);
   return saveCharacter(updated);
 }
 
@@ -2378,6 +2402,7 @@ export const characterStore = {
   removeCustomSpell,
   
   updateSpellSlots,
+  updateCharacterStatus,
   
   addProficiency,
   removeProficiency,

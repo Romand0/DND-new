@@ -209,6 +209,16 @@ export interface StatusManager {
   /** 声明状态结束（检测器触发或手动） */
   declareEnd(instanceId: string): StatusInstance | null;
 
+  /**
+   * 恢复一条持久化实例到运行时（战斗结算/挂载链路专用）：
+   * 与 declareStart 的区别是保留原 instanceId 与完整 metadata（实例级 effects 等）。
+   * 同 definitionId+targetId 已有活跃实例时按 stacking 规则处理（replace/ignore）。
+   */
+  restoreInstance(instance: StatusInstance): StatusInstance;
+
+  /** 按 instanceId 精确查实例（含已结束的，只读）——结算闭环判定用 */
+  getInstanceById(instanceId: string): StatusInstance | null;
+
   /** 查询目标的所有激活状态；ctx 供回合驱动过期判定（放映模式传当前回合/当前行动者） */
   getActiveStatuses(targetId: string, scope?: StatusScope, ctx?: StatusRoundCtx): StatusInstance[];
 
