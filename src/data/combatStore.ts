@@ -372,6 +372,14 @@ export function applyEquipmentChange(
   return target;
 }
 
+/** 手持槽兜底：state 非法值归 ready，equipmentId 仅接受 string | null */
+function normalizeHandSlot(v: unknown): HandSlot {
+  if (!v || typeof v !== 'object') return { state: 'ready', equipmentId: null };
+  const s = v as { state?: unknown; equipmentId?: unknown };
+  const state: HandState = s.state === 'action' || s.state === 'unavailable' ? s.state : 'ready';
+  return { state, equipmentId: typeof s.equipmentId === 'string' ? s.equipmentId : null };
+}
+
 function load(): CombatRecord[] {
   if (recordsCache) return recordsCache;
   try {
@@ -504,6 +512,9 @@ function load(): CombatRecord[] {
           })(),
           // 语音可用状态（失能 toggle 写入；缺省 undefined = 未手动置灰）
           canSpeak: typeof c.canSpeak === 'boolean' ? c.canSpeak : undefined,
+          // 战斗层手持（进战从备战槽初始化；缺兜底会在刷新后丢手持且下次保存永久抹掉）
+          heldLeft: normalizeHandSlot(c.heldLeft),
+          heldRight: normalizeHandSlot(c.heldRight),
         };
       });
       return {
