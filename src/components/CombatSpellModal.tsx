@@ -292,12 +292,12 @@ export default function CombatSpellModal({
     if (!character || isProvingGround) return null;
     if (!selectedSpell.components?.material) return null;
     const inventory = [...(casterCombatInventory || []), ...craftedMaterials];
-    // 法器需要「手持 + 职业匹配」，材料袋只要在背包即可
+    // 法器需要「手持 + 职业匹配」（手持为参战者战斗层槽位），材料袋只要在背包即可
     return evaluateSpellMaterials(selectedSpell, inventory, {
       character,
-      heldIds: getHeldEquipmentIds(character),
+      heldIds: getHeldEquipmentIds(caster),
     });
-  }, [selectedSpell, casterCombatInventory, craftedMaterials, character, isProvingGround]);
+  }, [selectedSpell, casterCombatInventory, craftedMaterials, character, isProvingGround, caster]);
 
   // 快捷补货：把法术材料 / 卷轴加入施法者背包（PC 限定）
   const handleCraftMaterial = (req: MaterialRequirement) => {
