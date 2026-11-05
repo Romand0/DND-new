@@ -2,7 +2,7 @@
 // 从沙盘「法术」按钮触发：浏览法术 → 步骤化施放（前置检查/目标/检定/效果/收尾）
 // 副作用延迟原则：HP/动作/先攻表格/castLogs 全部在收尾确认时一次性应用（见 hooks/combat/useCastSteps）。
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { X, BookOpen, ChevronLeft, Workflow, ScrollText } from 'lucide-react';
+import { X, BookOpen, ChevronLeft, Workflow, ScrollText, Sparkles } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
@@ -142,6 +142,82 @@ function SpellCard({ spell, level, active, onPick, hasFlow, compact, scrollOnly 
   );
 }
 
+/**
+ * 流程施放路径的资源消耗选择条：流程执行不占 cast 步骤机，
+ * 消耗决策在流程确认应用时（onApplied）统一落地。
+ */
+function FlowConsumeBar({
+  spell, scrolls, isLearned, usableSlots, value, onChange,
+}: {
+  spell: Spell;
+  scrolls: ScrollOption[];
+  isLearned: boolean;
+  usableSlots: SlotOption[];
+  value: { method: 'slot' | 'scroll'; slotLevel?: number; scrollChildId?: string; scrollName?: string } | null;
+  onChange: (v: { method: 'slot' | 'scroll'; slotLevel?: number; scrollChildId?: string; scrollName?: string } | null) => void;
+}) {
+  // 无可用资源：提示但不阻断（流程自身门禁 + DM 裁决）
+  if (scrolls.length === 0 && usableSlots.length === 0) {
+    return (
+      <div className="px-3 py-2 rounded-lg border border-amber-500/40 dark:bg-amber-500/10 light:bg-amber-500/10 text-xs text-amber-600 dark:text-amber-400">
+        无可用消耗资源：未持有该法术卷轴，且 {spell.level} 环及以上法术位已耗尽。可强制继续（不消耗）。
+      </div>
+    );
+  }
+
+  const isScroll = value?.method === 'scroll';
+  const isSlot = value?.method === 'slot';
+  const selectedScroll = scrolls.find(s => s.childId === value?.scrollChildId);
+  const selectedSlot = usableSlots.find(s => s.level === value?.slotLevel);
+  const higher = isSlot && (value?.slotLevel ?? 0) > spell.level;
+
+  return (
+    <div className="rounded-lg border p-2.5 space-y-2 dark:border-border-dark light:border-border-light">
+      <div className="flex items-center gap-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">
+        <Sparkles className="w-3.5 h-3.5 text-primary" />
+        <span>资源消耗（流程完成后应用）</span>
+        {higher && <span className="text-purple-400">升环 {value?.slotLevel}</span>}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {scrolls.map(s => (
+          <button
+            key={s.childId}
+            onClick={() => onChange({ method: 'scroll', scrollChildId: s.childId, scrollName: s.name })}
+            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] border transition-colors ${
+              isScroll && s.childId === value?.scrollChildId
+                ? 'border-primary bg-primary/10 text-primary font-medium'
+                : 'dark:border-border-dark/60 light:border-border-light/60 dark:text-text-dark-muted light:text-text-light-muted'
+            }`}
+          >
+            <ScrollText className="w-3 h-3 text-amber-400" />
+            卷轴 {s.level} 环
+          </button>
+        ))}
+        {usableSlots.map(s => (
+          <button
+            key={s.level}
+            onClick={() => onChange({ method: 'slot', slotLevel: s.level })}
+            className={`px-2 py-1 rounded text-[11px] border transition-colors ${
+              isSlot && s.level === value?.slotLevel
+                ? 'border-primary bg-primary/10 text-primary font-medium'
+                : 'dark:border-border-dark/60 light:border-border-light/60 dark:text-text-dark-muted light:text-text-light-muted'
+            }`}
+          >
+            {s.level} 环位（{s.used}/{s.max}）
+          </button>
+        ))}
+      </div>
+      {(isScroll || isSlot) && (
+        <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted">
+          {isScroll
+            ? `将消耗卷轴「${selectedScroll?.name ?? value?.scrollName}」（${selectedScroll?.level ?? '?'} 环），不占法术位`
+            : `将消耗 ${value?.slotLevel} 环法术位（${selectedSlot?.used + 1}/${selectedSlot?.max}）${higher && spell.heightenedEffect ? `；升环效果：${spell.heightenedEffect}` : ''}`}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CombatSpellModal({
   caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory,
   recordId, currentRound, combatantPositions, canUseAction = true, canUseBonusAction, onTargetChange, onFlowResolved,
@@ -170,6 +246,9 @@ export default function CombatSpellModal({
 
   // 材料成分：本次施法内补入的材料/卷轴（已写入角色背包；跨法术保留，避免切换法术时丢失评估）
   const [craftedMaterials, setCraftedMaterials] = useState<Equipment[]>([]);
+
+  // 流程施放的资源消耗决策（延迟到流程 onApplied 落地；戏法/NPC/试验场为 null）
+  const [flowConsume, setFlowConsume] = useState<{ method: 'slot' | 'scroll'; slotLevel?: number; scrollChildId?: string; scrollName?: string } | null>(null);
 
   // 目标确认步骤内可更换目标：本地生效目标 + 通知宿主同步（HP/先攻按新目标结算）
   const [effectiveTarget, setEffectiveTarget] = useState<Combatant>(target);
@@ -384,6 +463,27 @@ export default function CombatSpellModal({
         // 流程含 select_target 且法术非「自身」射程 → 先选目标（触及类：防护能量等）；
         // 自身类法术目标恒为施法者，直接进入流程执行
         const flowNeedsTarget = !selfCast && f.nodes.some(n => n.type === 'select_target');
+        // 流程施放的消耗默认值：本步骤内直接计算（usableSlots/scrollOptions 的 useMemo
+        // 仍指向上一个 selectedSpell，此处不能复用）；可用法术位优先，其次卷轴
+        let defaultConsume: { method: 'slot' | 'scroll'; slotLevel?: number; scrollChildId?: string; scrollName?: string } | null = null;
+        if (character && !isProvingGround && spell.level > 0) {
+          for (let lv = Math.max(1, spell.level); lv <= 9; lv++) {
+            const slot = character.spells?.spellSlots?.[`level${lv}` as SpellSlotLevel];
+            if (slot && slot.max > slot.used) {
+              defaultConsume = { method: 'slot', slotLevel: lv };
+              break;
+            }
+          }
+          if (!defaultConsume) {
+            const firstScroll = casterInventory.find(it => isScrollItem(it) && (
+              it.scrollSpellId === spell.id || (!!it.scrollSpellName && it.scrollSpellName === spell.name)
+            ));
+            if (firstScroll?.childId) {
+              defaultConsume = { method: 'scroll', scrollChildId: firstScroll.childId, scrollName: firstScroll.name };
+            }
+          }
+        }
+        setFlowConsume(defaultConsume);
         setStage(flowNeedsTarget ? 'flow-target' : 'flow');
         return;
       }
@@ -406,6 +506,7 @@ export default function CombatSpellModal({
   const handleBackToList = () => {
     setStage('list');
     setBoundFlow(null);
+    setFlowConsume(null);
     cast.abort();
     setCheckOutcome(null);
     setResolvedAmount(0);
@@ -695,6 +796,16 @@ export default function CombatSpellModal({
                   {flowUiVariant === 'player' ? '切换到详细视图' : '切换到玩家视图'}
                 </button>
               </div>
+              {flowConsume !== null && (
+                <FlowConsumeBar
+                  spell={selectedSpell}
+                  scrolls={scrollOptions}
+                  isLearned={isSpellLearned}
+                  usableSlots={usableSlots}
+                  value={flowConsume}
+                  onChange={setFlowConsume}
+                />
+              )}
               <FlowRunStep
                 flow={boundFlow}
                 spell={selectedSpell}
@@ -709,8 +820,22 @@ export default function CombatSpellModal({
                 onCraftScroll={handleCraftScroll}
                 onBack={handleBackToList}
                 onApplied={(payload) => {
-                  if (materialEvaluation && materialEvaluation.consumption.length > 0) {
-                    onConsumeMaterials?.(materialEvaluation.consumption);
+                  // 流程施放的资源消耗落地（延迟原则：流程确认应用时才写）
+                  if (flowConsume?.method === 'slot' && character && typeof flowConsume.slotLevel === 'number') {
+                    const levelKey = `level${flowConsume.slotLevel}` as SpellSlotLevel;
+                    const latest = characterStore.get(character.id);
+                    const slot = latest?.spells?.spellSlots?.[levelKey];
+                    if (slot && slot.max > slot.used) {
+                      characterStore.updateSpellSlots(character.id, levelKey, { used: slot.used + 1 });
+                    }
+                  }
+                  let consumptions = [...(materialEvaluation?.consumption ?? [])];
+                  if (flowConsume?.method === 'scroll' && flowConsume.scrollChildId
+                    && !consumptions.some(c => c.childId === flowConsume.scrollChildId)) {
+                    consumptions.push({ childId: flowConsume.scrollChildId, name: flowConsume.scrollName || '法术卷轴', quantity: 1 });
+                  }
+                  if (consumptions.length > 0) {
+                    onConsumeMaterials?.(consumptions);
                   }
                   if (recordId) {
                     combatStore.recordSpellCast(recordId, caster.id, selectedSpell.id);
