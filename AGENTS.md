@@ -14,7 +14,8 @@
 | 改数据结构 / 类型 | `src/types/*.ts`（6 个独立文件，见下方） | 改类型后必须同步对应 store |
 | 改前端状态（增删查改订阅） | `src/data/*Store.ts`（9 个 store，见下方） | 所有 store 统一模式：`load / save / notify / getAll / get / create / update / delete / subscribe` |
 | 改装备生成 / 字段标准化 | `src/data/equipmentFactory.ts` 的 `extractBaseFields` | 工厂函数，改字段时所有使用方都会同步 |
-| 改角色装备操作（增删、手持、穿戴） | `src/hooks/useEquipmentActions.ts` + `src/data/characterStore.ts` + `src/data/equipmentWear.ts` | 三者协作，不要只改其一 |
+| 改角色装备操作（增删、备战、穿戴） | `src/hooks/useEquipmentActions.ts` + `src/data/characterStore.ts` + `src/data/equipmentWear.ts` | 三者协作，不要只改其一 |
+| 改备战槽 / 战斗层手持 | `src/data/characterStore.ts`（readyItem/unreadyItem 备战 API）+ `src/data/combatStore.ts`（setCombatantHand 家族，参战者手持） | 角色卡只有备战数据（readiedLeft/Right），战斗层手持在 combatant 上，随记录回溯、结算不涉及 |
 | 改战斗逻辑（背包派生、AC、动作、弹药、装填） | `src/data/combatStore.ts` + `src/pages/CombatSession.tsx` | combatStore 是纯计算层，CombatSession 是交互层，分离要保持 |
 | 改攻击检定弹窗（射程、弹药、装填检查） | `src/components/CombatAttackModal.tsx` | 可用性检查统一走 `getAttackStatus`，不要在按钮里硬加判断 |
 | 改优劣势判定（检定 / 豁免 / 伤害展示） | `src/data/advantageRules.ts`（注册式引擎）+ `src/types/combat.ts` 的 `PendingAdvantageSource` | 不要在 `CombatAttackModal` / `CombatSpellModal` 里硬编码判定分支，新特性一律 `registerDetector` 或 `addPendingAdvantage`；手动覆盖优先级最高，优劣势互斥抵消 |
@@ -52,7 +53,7 @@
 │      useCombatInventories / useActions / useThrownDrop      │
 │      useSurprise / useInitiative / useDamageAndHp          │
 │      useRoundTurn / useManualRecord / usePlayback           │
-│    聚合 Hook：useEquipmentActions（装备增改删手持穿戴）     │
+│    聚合 Hook：useEquipmentActions（装备增改删备战穿戴）     │
 ├─────────────────────────────────────────────────────────────┤
 │  后端（Cloudflare Pages Functions + D1 SQL 数据库）         │
 │  functions/api/*：auth(登录注册) / admin(账号管理) /        │
@@ -148,7 +149,7 @@ src/
 ├── data/                9 个 store + 4 个独立工具（纯 TS，无 React）
 │   ├── equipmentStore.ts     装备库模板（localStorage + API 同步）
 │   ├── spellStore.ts         法术库模板
-│   ├── characterStore.ts     角色卡 CRUD + 手持/穿戴 + 攻击加值 + isWeaponUsable
+│   ├── characterStore.ts     角色卡 CRUD + 备战槽/穿戴 + 攻击加值（战斗层手持在 combatStore 参战者上）
 │   ├── combatStore.ts        战斗记录 + 背包派生 + 动作消耗 + AC 计算
 │   ├── npcTemplateStore.ts   NPC 模板
 │   ├── battlegroundStore.ts  沙盘状态 + tokens
@@ -204,7 +205,7 @@ src/
 │   └── ErrorBoundary.tsx            React 错误边界
 │
 ├── hooks/             Hooks 层（React，只接收 props，不直连路由/云 API）
-│   ├── useEquipmentActions.ts   角色装备操作聚合 hook（增/改/删/手持/穿戴
+│   ├── useEquipmentActions.ts   角色装备操作聚合 hook（增/改/删/备战/穿戴
 │   │                               连 characterStore + api）
 │   └── combat/          9 个战斗聚合 hook（从 CombatSession 拆分，按子域独立）
 │       ├── useCombatInventories  背包派生（装备变更应用
@@ -313,7 +314,7 @@ functions/
 │  第 2 层：Equipment（角色背包实例）                          │
 │  文件：types/character.ts Equipment 接口                    │
 │  字段：id（模板 ID）+ childId（**背包实例唯一 ID**）        │
-│        + quantity · packSize · unit · heldLeft/Right 引用  │
+│        + quantity · packSize · unit（备战槽 readiedLeft/Right 引用 childId）│
 │  特征：每个实例有独一无二的 childId = 角色背包主键          │
 │  来源：从装备库加入（useEquipmentActions）/ 宝藏分配       │
 │        / 战斗中拾取 / 交易                                 │
@@ -361,7 +362,7 @@ export default xxxStore;
 ### 4.3 攻击 → 伤害完整链路
 
 ```
-角色手持武器 [character.heldLeft/Right]
+参战者战斗层手持 [combatant.heldLeft/Right]（进战时从角色卡备战槽自动初始化）
   ↓（CombatSession 点击"攻击"按钮）
 CombatAttackModal 打开
   ├─ getAttackStatus() 可用性检查
@@ -397,7 +398,7 @@ CombatSession
 
 ### 5.2 自定义 Hook：`useEquipmentActions(charId, refresh)`（`hooks/useEquipmentActions.ts`）
 
-**为什么用**：装备操作（加/改/删/从装备库加/同步装备库/手持/穿戴/卸下）涉及 characterStore CRUD + 云端 api 双向同步 + AC 重算 + UI 刷新，重复代码 100+ 行，打包成 hook 在 `CharacterDetail` / `CharacterInventory` / `PlayerInventory` 三处复用。
+**为什么用**：装备操作（加/改/删/从装备库加/同步装备库/备战/穿戴/卸下）涉及 characterStore CRUD + 云端 api 双向同步 + AC 重算 + UI 刷新，重复代码 100+ 行，打包成 hook 在 `CharacterDetail` / `CharacterInventory` / `PlayerInventory` 三处复用。
 
 **做新的聚合操作时**（比如角色批量转移装备）：优先加进 `useEquipmentActions` 暴露新 callback，不要在页面里直接写 characterStore + api。
 
@@ -619,7 +620,7 @@ getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消�
 | store | `const xxxStore = { ... }` + `export default xxxStore`；不要 class |
 | 类型 / 接口 | 领域聚合在 `types/` 的 6 个文件里，**不要**在组件里写接口再导出到全局 |
 | ID | 用 `crypto.randomUUID()`；临时 ID（编辑中未保存）用 `\`temp-\${Date.now()}\``；战斗拾取 childId 用 `\`combat-\${picker.id}-\${Date.now()}-\${rand6}\`` |
-| 装备引用一致律 | 判定 / 查找永远用 `eq.childId \|\| eq.id`，不要只判断其中一个；手持/穿戴槽 `slot.equipmentId` 总是匹配 childId |
+| 装备引用一致律 | 判定 / 查找永远用 `eq.childId \|\| eq.id`，不要只判断其中一个；备战槽 `readiedLeft/Right` 与手持槽 `slot.equipmentId` 总是匹配 childId |
 | 距离 | 沙盘一律 **切比雪夫距离** max(Δcol, Δrow)，对应 D&D 标准 5 尺/格；移动范围 BFS 不做斜向修正 |
 | CSS | Tailwind class；暗黑/亮色前缀：`dark:text-x-dark-y` / `light:text-x-light-y`；不要新建 `.css` 文件（除 `index.css` 入口 + `public/css/main.css` 全局） |
 | 注释 | 只写**非显而易见的 why**（算法推导、互斥规则、兼容性 hack），不写 what；禁止用 emoji |

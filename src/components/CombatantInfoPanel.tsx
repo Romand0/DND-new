@@ -46,9 +46,11 @@ interface Props {
   provingRecord?: CombatRecord | null;
   /** 战斗记录 ID：战斗层手持读写落到该记录的参战者上（试验场传 provingRecord.id） */
   recordId?: string;
+  /** 记录已封存（结算完成）：全部写操作禁用，仅保留查看 */
+  sealed?: boolean;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -522,6 +524,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 const slots = combatStore.getCombatSpellSlotView(record.id, combatant.id);
                 if (!slots || slots.length === 0) return null;
                 const updateSlot = (levelKey: SpellSlotLevel, consume: boolean) => {
+                  if (sealed) return;
                   if (consume) combatStore.consumeSpellSlot(record.id, combatant.id, levelKey);
                   else combatStore.restoreSpellSlot(record.id, combatant.id, levelKey);
                   setRefreshKey(k => k + 1);
@@ -721,7 +724,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     }`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">左手</span>
-                        {isUnavailable ? (
+                        {!sealed && (isUnavailable ? (
                           <button onClick={() => handleRestoreHand('left')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
                         ) : isAction ? (
                           <button onClick={() => handleEndAction('left')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
@@ -731,7 +734,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           <button onClick={() => setSelectingHand('left')} className="p-0.5 rounded bg-primary/10 text-primary" title="拿取装备">
                             <Plus className="w-3 h-3" />
                           </button>
-                        )}
+                        ))}
                       </div>
                       {isUnavailable ? (
                         <div className="text-xs text-danger">不可用</div>
@@ -766,7 +769,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     }`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">右手</span>
-                        {isUnavailable ? (
+                        {!sealed && (isUnavailable ? (
                           <button onClick={() => handleRestoreHand('right')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
                         ) : isAction ? (
                           <button onClick={() => handleEndAction('right')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
@@ -776,7 +779,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           <button onClick={() => setSelectingHand('right')} className="p-0.5 rounded bg-primary/10 text-primary" title="拿取装备">
                             <Plus className="w-3 h-3" />
                           </button>
-                        )}
+                        ))}
                       </div>
                       {isUnavailable ? (
                         <div className="text-xs text-danger">不可用</div>
@@ -1010,7 +1013,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           {activeTab === 'inventory' && combatInventory && (
             <div className="space-y-3">
               {/* 变更信息按钮 */}
-              {onUpdateChanges && (
+              {onUpdateChanges && !sealed && (
                 <button
                   onClick={() => setShowChangesEditor(true)}
                   className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
@@ -1069,7 +1072,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           {isWornArmor && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">盔甲</span>}
                           {isWornOutfit && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">服装</span>}
                           {/* 手持按钮：可手持且当前未手持时显示 */}
-                          {character && isHoldable && !isHeldLeft && !isHeldRight && (
+                          {character && isHoldable && !isHeldLeft && !isHeldRight && !sealed && (
                             <button
                               onClick={() => {
                                 // 优先放空手，否则放另一只手
@@ -1088,7 +1091,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             </button>
                           )}
                           {/* 删除按钮：通过变更信息漏斗移除 */}
-                          {onRemoveItem && (
+                          {onRemoveItem && !sealed && (
                             <button
                               onClick={() => {
                                 if (confirm(`确定从战斗背包中移除「${item.name || '未命名物品'}」？`)) {
@@ -1181,11 +1184,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {ALL_ACTIONS.map((type) => {
-                    const clickable =
+                    const clickable = !sealed && (
                       (type === 'help' && !!onHelpClick) ||
                       (type === 'attack' && !!onAttackClick) ||
                       (type === 'cast' && !!onCastClick) ||
-                      (type === 'dash' && !!onDashClick);
+                      (type === 'dash' && !!onDashClick));
                     const implemented =
                       type === 'attack' || type === 'cast' || type === 'help' || type === 'dash';
                     return (
@@ -1219,7 +1222,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   <button
                     type="button"
                     onClick={onBardicClick}
-                    className="mt-1.5 w-full px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light hover:bg-primary/15 active:scale-[0.98]"
+                    disabled={sealed}
+                    className={`mt-1.5 w-full px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/15'}`}
                   >
                     吟游诗人激励（附赠动作）
                   </button>
@@ -1228,7 +1232,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   <button
                     type="button"
                     onClick={onForcedMoveClick}
-                    className="mt-1.5 w-full px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light hover:bg-primary/15 active:scale-[0.98]"
+                    disabled={sealed}
+                    className={`mt-1.5 w-full px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/15'}`}
                   >
                     强制位移（推离/推近）
                   </button>

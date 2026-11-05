@@ -2122,6 +2122,7 @@ export default function CombatSession() {
             isProvingGround={record?.isProvingGround ?? false}
             provingRecord={record?.isProvingGround ? record : null}
             recordId={record?.id}
+            sealed={!record?.isProvingGround && !!record?.settledAt}
             onClose={() => setInfoPanelCombatant(null)}
             combatants={record?.combatants ?? []}
             tokenMap={tokenMap}
