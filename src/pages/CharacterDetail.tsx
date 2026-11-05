@@ -931,6 +931,8 @@ export default function CharacterDetail({
   }, [featureRoleFilter]);
   // 特性搜索：跨作用方式分类按名称与描述匹配（替代原「全部」页的查找职能）
   const [featureSearch, setFeatureSearch] = useState('');
+  // 手动归类下拉：记录当前展开菜单的 feature id（空串关闭）；点选直接落到目标分类
+  const [roleMenuId, setRoleMenuId] = useState('');
   // 隐藏操作需二次确认（防误触）；恢复显示无破坏性，直接执行
   const [hideConfirmKey, setHideConfirmKey] = useState<string | null>(null);
   const toggleFeatureHidden = (key: string) => {
@@ -1357,8 +1359,20 @@ export default function CharacterDetail({
     setEditProfId(null);
   };
 
+  // 手动归类：下拉直选目标作用方式，显式写回 role（优先于关键词派生）；同分类直接关闭菜单
+  const pickFeatureRole = (feature: Feature, role: FeatureRole) => {
+    setRoleMenuId('');
+    if (!id || role === deriveFeatureRole(feature)) return;
+    characterStore.update(id, {
+      features: (character.features || []).map((f) => (f.id === feature.id ? { ...f, role } : f)),
+    });
+    reloadChar();
+  };
+
   // 特性/特质卡片（主列表与底部隐藏折叠块共用）；inHiddenBlock 时眼睛按钮变为恢复
   const renderFeatureCard = (feature: Feature, inHiddenBlock: boolean) => {
+    const role = deriveFeatureRole(feature);
+    const roleMeta = FEATURE_ROLE_META[role];
     return (
     <div
       key={feature.id}
@@ -1378,6 +1392,41 @@ export default function CharacterDetail({
             {feature.category}
           </span>
         )}
+        <span className="relative flex-shrink-0">
+          <button
+            onClick={() => setRoleMenuId(roleMenuId === feature.id ? '' : feature.id)}
+            className={`px-1.5 py-0.5 rounded-full text-xs ${roleMeta.chip}`}
+            title="点击调整作用方式分类"
+          >
+            {roleMeta.label}
+          </button>
+          {roleMenuId === feature.id && (
+            <>
+              {/* 透明遮罩：点菜单外任意处关闭 */}
+              <div className="fixed inset-0 z-40" onClick={() => setRoleMenuId('')} />
+              <div className="absolute left-0 top-full mt-1 z-50 w-28 rounded-lg border shadow-xl py-1 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light">
+                {FEATURE_RENDER_ORDER.map((r) => {
+                  const meta = FEATURE_ROLE_META[r];
+                  const isCurrent = r === role;
+                  return (
+                    <button
+                      key={r}
+                      onClick={() => pickFeatureRole(feature, r)}
+                      className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-left transition-colors ${
+                        isCurrent
+                          ? 'bg-primary/10 text-primary font-medium'
+                          : 'dark:text-text-dark light:text-text-light hover:bg-primary/10'
+                      }`}
+                    >
+                      {meta.label}
+                      {isCurrent && <span>✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+        </span>
         <button
           onClick={() => {
             if (inHiddenBlock) toggleFeatureHidden(`${feature.category || ''}:${feature.name}`);
