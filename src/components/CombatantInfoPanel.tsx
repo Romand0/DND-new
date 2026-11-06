@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from 'lucide-react';
 
 import { characterStore } from '@/data/characterStore';
+import { deriveFeatureRole } from '@/data/featureRole';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import combatStore from '@/data/combatStore';
@@ -59,6 +60,14 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   const [invFilter, setInvFilter] = useState<string>('全部');
 
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+
+  // 主动技能区：只有角色卡特性与特质里归类为主动技能的条目才展示（NPC/无卡参战者不显示）。
+  // 名称含「激励」的条目接入吟游诗人激励流程，其余主动技能暂为提示占位
+  const activeFeatures = useMemo(
+    () => (character?.features || []).filter((f) => deriveFeatureRole(f) === 'active'),
+    [character]
+  );
+  const hasBardicFeature = activeFeatures.some((f) => /激励/.test(f.name));
 
   // 旧参战者（体型/种类/AC 固化前创建）缺失字段时从图鉴模板反查兜底
   const fallbackTemplate = useMemo(
@@ -1218,16 +1227,6 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     );
                   })}
                 </div>
-                {onBardicClick && (
-                  <button
-                    type="button"
-                    onClick={onBardicClick}
-                    disabled={sealed}
-                    className={`mt-1.5 w-full px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/15'}`}
-                  >
-                    吟游诗人激励（附赠动作）
-                  </button>
-                )}
                 {onForcedMoveClick && (
                   <button
                     type="button"
@@ -1237,6 +1236,37 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   >
                     强制位移（推离/推近）
                   </button>
+                )}
+                {/* 主动技能区：按角色卡特性与特质过滤，只有真的携带对应主动技能的角色才显示对应按钮 */}
+                {activeFeatures.length > 0 && (
+                  <div className="mt-3">
+                    <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
+                      主动技能
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {activeFeatures.map((f) => {
+                        const isBardic = /激励/.test(f.name);
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            disabled={sealed}
+                            onClick={() => {
+                              if (isBardic && onBardicClick) {
+                                onBardicClick();
+                              } else if (!isBardic) {
+                                alert(`「${f.name}」暂未接入自动化流程，请按特性描述手动处理`);
+                              }
+                            }}
+                            className={`px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/15'}`}
+                            title={isBardic ? '附赠动作·发放激励骰' : (f.description || '').slice(0, 60)}
+                          >
+                            <span className="block truncate">{f.name}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
