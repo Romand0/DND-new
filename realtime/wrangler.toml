@@ -1,0 +1,14 @@
+name = "dnd-realtime"
+main = "src/index.ts"
+compatibility_date = "2025-03-01"
+
+[[durable_objects.bindings]]
+name = "COMBAT_ROOM"
+class_name = "CombatRoomDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CombatRoomDO"]
+
+# 生产环境通过 wrangler secret put JWT_SECRET 注入，勿写明文
+# 本地开发用 realtime/.dev.vars

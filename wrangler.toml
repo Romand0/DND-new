@@ -12,5 +12,12 @@ binding = "DB"
 database_name = "dnd-new-db"
 database_id = "23f10100-9d48-439e-bb22-ea7eadd6482c"
 
+# 实时 Worker（dnd-realtime，独立部署在 realtime/）的战斗房间 DO
+# 跨服务引用：script_name 指向已部署的 Worker，Pages Functions 可直接 env.COMBAT_ROOM.get(id)
+[[durable_objects.bindings]]
+name = "COMBAT_ROOM"
+class_name = "CombatRoomDO"
+script_name = "dnd-realtime"
+
 [vars]
 JWT_SECRET = "cmy090907cmy090907cmy090907"
