@@ -526,6 +526,37 @@ flowStore.saveViewportSnapshot(flowId, {
     }));
   }, 300), [collectSchemaDefaults]);
 
+  // ===== 更新节点标签 / 备注 =====
+  const updateNodeLabel = useCallback((nodeId: string, label: string) => {
+    setFlow(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => (n.id === nodeId ? { ...n, label } : n)),
+      updatedAt: Date.now(),
+    }));
+  }, [setFlow]);
+
+  const updateNodeNotes = useCallback((nodeId: string, notes: string) => {
+    setFlow(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => (n.id === nodeId ? { ...n, notes } : n)),
+      updatedAt: Date.now(),
+    }));
+  }, [setFlow]);
+
+  // ===== 删除节点配置键（自定义字段） =====
+  const removeNodeConfigKey = useCallback((nodeId: string, key: string) => {
+    setFlow(prev => ({
+      ...prev,
+      nodes: prev.nodes.map(n => {
+        if (n.id !== nodeId || !n.config) return n;
+        const config = { ...n.config };
+        delete config[key];
+        return { ...n, config };
+      }),
+      updatedAt: Date.now(),
+    }));
+  }, [setFlow]);
+
   // ===== 添加边 =====
   const addEdge = useCallback((fromId: string, toId: string, trigger: string) => {
     if (fromId === toId) return;
@@ -1028,6 +1059,9 @@ flowStore.saveViewportSnapshot(flowId, {
               flow={flow}
               isDark={isDark}
               updateNodeConfig={updateNodeConfig}
+              removeNodeConfigKey={removeNodeConfigKey}
+              updateNodeLabel={updateNodeLabel}
+              updateNodeNotes={updateNodeNotes}
               deleteEdge={deleteEdge}
               selectedEdgeId={selectedEdgeId}
               setSelectedEdgeId={setSelectedEdgeId}

@@ -1,8 +1,9 @@
 import { Link2, ListPlus, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import type { FlowNodeDef } from '@/types/flow';
-import { NODE_TYPE_REGISTRY, NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
+import { NODE_TYPE_REGISTRY } from '@/types/flow';
 import { NODE_W } from '@/utils/flow-editor/constants';
 import { resolveNodeIcon } from '@/utils/flow-editor/node-icon';
+import { describeNodeConfig } from '@/utils/flowDescribe';
 
 interface EditableFlowNodeCardProps {
   node: FlowNodeDef;
@@ -39,11 +40,7 @@ export default function EditableFlowNodeCard({
   onDelete,
 }: EditableFlowNodeCardProps) {
   const meta = NODE_TYPE_REGISTRY.find(m => m.type === node.type);
-  const schema = NODE_CONFIG_SCHEMA[node.type] ?? [];
-  const configEntries = Object.entries(node.config ?? {}).filter(([key]) => {
-    const field = schema.find(f => f.key === key);
-    return !field || isConfigFieldVisible(field, node.config);
-  });
+  const descriptions = describeNodeConfig(node);
 
   const borderColor = isConnectSource
     ? 'border-primary shadow-primary/20'
@@ -88,12 +85,14 @@ export default function EditableFlowNodeCard({
           )}
         </div>
 
-        {configEntries.length > 0 && (
-          <div className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5 max-h-16 overflow-hidden">
-            {configEntries.slice(0, 4).map(([k, v]) => (
-              <div key={k} className="truncate pr-1" title={`${k}: ${String(v)}`}>
-                <span className="font-medium">{k}:</span>
-                <span className="ml-1">{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+        {descriptions.length > 0 && (
+          <div
+            className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted space-y-0.5 max-h-16 overflow-hidden"
+            title={descriptions.join('\n')}
+          >
+            {descriptions.slice(0, 4).map((line, i) => (
+              <div key={i} className="truncate pr-1">
+                {line}
               </div>
             ))}
           </div>

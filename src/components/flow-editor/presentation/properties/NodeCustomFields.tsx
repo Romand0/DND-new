@@ -6,12 +6,14 @@ import type { FlowNodeDef } from '@/types/flow';
 interface NodeCustomFieldsProps {
   node: FlowNodeDef;
   updateNodeConfig: (nodeId: string, key: string, value: any) => void;
+  removeNodeConfigKey?: (nodeId: string, key: string) => void;
   isDark: boolean;
 }
 
 export default function NodeCustomFields({
   node,
   updateNodeConfig,
+  removeNodeConfigKey,
   isDark,
 }: NodeCustomFieldsProps) {
   // 获取 Schema 定义的字段键
@@ -36,17 +38,12 @@ export default function NodeCustomFields({
 
   // 删除自定义字段
   const removeCustomField = (key: string) => {
-    // 创建新的配置对象，排除要删除的字段
-    const newConfig = { ...node.config };
-    delete newConfig[key];
-    
-    // 更新节点配置
-    updateNodeConfig(node.id, '__temp__', newConfig);
-    
-    // 移除临时字段
-    setTimeout(() => {
-      updateNodeConfig(node.id, '__temp__', undefined);
-    }, 0);
+    if (removeNodeConfigKey) {
+      removeNodeConfigKey(node.id, key);
+      return;
+    }
+    // 兜底：调用方未提供删除回调时，写入 undefined 让该键失效
+    updateNodeConfig(node.id, key, undefined);
   };
 
   return (
