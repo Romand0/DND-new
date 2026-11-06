@@ -1,14 +1,18 @@
 import { Link } from 'react-router-dom';
-import { Clock, Calendar, ChevronRight, Dices } from 'lucide-react';
+import { Calendar, ChevronRight, Dices, Inbox } from 'lucide-react';
 import gameTimeStore from '@/data/gameTimeStore';
 import calendarStore from '@/data/calendarStore';
 import { useState, useEffect } from 'react';
 import { getTimeOfDay } from '@/data/gameTimeStore';
-import { MONTHS } from '@/data/calendarData';
+import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 
 export default function NotesPage() {
   const [gameTime, setGameTime] = useState({ hour: 8, minute: 0 });
   const [calendarDate, setCalendarDate] = useState('');
+  const { messages: outboxMessages } = useRoundTableInbox({ outbox: true });
+  const pendingChecks = outboxMessages.filter(
+    (m) => m.type === 'check_request' && m.status === 'pending',
+  ).length;
 
   useEffect(() => {
     const updateTime = () => {
@@ -39,22 +43,15 @@ export default function NotesPage() {
 
   return (
     <div className="space-y-8">
-      {/* 页面标题 */}
-      <div>
-        <h1 className="text-3xl font-bold dark:text-text-dark light:text-text-light">
-          剧情笔记
-        </h1>
-        <p className="mt-2 dark:text-text-dark-muted light:text-text-light-muted">
-          记录剧情、NPC关系、世界设定，随时查阅
-        </p>
-      </div>
+      <h1 className="text-3xl font-bold dark:text-text-dark light:text-text-light">
+        剧情笔记
+      </h1>
 
-      {/* 时间卡片 — 左右分割 */}
-      <div className="grid grid-cols-2 gap-0 rounded-xl border dark:border-border-dark light:border-border-light overflow-hidden dark:bg-card-dark light:bg-card-light">
-        {/* 左侧：时钟 */}
+      {/* 上方：时钟 / 日历 / 骰子 三卡并排 */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Link
           to="/clock"
-          className="group relative p-6 flex flex-col items-center justify-center gap-4 hover:bg-white/5 transition-colors"
+          className="group relative rounded-xl border p-6 flex flex-col items-center justify-center gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
         >
           {/* 迷你表盘 */}
           <div className="relative w-20 h-20 rounded-full border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
@@ -95,22 +92,17 @@ export default function NotesPage() {
           </div>
 
           {/* 悬浮提示 */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-primary/10">
+          <div className="absolute inset-0 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-primary/10">
             <span className="flex items-center gap-1 text-primary font-medium">
               打开时钟 <ChevronRight className="w-4 h-4" />
             </span>
           </div>
         </Link>
 
-        {/* 分割线 */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-px dark:bg-border-dark light:bg-border-light hidden sm:block" style={{ display: 'none' }} />
-
-        {/* 右侧：日历 */}
         <Link
           to="/calendar"
-          className="group relative p-6 flex flex-col items-center justify-center gap-4 hover:bg-white/5 transition-colors border-l dark:border-border-dark light:border-border-light"
+          className="group relative rounded-xl border p-6 flex flex-col items-center justify-center gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
         >
-          {/* 日历图标 */}
           <div className="w-20 h-20 rounded-lg border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
             <Calendar className="w-10 h-10 dark:text-text-dark-muted light:text-text-light-muted" />
           </div>
@@ -125,81 +117,66 @@ export default function NotesPage() {
           </div>
 
           {/* 悬浮提示 */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-primary/10">
+          <div className="absolute inset-0 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-primary/10">
             <span className="flex items-center gap-1 text-primary font-medium">
               打开日历 <ChevronRight className="w-4 h-4" />
             </span>
           </div>
         </Link>
+
+        <Link
+          to="/dice"
+          className="group relative rounded-xl border p-6 flex flex-col items-center justify-center gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
+        >
+          <div className="w-20 h-20 rounded-lg border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
+            <Dices className="w-10 h-10 dark:text-text-dark-muted light:text-text-light-muted" />
+          </div>
+
+          <div className="text-center">
+            <div className="text-xl font-bold dark:text-text-dark light:text-text-light">
+              线上骰子
+            </div>
+            <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+              d4 ~ d20
+            </div>
+          </div>
+
+          {/* 悬浮提示 */}
+          <div className="absolute inset-0 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-primary/10">
+            <span className="flex items-center gap-1 text-primary font-medium">
+              打开骰子 <ChevronRight className="w-4 h-4" />
+            </span>
+          </div>
+        </Link>
       </div>
 
-      {/* 功能说明 */}
-      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-6">
-        <h2 className="text-lg font-semibold mb-4 dark:text-text-dark light:text-text-light">
-          剧情工具
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Clock className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-medium dark:text-text-dark light:text-text-light">游戏时钟</h3>
-              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                可拖拽调整的游戏内时钟，支持时针/分针联动，实时显示时段
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Calendar className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-medium dark:text-text-dark light:text-text-light">哈普托斯历</h3>
-              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                被遗忘的国度世界观的日历系统，包含节日和闰年计算
-              </p>
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-              <Dices className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-medium dark:text-text-dark light:text-text-light">线上骰子</h3>
-              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                d4~d20 六种骰子，支持单击掷骰和长按批量掷骰
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 骰子快捷入口 */}
+      {/* 下方：圆桌入口 */}
       <Link
-        to="/dice"
-        className="group rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-4 flex items-center gap-4 hover:border-primary/50 transition-colors"
+        to="/table"
+        className="group flex items-center justify-between p-5 rounded-xl border transition-all hover:scale-[1.01] bg-gradient-to-r from-primary/15 via-accent/10 to-transparent dark:border-primary/40 dark:hover:border-primary/70 light:border-primary/40 light:hover:border-primary/70"
       >
-        <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
-          <Dices className="w-7 h-7 text-white" />
-        </div>
-        <div className="flex-1">
-          <h3 className="font-semibold dark:text-text-dark light:text-text-light">打开线上骰子</h3>
-          <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-            快速访问骰子掷骰工具
-          </p>
+        <div className="flex items-center gap-4">
+          <div className="relative p-3 rounded-lg bg-primary/20">
+            <Inbox className="w-6 h-6 text-primary" />
+            {pendingChecks > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-danger text-white text-xs font-bold flex items-center justify-center">
+                {pendingChecks}
+              </span>
+            )}
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
+              圆桌 · 通用检定
+            </h2>
+            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+              {pendingChecks > 0
+                ? `${pendingChecks} 条检定待玩家答复`
+                : '向玩家抛送检定，查看答复进度'}
+            </p>
+          </div>
         </div>
         <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
       </Link>
-
-      {/* 占位内容：后续可扩展 */}
-      <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-6">
-        <div className="text-center py-8">
-          <p className="dark:text-text-dark-muted light:text-text-light-muted">
-            更多剧情笔记功能即将上线...
-          </p>
-        </div>
-      </div>
     </div>
   );
 }
