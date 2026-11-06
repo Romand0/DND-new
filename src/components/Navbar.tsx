@@ -17,11 +17,13 @@ import {
   Dices,
   UserCircle,
   GitBranch,
+  Inbox,
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import CampaignSwitcher from '@/components/CampaignSwitcher';
 import { getCampaignId } from '@/data/campaignScope';
+import RoundTableBadge from '@/components/roundtable/RoundTableBadge';
 
 const allNavItems = [
   { path: '/characters', label: '角色卡库', icon: Users },
@@ -38,6 +40,7 @@ const allNavItems = [
 ];
 
 const playerNavItems = [
+  { path: '/player/table', label: '圆桌', icon: Inbox },
   { path: '/player/combat', label: '战斗记录', icon: Swords },
   { path: '/player/inventory', label: '物资钱币', icon: Coins },
   { path: '/player/spells', label: '法术库', icon: Sparkles },
@@ -116,7 +119,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
                   key={item.path}
                   to={item.path}
                   data-nav-active={isActive ? 'true' : undefined}
-                  className={`flex shrink-0 items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
+                  className={`relative flex shrink-0 items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     isActive
                       ? 'bg-primary/20 text-primary'
                       : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -124,6 +127,9 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
                 >
                   <Icon className="w-4 h-4" />
                   {item.label}
+                  {item.path === '/player/table' && (
+                    <RoundTableBadge />
+                  )}
                 </Link>
               );
             })}
@@ -210,7 +216,7 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
                     key={item.path}
                     to={item.path}
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
+                    className={`relative flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
                       isActive
                         ? 'bg-primary/20 text-primary'
                         : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -218,6 +224,11 @@ export default function Navbar({ variant = 'dm' }: { variant?: 'dm' | 'player' }
                   >
                     <Icon className="w-5 h-5 shrink-0" />
                     <span className="truncate">{item.label}</span>
+                    {item.path === '/player/table' && (
+                      <span className="absolute top-2 right-2">
+                        <RoundTableBadge />
+                      </span>
+                    )}
                   </Link>
                 );
               })}

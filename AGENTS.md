@@ -23,6 +23,7 @@
 | 改回合待办（持续效果提醒） | `src/components/TurnTodoBoard.tsx` + `src/data/combatStore.ts` 的 `addTurnTodo / removeTurnTodo / toggleTurnTodo / resetTurnTodosForRound` | 待办数据内嵌在 CombatRecord，与 equipmentChanges 同层级；只在放映模式 + 已开始放映时显示 |
 | 改沙盘交互（双指缩放、白圈、拾取） | `src/components/Battleground.tsx` | 触摸事件链（pointerdown→move→up→click）脆弱，改之前先通读一遍 |
 | 改云 API 接口 | `functions/api/**/*.ts` + `src/lib/api.ts` | 改后端必须同步改前端 api 客户端；D1 操作在 SQL 里，别丢 WHERE |
+| 改圆桌 / 通用检定（信箱轮询） | `src/pages/RoundTable.tsx`（DM）/ `src/pages/PlayerRoundTable.tsx`（玩家）/ `src/hooks/useRoundTableInbox.ts` / `src/lib/checkPipeline.ts` / `functions/api/table/*` | 消息不可变（仅 request 的 status/replyMessageId 可回填）；检定加值走 checkPipeline 复用 advantageRules/attackBonus；迁移 0013 需手动 apply |
 | 改登录 / 权限 | `src/contexts/AuthContext.tsx` + `functions/_utils.ts` | AuthContext 里 user/isAdmin/isAuthenticated 是三大派生（isDM 仅是游戏身份），不要加冲突的局部判断 |
 | 改样式 / 主题 | Tailwind class（内联）+ `public/css/main.css`（全局 token） | 不要手写 CSS 文件，尽量用 Tailwind；暗黑模式 class 后缀 `-dark` |
 | 加新功能页面 | 建 `src/pages/Xxx.tsx` → 在 `src/App.tsx` 注册路由 → 在 `Layout` / `PlayerLayout` 对应菜单里加入口 | |

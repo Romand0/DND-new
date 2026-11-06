@@ -204,8 +204,21 @@ export interface InitiativeBonusResult {
 /** 先攻加值：敏捷调整 + 万事通（先攻属敏捷检定，万事通对非熟练技能检定加一半熟练加值） */
 export function computeInitiativeBonus(character: Character): InitiativeBonusResult {
   const dexMod = character.abilities?.dexterity?.modifier ?? 0;
-  const hasJack = (character.features ?? []).some(f => f.name === '万事通');
-  const dexProficient = (character.proficiencies?.savingThrows ?? []).includes('dexterity');
-  const jackBonus = hasJack && !dexProficient ? Math.floor((character.proficiencyBonus ?? 0) / 2) : 0;
+  const jackBonus = jackOfAllTradesBonus(character, dexProficiency(character));
   return { dexMod, jackBonus, total: dexMod + jackBonus };
+}
+
+/** 敏捷豁免是否熟练（先攻按敏捷检定，熟练项口径与豁免一致） */
+function dexProficiency(character: Character): boolean {
+  return (character.proficiencies?.savingThrows ?? []).includes('dexterity');
+}
+
+/**
+ * 万事通（Jack of All Trades）：携带「万事通」特性且该检定无熟练时，
+ * 加熟练加值的一半（向下取整）。豁免检定不适用。
+ */
+export function jackOfAllTradesBonus(character: Character, isProficient: boolean): number {
+  if (isProficient) return 0;
+  const hasJack = (character.features ?? []).some(f => f.name === '万事通');
+  return hasJack ? Math.floor((character.proficiencyBonus ?? 0) / 2) : 0;
 }

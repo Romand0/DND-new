@@ -32,6 +32,8 @@ import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 import DataManagement from '@/pages/DataManagement';
 import CombatList from '@/pages/CombatList';
+import RoundTable from '@/pages/RoundTable';
+import PlayerRoundTable from '@/pages/PlayerRoundTable';
 import CombatSession from '@/pages/CombatSession';
 import BattlegroundEditor from '@/pages/BattlegroundEditor';
 import FlowEditor from '@/pages/FlowEditor';
@@ -150,6 +152,7 @@ export default function App() {
                 element={<Placeholder title="战斗记录" description="战斗追踪与回合管理功能即将上线" />}
               />
               <Route path="/player/inventory" element={<InventoryPage />} />
+              <Route path="/player/table" element={<PlayerRoundTable />} />
               <Route path="/player/spells" element={<SpellList />} />
               <Route path="/player/spells/:id" element={<SpellDetail />} />
               <Route path="/player/account" element={<UserProfile />} />
@@ -181,6 +184,7 @@ export default function App() {
             >
               <Route path="characters" element={<CharacterList />} />
               <Route path="characters/:id" element={<CharacterDetail />} />
+              <Route path="table" element={<RoundTable />} />
               <Route path="inventory" element={<InventoryPage />} />
               <Route path="inventory/trade" element={<TradePage />} />
               <Route path="inventory/treasures" element={<TreasureList />} />

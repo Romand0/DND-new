@@ -516,3 +516,57 @@ export async function putArtifact<T = any>(kind: string, artId: string, data: un
 export async function deleteArtifact(kind: string, artId: string, opts?: RequestInit): Promise<void> {
   await apiFetch(`/artifacts/${kind}/${encodeURIComponent(artId)}`, { method: 'DELETE', headers: authHeaders(), ...opts });
 }
+
+// ---------- 圆桌消息信箱（通用检定首批） ----------
+
+/** 信箱游标增量拉取：默认收件（to_user_id），outbox=1 发件（DM 查发起状态） */
+export async function fetchRoundTableInbox(after: string, opts?: { outbox?: boolean; limit?: number }): Promise<{ messages: any[]; cursor: string }> {
+  const params = new URLSearchParams();
+  if (after) params.set('after', after);
+  if (opts?.outbox) params.set('outbox', '1');
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  return apiFetch<{ messages: any[]; cursor: string }>(`/table/inbox${qs ? `?${qs}` : ''}`, { headers: authHeaders() });
+}
+
+/** DM 发起检定任务（需管理员） */
+export async function sendCheckRequest(body: {
+  characterId: string;
+  checkKind: string;
+  checkKey: string;
+  checkLabel: string;
+  dc: number;
+  dcMode: string;
+  note?: string;
+}): Promise<{ ok: boolean; id: string }> {
+  return apiFetch('/table/check-request', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+}
+
+/** 玩家答复检定任务 */
+export async function sendCheckResult(body: {
+  replyTo: string;
+  d20s: number[];
+  d20Kept: number;
+  rollMode: string;
+  modeReasons: string[];
+  bonuses: { label: string; value: number }[];
+  appliedValue: number;
+  autoOutcome: 'success' | 'fail' | null;
+}): Promise<{ ok: boolean; id: string }> {
+  return apiFetch('/table/check-result', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+}
+
+/** DM 撤回 pending 检定任务（需管理员） */
+export async function cancelCheckRequest(messageId: string): Promise<{ ok: boolean }> {
+  return apiFetch('/table/cancel', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ messageId }) });
+}
+
+/** 查当前账号绑定的角色卡（玩家侧「我的角色」） */
+export async function fetchMyCharacters(): Promise<{ characters: any[] }> {
+  return apiFetch('/table/my-characters', { headers: authHeaders() });
+}
+
+/** 查已绑定玩家账号的角色卡（DM 发起表单可选项，需管理员） */
+export async function fetchBoundCharacters(): Promise<{ characters: any[] }> {
+  return apiFetch('/table/bound-characters', { headers: authHeaders() });
+}
