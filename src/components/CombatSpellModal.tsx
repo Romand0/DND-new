@@ -904,6 +904,7 @@ export default function CombatSpellModal({
                   recordId={recordId}
                   currentRound={currentRound}
                   combatantPositions={combatantPositions}
+                  spellName={selectedSpell?.name}
                   onComplete={handleCheckComplete}
                   onRequestCheckType={(t) => cast.rebuild(t)}
                   onRequestNoCheck={() => { setEffectType(sameTeam ? 'heal' : 'damage'); cast.rebuild('none'); }}

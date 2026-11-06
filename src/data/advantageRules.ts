@@ -56,6 +56,8 @@ export interface AdvantageContext {
   targetPos?: { col: number; row: number } | null;
   distanceCells?: number;
   saveAbility?: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
+  /** 来源法术名（豁免场景：目标对哪个法术做豁免；被动技能按名称识别魅惑/催眠类效应） */
+  sourceSpellName?: string;
   /** 战斗记录 ID（状态型优劣势查 active 实例时的 combatId） */
   recordId?: string;
   /** 回合上下文（状态型过期判定；放映模式由 getCombatRoundCtx 提供） */
@@ -375,6 +377,28 @@ function detectTrait(ctx: AdvantageContext): AdvantageResult {
 }
 
 // =======================
+// 内置检测器 6：passive-feature（PC 角色卡被动技能，按特性名匹配携带情况）
+// =======================
+
+// 妖精血统（Fey Ancestry）：对魅惑自己的魔法豁免检定具有优势，且免疫魔法导致的睡眠。
+// 魅惑类效应按来源法术名识别（魅惑人形/支配人类/催眠图纹等）；豁免上下文无状态标签，
+// 非魅惑效应的豁免由 DM 手动取消（与魔法抗性的兜底思路一致）。
+// 黑暗视觉：本工具无光照/隐藏系统，暂无机械效果点，仅随特性展示，预留此检测入口。
+function detectPassiveFeature(ctx: AdvantageContext): AdvantageResult {
+  if (ctx.scene !== 'saving_throw') return { advantage: [], disadvantage: [] };
+  const char = ctx.attackerCharacter;
+  if (!char) return { advantage: [], disadvantage: [] };
+  const hasFeyAncestry = (char.features ?? []).some(f => f.name === '妖精血统');
+  if (hasFeyAncestry && ctx.sourceSpellName && /魅惑|催眠/.test(ctx.sourceSpellName)) {
+    return {
+      advantage: [{ kind: 'trait', label: '妖精血统（对魅惑豁免优势）' }],
+      disadvantage: [],
+    };
+  }
+  return { advantage: [], disadvantage: [] };
+}
+
+// =======================
 // 模块初始化：注册内置检测器
 // =======================
 
@@ -383,6 +407,7 @@ registerDetector('positional', detectPositional);
 registerDetector('pending', detectPending);
 registerDetector('condition', detectCondition);
 registerDetector('trait', detectTrait);
+registerDetector('passive-feature', detectPassiveFeature);
 
 // 预留接入点注释（不实现，仅说明）：
 // - action: dodge（被攻击者回避 → 攻击劣势）、hide（隐匿检定）

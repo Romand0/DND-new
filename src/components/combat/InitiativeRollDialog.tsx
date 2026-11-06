@@ -1,5 +1,6 @@
 import { X } from 'lucide-react';
 import type { Character } from '@/types/character';
+import { computeInitiativeBonus } from '@/lib/attackBonus';
 
 interface Props {
   open: boolean;
@@ -15,9 +16,9 @@ export default function InitiativeRollDialog(props: Props) {
 
   if (!open || !selectedPc) return null;
 
-  const dexMod = selectedPc.abilities?.dexterity?.modifier ?? 0;
+  const { dexMod, jackBonus, total: initBonus } = computeInitiativeBonus(selectedPc);
   const d20Value = parseInt(d20Input, 10);
-  const total = isNaN(d20Value) ? null : d20Value + dexMod;
+  const total = isNaN(d20Value) ? null : d20Value + initBonus;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -41,6 +42,12 @@ export default function InitiativeRollDialog(props: Props) {
               <span className="text-primary font-bold ml-1">
                 {dexMod >= 0 ? `+${dexMod}` : dexMod}
               </span>
+              {jackBonus > 0 && (
+                <span className="ml-2">
+                  万事通（未熟练敏捷检定加半熟练）：
+                  <span className="text-primary font-bold ml-1">+{jackBonus}</span>
+                </span>
+              )}
             </div>
           </div>
           <div>

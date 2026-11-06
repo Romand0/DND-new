@@ -40,6 +40,8 @@ interface Props {
   recordId?: string;
   currentRound?: number;
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /** 本次施放的法术名（豁免优劣势检测用：妖精血统等按魅惑/催眠类法术名识别） */
+  spellName?: string;
   /** 确定检定：上报结果（含失败——失败也要留轨迹） */
   onComplete: (checkType: Exclude<SpellCheckType, 'none'>, outcome: SpellCheckOutcome) => void;
   /** 检定方式切换（ac↔save）：宿主调 hook.rebuild 保留已完成前缀 */
@@ -61,7 +63,7 @@ const SAVE_ATTR_OPTIONS = [
 
 export default function SpellCheckStep({
   checkType, caster, target, casterCharacter, targetCharacter, effectiveTargetAc,
-  recordId, currentRound, combatantPositions, onComplete, onRequestCheckType, onRequestNoCheck,
+  recordId, currentRound, combatantPositions, spellName, onComplete, onRequestCheckType, onRequestNoCheck,
 }: Props) {
   const [saveAttribute, setSaveAttribute] = useState<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'>('dex');
   const [d20Values, setD20Values] = useState<string[]>(['']);
@@ -148,6 +150,7 @@ export default function SpellCheckStep({
     attackerCharacter: checkType === 'save' ? (targetCharacter ?? null) : casterCharacter,
     targetCharacter: checkType === 'save' ? casterCharacter : (targetCharacter ?? null),
     saveAbility: checkType === 'save' ? SAVE_ATTR_MAP[saveAttribute] : undefined,
+    sourceSpellName: spellName,
     combatantPositions,
     recordId,
     roundCtx: getCombatRoundCtx(recordId),

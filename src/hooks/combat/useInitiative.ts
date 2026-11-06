@@ -3,6 +3,7 @@ import type { CombatRecord, Combatant, RoundAction } from '@/types/combat';
 import type { Character } from '@/types/character';
 import { characterStore } from '@/data/characterStore';
 import combatStore from '@/data/combatStore';
+import { computeInitiativeBonus } from '@/lib/attackBonus';
 
 const CIRCLE_NUMBERS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
 
@@ -57,8 +58,8 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
       alert('请输入 1-20 之间的 d20 数值');
       return;
     }
-    const dexMod = selectedPc.abilities?.dexterity?.modifier ?? 0;
-    const initiative = d20 + dexMod;
+    const { total: initBonus } = computeInitiativeBonus(selectedPc);
+    const initiative = d20 + initBonus;
     const newId = crypto.randomUUID();
     // 战斗层手持初始化：从角色卡备战槽复制（进战自动拿起备战中的武器/盾牌）
     const hands = combatStore.initCombatantHands(selectedPc);
