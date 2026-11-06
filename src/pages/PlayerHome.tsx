@@ -1,17 +1,22 @@
 // 玩家主页  -  从后端 API 读取角色列表供选择
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, RefreshCw, AlertCircle, Users, Shield } from 'lucide-react';
+import { Eye, RefreshCw, AlertCircle, Users, Shield, Inbox, BookOpen, Package, Sparkles, ChevronRight } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { fetchAllCharacters } from '@/lib/api';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { characterStore } from '@/data/characterStore';
+import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 
 export default function PlayerHome() {
   const { current } = useCampaign();
   const [players, setPlayers] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { messages: tableMessages } = useRoundTableInbox();
+  const pendingChecks = tableMessages.filter(
+    (m) => m.type === 'check_request' && m.status === 'pending',
+  ).length;
 
   const loadPlayers = async () => {
     setError(null);
@@ -109,6 +114,34 @@ export default function PlayerHome() {
           刷新列表
         </button>
       </div>
+
+      {/* 圆桌入口：显眼横幅，有待答复检定时高亮计数 */}
+      <Link
+        to="/player/table"
+        className="group flex items-center justify-between p-5 rounded-xl border transition-all hover:scale-[1.01] bg-gradient-to-r from-primary/15 via-accent/10 to-transparent dark:border-primary/40 dark:hover:border-primary/70 light:border-primary/40 light:hover:border-primary/70"
+      >
+        <div className="flex items-center gap-4">
+          <div className="relative p-3 rounded-lg bg-primary/20">
+            <Inbox className="w-6 h-6 text-primary" />
+            {pendingChecks > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-danger text-white text-xs font-bold flex items-center justify-center">
+                {pendingChecks}
+              </span>
+            )}
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
+              圆桌 · 通用检定
+            </h2>
+            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+              {pendingChecks > 0
+                ? `${pendingChecks} 条检定等待你掷骰答复`
+                : 'DM 发起的检定与答复都在这里'}
+            </p>
+          </div>
+        </div>
+        <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
+      </Link>
 
       {players.length === 0 && (
         <div className="text-center py-16 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
@@ -224,6 +257,53 @@ export default function PlayerHome() {
           ))}
         </div>
       )}
+
+      {/* 图鉴区：三库只读浏览入口 */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-bold dark:text-text-dark light:text-text-light">图鉴</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              to: '/options',
+              icon: BookOpen,
+              title: '角色选项',
+              desc: '种族、背景、职业与特性',
+              tone: 'bg-primary/10 text-primary',
+            },
+            {
+              to: '/equipment',
+              icon: Package,
+              title: '装备图鉴',
+              desc: '武器、护甲与冒险装备',
+              tone: 'bg-warning/15 text-warning',
+            },
+            {
+              to: '/player/spells',
+              icon: Sparkles,
+              title: '法术图鉴',
+              desc: '全部法术详述与环节',
+              tone: 'bg-accent/15 text-accent',
+            },
+          ].map(({ to, icon: Icon, title, desc, tone }) => (
+            <Link
+              key={to}
+              to={to}
+              className="group p-5 rounded-xl border transition-all hover:scale-[1.02] dark:bg-card-dark dark:border-border-dark dark:hover:border-primary/50 light:bg-card-light light:border-border-light light:hover:border-primary/50"
+            >
+              <div className="flex items-start justify-between">
+                <div className={`p-3 rounded-lg ${tone}`}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <ChevronRight className="w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
+              </div>
+              <h3 className="mt-3 font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
+                {title}
+              </h3>
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">{desc}</p>
+            </Link>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
