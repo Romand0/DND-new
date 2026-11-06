@@ -47,15 +47,15 @@ export default function NotesPage() {
         剧情笔记
       </h1>
 
-      {/* 上方：时钟 / 日历 / 骰子 三卡并排 */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* 上方：时钟 / 日历 / 骰子 三卡并排（窄屏也保持同行，视觉元素随屏收缩） */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         <Link
           to="/clock"
-          className="group relative rounded-xl border p-6 flex flex-col items-center justify-center gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
+          className="group relative rounded-xl border p-3 sm:p-6 flex flex-col items-center justify-center gap-3 sm:gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
         >
           {/* 迷你表盘 */}
-          <div className="relative w-20 h-20 rounded-full border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
-            <svg width="80" height="80" viewBox="0 0 80 80" className="absolute inset-0">
+          <div className="relative w-14 h-14 sm:w-20 sm:h-20 rounded-full border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
+            <svg viewBox="0 0 80 80" className="absolute inset-0 w-full h-full">
               {/* 刻度 */}
               {[0, 90, 180, 270].map((angle, i) => (
                 <line
@@ -83,10 +83,10 @@ export default function NotesPage() {
           </div>
 
           <div className="text-center">
-            <div className="text-2xl font-mono font-bold dark:text-text-dark light:text-text-light">
+            <div className="text-xl sm:text-2xl font-mono font-bold dark:text-text-dark light:text-text-light">
               {timeStr}
             </div>
-            <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            <div className="text-xs sm:text-sm dark:text-text-dark-muted light:text-text-light-muted">
               {isAM ? 'AM' : 'PM'} · {timeOfDay}
             </div>
           </div>
@@ -101,17 +101,17 @@ export default function NotesPage() {
 
         <Link
           to="/calendar"
-          className="group relative rounded-xl border p-6 flex flex-col items-center justify-center gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
+          className="group relative rounded-xl border p-3 sm:p-6 flex flex-col items-center justify-center gap-3 sm:gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
         >
-          <div className="w-20 h-20 rounded-lg border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
-            <Calendar className="w-10 h-10 dark:text-text-dark-muted light:text-text-light-muted" />
+          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
+            <Calendar className="w-7 h-7 sm:w-10 sm:h-10 dark:text-text-dark-muted light:text-text-light-muted" />
           </div>
 
           <div className="text-center">
-            <div className="text-xl font-bold dark:text-text-dark light:text-text-light">
+            <div className="text-base sm:text-xl font-bold dark:text-text-dark light:text-text-light">
               {calendarDate}
             </div>
-            <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            <div className="text-xs sm:text-sm dark:text-text-dark-muted light:text-text-light-muted">
               哈普托斯历
             </div>
           </div>
@@ -126,17 +126,17 @@ export default function NotesPage() {
 
         <Link
           to="/dice"
-          className="group relative rounded-xl border p-6 flex flex-col items-center justify-center gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
+          className="group relative rounded-xl border p-3 sm:p-6 flex flex-col items-center justify-center gap-3 sm:gap-4 transition-all hover:scale-[1.02] hover:border-primary/50 dark:border-border-dark dark:bg-card-dark light:border-border-light light:bg-card-light"
         >
-          <div className="w-20 h-20 rounded-lg border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
-            <Dices className="w-10 h-10 dark:text-text-dark-muted light:text-text-light-muted" />
+          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg border-2 dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light-2 flex items-center justify-center">
+            <Dices className="w-7 h-7 sm:w-10 sm:h-10 dark:text-text-dark-muted light:text-text-light-muted" />
           </div>
 
           <div className="text-center">
-            <div className="text-xl font-bold dark:text-text-dark light:text-text-light">
+            <div className="text-base sm:text-xl font-bold dark:text-text-dark light:text-text-light">
               线上骰子
             </div>
-            <div className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            <div className="text-xs sm:text-sm dark:text-text-dark-muted light:text-text-light-muted">
               d4 ~ d20
             </div>
           </div>
