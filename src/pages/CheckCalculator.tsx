@@ -40,6 +40,15 @@ export default function CheckCalculator() {
   const [bindError, setBindError] = useState('');
 
   useEffect(() => {
+    const loadLocalFallback = () => {
+      // 云端绑定不可用时退回本地角色卡（计算器纯本地计算，本地卡即可用；与 PlayerHome 同过滤口径）
+      const list = (characterStore.getAllVisible() || [])
+        .filter((c: any) => !c.isSandbox && !String(c.name || '').startsWith('试验体·'))
+        .map((c: any) => ({ id: c.id, name: c.name ?? '未命名' }));
+      setBoundChars(list);
+      if (list.length > 0) setCharId(list[0].id);
+      else setBindError('云端绑定不可用且本地无角色卡数据，请先在角色卡页面同步');
+    };
     fetchMyCharacters()
       .then(({ characters }) => {
         const list = (characters || []).map((c: any) => ({ id: c.id, name: c.name ?? '未命名' }));
@@ -47,7 +56,14 @@ export default function CheckCalculator() {
         if (list.length > 0) setCharId(list[0].id);
         else setBindError('当前账号未绑定角色卡，请让 DM 在账户管理中绑定');
       })
-      .catch(() => setBindError('角色绑定列表加载失败'));
+      .catch((err) => {
+        const msg = err instanceof Error ? err.message : '';
+        if (msg.includes('401') || msg.includes('未登录')) {
+          setBindError('登录态失效，请重新登录');
+          return;
+        }
+        loadLocalFallback();
+      });
   }, []);
 
   // 本地完整角色卡（管线需要 abilities/skills 派生，绑定列表仅提供身份）
@@ -89,9 +105,7 @@ export default function CheckCalculator() {
 
   const itemGrid = checkKind === 'skill'
     ? Object.entries(SKILL_LABELS).map(([key, meta]) => ({ key, label: meta.label }))
-    : checkKind === 'save'
-      ? ABILITIES.map(a => ({ key: a.key, label: `${a.label}豁免` }))
-      : ABILITIES.map(a => ({ key: a.key, label: `${a.label}检定` }));
+    : ABILITIES.map(a => ({ key: a.key, label: a.label }));
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -130,8 +144,8 @@ export default function CheckCalculator() {
       {/* 检定类型 */}
       <div className="flex gap-2">
         {([
-          { kind: 'ability' as CheckKind, label: '能力检定' },
-          { kind: 'skill' as CheckKind, label: '技能检定' },
+          { kind: 'ability' as CheckKind, label: '属性' },
+          { kind: 'skill' as CheckKind, label: '技能' },
           { kind: 'save' as CheckKind, label: '豁免' },
         ]).map(({ kind, label }) => (
           <button
@@ -165,7 +179,7 @@ export default function CheckCalculator() {
         ))}
       </div>
 
-      {/* 优劣势手动覆盖 */}
+      {/* 优劣势手动覆盖（优/劣势按规则强制双骰） */}
       <div>
         <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5 block">
           优劣势（按 DM 指示选择，引擎自动检测叠加生效）
@@ -174,7 +188,11 @@ export default function CheckCalculator() {
           {(['none', 'advantage', 'disadvantage'] as ManualMode[]).map((m) => (
             <button
               key={m}
-              onClick={() => { setManualMode(m); if (m !== 'none') setDiceCount(2); }}
+              onClick={() => {
+                setManualMode(m);
+                setDiceCount(m === 'none' ? 1 : 2);
+                setD20Inputs(m === 'none' ? [''] : ['', '']);
+              }}
               className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${
                 manualMode === m
                   ? 'bg-accent/15 text-accent border border-accent/50'
@@ -196,33 +214,35 @@ export default function CheckCalculator() {
           <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
             d20 结果{diceCount === 2 ? '（优/劣势双骰取高/低）' : ''}
           </label>
-          <div className="flex items-center gap-1.5">
-            {diceCount === 2 && (
-              <button
-                onClick={() => { setDiceCount(1); setD20Inputs(['']); }}
-                className="text-xs px-2 py-0.5 rounded dark:bg-bg-dark-dark light:bg-bg-light-3 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary transition-colors"
-              >
-                改单骰
-              </button>
-            )}
-            {diceCount === 1 && (
-              <button
-                onClick={() => { setDiceCount(2); setD20Inputs(['', '']); }}
-                className="text-xs px-2 py-0.5 rounded dark:bg-bg-dark-dark light:bg-bg-light-3 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary transition-colors"
-                title="优/劣势检定：掷两枚 d20"
-              >
-                双骰
-              </button>
-            )}
-            <button
-              onClick={roll}
-              disabled={!character}
-              className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
-            >
-              <Dices className="w-3.5 h-3.5" />
-              掷骰
-            </button>
-          </div>
+          {manualMode === 'none' && (
+            <div className="flex items-center gap-1.5">
+              {diceCount === 2 && (
+                <button
+                  onClick={() => { setDiceCount(1); setD20Inputs(['']); }}
+                  className="text-xs px-2 py-0.5 rounded dark:bg-bg-dark-dark light:bg-bg-light-3 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary transition-colors"
+                >
+                  改单骰
+                </button>
+              )}
+              {diceCount === 1 && (
+                <button
+                  onClick={() => { setDiceCount(2); setD20Inputs(['', '']); }}
+                  className="text-xs px-2 py-0.5 rounded dark:bg-bg-dark-dark light:bg-bg-light-3 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary transition-colors"
+                  title="优势/劣势检定：掷两枚 d20"
+                >
+                  双骰
+                </button>
+              )}
+            </div>
+          )}
+          <button
+            onClick={roll}
+            disabled={!character}
+            className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-accent/15 text-accent hover:bg-accent/25 transition-colors disabled:opacity-40"
+          >
+            <Dices className="w-3.5 h-3.5" />
+            掷骰
+          </button>
         </div>
         <div className="flex gap-2">
           {Array.from({ length: diceCount }).map((_, i) => (
