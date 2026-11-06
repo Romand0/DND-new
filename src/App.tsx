@@ -34,6 +34,7 @@ import DataManagement from '@/pages/DataManagement';
 import CombatList from '@/pages/CombatList';
 import RoundTable from '@/pages/RoundTable';
 import PlayerRoundTable from '@/pages/PlayerRoundTable';
+import CheckCalculator from '@/pages/CheckCalculator';
 import CombatSession from '@/pages/CombatSession';
 import BattlegroundEditor from '@/pages/BattlegroundEditor';
 import FlowEditor from '@/pages/FlowEditor';
@@ -153,6 +154,7 @@ export default function App() {
               />
               <Route path="/player/inventory" element={<InventoryPage />} />
               <Route path="/player/table" element={<PlayerRoundTable />} />
+              <Route path="/player/check" element={<CheckCalculator />} />
               <Route path="/player/spells" element={<SpellList />} />
               <Route path="/player/spells/:id" element={<SpellDetail />} />
               <Route path="/player/account" element={<UserProfile />} />

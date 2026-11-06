@@ -1,7 +1,7 @@
 // 玩家主页  -  从后端 API 读取角色列表供选择
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, RefreshCw, AlertCircle, Users, Shield, Inbox, BookOpen, Package, Sparkles, ChevronRight } from 'lucide-react';
+import { Eye, RefreshCw, AlertCircle, Users, Shield, Inbox, BookOpen, Package, Sparkles, ChevronRight, Calculator } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { fetchAllCharacters } from '@/lib/api';
 import { useCampaign } from '@/contexts/CampaignContext';
@@ -115,33 +115,55 @@ export default function PlayerHome() {
         </button>
       </div>
 
-      {/* 圆桌入口：显眼横幅，有待答复检定时高亮计数 */}
-      <Link
-        to="/player/table"
-        className="group flex items-center justify-between p-5 rounded-xl border transition-all hover:scale-[1.01] bg-gradient-to-r from-primary/15 via-accent/10 to-transparent dark:border-primary/40 dark:hover:border-primary/70 light:border-primary/40 light:hover:border-primary/70"
-      >
-        <div className="flex items-center gap-4">
-          <div className="relative p-3 rounded-lg bg-primary/20">
-            <Inbox className="w-6 h-6 text-primary" />
-            {pendingChecks > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-danger text-white text-xs font-bold flex items-center justify-center">
-                {pendingChecks}
-              </span>
-            )}
+      {/* 圆桌 + 检定计算器：两条并行通道入口 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Link
+          to="/player/table"
+          className="group flex items-center justify-between p-5 rounded-xl border transition-all hover:scale-[1.01] bg-gradient-to-r from-primary/15 via-accent/10 to-transparent dark:border-primary/40 dark:hover:border-primary/70 light:border-primary/40 light:hover:border-primary/70"
+        >
+          <div className="flex items-center gap-4">
+            <div className="relative p-3 rounded-lg bg-primary/20">
+              <Inbox className="w-6 h-6 text-primary" />
+              {pendingChecks > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1.5 rounded-full bg-danger text-white text-xs font-bold flex items-center justify-center">
+                  {pendingChecks}
+                </span>
+              )}
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
+                圆桌 · 通用检定
+              </h2>
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                {pendingChecks > 0
+                  ? `${pendingChecks} 条检定等待你掷骰答复`
+                  : 'DM 发起的检定与答复都在这里'}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
-              圆桌 · 通用检定
-            </h2>
-            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-              {pendingChecks > 0
-                ? `${pendingChecks} 条检定等待你掷骰答复`
-                : 'DM 发起的检定与答复都在这里'}
-            </p>
+          <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
+        </Link>
+
+        <Link
+          to="/player/check"
+          className="group flex items-center justify-between p-5 rounded-xl border transition-all hover:scale-[1.01] dark:border-border-dark dark:hover:border-primary/50 light:border-border-light light:hover:border-primary/50 dark:bg-card-dark light:bg-card-light"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-accent/15">
+              <Calculator className="w-6 h-6 text-accent" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
+                检定计算器
+              </h2>
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                自选检定方式掷骰，自动套用加值与优劣势
+              </p>
+            </div>
           </div>
-        </div>
-        <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
-      </Link>
+          <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
+        </Link>
+      </div>
 
       {players.length === 0 && (
         <div className="text-center py-16 rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">

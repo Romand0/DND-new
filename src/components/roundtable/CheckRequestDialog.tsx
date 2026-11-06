@@ -7,6 +7,7 @@ import type { TableMessage, CheckRequestPayload, CheckResultPayload, DcMode } fr
 import { runCheckPipeline, judgeCheck, type CheckPipelineResult } from '@/lib/checkPipeline';
 import { rollDice } from '@/data/diceService';
 import * as api from '@/lib/api';
+import CheckResultDetail from './CheckResultDetail';
 
 interface Props {
   message: TableMessage;
@@ -124,8 +125,13 @@ export default function CheckRequestDialog({ message, payload, character, onSubm
                 数值已回传 DM，由 DM 判定结果
               </div>
             )}
-            <ResultDetail result={submitted} />
-            <button
+            <CheckResultDetail
+              d20s={submitted.d20s}
+              d20Kept={submitted.d20Kept}
+              modeReasons={submitted.modeReasons}
+              bonuses={submitted.bonuses}
+              appliedValue={submitted.appliedValue}
+            /><button
               onClick={onClose}
               className="w-full px-3 py-2 rounded-lg bg-primary text-white text-sm hover:bg-primary/90 transition-colors"
             >
@@ -266,35 +272,6 @@ function BonusPreview({ character, payload }: { character: Character; payload: C
           <span className="dark:text-text-dark-muted light:text-text-light-muted">d20 + 加值合计</span>
           <span className="text-accent font-bold font-mono">d20 {fmt(bonusSum)}</span>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** 提交后的加工明细回执 */
-function ResultDetail({ result }: { result: CheckResultPayload }) {
-  return (
-    <div className="rounded-lg p-3 dark:bg-bg-dark light:bg-bg-light-2 space-y-1">
-      <div className="flex items-center justify-between text-xs">
-        <span className="dark:text-text-dark-muted light:text-text-light-muted">
-          d20{result.d20s.length > 1 ? `（${result.d20s.join(' / ')}）` : ''}
-        </span>
-        <span className="text-primary font-bold font-mono">{result.d20Kept}</span>
-      </div>
-      {result.modeReasons.length > 0 && (
-        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-          优劣势：{result.modeReasons.join('；')}
-        </div>
-      )}
-      {result.bonuses.map((b, i) => (
-        <div key={i} className="flex items-center justify-between text-xs">
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">{b.label}</span>
-          <span className="text-primary font-bold font-mono">{fmt(b.value)}</span>
-        </div>
-      ))}
-      <div className="flex items-center justify-between text-xs border-t dark:border-border-dark light:border-border-light pt-1">
-        <span className="font-medium dark:text-text-dark light:text-text-light">应用值</span>
-        <span className="text-accent font-bold font-mono text-sm">{result.appliedValue}</span>
       </div>
     </div>
   );

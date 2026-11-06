@@ -9,6 +9,7 @@ import { detectAdvantage, resolveRollMode } from '@/data/advantageRules';
 import { jackOfAllTradesBonus } from '@/lib/attackBonus';
 import { characterStore } from '@/data/characterStore';
 import type { AbilityKey } from '@/types/character';
+import type { ManualMode } from '@/types/combat';
 
 export interface CheckBonusItem {
   label: string;
@@ -32,6 +33,7 @@ const ABILITY_LABEL: Record<AbilityKey, string> = {
 
 /**
  * 加工一次检定：
+ * - manualMode 手动优劣势（计算器场景 DM 口头指示），默认 none=纯引擎裁决
  * - d20s 单骰时 rollMode 按 none 处理（引擎裁决出优劣势但只掷了一骰，应用值取该骰）
  * - d20s 双骰时按 rollMode 取高（优势）/ 低（劣势）
  * - save 类检定传 saveAbilityKey 供引擎场景判定（妖精血统等）；ability/skill 传 undefined
@@ -41,6 +43,7 @@ export function runCheckPipeline(
   checkKind: CheckKind,
   checkKey: string,
   d20s: number[],
+  manualMode: ManualMode = 'none',
 ): CheckPipelineResult {
   // 场景与能力
   let scene: 'ability_check' | 'skill_check' | 'saving_throw' = 'ability_check';
@@ -59,7 +62,7 @@ export function runCheckPipeline(
     abilityKey = checkKey as AbilityKey;
   }
 
-  // 优劣势：手动恒 none（玩家不自定），引擎自动检测
+  // 优劣势：手动优先，引擎自动检测兜底
   const auto = detectAdvantage({
     scene,
     attacker: null,
@@ -68,7 +71,7 @@ export function runCheckPipeline(
     targetCharacter: null,
     saveAbility,
   });
-  const { mode, reasons } = resolveRollMode('none', auto);
+  const { mode, reasons } = resolveRollMode(manualMode, auto);
   const modeReasons = reasons.map(r => r.label);
 
   // 保留骰：优劣势双骰取高/低，否则取第一骰
