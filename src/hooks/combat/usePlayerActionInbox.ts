@@ -23,6 +23,8 @@ export function usePlayerActionInbox(client: CombatRoomClient | null): {
       return;
     }
     const off = client.onMessage((msg) => {
+      // M1 诊断：DM 侧收不到确认卡时，console 一眼区分「没收到」与「收到没渲染」
+      console.debug('[player-action-inbox] msg:', msg.t, msg);
       if (msg.t !== 'player.action') return;
       setPending((prev) => {
         // 同一请求重发去重（玩家断线重连后可能重发）

@@ -809,6 +809,17 @@ export default function CombatSession() {
               <span className="hidden md:inline">实时同步</span>
             </button>
           )}
+          {/* M1 诊断：收件箱连接与待处理数——区分「没收到消息」与「收到没渲染 toast」 */}
+          <span
+            className={`shrink-0 px-2 py-1 rounded-full text-xs ${
+              combatBroadcast.client
+                ? 'bg-primary/10 text-primary'
+                : 'bg-red-500/10 text-red-500'
+            }`}
+            title={combatBroadcast.client ? '玩家操作收件箱已挂载' : '收件箱未挂载（client 为空）'}
+          >
+            收件箱 {combatBroadcast.client ? '已挂载' : '未挂载'} · 待处理 {pendingPlayerActions.length}
+          </span>
         </div>
         <div className="flex gap-2 shrink-0">
           {/* 已封存：只读横幅内的结算标识；入口隐藏 */}
