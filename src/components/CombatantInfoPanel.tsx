@@ -1171,11 +1171,31 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                         天生施法：DC{combatant.spellcasting.dc}（{combatant.spellcasting.ability}）
                         {typeof combatant.spellcasting.attackBonus === 'number' ? `，命中 +${combatant.spellcasting.attackBonus}` : ''}
                       </div>
-                      {(combatant.spellcasting.groups ?? []).map(g => (
-                        <div key={g.ring} className="text-violet-400/80">
-                          {g.ring}：{g.spells.join('、')}
-                        </div>
-                      ))}
+                      {(combatant.spellcasting.groups ?? []).map(g => {
+                        const usage = g.usage;
+                        const used = combatant.spellcastingUsage?.[g.ring] ?? 0;
+                        const remaining = usage?.kind === 'slots' && typeof usage.count === 'number' ? usage.count - used : null;
+                        const exhausted = remaining !== null && remaining <= 0;
+                        return (
+                          <div key={g.ring} className="flex items-center gap-2">
+                            <span className="text-violet-400/80 flex-1">
+                              {g.ring}
+                              {usage?.kind === 'atWill' ? '（随意）' : remaining !== null ? `（${usage.count}法术位，剩 ${remaining}）` : ''}：
+                              {g.spells.join('、')}
+                            </span>
+                            {remaining !== null && !sealed && recordId && (
+                              <button
+                                type="button"
+                                disabled={exhausted}
+                                onClick={() => combatStore.consumeNpcSpellcasting(recordId, combatant.id, g.ring)}
+                                className={`rounded px-1.5 py-0.5 text-[10px] ${exhausted ? 'bg-text-dark/10 text-text-dark/40' : 'bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'}`}
+                              >
+                                消耗
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   {combatant.regenAmount && (

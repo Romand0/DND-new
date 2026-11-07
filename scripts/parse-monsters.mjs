@@ -226,17 +226,19 @@ function parseSpellcasting(traits) {
   if (!dcs.length || !ability) return undefined;
   const attackBonus = parseInt(text.match(/命中\s*\+?\s*(\d{1,2})/)?.[1] ?? '', 10);
   // 环阶标记：「戏法（随意）：」「1环（3法术位）：」「随意：」（括号注记可选）
-  const parts = text.split(/(戏法|\d环|随意)\s*(?:（[^）：]*)?）?：/);
+  // 括号注记捕获为结构化 usage：随意→atWill（无限），N法术位→slots（总量 N）
+  const parts = text.split(/(戏法|\d环|随意)\s*(?:（([^）：]*)）)?：/);
   const groups = [];
-  for (let i = 1; i < parts.length - 1; i += 2) {
+  for (let i = 1; i < parts.length - 1; i += 3) {
     const ring = parts[i];
-    const spells = [...new Set(parts[i + 1].split(/[，、；,]/)
+    const note = (parts[i + 1] ?? '').trim();
+    const spells = [...new Set(parts[i + 2].split(/[，、；,]/)
       .map((s) => s.trim().match(/^[\u4e00-\u9fa5]{2,12}/)?.[0])
       .filter(Boolean))];
     if (!spells.length) continue;
     const g = groups.find((x) => x.ring === ring);
     if (g) g.spells = [...new Set(g.spells.concat(spells))];
-    else groups.push({ ring, spells });
+    else groups.push({ ring, spells, usage: note === '随意' ? { kind: 'atWill' } : (/^(\d+)法术位$/.test(note) ? { kind: 'slots', count: parseInt(note, 10) } : undefined) });
   }
   if (!groups.length) return undefined;
   return {

@@ -946,6 +946,28 @@ const combatStore = {
   },
 
   /**
+   * NPC 施法可用次数：按环阶组消耗一次（ring → 已用+1）。
+   * 状态挂 combatant.spellcastingUsage（随 combatants 快照回溯还原）；
+   * 上限由调用方按组 usage.kind/count 校验，atWill/无注记组不调用。
+   * 不可变替换（新对象赋值），避免污染浅拷贝回溯快照里的引用
+   */
+  consumeNpcSpellcasting(recordId: string, combatantId: string, ring: string): boolean {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return false;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx < 0) return false;
+    const combatant = record.combatants[idx];
+    const used = { ...(combatant.spellcastingUsage ?? {}) };
+    used[ring] = (used[ring] ?? 0) + 1;
+    const next = { ...combatant, spellcastingUsage: used };
+    record.combatants = record.combatants.map((c, i) => (i === idx ? next : c));
+    record.updatedAt = Date.now();
+    save(records);
+    return true;
+  },
+
+  /**
    * 战斗中的法术位视图：角色卡显示数据（双源 max 合并）+ 本场消耗 delta 叠加。
    * 返回结构与 getSpellSlotDisplayData 的 spellSlots 一致（available 已扣除战斗消耗），供战斗侧 UI 直接渲染。
    */

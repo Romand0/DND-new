@@ -139,8 +139,10 @@ export interface Combatant {
     ability: string;
     dc: number;
     attackBonus?: number;
-    groups?: { ring: string; spells: string[] }[];
+    groups?: SpellcastingGroup[];
   };
+  /** NPC 施法可用次数消耗（ring → 本场已用次数；随 combatants 快照还原回溯） */
+  spellcastingUsage?: Record<string, number>;
   /** 再生恢复量（每回合开始，从模板再生特质带入） */
   regenAmount?: number;
   /** 再生失效条件（如「火焰伤害」；受该类伤害时再生下回合失效，由 DM 判断） */
@@ -261,10 +263,17 @@ export interface NpcTemplate {
     ability: string;
     dc: number;
     attackBonus?: number;
-    groups?: { ring: string; spells: string[] }[];
+    groups?: SpellcastingGroup[];
   };
   /** 解析来源目录（去重消歧用） */
   sourceDir?: string;
+}
+
+/** 天生施法环阶分组（括号注记结构化：随意=无限；N法术位=总量；缺省=原文无注记，按不设限处理） */
+export interface SpellcastingGroup {
+  ring: string;
+  spells: string[];
+  usage?: { kind: 'atWill' | 'slots'; count?: number };
 }
 
 export interface NpcAttack {
