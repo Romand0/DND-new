@@ -32,7 +32,11 @@ export class CombatRoomClient {
 
   connect(): void {
     this.closedByUser = false;
-    const base = REALTIME_BASE || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/realtime`;
+    let base = REALTIME_BASE || `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/realtime`;
+    // VITE_REALTIME_URL 若配成 http(s)://（Worker 的网页地址），自动转 WS 协议——
+    // 浏览器 WebSocket 构造只接受 ws:// / wss://
+    if (base.startsWith('https://')) base = `wss://${base.slice('https://'.length)}`;
+    else if (base.startsWith('http://')) base = `ws://${base.slice('http://'.length)}`;
     const url = `${base}/room/${encodeURIComponent(this.roomId)}?token=${encodeURIComponent(this.identity.token)}&role=${this.identity.role}`;
     const ws = new WebSocket(url);
     this.ws = ws;

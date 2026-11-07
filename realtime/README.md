@@ -28,7 +28,8 @@ realtime/
 
 1. **API Token**：Cloudflare Dashboard → My Profile → API Tokens，权限 `Workers Scripts:Edit`，存为仓库 Secret `CLOUDFLARE_API_TOKEN`；Account ID 存 `CLOUDFLARE_ACCOUNT_ID`
 2. **JWT_SECRET**：`cd realtime && wrangler secret put JWT_SECRET`（与 Pages 项目同一个值）
-3. push 到 `realtime/**` 触发 `.github/workflows/deploy-realtime.yml` 自动部署
+3. **前端指向 Worker**：Pages 项目 → Settings → Variables and Secrets → 添加变量 `VITE_REALTIME_URL`，值为 Worker 地址（如 `https://dnd-realtime.<account>.workers.dev`）；Vite 变量是**构建时注入**，添加/修改后必须重新部署 Pages 才生效。生产站点没有 `/realtime` 代理（vite 代理仅本地 dev 生效），缺这个变量时客户端会连到站点自身 404
+4. push 到 `realtime/**` 触发 `.github/workflows/deploy-realtime.yml` 自动部署
 
 ## 本地开发
 
