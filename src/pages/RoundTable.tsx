@@ -5,7 +5,7 @@ import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, 
 import { SKILL_LABELS, ABILITY_LABELS } from '@/types/roundTable';
 import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 import type { BoundCharacterInfo } from '@/types/roundTable';
-import { combatStore } from '@/data/combatStore';
+import combatStore from '@/data/combatStore';
 import { useCampaign } from '@/contexts/CampaignContext';
 import * as api from '@/lib/api';
 
