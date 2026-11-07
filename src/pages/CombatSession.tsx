@@ -408,6 +408,21 @@ export default function CombatSession() {
   // 战斗背包 + 有效 AC：由 hook 接管（useMemo 按 record 引用缓存，store 更新生成新引用自然失效）
   const { combatInventories, getEffectiveAc } = useCombatInventories(record);
 
+  // 弹窗参战者实时解析：attackModal/spellModal 存的是打开时的快照对象，
+  // 弹窗内换持/消耗材料写库后，若仍传快照，可用性与手持判定会读到旧手持槽
+  const liveAttackModalAttacker = attackModal
+    ? record?.combatants.find(c => c.id === attackModal.attacker.id) ?? attackModal.attacker
+    : null;
+  const liveAttackModalTarget = attackModal
+    ? record?.combatants.find(c => c.id === attackModal.target.id) ?? attackModal.target
+    : null;
+  const liveSpellModalCaster = spellModal
+    ? record?.combatants.find(c => c.id === spellModal.caster.id) ?? spellModal.caster
+    : null;
+  const liveSpellModalTarget = spellModal
+    ? record?.combatants.find(c => c.id === spellModal.target.id) ?? spellModal.target
+    : null;
+
   // 实时观战广播（DM 端）：record 变化 → combat.delta 幂等快照 → realtime Worker 房间
   const combatBroadcast = useCombatBroadcast(record);
 
@@ -1428,16 +1443,16 @@ export default function CombatSession() {
       {/* ✅ 新增：战斗攻击检定弹窗 —— 在 main 上处理 */}
       {attackModal && (
         <CombatAttackModal
-          attacker={attackModal.attacker}
-          target={attackModal.target}
+          attacker={liveAttackModalAttacker ?? attackModal.attacker}
+          target={liveAttackModalTarget ?? attackModal.target}
           recordId={record?.id}
           currentRound={currentTurn?.round}
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
           combatantPositions={combatantPositions}
-          combatInventory={getCombatInventory(record, attackModal.attacker)}
-          targetCharacter={attackModal.target.characterId ? characterStore.get(attackModal.target.characterId) : null}
-          targetCombatInventory={getCombatInventory(record, attackModal.target)}
+          combatInventory={getCombatInventory(record, liveAttackModalAttacker ?? attackModal.attacker)}
+          targetCharacter={liveAttackModalTarget?.characterId ? characterStore.get(liveAttackModalTarget.characterId) : null}
+          targetCombatInventory={getCombatInventory(record, liveAttackModalTarget ?? attackModal.target)}
           loadedWeapons={record?.loadedWeapons}
           loadingAttackedThisRound={record?.loadingAttackedThisRound}
           combatMode={currentMode()}
@@ -1607,12 +1622,12 @@ export default function CombatSession() {
       {spellModal && (
         <CombatSpellModal
           recordId={record?.id}
-          caster={spellModal.caster}
-          target={spellModal.target}
+          caster={liveSpellModalCaster ?? spellModal.caster}
+          target={liveSpellModalTarget ?? spellModal.target}
           isProvingGround={record?.isProvingGround ?? false}
-          targetCharacter={spellModal.target.characterId ? characterStore.get(spellModal.target.characterId) : null}
-          targetCombatInventory={getCombatInventory(record, spellModal.target)}
-          casterCombatInventory={getCombatInventory(record, spellModal.caster)}
+          targetCharacter={liveSpellModalTarget?.characterId ? characterStore.get(liveSpellModalTarget.characterId) : null}
+          targetCombatInventory={getCombatInventory(record, liveSpellModalTarget ?? spellModal.target)}
+          casterCombatInventory={getCombatInventory(record, liveSpellModalCaster ?? spellModal.caster)}
           onConsumeMaterials={(items) => {
             if (!record || record.isProvingGround) return;
             const currentChanges = record.equipmentChanges?.[spellModal.caster.id];
