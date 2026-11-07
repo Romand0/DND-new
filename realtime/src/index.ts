@@ -45,6 +45,27 @@ export default {
       return new Response('ok', { headers: { 'content-type': 'text/plain' } });
     }
 
+    // JWT 验签诊断：浏览器直接开 /diag?token=xxx 看 JSON 结果（spike 1006 排障用）
+    if (url.pathname === '/diag') {
+      const token = url.searchParams.get('token') || '';
+      let body: Record<string, unknown>;
+      if (!env.JWT_SECRET) {
+        body = { ok: false, reason: 'JWT_SECRET not set on this Worker' };
+      } else if (!token) {
+        body = { ok: false, reason: 'no token in query' };
+      } else {
+        try {
+          const payload = await verifyJwt(token, env.JWT_SECRET);
+          body = { ok: true, sub: payload.sub, role: payload.role };
+        } catch (e) {
+          body = { ok: false, reason: e instanceof Error ? e.message : String(e) };
+        }
+      }
+      return new Response(JSON.stringify(body), {
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+      });
+    }
+
     // 自包含的 WS 测试页（spike 验证用，生产也可保留，仅做连通性诊断）
     if (url.pathname === '/' || url.pathname === '/spike') {
       return new Response(SPIKE_HTML, { headers: { 'content-type': 'text/html; charset=utf-8' } });
