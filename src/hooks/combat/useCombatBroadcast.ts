@@ -99,10 +99,13 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
 export function useCombatBroadcast(record: CombatRecord | null): {
   connected: boolean;
   roomId: string | null;
+  /** 暴露底层客户端：玩家操作回执等需要复用同一 WS 连接的消费方使用 */
+  client: CombatRoomClient | null;
 } {
   const { token, user } = useAuth();
   const [connected, setConnected] = useState(false);
   const clientRef = useRef<CombatRoomClient | null>(null);
+  const [client, setClient] = useState<CombatRoomClient | null>(null);
   const debounceRef = useRef<number | null>(null);
   const recordRef = useRef<CombatRecord | null>(record);
   recordRef.current = record;
@@ -115,6 +118,7 @@ export function useCombatBroadcast(record: CombatRecord | null): {
       clientRef.current?.disconnect();
       clientRef.current = null;
       setConnected(false);
+      setClient(null);
       return;
     }
     const client = new CombatRoomClient(roomId, {
@@ -122,6 +126,7 @@ export function useCombatBroadcast(record: CombatRecord | null): {
       role: user?.role === 'dm' ? 'dm' : 'player',
     });
     clientRef.current = client;
+    setClient(client);
     const offConn = client.onConnectionChange(setConnected);
     client.connect();
     return () => {
@@ -161,5 +166,5 @@ export function useCombatBroadcast(record: CombatRecord | null): {
     };
   }, [roomId]);
 
-  return { connected, roomId };
+  return { connected, roomId, client };
 }

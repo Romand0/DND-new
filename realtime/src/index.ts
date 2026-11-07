@@ -16,7 +16,32 @@ export type ClientMessage =
   | { t: 'ping' }
   | { t: 'echo'; payload: unknown }
   | { t: 'snapshot.request' }
-  | { t: 'combat.delta'; payload: unknown };
+  | { t: 'combat.delta'; payload: unknown }
+  | { t: 'player.action'; request: PlayerActionRequest }
+  | { t: 'player.action.result'; result: PlayerActionResult };
+
+export interface SessionMeta {
+  clientId: string;
+  userId: string;
+  role: string;
+  joinedAt: number;
+}
+
+// 玩家回合操作批提交（M1）：DO 只透传不理解内容；不持久化（瞬时请求，断线由玩家重发）。
+// 回执由 DM 广播（全房可见），仅限 dm 角色发送以防伪造。
+export interface PlayerActionRequest {
+  requestId: string;
+  round: number;
+  combatantId: string;
+  baseSeq: number;
+  action: { kind: string } & Record<string, unknown>;
+}
+
+export interface PlayerActionResult {
+  requestId: string;
+  accepted: boolean;
+  reason?: string;
+}
 
 /** 协议 v0：房间 → 客户端 */
 export type ServerMessage =
@@ -26,14 +51,9 @@ export type ServerMessage =
   | { t: 'echo'; payload: unknown; from: SessionMeta }
   | { t: 'combat.delta'; seq: number; payload: unknown; from: SessionMeta; at: number }
   | { t: 'snapshot'; seq: number; deltas: { seq: number; payload: unknown; at: number }[] }
+  | { t: 'player.action'; request: PlayerActionRequest; from: SessionMeta; at: number }
+  | { t: 'player.action.result'; result: PlayerActionResult; from: SessionMeta; at: number }
   | { t: 'error'; message: string };
-
-export interface SessionMeta {
-  clientId: string;
-  userId: string;
-  role: string;
-  joinedAt: number;
-}
 
 const MAX_PERSISTED_DELTAS = 200;
 
@@ -195,6 +215,22 @@ export class CombatRoomDO implements DurableObject {
         this.sql.exec('INSERT INTO deltas (seq, payload, at) VALUES (?, ?, ?)', seq, JSON.stringify(msg.payload), at);
         this.sql.exec('DELETE FROM deltas WHERE seq <= ?', seq - MAX_PERSISTED_DELTAS);
         this.broadcast({ t: 'combat.delta', seq, payload: msg.payload, from: meta, at });
+        return;
+      }
+
+      case 'player.action': {
+        // 登录用户均可发起（身份来自 JWT 验签的 meta，不可伪造）；语义校验在 DM 端执行
+        this.broadcast({ t: 'player.action', request: msg.request, from: meta, at: Date.now() });
+        return;
+      }
+
+      case 'player.action.result': {
+        // 回执仅限 DM（防玩家伪造回执干扰他人 UI）
+        if (meta.role !== 'dm') {
+          this.send(ws, { t: 'error', message: 'only dm can send player.action.result' });
+          return;
+        }
+        this.broadcast({ t: 'player.action.result', result: msg.result, from: meta, at: Date.now() });
         return;
       }
 

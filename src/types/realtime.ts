@@ -13,7 +13,9 @@ export type ClientMessage =
   | { t: 'ping' }
   | { t: 'echo'; payload: unknown }
   | { t: 'snapshot.request' }
-  | { t: 'combat.delta'; payload: CombatDeltaPayload };
+  | { t: 'combat.delta'; payload: CombatDeltaPayload }
+  | { t: 'player.action'; request: PlayerActionRequest }
+  | { t: 'player.action.result'; result: PlayerActionResult };
 
 export type ServerMessage =
   | { t: 'welcome'; clientId: string; userId: string; role: string; roomId: string; seq: number; members: SessionMeta[] }
@@ -22,7 +24,37 @@ export type ServerMessage =
   | { t: 'echo'; payload: unknown; from: SessionMeta }
   | { t: 'combat.delta'; seq: number; payload: CombatDeltaPayload; from: SessionMeta; at: number }
   | { t: 'snapshot'; seq: number; deltas: { seq: number; payload: unknown; at: number }[] }
+  | { t: 'player.action'; request: PlayerActionRequest; from: SessionMeta; at: number }
+  | { t: 'player.action.result'; result: PlayerActionResult; from: SessionMeta; at: number }
   | { t: 'error'; message: string };
+
+// ======================
+// player.action（玩家回合操作批提交，M1 通道）
+// ======================
+// 玩家在自己回合内本地执行操作，回合结束打包变更集提交；DM 端审核（前期）或
+// 直接应用（后期）。DO 对 request 透传广播（不持久化、不进 deltas——瞬时请求，
+// 断线由玩家重发）；result 是 DM 的广播回执（全房可见，桌面公开语义）。
+// action 内容对 DO 不透明（透传 unknown），协议演进只涉及两端。
+
+export interface PlayerActionRequest {
+  /** 玩家端生成的请求 ID（uuid），回执与重发去重用 */
+  requestId: string;
+  /** 提交时的放映轮次，DM 端校验与当前轮一致（防重连重放过期请求） */
+  round: number;
+  /** 发起操作的目标参战者（必须是对应玩家绑定角色的 PC） */
+  combatantId: string;
+  /** 玩家提交时最后收到的 combat.delta seq，DM 端比对当前 seq 检测过期状态 */
+  baseSeq: number;
+  /** 回合变更集：M1 通道验证阶段为透传骨架，M2 定义 ops/effects 结构 */
+  action: { kind: 'turn-commit' } & { ops?: unknown[]; effects?: unknown };
+}
+
+export interface PlayerActionResult {
+  requestId: string;
+  accepted: boolean;
+  /** 拒绝原因（accepted=false 时给玩家端展示） */
+  reason?: string;
+}
 
 // ======================
 // combat.delta payload（v1）

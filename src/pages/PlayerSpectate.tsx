@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyCharacters } from '@/lib/api';
 import SpectatorBoard from '@/components/spectate/SpectatorBoard';
 import SpectatorTable from '@/components/spectate/SpectatorTable';
-import type { CombatDeltaPayload, CombatRosterEntry } from '@/types/realtime';
+import type { CombatDeltaPayload, CombatRosterEntry, PlayerActionResult } from '@/types/realtime';
 
 const HAND_STATE_LABELS: Record<string, string> = {
   ready: '待用',
@@ -43,6 +43,9 @@ export default function PlayerSpectate() {
   const [myCharacters, setMyCharacters] = useState<{ id: string; name: string }[]>([]);
   const [bindError, setBindError] = useState<string | null>(null);
   const myCharacterIds = new Set(myCharacters.map((c) => c.id));
+  // 回合提交（M1 通道）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
+  const lastDeltaSeqRef = useRef(0);
+  const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
 
   // 绑定关系与房间无关，登录后拉一次即可
   useEffect(() => {
@@ -99,12 +102,18 @@ export default function PlayerSpectate() {
         return;
       }
       if (msg.t === 'combat.delta') {
+        lastDeltaSeqRef.current = msg.seq;
         setSpectate(msg.payload);
         return;
       }
       if (msg.t === 'snapshot') {
         const latest = takeLatestDelta(msg.deltas);
         if (latest) setSpectate(latest);
+        return;
+      }
+      if (msg.t === 'player.action.result') {
+        // DM 对我方回合提交的审核回执（全房广播，按 requestId 匹配）
+        setLastResult({ ...msg.result, at: msg.at });
         return;
       }
       if (msg.t === 'error') {
@@ -229,6 +238,41 @@ export default function PlayerSpectate() {
               })()}
             </p>
           )}
+
+          {/* M1 通道测试：模拟提交回合 → DM 确认 toast → 回执显示。M2 将替换为正式操作面板 */}
+          {spectate && spectate.turn && connected && (() => {
+            const actor = roster.find((c) => c.characterId && myCharacterIds.has(c.characterId));
+            if (!actor) return null;
+            const sendTestCommit = () => {
+              const ok = clientRef.current?.send({
+                t: 'player.action',
+                request: {
+                  requestId: crypto.randomUUID(),
+                  round: spectate.turn!.round,
+                  combatantId: actor.id,
+                  baseSeq: lastDeltaSeqRef.current,
+                  action: { kind: 'turn-commit' },
+                },
+              });
+              setLastResult(null);
+              if (!ok) setNotice('发送失败：连接未就绪');
+            };
+            return (
+              <div className="flex items-center gap-2 flex-wrap px-1">
+                <button
+                  onClick={sendTestCommit}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-dashed dark:border-border-dark dark:text-text-dark-muted light:border-border-light light:text-text-light-muted hover:text-primary hover:border-primary transition-colors"
+                >
+                  模拟提交回合（M1 通道测试：{actor.name} · 轮次 {spectate.turn.round} · seq {lastDeltaSeqRef.current}）
+                </button>
+                {lastResult && (
+                  <span className={`text-xs ${lastResult.accepted ? 'text-emerald-500' : 'text-red-500'}`}>
+                    回执：{lastResult.accepted ? '已接受' : `被拒绝（${lastResult.reason ?? '未说明'}）`}
+                  </span>
+                )}
+              </div>
+            );
+          })()}
 
           {spectate && (
             <MyCombatantsSection roster={roster} myCharacterIds={myCharacterIds} playback={spectate.turn?.playback === true} />

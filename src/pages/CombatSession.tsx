@@ -4,6 +4,7 @@
 import { useActions } from '@/hooks/combat/useActions';
 import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
 import { useCombatBroadcast } from '@/hooks/combat/useCombatBroadcast';
+import { usePlayerActionInbox } from '@/hooks/combat/usePlayerActionInbox';
 import { useDamageAndHp } from '@/hooks/combat/useDamageAndHp';
 import { useInitiative } from '@/hooks/combat/useInitiative';
 import { useManualRecord } from '@/hooks/combat/useManualRecord';
@@ -39,7 +40,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
-import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
@@ -409,6 +410,9 @@ export default function CombatSession() {
 
   // 实时观战广播（DM 端）：record 变化 → combat.delta 幂等快照 → realtime Worker 房间
   const combatBroadcast = useCombatBroadcast(record);
+
+  // 玩家回合操作收件箱（M1 通道）：玩家 turn-commit 请求 → 确认 toast → 回执
+  const { pending: pendingPlayerActions, resolve: resolvePlayerAction } = usePlayerActionInbox(combatBroadcast.client);
 
   // HP / 昏迷 / 死亡豁免待办生命周期：由 hook 接管
   const { handleApplyDamage, handleApplyHealing, autoFillDownedMarkers } = useDamageAndHp(record, {
@@ -2229,6 +2233,43 @@ export default function CombatSession() {
       isOpen={commitModalOpen}
       onClose={() => setCommitModalOpen(false)}
     />
+
+    {/* 玩家回合操作确认 toast（M1 通道）：右下角堆叠，确认/拒绝均广播回执 */}
+    {pendingPlayerActions.length > 0 && (
+      <div className="fixed bottom-4 right-4 z-50 space-y-2 w-72 max-w-[calc(100vw-2rem)]">
+        {pendingPlayerActions.map(({ request, from }) => {
+          const actor = record?.combatants.find((c) => c.id === request.combatantId);
+          const stale = request.baseSeq > 0 && combatBroadcast.connected;
+          return (
+            <div key={request.requestId} className="p-3 rounded-xl border shadow-lg dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light space-y-2">
+              <div className="flex items-center gap-1.5 text-sm font-bold dark:text-text-dark light:text-text-light">
+                <Swords className="w-4 h-4 text-primary shrink-0" />
+                玩家回合提交
+              </div>
+              <div className="text-xs space-y-0.5 dark:text-text-dark-muted light:text-text-light-muted">
+                <p>行动者：{actor?.name ?? request.combatantId.slice(0, 8)}</p>
+                <p>发起者：{from.userId.slice(0, 8)}…（{from.role}）</p>
+                <p>轮次 {request.round} · 基准 seq {request.baseSeq}{stale ? '（M2 校验）' : ''}</p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => resolvePlayerAction(request.requestId, true)}
+                  className="flex-1 py-1.5 text-xs rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors"
+                >
+                  接受（M2 落库）
+                </button>
+                <button
+                  onClick={() => resolvePlayerAction(request.requestId, false, 'DM 拒绝了该回合提交')}
+                  className="flex-1 py-1.5 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-danger/10 hover:text-danger transition-colors"
+                >
+                  拒绝
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    )}
     </div>
   );
 }
