@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { Settings as SettingsIcon, ShieldCheck, Database, Upload, ChevronRight, Users } from 'lucide-react';
+import { Settings as SettingsIcon, ShieldCheck, Database, Upload, ChevronRight, Users, HardDrive } from 'lucide-react';
 import { Workflow } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -26,6 +26,12 @@ const NAV_ITEMS = [
     icon: Database,
     label: '数据管理',
     description: '批量导入装备数据，管理游戏资料库',
+  },
+  {
+    path: '/settings/local-storage',
+    icon: HardDrive,
+    label: '本地缓存',
+    description: '浏览浏览器 LocalStorage 中的各类缓存文件，按对应格式打开、导出或清理',
   },
   {
     path: '/settings/flows',

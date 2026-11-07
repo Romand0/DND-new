@@ -198,8 +198,8 @@ export default function App() {
               {/* 独立访问的流程编辑器路由 */}
               <Route path="flow-editor/:id" element={<FlowEditor />} />
               <Route path="flow-editor/:id/view" element={<FlowView />} />
-              {/* LocalStorage管理工具 */}
-              <Route path="local-storage-manager" element={<LocalStorageManager />} />
+              {/* LocalStorage管理工具（旧入口保兼容） */}
+              <Route path="local-storage-manager" element={<Navigate to="/settings/local-storage" replace />} />
               {/* Settings 嵌套路由壳 */}
               <Route path="settings" element={<Settings />}>
                 <Route index element={<Navigate to="/settings/admin" replace />} />
@@ -207,6 +207,7 @@ export default function App() {
                 <Route path="accounts" element={<AdminAccounts />} />
                 <Route path="migration" element={<MigrationBackup />} />
                 <Route path="data" element={<DataManagement />} />
+                <Route path="local-storage" element={<LocalStorageManager />} />
                 <Route path="flows" element={<FlowList />} />
                 <Route path="flows/:id/edit" element={<FlowEditor />} />
               </Route>
