@@ -1678,6 +1678,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onClose={() => setDoubleClickedCombatant(null)}
                   combatants={combatants}
                   tokenMap={tokenMap}
+                  recordId={sessionId}
+                  sealed={readOnly && !isProvingGround}
                   combatInventory={combatInventories?.[live.id]}
                   onRemoveItem={onRemoveItem ? (item) => onRemoveItem(live.id, item) : undefined}
                   equipmentChanges={equipmentChangesMap?.[live.id]}
