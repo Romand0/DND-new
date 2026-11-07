@@ -43,6 +43,16 @@ export function CampaignProvider({ children }: { children: ReactNode }) {
       const list = await fetchCampaigns<Campaign[]>();
       const arr = Array.isArray(list) ? list : [];
       setCampaigns(arr);
+      // 换浏览器/清存储恢复：本地指向的团组不在成员列表（当前 id 落在 'default' 或被移出）时，
+      // 自动回正到首个成员团组。current 的派生兜底只修 UI 显示，分桶键仍读旧值，
+      // 必须写回 localStorage 并 reload，让 9 个单例 store 重落到正确桶。
+      // 回正后二次进入时 saved 命中列表，不会形成 reload 循环。
+      const saved = getCampaignId();
+      if (arr.length > 0 && !arr.some((c) => c.id === saved) && saved !== arr[0].id) {
+        setCurrentCampaignId(arr[0].id);
+        window.location.reload();
+        return;
+      }
       // 团组视图过滤源：当前团组的规则书集（四库 getAll 实时读取）
       const cur = arr.find((c) => c.id === getCampaignId()) || arr[0] || null;
       setRulebookScope(cur?.rulebooks ?? []);

@@ -41,7 +41,7 @@ export function initCampaignScopeFromStorage(): void {
  */
 function migrateLegacyKeys(): void {
   try {
-    if (currentCampaignId !== 'campaign-default') return;
+    if (currentCampaignId !== 'default') return;
     if (localStorage.getItem(LEGACY_MIGRATED_FLAG)) return;
     let copied = 0;
     for (const key of LEGACY_KEYS) {
