@@ -7,6 +7,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Eye, Link2, LogOut, RefreshCw, Skull, Sparkles, Ban, Moon, Swords, Wifi, WifiOff } from 'lucide-react';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
+import SpectatorBoard from '@/components/spectate/SpectatorBoard';
 import type { CombatDeltaPayload } from '@/types/realtime';
 
 function takeLatestDelta(deltas: { payload: unknown }[]): CombatDeltaPayload | null {
@@ -173,6 +174,14 @@ export default function PlayerSpectate() {
                 {roster.find((r) => r.id === spectate.turn?.combatantId)?.name ?? '—'}
               </span>
             </p>
+          )}
+
+          {spectate && spectate.board && (
+            <SpectatorBoard
+              board={spectate.board}
+              roster={roster}
+              currentCombatantId={spectate.turn?.combatantId ?? null}
+            />
           )}
 
           {spectate && (

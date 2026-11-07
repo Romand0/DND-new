@@ -53,6 +53,16 @@ export interface CombatTurnState {
   playback: boolean;
 }
 
+/** 沙盘观战投影：棋子/物品/墙体/地形区域；不含 equipmentData（背包隐私）与移动历史等 DM 侧数据 */
+export interface BoardProjection {
+  size: 'small' | 'medium' | 'large';
+  tokens: { combatantId: string; col: number; row: number }[];
+  items: { id: string; col: number; row: number; name: string }[];
+  /** 被涂白的格子（边界墙），格式 "col,row" */
+  painted: string[];
+  zones: { id: string; cells: string[]; color: string; label: string }[];
+}
+
 export interface CombatDeltaPayload {
   v: 1;
   recordId: string;
@@ -63,4 +73,6 @@ export interface CombatDeltaPayload {
   roster: CombatRosterEntry[];
   /** 当前回合；模拟模式或未开始放映时为 null */
   turn: CombatTurnState | null;
+  /** 沙盘投影；DM 未建沙盘时为 null */
+  board: BoardProjection | null;
 }
