@@ -163,6 +163,26 @@ export default function PlayerHome() {
           </div>
           <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
         </Link>
+
+        <Link
+          to="/player/spectate"
+          className="group flex items-center justify-between p-5 rounded-xl border transition-all hover:scale-[1.01] dark:border-border-dark dark:hover:border-primary/50 light:border-border-light light:hover:border-primary/50 dark:bg-card-dark light:bg-card-light"
+        >
+          <div className="flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-emerald-600/15">
+              <Eye className="w-6 h-6 text-emerald-500" />
+            </div>
+            <div>
+              <h2 className="text-lg font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary transition-colors">
+                战斗观战
+              </h2>
+              <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+                加入 DM 房间，实时看到 HP、状态与回合
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-5 h-5 dark:text-text-dark-muted light:text-text-light-muted group-hover:text-primary transition-colors" />
+        </Link>
       </div>
 
       {players.length === 0 && (

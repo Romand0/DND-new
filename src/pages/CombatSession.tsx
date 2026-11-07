@@ -787,15 +787,23 @@ export default function CombatSession() {
           <h1 className="text-base sm:text-xl font-bold dark:text-text-dark light:text-text-light truncate">
             {record.title}
           </h1>
-          {/* 实时观战广播状态：绿点=已连上实时房间（玩家观战页可实时看到本场变化） */}
+          {/* 实时观战广播状态：绿点=已连上实时房间；点击复制房间号给玩家观战用 */}
           {combatBroadcast.connected && (
-            <span
-              title={`实时同步已连接：${combatBroadcast.roomId}`}
-              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 text-xs"
+            <button
+              type="button"
+              onClick={() => {
+                const rid = combatBroadcast.roomId || '';
+                navigator.clipboard
+                  ?.writeText(rid)
+                  .then(() => alert(`观战房间号已复制：\n${rid}\n\n发给玩家，粘贴到玩家端「战斗观战」页即可加入`))
+                  .catch(() => alert(`观战房间号：${rid}`));
+              }}
+              title={`实时同步已连接：${combatBroadcast.roomId}（点击复制房间号）`}
+              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 text-xs hover:bg-emerald-600/25 transition-colors"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
               <span className="hidden md:inline">实时同步</span>
-            </span>
+            </button>
           )}
         </div>
         <div className="flex gap-2 shrink-0">
