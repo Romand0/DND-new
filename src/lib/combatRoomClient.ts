@@ -4,6 +4,9 @@ import type { ClientMessage, ServerMessage } from '@/types/realtime';
 
 const REALTIME_BASE: string = (import.meta as any).env?.VITE_REALTIME_URL || '';
 const RECONNECT_DELAYS = [500, 1000, 2000, 4000, 8000, 15000];
+// 心跳间隔 30s：CF 边缘对无流量 WS 约 60s 掐断（手机 NAT 更快）；DO 端已配
+// setWebSocketAutoResponse，{"t":"ping"} 在边缘层直回，不唤醒 DO、不计消息费
+const HEARTBEAT_INTERVAL_MS = 30000;
 
 export interface RoomIdentity {
   token: string;
@@ -15,6 +18,7 @@ export class CombatRoomClient {
   private closedByUser = false;
   private reconnectAttempt = 0;
   private reconnectTimer: number | null = null;
+  private heartbeatTimer: number | null = null;
   private listeners = new Set<(msg: ServerMessage) => void>();
   private stateListeners = new Set<(connected: boolean) => void>();
 
@@ -35,6 +39,7 @@ export class CombatRoomClient {
 
     ws.onopen = () => {
       this.reconnectAttempt = 0;
+      this.startHeartbeat();
       this.stateListeners.forEach((l) => l(true));
     };
     ws.onmessage = (e) => {
@@ -47,6 +52,7 @@ export class CombatRoomClient {
       this.listeners.forEach((l) => l(msg));
     };
     ws.onclose = () => {
+      this.stopHeartbeat();
       this.stateListeners.forEach((l) => l(false));
       this.ws = null;
       if (!this.closedByUser) this.scheduleReconnect();
@@ -62,6 +68,7 @@ export class CombatRoomClient {
 
   disconnect(): void {
     this.closedByUser = true;
+    this.stopHeartbeat();
     if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -97,5 +104,20 @@ export class CombatRoomClient {
       this.reconnectTimer = null;
       if (!this.closedByUser) this.connect();
     }, delay);
+  }
+
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimer = window.setInterval(() => {
+      // 直接发原始串，确保与 DO setWebSocketAutoResponse 的字节级匹配串一致
+      this.ws?.send('{"t":"ping"}');
+    }, HEARTBEAT_INTERVAL_MS);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimer !== null) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
   }
 }
