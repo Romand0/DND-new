@@ -203,6 +203,18 @@ export default function PlayerSpectate() {
           )}
 
           {spectate && (
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted px-1">
+              {(() => {
+                const pcs = roster.filter((r) => r.isPc);
+                const withChar = pcs.filter((r) => r.characterId).length;
+                const matched = pcs.filter((r) => r.characterId && myCharacterIds.has(r.characterId)).length;
+                if (myCharacterIds.size === 0) return '诊断：本账号绑定角色数为 0 —— 请在 DM 端角色卡里绑定后再测';
+                return `诊断：绑定 ${myCharacterIds.size} 个角色 · 场上 PC ${pcs.length}（带绑定信息 ${withChar}） · 匹配到我的 ${matched}`;
+              })()}
+            </p>
+          )}
+
+          {spectate && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {roster.map((c) => {
                 const hpRatio = c.maxHp > 0 ? Math.max(0, Math.min(1, (c.hp + c.tempHp) / c.maxHp)) : 0;
