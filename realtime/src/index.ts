@@ -66,7 +66,9 @@ export default {
         const payload = await verifyJwt(token, env.JWT_SECRET || '');
         identity = { userId: payload.sub, role: payload.role || 'player' };
       }
-    } catch {
+    } catch (e) {
+      // 1006 排障：把验签失败原因打进实时日志（signature/expired/malformed）
+      console.warn('[auth] reject:', e instanceof Error ? e.message : String(e));
       return new Response('unauthorized', { status: 401 });
     }
 
