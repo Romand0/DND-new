@@ -111,6 +111,12 @@ export class CombatRoomDO implements DurableObject {
   constructor(ctx: DurableObjectState, _env: Env) {
     this.ctx = ctx;
     this.sql = ctx.storage.sql;
+    // 心跳保活：精确匹配 {"t":"ping"} 的消息由边缘层直接回 pong，不唤醒 DO
+    // （不计上行消息费、不破坏 hibernation）。匹配是字节级对比，客户端必须发
+    // JSON.stringify({ t: 'ping' }) 的原始串；否则会落入 webSocketMessage 的 ping 分支（唤醒 DO）。
+    ctx.setWebSocketAutoResponse(
+      new WebSocketRequestResponsePair('{"t":"ping"}', '{"t":"pong","at":0}'),
+    );
     ctx.blockConcurrencyWhile(async () => {
       this.sql.exec(`CREATE TABLE IF NOT EXISTS deltas (
         seq INTEGER PRIMARY KEY,
