@@ -4,14 +4,24 @@
 // 沙盘数据在 battlegroundStore（按 sessionId 索引），棋子移动只触发它——两个 store 的变更
 // 都进入同一个防抖 flush，合并为一条快照（roster/turn/board 互为整体，避免半新半旧）。
 import { useEffect, useRef, useState } from 'react';
-import combatStore from '@/data/combatStore';
+import combatStore, { getCombatInventory } from '@/data/combatStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
-import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry } from '@/types/realtime';
-import type { CombatRecord } from '@/types/combat';
+import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterHandInfo } from '@/types/realtime';
+import { TURN_TODO_TYPE_LABELS } from '@/types/combat';
+import type { CombatRecord, Combatant } from '@/types/combat';
+import type { HandSlot } from '@/types/character';
 
 const BROADCAST_DEBOUNCE_MS = 300;
+
+/** 手持槽 → 投影：从战斗背包解析武器名（combatInventory 是装备变更漏斗后的真实背包） */
+function projectHand(record: CombatRecord, c: Combatant, slot: HandSlot | undefined): RosterHandInfo | null {
+  const equipmentId = slot?.equipmentId;
+  if (!equipmentId) return null;
+  const eq = getCombatInventory(record, c).find((e) => (e.childId || e.id) === equipmentId);
+  return { name: eq?.name ?? '未知装备', state: slot.state };
+}
 
 /** 沙盘 → 玩家投影：剔除 equipmentData（背包隐私）/moveHistory/hitRounds 等 DM 侧数据 */
 export function buildBoardProjection(record: CombatRecord): BoardProjection | null {
@@ -31,20 +41,41 @@ export function buildBoardProjection(record: CombatRecord): BoardProjection | nu
 }
 
 export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
-  const roster: CombatRosterEntry[] = record.combatants.map((c) => ({
-    id: c.id,
-    name: c.name,
-    isPc: c.isPc ?? false,
-    hp: c.currentHp ?? 0,
-    maxHp: c.maxHp ?? 0,
-    tempHp: c.tempHp ?? 0,
-    ac: c.ac ?? null,
-    initiative: c.initiative,
-    downed: c.isUnconscious === true,
-    incapacitated: c.isIncapacitated === true,
-    concentrating: c.concentration != null,
-    dead: c.isDead === true,
-  }));
+  const roster: CombatRosterEntry[] = record.combatants.map((c) => {
+    const hasDeathSave = (c.deathSaveFailures ?? 0) > 0 || (c.deathSaveSuccesses ?? 0) > 0;
+    return {
+      id: c.id,
+      name: c.name,
+      isPc: c.isPc ?? false,
+      hp: c.currentHp ?? 0,
+      maxHp: c.maxHp ?? 0,
+      tempHp: c.tempHp ?? 0,
+      ac: c.ac ?? null,
+      initiative: c.initiative,
+      downed: c.isUnconscious === true,
+      incapacitated: c.isIncapacitated === true,
+      concentrating: c.concentration != null,
+      dead: c.isDead === true,
+      characterId: c.characterId ?? null,
+      heldLeft: projectHand(record, c, c.heldLeft),
+      heldRight: projectHand(record, c, c.heldRight),
+      actions: c.actions ?? 0,
+      bonusActions: c.bonusActions ?? 0,
+      concentration: c.concentration
+        ? { spellName: c.concentration.spellName, startedRound: c.concentration.startedRound }
+        : null,
+      deathSaves: hasDeathSave
+        ? { failures: c.deathSaveFailures ?? 0, successes: c.deathSaveSuccesses ?? 0 }
+        : null,
+      todos: (record.turnTodos ?? [])
+        .filter((t) => t.combatantId === c.id)
+        .map((t) => ({
+          name: t.name,
+          typeLabel: t.type ? TURN_TODO_TYPE_LABELS[t.type] : '提醒',
+          executed: t.executed,
+        })),
+    };
+  });
   const turn = record.playbackState?.started
     ? {
         round: record.playbackState.currentTurn?.round ?? 1,

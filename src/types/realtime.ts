@@ -32,6 +32,18 @@ export type ServerMessage =
 // 每条消息自包含完整观战投影，接收方整体替换状态，无 diff/合并逻辑，断线重连
 // （snapshot.request 补最近 delta）后直接取最后一条即恢复到最新。
 
+export interface RosterHandInfo {
+  name: string;
+  /** ready 待用 / action 动作中 / unavailable 不可用 */
+  state: string;
+}
+
+export interface RosterTurnTodo {
+  name: string;
+  typeLabel: string;
+  executed: boolean;
+}
+
 export interface CombatRosterEntry {
   id: string;
   name: string;
@@ -45,6 +57,18 @@ export interface CombatRosterEntry {
   incapacitated: boolean;
   concentrating: boolean;
   dead: boolean;
+  /** PC 关联角色卡 ID：玩家端配合「我的绑定角色」识别自身参战者 */
+  characterId?: string | null;
+  /** 战斗层手持（武器名已解析；仅公开桌面信息，无背包明细） */
+  heldLeft?: RosterHandInfo | null;
+  heldRight?: RosterHandInfo | null;
+  /** 放映模式剩余动作（模拟模式数值无意义，玩家端按 turn.playback 显示） */
+  actions?: number;
+  bonusActions?: number;
+  concentration?: { spellName: string; startedRound: number } | null;
+  deathSaves?: { failures: number; successes: number } | null;
+  /** 回合待办摘要（该参战者相关的持续效果提醒） */
+  todos?: RosterTurnTodo[];
 }
 
 export interface CombatTurnState {
