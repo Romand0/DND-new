@@ -824,7 +824,7 @@ export default function CombatSession() {
               <span className="hidden md:inline">实时同步</span>
             </button>
           )}
-          {/* M1 诊断：收件箱连接与待处理数——区分「没收到消息」与「收到没渲染 toast」 */}
+          {/* M1 诊断：收件箱连接与待处理数（房间/域名在下一行完整显示，顶栏放不下） */}
           <span
             className={`shrink-0 px-2 py-1 rounded-full text-xs ${
               combatBroadcast.client
@@ -834,9 +834,6 @@ export default function CombatSession() {
             title={`房间 ${combatBroadcast.roomId ?? '—'} @ ${location.host}`}
           >
             收件箱 {combatBroadcast.client ? '已挂载' : '未挂载'} · 待处理 {pendingPlayerActions.length}
-            <span className="hidden lg:inline opacity-70">
-              {' '}· {(combatBroadcast.roomId ?? '').replace('combat-', '').slice(0, 8)}@{location.host}
-            </span>
           </span>
         </div>
         <div className="flex gap-2 shrink-0">
@@ -946,6 +943,13 @@ export default function CombatSession() {
           )}
         </div>
       </div>
+
+      {/* M1 诊断行：房间号 + 域名（顶栏放不下，单独一行）——排查跨浏览器/跨环境收不到消息 */}
+      {combatBroadcast.connected && (
+        <p className="text-xs -mt-2 px-1 dark:text-text-dark-muted light:text-text-light-muted break-all">
+          收件箱诊断：房间 {(combatBroadcast.roomId ?? '').replace('combat-', '')} @ {location.host} · 手机玩家观战页顶栏的房间号须与此一致
+        </p>
+      )}
 
       {/* ✅ 新增：角色选择弹窗（仅点击按钮时显示，完全不影响加载逻辑） */}
       {showCharSelect && (
