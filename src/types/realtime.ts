@@ -13,13 +13,54 @@ export type ClientMessage =
   | { t: 'ping' }
   | { t: 'echo'; payload: unknown }
   | { t: 'snapshot.request' }
-  | { t: 'combat.delta'; payload: unknown };
+  | { t: 'combat.delta'; payload: CombatDeltaPayload };
 
 export type ServerMessage =
   | { t: 'welcome'; clientId: string; userId: string; role: string; roomId: string; seq: number; members: SessionMeta[] }
   | { t: 'members'; members: SessionMeta[] }
   | { t: 'pong'; at: number }
   | { t: 'echo'; payload: unknown; from: SessionMeta }
-  | { t: 'combat.delta'; seq: number; payload: unknown; from: SessionMeta; at: number }
+  | { t: 'combat.delta'; seq: number; payload: CombatDeltaPayload; from: SessionMeta; at: number }
   | { t: 'snapshot'; seq: number; deltas: { seq: number; payload: unknown; at: number }[] }
   | { t: 'error'; message: string };
+
+// ======================
+// combat.delta payload（v1）
+// ======================
+// 服务端（realtime Worker）对 payload 完全透传，不解析内容——协议演进只涉及 DM 发送方
+// 与玩家接收方两端，此处是唯一事实源。payload 是「幂等快照」而非细粒度补丁：
+// 每条消息自包含完整观战投影，接收方整体替换状态，无 diff/合并逻辑，断线重连
+// （snapshot.request 补最近 delta）后直接取最后一条即恢复到最新。
+
+export interface CombatRosterEntry {
+  id: string;
+  name: string;
+  isPc: boolean;
+  hp: number;
+  maxHp: number;
+  tempHp: number;
+  ac: number | null;
+  initiative: number;
+  downed: boolean;
+  incapacitated: boolean;
+  concentrating: boolean;
+  dead: boolean;
+}
+
+export interface CombatTurnState {
+  round: number;
+  combatantId: string | null;
+  playback: boolean;
+}
+
+export interface CombatDeltaPayload {
+  v: 1;
+  recordId: string;
+  title: string;
+  /** 广播时刻（DM 端时钟，毫秒），仅用于展示排序 */
+  at: number;
+  /** 参战者观战投影：只含观战字段，无背包/属性/装备变更等隐私与冗余 */
+  roster: CombatRosterEntry[];
+  /** 当前回合；模拟模式或未开始放映时为 null */
+  turn: CombatTurnState | null;
+}

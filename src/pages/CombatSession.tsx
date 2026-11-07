@@ -3,6 +3,7 @@
 // CombatantList 预抽取已废弃：其卡片列表 UI 已并入先攻表格表头，详见 CombatSession-拆解规划.md §七。
 import { useActions } from '@/hooks/combat/useActions';
 import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
+import { useCombatBroadcast } from '@/hooks/combat/useCombatBroadcast';
 import { useDamageAndHp } from '@/hooks/combat/useDamageAndHp';
 import { useInitiative } from '@/hooks/combat/useInitiative';
 import { useManualRecord } from '@/hooks/combat/useManualRecord';
@@ -406,6 +407,9 @@ export default function CombatSession() {
   // 战斗背包 + 有效 AC：由 hook 接管（useMemo 按 record 引用缓存，store 更新生成新引用自然失效）
   const { combatInventories, getEffectiveAc } = useCombatInventories(record);
 
+  // 实时观战广播（DM 端）：record 变化 → combat.delta 幂等快照 → realtime Worker 房间
+  const combatBroadcast = useCombatBroadcast(record);
+
   // HP / 昏迷 / 死亡豁免待办生命周期：由 hook 接管
   const { handleApplyDamage, handleApplyHealing, autoFillDownedMarkers } = useDamageAndHp(record, {
     currentTurn,
@@ -783,6 +787,16 @@ export default function CombatSession() {
           <h1 className="text-base sm:text-xl font-bold dark:text-text-dark light:text-text-light truncate">
             {record.title}
           </h1>
+          {/* 实时观战广播状态：绿点=已连上实时房间（玩家观战页可实时看到本场变化） */}
+          {combatBroadcast.connected && (
+            <span
+              title={`实时同步已连接：${combatBroadcast.roomId}`}
+              className="shrink-0 flex items-center gap-1 px-2 py-1 rounded-full bg-emerald-600/15 text-emerald-600 dark:text-emerald-400 text-xs"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="hidden md:inline">实时同步</span>
+            </span>
+          )}
         </div>
         <div className="flex gap-2 shrink-0">
           {/* 已封存：只读横幅内的结算标识；入口隐藏 */}
