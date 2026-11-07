@@ -38,15 +38,24 @@ export default function PlayerSpectate() {
   // join 回调引用：自动加入（?room=）与手动加入共用
   const joinRef = useRef<(room: string) => void>(() => {});
   // 我的绑定角色：识别「自身参战者」以展开详情面板
-  const [myCharacterIds, setMyCharacterIds] = useState<Set<string>>(new Set());
+  // bindError 区分「查询失败」与「查询成功但为空」——空列表与请求失败表现相同，肉眼无法排查
+  const [myCharacters, setMyCharacters] = useState<{ id: string; name: string }[]>([]);
+  const [bindError, setBindError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const myCharacterIds = new Set(myCharacters.map((c) => c.id));
 
   // 绑定关系与房间无关，登录后拉一次即可
   useEffect(() => {
     if (!token) return;
     fetchMyCharacters()
-      .then((res) => setMyCharacterIds(new Set(((res.characters ?? []) as { id: string }[]).map((c) => c.id))))
-      .catch(() => setMyCharacterIds(new Set()));
+      .then((res) => {
+        setMyCharacters(((res.characters ?? []) as { id: string; name: string }[]).map((c) => ({ id: c.id, name: c.name ?? '' })));
+        setBindError(null);
+      })
+      .catch((e) => {
+        setMyCharacters([]);
+        setBindError(String(e?.message ?? e));
+      });
   }, [token]);
 
   const leave = () => {
@@ -203,13 +212,16 @@ export default function PlayerSpectate() {
           )}
 
           {spectate && (
-            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted px-1">
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted px-1 leading-5">
               {(() => {
+                if (bindError) return `诊断：绑定查询失败 —— ${bindError}`;
+                if (myCharacters.length === 0) return '诊断：查询成功但 D1 返回绑定列表为空（该账号无 user_characters 记录）';
                 const pcs = roster.filter((r) => r.isPc);
-                const withChar = pcs.filter((r) => r.characterId).length;
-                const matched = pcs.filter((r) => r.characterId && myCharacterIds.has(r.characterId)).length;
-                if (myCharacterIds.size === 0) return '诊断：本账号绑定角色数为 0 —— 请在 DM 端角色卡里绑定后再测';
-                return `诊断：绑定 ${myCharacterIds.size} 个角色 · 场上 PC ${pcs.length}（带绑定信息 ${withChar}） · 匹配到我的 ${matched}`;
+                const withChar = pcs.filter((r) => r.characterId);
+                const myIds = myCharacters.slice(0, 3).map((c) => `${c.name}:${c.id}`).join(' / ');
+                const rosterIds = withChar.slice(0, 3).map((r) => `${r.name}:${r.characterId}`).join(' / ');
+                const matched = withChar.filter((r) => myCharacterIds.has(r.characterId!)).length;
+                return `诊断：绑定 ${myCharacters.length} 个（${myIds}）｜场上 PC ${pcs.length}（带绑定信息 ${withChar.length}：${rosterIds || '无'}）｜匹配我的 ${matched}`;
               })()}
             </p>
           )}
