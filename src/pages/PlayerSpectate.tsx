@@ -4,7 +4,7 @@
 // （DM 端只在数据变化时广播，静止期没有新消息可等）。
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Eye, Link2, LogOut, RefreshCw, Skull, Sparkles, Ban, Moon, Swords, Wifi, WifiOff, ChevronDown, ChevronUp, User, Hand } from 'lucide-react';
+import { Eye, Link2, LogOut, RefreshCw, Skull, Sparkles, Ban, Moon, Swords, Wifi, WifiOff, Hand } from 'lucide-react';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyCharacters } from '@/lib/api';
@@ -38,11 +38,10 @@ export default function PlayerSpectate() {
   const clientRef = useRef<CombatRoomClient | null>(null);
   // join 回调引用：自动加入（?room=）与手动加入共用
   const joinRef = useRef<(room: string) => void>(() => {});
-  // 我的绑定角色：识别「自身参战者」以展开详情面板
+  // 我的绑定角色：识别「自身参战者」以显示战斗面板
   // bindError 区分「查询失败」与「查询成功但为空」——空列表与请求失败表现相同，肉眼无法排查
   const [myCharacters, setMyCharacters] = useState<{ id: string; name: string }[]>([]);
   const [bindError, setBindError] = useState<string | null>(null);
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const myCharacterIds = new Set(myCharacters.map((c) => c.id));
 
   // 绑定关系与房间无关，登录后拉一次即可
@@ -204,16 +203,16 @@ export default function PlayerSpectate() {
             </p>
           )}
 
+          {spectate && (
+            <SpectatorTable rounds={spectate.rounds ?? []} roster={roster} turn={spectate.turn} />
+          )}
+
           {spectate && spectate.board && (
             <SpectatorBoard
               board={spectate.board}
               roster={roster}
               currentCombatantId={spectate.turn?.combatantId ?? null}
             />
-          )}
-
-          {spectate && (
-            <SpectatorTable rounds={spectate.rounds ?? []} roster={roster} turn={spectate.turn} />
           )}
 
           {spectate && (
@@ -232,109 +231,7 @@ export default function PlayerSpectate() {
           )}
 
           {spectate && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {roster.map((c) => {
-                const hpRatio = c.maxHp > 0 ? Math.max(0, Math.min(1, (c.hp + c.tempHp) / c.maxHp)) : 0;
-                const isCurrent = spectate.turn?.combatantId === c.id;
-                const isMine = !!(c.characterId && myCharacterIds.has(c.characterId));
-                const expanded = expandedIds.has(c.id);
-                return (
-                  <div
-                    key={c.id}
-                    className={`p-4 rounded-xl border space-y-3 transition-all ${
-                      c.dead
-                        ? 'opacity-50 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light'
-                        : isCurrent
-                          ? 'ring-2 ring-primary dark:bg-card-dark dark:border-primary/60 light:bg-card-light light:border-primary/60'
-                          : 'dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light'
-                    } ${isMine ? 'dark:shadow-[0_0_0_1px_rgba(16,185,129,0.5)] light:shadow-[0_0_0_1px_rgba(16,185,129,0.5)]' : ''}`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold truncate dark:text-text-dark light:text-text-light">{c.name}</span>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {isMine && (
-                          <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded bg-emerald-600/15 text-emerald-600 dark:text-emerald-400">
-                            <User className="w-3 h-3" />
-                            我的
-                          </span>
-                        )}
-                        <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary">
-                          先攻 {c.initiative}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between text-sm mb-1">
-                        <span className="font-mono font-bold dark:text-text-dark light:text-text-light">
-                          {c.hp}
-                          {c.tempHp > 0 && <span className="text-amber-500"> +{c.tempHp}</span>}
-                          <span className="dark:text-text-dark-muted light:text-text-light-muted"> / {c.maxHp}</span>
-                        </span>
-                        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                          AC {c.ac ?? '—'}
-                        </span>
-                      </div>
-                      <div className="h-2 rounded-full bg-neutral-500/20 overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            c.dead ? 'bg-neutral-500' : hpRatio > 0.5 ? 'bg-emerald-500' : hpRatio > 0.25 ? 'bg-amber-500' : 'bg-red-500'
-                          }`}
-                          style={{ width: `${hpRatio * 100}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex gap-1.5 flex-wrap min-h-6">
-                      {c.dead && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-neutral-600/20 text-neutral-400">
-                          <Skull className="w-3 h-3" /> 死亡
-                        </span>
-                      )}
-                      {!c.dead && c.downed && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-red-600/15 text-red-500">
-                          <Moon className="w-3 h-3" /> 昏迷
-                        </span>
-                      )}
-                      {c.incapacitated && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-orange-600/15 text-orange-500">
-                          <Ban className="w-3 h-3" /> 失能
-                        </span>
-                      )}
-                      {c.concentrating && (
-                        <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-violet-600/15 text-violet-500">
-                          <Sparkles className="w-3 h-3" /> 专注
-                        </span>
-                      )}
-                      {!c.dead && !c.downed && !c.incapacitated && !c.concentrating && (
-                        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">状态正常</span>
-                      )}
-                    </div>
-
-                    {/* 我的参战者：展开战斗详情面板（手持/动作/专注/死亡豁免/待办） */}
-                    {isMine && (
-                      <div>
-                        <button
-                          onClick={() =>
-                            setExpandedIds((prev) => {
-                              const next = new Set(prev);
-                              if (next.has(c.id)) next.delete(c.id);
-                              else next.add(c.id);
-                              return next;
-                            })
-                          }
-                          className="w-full flex items-center justify-center gap-1 text-xs px-2 py-1.5 rounded-lg bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-600/20 transition-colors"
-                        >
-                          {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                          {expanded ? '收起详情' : '查看我的战斗详情'}
-                        </button>
-                        {expanded && <MyCombatantPanel c={c} playback={spectate.turn?.playback === true} />}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+            <MyCombatantsSection roster={roster} myCharacterIds={myCharacterIds} playback={spectate.turn?.playback === true} />
           )}
 
           {connected && !spectate && (
@@ -349,7 +246,31 @@ export default function PlayerSpectate() {
   );
 }
 
-/** 我的参战者详情面板：手持/动作/专注/死亡豁免/回合待办（均为 DM 桌面公开信息） */
+/** 我的参战者区块：筛选当前账号绑定角色对应的参战者，平铺展示战斗面板 */
+function MyCombatantsSection({
+  roster,
+  myCharacterIds,
+  playback,
+}: {
+  roster: CombatRosterEntry[];
+  myCharacterIds: Set<string>;
+  playback: boolean;
+}) {
+  const mine = roster.filter((c) => c.characterId && myCharacterIds.has(c.characterId));
+  if (mine.length === 0) return null;
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-bold dark:text-text-dark light:text-text-light px-1">我的参战者</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {mine.map((c) => (
+          <MyCombatantPanel key={c.id} c={c} playback={playback} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** 我的参战者面板：身份牌（名字/HP/状态）+ 战斗详情（手持/动作/专注/死亡豁免/回合待办，均为 DM 桌面公开信息） */
 function MyCombatantPanel({
   c,
   playback,
@@ -361,82 +282,145 @@ function MyCombatantPanel({
     { label: '左手', hand: c.heldLeft },
     { label: '右手', hand: c.heldRight },
   ];
+  const hpRatio = c.maxHp > 0 ? Math.max(0, Math.min(1, (c.hp + c.tempHp) / c.maxHp)) : 0;
   return (
-    <div className="rounded-lg p-3 space-y-2 text-xs dark:bg-bg-dark light:bg-bg-light-2">
-      <div className="flex items-center gap-1.5 font-bold dark:text-text-dark light:text-text-light">
-        <Hand className="w-3.5 h-3.5 text-emerald-500" />
-        战斗详情
+    <div
+      className={`p-4 rounded-xl border space-y-3 transition-all ${
+        c.dead
+          ? 'opacity-50 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light'
+          : 'dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light'
+      }`}
+    >
+      {/* 身份牌 */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold truncate dark:text-text-dark light:text-text-light">{c.name}</span>
+        <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary shrink-0">
+          先攻 {c.initiative}
+        </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        {hands.map(({ label, hand }) => (
-          <div key={label} className="rounded-lg px-2 py-1.5 dark:bg-card-dark light:bg-card-light">
-            <div className="dark:text-text-dark-muted light:text-text-light-muted">{label}</div>
-            {hand ? (
-              <div className="font-medium dark:text-text-dark light:text-text-light">
-                {hand.name}
-                <span className="ml-1 dark:text-text-dark-muted light:text-text-light-muted">
-                  （{HAND_STATE_LABELS[hand.state] ?? hand.state}）
-                </span>
-              </div>
-            ) : (
-              <div className="dark:text-text-dark-muted light:text-text-light-muted">空手</div>
-            )}
-          </div>
-        ))}
+      <div>
+        <div className="flex items-center justify-between text-sm mb-1">
+          <span className="font-mono font-bold dark:text-text-dark light:text-text-light">
+            {c.hp}
+            {c.tempHp > 0 && <span className="text-amber-500"> +{c.tempHp}</span>}
+            <span className="dark:text-text-dark-muted light:text-text-light-muted"> / {c.maxHp}</span>
+          </span>
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">AC {c.ac ?? '—'}</span>
+        </div>
+        <div className="h-2 rounded-full bg-neutral-500/20 overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${
+              c.dead ? 'bg-neutral-500' : hpRatio > 0.5 ? 'bg-emerald-500' : hpRatio > 0.25 ? 'bg-amber-500' : 'bg-red-500'
+            }`}
+            style={{ width: `${hpRatio * 100}%` }}
+          />
+        </div>
       </div>
 
-      {playback && (
-        <div className="flex gap-3 flex-wrap">
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">
-            动作 <span className="font-bold font-mono text-primary">{c.actions ?? 0}</span>
+      <div className="flex gap-1.5 flex-wrap min-h-6">
+        {c.dead && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-neutral-600/20 text-neutral-400">
+            <Skull className="w-3 h-3" /> 死亡
           </span>
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">
-            附赠 <span className="font-bold font-mono text-primary">{c.bonusActions ?? 0}</span>
+        )}
+        {!c.dead && c.downed && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-red-600/15 text-red-500">
+            <Moon className="w-3 h-3" /> 昏迷
           </span>
-        </div>
-      )}
+        )}
+        {c.incapacitated && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-orange-600/15 text-orange-500">
+            <Ban className="w-3 h-3" /> 失能
+          </span>
+        )}
+        {c.concentrating && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-violet-600/15 text-violet-500">
+            <Sparkles className="w-3 h-3" /> 专注
+          </span>
+        )}
+        {!c.dead && !c.downed && !c.incapacitated && !c.concentrating && (
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">状态正常</span>
+        )}
+      </div>
 
-      {c.concentration && (
-        <div className="dark:text-text-dark-muted light:text-text-light-muted">
-          专注维持：<span className="font-medium text-violet-500">{c.concentration.spellName}</span>
-          （第 {c.concentration.startedRound} 回合起）
+      {/* 战斗详情 */}
+      <div className="rounded-lg p-3 space-y-2 text-xs dark:bg-bg-dark light:bg-bg-light-2">
+        <div className="flex items-center gap-1.5 font-bold dark:text-text-dark light:text-text-light">
+          <Hand className="w-3.5 h-3.5 text-emerald-500" />
+          战斗详情
         </div>
-      )}
 
-      {c.deathSaves && (
-        <div className="flex items-center gap-2">
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">死亡豁免</span>
-          <span className="flex gap-0.5">
-            {[0, 1, 2].map((i) => (
-              <span key={`f${i}`} className={`w-2.5 h-2.5 rounded-full ${i < (c.deathSaves?.failures ?? 0) ? 'bg-red-500' : 'bg-neutral-500/30'}`} />
-            ))}
-          </span>
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">失败</span>
-          <span className="flex gap-0.5">
-            {[0, 1, 2].map((i) => (
-              <span key={`s${i}`} className={`w-2.5 h-2.5 rounded-full ${i < (c.deathSaves?.successes ?? 0) ? 'bg-emerald-500' : 'bg-neutral-500/30'}`} />
-            ))}
-          </span>
-          <span className="dark:text-text-dark-muted light:text-text-light-muted">成功</span>
-        </div>
-      )}
-
-      {(c.todos ?? []).length > 0 && (
-        <div className="space-y-1">
-          <div className="dark:text-text-dark-muted light:text-text-light-muted">我的回合待办</div>
-          {(c.todos ?? []).map((t, i) => (
-            <div key={i} className="flex items-center justify-between gap-2">
-              <span className={t.executed ? 'line-through dark:text-text-dark-muted light:text-text-light-muted' : 'dark:text-text-dark light:text-text-light'}>
-                {t.name}
-              </span>
-              <span className={`shrink-0 ${t.executed ? 'text-emerald-500' : 'text-amber-500'}`}>
-                {t.typeLabel} · {t.executed ? '已处理' : '待处理'}
-              </span>
+        <div className="grid grid-cols-2 gap-2">
+          {hands.map(({ label, hand }) => (
+            <div key={label} className="rounded-lg px-2 py-1.5 dark:bg-card-dark light:bg-card-light">
+              <div className="dark:text-text-dark-muted light:text-text-light-muted">{label}</div>
+              {hand ? (
+                <div className="font-medium dark:text-text-dark light:text-text-light">
+                  {hand.name}
+                  <span className="ml-1 dark:text-text-dark-muted light:text-text-light-muted">
+                    （{HAND_STATE_LABELS[hand.state] ?? hand.state}）
+                  </span>
+                </div>
+              ) : (
+                <div className="dark:text-text-dark-muted light:text-text-light-muted">空手</div>
+              )}
             </div>
           ))}
         </div>
-      )}
+
+        {playback && (
+          <div className="flex gap-3 flex-wrap">
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">
+              动作 <span className="font-bold font-mono text-primary">{c.actions ?? 0}</span>
+            </span>
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">
+              附赠 <span className="font-bold font-mono text-primary">{c.bonusActions ?? 0}</span>
+            </span>
+          </div>
+        )}
+
+        {c.concentration && (
+          <div className="dark:text-text-dark-muted light:text-text-light-muted">
+            专注维持：<span className="font-medium text-violet-500">{c.concentration.spellName}</span>
+            （第 {c.concentration.startedRound} 回合起）
+          </div>
+        )}
+
+        {c.deathSaves && (
+          <div className="flex items-center gap-2">
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">死亡豁免</span>
+            <span className="flex gap-0.5">
+              {[0, 1, 2].map((i) => (
+                <span key={`f${i}`} className={`w-2.5 h-2.5 rounded-full ${i < (c.deathSaves?.failures ?? 0) ? 'bg-red-500' : 'bg-neutral-500/30'}`} />
+              ))}
+            </span>
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">失败</span>
+            <span className="flex gap-0.5">
+              {[0, 1, 2].map((i) => (
+                <span key={`s${i}`} className={`w-2.5 h-2.5 rounded-full ${i < (c.deathSaves?.successes ?? 0) ? 'bg-emerald-500' : 'bg-neutral-500/30'}`} />
+              ))}
+            </span>
+            <span className="dark:text-text-dark-muted light:text-text-light-muted">成功</span>
+          </div>
+        )}
+
+        {(c.todos ?? []).length > 0 && (
+          <div className="space-y-1">
+            <div className="dark:text-text-dark-muted light:text-text-light-muted">我的回合待办</div>
+            {(c.todos ?? []).map((t, i) => (
+              <div key={i} className="flex items-center justify-between gap-2">
+                <span className={t.executed ? 'line-through dark:text-text-dark-muted light:text-text-light-muted' : 'dark:text-text-dark light:text-text-light'}>
+                  {t.name}
+                </span>
+                <span className={`shrink-0 ${t.executed ? 'text-emerald-500' : 'text-amber-500'}`}>
+                  {t.typeLabel} · {t.executed ? '已处理' : '待处理'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
