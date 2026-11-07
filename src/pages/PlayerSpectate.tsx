@@ -9,6 +9,7 @@ import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyCharacters } from '@/lib/api';
 import SpectatorBoard from '@/components/spectate/SpectatorBoard';
+import SpectatorTable from '@/components/spectate/SpectatorTable';
 import type { CombatDeltaPayload, CombatRosterEntry } from '@/types/realtime';
 
 const HAND_STATE_LABELS: Record<string, string> = {
@@ -209,6 +210,10 @@ export default function PlayerSpectate() {
               roster={roster}
               currentCombatantId={spectate.turn?.combatantId ?? null}
             />
+          )}
+
+          {spectate && (
+            <SpectatorTable rounds={spectate.rounds ?? []} roster={roster} turn={spectate.turn} />
           )}
 
           {spectate && (

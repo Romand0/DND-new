@@ -91,6 +91,8 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
     roster,
     turn,
     board: buildBoardProjection(record),
+    // 放映模式是专门投给玩家看的时刻：表格随快照下发；非放映投空（玩家端清空）
+    rounds: turn ? (record.rounds ?? []) : [],
   };
 }
 

@@ -87,6 +87,10 @@ export interface BoardProjection {
   zones: { id: string; cells: string[]; color: string; label: string }[];
 }
 
+/** 先攻表格投影：数组下标即轮次（0 = 第 1 轮），每行是 { 参战者ID: 行动文本 }。
+ *  行动文本与 DM 侧 InitiativeTable 格子同源（含「被突袭」占位），无隐私字段。 */
+export type RoundsProjection = { [combatantId: string]: string }[];
+
 export interface CombatDeltaPayload {
   v: 1;
   recordId: string;
@@ -99,4 +103,6 @@ export interface CombatDeltaPayload {
   turn: CombatTurnState | null;
   /** 沙盘投影；DM 未建沙盘时为 null */
   board: BoardProjection | null;
+  /** 先攻表格：仅在放映中（turn 非 null）随快照下发，非放映时空数组（玩家端据此清空） */
+  rounds: RoundsProjection;
 }
