@@ -47,6 +47,8 @@ export default function PlayerSpectate() {
   const lastDeltaSeqRef = useRef(0);
   const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
   const [sentAt, setSentAt] = useState<number | null>(null);
+  // DO 代码版本标记（welcome 带回）：排查「Worker 已部署但 DO 还跑旧代码」
+  const [doVersion, setDoVersion] = useState('');
 
   // 绑定关系与房间无关，登录后拉一次即可
   useEffect(() => {
@@ -99,6 +101,7 @@ export default function PlayerSpectate() {
     client.onConnectionChange((ok) => setConnected(ok));
     client.onMessage((msg) => {
       if (msg.t === 'welcome') {
+        setDoVersion(msg.v);
         client.send({ t: 'snapshot.request' });
         return;
       }
@@ -282,6 +285,7 @@ export default function PlayerSpectate() {
                     回执：{lastResult.accepted ? '已接受' : `被拒绝（${lastResult.reason ?? '未说明'}）`}
                   </span>
                 )}
+                {doVersion && <span className="text-xs opacity-60">房间版本 {doVersion}</span>}
               </div>
             );
           })()}

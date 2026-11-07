@@ -45,7 +45,7 @@ export interface PlayerActionResult {
 
 /** 协议 v0：房间 → 客户端 */
 export type ServerMessage =
-  | { t: 'welcome'; clientId: string; userId: string; role: string; roomId: string; seq: number; members: SessionMeta[] }
+  | { t: 'welcome'; v: string; clientId: string; userId: string; role: string; roomId: string; seq: number; members: SessionMeta[] }
   | { t: 'members'; members: SessionMeta[] }
   | { t: 'pong'; at: number }
   | { t: 'echo'; payload: unknown; from: SessionMeta }
@@ -56,6 +56,9 @@ export type ServerMessage =
   | { t: 'error'; message: string };
 
 const MAX_PERSISTED_DELTAS = 200;
+
+/** DO 代码版本标记：welcome 消息带回，玩家端可显示——排查「部署了但 DO 还跑旧代码」 */
+const BUILD_TAG = 'm1-2026-11-07';
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -165,7 +168,7 @@ export class CombatRoomDO implements DurableObject {
     server.serializeAttachment(meta);
 
     const roomId = request.headers.get('x-room-id') || '';
-    this.send(server, { t: 'welcome', ...meta, roomId, seq: this.seq, members: this.members() });
+    this.send(server, { t: 'welcome', v: BUILD_TAG, ...meta, roomId, seq: this.seq, members: this.members() });
     this.broadcast({ t: 'members', members: this.members() });
 
     return new Response(null, { status: 101, webSocket: client });

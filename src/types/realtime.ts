@@ -18,7 +18,7 @@ export type ClientMessage =
   | { t: 'player.action.result'; result: PlayerActionResult };
 
 export type ServerMessage =
-  | { t: 'welcome'; clientId: string; userId: string; role: string; roomId: string; seq: number; members: SessionMeta[] }
+  | { t: 'welcome'; v: string; clientId: string; userId: string; role: string; roomId: string; seq: number; members: SessionMeta[] }
   | { t: 'members'; members: SessionMeta[] }
   | { t: 'pong'; at: number }
   | { t: 'echo'; payload: unknown; from: SessionMeta }
