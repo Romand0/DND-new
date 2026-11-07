@@ -46,6 +46,7 @@ export default function PlayerSpectate() {
   // 回合提交（M1 通道）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
   const lastDeltaSeqRef = useRef(0);
   const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
+  const [sentAt, setSentAt] = useState<number | null>(null);
 
   // 绑定关系与房间无关，登录后拉一次即可
   useEffect(() => {
@@ -162,6 +163,7 @@ export default function PlayerSpectate() {
 
       {activeRoomId && (
         <>
+          {notice && <p className="text-sm text-danger px-1">{notice}</p>}
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2 min-w-0">
               <span
@@ -254,8 +256,13 @@ export default function PlayerSpectate() {
                   action: { kind: 'turn-commit' },
                 },
               });
+              if (!ok) {
+                setNotice('发送失败：连接未就绪');
+                return;
+              }
+              setNotice('');
+              setSentAt(Date.now());
               setLastResult(null);
-              if (!ok) setNotice('发送失败：连接未就绪');
             };
             return (
               <div className="flex items-center gap-2 flex-wrap px-1">
@@ -265,6 +272,11 @@ export default function PlayerSpectate() {
                 >
                   模拟提交回合（M1 通道测试：{actor.name} · 轮次 {spectate.turn.round} · seq {lastDeltaSeqRef.current}）
                 </button>
+                {sentAt && !lastResult && (
+                  <span className="text-xs text-amber-500">
+                    {new Date(sentAt).toLocaleTimeString()} 已发送，等待 DM 审核…
+                  </span>
+                )}
                 {lastResult && (
                   <span className={`text-xs ${lastResult.accepted ? 'text-emerald-500' : 'text-red-500'}`}>
                     回执：{lastResult.accepted ? '已接受' : `被拒绝（${lastResult.reason ?? '未说明'}）`}
