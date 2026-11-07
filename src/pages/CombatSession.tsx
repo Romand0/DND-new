@@ -816,9 +816,12 @@ export default function CombatSession() {
                 ? 'bg-primary/10 text-primary'
                 : 'bg-red-500/10 text-red-500'
             }`}
-            title={combatBroadcast.client ? '玩家操作收件箱已挂载' : '收件箱未挂载（client 为空）'}
+            title={`房间 ${combatBroadcast.roomId ?? '—'} @ ${location.host}`}
           >
             收件箱 {combatBroadcast.client ? '已挂载' : '未挂载'} · 待处理 {pendingPlayerActions.length}
+            <span className="hidden lg:inline opacity-70">
+              {' '}· {(combatBroadcast.roomId ?? '').replace('combat-', '').slice(0, 8)}@{location.host}
+            </span>
           </span>
         </div>
         <div className="flex gap-2 shrink-0">
