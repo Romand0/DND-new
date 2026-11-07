@@ -542,6 +542,15 @@ export async function sendCheckRequest(body: {
   return apiFetch('/table/check-request', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
 }
 
+/** DM 抛送观战邀请给当前团绑定玩家（需管理员；重发同房间会自动失效旧邀请） */
+export async function sendSpectateInvite(body: {
+  roomId: string;
+  title: string;
+  campaignId?: string;
+}): Promise<{ ok: boolean; recipients: number }> {
+  return apiFetch('/table/spectate-invite', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+}
+
 /** 玩家答复检定任务 */
 export async function sendCheckResult(body: {
   replyTo: string;

@@ -1,10 +1,12 @@
-// DM 圆桌页：左侧发起检定表单，右侧消息流（发起的请求状态 + 收到的结果）
+// DM 圆桌页：左侧发起检定表单 + 观战抛送，右侧消息流（发起的请求状态 + 收到的结果）
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Send, Ban, Dices, Inbox, Hourglass } from 'lucide-react';
-import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, DcMode } from '@/types/roundTable';
+import { Send, Ban, Dices, Inbox, Hourglass, Eye } from 'lucide-react';
+import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, DcMode, SpectateInvitePayload } from '@/types/roundTable';
 import { SKILL_LABELS, ABILITY_LABELS } from '@/types/roundTable';
 import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 import type { BoundCharacterInfo } from '@/types/roundTable';
+import { combatStore } from '@/data/combatStore';
+import { useCampaign } from '@/contexts/CampaignContext';
 import * as api from '@/lib/api';
 
 const ABILITY_KEYS = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
@@ -27,6 +29,7 @@ const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 export default function RoundTable() {
   const inbox = useRoundTableInbox();
   const outbox = useRoundTableInbox({ outbox: true });
+  const { current: campaign } = useCampaign();
 
   const [boundChars, setBoundChars] = useState<BoundCharacterInfo[]>([]);
   const [charId, setCharId] = useState('');
@@ -38,6 +41,12 @@ export default function RoundTable() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+
+  // 观战抛送：本机战斗记录（未封存），发送前重读保证最新
+  const [combats, setCombats] = useState(() => combatStore.getAll());
+  const [spectateRecordId, setSpectateRecordId] = useState('');
+  const [sendingInvite, setSendingInvite] = useState(false);
+  const usableCombats = combats.filter(c => !c.settledAt);
 
   useEffect(() => {
     api.fetchBoundCharacters()
@@ -61,8 +70,8 @@ export default function RoundTable() {
     return `${ABILITY_LABELS[checkKey as AbilityKeyStr]}检定`;
   }, [checkKind, checkKey]);
 
-  // 消息配对：发起的 request → 对应 result（via replyMessageId）
-  const { requests, resultById } = useMemo(() => {
+  // 消息配对：发起的 request → 对应 result（via replyMessageId）；观战邀请单独分流
+  const { requests, resultById, invites } = useMemo(() => {
     const rbs = new Map<string, TableMessage & { payload: CheckResultPayload }>();
     for (const m of inbox.messages) {
       if (m.type === 'check_result') {
@@ -70,7 +79,8 @@ export default function RoundTable() {
       }
     }
     const reqs = outbox.messages.filter(m => m.type === 'check_request').sort((a, b) => b.createdAt - a.createdAt);
-    return { requests: reqs, resultById: rbs };
+    const invs = outbox.messages.filter(m => m.type === 'spectate_invite').sort((a, b) => b.createdAt - a.createdAt);
+    return { requests: reqs, resultById: rbs, invites: invs };
   }, [inbox.messages, outbox.messages]);
 
   const submit = useCallback(async () => {
@@ -109,6 +119,29 @@ export default function RoundTable() {
       setError(e?.message || '撤回失败');
     }
   }, [outbox]);
+
+  // 抛送观战邀请：重读本机战斗列表（放映中数据可能已更新）→ fan-out 给团内绑定玩家
+  const sendSpectate = useCallback(async () => {
+    const record = combatStore.get(spectateRecordId);
+    if (!record) { setError('请选择要抛送的战斗'); return; }
+    setSendingInvite(true);
+    setError('');
+    setNotice('');
+    try {
+      setCombats(combatStore.getAll());
+      const res = await api.sendSpectateInvite({
+        roomId: `combat-${record.id}`,
+        title: record.title,
+        campaignId: campaign?.id || undefined,
+      });
+      setNotice(`观战邀请已抛送给 ${res.recipients} 个玩家账号`);
+      outbox.refresh();
+    } catch (e: any) {
+      setError(e?.message || '抛送失败，请重试');
+    } finally {
+      setSendingInvite(false);
+    }
+  }, [spectateRecordId, campaign, outbox]);
 
   return (
     <div className="space-y-4">
@@ -236,18 +269,87 @@ export default function RoundTable() {
             <Send className="w-4 h-4" />
             {sending ? '抛送中…' : '抛送检定'}
           </button>
+
+          {/* 观战抛送：把实时战斗房间邀请发给团内绑定玩家 */}
+          <div className="border-t pt-3 space-y-2 dark:border-border-dark light:border-border-light">
+            <div className="text-sm font-medium dark:text-text-dark light:text-text-light flex items-center gap-1.5">
+              <Eye className="w-4 h-4 text-emerald-500" />
+              抛送观战邀请
+            </div>
+            <select
+              value={spectateRecordId}
+              onChange={e => setSpectateRecordId(e.target.value)}
+              className="w-full px-2.5 py-2 rounded-lg border text-sm dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+            >
+              <option value="">选择战斗…</option>
+              {usableCombats.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.title}（{c.combatants.length} 名参战者{c.mode === 'playback' ? ' · 放映中' : ''}）
+                </option>
+              ))}
+            </select>
+            {usableCombats.length === 0 && (
+              <div className="text-xs mt-1 text-amber-500">暂无未结算的战斗记录，先在战斗页创建</div>
+            )}
+            <button
+              onClick={sendSpectate}
+              disabled={sendingInvite || !spectateRecordId}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-600/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Eye className="w-4 h-4" />
+              {sendingInvite ? '抛送中…' : '抛送观战'}
+            </button>
+          </div>
         </div>
 
         {/* 消息流 */}
         <div className="lg:col-span-3 space-y-3">
-          {requests.length === 0 && (
-            <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-10 text-center">
+          {requests.length === 0 && invites.length === 0 && (
+            <div className="rounded-xl border dark:border-border-dark light:border-border-dark dark:bg-card-dark light:bg-card-light p-10 text-center">
               <Inbox className="w-10 h-10 mx-auto dark:text-text-dark-muted light:text-text-light-muted opacity-40" />
               <div className="mt-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
                 暂无抛送记录，左侧发起第一个检定
               </div>
             </div>
           )}
+
+          {invites.map(msg => {
+            const payload = msg.payload as SpectateInvitePayload;
+            return (
+              <div
+                key={msg.id}
+                className="rounded-xl border p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light"
+              >
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <div className="flex items-center gap-2 text-sm font-bold dark:text-text-dark light:text-text-light">
+                    <Eye className="w-4 h-4 text-emerald-500 shrink-0" />
+                    观战邀请 · {payload.title}
+                  </div>
+                  {msg.status === 'pending' ? (
+                    <span className="flex items-center gap-1 text-xs text-emerald-500 shrink-0">
+                      <Hourglass className="w-3.5 h-3.5" />
+                      玩家可加入
+                    </span>
+                  ) : (
+                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">已撤回</span>
+                  )}
+                </div>
+                <div className="text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">
+                  {payload.roomId} · {new Date(msg.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </div>
+                {msg.status === 'pending' && (
+                  <button
+                    onClick={() => cancel(msg.id)}
+                    className="mt-2 flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+                  >
+                    <Ban className="w-3.5 h-3.5" />
+                    撤回（玩家端停止展示）
+                  </button>
+                )}
+              </div>
+            );
+          })}
+
           {requests.map(msg => {
             const payload = msg.payload as CheckRequestPayload;
             const result = resultById.get(msg.id);

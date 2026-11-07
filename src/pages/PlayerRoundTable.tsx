@@ -1,8 +1,10 @@
 // 玩家圆桌信箱：检定任务列表（pending 待答复 / answered 已答复 / cancelled 已撤回）+ 检定弹窗
+// 另接收 DM 的观战邀请（spectate_invite）：一键跳 /player/spectate?room= 加入实时战斗房间
 import { useState, useEffect, useMemo } from 'react';
-import { Inbox, Clock, CheckCircle2, Ban } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Inbox, Clock, CheckCircle2, Ban, Eye } from 'lucide-react';
 import type { Character } from '@/types/character';
-import type { TableMessage, CheckRequestPayload } from '@/types/roundTable';
+import type { TableMessage, CheckRequestPayload, SpectateInvitePayload } from '@/types/roundTable';
 import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 import { characterStore } from '@/data/characterStore';
 import * as api from '@/lib/api';
@@ -12,6 +14,7 @@ export default function PlayerRoundTable() {
   const { messages, connectionLost, refresh } = useRoundTableInbox();
   const [activeMessage, setActiveMessage] = useState<TableMessage | null>(null);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
+  const navigate = useNavigate();
 
   const requests = useMemo(
     () => messages.filter(m => m.type === 'check_request'),
@@ -19,6 +22,18 @@ export default function PlayerRoundTable() {
   );
   const pending = requests.filter(m => m.status === 'pending');
   const closed = requests.filter(m => m.status !== 'pending').sort((a, b) => b.updatedAt - a.updatedAt);
+
+  // 观战邀请：pending 按 roomId 去重（DM 重发会产生多条，只显示最新一条）
+  const invites = useMemo(() => {
+    const byRoom = new Map<string, TableMessage>();
+    for (const m of messages) {
+      if (m.type !== 'spectate_invite' || m.status !== 'pending') continue;
+      const roomId = (m.payload as SpectateInvitePayload).roomId;
+      const prev = byRoom.get(roomId);
+      if (!prev || m.createdAt > prev.createdAt) byRoom.set(roomId, m);
+    }
+    return [...byRoom.values()].sort((a, b) => b.createdAt - a.createdAt);
+  }, [messages]);
 
   // 打开弹窗时确保本地有角色卡数据（玩家端 characterStore 缺卡时从云端拉一次，不入库）
   const openDialog = async (msg: TableMessage) => {
@@ -62,7 +77,40 @@ export default function PlayerRoundTable() {
         </button>
       </div>
 
-      {pending.length === 0 && closed.length === 0 && (
+      {invites.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">
+            观战邀请
+          </h2>
+          {invites.map(msg => {
+            const payload = msg.payload as SpectateInvitePayload;
+            return (
+              <button
+                key={msg.id}
+                onClick={() => navigate(`/player/spectate?room=${encodeURIComponent(payload.roomId)}`)}
+                className="w-full text-left rounded-xl border p-4 flex items-center justify-between gap-2 dark:border-primary/50 dark:bg-card-dark light:border-primary/50 light:bg-card-light hover:border-primary transition-colors"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="p-2 rounded-lg bg-emerald-600/15 shrink-0">
+                    <Eye className="w-5 h-5 text-emerald-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold dark:text-text-dark light:text-text-light truncate">
+                      DM 邀请你观战「{payload.title}」
+                    </div>
+                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      点击加入实时观战 · {new Date(msg.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-xs text-primary shrink-0">加入 →</span>
+              </button>
+            );
+          })}
+        </section>
+      )}
+
+      {pending.length === 0 && closed.length === 0 && invites.length === 0 && (
         <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-10 text-center">
           <Inbox className="w-10 h-10 mx-auto dark:text-text-dark-muted light:text-text-light-muted opacity-40" />
           <div className="mt-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">

@@ -3,6 +3,7 @@
 // 断线自动重连由 CombatRoomClient 内置；重连成功后发 snapshot.request 取最近 delta 恢复状态
 // （DM 端只在数据变化时广播，静止期没有新消息可等）。
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Eye, Link2, LogOut, RefreshCw, Skull, Sparkles, Ban, Moon, Swords, Wifi, WifiOff } from 'lucide-react';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,12 +20,15 @@ function takeLatestDelta(deltas: { payload: unknown }[]): CombatDeltaPayload | n
 
 export default function PlayerSpectate() {
   const { token } = useAuth();
+  const [searchParams] = useSearchParams();
   const [roomIdInput, setRoomIdInput] = useState('');
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [spectate, setSpectate] = useState<CombatDeltaPayload | null>(null);
   const [notice, setNotice] = useState('');
   const clientRef = useRef<CombatRoomClient | null>(null);
+  // join 回调引用：自动加入（?room=）与手动加入共用
+  const joinRef = useRef<(room: string) => void>(() => {});
 
   const leave = () => {
     clientRef.current?.disconnect();
@@ -36,8 +40,17 @@ export default function PlayerSpectate() {
 
   useEffect(() => leave, []);
 
-  const join = () => {
-    const room = roomIdInput.trim();
+  // 圆桌邀请链接带 ?room=combat-xxx：登录态就绪后自动加入一次
+  const autoRoom = searchParams.get('room') || '';
+  const autoJoinedRef = useRef(false);
+  useEffect(() => {
+    if (autoJoinedRef.current || !autoRoom || !token) return;
+    autoJoinedRef.current = true;
+    joinRef.current(autoRoom);
+  }, [autoRoom, token]);
+
+  const join = (roomRaw?: string) => {
+    const room = (roomRaw ?? roomIdInput).trim();
     if (!room) {
       setNotice('请输入房间号（问 DM 要，形如 combat-xxxx）');
       return;
@@ -73,6 +86,7 @@ export default function PlayerSpectate() {
     client.connect();
     setActiveRoomId(room);
   };
+  joinRef.current = join;
 
   // 参战者排序：先攻降序，与 DM 端表格一致
   const roster = spectate ? [...spectate.roster].sort((a, b) => b.initiative - a.initiative) : [];
@@ -98,7 +112,7 @@ export default function PlayerSpectate() {
               className="flex-1 min-w-56 px-4 py-2.5 rounded-lg border font-mono text-sm dark:bg-card-dark-hover dark:border-border-dark dark:text-text-dark light:bg-card-light-hover light:border-border-light light:text-text-light"
             />
             <button
-              onClick={join}
+              onClick={() => join()}
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity"
             >
               <Link2 className="w-4 h-4" />

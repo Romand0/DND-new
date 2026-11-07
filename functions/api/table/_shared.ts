@@ -2,10 +2,15 @@
 // 圆桌消息信箱共享类型与校验（前后端各自声明同构常量，避免跨端 import）
 import type { Env } from '../../_utils';
 
-export type TableMessageType = 'check_request' | 'check_result';
+export type TableMessageType = 'check_request' | 'check_result' | 'spectate_invite';
 export type TableMessageStatus = 'pending' | 'answered' | 'cancelled';
 export type CheckKind = 'ability' | 'skill' | 'save';
 export type DcMode = 'open' | 'hidden_dc' | 'value_only';
+
+export interface SpectateInvitePayload {
+  roomId: string;
+  title: string;
+}
 
 export interface TableMessageRow {
   id: string;

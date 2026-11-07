@@ -1,7 +1,7 @@
 // 圆桌消息信箱类型（与 functions/api/table/_shared.ts 同构）
 import type { AbilityKey } from './character';
 
-export type TableMessageType = 'check_request' | 'check_result';
+export type TableMessageType = 'check_request' | 'check_result' | 'spectate_invite';
 export type TableMessageStatus = 'pending' | 'answered' | 'cancelled';
 
 /** 检定类别：属性检定 / 技能检定 / 豁免检定 */
@@ -38,13 +38,19 @@ export interface CheckResultPayload {
   submittedAt: number;
 }
 
+/** DM 抛送的观战邀请：玩家一键加入实时战斗房间（/player/spectate?room=<roomId>） */
+export interface SpectateInvitePayload {
+  roomId: string;
+  title: string;
+}
+
 export interface TableMessage {
   id: string;
   campaignId: string | null;
   fromUserId: string;
   toUserId: string;
   type: TableMessageType;
-  payload: CheckRequestPayload | CheckResultPayload;
+  payload: CheckRequestPayload | CheckResultPayload | SpectateInvitePayload;
   status: TableMessageStatus;
   replyMessageId: string | null;
   createdAt: number;
