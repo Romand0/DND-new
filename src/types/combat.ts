@@ -490,6 +490,8 @@ export interface CombatRecord {
   isProvingGround?: boolean;
   /** 回合待办列表（放映模式专用） */
   turnTodos?: TurnTodo[];
+  /** 战斗事件流（最近 50 条）：公开信息，随 delta 广播驱动玩家端摘要与动画 */
+  combatEvents?: CombatEvent[];
   /**
    * 装备变更信息（战斗期间的"漏斗"，不直接修改角色卡）
    * key 为 combatantId
@@ -875,4 +877,33 @@ export interface CheckModifierResult {
   hasForced: boolean;
   /** 是否存在任一可选项（UI 需渲染开关） */
   hasOptional: boolean;
+}
+
+/** 战斗事件流条目：DM 端落库时埋点，驱动玩家端回合摘要与动画（公开桌面信息，随 delta 广播） */
+export interface CombatEvent {
+  /** 幂等 ID：玩家端按此去重，快照恢复时不回放历史 */
+  id: string;
+  /** 1-based 回合（模拟模式为 0） */
+  round: number;
+  at: number;
+  kind: 'attack' | 'move' | 'cast' | 'damage' | 'heal' | 'note';
+  /** 自然语言摘要（回合摘要面板直接渲染） */
+  text: string;
+  /** 发起者（移动/攻击/施法者） */
+  actorId?: string;
+  /** 目标（受击 / 施法对象 / 治疗对象） */
+  targetId?: string;
+  // attack 专属
+  /** 远程攻击（飞矢动画）；缺省近战（冲刺+弧光） */
+  ranged?: boolean;
+  hit?: boolean;
+  critical?: boolean;
+  weaponName?: string;
+  // cast 专属
+  spellName?: string;
+  // damage / heal 专属（实际结算值，已含抗性减免与临时 HP 吸收结果）
+  amount?: number;
+  damageType?: string;
+  // move 专属（落点；起点由玩家端播放器上次快照得出，不自包含）
+  to?: { col: number; row: number };
 }

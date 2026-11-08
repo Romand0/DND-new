@@ -1,4 +1,4 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent } from '@/types/combat';
 import { scopedKey } from '@/data/campaignScope';
 import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
 import type { CastStepLog } from '@/types/castStep';
@@ -965,6 +965,19 @@ const combatStore = {
     record.updatedAt = Date.now();
     save(records);
     return true;
+  },
+
+  /**
+   * 战斗事件流：落库点埋一条公开事件（攻击/移动/施法/伤害/治疗/备注），
+   * 随 delta 广播驱动玩家端回合摘要与动画。只保留最近 50 条，防止长战斗无限膨胀。
+   * round 缺省按放映状态推断（1-based；模拟模式为 0）。
+   */
+  pushCombatEvent(recordId: string, event: Omit<CombatEvent, 'id' | 'at' | 'round'> & { round?: number }): void {
+    const record = load().find(r => r.id === recordId);
+    if (!record) return;
+    const round = event.round ?? ((record.playbackState?.currentTurn?.round ?? -1) + 1);
+    const full: CombatEvent = { ...event, round, id: crypto.randomUUID(), at: Date.now() };
+    combatStore.update(recordId, { combatEvents: [...(record.combatEvents ?? []), full].slice(-50) });
   },
 
   /**

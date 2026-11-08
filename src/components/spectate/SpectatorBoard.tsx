@@ -2,7 +2,7 @@
 // 自己的参战者棋子可拖拽声明移动（仅生成 move op，DM 端审核/落库后经 delta 回显）
 // 无长按/双指缩放链（DM 端 Battleground 的复杂触摸交互在玩家端刻意省略）；格子三档缩放
 import { useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react';
 import { ZoomIn, ZoomOut, Package } from 'lucide-react';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { BoardProjection, CombatRosterEntry } from '@/types/realtime';
@@ -25,6 +25,7 @@ export default function SpectatorBoard({
   currentCombatantId,
   movableIds,
   onMoveToken,
+  children,
 }: {
   board: BoardProjection;
   roster: CombatRosterEntry[];
@@ -32,6 +33,8 @@ export default function SpectatorBoard({
   /** 可拖拽的参战者 ID（玩家自己的 PC）；空/缺省 = 全只读 */
   movableIds?: string[];
   onMoveToken?: (combatantId: string, to: { col: number; row: number }) => void;
+  /** 棋盘坐标系内的覆盖层注入口（动画特效）；函数式children 传入当前 cell 尺寸 */
+  children?: ReactNode | ((cell: number) => ReactNode);
 }) {
   const [cellIdx, setCellIdx] = useState(1);
   const cell = CELL_SIZES[cellIdx];
@@ -210,6 +213,10 @@ export default function SpectatorBoard({
                   width: cell - 6,
                   height: cell - 6,
                   fontSize: cell > 22 ? 11 : 9,
+                  // 位移过渡：前段加速后段减速（ease-in-out）；拖拽中禁用以跟手
+                  transition: dragging
+                    ? 'none'
+                    : 'left 400ms ease-in-out, top 400ms ease-in-out, transform 200ms ease',
                   touchAction: 'none',
                 }}
                 onPointerDown={droppable ? grab : undefined}
@@ -232,6 +239,9 @@ export default function SpectatorBoard({
               </div>
             );
           })}
+
+          {/* 覆盖层注入口（动画特效）：与棋子同坐标系，随缩放/滚动联动 */}
+          {typeof children === 'function' ? children(cell) : children}
         </div>
       </div>
 
