@@ -186,6 +186,28 @@ export default function EquipmentDetail() {
   </div>
 )}
       
+      {item.magicCategory === '魔法物品' && (item.rarity || item.attunement || item.magicBonus || item.cursed || item.activation || (item.charges && item.charges > 0)) && (
+        <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+          <h3 className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">魔法物品属性</h3>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm dark:text-text-dark light:text-text-light">
+            {item.rarity && (
+              <span>稀有度：<span className="font-medium">{item.rarity}</span></span>
+            )}
+            {item.magicBonus ? (
+              <span>魔法加值：<span className="font-medium">+{item.magicBonus}</span></span>
+            ) : null}
+            {item.attunement && (
+              <span>需同调{item.attunePrereq ? `（${item.attunePrereq}）` : ''}</span>
+            )}
+            {item.activation && <span>激活：{item.activation}</span>}
+            {item.charges != null && item.charges > 0 && (
+              <span>充能：{item.charges}{item.chargeRegen ? `（${item.chargeRegen}）` : ''}</span>
+            )}
+            {item.cursed && <span className="text-danger">被诅咒</span>}
+          </div>
+        </div>
+      )}
+
       {item.properties && item.properties.length > 0 && (
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <h3 className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">属性</h3>

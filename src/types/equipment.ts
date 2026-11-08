@@ -31,8 +31,24 @@ export interface EquipmentItem {
   /** ③ 交易体系：冒险物品 / 贵重物品。缺省 = '冒险物品' */
   tradeCategory?: '贵重物品' | '冒险物品';
 
-  /** 稀有度（2024 DMG）：普通 / 非普通 / 珍稀 / 极珍稀 / 传说 */
+  /** 稀有度：普通 / 非普通 / 珍稀 / 极珍稀 / 传说 / 特殊 / 多种稀有度，复合稀有度存原文（如 "极珍稀或传说"） */
   rarity?: string;
+
+  // ---- 魔法物品专属属性（库存储层；战斗消耗链后续接入）----
+  /** 是否需要同调。缺省 = false */
+  attunement?: boolean;
+  /** 同调先决条件原文，如 "法师"、"施法者"、"善良阵营生物"（attunement=true 时有意义） */
+  attunePrereq?: string;
+  /** 魔法加值（攻击检定/伤害掷骰/AC 的 +1/+2/+3），数值链后续接入 attackBonus / recalculateArmorClass */
+  magicBonus?: number;
+  /** 初始充能数。缺省 = 无充能 */
+  charges?: number;
+  /** 充能恢复规则原文，如 "每天黎明恢复1d3发已消耗的充能" */
+  chargeRegen?: string;
+  /** 是否被诅咒（描述含「诅咒Curse.」子段） */
+  cursed?: boolean;
+  /** 激活方式原文，如 "命令词"、"用一个动作"、"附赠动作" */
+  activation?: string;
 
   // ---- 法术卷轴（虚拟条目：由法术库生成，不落 D1）----
   /** 卷轴对应的法术 id */

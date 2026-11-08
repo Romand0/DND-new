@@ -32,6 +32,14 @@ export function extractBaseFields(
     magicCategory: source.magicCategory ?? '非魔法物品',
     tradeCategory: source.tradeCategory ?? '冒险物品',
     rarity: source.rarity,
+    // 魔法物品专属属性：仅库存储，战斗消耗链后续接入
+    attunement: source.attunement ?? false,
+    attunePrereq: source.attunePrereq,
+    magicBonus: source.magicBonus,
+    charges: source.charges,
+    chargeRegen: source.chargeRegen,
+    cursed: source.cursed ?? false,
+    activation: source.activation,
     // 法术附属品透传（卷轴 / 材料）：这些虚拟条目不属于装备库，但需要保留身份字段
     scrollSpellId: source.scrollSpellId,
     scrollSpellName: source.scrollSpellName,
