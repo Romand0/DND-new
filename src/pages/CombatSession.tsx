@@ -44,7 +44,7 @@ import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
 import type { PlayerActionRequest } from '@/types/realtime';
-import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords, Pause, PlayCircle } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
@@ -859,15 +859,6 @@ export default function CombatSession() {
               <span className="hidden md:inline">实时同步</span>
             </button>
           )}
-          {/* 玩家回合待审核徽标：有待处理提交时才显示（点击滚动到右下角审核卡区域由用户自行查看） */}
-          {pendingPlayerActions.length > 0 && (
-            <span
-              className="shrink-0 px-2 py-1 rounded-full text-xs bg-primary/10 text-primary animate-pulse"
-              title={`房间 ${combatBroadcast.roomId ?? '—'} @ ${location.host}`}
-            >
-              {pendingPlayerActions.length} 个回合待审核
-            </span>
-          )}
         </div>
         <div className="flex gap-2 shrink-0">
           {/* 已封存：只读横幅内的结算标识；入口隐藏 */}
@@ -977,12 +968,22 @@ export default function CombatSession() {
         </div>
       </div>
 
-      {/* M1 诊断行：房间号 + 域名（顶栏放不下，单独一行）——排查跨浏览器/跨环境收不到消息 */}
-      {combatBroadcast.connected && (
-        <p className="text-xs -mt-2 px-1 dark:text-text-dark-muted light:text-text-light-muted break-all">
-          收件箱诊断：房间 {(combatBroadcast.roomId ?? '').replace('combat-', '')} @ {location.host} · 手机玩家观战页顶栏的房间号须与此一致
-        </p>
-      )}
+      {/* 回合收件箱（测试工具，默认折叠）：待审核数 + 连接状态 + 房间诊断 */}
+      <details className="text-xs px-1 -mt-1 dark:text-text-dark-muted light:text-text-light-muted">
+        <summary className="cursor-pointer select-none hover:opacity-80 w-fit">
+          回合收件箱{pendingPlayerActions.length > 0 ? ` · ${pendingPlayerActions.length} 个待审核` : ''}
+        </summary>
+        <div className="pt-1 space-y-0.5 break-all">
+          <p>
+            连接：{combatBroadcast.connected ? '已连接' : '未连接'} · 待审核 {pendingPlayerActions.length} 个
+            （审核卡在页面右下角）
+          </p>
+          <p>
+            房间 {(combatBroadcast.roomId ?? '').replace('combat-', '')} @ {location.host}
+            · 手机玩家观战页顶栏的房间号须与此一致
+          </p>
+        </div>
+      </details>
 
       {/* ✅ 新增：角色选择弹窗（仅点击按钮时显示，完全不影响加载逻辑） */}
       {showCharSelect && (
@@ -1099,27 +1100,24 @@ export default function CombatSession() {
       <PlaybackToolbar
         mode={record.mode ?? 'simulation'}
         playbackStarted={playbackStarted}
-        playbackPaused={playbackPaused}
         onModeChange={(mode) => {
           // 封存后只读：拦截放映模式切换（写操作通道）
           if (record.settledAt) return;
           handleModeChange(mode);
         }}
         onRestartPlayback={handleRestartPlayback}
-        onPausePlayback={pausePlayback}
-        onResumePlayback={resumePlayback}
-        onExitPlayback={() => setExitPlaybackModalOpen(true)}
       />
 
-      {/* ✅ 当前回合信息悬浮块（左上角，放映模式时显示） */}
+      {/* ✅ 放映状态卡片（放映模式时显示）：状态行 + 暂停/恢复。
+          退出放映由模式切换的「模拟模式」按钮承担（弹保存/丢弃确认）。 */}
       {record.mode === 'playback' && (() => {
         let label = '';
         let tone: 'muted' | 'info' | 'warn' | 'danger' = 'muted';
         if (!playbackStarted) {
-          label = '点击先攻表格的 ▶️ 开始放映';
+          label = '点击先攻表格的 ▶ 开始放映';
           tone = 'muted';
         } else if (playbackPaused) {
-          label = '⏸ 放映已暂停（脱离回合格）';
+          label = '放映已暂停（脱离回合格）';
           tone = 'warn';
         } else if (currentTurn) {
           const name = record.combatants.find(c => c.id === currentTurn.combatantId)?.name ?? '?';
@@ -1131,13 +1129,36 @@ export default function CombatSession() {
         }
         const toneCls =
           tone === 'warn'
-            ? 'border-amber-500/50 text-amber-500 bg-amber-500/5'
+            ? 'text-amber-500'
             : tone === 'info'
-              ? 'border-primary/40 bg-primary/5 dark:text-text-dark light:text-text-light'
-              : 'border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted dark:bg-card-dark/80 light:bg-card-light/80';
+              ? 'text-primary'
+              : 'dark:text-text-dark-muted light:text-text-light-muted';
         return (
-          <div className={`fixed top-20 left-6 z-40 px-4 py-2 rounded-lg backdrop-blur shadow-md ${toneCls}`}>
-            <span className="text-sm font-medium whitespace-nowrap">{label}</span>
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light w-fit">
+            <span className={`text-sm font-medium whitespace-nowrap ${toneCls}`}>{label}</span>
+            {playbackStarted && (
+              playbackPaused ? (
+                <button
+                  onClick={resumePlayback}
+                  className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/50 text-green-500 hover:bg-green-500/20 transition-colors text-xs flex items-center gap-1"
+                  title="恢复放映，回到暂停前的回合"
+                  type="button"
+                >
+                  <PlayCircle className="w-3.5 h-3.5" />
+                  恢复放映
+                </button>
+              ) : (
+                <button
+                  onClick={pausePlayback}
+                  className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/50 text-amber-500 hover:bg-amber-500/20 transition-colors text-xs flex items-center gap-1"
+                  title="暂停放映，临时脱离回合进行全局编辑"
+                  type="button"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                  暂停放映
+                </button>
+              )
+            )}
           </div>
         );
       })()}
