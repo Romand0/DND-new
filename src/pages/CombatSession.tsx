@@ -25,7 +25,7 @@ import ManualRecordDialog from '@/components/combat/ManualRecordDialog';
 import PlaybackToolbar from '@/components/combat/PlaybackToolbar';
 import RewindDialog from '@/components/combat/RewindDialog';
 import SurpriseAttackDialog from '@/components/combat/SurpriseAttackDialog';
-import PlayerActionReviewCard from '@/components/combat/PlayerActionReviewCard';
+import PlayerActionReviewPanel from '@/components/combat/PlayerActionReviewPanel';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import * as snapDb from '@/lib/combatSnapshots';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -1182,19 +1182,7 @@ export default function CombatSession() {
                 </button>
               )
             )}
-            {/* 直接放行（M3）：玩家回合提交免审核直接入账，校验失败自动拒绝回执 */}
-            <label
-              className="flex items-center gap-1.5 pl-2 border-l cursor-pointer select-none dark:border-border-dark light:border-border-light"
-              title="开启后玩家提交的回合免审核直接入账（回合/绑定校验失败会自动拒绝并通知玩家）"
-            >
-              <input
-                type="checkbox"
-                checked={autoAcceptTurns}
-                onChange={(e) => toggleAutoAcceptTurns(e.target.checked)}
-                className="w-3.5 h-3.5 accent-primary"
-              />
-              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">直接放行</span>
-            </label>
+            {/* 直接放行（M3）开关已挪至沙盘下方「玩家操作审阅」窗口 */}
           </div>
         );
       })()}
@@ -1523,6 +1511,21 @@ export default function CombatSession() {
             },
           });
         }}
+      />
+
+      {/* ✅ 玩家操作审阅窗口：沙盘下方常驻区块（待审提交 diff + 通过/拒绝 + 直接放行开关） */}
+      <PlayerActionReviewPanel
+        pending={pendingPlayerActions}
+        combatants={record.combatants}
+        boundByUser={boundByUser}
+        currentRound={(currentTurn?.round ?? -1) + 1}
+        autoAccept={autoAcceptTurns}
+        onToggleAutoAccept={toggleAutoAcceptTurns}
+        onApply={(request, ops) => {
+          const outcome = applyPlayerCommit({ ...request, action: { ops } });
+          resolvePlayerAction(request.requestId, outcome.ok, outcome.reason);
+        }}
+        onReject={(requestId, reason) => resolvePlayerAction(requestId, false, reason)}
       />
 
       {/* ✅ 新增：NPC 创建器 */}
@@ -2356,35 +2359,6 @@ export default function CombatSession() {
       isOpen={commitModalOpen}
       onClose={() => setCommitModalOpen(false)}
     />
-
-    {/* 玩家回合提交审核卡（回合批提交模型）：右下角堆叠，ops 可读 diff + 伤害可改 → 落库或拒绝 */}
-    {pendingPlayerActions.length > 0 && (
-      <div className="fixed bottom-4 right-4 z-50 space-y-2 w-80 max-w-[calc(100vw-2rem)]">
-        {pendingPlayerActions.map(({ request, from }) => {
-          const actor = record?.combatants.find((c) => c.id === request.combatantId);
-          const boundIds = boundByUser.get(from.userId);
-          const boundOk = boundIds ? (actor?.characterId ? boundIds.has(actor.characterId) : false) : null;
-          const currentRound = (currentTurn?.round ?? -1) + 1;
-          const roundOk = request.round === currentRound;
-          return (
-            <PlayerActionReviewCard
-              key={request.requestId}
-              request={request}
-              fromName={from.role === 'player' ? `玩家 ${from.userId.slice(0, 8)}…` : from.role}
-              actorName={actor?.name ?? request.combatantId.slice(0, 8)}
-              boundOk={boundOk}
-              roundOk={roundOk}
-              currentRound={currentRound}
-              onApply={(ops) => {
-                const outcome = applyPlayerCommit({ ...request, action: { ops } });
-                resolvePlayerAction(request.requestId, outcome.ok, outcome.reason);
-              }}
-              onReject={(reason) => resolvePlayerAction(request.requestId, false, reason)}
-            />
-          );
-        })}
-      </div>
-    )}
     </div>
   );
 }
