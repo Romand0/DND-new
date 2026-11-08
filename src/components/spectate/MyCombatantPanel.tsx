@@ -1,9 +1,9 @@
 // 我的参战者面板（玩家端，只读）：复刻 DM 侧 CombatantInfoPanel 的四分页结构。
 // 数据全部来自观战投影（CombatRosterEntry），无任何写操作：
-//   基础信息 ← 「快捷」（HP/AC/攻击列表，砍法术位与可点击射程检索）
+//   基础信息 ← 「快捷」（法术位 + 攻击列表，无消耗操作与射程检索）
 //   状态     ← 「状态」（手持/专注/失能/死亡豁免，无能力开关）
 //   背包     ← 「背包」（inventory 投影：名称/类目/数量/手持标注/攻击属性，只读）
-//   操作     ← 「操作」（动作/附赠计数 + 回合待办，砍 NPC 特质与主动技能）
+//   操作     ← 「操作」（动作计数 + 主动技能 + 回合待办，砍 NPC 特质）
 import { useState } from 'react';
 import { Ban, Info, Moon, Skull, Sparkles, Backpack, Zap, Activity, Hand } from 'lucide-react';
 import type { CombatRosterEntry, RosterInventoryItem } from '@/types/realtime';
@@ -137,34 +137,59 @@ export function MyCombatantPanel({ c, playback }: { c: CombatRosterEntry; playba
   );
 }
 
-/** 基础信息：攻击列表（名称/伤害/类型/属性/射程）——对应 DM「快捷」的攻击区块（只读） */
+/** 基础信息：法术位 + 攻击列表——对应 DM「快捷」（只读，无消耗操作） */
 function InfoTab({ c }: { c: CombatRosterEntry }) {
   const attacks = (c.inventory ?? []).filter((i) => i.attack);
-  if (attacks.length === 0) {
-    return <p className="dark:text-text-dark-muted light:text-text-light-muted">暂无攻击方式</p>;
-  }
+  const slots = c.spellSlots ?? [];
   return (
-    <div className="space-y-1.5">
-      {attacks.map((item) => {
-        const atk = item.attack!;
-        const held =
-          c.heldLeft?.name === item.name ? '左手' : c.heldRight?.name === item.name ? '右手' : null;
-        return (
-          <div key={item.childId} className="rounded-lg px-2.5 py-1.5 space-y-0.5 dark:bg-bg-dark light:bg-bg-light-2">
-            <div className="flex items-center justify-between gap-2">
-              <span className="font-medium dark:text-text-dark light:text-text-light">{item.name}</span>
-              <span className="shrink-0 font-mono dark:text-text-dark-muted light:text-text-light-muted">
-                {atk.damage} {atk.damageType}
-                {held && <span className="ml-1 text-emerald-500">（{held}）</span>}
+    <div className="space-y-2">
+      {slots.length > 0 && (
+        <div className="rounded-lg px-2.5 py-1.5 space-y-1 dark:bg-bg-dark light:bg-bg-light-2">
+          <div className="font-medium dark:text-text-dark light:text-text-light">法术位</div>
+          <div className="flex gap-1.5 flex-wrap">
+            {slots.map((s) => (
+              <span
+                key={s.level}
+                className={`px-2 py-0.5 rounded-full font-mono ${
+                  s.used >= s.max
+                    ? 'bg-neutral-500/15 dark:text-text-dark-muted light:text-text-light-muted'
+                    : 'bg-violet-600/15 text-violet-600 dark:text-violet-400'
+                }`}
+                title={s.used >= s.max ? '该环法术位已耗尽' : `${s.label}：可用 ${s.max - s.used}/${s.max}`}
+              >
+                {s.label} {s.max - s.used}/{s.max}
               </span>
-            </div>
-            <div className="dark:text-text-dark-muted light:text-text-light-muted">
-              {atk.normalRange ? `射程 ${atk.normalRange}/${atk.maxRange ?? atk.normalRange} 尺` : '近战'}
-              {atk.properties.length > 0 ? ` · ${atk.properties.join('、')}` : ''}
-            </div>
+            ))}
           </div>
-        );
-      })}
+        </div>
+      )}
+      {attacks.length === 0 && slots.length === 0 && (
+        <p className="dark:text-text-dark-muted light:text-text-light-muted">暂无攻击方式与法术位</p>
+      )}
+      {attacks.length > 0 && (
+        <div className="space-y-1.5">
+          {attacks.map((item) => {
+            const atk = item.attack!;
+            const held =
+              c.heldLeft?.name === item.name ? '左手' : c.heldRight?.name === item.name ? '右手' : null;
+            return (
+              <div key={item.childId} className="rounded-lg px-2.5 py-1.5 space-y-0.5 dark:bg-bg-dark light:bg-bg-light-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium dark:text-text-dark light:text-text-light">{item.name}</span>
+                  <span className="shrink-0 font-mono dark:text-text-dark-muted light:text-text-light-muted">
+                    {atk.damage} {atk.damageType}
+                    {held && <span className="ml-1 text-emerald-500">（{held}）</span>}
+                  </span>
+                </div>
+                <div className="dark:text-text-dark-muted light:text-text-light-muted">
+                  {atk.normalRange ? `射程 ${atk.normalRange}/${atk.maxRange ?? atk.normalRange} 尺` : '近战'}
+                  {atk.properties.length > 0 ? ` · ${atk.properties.join('、')}` : ''}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -302,8 +327,9 @@ function InventoryRow({ item, held }: { item: RosterInventoryItem; held: boolean
   );
 }
 
-/** 操作：动作/附赠计数 + 我的回合待办——对应 DM「操作」（只读，砍 NPC 特质与主动技能） */
+/** 操作：动作/附赠计数 + 主动技能 + 我的回合待办——对应 DM「操作」（只读，砍 NPC 特质） */
 function ActionsTab({ c, playback }: { c: CombatRosterEntry; playback: boolean }) {
+  const features = c.activeFeatures ?? [];
   return (
     <div className="space-y-2">
       {playback && (
@@ -319,6 +345,23 @@ function ActionsTab({ c, playback }: { c: CombatRosterEntry; playback: boolean }
             <div className="text-base font-bold font-mono dark:text-text-dark light:text-text-light">
               {c.bonusActions ?? 0}
             </div>
+          </div>
+        </div>
+      )}
+      {features.length > 0 && (
+        <div>
+          <div className="font-medium mb-1 dark:text-text-dark light:text-text-light">主动技能</div>
+          <div className="space-y-1">
+            {features.map((f) => (
+              <div key={f.name} className="rounded-lg px-2.5 py-1.5 dark:bg-bg-dark light:bg-bg-light-2">
+                <div className="font-medium dark:text-text-dark light:text-text-light">{f.name}</div>
+                {f.description && (
+                  <div className="mt-0.5 leading-4 dark:text-text-dark-muted light:text-text-light-muted">
+                    {f.description}
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}

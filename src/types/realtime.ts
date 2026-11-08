@@ -148,6 +148,18 @@ export interface CombatRosterEntry {
   /** PC 战斗背包投影（武器/弹药/物品 + 攻击属性快照；NPC 为 null）。
    *  真实桌面玩家互相可见装备，属接受的公开语义；无价格/描述/背包外字段。 */
   inventory?: RosterInventoryItem[] | null;
+  /** PC 战斗法术位视图（角色卡法术位 + 战斗消耗漏斗后的真实可用数；NPC 或无法术位为 null） */
+  spellSlots?: RosterSpellSlot[] | null;
+  /** PC 主动技能（角色卡 features 按作用方式派生；NPC 为 null） */
+  activeFeatures?: { name: string; description: string }[] | null;
+}
+
+/** 战斗中法术位视图条目（used/max 为漏斗后实时值） */
+export interface RosterSpellSlot {
+  level: number;
+  label: string;
+  used: number;
+  max: number;
 }
 
 /** 战斗背包物品投影的攻击属性快照（角色卡 attacks 按武器名匹配所得） */

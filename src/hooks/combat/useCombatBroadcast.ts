@@ -9,10 +9,11 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
-import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterHandInfo, RosterInventoryItem } from '@/types/realtime';
+import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterHandInfo, RosterInventoryItem, RosterSpellSlot } from '@/types/realtime';
 import { TURN_TODO_TYPE_LABELS } from '@/types/combat';
 import type { CombatRecord, Combatant } from '@/types/combat';
 import type { HandSlot } from '@/types/character';
+import { deriveFeatureRole } from '@/data/featureRole';
 
 const BROADCAST_DEBOUNCE_MS = 300;
 
@@ -49,6 +50,24 @@ function projectInventory(record: CombatRecord, c: Combatant): RosterInventoryIt
         : null,
     };
   });
+}
+
+/** PC 战斗法术位 → 投影：getCombatSpellSlotView 已含 spellSlotChanges 漏斗后的实时可用数 */
+function projectSpellSlots(record: CombatRecord, c: Combatant): RosterSpellSlot[] | null {
+  if (!c.isPc || !c.characterId) return null;
+  const view = combatStore.getCombatSpellSlotView(record.id, c.id);
+  if (!view || view.length === 0) return null;
+  return view.map((s) => ({ level: s.level, label: s.label, used: s.used, max: s.max }));
+}
+
+/** PC 主动技能 → 投影：角色卡 features 按作用方式派生（与 DM「操作」tab 同源） */
+function projectActiveFeatures(c: Combatant): { name: string; description: string }[] | null {
+  if (!c.isPc || !c.characterId) return null;
+  const character = characterStore.get(c.characterId);
+  if (!character) return null;
+  const active = (character.features ?? []).filter((f) => deriveFeatureRole(f) === 'active');
+  if (active.length === 0) return null;
+  return active.map((f) => ({ name: f.name, description: f.description ?? '' }));
 }
 
 /** 沙盘 → 玩家投影：剔除 equipmentData（背包隐私）/moveHistory/hitRounds 等 DM 侧数据 */
@@ -103,6 +122,8 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
           executed: t.executed,
         })),
       inventory: projectInventory(record, c),
+      spellSlots: projectSpellSlots(record, c),
+      activeFeatures: projectActiveFeatures(c),
     };
   });
   const turn = record.playbackState?.started
