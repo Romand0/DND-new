@@ -10,14 +10,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyCharacters } from '@/lib/api';
 import SpectatorBoard from '@/components/spectate/SpectatorBoard';
 import SpectatorTable from '@/components/spectate/SpectatorTable';
+import { MyCombatantsSection } from '@/components/spectate/MyCombatantPanel';
 import MyTurnPanel from '@/components/spectate/MyTurnPanel';
 import type { CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult } from '@/types/realtime';
-
-const HAND_STATE_LABELS: Record<string, string> = {
-  ready: '待用',
-  action: '动作中',
-  unavailable: '不可用',
-};
 
 function takeLatestDelta(deltas: { payload: unknown }[]): CombatDeltaPayload | null {
   // snapshot.deltas 的 payload 是透传 unknown，逐条嗅探是否有 v1 快照特征字段
@@ -233,7 +228,12 @@ export default function PlayerSpectate() {
           })()}
 
           {spectate && (
-            <SpectatorTable rounds={spectate.rounds ?? []} roster={roster} turn={spectate.turn} />
+            <SpectatorTable
+              rounds={spectate.rounds ?? []}
+              roster={roster}
+              turn={spectate.turn}
+              myCharacterIds={myCharacterIds}
+            />
           )}
 
           {spectate && spectate.board && (
@@ -256,185 +256,6 @@ export default function PlayerSpectate() {
           )}
         </>
       )}
-    </div>
-  );
-}
-
-/** 我的参战者区块：筛选当前账号绑定角色对应的参战者，平铺展示战斗面板 */
-function MyCombatantsSection({
-  roster,
-  myCharacterIds,
-  playback,
-}: {
-  roster: CombatRosterEntry[];
-  myCharacterIds: Set<string>;
-  playback: boolean;
-}) {
-  const mine = roster.filter((c) => c.characterId && myCharacterIds.has(c.characterId));
-  if (mine.length === 0) return null;
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-bold dark:text-text-dark light:text-text-light px-1">我的参战者</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {mine.map((c) => (
-          <MyCombatantPanel key={c.id} c={c} playback={playback} />
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/** 我的参战者面板：身份牌（名字/HP/状态）+ 战斗详情（手持/动作/专注/死亡豁免/回合待办，均为 DM 桌面公开信息） */
-function MyCombatantPanel({
-  c,
-  playback,
-}: {
-  c: CombatRosterEntry;
-  playback: boolean;
-}) {
-  const hands: { label: string; hand: typeof c.heldLeft }[] = [
-    { label: '左手', hand: c.heldLeft },
-    { label: '右手', hand: c.heldRight },
-  ];
-  const hpRatio = c.maxHp > 0 ? Math.max(0, Math.min(1, (c.hp + c.tempHp) / c.maxHp)) : 0;
-  return (
-    <div
-      className={`p-4 rounded-xl border space-y-3 transition-all ${
-        c.dead
-          ? 'opacity-50 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light'
-          : 'dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light'
-      }`}
-    >
-      {/* 身份牌 */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold truncate dark:text-text-dark light:text-text-light">{c.name}</span>
-        <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary shrink-0">
-          先攻 {c.initiative}
-        </span>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between text-sm mb-1">
-          <span className="font-mono font-bold dark:text-text-dark light:text-text-light">
-            {c.hp}
-            {c.tempHp > 0 && <span className="text-amber-500"> +{c.tempHp}</span>}
-            <span className="dark:text-text-dark-muted light:text-text-light-muted"> / {c.maxHp}</span>
-          </span>
-          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">AC {c.ac ?? '—'}</span>
-        </div>
-        <div className="h-2 rounded-full bg-neutral-500/20 overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${
-              c.dead ? 'bg-neutral-500' : hpRatio > 0.5 ? 'bg-emerald-500' : hpRatio > 0.25 ? 'bg-amber-500' : 'bg-red-500'
-            }`}
-            style={{ width: `${hpRatio * 100}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="flex gap-1.5 flex-wrap min-h-6">
-        {c.dead && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-neutral-600/20 text-neutral-400">
-            <Skull className="w-3 h-3" /> 死亡
-          </span>
-        )}
-        {!c.dead && c.downed && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-red-600/15 text-red-500">
-            <Moon className="w-3 h-3" /> 昏迷
-          </span>
-        )}
-        {c.incapacitated && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-orange-600/15 text-orange-500">
-            <Ban className="w-3 h-3" /> 失能
-          </span>
-        )}
-        {c.concentrating && (
-          <span className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-violet-600/15 text-violet-500">
-            <Sparkles className="w-3 h-3" /> 专注
-          </span>
-        )}
-        {!c.dead && !c.downed && !c.incapacitated && !c.concentrating && (
-          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">状态正常</span>
-        )}
-      </div>
-
-      {/* 战斗详情 */}
-      <div className="rounded-lg p-3 space-y-2 text-xs dark:bg-bg-dark light:bg-bg-light-2">
-        <div className="flex items-center gap-1.5 font-bold dark:text-text-dark light:text-text-light">
-          <Hand className="w-3.5 h-3.5 text-emerald-500" />
-          战斗详情
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          {hands.map(({ label, hand }) => (
-            <div key={label} className="rounded-lg px-2 py-1.5 dark:bg-card-dark light:bg-card-light">
-              <div className="dark:text-text-dark-muted light:text-text-light-muted">{label}</div>
-              {hand ? (
-                <div className="font-medium dark:text-text-dark light:text-text-light">
-                  {hand.name}
-                  <span className="ml-1 dark:text-text-dark-muted light:text-text-light-muted">
-                    （{HAND_STATE_LABELS[hand.state] ?? hand.state}）
-                  </span>
-                </div>
-              ) : (
-                <div className="dark:text-text-dark-muted light:text-text-light-muted">空手</div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {playback && (
-          <div className="flex gap-3 flex-wrap">
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-              动作 <span className="font-bold font-mono text-primary">{c.actions ?? 0}</span>
-            </span>
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">
-              附赠 <span className="font-bold font-mono text-primary">{c.bonusActions ?? 0}</span>
-            </span>
-          </div>
-        )}
-
-        {c.concentration && (
-          <div className="dark:text-text-dark-muted light:text-text-light-muted">
-            专注维持：<span className="font-medium text-violet-500">{c.concentration.spellName}</span>
-            （第 {c.concentration.startedRound} 回合起）
-          </div>
-        )}
-
-        {c.deathSaves && (
-          <div className="flex items-center gap-2">
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">死亡豁免</span>
-            <span className="flex gap-0.5">
-              {[0, 1, 2].map((i) => (
-                <span key={`f${i}`} className={`w-2.5 h-2.5 rounded-full ${i < (c.deathSaves?.failures ?? 0) ? 'bg-red-500' : 'bg-neutral-500/30'}`} />
-              ))}
-            </span>
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">失败</span>
-            <span className="flex gap-0.5">
-              {[0, 1, 2].map((i) => (
-                <span key={`s${i}`} className={`w-2.5 h-2.5 rounded-full ${i < (c.deathSaves?.successes ?? 0) ? 'bg-emerald-500' : 'bg-neutral-500/30'}`} />
-              ))}
-            </span>
-            <span className="dark:text-text-dark-muted light:text-text-light-muted">成功</span>
-          </div>
-        )}
-
-        {(c.todos ?? []).length > 0 && (
-          <div className="space-y-1">
-            <div className="dark:text-text-dark-muted light:text-text-light-muted">我的回合待办</div>
-            {(c.todos ?? []).map((t, i) => (
-              <div key={i} className="flex items-center justify-between gap-2">
-                <span className={t.executed ? 'line-through dark:text-text-dark-muted light:text-text-light-muted' : 'dark:text-text-dark light:text-text-light'}>
-                  {t.name}
-                </span>
-                <span className={`shrink-0 ${t.executed ? 'text-emerald-500' : 'text-amber-500'}`}>
-                  {t.typeLabel} · {t.executed ? '已处理' : '待处理'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

@@ -35,6 +35,7 @@ function projectInventory(record: CombatRecord, c: Combatant): RosterInventoryIt
       childId: eq.childId || eq.id,
       name: eq.name,
       quantity: eq.quantity ?? 1,
+      category: eq.category,
       attack: atk
         ? {
             damage: atk.damage,
@@ -106,7 +107,8 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
   });
   const turn = record.playbackState?.started
     ? {
-        round: record.playbackState.currentTurn?.round ?? 1,
+        // 1-based 轮次（与 DM 端放映状态卡显示一致）；消费方注意 rounds 数组仍是 0-based 下标
+        round: (record.playbackState.currentTurn?.round ?? 0) + 1,
         combatantId: record.playbackState.currentTurn?.combatantId ?? null,
         playback: true,
       }

@@ -441,12 +441,13 @@ export default function CombatSession() {
   });
 
   // 玩家回合提交落库（回合批提交模型）：校验 → 弹药/伤害/动作/表格 → 回执
+  // 轮次语义 1-based：投影与提交侧均用「第 N 轮」，与 record.rounds 的 0-based 下标相差 1
   const applyPlayerCommit = (request: PlayerActionRequest): { ok: boolean; reason?: string } => {
     if (!record) return { ok: false, reason: '战斗记录不可用' };
     return applyTurnCommit({
       record,
       request,
-      currentRound: currentTurn?.round ?? 0,
+      currentRound: (currentTurn?.round ?? -1) + 1,
       applyDamage: (event) => handleApplyDamage(event),
       consumeAction: consumeCombatantAction,
       consumeBonusAction: consumeCombatantBonusAction,
@@ -2328,7 +2329,8 @@ export default function CombatSession() {
           const actor = record?.combatants.find((c) => c.id === request.combatantId);
           const boundIds = boundByUser.get(from.userId);
           const boundOk = boundIds ? (actor?.characterId ? boundIds.has(actor.characterId) : false) : null;
-          const roundOk = request.round === (currentTurn?.round ?? 0);
+          const currentRound = (currentTurn?.round ?? -1) + 1;
+          const roundOk = request.round === currentRound;
           return (
             <PlayerActionReviewCard
               key={request.requestId}
@@ -2337,7 +2339,7 @@ export default function CombatSession() {
               actorName={actor?.name ?? request.combatantId.slice(0, 8)}
               boundOk={boundOk}
               roundOk={roundOk}
-              currentRound={currentTurn?.round ?? 0}
+              currentRound={currentRound}
               onApply={(ops) => {
                 const outcome = applyPlayerCommit({ ...request, action: { ops } });
                 resolvePlayerAction(request.requestId, outcome.ok, outcome.reason);

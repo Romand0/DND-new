@@ -11,7 +11,7 @@ import type { PlayerActionRequest } from '@/types/realtime';
 export interface TurnCommitApplyDeps {
   record: CombatRecord;
   request: PlayerActionRequest;
-  /** DM 端当前放映轮次；与 request.round 不一致则拒绝 */
+  /** DM 端当前放映轮次（1-based，与 request.round 同语义）；不一致则拒绝 */
   currentRound: number;
   applyDamage: (event: DamageApplication) => DamageApplyResult | null;
   consumeAction: (combatantId: string) => void;

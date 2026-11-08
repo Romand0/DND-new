@@ -10,17 +10,21 @@ export default function SpectatorTable({
   rounds,
   roster,
   turn,
+  myCharacterIds,
 }: {
   rounds: RoundsProjection;
   roster: CombatRosterEntry[];
   turn: CombatTurnState | null;
+  /** 当前账号绑定角色 ID：表头我方单位显示 HP 数值（敌方仅血条，符合战斗情报水平） */
+  myCharacterIds?: Set<string>;
 }) {
   const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
   const prevRoundRef = useRef<number | null>(null);
 
   // 非当前轮自动折叠：放映进入新轮次时自动展开它（已手动展开的轮次保持展开）
+  // turn.round 为 1-based，rounds 数组下标为 0-based，差 1
   useEffect(() => {
-    const cur = turn?.round ?? null;
+    const cur = turn?.round != null ? turn.round - 1 : null;
     if (cur == null || cur === prevRoundRef.current) return;
     prevRoundRef.current = cur;
     setExpandedRounds((prev) => {
@@ -52,6 +56,8 @@ export default function SpectatorTable({
             </th>
             {roster.map((c, idx) => {
               const downed = c.dead || c.downed;
+              const hpRatio = c.maxHp > 0 ? Math.max(0, Math.min(1, (c.hp + c.tempHp) / c.maxHp)) : 0;
+              const isMine = !!c.characterId && myCharacterIds?.has(c.characterId);
               return (
                 <th
                   key={c.id}
@@ -72,7 +78,27 @@ export default function SpectatorTable({
                       </svg>
                     )}
                   </div>
-                  <span className="font-medium truncate dark:text-text-dark light:text-text-light pl-7">{c.name}</span>
+                  <div className="pl-7 space-y-1">
+                    <div className="flex items-baseline justify-between gap-1">
+                      <span className="font-medium truncate dark:text-text-dark light:text-text-light">{c.name}</span>
+                      {/* 我方单位显示 HP 数值；敌方仅血条（战斗情报水平） */}
+                      {isMine && !c.dead && (
+                        <span className="shrink-0 font-mono text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                          {c.hp}{c.tempHp > 0 ? `+${c.tempHp}` : ''}/{c.maxHp}
+                        </span>
+                      )}
+                    </div>
+                    {!c.dead && (
+                      <div className="h-1 rounded-full bg-neutral-500/20 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            hpRatio > 0.5 ? 'bg-emerald-500' : hpRatio > 0.25 ? 'bg-amber-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${hpRatio * 100}%` }}
+                        />
+                      </div>
+                    )}
+                  </div>
                 </th>
               );
             })}
@@ -80,7 +106,7 @@ export default function SpectatorTable({
         </thead>
         <tbody>
           {rounds.map((round, roundIndex) => {
-            const isCurrentRound = turn.round === roundIndex;
+            const isCurrentRound = turn.round - 1 === roundIndex;
             if (!expandedRounds.has(roundIndex)) {
               // 折叠行：单格摘要条（该轮行动记录条数），当前轮黄环提示
               const actionCount = roster.filter((c) => (round[c.id] || '') !== '' && round[c.id] !== '被突袭').length;
@@ -122,7 +148,7 @@ export default function SpectatorTable({
                 {roster.map((c) => {
                   const action = round[c.id] || '';
                   const isSurprised = action === '被突袭';
-                  const isCurrentTurn = turn.round === roundIndex && turn.combatantId === c.id;
+                  const isCurrentTurn = turn.round - 1 === roundIndex && turn.combatantId === c.id;
                   if (isSurprised) {
                     return (
                       <td
