@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Download, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { createEquipment, updateEquipment, fetchAllEquipments } from '@/lib/api';
+import { createEquipment, updateEquipment, fetchAllEquipments, batchUpsertEquipments } from '@/lib/api';
 import npcTemplateStore from '@/data/npcTemplateStore';
 
 const CATEGORIES = [
@@ -90,6 +90,12 @@ const [showDirectImport, setShowDirectImport] = useState(false);
 const [directImportJson, setDirectImportJson] = useState('');
 const [directImporting, setDirectImporting] = useState(false);
 const [directImportResult, setDirectImportResult] = useState<{ success: number; fail: number; error?: string } | null>(null);
+
+  // ---- 装备 JSON 直接导入状态（魔法物品等批量 UPSERT）----
+const [showEquipDirectImport, setShowEquipDirectImport] = useState(false);
+const [equipDirectImportJson, setEquipDirectImportJson] = useState('');
+const [equipDirectImporting, setEquipDirectImporting] = useState(false);
+const [equipDirectImportResult, setEquipDirectImportResult] = useState<{ success: number; fail: number; error?: string } | null>(null);
 
   // ---- 法术表格编辑状态 ----
 const [spellTableIdentifier, setSpellTableIdentifier] = useState('');
@@ -340,6 +346,35 @@ const confirmDirectImport = async () => {
     setDirectImportResult({ success: 0, fail: parsed.length, error: String(err) });
   }
   setDirectImporting(false);
+};
+
+// 装备 JSON 直接导入：批量 UPSERT（魔法物品等），走现有 /equipments 批量端点
+const confirmEquipmentDirectImport = async () => {
+  setEquipDirectImportResult(null);
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(equipDirectImportJson);
+  } catch (e) {
+    setEquipDirectImportResult({ success: 0, fail: 0, error: `JSON 解析失败: ${String(e)}` });
+    return;
+  }
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    setEquipDirectImportResult({ success: 0, fail: 0, error: '顶层必须是 JSON 数组且非空' });
+    return;
+  }
+  const invalid = parsed.findIndex((it: any) => !it || typeof it !== 'object' || !it.id || !it.name);
+  if (invalid !== -1) {
+    setEquipDirectImportResult({ success: 0, fail: parsed.length, error: `第 ${invalid + 1} 条缺少 id 或 name` });
+    return;
+  }
+  setEquipDirectImporting(true);
+  try {
+    const result = await batchUpsertEquipments(parsed as any[]);
+    setEquipDirectImportResult({ success: result.count ?? parsed.length, fail: 0 });
+  } catch (err) {
+    setEquipDirectImportResult({ success: 0, fail: parsed.length, error: String(err) });
+  }
+  setEquipDirectImporting(false);
 };
 
 const toggleSpell = (id: string) => {
@@ -730,6 +765,70 @@ const handleMonsterImport = () => {
         )}
       </section>
 
+
+      {/* ====== 装备 JSON 直接导入区域 ====== */}
+      <section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">
+        <h2 className="text-base font-bold mb-4 dark:text-text-dark light:text-text-light">
+          从 JSON 直接导入_装备
+        </h2>
+        <div className="rounded-lg border dark:border-border-dark light:border-border-light">
+          <button
+            onClick={() => setShowEquipDirectImport(!showEquipDirectImport)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm font-medium text-left hover:opacity-80"
+          >
+            {showEquipDirectImport ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            批量导入装备 JSON（同名 id UPSERT）
+          </button>
+          {showEquipDirectImport && (
+            <div className="p-3 border-t dark:border-border-dark/50 light:border-border-light/50 space-y-2">
+              <p className="text-xs opacity-60">
+                粘贴 <code>scripts/parse-magic-items.mjs</code> 产出的 JSON，按 id UPSERT 覆盖导入；或直接点下方按钮加载仓库内置的城主指南魔法物品（252 条）。
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const res = await fetch('/magic-items-import.json');
+                      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                      const data = await res.json();
+                      setEquipDirectImportJson(JSON.stringify(data));
+                    } catch (e) {
+                      setEquipDirectImportResult({ success: 0, fail: 0, error: `加载内置数据失败: ${String(e)}` });
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-lg border text-xs font-medium hover:opacity-80 dark:border-border-dark light:border-border-light"
+                >
+                  加载内置魔法物品（252 条）
+                </button>
+              </div>
+              <textarea
+                value={equipDirectImportJson}
+                onChange={(e) => setEquipDirectImportJson(e.target.value)}
+                placeholder='[{"id":"magic-xxx","name":"xxx","category":"武器",...}]'
+                className="w-full h-32 px-3 py-2 rounded-lg border bg-transparent outline-none font-mono text-xs dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light"
+              />
+              <button
+                onClick={confirmEquipmentDirectImport}
+                disabled={equipDirectImporting || equipDirectImportJson.trim().length === 0}
+                className="px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                {equipDirectImporting ? '导入中...' : '导入'}
+              </button>
+              {equipDirectImportResult && (
+                <div className="text-xs space-y-1">
+                  {equipDirectImportResult.error ? (
+                    <p className="text-danger">{equipDirectImportResult.error}</p>
+                  ) : (
+                    <p className="text-success">
+                      成功 {equipDirectImportResult.success} 条，失败 {equipDirectImportResult.fail} 条
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* ====== 法术导入区域 ====== */}
 <section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">
