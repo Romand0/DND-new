@@ -15,7 +15,7 @@ export async function onRequestGet(context: { request: Request; env: EnvWithDb }
 
   const result = await env.DB
     .prepare(
-      `SELECT uc.character_id, c.name, c.class, c.level, c.race, u.username AS bound_user_name
+      `SELECT uc.character_id, c.name, c.class, c.level, c.race, u.id AS bound_user_id, u.username AS bound_user_name
        FROM user_characters uc
        JOIN characters c ON c.id = uc.character_id
        JOIN users u ON u.id = uc.user_id
@@ -30,6 +30,7 @@ export async function onRequestGet(context: { request: Request; env: EnvWithDb }
     class: row.class ?? '',
     level: row.level ?? 1,
     race: row.race ?? '',
+    boundUserId: row.bound_user_id ?? '',
     boundUserName: row.bound_user_name ?? '',
   }));
 

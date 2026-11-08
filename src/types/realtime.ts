@@ -29,12 +29,57 @@ export type ServerMessage =
   | { t: 'error'; message: string };
 
 // ======================
-// player.action（玩家回合操作批提交，M1 通道）
+// player.action（玩家回合操作批提交）
 // ======================
 // 玩家在自己回合内本地执行操作，回合结束打包变更集提交；DM 端审核（前期）或
 // 直接应用（后期）。DO 对 request 透传广播（不持久化、不进 deltas——瞬时请求，
 // 断线由玩家重发）；result 是 DM 的广播回执（全房可见，桌面公开语义）。
-// action 内容对 DO 不透明（透传 unknown），协议演进只涉及两端。
+// DO 端 action 保持 {kind:string} 透传不耦合协议演进；本文件是两端精确类型。
+
+export interface TurnCommitAttackDamage {
+  /** 伤害意图总量（玩家掷骰汇总；抗性减免由 DM 端落库时裁决） */
+  amount: number;
+  /** 伤害类型（火/挥砍/穿刺…），DM 端抗性判定用 */
+  type: string;
+  /** 骰组原文（如 2d6+3），审核卡展示用 */
+  diceText?: string;
+}
+
+export type TurnCommitOp =
+  | {
+      kind: 'attack';
+      /** 手持武器实例 ID（战斗背包 childId；null = 徒手） */
+      weaponChildId: string | null;
+      weaponName: string;
+      targetId: string;
+      targetName: string;
+      /** 玩家掷的 d20 骰面（1-20） */
+      d20: number;
+      /** 玩家端攻击加值（展示与判定用） */
+      bonus: number;
+      /** 玩家端判定：d20 + bonus >= 目标 AC；d20=20 恒暴击 */
+      hit: boolean;
+      critical: boolean;
+      /** 伤害意图；未命中为 null */
+      damage: TurnCommitAttackDamage | null;
+      /** 弹药实例 ID 与消耗发数（弹药武器才有） */
+      ammoChildId?: string;
+      ammoCount?: number;
+      /** 写入先攻表格的行动文本 */
+      roundText: string;
+    }
+  | {
+      kind: 'note';
+      roundText: string;
+      /** 声明动作消耗：DM 端按此扣动作；null = 不消耗（自由动作/交流） */
+      actionCost?: 'action' | 'bonus' | null;
+    }
+  | { kind: 'end-turn' };
+
+export interface TurnCommitPayload {
+  /** 操作序列（玩家实际执行顺序；未来动画按此重放） */
+  ops: TurnCommitOp[];
+}
 
 export interface PlayerActionRequest {
   /** 玩家端生成的请求 ID（uuid），回执与重发去重用 */
@@ -45,8 +90,7 @@ export interface PlayerActionRequest {
   combatantId: string;
   /** 玩家提交时最后收到的 combat.delta seq，DM 端比对当前 seq 检测过期状态 */
   baseSeq: number;
-  /** 回合变更集：M1 通道验证阶段为透传骨架，M2 定义 ops/effects 结构 */
-  action: { kind: 'turn-commit' } & { ops?: unknown[]; effects?: unknown };
+  action: TurnCommitPayload;
 }
 
 export interface PlayerActionResult {
@@ -101,6 +145,31 @@ export interface CombatRosterEntry {
   deathSaves?: { failures: number; successes: number } | null;
   /** 回合待办摘要（该参战者相关的持续效果提醒） */
   todos?: RosterTurnTodo[];
+  /** PC 战斗背包投影（武器/弹药/物品 + 攻击属性快照；NPC 为 null）。
+   *  真实桌面玩家互相可见装备，属接受的公开语义；无价格/描述/背包外字段。 */
+  inventory?: RosterInventoryItem[] | null;
+}
+
+/** 战斗背包物品投影的攻击属性快照（角色卡 attacks 按武器名匹配所得） */
+export interface RosterInventoryAttack {
+  damage: string;
+  damageType: string;
+  properties: string[];
+  normalRange?: number;
+  maxRange?: number;
+  /** 多用属性双手伤害骰 */
+  twoHandedDamage?: string;
+  /** 装填属性：当前弹匣状态 */
+  loaded?: boolean;
+}
+
+export interface RosterInventoryItem {
+  /** 战斗背包实例 ID（= Equipment.childId || id） */
+  childId: string;
+  name: string;
+  quantity: number;
+  /** 武器攻击属性；弹药/普通物品为 null */
+  attack: RosterInventoryAttack | null;
 }
 
 export interface CombatTurnState {

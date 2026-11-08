@@ -10,7 +10,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyCharacters } from '@/lib/api';
 import SpectatorBoard from '@/components/spectate/SpectatorBoard';
 import SpectatorTable from '@/components/spectate/SpectatorTable';
-import type { CombatDeltaPayload, CombatRosterEntry, PlayerActionResult } from '@/types/realtime';
+import MyTurnPanel from '@/components/spectate/MyTurnPanel';
+import type { CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult } from '@/types/realtime';
 
 const HAND_STATE_LABELS: Record<string, string> = {
   ready: '待用',
@@ -39,16 +40,11 @@ export default function PlayerSpectate() {
   // join 回调引用：自动加入（?room=）与手动加入共用
   const joinRef = useRef<(room: string) => void>(() => {});
   // 我的绑定角色：识别「自身参战者」以显示战斗面板
-  // bindError 区分「查询失败」与「查询成功但为空」——空列表与请求失败表现相同，肉眼无法排查
   const [myCharacters, setMyCharacters] = useState<{ id: string; name: string }[]>([]);
-  const [bindError, setBindError] = useState<string | null>(null);
   const myCharacterIds = new Set(myCharacters.map((c) => c.id));
-  // 回合提交（M1 通道）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
+  // 回合提交（回合批提交模型）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
   const lastDeltaSeqRef = useRef(0);
   const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
-  const [sentAt, setSentAt] = useState<number | null>(null);
-  // DO 代码版本标记（welcome 带回）：排查「Worker 已部署但 DO 还跑旧代码」
-  const [doVersion, setDoVersion] = useState('');
 
   // 绑定关系与房间无关，登录后拉一次即可
   useEffect(() => {
@@ -56,11 +52,10 @@ export default function PlayerSpectate() {
     fetchMyCharacters()
       .then((res) => {
         setMyCharacters(((res.characters ?? []) as { id: string; name: string }[]).map((c) => ({ id: c.id, name: c.name ?? '' })));
-        setBindError(null);
       })
       .catch((e) => {
         setMyCharacters([]);
-        setBindError(String(e?.message ?? e));
+        setNotice(`绑定角色查询失败：${String(e?.message ?? e)}（无法识别你的参战者）`);
       });
   }, [token]);
 
@@ -101,7 +96,6 @@ export default function PlayerSpectate() {
     client.onConnectionChange((ok) => setConnected(ok));
     client.onMessage((msg) => {
       if (msg.t === 'welcome') {
-        setDoVersion(msg.v);
         client.send({ t: 'snapshot.request' });
         return;
       }
@@ -217,6 +211,27 @@ export default function PlayerSpectate() {
             </p>
           )}
 
+          {/* 我的回合操作面板：当前回合的参战者是绑定角色时显示 */}
+          {spectate && spectate.turn && spectate.turn.combatantId && connected && (() => {
+            const actor = roster.find(
+              (c) => c.id === spectate.turn?.combatantId && c.characterId && myCharacterIds.has(c.characterId)
+            );
+            if (!actor) return null;
+            const sendRequest = (request: PlayerActionRequest) =>
+              clientRef.current?.send({ t: 'player.action', request }) ?? false;
+            return (
+              <MyTurnPanel
+                actor={actor}
+                roster={roster}
+                round={spectate.turn.round}
+                baseSeq={lastDeltaSeqRef.current}
+                send={sendRequest}
+                result={lastResult}
+                onNotice={setNotice}
+              />
+            );
+          })()}
+
           {spectate && (
             <SpectatorTable rounds={spectate.rounds ?? []} roster={roster} turn={spectate.turn} />
           )}
@@ -228,67 +243,6 @@ export default function PlayerSpectate() {
               currentCombatantId={spectate.turn?.combatantId ?? null}
             />
           )}
-
-          {spectate && (
-            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted px-1 leading-5">
-              {(() => {
-                if (bindError) return `诊断：绑定查询失败 —— ${bindError}`;
-                if (myCharacters.length === 0) return '诊断：查询成功但 D1 返回绑定列表为空（该账号无 user_characters 记录）';
-                const pcs = roster.filter((r) => r.isPc);
-                const withChar = pcs.filter((r) => r.characterId);
-                const myIds = myCharacters.slice(0, 3).map((c) => `${c.name}:${c.id}`).join(' / ');
-                const rosterIds = withChar.slice(0, 3).map((r) => `${r.name}:${r.characterId}`).join(' / ');
-                const matched = withChar.filter((r) => myCharacterIds.has(r.characterId!)).length;
-                return `诊断：绑定 ${myCharacters.length} 个（${myIds}）｜场上 PC ${pcs.length}（带绑定信息 ${withChar.length}：${rosterIds || '无'}）｜匹配我的 ${matched}`;
-              })()}
-            </p>
-          )}
-
-          {/* M1 通道测试：模拟提交回合 → DM 确认 toast → 回执显示。M2 将替换为正式操作面板 */}
-          {spectate && spectate.turn && connected && (() => {
-            const actor = roster.find((c) => c.characterId && myCharacterIds.has(c.characterId));
-            if (!actor) return null;
-            const sendTestCommit = () => {
-              const ok = clientRef.current?.send({
-                t: 'player.action',
-                request: {
-                  requestId: crypto.randomUUID(),
-                  round: spectate.turn!.round,
-                  combatantId: actor.id,
-                  baseSeq: lastDeltaSeqRef.current,
-                  action: { kind: 'turn-commit' },
-                },
-              });
-              if (!ok) {
-                setNotice('发送失败：连接未就绪');
-                return;
-              }
-              setNotice('');
-              setSentAt(Date.now());
-              setLastResult(null);
-            };
-            return (
-              <div className="flex items-center gap-2 flex-wrap px-1">
-                <button
-                  onClick={sendTestCommit}
-                  className="px-3 py-1.5 text-xs rounded-lg border border-dashed dark:border-border-dark dark:text-text-dark-muted light:border-border-light light:text-text-light-muted hover:text-primary hover:border-primary transition-colors"
-                >
-                  模拟提交回合（M1 通道测试：{actor.name} · 轮次 {spectate.turn.round} · seq {lastDeltaSeqRef.current}）
-                </button>
-                {sentAt && !lastResult && (
-                  <span className="text-xs text-amber-500">
-                    {new Date(sentAt).toLocaleTimeString()} 已发送，等待 DM 审核…
-                  </span>
-                )}
-                {lastResult && (
-                  <span className={`text-xs ${lastResult.accepted ? 'text-emerald-500' : 'text-red-500'}`}>
-                    回执：{lastResult.accepted ? '已接受' : `被拒绝（${lastResult.reason ?? '未说明'}）`}
-                  </span>
-                )}
-                {doVersion && <span className="text-xs opacity-60">房间版本 {doVersion}</span>}
-              </div>
-            );
-          })()}
 
           {spectate && (
             <MyCombatantsSection roster={roster} myCharacterIds={myCharacterIds} playback={spectate.turn?.playback === true} />

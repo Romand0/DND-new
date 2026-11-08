@@ -14,6 +14,8 @@ import { useSurprise } from '@/hooks/combat/useSurprise';
 import { useThrownDrop } from '@/hooks/combat/useThrownDrop';
 import { useForcedMove } from '@/hooks/combat/useForcedMove';
 import { useZoneEffects } from '@/hooks/combat/useZoneEffects';
+import { applyTurnCommit } from '@/lib/turnCommitApply';
+import { fetchBoundCharacters } from '@/lib/api';
 import InitiativeTable from '@/components/combat/InitiativeTable';
 import OperationLogPanel from '@/components/OperationLogPanel';
 import InitiativeRollDialog from '@/components/combat/InitiativeRollDialog';
@@ -23,6 +25,7 @@ import ManualRecordDialog from '@/components/combat/ManualRecordDialog';
 import PlaybackToolbar from '@/components/combat/PlaybackToolbar';
 import RewindDialog from '@/components/combat/RewindDialog';
 import SurpriseAttackDialog from '@/components/combat/SurpriseAttackDialog';
+import PlayerActionReviewCard from '@/components/combat/PlayerActionReviewCard';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import * as snapDb from '@/lib/combatSnapshots';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -40,6 +43,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
+import type { PlayerActionRequest } from '@/types/realtime';
 import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
@@ -248,6 +252,7 @@ export default function CombatSession() {
     takeTurnSnapshot,
     applyRollback,
     confirmEndTurn,
+    advanceTurn,
   } = useRoundTurn(record, {
     resetCombatantActions: (id: string) => resetCombatantActions(id),
     isPlaybackActive: () => isPlaybackActive(),
@@ -434,6 +439,36 @@ export default function CombatSession() {
     currentTurn,
     playbackMode: record?.mode === 'playback',
   });
+
+  // 玩家回合提交落库（回合批提交模型）：校验 → 弹药/伤害/动作/表格 → 回执
+  const applyPlayerCommit = (request: PlayerActionRequest): { ok: boolean; reason?: string } => {
+    if (!record) return { ok: false, reason: '战斗记录不可用' };
+    return applyTurnCommit({
+      record,
+      request,
+      currentRound: currentTurn?.round ?? 0,
+      applyDamage: (event) => handleApplyDamage(event),
+      consumeAction: consumeCombatantAction,
+      consumeBonusAction: consumeCombatantBonusAction,
+      advanceTurn,
+    });
+  };
+
+  // 参战者绑定映射（userId → 绑定角色 ID 集合）：审核卡校验玩家操作归属，加载失败仅降级为「未验证」
+  const [boundByUser, setBoundByUser] = useState<Map<string, Set<string>>>(new Map());
+  useEffect(() => {
+    fetchBoundCharacters()
+      .then((res) => {
+        const map = new Map<string, Set<string>>();
+        for (const b of res.characters ?? []) {
+          if (!b.boundUserId || !b.id) continue;
+          if (!map.has(b.boundUserId)) map.set(b.boundUserId, new Set());
+          map.get(b.boundUserId)!.add(b.id);
+        }
+        setBoundByUser(map);
+      })
+      .catch(() => setBoundByUser(new Map()));
+  }, []);
 
   // 专注声明（D&D 5e）：成功施展专注类法术后由 onCastResolved / onFlowResolved 调用。
   // statusIds：本次施法流程附加的状态实例 ID（防护能量的抗性等），专注结束时联动移除。
@@ -824,17 +859,15 @@ export default function CombatSession() {
               <span className="hidden md:inline">实时同步</span>
             </button>
           )}
-          {/* M1 诊断：收件箱连接与待处理数（房间/域名在下一行完整显示，顶栏放不下） */}
-          <span
-            className={`shrink-0 px-2 py-1 rounded-full text-xs ${
-              combatBroadcast.client
-                ? 'bg-primary/10 text-primary'
-                : 'bg-red-500/10 text-red-500'
-            }`}
-            title={`房间 ${combatBroadcast.roomId ?? '—'} @ ${location.host}`}
-          >
-            收件箱 {combatBroadcast.client ? '已挂载' : '未挂载'} · 待处理 {pendingPlayerActions.length}
-          </span>
+          {/* 玩家回合待审核徽标：有待处理提交时才显示（点击滚动到右下角审核卡区域由用户自行查看） */}
+          {pendingPlayerActions.length > 0 && (
+            <span
+              className="shrink-0 px-2 py-1 rounded-full text-xs bg-primary/10 text-primary animate-pulse"
+              title={`房间 ${combatBroadcast.roomId ?? '—'} @ ${location.host}`}
+            >
+              {pendingPlayerActions.length} 个回合待审核
+            </span>
+          )}
         </div>
         <div className="flex gap-2 shrink-0">
           {/* 已封存：只读横幅内的结算标识；入口隐藏 */}
@@ -2267,38 +2300,29 @@ export default function CombatSession() {
       onClose={() => setCommitModalOpen(false)}
     />
 
-    {/* 玩家回合操作确认 toast（M1 通道）：右下角堆叠，确认/拒绝均广播回执 */}
+    {/* 玩家回合提交审核卡（回合批提交模型）：右下角堆叠，ops 可读 diff + 伤害可改 → 落库或拒绝 */}
     {pendingPlayerActions.length > 0 && (
-      <div className="fixed bottom-4 right-4 z-50 space-y-2 w-72 max-w-[calc(100vw-2rem)]">
+      <div className="fixed bottom-4 right-4 z-50 space-y-2 w-80 max-w-[calc(100vw-2rem)]">
         {pendingPlayerActions.map(({ request, from }) => {
           const actor = record?.combatants.find((c) => c.id === request.combatantId);
-          const stale = request.baseSeq > 0 && combatBroadcast.connected;
+          const boundIds = boundByUser.get(from.userId);
+          const boundOk = boundIds ? (actor?.characterId ? boundIds.has(actor.characterId) : false) : null;
+          const roundOk = request.round === (currentTurn?.round ?? 0);
           return (
-            <div key={request.requestId} className="p-3 rounded-xl border shadow-lg dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light space-y-2">
-              <div className="flex items-center gap-1.5 text-sm font-bold dark:text-text-dark light:text-text-light">
-                <Swords className="w-4 h-4 text-primary shrink-0" />
-                玩家回合提交
-              </div>
-              <div className="text-xs space-y-0.5 dark:text-text-dark-muted light:text-text-light-muted">
-                <p>行动者：{actor?.name ?? request.combatantId.slice(0, 8)}</p>
-                <p>发起者：{from.userId.slice(0, 8)}…（{from.role}）</p>
-                <p>轮次 {request.round} · 基准 seq {request.baseSeq}{stale ? '（M2 校验）' : ''}</p>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => resolvePlayerAction(request.requestId, true)}
-                  className="flex-1 py-1.5 text-xs rounded-lg bg-primary text-white hover:bg-primary-dark transition-colors"
-                >
-                  接受（M2 落库）
-                </button>
-                <button
-                  onClick={() => resolvePlayerAction(request.requestId, false, 'DM 拒绝了该回合提交')}
-                  className="flex-1 py-1.5 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-danger/10 hover:text-danger transition-colors"
-                >
-                  拒绝
-                </button>
-              </div>
-            </div>
+            <PlayerActionReviewCard
+              key={request.requestId}
+              request={request}
+              fromName={from.role === 'player' ? `玩家 ${from.userId.slice(0, 8)}…` : from.role}
+              actorName={actor?.name ?? request.combatantId.slice(0, 8)}
+              boundOk={boundOk}
+              roundOk={roundOk}
+              currentRound={currentTurn?.round ?? 0}
+              onApply={(ops) => {
+                const outcome = applyPlayerCommit({ ...request, action: { ops } });
+                resolvePlayerAction(request.requestId, outcome.ok, outcome.reason);
+              }}
+              onReject={(reason) => resolvePlayerAction(request.requestId, false, reason)}
+            />
           );
         })}
       </div>

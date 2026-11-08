@@ -6,9 +6,10 @@
 import { useEffect, useRef, useState } from 'react';
 import combatStore, { getCombatInventory } from '@/data/combatStore';
 import battlegroundStore from '@/data/battlegroundStore';
+import { characterStore } from '@/data/characterStore';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
-import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterHandInfo } from '@/types/realtime';
+import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterHandInfo, RosterInventoryItem } from '@/types/realtime';
 import { TURN_TODO_TYPE_LABELS } from '@/types/combat';
 import type { CombatRecord, Combatant } from '@/types/combat';
 import type { HandSlot } from '@/types/character';
@@ -21,6 +22,32 @@ function projectHand(record: CombatRecord, c: Combatant, slot: HandSlot | undefi
   if (!equipmentId) return null;
   const eq = getCombatInventory(record, c).find((e) => (e.childId || e.id) === equipmentId);
   return { name: eq?.name ?? '未知装备', state: slot.state };
+}
+
+/** PC 战斗背包 → 投影：武器附带攻击属性快照（角色卡 attacks 按名匹配，玩家端零解析）。
+ *  NPC 无角色卡源，返回 null。攻击属性属桌面公开信息（武器可见即骰面可见）。 */
+function projectInventory(record: CombatRecord, c: Combatant): RosterInventoryItem[] | null {
+  if (!c.isPc) return null;
+  const character = c.characterId ? characterStore.get(c.characterId) : null;
+  return getCombatInventory(record, c).map((eq) => {
+    const atk = character?.attacks.find((a) => a.name === eq.name) ?? null;
+    return {
+      childId: eq.childId || eq.id,
+      name: eq.name,
+      quantity: eq.quantity ?? 1,
+      attack: atk
+        ? {
+            damage: atk.damage,
+            damageType: atk.damageType,
+            properties: atk.properties,
+            normalRange: atk.normalRange,
+            maxRange: atk.maxRange,
+            twoHandedDamage: atk.twoHandedDamage,
+            loaded: atk.loaded,
+          }
+        : null,
+    };
+  });
 }
 
 /** 沙盘 → 玩家投影：剔除 equipmentData（背包隐私）/moveHistory/hitRounds 等 DM 侧数据 */
@@ -74,6 +101,7 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
           typeLabel: t.type ? TURN_TODO_TYPE_LABELS[t.type] : '提醒',
           executed: t.executed,
         })),
+      inventory: projectInventory(record, c),
     };
   });
   const turn = record.playbackState?.started
