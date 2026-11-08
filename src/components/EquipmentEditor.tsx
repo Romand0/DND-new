@@ -21,6 +21,7 @@ const PROPERTY_OPTIONS = ['轻型', '灵巧', '多功能', '重型', '双手', '
 const DAMAGE_TYPES = ['穿刺', '钝击', '挥砍', '火焰', '冰冻', '闪电', '光', '黯蚀', '心灵', '毒素', '力场', '声波', '神力'];
 const MAGIC_OPTIONS = ['非魔法物品', '魔法物品'] as const;
 const TRADE_OPTIONS = ['冒险物品', '贵重物品'] as const;
+const RARITY_OPTIONS = ['普通', '非普通', '珍稀', '极珍稀', '传说', '特殊', '多种稀有度'];
 
 export default function EquipmentEditor({
   item, isStatic = false, showQuantity = false, showPackSize = false,
@@ -47,6 +48,14 @@ const [formData, setFormData] = useState<
   source: '',
   magicCategory: '非魔法物品',
   tradeCategory: '冒险物品',
+  rarity: '',
+  attunement: false,
+  attunePrereq: '',
+  magicBonus: 0,
+  charges: 0,
+  chargeRegen: '',
+  cursed: false,
+  activation: '',
   quantity: showQuantity ? 1 : undefined,
   unit: '',
   packSize: undefined,  
@@ -83,11 +92,19 @@ const [formData, setFormData] = useState<
   source: item.source || '',
   magicCategory: item.magicCategory ?? '非魔法物品',
   tradeCategory: item.tradeCategory ?? '冒险物品',
+  // 魔法物品专属属性：编辑保存时不能丢
+  rarity: item.rarity ?? '',
+  attunement: item.attunement ?? false,
+  attunePrereq: item.attunePrereq ?? '',
+  magicBonus: item.magicBonus ?? 0,
+  charges: item.charges ?? 0,
+  chargeRegen: item.chargeRegen ?? '',
+  cursed: item.cursed ?? false,
+  activation: item.activation ?? '',
   quantity: (item as any).quantity ?? (item as any).packSize ?? 1,
   unit: (item as any).unit || '',
   packSize: (item as any).packSize,
   // 法术卷轴 / 材料身份字段：编辑保存时不能丢，否则物化后的装备无法关联法术
-  rarity: (item as any).rarity,
   scrollSpellId: (item as any).scrollSpellId,
   scrollSpellName: (item as any).scrollSpellName,
   scrollSpellLevel: (item as any).scrollSpellLevel,
@@ -118,6 +135,16 @@ const [formData, setFormData] = useState<
       properties: [],
       tags: [],
       source: '',
+      magicCategory: '非魔法物品',
+      tradeCategory: '冒险物品',
+      rarity: '',
+      attunement: false,
+      attunePrereq: '',
+      magicBonus: 0,
+      charges: 0,
+      chargeRegen: '',
+      cursed: false,
+      activation: '',
       quantity: showQuantity ? 1 : undefined,
     });
     setCustomCategory('');
@@ -380,6 +407,124 @@ const [formData, setFormData] = useState<
                 </select>
               </div>
             </div>
+
+            {formData.magicCategory === '魔法物品' && (
+              <div className="space-y-3 rounded-lg border p-3 dark:border-border-dark light:border-border-light">
+                <div className="text-sm font-medium dark:text-text-dark light:text-text-light">魔法物品属性</div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      稀有度
+                    </label>
+                    <input
+                      type="text"
+                      list="magic-rarity-options"
+                      value={formData.rarity || ''}
+                      onChange={(e) => setFormData({ ...formData, rarity: e.target.value })}
+                      placeholder="如：珍稀 / 极珍稀或传说"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                    <datalist id="magic-rarity-options">
+                      {RARITY_OPTIONS.map((option) => (
+                        <option key={option} value={option} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      激活方式
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.activation || ''}
+                      onChange={(e) => setFormData({ ...formData, activation: e.target.value })}
+                      placeholder="如：命令词 / 用一个动作"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.attunement}
+                      onChange={(e) => setFormData({ ...formData, attunement: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                    需要同调
+                  </label>
+                  <label className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.cursed}
+                      onChange={(e) => setFormData({ ...formData, cursed: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                    被诅咒
+                  </label>
+                </div>
+                {formData.attunement && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      同调先决条件
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.attunePrereq || ''}
+                      onChange={(e) => setFormData({ ...formData, attunePrereq: e.target.value })}
+                      placeholder="如：法师 / 施法者 / 善良阵营生物"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      魔法加值
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.magicBonus ?? 0}
+                      onChange={(e) => {
+                        const n = parseInt(e.target.value);
+                        setFormData({ ...formData, magicBonus: isNaN(n) ? 0 : n });
+                      }}
+                      placeholder="0"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      初始充能
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.charges ?? 0}
+                      onChange={(e) => {
+                        const n = parseInt(e.target.value);
+                        setFormData({ ...formData, charges: isNaN(n) ? 0 : n });
+                      }}
+                      placeholder="0"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                </div>
+                {typeof formData.charges === 'number' && formData.charges > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      充能恢复规则
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.chargeRegen || ''}
+                      onChange={(e) => setFormData({ ...formData, chargeRegen: e.target.value })}
+                      placeholder="如：每天黎明恢复1d3发已消耗的充能"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
           {formData.category === '自定义' || !CATEGORIES.includes(formData.category) ? (
             <div>
