@@ -22,6 +22,18 @@ function opText(op: TurnCommitOp): string {
     const cost = op.actionCost === 'action' ? '（主动作）' : op.actionCost === 'bonus' ? '（附赠动作）' : '';
     return `行动：${op.roundText}${cost}`;
   }
+  if (op.kind === 'move') {
+    return `移动：到（第 ${op.to.col + 1} 列，第 ${op.to.row + 1} 行）`;
+  }
+  if (op.kind === 'cast') {
+    const cost = op.actionCost === 'action' ? '（主动作）' : op.actionCost === 'bonus' ? '（附赠动作）' : '';
+    const slot = op.slotLevel > 0 ? `${op.slotLevel} 环` : '戏法';
+    const conc = op.concentration ? '，专注' : '';
+    return `施法：${op.spellName}（${slot}${conc}）${op.targetName ? ` → ${op.targetName}` : ''}${cost}`;
+  }
+  if (op.kind === 'ready-item') {
+    return op.itemName ? `换持：${op.slot === 'left' ? '左手' : '右手'} → ${op.itemName}` : `放下${op.slot === 'left' ? '左手' : '右手'}物品`;
+  }
   const roll = `d20 ${op.d20}+${op.bonus}=${op.d20 + op.bonus}`;
   const verdict = op.critical ? '暴击命中' : op.hit ? '命中' : '未命中';
   const ammo = op.ammoCount ? `，弹药 -${op.ammoCount}` : '';

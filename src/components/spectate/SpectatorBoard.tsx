@@ -1,27 +1,47 @@
-// 玩家观战棋盘：只读渲染 DM 广播的沙盘投影（棋子/物品/墙体/地形区域）
-// 无交互编辑；格子大小三档缩放；网格线用 linear-gradient 绘制避免上千个 DOM 格子
-// 视觉规格与 DM 侧 Battleground 对齐：同色 token（info/danger）、同状态样式（昏迷灰/失能紫环/回合黄环脉冲/死亡红叉）
-import { useState } from 'react';
+// 玩家观战棋盘：渲染 DM 广播的沙盘投影（棋子/物品/墙体/地形区域）
+// 自己的参战者棋子可拖拽声明移动（仅生成 move op，DM 端审核/落库后经 delta 回显）
+// 无长按/双指缩放链（DM 端 Battleground 的复杂触摸交互在玩家端刻意省略）；格子三档缩放
+import { useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import { ZoomIn, ZoomOut, Package } from 'lucide-react';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { BoardProjection, CombatRosterEntry } from '@/types/realtime';
 
 const CELL_SIZES = [14, 18, 24];
 
+interface DragState {
+  combatantId: string;
+  /** 指针相对棋子左上角的偏移（px，棋盘坐标系） */
+  dx: number;
+  dy: number;
+  /** 指针当前位置（px，棋盘坐标系） */
+  x: number;
+  y: number;
+}
+
 export default function SpectatorBoard({
   board,
   roster,
   currentCombatantId,
+  movableIds,
+  onMoveToken,
 }: {
   board: BoardProjection;
   roster: CombatRosterEntry[];
   currentCombatantId: string | null;
+  /** 可拖拽的参战者 ID（玩家自己的 PC）；空/缺省 = 全只读 */
+  movableIds?: string[];
+  onMoveToken?: (combatantId: string, to: { col: number; row: number }) => void;
 }) {
   const [cellIdx, setCellIdx] = useState(1);
   const cell = CELL_SIZES[cellIdx];
   const preset = GRID_PRESETS[board.size];
   const width = preset.cols * cell;
   const height = preset.rows * cell;
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const [drag, setDrag] = useState<DragState | null>(null);
+  const movableSet = new Set(movableIds ?? []);
+  const canDrag = movableSet.size > 0 && !!onMoveToken;
 
   const byId = new Map(roster.map((r) => [r.id, r]));
   const paintedSet = new Set(board.painted);
@@ -59,7 +79,7 @@ export default function SpectatorBoard({
       </div>
 
       <div className="overflow-auto max-h-[60vh] rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light-2">
-        <div className="relative shrink-0" style={{ width, height }}>
+        <div ref={boardRef} className="relative shrink-0" style={{ width, height }}>
           {/* 网格线：双层 overlay 随主题切换（对齐 DM 格线色 border-dark/40 / border-light/40） */}
           <div
             className="absolute inset-0 pointer-events-none hidden dark:block"
@@ -122,11 +142,57 @@ export default function SpectatorBoard({
             </div>
           ))}
 
-          {/* 参战者棋子：圆形首字，状态样式与 DM 侧一致 */}
+          {/* 拖拽落点预览格 */}
+          {drag && (() => {
+            const col = Math.min(preset.cols - 1, Math.max(0, Math.round((drag.x - drag.dx - 3) / cell)));
+            const row = Math.min(preset.rows - 1, Math.max(0, Math.round((drag.y - drag.dy - 3) / cell)));
+            return (
+              <div
+                className="absolute bg-green-400/40 border-2 border-green-500 pointer-events-none z-20"
+                style={{ left: col * cell, top: row * cell, width: cell, height: cell }}
+              />
+            );
+          })()}
+
+          {/* 参战者棋子：圆形首字，状态样式与 DM 侧一致；自己的 PC 可拖拽声明移动 */}
           {board.tokens.map((t) => {
             const r = byId.get(t.combatantId);
             if (!r) return null;
             const isCurrent = currentCombatantId === t.combatantId;
+            const droppable = canDrag && movableSet.has(t.combatantId) && !r.dead && !r.downed;
+            const dragging = drag?.combatantId === t.combatantId;
+            const restLeft = t.col * cell + 3;
+            const restTop = t.row * cell + 3;
+            const dragLeft = dragging && drag ? drag.x - drag.dx : restLeft;
+            const dragTop = dragging && drag ? drag.y - drag.dy : restTop;
+            const grab = (e: ReactPointerEvent<HTMLDivElement>) => {
+              const rect = boardRef.current?.getBoundingClientRect();
+              if (!rect) return;
+              e.preventDefault();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              setDrag({
+                combatantId: t.combatantId,
+                dx: e.clientX - rect.left - restLeft,
+                dy: e.clientY - rect.top - restTop,
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top,
+              });
+            };
+            const track = (e: ReactPointerEvent<HTMLDivElement>) => {
+              if (!drag || drag.combatantId !== t.combatantId) return;
+              const rect = boardRef.current?.getBoundingClientRect();
+              if (!rect) return;
+              setDrag({ ...drag, x: e.clientX - rect.left, y: e.clientY - rect.top });
+            };
+            const drop = () => {
+              if (!drag || drag.combatantId !== t.combatantId) return;
+              const col = Math.min(preset.cols - 1, Math.max(0, Math.round((drag.x - drag.dx - 3) / cell)));
+              const row = Math.min(preset.rows - 1, Math.max(0, Math.round((drag.y - drag.dy - 3) / cell)));
+              setDrag(null);
+              if ((col !== t.col || row !== t.row) && onMoveToken) {
+                onMoveToken(t.combatantId, { col, row });
+              }
+            };
             return (
               <div
                 key={t.combatantId}
@@ -135,14 +201,21 @@ export default function SpectatorBoard({
                   r.dead || r.downed ? 'bg-gray-500' : r.isPc ? 'bg-info' : 'bg-danger'
                 } ${r.dead || r.downed ? 'opacity-60' : ''} ${
                   r.incapacitated ? 'opacity-50 ring-2 ring-purple-400' : ''
-                } ${isCurrent ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''}`}
+                } ${isCurrent ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''} ${
+                  droppable ? 'cursor-grab active:cursor-grabbing' : ''
+                } ${dragging ? 'scale-110 shadow-xl' : ''}`}
                 style={{
-                  left: t.col * cell + 3,
-                  top: t.row * cell + 3,
+                  left: dragLeft,
+                  top: dragTop,
                   width: cell - 6,
                   height: cell - 6,
                   fontSize: cell > 22 ? 11 : 9,
+                  touchAction: 'none',
                 }}
+                onPointerDown={droppable ? grab : undefined}
+                onPointerMove={droppable ? track : undefined}
+                onPointerUp={droppable ? drop : undefined}
+                onPointerCancel={droppable ? () => setDrag(null) : undefined}
               >
                 {r.name.slice(0, 1)}
                 {/* 死亡：红叉叠加 */}

@@ -1,10 +1,15 @@
-// 玩家回合操作面板：玩家在自己回合内本地执行攻击/备注操作，打包成 ops 批提交给 DM。
-// 数据来源全部为观战投影（inventory 攻击属性快照 / roster HP-AC），本地零解析；
+// 玩家回合操作面板：玩家在自己回合内本地执行攻击/施法/移动/换持/备注操作，打包成 ops 批提交给 DM。
+// 数据来源：观战投影（inventory 攻击快照 / spells 法术列表 / roster HP-AC）+ 本人角色卡（攻击加值自动算）。
 // 提交走 player.action（回合批提交模型），回执 accepted 清空、rejected 保留重改。
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Dices, Plus, Send, Trash2, X } from 'lucide-react';
 import { useNumberInput, useTextInput } from '@/hooks/useInput';
-import type { CombatRosterEntry, PlayerActionRequest, PlayerActionResult, TurnCommitOp, TurnCommitPayload } from '@/types/realtime';
+import { calcAttackBonus } from '@/lib/attackBonus';
+import { rollDice } from '@/data/diceService';
+import { fetchCharacter } from '@/lib/api';
+import { isOneActionCast, isBonusActionCast } from '@/types/combat';
+import type { Character } from '@/types/character';
+import type { BoardProjection, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterInventoryItem, RosterSpellEntry, TurnCommitOp, TurnCommitPayload } from '@/types/realtime';
 
 const AMMO_MAP: Record<string, string[]> = {
   短弓: ['箭矢'],
@@ -28,10 +33,25 @@ interface Props {
   /** DM 回执（页面 WS 层转发；requestId 匹配本面板最近提交才展示） */
   result: (PlayerActionResult & { at: number }) | null;
   onNotice: (msg: string) => void;
+  /** ops 由页面层持有（沙盘拖拽与本面板共享同一操作列表） */
+  ops: TurnCommitOp[];
+  onOpsChange: (updater: (prev: TurnCommitOp[]) => TurnCommitOp[]) => void;
+  /** 沙盘投影：射程/触及提示用（棋盘未开启时为 null） */
+  board?: BoardProjection | null;
 }
 
-export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice }: Props) {
-  const [ops, setOps] = useState<TurnCommitOp[]>([]);
+/** 解析武器伤害骰 "2d6+3" / "1d8" / "1d4-1"；解析失败返回 null（禁用掷骰按钮） */
+function parseDamageDice(damage: string): { count: number; sides: number; flat: number } | null {
+  const m = /^(\d+)\s*d\s*(\d+)\s*(?:([+-])\s*(\d+))?$/.exec(damage.trim());
+  if (!m) return null;
+  const count = parseInt(m[1], 10);
+  const sides = parseInt(m[2], 10);
+  if (!count || !sides) return null;
+  const flat = m[3] ? (m[3] === '-' ? -1 : 1) * parseInt(m[4], 10) : 0;
+  return { count, sides, flat };
+}
+
+export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board }: Props) {
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
   const myResult = result && result.requestId === lastRequestId ? result : null;
@@ -39,7 +59,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
   // 回执到达：入账成功清空操作列表与提交态；拒绝保留 ops 供修改后重交
   useEffect(() => {
     if (myResult?.accepted) {
-      setOps([]);
+      onOpsChange(() => []);
       setSentAt(null);
       setLastRequestId(null);
     }
@@ -60,6 +80,38 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
 
   const selectedWeapon = weapons.find((w) => w.childId === weaponChildId) ?? weapons[0] ?? null;
   const target = targets.find((t) => t.id === targetId) ?? targets[0] ?? null;
+
+  // 本人角色卡：攻击加值自动计算（拉取失败则退回手填）
+  const [character, setCharacter] = useState<Character | null>(null);
+  useEffect(() => {
+    let alive = true;
+    if (!actor.characterId) return;
+    fetchCharacter<Character>(actor.characterId)
+      .then((c) => {
+        if (alive) setCharacter(c);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [actor.characterId]);
+
+  const autoBonus = useMemo(() => {
+    if (!character || !selectedWeapon?.attack) return null;
+    return calcAttackBonus(
+      { name: selectedWeapon.name, subtype: selectedWeapon.attack.subtype, properties: selectedWeapon.attack.properties },
+      character
+    ).bonus;
+  }, [character, selectedWeapon]);
+
+  // 换武器时用自动加值覆盖手填值；角色卡未就绪时保持手填
+  const prevAutoBonusRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (autoBonus != null && autoBonus !== prevAutoBonusRef.current) {
+      prevAutoBonusRef.current = autoBonus;
+      bonusInput.setExternal(autoBonus);
+    }
+  }, [autoBonus]);
 
   const ammoInfo = useMemo(() => {
     if (!selectedWeapon?.attack) return null;
@@ -87,9 +139,36 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
   const miss = d20 === 1;
   const hit = !miss && (critical || total >= ac);
 
+  // 射程/触及提示：切比雪夫距离 × 5 尺（与 DM 端沙盘同规则）
+  const selfTok = board?.tokens.find((t) => t.combatantId === actor.id) ?? null;
+  const tgtTok = target ? board?.tokens.find((t) => t.combatantId === target.id) ?? null : null;
+  const distanceCells = selfTok && tgtTok ? Math.max(Math.abs(selfTok.col - tgtTok.col), Math.abs(selfTok.row - tgtTok.row)) : null;
+  const rangeHints = useMemo(() => {
+    const atk = selectedWeapon?.attack;
+    if (!atk || distanceCells == null) return [] as { level: 'warn' | 'block'; text: string }[];
+    const props = atk.properties ?? [];
+    const isRanged = props.includes('弹药') || props.includes('投掷') || (atk.normalRange ?? 0) > 0;
+    const feet = distanceCells * 5;
+    const hints: { level: 'warn' | 'block'; text: string }[] = [];
+    if (isRanged) {
+      if (atk.maxRange && feet > atk.maxRange) {
+        hints.push({ level: 'block', text: `超出最大射程（${feet} 尺 > ${atk.maxRange} 尺），无法攻击` });
+      } else if (atk.normalRange && feet > atk.normalRange) {
+        hints.push({ level: 'warn', text: `远距攻击（${feet} 尺 > 常规 ${atk.normalRange} 尺）：d20 劣势，请掷两次取低` });
+      } else if (distanceCells === 1 && !props.includes('投掷')) {
+        hints.push({ level: 'warn', text: '5 尺内有近身敌人：远程攻击劣势，请掷两次取低' });
+      }
+    } else if (distanceCells > 1) {
+      hints.push({ level: 'warn', text: `目标距离 ${feet} 尺，超出近战触及（5 尺）` });
+    }
+    return hints;
+  }, [selectedWeapon, distanceCells]);
+  const rangeBlocked = rangeHints.some((h) => h.level === 'block');
+
   const addAttackOp = () => {
     if (!target) return onNotice('请选择攻击目标');
     if (!selectedWeapon) return onNotice('没有可用武器，请添加备注行动或直接结束回合');
+    if (rangeBlocked) return onNotice(rangeHints.find((h) => h.level === 'block')?.text ?? '目标超出射程');
     if (ammoInfo && (!ammoInfo.ammo || ammoInfo.ammo.quantity <= 0)) {
       return onNotice(`${selectedWeapon.name} 需要弹药（${(AMMO_MAP[selectedWeapon.name] ?? []).join('/')}），背包投影中未找到`);
     }
@@ -101,7 +180,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
     const roundText = `用${wName}攻击${tName}：${rollText} ${critical ? '暴击命中' : hit ? '命中' : '未命中'}${
       hit ? `，${dmg} 点${damageType}伤害` : ''
     }`;
-    setOps((prev) => [
+    onOpsChange((prev) => [
       ...prev,
       {
         kind: 'attack',
@@ -118,13 +197,25 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
         roundText,
       },
     ]);
+  };
 
+  const rollDamage = () => {
+    const atk = selectedWeapon?.attack;
+    if (!atk) return;
+    const dice = parseDamageDice(atk.damage);
+    if (!dice) return onNotice(`伤害骰「${atk.damage}」无法解析，请手填伤害量`);
+    const count = critical ? dice.count * 2 : dice.count;
+    const rolled = rollDice({ sides: dice.sides as 4 | 6 | 8 | 10 | 12 | 20, count, mode: 'sum' });
+    const total_ = Math.max(0, rolled.total + dice.flat);
+    dmgInput.setExternal(total_);
+    if (DAMAGE_TYPES.includes(atk.damageType)) setDamageType(atk.damageType);
+    onNotice(`掷伤害 ${count}d${dice.sides}${dice.flat ? (dice.flat > 0 ? `+${dice.flat}` : dice.flat) : ''} = ${total_}${critical ? '（暴击骰数翻倍）' : ''}`);
   };
 
   const addNoteOp = () => {
     const text = noteInput.value.trim();
     if (!text) return onNotice('请填写行动内容');
-    setOps((prev) => [
+    onOpsChange((prev) => [
       ...prev,
       {
         kind: 'note',
@@ -133,7 +224,81 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
       },
     ]);
     noteInput.reset();
+  };
 
+  // ── 施法 ──
+  const spells: RosterSpellEntry[] = actor.spells ?? [];
+  const [spellId, setSpellId] = useState<string>('');
+  const selectedSpell = spells.find((s) => s.id === spellId) ?? spells[0] ?? null;
+  const [spellTargetId, setSpellTargetId] = useState<string>('');
+  const spellTarget = spellTargetId ? targets.find((t) => t.id === spellTargetId) ?? null : null;
+  const spellActionCost: 'action' | 'bonus' | null = useMemo(() => {
+    const ct = selectedSpell?.castingTime ?? '';
+    if (!ct) return null;
+    if (isBonusActionCast(ct)) return 'bonus';
+    if (isOneActionCast(ct)) return 'action';
+    return null;
+  }, [selectedSpell]);
+  const spellSlot = selectedSpell && selectedSpell.level > 0 ? (actor.spellSlots ?? []).find((s) => s.level === selectedSpell.level) ?? null : null;
+  const spellSlotAvailable = selectedSpell?.level > 0 ? (spellSlot ? spellSlot.max - spellSlot.used > 0 : false) : true;
+
+  const addCastOp = () => {
+    if (!selectedSpell) return onNotice('角色卡没有可施放的法术');
+    if (selectedSpell.level > 0 && !spellSlotAvailable) {
+      return onNotice(`${selectedSpell.name} 需要 ${selectedSpell.level} 环法术位，当前已用尽`);
+    }
+    const slotText = selectedSpell.level > 0 ? `，消耗 ${selectedSpell.level} 环法术位` : '（戏法）';
+    const roundText = `施放 ${selectedSpell.name}${spellTarget ? `（目标 ${spellTarget.name}）` : ''}${slotText}${
+      selectedSpell.concentration ? '，需要专注' : ''
+    }`;
+    onOpsChange((prev) => [
+      ...prev,
+      {
+        kind: 'cast',
+        spellId: selectedSpell.id,
+        spellName: selectedSpell.name,
+        slotLevel: selectedSpell.level > 0 ? selectedSpell.level : 0,
+        ...(spellTarget ? { targetId: spellTarget.id, targetName: spellTarget.name } : {}),
+        ...(selectedSpell.concentration ? { concentration: true } : {}),
+        actionCost: spellActionCost,
+        roundText,
+      },
+    ]);
+  };
+
+  // ── 换持 ──
+  const inventory: RosterInventoryItem[] = actor.inventory ?? [];
+  const itemByChildId = useMemo(() => new Map(inventory.map((i) => [i.childId, i])), [inventory]);
+  const childIdByName = (name?: string | null) => (name ? inventory.find((i) => i.name === name)?.childId ?? '' : '');
+  const [leftSel, setLeftSel] = useState<string>(() => childIdByName(actor.heldLeft?.name));
+  const [rightSel, setRightSel] = useState<string>(() => childIdByName(actor.heldRight?.name));
+
+  const addReadyOps = () => {
+    const curLeft = childIdByName(actor.heldLeft?.name);
+    const curRight = childIdByName(actor.heldRight?.name);
+    const pending: TurnCommitOp[] = [];
+    if (leftSel !== curLeft) {
+      const item = leftSel ? itemByChildId.get(leftSel) : null;
+      pending.push({
+        kind: 'ready-item',
+        slot: 'left',
+        childId: leftSel || null,
+        itemName: item?.name ?? null,
+        roundText: item ? `左手换持为 ${item.name}` : '放下左手物品',
+      });
+    }
+    if (rightSel !== curRight) {
+      const item = rightSel ? itemByChildId.get(rightSel) : null;
+      pending.push({
+        kind: 'ready-item',
+        slot: 'right',
+        childId: rightSel || null,
+        itemName: item?.name ?? null,
+        roundText: item ? `右手换持为 ${item.name}` : '放下右手物品',
+      });
+    }
+    if (pending.length === 0) return onNotice('手持没有变化');
+    onOpsChange((prev) => [...prev, ...pending]);
   };
 
   const submit = () => {
@@ -211,8 +376,15 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
             {selectedWeapon.attack.normalRange ? ` · 射程 ${selectedWeapon.attack.normalRange}/${selectedWeapon.attack.maxRange ?? selectedWeapon.attack.normalRange} 尺` : ''}
             {selectedWeapon.attack.properties.length > 0 ? ` · ${selectedWeapon.attack.properties.join('、')}` : ''}
             {ammoInfo ? ` · 弹药 ${ammoInfo.ammo?.quantity ?? 0}` : ''}
+            {distanceCells != null ? ` · 距目标 ${distanceCells * 5} 尺` : ''}
           </p>
         )}
+
+        {rangeHints.map((h, i) => (
+          <p key={i} className={`text-xs font-medium ${h.level === 'block' ? 'text-red-500' : 'text-amber-500'}`}>
+            {h.text}
+          </p>
+        ))}
 
         <div className="grid grid-cols-4 gap-2 items-end">
           <label className="space-y-1">
@@ -228,7 +400,9 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
             />
           </label>
           <label className="space-y-1">
-            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">加值</span>
+            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+              加值{autoBonus != null ? '（自动）' : ''}
+            </span>
             <input
               type="number"
               value={bonusInput.text}
@@ -265,6 +439,19 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           </label>
         </div>
 
+        <div className="flex items-center gap-2 flex-wrap">
+          {selectedWeapon?.attack && parseDamageDice(selectedWeapon.attack.damage) && (
+            <button
+              onClick={rollDamage}
+              disabled={!hit}
+              className="px-2.5 py-1 rounded-lg border text-xs dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:opacity-80 transition-opacity disabled:opacity-40"
+            >
+              掷伤害骰{critical ? '（暴击翻倍）' : ''}
+            </button>
+          )}
+          {autoBonus != null && <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">自动加值按角色卡计算，可手动修改</span>}
+        </div>
+
         {d20 >= 1 && d20 <= 20 && target && (
           <p className={`text-xs font-medium ${critical ? 'text-amber-500' : hit ? 'text-emerald-500' : 'text-red-500'}`}>
             {d20 === 1 ? '大失败（恒未命中）' : critical ? '暴击！（d20=20 恒命中）' : `${total} vs AC ${ac} → ${hit ? '命中' : '未命中'}`}
@@ -279,6 +466,116 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           记入攻击
         </button>
       </div>
+
+      {/* 施法表单 */}
+      {spells.length > 0 && (
+        <div className="rounded-lg p-3 space-y-2 text-sm dark:bg-bg-dark light:bg-bg-light-2">
+          <div className="font-medium dark:text-text-dark light:text-text-light">施法</div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1">
+              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">法术</span>
+              <select
+                value={selectedSpell?.id ?? ''}
+                onChange={(e) => setSpellId(e.target.value)}
+                className="w-full px-2 py-1.5 rounded-lg border text-sm dark:bg-card-dark dark:border-border-dark dark:text-text-dark light:bg-card-light light:border-border-light light:text-text-light"
+              >
+                {spells.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}（{s.level === 0 ? '戏法' : `${s.level} 环`}）
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">目标（可选）</span>
+              <select
+                value={spellTargetId}
+                onChange={(e) => setSpellTargetId(e.target.value)}
+                className="w-full px-2 py-1.5 rounded-lg border text-sm dark:bg-card-dark dark:border-border-dark dark:text-text-dark light:bg-card-light light:border-border-light light:text-text-light"
+              >
+                <option value="">（无目标 / 自身 / 范围）</option>
+                {targets.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {selectedSpell && (
+            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+              施法时间 {selectedSpell.castingTime || '未知'}
+              {spellActionCost ? ` · 消耗${spellActionCost === 'action' ? '主动作' : '附赠动作'}` : ' · 不占动作'}
+              {selectedSpell.level > 0 && spellSlot ? ` · ${spellSlot.label} 剩余 ${spellSlot.max - spellSlot.used}/${spellSlot.max}` : ''}
+            </p>
+          )}
+          {selectedSpell?.level > 0 && !spellSlotAvailable && (
+            <p className="text-xs font-medium text-red-500">{selectedSpell.level} 环法术位已用尽，无法施放</p>
+          )}
+          {selectedSpell?.concentration && (
+            <p className="text-xs font-medium text-amber-500">专注法术：施放后进入专注状态（再施放新专注法术会打断旧的）</p>
+          )}
+
+          <button
+            onClick={addCastOp}
+            disabled={!!selectedSpell && selectedSpell.level > 0 && !spellSlotAvailable}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            记入施法
+          </button>
+        </div>
+      )}
+
+      {/* 换持 */}
+      {inventory.length > 0 && (
+        <div className="rounded-lg p-3 space-y-2 text-sm dark:bg-bg-dark light:bg-bg-light-2">
+          <div className="font-medium dark:text-text-dark light:text-text-light">换持武器 / 物品</div>
+          <div className="grid grid-cols-2 gap-2">
+            <label className="space-y-1">
+              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">左手（当前 {actor.heldLeft?.name ?? '空'}）</span>
+              <select
+                value={leftSel}
+                onChange={(e) => setLeftSel(e.target.value)}
+                className="w-full px-2 py-1.5 rounded-lg border text-sm dark:bg-card-dark dark:border-border-dark dark:text-text-dark light:bg-card-light light:border-border-light light:text-text-light"
+              >
+                <option value="">（空手）</option>
+                {inventory.map((i) => (
+                  <option key={i.childId} value={i.childId}>
+                    {i.name}
+                    {i.quantity > 1 ? ` ×${i.quantity}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">右手（当前 {actor.heldRight?.name ?? '空'}）</span>
+              <select
+                value={rightSel}
+                onChange={(e) => setRightSel(e.target.value)}
+                className="w-full px-2 py-1.5 rounded-lg border text-sm dark:bg-card-dark dark:border-border-dark dark:text-text-dark light:bg-card-light light:border-border-light light:text-text-light"
+              >
+                <option value="">（空手）</option>
+                {inventory.map((i) => (
+                  <option key={i.childId} value={i.childId}>
+                    {i.name}
+                    {i.quantity > 1 ? ` ×${i.quantity}` : ''}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">物品互动（拔/收一件武器）通常免费；第二次起 DM 可能要求消耗动作</p>
+          <button
+            onClick={addReadyOps}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:opacity-80 transition-opacity"
+          >
+            <Plus className="w-4 h-4" />
+            记入换持
+          </button>
+        </div>
+      )}
 
       {/* 备注行动 */}
       <div className="rounded-lg p-3 space-y-2 text-sm dark:bg-bg-dark light:bg-bg-light-2">
@@ -324,7 +621,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
                 {op.kind === 'end-turn' ? '结束回合' : op.roundText}
               </span>
               <button
-                onClick={() => setOps((prev) => prev.filter((_, idx) => idx !== i))}
+                onClick={() => onOpsChange((prev) => prev.filter((_, idx) => idx !== i))}
                 className="shrink-0 text-danger hover:opacity-70 transition-opacity"
               >
                 <Trash2 className="w-4 h-4" />

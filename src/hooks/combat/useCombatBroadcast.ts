@@ -9,11 +9,12 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
-import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterHandInfo, RosterInventoryItem, RosterSpellSlot } from '@/types/realtime';
+import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterHandInfo, RosterInventoryItem, RosterSpellEntry, RosterSpellSlot } from '@/types/realtime';
 import { TURN_TODO_TYPE_LABELS } from '@/types/combat';
 import type { CombatRecord, Combatant } from '@/types/combat';
 import type { HandSlot } from '@/types/character';
 import { deriveFeatureRole } from '@/data/featureRole';
+import { spellStore } from '@/data/spellStore';
 
 const BROADCAST_DEBOUNCE_MS = 300;
 
@@ -42,6 +43,7 @@ function projectInventory(record: CombatRecord, c: Combatant): RosterInventoryIt
             damage: atk.damage,
             damageType: atk.damageType,
             properties: atk.properties,
+            subtype: atk.subtype,
             normalRange: atk.normalRange,
             maxRange: atk.maxRange,
             twoHandedDamage: atk.twoHandedDamage,
@@ -68,6 +70,33 @@ function projectActiveFeatures(c: Combatant): { name: string; description: strin
   const active = (character.features ?? []).filter((f) => deriveFeatureRole(f) === 'active');
   if (active.length === 0) return null;
   return active.map((f) => ({ name: f.name, description: f.description ?? '' }));
+}
+
+/** PC 法术 → 投影：角色卡只存法术名（cantrips + custom），按名匹配模板库取环阶/施法时间/专注标记 */
+function projectSpells(c: Combatant): RosterSpellEntry[] | null {
+  if (!c.isPc || !c.characterId) return null;
+  const character = characterStore.get(c.characterId);
+  const names = [...(character?.spells?.cantrips ?? []), ...(character?.spells?.custom ?? [])];
+  if (names.length === 0) return null;
+  const all = spellStore.getAll();
+  const entries: RosterSpellEntry[] = [];
+  for (const name of names) {
+    const sp = all.find((s) => s.name === name);
+    if (sp) {
+      entries.push({
+        id: sp.id,
+        name: sp.name,
+        level: sp.level ?? 0,
+        castingTime: sp.castingTime ?? '',
+        concentration: sp.concentration === true,
+        damageType: sp.damageType,
+      });
+    } else {
+      // 模板库缺失的记名法术仍可声明施放，DM 端按名字落表格
+      entries.push({ id: `name:${name}`, name, level: -1, castingTime: '', concentration: false });
+    }
+  }
+  return entries;
 }
 
 /** 沙盘 → 玩家投影：剔除 equipmentData（背包隐私）/moveHistory/hitRounds 等 DM 侧数据 */
@@ -124,6 +153,7 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
       inventory: projectInventory(record, c),
       spellSlots: projectSpellSlots(record, c),
       activeFeatures: projectActiveFeatures(c),
+      spells: projectSpells(c),
     };
   });
   const turn = record.playbackState?.started
