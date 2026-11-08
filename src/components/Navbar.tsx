@@ -13,6 +13,7 @@ import {
   Moon,
   Clock,
   Calendar,
+  Clapperboard,
   BookOpen,
   Dices,
   UserCircle,
@@ -28,6 +29,7 @@ import RoundTableBadge from '@/components/roundtable/RoundTableBadge';
 const allNavItems = [
   { path: '/characters', label: '角色卡库', icon: Users },
   { path: '/combat', label: '战斗记录', icon: Swords },
+  { path: '/anim-demo', label: '动画演示', icon: Clapperboard },
   { path: '/inventory', label: '物资钱币', icon: Coins },
   { path: '/spells', label: '法术库', icon: Sparkles },
   { path: '/options', label: '角色选项', icon: BookOpen },

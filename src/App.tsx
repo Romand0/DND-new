@@ -32,6 +32,7 @@ import PlayerView from '@/pages/PlayerView';
 import PlayerInventory from '@/pages/PlayerInventory';
 import DataManagement from '@/pages/DataManagement';
 import CombatList from '@/pages/CombatList';
+import AnimationDemo from '@/pages/AnimationDemo';
 import RoundTable from '@/pages/RoundTable';
 import PlayerRoundTable from '@/pages/PlayerRoundTable';
 import CheckCalculator from '@/pages/CheckCalculator';
@@ -173,6 +174,8 @@ export default function App() {
               <Route path="/combat" element={<CombatList />} />
               <Route path="/combat/:sessionId" element={<CombatSession />} />
               <Route path="/combat/:sessionId/battleground-editor" element={<BattlegroundEditor />} />
+              {/* 动画演示页：特效预览播放器，与真实战斗无关（登录即可访问，DM 与玩家都能看） */}
+              <Route path="/anim-demo" element={<AnimationDemo />} />
               {/* 独立访问的流程编辑器路由 */}
               <Route path="/flow-editor/:id" element={<FlowEditor />} />
               <Route path="/flow-editor/:id/view" element={<FlowView />} />
