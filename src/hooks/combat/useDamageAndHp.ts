@@ -143,6 +143,18 @@ export function useDamageAndHp(
     combatStore.cleanupDeathSaveTodos(record.id);
     combatStore.cleanupBrokenConcentration(record.id);
 
+    // 伤害事件（实际结算值，含临时 HP 吸收结果）：驱动玩家端飘伤害数字动画与回合摘要
+    if (damage > 0 || hpDamage > 0) {
+      combatStore.pushCombatEvent(record.id, {
+        kind: 'damage',
+        round: currentTurn ? currentTurn.round + 1 : 0,
+        targetId: event.targetId,
+        amount: hpDamage,
+        damageType: event.damageType,
+        text: `${target.name} 受到 ${hpDamage} 点${event.damageType ?? ''}伤害${tempAbsorbed > 0 ? `（临时 HP 吸收 ${tempAbsorbed}）` : ''}`,
+      });
+    }
+
     return {
       targetId: event.targetId,
       oldHp,
@@ -175,6 +187,17 @@ export function useDamageAndHp(
 
     if (playbackMode) autoFillDownedMarkers();
     combatStore.cleanupDeathSaveTodos(record.id);
+
+    // 治疗事件：驱动玩家端飘恢复数字动画与回合摘要
+    if (newHp - oldHp > 0) {
+      combatStore.pushCombatEvent(record.id, {
+        kind: 'heal',
+        round: currentTurn ? currentTurn.round + 1 : 0,
+        targetId,
+        amount: newHp - oldHp,
+        text: `${target.name} 恢复 ${newHp - oldHp} 点生命`,
+      });
+    }
 
     return { targetId, oldHp, newHp, healed: newHp - oldHp };
   };

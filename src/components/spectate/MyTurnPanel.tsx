@@ -40,6 +40,12 @@ interface Props {
   board?: BoardProjection | null;
 }
 
+/** 武器是否远程（飞矢动画与射程提示共用判定：弹药/投掷属性或带射程数据） */
+function isRangedWeapon(atk: NonNullable<RosterInventoryItem['attack']>): boolean {
+  const props = atk.properties ?? [];
+  return props.includes('弹药') || props.includes('投掷') || (atk.normalRange ?? 0) > 0;
+}
+
 /** 解析武器伤害骰 "2d6+3" / "1d8" / "1d4-1"；解析失败返回 null（禁用掷骰按钮） */
 function parseDamageDice(damage: string): { count: number; sides: number; flat: number } | null {
   const m = /^(\d+)\s*d\s*(\d+)\s*(?:([+-])\s*(\d+))?$/.exec(damage.trim());
@@ -147,7 +153,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
     const atk = selectedWeapon?.attack;
     if (!atk || distanceCells == null) return [] as { level: 'warn' | 'block'; text: string }[];
     const props = atk.properties ?? [];
-    const isRanged = props.includes('弹药') || props.includes('投掷') || (atk.normalRange ?? 0) > 0;
+    const isRanged = isRangedWeapon(atk);
     const feet = distanceCells * 5;
     const hints: { level: 'warn' | 'block'; text: string }[] = [];
     if (isRanged) {
@@ -192,6 +198,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
         bonus,
         hit,
         critical,
+        ranged: isRangedWeapon(selectedWeapon.attack),
         damage: hit ? { amount: dmg, type: damageType } : null,
         ...(ammoInfo?.ammo ? { ammoChildId: ammoInfo.ammo.childId, ammoCount: 1 } : {}),
         roundText,

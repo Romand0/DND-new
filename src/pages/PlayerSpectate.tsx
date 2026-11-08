@@ -10,8 +10,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyCharacters } from '@/lib/api';
 import SpectatorBoard from '@/components/spectate/SpectatorBoard';
 import SpectatorTable from '@/components/spectate/SpectatorTable';
+import AnimationOverlay from '@/components/spectate/AnimationOverlay';
+import RoundNarrativeBoard from '@/components/spectate/RoundNarrativeBoard';
 import { MyCombatantsSection } from '@/components/spectate/MyCombatantPanel';
 import MyTurnPanel from '@/components/spectate/MyTurnPanel';
+import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, TurnCommitOp } from '@/types/realtime';
 
 function takeLatestDelta(deltas: { payload: unknown }[]): CombatDeltaPayload | null {
@@ -123,6 +126,9 @@ export default function PlayerSpectate() {
 
   // 参战者排序：先攻降序，与 DM 端表格一致
   const roster = spectate ? [...spectate.roster].sort((a, b) => b.initiative - a.initiative) : [];
+
+  // 动画播放器：从事件流增量提取新事件，串行驱动沙盘覆盖层特效
+  const { current: activeAnim } = useAnimationPlayer(spectate?.events ?? []);
 
   // 轮次推进即作废未提交的 ops（跨回合残留会带错 round 语义）
   if (spectate?.turn && lastOpsRoundRef.current !== spectate.turn.round) {
@@ -250,6 +256,10 @@ export default function PlayerSpectate() {
             />
           )}
 
+          {spectate && (
+            <RoundNarrativeBoard events={spectate.events ?? []} />
+          )}
+
           {spectate && spectate.board && (
             <SpectatorBoard
               board={spectate.board}
@@ -264,7 +274,11 @@ export default function PlayerSpectate() {
                   roundText: `${r?.name ?? '我'}移动到（第 ${to.col + 1} 列，第 ${to.row + 1} 行）`,
                 });
               }}
-            />
+            >
+              {(cell) => (
+                <AnimationOverlay anim={activeAnim} cell={cell} board={spectate.board!} roster={roster} />
+              )}
+            </SpectatorBoard>
           )}
 
           {spectate && (

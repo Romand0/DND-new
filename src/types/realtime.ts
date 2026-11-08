@@ -1,6 +1,8 @@
 // 实时房间协议类型（前端侧镜像）
 // 与 realtime/src/index.ts 的 ClientMessage / ServerMessage 保持同步——改协议时两处一起改。
 // 前端不 import realtime 源码，避免 Workers 类型（DurableObjectState 等）进入浏览器构建。
+// DO 端对 delta 载荷只透传（Record<string, unknown>），events 等扩展字段无需在 Worker 侧镜像。
+import type { CombatEvent } from './combat';
 
 export interface SessionMeta {
   clientId: string;
@@ -65,6 +67,8 @@ export type TurnCommitOp =
       /** 弹药实例 ID 与消耗发数（弹药武器才有） */
       ammoChildId?: string;
       ammoCount?: number;
+      /** 远程武器（飞矢动画判定用；缺省近战） */
+      ranged?: boolean;
       /** 写入先攻表格的行动文本 */
       roundText: string;
     }
@@ -262,4 +266,6 @@ export interface CombatDeltaPayload {
   board: BoardProjection | null;
   /** 先攻表格：仅在放映中（turn 非 null）随快照下发，非放映时空数组（玩家端据此清空） */
   rounds: RoundsProjection;
+  /** 战斗事件流（最近 50 条）：驱动回合摘要与动画；玩家端按 id 去重增量播放 */
+  events?: CombatEvent[];
 }

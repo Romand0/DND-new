@@ -61,6 +61,17 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       if (op.ammoChildId && (op.ammoCount ?? 0) > 0) {
         appliedChanges[actor.id] = consumeAmmo(record, actor.id, op.ammoChildId, op.ammoCount!);
       }
+      combatStore.pushCombatEvent(record.id, {
+        kind: 'attack',
+        round: request.round,
+        actorId: actor.id,
+        targetId: op.targetId,
+        ranged: op.ranged === true,
+        hit: op.hit,
+        critical: op.critical,
+        weaponName: op.weaponName,
+        text: op.roundText,
+      });
       if (op.hit && op.damage && op.damage.amount > 0) {
         const result = applyDamage({
           targetId: op.targetId,
@@ -79,6 +90,13 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
     } else if (op.kind === 'move') {
       // placeToken 内含越界保护与目标格挤占；玩家端拖拽已限自身棋子
       battlegroundStore.placeToken(record.id, { combatantId: actor.id, col: op.to.col, row: op.to.row });
+      combatStore.pushCombatEvent(record.id, {
+        kind: 'move',
+        round: request.round,
+        actorId: actor.id,
+        to: { col: op.to.col, row: op.to.row },
+        text: op.roundText,
+      });
     } else if (op.kind === 'cast') {
       if (op.slotLevel > 0) {
         const levelKey = `level${op.slotLevel}` as SpellSlotLevel;
@@ -89,6 +107,14 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       if (op.concentration && beginConcentration) {
         beginConcentration(actor.id, op.spellName);
       }
+      combatStore.pushCombatEvent(record.id, {
+        kind: 'cast',
+        round: request.round,
+        actorId: actor.id,
+        targetId: op.targetId,
+        spellName: op.spellName,
+        text: op.roundText,
+      });
       if (op.actionCost === 'action' && !consumedAction) {
         consumeAction(actor.id);
         consumedAction = true;
