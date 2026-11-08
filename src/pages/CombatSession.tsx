@@ -431,17 +431,27 @@ export default function CombatSession() {
   // 实时观战广播（DM 端）：record 变化 → combat.delta 幂等快照 → realtime Worker 房间
   const combatBroadcast = useCombatBroadcast(record);
 
-  // 玩家回合操作收件箱（M1 通道）：玩家 turn-commit 请求 → 确认 toast → 回执
-  const { pending: pendingPlayerActions, resolve: resolvePlayerAction } = usePlayerActionInbox(combatBroadcast.client);
-
   // HP / 昏迷 / 死亡豁免待办生命周期：由 hook 接管
   const { handleApplyDamage, handleApplyHealing, autoFillDownedMarkers } = useDamageAndHp(record, {
     currentTurn,
     playbackMode: record?.mode === 'playback',
   });
 
-  // 玩家回合提交落库（回合批提交模型）：校验 → 弹药/伤害/动作/表格 → 回执
-  // 轮次语义 1-based：投影与提交侧均用「第 N 轮」，与 record.rounds 的 0-based 下标相差 1
+  // 玩家回合操作收件箱：直接放行开启时免审落库（校验失败自动拒绝回执），否则进审核卡
+  const [autoAcceptTurns, setAutoAcceptTurns] = useState(() => {    try {
+      return localStorage.getItem('combat-auto-accept') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleAutoAcceptTurns = (on: boolean) => {
+    setAutoAcceptTurns(on);
+    try {
+      localStorage.setItem('combat-auto-accept', on ? '1' : '0');
+    } catch {
+      // 隐私模式下 localStorage 不可写：仅本次会话生效
+    }
+  };
   const applyPlayerCommit = (request: PlayerActionRequest): { ok: boolean; reason?: string } => {
     if (!record) return { ok: false, reason: '战斗记录不可用' };
     return applyTurnCommit({
@@ -454,6 +464,15 @@ export default function CombatSession() {
       advanceTurn,
     });
   };
+  const { pending: pendingPlayerActions, resolve: resolvePlayerAction } = usePlayerActionInbox(
+    combatBroadcast.client,
+    autoAcceptTurns
+      ? (item) => {
+          const outcome = applyPlayerCommit(item.request);
+          return { accepted: outcome.ok, reason: outcome.reason };
+        }
+      : null
+  );
 
   // 参战者绑定映射（userId → 绑定角色 ID 集合）：审核卡校验玩家操作归属，加载失败仅降级为「未验证」
   const [boundByUser, setBoundByUser] = useState<Map<string, Set<string>>>(new Map());
@@ -1135,7 +1154,7 @@ export default function CombatSession() {
               ? 'text-primary'
               : 'dark:text-text-dark-muted light:text-text-light-muted';
         return (
-          <div className="flex items-center gap-3 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light w-fit">
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light w-fit flex-wrap">
             <span className={`text-sm font-medium whitespace-nowrap ${toneCls}`}>{label}</span>
             {playbackStarted && (
               playbackPaused ? (
@@ -1160,6 +1179,19 @@ export default function CombatSession() {
                 </button>
               )
             )}
+            {/* 直接放行（M3）：玩家回合提交免审核直接入账，校验失败自动拒绝回执 */}
+            <label
+              className="flex items-center gap-1.5 pl-2 border-l cursor-pointer select-none dark:border-border-dark light:border-border-light"
+              title="开启后玩家提交的回合免审核直接入账（回合/绑定校验失败会自动拒绝并通知玩家）"
+            >
+              <input
+                type="checkbox"
+                checked={autoAcceptTurns}
+                onChange={(e) => toggleAutoAcceptTurns(e.target.checked)}
+                className="w-3.5 h-3.5 accent-primary"
+              />
+              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">直接放行</span>
+            </label>
           </div>
         );
       })()}
