@@ -12,7 +12,7 @@ import SpectatorBoard from '@/components/spectate/SpectatorBoard';
 import SpectatorTable from '@/components/spectate/SpectatorTable';
 import { MyCombatantsSection } from '@/components/spectate/MyCombatantPanel';
 import MyTurnPanel from '@/components/spectate/MyTurnPanel';
-import type { CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult } from '@/types/realtime';
+import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, TurnCommitOp } from '@/types/realtime';
 
 function takeLatestDelta(deltas: { payload: unknown }[]): CombatDeltaPayload | null {
   // snapshot.deltas 的 payload 是透传 unknown，逐条嗅探是否有 v1 快照特征字段
@@ -40,6 +40,9 @@ export default function PlayerSpectate() {
   // 回合提交（回合批提交模型）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
   const lastDeltaSeqRef = useRef(0);
   const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
+  // ops 提升到页面层：沙盘拖拽与回合面板共享同一操作列表
+  const [pendingOps, setPendingOps] = useState<TurnCommitOp[]>([]);
+  const lastOpsRoundRef = useRef<number | null>(null);
 
   // 绑定关系与房间无关，登录后拉一次即可
   useEffect(() => {
@@ -120,6 +123,13 @@ export default function PlayerSpectate() {
 
   // 参战者排序：先攻降序，与 DM 端表格一致
   const roster = spectate ? [...spectate.roster].sort((a, b) => b.initiative - a.initiative) : [];
+
+  // 轮次推进即作废未提交的 ops（跨回合残留会带错 round 语义）
+  if (spectate?.turn && lastOpsRoundRef.current !== spectate.turn.round) {
+    lastOpsRoundRef.current = spectate.turn.round;
+    if (pendingOps.length > 0) setPendingOps([]);
+  }
+  const addOp = (op: TurnCommitOp) => setPendingOps((prev) => [...prev, op]);
 
   return (
     <div className="space-y-4">
@@ -216,6 +226,7 @@ export default function PlayerSpectate() {
               clientRef.current?.send({ t: 'player.action', request }) ?? false;
             return (
               <MyTurnPanel
+                key={actor.id}
                 actor={actor}
                 roster={roster}
                 round={spectate.turn.round}
@@ -223,6 +234,9 @@ export default function PlayerSpectate() {
                 send={sendRequest}
                 result={lastResult}
                 onNotice={setNotice}
+                ops={pendingOps}
+                onOpsChange={setPendingOps}
+                board={spectate.board ?? null}
               />
             );
           })()}
@@ -241,6 +255,15 @@ export default function PlayerSpectate() {
               board={spectate.board}
               roster={roster}
               currentCombatantId={spectate.turn?.combatantId ?? null}
+              movableIds={roster.filter((r) => r.characterId && myCharacterIds.has(r.characterId)).map((r) => r.id)}
+              onMoveToken={(combatantId, to) => {
+                const r = roster.find((x) => x.id === combatantId);
+                addOp({
+                  kind: 'move',
+                  to,
+                  roundText: `${r?.name ?? '我'}移动到（第 ${to.col + 1} 列，第 ${to.row + 1} 行）`,
+                });
+              }}
             />
           )}
 

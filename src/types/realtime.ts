@@ -69,10 +69,38 @@ export type TurnCommitOp =
       roundText: string;
     }
   | {
+      kind: 'move';
+      /** 落点格子（切比雪夫网格坐标）；起点由 DM 端沙盘当前位置得出 */
+      to: { col: number; row: number };
+      roundText: string;
+    }
+  | {
+      kind: 'cast';
+      spellId: string;
+      spellName: string;
+      /** 消耗的法术位环阶；0 = 戏法（不消耗法术位） */
+      slotLevel: number;
+      targetId?: string;
+      targetName?: string;
+      /** 专注类法术：DM 端进入专注状态 */
+      concentration?: boolean;
+      /** 施法时间动作消耗（玩家端按 castingTime 预判；null = 长施法/仪式，不扣动作） */
+      actionCost: 'action' | 'bonus' | null;
+      roundText: string;
+    }
+  | {
       kind: 'note';
       roundText: string;
       /** 声明动作消耗：DM 端按此扣动作；null = 不消耗（自由动作/交流） */
       actionCost?: 'action' | 'bonus' | null;
+    }
+  | {
+      kind: 'ready-item';
+      slot: 'left' | 'right';
+      /** 战斗背包实例 ID；null = 放下该手 */
+      childId: string | null;
+      itemName: string | null;
+      roundText: string;
     }
   | { kind: 'end-turn' };
 
@@ -152,6 +180,18 @@ export interface CombatRosterEntry {
   spellSlots?: RosterSpellSlot[] | null;
   /** PC 主动技能（角色卡 features 按作用方式派生；NPC 为 null） */
   activeFeatures?: { name: string; description: string }[] | null;
+  /** PC 可施法术列表（角色卡法术名解析模板库所得；NPC 或无法术为 null） */
+  spells?: RosterSpellEntry[] | null;
+}
+
+/** 战斗法术投影条目（玩家施法表单所需最小集） */
+export interface RosterSpellEntry {
+  id: string;
+  name: string;
+  level: number;
+  castingTime: string;
+  concentration?: boolean;
+  damageType?: string;
 }
 
 /** 战斗中法术位视图条目（used/max 为漏斗后实时值） */
@@ -167,6 +207,8 @@ export interface RosterInventoryAttack {
   damage: string;
   damageType: string;
   properties: string[];
+  /** 近战/远程类目（Ranged = 远程武器） */
+  subtype?: string;
   normalRange?: number;
   maxRange?: number;
   /** 多用属性双手伤害骰 */

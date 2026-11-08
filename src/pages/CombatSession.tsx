@@ -462,6 +462,9 @@ export default function CombatSession() {
       consumeAction: consumeCombatantAction,
       consumeBonusAction: consumeCombatantBonusAction,
       advanceTurn,
+      beginConcentration: (combatantId, spellName) => {
+        beginConcentration(combatantId, spellName);
+      },
     });
   };
   const { pending: pendingPlayerActions, resolve: resolvePlayerAction } = usePlayerActionInbox(
