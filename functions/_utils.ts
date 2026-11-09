@@ -365,6 +365,16 @@ export function now(): number {
   return Math.floor(Date.now() / 1000); // 返回秒级时间戳，与数据库字段类型匹配
 }
 
+/** 路径参数解码：Pages Functions 的 params 保留 URL 编码形态，含中文/非 ASCII 的 id（如 magic-闪电标枪）需还原后再查库 */
+export function decodePathParam(raw: string): string {
+  if (!raw || !raw.includes('%')) return raw;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
 // ---------- Base64 URL 工具 ----------
 
 function base64UrlEncode(buffer: Uint8Array): string {

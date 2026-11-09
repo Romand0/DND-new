@@ -4,7 +4,7 @@ import { useEditorState } from '@/data/editorState';
 import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag, Swords, Shield } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, fetchAllEquipments } from '@/lib/api';
 import { equipmentStore } from '@/data/equipmentStore';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -21,7 +21,7 @@ export default function EquipmentDetail() {
 
   useEditorState(editorOpen);
 
-  // 从后端加载单条装备；API 不可达时回退本地缓存（魔法物品等已导入条目在 localStorage 也有副本）
+  // 从后端加载单条装备；单条接口失败时依次回退：云端全量列表 → 本地缓存（保证中文 id 等边缘场景可见）
   const load = async () => {
     if (!id) return;
     setLoading(true);
@@ -33,6 +33,14 @@ export default function EquipmentDetail() {
       const data = await apiFetch(`/equipments/${id}`, { method: 'GET', headers });
       setItem(data);
     } catch (e: any) {
+      try {
+        const all = await fetchAllEquipments<any[]>();
+        const found = all.find((x: any) => x.id === id);
+        if (found) {
+          setItem(found);
+          return;
+        }
+      } catch { /* 全量接口也失败时继续走本地兜底 */ }
       const local = equipmentStore.getById(id);
       if (local) {
         setItem(local);
