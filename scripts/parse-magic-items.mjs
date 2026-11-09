@@ -120,14 +120,15 @@ function buildItem(parsed, rel) {
   return {
     id: slugify(zh),
     name: zh,
+    nameEn: en || undefined,
     category,
     subtype: parsed.subtype || parsed.type,
     weight: 0,
     price: { amount: 0, unit: 'gp' },
-    description: en ? `${desc}\n\n【英文名】${en}` : desc,
+    description: desc,
     properties: [],
     isCustom: false,
-    tags: en ? [{ key: '英文名', value: en }] : [],
+    tags: [],
     source: '城主指南 2014',
     dataResource: '5E不全书',
     campaignId: null, // 出版物条目：全局共享（写入需站点管理员）

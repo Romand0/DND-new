@@ -122,8 +122,11 @@ export default function EquipmentDetail() {
         <Link to="/equipment" className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light">
           <ChevronLeft className="w-5 h-5" />
         </Link>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">{item.name}</h1>
+          {item.nameEn && (
+            <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted mt-0.5">{item.nameEn}</p>
+          )}
           <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">{item.category}</span>
             {item.subtype && (
@@ -167,23 +170,27 @@ export default function EquipmentDetail() {
       )}
 
       <div className="grid grid-cols-2 gap-4">
-        {/* 价格卡片 */}
-        <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-          <div className="flex items-center gap-2 mb-1">
-            <Coins className="w-4 h-4 text-accent" />
-            <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">价格</span>
+        {/* 价格卡片（原书未标价的条目如魔法物品不显示） */}
+        {item.price?.amount > 0 && (
+          <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center gap-2 mb-1">
+              <Coins className="w-4 h-4 text-accent" />
+              <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">价格</span>
+            </div>
+            <p className="text-lg font-semibold dark:text-text-dark light:text-text-light">{formatPrice()}</p>
           </div>
-          <p className="text-lg font-semibold dark:text-text-dark light:text-text-light">{formatPrice()}</p>
-        </div>
+        )}
 
-        {/* 重量卡片 */}
-        <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
-          <div className="flex items-center gap-2 mb-1">
-            <Scale className="w-4 h-4 text-accent" />
-            <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">重量</span>
+        {/* 重量卡片（原书未标重量的条目如魔法物品不显示） */}
+        {item.weight > 0 && (
+          <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <div className="flex items-center gap-2 mb-1">
+              <Scale className="w-4 h-4 text-accent" />
+              <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">重量</span>
+            </div>
+            <p className="text-lg font-semibold dark:text-text-dark light:text-text-light">{item.weight} 磅</p>
           </div>
-          <p className="text-lg font-semibold dark:text-text-dark light:text-text-light">{item.weight} 磅</p>
-        </div>
+        )}
 
         {/* 伤害卡片（仅武器） */}
         {item.category === '武器' && (item.damageDice || item.damageType) && (

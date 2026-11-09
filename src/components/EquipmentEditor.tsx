@@ -77,6 +77,7 @@ const [formData, setFormData] = useState<
   id: item.id,
   childId: (item as any).childId || '',   // 透传 childId
   name: item.name,
+  nameEn: item.nameEn ?? '',
   category: item.category,
   subtype: item.subtype || '',
   weight: item.weight,

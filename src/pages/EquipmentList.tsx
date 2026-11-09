@@ -1,5 +1,5 @@
 // src/pages/EquipmentList.tsx
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCampaign } from '@/contexts/CampaignContext';
@@ -32,11 +32,22 @@ export default function EquipmentList() {
   // 无团组登录用户：出版物只读可见，自定义条目写入需团组归属（R6）
   const noCampaignHint = isAdmin && !current;
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [funcFilter, setFuncFilter] = useState('全部');
-  const [subFilter, setSubFilter] = useState<string[]>([]);
-  const [magicFilter, setMagicFilter] = useState<string[]>([]);
-  const [tradeFilter, setTradeFilter] = useState<string[]>([]);
+  // 检索状态持久化：sessionStorage 会话级保存（刷新/页间返回后恢复筛选与滚动位置）
+  const LIST_STATE_KEY = 'DND-equipment-list-state';
+  const savedListState = (() => {
+    try {
+      return JSON.parse(sessionStorage.getItem(LIST_STATE_KEY) || '{}');
+    } catch {
+      return {} as Record<string, unknown>;
+    }
+  })();
+
+  const [searchQuery, setSearchQuery] = useState<string>(savedListState.searchQuery ?? '');
+  const [funcFilter, setFuncFilter] = useState<string>(savedListState.funcFilter ?? '全部');
+  const [subFilter, setSubFilter] = useState<string[]>(savedListState.subFilter ?? []);
+  const [magicFilter, setMagicFilter] = useState<string[]>(savedListState.magicFilter ?? []);
+  const [tradeFilter, setTradeFilter] = useState<string[]>(savedListState.tradeFilter ?? []);
+  const savedScrollRef = useRef<number>(typeof savedListState.scrollTop === 'number' ? savedListState.scrollTop : 0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | undefined>(undefined);
   const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
@@ -50,6 +61,35 @@ export default function EquipmentList() {
   const [loading, setLoading] = useState(true);
 
   useEditorState(editorOpen);
+
+  // 筛选状态变化 → 写 sessionStorage（滚动位置由监听器单独维护）
+  useEffect(() => {
+    sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({
+      searchQuery, funcFilter, subFilter, magicFilter, tradeFilter, scrollTop: savedScrollRef.current,
+    }));
+  }, [searchQuery, funcFilter, subFilter, magicFilter, tradeFilter]);
+
+  // 滚动位置节流记录（200ms）
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onScroll = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => { savedScrollRef.current = window.scrollY; }, 200);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      if (timer) clearTimeout(timer);
+      window.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+
+  // 数据就绪后恢复滚动位置（仅进入页面时一次）
+  useEffect(() => {
+    if (!loading && savedScrollRef.current > 0) {
+      requestAnimationFrame(() => window.scrollTo(0, savedScrollRef.current));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
 
   const load = async () => {
     setError('');
@@ -401,10 +441,16 @@ export default function EquipmentList() {
                     {item.subtype && <span>· {item.subtype}</span>}
                     {item.rarity && <span className="text-amber-400">· {item.rarity}</span>}
                   </div>
-                  <div className="flex items-center gap-4 mt-2 text-sm">
-                    <span className="flex items-center gap-1 dark:text-text-dark light:text-text-light"><Coins className="w-3.5 h-3.5 text-accent" /> {formatPrice(item)}</span>
-                    <span className="dark:text-text-dark-muted light:text-text-light-muted">{item.weight} 磅</span>
-                  </div>
+                  {(item.price?.amount > 0 || item.weight > 0) && (
+                    <div className="flex items-center gap-4 mt-2 text-sm">
+                      {item.price?.amount > 0 && (
+                        <span className="flex items-center gap-1 dark:text-text-dark light:text-text-light"><Coins className="w-3.5 h-3.5 text-accent" /> {formatPrice(item)}</span>
+                      )}
+                      {item.weight > 0 && (
+                        <span className="dark:text-text-dark-muted light:text-text-light-muted">{item.weight} 磅</span>
+                      )}
+                    </div>
+                  )}
                   {item.description?.trim() && (
                     <p className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted line-clamp-2 leading-relaxed">
                       {item.description.trim()}
