@@ -105,7 +105,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
   const autoBonus = useMemo(() => {
     if (!character || !selectedWeapon?.attack) return null;
     return calcAttackBonus(
-      { name: selectedWeapon.name, subtype: selectedWeapon.attack.subtype, properties: selectedWeapon.attack.properties },
+      { name: selectedWeapon.name, subtype: selectedWeapon.attack.subtype, properties: selectedWeapon.attack.properties, magicBonus: selectedWeapon.magicBonus },
       character
     ).bonus;
   }, [character, selectedWeapon]);

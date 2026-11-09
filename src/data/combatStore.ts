@@ -315,7 +315,7 @@ export function computeCombatantAc(
       const templateAcBase = (armor as any).acBase || equipmentStore.getById(armor.id)?.acBase || '';
       const parsed = typeof templateAcBase === 'string' ? Number(templateAcBase) : typeof templateAcBase === 'number' ? templateAcBase : NaN;
       if (!isNaN(parsed) && parsed > 0) {
-        const baseAc = parsed;
+        const baseAc = parsed + (armor.magicBonus ?? 0); // 魔法护甲：+1/+2/+3 并入基础 AC
         if (subtype.includes('重型') || subtype.includes('重甲')) {
           armorBonus = baseAc - 10; // 重甲：敏捷不加
           dexCap = 0;
@@ -341,7 +341,7 @@ export function computeCombatantAc(
   for (const hid of heldIds) {
     const eq = inventory.find(e => (e.childId || e.id) === hid);
     if (eq?.subtype === '盾牌') {
-      ac += 2;
+      ac += 2 + (eq.magicBonus ?? 0); // 魔法盾牌：+1 盾等在基础 +2 上叠加
       break;
     }
   }

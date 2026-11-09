@@ -1070,8 +1070,10 @@ function recalculateArmorClass(char: Character, combatInventory?: Equipment[]): 
     const armor = source.find(e => e.id === char.wornArmorId || e.childId === char.wornArmorId);
     // 旧背包实例 acBase 为空串（种子补值前从模板加入），按实例 id（=模板 id）回查装备库模板兜底
     const armorAcBase = armor?.acBase || (armor ? equipmentStore.getById(armor.id)?.acBase : '') || '';
+    // 魔法护甲加值：存量实例缺字段时同模式回查模板兜底
+    const armorMagicBonus = armor?.magicBonus ?? (armor ? equipmentStore.getById(armor.id)?.magicBonus : undefined) ?? 0;
     if (armorAcBase) {
-      const baseAc = Number(armorAcBase);
+      const baseAc = Number(armorAcBase) + armorMagicBonus;
       const subtype = armor.subtype || '轻甲';
       switch (subtype) {
         case '轻甲':

@@ -451,10 +451,13 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     return { usable: true };
   };
 
-  // 解析攻击加值
+  // 解析攻击加值：attackBonus 字符串只存基础值（不含魔法加值），
+  // PC 的魔法加值从战斗背包按武器名匹配叠加（NPC 武器录入时魔法加值直接写进字符串）
   const getAttackBonus = (attack: Attack | NpcAttack): number => {
-    const bonus = parseInt(attack.attackBonus || '0', 10);
-    return isNaN(bonus) ? 0 : bonus;
+    const base = parseInt(attack.attackBonus || '0', 10);
+    const magic = combatInventory?.find(e => e.name === attack.name)?.magicBonus ?? 0;
+    const bonus = (isNaN(base) ? 0 : base) + magic;
+    return bonus;
   };
 
   // ========= 优势 / 劣势 检测（接入 advantageRules 引擎） =========
