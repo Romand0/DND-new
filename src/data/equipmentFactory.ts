@@ -11,6 +11,7 @@ export function extractBaseFields(
 ): Omit<EquipmentItem, 'id' | 'isCustom'> {
   return {
     name: source.name ?? '',
+    nameEn: source.nameEn,
     category: source.category ?? '杂项',
     subtype: source.subtype ?? '',
     weight: source.weight ?? 0,
