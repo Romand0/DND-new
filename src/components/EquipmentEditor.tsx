@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
 
 interface EquipmentEditorProps {
   item?: EquipmentItem | (EquipmentItem & { quantity?: number });
+  /** 装备库全量数据（基础物品选择器数据源；未传时快速生成仅支持纯泛模板） */
+  libraryEquipments?: EquipmentItem[];
   isStatic?: boolean;
   showQuantity?: boolean;
   showPackSize?: boolean;   // 新增：控制"单位 + 每份基准数"显示（装备库模板用）
@@ -48,7 +50,7 @@ const GENERIC_MAGIC_TEMPLATES = [
 ];
 
 export default function EquipmentEditor({
-  item, isStatic = false, showQuantity = false, showPackSize = false,
+  item, libraryEquipments, isStatic = false, showQuantity = false, showPackSize = false,
   showSyncOption = false, loading = false, onSave, onDelete, onClose
 }: EquipmentEditorProps) {
 const [formData, setFormData] = useState<
@@ -96,24 +98,88 @@ const [formData, setFormData] = useState<
   const [syncToLibrary, setSyncToLibrary] = useState(false);
   // 快速生成：当前选中的泛模板 key（选等级后自动填充并清空）
   const [genMagicTpl, setGenMagicTpl] = useState<string | null>(null);
+  const [genLevel, setGenLevel] = useState<number | null>(null);
+  const [genBase, setGenBase] = useState<EquipmentItem | null>(null);
+  const [baseSearch, setBaseSearch] = useState('');
 
-  const applyGenericMagic = (tplKey: string, level: number) => {
+  // 切模板时重置后续步骤（基础物品候选随模板类别变化）
+  const selectGenTpl = (key: string | null) => {
+    setGenMagicTpl(key);
+    setGenLevel(null);
+    setGenBase(null);
+    setBaseSearch('');
+  };
+
+  // 基础物品候选：按模板类别过滤装备库（只列非魔法条目，魔法条目没有基础数据可照搬）
+  const baseCandidates = useMemo(() => {
+    if (!genMagicTpl || !libraryEquipments) return [];
+    const nonMagic = (e: EquipmentItem) => e.magicCategory !== '魔法物品' && !e.rarity;
+    switch (genMagicTpl) {
+      case 'armor':
+        return libraryEquipments.filter(e => e.category === '护甲' && e.subtype !== '盾牌' && nonMagic(e));
+      case 'shield':
+        return libraryEquipments.filter(e => e.category === '护甲' && e.subtype === '盾牌' && nonMagic(e));
+      default: // weapon / ammo：武器类全部（弹药条目也在武器类下）
+        return libraryEquipments.filter(e => e.category === '武器' && nonMagic(e));
+    }
+  }, [genMagicTpl, libraryEquipments]);
+
+  const baseFiltered = useMemo(() => {
+    if (!baseSearch.trim()) return baseCandidates;
+    const q = baseSearch.trim();
+    return baseCandidates.filter(e => e.name.includes(q) || (e.subtype ?? '').includes(q));
+  }, [baseCandidates, baseSearch]);
+
+  const applyGenericMagic = (tplKey: string, level: number, base?: EquipmentItem | null) => {
     const t = GENERIC_MAGIC_TEMPLATES.find(x => x.key === tplKey);
     if (!t) return;
-    setFormData({
-      ...formData,
-      name: `+${level} ${t.name}`,
-      category: t.category,
-      subtype: t.subtype,
-      magicCategory: '魔法物品',
+    const magic = {
+      magicCategory: '魔法物品' as const,
       magicBonus: level,
       rarity: t.rarities[level],
       attunement: true,
       attunePrereq: '',
       cursed: false,
-      description: t.desc(level),
-    });
+    };
+    if (base) {
+      // 基础数据照搬 + 魔法叠加；新建时 id 置空由保存流程生成（避免 UPSERT 覆盖基础条目）
+      setFormData({
+        ...formData,
+        id: item ? formData.id : '',
+        childId: item ? formData.childId : '',
+        name: `+${level} ${base.name}`,
+        nameEn: '',
+        category: base.category,
+        subtype: base.subtype || t.subtype,
+        weight: base.weight ?? 0,
+        price: base.price ? { ...base.price } : { amount: 0, unit: 'gp' },
+        damageDice: base.damageDice ?? '',
+        damageType: base.damageType ?? '',
+        acBase: base.acBase ?? '',
+        strengthReq: base.strengthReq ?? 0,
+        stealthDisadvantage: base.stealthDisadvantage ?? false,
+        properties: base.properties ? [...base.properties] : [],
+        description: t.desc(level),
+        source: base.source || '城主指南 2014',
+        ...magic,
+      });
+    } else {
+      setFormData({
+        ...formData,
+        id: item ? formData.id : '',
+        childId: item ? formData.childId : '',
+        name: `+${level} ${t.name}`,
+        nameEn: '',
+        category: t.category,
+        subtype: t.subtype,
+        description: t.desc(level),
+        ...magic,
+      });
+    }
     setGenMagicTpl(null);
+    setGenLevel(null);
+    setGenBase(null);
+    setBaseSearch('');
   };
 
   useEffect(() => {
@@ -280,6 +346,217 @@ const [formData, setFormData] = useState<
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
+
+          {/* 魔法物品属性：置顶优先区 —— 魔法判定与 +N 快速生成是最优先的操作 */}
+          <div className="rounded-lg border p-3 space-y-3 dark:border-primary/40 light:border-primary/40">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-semibold dark:text-text-dark light:text-text-light">魔法物品属性</div>
+              <select
+                value={formData.magicCategory}
+                onChange={(e) => setFormData({ ...formData, magicCategory: e.target.value as any })}
+                className="px-2 py-1.5 rounded-lg border bg-transparent text-sm outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+              >
+                {MAGIC_OPTIONS.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {formData.magicCategory === '魔法物品' && (
+              <>
+                {/* 三步快速生成：模板定魔法属性，基础物品照搬战斗数据，等级定强度 */}
+                <div className="space-y-2.5 rounded-md bg-primary/5 p-3">
+                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                    三步组合「+1 链甲」这类卡片：选模板 → 选等级 → 选基础物品（可选，照搬其分类/伤害/AC/价格），生成后在常规字段微调
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {GENERIC_MAGIC_TEMPLATES.map(t => (
+                      <button key={t.key} type="button"
+                        onClick={() => selectGenTpl(genMagicTpl === t.key ? null : t.key)}
+                        className={`px-2 py-1 rounded text-xs border transition-colors ${
+                          genMagicTpl === t.key
+                            ? 'bg-primary text-white border-primary'
+                            : 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:border-primary'
+                        }`}>
+                        ① {t.label} +N
+                      </button>
+                    ))}
+                  </div>
+                  {genMagicTpl && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">② 等级</span>
+                      {[1, 2, 3].map(n => (
+                        <button key={n} type="button"
+                          onClick={() => setGenLevel(genLevel === n ? null : n)}
+                          className={`px-2.5 py-1 rounded text-xs border transition-colors ${
+                            genLevel === n
+                              ? 'bg-primary text-white border-primary'
+                              : 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:border-primary'
+                          }`}>
+                          +{n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {genMagicTpl && genLevel && (
+                    <div className="space-y-2">
+                      <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                        ③ 基础物品（可选）：选中后照搬其战斗数据
+                      </div>
+                      {baseCandidates.length > 0 ? (
+                        <>
+                          <input
+                            type="text"
+                            value={baseSearch}
+                            onChange={(e) => setBaseSearch(e.target.value)}
+                            placeholder="搜索基础物品…"
+                            className="w-full px-2 py-1.5 rounded border bg-transparent text-sm outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                          />
+                          <div className="max-h-44 overflow-y-auto rounded border divide-y dark:border-border-dark dark:divide-border-dark/50 light:border-border-light light:divide-border-light/50">
+                            {baseFiltered.map(e => (
+                              <button key={e.id} type="button"
+                                onClick={() => setGenBase(genBase?.id === e.id ? null : e)}
+                                className={`w-full text-left px-2.5 py-2 text-sm transition-colors ${
+                                  genBase?.id === e.id ? 'bg-primary/10 text-primary' : 'dark:text-text-dark light:text-text-light hover:bg-primary/5'
+                                }`}>
+                                <span className="font-medium">{e.name}</span>
+                                {e.subtype && <span className="ml-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">{e.subtype}</span>}
+                                {e.acBase && <span className="ml-2 text-xs text-amber-500">AC {e.acBase}</span>}
+                                {e.damageDice && <span className="ml-2 text-xs text-amber-500">{e.damageDice}</span>}
+                                {e.price?.amount > 0 && <span className="ml-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">{e.price.amount}{e.price.unit}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                          装备库中没有可照搬的基础物品，直接生成纯泛模板（分类/子分类手动填）
+                        </div>
+                      )}
+                      <button type="button"
+                        onClick={() => applyGenericMagic(genMagicTpl, genLevel, genBase)}
+                        className="w-full px-3 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors">
+                        生成「+{genLevel} {genBase?.name ?? GENERIC_MAGIC_TEMPLATES.find(t => t.key === genMagicTpl)?.name}」
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      稀有度
+                    </label>
+                    <input
+                      type="text"
+                      list="magic-rarity-options"
+                      value={formData.rarity || ''}
+                      onChange={(e) => setFormData({ ...formData, rarity: e.target.value })}
+                      placeholder="如：珍稀 / 极珍稀或传说"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                    <datalist id="magic-rarity-options">
+                      {RARITY_OPTIONS.map((option) => (
+                        <option key={option} value={option} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      激活方式
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.activation || ''}
+                      onChange={(e) => setFormData({ ...formData, activation: e.target.value })}
+                      placeholder="如：命令词 / 用一个动作"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <label className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.attunement}
+                      onChange={(e) => setFormData({ ...formData, attunement: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                    需要同调
+                  </label>
+                  <label className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light">
+                    <input
+                      type="checkbox"
+                      checked={!!formData.cursed}
+                      onChange={(e) => setFormData({ ...formData, cursed: e.target.checked })}
+                      className="h-4 w-4"
+                    />
+                    被诅咒
+                  </label>
+                </div>
+                {formData.attunement && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      同调先决条件
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.attunePrereq || ''}
+                      onChange={(e) => setFormData({ ...formData, attunePrereq: e.target.value })}
+                      placeholder="如：法师 / 施法者 / 善良阵营生物"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      魔法加值
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.magicBonus ?? 0}
+                      onChange={(e) => {
+                        const n = parseInt(e.target.value);
+                        setFormData({ ...formData, magicBonus: isNaN(n) ? 0 : n });
+                      }}
+                      placeholder="0"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      初始充能
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.charges ?? 0}
+                      onChange={(e) => {
+                        const n = parseInt(e.target.value);
+                        setFormData({ ...formData, charges: isNaN(n) ? 0 : n });
+                      }}
+                      placeholder="0"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                </div>
+                {typeof formData.charges === 'number' && formData.charges > 0 && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
+                      充能恢复规则
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.chargeRegen || ''}
+                      onChange={(e) => setFormData({ ...formData, chargeRegen: e.target.value })}
+                      placeholder="如：每天黎明恢复1d3发已消耗的充能"
+                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                    />
+                  </div>
+                )}
+              </>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
@@ -422,22 +699,6 @@ const [formData, setFormData] = useState<
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                  魔法分类
-                </label>
-                <select
-                  value={formData.magicCategory}
-                  onChange={(e) => setFormData({ ...formData, magicCategory: e.target.value as any })}
-                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                >
-                  {MAGIC_OPTIONS.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
                   交易分类
                 </label>
                 <select
@@ -454,153 +715,6 @@ const [formData, setFormData] = useState<
               </div>
             </div>
 
-            {formData.magicCategory === '魔法物品' && (
-              <div className="space-y-3 rounded-lg border p-3 dark:border-border-dark light:border-border-light">
-                <div className="text-sm font-medium dark:text-text-dark light:text-text-light">魔法物品属性</div>
-                {/* 快速生成 +N 加值物品：泛模板 × 等级 → 自动填充下方字段 */}
-                <div className="space-y-2 rounded-md bg-primary/5 p-2.5">
-                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                    快速生成 +N 物品：选模板 → 选等级，名称/加值/稀有度/描述自动填入，之后在常规字段微调
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {GENERIC_MAGIC_TEMPLATES.map(t => (
-                      <button key={t.key} type="button"
-                        onClick={() => setGenMagicTpl(genMagicTpl === t.key ? null : t.key)}
-                        className={`px-2 py-1 rounded text-xs border transition-colors ${
-                          genMagicTpl === t.key
-                            ? 'bg-primary text-white border-primary'
-                            : 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:border-primary'
-                        }`}>
-                        +N {t.label}
-                      </button>
-                    ))}
-                  </div>
-                  {genMagicTpl && (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {[1, 2, 3].map(n => (
-                        <button key={n} type="button"
-                          onClick={() => applyGenericMagic(genMagicTpl, n)}
-                          className="px-2.5 py-1 rounded text-xs bg-primary/10 text-primary hover:bg-primary/20">
-                          +{n}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                      稀有度
-                    </label>
-                    <input
-                      type="text"
-                      list="magic-rarity-options"
-                      value={formData.rarity || ''}
-                      onChange={(e) => setFormData({ ...formData, rarity: e.target.value })}
-                      placeholder="如：珍稀 / 极珍稀或传说"
-                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                    <datalist id="magic-rarity-options">
-                      {RARITY_OPTIONS.map((option) => (
-                        <option key={option} value={option} />
-                      ))}
-                    </datalist>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                      激活方式
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.activation || ''}
-                      onChange={(e) => setFormData({ ...formData, activation: e.target.value })}
-                      placeholder="如：命令词 / 用一个动作"
-                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <label className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light">
-                    <input
-                      type="checkbox"
-                      checked={!!formData.attunement}
-                      onChange={(e) => setFormData({ ...formData, attunement: e.target.checked })}
-                      className="h-4 w-4"
-                    />
-                    需要同调
-                  </label>
-                  <label className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light">
-                    <input
-                      type="checkbox"
-                      checked={!!formData.cursed}
-                      onChange={(e) => setFormData({ ...formData, cursed: e.target.checked })}
-                      className="h-4 w-4"
-                    />
-                    被诅咒
-                  </label>
-                </div>
-                {formData.attunement && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                      同调先决条件
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.attunePrereq || ''}
-                      onChange={(e) => setFormData({ ...formData, attunePrereq: e.target.value })}
-                      placeholder="如：法师 / 施法者 / 善良阵营生物"
-                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                  </div>
-                )}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                      魔法加值
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.magicBonus ?? 0}
-                      onChange={(e) => {
-                        const n = parseInt(e.target.value);
-                        setFormData({ ...formData, magicBonus: isNaN(n) ? 0 : n });
-                      }}
-                      placeholder="0"
-                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                      初始充能
-                    </label>
-                    <input
-                      type="number"
-                      value={formData.charges ?? 0}
-                      onChange={(e) => {
-                        const n = parseInt(e.target.value);
-                        setFormData({ ...formData, charges: isNaN(n) ? 0 : n });
-                      }}
-                      placeholder="0"
-                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                  </div>
-                </div>
-                {typeof formData.charges === 'number' && formData.charges > 0 && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">
-                      充能恢复规则
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.chargeRegen || ''}
-                      onChange={(e) => setFormData({ ...formData, chargeRegen: e.target.value })}
-                      placeholder="如：每天黎明恢复1d3发已消耗的充能"
-                      className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
-                    />
-                  </div>
-                )}
-              </div>
-            )}
 
           {formData.category === '自定义' || !CATEGORIES.includes(formData.category) ? (
             <div>
