@@ -38,6 +38,7 @@ function projectInventory(record: CombatRecord, c: Combatant): RosterInventoryIt
       name: eq.name,
       quantity: eq.quantity ?? 1,
       category: eq.category,
+      magicBonus: eq.magicBonus,
       attack: atk
         ? {
             damage: atk.damage,

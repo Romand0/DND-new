@@ -6,6 +6,8 @@ export interface WeaponLike {
   name: string;
   subtype?: string;
   properties?: string[];
+  /** 魔法加值（+1/+2/+3 武器），叠加到命中加值 */
+  magicBonus?: number;
 }
 
 export interface AttackBonusResult {
@@ -163,11 +165,13 @@ export function calcAttackBonus(
 
   const abilityMod = abilityKey === 'strength' ? strMod : dexMod;
   const profValue = isProficient ? profBonus : 0;
-  const bonus = abilityMod + profValue;
+  const magicBonus = weapon.magicBonus ?? 0;
+  const bonus = abilityMod + profValue + magicBonus;
 
   // 格式化加值分解
   const fmt = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
   const parts: string[] = [];
+  if (magicBonus !== 0) parts.push(`${fmt(magicBonus)}(魔法)`);
   if (profValue > 0) parts.push(`${fmt(profValue)}(熟练)`);
   parts.push(`${fmt(abilityMod)}(${abilityKey === 'strength' ? '力量' : '敏捷'})`);
 

@@ -228,6 +228,8 @@ export interface RosterInventoryItem {
   quantity: number;
   /** 装备类目（武器/防具/弹药/杂项…），背包分页分组显示用 */
   category?: string;
+  /** 魔法加值（+1/+2/+3 武器），玩家端攻击加值计算用 */
+  magicBonus?: number;
   /** 武器攻击属性；弹药/普通物品为 null */
   attack: RosterInventoryAttack | null;
 }

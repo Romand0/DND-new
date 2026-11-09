@@ -4,6 +4,7 @@ import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifac
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
+import { hydrateMagicFields } from './equipmentFactory';
 import { globalStatusManager } from './statusManager';
 import type { Equipment, Character, SpellSlotLevel, HandSlot, HandState } from '@/types/character';
 import type { StatusInstance } from '@/types/status';
@@ -213,7 +214,8 @@ function deriveFromChildQtyMap(
     // 源里有优先用源装备对象（保留角色源属性），否则用 added 的快照
     const base = info.srcEq ?? info.addedEq;
     if (!base) continue;
-    result.push({ ...base, quantity: info.combatQty });
+    // 存量实例魔法字段惰性补齐（按模板回查；新实例字段齐全时零开销跳过）
+    result.push({ ...hydrateMagicFields(base), quantity: info.combatQty });
   }
   return result;
 }
@@ -313,7 +315,7 @@ export function computeCombatantAc(
       const templateAcBase = (armor as any).acBase || equipmentStore.getById(armor.id)?.acBase || '';
       const parsed = typeof templateAcBase === 'string' ? Number(templateAcBase) : typeof templateAcBase === 'number' ? templateAcBase : NaN;
       if (!isNaN(parsed) && parsed > 0) {
-        const baseAc = parsed;
+        const baseAc = parsed + (armor.magicBonus ?? 0); // 魔法护甲：+1/+2/+3 并入基础 AC
         if (subtype.includes('重型') || subtype.includes('重甲')) {
           armorBonus = baseAc - 10; // 重甲：敏捷不加
           dexCap = 0;
@@ -339,7 +341,7 @@ export function computeCombatantAc(
   for (const hid of heldIds) {
     const eq = inventory.find(e => (e.childId || e.id) === hid);
     if (eq?.subtype === '盾牌') {
-      ac += 2;
+      ac += 2 + (eq.magicBonus ?? 0); // 魔法盾牌：+1 盾等在基础 +2 上叠加
       break;
     }
   }
