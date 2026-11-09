@@ -23,6 +23,30 @@ const MAGIC_OPTIONS = ['非魔法物品', '魔法物品'] as const;
 const TRADE_OPTIONS = ['冒险物品', '贵重物品'] as const;
 const RARITY_OPTIONS = ['普通', '非普通', '珍稀', '极珍稀', '传说', '特殊', '多种稀有度'];
 
+// DMG 2014 泛条目模板（+N 加值物品）：等级-稀有度映射按原书（护甲比武器高一档），同调按原书标注
+const GENERIC_MAGIC_TEMPLATES = [
+  {
+    key: 'weapon', label: '武器', name: '武器', category: '武器', subtype: '任意',
+    rarities: { 1: '非普通', 2: '珍稀', 3: '极珍稀' } as Record<number, string>,
+    desc: (n: number) => `你在用此魔法武器发动的攻击检定和伤害掷骰获得 +${n} 加值。`,
+  },
+  {
+    key: 'armor', label: '护甲', name: '护甲', category: '护甲', subtype: '轻甲、中甲、或重甲',
+    rarities: { 1: '珍稀', 2: '极珍稀', 3: '传说' } as Record<number, string>,
+    desc: (n: number) => `着装该护甲期间，你的 AC 获得 +${n} 加值。具体护甲类型与 AC 基础值请按所穿护甲填写。`,
+  },
+  {
+    key: 'shield', label: '盾牌', name: '盾牌', category: '护甲', subtype: '盾牌',
+    rarities: { 1: '非普通', 2: '珍稀', 3: '极珍稀' } as Record<number, string>,
+    desc: (n: number) => `持握此盾牌期间，你的 AC 获得 +${n} 加值。这一 AC 加值会被算入盾牌正常情况下为你提供的 AC 值中。`,
+  },
+  {
+    key: 'ammo', label: '弹药', name: '弹药', category: '武器', subtype: '任何弹药',
+    rarities: { 1: '非普通', 2: '珍稀', 3: '极珍稀' } as Record<number, string>,
+    desc: (n: number) => `你使用此魔法弹药发动攻击检定和伤害掷骰时获得 +${n} 加值。此弹药一旦击中目标即不再具有魔法效果。`,
+  },
+];
+
 export default function EquipmentEditor({
   item, isStatic = false, showQuantity = false, showPackSize = false,
   showSyncOption = false, loading = false, onSave, onDelete, onClose
@@ -70,6 +94,27 @@ const [formData, setFormData] = useState<
   const [customProperty, setCustomProperty] = useState('');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [syncToLibrary, setSyncToLibrary] = useState(false);
+  // 快速生成：当前选中的泛模板 key（选等级后自动填充并清空）
+  const [genMagicTpl, setGenMagicTpl] = useState<string | null>(null);
+
+  const applyGenericMagic = (tplKey: string, level: number) => {
+    const t = GENERIC_MAGIC_TEMPLATES.find(x => x.key === tplKey);
+    if (!t) return;
+    setFormData({
+      ...formData,
+      name: `+${level} ${t.name}`,
+      category: t.category,
+      subtype: t.subtype,
+      magicCategory: '魔法物品',
+      magicBonus: level,
+      rarity: t.rarities[level],
+      attunement: true,
+      attunePrereq: '',
+      cursed: false,
+      description: t.desc(level),
+    });
+    setGenMagicTpl(null);
+  };
 
   useEffect(() => {
   if (item) {
@@ -412,6 +457,36 @@ const [formData, setFormData] = useState<
             {formData.magicCategory === '魔法物品' && (
               <div className="space-y-3 rounded-lg border p-3 dark:border-border-dark light:border-border-light">
                 <div className="text-sm font-medium dark:text-text-dark light:text-text-light">魔法物品属性</div>
+                {/* 快速生成 +N 加值物品：泛模板 × 等级 → 自动填充下方字段 */}
+                <div className="space-y-2 rounded-md bg-primary/5 p-2.5">
+                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                    快速生成 +N 物品：选模板 → 选等级，名称/加值/稀有度/描述自动填入，之后在常规字段微调
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {GENERIC_MAGIC_TEMPLATES.map(t => (
+                      <button key={t.key} type="button"
+                        onClick={() => setGenMagicTpl(genMagicTpl === t.key ? null : t.key)}
+                        className={`px-2 py-1 rounded text-xs border transition-colors ${
+                          genMagicTpl === t.key
+                            ? 'bg-primary text-white border-primary'
+                            : 'dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:border-primary'
+                        }`}>
+                        +N {t.label}
+                      </button>
+                    ))}
+                  </div>
+                  {genMagicTpl && (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {[1, 2, 3].map(n => (
+                        <button key={n} type="button"
+                          onClick={() => applyGenericMagic(genMagicTpl, n)}
+                          className="px-2.5 py-1 rounded text-xs bg-primary/10 text-primary hover:bg-primary/20">
+                          +{n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">

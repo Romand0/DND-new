@@ -15,11 +15,16 @@ const CATEGORY_MAP = {
   '权杖': '法器', '法杖': '法器', '魔杖': '法器',
   '戒指': '杂物', '奇物': '杂物',
 };
-const RAR = '(普通|非普通|珍稀|极珍稀|传说|特殊|多种稀有度)(或(普通|非普通|珍稀|极珍稀|传说|特殊|多种稀有度))?';
+// 稀有度段：允许尾缀「（+N）」（DMG 泛条目如「非普通（+1）/珍稀（+2）/极珍稀（+3）」）
+const RAR_SEG = '(普通|非普通|珍稀|极珍稀|传说|特殊|多种稀有度)(（\\+\\d）)?';
+const RAR = `${RAR_SEG}(或${RAR_SEG})?`;
+// 泛条目复合尾段：「/珍稀（+2）/极珍稀（+3）」
+const RAR_TAIL = '(?:\\/' + RAR_SEG + ')*';
 const ATT = '(（需[^（）]*同调）)?';
 const CATS = '(武器|护甲|药水|戒指|权杖|卷轴|法杖|魔杖|奇物)';
-const TYPE_FULL = new RegExp(`^${CATS}(（[^（）]*）)?，${RAR}${ATT}$`);
-const TYPE_INLINE = new RegExp(`${CATS}(（[^（）]*）)?，${RAR}${ATT}`);
+// 组序号：1=类 2=子类 3=稀有度1 4=(+N)1 5=或 6=稀有度2 7=(+N)2 8=同调
+const TYPE_FULL = new RegExp(`^${CATS}(（[^（）]*）)?，${RAR}${RAR_TAIL}${ATT}$`);
+const TYPE_INLINE = new RegExp(`${CATS}(（[^（）]*）)?，${RAR}${RAR_TAIL}${ATT}`);
 
 // 括号内「需同调」= 无先决条件；「需法师同调」= 先决条件「法师」
 function parsePrereq(attGroup) {
@@ -67,9 +72,10 @@ function parseBlock(lines) {
         typeLine = line;
         item.type = m[1];
         item.subtype = m[2] ? m[2].slice(1, -1) : null;
-        item.rarity = m[3] + (m[5] ? '或' + m[5] : '');
-        item.attune = !!m[6];
-        item.prereq = parsePrereq(m[6]);
+        // 带（+N）修饰 = 泛条目区间稀有度，单条目无法表达 → 置空（等级-稀有度由生成器映射）
+        item.rarity = m[4] ? null : (m[3] + (m[6] ? '或' + m[6] : ''));
+        item.attune = !!m[8];
+        item.prereq = parsePrereq(m[8]);
         continue;
       }
       item.nameLines.push(line);
@@ -87,9 +93,9 @@ function parseBlock(lines) {
         if (before) item.nameLines.push(before);
         item.type = m[1];
         item.subtype = m[2] ? m[2].slice(1, -1) : null;
-        item.rarity = m[3] + (m[5] ? '或' + m[5] : '');
-        item.attune = !!m[6];
-        item.prereq = parsePrereq(m[6]);
+        item.rarity = m[4] ? null : (m[3] + (m[6] ? '或' + m[6] : ''));
+        item.attune = !!m[8];
+        item.prereq = parsePrereq(m[8]);
         item.typeLine = m[0];
         item.desc = [after, ...item.desc].filter(Boolean);
         item.nameLines.splice(li, 1);
