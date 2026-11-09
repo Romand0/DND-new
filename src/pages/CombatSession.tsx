@@ -1601,6 +1601,18 @@ export default function CombatSession() {
                 updatedAt: Date.now(),
               });
             }
+            // 攻击事件：驱动观众端攻击动画（飞矢/冲刺）；投掷与远程武器按飞矢播放
+            combatStore.pushCombatEvent(record.id, {
+              kind: 'attack',
+              round: currentTurn ? currentTurn.round + 1 : 0,
+              actorId: attackModal.attacker.id,
+              targetId: attackModal.target.id,
+              ranged: info.usageMode === 'thrown' || attack.subtype?.includes('远程') === true,
+              hit: true,
+              critical: info.isNatural20,
+              weaponName: attack.name,
+              text: `《${attack.name}》→ ${attackModal.target.name}：命中`,
+            });
             setDamageModal({
               attacker: attackModal.attacker,
               target: attackModal.target,
@@ -1650,6 +1662,17 @@ export default function CombatSession() {
               });
             }
             const text = `《${missInfo.attackName}》→ ${attackModal.target.name}：未命中`;
+            // 攻击事件（未命中也推）：观众端播放落空动画
+            combatStore.pushCombatEvent(record.id, {
+              kind: 'attack',
+              round: currentTurn ? currentTurn.round + 1 : 0,
+              actorId: attackModal.attacker.id,
+              targetId: attackModal.target.id,
+              ranged: missInfo.usageMode === 'thrown' || missInfo.attack.subtype?.includes('远程') === true,
+              hit: false,
+              weaponName: missInfo.attackName,
+              text,
+            });
             recordOperation(attackModal.attacker.id, text, 'attack');
             // 投掷武器掉落：未命中也掉落
             if (attackModal.attackerPos && attackModal.targetPos) {

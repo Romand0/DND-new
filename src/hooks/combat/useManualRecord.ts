@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import combatStore from '@/data/combatStore';
 import type { CombatRecord, OperationLogEntry } from '@/types/combat';
 import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
+
+// 手动攻击方式是自由文本，按关键词启发式判定远程（只影响观众端动画形态：飞矢 vs 冲刺）
+const RANGED_HINT = /(弓|弩|射击|投掷|标枪|飞斧|飞锤|箭)/;
 
 export interface UseManualRecordProps {
   selectedCell: { round: number; combatantId: string } | null;
@@ -84,6 +88,17 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
           return;
         }
       }
+      // 攻击事件：伤害/治疗事件由 handleApplyDamage 自动推送，此处补攻击动画本体
+      combatStore.pushCombatEvent(record.id, {
+        kind: 'attack',
+        round: round + 1,
+        actorId: combatantId,
+        targetId: target.id,
+        ranged: RANGED_HINT.test(manualAttackMethod),
+        hit,
+        weaponName: manualAttackMethod,
+        text,
+      });
       recordOperation(combatantId, text, kind);
       consumeCombatantAction(combatantId);
     } else if (manualRecordType === 'recovery') {
