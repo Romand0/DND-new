@@ -3,7 +3,8 @@ import { Check, X, AlertTriangle } from 'lucide-react';
 import type { Combatant } from '@/types/combat';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
 import type { Spell } from '@/types/spell';
-import { deriveCanGesticulate } from '@/data/somaticCheck';
+import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS } from '@/data/somaticCheck';
+import { actionDeniedReason, listActiveDefinitionIds } from '@/data/statusRuntime';
 import { parseSpellRange } from '@/utils/spellRange';
 import SpellMaterialPanel from './SpellMaterialPanel';
 import type { MaterialEvaluation, MaterialRequirement } from '@/data/spellMaterials';
@@ -36,6 +37,14 @@ export default function SpellPreCastStep({
   const items: PrecastCheckItem[] = [];
   const blockingConditions: string[] = [];
 
+  const statusDenied = actionDeniedReason(caster);
+  if (statusDenied) {
+    items.push({
+      key: 'status', label: '施法者状态', pass: false,
+      detail: statusDenied,
+    });
+  }
+
   // 言语成分（V）：Combatant.canSpeak 战斗期补丁优先，未定义视为可用
   if (spell.components?.verbal) {
     const pass = caster.canSpeak !== false;
@@ -47,11 +56,19 @@ export default function SpellPreCastStep({
 
   // 姿势成分（S）：失能/昏迷/阻断状态/手动覆盖（deriveCanGesticulate）
   if (spell.components?.somatic) {
-    const canGesticulate = deriveCanGesticulate(caster, []);
+    const activeConditions = listActiveDefinitionIds(caster.id);
+    const canGesticulate = deriveCanGesticulate(caster, activeConditions);
     if (!canGesticulate) {
       if (caster.isIncapacitated) blockingConditions.push('incapacitated');
       if (caster.isUnconscious) blockingConditions.push('unconscious');
-      if (caster.canGesticulate === false) blockingConditions.push('手动覆盖');
+      for (const cond of activeConditions) {
+        if (SOMATIC_BLOCKING_CONDITIONS.has(cond) && !blockingConditions.includes(cond)) {
+          blockingConditions.push(cond);
+        }
+      }
+      if (caster.canGesticulate === false && blockingConditions.length === 0) {
+        blockingConditions.push('手动覆盖');
+      }
     }
     items.push({
       key: 'S', label: '姿势成分（S）', pass: canGesticulate,

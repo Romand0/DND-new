@@ -7,13 +7,13 @@
 
 /** 效果类型枚举 —— 可扩展，目前预留核心能力占位 */
 export type EffectType =
-  // 动作系统（预留）
-  | 'action_block'           // 阻止动作
-  | 'bonus_action_block'     // 阻止附赠动作（预留）
+  // 动作系统
+  | 'action_block'           // 阻止动作（canUseAction 门控）
+  | 'bonus_action_block'     // 阻止附赠动作（canUseBonusAction 门控）
   | 'reaction_block'         // 阻止反应（预留）
-  // 专注系统（预留）
+  // 专注系统
   | 'concentration_break'    // 打断已有专注
-  | 'concentration_block'    // 无法开始新的专注（预留）
+  | 'concentration_block'    // 无法开始新的专注
   // 言语能力
   | 'speech_block'           // 无法说话
   // 先攻
@@ -233,6 +233,9 @@ export interface StatusManager {
 
   /** 清理过期状态 */
   cleanupExpired(): void;
+
+  /** 订阅状态生命周期事件（start / end / expire）；返回取消订阅函数 */
+  subscribe(listener: StatusChangeListener): () => void;
 }
 
 // ======================

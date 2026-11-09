@@ -1004,7 +1004,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   )}
                 </div>
               )}
-              {!combatant.isIncapacitated && (
+              {!combatant.isIncapacitated && !(recordId || provingRecord?.id) && (
                 <div className="text-center py-8 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                   当前无状态效果
                 </div>
@@ -1013,9 +1013,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           )}
 
           {/* 试验场：状态附加面板（任意参战者附加/解除状态库任意状态） */}
-          {activeTab === 'status' && isProvingGround && provingRecord && (
+          {activeTab === 'status' && (recordId || provingRecord?.id) && (
             <div className="mt-3 pt-3 border-t dark:border-border-dark light:border-border-light">
-              <StatusAttachPanel recordId={provingRecord.id} combatant={combatant} />
+              <StatusAttachPanel recordId={(recordId || provingRecord?.id)!} combatant={combatant} />
             </div>
           )}
 
@@ -1213,7 +1213,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {ALL_ACTIONS.map((type) => {
-                    const clickable = !sealed && (
+                    const statusBlocked = !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated);
+                    const clickable = !sealed && !statusBlocked && (
                       (type === 'help' && !!onHelpClick) ||
                       (type === 'attack' && !!onAttackClick) ||
                       (type === 'cast' && !!onCastClick) ||
@@ -1247,6 +1248,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     );
                   })}
                 </div>
+                {(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated) && (
+                  <p className="mt-1.5 text-[10px] text-purple-400">
+                    {combatant.isDead ? '已死亡，无法行动' : combatant.isUnconscious ? '已昏迷，无法行动' : '已失能，无法行动'}
+                  </p>
+                )}
                 {onForcedMoveClick && (
                   <button
                     type="button"
@@ -1270,7 +1276,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           <button
                             key={f.id}
                             type="button"
-                            disabled={sealed}
+                            disabled={sealed || !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated)}
                             onClick={() => {
                               if (isBardic && onBardicClick) {
                                 onBardicClick();

@@ -36,6 +36,7 @@ import {
 } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
+import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
@@ -159,6 +160,19 @@ function getBardicDie(c: Combatant): { sides: number; label: string } {
     if (lv >= 5) return { sides: 8, label: 'd8' };
   }
   return { sides: 6, label: 'd6' };
+}
+
+function ensureCanAct(c: Combatant, canUse: boolean, kind: 'action' | 'bonus' = 'action'): boolean {
+  const reason = actionDeniedReason(c);
+  if (reason) {
+    alert(reason);
+    return false;
+  }
+  if (!canUse) {
+    alert(kind === 'bonus' ? '该参战者本回合已没有可用附赠动作' : '该参战者本回合已没有可用动作');
+    return false;
+  }
+  return true;
 }
 
 export default function CombatSession() {
@@ -502,6 +516,8 @@ export default function CombatSession() {
     const latest = combatStore.get(record.id);
     const caster = latest?.combatants.find(c => c.id === combatantId);
     if (!latest || !caster) return null;
+    if (caster.isDead || caster.isUnconscious || caster.isIncapacitated) return null;
+    if (globalStatusManager.hasEffect(combatantId, 'concentration_block', 'combat')) return null;
     const prev = caster.concentration;
     // 替换/重施：旧专注挂载的状态实例同步结束（5e：失去旧的才开始新的）
     combatStore.removeConcentrationStatuses(prev);
@@ -797,14 +813,17 @@ export default function CombatSession() {
 
   // ============ 动作入口统一函数（操作栏面板与沙盘双击面板共用） ============
   const openHelpFor = (c: Combatant) => {
+    if (!ensureCanAct(c, canUseAction(c.id))) return;
     setHelpModal({ from: c });
   };
 
   const openBardicFor = (c: Combatant) => {
+    if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
     setBardicModal({ from: c });
   };
 
   const openAttackFor = (c: Combatant) => {
+    if (!ensureCanAct(c, canUseAction(c.id))) return;
     // 攻击需要目标，若已有上次选中的敌人优先；否则提示等手动选择
     const potentialTarget = record.combatants.find(x => x.id !== c.id && !x.isDead);
     if (potentialTarget) {
@@ -825,6 +844,11 @@ export default function CombatSession() {
   };
 
   const openCastFor = (c: Combatant) => {
+    const denied = actionDeniedReason(c);
+    if (denied) {
+      alert(denied);
+      return;
+    }
     // 通道 2：操作栏施法 = 先在弹窗内选法术，再按法术对象类型选目标
     // （自身类法术在选法术后直接跳过目标确认；单体法术在目标确认步骤
     // 列表选人 + 射程门禁）。入口目标恒为施法者自己（通道 1 拖拽才带目标）
@@ -832,10 +856,7 @@ export default function CombatSession() {
   };
 
   const dashFor = (c: Combatant) => {
-    if (!canUseAction(c.id)) {
-      alert('该参战者本回合已没有可用动作');
-      return;
-    }
+    if (!ensureCanAct(c, canUseAction(c.id))) return;
     // 疾走：额外获得等于战斗速度的可用移动力（dashExtraMovement += battleSpeed）
     // 注意：疾走不改变 speedModifier，只增加 dashExtraMovement
     const battleSpeed = (c.speed ?? 30) + (c.speedModifier ?? 0);
@@ -1354,10 +1375,7 @@ export default function CombatSession() {
         }}
         onRequestAttack={(attacker, target) => {
           // 动作校验：放映模式可用动作耗尽时禁止发起攻击
-          if (!canUseAction(attacker.id)) {
-            alert('该参战者本回合已没有可用动作');
-            return;
-          }
+          if (!ensureCanAct(attacker, canUseAction(attacker.id))) return;
           // 从最新 record 重取对象（pendingAdvantageSources 必须是协助后最新状态，不能用闭包 capture 的旧 snapshot）
           const latestAttacker = record.combatants.find(c => c.id === attacker.id) ?? attacker;
           const latestTarget = record.combatants.find(c => c.id === target.id) ?? target;
@@ -1374,10 +1392,7 @@ export default function CombatSession() {
         }}
         onRequestSpell={(caster, target) => {
           // 动作校验：放映模式可用动作耗尽时禁止施法
-          if (!canUseAction(caster.id)) {
-            alert('该参战者本回合已没有可用动作');
-            return;
-          }
+          if (!ensureCanAct(caster, canUseAction(caster.id))) return;
           const latestCaster = record.combatants.find(c => c.id === caster.id) ?? caster;
           const latestTarget = record.combatants.find(c => c.id === target.id) ?? target;
           // 法术按钮：打开独立法术施放弹窗

@@ -6,6 +6,7 @@ import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
 import { hydrateMagicFields } from './equipmentFactory';
 import { globalStatusManager } from './statusManager';
+import { deriveCombatantStatusFlags } from './statusRuntime';
 import type { Equipment, Character, SpellSlotLevel, HandSlot, HandState } from '@/types/character';
 import type { StatusInstance } from '@/types/status';
 import statusLibrary from './statusLibrary';
@@ -21,6 +22,9 @@ let listeners: Listener[] = [];
 // 进程内缓存：避免每次读都全量 parse localStorage。
 // 所有写操作都必须经过 save()，否则缓存不会失效。
 let recordsCache: CombatRecord[] | null = null;
+
+/** 状态标志同步重入保护（declareEnd → emit → subscribe → sync → 再 declareEnd） */
+const statusFlagSyncing = new Set<string>();
 
 // 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
 if (typeof window !== 'undefined') {
@@ -836,9 +840,10 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0, canSpeak: true };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0 };
     record.updatedAt = Date.now();
     save(records);
+    this.syncCombatantStatusFlags(recordId, combatantId);
     return 1;
   },
 
@@ -1346,24 +1351,54 @@ const combatStore = {
   },
 
   toggleIncapacitated(sessionId: string, combatantId: string): void {
-    const list = load();
-    const idx = list.findIndex((b) => b.id === sessionId);
-    if (idx === -1) return;
-    const combatants = list[idx].combatants.map(c =>
-      c.id === combatantId
-        ? { ...c, isIncapacitated: !c.isIncapacitated, canSpeak: c.isIncapacitated }
-        : c
-    );
-    list[idx] = { ...list[idx], combatants, updatedAt: Date.now() };
-    // 失能瞬间即打断专注（D&D 5e）：失能移除后专注无法恢复，清理在此即时执行
-    if (combatants.some(c => c.id === combatantId && c.isIncapacitated && c.concentration)) {
-      const broken = combatants.find(c => c.id === combatantId && c.isIncapacitated);
-      this.removeConcentrationStatuses(broken?.concentration);
-      list[idx].combatants = combatants.map(c =>
-        c.id === combatantId ? { ...c, concentration: undefined } : c
-      );
+    const active = globalStatusManager.getActiveStatuses(combatantId, 'combat')
+      .filter(i => i.definitionId === 'incapacitated');
+    if (active.length > 0) {
+      for (const inst of active) globalStatusManager.declareEnd(inst.instanceId);
+    } else {
+      globalStatusManager.applyEffect(combatantId, 'incapacitated', 'combat', sessionId);
     }
-    save(list);
+  },
+
+  /**
+   * 把活跃状态 + HP 标志推导结果写回参战者 isIncapacitated / canSpeak / canGesticulate。
+   * 失能/昏迷/死亡同时打断专注。由 statusManager 订阅与 HP 变更入口调用。
+   */
+  syncCombatantStatusFlags(recordId: string, combatantId: string): void {
+    const key = `${recordId}:${combatantId}`;
+    if (statusFlagSyncing.has(key)) return;
+    statusFlagSyncing.add(key);
+    try {
+      const records = load();
+      const record = records.find(r => r.id === recordId);
+      if (!record) return;
+      const idx = record.combatants.findIndex(c => c.id === combatantId);
+      if (idx === -1) return;
+      const current = record.combatants[idx];
+      const flags = deriveCombatantStatusFlags(current);
+      const same =
+        !!current.isIncapacitated === flags.isIncapacitated
+        && (current.canSpeak !== false) === flags.canSpeak
+        && (current.canGesticulate !== false) === flags.canGesticulate;
+      const concNeedsClear = flags.concentrationBroken && !!current.concentration;
+      if (same && !concNeedsClear) return;
+      let next: Combatant = {
+        ...current,
+        isIncapacitated: flags.isIncapacitated,
+        canSpeak: flags.canSpeak,
+        canGesticulate: flags.canGesticulate,
+      };
+      if (concNeedsClear) {
+        this.removeConcentrationStatuses(next.concentration);
+        next = { ...next, concentration: undefined };
+      }
+      record.combatants[idx] = next;
+      record.updatedAt = Date.now();
+      save(records);
+      if (concNeedsClear) this.cleanupConcentrationMaintainTodos(recordId);
+    } finally {
+      statusFlagSyncing.delete(key);
+    }
   },
 
   /**
@@ -1717,7 +1752,9 @@ const combatStore = {
     }
     record.updatedAt = Date.now();
     save(records);
-    return { combatant: record.combatants[idx], outcome };
+    this.syncCombatantStatusFlags(recordId, todo.combatantId);
+    const synced = this.get(recordId)?.combatants.find(c => c.id === todo.combatantId);
+    return { combatant: synced ?? record.combatants[idx], outcome };
   },
 
   /**
@@ -2400,3 +2437,9 @@ export function commitAllPcCombatChanges(recordId: string): {
 }
 
 export default combatStore;
+
+globalStatusManager.subscribe((event) => {
+  const combatId = event.instance.combatId;
+  if (!combatId || event.instance.scope !== 'combat') return;
+  combatStore.syncCombatantStatusFlags(combatId, event.instance.targetId);
+});

@@ -389,6 +389,13 @@ export function createStatusManager(): StatusManagerWithApply {
         }
       }
     },
+
+    subscribe(listener: StatusChangeListener): () => void {
+      store.listeners.push(listener);
+      return () => {
+        store.listeners = store.listeners.filter(l => l !== listener);
+      };
+    },
   };
 }
 
