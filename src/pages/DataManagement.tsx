@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Download, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { createEquipment, updateEquipment, fetchAllEquipments, batchUpsertEquipments } from '@/lib/api';
+import { createEquipment, updateEquipment, fetchAllEquipments, batchUpsertEquipments, exportAllEquipments, exportAllNpcTemplates, exportAllOptions } from '@/lib/api';
 import npcTemplateStore from '@/data/npcTemplateStore';
 
 const CATEGORIES = [
@@ -116,6 +116,51 @@ const [spellTableSaveResult, setSpellTableSaveResult] = useState<{ success: bool
     failedItems: { name: string; reason: string }[];
   } | null>(null);
   const [consoleExecuting, setConsoleExecuting] = useState(false);
+
+  // ---- 种库快照导出状态 ----
+  const [seedExporting, setSeedExporting] = useState(false);
+  const [seedExportResult, setSeedExportResult] = useState<{
+    equipments: number;
+    monsters: number;
+    options: number;
+  } | null>(null);
+  const [seedExportError, setSeedExportError] = useState('');
+
+  // 导出三宝书全量快照：?scope=all 取出版物 + 私有，产物是 scripts/build-seed.mjs 的输入
+  const handleExportSeedSnapshot = async () => {
+    setSeedExporting(true);
+    setSeedExportError('');
+    setSeedExportResult(null);
+    try {
+      const [equipments, monsters, options] = await Promise.all([
+        exportAllEquipments<any[]>(),
+        exportAllNpcTemplates<any[]>(),
+        exportAllOptions<any[]>(),
+      ]);
+      const data = {
+        equipments: Array.isArray(equipments) ? equipments : [],
+        monsters: Array.isArray(monsters) ? monsters : [],
+        options: Array.isArray(options) ? options : [],
+        exportedAt: new Date().toISOString(),
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `三宝书种库快照-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setSeedExportResult({
+        equipments: data.equipments.length,
+        monsters: data.monsters.length,
+        options: data.options.length,
+      });
+    } catch (e: any) {
+      setSeedExportError(e?.message || String(e));
+    } finally {
+      setSeedExporting(false);
+    }
+  };
 
   // ---- 导入区函数 ----
   const fetchPreview = async () => {
@@ -580,6 +625,36 @@ const handleMonsterImport = () => {
       </button>
 
       <h1 className="text-xl font-bold mb-4">数据管理</h1>
+
+      {/* ====== 区域零：导出三宝书种库快照 ====== */}
+      <section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">
+        <h2 className="text-base font-bold mb-2 dark:text-text-dark light:text-text-light">
+          导出三宝书种库快照
+        </h2>
+        <p className="text-xs mb-3 opacity-60 leading-relaxed">
+          拉取装备库、怪物图鉴、角色选项的全量数据（含出版物与自定义），下载为单个 JSON。
+          产物交给 <code>scripts/build-seed.mjs</code> 拆分为 <code>public/seed/</code> 中文分片后提交仓库。
+          顺序：先导出并发布种子，再清理云端出版物行，避免图鉴空窗。
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handleExportSeedSnapshot}
+            disabled={seedExporting}
+            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          >
+            <Download className="w-4 h-4" />
+            {seedExporting ? '导出中...' : '导出种库快照'}
+          </button>
+        </div>
+        {seedExportError && (
+          <p className="text-xs text-danger mt-2">导出失败：{seedExportError}</p>
+        )}
+        {seedExportResult && (
+          <p className="text-xs text-success mt-2">
+            已导出：装备 {seedExportResult.equipments} 条 · 怪物 {seedExportResult.monsters} 条 · 选项 {seedExportResult.options} 条
+          </p>
+        )}
+      </section>
 
       {/* ====== 区域一：从 5E 不全书导入 ====== */}
       <section className="rounded-lg border dark:border-border-dark light:border-border-light p-4">

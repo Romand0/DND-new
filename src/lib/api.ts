@@ -138,6 +138,11 @@ export async function fetchAllEquipments<T = any[]>(): Promise<T> {
   return apiFetch<T>('/equipments');
 }
 
+/** 全库视角导出（站点管理员）：含出版物全量，用于种子快照生成 */
+export async function exportAllEquipments<T = any[]>(): Promise<T> {
+  return apiFetch<T>('/equipments?scope=all');
+}
+
 export async function fetchEquipment<T = any>(id: string): Promise<T> {
   return apiFetch<T>(`/equipments/${id}`);
 }
@@ -206,6 +211,11 @@ export async function fetchAllNpcTemplates<T = any[]>(): Promise<T> {
   return apiFetch<T>('/templates');
 }
 
+/** 全库视角导出（站点管理员）：含出版物全量，用于种子快照生成 */
+export async function exportAllNpcTemplates<T = any[]>(): Promise<T> {
+  return apiFetch<T>('/templates?scope=all');
+}
+
 export async function createNpcTemplate<T = any>(data: T): Promise<T> {
   return apiFetch<T>('/templates', {
     method: 'POST',
@@ -238,6 +248,11 @@ export async function deleteNpcTemplate(id: string): Promise<void> {
 // ============ 角色选项库（种族/背景/职业） ============
 export async function fetchAllOptions<T = any[]>(): Promise<T> {
   return apiFetch<T>('/options');
+}
+
+/** 全库视角导出（站点管理员）：含出版物全量，用于种子快照生成 */
+export async function exportAllOptions<T = any[]>(): Promise<T> {
+  return apiFetch<T>('/options?scope=all');
 }
 
 export async function batchUpsertOptions(items: any[]): Promise<{ count: number }> {
