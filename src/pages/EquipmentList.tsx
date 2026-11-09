@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useEditorState } from '@/data/editorState';
-import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw, FileText } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, deleteEquipments } from '@/lib/api';
@@ -157,6 +157,15 @@ export default function EquipmentList() {
   const exitSelectMode = () => {
     setSelectMode(false);
     setSelectedIds(new Set());
+  };
+
+  // 卡片点击：选择模式下 = 勾选；否则跳详情页（描述非空才有意义，但保持全卡片可点）
+  const handleCardClick = (item: EquipmentItem) => {
+    if (isAdmin && selectMode) {
+      toggleSelect(item.id);
+      return;
+    }
+    navigate(`/equipment/${encodeURIComponent(item.id)}`);
   };
 
   // ---- 批量删除 ----
@@ -361,16 +370,32 @@ export default function EquipmentList() {
       {/* 列表 */}
       <div className="grid gap-3">
         {filteredEquipments.map((item) => (
-          <div key={item.id} className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group">
+          <div key={item.id}
+            onClick={() => handleCardClick(item)}
+            className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group cursor-pointer">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* checkbox：仅选择模式 + DM */}
                 {isAdmin && selectMode && !isScrollEquipmentItem(item) && (
                   <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)}
+                    onClick={(e) => e.stopPropagation()}
                     className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0" />
                 )}
                 <div className="min-w-0">
-                  <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">{item.name}</h3>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">{item.name}</h3>
+                    {item.magicCategory === '魔法物品' && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">魔法</span>
+                    )}
+                    {item.cursed && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger shrink-0">诅咒</span>
+                    )}
+                    {item.description?.trim() && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary shrink-0 flex items-center gap-1">
+                        <FileText className="w-3 h-3" />有描述
+                      </span>
+                    )}
+                  </div>
                   <div className="flex items-center gap-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
                     <span>{item.category}</span>
                     {item.subtype && <span>· {item.subtype}</span>}
@@ -380,6 +405,11 @@ export default function EquipmentList() {
                     <span className="flex items-center gap-1 dark:text-text-dark light:text-text-light"><Coins className="w-3.5 h-3.5 text-accent" /> {formatPrice(item)}</span>
                     <span className="dark:text-text-dark-muted light:text-text-light-muted">{item.weight} 磅</span>
                   </div>
+                  {item.description?.trim() && (
+                    <p className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted line-clamp-2 leading-relaxed">
+                      {item.description.trim()}
+                    </p>
+                  )}
                   {item.properties && item.properties.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {item.properties.slice(0, 4).map((p) => (<span key={p} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">{p}</span>))}
@@ -394,8 +424,8 @@ export default function EquipmentList() {
               )}
               {isAdmin && !isScrollEquipmentItem(item) && (
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => handleEdit(item)} className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light" title="编辑"><Edit className="w-4 h-4" /></button>
-                  <button onClick={() => setDeleteConfirm(item.id)} className="p-2 rounded hover:bg-danger/20 text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); handleEdit(item); }} className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light" title="编辑"><Edit className="w-4 h-4" /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(item.id); }} className="p-2 rounded hover:bg-danger/20 text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
                 </div>
               )}
             </div>

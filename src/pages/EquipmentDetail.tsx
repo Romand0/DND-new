@@ -5,6 +5,7 @@ import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag, Swords, Shield } from 'lu
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { apiFetch } from '@/lib/api';
+import { equipmentStore } from '@/data/equipmentStore';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function EquipmentDetail() {
@@ -20,7 +21,7 @@ export default function EquipmentDetail() {
 
   useEditorState(editorOpen);
 
-  // 从后端加载单条装备
+  // 从后端加载单条装备；API 不可达时回退本地缓存（魔法物品等已导入条目在 localStorage 也有副本）
   const load = async () => {
     if (!id) return;
     setLoading(true);
@@ -32,7 +33,12 @@ export default function EquipmentDetail() {
       const data = await apiFetch(`/equipments/${id}`, { method: 'GET', headers });
       setItem(data);
     } catch (e: any) {
-      setError(e.message || '加载失败');
+      const local = equipmentStore.getById(id);
+      if (local) {
+        setItem(local);
+      } else {
+        setError(e.message || '加载失败');
+      }
     } finally {
       setLoading(false);
     }
@@ -110,13 +116,27 @@ export default function EquipmentDetail() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold dark:text-text-dark light:text-text-light">{item.name}</h1>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
             <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">{item.category}</span>
             {item.subtype && (
               <>
                 <span className="dark:text-text-dark-muted light:text-text-light-muted">·</span>
                 <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">{item.subtype}</span>
               </>
+            )}
+            {item.magicCategory === '魔法物品' && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400">魔法物品</span>
+            )}
+            {item.rarity && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{item.rarity}</span>
+            )}
+            {item.attunement && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary">
+                需同调{item.attunePrereq ? ` · ${item.attunePrereq}` : ''}
+              </span>
+            )}
+            {item.cursed && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger">被诅咒</span>
             )}
           </div>
         </div>
@@ -243,10 +263,12 @@ export default function EquipmentDetail() {
         </div>
       )}
 
-      {item.source && (
+      {(item.source || item.dataResource) && (
         <div className="p-4 rounded-lg dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
           <h3 className="text-sm font-medium mb-1 dark:text-text-dark light:text-text-light">来源</h3>
-          <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">{item.source}</p>
+          <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
+            {[item.source, item.dataResource].filter(Boolean).join(' · ')}
+          </p>
         </div>
       )}
 
