@@ -4,6 +4,7 @@ import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifac
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
 import { equipmentStore } from './equipmentStore';
+import { hydrateMagicFields } from './equipmentFactory';
 import { globalStatusManager } from './statusManager';
 import type { Equipment, Character, SpellSlotLevel, HandSlot, HandState } from '@/types/character';
 import type { StatusInstance } from '@/types/status';
@@ -213,7 +214,8 @@ function deriveFromChildQtyMap(
     // 源里有优先用源装备对象（保留角色源属性），否则用 added 的快照
     const base = info.srcEq ?? info.addedEq;
     if (!base) continue;
-    result.push({ ...base, quantity: info.combatQty });
+    // 存量实例魔法字段惰性补齐（按模板回查；新实例字段齐全时零开销跳过）
+    result.push({ ...hydrateMagicFields(base), quantity: info.combatQty });
   }
   return result;
 }

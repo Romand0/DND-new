@@ -102,6 +102,24 @@ export interface Equipment {
   /** 装备库的魔法分类（背包实例继承，用于判定攻击是否魔法） */
   magicCategory?: '魔法物品' | '非魔法物品';
 
+  // ---- 魔法物品字段（从装备库模板继承；charges 在实例上表示当前充能数） ----
+  /** 英文名（详情展示用） */
+  nameEn?: string;
+  /** 是否需要同调 */
+  attunement?: boolean;
+  /** 同调先决条件文本（如「由术士、法师或奇术师同调」） */
+  attunePrereq?: string;
+  /** 魔法加值（+1/+2/+3 武器与护甲） */
+  magicBonus?: number;
+  /** 当前充能数（实例状态；模板上是初始值） */
+  charges?: number;
+  /** 充能恢复描述（如「每日黎明恢复 1d6+1 发」） */
+  chargeRegen?: string;
+  /** 是否被诅咒 */
+  cursed?: boolean;
+  /** 启动方式（如「动作」「附赠动作」） */
+  activation?: string;
+
   // ---- 法术附属品（施法材料 / 卷轴）：由法术临时生成，不属于装备库模板 ----
   /** 归一化材料名（如「羊毛」「红宝石」），同类材料通用，多法术共享 */
   materialKey?: string;

@@ -1,5 +1,6 @@
 // src/data/equipmentFactory.ts
 import type { EquipmentItem } from '@/types/equipment';
+import { equipmentStore } from '@/data/equipmentStore';
 
 /**
  * 从任意源对象提取标准装备字段
@@ -49,5 +50,28 @@ export function extractBaseFields(
     materialName: source.materialName,
     materialCostGp: source.materialCostGp,
     materialConsumed: source.materialConsumed,
+  };
+}
+
+/**
+ * 惰性补齐背包实例的魔法字段（存量迁移）：
+ * 魔法字段上线前已加入背包的实例缺这组字段，按模板 id 回查装备库补齐。
+ * 实例已带 rarity 视为字段齐全（魔法字段成组出现），跳过；非魔法模板查完仍为 undefined，无副作用。
+ */
+export function hydrateMagicFields<E extends { id?: string; rarity?: string }>(eq: E): E {
+  if (!eq.id || eq.rarity !== undefined) return eq;
+  const tpl = equipmentStore.getById(eq.id);
+  if (!tpl) return eq;
+  return {
+    ...eq,
+    nameEn: tpl.nameEn,
+    rarity: tpl.rarity,
+    attunement: tpl.attunement,
+    attunePrereq: tpl.attunePrereq,
+    magicBonus: tpl.magicBonus,
+    charges: tpl.charges,
+    chargeRegen: tpl.chargeRegen,
+    cursed: tpl.cursed,
+    activation: tpl.activation,
   };
 }
