@@ -52,6 +52,7 @@ export function useDamageAndHp(
       };
     });
     combatStore.update(record.id, { combatants: updatedCombatants, updatedAt: Date.now() });
+    combatStore.syncCombatantStatusFlags(record.id, targetId);
     return updatedCombatants;
   };
 

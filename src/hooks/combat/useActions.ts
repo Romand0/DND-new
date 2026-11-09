@@ -22,12 +22,12 @@ export function useActions(record: CombatRecord | null, { playbackStarted, playb
   const isPlaybackActive = (): boolean =>
     currentMode() === 'playback' && playbackStarted && !playbackPaused && !!currentTurn;
 
-  // 该参战者当前是否还能发起动作（模拟模式/放映暂停恒可；放映模式 0 时禁止）
+  // 死亡/昏迷/失能一律禁止；其余：模拟模式/放映暂停恒可，放映模式 0 时禁止
   const canUseAction = (combatantId: string): boolean => {
     if (!record) return false;
-    if (!isPlaybackActive()) return true;
     const c = record.combatants.find(x => x.id === combatantId);
-    if (!c) return false;
+    if (!c || c.isDead || c.isUnconscious || c.isIncapacitated) return false;
+    if (!isPlaybackActive()) return true;
     return (typeof c.actions === 'number' ? c.actions : 1) > 0;
   };
 
@@ -38,12 +38,12 @@ export function useActions(record: CombatRecord | null, { playbackStarted, playb
     combatStore.consumeAction(record.id, combatantId, 'playback');
   };
 
-  // 该参战者当前是否还有可用附赠动作次数（模拟模式/放映暂停恒可；放映模式 0 时禁止）
+  // 死亡/昏迷/失能一律禁止；其余：模拟模式/放映暂停恒可，放映模式 0 时禁止
   const canUseBonusAction = (combatantId: string): boolean => {
     if (!record) return false;
-    if (!isPlaybackActive()) return true;
     const c = record.combatants.find(x => x.id === combatantId);
-    if (!c) return false;
+    if (!c || c.isDead || c.isUnconscious || c.isIncapacitated) return false;
+    if (!isPlaybackActive()) return true;
     return (typeof c.bonusActions === 'number' ? c.bonusActions : 1) > 0;
   };
 

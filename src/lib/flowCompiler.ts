@@ -24,6 +24,7 @@ import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
 import { rollDie, rollDice } from '@/data/diceService';
 import { deriveCanGesticulate, SOMATIC_BLOCKING_CONDITIONS, type SomaticBlockingCondition } from '@/data/somaticCheck';
+import { listActiveDefinitionIds } from '@/data/statusRuntime';
 import { parseDice } from '@/utils/diceExpr';
 import { bearing8, oppositeBearing, BEARING_LABELS } from '@/data/battleGeometry';
 import { evaluateSpellMaterials } from '@/data/spellMaterials';
@@ -356,7 +357,11 @@ export class FlowCompiler {
     const casterCharacter = this.resolveCharacter(context.casterId, context);
     const casterCombatant = this.resolveCombatant(context.casterId, context);
     const caster: Character = casterCharacter ?? (casterCombatant
-      ? { name: casterCombatant.name, canSpeak: true, canGesticulate: true } as unknown as Character
+      ? {
+          name: casterCombatant.name,
+          canSpeak: casterCombatant.canSpeak !== false,
+          canGesticulate: casterCombatant.canGesticulate !== false,
+        } as unknown as Character
       : null as unknown as Character);
     if (!caster) {
       return {
@@ -369,7 +374,9 @@ export class FlowCompiler {
 
     // 执行前置检查
     const casterPos = context.positions?.[context.casterId] ?? null;
-    const checkReport = await this.executePreCastChecks(spell, caster, config, context.targets, context.positions, casterPos);
+    const checkReport = await this.executePreCastChecks(
+      spell, caster, config, context.targets, context.positions, casterPos, casterCombatant,
+    );
 
     // 如果检查失败，直接返回失败结果
     if (checkReport.overall === 'fail') {
@@ -447,8 +454,11 @@ export class FlowCompiler {
     targets: string[],
     positions?: FlowExecutionContext['positions'],
     casterPos?: { col: number; row: number } | null,
+    casterCombatant?: Combatant | null,
   ): Promise<PreCastCheckReport> {
-    const components = this.checkComponents(spell, caster, [], caster);
+    const activeConditions = casterCombatant ? listActiveDefinitionIds(casterCombatant.id) : [];
+    const componentSubject = casterCombatant ?? caster;
+    const components = this.checkComponents(spell, componentSubject, activeConditions, caster);
     const range = this.checkRange(spell, config, targets, positions, casterPos);
     const time = this.checkTime(spell, config, caster);
 
@@ -467,7 +477,7 @@ export class FlowCompiler {
     if (config.autoChecks.components) {
       const componentChecks: string[] = [];
       if (spell.components?.verbal) {
-        componentChecks.push(`施法者可言语: ${caster.canSpeak !== false ? '是' : '否'}`);
+        componentChecks.push(`施法者可言语: ${componentSubject.canSpeak !== false ? '是' : '否'}`);
       }
       if (spell.components?.somatic) {
         componentChecks.push(`施法者可做手势: ${components.somaticDetail?.canGesticulate !== false ? '是' : '否'}`);
@@ -524,7 +534,7 @@ export class FlowCompiler {
     const missing: string[] = [];
 
     // V 检查（已有）
-    if (spell.components?.verbal && !combatant.canSpeak) {
+    if (spell.components?.verbal && combatant.canSpeak === false) {
       missing.push('V');
     }
 
