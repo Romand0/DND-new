@@ -8,6 +8,7 @@ import {
   resolveLibraryScope,
   canReadEntry,
   canWriteEntry,
+  decodePathParam,
 } from '../../_utils';
 
 type Row = { data: string; campaign_id: string | null };
@@ -19,7 +20,7 @@ export async function onRequestGet(context: any): Promise<Response> {
   const auth = await authenticateRequest(request, env);
   const scope = auth ? await resolveLibraryScope(request, env, auth) : null;
 
-  const id = params.id;
+  const id = decodePathParam(params.id);
   try {
     const row = await env.DB
       .prepare('SELECT data, campaign_id FROM equipments WHERE id = ?')
@@ -55,7 +56,7 @@ export async function onRequestPut(context: any): Promise<Response> {
     return errorResponse(403, '非该团组成员');
   }
 
-  const id = params.id;
+  const id = decodePathParam(params.id);
   const body = await readJsonBody(request);
   if (!body) {
     return errorResponse(400, '请求体为空');
@@ -107,7 +108,7 @@ export async function onRequestDelete(context: any): Promise<Response> {
     return errorResponse(403, '非该团组成员');
   }
 
-  const id = params.id;
+  const id = decodePathParam(params.id);
   try {
     const row = await env.DB
       .prepare('SELECT campaign_id FROM equipments WHERE id = ?')
