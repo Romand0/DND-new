@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useEditorState } from '@/data/editorState';
-import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw, FileText } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, deleteEquipments } from '@/lib/api';
@@ -412,7 +412,7 @@ export default function EquipmentList() {
         {filteredEquipments.map((item) => (
           <div key={item.id}
             onClick={() => handleCardClick(item)}
-            className="block p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group cursor-pointer">
+            className="block min-w-0 p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group cursor-pointer">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* checkbox：仅选择模式 + DM */}
@@ -429,11 +429,6 @@ export default function EquipmentList() {
                     )}
                     {item.cursed && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger shrink-0">诅咒</span>
-                    )}
-                    {item.description?.trim() && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary shrink-0 flex items-center gap-1">
-                        <FileText className="w-3 h-3" />有描述
-                      </span>
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
@@ -452,7 +447,7 @@ export default function EquipmentList() {
                     </div>
                   )}
                   {item.description?.trim() && (
-                    <p className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted line-clamp-2 leading-relaxed">
+                    <p className="mt-2 text-xs dark:text-text-dark-muted light:text-text-light-muted line-clamp-2 leading-relaxed break-words">
                       {item.description.trim()}
                     </p>
                   )}
