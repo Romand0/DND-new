@@ -480,6 +480,7 @@ export default function EquipmentList() {
       {editorOpen && (
       <EquipmentEditor
   item={editingItem}
+  libraryEquipments={equipments}
   isStatic={true}
   showQuantity={false}      
   showPackSize={true}       
