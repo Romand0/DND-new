@@ -15,16 +15,21 @@ const CATEGORY_MAP = {
   '权杖': '法器', '法杖': '法器', '魔杖': '法器',
   '戒指': '杂物', '奇物': '杂物',
 };
-// 稀有度段：允许尾缀「（+N）」（DMG 泛条目如「非普通（+1）/珍稀（+2）/极珍稀（+3）」）
-const RAR_SEG = '(普通|非普通|珍稀|极珍稀|传说|特殊|多种稀有度)(（\\+\\d）)?';
-const RAR = `${RAR_SEG}(或${RAR_SEG})?`;
-// 泛条目复合尾段：「/珍稀（+2）/极珍稀（+3）」
-const RAR_TAIL = '(?:\\/' + RAR_SEG + ')*';
-const ATT = '(（需[^（）]*同调）)?';
 const CATS = '(武器|护甲|药水|戒指|权杖|卷轴|法杖|魔杖|奇物)';
-// 组序号：1=类 2=子类 3=稀有度1 4=(+N)1 5=或 6=稀有度2 7=(+N)2 8=同调
-const TYPE_FULL = new RegExp(`^${CATS}(（[^（）]*）)?，${RAR}${RAR_TAIL}${ATT}$`);
-const TYPE_INLINE = new RegExp(`${CATS}(（[^（）]*）)?，${RAR}${RAR_TAIL}${ATT}`);
+// 类型行仅匹配「类别(子类)?，稀有度描述」；稀有度描述的具体归一在 parseTypeLine 内完成，
+// 避免用多分组大正则（旧正则把同调读成第 8 组，实际是第 10 组，导致 130 条同调标志整批丢失）
+const TYPE_FULL = new RegExp(`^${CATS}(（[^（）]*）)?，(.+)$`);
+
+// 稀有度词：长词优先，避免「非普通」被「普通」重复命中
+const RARITY_WORDS = ['多种稀有度', '非普通', '极珍稀', '普通', '珍稀', '传说', '特殊'];
+function extractRarities(rest) {
+  const found = [];
+  let s = rest;
+  for (const w of RARITY_WORDS) {
+    if (s.includes(w)) { found.push(w); s = s.split(w).join(''); }
+  }
+  return found;
+}
 
 // 括号内「需同调」= 无先决条件；「需法师同调」= 先决条件「法师」
 function parsePrereq(attGroup) {
@@ -62,57 +67,95 @@ function slugify(zh) {
   return 'magic-' + zh.replace(/[·、，。！？：；\s()（）]/g, '');
 }
 
-function parseBlock(lines) {
-  const item = { nameLines: [], type: null, subtype: null, rarity: null, attune: false, prereq: null, desc: [] };
-  let typeLine = null;
-  for (const line of lines) {
-    if (!typeLine) {
-      const m = line.match(TYPE_FULL);
-      if (m) {
-        typeLine = line;
-        item.type = m[1];
-        item.subtype = m[2] ? m[2].slice(1, -1) : null;
-        // 带（+N）修饰 = 泛条目区间稀有度，单条目无法表达 → 置空（等级-稀有度由生成器映射）
-        item.rarity = m[4] ? null : (m[3] + (m[6] ? '或' + m[6] : ''));
-        item.attune = !!m[8];
-        item.prereq = parsePrereq(m[8]);
-        continue;
-      }
-      item.nameLines.push(line);
-      continue;
-    }
-    item.desc.push(line);
-  }
-  // 级联：类型行黏在名称行内（名称与类型行之间无标签分隔）
-  if (!item.type) {
-    for (let li = 0; li < item.nameLines.length; li++) {
-      const m = item.nameLines[li].match(TYPE_INLINE);
-      if (m) {
-        const before = item.nameLines[li].slice(0, m.index).trim();
-        const after = item.nameLines[li].slice(m.index + m[0].length).trim();
-        if (before) item.nameLines.push(before);
-        item.type = m[1];
-        item.subtype = m[2] ? m[2].slice(1, -1) : null;
-        item.rarity = m[4] ? null : (m[3] + (m[6] ? '或' + m[6] : ''));
-        item.attune = !!m[8];
-        item.prereq = parsePrereq(m[8]);
-        item.typeLine = m[0];
-        item.desc = [after, ...item.desc].filter(Boolean);
-        item.nameLines.splice(li, 1);
-        break;
-      }
-    }
-  }
-  return item;
+// 类型行 → { type, subtype, rarity, attune, prereq }；非类型行返回 null。
+// 只接受「类别(子类)?，…」且长度短、无句号的行，避免把正文/怪物数据块误判为物品。
+function parseTypeLine(line) {
+  if (line.length > 48 || line.includes('。')) return null;
+  const m = line.match(TYPE_FULL); // ^(类别)(（子类）)?，(.+)$
+  if (!m) return null;
+  let rest = m[3];
+  const attMatch = rest.match(/（需[^（）]*同调）/);
+  const attune = !!attMatch;
+  const prereq = attMatch ? parsePrereq(attMatch[0]) : null;
+  if (attMatch) rest = rest.replace(attMatch[0], '');
+  // 泛表条目「非普通（+1）/珍稀（+2）/极珍稀（+3）」：具体稀有度依加值而定，单条无法表达 → null
+  if (/（\+\d）/.test(rest)) return { type: m[1], subtype: m[2] ? m[2].slice(1, -1) : null, rarity: null, attune, prereq };
+  const rarities = extractRarities(rest);
+  // 「稀有度依塑像种类而不同」类：无具体稀有度词但语义是多种 → 多种稀有度
+  const rarity = rarities.length === 0
+    ? (/依.*而不同/.test(rest) ? '多种稀有度' : null)
+    : rarities.length === 1 ? rarities[0] : '多种稀有度';
+  return { type: m[1], subtype: m[2] ? m[2].slice(1, -1) : null, rarity, attune, prereq };
 }
 
-// 名称行 → { zh, en }：中文名 + 英文名（可能跨 2~3 行）
+// 单个块 HTML（已去掉开头的 <P><STRONG><FONT color=#800000>）→ 结构化条目。
+// 名称 = 标题（到 </FONT> 为止）；正文 = 标题之后。以 HTML 边界切分，避免名称/描述粘行。
+function parseBlockHtml(blockHtml) {
+  const fontEnd = blockHtml.search(/<\/FONT>/i);
+  const nameHtml = fontEnd >= 0 ? blockHtml.slice(0, fontEnd) : blockHtml;
+  let bodyHtml = fontEnd >= 0 ? blockHtml.slice(fontEnd + 7) : '';
+  bodyHtml = bodyHtml.replace(/^\s*<\/STRONG>/i, '');
+  const nameLines = strip(nameHtml);
+  const bodyLines = strip(bodyHtml);
+  // 类型行在正文头部：优先直接匹配正文短行，其次匹配 <EM>…</EM>（标准格式）。
+  // 不能无条件用首个 <EM>：部分条目首个 <EM> 是正文深处的法术名（如「异界之门gate」），
+  // 会把真正的类型行挤掉，导致「奇物，传说」残留进 description。
+  let typeIdx = -1;
+  let tp = null;
+  for (let i = 0; i < bodyLines.length && i < 6; i++) {
+    const p = parseTypeLine(bodyLines[i]);
+    if (p) { typeIdx = i; tp = p; break; }
+  }
+  if (!tp) {
+    const emMatch = bodyHtml.match(/<EM>(.*?)<\/EM>/i);
+    const emLine = emMatch ? strip(emMatch[1]).join(' ') : '';
+    if (emLine) {
+      const p = parseTypeLine(emLine);
+      // 找到 emLine 对应的正文行下标，以便正确截断后续描述
+      if (p) { tp = p; typeIdx = bodyLines.findIndex(l => l === emLine || emLine.includes(l) || l.includes(emLine)); if (typeIdx < 0) typeIdx = 0; }
+    }
+  }
+  if (!tp) return { nameLines, type: null, desc: bodyLines };
+  return {
+    nameLines,
+    type: tp.type,
+    subtype: tp.subtype,
+    rarity: tp.rarity,
+    attune: tp.attune,
+    prereq: tp.prereq,
+    desc: bodyLines.slice(typeIdx + 1),
+  };
+}
+
+// 名称行 → { zh, en }：中文名 + 英文名（可能跨 2~3 行）。
+// 中文名可能含全角括号（如「吉运之石（幸运石）」），也可能以拉丁字母起头（如「X射线戒指」），
+// 故以「最后一个中文字/右括号」为界切分，避免把整段英文误判进 zh 或反之。
 function splitName(nameLines) {
   const joined = nameLines.join(' ').replace(/\s+/g, ' ').trim();
   if (!joined) return { zh: '', en: '' };
-  const m = joined.match(/^([\u4e00-\u9fff·、0-9\s+]+?)\s*([A-Za-z].*)$/);
+  // 中文名与英文名之间可能无空格（如「折叠船Folding Boat」）；以「中文/右括号 → 拉丁字母」为界切分
+  const m = joined.match(/^(.*?[\u4e00-\u9fff）)])\s*([A-Za-z].*)$/);
   if (m) return { zh: m[1].trim(), en: m[2].trim() };
   return { zh: joined, en: '' };
+}
+
+// 按语境提取物品增强加值；无法确定则返回 0（宁可少提，不可污染攻击/AC）
+function extractMagicBonus(desc, category) {
+  if (!['武器', '护甲', '法器'].includes(category)) return 0;
+  for (const sentence of desc.split(/[。\n]/)) {
+    // 护甲：明确「AC…获得+N加值」，且不含条件限定（对抗/若/如果表示特定情形加成）
+    if (category === '护甲' && /AC.*[+＋](\d)\s*加值/.test(sentence) && !/对抗|针对|若|如果/.test(sentence)) {
+      const m = sentence.match(/AC.*?[+＋](\d)/);
+      if (m) return parseInt(m[1], 10);
+    }
+    // 武器/法器：同一句同时出现「攻击检定」与「伤害」，且加值数值一致
+    if (category === '武器' || category === '法器') {
+      const atk = sentence.match(/攻击检定[^。\n]*?[+＋](\d)/);
+      const dmg = sentence.match(/伤害[^。\n]*?[+＋](\d)/);
+      if (atk && dmg && atk[1] === dmg[1]) return parseInt(atk[1], 10);
+    }
+  }
+  return 0;
 }
 
 function buildItem(parsed, rel) {
@@ -122,7 +165,11 @@ function buildItem(parsed, rel) {
   const category = CATEGORY_MAP[parsed.type];
   const chargeMatch = desc.match(/(\d+)\s*发充能/);
   const regenMatch = desc.match(/(每天黎明|每[\u4e00-\u9fff]{1,4}黎明|每周|[\d]+天)[^\n]{0,30}?充能/);
-  const bonusMatch = desc.match(/[+＋](\d)\s*加值/);
+  // 魔法加值 = 物品自身的「增强加值」，只对武器/护甲/法器有意义（并入攻击检定或 AC）。
+  // 描述里到处是「+N 加值」（技能/豁免/临时 AC/涂油增益），按语境精确提取，避免污染：
+  //   护甲：仅「AC获得+N加值」的无条件护甲强化
+  //   武器/法器：仅同一句内同时出现「攻击」与「伤害」的增强（法器作魔法长棍时成立）
+  const magicBonus = extractMagicBonus(desc, category);
   return {
     id: slugify(zh),
     name: zh,
@@ -143,7 +190,7 @@ function buildItem(parsed, rel) {
     rarity: parsed.rarity,
     attunement: parsed.attune,
     attunePrereq: parsed.prereq || '',
-    magicBonus: bonusMatch ? parseInt(bonusMatch[1], 10) : 0,
+    magicBonus,
     charges: chargeMatch ? parseInt(chargeMatch[1], 10) : 0,
     chargeRegen: regenMatch ? regenMatch[0] : '',
     cursed: /诅咒\s*Curse/.test(desc),
@@ -154,29 +201,32 @@ function buildItem(parsed, rel) {
 const files = listFiles(ROOT).filter(f => !f.includes('随机魔法物品表'));
 const items = [];
 const skipped = [];
+// 怪物数据块：标题后正文形如「AC：/HP：/速度：」或「X体型/生物类型，阵营」——不是魔法物品，跳过
+const isStatBlock = (parsed) => {
+  const head = parsed.desc.slice(0, 4).join(' ');
+  return /(AC|HP|速度|挑战等级)[：:]/i.test(head)
+    || /(超?小|中|大|巨|超巨)型[^，]*，[^，]+/.test(head)
+    || /^(超?小|中|大|巨|超巨)型/.test(head);
+};
 for (const f of files) {
   const rel = f.replace(ROOT + '/', '');
   const html = decode(f);
   const parts = html.split(/<P>\s*<STRONG>\s*<FONT color=#800000>/i);
+  // 上一个成功解析的顶级条目：BLOCKQUOTE 内的变体子条目（如命令元素戒指的 4 个元素版本）继承其类别/稀有度/同调
+  let lastParent = null;
   for (let k = 1; k < parts.length; k++) {
-    const parsed = parseBlock(strip('<P><STRONG>' + parts[k]));
-    // 原书无类型行条目（如命令元素戒指）：文件路径兜底
-    if (!parsed.type) {
-      const dirCat = rel.split('/')[0];
-      const rarityFromFile = rel.split('/')[1]?.replace(/\.html?$/i, '') || '';
-      const VALID_RARITY = ['普通', '非普通', '珍稀', '极珍稀', '传说', '特殊', '多种稀有度'];
-      if (CATEGORY_MAP[dirCat] && VALID_RARITY.includes(rarityFromFile)) {
-        parsed.type = dirCat;
-        parsed.rarity = rarityFromFile;
-        parsed.attune = true;
-      }
+    const raw = parts[k];
+    const nested = /<BLOCKQUOTE/i.test(raw.split('</P>')[0]);
+    let parsed = parseBlockHtml(raw);
+    // 子条目无类型行时继承父条目元数据（仅对非怪物数据块）
+    if (!parsed.type && lastParent && !isStatBlock(parsed)) {
+      parsed = { ...parsed, type: lastParent.type, subtype: lastParent.subtype, rarity: lastParent.rarity, attune: lastParent.attune, prereq: lastParent.prereq };
     }
     const item = buildItem(parsed, rel);
     if (item) {
-      if (!items.some(x => x.id === item.id)) items.push(item);
+      if (!items.some(x => x.id === item.id)) { items.push(item); if (!nested) lastParent = parsed; }
       else skipped.push(`${item.name}（重复）`);
     } else {
-      // 嵌套召唤物数据块（万象无常牌/异能塑像子条目）等非物品块
       skipped.push(`${rel} 块${k}: ${parsed.nameLines.join(' ').slice(0, 24)}`);
     }
   }
