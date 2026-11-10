@@ -8,6 +8,7 @@ import {
   isSpellScrollTemplate,
   buildScrollFromTemplate,
 } from '@/data/spellScrolls';
+import { isMagicGenerator, GENERATOR_CARD_CLASS } from '@/data/magicGenerators';
 import SpellPicker from '@/components/SpellPicker';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
@@ -70,8 +71,12 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
       return matchesCategory && matchesSearch;
     });
 
-    // 排序逻辑：在"全部"筛选下按分类顺序排序，否则按 ID 排序
+    // 排序逻辑：魔法泛条目生成器恒置顶；其余在"全部"筛选下按分类顺序，否则按 ID
     result.sort((a, b) => {
+      const ag = isMagicGenerator(a) ? 0 : 1;
+      const bg = isMagicGenerator(b) ? 0 : 1;
+      if (ag !== bg) return ag - bg;
+
       if (selectedCategory === '全部') {
         // 按分类顺序排序，同分类内按 ID 排序
         const aCategoryIndex = CATEGORY_ORDER.indexOf(a.category);
@@ -216,7 +221,11 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                     onSelect(item);
                     onClose();
                   }}
-                  className="w-full text-left p-3 rounded-lg border transition-colors hover:border-primary dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light group"
+                  className={`w-full text-left p-3 rounded-lg border transition-colors group ${
+                    isMagicGenerator(item)
+                      ? GENERATOR_CARD_CLASS
+                      : 'hover:border-primary dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -227,6 +236,9 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                         <span className="text-xs px-1.5 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
                           {item.category}
                         </span>
+                        {isMagicGenerator(item) && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-white">魔法物品生成器</span>
+                        )}
                         {item.subtype === '材料袋' && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400">材料包</span>
                         )}
@@ -239,10 +251,8 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                         {item.rarity && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400">{item.rarity}</span>
                         )}
-                        {isScrollEquipmentItem(item) && (
-                          <span className="text-[10px] px-1 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400">
-                            {isSpellScrollTemplate(item) ? '卷轴生成器' : '法术卷轴'}
-                          </span>
+                        {isScrollEquipmentItem(item) && !isMagicGenerator(item) && (
+                          <span className="text-[10px] px-1 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400">法术卷轴</span>
                         )}
                       </div>
                       <p className="text-xs mt-1 dark:text-text-dark-muted light:text-text-light-muted line-clamp-2">

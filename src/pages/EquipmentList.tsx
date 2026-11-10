@@ -9,7 +9,7 @@ import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { equipmentStore } from '@/data/equipmentStore';
 import { getSeedEditUrl } from '@/lib/seedGitHub';
-import { isSpellScrollTemplate } from '@/data/spellScrolls';
+import { isMagicGenerator, GENERATOR_CARD_CLASS } from '@/data/magicGenerators';
 
 const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 const MAGIC_CATEGORIES = ['魔法物品', '非魔法物品'];
@@ -139,8 +139,12 @@ export default function EquipmentList() {
       return matchFunc && matchSub && matchMagic && matchTrade && matchSearch;
     });
 
-    // 排序逻辑：在"全部"筛选下按分类顺序排序，否则按 ID 排序
+    // 排序逻辑：魔法泛条目生成器恒置顶；其余在"全部"筛选下按分类顺序，否则按 ID
     result.sort((a, b) => {
+      const ag = isMagicGenerator(a) ? 0 : 1;
+      const bg = isMagicGenerator(b) ? 0 : 1;
+      if (ag !== bg) return ag - bg;
+
       if (funcFilter === '全部') {
         // 按分类顺序排序，同分类内按 ID 排序
         const aCategoryIndex = CATEGORY_ORDER.indexOf(a.category);
@@ -410,7 +414,11 @@ export default function EquipmentList() {
         {filteredEquipments.map((item) => (
           <div key={item.id}
             onClick={() => handleCardClick(item)}
-            className="block min-w-0 p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group cursor-pointer">
+            className={`block min-w-0 p-4 rounded-lg border transition-colors group cursor-pointer ${
+              isMagicGenerator(item)
+                ? GENERATOR_CARD_CLASS
+                : 'dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary'
+            }`}>
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* checkbox：仅选择模式 + DM（已绑法术的具体卷轴为派生条目，不参与库维护） */}
@@ -422,11 +430,11 @@ export default function EquipmentList() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">{item.name}</h3>
-                    {item.magicCategory === '魔法物品' && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">魔法</span>
+                    {isMagicGenerator(item) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-white shrink-0">魔法物品生成器</span>
                     )}
-                    {isSpellScrollTemplate(item) && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">卷轴生成器</span>
+                    {item.magicCategory === '魔法物品' && !isMagicGenerator(item) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">魔法</span>
                     )}
                     {item.cursed && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger shrink-0">诅咒</span>
