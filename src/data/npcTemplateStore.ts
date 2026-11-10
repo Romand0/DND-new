@@ -1,9 +1,12 @@
-import { scopedKey } from '@/data/campaignScope';
+// NPC 模板（怪物图鉴）Store - 种子基线 + 后端 API（仅存覆盖/墓碑/自建行）
+// getAll = filterByCampaignScope(种子 ∪ 云端)；种子驻留仓库，云端只存覆盖行。
+import { scopedKey, getCampaignId } from '@/data/campaignScope';
 import { filterByCampaignScope, subscribeLibraryScope } from '@/data/libraryScope';
 import type { NpcTemplate, CreatureSize, CreatureType } from '@/types/combat';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
-import seedTemplates from '@/data/npcTemplates.json';
 import * as api from '@/lib/api';
+import { getCachedSeed, loadSeed, subscribeSeed } from '@/data/seedLoader';
+import { mergeBaseline } from '@/data/libraryMerge';
 
 // 反查表：旧文本 → 枚举
 const REVERSE_SIZE_MAP: Record<string, CreatureSize> = Object.fromEntries(
@@ -54,17 +57,17 @@ type Listener = () => void;
 
 let listeners: Listener[] = [];
 
-// 规则书集变化（切换团组/编辑规则书集）触发订阅页面刷新
+// 规则书集变化触发刷新；种子就绪触发刷新
 subscribeLibraryScope(() => notify());
+subscribeSeed(() => notify());
 
-// 进程内缓存：避免每次读都全量 parse localStorage。
-// 所有写操作都必须经过 save()，否则缓存不会失效。
-let templateCache: NpcTemplate[] | null = null;
+// 进程内缓存：避免每次读都全量 parse localStorage。所有写操作必须经过 save()。
+let cloudCache: NpcTemplate[] | null = null;
 
 // 跨标签页一致性：其它标签页写入 localStorage 后，让本页缓存失效
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (e) => {
-    if (e.key === storageKey()) templateCache = null;
+    if (e.key === storageKey()) cloudCache = null;
   });
 }
 
@@ -125,28 +128,32 @@ function normalizeTemplate(t: any): NpcTemplate {
     speedNotes: t.speedNotes,
     traits: t.traits,
     sourceDir: t.sourceDir,
+    campaignId: t.campaignId,
+    seedId: t.seedId,
+    deleted: t.deleted,
   };
 }
 
-function load(): NpcTemplate[] {
-  if (templateCache) return templateCache;
+// 云端行缓存（覆盖/墓碑/自建），不含种子
+function loadCloud(): NpcTemplate[] {
+  if (cloudCache) return cloudCache;
   try {
     const raw = localStorage.getItem(storageKey());
     if (!raw) {
-      templateCache = [];
-      return templateCache;
+      cloudCache = [];
+      return cloudCache;
     }
     const parsed: unknown[] = JSON.parse(raw);
-    templateCache = parsed.map(normalizeTemplate);
-    return templateCache;
+    cloudCache = parsed.map(normalizeTemplate);
+    return cloudCache;
   } catch {
-    templateCache = [];
-    return templateCache;
+    cloudCache = [];
+    return cloudCache;
   }
 }
 
-function save(templates: NpcTemplate[]): void {
-  templateCache = templates;
+function saveCloud(templates: NpcTemplate[]): void {
+  cloudCache = templates;
   try {
     localStorage.setItem(storageKey(), JSON.stringify(templates));
   } catch (e) {
@@ -155,148 +162,63 @@ function save(templates: NpcTemplate[]): void {
   notify();
 }
 
-/** 种子条目 → 完整 NpcTemplate（补 id/时间戳） */
-function seedToTemplate(entry: any): NpcTemplate {
-  const now = Date.now();
-  return {
-    ...(entry as Omit<NpcTemplate, 'id' | 'createdAt' | 'updatedAt'>),
-    id: crypto.randomUUID(),
-    createdAt: now,
-    updatedAt: now,
-  };
+// 怪物种子：索引键用 templateId（种子 id 是随机 uuid，templateId 是稳定 slug）。
+// 但 libraryMerge 按 id 合并——先把种子 id 对齐为 templateId，保证合并键稳定。
+function normalizedSeeds(): NpcTemplate[] {
+  const seeds = getCachedSeed<NpcTemplate>('monsters') ?? [];
+  return seeds.map((s) => ({ ...s, id: s.templateId || s.id }));
 }
 
-const SEEDED_FLAG_KEY = 'dnd-npc-templates-seeded-v2';
-
-/**
- * 图鉴种子灌入：库内还没有任何种子 templateId 时合并进去。
- * 覆盖：从未预置、仅有自定义模板、旧版先打标记后写失败留下空库。
- * v2 标记只在写入成功后打上——用户清空后不被复活；写失败仍保留内存数据，Picker 本会话可读。
- */
-function hydrateSeeds(): void {
-  if (typeof window === 'undefined') return;
-  const seeds = seedTemplates as any[];
-  if (seeds.length === 0) return;
-
-  const current = load();
-  const seedIds = new Set(seeds.map((s) => s.templateId as string));
-  if (current.some((t) => seedIds.has(t.templateId))) {
-    try { localStorage.setItem(SEEDED_FLAG_KEY, 'true'); } catch { /* ignore */ }
-    return;
-  }
-  if (localStorage.getItem(SEEDED_FLAG_KEY)) return;
-
-  const merged = current.concat(seeds.map(seedToTemplate));
-  templateCache = merged;
-  try {
-    localStorage.setItem(storageKey(), JSON.stringify(merged));
-    localStorage.setItem(SEEDED_FLAG_KEY, 'true');
-  } catch (e) {
-    console.error('图鉴种子预置失败:', e);
-  }
-}
-hydrateSeeds();
-
-export interface ImportStats {
-  created: number;
-  updated: number;
-  skipped: number;
+function merged(): NpcTemplate[] {
+  return mergeBaseline(normalizedSeeds(), loadCloud()).items;
 }
 
-/**
- * 重新导入图鉴种子：按 templateId 匹配。
- * 默认只补缺失（跳过已存在，保留用户改动）；overwrite 时覆盖解析自有字段、保留 id/createdAt。
- */
-function importSeed(options: { overwrite?: boolean } = {}): ImportStats {
-  const stats: ImportStats = { created: 0, updated: 0, skipped: 0 };
-  const templates = load();
-  const byId = new Map(templates.map((t) => [t.templateId, t]));
-  for (const entry of seedTemplates as any[]) {
-    const existing = byId.get(entry.templateId);
-    if (!existing) {
-      templates.push(seedToTemplate(entry));
-      stats.created++;
-    } else if (options.overwrite) {
-      const { id: _id, createdAt: _c, ...parsedFields } = seedToTemplate(entry);
-      templates[templates.indexOf(existing)] = { ...existing, ...parsedFields, updatedAt: Date.now() };
-      stats.updated++;
-    } else {
-      stats.skipped++;
-    }
-  }
-  save(templates);
-  return stats;
+function overlayId(seedId: string): string {
+  return `ovl-${getCampaignId()}-${seedId}`;
 }
 
 const npcTemplateStore = {
   // 团组过滤视图（怪物图鉴页/参战创建器用）
   getAll(): NpcTemplate[] {
-    return filterByCampaignScope([...load()]).sort((a, b) => b.updatedAt - a.updatedAt);
+    return filterByCampaignScope([...merged()]).sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
   // 全库视角（图鉴管理页）
   getAllRaw(): NpcTemplate[] {
-    return [...load()].sort((a, b) => b.updatedAt - a.updatedAt);
+    return [...merged()].sort((a, b) => b.updatedAt - a.updatedAt);
   },
 
   /**
-   * 从云端拉取全量模板并覆盖本地缓存（D1 为真源）。
-   * 云端为空且本机有种子、从未上种过时，自动把 421 条种子批量推上云（幂等：
-   * template_id 唯一约束，多浏览器并发只落一份），成功后重新拉取覆盖本地。
+   * 预热种子 + 从云端拉取覆盖/墓碑/自建行（不再推种子上云——种子驻留仓库）。
    */
   async fetchAll(): Promise<NpcTemplate[]> {
+    await loadSeed('monsters');
     let remote: NpcTemplate[] = [];
     try {
       remote = await api.fetchAllNpcTemplates<NpcTemplate[]>();
     } catch (err) {
       console.error('[npcTemplateStore] 从后端加载失败:', err);
-      return load();
+      return this.getAll();
     }
-
-    if (remote.length === 0 && (seedTemplates as any[]).length > 0) {
-      const flagKey = 'dnd-npc-templates-cloud-seeded';
-      // 本地也为空时无视 flag 重推（此前 flag 已设但云端数据被过滤/丢失会永久卡死；
-      // template_id 唯一约束 + ON CONFLICT 幂等，多推无害）。本地有数据（如 DataManagement
-      // 导入的自定义版本）则不推，避免种子覆盖意图。
-      // 种子属出版物条目（campaign_id NULL），服务端仅站点管理员可写——普通成员推送
-      // 会 403，属预期：种子并入本地展示兜底，云端首次种植由管理员完成。
-      const localEmpty = load().length === 0;
-      let seedRows: NpcTemplate[] | null = null;
-      if (localEmpty || !localStorage.getItem(flagKey)) {
-        seedRows = (seedTemplates as any[]).map(seedToTemplate);
-        try {
-          await api.batchImportNpcTemplates(seedRows);
-          localStorage.setItem(flagKey, 'true');
-          remote = await api.fetchAllNpcTemplates<NpcTemplate[]>();
-        } catch (err) {
-          console.error('[npcTemplateStore] 种子上云失败（普通成员无出版物写权限属预期，本地种子兜底）:', err);
-        }
-      }
-      // 云端最终仍为空（未种植/普通成员）→ 种子并入本地缓存展示，等管理员首次种植后自动被云端覆盖
-      if (remote.length === 0 && seedRows && seedRows.length > 0) {
-        save(seedRows);
-        return load();
-      }
-    }
-
-    if (remote.length > 0) {
-      // 按 template_id（稳定身份）合并：云端覆盖本地同源行，本地独有的自定义模板保留；
-      // 同时消解种子多浏览器各发 uuid 造成的 template_id 重复
-      const byKey = new Map<string, NpcTemplate>();
-      load().forEach(t => byKey.set(t.templateId, t));
-      remote.forEach(r => { if (r?.templateId) byKey.set(r.templateId, r); });
-      save(Array.from(byKey.values()));
-    }
-    return load();
+    saveCloud(remote.map(normalizeTemplate));
+    return this.getAll();
   },
 
   get(id: string): NpcTemplate | null {
-    const found = load().find(t => t.id === id) ?? null;
+    const found = merged().find(t => t.id === id) ?? null;
     if (!found) return null;
     // 浅拷贝：防止调用方 mutate 污染内存缓存
     return { ...found, attacks: [...(found.attacks ?? [])] };
   },
 
+  getById(id: string): NpcTemplate | null {
+    const found = merged().find(t => t.id === id);
+    return found ? { ...found, attacks: [...(found.attacks ?? [])] } : null;
+  },
+
+  /**
+   * 新建自定义模板：私有条目（普通 uuid），不涉及种子。
+   */
   create(template: Omit<NpcTemplate, 'id' | 'createdAt' | 'updatedAt'>): NpcTemplate {
     const now = Date.now();
     const newTemplate: NpcTemplate = {
@@ -304,63 +226,89 @@ const npcTemplateStore = {
       id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
+      campaignId: template.campaignId ?? getCampaignId(),
     };
-    const templates = load();
-    templates.push(newTemplate);
-    save(templates);
+    const cloud = loadCloud();
+    cloud.push(newTemplate);
+    saveCloud(cloud);
     api.createNpcTemplate(newTemplate).catch(err => console.error('[npcTemplateStore] 云端创建失败:', err));
     return newTemplate;
   },
 
+  /**
+   * 更新模板。种子条目 → 派生覆盖行（overlay id，templateId=overlay id 绕开唯一索引）；
+   * 自建/覆盖行按原 id 更新。
+   */
   update(id: string, partial: Partial<Omit<NpcTemplate, 'id' | 'createdAt'>>): NpcTemplate | null {
-    const templates = load();
-    const index = templates.findIndex(t => t.id === id);
-    if (index === -1) return null;
+    const cloud = loadCloud();
+    const existingCloud = cloud.findIndex(t => t.id === id);
 
-    templates[index] = {
-      ...templates[index],
-      ...partial,
-      updatedAt: Date.now(),
-    };
-    save(templates);
-    api.updateNpcTemplate(id, templates[index]).catch(err => console.error('[npcTemplateStore] 云端更新失败:', err));
-    return templates[index];
+    // 命中种子（id 已对齐 templateId）
+    const seed = normalizedSeeds().find(s => s.id === id);
+    if (seed) {
+      const oid = existingCloud >= 0 ? id : overlayId(seed.id);
+      const result: NpcTemplate = {
+        ...seed,
+        ...partial,
+        id: oid,
+        templateId: oid,
+        seedId: seed.id,
+        campaignId: getCampaignId(),
+        createdAt: seed.createdAt,
+        updatedAt: Date.now(),
+      };
+      const idx = cloud.findIndex(t => t.id === oid);
+      if (idx >= 0) cloud[idx] = result;
+      else cloud.push(result);
+      saveCloud(cloud);
+      api.updateNpcTemplate(oid, result)
+        .catch(() => api.createNpcTemplate(result))
+        .catch(err => console.error('[npcTemplateStore] 云端更新失败:', err));
+      return result;
+    }
+
+    if (existingCloud >= 0) {
+      cloud[existingCloud] = { ...cloud[existingCloud], ...partial, updatedAt: Date.now() };
+      saveCloud(cloud);
+      api.updateNpcTemplate(id, cloud[existingCloud]).catch(err => console.error('[npcTemplateStore] 云端更新失败:', err));
+      return cloud[existingCloud];
+    }
+    return null;
   },
 
+  /**
+   * 删除模板。种子条目 → 写墓碑行；自建/覆盖行 → 云端移除。
+   */
   delete(id: string): void {
-    const templates = load().filter(t => t.id !== id);
-    save(templates);
+    const cloud = loadCloud();
+    const seed = normalizedSeeds().find(s => s.id === id);
+    if (seed) {
+      const tombstone: NpcTemplate = {
+        ...seed,
+        id: `del-${getCampaignId()}-${seed.id}`,
+        templateId: `del-${getCampaignId()}-${seed.id}`,
+        seedId: seed.id,
+        deleted: true,
+        campaignId: getCampaignId(),
+      };
+      const withoutOverlay = cloud.filter(t => t.seedId !== seed.id);
+      withoutOverlay.push(tombstone);
+      saveCloud(withoutOverlay);
+      api.deleteNpcTemplate(overlayId(seed.id)).catch(() => {});
+      api.createNpcTemplate(tombstone).catch(err => console.error('[npcTemplateStore] 墓碑写入失败:', err));
+      return;
+    }
+    saveCloud(cloud.filter(t => t.id !== id));
     api.deleteNpcTemplate(id).catch(err => console.error('[npcTemplateStore] 云端删除失败:', err));
   },
 
   clear(): void {
-    save([]);
-  },
-
-  importSeed,
-
-  /**
-   * 种子覆盖刷新云端（D1 真源）：解析脚本修复（如特性截断）后，把 421 条种子
-   * 以 upsert 重新推云覆盖同 template_id 行，再全量拉取覆盖本地缓存。
-   * 自定义模板（templateId 不在种子集）不受影响。
-   */
-  async reimportSeedsToCloud(): Promise<{ pushed: number; loaded: number }> {
-    const rows = (seedTemplates as any[]).map(seedToTemplate);
-    for (let i = 0; i < rows.length; i += 50) {
-      await api.batchImportNpcTemplates(rows.slice(i, i + 50), { overwrite: true });
-    }
-    const loaded = await this.fetchAll();
-    return { pushed: rows.length, loaded: loaded.length };
+    saveCloud([]);
   },
 
   /** 图鉴种子模板数量（导入卡片展示用） */
   seedCount(): number {
-    return (seedTemplates as any[]).length;
-  },
-
-  getById(id: string): NpcTemplate | null {
-    const templates = load();
-    return templates.find(t => t.id === id) || null;
+    return (getCachedSeed<NpcTemplate>('monsters') ?? []).length;
   },
 
   subscribe(listener: Listener): () => void {

@@ -7,7 +7,6 @@ import { useEditorState } from '@/data/editorState';
 import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
-import { fetchAllEquipments, createEquipment, updateEquipment, deleteEquipment, deleteEquipments } from '@/lib/api';
 import { equipmentStore } from '@/data/equipmentStore';
 import { isScrollEquipmentItem, loadScrollCatalog } from '@/data/spellScrolls';
 
@@ -93,18 +92,18 @@ export default function EquipmentList() {
 
   const load = async () => {
     setError('');
-    // 首屏即时：先渲染本地缓存（同步读 + 团组过滤视图），不等网络
+    // 首屏即时：先渲染合并视图（种子 ∪ 云端本地缓存），不等网络
     try {
       setEquipments([...equipmentStore.getAll()]);
     } catch { /* 本地缓存异常时继续走云端 */ }
     setLoading(false);
-    // 云端校准增量刷新（卷轴为虚拟条目（来自法术库），与 D1 装备合并后统一展示）
+    // 预热种子 + 云端校准（卷轴为虚拟条目，来自法术库，统一合并展示）
     try {
-      const [data, scrolls] = await Promise.all([
-        fetchAllEquipments(),
+      const [mergedList, scrolls] = await Promise.all([
+        equipmentStore.fetchAll(),
         loadScrollCatalog().catch(() => [] as EquipmentItem[]),
       ]);
-      setEquipments([...data, ...scrolls]);
+      setEquipments([...mergedList, ...scrolls]);
     } catch (e: any) {
       setError(e.message || '加载失败');
     }
@@ -214,7 +213,8 @@ export default function EquipmentList() {
     setSaving(true);
     setError('');
     try {
-      await deleteEquipments(Array.from(selectedIds));
+      // 逐条走 store（种子派生墓碑、自建/覆盖云端移除）
+      await Promise.all(Array.from(selectedIds).map((id) => equipmentStore.deleteItem(id)));
       exitSelectMode();
       setBatchDeleteConfirm(false);
       load();
@@ -233,14 +233,14 @@ export default function EquipmentList() {
   try {
     if (editingItem) {
       if (item.id !== editingItem.id) {
-        // ID 已变更：先创建新装备，再删除旧装备
-        await createEquipment(item);
-        await deleteEquipment(editingItem.id);
+        // ID 已变更：新建条目 + 删除旧条目（种子会派生覆盖行/墓碑）
+        await equipmentStore.saveItem({ ...item, campaignId: item.campaignId ?? undefined });
+        await equipmentStore.deleteItem(editingItem.id);
       } else {
-        await updateEquipment(editingItem.id, item);
+        await equipmentStore.saveItem(item);
       }
     } else {
-      await createEquipment(item);
+      await equipmentStore.saveItem({ ...item, campaignId: item.campaignId ?? null });
     }
     setEditorOpen(false);
     setEditingItem(undefined);
@@ -258,7 +258,7 @@ export default function EquipmentList() {
     setSaving(true);
     setError('');
     try {
-      await deleteEquipment(id);
+      await equipmentStore.deleteItem(id);
       setDeleteConfirm(null);
       load();
     } catch (e: any) {

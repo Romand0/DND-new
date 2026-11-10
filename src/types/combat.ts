@@ -174,6 +174,10 @@ export interface NpcTemplate {
   id: string;
   /** 归属团组（null/缺省 = 出版物条目，团组无关全局共享） */
   campaignId?: string | null;
+  /** 覆盖/墓碑行指回种子条目的 id（种子与自建条目无此字段） */
+  seedId?: string | null;
+  /** 墓碑标记：仅删除种子的墓碑行含此字段，合并时剔除对应种子 */
+  deleted?: boolean;
   /** 用户自定义的模板唯一标识（如 "goblin"），用于识别同类 NPC */
   templateId: string;
   /** 模板显示名称（如 "哥布林"） */

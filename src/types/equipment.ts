@@ -25,6 +25,10 @@ export interface EquipmentItem {
   tags: { key: string; value: string }[]; // 自由标签
   source?: string; // 出版来源，如 "玩家手册 2014"
   campaignId?: string | null; // 归属团组（null/缺省 = 出版物条目，团组无关全局共享）
+  /** 覆盖/墓碑行指回种子条目的 id（种子与自建条目无此字段） */
+  seedId?: string | null;
+  /** 墓碑标记：仅删除种子的墓碑行含此字段，合并时剔除对应种子 */
+  deleted?: boolean;
   dataResource?: string; // 数据来源网站，如 "5E不全书"
 
   /** ② 魔法体系：魔法物品 / 非魔法物品。缺省 = '非魔法物品' */
