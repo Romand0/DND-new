@@ -118,7 +118,8 @@ const [spellTableSaveResult, setSpellTableSaveResult] = useState<{ success: bool
   const [consoleExecuting, setConsoleExecuting] = useState(false);
 
   // ---- 种库快照导出状态 ----
-  const [seedExporting, setSeedExporting] = useState(false);
+  // 值为当前正在导出的库（或 'all'），null 表示空闲，用于按库禁用对应按钮
+  const [seedExporting, setSeedExporting] = useState<'all' | 'equipments' | 'monsters' | 'options' | null>(null);
   const [seedExportResult, setSeedExportResult] = useState<{
     equipments: number;
     monsters: number;
@@ -126,39 +127,48 @@ const [spellTableSaveResult, setSpellTableSaveResult] = useState<{ success: bool
   } | null>(null);
   const [seedExportError, setSeedExportError] = useState('');
 
-  // 导出三宝书全量快照：?scope=all 取出版物 + 私有，产物是 scripts/build-seed.mjs 的输入
-  const handleExportSeedSnapshot = async () => {
-    setSeedExporting(true);
+  // 导出三宝书全量快照：?scope=all 取出版物 + 私有，产物是 scripts/build-seed.mjs 的输入。
+  // kind 为空导出合并单文件；指定 kind 只导出该库，便于分库处理大数据量（怪物库 1.1MB）。
+  const handleExportSeedSnapshot = async (kind?: 'equipments' | 'monsters' | 'options') => {
+    setSeedExporting(kind || 'all');
     setSeedExportError('');
     setSeedExportResult(null);
+    const stamp = new Date().toISOString().slice(0, 10);
     try {
-      const [equipments, monsters, options] = await Promise.all([
-        exportAllEquipments<any[]>(),
-        exportAllNpcTemplates<any[]>(),
-        exportAllOptions<any[]>(),
-      ]);
-      const data = {
-        equipments: Array.isArray(equipments) ? equipments : [],
-        monsters: Array.isArray(monsters) ? monsters : [],
-        options: Array.isArray(options) ? options : [],
-        exportedAt: new Date().toISOString(),
-      };
+      const data: any = { exportedAt: new Date().toISOString() };
+      let filename = `三宝书种库快照-${stamp}.json`;
+      if (!kind || kind === 'equipments') {
+        const equipments = await exportAllEquipments<any[]>();
+        data.equipments = Array.isArray(equipments) ? equipments : [];
+      }
+      if (!kind || kind === 'monsters') {
+        const monsters = await exportAllNpcTemplates<any[]>();
+        data.monsters = Array.isArray(monsters) ? monsters : [];
+      }
+      if (!kind || kind === 'options') {
+        const options = await exportAllOptions<any[]>();
+        data.options = Array.isArray(options) ? options : [];
+      }
+      if (kind) {
+        const label = { equipments: '装备', monsters: '怪物', options: '角色选项' }[kind];
+        filename = `三宝书种库快照-${label}-${stamp}.json`;
+      }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `三宝书种库快照-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
       setSeedExportResult({
-        equipments: data.equipments.length,
-        monsters: data.monsters.length,
-        options: data.options.length,
+        equipments: data.equipments?.length ?? 0,
+        monsters: data.monsters?.length ?? 0,
+        options: data.options?.length ?? 0,
       });
     } catch (e: any) {
       setSeedExportError(e?.message || String(e));
     } finally {
-      setSeedExporting(false);
+      setSeedExporting(null);
     }
   };
 
@@ -632,18 +642,43 @@ const handleMonsterImport = () => {
           导出三宝书种库快照
         </h2>
         <p className="text-xs mb-3 opacity-60 leading-relaxed">
-          拉取装备库、怪物图鉴、角色选项的全量数据（含出版物与自定义），下载为单个 JSON。
+          拉取装备库、怪物图鉴、角色选项的全量数据（含出版物与自定义），下载为 JSON。
           产物交给 <code>scripts/build-seed.mjs</code> 拆分为 <code>public/seed/</code> 中文分片后提交仓库。
+          数据量大时可分库单独导出（怪物库约 1.1MB，建议单独导出）。
           顺序：先导出并发布种子，再清理云端出版物行，避免图鉴空窗。
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={handleExportSeedSnapshot}
-            disabled={seedExporting}
+            onClick={() => handleExportSeedSnapshot()}
+            disabled={seedExporting !== null}
             className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
           >
             <Download className="w-4 h-4" />
-            {seedExporting ? '导出中...' : '导出种库快照'}
+            {seedExporting === 'all' ? '导出中...' : '导出全部（合并单文件）'}
+          </button>
+          <button
+            onClick={() => handleExportSeedSnapshot('equipments')}
+            disabled={seedExporting !== null}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium hover:opacity-90 disabled:opacity-50 dark:border-border-dark light:border-border-light"
+          >
+            <Download className="w-4 h-4" />
+            {seedExporting === 'equipments' ? '导出中...' : '仅装备'}
+          </button>
+          <button
+            onClick={() => handleExportSeedSnapshot('monsters')}
+            disabled={seedExporting !== null}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium hover:opacity-90 disabled:opacity-50 dark:border-border-dark light:border-border-light"
+          >
+            <Download className="w-4 h-4" />
+            {seedExporting === 'monsters' ? '导出中...' : '仅怪物'}
+          </button>
+          <button
+            onClick={() => handleExportSeedSnapshot('options')}
+            disabled={seedExporting !== null}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium hover:opacity-90 disabled:opacity-50 dark:border-border-dark light:border-border-light"
+          >
+            <Download className="w-4 h-4" />
+            {seedExporting === 'options' ? '导出中...' : '仅角色选项'}
           </button>
         </div>
         {seedExportError && (
@@ -651,7 +686,10 @@ const handleMonsterImport = () => {
         )}
         {seedExportResult && (
           <p className="text-xs text-success mt-2">
-            已导出：装备 {seedExportResult.equipments} 条 · 怪物 {seedExportResult.monsters} 条 · 选项 {seedExportResult.options} 条
+            已导出：
+            {seedExportResult.equipments > 0 && `装备 ${seedExportResult.equipments} 条 `}
+            {seedExportResult.monsters > 0 && `怪物 ${seedExportResult.monsters} 条 `}
+            {seedExportResult.options > 0 && `选项 ${seedExportResult.options} 条`}
           </p>
         )}
       </section>

@@ -17,9 +17,20 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 
 const args = process.argv.slice(2);
-const inputPath = args.find((a) => !a.startsWith('--'));
-if (!inputPath) {
-  console.error('用法: node scripts/build-seed.mjs <snapshot.json> [--out public/seed] [--date YYYY-MM-DD] [--dry-run]');
+// 支持一次传多个快照文件（分库导出时传 3 个），也可传单个合并快照。
+// 需要跳过带值选项（--out/--date）的取值，否则会被误当作输入文件。
+const VALUE_FLAGS = new Set(['--out', '--date']);
+const inputPaths = [];
+for (let i = 0; i < args.length; i++) {
+  const a = args[i];
+  if (a.startsWith('--')) {
+    if (VALUE_FLAGS.has(a)) i++; // 跳过该选项的值
+    continue;
+  }
+  inputPaths.push(a);
+}
+if (inputPaths.length === 0) {
+  console.error('用法: node scripts/build-seed.mjs <snapshot.json> [more.json ...] [--out public/seed] [--date YYYY-MM-DD] [--dry-run]');
   process.exit(1);
 }
 const flag = (name) => args.includes(name);
@@ -72,21 +83,30 @@ function warn(msg) {
 }
 
 // ---------- 读取输入 ----------
-let snapshot;
-try {
-  snapshot = JSON.parse(fs.readFileSync(inputPath, 'utf8'));
-} catch (e) {
-  console.error(`读取快照失败: ${e.message}`);
-  process.exit(1);
+// 多个快照按库合并：同一库出现多次时按 id 去重（后出现的覆盖先出现的，便于分库导出后补跑）
+const equipments = [];
+const monsters = [];
+const optionsRaw = [];
+for (const p of inputPaths) {
+  let snap;
+  try {
+    snap = JSON.parse(fs.readFileSync(p, 'utf8'));
+  } catch (e) {
+    console.error(`读取快照失败 ${p}: ${e.message}`);
+    process.exit(1);
+  }
+  if (Array.isArray(snap.equipments)) equipments.push(...snap.equipments);
+  if (Array.isArray(snap.monsters)) monsters.push(...snap.monsters);
+  if (Array.isArray(snap.options)) optionsRaw.push(...snap.options);
 }
-
-const equipments = Array.isArray(snapshot.equipments) ? snapshot.equipments : [];
-const monsters = Array.isArray(snapshot.monsters) ? snapshot.monsters : [];
-const optionsRaw = Array.isArray(snapshot.options) ? snapshot.options : [];
 if (equipments.length === 0 && monsters.length === 0 && optionsRaw.length === 0) {
   console.error('快照三库均为空，拒绝生成空种子');
   process.exit(1);
 }
+// 分库导出时应把三个文件一起传入；缺库会导致索引缺失对应 kind，提示避免误生成残缺种子
+if (equipments.length === 0) console.warn('警告: 输入无装备数据，将不生成装备分片');
+if (monsters.length === 0) console.warn('警告: 输入无怪物数据，将不生成怪物分片');
+if (optionsRaw.length === 0) console.warn('警告: 输入无角色选项数据，将不生成选项分片');
 
 // ---------- 分组容器：kind -> bookDir -> group -> items[] ----------
 const buckets = {
