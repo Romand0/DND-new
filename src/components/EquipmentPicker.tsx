@@ -1,8 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { X, Search, Package, ScrollText, Minus, Plus } from 'lucide-react';
 import type { EquipmentItem } from '@/types/equipment';
-import { fetchAllEquipments } from '@/lib/api';
-import { isScrollEquipmentItem, loadScrollCatalog } from '@/data/spellScrolls';
+import type { Spell } from '@/types/spell';
+import { equipmentStore } from '@/data/equipmentStore';
+import {
+  isScrollEquipmentItem,
+  isSpellScrollTemplate,
+  buildScrollFromTemplate,
+} from '@/data/spellScrolls';
+import { isMagicGenerator, GENERATOR_CARD_CLASS } from '@/data/magicGenerators';
+import SpellPicker from '@/components/SpellPicker';
 
 const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 
@@ -22,29 +29,36 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
   const [loading, setLoading] = useState(true);
   // 卷轴选中后的数量确认（点击卷轴不立即加入，先选张数）
   const [scrollPick, setScrollPick] = useState<{ item: EquipmentItem; qty: number } | null>(null);
+  // 法术卷轴泛条目 → 生成器：先选法术再确定张数
+  const [scrollTemplate, setScrollTemplate] = useState<EquipmentItem | null>(null);
+  const [spellPickerOpen, setSpellPickerOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([
-      fetchAllEquipments().catch((e) => {
+    // 种子基线 + 云端覆盖/墓碑/自建：与装备库页同一数据源
+    equipmentStore
+      .fetchAll()
+      .then((list) => {
+        if (!cancelled) setEquipments([...list]);
+      })
+      .catch((e) => {
         console.error('装备选择器加载失败', e);
-        return [] as EquipmentItem[];
-      }),
-      // 卷轴为虚拟条目：由法术库即时生成，不占 D1
-      loadScrollCatalog().catch((e) => {
-        console.error('卷轴目录加载失败', e);
-        return [] as EquipmentItem[];
-      }),
-    ])
-      .then(([equipments, scrolls]) => {
-        if (cancelled) return;
-        setEquipments([...equipments, ...scrolls]);
+        if (!cancelled) setEquipments([...equipmentStore.getAll()]);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
   }, []);
+
+  // 选定法术后，以泛条目为模板生成具体卷轴并进入张数确认
+  const handleSpellChosen = (spell: Spell) => {
+    const tpl = scrollTemplate;
+    setSpellPickerOpen(false);
+    setScrollTemplate(null);
+    if (!tpl) return;
+    setScrollPick({ item: buildScrollFromTemplate(tpl, spell), qty: 1 });
+  };
 
   const filteredEquipments = useMemo(() => {
     let result = equipments.filter((item) => {
@@ -57,8 +71,12 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
       return matchesCategory && matchesSearch;
     });
 
-    // 排序逻辑：在"全部"筛选下按分类顺序排序，否则按 ID 排序
+    // 排序逻辑：魔法泛条目生成器恒置顶；其余在"全部"筛选下按分类顺序，否则按 ID
     result.sort((a, b) => {
+      const ag = isMagicGenerator(a) ? 0 : 1;
+      const bg = isMagicGenerator(b) ? 0 : 1;
+      if (ag !== bg) return ag - bg;
+
       if (selectedCategory === '全部') {
         // 按分类顺序排序，同分类内按 ID 排序
         const aCategoryIndex = CATEGORY_ORDER.indexOf(a.category);
@@ -191,6 +209,11 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                 <button
                   key={item.id}
                   onClick={() => {
+                    if (isSpellScrollTemplate(item)) {
+                      setScrollTemplate(item);
+                      setSpellPickerOpen(true);
+                      return;
+                    }
                     if (isScrollEquipmentItem(item)) {
                       setScrollPick({ item, qty: 1 });
                       return;
@@ -198,7 +221,11 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                     onSelect(item);
                     onClose();
                   }}
-                  className="w-full text-left p-3 rounded-lg border transition-colors hover:border-primary dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light group"
+                  className={`w-full text-left p-3 rounded-lg border transition-colors group ${
+                    isMagicGenerator(item)
+                      ? GENERATOR_CARD_CLASS
+                      : 'hover:border-primary dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
@@ -209,6 +236,9 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                         <span className="text-xs px-1.5 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
                           {item.category}
                         </span>
+                        {isMagicGenerator(item) && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-white">魔法物品生成器</span>
+                        )}
                         {item.subtype === '材料袋' && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-sky-500/10 text-sky-400">材料包</span>
                         )}
@@ -221,7 +251,7 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                         {item.rarity && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400">{item.rarity}</span>
                         )}
-                        {isScrollEquipmentItem(item) && (
+                        {isScrollEquipmentItem(item) && !isMagicGenerator(item) && (
                           <span className="text-[10px] px-1 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400">法术卷轴</span>
                         )}
                       </div>
@@ -244,6 +274,14 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
           )}
         </div>
       </div>
+
+      {/* 法术卷轴生成器：先选法术，再回到本弹窗确认张数 */}
+      <SpellPicker
+        isOpen={spellPickerOpen}
+        onClose={() => { setSpellPickerOpen(false); setScrollTemplate(null); }}
+        onSelect={handleSpellChosen}
+        selectedSpellIds={[]}
+      />
     </div>
   );
 }
