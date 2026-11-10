@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useEditorState } from '@/data/editorState';
-import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag, Swords, Shield } from 'lucide-react';
+import { ChevronLeft, Edit, Trash2, Coins, Scale, Tag, Swords, Shield, ExternalLink } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
-import { apiFetch, fetchAllEquipments } from '@/lib/api';
+import { apiFetch } from '@/lib/api';
 import { equipmentStore } from '@/data/equipmentStore';
+import { getSeedEditUrl } from '@/lib/seedGitHub';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function EquipmentDetail() {
@@ -27,26 +28,22 @@ export default function EquipmentDetail() {
     setLoading(true);
     setError('');
     try {
+      // 先预热种子（含种子条目的合并视图），再走 getById（种子 ∪ 云端覆盖）
+      await equipmentStore.fetchAll().catch(() => {});
+      const local = equipmentStore.getById(id);
+      if (local) {
+        setItem(local);
+        setLoading(false);
+        return;
+      }
+      // 合并视图没有时兜底直接查云端单条
       const token = localStorage.getItem('auth_token');
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
       const data = await apiFetch(`/equipments/${id}`, { method: 'GET', headers });
       setItem(data);
     } catch (e: any) {
-      try {
-        const all = await fetchAllEquipments<any[]>();
-        const found = all.find((x: any) => x.id === id);
-        if (found) {
-          setItem(found);
-          return;
-        }
-      } catch { /* 全量接口也失败时继续走本地兜底 */ }
-      const local = equipmentStore.getById(id);
-      if (local) {
-        setItem(local);
-      } else {
-        setError(e.message || '加载失败');
-      }
+      setError(e.message || '加载失败');
     } finally {
       setLoading(false);
     }
@@ -59,10 +56,7 @@ export default function EquipmentDetail() {
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('auth_token');
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      await apiFetch(`/equipments/${id}`, { method: 'PUT', body: JSON.stringify(updatedItem), headers });
+      await equipmentStore.saveItem(updatedItem);
       setEditorOpen(false);
       load();
     } catch (e: any) {
@@ -77,10 +71,7 @@ export default function EquipmentDetail() {
     setSaving(true);
     setError('');
     try {
-      const token = localStorage.getItem('auth_token');
-      const headers: Record<string, string> = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      await apiFetch(`/equipments/${id}`, { method: 'DELETE', headers });
+      await equipmentStore.deleteItem(id);
       navigate('/equipment');
     } catch (e: any) {
       setError(e.message || '删除失败');
@@ -153,14 +144,32 @@ export default function EquipmentDetail() {
         </div>
         {isAdmin && (
           <div className="flex gap-2">
-            <button onClick={() => setEditorOpen(true)}
-              className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light">
-              <Edit className="w-5 h-5" />
-            </button>
-            <button onClick={() => setDeleteConfirm(true)}
-              className="p-2 rounded-lg hover:bg-danger/20 text-danger">
-              <Trash2 className="w-5 h-5" />
-            </button>
+            {equipmentStore.isSeedItem(item.id) ? (
+              getSeedEditUrl('equipments', item.id) ? (
+                <a
+                  href={getSeedEditUrl('equipments', item.id)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:border-primary hover:text-primary text-sm transition-colors"
+                  title="种子条目只读，点击在 GitHub 编辑源文件"
+                >
+                  <ExternalLink className="w-4 h-4" /> 在 GitHub 编辑
+                </a>
+              ) : (
+                <span className="text-xs px-3 py-1.5 rounded-lg bg-primary/10 text-primary">种子 · 只读</span>
+              )
+            ) : (
+              <>
+                <button onClick={() => setEditorOpen(true)}
+                  className="p-2 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light">
+                  <Edit className="w-5 h-5" />
+                </button>
+                <button onClick={() => setDeleteConfirm(true)}
+                  className="p-2 rounded-lg hover:bg-danger/20 text-danger">
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

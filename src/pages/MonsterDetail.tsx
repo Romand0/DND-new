@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Edit2, Trash2, GripVertical, Shield, Heart, Footprints, Swords, BookOpen } from 'lucide-react';
+import { ArrowLeft, Edit2, Trash2, GripVertical, Shield, Heart, Footprints, Swords, BookOpen, ExternalLink } from 'lucide-react';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS, normalizeCr } from '@/types/combat';
 import type { NpcTemplate, NpcAttack } from '@/types/combat';
 import MonsterEditor from '@/components/MonsterEditor';
 import npcTemplateStore from '@/data/npcTemplateStore';
+import { getSeedEditUrl } from '@/lib/seedGitHub';
 
 export default function MonsterDetail() {
   const navigate = useNavigate();
@@ -80,18 +81,36 @@ export default function MonsterDetail() {
         </div>
         {isAdmin && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setEditorOpen(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
-            >
-              <Edit2 className="w-4 h-4" /> 编辑
-            </button>
-            <button
-              onClick={() => setDeleteConfirm(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80 transition-colors"
-            >
-              <Trash2 className="w-4 h-4" /> 删除
-            </button>
+            {npcTemplateStore.isSeedItem(template.id) ? (
+              getSeedEditUrl('monsters', template.id) ? (
+                <a
+                  href={getSeedEditUrl('monsters', template.id)!}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:border-primary hover:text-primary transition-colors"
+                  title="种子条目只读，点击在 GitHub 编辑源文件"
+                >
+                  <ExternalLink className="w-4 h-4" /> 在 GitHub 编辑
+                </a>
+              ) : (
+                <span className="text-xs px-3 py-2 rounded-lg bg-primary/10 text-primary">种子 · 只读</span>
+              )
+            ) : (
+              <>
+                <button
+                  onClick={() => setEditorOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5 transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" /> 编辑
+                </button>
+                <button
+                  onClick={() => setDeleteConfirm(true)}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-danger text-white hover:bg-danger/80 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" /> 删除
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

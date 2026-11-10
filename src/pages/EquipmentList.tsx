@@ -4,10 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useEditorState } from '@/data/editorState';
-import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, ChevronLeft, Coins, RefreshCw, ExternalLink } from 'lucide-react';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { equipmentStore } from '@/data/equipmentStore';
+import { getSeedEditUrl } from '@/lib/seedGitHub';
 import { isScrollEquipmentItem, loadScrollCatalog } from '@/data/spellScrolls';
 
 const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
@@ -463,7 +464,23 @@ export default function EquipmentList() {
               {isAdmin && isScrollEquipmentItem(item) && (
                 <span className="text-[10px] px-2 py-1 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">法术卷轴 · 只读</span>
               )}
-              {isAdmin && !isScrollEquipmentItem(item) && (
+              {isAdmin && !isScrollEquipmentItem(item) && equipmentStore.isSeedItem(item.id) && (
+                getSeedEditUrl('equipments', item.id) ? (
+                  <a
+                    href={getSeedEditUrl('equipments', item.id)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="flex items-center gap-1 px-2 py-1 rounded text-[11px] shrink-0 border dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:border-primary hover:text-primary"
+                    title="种子条目只读，点击在 GitHub 编辑源文件"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" /> 在 GitHub 编辑
+                  </a>
+                ) : (
+                  <span className="text-[10px] px-2 py-1 rounded bg-primary/10 text-primary shrink-0">种子 · 只读</span>
+                )
+              )}
+              {isAdmin && !isScrollEquipmentItem(item) && !equipmentStore.isSeedItem(item.id) && (
                 <div className="flex gap-1 shrink-0">
                   <button onClick={(e) => { e.stopPropagation(); handleEdit(item); }} className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light" title="编辑"><Edit className="w-4 h-4" /></button>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(item.id); }} className="p-2 rounded hover:bg-danger/20 text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>

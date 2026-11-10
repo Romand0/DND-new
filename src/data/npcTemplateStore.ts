@@ -216,6 +216,11 @@ const npcTemplateStore = {
     return found ? { ...found, attacks: [...(found.attacks ?? [])] } : null;
   },
 
+  // 是否为纯种子条目（id 已对齐 templateId）
+  isSeedItem(id: string): boolean {
+    return normalizedSeeds().some((s) => s.id === id);
+  },
+
   /**
    * 新建自定义模板：私有条目（普通 uuid），不涉及种子。
    */

@@ -146,6 +146,11 @@ export const optionStore = {
     return merged().find((o) => o.id === id) ?? null;
   },
 
+  // 是否为纯种子条目
+  isSeedItem(id: string): boolean {
+    return loadSeeds().some((s) => s.id === id);
+  },
+
   getByCategory(category: OptionCategory): CharacterOption[] {
     return merged().filter((o) => o.category === category);
   },

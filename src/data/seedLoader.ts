@@ -30,9 +30,13 @@ const SEED_INDEX_PATH = '/seed/索引.json';
 
 const VERSION_KEY = (kind: SeedKind) => `seed:${kind}:version`;
 const DATA_KEY = (kind: SeedKind) => `seed:${kind}:data`;
+// 条目 id → 分片相对路径（供「在 GitHub 编辑」定位源文件）
+const SOURCE_KEY = (kind: SeedKind) => `seed:${kind}:source`;
 
 // 会话级缓存：避免每次 getCachedSeed 都 JSON.parse 大列表（怪物/装备可达数百 KB）
 const memoryCache = new Map<SeedKind, unknown[]>();
+// 条目 id → 分片相对路径 的内存缓存（与数据同生命周期）
+const sourceCache = new Map<SeedKind, Record<string, string>>();
 const inflight = new Map<SeedKind, Promise<unknown[]>>();
 const listeners: (() => void)[] = [];
 
@@ -99,17 +103,29 @@ export async function loadSeed<T = unknown>(kind: SeedKind): Promise<T[]> {
     meta.shards.map((shard) =>
       fetch(encodeURI(encodeSeedPath(shard.path)))
         .then((res) => (res.ok ? (res.json() as Promise<T[]>) : []))
+        .then((items) => ({ path: shard.path, items }))
         .catch((err) => {
           console.warn(`[seedLoader] 分片加载失败 ${shard.path}:`, err);
-          return [] as T[];
+          return { path: shard.path, items: [] as T[] };
         })
     )
   )
     .then((parts) => {
-      const merged = parts.flat();
+      const merged = parts.flatMap((p) => p.items);
+      // 建立 id → 分片路径 映射（怪物种子 id 可能对齐为 templateId，这里存原始条目 id 与 templateId 双键）
+      const sourceMap: Record<string, string> = {};
+      for (const part of parts) {
+        for (const item of part.items as any[]) {
+          const p = '/seed/' + part.path;
+          if (item?.id) sourceMap[String(item.id)] = p;
+          if (item?.templateId) sourceMap[String(item.templateId)] = p;
+        }
+      }
       memoryCache.set(kind, merged);
+      sourceCache.set(kind, sourceMap);
       try {
         localStorage.setItem(DATA_KEY(kind), JSON.stringify(merged));
+        localStorage.setItem(SOURCE_KEY(kind), JSON.stringify(sourceMap));
         localStorage.setItem(VERSION_KEY(kind), idx.version);
       } catch (e) {
         console.warn('[seedLoader] 种子写入 localStorage 失败:', e);
@@ -128,6 +144,19 @@ export async function loadSeed<T = unknown>(kind: SeedKind): Promise<T[]> {
 /** 同步读取已缓存副本（未加载完成返回 null，供 store 首帧渲染判断） */
 export function getCachedSeed<T = unknown>(kind: SeedKind): T[] | null {
   return readCachedData<T>(kind);
+}
+
+/** 获取某条目所属种子分片的可访问路径（如 `/seed/玩家手册2014/装备/武器.json`），无则 null */
+export function getSeedSourcePath(kind: SeedKind, id: string): string | null {
+  if (!sourceCache.has(kind)) {
+    try {
+      const raw = localStorage.getItem(SOURCE_KEY(kind));
+      if (raw) sourceCache.set(kind, JSON.parse(raw) as Record<string, string>);
+    } catch {
+      // ignore
+    }
+  }
+  return sourceCache.get(kind)?.[id] ?? null;
 }
 
 /** 订阅任意库种子就绪（store 用它触发 notify 重渲染） */
