@@ -1,0 +1,1846 @@
+[
+  {
+    "templateId": "gray-slaad",
+    "name": "史拉灰蟾",
+    "nameEn": "Gray Slaad",
+    "cr": "9",
+    "xp": 5000,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "异怪（变形生物）",
+    "alignment": "混乱中立",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 127,
+    "hpDice": "17d8+51",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 17,
+    "constitution": 16,
+    "intelligence": 13,
+    "wisdom": 8,
+    "charisma": 14,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 7
+      }
+    ],
+    "senses": "盲视60尺，黑暗视觉60尺，被动察觉17",
+    "languages": "史拉蟾语，心灵感应60尺",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "史拉蟾用一个动作变形小型或中型体型的类人生物，或以同样的动作变回其真实形态。除体型外，它在每个形态下的所有其他资料不变。其着装或携带的任何装备也不会随之改变。史拉蟾死亡时将恢复其真实形态。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "史拉蟾天生施法属性为魅力（法术豁免DC14）。该史拉蟾天生可施展如下法术，且无需任何相应的材料成分：随意：侦测魔法detectmagic，侦测思想detectthoughts，隐形术invisibility（仅自身），法师之手magehand，高级幻影majorimage每项2/日：恐惧术fear，飞行术fly，火球术fireball，巧言术tongues每项1/日：位面转移plane shift（仅自身）"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "史拉蟾为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "史拉蟾的武器攻击视为魔法武器攻击。"
+      },
+      {
+        "name": "再生Regeneration",
+        "text": "史拉蟾在其自己的回合开始时恢复10点生命值，前提是它至少有1点生命值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "史拉蟾发动三次攻击：一次啃咬，以及两次爪击或巨剑攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击或巨剑攻击"
+      }
+    ],
+    "regeneration": {
+      "amount": 10
+    },
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "侦测思想",
+            "隐形术",
+            "法师之手",
+            "高级幻影",
+            "飞行术",
+            "火球术",
+            "巧言术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+7",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "1d10+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "巨剑",
+        "attackBonus": "+7",
+        "damage": "2d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "史拉亡蟾DeathSlaad"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 2,
+    "creatureType": "aberration",
+    "id": "0e7e4724-a77b-47f6-a326-c92941d780da",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "nothic",
+    "name": "诺斯怪",
+    "nameEn": "Nothic",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "异怪",
+    "alignment": "中立邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 45,
+    "hpDice": "6d8+18",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 14,
+    "dexterity": 16,
+    "constitution": 16,
+    "intelligence": 13,
+    "wisdom": 10,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 3
+      },
+      {
+        "name": "洞悉",
+        "bonus": 4
+      },
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "真实视觉120尺，被动察觉12",
+    "languages": "地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐视觉Keen Sight",
+        "text": "诺斯怪依赖视力进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "诺斯怪发动两次爪击。"
+      },
+      {
+        "name": "腐朽凝视Rotting Gaze",
+        "text": "诺斯怪指定其周边30尺内一个它能看到的生物。该目标必须成功通过一次DC12的体质豁免以抵抗该魔法，否则将受10（3d6）点暗蚀伤害。"
+      },
+      {
+        "name": "怪异洞悉Weird Insight",
+        "text": "诺斯怪指定其周边30尺内一个它能看到的生物。该目标必须以其魅力（欺瞒）检定对抗该诺斯怪的感知（洞悉）检定。如果诺斯怪胜出，则它以魔法得知一件与目标相关的事实或秘密。如果目标免疫魅惑，则它将在该检定对抗中直接胜出。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "1d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 2,
+    "creatureType": "aberration",
+    "id": "1d51c152-78d9-4c8c-9669-e480e361e5a5",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "gibbering-mouther",
+    "name": "呓语之口",
+    "nameEn": "Gibbering Mouther",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "异怪",
+    "alignment": "绝对中立",
+    "ac": 9,
+    "acNote": "9",
+    "maxHp": 67,
+    "hpDice": "9d8+27",
+    "speed": 10,
+    "speedNotes": "，游泳10尺。",
+    "strength": 10,
+    "dexterity": 8,
+    "constitution": 16,
+    "intelligence": 3,
+    "wisdom": 10,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "怪异之地Aberrant Ground",
+        "text": "呓语之口周边10尺半径的地面成为面团状的困难地形。在该区域内开始其回合的每个生物都必须进行一次DC10的力量豁免，豁免失败者其速度将降至0，直至其下一回合开始时结束。"
+      },
+      {
+        "name": "呓语Gibbering",
+        "text": "呓语之口看到任何未处于失能状态的生物时便开始语无伦次的喋喋不休。任何可以听到呓语之口呓语的生物，在呓语之口周边20尺内开始其自己回合时，必须进行一次DC10的感知豁免。豁免失败时，该生物直至其下一回合开始前都无法执行反应，并掷一次d8以决定接下来自己会怎么做。骰值为1至4时，该生物什么都不用做。骰值为5至6时，该生物将无法执行任何动作或附赠动作，并花费自己所有的移动力向一个随机方向直线移动。骰值为7至8时，该生物在身边触及范围内随机指定一个生物并对其发动一次近战攻击，如果没有合适的攻击目标则什么都不用做。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "呓语之口发动一次啃咬攻击，如果条件允许则再使用一次致盲唾沫。"
+      },
+      {
+        "name": "致盲唾沫Blinding Spittle",
+        "text": "（充能5~6）呓语之口向身边15尺内它能看见的一点吐出一团化学液。命中时的冲击力使液团爆发出一片炫目的闪光。闪光处周边5尺内的每个生物必须进行一次DC13的敏捷豁免，豁免失败者将陷入目盲，直至该呓语之口下一回合结束时终止。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬攻击"
+      },
+      {
+        "count": 1,
+        "name": "致盲唾沫"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+2",
+        "damage": "5d6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果该目标为中型或更小体型，则它必须进行一次DC10的力量豁免，豁免失败则应击倒地"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 2,
+    "creatureType": "aberration",
+    "id": "22e9e073-c36c-4ece-ac2a-e89d40e06ba4",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "flumph",
+    "name": "呋噜",
+    "nameEn": "Flumph",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "异怪",
+    "alignment": "守序善良",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 7,
+    "hpDice": "2d6",
+    "speed": 5,
+    "speedNotes": "，飞行30尺",
+    "strength": 6,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 14,
+    "wisdom": 14,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 4
+      },
+      {
+        "name": "历史",
+        "bonus": 4
+      },
+      {
+        "name": "宗教",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉12",
+    "languages": "懂地底通用语但不能说，心灵感应60尺",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [
+      "心灵"
+    ],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "增强感应Advanced Telepathy",
+        "text": "呋噜可以察觉到60尺内的任何心灵感应通讯。且呋噜不会被具有任一种形式心灵感应能力的生物突袭。"
+      },
+      {
+        "name": "倒地缺陷Prone Deficiency",
+        "text": "呋噜应击倒地时掷一次骰。如果骰值为奇数，则呋噜就会翻转过来并陷入失能状态。呋噜在每个自己的回合结束时可以进行一次DC10的敏捷豁免，豁免成功则终止该失能状态。"
+      },
+      {
+        "name": "读心屏障Telepathic Shroud",
+        "text": "呋噜免疫所有试图感知其情绪思维或读取其思想的效应，包括所有预言系的法术。"
+      },
+      {
+        "name": "恶臭喷溅Stench Spray",
+        "text": "（1/日）以呋噜为原点的15尺锥状范围内，每个生物必须进行一次DC10的敏捷豁免，豁免失败者将溅上一种污臭的液体。被溅上液体的生物在1d4小时内都将散发出臭气。在臭味持续时间内，该生物陷入中毒状态，该生物周边5尺内的其他生物也会因此陷入中毒。该生物可以通过进行一次短休，以水、酒精或醋来洗掉这些臭味。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "卷须",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加2（1d4）点强酸伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 1,
+    "creatureType": "aberration",
+    "id": "2a0c6a9c-f440-41f5-a535-e95240548895",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "chuul",
+    "name": "甲伏怪",
+    "nameEn": "Chuul",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "异怪",
+    "alignment": "混乱邪恶",
+    "ac": 16,
+    "acNote": "天生护甲",
+    "maxHp": 93,
+    "hpDice": "11d10+33",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 19,
+    "dexterity": 10,
+    "constitution": 16,
+    "intelligence": 5,
+    "wisdom": 11,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉 60 尺，被动察觉 14",
+    "languages": "懂深潜语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "水陆两栖 Amphibious",
+        "text": "甲伏怪可以在空气和水中呼吸。"
+      },
+      {
+        "name": "感知魔法 Sense Magic",
+        "text": "甲伏怪可以随意探知120尺内的魔法。此特质如同法术 侦测魔法detect magic，但本身不是魔法。"
+      },
+      {
+        "name": "多重攻击 Multiattack",
+        "text": "甲伏怪发动两次钳击攻击。如果它正擒抱生物，则还可以使用一次触须攻击。"
+      },
+      {
+        "name": "触须Tentacles",
+        "text": "被 甲伏怪擒抱的生物必须进行一次DC13的体质豁免，豁免失败则中毒1分钟。该中毒期间目标生物陷入麻痹。该目标可以在每个其自己回合结束时再进一次该豁免，豁免成功则终止该效应。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "钳击攻击"
+      },
+      {
+        "count": 1,
+        "name": "触须攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "钳击",
+        "attackBonus": "+6",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是大型或更小体型的生物则被擒抱（逃脱DC 14），甲伏怪无法同时擒抱两个以上的生物"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 3,
+    "creatureType": "aberration",
+    "id": "2fe249c4-9ecd-435b-947a-9d84e6b4cdd8",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "green-slaad",
+    "name": "史拉绿蟾",
+    "nameEn": "Green Slaad",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "异怪（变形生物）",
+    "alignment": "混乱中立",
+    "ac": 16,
+    "acNote": "天生护甲",
+    "maxHp": 127,
+    "hpDice": "15d10+45",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 11,
+    "wisdom": 8,
+    "charisma": 12,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 3
+      },
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "盲视30尺，黑暗视觉60尺，被动察觉12",
+    "languages": "史拉蟾语，心灵感应60尺",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "史拉蟾用一个动作变形小型或中型体型的类人生物，或以同样的动作变回其真实形态。除体型外，它在每个形态下的所有其他资料不变。其着装或携带的任何装备也不会随之改变。史拉蟾死亡时将恢复其真实形态。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "史拉蟾天生施法属性为魅力（法术豁免DC12）。该史拉蟾天生可施展如下法术，且无需任何相应的材料成分：随意：侦测魔法detectmagic，侦测思想detectthoughts，法师之手magehand每项2/日：恐惧术fear，隐形术invisibility（仅自身）每项1/日：火球术fireball"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "史拉蟾为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "再生Regeneration",
+        "text": "史拉蟾在其自己的回合开始时恢复10点生命值，前提是它至少有1点生命值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "史拉蟾发动三次攻击：一次啃咬，以及两次爪击或法杖攻击。或者使用两次投掷烈焰。"
+      },
+      {
+        "name": "投掷烈焰Hurl Flame",
+        "text": "远程法术攻击：命中+4，射程60尺，单一目标。命中：10（3d6）点火焰伤害。火焰将点燃所有未被着装或携带的可燃物件。史拉灰蟾GraySlaad在混沌海外侧，史拉灰蟾是它们的主人史拉亡蟾的意志延伸。史拉灰蟾跑到主物质位面执行散播死亡的差事。它们还会运用巨剑，并用自己天生的法术使之得到强化。史拉灰蟾在吃掉史拉亡蟾完整的遗体后将立即进化为史拉亡蟾。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击或法杖攻击"
+      },
+      {
+        "count": 2,
+        "name": "投掷烈焰"
+      }
+    ],
+    "regeneration": {
+      "amount": 10
+    },
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "侦测思想",
+            "法师之手",
+            "隐形术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "1d6+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "法杖",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 3,
+    "creatureType": "aberration",
+    "id": "3c94e046-03b2-44c1-a499-2dddef4790da",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "otyugh",
+    "name": "食腐兽",
+    "nameEn": "Otyugh",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "异怪",
+    "alignment": "绝对中立",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 114,
+    "hpDice": "12d10+48",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 11,
+    "constitution": 19,
+    "intelligence": 6,
+    "wisdom": 13,
+    "charisma": 6,
+    "savingThrows": [
+      "constitution"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉11",
+    "languages": "食腐兽语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "有限感应Limited Telepathy",
+        "text": "食腐兽可以将简单的话语或图像转换成目标能够理解的语言，在以魔法传导给120尺内任意一个生物。但并不能从目标处获得回复。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "食腐兽发动三次攻击，一次啃咬攻击和两次触须攻击。"
+      },
+      {
+        "name": "触须猛击Tentacle Slam",
+        "text": "食腐兽将被其擒抱的生物用力摔打向其他生物或结实的表面。每个受影响的生物必须进行一次DC14的体质豁免，豁免失败则受10（2d6+3）点钝击伤害并被震慑，其效应持续至该食腐兽的下一回合开始时终止。豁免成功则伤害减半且不会被震慑。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬攻击"
+      },
+      {
+        "count": 2,
+        "name": "触须攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "2d8+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是个生物，则目标必须成功通过一次DC"
+      },
+      {
+        "name": "触须",
+        "attackBonus": "+6",
+        "damage": "1d8+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加4（1d8）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 3,
+    "creatureType": "aberration",
+    "id": "5757809f-fe9f-4d47-a388-48503ba7e49c",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "beholder",
+    "name": "眼魔",
+    "nameEn": "Beholder",
+    "cr": "13",
+    "xp": 10000,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "异怪",
+    "alignment": "守序邪恶",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 180,
+    "hpDice": "19d10+76",
+    "speed": 0,
+    "speedNotes": "，飞行20尺（悬浮）",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 18,
+    "intelligence": 17,
+    "wisdom": 15,
+    "charisma": 17,
+    "savingThrows": [
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 12
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉22",
+    "languages": "深潜语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "反魔法锥域Antimagic Cone",
+        "text": "眼魔的主眼创造出一个150尺锥状区域的反魔法场域，区域内效应如同法术反魔法场antimagicfield。眼魔在每个其自己回合开始时决定该锥状范围的方向以及该力场是否激活。该区域对该眼魔自己的眼波射线同样生效。"
+      },
+      {
+        "name": "眼波射线Eye Rays",
+        "text": "眼魔从下列选项中随机选择发射三束魔法眼波射线（重复则重骰），并指定身边120尺内它可以看到的一到三个目标：1.魅惑射线Charm Ray。目标必须进行一次DC16的感知豁免，豁免失败者将在1小时内受眼魔魅惑，或是直至其受到来自眼魔的伤害。2.麻痹射线Paralyzing Ray。目标必须进行一次DC16的体质豁免，豁免失败者将陷入1分钟的麻痹状态。该目标可以在每个其自己回合结束时再进行一次该豁免，豁免成功则终止该效应。3.恐惧射线Fear Ray。目标必须进行一次DC16的感知豁免，豁免失败者将陷入1分钟的恐慌状态。该目标可以在每个其自己回合结束时再进行一次该豁免，豁免成功则终止该效应。4.缓慢射线Slowing Ray。目标必须进行一次DC16的敏捷豁免，豁免失败者将在1分钟内速度减半。此外该生物无法执行反应，也无法在其回合里同时执行一个动作与一个附赠动作，而只能两者选其一。该生物可以在每个其自己回合结束时再进行一次该豁免，豁免成功则终止该效应。5.弱能射线Enervation Ray。目标必须进行一次DC16的体质豁免，豁免失败者将受到36（8d8）点暗蚀伤害，豁免成功则伤害减半。6.念力射线Telekinetic Ray。目标必须进行一次DC16的力量豁免，豁免失败者将被眼魔抓起并向任意方向移动至多30尺。目标被眼魔射线的念力抓住并陷入束缚，直至眼魔的下一回合开始时，或直至该眼魔陷入失能。如果目标是一个未被着装或携带，且不超过300磅重的物件，则眼魔可以直接将它向任意方向移动至多30尺。该眼魔也可以使用该射线精确控制物件，比如操作简单的工具或是打开一扇门或一个容器。7.睡眠射线Sleep Ray。目标必须进行一次DC16的感知豁免，豁免失败者将沉睡1分钟并在此期间陷入昏迷，直至其受到伤害或由其他生物用一个动作唤醒。该射线对对构装和亡灵生物无效。8.石化射线Petrification Ray。目标必须进行一次DC16的敏捷豁免，豁免失败者将开始变成石头并陷入束缚。目标必须在其下一回合结束时再进行一次该豁免。豁免成功则终止该效应。豁免失败，则该生物陷入石化，直至受法术高等复原术greaterrestoration或其他魔法解除该效应为止。9.解离射线Disintegration Ray。目标必须进行一次DC16的敏捷豁免，豁免失败者将受到45（10d8）点力场伤害，如果该伤害将目标的生命值降至0，则其身体将化为一堆灰尘。如果目标是一个大型或更小体型的非魔法物件，或者魔法造物，则它的豁免直接失败。如果目标是巨型或更大体型的物件，则解离射线可以分解其中10尺立方区域的部分。10.致死射线Death Ray。目标必须进行一次DC16的敏捷豁免，豁免失败者将受到55（10d10）点暗蚀伤害，如果目标因此生命降至0，则其直接死亡。"
+      },
+      {
+        "name": "眼波射线Eye Ray",
+        "text": "眼魔随机使用一种眼波射线。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "4d6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 3,
+    "creatureType": "aberration",
+    "id": "6ae03530-1298-41b1-9456-2dd6b61befcf",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "blue-slaad",
+    "name": "史拉蓝蟾",
+    "nameEn": "Blue Slaad",
+    "cr": "7",
+    "xp": 2900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "异怪",
+    "alignment": "混乱中立",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 123,
+    "hpDice": "13d10+52",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 20,
+    "dexterity": 15,
+    "constitution": 18,
+    "intelligence": 7,
+    "wisdom": 7,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 1
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉11",
+    "languages": "史拉蟾语，心灵感应60尺",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "史拉蟾为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "再生Regeneration",
+        "text": "史拉蟾在其自己的回合开始时恢复10点生命值，前提是它至少有1点生命值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "史拉蟾发动三次攻击：一次啃咬，以及两次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "regeneration": {
+      "amount": 10
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+8",
+        "damage": "2d6+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+8",
+        "damage": "2d6+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是一类人生物，则其必须成功通过一次DC15的体质豁免否则感染称为混沌噬菌体chaos"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 3,
+    "creatureType": "aberration",
+    "id": "96300105-b828-4d96-8d5a-f1051def9c55",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "grell",
+    "name": "触须怪",
+    "nameEn": "Grell",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "异怪",
+    "alignment": "中立邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 55,
+    "hpDice": "10d8+10",
+    "speed": 10,
+    "speedNotes": "，飞行30尺（悬浮）",
+    "strength": 15,
+    "dexterity": 14,
+    "constitution": 13,
+    "intelligence": 12,
+    "wisdom": 11,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 6
+      }
+    ],
+    "senses": "盲视60尺（该范围外视为目盲），被动察觉14",
+    "languages": "触须怪语Grell",
+    "damageResistances": [],
+    "damageImmunities": [
+      "闪电"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "目盲",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "触须怪发动两次攻击：一次触须攻击和一次喙啄。"
+      },
+      {
+        "name": "目标同时还陷入受擒状态",
+        "text": "（逃脱DC15）若目标为中型或更小体型，则目标同时陷入束缚状态直至擒抱终止。触须怪擒抱目标时，它对目标发动的所有攻击检定都具有优势，且不能再对其他目标进行触须攻击。触须怪移动时，受其擒抱的所有中型或更小体型的目标都将随它一同移动。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "触须攻击"
+      },
+      {
+        "count": 1,
+        "name": "喙啄"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "触须",
+        "attackBonus": "+4",
+        "damage": "1d10+2",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "目标必须进行一次DC"
+      },
+      {
+        "name": "喙啄",
+        "attackBonus": "+4",
+        "damage": "2d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 2,
+    "creatureType": "aberration",
+    "id": "9d03f252-45fa-413a-bc76-c0a642f389a2",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "spectator",
+    "name": "观察者眼魔",
+    "nameEn": "Spectator",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "异怪",
+    "alignment": "守序中立",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 39,
+    "hpDice": "6d8+12",
+    "speed": 0,
+    "speedNotes": "，飞行30尺（悬浮）",
+    "strength": 8,
+    "dexterity": 11,
+    "constitution": 14,
+    "intelligence": 13,
+    "wisdom": 14,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 6
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉16",
+    "languages": "深潜语，地底通用语，心灵感应120尺",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "眼波射线Eye Ray",
+        "text": "观察者眼魔从下列选项中选择发射两束魔法眼波射线，并指定身边90尺内它可以看到的一到两个目标。每种射线观察者在一回合中只能使用一次：1.困惑射线Confusion Ray。目标必须进行一次DC13的感知豁免，豁免失败者直至其下回合结束前都无法执行任何反应。该生物在其自己回合中将无法移动，并使用其动作对可及范围内随机的某个生物发动一次近战或远程攻击。如果受术目标无法攻击，则其在自己回合中什么都不做。2.麻痹射线Paralyzing Ray。目标必须进行一次DC13的体质豁免，豁免失败者将陷入1分钟的麻痹。该目标可以在每个其自己回合结束时再进行一次该豁免，豁免成功则终止该效应。3.恐惧射线Fear Ray。目标必须进行一次DC13的感知豁免，豁免失败者将陷入1分钟的恐慌状态。该目标可以在每个其自己回合结束时再进行一次该豁免，豁免成功则终止该效应。4.致伤射线Wounding Ray。目标必须进行一次DC13的体质豁免，豁免失败者将受到16（3d10）点暗蚀伤害，豁免成功则伤害减半。"
+      },
+      {
+        "name": "造粮Create Food and Water",
+        "text": "观察者眼魔以魔法制造足够维持自己24小时供给的食物和饮用水。"
+      },
+      {
+        "name": "法术反射Spell Reflection",
+        "text": "如果观察者眼魔通过了对法术的豁免检定，或者对其发动的法术攻击未命中时，它可指定身边30尺范围内一个它能看见的其他生物（包括施法者），使那个生物代替观察者眼魔作为该法术的目标。如果该法术迫使目标进行豁免检定，则被指定的生物必须自行进行豁免。若该法术发动一次攻击，则该法术必须对被指定生物重掷攻击检定。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+1",
+        "damage": "1d6-1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 2,
+    "creatureType": "aberration",
+    "id": "a49e4ebb-1444-4f9a-9df1-eb89e8b142ea",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "intellect-devourer",
+    "name": "噬脑怪",
+    "nameEn": "Intellect Devourer",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "异怪",
+    "alignment": "守序邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 21,
+    "hpDice": "6d4+6",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 6,
+    "dexterity": 14,
+    "constitution": 13,
+    "intelligence": 12,
+    "wisdom": 11,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "盲视60尺（超过该范围视为目盲），被动察觉12",
+    "languages": "懂深潜语但不能说，心灵感应60尺",
+    "damageResistances": [
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "目盲"
+    ],
+    "traits": [
+      {
+        "name": "侦测智能Detect Sentience",
+        "text": "噬脑怪可以感知并定位其周边300尺内任何智力为3或更高的生物。该侦测可以穿透屏障，但无法侦测受法术心灵屏障mindblank保护的生物。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "噬脑怪用其爪击发动一次攻击然后使用吞食智力。"
+      },
+      {
+        "name": "吞食智力Devour Intellect",
+        "text": "噬脑怪指定其周边10尺内一个具有大脑的生物。该目标必须进行一次DC12的智力豁免以对抗该魔法，豁免失败者将受到11（2d10）点心灵伤害。豁免失败时还要再骰一次3d6：若总骰值等于或大于该目标的智力值，则该属性值降为0。该目标陷入震慑，直至其恢复至少一点智力属性。"
+      },
+      {
+        "name": "窃取身体Body Thief",
+        "text": "噬脑怪与其周边5尺范围内一个未受法术防护善恶protectionfrom evil and good保护，且正陷入失能的类人生物进行智力对抗。如果噬脑怪赢得对抗，则其以魔法吸收该生物的大脑，并传送进该目标的头骨内接管该目标的身体。在该生物体内时，噬脑怪对所有攻击与源于外界的所有效应视为处于全身掩护状态。该噬脑怪保留其智力、感知和魅力值，依然懂得深潜语、心灵感应并保留其所有特质。它的其他属性将继承该目标的资料。它知晓所有该生物知晓的事，包括其法术和语言。宿主身体死亡时，该噬脑怪必须脱离该躯体。对宿主身体施展法术防护善恶protectionfrom evil and good可以将其内的噬脑怪驱赶出来。目标通过法术祈愿术wish恢复其被吞噬的大脑时，该噬脑怪也将被强行抽离。噬脑怪可以花费5尺移动力主动离开身体，并传送到身体附近5尺内最接近的一处未被占据位置。噬脑怪离开后，除非其大脑在1轮内复原否则该身体死亡。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "2d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 0,
+    "creatureType": "aberration",
+    "id": "ae055bb4-be4c-45ca-a9cf-21fadd60eb7b",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "red-slaad",
+    "name": "史拉红蟾",
+    "nameEn": "Red Slaad",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "异怪",
+    "alignment": "混乱中立",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 93,
+    "hpDice": "11d10+33",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 12,
+    "constitution": 16,
+    "intelligence": 6,
+    "wisdom": 6,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 1
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉11",
+    "languages": "史拉蟾语，心灵感应60尺",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "史拉蟾为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "再生Regeneration",
+        "text": "史拉蟾在其自己的回合开始时恢复10点生命值，前提是它至少有1点生命值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "史拉蟾发动三次攻击：一次啃咬，以及两次爪击。"
+      },
+      {
+        "name": "一个类人生物一次只能携带一枚史拉蟾卵",
+        "text": "三个月后，卵移动到胸腔，并孵化形成史拉蟾蝌蚪。诞生前24小时，宿主开始感觉不适，因此速度减半，其攻击检定、属性检定和豁免检定具有劣势。诞生时，蝌蚪吃穿生命器官并在1轮内遁出体外，并在此过程中杀死宿主。若疾病在蝌蚪出现前治愈，未诞生的史拉蟾将就此被解离。史拉蓝蟾BlueSlaad史拉蓝蟾手背突起的骨钩会让被其挠伤的类人生物感染一种可怕的畸变型疾病。这种称为混沌噬菌体的感染物，会把受害者变成成熟体史拉红蟾或者如果宿主有能力施展3环或更环阶法术时，还会成长为史拉绿蟾。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "regeneration": {
+      "amount": 10
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "2d4+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+6",
+        "damage": "1d8+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是一类人生物，则其必须成功通过一次DC14的体质豁免否则感染疾病史拉蟾微卵minuscule slaad egg"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 3,
+    "creatureType": "aberration",
+    "id": "b99446e0-500a-4945-a8d3-c69954194e02",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "aboleth",
+    "name": "底栖魔鱼",
+    "nameEn": "Aboleth",
+    "cr": "10",
+    "xp": 5900,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "异怪",
+    "alignment": "守序邪恶",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 135,
+    "hpDice": "18d10+36",
+    "speed": 10,
+    "speedNotes": "，游泳40尺",
+    "strength": 21,
+    "dexterity": 9,
+    "constitution": 15,
+    "intelligence": 18,
+    "wisdom": 15,
+    "charisma": 18,
+    "savingThrows": [
+      "constitution",
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "历史",
+        "bonus": 12
+      },
+      {
+        "name": "察觉",
+        "bonus": 10
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉20",
+    "languages": "深潜语，心灵感应120尺",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "底栖魔鱼可以在空气和水中呼吸。"
+      },
+      {
+        "name": "粘液之云Mucous Cloud",
+        "text": "处于水中的底栖魔鱼会被不定型的粘液包围。触碰到底栖魔鱼的生物，或是在其5尺内使用近战攻击命中底栖魔鱼的生物必须进行一次DC14的体质豁免。豁免失败者将陷入1d4小时的疾病状态。该疾病状态下的生物只能在水中呼吸。"
+      },
+      {
+        "name": "探查感应Probing Telepathy",
+        "text": "一个生物通过心灵感应与底栖魔鱼进行交流时，如果底栖魔鱼可以看到这个生物时，则底栖魔鱼将了解这个生物内心最强烈的欲望。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "底栖魔鱼可以发动三次触须攻击。"
+      },
+      {
+        "name": "奴役Enslave",
+        "text": "(3/日)。底栖魔鱼指定30尺内一个它能看到的生物作为目标。该目标必须进一次DC14的感知豁免，豁免失败则如同着魔一般被底栖魔鱼魅惑，直至该底栖魔鱼死亡，或者直至该底栖魔鱼与目标不再同处一个位面。被魅惑的目标处于底栖魔鱼的控制之下且无法反抗，底栖魔鱼和该目标可以无视距离通过心灵感应进行交流。"
+      },
+      {
+        "name": "被魅惑的目标每次受到伤害时可以重骰该豁免",
+        "text": "豁免成功则结束该魅惑效应。该目标距离底栖魔鱼至少1里时，也可以重骰该豁免，但这种重骰的豁免每24小时只可进行一次。"
+      },
+      {
+        "name": "侦查Detect",
+        "text": "底栖魔鱼进行一次感知（察觉）检定。"
+      },
+      {
+        "name": "摆尾Tail Swipe",
+        "text": "底栖魔鱼发动一次尾击攻击。"
+      },
+      {
+        "name": "吸取心灵Psychic Drain",
+        "text": "（消耗2动作）一个被底栖魔鱼魅惑的生物受到10（3d6）点心灵伤害，底栖魔鱼恢复等同于该生物所受伤害的生命值。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 3,
+        "name": "触须攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "触须",
+        "attackBonus": "+9",
+        "damage": "2d6+5",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是一个生物，则其必须进行一次DC"
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+9",
+        "damage": "3d6+5",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 3,
+    "creatureType": "aberration",
+    "id": "cdd8b4dc-9a31-438a-84e0-a3d2692f62b3",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "cloaker",
+    "name": "斗篷怪",
+    "nameEn": "Cloaker",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "异怪",
+    "alignment": "混乱中立",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 78,
+    "hpDice": "12d10+12",
+    "speed": 10,
+    "speedNotes": "，飞行40尺",
+    "strength": 17,
+    "dexterity": 15,
+    "constitution": 12,
+    "intelligence": 13,
+    "wisdom": 12,
+    "charisma": 14,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉11",
+    "languages": "深潜语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "伤害转嫁Damage Transfer",
+        "text": "斗篷怪附着于一个生物时，任何对其造成的伤害减半（向下取整），而另一半伤害则由被附着的生物承受。"
+      },
+      {
+        "name": "拟形False Appearance",
+        "text": "静止的斗篷怪与普通的深色斗篷难以区分。"
+      },
+      {
+        "name": "光照敏感Light Sensitivity",
+        "text": "身处明亮光照时，斗篷怪依赖视觉所进行的攻击检定和感知（察觉）检定具有劣势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "斗篷怪发动两次攻击：一次啃咬，一次尾击。"
+      },
+      {
+        "name": "低吟Moan",
+        "text": "斗篷怪周边60尺内，所有可以听见其低吟的非异怪生物必须进行一次DC13的感知豁免，豁免失败者将陷入恐慌，直至斗篷怪下回合结束。豁免成功，则该生物在接下来的24小时内免疫该斗篷怪的低吟。"
+      },
+      {
+        "name": "幻象Phantasms",
+        "text": "（短休或长休后充能）并非身处明亮光照时，斗篷怪可以用魔法创造三个自己的幻象分身。这些分身跟随本体移动模仿本体的动作，并且会互相变换位置令人无法追踪哪一个才是本体。斗篷怪一旦进入明亮光照中其分身将随之立即消失。生物攻击，或以伤害性法术指定已创造分身的斗篷怪时，必须掷骰随机决定该次攻击的目标是本体还是分身。如果该生物没有视力或用其他感官定位，则不受此魔法效应影响。分身拥有与本体一样的AC和豁免，攻击命中一个分身，或某个分身对一个造成伤害的效应豁免失败时，该分身即消失不见。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "尾击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "2d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "若目标为大型或更小体型，则斗篷怪附着于目标身上"
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+6",
+        "damage": "1d8+3",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 3,
+    "creatureType": "aberration",
+    "id": "d38d8986-5e54-4175-86e1-bbb4373c77b2",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "mind-flayer",
+    "name": "夺心魔",
+    "nameEn": "Mind Flayer",
+    "cr": "7",
+    "xp": 2900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "异怪",
+    "alignment": "守序邪恶",
+    "ac": 15,
+    "acNote": "胸甲",
+    "maxHp": 71,
+    "hpDice": "13d8+13",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 12,
+    "constitution": 12,
+    "intelligence": 19,
+    "wisdom": 17,
+    "charisma": 17,
+    "savingThrows": [
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 7
+      },
+      {
+        "name": "欺瞒",
+        "bonus": 6
+      },
+      {
+        "name": "洞悉",
+        "bonus": 6
+      },
+      {
+        "name": "察觉",
+        "bonus": 6
+      },
+      {
+        "name": "游说",
+        "bonus": 6
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉16",
+    "languages": "深潜语，地底通用语，心灵感应120尺",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "夺心魔抵抗法术和其他魔法效应所作的豁免检定具有优势。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "（灵能Psionics）夺心魔天生施法属性为智力（法术豁免DC15）。夺心魔天生可施展下列法术而不需要任何相应的法术成分：随意：侦测思想detectthoughts，浮空术levitate每项1/日：支配怪物dominatemonster，位面转移planeshift（仅自身）"
+      },
+      {
+        "name": "心灵震爆Mind Blast",
+        "text": "（充能5~6）夺心魔以魔法发射出心灵能量并覆盖一处60尺的锥状区域。区域内每个生物必须进行一次DC15的智力豁免，豁免失败者将受22（4d8+4）点心灵伤害并被震慑1分钟。被震慑生物可以在每次其自己的回合结束时再次进行该豁免，豁免成功则终止自己身上的该效应。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测思想",
+            "浮空术",
+            "位面转移"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "触须",
+        "attackBonus": "+7",
+        "damage": "2d10+4",
+        "damageType": "心灵",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标为中型或更小体型生物，则目标被擒抱（逃脱DC15）且必须成功通过一次DC15的智力豁免否则在被擒抱的同时被震慑直至该擒抱效应终止"
+      },
+      {
+        "name": "采脑",
+        "attackBonus": "+7",
+        "damage": "",
+        "damageType": "",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果该伤害使目标的生命值降至0，则夺心魔抽出并吃掉目标的大脑并以此杀死目标"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 2,
+    "creatureType": "aberration",
+    "id": "d959ca4c-9610-465d-b23b-d000d574fb77",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "death-slaad",
+    "name": "史拉亡蟾",
+    "nameEn": "Death Slaad",
+    "cr": "10",
+    "xp": 5900,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "异怪（变形生物）",
+    "alignment": "混乱邪恶",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 170,
+    "hpDice": "20d8+80",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 20,
+    "dexterity": 15,
+    "constitution": 19,
+    "intelligence": 15,
+    "wisdom": 10,
+    "charisma": 16,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 6
+      },
+      {
+        "name": "察觉",
+        "bonus": 8
+      }
+    ],
+    "senses": "盲视60尺，黑暗视觉60尺，被动察觉18",
+    "languages": "史拉蟾语，心灵感应60尺",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "史拉蟾用一个动作变形小型或中型体型的类人生物，或以同样的动作变回其真实形态。除体型外，它在每个形态下的所有其他资料不变。其着装或携带的任何装备也不会随之改变。史拉蟾死亡时将恢复其真实形态。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "史拉蟾天生施法属性为魅力（法术豁免DC15，法术攻击命中+7）。该史拉蟾天生可施展如下法术，且无需任何相应的材料成分：随意：侦测魔法detectmagic，侦测思想detectthoughts，隐形术invisibility（仅自身），法师之手magehand，高级幻影majorimage每项2/日：恐惧术fear，火球术fireball，飞行术fly，巧言术tongues每项1/日：死云术cloudkill，位面转移plane shift（仅自身）"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "史拉蟾为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "史拉蟾的武器攻击视为魔法武器攻击。"
+      },
+      {
+        "name": "再生Regeneration",
+        "text": "史拉蟾在其自己的回合开始时恢复10点生命值，前提是它至少有1点生命值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "史拉蟾发动三次攻击：一次啃咬，以及两次爪击或巨剑攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击或巨剑攻击"
+      }
+    ],
+    "regeneration": {
+      "amount": 10
+    },
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 15,
+      "attackBonus": 7,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "侦测思想",
+            "隐形术",
+            "法师之手",
+            "高级幻影",
+            "火球术",
+            "飞行术",
+            "巧言术",
+            "位面转移"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+9",
+        "damage": "1d8+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加7（2d6）点暗蚀伤害"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+9",
+        "damage": "1d10+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加7（2d6）点暗蚀伤害"
+      },
+      {
+        "name": "巨剑",
+        "attackBonus": "+9",
+        "damage": "2d6+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加7（2d6）点暗蚀伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 2,
+    "creatureType": "aberration",
+    "id": "e2b64476-6f03-4705-9b70-05fff4d3ba9b",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "slaad-tadpole",
+    "name": "史拉蟾蝌蚪",
+    "nameEn": "Slaad Tadpole",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "异怪",
+    "alignment": "混乱中立",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 10,
+    "hpDice": "4d4",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 7,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 3,
+    "wisdom": 5,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉7",
+    "languages": "懂史拉蟾语但不能说",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "史拉蟾为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "支配宝石Control Gem",
+        "text": "植入史拉蟾脑内的是一个魔法控制宝石。史拉蟾必须遵从任何持有该宝石者，且在被支配时免疫魅惑。"
+      },
+      {
+        "name": "某些特定的法术可以用来唤取宝石",
+        "text": "如果史拉蟾对禁锢术imprisonment的豁免失败，则此法术可以将宝石转移到施法者摊开的手上而不是禁锢史拉蟾。祈愿术wish对史拉蟾作用时，也可以措辞谨慎地唤取该宝石。施展在史拉蟾身上的高等复原术greaterrestoration会摧毁史拉蟾之心而不伤及史拉蟾。拥有感知（医药）熟练项的人可以从失能的史拉蟾身上取走史拉蟾之心。每次尝试需要1分钟不受打扰的工作，以及成功通过一次DC20的感知（医药）检定。每次失败的尝试都会对该史拉蟾造成22（4d10）点心灵伤害。史拉红蟾RedSlaad当史拉红蟾的爪子击中类人生物时，它可以从爪下的腺体把卵植入对方体内。卵在宿主体内孵化，最终形成史拉蝌蚪。这种蝌蚪从宿主体内吃出一条通路，从遗体上获得养分，然后寻找其他能找到的鲜肉。2d12小时后，史拉蝌蚪进化为成熟体史拉蓝蟾或者如果宿主有能力施展3环或更环阶法术时，还会成长为史拉绿蟾。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "变体：史拉蟾之心Variant:"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "异怪",
+    "creatureSize": 0,
+    "creatureType": "aberration",
+    "id": "eeac4b3a-14d6-46e3-86ba-fb6f17c4619b",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  }
+]

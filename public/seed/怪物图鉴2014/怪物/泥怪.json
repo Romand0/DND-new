@@ -1,0 +1,324 @@
+[
+  {
+    "templateId": "ochre-jelly",
+    "name": "赭冻怪",
+    "nameEn": "Ochre Jelly",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "泥怪",
+    "alignment": "无阵营",
+    "ac": 8,
+    "acNote": "8",
+    "maxHp": 45,
+    "hpDice": "6d10+12",
+    "speed": 10,
+    "speedNotes": "，攀爬10尺",
+    "strength": 15,
+    "dexterity": 6,
+    "constitution": 14,
+    "intelligence": 2,
+    "wisdom": 6,
+    "charisma": 1,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视60尺（该范围外视为目盲），被动察觉8",
+    "languages": "——",
+    "damageResistances": [
+      "强酸"
+    ],
+    "damageImmunities": [
+      "闪电",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "目盲",
+      "魅惑",
+      "耳聋",
+      "力竭",
+      "恐慌",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "无定形Amorphous",
+        "text": "赭冻怪能够轻松穿过最窄1寸宽的狭窄空间而不用挤进去。"
+      },
+      {
+        "name": "蛛行Spider Climb",
+        "text": "赭冻怪无需进行属性检定就能攀爬于困难表面，包括倒挂在天花板上。"
+      },
+      {
+        "name": "分裂Split",
+        "text": "当一只中型或更大体型的赭冻怪受到闪电或挥砍伤害，而此时其生命值至少为10时，它将分裂成两个新的赭冻怪。每一只新的赭冻怪拥有原赭冻怪一半的生命值（向下取整）。新的赭冻怪比原来的体型小一级。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "伪足",
+        "attackBonus": "+4",
+        "damage": "2d6+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加3（1d6）强酸伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "泥怪",
+    "creatureSize": 3,
+    "creatureType": "ooze",
+    "id": "81e12366-7c89-40ec-946d-99dabae8b7c1",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "black-pudding",
+    "name": "黑布丁",
+    "nameEn": "Black Pudding",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "泥怪",
+    "alignment": "无阵营",
+    "ac": 7,
+    "acNote": "7",
+    "maxHp": 85,
+    "hpDice": "10d10+30",
+    "speed": 20,
+    "speedNotes": "，攀爬20尺",
+    "strength": 16,
+    "dexterity": 5,
+    "constitution": 16,
+    "intelligence": 1,
+    "wisdom": 6,
+    "charisma": 1,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视60尺（该范围外视为目盲），被动察觉8",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [
+      "强酸",
+      "寒冷",
+      "闪电",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "目盲",
+      "魅惑",
+      "耳聋",
+      "力竭",
+      "恐慌",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "无定形Amorphous",
+        "text": "布丁怪能够轻松穿过最窄1寸宽的狭窄空间而不用挤进去。"
+      },
+      {
+        "name": "腐蚀形态Corrosive Form",
+        "text": "在布丁怪身边5尺范围内的生物触碰或用近战武器攻击命中布丁怪时，该生物将受4（1d8）的强酸伤害。任何以金属或木料制作的非魔法武器其攻击命中布丁怪后将被腐蚀。造成伤害后，该武器所作的伤害掷骰将永久承受-1罚值且累计叠加。如果罚值总和达到-5，则该武器被摧毁。由金属或木料制作的非魔法弹药在击中布丁怪并造成伤害后将随即被摧毁。布丁怪在1轮时间里可以吃掉2寸厚的非魔法木料或金属。"
+      },
+      {
+        "name": "蛛行Spider Climb",
+        "text": "布丁怪无需进行属性检定就能攀爬于困难表面，包括倒挂在天花板上。"
+      },
+      {
+        "name": "分裂Split",
+        "text": "当一只中型或更大体型的布丁怪受到闪电或挥砍伤害，而此时其生命值至少为10时，它将分裂成两个新的布丁怪。每一只新的布丁怪拥有原布丁怪一半的生命值（向下取整）。新的布丁怪比原来的体型小一级。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "伪足",
+        "attackBonus": "+3",
+        "damage": "1d6+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加18（4d8）点强酸伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "泥怪",
+    "creatureSize": 3,
+    "creatureType": "ooze",
+    "id": "919fa5f5-6346-40ef-91cd-2f3ac3f78ae7",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "gray-ooze",
+    "name": "灰泥怪",
+    "nameEn": "Gray Ooze",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "泥怪",
+    "alignment": "无阵营",
+    "ac": 8,
+    "acNote": "8",
+    "maxHp": 22,
+    "hpDice": "3d8+9",
+    "speed": 10,
+    "speedNotes": "，攀爬10尺",
+    "strength": 12,
+    "dexterity": 6,
+    "constitution": 16,
+    "intelligence": 1,
+    "wisdom": 6,
+    "charisma": 2,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 2
+      }
+    ],
+    "senses": "盲视60尺（该范围外视为目盲），被动察觉8",
+    "languages": "——",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "目盲",
+      "魅惑",
+      "耳聋",
+      "力竭",
+      "恐慌",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "无定形Amorphous",
+        "text": "泥怪能够轻松穿过最窄1寸宽的狭窄空间而不用挤进去。"
+      },
+      {
+        "name": "腐蚀金属Corrode Metal",
+        "text": "以金属制的非魔法武器攻击命中泥怪后将被腐蚀。造成伤害后，该武器所作的伤害掷骰将永久承受-1减值且累计叠加。如果减值总和达到-5，则该武器被摧毁。由金属制作的非魔法弹药在击中泥怪并造成伤害后将随即被摧毁。泥怪在1轮时间里可以吃掉2寸厚的非魔法金属。"
+      },
+      {
+        "name": "拟形False Appearance",
+        "text": "泥怪静止不动时，跟普通的油滑水塘或潮湿岩石几乎一模一样。"
+      },
+      {
+        "name": "灵能碾压Psychic Crush",
+        "text": "（充能5~6）泥怪指定其周边60尺范围一个它能感知到的生物。该目标必须进行一次DC10的智力豁免。豁免失败则受到10（3d6）点心灵伤害，豁免成功则伤害减半。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "伪足",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加7（2d6）点强酸伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "泥怪",
+    "creatureSize": 2,
+    "creatureType": "ooze",
+    "id": "9ca3b1a8-0d78-4659-abe9-7b3ca4726352",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "gelatinous-cube",
+    "name": "凝胶方块",
+    "nameEn": "Gelatinous Cube",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "泥怪",
+    "alignment": "无阵营",
+    "ac": 6,
+    "acNote": "6",
+    "maxHp": 84,
+    "hpDice": "8d10+40",
+    "speed": 15,
+    "speedNotes": "",
+    "strength": 14,
+    "dexterity": 3,
+    "constitution": 20,
+    "intelligence": 1,
+    "wisdom": 6,
+    "charisma": 1,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视60尺（该范围外视为目盲），被动察觉8",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "目盲",
+      "魅惑",
+      "耳聋",
+      "力竭",
+      "恐慌",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "泥怪方块Ooze Cube",
+        "text": "方块占据其所在空间位置的整个区域。其他生物可以进入该空间，但如此做的生物会承受凝胶方块的吞没能力，而其豁免具有劣势。在方块体内的生物可以被他人看到，但仍处于全身掩护状态。方块周边5尺范围内的一个生物可以用一个动作将方块内的生物或物件拖出。此时该生物还必须成功通过一次DC12的力量检定，且该生物必须承受10（3d6）点强酸伤害。方块至多可以同时容纳一个大型生物，或至多4个中型或更小体型的生物。"
+      },
+      {
+        "name": "透明Transparent",
+        "text": "即使凝胶方块身处于肉眼可见的位置，观察者仍然需要成功通过一次DC15的感知（察觉）检定来发现一个未移动且未发动攻击的方块。生物在未察觉的情况下尝试进入凝胶方块所在空间时，视为被凝胶方块突袭。"
+      },
+      {
+        "name": "吞没Engulf",
+        "text": "凝胶方块移动不超过其速度的距离。此时它可以进入大型或更小体型生物所在空间内。当凝胶方块以任何方式进入某生物所在空间时，该生物必须进行一次DC12的敏捷豁免。豁免成功的生物可以选择被方块向后或向侧面推离5尺。选择不被推开的生物将承受与豁免失败一样的后果。豁免失败时，方块成功进入生物所占据的空间位置。该生物将受10（3d6）点强酸伤害并被吞没。被吞没的生物无法呼吸且被束缚，并在每次该方块的回合开始时受21（6d6）点强酸伤害。凝胶方块移动时，被吞没的生物也随之一起移动。被吞没的生物可以用一个动作进行一次DC12的力量检定以尝试逃脱。检定成功则意味着该生物成功逃脱，并进入方块周边5尺范围内的任一处空间位置。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "伪足",
+        "attackBonus": "+4",
+        "damage": "3d6",
+        "damageType": "强酸",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "泥怪",
+    "creatureSize": 3,
+    "creatureType": "ooze",
+    "id": "f45419a3-4308-4f72-8e33-fe7d9d8d64d9",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  }
+]

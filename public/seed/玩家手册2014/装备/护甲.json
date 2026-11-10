@@ -1,0 +1,320 @@
+[
+  {
+    "id": "breastplate",
+    "name": "胸甲",
+    "price": {
+      "amount": 400,
+      "unit": "gp"
+    },
+    "weight": 20,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "14",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "该护甲主要由皮条固定的金属护胸组成。尽管它并没有为四肢提供额外的防护，但其在保证着装者活动自由度的同时，为其生命器官提供了十分有效的保护效果。",
+    "subtype": "中甲",
+    "properties": [],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "chain-mail",
+    "name": "链甲",
+    "category": "护甲",
+    "subtype": "重甲",
+    "weight": 55,
+    "price": {
+      "amount": 75,
+      "unit": "gp"
+    },
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "16",
+    "strengthReq": 13,
+    "stealthDisadvantage": true,
+    "description": "该护甲由互相锁接的金属环编成。链甲还包括在甲胄下面穿戴的一层织物衬里，用以阻止擦伤并减缓挥击的冲击。此护甲同时还附有护手。",
+    "properties": [
+      "隐匿劣势"
+    ],
+    "tags": [],
+    "source": "玩家手册 2014",
+    "isCustom": false,
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "chain-shirt",
+    "name": "链甲衫",
+    "price": {
+      "amount": 50,
+      "unit": "gp"
+    },
+    "weight": 20,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "13",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "该护甲由互相锁接的金属环组成，通常着装于布衣或皮衣的夹层之间。这种护甲为着装者的上半身提供了适中的保护，且锁环间相互碰撞的声音也可以被外层衣服减弱。",
+    "subtype": "中甲",
+    "properties": [],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "half-plate",
+    "name": "半身板甲",
+    "price": {
+      "amount": 750,
+      "unit": "gp"
+    },
+    "weight": 40,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "15",
+    "strengthReq": 0,
+    "stealthDisadvantage": true,
+    "description": "半身板甲主要由覆盖着装者身体大部分的铸模金属板组成。不过，其腿部防护则只有由皮条系住的简单护胫。",
+    "subtype": "中甲",
+    "properties": [
+      "隐匿劣势"
+    ],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "hide",
+    "name": "兽皮甲",
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "weight": 12,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "12",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "一种由厚毛皮制作的粗糙护甲。常见使用人群包括：野蛮人部落、邪恶类人生物以及其它缺少资源制作更好护甲的人。",
+    "subtype": "中甲",
+    "properties": [],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "leather",
+    "childId": "",
+    "name": "皮甲",
+    "category": "护甲",
+    "subtype": "轻甲",
+    "weight": 10,
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "11",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "该护甲的护胸和护肩由通过油煮硬化的皮子制成。护甲的其余部分则由更软更灵活的材料制作。",
+    "properties": [],
+    "tags": [],
+    "source": "玩家手册 2014",
+    "isCustom": false,
+    "createdAt": 1783604084275,
+    "updatedAt": 1783604084275,
+    "campaignId": null
+  },
+  {
+    "id": "padded",
+    "name": "布甲",
+    "price": {
+      "amount": 5,
+      "unit": "gp"
+    },
+    "weight": 8,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "11",
+    "strengthReq": 0,
+    "stealthDisadvantage": true,
+    "description": "布甲由数层布料与棉料的衬里构成。",
+    "subtype": "轻甲",
+    "properties": [
+      "隐匿劣势"
+    ],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "plate",
+    "name": "板甲",
+    "price": {
+      "amount": 1500,
+      "unit": "gp"
+    },
+    "weight": 65,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "18",
+    "strengthReq": 15,
+    "stealthDisadvantage": true,
+    "description": "板甲由覆盖全身，且相互连接的模铸金属板组成。一套板甲包括护手、重皮靴、一顶附面甲的头盔以及在护甲底层的厚重的布甲。其锁扣和皮带结构可以将护甲重量分配到身体各处。",
+    "subtype": "重甲",
+    "properties": [
+      "隐匿劣势"
+    ],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "ring-mail",
+    "name": "环甲",
+    "price": {
+      "amount": 30,
+      "unit": "gp"
+    },
+    "weight": 40,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "14",
+    "strengthReq": 0,
+    "stealthDisadvantage": true,
+    "description": "该护甲是将重金属环扣缝进内层的特殊皮甲。金属环可以加强护甲对剑斧挥击的抵抗力。环甲比链甲低一级，而通常只被那些无力支付更好护甲的人所使用。",
+    "subtype": "重甲",
+    "properties": [
+      "隐匿劣势"
+    ],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "scale-mail",
+    "name": "鳞甲",
+    "price": {
+      "amount": 50,
+      "unit": "gp"
+    },
+    "weight": 45,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "14",
+    "strengthReq": 0,
+    "stealthDisadvantage": true,
+    "description": "该护甲由一件皮外套和护胫（可能附有护裙）组合而成，其防护部分由相叠的铁片覆盖，结构有如鱼的鳞片。此护甲同时还附有护手。",
+    "subtype": "中甲",
+    "properties": [
+      "隐匿劣势"
+    ],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "shield",
+    "childId": "",
+    "name": "盾牌",
+    "category": "护甲",
+    "subtype": "盾牌",
+    "weight": 6,
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "+2",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "持握盾牌时，你的 AC 获得 +2 加值。你一次只能使用一件属于持用类型的物品。",
+    "properties": [],
+    "tags": [],
+    "source": "玩家手册 2014",
+    "unit": "",
+    "isCustom": false,
+    "updatedAt": 1783658973880,
+    "campaignId": null
+  },
+  {
+    "id": "splint",
+    "name": "板条甲",
+    "price": {
+      "amount": 200,
+      "unit": "gp"
+    },
+    "weight": 60,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "17",
+    "strengthReq": 15,
+    "stealthDisadvantage": true,
+    "description": "该护甲主要由铆接着竖直金属窄条的皮革内里组成，其整体覆盖在布料衣物外，而关节部位则由灵活的链甲部件提供保护。",
+    "subtype": "重甲",
+    "properties": [
+      "隐匿劣势"
+    ],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  },
+  {
+    "id": "studded-leather",
+    "name": "镶钉皮甲",
+    "price": {
+      "amount": 45,
+      "unit": "gp"
+    },
+    "weight": 13,
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "12",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "该护甲由坚固而柔韧的皮革制成，其表面由紧密的铆钉和尖刺进行加固。",
+    "subtype": "轻甲",
+    "properties": [],
+    "source": "玩家手册 2014",
+    "dataResource": "5E不全书",
+    "category": "护甲",
+    "updatedAt": 1783579630439,
+    "createdAt": 1783502166103,
+    "campaignId": null
+  }
+]

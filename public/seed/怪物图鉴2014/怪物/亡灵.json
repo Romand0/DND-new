@@ -1,0 +1,2331 @@
+[
+  {
+    "templateId": "skeleton",
+    "name": "骷髅",
+    "nameEn": "Skeleton",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "守序邪恶",
+    "ac": 13,
+    "acNote": "残破护甲",
+    "maxHp": 13,
+    "hpDice": "2d8+4",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 15,
+    "intelligence": 6,
+    "wisdom": 8,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "懂所有生前掌握的语言但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [
+      "钝击"
+    ],
+    "conditionImmunities": [
+      "力竭",
+      "中毒"
+    ],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "短剑",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "短弓",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程80/320尺",
+        "properties": [],
+        "normalRange": 80,
+        "maxRange": 320
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "099df8ae-fe4f-4618-ae1c-f86d65caf415",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "death-tyrant",
+    "name": "亡眼暴君",
+    "nameEn": "Death Tyrant",
+    "cr": "14",
+    "xp": 11500,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "亡灵",
+    "alignment": "守序邪恶",
+    "ac": 19,
+    "acNote": "天生护甲",
+    "maxHp": 187,
+    "hpDice": "25d10+50",
+    "speed": 0,
+    "speedNotes": "，飞行30尺（悬浮）",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 14,
+    "intelligence": 19,
+    "wisdom": 15,
+    "charisma": 19,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 12
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉22",
+    "languages": "深潜语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "麻痹",
+      "石化",
+      "中毒",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "负能量锥域Negative Energy Cone",
+        "text": "巨眼暴君的主眼创造出一个150尺锥状区域的隐形负能量。暴君在每个其自己回合开始时决定该锥状范围的方向以及该力场是否激活。区域内的任何生物无法恢复生命值，并且任何死于区域内的人型生物都会变成丧尸并听命于该暴君。这些死掉的人将保持其在先攻顺序中的位置，前提是其身体必须未被完全破坏。"
+      },
+      {
+        "name": "眼波射线Eye Ray",
+        "text": "亡眼暴君从下列选项中随机选择发射三束魔法眼波射线（重复则重骰），并指定身边120尺内它可以看到的一到三个目标：1.魅惑射线Charm Ray。目标必须进行一次DC17的感知豁免，豁免失败者将在1小时内受暴君魅惑，或是直至其受到来自该眼魔的伤害。2.麻痹射线Paralyzing Ray。目标必须进行一次DC17的体质豁免，豁免失败者将陷入1分钟的麻痹状态。该目标可以在每个其自己回合结束时再进行一次该豁免，豁免成功则终止该效应。3.恐惧射线Fear Ray。目标必须进行一次DC17的感知豁免，豁免失败者将陷入1分钟的恐慌状态。该目标可以在每个其自己回合结束时再进行一次该豁免，豁免成功则终止该效应。4.缓慢射线Slowing Ray。目标必须进行一次DC17的敏捷豁免，豁免失败者将在1分钟内速度减半。此外该生物无法执行反应，也无法在其回合里同时执行一个动作与一个附赠动作，而只能两者选其一。该生物可以在每个其自己回合结束时再进行一次该豁免，豁免成功则终止该效应。5.弱能射线Enervation Ray。目标必须进行一次DC17的体质豁免，豁免失败者将受到36（8d8）点暗蚀伤害，豁免成功则伤害减半。6.念力射线Telekinetic Ray。目标必须进行一次DC17的力量豁免，豁免失败者将被眼魔抓起并向任意方向移动至多30尺。目标被眼魔射线的念力抓住并陷入束缚，直至眼魔的下一回合开始时，或直至该眼魔陷入失能。如果目标是一个未被着装或携带，且不超过300磅重的物件，则眼魔可以直接将它向任意方向移动至多30尺。该眼魔也可以使用该射线精确控制物件，比如操作简单的工具或是打开一扇门或一个容器。7.睡眠射线Sleep Ray。目标必须进行一次DC17的感知豁免，豁免失败者将沉睡1分钟并在此期间陷入昏迷，直至其受到伤害或由其他生物用一个动作唤醒。该射线对对构装和亡灵生物无效。8.石化射线Petrification Ray。目标必须进行一次DC17的敏捷豁免，豁免失败者将开始变成石头并陷入束缚。目标必须在其下一回合结束时再进行一次该豁免。豁免成功则终止该效应。豁免失败，则该生物陷入石化，直至受法术高等复原术greaterrestoration或其他魔法解除该效应为止。9.解离射线Disintegration Ray。目标必须进行一次DC17的敏捷豁免，豁免失败者将受到45（10d8）点力场伤害，如果该伤害将目标的生命值降至0，则其身体将化为一堆灰尘。如果目标是一个大型或更小体型的非魔法物件，或者魔法造物，则它的豁免直接失败。如果目标是巨型或更大体型的物件，则解离射线可以分解其中10尺立方区域的部分。10.致死射线Death Ray。目标必须进行一次DC17的敏捷豁免，豁免失败者将受到55（10d10）点暗蚀伤害，如果目标因此生命降至0，则其直接死亡。"
+      },
+      {
+        "name": "眼波射线Eye Ray",
+        "text": "亡眼暴君随机使用一种眼波射线。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "4d6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 3,
+    "creatureType": "undead",
+    "id": "1cba4564-6a53-4c9a-8cd9-f89fc3e98943",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "lich",
+    "name": "巫妖",
+    "nameEn": "Lich",
+    "cr": "21",
+    "xp": 33000,
+    "proficiencyBonus": 7,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "任意邪恶阵营",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 135,
+    "hpDice": "18d10+36",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 16,
+    "constitution": 16,
+    "intelligence": 20,
+    "wisdom": 14,
+    "charisma": 16,
+    "savingThrows": [
+      "constitution",
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 19
+      },
+      {
+        "name": "历史",
+        "bonus": 12
+      },
+      {
+        "name": "察觉",
+        "bonus": 9
+      },
+      {
+        "name": "洞悉",
+        "bonus": 9
+      }
+    ],
+    "senses": "真实视觉120尺，被动察觉19",
+    "languages": "通用语，外加至多五门其他语言",
+    "damageResistances": [
+      "寒冷",
+      "闪电",
+      "暗蚀"
+    ],
+    "damageImmunities": [
+      "毒素",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "恐慌",
+      "麻痹",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "传奇抗性Legendary Resistance",
+        "text": "（3/日）巫妖豁免失败时，可以将其改为豁免成功。"
+      },
+      {
+        "name": "复生Rejuvenation",
+        "text": "只要保有命匣，被摧毁的巫妖就可以在1d10日内获得一具新的躯体，恢复所有生命值，并再次活动。这具新的躯体将出现在命匣所在地5尺范围内。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "巫妖作为18级施法者，其施法属性为智力（法术豁免DC20，法术攻击加值+12）。巫妖准备了以下法师法术：戏法（随意）：法师之手magehand，魔法伎俩prestidigitation，冷冻射线rayof frost1环（4法术位）：侦测魔法detectmagic，魔法飞弹magicmissile，护盾术shield，雷鸣波thunderwave2环（3法术位）：侦测思想detectthoughts，隐形术invisibility，马友夫强酸箭Melf'sacid arrows，镜影术mirrorimage3环（3法术位）：活化死尸animatedead，反制法术counterspell，解除魔法dispelmagic，火球术fireball4环（3法术位）：枯萎术blight，任意门dimensiondoor5环（3法术位）：死云术cloudkill，探知术scrying6环（1法术位）：解离术disintegrate，法术无效结界globeof invulnerability7环（1法术位）：死亡一指fingerof death，位面转移planeshift8环（1法术位）：支配怪物dominatemonster，律令震慑powerword stun9环（1法术位）：律令死亡powerword kill"
+      },
+      {
+        "name": "抵抗驱散Turn Resistance",
+        "text": "巫妖抵抗驱散亡灵效应所做的豁免检定具有优势。"
+      },
+      {
+        "name": "麻痹触击Paralyzing Touch",
+        "text": "近战法术攻击：命中+12，触及5尺，单一生物。命中：10（3d6）点寒冷伤害。目标必须成功通过一次DC18的体质豁免，否则将被麻痹1分钟。该被麻痹生物在每个其自己回合结束时可以再次进行豁免，豁免成功则该效应终止。"
+      },
+      {
+        "name": "戏法Cantrip",
+        "text": "巫妖施展一个戏法。"
+      },
+      {
+        "name": "麻痹触击Paralyzing Touch",
+        "text": "（消耗2动作）使用麻痹触击。"
+      },
+      {
+        "name": "恐惧凝视Frightening Gaze",
+        "text": "（消耗2动作）巫妖凝视其周边10尺范围内一个它能看见的生物。该目标必须成功通过一次DC18的感知豁免，否则将受恐慌1分钟。该受恐慌生物在每个其自己回合结束时可以再次进行该豁免，豁免成功则该效应终止。目标生物开始或中途豁免成功并因此终止该效应后，该目标生物在随后的24小时内免疫该巫妖的恐惧凝视。"
+      },
+      {
+        "name": "扰乱生命Disrupt Life",
+        "text": "（消耗3动作）巫妖身边20尺范围内所有非不死的生物，必须进行一次DC18的体质豁免以对抗该魔法，豁免失败者将受到21（6d6）点暗蚀伤害，豁免成功则伤害减半。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 20,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "法师之手",
+            "魔法伎俩",
+            "冷冻射线"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "魔法飞弹",
+            "护盾术",
+            "雷鸣波"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "侦测思想",
+            "隐形术",
+            "马友夫强酸箭",
+            "镜影术"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "活化死尸",
+            "反制法术",
+            "解除魔法",
+            "火球术"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "枯萎术",
+            "任意门"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "死云术",
+            "探知术"
+          ]
+        },
+        {
+          "ring": "6环",
+          "spells": [
+            "解离术",
+            "法术无效结界"
+          ]
+        },
+        {
+          "ring": "7环",
+          "spells": [
+            "死亡一指",
+            "位面转移"
+          ]
+        },
+        {
+          "ring": "8环",
+          "spells": [
+            "支配怪物",
+            "律令震慑"
+          ]
+        },
+        {
+          "ring": "9环",
+          "spells": [
+            "律令死亡"
+          ]
+        }
+      ]
+    },
+    "attacks": [],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "1f5576ee-4f58-425a-9fee-0e9635d7ec7c",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "ghost",
+    "name": "幽魂",
+    "nameEn": "Ghost",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "任意阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 45,
+    "hpDice": "10d8",
+    "speed": 0,
+    "speedNotes": "，飞行40尺（悬浮）",
+    "strength": 7,
+    "dexterity": 13,
+    "constitution": 10,
+    "intelligence": 10,
+    "wisdom": 12,
+    "charisma": 17,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉11",
+    "languages": "任何其活着时所掌握的语言",
+    "damageResistances": [
+      "强酸",
+      "火焰",
+      "闪电",
+      "雷鸣",
+      "非魔法攻击的钝击",
+      "穿刺"
+    ],
+    "damageImmunities": [
+      "寒冷",
+      "暗蚀",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "恐慌",
+      "受擒",
+      "麻痹",
+      "石化",
+      "中毒",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "以太视界Ethereal Sight",
+        "text": "幽魂在物质位面时可以看见身边60尺以太位面的景色，在以太位面时可以看见身边60尺内物质位面的景色。"
+      },
+      {
+        "name": "虚体移动Incorporeal Movement",
+        "text": "幽魂可以如同穿过困难地形一样穿过其他生物和物件。如果它在自己的回合结束时仍处在物件内部则受到5（1d10）点力场伤害。"
+      },
+      {
+        "name": "以太化Etherealness",
+        "text": "幽魂可以在物质位面和以太位面之间转换。身处以太边境时，物质位面中也可以看到它，反之亦然。幽魂身处其中某一位面时，无法影响另一位面之物或被另一位面之物影响。"
+      },
+      {
+        "name": "恐惧面容Horrifying Visage",
+        "text": "幽魂周边60尺内能看见它的非亡灵必须分别进行一次DC13的感知豁免，豁免失败者将陷入1分钟的恐慌状态。若豁免失败且差值为5或更低，则目标还将衰老1d4×10年。该受恐慌目标可以在每个其自身回合结束时重复进行一次该豁免，豁免成功则终止自身的恐慌状态，而该目标也将在未来24小时内免疫该幽魂的恐惧面容。该衰老效应产生后的24小时内，可用高等复原术greaterrestoration抵消。"
+      },
+      {
+        "name": "附身Possession",
+        "text": "（充能6）幽魂身边5尺内它可以看见的一名类人生物必须进行一次DC13的魅力豁免，豁免失败则被幽魂附身。附身完成后幽魂消失，目标陷入失能且身体失去控制。该幽魂接管目标身体的控制权，但不剥夺目标的意识。该幽魂此时只能被驱散亡灵类效应指定为目标，其他任何攻击、法术或别的效应都无法将其指定为目标。此时的幽魂保留自己的阵营以及智力、感知、魅力属性，并且免疫魅惑和恐慌，其他资料则与被附身生物相同，但不能获得该目标的知识、职业特性和熟练项。该身体的生命值降至0时，幽魂受驱散或被如驱逐善恶dispelevil and good的法术效应迫出来时，附身终止。幽魂自身也可以主动以一个附赠动作终止附身。附身终止时，幽魂重新出现在该身体周边5尺内一处未占据空间位置。目标在豁免成功或附身终止后的24小时里对该幽魂的附身免疫。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "枯萎触击",
+        "attackBonus": "+5",
+        "damage": "4d6+3",
+        "damageType": "暗蚀",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "25bc7db3-f621-4504-8b9c-f4f6e44deec3",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "will-o-wisp",
+    "name": "鬼火",
+    "nameEn": "Will-o'-Wisp",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "亡灵",
+    "alignment": "混乱邪恶",
+    "ac": 19,
+    "acNote": "19",
+    "maxHp": 22,
+    "hpDice": "9d4",
+    "speed": 0,
+    "speedNotes": "，飞行50尺（悬浮）",
+    "strength": 1,
+    "dexterity": 28,
+    "constitution": 10,
+    "intelligence": 13,
+    "wisdom": 14,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉150尺，被动察觉12",
+    "languages": "生前掌握的语言",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "暗蚀",
+      "雷鸣",
+      "非魔法攻击的钝击"
+    ],
+    "damageImmunities": [
+      "闪电",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "力竭",
+      "受擒",
+      "麻痹",
+      "中毒",
+      "倒地",
+      "束缚",
+      "昏迷"
+    ],
+    "traits": [
+      {
+        "name": "摄食生命Consume Life",
+        "text": "作为一个附赠动作项，鬼火可以指定其身边5尺范围内一个它能看见，且生命值为0的活体生物。目标必须成功通过一次DC10的体质豁免否则死亡。如果目标生物死亡，则鬼火获得10（3d6）点生命值。"
+      },
+      {
+        "name": "转瞬即逝Ephemeral",
+        "text": "鬼火无法着装或携带任何东西。"
+      },
+      {
+        "name": "虚体移动Incorporeal Movement",
+        "text": "鬼火可以如同穿过困难地形一样穿过其他生物和物件。如果它在自己的回合结束时仍处在物件内部则受到5（1d10）点力场伤害。"
+      },
+      {
+        "name": "多变照明Variable Illumination",
+        "text": "鬼火可以散发出半径5尺到20尺范围的明亮光照，以及其外同等尺数的微光光照。鬼火可以用一个附赠动作来改变其照明范围。"
+      },
+      {
+        "name": "隐形Invisibility",
+        "text": "鬼火与其发出的光芒以魔法变为隐形，直至其发动攻击或使用其“摄食生命ConsumeLife”，亦或者直至它专注结束（如同专注于法术）。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "冲击",
+        "attackBonus": "+4",
+        "damage": "2d8",
+        "damageType": "闪电",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 0,
+    "creatureType": "undead",
+    "id": "30a298dd-5aff-4e38-8a57-31dd09d625f4",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "crawling-claw",
+    "name": "蠕行之爪",
+    "nameEn": "Crawling Claw",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "亡灵",
+    "alignment": "中立邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 2,
+    "hpDice": "1d4",
+    "speed": 20,
+    "speedNotes": "，攀爬20尺",
+    "strength": 13,
+    "dexterity": 14,
+    "constitution": 11,
+    "intelligence": 5,
+    "wisdom": 10,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视30尺（该范围外视为目盲），被动察觉10",
+    "languages": "懂通用语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "驱散免疫Turn Immunity",
+        "text": "蠕行之爪免疫驱散亡灵效应。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+3",
+        "damage": "",
+        "damageType": "",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "（由蠕行之爪自选）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 0,
+    "creatureType": "undead",
+    "id": "46462544-3881-411d-8b3a-3fd2eaecde14",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "revenant",
+    "name": "还魂鬼",
+    "nameEn": "Revenant",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "绝对中立",
+    "ac": 13,
+    "acNote": "皮甲",
+    "maxHp": 136,
+    "hpDice": "16d8+64",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 14,
+    "constitution": 18,
+    "intelligence": 13,
+    "wisdom": 16,
+    "charisma": 18,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "intelligence",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉13",
+    "languages": "生前掌握的语言",
+    "damageResistances": [
+      "暗蚀",
+      "心灵"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "惊恐",
+      "麻痹",
+      "中毒",
+      "震慑"
+    ],
+    "traits": [
+      {
+        "name": "再生Regeneration",
+        "text": "还魂鬼在其自己的回合开始时恢复10点生命值。如果其受到火焰或光耀伤害，则该还魂鬼的该特质在其下一回合开始时无法生效。还魂鬼的躯体只有在其以0生命值开始其自己回合，且无法使用再生特质时才会被摧毁。"
+      },
+      {
+        "name": "复生Rejuvenation",
+        "text": "还魂鬼的躯体被摧毁时灵魂仍逗留在原处。在经过24小时后，其灵魂就会在同一位面中找到另一具类人尸体进行寄生，同时恢复其所有生命值。当其灵魂处于游离状态时，法术祈愿术wish可以用来迫使该灵魂往生不再复返。"
+      },
+      {
+        "name": "驱散免疫Turn Immunity",
+        "text": "还魂鬼免疫驱散亡灵的效应。"
+      },
+      {
+        "name": "复仇追踪者Vengeful Tracker",
+        "text": "还魂鬼知晓阻碍其寻得复仇之人所在的方位和距离，哪怕这些生物和其复仇对象在另一存在位面也无法幸免。如果还魂鬼所追踪的生物死亡，则还魂鬼也能立即知晓。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "还魂鬼发动两次拳击攻击。"
+      },
+      {
+        "name": "复仇怒视Vengeful Glare",
+        "text": "还魂鬼指定其周边30尺内一个它能看见的生物，或指定其誓仇对象。该目标必须进行一次DC15的感知豁免。豁免失败则目标陷入麻痹直至还魂鬼对其造成伤害，或持续至还魂鬼的下一回合结束。麻痹状态终止时，该目标被该还魂鬼恐慌1分钟。该被恐慌目标可以在自己的每个回合结束时再次进行该豁免，如果此时它能看到该还魂鬼则豁免具有劣势。豁免成功则终止其自己身上的恐慌状态。变体：还魂鬼的法术与武器Variant: Revenants with Spells andWeapon生前是施法者的还魂鬼可以重获曾经所有或部分的施法能力。与之类似的情况是，一些还魂鬼还会着装生前所用的护甲或持用曾经的武器。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "拳击攻击"
+      }
+    ],
+    "regeneration": {
+      "amount": 10
+    },
+    "attacks": [
+      {
+        "name": "拳击",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果该目标生物是还魂鬼的誓仇对象，则目标额外受14（4d6）点钝击伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "48a10956-90e6-4550-b6c9-b2a57684de2e",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "warhorse-skeleton",
+    "name": "战马骷髅",
+    "nameEn": "Warhorse Skeleton",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "亡灵",
+    "alignment": "守序邪恶",
+    "ac": 13,
+    "acNote": "破片具装",
+    "maxHp": 22,
+    "hpDice": "3d10+6",
+    "speed": 60,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 12,
+    "constitution": 15,
+    "intelligence": 2,
+    "wisdom": 8,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [
+      "钝击"
+    ],
+    "conditionImmunities": [
+      "力竭",
+      "中毒"
+    ],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+6",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 3,
+    "creatureType": "undead",
+    "id": "4fff3b60-dce1-4aec-a2cb-5a5df534f77b",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "ghast",
+    "name": "妖鬼",
+    "nameEn": "Ghast",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "混乱邪恶",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 36,
+    "hpDice": "8d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 17,
+    "constitution": 10,
+    "intelligence": 11,
+    "wisdom": 10,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语",
+    "damageResistances": [
+      "暗蚀"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "恶臭Stench",
+        "text": "所有在妖鬼身边5尺内开始其自己回合的生物都必须进行一次DC10的体质豁免，豁免失败者直到其下一回合开始前陷入中毒，豁免成功的生物在随后的24小时内免疫该妖鬼的恶臭。"
+      },
+      {
+        "name": "硬受驱散Turning Defiance",
+        "text": "妖鬼和其身边30尺内的食尸鬼们对抗驱散效应时，进行的豁免检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "2d8+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标不是亡灵，则目标必须进行一次DC10的体质豁免，豁免失败则陷入1分钟的麻痹状态"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "57f6e120-8083-4f38-bf2e-ea005efeb27c",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "specter",
+    "name": "恶灵",
+    "nameEn": "Specter",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "混乱邪恶",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 22,
+    "hpDice": "5d8",
+    "speed": 0,
+    "speedNotes": "，飞行50尺（悬浮）",
+    "strength": 1,
+    "dexterity": 14,
+    "constitution": 11,
+    "intelligence": 10,
+    "wisdom": 10,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "懂所有生前掌握的语言但不能说",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣",
+      "非魔法攻击的钝击"
+    ],
+    "damageImmunities": [
+      "暗蚀",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "束缚",
+      "麻痹",
+      "石化",
+      "中毒",
+      "倒地",
+      "受擒"
+    ],
+    "traits": [
+      {
+        "name": "虚体移动Incorporeal Movement",
+        "text": "恶灵可以如同穿过困难地形一样穿过其他生物和物件。如果它在自己的回合结束时仍处在物件内部则受到5（1d10）点力场伤害。"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "处于阳光下的恶灵在进行攻击检定，以及进行依赖视觉的感知（察觉）检定时具有劣势。"
+      },
+      {
+        "name": "骚灵是另一种不同的恶灵",
+        "text": "它们是还未意识到自己如何死去精魄，而化成让人困惑的隐形姿态。一个骚灵用它破碎的心灵力量四处抛掷生物和物件来抒发自己的愤怒。骚灵的挑战等级为2（450XP）且获得以下特质："
+      },
+      {
+        "name": "隐形Invisibility",
+        "text": "骚灵处于隐形状态。骚灵获得以下动作项代替恶灵的吸取生命："
+      },
+      {
+        "name": "念力推挤Telekinetc Thrust",
+        "text": "骚灵指定自身30尺范围内的一个生物或无关联物件，目标是生物时必须为中型或更小体型，物件则不能超过150磅。如果目标是个生物，则骚灵进行一次魅力检定，以对抗目标的力量检定。如果骚灵胜出，则它将目标向着任意方向（包括向上）直线推出至多30尺。如果目标撞上了一处硬质表面或沉重的物件，则目标每移动10尺受1d6点伤害。如果目标是个为被着装或携带的物件，则向任意方向丢出至多30尺。骚灵可以将该物件用作一件远程武器，攻击任何在其移动路径上的生物（命中+4），命中时造成5（2d4）钝击伤害。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "吸取生命",
+        "attackBonus": "+4",
+        "damage": "3d6",
+        "damageType": "暗蚀",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须成功通过一次DC"
+      },
+      {
+        "name": "斥力猛击",
+        "attackBonus": "+4",
+        "damage": "3d6",
+        "damageType": "力场",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "6bda6769-bfb4-460f-85c4-f708d0feb70e",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "demilich",
+    "name": "半巫妖",
+    "nameEn": "Demilich",
+    "cr": "18",
+    "xp": 20000,
+    "proficiencyBonus": 6,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "亡灵",
+    "alignment": "中立邪恶",
+    "ac": 20,
+    "acNote": "天生护甲",
+    "maxHp": 80,
+    "hpDice": "32d4",
+    "speed": 0,
+    "speedNotes": "，飞行30尺（悬浮）",
+    "strength": 1,
+    "dexterity": 20,
+    "constitution": 10,
+    "intelligence": 20,
+    "wisdom": 17,
+    "charisma": 20,
+    "savingThrows": [
+      "constitution",
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "真实视觉120尺，被动察觉13",
+    "languages": "",
+    "damageResistances": [
+      "魔法武器的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "暗蚀",
+      "毒素",
+      "心灵",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "耳聋",
+      "力竭",
+      "恐慌",
+      "麻痹",
+      "石化",
+      "中毒",
+      "倒地",
+      "震慑"
+    ],
+    "traits": [
+      {
+        "name": "豁免闪避Avoidance",
+        "text": "半巫妖在成为某一范围效应影响对象时，若该效应允许它通过成功的豁免检定来使伤害减半，则它在该豁免成功时不受伤害，而豁免失败时只受一半伤害。"
+      },
+      {
+        "name": "传奇抗性Legendary Resistance",
+        "text": "（3/日）半巫妖豁免失败时，可以将其改为豁免成功。"
+      },
+      {
+        "name": "驱散免疫Turn Immunity",
+        "text": "半巫妖免疫驱散亡灵的效应。"
+      },
+      {
+        "name": "嚎叫Howl",
+        "text": "（充能5~6）半巫妖发出一阵令人毛骨悚然的嚎叫。其周边30尺范围内的每个可以听到该嚎叫的生物必须进行一次DC15的体质豁免，豁免失败者其生命值将降为0。豁免成功的生物将在其下回合结束前陷入恐慌。"
+      },
+      {
+        "name": "吸取生命Life Drain",
+        "text": "半巫妖指定身边10尺范围内三个它能看见的生物。每个目标生物必须进行一次DC19的体质豁免，豁免失败者将受到21（6d6）点暗蚀伤害，该半巫妖同时恢复等同于所有目标伤害总量的生命值。"
+      },
+      {
+        "name": "飞行Flight",
+        "text": "半巫妖飞行等同于其飞行速度一半的距离。"
+      },
+      {
+        "name": "尘土之云Cloud of Dust",
+        "text": "半巫妖卷起其化作尘埃的遗体。其周边10尺内的每个生物（包括身处角落者）必须进行一次DC15的体质豁免，豁免失败者将陷入目盲，直至半巫妖下一回合结束。豁免成功的生物将免疫该效应，直至半巫妖下一回合结束。"
+      },
+      {
+        "name": "吸取能量Energy Drain",
+        "text": "（消耗2动作）半巫妖身边30尺内的每个生物必须进行一次DC15的体质豁免。豁免失败的生物其生命值上限因魔法而降低10（3d6）。如果生物的生命值因该效应降至0，则该生物死亡。受术生物的生命值上限只能以法术高等复原术greaterrestoration或类似魔法恢复。"
+      },
+      {
+        "name": "邪秽诅咒Vile Curse",
+        "text": "（消耗3动作）半巫妖指定其30尺内一个它能看见的生物。该目标必须进行一次DC15的感知豁免，豁免失败则受魔法诅咒。直至该诅咒终止前，该目标进行攻击检定与豁免检定时具有劣势。该目标可以在每个其自己回合结束时在进行一次该豁免，豁免成功则该诅咒终止。"
+      }
+    ],
+    "attacks": [],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 0,
+    "creatureType": "undead",
+    "id": "76af1e27-cb92-4b9a-9fb2-9f3dcee034c8",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "death-knight",
+    "name": "死亡骑士",
+    "nameEn": "Death Knight",
+    "cr": "17",
+    "xp": 18000,
+    "proficiencyBonus": 6,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "混乱邪恶",
+    "ac": 20,
+    "acNote": "板甲，盾牌",
+    "maxHp": 180,
+    "hpDice": "19d8+95",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 20,
+    "dexterity": 11,
+    "constitution": 20,
+    "intelligence": 12,
+    "wisdom": 16,
+    "charisma": 18,
+    "savingThrows": [
+      "dexterity",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉13",
+    "languages": "深渊语，通用语",
+    "damageResistances": [],
+    "damageImmunities": [
+      "暗蚀",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "力竭",
+      "恐慌",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "死亡骑士为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "不死统帅Marshal Undead",
+        "text": "若死亡骑士未陷入失能，则其自身与周边60尺内其指定的亡灵，抵抗驱散亡灵的特性时，所进行的豁免检定具有优势。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "死亡骑士作为19级施法者，其施法属性为魅力（法术豁免DC18，法术攻击命中+10）。它已准备了下列圣武士法术：1环（4法术位）：命令术command，强令对决compelledduel，炽焰斩searingsmite2环（3法术位）：定身类人holdperson，魔化武器magicweapon3环（3法术位）：解除魔法dispelmagic，元素武器elementalweapon4环（3法术位）：放逐术banishment，惊惧斩staggeringsmite5环（2法术位）：湮灭波destructive wave（暗蚀）"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "死亡骑士发动三次长剑攻击。"
+      },
+      {
+        "name": "地狱火珠Hellfire Orb",
+        "text": "（1/日）死亡骑士投出魔法火球，使之于120尺内一处它可以看见的一点爆炸，以该点为中心半径20尺范围内的所有生物必须进行一次DC18的敏捷豁免，豁免失败者将受到35（10d6）点火焰伤害以及35（10d6）点暗蚀伤害，豁免成功则伤害减半。"
+      },
+      {
+        "name": "格挡Parry",
+        "text": "死亡骑士在被一次近战攻击命中时，其AC加上6。此时该死亡骑士必须能看见攻击者，且有在持用一把近战武器。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 3,
+        "name": "长剑攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 18,
+      "attackBonus": 10,
+      "groups": [
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "强令对决",
+            "炽焰斩"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "魔化武器"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "解除魔法",
+            "元素武器"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "放逐术",
+            "惊惧斩"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "湮灭波"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+11",
+        "damage": "1d8+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或双手使用时10（1d10+5）点挥砍伤害，外加18（4d8）点暗蚀伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "81804649-b460-442c-942e-e8bee5b2dbde",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "ogre-zombie",
+    "name": "食人魔丧尸",
+    "nameEn": "Ogre Zombie",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "亡灵",
+    "alignment": "中立邪恶",
+    "ac": 8,
+    "acNote": "8",
+    "maxHp": 85,
+    "hpDice": "9d10+36",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 19,
+    "dexterity": 6,
+    "constitution": 18,
+    "intelligence": 3,
+    "wisdom": 6,
+    "charisma": 5,
+    "savingThrows": [
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉8",
+    "languages": "懂通用语和巨人语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "不死坚韧Undead Fortitude",
+        "text": "当丧尸因受非光耀非重击伤害而使其生命值减至0时，它必须进行一次DC为5＋所受伤害值的体质豁免，豁免成功则生命值降至1。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "钉头锤",
+        "attackBonus": "+6",
+        "damage": "2d8+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 3,
+    "creatureType": "undead",
+    "id": "86967dba-3ff3-43e2-9705-ff0472fad315",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "zombies",
+    "name": "丧尸",
+    "nameEn": "Zombies",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "中立邪恶",
+    "ac": 8,
+    "acNote": "8",
+    "maxHp": 22,
+    "hpDice": "3d8+9",
+    "speed": 20,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 6,
+    "constitution": 16,
+    "intelligence": 3,
+    "wisdom": 6,
+    "charisma": 5,
+    "savingThrows": [
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉8",
+    "languages": "懂所有生前掌握的语言但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "不死坚韧Undead Fortitude",
+        "text": "当丧尸因受非光耀非重击伤害而使其生命值减至0时，它必须进行一次DC为5＋所受伤害值的体质豁免，豁免成功则生命值降至1。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "猛击",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "8d63d5e4-c4e0-44d4-9f7c-82fc6e1d47d8",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607183,
+    "campaignId": null
+  },
+  {
+    "templateId": "wight",
+    "name": "尸妖",
+    "nameEn": "Wight",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "中立邪恶",
+    "ac": 14,
+    "acNote": "镶钉皮甲",
+    "maxHp": 45,
+    "hpDice": "6d8+18",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 14,
+    "constitution": 16,
+    "intelligence": 10,
+    "wisdom": 13,
+    "charisma": 15,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉13",
+    "languages": "生前掌握的语言",
+    "damageResistances": [
+      "暗蚀",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "力竭",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "处于阳光下时，尸妖进行攻击检定，以及进行依赖视觉的感知（察觉）检定时具有劣势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "尸妖发动两次长剑攻击，或发动两次长弓攻击。它可以用其吸取生命代替其中一次长剑攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "长剑攻击"
+      },
+      {
+        "count": 2,
+        "name": "长弓攻击"
+      },
+      {
+        "count": 1,
+        "name": "长剑攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "吸取生命",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "暗蚀",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须成功通过一次DC"
+      },
+      {
+        "name": "长剑",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或用双手时7（1d10+2）点挥砍伤害"
+      },
+      {
+        "name": "长弓",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "射程150/600尺",
+        "properties": [],
+        "normalRange": 150,
+        "maxRange": 600
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "91542156-c898-4a7e-816e-74d16fcb6e19",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "beholder-zombie",
+    "name": "眼魔丧尸",
+    "nameEn": "Beholder Zombie",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "亡灵",
+    "alignment": "中立邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 93,
+    "hpDice": "11d10+33",
+    "speed": 0,
+    "speedNotes": "，飞行20尺（悬浮）",
+    "strength": 10,
+    "dexterity": 8,
+    "constitution": 16,
+    "intelligence": 3,
+    "wisdom": 8,
+    "charisma": 5,
+    "savingThrows": [
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "懂深潜语和地底通用语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "不死坚韧Undead Fortitude",
+        "text": "当丧尸因受非光耀非重击伤害而使其生命值减至0时，它必须进行一次DC为5＋所受伤害值的体质豁免，豁免成功则生命值降至1。"
+      },
+      {
+        "name": "眼波射线Eye Rays",
+        "text": "丧尸从下列选项中随机选择发射一束魔法眼波射线，并指定身边60尺内它可以看到的一个目标。1..麻痹射线Paralyzing Ray。目标必须进行一次DC14的体质豁免，豁免失败者将麻痹1分钟。该目标可以在每个其自己回合结束时再次进行该豁免，豁免成功则终止该效应。2.恐惧射线Fear Ray。目标必须进行一次DC14的感知豁免，豁免失败者将陷入恐慌1分钟。该目标可以在每个其自己回合结束时再次进行该豁免，豁免成功则终止该效应。3.弱能射线Enervation Ray。目标必须进行一次DC14的体质豁免，豁免失败者将受到36（8d8）点暗蚀伤害，豁免成功则伤害减半。4.解离射线Disintegration Ray。目标必须进行一次DC14的敏捷豁免，豁免失败者将受到45（10d8）点力场伤害，如果该伤害将目标的生命值降至0，则其身体将化为一堆灰尘。如果目标是一个大型或更小体型的非魔法物件或魔法造物，则它的豁免直接失败。如果目标是巨型或更大体型的非魔法物件或魔法造物，则解离射线可以分解其中10立方尺的部分区域。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "4d6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 3,
+    "creatureType": "undead",
+    "id": "9a623b1b-1190-4e89-ab79-99450a7f7bdf",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "banshee",
+    "name": "报丧女妖",
+    "nameEn": "Banshee",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "混乱邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 58,
+    "hpDice": "13d8",
+    "speed": 0,
+    "speedNotes": "，飞行40尺（悬浮）",
+    "strength": 1,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 12,
+    "wisdom": 11,
+    "charisma": 17,
+    "savingThrows": [
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语，精灵语",
+    "damageResistances": [
+      "强酸",
+      "火焰",
+      "闪电",
+      "雷鸣",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "寒冷",
+      "暗蚀",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "恐慌",
+      "受擒",
+      "麻痹",
+      "石化",
+      "中毒",
+      "倒地",
+      "束缚"
+    ],
+    "traits": [
+      {
+        "name": "侦测生命Detect Life",
+        "text": "报丧女妖能以魔法感测到5里内除亡灵和构装生物以外的生物存在，它知道对方的大概方向但无法掌握确切的位置。"
+      },
+      {
+        "name": "虚体移动Incorporeal Movement",
+        "text": "报丧女妖能像穿过困难地形那样穿过其他生物或物件。它在回合结束时若处于物件内则受到5（1d10）点力场伤害。"
+      },
+      {
+        "name": "恐惧面容Horrifying Visage",
+        "text": "报丧女妖周边60内能看见她的所有非亡灵必须进行一次DC13的感知豁免，豁免失败则陷入1分钟的恐慌状态。该受恐慌目标可以在每个其自己回合结束时再次进行该豁免以结束该效应，此时如果报丧女妖在其视线范围内则其进行该豁免时具有劣势。如果目标豁免成功或效应结束，则其在24小时内免疫该报丧女妖的恐惧面容。"
+      },
+      {
+        "name": "哀嚎Wail",
+        "text": "（1/日）不在阳光下的报丧女妖可以发出一阵悲恸的哀嚎。哀嚎对构装和亡灵生物无效。报丧女妖周边30尺内能听见其声音的其他生物必须进行一次DC13的体质豁免。豁免失败者其生命值将降为0，豁免成功则受到10（3d6）点心灵伤害。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "腐化触击",
+        "attackBonus": "+4",
+        "damage": "3d6+2",
+        "damageType": "暗蚀",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "c82419fd-f7f5-4d37-a8c9-08b03228bf0d",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "ghoul",
+    "name": "食尸鬼",
+    "nameEn": "Ghoul",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "混乱邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 22,
+    "hpDice": "5d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 7,
+    "wisdom": 10,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "中毒"
+    ],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+2",
+        "damage": "2d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "2d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标为不是精灵也不是亡灵的其他生物，则该目标必须进行一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "ccd0c9b2-e9c6-4452-a06f-85de369a27f6",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "mummy-lord",
+    "name": "木乃伊领主",
+    "nameEn": "Mummy Lord",
+    "cr": "15",
+    "xp": 13000,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "守序邪恶",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 97,
+    "hpDice": "13d8+39",
+    "speed": 20,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 10,
+    "constitution": 17,
+    "intelligence": 11,
+    "wisdom": 18,
+    "charisma": 16,
+    "savingThrows": [
+      "constitution",
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "历史",
+        "bonus": 5
+      },
+      {
+        "name": "宗教",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "生前掌握的语言",
+    "damageResistances": [],
+    "damageImmunities": [
+      "暗蚀",
+      "毒素",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [
+      "火焰"
+    ],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "恐慌",
+      "麻痹",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "木乃伊领主为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "复生Rejuvenation",
+        "text": "木乃伊领主身体被破坏后，如果它的心脏完好无损，则它将在24小时后获得一个新的身体。新身体出现在心脏周边5尺范围内，其恢复所有的生命值并处于激活状态。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "木乃伊领主作为10级施法者，其施法属性为感知（豁免DC17，法术攻击命中+9）。木乃伊领主准备了以下牧师法术：戏法（随意）：圣火术sacredflame，奇术thaumaturgy1环（4法术位）：命令术command，光导箭guidingbolt，虔诚护盾shieldof faith2环（3法术位）：定身类人holdperson，沉默术silence，灵体武器spiritualweapon3环（3法术位）：活化死尸animatedead，解除魔法dispelmagic4环（3法术位）：预言术divination，信仰守卫guardianof faith5环（2法术位）：疫病术contagion，疫病虫群insectplague6环（1法术位）：重伤术harm"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "木乃伊可以先使用恐怖凝视然后再用腐朽拳击进行攻击。"
+      },
+      {
+        "name": "恐怖怒视Dreadful Glare",
+        "text": "木乃伊领主指定自身60尺范围内一个它能看见的生物。如果目标生物可以看到木乃伊，则该生物必须成功通过一次DC16的感知豁免以抵抗该魔法，豁免失败则目标生物受恐慌，其效应持续至该木乃伊的下一个回合结束。若目标生物豁免失败且差值为5或更高，则目标生物同时陷入麻痹。豁免成功的生物在接下来的24小时免疫所有木乃伊及所有木乃伊领主的恐怖凝视。"
+      },
+      {
+        "name": "攻击Attack",
+        "text": "木乃伊领主用腐朽拳击或者恐怖凝视发动一次攻击。"
+      },
+      {
+        "name": "致盲粉尘Blinding Dust",
+        "text": "致盲的灰尘和飞沙漩涡以魔法围绕在木乃伊领主周围。木乃伊领主周边5尺范围内所有生物必需成功通过一次DC16的体质豁免否则被目盲，该效应持续至该生物的下一回合结束时终止。"
+      },
+      {
+        "name": "渎神之语Blasphemous Word",
+        "text": "（消耗2动作）木乃伊领主说出一句渎神之语，其身边10尺范围内所有能听到这句魔法咒语的非亡灵都必须成功通过一次进行DC16的体质豁免，否则被震慑，其效应持续至该木乃伊领主的下一回合结束。"
+      },
+      {
+        "name": "引导负能量Channel Negative Energy",
+        "text": "（消耗2动作）木乃伊领主以魔法释放出负能量。其身边60尺范围内的所有生物将无法恢复生命值，躲在障碍物和通道转角位后的生物也不能避免该效应的影响。该效应持续至该木乃伊领主的下一回合结束。"
+      },
+      {
+        "name": "沙旋风Whirlwind of Sand",
+        "text": "（消耗2动作）木乃伊领主以魔法变成一个沙旋风，并移动至多60尺再恢复其原形态。处于沙风暴形态时，木乃伊领主免疫所有伤害，并且免疫擒抱、石化、应击倒地、束缚和震慑等状态。动作完成后，木乃伊领主的着装和携带的装备依然保持在其身上。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 17,
+      "attackBonus": 9,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "光导箭",
+            "虔诚护盾"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "沉默术",
+            "灵体武器"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "活化死尸",
+            "解除魔法"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "预言术",
+            "信仰守卫"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "疫病术",
+            "疫病虫群"
+          ]
+        },
+        {
+          "ring": "6环",
+          "spells": [
+            "重伤术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "腐朽拳击",
+        "attackBonus": "+9",
+        "damage": "3d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加21（6d6）点暗蚀伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "df2ba46e-94a5-4775-b2f2-2326241741b2",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "wraith",
+    "name": "邪灵",
+    "nameEn": "Wraith",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "中立邪恶",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 67,
+    "hpDice": "9d8+27",
+    "speed": 0,
+    "speedNotes": "，飞行60尺（悬浮）",
+    "strength": 6,
+    "dexterity": 16,
+    "constitution": 16,
+    "intelligence": 12,
+    "wisdom": 14,
+    "charisma": 15,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉12",
+    "languages": "生前掌握的语言",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣",
+      "非魔法且非银质攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "暗蚀",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "受擒",
+      "麻痹",
+      "石化",
+      "中毒",
+      "倒地",
+      "束缚"
+    ],
+    "traits": [
+      {
+        "name": "虚体移动Incorporeal Movement",
+        "text": "邪灵可以如同穿过困难地形一样穿过其他生物和物件。如果它在自己的回合结束时仍处在物件内部则受到5（1d10）点力场伤害。"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "处于阳光下时，邪灵进行攻击检定，以及进行依赖视觉的感知（察觉）检定时具有劣势。"
+      },
+      {
+        "name": "生成幽灵Create Specter",
+        "text": "邪灵指定其周边10尺范围内一个因暴力而死且死亡时间不超过1分钟的类人生物。该目标的精魄将被唤起为一只幽灵specter，并出现在其尸体所在的空间位置，或者邻近一处未占据空间位置。该恶灵受该邪灵控制。邪灵不能同时控制超过七只恶灵。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "吸取生命",
+        "attackBonus": "+6",
+        "damage": "4d8+3",
+        "damageType": "暗蚀",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须成功通过一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "ec5efbd2-2d82-4d87-9874-9eb22b06f1e3",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607183,
+    "campaignId": null
+  },
+  {
+    "templateId": "minotaur-skeleton",
+    "name": "牛头人骷髅",
+    "nameEn": "Minotaur Skeleton",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "亡灵",
+    "alignment": "守序邪恶",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 67,
+    "hpDice": "9d10+18",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 11,
+    "constitution": 15,
+    "intelligence": 6,
+    "wisdom": 8,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "懂深渊语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [
+      "钝击"
+    ],
+    "conditionImmunities": [
+      "力竭",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若骷髅向其目标直线移动至少10尺，且在同一回合里以顶撞攻击命中该目标，则该目标受额外9（2d8）点穿刺伤害。如果目标是生物，则该生物必须成功通过一次DC14的力量豁免，否则被推后至多10尺并应击倒地。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨斧",
+        "attackBonus": "+6",
+        "damage": "2d12+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "顶撞",
+        "attackBonus": "+6",
+        "damage": "2d8+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 3,
+    "creatureType": "undead",
+    "id": "ee16acdb-46ce-4ca0-8857-f445443994d3",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "shadow",
+    "name": "幽影",
+    "nameEn": "Shadow",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "混乱邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 16,
+    "hpDice": "3d8+3",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 6,
+    "dexterity": 14,
+    "constitution": 13,
+    "intelligence": 6,
+    "wisdom": 10,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 4
+      },
+      {
+        "name": "黑暗环境中为",
+        "bonus": 6
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "———",
+    "damageResistances": [
+      "强酸",
+      "寒冷",
+      "火焰",
+      "闪电",
+      "雷鸣",
+      "非魔法攻击的钝击"
+    ],
+    "damageImmunities": [
+      "暗蚀",
+      "毒素"
+    ],
+    "damageVulnerabilities": [
+      "光耀"
+    ],
+    "conditionImmunities": [
+      "力竭",
+      "恐慌",
+      "受擒",
+      "麻痹",
+      "石化",
+      "中毒",
+      "倒地",
+      "束缚"
+    ],
+    "traits": [
+      {
+        "name": "无定形Amorphous",
+        "text": "幽影能够轻松穿过最窄1寸宽的狭窄空间而不用挤进去。"
+      },
+      {
+        "name": "幽影隐匿Shadow Stealth",
+        "text": "在微光光照或黑暗环境下，幽影能够以附赠动作来执行躲藏Hide动作。"
+      },
+      {
+        "name": "日照弱点Sunlight Weakness",
+        "text": "处于阳光下时，幽影所进行的攻击检定、属性检定和豁免检定均具有劣势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "吸取力量",
+        "attackBonus": "+4",
+        "damage": "2d6+2",
+        "damageType": "暗蚀",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标力量值降低1d4"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "f781802f-df25-4cab-aec8-972c63d1d734",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "mummy",
+    "name": "木乃伊",
+    "nameEn": "Mummy",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "亡灵",
+    "alignment": "守序邪恶",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 58,
+    "hpDice": "9d8+18",
+    "speed": 20,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 8,
+    "constitution": 15,
+    "intelligence": 6,
+    "wisdom": 10,
+    "charisma": 12,
+    "savingThrows": [
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "生前掌握的语言",
+    "damageResistances": [
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "暗蚀",
+      "毒素"
+    ],
+    "damageVulnerabilities": [
+      "火焰"
+    ],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "恐慌",
+      "麻痹",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "木乃伊可以先使用恐怖凝视然后再用腐朽拳击攻击。"
+      },
+      {
+        "name": "恐怖怒视Dreadful Glare",
+        "text": "木乃伊指定自身60尺范围内一个它能看见的生物。如果目标生物可以看到木乃伊，则该生物必须成功通过一次DC11的感知豁免以抵抗该魔法，豁免失败则目标生物受恐慌，其效应持续至该木乃伊的下一个回合结束。若目标生物豁免失败且差值为5或更高，则目标生物同时陷入麻痹。豁免成功的生物在接下来的24小时免疫所有木乃伊（除了木乃伊领主）的恐怖凝视。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "腐朽拳击",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加10（3d6）点暗蚀伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 2,
+    "creatureType": "undead",
+    "id": "f83a1f15-1e01-43de-9d5f-b42ad0a468c8",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "flameskull",
+    "name": "燃焰之颅",
+    "nameEn": "Flameskull",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "亡灵",
+    "alignment": "中立邪恶",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 40,
+    "hpDice": "9d4+18",
+    "speed": 0,
+    "speedNotes": "，飞行40尺（悬浮）",
+    "strength": 1,
+    "dexterity": 17,
+    "constitution": 14,
+    "intelligence": 16,
+    "wisdom": 10,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉12",
+    "languages": "通用语",
+    "damageResistances": [
+      "闪电",
+      "暗蚀",
+      "穿刺"
+    ],
+    "damageImmunities": [
+      "寒冷",
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "麻痹",
+      "中毒",
+      "倒地"
+    ],
+    "traits": [
+      {
+        "name": "照明Illumination",
+        "text": "燃焰之颅散发出15尺半径微光光照，或者15尺明亮光照以及其外15尺的微光光照。它可以用一个动作在两者间转换。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "燃焰之颅为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "复生Rejuvenation",
+        "text": "被破坏的燃焰之颅将在1小时后恢复所有生命值，除非在其遗体洒上圣水，或对其施展法术解除魔法dispelmagic或移除诅咒remove curse。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "燃焰之颅作为5级施法者，其施法属性为智力（法术DC13，法术攻击命中+5）。它施法时不需要任何姿势或材料成分。燃焰之颅准备了下列法师法术：戏法（随意）：法师之手magehand1环（3法术位）：魔法飞弹magicmissile，护盾术shield2环（2法术位）：朦胧术blur，炽焰法球flamingsphere3环（1法术位）：火球术fireball"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "燃焰之颅发动两次火焰射线攻击"
+      },
+      {
+        "name": "火焰射线Fire Ray",
+        "text": "远程法术攻击：命中+5，射程30尺，单一目标。命中：10（3d6）点火焰伤害。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "火焰射线攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 13,
+      "attackBonus": 5,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "法师之手"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "魔法飞弹",
+            "护盾术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "朦胧术",
+            "炽焰法球"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "火球术"
+          ]
+        }
+      ]
+    },
+    "attacks": [],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "不死生物",
+    "creatureSize": 0,
+    "creatureType": "undead",
+    "id": "fd04b159-4308-4888-94f2-81e45257c420",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  }
+]

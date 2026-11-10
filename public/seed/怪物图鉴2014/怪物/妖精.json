@@ -1,0 +1,720 @@
+[
+  {
+    "templateId": "sprite",
+    "name": "小仙灵",
+    "nameEn": "Sprite",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "妖精",
+    "alignment": "中立善良",
+    "ac": 15,
+    "acNote": "皮甲",
+    "maxHp": 2,
+    "hpDice": "1d4",
+    "speed": 10,
+    "speedNotes": "，飞行40尺",
+    "strength": 3,
+    "dexterity": 18,
+    "constitution": 10,
+    "intelligence": 14,
+    "wisdom": 13,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 8
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "通用语，精灵语，木族语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "心之视界Heart Sight",
+        "text": "小仙灵触碰一个生物并以魔法得知该生物当前的情绪状态。如果该目标在一次DC10的魅力豁免中失败，则小仙灵还会知晓该生物的阵营。天族、邪魔和亡灵进行该豁免时直接判为失败。"
+      },
+      {
+        "name": "隐形Invisibility",
+        "text": "小仙灵以魔法变为隐形，其效应直至它发动攻击或施展法术，或直至其专注结束（如同专注于法术）。小仙灵着装或携带的所有装备也会随之一起隐形。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+2",
+        "damage": "1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "短弓",
+        "attackBonus": "+6",
+        "damage": "2",
+        "damageType": "穿刺",
+        "range": "射程40/160尺",
+        "properties": [],
+        "normalRange": 40,
+        "maxRange": 160,
+        "note": "且目标必须成功通过一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "精类",
+    "creatureSize": 0,
+    "creatureType": "fey",
+    "id": "0145f28c-6339-4d3d-98f8-f56a411a3d14",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "sea-hag",
+    "name": "海鬼婆",
+    "nameEn": "Sea Hag",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "妖精",
+    "alignment": "混乱邪恶",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 52,
+    "hpDice": "7d8+21",
+    "speed": 30,
+    "speedNotes": "，游泳40尺",
+    "strength": 16,
+    "dexterity": 13,
+    "constitution": 16,
+    "intelligence": 12,
+    "wisdom": 12,
+    "charisma": 13,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉11",
+    "languages": "水族语，通用语，巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "鬼婆可以在空气和水中呼吸。"
+      },
+      {
+        "name": "恐怖形象Horrific Appearance",
+        "text": "任意类人生物在鬼婆30尺范围内开始其自己回合时，如果看到鬼婆的真实形态，则该生物必需进行一次DC11的感知豁免。豁免失败的生物将陷入受其恐慌的状态，并持续1分钟。该生物每个其自己回合结束时可以再进行一次该豁免。这时如果鬼婆还在其视线范围内，则检定具有劣势。如果再次的检定成功，终止该生物自身的恐慌效应，且该生物在随后的24小时内免疫该鬼婆的恐怖形象。除非目标被突袭或者鬼婆忽然露出真实形态，否则目标可以移开视线避开鬼婆从而跳过最初的豁免检定。该生物开始它自己的下一回合前，由于视线避开鬼婆而使它对该鬼婆发动的攻击检定具有劣势。"
+      },
+      {
+        "name": "死亡怒视Death Glare",
+        "text": "鬼婆指定其30尺内一个它能看到的受恐慌生物。如果该目标可以看到鬼婆，则它必须进行一次DC11的感知豁免以抵抗该魔法，豁免失败则生命值降为0。"
+      },
+      {
+        "name": "幻形Illusory Appearance",
+        "text": "鬼婆让自己和随身携带的物品笼罩在一层魔法幻象中，使它看上去像体型相仿的另一种丑陋的类人生物。鬼婆可以用一个附赠动作终止幻象。鬼婆死亡时，幻象也随之消失。这种效应产生的变化无法瞒过任何物理性的检查。鬼婆可以幻化成没有爪子的生物，但它的手摸上去的感觉依然是爪子。看到幻象的生物必需花费一个动作来观察该幻象，成功通过一次DC16的智力（调查）检定即可以看穿鬼婆的伪装。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "精类",
+    "creatureSize": 2,
+    "creatureType": "fey",
+    "id": "3d5e6ef5-9ff2-4dc3-aa6d-992d7dc4b079",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "blink-dog",
+    "name": "闪现犬",
+    "nameEn": "Blink Dog",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "妖精",
+    "alignment": "守序善良",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 22,
+    "hpDice": "4d8+4",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 12,
+    "dexterity": 17,
+    "constitution": 12,
+    "intelligence": 10,
+    "wisdom": 13,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "闪现犬语，懂木族语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "闪现犬进行依赖听觉和嗅觉的感知（察觉）检定时具有优势。"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "（充能4~6）闪现犬连同自身着装和携带的所有装备以魔法传送到至多40尺外一处它能够看见且未占据空间位置。闪现犬可以在传送前或传送后发动一次啃咬。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "精类",
+    "creatureSize": 2,
+    "creatureType": "fey",
+    "id": "631033d5-fddd-4bbc-a8f3-699a998d329d",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "pixie",
+    "name": "皮克精",
+    "nameEn": "Pixie",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "妖精",
+    "alignment": "中立善良",
+    "ac": 15,
+    "acNote": "15",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 10,
+    "speedNotes": "，飞行30尺",
+    "strength": 2,
+    "dexterity": 20,
+    "constitution": 8,
+    "intelligence": 10,
+    "wisdom": 14,
+    "charisma": 15,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 7
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "木族语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "皮克精为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "皮克精天生施法属性为魅力（法术DC12）。它可施展以下法术，且只需要其自身的妖精尘作为相应的法术成分：随意：德鲁伊伎俩Druidcraft每项1/日：困惑术confusion，舞光术dancinglights，侦测善恶detectevil and good，侦测思想detectthoughts，解除魔法dispelmagic，纠缠术entangle，飞行术fly，魅影之力phantasmalforce，变形术polymorph，睡眠术sleep"
+      },
+      {
+        "name": "强效隐形Superior Invisibility",
+        "text": "皮克精变为隐形直至其失去专注（等同于专注法术）。该皮克精着装或携带的任何装备也会随之一同隐形。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "德鲁伊伎俩",
+            "舞光术",
+            "侦测善恶",
+            "侦测思想",
+            "解除魔法",
+            "纠缠术",
+            "飞行术",
+            "魅影之力",
+            "变形术",
+            "睡眠术"
+          ]
+        }
+      ]
+    },
+    "attacks": [],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "精类",
+    "creatureSize": 0,
+    "creatureType": "fey",
+    "id": "63ee7499-d00a-4a18-88fa-01ec5585d486",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "satyr",
+    "name": "半羊人",
+    "nameEn": "Satyr",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "妖精",
+    "alignment": "混乱中立",
+    "ac": 14,
+    "acNote": "皮甲",
+    "maxHp": 31,
+    "hpDice": "7d8",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 12,
+    "dexterity": 16,
+    "constitution": 11,
+    "intelligence": 12,
+    "wisdom": 10,
+    "charisma": 14,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "表演",
+        "bonus": 6
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "通用语，精灵语，木族语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "半羊人为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "顶撞",
+        "attackBonus": "+3",
+        "damage": "2d4+1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "短剑",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "短弓",
+        "attackBonus": "+6",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "射程80/320尺",
+        "properties": [],
+        "normalRange": 80,
+        "maxRange": 320
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "精类",
+    "creatureSize": 2,
+    "creatureType": "fey",
+    "id": "7d800f67-cc2e-44ca-954e-1312c012cd85",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "night-hag",
+    "name": "夜鬼婆",
+    "nameEn": "Night Hag",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔",
+    "alignment": "中立邪恶",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 112,
+    "hpDice": "15d8+45",
+    "speed": 20,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 16,
+    "wisdom": 14,
+    "charisma": 16,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 7
+      },
+      {
+        "name": "洞悉",
+        "bonus": 6
+      },
+      {
+        "name": "察觉",
+        "bonus": 6
+      },
+      {
+        "name": "隐匿",
+        "bonus": 6
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉16",
+    "languages": "深渊语，通用语，炼狱语，原初语",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑"
+    ],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "鬼婆天生施法属性为魅力（法术豁免DC14，法术攻击命中+6）。它天生可施展以下法术且不需要任何相应的材料成分：随意：侦测魔法detectmagic，魔法飞弹magicmissile每项2/日：位面转移plane shift（仅自身），衰弱射线rayof enfeeblement，睡眠术sleep"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "鬼婆为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "变形Change Shape",
+        "text": "鬼婆以魔法将自己塑形为小体型或者中等体型的女性类人生物，或者恢复其真实形态。各形态下其资料均不会发生变化。它随身携带的装备不会跟着发生变化。如果鬼婆死亡，则它恢复为其真实形态。"
+      },
+      {
+        "name": "以太化Etherealness",
+        "text": "鬼婆用魔法在物质位面和以太位面之间进行转移。使用该动作时，鬼婆所在的位置必需有一颗心石heartstone。"
+      },
+      {
+        "name": "噩梦缠身Nightmare Haunting",
+        "text": "（1/日）处于以太位面时，鬼婆以魔法触碰一个物质位面里睡梦中的类人生物。若目标受法术防护善恶Protectionfrom Evil and Good或防护法阵magiccircle影响，则可防止这次接触。如果接触完成，目标将见到可怕的异像。如果异像持续不少于1小时，目标将失去它本次休息的得益，且其生命值上限减损5（1d10）。如果该减损效果导致目标生命值上限降为0，则目标死亡。如果此时目标的阵营为邪恶，则目标的灵魂将被困于鬼婆的灵魂袋中。目标生命值上限的减损效应将一直维持，直到接受法术高等复原术GreaterRestoration或类似法术的治疗。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "魔法飞弹",
+            "衰弱射线",
+            "睡眠术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d8+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "精类",
+    "creatureSize": 2,
+    "creatureType": "fey",
+    "id": "7e1038bf-1822-476b-ae9a-063342d0db92",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "dryad",
+    "name": "树精",
+    "nameEn": "Dryad",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "妖精",
+    "alignment": "绝对中立",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 22,
+    "hpDice": "5d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 12,
+    "constitution": 11,
+    "intelligence": 14,
+    "wisdom": 15,
+    "charisma": 18,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "精灵语，木族语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "树精天生施法属性为魅力（法术豁免DC14），它天生即可施展以下法术且不需要任何相应的材料成分：随意：德鲁伊伎俩druidcraft每项3/日：纠缠术entangle，神莓术goodberry每项1/日：树肤术barkskin，行动无踪passwithout trace，橡棍术shillelagh"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "树精为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "动植物交谈Speak with Beast and Plants",
+        "text": "树精可以与任何野兽和植物进行交流，如同它们掌握同一种语言一样。"
+      },
+      {
+        "name": "树跃Tree Stride",
+        "text": "树精每回合有一次机会，消耗其自身10尺移动力以魔法进入一棵她可以触及的活体树木中，然后从距离这棵树60尺范围内的另一棵活体树木中出现，并现身在后者周边5尺内一处未占据空间。两棵树的体型必须是大型或更大。"
+      },
+      {
+        "name": "妖精魅惑Fey Charm",
+        "text": "树精指定30尺内她能看见的一个类人生物或野兽。若该目标也能看见树精，则其必须进行一次DC14的感知豁免，豁免失败者将被树精的魔法所魅惑。被魅惑的生物将该树精视为一个可信且必须顺从和保护的朋友。尽管目标并不受树精控制，但它依然会满足树精的要求，或是尽量按她意愿行事。树精及其盟友每次对该目标造成伤害时，目标都可以再进行一次该豁免，并在豁免成功时终止其身上的效应。否则，该效应将持续24小时。树精死亡或身处与目标不同的另一存在位面时效应也将终止，而她也可以用一个附赠动作终止该效应。如果某目标的豁免检定成功，则该目标在随后24小时内免疫该树精的妖精魅惑。树精能以该方式同时魅惑至多一个类人生物和至多三只野兽。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "德鲁伊伎俩",
+            "神莓术",
+            "行动无踪",
+            "橡棍术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "短棒",
+        "attackBonus": "+2",
+        "damage": "1d4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或使用橡棍术时8（1d8+4）点钝击伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "精类",
+    "creatureSize": 2,
+    "creatureType": "fey",
+    "id": "895e18ab-83be-42b4-8c7d-c92b2996866e",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "green-hag",
+    "name": "绿鬼婆",
+    "nameEn": "Green Hag",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "妖精",
+    "alignment": "中立邪恶",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 82,
+    "hpDice": "11d8+33",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 12,
+    "constitution": 16,
+    "intelligence": 13,
+    "wisdom": 14,
+    "charisma": 14,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 3
+      },
+      {
+        "name": "欺瞒",
+        "bonus": 4
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 3
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "通用语，龙语，木族语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "鬼婆可以在空气和水中呼吸。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "鬼婆天生施法属性为魅力（法术豁免DC12）。它天生可施展以下法术且不需要任何相应的材料成分：随意：舞光术dancinglights，次级幻象minorillusion，恶言相加viciousmockery"
+      },
+      {
+        "name": "拟声Mimicry",
+        "text": "鬼婆可以模仿动物和类人生物的声音。听到该声音的生物如果成功通过一次DC14的感知（洞悉）检定，则可以识破鬼婆的模仿。"
+      },
+      {
+        "name": "幻形Illusory Appearance",
+        "text": "鬼婆让自己和随身携带的物品笼罩在一层魔法幻象中，使它看上去像体型相仿的另一种类人生物。鬼婆可以用一个附赠动作结束该幻象。鬼婆死亡时，幻象也随之消失。这种效应产生的变化无法瞒过任何物理形式的检查。比如，鬼婆可以幻化出光滑的皮肤，但摸上去依然感觉是粗糙的肉。看到幻象的生物必需花费一个动作来观察该幻象，成功通过一次DC20的智力（调查）检定即可以揭穿鬼婆的伪装。"
+      },
+      {
+        "name": "隐形通道Invisible Passage",
+        "text": "鬼婆以魔法变为隐形，直到它发动攻击，施展法术或终止专注（如同专注法术）。隐形时，它不会留下任何存在的物理线索，因此不会被任何非魔法的手段侦查到。它随身携带的所有装备也一并进入隐形状态。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "次级幻象",
+            "恶言相加"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+6",
+        "damage": "2d8+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "精类",
+    "creatureSize": 2,
+    "creatureType": "fey",
+    "id": "9a2277d4-b37c-4b3c-9c14-031e612f53c4",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  }
+]

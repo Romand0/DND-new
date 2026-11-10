@@ -1,0 +1,56 @@
+[
+  {
+    "id": "antitoxin",
+    "childId": "",
+    "name": "抗毒剂",
+    "category": "药水",
+    "subtype": "",
+    "weight": 0,
+    "price": {
+      "amount": 50,
+      "unit": "gp"
+    },
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "喝下瓶内液体的生物在 1 小时内进行对抗对毒素的豁免检定时具有优势。它无法为不死生物或构装生物提供任何增益。",
+    "properties": [],
+    "tags": [],
+    "source": "玩家手册 2014",
+    "unit": "小瓶",
+    "packSize": 1,
+    "isCustom": false,
+    "createdAt": 1783652384940,
+    "updatedAt": 1783652384940,
+    "campaignId": null
+  },
+  {
+    "id": "poison-basic",
+    "childId": "",
+    "name": "基础毒药",
+    "category": "药水",
+    "subtype": "",
+    "weight": 0,
+    "price": {
+      "amount": 100,
+      "unit": "gp"
+    },
+    "damageDice": "",
+    "damageType": "",
+    "acBase": "",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "你可以用一个动作将小瓶中的毒药涂于一把挥砍或穿刺武器上，或者涂在至多三发弹药上。涂毒武器或弹药命中时，被命中生物必须进行一次 DC 10 的体质豁免，豁免失败则受到 1d4 的毒素伤害。涂毒后，武器的毒性效果可以维持 1 分钟。",
+    "properties": [],
+    "tags": [],
+    "source": "玩家手册 2014",
+    "unit": "小瓶",
+    "packSize": 1,
+    "isCustom": false,
+    "createdAt": 1783652399064,
+    "updatedAt": 1783652399064,
+    "campaignId": null
+  }
+]

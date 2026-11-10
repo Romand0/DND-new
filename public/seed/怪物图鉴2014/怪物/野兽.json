@@ -1,0 +1,6496 @@
+[
+  {
+    "templateId": "pony",
+    "name": "矮种马",
+    "nameEn": "Pony",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 10,
+    "constitution": 13,
+    "intelligence": 2,
+    "wisdom": 11,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+4",
+        "damage": "2d4+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "044226c7-053f-4a31-a155-b27bbddf2345",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-poisonoussnake",
+    "name": "巨毒蛇",
+    "nameEn": "Giant PoisonousSnake",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 14,
+    "acNote": "14",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 10,
+    "dexterity": 18,
+    "constitution": 13,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "盲视10尺，被动察觉12",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "1d4+4",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "且目标必须进行一次DC11的体质豁免，豁免失败则受到10（3d6）点毒素伤害，豁免成功则伤害减半"
+      }
+    ],
+    "description": "Snake",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "0531e9e4-e91b-4e90-869d-97cd01d0c041",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-rat",
+    "name": "巨鼠",
+    "nameEn": "Giant Rat",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 7,
+    "hpDice": "2d6",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 7,
+    "dexterity": 15,
+    "constitution": 11,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "鼠依赖嗅觉进的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "鼠至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      },
+      {
+        "name": "一些巨鼠的啃咬攻击会散播污秽的疾病",
+        "text": "一只致病巨鼠拥有挑战等级1/8（25XP）且具有以下动作项代替其原普通啃咬攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "变体：致病巨鼠Variant: Diseased GiantRats"
+      },
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是一生物，则其必须成功通过一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 1,
+    "creatureType": "beast",
+    "id": "06d13280-8365-4631-b11b-ee83e76aa8e3",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "drafthorse",
+    "name": "驮用马",
+    "nameEn": "DraftHorse",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 19,
+    "hpDice": "3d10+3",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 10,
+    "constitution": 12,
+    "intelligence": 2,
+    "wisdom": 11,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+6",
+        "damage": "2d4+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "description": "Horse",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "128becab-7221-4d1a-8c95-12e77c817888",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "owl",
+    "name": "猫头鹰",
+    "nameEn": "Owl",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 5,
+    "speedNotes": "，飞行60尺",
+    "strength": 3,
+    "dexterity": 13,
+    "constitution": 8,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 3
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "飞掠Flyby",
+        "text": "猫头鹰飞出敌人的触及范围时不会引起借机攻击。"
+      },
+      {
+        "name": "敏锐视听觉Keen Hearing and Sight",
+        "text": "猫头鹰依赖视觉和听觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "禽爪",
+        "attackBonus": "+3",
+        "damage": "1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "1bc7e7c0-4602-417b-a7fd-fa00d6afc581",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantbat",
+    "name": "巨蝙蝠",
+    "nameEn": "GiantBat",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 22,
+    "hpDice": "4d10",
+    "speed": 10,
+    "speedNotes": "，飞行60尺",
+    "strength": 15,
+    "dexterity": 16,
+    "constitution": 11,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视60尺，被动察觉11",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "回声定位Echolocation",
+        "text": "蝙蝠陷入耳聋时无法使用盲视。"
+      },
+      {
+        "name": "敏锐听觉Keen Hearing",
+        "text": "蝙蝠依赖听觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "description": "Bat",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "21e3eaf8-f00e-40eb-9218-28fcd1313b64",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "deer",
+    "name": "鹿",
+    "nameEn": "Deer",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 4,
+    "hpDice": "1d8",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 16,
+    "constitution": 11,
+    "intelligence": 2,
+    "wisdom": 14,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉12",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+2",
+        "damage": "1d4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "229f1f4a-05d0-4c9d-8496-3e907d93c7b1",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "vulture",
+    "name": "秃鹫",
+    "nameEn": "Vulture",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 5,
+    "hpDice": "1d8+1",
+    "speed": 10,
+    "speedNotes": "，飞行50尺",
+    "strength": 7,
+    "dexterity": 10,
+    "constitution": 13,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐视嗅觉Keen Sight and Smell",
+        "text": "秃鹫依赖视觉或嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "秃鹫至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "喙啄",
+        "attackBonus": "+2",
+        "damage": "1d4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "262c5e80-2a29-4162-915e-01fca08ec007",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "ridinghorse",
+    "name": "乘用马",
+    "nameEn": "RidingHorse",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 13,
+    "hpDice": "2d10+2",
+    "speed": 60,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 10,
+    "constitution": 12,
+    "intelligence": 2,
+    "wisdom": 11,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+5",
+        "damage": "2d4+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "description": "Horse",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "296901e1-c12b-4b7a-bb4e-bc1905ae39bd",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "blood-hawk",
+    "name": "血鹰",
+    "nameEn": "Blood Hawk",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 7,
+    "hpDice": "2d6",
+    "speed": 10,
+    "speedNotes": "，飞行60尺",
+    "strength": 6,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 3,
+    "wisdom": 14,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐视觉Keen Sight",
+        "text": "血鹰依赖视觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "血鹰至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "喙啄",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 1,
+    "creatureType": "beast",
+    "id": "2b82dd87-5d2c-4250-a572-02be345f1e2c",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "rat",
+    "name": "鼠",
+    "nameEn": "Rat",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 20,
+    "speedNotes": "",
+    "strength": 2,
+    "dexterity": 11,
+    "constitution": 9,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉30尺，被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "鼠依赖嗅觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+0",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "2c5c40a6-d2de-496b-8f64-61744746aef4",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-wolfspider",
+    "name": "巨狼蛛",
+    "nameEn": "Giant WolfSpider",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 40,
+    "speedNotes": "，攀爬40尺",
+    "strength": 12,
+    "dexterity": 16,
+    "constitution": 13,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 7
+      }
+    ],
+    "senses": "盲视10尺，黑暗视觉60尺，被动察觉13",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "蛛行Spider Climb",
+        "text": "蜘蛛可以攀爬在难以攀爬的表面上，包括倒吊在天花板上，且不需要进行属性检定。"
+      },
+      {
+        "name": "蛛网感知Web Sense",
+        "text": "与蛛网接触时，蜘蛛可以知晓其他与该蛛网接触生物的准确位置。"
+      },
+      {
+        "name": "蛛网行者Web Walker",
+        "text": "蜘蛛在蛛网上移动时无视蛛网造成的移动限制。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受到7（2d6）点毒素伤害，豁免成功则伤害减半"
+      }
+    ],
+    "description": "Spider",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "2e837b54-50cb-4922-9729-5a8ca4023e6e",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-wasp",
+    "name": "巨黄蜂",
+    "nameEn": "Giant Wasp",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 13,
+    "hpDice": "3d8",
+    "speed": 10,
+    "speedNotes": "，飞行50尺",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "钉刺",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标必须成功通过一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "2ee90a67-d93a-4bb4-9863-1a5abb0f1194",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "lizard",
+    "name": "蜥蜴",
+    "nameEn": "Lizard",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 2,
+    "hpDice": "1d4",
+    "speed": 20,
+    "speedNotes": "，攀爬20尺",
+    "strength": 2,
+    "dexterity": 11,
+    "constitution": 10,
+    "intelligence": 1,
+    "wisdom": 8,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉30尺，被动察觉9",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+0",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "2f211741-f648-4fe8-8cc2-54cf22df2852",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "tyrannosaurus-rex",
+    "name": "霸王龙",
+    "nameEn": "Tyrannosaurus Rex",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 136,
+    "hpDice": "13d12+52",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 25,
+    "dexterity": 10,
+    "constitution": 19,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "暴龙发动两次攻击：一次啃咬，一次尾击。两次攻击必须制定不同目标。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "尾击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+10",
+        "damage": "4d12+7",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标为一个中型或更小体型的生物，则目标被擒抱（逃脱DC17）"
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+10",
+        "damage": "3d8+7",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "31b11d20-217e-4d4d-b066-0d525bf2c51c",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-boar",
+    "name": "巨野猪",
+    "nameEn": "Giant Boar",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 42,
+    "hpDice": "5d10+15",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 10,
+    "constitution": 16,
+    "intelligence": 2,
+    "wisdom": 7,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉8",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若野猪向其目标直线移动至少20尺，且在同一回合里以牙撕攻击命中该目标，则该目标受额外7（2d6）点挥砍伤害。如果目标是生物，则该生物必须成功通过一次DC13的力量豁免，否则应击倒地。"
+      },
+      {
+        "name": "坚韧Relentless",
+        "text": "（短休或长休后充能）野猪受到10点或更低的伤害而使其生命值降至0时，改为其生命值降至1。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "牙撕",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "31cee57e-884c-4fa9-9204-fd32ed195c7e",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "crab",
+    "name": "蟹",
+    "nameEn": "Crab",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 2,
+    "hpDice": "1d4",
+    "speed": 20,
+    "speedNotes": "，游泳20尺",
+    "strength": 2,
+    "dexterity": 11,
+    "constitution": 10,
+    "intelligence": 1,
+    "wisdom": 8,
+    "charisma": 2,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 2
+      }
+    ],
+    "senses": "盲视30尺，被动察觉9",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "蟹可以在空气和水中呼吸。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+0",
+        "damage": "1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "3341944d-a16b-4444-9b10-600fdc632e76",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "lion",
+    "name": "狮子",
+    "nameEn": "Lion",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 26,
+    "hpDice": "4d10+4",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 15,
+    "constitution": 13,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "狮子依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "狮子至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      },
+      {
+        "name": "猛扑Pounce",
+        "text": "若狮子向目标直线移动至少20尺，然后在同一回合对其发动爪击攻击且命中该目标，则目标必须进行一次DC 13的力量豁免，豁免失败者将应击倒地。如果目标陷入倒地，则该狮子可以用一个附赠动作对目标发动一次啃咬攻击。"
+      },
+      {
+        "name": "助跑起跳Running Leap",
+        "text": "狮子在10尺助跑后可以跳25尺远，且视为移动的一部分。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d8+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "355f10af-998b-4e67-bf6b-dd540743bbfe",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-weasel",
+    "name": "巨鼬",
+    "nameEn": "Giant Weasel",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "绝对中立",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 9,
+    "hpDice": "2d8",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 16,
+    "constitution": 10,
+    "intelligence": 4,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉13",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "鼬依赖听觉或嗅觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "3939ec83-453c-44e3-a6c7-03ca40dcb053",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "killer-whale",
+    "name": "虎鲸",
+    "nameEn": "Killer Whale",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 90,
+    "hpDice": "12d12+12",
+    "speed": 0,
+    "speedNotes": "，游泳60尺",
+    "strength": 19,
+    "dexterity": 10,
+    "constitution": 13,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "盲视120尺，被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "回声定位Echolocation",
+        "text": "虎鲸耳聋时不能使用其盲视感官。"
+      },
+      {
+        "name": "屏息Hold Breath",
+        "text": "虎鲸可以憋气30分钟。"
+      },
+      {
+        "name": "敏锐听觉Keen Hearing",
+        "text": "虎鲸依赖听觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "5d6+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "3dbcd8bc-34c2-43b6-86b1-4d969a6518ae",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "ape",
+    "name": "猿",
+    "nameEn": "Ape",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 19,
+    "hpDice": "3d8+6",
+    "speed": 30,
+    "speedNotes": "，攀爬30尺",
+    "strength": 16,
+    "dexterity": 14,
+    "constitution": 14,
+    "intelligence": 6,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "猿发动两次拳击"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "拳击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "拳击",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "钝击",
+        "range": "射程25/50尺",
+        "properties": [],
+        "normalRange": 25,
+        "maxRange": 50
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "4602e50b-ffaa-48f5-8313-5eba1c97e9e9",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "scorpion",
+    "name": "蝎子",
+    "nameEn": "Scorpion",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 10,
+    "speedNotes": "",
+    "strength": 2,
+    "dexterity": 11,
+    "constitution": 8,
+    "intelligence": 1,
+    "wisdom": 8,
+    "charisma": 2,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视10尺，被动察觉9",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "钉刺",
+        "attackBonus": "+2",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标必须成功通过一次DC 9的体质豁免，否则受到4（1d8）点毒素伤害，豁免成功则伤害减半"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "46722b57-e217-4043-ad17-8ecca50d0b18",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "weasel",
+    "name": "鼬",
+    "nameEn": "Weasel",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 3,
+    "dexterity": 16,
+    "constitution": 8,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "鼬依赖听觉或嗅觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "46ee7d21-d7a0-459a-b3d4-879b96741411",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "flying-snake",
+    "name": "飞蛇",
+    "nameEn": "Flying Snake",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 14,
+    "acNote": "14",
+    "maxHp": 5,
+    "hpDice": "2d4",
+    "speed": 30,
+    "speedNotes": "，飞行60尺，游泳30尺",
+    "strength": 4,
+    "dexterity": 18,
+    "constitution": 11,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视10尺，被动察觉11",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "飞掠Flyby",
+        "text": "飞蛇飞出敌人的触及范围时不会引起借机攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加7（3d4）点毒素伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "47c71c16-71a9-44e9-9236-a027c21f3c13",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-shark",
+    "name": "巨鲨",
+    "nameEn": "Giant Shark",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 126,
+    "hpDice": "11d12+55",
+    "speed": 0,
+    "speedNotes": "，游泳50尺",
+    "strength": 23,
+    "dexterity": 11,
+    "constitution": 21,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "盲视60尺，被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "嗜血狂怒Blood Frenzy",
+        "text": "鲨鱼对生命值没有全满的生物发动近战攻击时，其攻击检定具有优势。"
+      },
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "鲨鱼只能在水下呼吸。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+9",
+        "damage": "3d10+6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "在深海出没的巨鲨giant shark身长达30尺"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "481ebab8-1e0c-457f-a982-79f81093621d",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "reef-shark",
+    "name": "礁鲨",
+    "nameEn": "Reef Shark",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 22,
+    "hpDice": "4d8+4",
+    "speed": 0,
+    "speedNotes": "，游泳40尺",
+    "strength": 14,
+    "dexterity": 13,
+    "constitution": 13,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "盲视30尺，被动察觉12",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "鲨鱼至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      },
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "鲨鱼只能在水里呼吸。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "4b17139b-494f-486f-aa5f-251068d6e0e4",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "tiger",
+    "name": "老虎",
+    "nameEn": "Tiger",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 37,
+    "hpDice": "5d10+10",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 15,
+    "constitution": 14,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "老虎依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "猛扑Pounce",
+        "text": "若老虎向目标直线移动至少20尺，然后在同一回合对其发动爪击攻击且命中该目标，则目标必须进行一次DC 13的力量豁免，豁免失败者将应击倒地。如果目标陷入倒地，则该老虎可以用一个附赠动作对目标发动一次啃咬攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d10+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "1d8+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "51a7d8f5-a564-4f89-8cb4-3cf12fdc1a6a",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "brown-bear",
+    "name": "棕熊",
+    "nameEn": "Brown Bear",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 34,
+    "hpDice": "4d10+12",
+    "speed": 40,
+    "speedNotes": "，攀爬30尺",
+    "strength": 19,
+    "dexterity": 10,
+    "constitution": 16,
+    "intelligence": 2,
+    "wisdom": 13,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "熊依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "熊发动两次攻击，一次是啃咬，一次是爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "是啃咬"
+      },
+      {
+        "count": 1,
+        "name": "是爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "1d8+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+6",
+        "damage": "2d6+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "53e937eb-c86a-423c-ae80-c8f5b0c3c9bf",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "hawk",
+    "name": "鹰",
+    "nameEn": "Hawk",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 10,
+    "speedNotes": "，飞行60尺",
+    "strength": 5,
+    "dexterity": 16,
+    "constitution": 8,
+    "intelligence": 2,
+    "wisdom": 14,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐视觉Keen Sight",
+        "text": "鹰依赖视觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "禽爪",
+        "attackBonus": "+5",
+        "damage": "1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "583fc2f3-a6b9-42ae-8492-30955c5bb6a6",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-elk",
+    "name": "巨赤鹿",
+    "nameEn": "Giant Elk",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 42,
+    "hpDice": "5d12+10",
+    "speed": 60,
+    "speedNotes": "",
+    "strength": 19,
+    "dexterity": 16,
+    "constitution": 14,
+    "intelligence": 7,
+    "wisdom": 14,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "巨赤鹿语，懂通用语、精灵语和木族语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若赤鹿向其目标直线移动至少20尺，且在同一回合里以冲撞攻击命中该目标，则该目标受额外7（2d6）点伤害。如果目标是生物，则该生物必须成功通过一次DC14的力量豁免，否则应击倒地。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "冲撞",
+        "attackBonus": "+6",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "蹄击",
+        "attackBonus": "+6",
+        "damage": "4d8+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "5a3b453f-53ce-4d83-ad2f-96a1975e1856",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "saber-toothed-tiger",
+    "name": "剑齿虎",
+    "nameEn": "Saber-Toothed Tiger",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 52,
+    "hpDice": "7d10+14",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 14,
+    "constitution": 15,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "老虎依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "猛扑Pounce",
+        "text": "若老虎向目标直线移动至少20尺，然后在同一回合对其发动爪击攻击且命中该目标，则目标必须进行一次DC14的力量豁免，豁免失败者将应击倒地。如果目标陷入倒地，则该老虎可以用一个附赠动作对目标发动一次啃咬攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "1d10+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+6",
+        "damage": "2d6+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "5b3e473b-800b-4e36-9d55-92551b98b30a",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "swarm-of-quippers",
+    "name": "食人鱼集群",
+    "nameEn": "Swarm of Quippers",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽的中型集群",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 28,
+    "hpDice": "8d8-8",
+    "speed": 0,
+    "speedNotes": "，游泳40尺",
+    "strength": 13,
+    "dexterity": 16,
+    "constitution": 9,
+    "intelligence": 1,
+    "wisdom": 7,
+    "charisma": 2,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉8",
+    "languages": "——",
+    "damageResistances": [
+      "钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "麻痹",
+      "石化",
+      "倒地",
+      "束缚",
+      "震慑",
+      "擒抱"
+    ],
+    "traits": [
+      {
+        "name": "嗜血狂怒Blood Frenzy",
+        "text": "集群对生命值没有全满的生物发动近战攻击时，其攻击检定具有优势。"
+      },
+      {
+        "name": "集群Swarm",
+        "text": "集群可以进驻另一生物身处的空间位置，反之亦然。而且集群可以通过任何足够一条微型食人鱼通过的通道。集群不能恢复生命值也不能获得临时生命值。"
+      },
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "食人鱼只能在水下呼吸。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "",
+        "damage": "4d6",
+        "damageType": "穿刺",
+        "range": "触及0尺",
+        "properties": [],
+        "normalRange": 0,
+        "maxRange": 0,
+        "note": "或者集群生命值等于或低于一半时7（2d6）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "5c7f170a-9aed-4ac5-8c6f-3ecaad72a758",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantcentipede",
+    "name": "巨蜈蚣",
+    "nameEn": "GiantCentipede",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 4,
+    "hpDice": "1d6+1",
+    "speed": 30,
+    "speedNotes": "，攀爬30尺",
+    "strength": 5,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 1,
+    "wisdom": 7,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视30尺，被动察觉8",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受10（3d6）点毒素伤害"
+      }
+    ],
+    "description": "Centipede",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 1,
+    "creatureType": "beast",
+    "id": "5e0811a0-4dbd-48f6-aa76-3bf7efb63e9e",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "seahorse",
+    "name": "海马",
+    "nameEn": "SeaHorse",
+    "cr": "0",
+    "xp": 0,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 0,
+    "speedNotes": "，游泳20尺",
+    "strength": 1,
+    "dexterity": 12,
+    "constitution": 8,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 2,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "海马只能在水下呼吸。"
+      }
+    ],
+    "attacks": [],
+    "description": "Horse",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "5fbe4625-7214-4938-b767-4086621ccd2e",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "axebeak",
+    "name": "斧嘴鸟",
+    "nameEn": "AxeBeak",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 19,
+    "hpDice": "3d10+3",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 14,
+    "dexterity": 12,
+    "constitution": 12,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "喙啄",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "高大的斧嘴鸟Axe Beak长着强壮的腿和巨大的楔状喙，是一种不会飞的鸟"
+      }
+    ],
+    "description": "Beak",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "60834628-f8c6-498f-80bc-b52cba4d1b5c",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-ape",
+    "name": "巨猿",
+    "nameEn": "Giant Ape",
+    "cr": "7",
+    "xp": 2900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 157,
+    "hpDice": "15d12+60",
+    "speed": 40,
+    "speedNotes": "，攀爬40尺",
+    "strength": 23,
+    "dexterity": 14,
+    "constitution": 18,
+    "intelligence": 7,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 9
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨猿发动两次拳击攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "拳击攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "拳击",
+        "attackBonus": "+9",
+        "damage": "3d10+6",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+9",
+        "damage": "7d6+6",
+        "damageType": "钝击",
+        "range": "射程50/100尺",
+        "properties": [],
+        "normalRange": 50,
+        "maxRange": 100
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "61ae9f66-554d-4c84-9ebc-2230b984b75c",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "elephant",
+    "name": "象",
+    "nameEn": "Elephant",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 76,
+    "hpDice": "8d12+24",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 22,
+    "dexterity": 9,
+    "constitution": 17,
+    "intelligence": 3,
+    "wisdom": 11,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "践踏冲锋Trampling Charge",
+        "text": "如果象向某一生物直线移动至少20尺，且在同一回合里以顶撞攻击命中该生物，则该目标必须成功通过一次DC12的力量豁免，否则应击倒地。如果目标倒地，则象可以用一个附赠动作对其发动一次践踏攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "顶撞",
+        "attackBonus": "+8",
+        "damage": "3d8+6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "践踏",
+        "attackBonus": "+8",
+        "damage": "3d10+6",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "64012947-a9e8-4d1c-8f3a-193f424b9608",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "quipper",
+    "name": "食人鱼",
+    "nameEn": "Quipper",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 0,
+    "speedNotes": "，游泳40尺",
+    "strength": 2,
+    "dexterity": 16,
+    "constitution": 9,
+    "intelligence": 1,
+    "wisdom": 7,
+    "charisma": 2,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉8",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "嗜血狂怒Blood Frenzy",
+        "text": "食人鱼对生命值没有全满的生物发动近战攻击时，其攻击检定具有优势。"
+      },
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "食人鱼只能在水下呼吸。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "68941c5d-de18-44e6-b2f3-4438e414627e",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "elk",
+    "name": "赤鹿",
+    "nameEn": "Elk",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 13,
+    "hpDice": "2d10+2",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 10,
+    "constitution": 12,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若赤鹿向其目标直线移动至少20尺，且在同一回合里以冲撞攻击命中该目标，则该目标受额外7（2d6）点伤害。如果目标是生物，则该生物必须成功通过一次DC 13的力量豁免，否则应击倒地。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "冲撞",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "蹄击",
+        "attackBonus": "+5",
+        "damage": "2d4+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "6e1aad99-3121-4253-aaec-2d9966476294",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "badger",
+    "name": "獾",
+    "nameEn": "Badger",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 3,
+    "hpDice": "1d4+1",
+    "speed": 20,
+    "speedNotes": "，掘穴5尺",
+    "strength": 4,
+    "dexterity": 11,
+    "constitution": 12,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉30尺，被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "进行依赖嗅觉的感知（察觉）检定时具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+2",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "733a9826-df2f-4f55-a2b0-cb5985b7236a",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "swarm-of-bats",
+    "name": "蝙蝠集群",
+    "nameEn": "Swarm of Bats",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽的中型集群",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 22,
+    "hpDice": "5d8",
+    "speed": 0,
+    "speedNotes": "，飞行30尺",
+    "strength": 5,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视60尺，被动察觉11",
+    "languages": "—",
+    "damageResistances": [
+      "钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "麻痹",
+      "石化",
+      "倒地",
+      "束缚",
+      "震慑",
+      "擒抱"
+    ],
+    "traits": [
+      {
+        "name": "集群Swarm",
+        "text": "集群可以进驻另一生物身处的空间位置，反之亦然。而且集群可以通过任何足够一只微型蝙蝠通过的通道。集群不能恢复生命值也不能获得临时生命值。"
+      },
+      {
+        "name": "回声定位Echolocation",
+        "text": "蝙蝠陷入耳聋时无法使用盲视。"
+      },
+      {
+        "name": "敏锐听觉Keen Hearing",
+        "text": "蝙蝠依赖听觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "",
+        "damage": "2d4",
+        "damageType": "穿刺",
+        "range": "触及0尺",
+        "properties": [],
+        "normalRange": 0,
+        "maxRange": 0,
+        "note": "或者集群生命值等于或低于一半时2（1d4）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "74c3d7fe-3a19-41ae-99fb-ba122260d014",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "gianttoad",
+    "name": "巨蟾",
+    "nameEn": "GiantToad",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 39,
+    "hpDice": "6d10+6",
+    "speed": 20,
+    "speedNotes": "，游泳40尺",
+    "strength": 15,
+    "dexterity": 13,
+    "constitution": 13,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉30尺，被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "蟾蜍可以在空气和水中呼吸。"
+      },
+      {
+        "name": "立定起跳Standing Leap",
+        "text": "蟾蜍不需要助跑就可以跳20尺远、10尺高，且视为移动的一部分。"
+      },
+      {
+        "name": "吞咽Swallow",
+        "text": "蟾蜍对正被它擒抱的中型或更小体型生物发动一次啃咬攻击。若该攻击命中，则目标被吞下并结束其被受擒状态。被吞下的目标陷入目盲且被束缚，其对于蟾蜍身体外的攻击或效应视为处于全身掩护，并在每次该蟾蜍的回合开始时受10（3d6）点强酸伤害。蟾蜍不能同时吞咽多于一个的生物。如果该蟾蜍死亡，则被其吞下的生物将不再受束缚，且可以消耗5尺移动力逃出，然后在尸体旁现身并陷入倒地状态。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d10+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加5（1d10）点毒素伤害，且目标被擒抱（逃脱DC 13）"
+      }
+    ],
+    "description": "Toad",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "776e1a69-3b77-4f17-b096-d0b574dfc7e8",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "gianteagle",
+    "name": "巨鹰",
+    "nameEn": "GiantEagle",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "中立善良",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 26,
+    "hpDice": "4d10+4",
+    "speed": 10,
+    "speedNotes": "，飞行80尺",
+    "strength": 16,
+    "dexterity": 17,
+    "constitution": 13,
+    "intelligence": 8,
+    "wisdom": 14,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "懂通用语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐视觉Keen Sight",
+        "text": "鹰依赖视觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "鹰发动两次攻击，一次是喙啄，一次是爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "是喙啄"
+      },
+      {
+        "count": 1,
+        "name": "是爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "喙啄",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "禽爪",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "description": "Eagle",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "797562a3-e7ab-401b-a50d-1b3490f2518b",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "crocodile",
+    "name": "鳄鱼",
+    "nameEn": "Crocodile",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 19,
+    "hpDice": "3d10+3",
+    "speed": 20,
+    "speedNotes": "，游泳30尺",
+    "strength": 15,
+    "dexterity": 10,
+    "constitution": 13,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "鳄鱼可以憋气15分钟。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d10+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标被擒抱（逃脱DC12）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "7b46530f-041e-43d6-8a04-cfce3ffcdb7e",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "raven",
+    "name": "渡鸦",
+    "nameEn": "Raven",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 10,
+    "speedNotes": "，飞行50尺",
+    "strength": 2,
+    "dexterity": 14,
+    "constitution": 8,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "拟声Mimicry",
+        "text": "渡鸦可以模仿听到的简单声音，比如人的低语声、婴儿的哭声、动物的交谈声等。听到该声音的生物可以进行一次DC 10的感知（洞悉）检定，检定成功则发现其是模仿的声音。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "喙啄",
+        "attackBonus": "+4",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "7ba5a4b3-5c48-4960-9906-4bcbe28665c8",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "frog",
+    "name": "青蛙",
+    "nameEn": "Frog",
+    "cr": "0",
+    "xp": 0,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 20,
+    "speedNotes": "，游泳20尺",
+    "strength": 1,
+    "dexterity": 13,
+    "constitution": 8,
+    "intelligence": 1,
+    "wisdom": 8,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 1
+      },
+      {
+        "name": "隐匿",
+        "bonus": 3
+      }
+    ],
+    "senses": "黑暗视觉30尺，被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "青蛙可以在空气和水中呼吸。"
+      },
+      {
+        "name": "立定起跳Standing Leap",
+        "text": "青蛙不需要助跑就可以跳10尺远、5尺高，且视为移动的一部分。青蛙frog无有效攻击手段。它以小昆虫为食，栖息地靠近水源、树林或地底。青蛙的资料也可以用来代表蟾蜍toad。"
+      }
+    ],
+    "attacks": [],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "7dfa45b8-9bc3-4f52-8e9a-044b7daa6dd7",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "pteranodon",
+    "name": "无齿翼龙",
+    "nameEn": "Pteranodon",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 13,
+    "hpDice": "3d8",
+    "speed": 10,
+    "speedNotes": "，飞行60尺",
+    "strength": 12,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 2,
+    "wisdom": 9,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 1
+      }
+    ],
+    "senses": "被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "飞掠Flyby",
+        "text": "无齿翼龙以飞行离开敌人的触及范围时不会引发对方的借机攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "2d4+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "7f028dd5-85e3-4cb3-a4d1-fd72a5bf5ffa",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "swarm-of-insects",
+    "name": "昆虫集群",
+    "nameEn": "Swarm of Insects",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽的中型集群",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 22,
+    "hpDice": "5d8",
+    "speed": 20,
+    "speedNotes": "，攀爬20尺",
+    "strength": 3,
+    "dexterity": 13,
+    "constitution": 10,
+    "intelligence": 1,
+    "wisdom": 7,
+    "charisma": 1,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视10尺，被动察觉8",
+    "languages": "—",
+    "damageResistances": [
+      "钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "麻痹",
+      "石化",
+      "倒地",
+      "束缚",
+      "震慑",
+      "擒抱"
+    ],
+    "traits": [
+      {
+        "name": "集群Swarm",
+        "text": "集群可以进驻另一生物身处的空间位置，反之亦然。而且集群可以通过任何足够一只微型昆虫通过的通道。集群不能恢复生命值也不能获得临时生命值。"
+      },
+      {
+        "name": "甲虫集群Swarm of Beetles",
+        "text": "甲虫集群拥有5尺掘穴速度。"
+      },
+      {
+        "name": "蜈蚣集群Swarm of Centipedes",
+        "text": "蜈蚣集群的攻击使目标生物生命值降至0时，目标将保持伤势稳定但中毒1小时。恢复生命值无法让目标摆脱该中毒效应，其以该方式中毒期间同时陷入麻痹。"
+      },
+      {
+        "name": "蜘蛛集群Swarm of Spiders",
+        "text": "蜘蛛集群具有以下特质。"
+      },
+      {
+        "name": "蛛行Spider Climb",
+        "text": "昆虫集群可以在困难表面上爬行。包括倒挂在天花板上活动，且不需要进行任何技能检定。"
+      },
+      {
+        "name": "蛛网感知Web Sense",
+        "text": "触碰到网上的昆虫集群可以感受到触碰同一张网的任何生物所处的位置。"
+      },
+      {
+        "name": "蛛网行者Web Walking",
+        "text": "昆虫集群在网上移动时无视其地形限制。"
+      },
+      {
+        "name": "黄蜂群Swarm of Wasps",
+        "text": "黄蜂群拥有5尺步行速度，30尺飞行速度，且没有攀爬速度。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "",
+        "damage": "4d4",
+        "damageType": "穿刺",
+        "range": "触及0尺",
+        "properties": [],
+        "normalRange": 0,
+        "maxRange": 0,
+        "note": "或者集群生命值等于或低于一半时5（2d4）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "8886dd2f-eccc-4b3a-b046-4188059d628e",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "swarm-of-ravens",
+    "name": "渡鸦集群",
+    "nameEn": "Swarm of Ravens",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽的中型集群",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 24,
+    "hpDice": "7d8-7",
+    "speed": 10,
+    "speedNotes": "，飞行50尺",
+    "strength": 6,
+    "dexterity": 14,
+    "constitution": 8,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉15",
+    "languages": "—",
+    "damageResistances": [
+      "钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "麻痹",
+      "石化",
+      "倒地",
+      "束缚",
+      "震慑",
+      "擒抱"
+    ],
+    "traits": [
+      {
+        "name": "集群Swarm",
+        "text": "集群可以进驻另一生物身处的空间位置，反之亦然。而且集群可以通过任何足够一只微型渡鸦通过的通道。集群不能恢复生命值也不能获得临时生命值。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "喙啄",
+        "attackBonus": "+4",
+        "damage": "2d6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "8a4232ed-0f71-4316-84d3-95d88b4caa2e",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "boar",
+    "name": "野猪",
+    "nameEn": "Boar",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 11,
+    "constitution": 12,
+    "intelligence": 2,
+    "wisdom": 9,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉9",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若野猪向其目标直线移动至少20尺，且在同一回合里以牙撕攻击命中该目标，则该目标受额外3（1d6）点挥砍伤害。如果目标是生物，则该生物必须成功通过一次DC 11的力量豁免，否则应击倒地。"
+      },
+      {
+        "name": "坚韧Relentless",
+        "text": "（短休或长休后充能）野猪受到7点或更低的伤害而使其生命值降至0时，改为其生命值降至1。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "牙撕",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "8a4e43e9-be12-43c9-af9a-515bb6f9a225",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantoctopus",
+    "name": "巨章鱼",
+    "nameEn": "GiantOctopus",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 52,
+    "hpDice": "8d10+8",
+    "speed": 10,
+    "speedNotes": "，游泳60尺",
+    "strength": 17,
+    "dexterity": 13,
+    "constitution": 13,
+    "intelligence": 4,
+    "wisdom": 10,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "离水后，章鱼可以憋气1小时。"
+      },
+      {
+        "name": "水下伪装Underwater Camouflage",
+        "text": "章鱼在水下地形中进行躲藏时所作的敏捷（隐匿）检定具有优势。"
+      },
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "章鱼只能在水下呼吸。"
+      },
+      {
+        "name": "墨汁云Ink Cloud",
+        "text": "（短休或长休后充能）章鱼在水下时可以向身边20尺半径范围内释放出墨汁。随后1分钟里该区域将处于重度遮蔽，不过一阵流经该地的水流即可以驱散墨汁。释放墨汁后，该章鱼即可用一个附赠动作来执行疾走Dash动作。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "触须",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "钝击",
+        "range": "触及15尺",
+        "properties": [],
+        "normalRange": 15,
+        "maxRange": 15,
+        "note": "如果目标是一生物，则其被擒抱（逃脱DC 16）"
+      }
+    ],
+    "description": "Octopus",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "8a78daad-2cfc-4c91-a0a1-7d2fb65039f8",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "wolf",
+    "name": "狼",
+    "nameEn": "Wolf",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 12,
+    "dexterity": 15,
+    "constitution": 12,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "狼依赖听觉或嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "狼至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "2d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是生物，则目标必须进行一次DC 11的力量豁免，豁免失败则应击倒地"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "8b874d6c-2561-4ccf-b325-41318c1b0cb4",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "mammoth",
+    "name": "猛犸",
+    "nameEn": "Mammoth",
+    "cr": "6",
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 126,
+    "hpDice": "11d12+55",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 24,
+    "dexterity": 9,
+    "constitution": 21,
+    "intelligence": 3,
+    "wisdom": 11,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "践踏冲锋Trampling Charge",
+        "text": "如果象向某一生物直线移动至少20尺，且在同一回合里以顶撞攻击命中该生物，则该目标必须成功通过一次DC18的力量豁免，否则应击倒地。如果目标倒地，则象可以用一个附赠动作对其发动一次践踏攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "顶撞",
+        "attackBonus": "+10",
+        "damage": "4d8+7",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "践踏",
+        "attackBonus": "+10",
+        "damage": "4d10+7",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "栖息于亚极地到亚热带不同气候环境中的猛犸mammoth，是长着厚毛皮和长牙的象类生物"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "8eba939e-ac55-490c-984e-873d1de4a406",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-sea-horse",
+    "name": "巨海马",
+    "nameEn": "Giant Sea Horse",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 16,
+    "hpDice": "3d10",
+    "speed": 0,
+    "speedNotes": "，游泳40尺",
+    "strength": 12,
+    "dexterity": 15,
+    "constitution": 11,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若海马向其目标直线移动至少20尺，且在同一回合里以冲撞攻击命中该目标，则该目标受额外7（2d6）点钝击伤害。如果目标是生物，则该生物必须成功通过一次DC11的力量豁免，否则应击倒地。"
+      },
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "海马只能在水下呼吸。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "冲撞",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "90dea556-25f7-4ef1-83d5-c85b600511ea",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "eagle",
+    "name": "雕",
+    "nameEn": "Eagle",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 3,
+    "hpDice": "1d6",
+    "speed": 10,
+    "speedNotes": "，飞行60尺",
+    "strength": 6,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 2,
+    "wisdom": 14,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐视觉Keen Sight",
+        "text": "鹰依赖视觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "禽爪",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 1,
+    "creatureType": "beast",
+    "id": "9bac3445-ab01-4603-ad6e-f5460708e07a",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "baboon",
+    "name": "狒狒",
+    "nameEn": "Baboon",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 3,
+    "hpDice": "1d6",
+    "speed": 30,
+    "speedNotes": "，攀爬30尺",
+    "strength": 8,
+    "dexterity": 14,
+    "constitution": 11,
+    "intelligence": 4,
+    "wisdom": 12,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "狒狒至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+1",
+        "damage": "1d4-1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 1,
+    "creatureType": "beast",
+    "id": "9d8e01db-356b-418d-af49-7b9ad7d14080",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-crocodile",
+    "name": "巨鳄鱼",
+    "nameEn": "Giant Crocodile",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 85,
+    "hpDice": "9d12+27",
+    "speed": 30,
+    "speedNotes": "，游泳50尺",
+    "strength": 21,
+    "dexterity": 9,
+    "constitution": 17,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "鳄鱼可以憋气30分钟。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "鳄鱼发动两次攻击：啃咬和一次尾击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "尾击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+8",
+        "damage": "3d10+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标被擒抱（逃脱DC12）"
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+8",
+        "damage": "2d8+5",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是生物，则其必须成功通过一次DC16的力量豁免，否则将应击倒地"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "9ff7ba48-c124-4350-a456-383030a1b61b",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "swarm-of-rats",
+    "name": "鼠集群",
+    "nameEn": "Swarm of Rats",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽的中型集群",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 24,
+    "hpDice": "7d8-7",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 9,
+    "dexterity": 11,
+    "constitution": 9,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉30尺，被动察觉10",
+    "languages": "——",
+    "damageResistances": [
+      "钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "麻痹",
+      "石化",
+      "倒地",
+      "束缚",
+      "震慑",
+      "擒抱"
+    ],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "集群依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群Swarm",
+        "text": "集群可以进驻另一生物身处的空间位置，反之亦然。而且集群可以通过任何足够一只微型鼠通过的通道。集群不能恢复生命值也不能获得临时生命值。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "",
+        "damage": "2d6",
+        "damageType": "穿刺",
+        "range": "触及0尺",
+        "properties": [],
+        "normalRange": 0,
+        "maxRange": 0,
+        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "a01385a9-6ad9-48f2-87b8-a5e50a4e5a8b",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "direwolf",
+    "name": "恐狼",
+    "nameEn": "DireWolf",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 37,
+    "hpDice": "5d10+10",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 15,
+    "constitution": 15,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "狼依赖听觉或嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "狼至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是生物，则目标必须进行一次DC 13的力量豁免，豁免失败者将应击倒地"
+      }
+    ],
+    "description": "Wolf",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "a057fd36-1690-4238-94b7-0a2d980bd4e8",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-firebeetle",
+    "name": "巨火甲虫",
+    "nameEn": "Giant FireBeetle",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 4,
+    "hpDice": "1d6+1",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 8,
+    "dexterity": 10,
+    "constitution": 12,
+    "intelligence": 1,
+    "wisdom": 7,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视30尺，被动察觉8",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "照明Illumination",
+        "text": "甲虫向身边半径10尺范围散发出明亮光照，以及其外10尺的微光光照。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+1",
+        "damage": "1d6-1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "巨火甲虫giant fire"
+      }
+    ],
+    "description": "Beetle",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 1,
+    "creatureType": "beast",
+    "id": "a112a8f2-671c-4f0a-b855-9bdc24eefb0e",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "swarm-of-poisonous-snakes",
+    "name": "毒蛇集群",
+    "nameEn": "Swarm of Poisonous Snakes",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽的中型集群",
+    "alignment": "无阵营",
+    "ac": 14,
+    "acNote": "14",
+    "maxHp": 36,
+    "hpDice": "8d8",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 8,
+    "dexterity": 18,
+    "constitution": 11,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视10尺，被动察觉10",
+    "languages": "—",
+    "damageResistances": [
+      "钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "麻痹",
+      "石化",
+      "倒地",
+      "束缚",
+      "震慑",
+      "擒抱"
+    ],
+    "traits": [
+      {
+        "name": "集群Swarm",
+        "text": "集群可以进驻另一生物身处的空间位置，反之亦然。而且集群可以通过任何足够一条微型蛇通过的通道。集群不能恢复生命值也不能获得临时生命值。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "",
+        "damage": "2d6",
+        "damageType": "穿刺",
+        "range": "触及0尺",
+        "properties": [],
+        "normalRange": 0,
+        "maxRange": 0,
+        "note": "或者集群生命值等于或低于一半时3（1d6）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "a21b9885-e96f-451f-8a81-a0de09528ad6",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "rhinoceros",
+    "name": "犀牛",
+    "nameEn": "Rhinoceros",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 45,
+    "hpDice": "6d10+12",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 21,
+    "dexterity": 8,
+    "constitution": 15,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若犀牛向其目标直线移动至少20尺，且在同一回合里以顶撞攻击命中该目标，则该目标受额外9（2d8）点钝击伤害。如果目标是生物，则该生物必须成功通过一次DC15的力量豁免，否则应击倒地。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "顶撞",
+        "attackBonus": "+7",
+        "damage": "2d8+5",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "a38ea7d7-78b3-4dc8-8041-09f0be98dc5d",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "warhorse",
+    "name": "战马",
+    "nameEn": "Warhorse",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 19,
+    "hpDice": "3d10+3",
+    "speed": 60,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 12,
+    "constitution": 13,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "践踏冲锋Trampling Charge",
+        "text": "如果马向某一生物直线移动至少20尺，且在同一回合里以蹄击命中该生物，则该目标必须成功通过一次DC14的力量豁免，否则应击倒地。如果目标倒地，则马可以用一个附赠动作对其发动一次蹄击攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+6",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "变体：战马护甲Variant: WarhorseArmor"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "a960bbe1-7df2-4447-8d50-cf6fea204f88",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "mule",
+    "name": "骡子",
+    "nameEn": "Mule",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 14,
+    "dexterity": 10,
+    "constitution": 13,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "驮兽Beast of Burden",
+        "text": "在决定骡子的负重能力时，骡子被视为大一级体型的生物。"
+      },
+      {
+        "name": "稳步Sure-Footed",
+        "text": "骡子抵抗应击倒地效应所进行的力量和敏捷豁免具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+2",
+        "damage": "1d4+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "aa2cd662-f237-45b3-85e4-49f753809674",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "gianthyena",
+    "name": "巨鬣狗",
+    "nameEn": "GiantHyena",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 45,
+    "hpDice": "6d10+12",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 14,
+    "constitution": 14,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "横行Rampage",
+        "text": "鬣狗在其自己回合以一次近战攻击使某生物生命值降至0时，该鬣狗可以执行一个附赠动作以移动至多等同于其速度一半的距离并发动一次啃咬攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "description": "Hyena",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "aaa99f87-65ff-4199-a403-d630581a71f3",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantlizard",
+    "name": "巨蜥",
+    "nameEn": "GiantLizard",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 19,
+    "hpDice": "3d10+3",
+    "speed": 30,
+    "speedNotes": "，攀爬30尺",
+    "strength": 15,
+    "dexterity": 12,
+    "constitution": 13,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉30尺，被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "蜥蜴可以憋气15分钟。（拥有该特质的蜥蜴同时还具有30尺的游泳速度。）"
+      },
+      {
+        "name": "蛛行Spider Climb",
+        "text": "蜥蜴可以攀爬在难以攀爬的表面上，包括倒吊在天花板上，且不需要进行属性检定。巨蜥giantlizard可以用作骑乘或驼役动物。蜥人一族驯养它们作自己的宠物，而卓尔、灰矮人和其他幽暗地域的居民们则会将地下世界的巨蜥用作坐骑和牲畜。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "变体：巨蜥特质Variant: Giant Lizard Traits一些巨蜥具有以下一项或全部两项特质"
+      }
+    ],
+    "description": "Lizard",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "aea5e731-76c2-46fa-a19f-acb13e79cedc",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "cat",
+    "name": "猫",
+    "nameEn": "Cat",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 2,
+    "hpDice": "1d4",
+    "speed": 40,
+    "speedNotes": "，攀爬30尺",
+    "strength": 3,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "猫依赖嗅觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+0",
+        "damage": "1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "b17ac3d8-8aa6-4ef2-9bd2-fc75cbf092eb",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "camel",
+    "name": "骆驼",
+    "nameEn": "Camel",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 9,
+    "acNote": "9",
+    "maxHp": 15,
+    "hpDice": "2d10+4",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 8,
+    "constitution": 14,
+    "intelligence": 2,
+    "wisdom": 8,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉9",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "b22ef7a9-7789-43c3-afee-74469618dda8",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantvulture",
+    "name": "巨秃鹫",
+    "nameEn": "GiantVulture",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "中立邪恶",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 22,
+    "hpDice": "3d10+6",
+    "speed": 10,
+    "speedNotes": "，飞行60尺",
+    "strength": 15,
+    "dexterity": 10,
+    "constitution": 15,
+    "intelligence": 6,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "懂通用语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐视嗅觉Keen Sight and Smell",
+        "text": "秃鹫依赖视觉或嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "秃鹫至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "秃鹫发动两次攻击：一次喙啄和一次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "喙啄"
+      },
+      {
+        "count": 1,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "喙啄",
+        "attackBonus": "+4",
+        "damage": "2d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "禽爪",
+        "attackBonus": "+4",
+        "damage": "2d6+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "巨秃鹰giant"
+      }
+    ],
+    "description": "Vulture",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "baffb2ee-e4a4-4195-8ec9-da699b8e3825",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-constrictor-snake",
+    "name": "巨蟒",
+    "nameEn": "Giant Constrictor Snake",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 60,
+    "hpDice": "8d12+8",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 19,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "盲视10尺，被动察觉12",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "2d6+4",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "绞缠",
+        "attackBonus": "+6",
+        "damage": "2d8+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标被擒抱（逃脱DC16）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "bb34f003-045c-4c41-9e82-85830d769243",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-scorpion",
+    "name": "巨蝎",
+    "nameEn": "Giant Scorpion",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 52,
+    "hpDice": "7d10+14",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 13,
+    "constitution": 15,
+    "intelligence": 1,
+    "wisdom": 9,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视60尺，被动察觉9",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "蝎子发动三次攻击：两次爪击和一次钉刺。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "爪击"
+      },
+      {
+        "count": 1,
+        "name": "钉刺"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标被擒抱（逃脱DC12）"
+      },
+      {
+        "name": "钉刺",
+        "attackBonus": "+4",
+        "damage": "1d10+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标必须成功通过一次DC12的体质豁免，否则将受到22（4d10）点毒素伤害，豁免成功则伤害减半"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "bddce92d-f418-4dac-a09f-bc27f6fa11de",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-crab",
+    "name": "巨蟹",
+    "nameEn": "Giant Crab",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 13,
+    "hpDice": "3d8",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 13,
+    "dexterity": 15,
+    "constitution": 11,
+    "intelligence": 1,
+    "wisdom": 9,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "盲视30尺，被动察觉9",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "蟹可以在空气和水中呼吸。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标被擒抱（逃脱DC11）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "c27f4ae3-68c2-4252-80db-188d686b46d5",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "allosaurus",
+    "name": "异特龙",
+    "nameEn": "Allosaurus",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 51,
+    "hpDice": "6d10+18",
+    "speed": 60,
+    "speedNotes": "",
+    "strength": 19,
+    "dexterity": 13,
+    "constitution": 17,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉15",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "猛扑Pounce",
+        "text": "若异特龙向目标直线移动至少30尺，然后在同一回合对其发动爪击攻击且命中该目标，则目标必须进行一次DC13的力量豁免，豁免失败者将应击倒地。如果目标陷入倒地，则该异特龙可以用一个附赠动作对目标发动一次啃咬攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "2d10+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+6",
+        "damage": "1d8+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "c2e0c9e4-f1c3-485a-be9d-a44717ebff69",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "panther",
+    "name": "豹",
+    "nameEn": "Panther",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 13,
+    "hpDice": "3d8",
+    "speed": 50,
+    "speedNotes": "，攀爬40尺",
+    "strength": 14,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 3,
+    "wisdom": 14,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "豹依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "猛扑Pounce",
+        "text": "若豹向目标直线移动至少20尺，然后在同一回合对其发动爪击攻击且命中该目标，则目标必须进行一次DC 12的力量豁免，豁免失败者将应击倒地。如果目标陷入倒地，则该豹可以用一个附赠动作对目标发动一次啃咬攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "c6d1efa0-befa-4c9a-a832-ab8a2483d448",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "jackal",
+    "name": "豺狗",
+    "nameEn": "Jackal",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 3,
+    "hpDice": "1d6",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 8,
+    "dexterity": 15,
+    "constitution": 11,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "豺狗依赖听觉或嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "豺狗至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+1",
+        "damage": "1d4-1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 1,
+    "creatureType": "beast",
+    "id": "c73555ae-e9e8-4771-8e1b-af19bb90d6a2",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantowl",
+    "name": "巨猫头鹰",
+    "nameEn": "GiantOwl",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 19,
+    "hpDice": "3d10+3",
+    "speed": 5,
+    "speedNotes": "，飞行60尺",
+    "strength": 13,
+    "dexterity": 15,
+    "constitution": 12,
+    "intelligence": 8,
+    "wisdom": 13,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉15",
+    "languages": "巨猫头鹰语，懂通用语、精灵语和木族语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "飞掠Flyby",
+        "text": "猫头鹰飞出敌人的触及范围时不会引起借机攻击。"
+      },
+      {
+        "name": "敏锐视听觉Keen Hearing and Sight",
+        "text": "猫头鹰依赖视觉和听觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "禽爪",
+        "attackBonus": "+3",
+        "damage": "2d6+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "巨猫头鹰giantowls通常会是妖精和其他木族生物的朋友，而且还会充当其林地领域的警卫"
+      }
+    ],
+    "description": "Owl",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "c86e42fe-f846-47a1-9780-f667783418b7",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "constrictorsnake",
+    "name": "蟒蛇",
+    "nameEn": "ConstrictorSnake",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 13,
+    "hpDice": "2d10+2",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 15,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视10尺，被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "绞缠",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标被擒抱（逃脱 DC 14）"
+      }
+    ],
+    "description": "Snake",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "cc28afbf-0989-4cb6-86d0-06295ee51600",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "goat",
+    "name": "山羊",
+    "nameEn": "Goat",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 4,
+    "hpDice": "1d8",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 12,
+    "dexterity": 10,
+    "constitution": 11,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若山羊向其目标直线移动至少20尺，且在同一回合里以冲撞攻击命中该目标，则该目标受额外2（1d4）点钝击伤害。如果目标是生物，则该生物必须成功通过一次DC 10的力量豁免，否则应击倒地。"
+      },
+      {
+        "name": "稳步Sure-Footed",
+        "text": "山羊抵抗应击倒地效应所进行的力量和敏捷豁免具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "冲撞",
+        "attackBonus": "+3",
+        "damage": "1d4+1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "ce2f6e4b-66aa-4dd1-8a70-1aea468a8fca",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "mastiff",
+    "name": "獒犬",
+    "nameEn": "Mastiff",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 5,
+    "hpDice": "1d8+1",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "獒犬依赖听觉或嗅觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是生物，则其必须进行一次DC11的力量豁免，豁免失败则应击倒地"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "d0389e33-665a-41ec-ba20-ecb4795f1c6e",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "octopus",
+    "name": "章鱼",
+    "nameEn": "Octopus",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 3,
+    "hpDice": "1d6",
+    "speed": 5,
+    "speedNotes": "，游泳30尺",
+    "strength": 4,
+    "dexterity": 15,
+    "constitution": 11,
+    "intelligence": 3,
+    "wisdom": 10,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉30尺，被动察觉12",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "离水后，章鱼可以憋气1小时。"
+      },
+      {
+        "name": "水下伪装Underwater Camouflage",
+        "text": "章鱼在水下地形中进行躲藏时所作的敏捷（隐匿）检定具有优势。"
+      },
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "章鱼只能在水下呼吸。"
+      },
+      {
+        "name": "墨汁云Ink Cloud",
+        "text": "（短休或长休后充能）章鱼在水下时可以向身边5尺半径范围内释放出墨汁。随后1分钟里该区域将处于重度遮蔽，不过一阵流经该地的水流即可以驱散墨汁。释放墨汁后，该章鱼即可用一个附赠动作来执行疾走Dash动作。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "触须",
+        "attackBonus": "+4",
+        "damage": "1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且目标其被擒抱（逃脱DC 10）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 1,
+    "creatureType": "beast",
+    "id": "d09679bc-361d-4a85-8363-2207722d754c",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantfrog",
+    "name": "巨蛙",
+    "nameEn": "GiantFrog",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 18,
+    "hpDice": "4d8",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 12,
+    "dexterity": 13,
+    "constitution": 11,
+    "intelligence": 2,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 3
+      }
+    ],
+    "senses": "黑暗视觉30尺，被动察觉12",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "青蛙可以在空气和水中呼吸。"
+      },
+      {
+        "name": "立定起跳Standing Leap",
+        "text": "青蛙不需要助跑就可以跳20尺远、10尺高，且视为移动的一部分。"
+      },
+      {
+        "name": "吞咽Swallow",
+        "text": "青蛙对正被它擒抱的小型或更小体型生物发动一次啃咬攻击。若该攻击命中，则目标被吞下并结束其受擒状态。被吞下的目标陷入目盲且被束缚，其对于青蛙身体外的攻击或效应视为处于全身掩护，并在每次该青蛙的回合开始时受5（2d4）点强酸伤害。青蛙不能同时吞咽多于一个的生物。如果该青蛙死亡，则被吞下的生物将不再受束缚，且可以消耗5尺移动力逃出，然后在尸体旁现身并陷入倒地状态。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标被擒抱（逃脱DC 11）"
+      }
+    ],
+    "description": "Frog",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "d0e24f1a-b9a6-4656-89d8-7494f3867cb6",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "plesiosaurus",
+    "name": "蛇颈龙",
+    "nameEn": "Plesiosaurus",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 68,
+    "hpDice": "8d10+24",
+    "speed": 20,
+    "speedNotes": "，游泳40尺",
+    "strength": 18,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "蛇颈龙可以憋气1小时。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "3d6+4",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "d124cb0a-8ada-4a2d-85ea-af0d4987630a",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "giant-goat",
+    "name": "巨山羊",
+    "nameEn": "Giant Goat",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 19,
+    "hpDice": "3d10+3",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 11,
+    "constitution": 12,
+    "intelligence": 3,
+    "wisdom": 12,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若山羊向其目标直线移动至少20尺，且在同一回合里以冲撞攻击命中该目标，则该目标受额外5（2d4）点钝击伤害。如果目标是生物，则该生物必须成功通过一次DC13的力量豁免，否则应击倒地。"
+      },
+      {
+        "name": "稳步Sure-Footed",
+        "text": "山羊抵抗应击倒地效应所进行的力量和敏捷豁免具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "冲撞",
+        "attackBonus": "+5",
+        "damage": "2d4+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "d726f242-db37-4f03-8565-29c7800658f8",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantbadger",
+    "name": "巨獾",
+    "nameEn": "GiantBadger",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 13,
+    "hpDice": "2d8+4",
+    "speed": 30,
+    "speedNotes": "，掘穴10尺",
+    "strength": 13,
+    "dexterity": 10,
+    "constitution": 15,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉30尺，被动察觉11",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "獾依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "獾发动两次攻击：一次啃咬一次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬一次爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+3",
+        "damage": "2d4+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "description": "Badger",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "d815ef5d-b6ef-4751-a8e5-b96441f2f51f",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "giantspider",
+    "name": "巨蜘蛛",
+    "nameEn": "GiantSpider",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 26,
+    "hpDice": "4d10+4",
+    "speed": 30,
+    "speedNotes": "，攀爬30尺",
+    "strength": 14,
+    "dexterity": 16,
+    "constitution": 12,
+    "intelligence": 2,
+    "wisdom": 11,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 7
+      }
+    ],
+    "senses": "盲视10尺，黑暗视觉60尺，被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "蛛行Spider Climb",
+        "text": "蜘蛛可以攀爬在难以攀爬的表面上，包括倒吊在天花板上，且不需要进行属性检定。"
+      },
+      {
+        "name": "蛛网感知Web Sense",
+        "text": "与蛛网接触时，蜘蛛可以知晓其他与该蛛网接触生物的准确位置。"
+      },
+      {
+        "name": "蛛网行者Web Walker",
+        "text": "蜘蛛在蛛网上移动时无视蛛网造成的移动限制。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d8+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC 11的体质豁免，豁免失败则受到9（2d8）点毒素伤害，豁免成功则伤害减半"
+      },
+      {
+        "name": "蛛网",
+        "attackBonus": "+5",
+        "damage": "",
+        "damageType": "",
+        "range": "射程30/60尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 60,
+        "note": "目标受蛛网束缚"
+      }
+    ],
+    "description": "Spider",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "d95c8a93-6239-4a6f-a359-c4394a520b68",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "triceratops",
+    "name": "三角龙",
+    "nameEn": "Triceratops",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 95,
+    "hpDice": "10d12+30",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 22,
+    "dexterity": 9,
+    "constitution": 17,
+    "intelligence": 2,
+    "wisdom": 11,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "践踏冲锋Trampling Charge",
+        "text": "若三角龙向某一生物直线移动至少20尺，且在同一回合里以顶撞攻击命中该生物，则该目标必须成功通过一次DC13的力量豁免，否则应击倒地。如果目标倒地，则三角龙可以用一个附赠动作对其发动一次践踏攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "顶撞",
+        "attackBonus": "+9",
+        "damage": "4d8+6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "践踏",
+        "attackBonus": "+9",
+        "damage": "3d10+6",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "df73fa75-629f-4c31-a8cc-4d1873a1905a",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "hyena",
+    "name": "鬣狗",
+    "nameEn": "Hyena",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 5,
+    "hpDice": "1d8+1",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 13,
+    "constitution": 12,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "鬣狗至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+2",
+        "damage": "1d6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "df8a216d-6884-4bef-baf4-254c87db2737",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "hunter-shark",
+    "name": "寻猎鲨",
+    "nameEn": "Hunter Shark",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 45,
+    "hpDice": "6d10+12",
+    "speed": 0,
+    "speedNotes": "，游泳40尺",
+    "strength": 18,
+    "dexterity": 13,
+    "constitution": 15,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "盲视30尺，被动察觉12",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "嗜血狂怒Blood Frenzy",
+        "text": "鲨鱼对生命值没有全满的生物发动近战攻击时，其攻击检定具有优势。"
+      },
+      {
+        "name": "水下呼吸Water Breathing",
+        "text": "鲨鱼只能在水下呼吸。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "2d8+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "e197f8e8-d4a9-408b-86cf-d652528266db",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "bat",
+    "name": "蝙蝠",
+    "nameEn": "Bat",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 5,
+    "speedNotes": "，飞行30尺",
+    "strength": 2,
+    "dexterity": 15,
+    "constitution": 8,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视60尺，被动察觉11",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "回声定位Echolocation",
+        "text": "蝙蝠陷入耳聋时无法使用盲视。"
+      },
+      {
+        "name": "敏锐听觉Keen Hearing",
+        "text": "蝙蝠依赖听觉进行的感知（察觉）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+0",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "e3c761df-7a25-40b0-b54b-bddbfee41cd9",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "poisonous-snake",
+    "name": "毒蛇",
+    "nameEn": "Poisonous Snake",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 2,
+    "hpDice": "1d4",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 2,
+    "dexterity": 16,
+    "constitution": 11,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "盲视10尺，被动察觉10",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC10的体质豁免，豁免失败则受到5（2d4）点毒素伤害，豁免成功则伤害减半"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "e409b66d-c4bd-4d5f-8add-3db0c1aa1864",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "stirge",
+    "name": "蚊蝠",
+    "nameEn": "Stirge",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 2,
+    "hpDice": "1d4",
+    "speed": 10,
+    "speedNotes": "，飞行40尺",
+    "strength": 4,
+    "dexterity": 16,
+    "constitution": 11,
+    "intelligence": 2,
+    "wisdom": 8,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "吸取血液",
+        "attackBonus": "+5",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "且蚊蝠贴在目标身上"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "e59017e3-9b5b-420b-ba07-9fe52c2bacf7",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "black-bear",
+    "name": "黑熊",
+    "nameEn": "Black Bear",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 19,
+    "hpDice": "3d8+6",
+    "speed": 40,
+    "speedNotes": "，攀爬30尺",
+    "strength": 15,
+    "dexterity": 10,
+    "constitution": 14,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "熊依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "熊发动两次攻击，一次是啃咬，一次是爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "是啃咬"
+      },
+      {
+        "count": 1,
+        "name": "是爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "2d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 2,
+    "creatureType": "beast",
+    "id": "e68a23cf-a30a-4c82-a9de-2effac65369f",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "spider",
+    "name": "蜘蛛",
+    "nameEn": "Spider",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 1,
+    "hpDice": "1d4-1",
+    "speed": 20,
+    "speedNotes": "，攀爬20尺",
+    "strength": 2,
+    "dexterity": 14,
+    "constitution": 8,
+    "intelligence": 1,
+    "wisdom": 10,
+    "charisma": 2,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉30尺，被动察觉10",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "蛛行Spider Climb",
+        "text": "蜘蛛可以攀爬在难以攀爬的表面上，包括倒吊在天花板上，且不需要进行属性检定。"
+      },
+      {
+        "name": "蛛网感知Web Sense",
+        "text": "与蛛网接触时，蜘蛛可以知晓其他与该蛛网接触生物的准确位置。"
+      },
+      {
+        "name": "蛛网行者Web Walker",
+        "text": "蜘蛛在蛛网上移动时无视蛛网造成的移动限制。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC 9的体质豁免，豁免失败则受到2（1d4）点毒素伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 0,
+    "creatureType": "beast",
+    "id": "e859b77f-a40e-47e2-ae99-64ad55621156",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "ankylosaurus",
+    "name": "甲龙",
+    "nameEn": "Ankylosaurus",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 68,
+    "hpDice": "8d12+16",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 19,
+    "dexterity": 11,
+    "constitution": 15,
+    "intelligence": 2,
+    "wisdom": 12,
+    "charisma": 5,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉11",
+    "languages": "———",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "尾击",
+        "attackBonus": "+7",
+        "damage": "4d6+4",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是一个生物，则目标必须进行一次DC14的力量豁免，豁免失败则应击倒地"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 4,
+    "creatureType": "beast",
+    "id": "f01f545d-1ac4-43b4-9d13-46f934843b33",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "polar-bear",
+    "name": "白熊",
+    "nameEn": "Polar Bear",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "野兽",
+    "alignment": "无阵营",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 42,
+    "hpDice": "5d10+15",
+    "speed": 40,
+    "speedNotes": "，游泳30尺",
+    "strength": 20,
+    "dexterity": 10,
+    "constitution": 16,
+    "intelligence": 2,
+    "wisdom": 13,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "——",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "熊依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "白熊发动两次攻击：一次啃咬和一次爪击。"
+      },
+      {
+        "name": "自然界的熊也会有在地底世界生活的种类",
+        "text": "它们以地衣和盲鱼为食，长着乌黑的毛发，而且脾气暴躁。除了具有跟白熊一样的生物资料外，穴熊还拥有60尺黑暗视觉感官。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+7",
+        "damage": "1d8+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d6+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "变体：穴居熊Variant: Cave Bear"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "野兽",
+    "creatureSize": 3,
+    "creatureType": "beast",
+    "id": "fec23996-c6ee-46a1-a5ba-adb85e2cfdd3",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  }
+]
