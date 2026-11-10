@@ -96,17 +96,21 @@ export async function loadSeed<T = unknown>(kind: SeedKind): Promise<T[]> {
     // ignore
   }
 
-  if (cached && cachedVersion === idx.version) return cached;
+  // 空缓存视为无效：版本号一致但条目为空说明上次分片拉取失败后被误写入，
+  // 合法种子库不会为空（meta.count > 0），强制重新拉取以自愈。
+  const usableCached = cached && cached.length > 0 ? cached : null;
+  if (usableCached && cachedVersion === idx.version) return usableCached;
   if (inflight.has(kind)) return inflight.get(kind) as Promise<T[]>;
 
   const task = Promise.all(
     meta.shards.map((shard) =>
-      fetch(encodeURI(encodeSeedPath(shard.path)))
+      // encodeSeedPath 已逐段 percent-encode，不能再套 encodeURI（会把 % 二次编码成 %25 导致全部 404）
+      fetch(encodeSeedPath(shard.path))
         .then((res) => (res.ok ? (res.json() as Promise<T[]>) : []))
-        .then((items) => ({ path: shard.path, items }))
+        .then((items) => ({ path: shard.path, items, ok: true }))
         .catch((err) => {
           console.warn(`[seedLoader] 分片加载失败 ${shard.path}:`, err);
-          return { path: shard.path, items: [] as T[] };
+          return { path: shard.path, items: [] as T[], ok: false };
         })
     )
   )
@@ -121,14 +125,23 @@ export async function loadSeed<T = unknown>(kind: SeedKind): Promise<T[]> {
           if (item?.templateId) sourceMap[String(item.templateId)] = p;
         }
       }
+      // 任一非空分片拉取失败时不落版本号，下次调用重试；避免失败结果被当成最新缓存固化
+      const allOk = parts.every((p) => p.ok);
+      const emptyButExpected = merged.length === 0 && meta.count > 0;
+      const canPersist = allOk && !emptyButExpected;
+
       memoryCache.set(kind, merged);
       sourceCache.set(kind, sourceMap);
-      try {
-        localStorage.setItem(DATA_KEY(kind), JSON.stringify(merged));
-        localStorage.setItem(SOURCE_KEY(kind), JSON.stringify(sourceMap));
-        localStorage.setItem(VERSION_KEY(kind), idx.version);
-      } catch (e) {
-        console.warn('[seedLoader] 种子写入 localStorage 失败:', e);
+      if (canPersist) {
+        try {
+          localStorage.setItem(DATA_KEY(kind), JSON.stringify(merged));
+          localStorage.setItem(SOURCE_KEY(kind), JSON.stringify(sourceMap));
+          localStorage.setItem(VERSION_KEY(kind), idx.version);
+        } catch (e) {
+          console.warn('[seedLoader] 种子写入 localStorage 失败:', e);
+        }
+      } else {
+        console.warn(`[seedLoader] ${kind} 种子分片未全部成功（${parts.filter((p) => !p.ok).length} 个失败），不写缓存，稍后重试`);
       }
       notifySeed();
       return merged;
