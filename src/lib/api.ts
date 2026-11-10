@@ -374,6 +374,24 @@ export async function resetUserPassword<T = any>(id: string, password: string): 
   });
 }
 
+export type PurgeKind = 'equipments' | 'monsters' | 'options' | 'all';
+
+/** 预览云端出版物行计数（不删除） */
+export async function previewPublicationPurge<T = any>(kind: PurgeKind = 'all'): Promise<T> {
+  return apiFetch<T>(`/admin/purge-publications?kind=${encodeURIComponent(kind)}`, {
+    headers: adminAuthHeaders(),
+  });
+}
+
+/** 清理云端出版物行（campaign_id IS NULL），需 confirm:true 防误触 */
+export async function purgePublications<T = any>(kind: PurgeKind = 'all'): Promise<T> {
+  return apiFetch<T>('/admin/purge-publications', {
+    method: 'POST',
+    headers: adminAuthHeaders(),
+    body: JSON.stringify({ kind, confirm: true }),
+  });
+}
+
 /** 账号绑定的角色卡（name 为 null 表示角色已被删除的悬空绑定） */
 export interface BoundCharacter {
   id: string;

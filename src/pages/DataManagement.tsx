@@ -1,8 +1,8 @@
 // src/pages/DataManagement.tsx
 import React, { useState } from 'react';
-import { ArrowLeft, Download, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Terminal } from 'lucide-react';
+import { ArrowLeft, Download, CheckCircle, AlertCircle, ChevronDown, ChevronRight, Terminal, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { createEquipment, updateEquipment, fetchAllEquipments, batchUpsertEquipments, exportAllEquipments, exportAllNpcTemplates, exportAllOptions } from '@/lib/api';
+import { createEquipment, updateEquipment, fetchAllEquipments, batchUpsertEquipments, exportAllEquipments, exportAllNpcTemplates, exportAllOptions, previewPublicationPurge, purgePublications } from '@/lib/api';
 import npcTemplateStore from '@/data/npcTemplateStore';
 
 const CATEGORIES = [
@@ -121,6 +121,47 @@ const [spellTableSaveResult, setSpellTableSaveResult] = useState<{ success: bool
     options: number;
   } | null>(null);
   const [seedExportError, setSeedExportError] = useState('');
+
+  // ---- 清理云端出版物行状态 ----
+  const [purgePreviewing, setPurgePreviewing] = useState(false);
+  const [purgeBusy, setPurgeBusy] = useState(false);
+  const [purgeCounts, setPurgeCounts] = useState<{ equipments?: number; monsters?: number; options?: number } | null>(null);
+  const [purgeResult, setPurgeResult] = useState('');
+  const [purgeError, setPurgeError] = useState('');
+  const [purgeConfirm, setPurgeConfirm] = useState(false);
+
+  const handlePurgePreview = async () => {
+    setPurgePreviewing(true);
+    setPurgeError('');
+    setPurgeResult('');
+    try {
+      const res: any = await previewPublicationPurge('all');
+      setPurgeCounts(res?.counts ?? null);
+    } catch (e: any) {
+      setPurgeError(e?.message || String(e));
+    } finally {
+      setPurgePreviewing(false);
+    }
+  };
+
+  const handlePurge = async () => {
+    setPurgeBusy(true);
+    setPurgeError('');
+    setPurgeResult('');
+    try {
+      const res: any = await purgePublications('all');
+      const d = res?.deleted ?? {};
+      setPurgeResult(
+        `已清理：装备 ${d.equipments ?? 0} 条 / 怪物 ${d.monsters ?? 0} 条 / 选项 ${d.options ?? 0} 条`
+      );
+      setPurgeConfirm(false);
+      setPurgeCounts(null);
+    } catch (e: any) {
+      setPurgeError(e?.message || String(e));
+    } finally {
+      setPurgeBusy(false);
+    }
+  };
 
   // 导出三宝书全量快照：?scope=all 取出版物 + 私有，产物是 scripts/build-seed.mjs 的输入。
   // kind 为空导出合并单文件；指定 kind 只导出该库，便于分库处理大数据量（怪物库 1.1MB）。
@@ -682,6 +723,68 @@ const saveSpellTable = async () => {
             {seedExportResult.options > 0 && `选项 ${seedExportResult.options} 条`}
           </p>
         )}
+      </section>
+
+      {/* ====== 区域零之二：清理云端出版物行 ====== */}
+      <section className="rounded-lg border border-danger/40 dark:border-danger/40 light:border-danger/40 p-4">
+        <h2 className="text-base font-bold mb-2 text-danger flex items-center gap-1.5">
+          <Trash2 className="w-4 h-4" /> 清理云端出版物行
+        </h2>
+        <div className="text-xs mb-3 space-y-1 leading-relaxed text-danger/90">
+          <p className="font-medium">
+            危险操作：将从 D1 删除所有 campaign_id IS NULL 的装备 / 怪物 / 选项行（出版物全量）。
+          </p>
+          <p className="opacity-80">
+            前提：种子已生成并发布到 public/seed/ 且已上线。否则清理后图鉴会空窗。
+            顺序必须为「导出快照 → 生成种子 → 提交发布 → 再清理」。清理幂等，重复执行删除 0 行。
+          </p>
+          <p className="opacity-80">
+            仅删除出版物行；团组私有覆盖行、墓碑行、自建条目（campaign_id 非空）不受影响。
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={handlePurgePreview}
+            disabled={purgePreviewing || purgeBusy}
+            className="px-3 py-1.5 rounded-lg border text-sm font-medium hover:opacity-90 disabled:opacity-50 dark:border-border-dark light:border-border-light"
+          >
+            {purgePreviewing ? '统计中...' : '预览待清理条数'}
+          </button>
+          {purgeCounts && (
+            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+              待清理：装备 {purgeCounts.equipments ?? 0} / 怪物 {purgeCounts.monsters ?? 0} / 选项 {purgeCounts.options ?? 0}
+            </span>
+          )}
+        </div>
+        {purgeCounts && !purgeConfirm && (
+          <button
+            onClick={() => setPurgeConfirm(true)}
+            className="mt-2 px-3 py-1.5 rounded-lg bg-danger text-white text-sm font-medium hover:opacity-90"
+          >
+            确认清理出版物行
+          </button>
+        )}
+        {purgeConfirm && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-xs text-danger">此操作不可撤销，确定删除？</span>
+            <button
+              onClick={handlePurge}
+              disabled={purgeBusy}
+              className="px-3 py-1.5 rounded-lg bg-danger text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {purgeBusy ? '清理中...' : '确定删除'}
+            </button>
+            <button
+              onClick={() => setPurgeConfirm(false)}
+              disabled={purgeBusy}
+              className="px-3 py-1.5 rounded-lg border text-sm font-medium dark:border-border-dark light:border-border-light"
+            >
+              取消
+            </button>
+          </div>
+        )}
+        {purgeError && <p className="text-xs text-danger mt-2">清理失败：{purgeError}</p>}
+        {purgeResult && <p className="text-xs text-success mt-2">{purgeResult}</p>}
       </section>
 
       {/* ====== 区域一：从 5E 不全书导入 ====== */}
