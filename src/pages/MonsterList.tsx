@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useEditorState } from '@/data/editorState';
-import { Search, Plus, Edit2, Trash2, GripVertical } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, GripVertical, ExternalLink } from 'lucide-react';
 import {
   CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS,
   CR_FILTER_VALUES, normalizeCr, crToNumber,
@@ -13,6 +13,7 @@ import type { NpcTemplate } from '@/types/combat';
 import MonsterCard from '@/components/MonsterCard';
 import MonsterEditor from '@/components/MonsterEditor';
 import npcTemplateStore from '@/data/npcTemplateStore';
+import { getSeedEditUrl } from '@/lib/seedGitHub';
 
 // 筛选状态持久化 key
 const STORAGE_KEY_SEARCH = 'monsterList.search';
@@ -350,10 +351,28 @@ export default function MonsterList() {
                   <td className="px-4 py-3 text-center text-sm dark:text-text-dark light:text-text-light">{template.attacks.length}</td>
                   {isAdmin && (
                     <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => handleEdit(template)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>
-                        <button onClick={() => setDeleteConfirm(template.id)} className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
-                      </div>
+                      {npcTemplateStore.isSeedItem(template.id) ? (
+                        getSeedEditUrl('monsters', template.id) ? (
+                          <div className="flex items-center justify-end">
+                            <a
+                              href={getSeedEditUrl('monsters', template.id)!}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded text-[11px] border dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:border-primary hover:text-primary"
+                              title="种子条目只读，点击在 GitHub 编辑源文件"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" /> GitHub
+                            </a>
+                          </div>
+                        ) : (
+                          <div className="text-right text-[11px] dark:text-text-dark-muted light:text-text-light-muted">种子 · 只读</div>
+                        )
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => handleEdit(template)} className="p-1.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted hover:text-primary" title="编辑"><Edit2 className="w-4 h-4" /></button>
+                          <button onClick={() => setDeleteConfirm(template.id)} className="p-1.5 rounded hover:bg-danger/20 dark:text-text-dark-muted light:text-text-light-muted hover:text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
+                        </div>
+                      )}
                     </td>
                   )}
                 </tr>

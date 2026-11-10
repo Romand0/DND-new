@@ -65,6 +65,11 @@ export const equipmentStore = {
     return merged().find((e) => e.name === name);
   },
 
+  // 是否为纯种子条目（UI 据此隐藏编辑/删除，仅管理员显示「在 GitHub 编辑」）
+  isSeedItem(id: string): boolean {
+    return (getCachedSeed<EquipmentItem>('equipments') ?? []).some((s) => s.id === id);
+  },
+
   // 保存合并后全量（服务端只应收到覆盖/墓碑/自建行——由 saveItem 派生保证）
   save(equipments: EquipmentItem[]): void {
     saveCloud(equipments);
