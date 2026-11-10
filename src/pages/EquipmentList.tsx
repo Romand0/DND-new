@@ -9,7 +9,7 @@ import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { equipmentStore } from '@/data/equipmentStore';
 import { getSeedEditUrl } from '@/lib/seedGitHub';
-import { isScrollEquipmentItem, loadScrollCatalog } from '@/data/spellScrolls';
+import { isSpellScrollTemplate } from '@/data/spellScrolls';
 
 const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 const MAGIC_CATEGORIES = ['魔法物品', '非魔法物品'];
@@ -98,13 +98,10 @@ export default function EquipmentList() {
       setEquipments([...equipmentStore.getAll()]);
     } catch { /* 本地缓存异常时继续走云端 */ }
     setLoading(false);
-    // 预热种子 + 云端校准（卷轴为虚拟条目，来自法术库，统一合并展示）
+    // 预热种子 + 云端校准（法术卷轴不再按法术库全量投影，改为泛条目生成器）
     try {
-      const [mergedList, scrolls] = await Promise.all([
-        equipmentStore.fetchAll(),
-        loadScrollCatalog().catch(() => [] as EquipmentItem[]),
-      ]);
-      setEquipments([...mergedList, ...scrolls]);
+      const mergedList = await equipmentStore.fetchAll();
+      setEquipments([...mergedList]);
     } catch (e: any) {
       setError(e.message || '加载失败');
     }
@@ -276,7 +273,7 @@ export default function EquipmentList() {
   };
 
   const handleEdit = (item: EquipmentItem) => {
-    if (!isAdmin || isScrollEquipmentItem(item)) return;
+    if (!isAdmin || item.scrollSpellId) return;
     setEditingItem(item);
     setEditorOpen(true);
   };
@@ -416,8 +413,8 @@ export default function EquipmentList() {
             className="block min-w-0 p-4 rounded-lg border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary transition-colors group cursor-pointer">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
-                {/* checkbox：仅选择模式 + DM */}
-                {isAdmin && selectMode && !isScrollEquipmentItem(item) && (
+                {/* checkbox：仅选择模式 + DM（已绑法术的具体卷轴为派生条目，不参与库维护） */}
+                {isAdmin && selectMode && !item.scrollSpellId && (
                   <input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggleSelect(item.id)}
                     onClick={(e) => e.stopPropagation()}
                     className="mt-1 w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary shrink-0" />
@@ -427,6 +424,9 @@ export default function EquipmentList() {
                     <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">{item.name}</h3>
                     {item.magicCategory === '魔法物品' && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">魔法</span>
+                    )}
+                    {isSpellScrollTemplate(item) && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">卷轴生成器</span>
                     )}
                     {item.cursed && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/10 text-danger shrink-0">诅咒</span>
@@ -460,11 +460,11 @@ export default function EquipmentList() {
                   )}
                 </div>
               </div>
-              {/* 右侧：编辑/删除（一直有，DM 下；卷轴为法术库虚拟条目，只读） */}
-              {isAdmin && isScrollEquipmentItem(item) && (
+              {/* 右侧：编辑/删除。种子泛条目（含法术卷轴生成器）走 GitHub 编辑；已绑法术的派生卷轴只读 */}
+              {isAdmin && item.scrollSpellId && (
                 <span className="text-[10px] px-2 py-1 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">法术卷轴 · 只读</span>
               )}
-              {isAdmin && !isScrollEquipmentItem(item) && equipmentStore.isSeedItem(item.id) && (
+              {isAdmin && !item.scrollSpellId && equipmentStore.isSeedItem(item.id) && (
                 getSeedEditUrl('equipments', item.id) ? (
                   <a
                     href={getSeedEditUrl('equipments', item.id)!}
@@ -480,7 +480,7 @@ export default function EquipmentList() {
                   <span className="text-[10px] px-2 py-1 rounded bg-primary/10 text-primary shrink-0">种子 · 只读</span>
                 )
               )}
-              {isAdmin && !isScrollEquipmentItem(item) && !equipmentStore.isSeedItem(item.id) && (
+              {isAdmin && !item.scrollSpellId && !equipmentStore.isSeedItem(item.id) && (
                 <div className="flex gap-1 shrink-0">
                   <button onClick={(e) => { e.stopPropagation(); handleEdit(item); }} className="p-2 rounded hover:bg-white/10 dark:text-text-dark light:text-text-light" title="编辑"><Edit className="w-4 h-4" /></button>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteConfirm(item.id); }} className="p-2 rounded hover:bg-danger/20 text-danger" title="删除"><Trash2 className="w-4 h-4" /></button>
