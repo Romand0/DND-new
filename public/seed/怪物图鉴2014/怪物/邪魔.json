@@ -1,0 +1,3682 @@
+[
+  {
+    "templateId": "nightmare",
+    "name": "梦魇",
+    "nameEn": "Nightmare",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔",
+    "alignment": "中立邪恶",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 68,
+    "hpDice": "8d10+24",
+    "speed": 60,
+    "speedNotes": "，飞行90尺",
+    "strength": 18,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 10,
+    "wisdom": 13,
+    "charisma": 15,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉11",
+    "languages": "懂深渊语，通用语和炼狱语，但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "火焰"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "赋予火焰抗性Confer Fire Resistance",
+        "text": "梦魇可以给任何骑乘它的对象赋予火焰伤害的抗性。"
+      },
+      {
+        "name": "照明Illumination",
+        "text": "梦魇散发出半径10尺的明亮光照，以及其外10尺的微光光照。"
+      },
+      {
+        "name": "以太跳跃Ethereal Stride",
+        "text": "梦魇可以连同其身边5尺内至多三个自愿的生物一起从物质位面进入以太位面，反之亦然。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+6",
+        "damage": "2d8+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加7（2d6）点火焰伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "154bd416-d812-406e-949a-c846806d4eed",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "cambion",
+    "name": "坎比翁",
+    "nameEn": "Cambion",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔",
+    "alignment": "任意邪恶阵营",
+    "ac": 19,
+    "acNote": "鳞甲",
+    "maxHp": 82,
+    "hpDice": "11d8+33",
+    "speed": 30,
+    "speedNotes": "，飞行60尺",
+    "strength": 18,
+    "dexterity": 18,
+    "constitution": 16,
+    "intelligence": 14,
+    "wisdom": 12,
+    "charisma": 16,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "intelligence",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 6
+      },
+      {
+        "name": "威吓",
+        "bonus": 6
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 7
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "深渊语，通用语，炼狱语",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "毒素",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "邪魔祝福Fiendish Blessing",
+        "text": "坎比翁的AC加上其魅力调整值。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "坎比翁天生施法属性为魅力（法术豁免DC14），它天生可施展以下法术且不需要相应的材料成分：每项3/日：易容术alter self，命令术command，侦测魔法detectmagic每项1/日：位面转移plane shift（仅自身）"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "坎比翁发动两次近战攻击，或使用两次其火焰射线。"
+      },
+      {
+        "name": "火焰射线Fire Ray",
+        "text": "远程法术攻击：命中+7，射程120尺，单一目标。命中：10（3d6）点火焰伤害。"
+      },
+      {
+        "name": "邪魔魅惑Fiendish Charm",
+        "text": "坎比翁身边30尺内一个它能看到的类人生物，须进行一次DC14的感知豁免，豁免失败则被魅惑1日。被魅惑的目标将服从该坎比翁的口头命令。目标受到坎比翁或其他生物伤害，或者收到坎比翁带有自杀性的命令时，其可以再进行一次该豁免，豁免成功则结束该效应。目标豁免成功或该效应结束时，该生物将在随后24小时内免疫该坎比翁的邪魔魅惑。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      },
+      {
+        "count": 2,
+        "name": "其火焰射线"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "矛",
+        "attackBonus": "+7",
+        "damage": "1d6+4",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+4",
+        "note": "或使用双手发动近战攻击时8（1d8+4）点穿刺伤害，外加3（1d6）点火焰伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "1d6a017b-0181-4aa0-9d3b-64df617a0387",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "erinyes",
+    "name": "罪魔",
+    "nameEn": "Erinyes",
+    "cr": "12",
+    "xp": 8400,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 18,
+    "acNote": "板甲",
+    "maxHp": 153,
+    "hpDice": "18d8+72",
+    "speed": 30,
+    "speedNotes": "，飞行60尺",
+    "strength": 18,
+    "dexterity": 16,
+    "constitution": 18,
+    "intelligence": 14,
+    "wisdom": 14,
+    "charisma": 18,
+    "savingThrows": [
+      "dexterity",
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "真实视觉120尺，被动察觉12",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "毒素"
+    ],
+    "traits": [
+      {
+        "name": "地狱武器Hellish Weapons",
+        "text": "罪魔的武器攻击视为魔法攻击，并且在命中时额外造成13（3d8）点毒素伤害（已包含在动作项）。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "罪魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "罪魔发动三次攻击。"
+      },
+      {
+        "name": "格挡Parry",
+        "text": "罪魔在被一次近战攻击命中时，其AC加上4。此时该罪魔必须能看见攻击者，且有在持用一把近战武器。变体：纠缠绳Variant: Rope ofEntanglement"
+      },
+      {
+        "name": "某些罪魔持有一件纠缠绳rope of entanglement",
+        "text": "（详见《城主指南》）这样的罪魔使用其多重攻击时，可用纠缠绳取代两次攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+8",
+        "damage": "1d8+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或双手持用时9（1d10+4）点挥砍伤害，外加13（3d8）点毒素伤害"
+      },
+      {
+        "name": "长弓",
+        "attackBonus": "+7",
+        "damage": "1d8+3",
+        "damageType": "穿刺",
+        "range": "射程150/600尺",
+        "properties": [],
+        "normalRange": 150,
+        "maxRange": 600,
+        "note": "外加13（3d8）点毒素伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "1e77cbc7-ba85-4031-9c86-9973de0ec325",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "ultroloth",
+    "name": "超等罗斯魔",
+    "nameEn": "Ultroloth",
+    "cr": "13",
+    "xp": 10000,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（尤格罗斯魔）",
+    "alignment": "中立邪恶",
+    "ac": 19,
+    "acNote": "天生护甲",
+    "maxHp": 153,
+    "hpDice": "18d8+72",
+    "speed": 30,
+    "speedNotes": "，飞行60尺",
+    "strength": 16,
+    "dexterity": 16,
+    "constitution": 18,
+    "intelligence": 18,
+    "wisdom": 15,
+    "charisma": 19,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "威吓",
+        "bonus": 9
+      },
+      {
+        "name": "察觉",
+        "bonus": 7
+      },
+      {
+        "name": "隐匿",
+        "bonus": 8
+      }
+    ],
+    "senses": "真实视觉120尺，被动察觉17",
+    "languages": "深渊语，炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "强酸",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "超等罗斯魔天生施法属性为魅?（法术豁免DC17），它天生即可施展以下法术，且无需任何相应的材料成分：随意：易容术alterself，鹰眼术clairvoyance，黑暗术darkness，侦测魔法detectmagic，侦测思想detectthoughts，解除魔法dispelmagic，隐形术invisibility（仅自身），暗?术suggestion每项3/日：任意门dimensiondoor，恐惧术fear，火墙术wallof fire每项1/日：火焰风暴firestorm, 集体暗示术masssuggestion"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "超等罗斯魔为抵抗法术和其他魔法效应而作的豁免检定时具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "超等罗斯魔的武器攻击被视为魔法攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "超等罗斯魔使用催眠凝视并发动三次近战攻击。"
+      },
+      {
+        "name": "催眠凝视Hypnotic Gaze",
+        "text": "超等罗斯魔的眼睛发出乳白色的光芒，并指定其周边30尺内一个它能看到的生物。目标生物如果也能看见超等罗斯魔，则其必须成功通过一次DC17的感知豁免抵抗该魔法，否则将被该超等罗斯魔魅惑并持续至该超等罗斯魔的下一个回合结束时。该被魅惑目标被震慑。目标生物豁免成功后，该目标生物将在随后1小时内免疫该超等罗斯魔的凝视。"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "超等罗斯魔用魔法将自己传送至多60尺，到达任何它可以看到且未占据空间位置，其随身携带或着装的装备也将随之一并传送。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 3,
+        "name": "近战攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 17,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "易容术",
+            "鹰眼术",
+            "黑暗术",
+            "侦测魔法",
+            "侦测思想",
+            "解除魔法",
+            "隐形术",
+            "恐惧术",
+            "火墙术",
+            "集体暗示术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+8",
+        "damage": "1d8+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或双手使用时8（1d10+3）点挥砍伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "1e786836-cff5-424f-93f2-cd92c50a8fea",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "chain-devil",
+    "name": "链魔",
+    "nameEn": "Chain Devil",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 16,
+    "acNote": "天生护甲",
+    "maxHp": 85,
+    "hpDice": "10d8+40",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 15,
+    "constitution": 18,
+    "intelligence": 11,
+    "wisdom": 12,
+    "charisma": 14,
+    "savingThrows": [
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉11",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "该魔鬼发动两次链击。"
+      },
+      {
+        "name": "活化魔链Animate Chains",
+        "text": "（长休或短休后充能）该魔鬼周边60尺内它能看到的至多四条链条魔法般的长出带刃的弯钩，并在链魔的控制下活化。这些链条必须未被着装或携带。每个被活化的链条视为一个物件，其拥有AC20，20点生命值，穿刺伤害抗性并且免疫心灵伤害与雷鸣伤害。当该魔鬼在其自己回合使用多重攻击，它可以用每个活化链条发动一次额外链击攻击。活化链条可以独立擒抱一个生物，但无法再擒抱的同时再发动攻击。活化链条生命值降为0时，或者该魔鬼陷入失能或死亡时，该链条将恢复其无生命的状况。"
+      },
+      {
+        "name": "不安面具Unnerving Mask",
+        "text": "该魔鬼周边30尺内它能看见的一个生物开始其回合时，该魔鬼可以制造一个对方已故爱人或其仇敌的幻象。如果该生物可以看到该魔鬼，则它必须进行一次DC14的感知豁免。豁免失败者将陷入恐慌，直至其回合结束。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "链击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "链击",
+        "attackBonus": "+8",
+        "damage": "2d6+4",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果该魔鬼没擒抱其他目标，则该目标被擒抱（逃脱DC14）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "2d8a51ec-1b52-42a9-8b13-ed0094f456af",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "arcanaloth",
+    "name": "奥法罗斯魔",
+    "nameEn": "Arcanaloth",
+    "cr": "12",
+    "xp": 8400,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（尤格罗斯魔）",
+    "alignment": "中立邪恶",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 104,
+    "hpDice": "16d8+32",
+    "speed": 30,
+    "speedNotes": "，飞行30尺",
+    "strength": 17,
+    "dexterity": 12,
+    "constitution": 14,
+    "intelligence": 20,
+    "wisdom": 16,
+    "charisma": 17,
+    "savingThrows": [
+      "dexterity",
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 13
+      },
+      {
+        "name": "欺瞒",
+        "bonus": 9
+      },
+      {
+        "name": "洞悉",
+        "bonus": 9
+      },
+      {
+        "name": "察觉",
+        "bonus": 7
+      }
+    ],
+    "senses": "真实视觉120尺，被动察觉17",
+    "languages": "全部，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "强酸",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "奥法罗斯魔天?施法属性为魅?（法术豁免DC15），它天生即可施展以下法术，且无需任何相应的材料成分：随意：易容术alterself，黑暗术darkness，灼热?属heatmetal，隐形术invisibility（仅自身），魔法飞弹magicmissile"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "奥法罗斯魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "奥法罗斯魔的武器攻击被视为魔法攻击。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "奥法罗斯魔作为16级施法者，其施法属性为智?（法术豁免DC17，法术攻击命中+9）。奥法罗斯魔准备了以下法师法术：戏法（随意）：火焰箭firebolt，法师之手magehand，次级幻象minorillusion，魔法伎俩prestidigitation1环（4法术位）：侦测魔法detectmagic，鉴定术identify，护盾术shield，谭森浮碟术Tenser'sfloating disk2环（3法术位）：侦测思想detectthoughts，镜影术mirrorimage，魅影之力phantasmalforce, 暗?术suggestion3环（3法术位）：法术反制counterspell，恐惧术fear，火球术fireball4环（3法术位）：放逐术banishment，任意门dimensiondoor5环（2法术位）：异界探知contactother plane，怪物定?术holdmonster6环（1法术位）：连锁闪电chainlightning7环（1法术位）：死亡一指fingerof death8环（1法术位）：?灵屏障mindblank"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "奥法罗斯魔用魔法将自己传送至多60尺，到达任何它可以看到且未占据空间，其随身携带或着装的装备也将随之一并进行传送。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "易容术",
+            "黑暗术",
+            "灼热",
+            "隐形术",
+            "魔法飞弹"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d4+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进?一次DC14的体质豁免，豁免失败者将受到10（3d6）点毒素伤害，豁免成功则伤害减半"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "2db13ddc-85a4-4094-8d46-33fd66641390",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "rakshasa",
+    "name": "罗刹",
+    "nameEn": "Rakshasa",
+    "cr": "13",
+    "xp": 10000,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔",
+    "alignment": "守序邪恶",
+    "ac": 16,
+    "acNote": "天生护甲",
+    "maxHp": 110,
+    "hpDice": "13d8+52",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 14,
+    "dexterity": 17,
+    "constitution": 18,
+    "intelligence": 13,
+    "wisdom": 16,
+    "charisma": 20,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 10
+      },
+      {
+        "name": "洞悉",
+        "bonus": 8
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉13",
+    "languages": "通用语，炼狱语",
+    "damageResistances": [],
+    "damageImmunities": [
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [
+      "由善良生物的攻击造成的穿刺伤害"
+    ],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "有限魔免Limited Magic Immunity",
+        "text": "罗刹可以随自己意愿的免受6环或更低环阶法术的效应影响或侦测。它在对抗其他法术和魔法效应时所作的豁免检定具有优势。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "罗刹天生施法属性为魅力（法术豁免DC18，法术攻击命中+10）。罗刹天生可以施展以下法术且不需任何相应的材料成分：随意：侦测思想detectthoughts，易容术disguise self，法师之手mage hand，次级幻象minorillusion每项3/日：魅惑类人charm person，侦测魔法detectmagic，隐形术invisibility，高级幻影majorimage，暗示术suggestion每项1/日：支配类人dominate person，飞行术fly，位面转移planeshift，真知术true seeing"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "罗刹发动两次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 18,
+      "attackBonus": 10,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测思想",
+            "易容术",
+            "法师之手",
+            "次级幻象",
+            "侦测魔法",
+            "隐形术",
+            "高级幻影",
+            "暗示术",
+            "飞行术",
+            "位面转移",
+            "真知术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d6+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是生物则目标生物被诅咒"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "33b63624-1732-4a94-a9f8-a5eba9f2a36c",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "ice-devil",
+    "name": "冰魔",
+    "nameEn": "Ice Devil",
+    "cr": "14",
+    "xp": 11500,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 180,
+    "hpDice": "19d10+76",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 21,
+    "dexterity": 14,
+    "constitution": 18,
+    "intelligence": 18,
+    "wisdom": 15,
+    "charisma": 18,
+    "savingThrows": [
+      "dexterity",
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "盲视60尺，黑暗视觉120尺，被动察觉12",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "寒冷",
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "冰魔发动三次攻击：一次啃咬，一次爪击，一次尾击。"
+      },
+      {
+        "name": "冰墙Wall of Ice",
+        "text": "（充能6）冰魔在其周边60尺内一处它能看见的固体表面上以魔法创造一堵不透明的冰墙。冰墙有厚1尺，至多30尺长10尺高，或者形成一个直径至多20尺的半球体。冰墙出现的时候，在其出现位置的每个生物都被以最短的路径推开。除非陷入失能，否则该生物可以选择在冰墙的哪一侧落地。目标还必须进行一次DC17的敏捷豁免，豁免失败者将受到35（10d6）点寒冷伤害，豁免成功则伤害减半。冰墙会在冰魔死亡或陷入失能前持续存在1分钟。冰墙会受到伤害或者被凿穿。每10尺区域的冰墙拥有AC5，30点生命值，火焰伤害易伤，强酸、寒冷、暗蚀、毒素与心灵伤害免疫。被破坏的冰墙区域会留下一片极寒冻气之后消失。任何生物在一回合内移动穿过冻气区域并在其内停留时，不论其是否自愿，该生物都必须进一次DC17的体质豁免，豁免失败则受到17（5d6）点寒冷伤害，豁免成功则伤害减半。冻气会在整个冰墙消失时与其他部分一同消失。变体：冰魔矛兵Variant: Ice DevilSpear某些冰魔具有下列动作项。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "冰魔发动两次攻击：一次冰矛和一次尾击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "爪击"
+      },
+      {
+        "count": 1,
+        "name": "尾击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+10",
+        "damage": "2d6+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加10（3d6）点寒冷伤害"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+10",
+        "damage": "2d4+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加10（3d6）点寒冷伤害"
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+10",
+        "damage": "2d6+5",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "外加10（3d6）点寒冷伤害"
+      },
+      {
+        "name": "冰矛",
+        "attackBonus": "+10",
+        "damage": "2d8+5",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "外加10（3d6）点寒冷伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "4a2d91d8-b2bb-4f40-95d6-b075c72e564a",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "goristro",
+    "name": "巨牛魔",
+    "nameEn": "Goristro",
+    "cr": "17",
+    "xp": 18000,
+    "proficiencyBonus": 6,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 19,
+    "acNote": "天生护甲",
+    "maxHp": 310,
+    "hpDice": "23d12+161",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 25,
+    "dexterity": 11,
+    "constitution": 25,
+    "intelligence": 6,
+    "wisdom": 13,
+    "charisma": 14,
+    "savingThrows": [
+      "strength",
+      "dexterity",
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 7
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉17",
+    "languages": "深渊语",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若巨牛魔向其目标直线移动至少15尺，且在同一回合里以顶撞攻击命中该目标，则该目标受额外38（7d10）点穿刺伤害。若目标是生物，则该生物必须成功通过一次DC21的力量豁免，否则被推后至多20尺并应击倒地。"
+      },
+      {
+        "name": "迷宫追忆Labyrinthine Recall",
+        "text": "巨牛魔可以完整的回想起所走过的道路。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "巨牛魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "攻城怪物Siege Monster",
+        "text": "巨牛魔对物件和建筑物造成双倍伤害。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨牛魔发动三次攻击：两次拳击和一次蹄击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "拳击"
+      },
+      {
+        "count": 1,
+        "name": "蹄击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "拳击",
+        "attackBonus": "+13",
+        "damage": "3d8+7",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "蹄击",
+        "attackBonus": "+13",
+        "damage": "3d10+7",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是生物，则该生物必须进行一次DC21的力量豁免，豁免失败则应击倒地"
+      },
+      {
+        "name": "顶撞",
+        "attackBonus": "+13",
+        "damage": "7d10+7",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 4,
+    "creatureType": "fiend",
+    "id": "4ee009ef-dd87-4fae-8f0b-d5e4811db7c5",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "yochlol",
+    "name": "蜡融妖",
+    "nameEn": "Yochlol",
+    "cr": "10",
+    "xp": 5900,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（恶魔，变形生物）",
+    "alignment": "混乱邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 136,
+    "hpDice": "16d8+64",
+    "speed": 30,
+    "speedNotes": "，攀爬30尺",
+    "strength": 15,
+    "dexterity": 14,
+    "constitution": 18,
+    "intelligence": 13,
+    "wisdom": 15,
+    "charisma": 15,
+    "savingThrows": [
+      "dexterity",
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 10
+      },
+      {
+        "name": "洞悉",
+        "bonus": 6
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉12",
+    "languages": "深渊语，精灵语，地底通用语",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "蜡融妖可以用一个动作变形为一个女性卓尔或一只巨型蜘蛛的相仿形态。她同样可以用该动作恢复为其真实形态。变形时，她的所有数据均不会发生改变，其着装或携带的装备也不会随变形发生变化。在死亡时，蜡融妖将恢复其真实形态。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "蜡融妖为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "蛛行Spider Climb",
+        "text": "蜡融妖可以攀爬在难以攀爬的表面上，包括倒吊在天花板上，且不需要进行属性检定。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "蜡融妖天生施法属性为魅力（法术豁免DC14）。蜡融妖天生具有以下法术的施法能力，且不需要任何相应的材料成分：随意：侦测思想detectthoughts，蛛网术web每项1/日：支配类人dominateperson"
+      },
+      {
+        "name": "蛛网行者Web Walker",
+        "text": "蜡融妖在蛛网移动时无视蛛网限制。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "蜡融妖发动两次近战攻击。"
+      },
+      {
+        "name": "迷雾形态Mist Form",
+        "text": "蜡融妖转化为一片剧毒迷雾，或以该动作恢复真实形态。其着装和携带的装备也随之一起转化。在该形态死亡时，蜡融妖将恢复其真实形态。处于迷雾形态时，蜡融妖陷入失能状态且无法说话。此时它拥有飞行速度30尺，并且可以穿越或徘徊于非密封的空间。迷雾形态在进行力量、敏捷、以及体质豁免检定时具有优势，并且免疫所有非魔法伤害。处于迷雾形态时，蜡融妖可以进入有生物占据的空间并在该处停留。在蜡融妖占据的空间开始自己回合的生物必须成功通过一次DC14的体质豁免否则中毒，其效应持续至该生物的下回合开始时终止。中毒效应持续时目标陷入失能。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测思想",
+            "蛛网术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "猛击",
+        "attackBonus": "+6",
+        "damage": "1d6+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "（蜘蛛形态时为穿刺伤害），外加21（6d6）点毒素伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "5b84448a-0955-4cd2-9a30-d5be82c08cdb",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607183,
+    "campaignId": null
+  },
+  {
+    "templateId": "nalfeshnee",
+    "name": "判魂魔",
+    "nameEn": "Nalfeshnee",
+    "cr": "13",
+    "xp": 10000,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 184,
+    "hpDice": "16d10+96",
+    "speed": 20,
+    "speedNotes": "，飞行30尺",
+    "strength": 21,
+    "dexterity": 10,
+    "constitution": 22,
+    "intelligence": 19,
+    "wisdom": 12,
+    "charisma": 15,
+    "savingThrows": [
+      "constitution",
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "真实视觉120尺，被动察觉11",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "判魂魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "判魂魔可以先使用恐惧光环，再进行三次攻击：一次啃咬和两次爪击。"
+      },
+      {
+        "name": "恐惧光环Horror Nimbus",
+        "text": "（充能5~6）判魂魔以魔法创造出一道闪耀的七彩光芒。在其身边15尺范围内可以看到该光芒的生物，必需进行一次DC15的感知豁免，豁免失败者将陷入恐慌，并持续1分钟。该生物可以在每个其自己回合结束时再次进行一次该豁免，并在豁免成功时结束恐慌效应。在豁免成功或者效应结束后，该生物将在24小时内免疫该判魂魔的恐惧光环。"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "判魂魔连同着装和携带的所有装备，以魔法传送至120尺内一处它能看到，且无生物占据的空间。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+10",
+        "damage": "5d10+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+10",
+        "damage": "3d6+5",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "609ffe61-fe0a-4b29-bf53-f34109d96dee",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "spined-devil",
+    "name": "棘魔",
+    "nameEn": "Spined Devil",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 22,
+    "hpDice": "5d6+5",
+    "speed": 20,
+    "speedNotes": "，飞行40尺",
+    "strength": 10,
+    "dexterity": 15,
+    "constitution": 12,
+    "intelligence": 11,
+    "wisdom": 14,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉12",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "飞掠Flyby",
+        "text": "该魔鬼以飞行离开敌人的触及范围时不会引发对方的借机攻击。"
+      },
+      {
+        "name": "有限棘刺Limited Spines",
+        "text": "该魔鬼拥有12根尾刺。这些棘刺用掉后可以在完成一次长休后恢复。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "棘魔发动两次攻击：一次啃咬，一次叉击。或者两次次都使用尾刺攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "叉击"
+      },
+      {
+        "count": 2,
+        "name": "次都使用尾刺攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+2",
+        "damage": "2d4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "叉击",
+        "attackBonus": "+2",
+        "damage": "1d6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "尾棘",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "射程20/80尺",
+        "properties": [],
+        "normalRange": 20,
+        "maxRange": 80,
+        "note": "外加3（1d6）点火焰伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 1,
+    "creatureType": "fiend",
+    "id": "714d081f-5c97-4ded-b31a-4051b992c50a",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "balor",
+    "name": "炎魔",
+    "nameEn": "Balor",
+    "cr": "19",
+    "xp": 22000,
+    "proficiencyBonus": 6,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 19,
+    "acNote": "天生护甲",
+    "maxHp": 262,
+    "hpDice": "21d12+126",
+    "speed": 40,
+    "speedNotes": "，飞行80尺",
+    "strength": 26,
+    "dexterity": 15,
+    "constitution": 22,
+    "intelligence": 20,
+    "wisdom": 16,
+    "charisma": 22,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "真实视觉120尺，被动察觉13",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "焚身爆Death Throes",
+        "text": "炎魔死亡时将引起爆炸，其周围30尺内每个生物必须进行一次DC20的敏捷豁免，豁免失败者将受到70（20d6）点火焰伤害，豁免成功则伤害减半。爆炸还会点燃该区域内所有未被着装或携带的可燃物件，炎魔的武器也将在随后被摧毁。"
+      },
+      {
+        "name": "火焰灵光Fire Aura",
+        "text": "炎魔在其回合开始时，对其身边5尺范围内的所有单位造成10（3d6）的点火焰伤害，灵光区域内所有未被着装或携带的可燃物件将被点燃。任何触碰炎魔，或者以近战武器攻击触及它的生物将会受到10（3d6）点火焰伤害。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "炎魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "炎魔的武器攻击为魔法攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "炎魔发动两次攻击：一次长剑攻击，一次鞭攻击"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "炎魔与身上着装和携带的所有装备一起，用魔法传送至120尺内的一处未占据空间。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "长剑攻击"
+      },
+      {
+        "count": 1,
+        "name": "鞭攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+14",
+        "damage": "3d8+8",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "外加13（3d8）点闪电伤害"
+      },
+      {
+        "name": "鞭击",
+        "attackBonus": "+14",
+        "damage": "2d6+8",
+        "damageType": "挥砍",
+        "range": "触及30尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 30,
+        "note": "外加10（2d6）点火焰伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 4,
+    "creatureType": "fiend",
+    "id": "72dcc94d-235b-4feb-84f7-4c1608d93b64",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "mezzoloth",
+    "name": "毒虫罗斯魔",
+    "nameEn": "Mezzoloth",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（尤格罗斯魔）",
+    "alignment": "中立邪恶",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 75,
+    "hpDice": "10d8+30",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 11,
+    "constitution": 16,
+    "intelligence": 7,
+    "wisdom": 10,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "盲视60尺，黑暗视觉60尺，被动察觉13",
+    "languages": "深渊语，炼狱语，心灵感应60尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "强酸",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "毒虫罗斯魔天生施法属性为魅力（法术豁免DC11），它天生即可施展以下法术，且无需任何相应的材料成分：每项2/日：黑暗术darkness，解除魔法dispelmagic1/日：死云术cloudkill"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "毒虫罗斯魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "毒虫罗斯魔的武器攻击视为魔法攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "毒虫罗斯魔发动两次攻击：一次使用它的爪击，一次使用它的三叉戟攻击。"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "毒虫罗斯魔用魔法将自己传送至多60尺，到达任何它可以看到且未占据空间位置，其随身携带或着装的装备也将被随之一并传送。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "它的爪击"
+      },
+      {
+        "count": 1,
+        "name": "它的三叉戟攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d4+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "三叉戟",
+        "attackBonus": "+7",
+        "damage": "1d6+4",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+4",
+        "note": "或用双手发动近战攻击时8（1d8+4）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "79eab7c1-48c0-42f5-8c00-73776e808c07",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "glabrezu",
+    "name": "迷诱魔",
+    "nameEn": "Glabrezu",
+    "cr": "9",
+    "xp": 5000,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 157,
+    "hpDice": "15d10+75",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 20,
+    "dexterity": 15,
+    "constitution": 21,
+    "intelligence": 19,
+    "wisdom": 17,
+    "charisma": 16,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉13",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "迷诱魔天生施法属性为智力（法术豁免DC16）。迷诱魔天生具有以下法术的施法能力，且不需要任何相应的材料成分：随意：黑暗术darkness，侦测魔法detectmagic，解除魔法dispelmagic每项1/日：困惑术confusion飞行术fly，律令震慑powerword stun，"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "迷诱魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "迷诱魔发动四次攻击：两次钳击和两次拳击。它也可以进行两次钳击并施展一个法术。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "钳击"
+      },
+      {
+        "count": 2,
+        "name": "拳击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 16,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "黑暗术",
+            "侦测魔法",
+            "解除魔法",
+            "律令震慑"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "钳击",
+        "attackBonus": "+9",
+        "damage": "2d10+5",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标生物为中型或者更小体型，则目标被擒抱（逃脱DC15）"
+      },
+      {
+        "name": "拳击",
+        "attackBonus": "+9",
+        "damage": "2d4+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "7eac3ad3-2c81-4981-910d-28f3bb9dbdeb",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "horned-devil",
+    "name": "角魔",
+    "nameEn": "Horned Devil",
+    "cr": "11",
+    "xp": 7200,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 178,
+    "hpDice": "17d10+85",
+    "speed": 20,
+    "speedNotes": "，飞行60尺",
+    "strength": 22,
+    "dexterity": 17,
+    "constitution": 21,
+    "intelligence": 12,
+    "wisdom": 16,
+    "charisma": 17,
+    "savingThrows": [
+      "strength",
+      "dexterity",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉13",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍该魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "角魔发动三次攻击：两次叉刺，一次尾击。它可以用投掷烈焰取代任一次近战攻击。"
+      },
+      {
+        "name": "投掷烈焰Hurl Flame",
+        "text": "远程法术攻击：命中+7，射程150尺，单一目标。命中：14（4d6）点火焰伤害。火焰将点燃所有未被着装或携带的可燃物件。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "叉刺"
+      },
+      {
+        "count": 1,
+        "name": "尾击"
+      },
+      {
+        "count": 1,
+        "name": "近战攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "叉击",
+        "attackBonus": "+10",
+        "damage": "2d8+6",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+10",
+        "damage": "1d8+6",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是一个生物（亡灵或构装生物除外），则其必须进行一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "85c98de8-e85e-4e7b-9320-afa8fe8deb69",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "nycaloth",
+    "name": "征伐罗斯魔",
+    "nameEn": "Nycaloth",
+    "cr": "9",
+    "xp": 5000,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（尤格罗斯魔）",
+    "alignment": "中立邪恶",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 123,
+    "hpDice": "13d10+52",
+    "speed": 40,
+    "speedNotes": "，飞行60尺",
+    "strength": 20,
+    "dexterity": 11,
+    "constitution": 19,
+    "intelligence": 12,
+    "wisdom": 10,
+    "charisma": 15,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "威吓",
+        "bonus": 6
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "盲视60尺，黑暗视觉60尺，被动察觉14",
+    "languages": "深渊语，炼狱语，心灵感应60尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "强酸",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "征伐罗斯魔天生施法属性为魅?，它天生即可施展以下法术，且无需任何材料成分：随意：黑暗术darkness，解除魔法dispelmagic，镜影术mirrorimage，隐形术invisibility（仅自身）"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "征伐罗斯魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "征伐罗斯魔的武器攻击视为魔法攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "征伐罗斯魔发动两次近战攻击，或者发动一次近战攻击，并在发动攻击前或者之后使用传送。"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "征伐罗斯魔用魔法将自己传送至多60尺，到达任何它可以看到且未占据空间位置，其随身携带或着装的装备也将随之一并传送。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      },
+      {
+        "count": 1,
+        "name": "近战攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+9",
+        "damage": "2d6+5",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是一生物，则目标必须进行一次DC"
+      },
+      {
+        "name": "巨斧",
+        "attackBonus": "+9",
+        "damage": "2d12+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "874930df-9529-4118-a5e0-64bf10eea844",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "bearded-devil",
+    "name": "须魔",
+    "nameEn": "Bearded Devil",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 52,
+    "hpDice": "8d8+16",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 15,
+    "constitution": 15,
+    "intelligence": 9,
+    "wisdom": 11,
+    "charisma": 11,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉10",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "坚定Steadfast",
+        "text": "该魔鬼在其周边30尺范围内能看到盟友生物时不会陷入恐慌。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "须魔发动两次攻击：一次须刺，一次长柄刀。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "须刺"
+      },
+      {
+        "count": 1,
+        "name": "长柄刀"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "须刺",
+        "attackBonus": "+5",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC"
+      },
+      {
+        "name": "长柄刀",
+        "attackBonus": "+5",
+        "damage": "1d10+3",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是一个生物（亡灵或构装生物除外），则其必须进行一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "8af309f5-c22b-464b-a754-78e623ccc4e0",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "hezrou",
+    "name": "狂蟾魔",
+    "nameEn": "Hezrou",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 16,
+    "acNote": "天生护甲",
+    "maxHp": 136,
+    "hpDice": "13d10+65",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 19,
+    "dexterity": 17,
+    "constitution": 20,
+    "intelligence": 5,
+    "wisdom": 12,
+    "charisma": 13,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉11",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "狂蟾魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "恶臭Stench",
+        "text": "在狂蟾魔身边10尺范围内开始其回合的生物，必需进行一次DC14的体质豁免，豁免失败者将陷入中毒，中毒状态持续至该生物下回合开始。豁免成功，则该生物将在24小时内免疫该狂蟾魔的恶臭。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "狂蟾魔发动三次攻击：一次啃咬和两次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+7",
+        "damage": "2d10+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "8f0e64b7-517d-495c-bd17-1fd53692da8d",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "marilith",
+    "name": "六臂蛇魔",
+    "nameEn": "Marilith",
+    "cr": "16",
+    "xp": 15000,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 18,
+    "acNote": "天生护甲",
+    "maxHp": 189,
+    "hpDice": "18d10+90",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 20,
+    "constitution": 20,
+    "intelligence": 18,
+    "wisdom": 16,
+    "charisma": 20,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "真实视觉120尺，被动察觉13",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电。非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "六臂蛇魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "六臂蛇魔的武器攻击为魔法攻击。"
+      },
+      {
+        "name": "灵敏反应Reactive",
+        "text": "在战斗中，六臂蛇魔可以在每个回合都执行一次反应。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "六臂蛇魔发动七次攻击：六次长剑攻击和一次尾击。"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "六臂蛇魔连同身上所有着装或携带的装备，以魔法传送至120尺内一处她能看到，且无生物占据的空间。"
+      },
+      {
+        "name": "格挡Parry",
+        "text": "六臂蛇魔在被一次近战攻击命中时，其AC加上5。此时该六臂蛇魔必须能看见攻击者，且有在持用一把近战武器。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 6,
+        "name": "长剑攻击"
+      },
+      {
+        "count": 1,
+        "name": "尾击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+9",
+        "damage": "2d8+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+9",
+        "damage": "2d10+4",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标生物为中型或者更小体型，则目标被擒抱（逃脱DC19）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "96e8aef3-daf5-4a33-bc36-94a3e5532fd1",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "barbed-devil",
+    "name": "猬魔",
+    "nameEn": "Barbed Devil",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 110,
+    "hpDice": "13d8+52",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 17,
+    "constitution": 18,
+    "intelligence": 12,
+    "wisdom": 14,
+    "charisma": 14,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 5
+      },
+      {
+        "name": "洞悉",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 8
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉18",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "猬皮Barbed Hide",
+        "text": "猬魔在其每个自己回合开始时对所有受其擒抱的生物造成5（1d10）点穿刺伤害。"
+      },
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "猬魔发动三次武器攻击：一次尾击，两次爪击。或者它也可以使用两次投掷烈焰。"
+      },
+      {
+        "name": "投掷烈焰Hurl Flame",
+        "text": "远程法术攻击：命中+5，射程150尺，单一目标。命中：10（3d6）点火焰伤害。火焰将点燃所有未被着装或携带的可燃物件。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "尾击"
+      },
+      {
+        "count": 2,
+        "name": "爪击"
+      },
+      {
+        "count": 2,
+        "name": "投掷烈焰"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+6",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+6",
+        "damage": "2d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "985c5b97-5e61-47c7-b6f6-76078a503607",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "incubus",
+    "name": "魅魔/梦魔",
+    "nameEn": "Incubus",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（变形生物）",
+    "alignment": "中立邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 66,
+    "hpDice": "12d8+12",
+    "speed": 30,
+    "speedNotes": "，飞行60尺",
+    "strength": 8,
+    "dexterity": 17,
+    "constitution": 13,
+    "intelligence": 15,
+    "wisdom": 12,
+    "charisma": 20,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 9
+      },
+      {
+        "name": "洞悉",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 5
+      },
+      {
+        "name": "游说",
+        "bonus": 9
+      },
+      {
+        "name": "隐匿",
+        "bonus": 7
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉15",
+    "languages": "深渊语，通用语，炼狱语，心灵感应60尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "毒素",
+      "非魔法攻击的钝击",
+      "穿刺"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "传念连接Telepathic Bond",
+        "text": "该邪魔与受其魅惑的生物进行心灵感应交流时无视距离限制。他们甚至可以不在同一位面。"
+      },
+      {
+        "name": "变形生物Shapechanger",
+        "text": "该邪魔以一个动作，变形为一个小型或中型体型的类人生物，或以同样的动作恢复其真实形态。变形后，该邪魔失去其飞行能力。除体型和速度外，其所有资料均不会发生改变，其着装或携带的装备也不会随变形发生变化。死亡时该魔族将恢复其真实形态。"
+      },
+      {
+        "name": "魅惑Charm",
+        "text": "该邪魔指定其身边30尺范围内一个它能看见的生物，该生物必须成功通过一次DC15的感知豁免，否则将受魔法魅惑1日。被魅惑目标听从该邪魔口头或心灵感应所传达的命令。当目标受到伤害或收到自残命令时，可以再次进行该豁免，并在豁免成功时终止其魅惑效应。豁免成功或效应终止后，该生物将在24小时内免疫该邪魔的魅惑效应。"
+      },
+      {
+        "name": "该邪魔一次只能魅惑一个目标",
+        "text": "它成功魅惑另一目标时，旧目标的魅惑效应也将随之立即结束。"
+      },
+      {
+        "name": "汲命之吻Draining Kiss",
+        "text": "该邪魔吻向受其魅惑或自愿接受的生物。该生物必须进行一次DC15的体质豁免，以对抗该魔法。豁免失败时，目标生物受32（5d10+5）点心灵伤害。豁免成功则伤害减半。目标生命值上限将承受总伤害等量的减损，减损效应将持续至目标完成一次长休后恢复。如果该效应将目标的生命值上限降至0，则目标将因此死亡。"
+      },
+      {
+        "name": "以太化Etherealness",
+        "text": "该邪魔用魔法从主物质位面进入以太位面，或者从该位面返回。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "98d5f914-75c5-4358-8532-f6b1b029f71b",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "imp",
+    "name": "小魔鬼",
+    "nameEn": "Imp",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "邪魔（魔鬼，变形生物）",
+    "alignment": "守序邪恶",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 10,
+    "hpDice": "3d4+3",
+    "speed": 20,
+    "speedNotes": "，飞行40尺",
+    "strength": 6,
+    "dexterity": 17,
+    "constitution": 13,
+    "intelligence": 11,
+    "wisdom": 12,
+    "charisma": 14,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 4
+      },
+      {
+        "name": "洞悉",
+        "bonus": 3
+      },
+      {
+        "name": "游说",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉11",
+    "languages": "炼狱语，通用语",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "小魔鬼可以用一个动作变形为一只野兽的相仿形态。可选野兽形态有三种：鼠rat（速度20尺），渡鸦raven（速度20尺，飞行60尺），蜘蛛spider（速度20尺，攀爬20尺）。它也同样可以用该动作恢复其真实形态。除速度外，它的所有数据均不会发生改变，其随身着装与携带的装备不会随变形发生变化。在死亡时，小魔鬼将恢复其真实形态。"
+      },
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "小魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "隐形Invisibility",
+        "text": "小魔鬼使用魔法隐去身形，效果持续到它发动攻击或其专注被打断（如同专注于法术）。其着装和携带的装备将一同进入隐形状态。变体：小魔鬼魔宠Variant: ImpFamiliar小魔鬼时常会担任凡人施法者的侍者，或是充当顾问、密探或是魔宠等角色。小魔鬼会敦促其主人施行邪恶行径，以期最后将这个凡人的灵魂作为奖励据为己有。小魔鬼对其主人往往会表现出非同一般的忠诚，而在主人受到威胁时也会表现出相当的危险性。某些这类小魔鬼拥有以下特质。"
+      },
+      {
+        "name": "魔宠Familiar",
+        "text": "小魔鬼可以作为魔宠服侍另一个生物，它与其主人之间将建立一个心灵感应的链接。链接完成后，当两者距离在1里范围内时，其主人可以分享小魔鬼的各种感官。当小魔鬼在其主人10尺范围内时，其主人可以享有小魔鬼的魔法抗性特质。如果其主人违反契约，小魔鬼可以即时结束其魔宠服务，并中断相应的心灵感应链接。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "钉刺",
+        "attackBonus": "+5",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC11的体质豁免，豁免失败则受到10（3d6）点毒素伤害，豁免成功则伤害减半"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 0,
+    "creatureType": "fiend",
+    "id": "b02eb88b-599c-4e45-a119-2f6dd82a6e3e",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "barlgura",
+    "name": "恶猿魔",
+    "nameEn": "Barlgura",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 68,
+    "hpDice": "8d10+24",
+    "speed": 40,
+    "speedNotes": "，攀爬40尺",
+    "strength": 18,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 7,
+    "wisdom": 14,
+    "charisma": 9,
+    "savingThrows": [
+      "dexterity",
+      "constitution"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "盲视30尺，黑暗视觉120尺，被动察觉15",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "闪电",
+      "火焰"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "恶猿魔天生施法属性为感知（法术豁免DC13），它天生即可施展以下法术且无需任何材料成分：每项1/日：纠缠术entangle，魅影之力phantasmalforce每项2/日：易容术disguiseself，隐形术invisibility（仅自身）"
+      },
+      {
+        "name": "鲁莽Reckless",
+        "text": "恶猿魔在其回合开始时可以让其本回合内所有的近战武器攻击具有优势，但所有对其发动的攻击检定也同时具有优势，直至其下一回合开始。"
+      },
+      {
+        "name": "助跑起跳Running Leap",
+        "text": "恶猿魔以助跑起跳时最远可以跳40尺，最高20尺。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "恶猿魔发动三次攻击：一次啃咬攻击和两次拳击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬攻击"
+      },
+      {
+        "count": 2,
+        "name": "拳击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "拳击",
+        "attackBonus": "+7",
+        "damage": "1d10+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "b405801f-d0a2-49ee-94b5-46101bf69bf7",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "manes",
+    "name": "原魔",
+    "nameEn": "Manes",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 9,
+    "acNote": "9",
+    "maxHp": 9,
+    "hpDice": "2d6+2",
+    "speed": 20,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 9,
+    "constitution": 13,
+    "intelligence": 3,
+    "wisdom": 8,
+    "charisma": 4,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "懂深渊语但不能说",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "中毒"
+    ],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+2",
+        "damage": "2d4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 1,
+    "creatureType": "fiend",
+    "id": "b5f21e26-d009-4aa1-95a9-7c6f7104214d",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "bone-devil",
+    "name": "骨魔",
+    "nameEn": "Bone Devil",
+    "cr": "9",
+    "xp": 5000,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 19,
+    "acNote": "天生护甲",
+    "maxHp": 142,
+    "hpDice": "15d10+60",
+    "speed": 40,
+    "speedNotes": "，飞行40尺",
+    "strength": 18,
+    "dexterity": 16,
+    "constitution": 18,
+    "intelligence": 13,
+    "wisdom": 14,
+    "charisma": 16,
+    "savingThrows": [
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 7
+      },
+      {
+        "name": "洞悉",
+        "bonus": 6
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉12",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "骨魔发动三次攻击：两次爪击，一次钉刺攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "骨魔发动两次攻击：一次钩镰攻击，一次尾刺攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "爪击"
+      },
+      {
+        "count": 1,
+        "name": "钉刺攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+8",
+        "damage": "1d8+4",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "钉刺",
+        "attackBonus": "+8",
+        "damage": "2d8+4",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "外加17（5d6）点毒素伤害"
+      },
+      {
+        "name": "钩镰",
+        "attackBonus": "+8",
+        "damage": "2d12+4",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是一巨型更小体型的生物，则目标被擒抱（逃脱DC14）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "b942b93a-9901-4b3d-afdc-5db3b736f734",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "pit-fiend",
+    "name": "深狱炼魔",
+    "nameEn": "Pit Fiend",
+    "cr": "20",
+    "xp": 25000,
+    "proficiencyBonus": 6,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 19,
+    "acNote": "天生护甲",
+    "maxHp": 300,
+    "hpDice": "24d10+168",
+    "speed": 30,
+    "speedNotes": "，飞行60尺",
+    "strength": 26,
+    "dexterity": 14,
+    "constitution": 24,
+    "intelligence": 22,
+    "wisdom": 18,
+    "charisma": 24,
+    "savingThrows": [
+      "dexterity",
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "真实视觉120尺，被动察觉14",
+    "languages": "炼狱语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "恐惧灵光Fear Aura",
+        "text": "除非深狱炼魔失能，否则任何在深狱炼魔周边20尺内开始其回合的敌对生物必须进行一次DC21的感知豁免。豁免失败者将陷入恐慌直至该目标下一回合开始。豁免成功则该生物在随后24小时时间里免疫该深狱炼魔的恐惧灵光。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "该魔鬼为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "深狱炼魔的武器攻击为魔法攻击。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "深狱炼魔天生施法属性为魅力（豁免DC21）。它天生可施展以下法术而不需要任何相应的材料成分：随意：侦测魔法DetectMagic，火球术Fireball每项3/日：定身怪物holdmonster，火墙术wallof fire"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "深狱炼魔发动4次攻击：一次啃咬，一次爪击，一次用硬头锤，一次用尾击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "爪击"
+      },
+      {
+        "count": 1,
+        "name": "用硬头锤"
+      },
+      {
+        "count": 1,
+        "name": "用尾击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 21,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "火球术",
+            "火墙术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+14",
+        "damage": "4d6+8",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+14",
+        "damage": "2d8+8",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "硬头锤",
+        "attackBonus": "+14",
+        "damage": "2d6+8",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "外加21（6d6）点火焰伤害"
+      },
+      {
+        "name": "尾击",
+        "attackBonus": "+14",
+        "damage": "3d10+8",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "c5fb6a9c-7b89-40c3-9f24-2e1777993ee2",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "hell-hound",
+    "name": "地狱犬",
+    "nameEn": "Hell Hound",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔",
+    "alignment": "守序邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 45,
+    "hpDice": "7d8+14",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 12,
+    "constitution": 14,
+    "intelligence": 6,
+    "wisdom": 13,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉15",
+    "languages": "懂炼狱语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [
+      "火焰"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "地狱犬进行依赖听觉和嗅觉的感知（察觉）检定时具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "地狱犬至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      },
+      {
+        "name": "火焰吐息Fire Breath",
+        "text": "（充能5~6）地狱犬呼出火焰并覆盖一处15尺的锥状区域。区域内的每个生物都必须进行一次 DC12的敏捷豁免，豁免失败者将承受21（6d6）点火焰伤害，豁免成功则伤害减半。"
+      }
+    ],
+    "breathWeapon": [
+      {
+        "name": "火焰吐息",
+        "recharge": "充能5~6",
+        "shape": "覆盖一处15尺的锥状",
+        "dc": 12,
+        "ability": "敏捷",
+        "damage": "21",
+        "damageDice": "6d6",
+        "damageType": "火焰",
+        "halfOnSave": true
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d8+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加7（2d6）点火焰伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "d3c17665-6972-4a4e-95ea-02a5c5c4d337",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "dretch",
+    "name": "怯魔",
+    "nameEn": "Dretch",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 18,
+    "hpDice": "4d6+4",
+    "speed": 20,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 11,
+    "constitution": 12,
+    "intelligence": 5,
+    "wisdom": 8,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "深渊语，心灵感应60尺（只对懂深渊语的生物有效）",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "怯魔发动两次攻击：一次啃咬和一次爪击。"
+      },
+      {
+        "name": "污臭之云Fetid Cloud",
+        "text": "（1/日）怯魔在自身10尺半径范围内漫出恶心的绿色毒气。这些毒气可以充满所有地形角落，并使其存在区域处于轻度遮蔽。毒气持续存在1分钟或直至被一阵强风吹散。在毒气范围内开始其回合的生物，必需进行一次DC11的体质豁免，豁免失败者将陷入中毒，该中毒状态将持续至目标下一回合开始时结束。该状态持续时，目标无法执行任何动作与附赠动作，也无法执行反应。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+2",
+        "damage": "1d6",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+2",
+        "damage": "2d4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 1,
+    "creatureType": "fiend",
+    "id": "d4828be3-5257-428f-83e1-f2a53a487f8f",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "chasme",
+    "name": "喀嘶魔",
+    "nameEn": "Chasme",
+    "cr": "6",
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 84,
+    "hpDice": "13d10+13",
+    "speed": 20,
+    "speedNotes": "，飞行60尺",
+    "strength": 15,
+    "dexterity": 15,
+    "constitution": 12,
+    "intelligence": 11,
+    "wisdom": 14,
+    "charisma": 10,
+    "savingThrows": [
+      "dexterity",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      }
+    ],
+    "senses": "盲视10尺，黑暗视觉120尺，被动察觉15",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "闪电",
+      "火焰"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "蜂鸣Drone",
+        "text": "喀嘶魔制造出其他恶魔免疫的骇人蜂鸣音，所有在其周边30尺内开始其回合的其他生物必须进行一次DC12的体质豁免，豁免失败者将陷入10分钟的昏迷状态。无法听见噪音的生物其豁免将直接判为成功。该昏迷效应将持续至目标受到伤害，或者由其他生物以一个动作向其泼洒圣水。如果生物豁免成功或者其效应结束，则该生物在接下来的24小时内免疫该蜂鸣。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "喀嘶魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "蛛行Spider Climb",
+        "text": "喀嘶魔可以攀爬在难以攀爬的表面上，包括倒吊在天花板上，且不需要进行属性检定。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "刺喙",
+        "attackBonus": "+5",
+        "damage": "4d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加24（7d6）点暗蚀伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "e7a2d6ef-c20c-42fc-87a0-15c9c18b8250",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "vrock",
+    "name": "鹫魔",
+    "nameEn": "Vrock",
+    "cr": "6",
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 104,
+    "hpDice": "11d10+44",
+    "speed": 40,
+    "speedNotes": "，飞行60尺",
+    "strength": 17,
+    "dexterity": 15,
+    "constitution": 18,
+    "intelligence": 8,
+    "wisdom": 13,
+    "charisma": 8,
+    "savingThrows": [
+      "dexterity",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉11",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "鹫魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "鹫魔发动两次攻击：一次喙啄和一次禽爪攻击。"
+      },
+      {
+        "name": "孢子Spores",
+        "text": "（充能6）鹫魔释放一片剧毒孢子云，并填满以其自身为中心15尺半径的球状区域，且充满所有的地形角落。在孢子云范围内的生物，必须进行一次DC14的体质豁免，豁免失败者将陷入中毒。中毒目标在每回合开始时受到5（1d10）点毒素伤害。该生物可以在每个其自己回合结束时再进行一次该豁免，并在豁免成功时结束该自身的状态效应。将整瓶圣水泼向中毒目标也可以结束其效应。"
+      },
+      {
+        "name": "震慑尖叫Stunning Screech",
+        "text": "（1/日）鹫魔发出一声恐怖的尖叫。其身边20尺范围内每位可以听见其叫声的非恶魔生物，均必须进行一次DC14的体质豁免，豁免失败则陷入震慑，震慑效果持续到鹫魔下一回合结束时结束。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "喙啄"
+      },
+      {
+        "count": 1,
+        "name": "禽爪攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "喙啄",
+        "attackBonus": "+6",
+        "damage": "2d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "禽爪",
+        "attackBonus": "+6",
+        "damage": "2d10+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 3,
+    "creatureType": "fiend",
+    "id": "f38832a5-24de-4c6c-a9f2-9291abef3e37",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "shadow-demon",
+    "name": "幽影恶魔",
+    "nameEn": "Shadow Demon",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（恶魔）",
+    "alignment": "混乱邪恶",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 66,
+    "hpDice": "12d8+12",
+    "speed": 30,
+    "speedNotes": "，飞行30尺",
+    "strength": 1,
+    "dexterity": 17,
+    "constitution": 12,
+    "intelligence": 14,
+    "wisdom": 13,
+    "charisma": 14,
+    "savingThrows": [
+      "dexterity",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 7
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉11",
+    "languages": "深渊语，心灵感应120尺",
+    "damageResistances": [
+      "强酸",
+      "火焰",
+      "暗蚀",
+      "雷鸣",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "寒冷",
+      "闪电",
+      "毒素"
+    ],
+    "damageVulnerabilities": [
+      "光耀"
+    ],
+    "conditionImmunities": [
+      "力竭",
+      "受擒",
+      "麻痹",
+      "石化",
+      "中毒",
+      "倒地",
+      "束缚"
+    ],
+    "traits": [
+      {
+        "name": "虚体移动Incorporeal Movement",
+        "text": "幽影恶魔可以把生物或物件视作困难地形般穿越过去。在其回合结束时，如果它还处于物件内，则其自身受5（1d10）点力场伤害。"
+      },
+      {
+        "name": "光照敏感Light Sensitivity",
+        "text": "在明亮光照下，幽影恶魔的攻击检定具有劣势，其依赖视觉的感知（察觉）检定也具有劣势。"
+      },
+      {
+        "name": "幽影隐匿Shadow Stealth",
+        "text": "在微光光照或黑暗环境下，幽影恶魔能够以附赠动作来执行躲藏Hide动作。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "心灵",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或者当幽影恶魔的攻击检定具有优势时17（4d6+3）点心灵伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "f6660f1c-4b5f-4c08-a6bd-8aade7892a83",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "lemure",
+    "name": "劣魔",
+    "nameEn": "Lemure",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（魔鬼）",
+    "alignment": "守序邪恶",
+    "ac": 7,
+    "acNote": "7",
+    "maxHp": 13,
+    "hpDice": "3d8",
+    "speed": 15,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 5,
+    "constitution": 11,
+    "intelligence": 1,
+    "wisdom": 11,
+    "charisma": 3,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉10",
+    "languages": "懂炼狱语但不能说",
+    "damageResistances": [
+      "寒冷"
+    ],
+    "damageImmunities": [
+      "火焰",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "恐慌",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "魔鬼视界Devil's Sight",
+        "text": "魔法黑暗不会阻碍魔鬼的黑暗视觉。"
+      },
+      {
+        "name": "地狱回声Hellish Rejuvenation",
+        "text": "死在九狱的劣魔会在 1D10天后复活并恢复其所有生命值，除非它被善良阵营的生物杀死并对其施展祝福术，或者它的尸体被洒上圣水。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "拳击",
+        "attackBonus": "+3",
+        "damage": "1d4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 2,
+    "creatureType": "fiend",
+    "id": "f8c8626c-862f-46d6-847f-412bd499707d",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "quasit",
+    "name": "小恶魔",
+    "nameEn": "Quasit",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "微型",
+    "type": "邪魔（恶魔，变形生物）",
+    "alignment": "混乱邪恶",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 7,
+    "hpDice": "3d4",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 5,
+    "dexterity": 17,
+    "constitution": 10,
+    "intelligence": 7,
+    "wisdom": 10,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉10",
+    "languages": "深渊语，通用语",
+    "damageResistances": [
+      "寒冷",
+      "火焰",
+      "闪电",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "小恶魔用一个动作变形为一只野兽的相仿形态。可选野兽形态有三种：蝙蝠bat（速度10尺，飞行40尺），蜈蚣centipede（速度40尺，攀爬40尺），蟾蜍toad（速度40尺，游泳40尺）。它也同样可以用该动作恢复其真实形态。除速度外，它的所有资料均不会发生改变，其随身着装和携带的装备不会随变形发生变化。在死亡时，小恶魔将恢复其真实形态。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "小恶魔为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "惊吓Scare",
+        "text": "（1/日）小恶魔指定其身边20尺范围内的一个生物，该生物必须进行一次DC10的感知豁免，豁免失败则陷入恐慌，恐慌效应持续1分钟。该生物可以在每个其自己回合结束时再次进行该豁免（在小恶魔视线范围内时豁免具有劣势），并在豁免成功时结束恐慌效应。"
+      },
+      {
+        "name": "隐形Invisibility",
+        "text": "小恶魔使用魔法隐去身形，效果持续到它发动攻击，使用惊吓动作或其专注被打断（如同专注法术）。其着装和携带的装备一同进入隐形状态。变体：小恶魔魔宠Variant:Quasit Familiar某些凡间的施法者对各种跨位面亚种魔宠兴趣盎然。他们在研究中发现小恶魔易于召唤，且积极服务的特点，并断定这些小恶魔可以很好的扮演顺从仆人的角色。它们给主人提供妥善的服务，并让其凡人主子的行为渐渐倾向邪恶与混乱。这些小恶魔魔宠具有以下特性。"
+      },
+      {
+        "name": "魔宠Familiar",
+        "text": "小恶魔可以作为魔宠服侍另一个生物，它与其主人之间将建立一个心灵感应的链接。链接完成后，当两者距离在1里范围内时，其主人可以分享小恶魔的各种感官。当小恶魔在其主人10尺范围内时，其主人可以享有小恶魔的魔法抗性特质。小恶魔可以随时随意的结束其魔宠服务，并中断相应的心灵感应链接。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "邪魔",
+    "creatureSize": 0,
+    "creatureType": "fiend",
+    "id": "fc873120-aabb-4144-91ac-dc225eade5d8",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  }
+]

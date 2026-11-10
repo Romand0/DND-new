@@ -1,0 +1,6752 @@
+[
+  {
+    "templateId": "merfolk",
+    "name": "人鱼",
+    "nameEn": "Merfolk",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（人鱼）",
+    "alignment": "绝对中立",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 10,
+    "speedNotes": "，游泳40尺",
+    "strength": 10,
+    "dexterity": 13,
+    "constitution": 12,
+    "intelligence": 11,
+    "wisdom": 11,
+    "charisma": 12,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "水族语，通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "人鱼可以在空气和水中呼吸。"
+      },
+      {
+        "name": "矛Spear",
+        "text": "近战或远程攻击：命中+2，触及5尺，单一目标，命中：3（1d6）点穿刺伤害，或用双手发动近战攻击时4（1d8）点穿刺伤害。"
+      }
+    ],
+    "attacks": [],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "02251e56-031e-4f3f-876c-ddb11e54521d",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "sahuagin-baron",
+    "name": "鲨华鱼人男爵",
+    "nameEn": "Sahuagin Baron",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "类人（鲨华鱼人）",
+    "alignment": "守序邪恶",
+    "ac": 16,
+    "acNote": "胸甲",
+    "maxHp": 76,
+    "hpDice": "9d10+27",
+    "speed": 30,
+    "speedNotes": "，游泳50尺",
+    "strength": 19,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 14,
+    "wisdom": 13,
+    "charisma": 17,
+    "savingThrows": [
+      "dexterity",
+      "constitution",
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 7
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉17",
+    "languages": "鲨华鱼人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "嗜血狂怒Blood Frenzy",
+        "text": "鲨华鱼人对生命值没有全满的生物发动近战攻击时，其攻击检定具有优势。"
+      },
+      {
+        "name": "有限两栖Limited Amphibiousness",
+        "text": "鲨华鱼人可以在空气和水中呼吸，但它至少每4小时要回到水里，以避免窒息。"
+      },
+      {
+        "name": "鲨心感应Shark Telepathy",
+        "text": "鲨华鱼人可以用魔法进行有限的心灵感应，以命令其周边120尺内的鲨鱼。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "鲨华鱼人发动三次攻击：一次啃咬，以及两次爪击或三叉戟攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击或三叉戟攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+7",
+        "damage": "2d4+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "三叉戟",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "2d8+4",
+        "note": "或用双手发动近战攻击时13（2d8+4）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 3,
+    "creatureType": "humanoid",
+    "id": "14a1312b-cec4-40f8-8d43-2024f7aa2b4c",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "gnoll-fang-ofyeenoghu",
+    "name": "鬣狗人·耶诺古毒牙",
+    "nameEn": "Gnoll Fang ofYeenoghu",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "邪魔（鬣狗人）",
+    "alignment": "混乱邪恶",
+    "ac": 14,
+    "acNote": "兽皮甲",
+    "maxHp": 65,
+    "hpDice": "10d8+20",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 15,
+    "constitution": 15,
+    "intelligence": 10,
+    "wisdom": 11,
+    "charisma": 13,
+    "savingThrows": [
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "深渊语，鬣狗人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "横行Rampage",
+        "text": "鬣狗人在其自己回合以一个近战攻击使某个生物生命值降至0时，该鬣狗人可以执行一个附赠动作以移动至多等同于其速度一半的距离并发动一次啃咬攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "鬣狗人发动三次攻击：一次啃咬和两次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC12的体质豁免，豁免失败则受到7（2d6）点毒素伤害"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "1d8+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "description": "Yeenoghu",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "1536d45c-3260-4a43-9485-e656880c50e0",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "lizardqueen",
+    "name": "蜥蜴之王蜥蜴女王",
+    "nameEn": "LizardQueen",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（蜥蜴人）",
+    "alignment": "混乱邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 78,
+    "hpDice": "12d8+24",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 17,
+    "dexterity": 12,
+    "constitution": 15,
+    "intelligence": 11,
+    "wisdom": 11,
+    "charisma": 15,
+    "savingThrows": [
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      },
+      {
+        "name": "生存",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "深渊语，龙语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "恐慌"
+    ],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "蜥蜴人可以憋气15分钟。"
+      },
+      {
+        "name": "串刺Skewer",
+        "text": "蜥蜴人每回合有一次机会，在以三叉戟发动近战攻击且命中时使其目标受额外10（3d6）点伤害，该蜥蜴人还将获得同等于该额外伤害量的临时生命值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "蜥蜴人发动两次攻击：一次啃咬攻击，以及一次爪击攻击或三叉戟攻击，又或者两次都用三叉戟攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬攻击"
+      },
+      {
+        "count": 2,
+        "name": "都用三叉戟攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "三叉戟",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+3",
+        "note": "或用双手发动近战攻击时7（1d8+3）点穿刺伤害"
+      }
+    ],
+    "description": "Queen",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "168bdb70-3696-4462-b2dd-731719519c66",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "werebear",
+    "name": "熊人",
+    "nameEn": "Werebear",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（人类，变形生物）",
+    "alignment": "中立善良",
+    "ac": 11,
+    "acNote": "类人形态下10，熊与半人形态下11（天生护甲）",
+    "maxHp": 135,
+    "hpDice": "18d8+54",
+    "speed": 30,
+    "speedNotes": "（熊与半人形态下40尺，攀爬30尺）",
+    "strength": 19,
+    "dexterity": 10,
+    "constitution": 17,
+    "intelligence": 11,
+    "wisdom": 12,
+    "charisma": 12,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 7
+      }
+    ],
+    "senses": "被动察觉17",
+    "languages": "通用语（不能在熊形态下说话）",
+    "damageResistances": [],
+    "damageImmunities": [
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "熊人可以用一个动作变形为大型的熊与类人生物半人的形态或大型的熊形态，它也可以用同样的动作变回其真实形态也即是类人生物形态。其资料除型体和AC外，在所有形态都不会改变。而其着装或携带的任何装备都不会随之转化。被杀死时它将恢复其真实形态。"
+      },
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "熊人依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "熊人在熊形态下发动两次爪击Claw攻击。在类人形态下发动两次巨斧Greataxe攻击。在半人形态下，它可以如同熊形态或类人形态一样发动攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+7",
+        "damage": "2d10+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是类人生物，则目标必须成功通过一次DC14的体质豁免避免，否则将受到熊人兽化诅咒"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d8+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "巨斧",
+        "attackBonus": "+7",
+        "damage": "1d12+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "1e1bbf60-3ae8-45b5-ac06-d2e463a24e99",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "kuo-toa-archpriest",
+    "name": "寇涛大祭司",
+    "nameEn": "Kuo-toa Archpriest",
+    "cr": "6",
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（寇涛）",
+    "alignment": "中立邪恶",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 97,
+    "hpDice": "13d8+39",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 16,
+    "dexterity": 14,
+    "constitution": 16,
+    "intelligence": 13,
+    "wisdom": 16,
+    "charisma": 14,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 9
+      },
+      {
+        "name": "宗教",
+        "bonus": 6
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉19",
+    "languages": "地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "寇涛可以在空气和水中呼吸。"
+      },
+      {
+        "name": "超凡察觉Otherworldly Perception",
+        "text": "寇涛可以感觉到身边30尺内任何生物的存在。不管目标处于隐形中还是身处以太位面，它都可以找到对方的确切位置。"
+      },
+      {
+        "name": "滑溜Slippery",
+        "text": "寇涛逃脱擒抱时所作的技能检定和豁免检定具有优势。"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "在阳光照射下，寇涛的攻击检定具有劣势，同时依赖视觉而进行的感知（察觉）检定也具有劣势。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "寇涛作为10级施法者，其施法属性为感知（法术豁免DC 14，法术攻击命中+6）。寇涛准备了以下牧师法术：戏法（随意）：神导术guidance，圣火术sacred flame，奇术thaumaturgy1环（4法术位）：侦测魔法detect magic，庇护术sanctuary，虔诚护盾shield of faith2环（3法术位）：定身类人hold person，灵体武器spiritual weapon3环（3法术位）：灵体卫士spirit guardians，巧言术tongues4环（3法术位）：操控水体control water，预言术divination5环（2法术位）：群体疗伤术mass cure wounds，探知术scrying"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "寇涛发动两次近战攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "节杖",
+        "attackBonus": "+6",
+        "damage": "1d6+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加14（4d6）点闪电伤害"
+      },
+      {
+        "name": "徒手打击",
+        "attackBonus": "+6",
+        "damage": "1d4+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "1ee8570a-cf87-49ae-866a-9171a4a6bc8e",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "thug",
+    "name": "暴徒",
+    "nameEn": "Thug",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意非善良阵营",
+    "ac": 11,
+    "acNote": "皮甲",
+    "maxHp": 32,
+    "hpDice": "5d8+10",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 11,
+    "constitution": 14,
+    "intelligence": 10,
+    "wisdom": 10,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "威吓",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉10",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "暴徒至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "暴徒发动两次近战攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "硬头锤",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "重弩",
+        "attackBonus": "+2",
+        "damage": "1d10",
+        "damageType": "穿刺",
+        "range": "射程100/400尺",
+        "properties": [],
+        "normalRange": 100,
+        "maxRange": 400
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "24d6bfdb-f8b9-4c7a-8aca-5e2dd17547bb",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "goblin",
+    "name": "地精",
+    "nameEn": "Goblin",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "类人（类地精）",
+    "alignment": "中立邪恶",
+    "ac": 15,
+    "acNote": "皮甲，盾牌",
+    "maxHp": 7,
+    "hpDice": "2d6",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 8,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 10,
+    "wisdom": 8,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 6
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "通用语，地精语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "迅捷逃逸Nimble Escape",
+        "text": "地精可在自己的回合，以一个附赠动作来执行撤离Disengage或躲藏Hide动作。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "弯刀",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "短弓",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程80/320尺",
+        "properties": [],
+        "normalRange": 80,
+        "maxRange": 320
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 1,
+    "creatureType": "humanoid",
+    "id": "264d8119-4b10-4e8b-b351-4248c9be0757",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "gnome",
+    "name": "Gnome（斯涅布力Svirfneblin）",
+    "nameEn": "",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "类人（侏儒）",
+    "alignment": "中立善良",
+    "ac": 15,
+    "acNote": "链甲衫",
+    "maxHp": 16,
+    "hpDice": "3d6+6",
+    "speed": 20,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 14,
+    "constitution": 14,
+    "intelligence": 12,
+    "wisdom": 10,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "调查",
+        "bonus": 3
+      },
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉12",
+    "languages": "侏儒语，土族语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "岩地伪装Stone Camouflage",
+        "text": "侏儒在岩石地形中进行躲藏时所作的敏捷（隐匿）检定具有优势。"
+      },
+      {
+        "name": "侏儒狡黠Gnome Cunning",
+        "text": "侏儒对抗魔法时进行的智力、感知和魅力豁免具有优势。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "侏儒天生施法属性为智力（法术豁免DC11）。侏儒天生具有以下法术的施法能力，且不需要任何相应的材料成分：随意：回避侦测nondetection（仅自身）每项1/日：目盲/耳聋术 blindness/deafness，朦胧术blur，易容术disguiseself"
+      }
+    ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 11,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "回避侦测",
+            "朦胧术",
+            "易容术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "战镐",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "毒标",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120,
+        "note": "目标必须进行一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 1,
+    "creatureType": "humanoid",
+    "id": "2bfb34bc-e574-4b8a-beab-71eabbd099b1",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "scout",
+    "name": "斥候",
+    "nameEn": "Scout",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 13,
+    "acNote": "皮甲",
+    "maxHp": 16,
+    "hpDice": "3d8+3",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 11,
+    "wisdom": 13,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "自然",
+        "bonus": 4
+      },
+      {
+        "name": "察觉",
+        "bonus": 5
+      },
+      {
+        "name": "隐匿",
+        "bonus": 6
+      },
+      {
+        "name": "求生",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉15",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐视听觉Keen Hearing and Sight",
+        "text": "斥候依赖听觉或视觉所作的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "斥候发动两次近战攻击，或两次远程攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      },
+      {
+        "count": 2,
+        "name": "远程攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "短剑",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "长弓",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "射程150/600尺",
+        "properties": [],
+        "normalRange": 150,
+        "maxRange": 600
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "3581eb1d-adab-4698-a499-862a32f430a0",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "gnoll-pack-lord",
+    "name": "鬣狗人头领",
+    "nameEn": "Gnoll Pack Lord",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（鬣狗人）",
+    "alignment": "混乱邪恶",
+    "ac": 15,
+    "acNote": "链甲衫",
+    "maxHp": 49,
+    "hpDice": "9d8+9",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 14,
+    "constitution": 13,
+    "intelligence": 8,
+    "wisdom": 11,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "鬣狗人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "横行Rampage",
+        "text": "鬣狗人在其自己回合以一个近战攻击使某个生物生命值降至0时，该鬣狗人可以执行一个附赠动作以移动至多等同于其速度一半的距离并发动一次啃咬攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "鬣狗人发动两次长柄刀攻击，或发动两次长弓攻击，如果条件允许则还可以再使用它的煽动横行"
+      },
+      {
+        "name": "煽动横行Incite Rampage",
+        "text": "（充能5~6）指定鬣狗人周边30尺内它能看见的一个生物，如果该生物拥有横行Rampage特质且能够听到该鬣狗人的声音，则该生物可以用它的反应发动一次近战攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "长柄刀攻击"
+      },
+      {
+        "count": 2,
+        "name": "长弓攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "长柄刀",
+        "attackBonus": "+5",
+        "damage": "1d10+3",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "长弓",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "射程150/600尺",
+        "properties": [],
+        "normalRange": 150,
+        "maxRange": 600
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "3e6d1955-b59b-4a01-b162-0e627e685f83",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "quaggoth",
+    "name": "幽邃熊怪",
+    "nameEn": "Quaggoth",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（幽邃熊怪）",
+    "alignment": "混乱中立",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 45,
+    "hpDice": "6d8+18",
+    "speed": 30,
+    "speedNotes": "，攀爬30尺",
+    "strength": 17,
+    "dexterity": 12,
+    "constitution": 16,
+    "intelligence": 6,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉11",
+    "languages": "地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "负伤狂怒Wounded Fury",
+        "text": "当生命值降至10或更低时，幽邃熊怪发动的攻击检定具有优势，并且它对所有目标造成的近战攻击伤害额外增加7（2d6）。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "幽邃熊怪发动两次爪击攻击。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "（灵能Psionics）幽邃熊怪天生施法属性为感知（法术豁免 DC11）。它天生可施展以下法术且不需任何相应的法术成分：随意：羽落术featherfall，法师之手magehand（生成隐形的魔法手）每项1/日：疗伤术curewounds，变巨/缩小术 enlarge/reduce，灼热金属heatmetal，镜影术mirrorimage"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "爪击攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 11,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "羽落术",
+            "法师之手",
+            "变巨",
+            "灼热金属",
+            "镜影术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "变体：幽邃熊怪索诺祭司Variant:幽邃熊怪索诺祭司既是一名普通的幽邃熊怪，同时还拥有挑战等级3（700XP）和以下额外特质"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "416925b4-14b9-4207-98e6-fe279d1604f9",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "archmage",
+    "name": "大法师",
+    "nameEn": "Archmage",
+    "cr": "12",
+    "xp": 8400,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 12,
+    "acNote": "带法师护甲15",
+    "maxHp": 99,
+    "hpDice": "18d8+18",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 20,
+    "wisdom": 15,
+    "charisma": 16,
+    "savingThrows": [
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 13
+      },
+      {
+        "name": "历史",
+        "bonus": 13
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "任意六门语言",
+    "damageResistances": [
+      "法术伤害",
+      "非魔法武器的钝击",
+      "穿刺",
+      "挥砍（带石肤术）"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "大法师抵抗法术和其他魔法效应时进行的豁免检定具有优势。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "大法师作为18级施法者，其施法属性为智力（法术豁免DC17，法术攻击命中+9）。大法师可随意施展易容术disguiseself和隐形术invisibility，且准备了以下法师法术：戏法（随意）：火焰箭firebolt，光亮术light，法师之手mage hand，魔法伎俩prestidigitation，电爪shockinggrasp1环（4法术位）：侦测魔法detect magic，鉴定术identify，法师护甲magearmor*，魔法飞弹magic missile2环（3法术位）：侦测思想detect thoughts，镜影术mirrorimage，迷踪步misty step3环（3法术位）：法术反制counterspell，飞行术fly，闪电束lightningbolt4环（3法术位）：放逐术banishment，火焰护盾fireshield，石肤术stoneskin＊5环（3法术位）：寒冰锥cone of cold，探知术Scrying，力场墙wall offorce6环（1法术位）：法术无效结界globe ofinvulnerability7环（1法术位）：传送术teleport8环（1法术位）：心灵屏障mindblank*9环（1法术位）：时间停止timestop*大法师在进入战斗前对自身施展这些带标记的法术。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 17,
+      "attackBonus": 9,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "火焰箭",
+            "光亮术",
+            "法师之手",
+            "魔法伎俩",
+            "电爪"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "鉴定术",
+            "法师护甲",
+            "魔法飞弹"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "侦测思想",
+            "镜影术",
+            "迷踪步"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "法术反制",
+            "飞行术",
+            "闪电束"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "放逐术",
+            "火焰护盾",
+            "石肤术"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "寒冰锥",
+            "探知术",
+            "力场墙"
+          ]
+        },
+        {
+          "ring": "6环",
+          "spells": [
+            "法术无效结界"
+          ]
+        },
+        {
+          "ring": "7环",
+          "spells": [
+            "传送术"
+          ]
+        },
+        {
+          "ring": "8环",
+          "spells": [
+            "心灵屏障"
+          ]
+        },
+        {
+          "ring": "9环",
+          "spells": [
+            "时间停止"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "匕首",
+        "attackBonus": "+6",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [],
+        "normalRange": 20,
+        "maxRange": 60,
+        "note": "变体：魔宠Variant:任何施法者（比如大法师或魔法师）施展法术寻获魔宠find"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "4657ad46-ee8f-4fb7-aef2-1c4385ea581e",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "githzerai-monk",
+    "name": "吉斯泽莱武僧",
+    "nameEn": "Githzerai Monk",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（吉斯人）",
+    "alignment": "守序中立",
+    "ac": 14,
+    "acNote": "14",
+    "maxHp": 38,
+    "hpDice": "7d8+7",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 12,
+    "dexterity": 15,
+    "constitution": 12,
+    "intelligence": 13,
+    "wisdom": 14,
+    "charisma": 10,
+    "savingThrows": [
+      "strength",
+      "dexterity",
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "洞悉",
+        "bonus": 4
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "吉斯语Gith",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "（灵能Psionics）吉斯泽莱人天生施法属性为感知。它天生可施展以下法术而不需要任何相应的法术成分：随意：法师之手（生成隐形的手）每项3/日：羽落术，跳跃术，识破隐形，护盾术"
+      },
+      {
+        "name": "灵能护体Psychic Defense",
+        "text": "当吉斯泽莱人未着装任何护甲也未持用盾牌时，它的AC将加上它的感知调整值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "吉斯泽莱人发动两次徒手打击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "徒手打击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "徒手打击",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加9（2d8）点心灵伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "46bc7627-93ba-42e1-b293-b626d13e0ff4",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "orc-eye-of-gruumsh",
+    "name": "兽人格乌什之眼",
+    "nameEn": "Orc Eye of Gruumsh",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（兽人）",
+    "alignment": "混乱邪恶",
+    "ac": 16,
+    "acNote": "环甲，盾牌",
+    "maxHp": 45,
+    "hpDice": "6d8+18",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 12,
+    "constitution": 16,
+    "intelligence": 9,
+    "wisdom": 13,
+    "charisma": 12,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "威吓",
+        "bonus": 3
+      },
+      {
+        "name": "宗教",
+        "bonus": 1
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉11",
+    "languages": "通用语，兽人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "好斗Aggressive",
+        "text": "作为一个附赠动作项，兽人可以向一个它能看见的敌对生物移动至多相当于其速度的距离。"
+      },
+      {
+        "name": "格乌什之怒Gruumsh's Fury",
+        "text": "兽人以武器攻击命中目标时，额外造成4（1d8）点伤害（已计算在下面的攻击条目中）。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "兽人作为3级施法者，其施法属性为感知（法术豁免DC11，法术攻击命中+3）。该兽人准备了以下牧师法术：戏法（随意）：神导术guidance，抵抗术resistance，奇术thaumaturgy1环（4法术位）：祝福术bless，命令术command2环（2法术位）：卜筮术augury，灵体武器spiritual weapon（矛）"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 11,
+      "attackBonus": 3,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "神导术",
+            "抵抗术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "祝福术",
+            "命令术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "卜筮术",
+            "灵体武器"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "矛",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "2d8+3",
+        "note": "外加1d8；或用双手发动近战攻击时12（2d8+3）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "4940a1bf-ecb5-40b6-9e0f-87ab6b654ad9",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "grimlock",
+    "name": "幽邃盲族",
+    "nameEn": "Grimlock",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（幽邃盲族）",
+    "alignment": "中立邪恶",
+    "ac": 11,
+    "acNote": "11",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 12,
+    "constitution": 12,
+    "intelligence": 9,
+    "wisdom": 8,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 3
+      }
+    ],
+    "senses": "盲视30尺，耳聋时为10尺（此范围外视为目盲），",
+    "languages": "地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "目盲"
+    ],
+    "traits": [
+      {
+        "name": "盲感Blind Senses",
+        "text": "幽邃盲族在耳聋且无法使用嗅觉时，不能使用它的盲视感官。"
+      },
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "幽邃盲族依赖听觉或嗅觉所进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "岩地伪装Stone Camouflage",
+        "text": "幽邃盲族在岩石地形中进行躲藏而作的敏捷（隐匿）检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "骨刺短棒",
+        "attackBonus": "+5",
+        "damage": "1d4+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加2（1d4）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "49c3c00c-f517-49ff-ad3d-81964e90e198",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "kuo-toa",
+    "name": "寇涛",
+    "nameEn": "Kuo-toa",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（寇涛）",
+    "alignment": "中立邪恶",
+    "ac": 13,
+    "acNote": "天生护甲，盾牌",
+    "maxHp": 18,
+    "hpDice": "4d8",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 13,
+    "dexterity": 10,
+    "constitution": 11,
+    "intelligence": 11,
+    "wisdom": 10,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉14",
+    "languages": "地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "寇涛可以在空气和水中呼吸。"
+      },
+      {
+        "name": "超凡察觉Otherworldly Perception",
+        "text": "寇涛可以感知到任何距离它30尺内处于隐形状态或在乙太位面的生物。它可以准确知道这类生物在移动时的确切位置。"
+      },
+      {
+        "name": "滑溜Slippery",
+        "text": "寇涛逃脱擒抱时所作的技能检定和豁免检定具有优势。"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "在阳光照射下，寇涛的攻击检定具有劣势，同时依赖视觉而进行的感知（察觉）检定也具有劣势。"
+      },
+      {
+        "name": "粘性盾牌Sticky Shield",
+        "text": "一个生物的近战武器攻击未命中寇涛时，寇涛可以使用它的粘性盾牌来捕获对方的武器。攻击者必须成功通过一次DC 11的力量豁免，否则武器将粘在寇涛的盾牌上。如果武器的持用者不能或者不愿意放下武器，则武器被粘住时持用者被擒抱。武器在被粘住时不能使用。任意生物可以用一个动作进行一次DC 11的力量检定，检定成功即可把武器拉出来。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d4+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "矛",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+1",
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
+      },
+      {
+        "name": "捕网",
+        "attackBonus": "+3",
+        "damage": "",
+        "damageType": "",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "（AC 10）后便可将其破坏并无损的释放其内的生物"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "4a99d198-35bc-4041-ada2-929f163aa081",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "bugbear-chief",
+    "name": "熊地精酋长",
+    "nameEn": "Bugbear Chief",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（类地精）",
+    "alignment": "混乱邪恶",
+    "ac": 17,
+    "acNote": "链甲衫，盾牌",
+    "maxHp": 65,
+    "hpDice": "10d8+20",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 14,
+    "constitution": 14,
+    "intelligence": 11,
+    "wisdom": 12,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "威吓",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 6
+      },
+      {
+        "name": "生存",
+        "bonus": 3
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉11",
+    "languages": "通用语，地精语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "残暴Brute",
+        "text": "熊地精用近战武器命中敌人时，其伤害掷骰额外增加一粒该武器的伤害骰（已包含在攻击项中）。"
+      },
+      {
+        "name": "赫鲁格克之心Heart of Hruggek",
+        "text": "熊地精抵抗魅惑、恐慌、麻痹、中毒、震慑与睡眠进行的豁免检定具有优势。"
+      },
+      {
+        "name": "突袭打击Surprise Attack",
+        "text": "熊地精成功突袭一个生物，并在战斗开始后第一轮中发动攻击命中该生物时，该目标将在该次攻击中额外受到7（2d6）点同类型伤害。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "熊地精发动两次近战攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "钉头锤",
+        "attackBonus": "+5",
+        "damage": "2d8+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120,
+        "note": "或远程时6（1d6+3）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "4ed75490-ea28-498d-a16a-bde766c6b650",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "guard",
+    "name": "警卫",
+    "nameEn": "Guard",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 16,
+    "acNote": "链甲衫，盾牌",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 12,
+    "constitution": 12,
+    "intelligence": 10,
+    "wisdom": 11,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "矛",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+1",
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
+      }
+    ],
+    "description": "Guard",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "55e2748a-5839-43e6-a700-4836f8cbaeaf",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "sahuagin-priestess",
+    "name": "鲨华女祭司",
+    "nameEn": "Sahuagin Priestess",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（鲨华鱼人）",
+    "alignment": "守序邪恶",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 33,
+    "hpDice": "6d8+6",
+    "speed": 30,
+    "speedNotes": "，游泳40尺",
+    "strength": 13,
+    "dexterity": 11,
+    "constitution": 12,
+    "intelligence": 12,
+    "wisdom": 14,
+    "charisma": 13,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 6
+      },
+      {
+        "name": "宗教",
+        "bonus": 3
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉16",
+    "languages": "鲨华鱼人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "嗜血狂怒Blood Frenzy",
+        "text": "鲨华鱼人对生命值没有全满的生物发动近战攻击时，其攻击检定具有优势。"
+      },
+      {
+        "name": "有限两栖Limited Amphibiousness",
+        "text": "鲨华鱼人可以在空气和水中呼吸，但它至少每4小时要回到水里，以避免窒息。"
+      },
+      {
+        "name": "鲨心感应Shark Telepathy",
+        "text": "鲨华鱼人可以用魔法进行有限的心灵感应，以命令其周边120尺内的鲨鱼。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "鲨华鱼人作为6级施法者，其施法属性为感知（法术豁免DC12，法术攻击命中+4）。鲨华女祭司准备了以下牧师法术：戏法（随意）：神导术guidance，奇术thaumaturgy1环（4法术位）：祝福术bless，侦测魔法detectmagic，光导箭guidingbolt2环（3法术位）：定身类人holdperson，灵体武器spiritualweapon（三叉戟）3环（3法术位）：群体治愈真言masshealing words，巧言术tongues"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "鲨华鱼人发动两次攻击：一次啃咬和一次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "爪击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "神导术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "祝福术",
+            "侦测魔法",
+            "光导箭"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "灵体武器"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "群体治愈真言",
+            "巧言术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d4+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+3",
+        "damage": "1d4+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "582e1168-ac73-4c29-bee6-f3af9f489fd3",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "duergar",
+    "name": "灰矮人",
+    "nameEn": "Duergar",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（矮人）",
+    "alignment": "守序邪恶",
+    "ac": 16,
+    "acNote": "鳞甲，盾牌",
+    "maxHp": 26,
+    "hpDice": "4d8+8",
+    "speed": 25,
+    "speedNotes": "",
+    "strength": 14,
+    "dexterity": 11,
+    "constitution": 14,
+    "intelligence": 11,
+    "wisdom": 10,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉120尺，被动察觉10",
+    "languages": "矮人语，地底通用语",
+    "damageResistances": [
+      "毒素"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "灰矮人体魄Duergar Resilience",
+        "text": "灰矮人抵抗中毒，法术和幻觉时，进行的豁免检定具有优势。抵抗魅惑和麻痹状态时，也是一样。"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "在阳光照射下，灰矮人进行的攻击检定具有劣势，此时其依赖视觉进行的感知（察觉）检定也具有劣势。"
+      },
+      {
+        "name": "变巨Enlarge",
+        "text": "（短休或长休后充能）灰矮人用魔法将自己连同其装备或携带的所有东西一起变得巨大，并持续1分钟。变巨效应持续时，灰矮人体型变为大型，以力量为基础的武器攻击其伤害骰翻倍（已包含在攻击项中），且其进行的力量检定和力量豁免具有优势。当灰矮人所处的空间不足够容纳大型体型生物时，变巨的尺寸会按照空间可容纳的最大值来确定。"
+      },
+      {
+        "name": "隐形Invisibility",
+        "text": "（短休或长休后充能）。灰矮人用魔法隐去身形，效果持续到它发动攻击，施展法术，使用变巨特质或者其专注被打断（如同专注一个法术）。如果持续专注于该法术，效果将至多持续1小时。灰矮人身上着装和携带的所有装备将随它一同隐形。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "战镐",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "在变巨时为11（2d8+2）点穿刺伤害"
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120,
+        "note": "在变巨时为9（2d6+2）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "58ab839e-949d-47a9-8dd7-e4819e5d3a4c",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "kuo-toa-whip",
+    "name": "寇涛鞭策者",
+    "nameEn": "Kuo-toa Whip",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（寇涛）",
+    "alignment": "中立邪恶",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 65,
+    "hpDice": "10d8+20",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 14,
+    "dexterity": 10,
+    "constitution": 14,
+    "intelligence": 12,
+    "wisdom": 14,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 6
+      },
+      {
+        "name": "宗教",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉16",
+    "languages": "地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "寇涛可以在空气和水中呼吸。"
+      },
+      {
+        "name": "超凡察觉Otherworldly Perception",
+        "text": "寇涛可以感觉到身边30尺内任何生物的存在。不管目标处于隐形中还是身处以太位面，它都可以找到对方的确切位置。"
+      },
+      {
+        "name": "滑溜Slippery",
+        "text": "寇涛逃脱擒抱时所作的技能检定和豁免检定具有优势。"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "在阳光照射下，寇涛的攻击检定具有劣势，同时依赖视觉而进行的感知（察觉）检定也具有劣势。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "寇涛作为2级施法者，其施法属性为感知（法术豁免DC 12，法术攻击命中+4）。寇涛准备了以下牧师法术：戏法（随意）：圣火术sacred flame，奇术thaumaturgy1环（3法术位）：灾祸术bane，虔诚护盾shield of faith"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "寇涛发动两次近战攻击：一次啃咬和一次钳杖攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "寇涛发动一次啃咬攻击和两次徒手打击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "钳杖攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "钳杖",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标为中型或更小体型生物，则目标生物被擒抱（逃脱DC 14）"
+      },
+      {
+        "name": "啃咬",
+        "attackBonus": "+6",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "徒手打击",
+        "attackBonus": "+6",
+        "damage": "1d6+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加3（1d6）点闪电伤害，直至寇涛的下一回合开始前，目标将无法执行反应"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "5a4973b8-d008-409d-8e0b-51fb72f7cbca",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "assassin",
+    "name": "刺客",
+    "nameEn": "Assassin",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意非善良阵营",
+    "ac": 15,
+    "acNote": "15",
+    "maxHp": 78,
+    "hpDice": "12d8+24",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 16,
+    "constitution": 14,
+    "intelligence": 13,
+    "wisdom": 11,
+    "charisma": 10,
+    "savingThrows": [
+      "dexterity",
+      "intelligence"
+    ],
+    "skills": [
+      {
+        "name": "特技",
+        "bonus": 6
+      },
+      {
+        "name": "欺瞒",
+        "bonus": 3
+      },
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 9
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "盗贼黑话，外加任意两门语言",
+    "damageResistances": [
+      "毒素"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "暗杀Assassinate",
+        "text": "在开始战斗的首个回合，刺客对任何未开始其回合的生物发动攻击时，其攻击检定具有优势。刺客击中被突袭生物的所有攻击均被视为重击。"
+      },
+      {
+        "name": "反射闪避Evasion",
+        "text": "某个敏捷豁免通过后伤害减半的效应指定刺客为目标时，其豁免成功则不受任何伤害，而豁免失败时则只受一半伤害。偷袭Sneak Attack（1/回合）。刺客对目标造成伤害时，如果其攻击检定具有优势，或者如果其攻击检定没有劣势且它在该目标身边5尺范围内有一个未处于失能状态的盟友。满足以上条件时，刺客造成额外14（4d6）点伤害。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "刺客发动两次短剑攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "短剑攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "短剑",
+        "attackBonus": "+6",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC15的体质豁免检定，豁免失败则受到24（7d6）点毒素伤害，豁免成功则伤害减半"
+      },
+      {
+        "name": "轻弩",
+        "attackBonus": "+6",
+        "damage": "1d8+3",
+        "damageType": "穿刺",
+        "range": "射程80/320尺",
+        "properties": [],
+        "normalRange": 80,
+        "maxRange": 320,
+        "note": "目标必须进行一次DC15的体质豁免，豁免失败则受到24（7d6）点毒素伤害，豁免成功则伤害减半"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "62c3db04-01c2-41da-8812-170f4cef7717",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "weretiger",
+    "name": "虎人",
+    "nameEn": "Weretiger",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中形",
+    "type": "类人生物（人类，变形生物）",
+    "alignment": "绝对中立",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 120,
+    "hpDice": "16d8+48",
+    "speed": 30,
+    "speedNotes": "（虎形态下40尺）",
+    "strength": 17,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 10,
+    "wisdom": 13,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉15",
+    "languages": "通用语（不能在虎形态下说话）",
+    "damageResistances": [],
+    "damageImmunities": [
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "虎人可以用一个动作变身成老虎与类人生物半人的形态或一只老虎，或者以同样的动作变回其真实形态即类人生物形态。其各形态资料除体型外均相同。其着装及携带的装备也不会随之转化。死亡时它将恢复其真实形态。"
+      },
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "虎人依赖听觉或嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "猛扑Pounce",
+        "text": "（仅老虎或半人形态）若虎人向目标直线移动至少15尺，然后在同一回合对其发动爪击攻击且命中该目标，则目标必须进行一次DC14的力量豁免，豁免失败者将应击倒地。如果目标陷入倒地，则该虎人可用一个附赠动作对目标发动一次啃咬攻击。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "（仅类人与半人形态）类人形态下，虎人发动两次弯刀攻击或两次长弓攻击。在半人形态下，它可以像类人形态一样进行攻击，或发动两次爪抓攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "长弓攻击"
+      },
+      {
+        "count": 2,
+        "name": "爪抓攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+5",
+        "damage": "1d10+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是类人生物，则目标必须成功通过一次DC13的体质豁免否则将承受虎人兽化诅咒"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+5",
+        "damage": "1d8+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "弯刀",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "长弓",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "射程150/600尺",
+        "properties": [],
+        "normalRange": 150,
+        "maxRange": 600
+      }
+    ],
+    "description": "中形类人生物（人类，变形生物），绝对中立",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "6476b7f5-2ade-4fba-bb98-7ddc40ae064b",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "aarakocra",
+    "name": "鸟羽人",
+    "nameEn": "Aarakocra",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（阿兰寇拉鹰人）",
+    "alignment": "中立善良",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 13,
+    "hpDice": "3d8",
+    "speed": 20,
+    "speedNotes": "，飞行50尺",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 11,
+    "wisdom": 12,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉15",
+    "languages": "气族语，鸟羽人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "俯冲攻击Dive Attack",
+        "text": "如果鸟羽人在飞行中向一个目标直线俯冲至少30尺，再以一次近战攻击命中对方，则该攻击对目标造成额外3（1d6）点伤害。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "禽爪",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "6ccf2d04-aedb-4f08-b831-398fc4320fd7",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "knight",
+    "name": "骑士",
+    "nameEn": "Knight",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 18,
+    "acNote": "板甲",
+    "maxHp": 52,
+    "hpDice": "8d8+16",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 11,
+    "constitution": 14,
+    "intelligence": 11,
+    "wisdom": 11,
+    "charisma": 15,
+    "savingThrows": [
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "勇气Brave",
+        "text": "骑士为抵抗恐慌而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "骑士发动两次近战攻击。"
+      },
+      {
+        "name": "领导Leadership",
+        "text": "（短休或长休后充能）在1分钟内，骑士可以对身边30尺内一个他能看见，且正在进行攻击检定或豁免检定的非敌对生物，说出一条特殊的指令或警告。若该生物可以听到并理解骑士的话则其可以在当前的检定结果里加上一个d4。一个生物一次只能受益于一个领导骰。骑士陷入失能时，该效应也随之终止。"
+      },
+      {
+        "name": "格挡Parry",
+        "text": "骑士在被一次近战攻击命中时，其AC加上2。此时该骑士必须能看见攻击者，且有在持用一把近战武器。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨剑",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "重弩",
+        "attackBonus": "+2",
+        "damage": "1d10",
+        "damageType": "穿刺",
+        "range": "射程100/400尺",
+        "properties": [],
+        "normalRange": 100,
+        "maxRange": 400
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "6fe30f1d-fd8c-4f0a-975e-0eae3b751b1d",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "kobold",
+    "name": "狗头人",
+    "nameEn": "Kobold",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "类人（狗头人）",
+    "alignment": "守序邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 5,
+    "hpDice": "2d6-2",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 7,
+    "dexterity": 15,
+    "constitution": 9,
+    "intelligence": 8,
+    "wisdom": 7,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉8",
+    "languages": "通用语，龙语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "受阳光照射时，狗头人进行的攻击检定和依赖视觉进行的感知（察觉）检定具有劣势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "狗头人至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "匕首",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "投石索",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "钝击",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 1,
+    "creatureType": "humanoid",
+    "id": "70bbb395-9a67-43bc-bae9-ceb1ae3974b4",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "mage",
+    "name": "魔法师",
+    "nameEn": "Mage",
+    "cr": "6",
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 12,
+    "acNote": "带法师护甲15",
+    "maxHp": 40,
+    "hpDice": "9d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 9,
+    "dexterity": 14,
+    "constitution": 11,
+    "intelligence": 17,
+    "wisdom": 12,
+    "charisma": 11,
+    "savingThrows": [
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 6
+      },
+      {
+        "name": "历史",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉11",
+    "languages": "任意四门语言",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "施法Spellcasting",
+        "text": "魔法师作为9级施法者，其施法属性为智力（法术豁免DC14，法术攻击命中+6）。魔法师准备了以下法师法术：戏法（随意）：火焰箭fire bolt，光亮术light，法师之手magehand，魔法伎俩prestidigitation1环（4法术位）：侦测魔法detect magic，法师护甲magearmor，魔法飞弹magic missile，护盾术shield2环（3法术位）：迷踪步mistystep，暗示术suggestion3环（3法术位）：法术反制counterspell，火球术fireball，飞行术fly4环（3法术位）：高等隐形术greaterinvisibility，冰风暴ice storm5环（1法术位）：寒冰锥cone ofcold"
+      }
+    ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "火焰箭",
+            "光亮术",
+            "法师之手",
+            "魔法伎俩"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "法师护甲",
+            "魔法飞弹",
+            "护盾术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "迷踪步",
+            "暗示术"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "法术反制",
+            "火球术",
+            "飞行术"
+          ]
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "高等隐形术",
+            "冰风暴"
+          ]
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "寒冰锥"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "匕首",
+        "attackBonus": "+5",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [],
+        "normalRange": 20,
+        "maxRange": 60,
+        "note": "变体：魔宠Variant:任何施法者（比如大法师或魔法师）施展法术寻获魔宠find"
+      }
+    ],
+    "description": "Mage",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "79c89d0c-4a35-4416-ab27-0f88a24f620d",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "bugbear",
+    "name": "熊地精",
+    "nameEn": "Bugbear",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（类地精）",
+    "alignment": "混乱邪恶",
+    "ac": 16,
+    "acNote": "兽皮甲，盾牌",
+    "maxHp": 27,
+    "hpDice": "5d8+5",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 14,
+    "constitution": 13,
+    "intelligence": 8,
+    "wisdom": 11,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 6
+      },
+      {
+        "name": "生存",
+        "bonus": 2
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语，地精语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "残暴Brute",
+        "text": "熊地精用近战武器命中敌人时，其伤害掷骰额外增加一粒该武器的伤害骰（已包含在攻击项中）。"
+      },
+      {
+        "name": "突袭打击Surprise Attack",
+        "text": "熊地精成功突袭一个生物，并在战斗开始后第一轮中发动攻击命中该生物时，该目标将在该次攻击中额外受到7（2d6）点同类型伤害。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "钉头锤",
+        "attackBonus": "+4",
+        "damage": "2d8+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+4",
+        "damage": "2d6+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120,
+        "note": "或远程时5（1d6+2）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "7d24e131-df91-4da0-a2ac-7e041f473fb2",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "cultfanatic",
+    "name": "邪教狂信者",
+    "nameEn": "CultFanatic",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意非善良阵营",
+    "ac": 13,
+    "acNote": "皮甲",
+    "maxHp": 33,
+    "hpDice": "6d8+6",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 10,
+    "wisdom": 13,
+    "charisma": 14,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 4
+      },
+      {
+        "name": "游说",
+        "bonus": 4
+      },
+      {
+        "name": "宗教",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉11",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "黑暗忠诚Dark Devotion",
+        "text": "狂信者为抵抗魅惑和恐慌而作的豁免检定具有优势。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "狂信者作为4级施法者，其施法属性为感知（法术豁免DC11，法术攻击命中+3）。狂信者准备了以下牧师法术：戏法（随意）：光亮术light，圣火术sacredflame，奇术thaumaturgy1环（4法术位）：命令术command，致伤术inflict wounds，虔诚护盾shieldof faith2环（3法术位）：定身类人hold person，灵体武器spiritualweapon"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "狂信者发动两次近战攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 11,
+      "attackBonus": 3,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "光亮术",
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "命令术",
+            "致伤术",
+            "虔诚护盾"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "灵体武器"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "匕首",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [],
+        "normalRange": 20,
+        "maxRange": 60
+      }
+    ],
+    "description": "Fanatic",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "8b1000e0-bc94-45ac-8d24-148c34c7785d",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "lizardfolk",
+    "name": "蜥蜴人",
+    "nameEn": "Lizardfolk",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（蜥蜴人）",
+    "alignment": "绝对中立",
+    "ac": 15,
+    "acNote": "天生护甲，盾牌",
+    "maxHp": 22,
+    "hpDice": "4d8+4",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 15,
+    "dexterity": 10,
+    "constitution": 13,
+    "intelligence": 7,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      },
+      {
+        "name": "生存",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "龙语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "蜥蜴人可以憋气15分钟。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "蜥蜴人发动两次近战攻击，每次攻击必须使用不同的武器。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "重棒",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      },
+      {
+        "name": "刺盾",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "8b6322ba-eb4b-4552-b165-bd2a9117a010",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "drow",
+    "name": "卓尔",
+    "nameEn": "Drow",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（精灵）",
+    "alignment": "中立邪恶",
+    "ac": 15,
+    "acNote": "链甲衫",
+    "maxHp": 13,
+    "hpDice": "3d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 11,
+    "wisdom": 11,
+    "charisma": 12,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉12",
+    "languages": "精灵语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "妖精血统Fey Ancestry",
+        "text": "卓尔进行对抗魅惑的豁免检定时具有优势，且魔法效应无法使卓尔陷入睡眠。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "卓尔天生施法属性为魅力（法术豁免DC11）。它天生可施展以下法术且不需要任何相应的材料成分：随意：舞光术dancinglights每项1/日：黑暗术darkness，妖火faeriefire"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "在日光照射下，卓尔的攻击检定具有劣势，其依赖视觉的感知（察觉）检定也具有劣势。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 11,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "短剑",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "手弩",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120,
+        "note": "目标必须进行一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "90117bde-5994-410d-89a4-cab4d04a75cc",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "drow-mage",
+    "name": "卓尔魔法师",
+    "nameEn": "Drow Mage",
+    "cr": "7",
+    "xp": 2900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（精灵）",
+    "alignment": "中立邪恶",
+    "ac": 12,
+    "acNote": "使用法师护甲mage",
+    "maxHp": 45,
+    "hpDice": "10d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 9,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 17,
+    "wisdom": 13,
+    "charisma": 12,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 6
+      },
+      {
+        "name": "欺瞒",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉14",
+    "languages": "精灵语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "妖精血统Fey Ancestry",
+        "text": "卓尔进行对抗魅惑的豁免检定时具有优势，且魔法效应无法使卓尔陷入睡眠。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "卓尔天生施法属性为魅力（法术豁免DC12）。它天生可施展以下法术且不需要任何相应的材料成分：随意：舞光术dancinglights每项1/日：黑暗术darkness，妖火faeriefire，浮空术levitate（仅自身）"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "卓尔作为10级施法者。其施法关键属性为智力（法术豁免DC14，法术攻击命中+6）。该卓尔学习了以下法师法术：戏法（随意）：法师之手magehand，次级幻象minorillusion，毒液飞溅poisonsplash，冷冻射线rayof frost1环（4法术位）：法师护甲magearmor，魔法飞弹magicmissile，护盾术shield，巫术箭witchbolt2环（3法术位）：变身术alterself，迷踪步mistystep，蛛网术web3环（3法术位）：飞行术fly，闪电束lightningbolt4环（3法术位）：艾伐黑触手Evard'sblack tentacles，高等隐形术greaterinvisibility5环（2法术位）：死云术cloudkill"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "在日光照射下，卓尔的攻击检定具有劣势，同时依赖视觉的感知（察觉）检定也具有劣势。"
+      },
+      {
+        "name": "召唤恶魔Summon Demon",
+        "text": "（1/日）卓尔使用魔法召唤一只小恶魔quasit，或者以50%成功率召唤一只幽影恶魔shadowdemon。所召唤的恶魔出现在召唤者身边60尺范围内一处未被占据的位置，并作为召唤者的盟友行动。该恶魔不能召唤其他恶魔并持续存在10分钟，或者直至召唤者或其本身死亡。召唤者可以用一个动作解除恶魔的召唤。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火",
+            "浮空术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "法杖",
+        "attackBonus": "+2",
+        "damage": "1d6-1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "twoHandedDamage": "1d8-1",
+        "note": "或使用双手攻击时3（1d8-1）点钝击伤害，外加3（1d6）点毒素伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "92a55fba-26da-497e-a204-c9ff427d154e",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "veteran",
+    "name": "老兵",
+    "nameEn": "Veteran",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 17,
+    "acNote": "板条甲",
+    "maxHp": 58,
+    "hpDice": "9d8+18",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 13,
+    "constitution": 14,
+    "intelligence": 10,
+    "wisdom": 11,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "老兵发动两次长剑攻击。如果其短剑已出鞘，则可再发动一次短剑攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "长剑攻击"
+      },
+      {
+        "count": 1,
+        "name": "短剑攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+5",
+        "damage": "1d8+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "twoHandedDamage": "1d10+3",
+        "note": "或使用双手攻击时8（1d10+3）点挥砍伤害"
+      },
+      {
+        "name": "短剑",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "重弩",
+        "attackBonus": "+3",
+        "damage": "1d10+1",
+        "damageType": "穿刺",
+        "range": "射程100/400尺",
+        "properties": [],
+        "normalRange": 100,
+        "maxRange": 400
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "9620841a-8e53-4219-8e25-d6941890c570",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "bullywug",
+    "name": "啵灵蛙",
+    "nameEn": "Bullywug",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（啵灵蛙）",
+    "alignment": "中立邪恶",
+    "ac": 15,
+    "acNote": "兽皮甲，盾牌",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 20,
+    "speedNotes": "，游泳40尺",
+    "strength": 12,
+    "dexterity": 12,
+    "constitution": 13,
+    "intelligence": 7,
+    "wisdom": 10,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉10",
+    "languages": "啵灵蛙语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "啵灵蛙可以在空气和水中呼吸。"
+      },
+      {
+        "name": "蛙类交流Speak with Frogs and Toads",
+        "text": "啵灵蛙可以用啵灵蛙语同任何青蛙或蟾蜍进行内容简单的交流。"
+      },
+      {
+        "name": "沼泽伪装Swamp Camouflage",
+        "text": "啵灵蛙身处沼泽地形时，其尝试躲藏而进行的敏捷（隐匿）检定具有优势。"
+      },
+      {
+        "name": "立定起跳Standing Leap",
+        "text": "无论是否助跑，啵灵蛙最远可以跳20尺，最高10尺。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "啵灵蛙发动两次近战攻击：一次矛攻击和一次啃咬攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "矛攻击"
+      },
+      {
+        "count": 1,
+        "name": "啃咬攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d4+1",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "矛",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+1",
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "991a7030-9cb3-4dd8-a279-d419b4798b66",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "orog",
+    "name": "魔兽人",
+    "nameEn": "Orog",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（兽人）",
+    "alignment": "混乱邪恶",
+    "ac": 18,
+    "acNote": "板甲",
+    "maxHp": 42,
+    "hpDice": "5d8+20",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 12,
+    "constitution": 18,
+    "intelligence": 12,
+    "wisdom": 13,
+    "charisma": 12,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "威吓",
+        "bonus": 5
+      },
+      {
+        "name": "生存",
+        "bonus": 2
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉11",
+    "languages": "通用语，兽人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "好斗Aggressive",
+        "text": "作为一个附赠动作项，兽人可以向一个它能看见的敌对生物移动至多相当于其速度的距离。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "魔兽人发动两次巨斧攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨斧攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨斧",
+        "attackBonus": "+6",
+        "damage": "1d12+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+6",
+        "damage": "1d6+4",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "9a9d1ac8-1605-46d6-af9f-e60df0a1245b",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "berserker",
+    "name": "狂战士",
+    "nameEn": "Berserker",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意混乱阵营",
+    "ac": 13,
+    "acNote": "兽皮甲",
+    "maxHp": 67,
+    "hpDice": "9d8+27",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 12,
+    "constitution": 17,
+    "intelligence": 9,
+    "wisdom": 11,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "鲁莽Reckless",
+        "text": "狂战士可以在自己回合开始时进入鲁莽状态，其发动的所有近战武器攻击的攻击检定均具有优势，所有对其发动的攻击检定也同样具有优势，持续直至他的下一回合开始。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨斧",
+        "attackBonus": "+5",
+        "damage": "1d12+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "9aa90fe5-2ae0-4908-ba0d-ebb8d7289b5b",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "bandit",
+    "name": "匪徒",
+    "nameEn": "Bandit",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意非守序阵营",
+    "ac": 12,
+    "acNote": "皮甲",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 12,
+    "constitution": 12,
+    "intelligence": 10,
+    "wisdom": 10,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "弯刀",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "轻弩",
+        "attackBonus": "+3",
+        "damage": "1d8+1",
+        "damageType": "穿刺",
+        "range": "射程80/320尺",
+        "properties": [
+          "轻"
+        ],
+        "normalRange": 80,
+        "maxRange": 320
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "a206f2a4-894e-4530-9b44-74b2bb6ff695",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "githzerai-zerth",
+    "name": "吉斯泽莱泽锡修士",
+    "nameEn": "Githzerai Zerth",
+    "cr": "6",
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（吉斯人）",
+    "alignment": "守序中立",
+    "ac": 17,
+    "acNote": "17",
+    "maxHp": 84,
+    "hpDice": "13d8+26",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 18,
+    "constitution": 15,
+    "intelligence": 16,
+    "wisdom": 17,
+    "charisma": 12,
+    "savingThrows": [
+      "strength",
+      "dexterity",
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 6
+      },
+      {
+        "name": "洞悉",
+        "bonus": 6
+      },
+      {
+        "name": "察觉",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉16",
+    "languages": "吉斯语Gith",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "（灵能Psionics）吉斯泽莱人天生施法属性为感知（法术豁免DC14，法术攻击命中+6）。它天生可施展以下法术而不需要任何法术成分：随意：法师之手（生成隐形的手）每项3/日：羽落术，跳跃术，识破隐形，护盾术每项1/日：魅影杀手，位面转移"
+      },
+      {
+        "name": "灵能护体Psychic Defense",
+        "text": "当吉斯泽莱人未着装任何护甲也未持用盾牌时，它的AC将加上它的感知调整值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "吉斯泽莱人发动两次徒手打击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "徒手打击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "法师之手",
+            "跳跃术",
+            "识破隐形",
+            "护盾术每项",
+            "位面转移"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "徒手打击",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加13（3d8）点心灵伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "a52de6b9-1843-449e-9d70-fa88f8424b36",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "troglodyte",
+    "name": "穴蜥人",
+    "nameEn": "Troglodyte",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（穴蜥人）",
+    "alignment": "混乱邪恶",
+    "ac": 11,
+    "acNote": "天生护甲",
+    "maxHp": 13,
+    "hpDice": "2d8+4",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 14,
+    "dexterity": 10,
+    "constitution": 14,
+    "intelligence": 6,
+    "wisdom": 10,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 2
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "穴蜥人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变色皮肤Chameleon Skin",
+        "text": "穴蜥人进行躲藏而作的敏捷（隐匿）检定具有优势。"
+      },
+      {
+        "name": "恶臭Stench",
+        "text": "在穴蜥人身边5尺范围内开始其自己回合的生物，除穴蜥人外必须成功通过一次DC12的体质豁免否则将陷入中毒，中毒状态持续至该生物的下一回合开始。豁免成功的生物将在随后1小时内免疫所有穴蜥人的恶臭。"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "处于阳光下的穴蜥人在进行攻击检定，以及进行依赖视觉的感知（察觉）检定时具有劣势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "穴蜥人发动三次攻击：一次啃咬和两次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "a846d04c-17d6-4423-943e-467bcd4b8e96",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "thri-kreen",
+    "name": "螳螂人",
+    "nameEn": "Thri-kreen",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（螳螂人）",
+    "alignment": "混乱中立",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 33,
+    "hpDice": "6d8+6",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 12,
+    "dexterity": 15,
+    "constitution": 13,
+    "intelligence": 8,
+    "wisdom": 12,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 3
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      },
+      {
+        "name": "生存",
+        "bonus": 3
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉13",
+    "languages": "斯里克林语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变色甲壳Chameleon Carapace",
+        "text": "螳螂人可以改变外壳的颜色来模拟周围环境的色调和质感。因此，它进行敏捷（隐匿）检定时具有优势。"
+      },
+      {
+        "name": "立定起跳Standing Leap",
+        "text": "螳螂人助跑或不助跑时，其跳远都可达到至多30尺，条高可达15尺。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "螳螂人发动两次攻击。一次啃咬，一次爪击。"
+      },
+      {
+        "name": "某些螳螂人会使用特别的军用武器martial weapons",
+        "text": "螳螂戟gythka是一种类似两头都有斧刃的长柄武器。三棱梭chatkcha是由三个三角形刀刃组成的扁平武器（轻型投掷武器）。装备了螳螂戟和三棱梭的螳螂人获得以下动作项："
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "螳螂人发动两次螳螂戟攻击或两次三棱梭攻击。"
+      },
+      {
+        "name": "少数螳螂人会表现出灵能天赋",
+        "text": "它们用灵能来辅助狩猎并以此更方便的与外界交流。一个拥有灵能的螳螂人拥有60尺心灵感应Telepathy感官。同时获得以下额外特质："
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "（灵能Psionics）螳螂人天生施法属性为智力。螳螂人天生可以施展以下法术而无需任何相应的法术成分。随意：法师之手magehand每项2/日：朦胧术blur，魔化武器magicweapon每项1/日：隐形术invisibility（仅自身）"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "触及3尺",
+        "properties": [],
+        "normalRange": 3,
+        "maxRange": 3,
+        "note": "目标必须成功通过一次DC"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+3",
+        "damage": "2d4+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "变体：螳螂人武器与灵能Variant: Thri-kreen Weapons andPsionics"
+      },
+      {
+        "name": "螳螂戟",
+        "attackBonus": "+3",
+        "damage": "1d8+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "三棱梭",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "挥砍",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "a8b38e71-9cb9-457c-a6f0-405f5c4e5f84",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "spy",
+    "name": "间谍",
+    "nameEn": "Spy",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 27,
+    "hpDice": "6d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 15,
+    "constitution": 10,
+    "intelligence": 12,
+    "wisdom": 14,
+    "charisma": 16,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 5
+      },
+      {
+        "name": "洞悉",
+        "bonus": 4
+      },
+      {
+        "name": "调查",
+        "bonus": 5
+      },
+      {
+        "name": "察觉",
+        "bonus": 6
+      },
+      {
+        "name": "游说",
+        "bonus": 5
+      },
+      {
+        "name": "巧手",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉16",
+    "languages": "任意两门语言",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "灵巧动作Cunning Action",
+        "text": "间谍在其自己回合内可以用一个附赠动作执行疾走Dash，撤离Disengage，或躲藏Hide动作。"
+      },
+      {
+        "name": "偷袭Sneak Attack",
+        "text": "（1/回合）间谍对目标造成伤害时，如果其攻击检定具有优势，或者如果其攻击检定没有劣势且它在该目标身边5尺范围内有一个未处于失能状态的盟友。满足以上条件时，间谍造成额外7（2d6）点伤害。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "间谍发动两次近战攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "短剑",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "手弩",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "ae147b7e-ddd5-46fd-ba8b-641018387867",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "sahuagin",
+    "name": "鲨华鱼人",
+    "nameEn": "Sahuagin",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（鲨华鱼人）",
+    "alignment": "守序邪恶",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 22,
+    "hpDice": "4d8+4",
+    "speed": 30,
+    "speedNotes": "，游泳40尺",
+    "strength": 13,
+    "dexterity": 11,
+    "constitution": 12,
+    "intelligence": 12,
+    "wisdom": 13,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉15",
+    "languages": "鲨华鱼人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "嗜血狂怒Blood Frenzy",
+        "text": "鲨华鱼人对生命值没有全满的生物发动近战攻击时，其攻击检定具有优势。"
+      },
+      {
+        "name": "有限两栖Limited Amphibiousness",
+        "text": "鲨华鱼人可以在空气和水中呼吸，但它至少每4小时要回到水里，以避免窒息。"
+      },
+      {
+        "name": "鲨心感应Shark Telepathy",
+        "text": "鲨华鱼人可以用魔法进行有限的心灵感应，以命令其周边120尺内的鲨鱼。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "鲨华鱼人发动两次近战攻击：一次啃咬，以及一次爪击或矛攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 1,
+        "name": "爪击或矛攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+3",
+        "damage": "1d4+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+3",
+        "damage": "1d4+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "矛",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+1",
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "aec6e116-c312-4839-b9a6-2f03d6490b6e",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "acolyte",
+    "name": "侍僧",
+    "nameEn": "Acolyte",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 9,
+    "hpDice": "2d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 10,
+    "constitution": 10,
+    "intelligence": 10,
+    "wisdom": 14,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "医药",
+        "bonus": 4
+      },
+      {
+        "name": "宗教",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "施法Spellcasting",
+        "text": "侍僧作为1级施法者，其施法属性为感知（法术豁免DC12，法术攻击命中+4）。侍僧备有以下牧师法术：戏法（随意）：光亮术light，圣火术sacredflame，奇术thaumaturgy1环（3法术位）：祝福术bless，疗伤术curewounds，庇护术sanctuary"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "光亮术",
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "祝福术",
+            "疗伤术",
+            "庇护术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "短棍",
+        "attackBonus": "+2",
+        "damage": "1d4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "b7d277a3-aed8-4c13-9d18-b1c50ea7afbd",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "drow-priestess-oflolth",
+    "name": "卓尔罗丝女祭司",
+    "nameEn": "Drow Priestess ofLolth",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（精灵）",
+    "alignment": "中立邪恶",
+    "ac": 16,
+    "acNote": "鳞甲",
+    "maxHp": 71,
+    "hpDice": "13d8+13",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 13,
+    "wisdom": 17,
+    "charisma": 18,
+    "savingThrows": [
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "洞悉",
+        "bonus": 6
+      },
+      {
+        "name": "察觉",
+        "bonus": 6
+      },
+      {
+        "name": "宗教",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉16",
+    "languages": "精灵语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "妖精血统Fey Ancestry",
+        "text": "卓尔进行对抗魅惑的豁免检定时具有优势，且魔法效应无法使卓尔陷入睡眠。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "卓尔天生施法属性为魅力（法术豁免DC15）。它天生可施展以下法术且不需要任何相应的材料成分：随意：舞光术dancinglights每项1/日：黑暗术darkness，妖火faeriefire，浮空术levitate（仅自身）"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "卓尔作为10级施法者其施法关键属性为感知（法术豁免DC14，法术攻击命中+6）。它准备了一下的牧师法术：戏法（随意）：神导术guidance，毒气喷涌poisonspray，抵抗术resistance，稳定伤势sparethe dying，奇术thaumaturgy1环（4法术位）：化兽为友animalfriendship，疗伤术curewounds，侦测毒性和疾病detectpoison and disease，致病射线rayof sickness2环（3法术位）：次等复原术lesserrestoration，防护毒素protectionfrom poison，蛛网术web3环（3法术位）：咒唤兽群conjure animals（2只巨蜘蛛），解除魔法dispelmagic4环（3法术位）：预言术divination，行动自如freedomof movement5环（2法术位）：疫病虫群insectplague，群体疗伤术masscure wounds"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "在日光照射下，卓尔的攻击检定具有劣势，同时依赖视觉的感知（察觉）检定也具有劣势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "卓尔发动两次刑鞭攻击。"
+      },
+      {
+        "name": "召唤恶魔Summon Demon",
+        "text": "（1/日）卓尔以50%成功率召唤一只蜡融妖。如召唤失败将受到5（1d10）心灵伤害。成功召唤的恶魔出现在召唤者60尺内一未被占据位置并作为其盟友行动。该恶魔不能召唤其他恶魔并持续存在10分钟，或直至召唤者或其本身死亡。召唤者可以用一个动作解除该召唤。变体：卓尔魔法护甲及武器Variant: Drow Magic Armor andWeapons卓尔通常身穿魔法护甲并随身携带魔法武器，但其附魔加值在阳光下暴露超过1小时后将永久消失。一名卓尔drow着装 +1链甲衫chainshit，装备 +1短剑shortsword时，拥有AC16，且其短剑攻击的攻击检定和伤害掷骰具有+1加值。一名卓尔精英武者drowelite warrior着装 +2镶钉皮甲studdedleather，装备 +2短剑shortsword时，拥有AC20，且其短剑攻击的攻击检定和伤害掷骰具有+2加值。一名卓尔罗丝女祭司drowpriestess of Lolth着装+3鳞甲scalemail时，拥有AC19。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "刑鞭攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火",
+            "浮空术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "刑鞭",
+        "attackBonus": "+5",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加17（5d6）点毒素伤害"
+      }
+    ],
+    "description": "Lolth",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "b7d4d133-8289-4e99-940d-00b5ca2586c8",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "druid",
+    "name": "德鲁伊",
+    "nameEn": "Druid",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 11,
+    "acNote": "带树肤术16",
+    "maxHp": 27,
+    "hpDice": "5d8+5",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 12,
+    "constitution": 13,
+    "intelligence": 12,
+    "wisdom": 15,
+    "charisma": 11,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "医药",
+        "bonus": 4
+      },
+      {
+        "name": "自然",
+        "bonus": 3
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "德鲁伊语，外加任意两门语言",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "施法Spellcasting",
+        "text": "德鲁伊作为4级施法者，其施法属性为感知（法术豁免DC12，法术攻击命中+4）。德鲁伊准备了以下德鲁伊法术：戏法（随意）：德鲁伊伎俩druidcraft，燃火术produceflame，橡棍术shillelagh1环（4法术位）：纠缠术entangle，大步奔行longstrider，动物交谈speakwith animals，雷鸣波thunderwave2环（3法术位）：动物信使animalmessenger，树肤术barkskin"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "德鲁伊伎俩",
+            "燃火术",
+            "橡棍术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "纠缠术",
+            "大步奔行",
+            "动物交谈",
+            "雷鸣波"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "动物信使",
+            "树肤术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "长棍",
+        "attackBonus": "+2",
+        "damage": "1d6",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "使用双手攻击时为4（1d8）点钝击伤害，使用橡棍术时为6（1d8+2）点伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "b9753409-c53f-4576-aa86-a0824529f670",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "hobgoblin",
+    "name": "大地精",
+    "nameEn": "Hobgoblin",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（类地精）",
+    "alignment": "守序邪恶",
+    "ac": 18,
+    "acNote": "链甲，盾牌",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 12,
+    "constitution": 12,
+    "intelligence": 10,
+    "wisdom": 10,
+    "charisma": 9,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语，地精语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "成军优势Martial Advantage",
+        "text": "大地精每回合有一次机会在命中目标时造成额外7（2d6）点伤害，此时该大地精必须至少有一个未处于失能状态的盟友在该目标生物5尺距离内。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+3",
+        "damage": "1d8+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "twoHandedDamage": "1d10+1",
+        "note": "或双手攻击时6（1d10+1）点挥砍伤害"
+      },
+      {
+        "name": "长弓",
+        "attackBonus": "+3",
+        "damage": "1d8+1",
+        "damageType": "穿刺",
+        "range": "射程150/600尺",
+        "properties": [],
+        "normalRange": 150,
+        "maxRange": 600
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "ba819d3e-8981-4d87-b3de-273dc2e48284",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "githyanki-knight",
+    "name": "吉斯洋基骑士",
+    "nameEn": "Githyanki Knight",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（吉斯人）",
+    "alignment": "守序邪恶",
+    "ac": 18,
+    "acNote": "板甲",
+    "maxHp": 91,
+    "hpDice": "14d8+28",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 14,
+    "constitution": 15,
+    "intelligence": 14,
+    "wisdom": 14,
+    "charisma": 15,
+    "savingThrows": [
+      "constitution",
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "被动察觉12",
+    "languages": "吉斯语Gith",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "（灵能Psionics）吉斯洋基人天生施法属性为智力（法术豁免DC13，法术攻击命中+5）。它天生可以施展以下法术而不需要任何相应的法术成分：随意：法师之手mage hand（生成隐形的手）每项3/日：跳跃术jump，迷踪步mistystep，回避侦测nondetection（仅自身），巧言术tongues每项1/日：位面转移planeshift，心灵遥控telekinesis"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "吉斯洋基人发动两次银剑攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "银剑攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "智力",
+      "dc": 13,
+      "attackBonus": 5,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "法师之手",
+            "迷踪步",
+            "回避侦测",
+            "巧言术",
+            "心灵遥控"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "银剑",
+        "attackBonus": "+9",
+        "damage": "2d6+6",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加10（3d6）点心灵伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "bc42ed41-9501-41b8-abbb-4f7ff72d2c0f",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "wererat",
+    "name": "鼠人",
+    "nameEn": "Wererat",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（人类，变形生物）",
+    "alignment": "守序邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 33,
+    "hpDice": "6d8+6",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 15,
+    "constitution": 12,
+    "intelligence": 11,
+    "wisdom": 10,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺（仅鼠形态），被动察觉12",
+    "languages": "通用语（不能在鼠形态下说话）",
+    "damageResistances": [],
+    "damageImmunities": [
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "鼠人可以用一个动作变身成老鼠与类人生物半人的形态或一只巨鼠的形态，或者以同样的动作变回其真实形态即类人生物形态。其各形态资料除体型外均相同。其着装及携带的装备也不会随之转化。死亡时它将恢复其真实形态。"
+      },
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "鼠人依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "（仅类人与半人形态）鼠人发动两次攻击，其中啃咬Bite攻击只能使用一次。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是类人生物，则目标必须成功通过一次DC11的体质豁免否则将遭受鼠人兽化诅咒"
+      },
+      {
+        "name": "短剑",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "手弩",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "c0dc9ba8-ee1d-4da7-bf61-4316a1cdb177",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "jackalwere",
+    "name": "化形胡狼",
+    "nameEn": "Jackalwere",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（变形生物）",
+    "alignment": "混乱邪恶",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 18,
+    "hpDice": "4d8",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 15,
+    "constitution": 11,
+    "intelligence": 13,
+    "wisdom": 11,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 4
+      },
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "通用语（在豺狗形态时不能说话）",
+    "damageResistances": [],
+    "damageImmunities": [
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "化形胡狼用一个动作变形为一个特定的中型体型人类，或人豺混合的类人形态。它也同样可以用该动作恢复其真实形态（一只小型体型的豺狗jackal）。除体型外，它的所有资料均不会发生改变。其随身着装和携带的装备不会随变形发生变化。在死亡时，化形胡狼将恢复其真实形态。"
+      },
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "化形胡狼依赖听觉和嗅觉而进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "化形胡狼至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      },
+      {
+        "name": "睡眠凝视Sleep Gaze",
+        "text": "化形胡狼凝视去周边30尺内一个它能看见的生物。该目标必须进行一次DC10的感知豁免。豁免失败时，该目标将屈服于魔法睡眠中，陷入10分钟的昏迷状态，或直到某生物花费一个动作将其唤醒。豁免成功的生物将在随后24小时里免疫该化形胡狼的凝视。亡灵以及免疫魅惑的生物不受该效应影响。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "弯刀",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "c4e89c3d-f030-4132-a4a8-90c3a2d35b54",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "winged-kobold",
+    "name": "带翼狗头人",
+    "nameEn": "Winged Kobold",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "类人（狗头人）",
+    "alignment": "守序邪恶",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 7,
+    "hpDice": "3d6-3",
+    "speed": 30,
+    "speedNotes": "，飞行30尺",
+    "strength": 7,
+    "dexterity": 16,
+    "constitution": 9,
+    "intelligence": 8,
+    "wisdom": 7,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉8",
+    "languages": "通用语，龙语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "受阳光照射时，狗头人进行的攻击检定和依赖视觉进行的感知（察觉）检定具有劣势。"
+      },
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "狗头人至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "匕首",
+        "attackBonus": "+5",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "落石",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 1,
+    "creatureType": "humanoid",
+    "id": "c553e2bb-c095-4987-9bdc-7563fb9af1bc",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "orc-war-chief",
+    "name": "兽人军官",
+    "nameEn": "Orc War Chief",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（兽人）",
+    "alignment": "混乱邪恶",
+    "ac": 16,
+    "acNote": "链甲",
+    "maxHp": 93,
+    "hpDice": "11d8+44",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 12,
+    "constitution": 18,
+    "intelligence": 11,
+    "wisdom": 11,
+    "charisma": 16,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "威吓",
+        "bonus": 5
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语，兽人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "好斗Aggressive",
+        "text": "作为一个附赠动作项，兽人可以向一个它能看见的敌对生物移动至多相当于其速度的距离。"
+      },
+      {
+        "name": "格乌什之怒Gruumsh's Fury",
+        "text": "兽人以武器攻击命中目标时，额外造成4（1d8）点伤害（已计算在下面的攻击条目中）。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "兽人发动两次巨斧攻击，或发动两次矛攻击。"
+      },
+      {
+        "name": "战吼Battle Cry",
+        "text": "（1/日）军官在其身边30尺范围内指定若干可以听到战吼，且未受战吼影响的生物。并使每个目标的攻击检定具有优势，一直持续到该军官自己的下一回合开始时结束效应。完成该动作后，军官还可以用一个附赠动作发动一次攻击。兽人王奥伯德众箭 KingObould Many-Arrows众箭Many-Arrows部族的领袖，奥伯德王KingObould是被遗忘国度中的传奇兽人军官，也是DND游戏历史上最著名的兽人酋长。"
+      },
+      {
+        "name": "奥伯德比其他兽人同类更聪明更敏锐",
+        "text": "它在杀死前任酋长夺得其部族控制权后，依靠纯熟的战略能力和声名远扬的暴脾气稳抓政权。奥伯德一次次在战斗中向对手证明了自己的能力，并且多年来一直包容其他部族与自己联合，最终其麾下组成了一支聚集数千兽人的大部落。奥伯德运用其力量和影响力在世界之脊Spineof the World建起自己的王国，在那俯瞰着山下一众矮人、人类和精灵的各处要塞。与文明邻居持续了多年血腥冲突后，奥伯德不可思议的与敌人订下和平协议。这个举动使其麾下不少兽人充满疑惑。有人认为这是奥伯德使用的缓兵之计，以求得时间强化军队，准备最终踏平荒蛮边境Savage Frontier。也有人认为这是奥伯德打算放弃格乌什传统道路的迹象，因而必需要被新的王者取缔。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨斧攻击"
+      },
+      {
+        "count": 2,
+        "name": "矛攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨斧",
+        "attackBonus": "+6",
+        "damage": "1d12+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加1d8"
+      },
+      {
+        "name": "矛",
+        "attackBonus": "+6",
+        "damage": "1d6+4",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "2d8+4",
+        "note": "外加1d8；或用双手发动近战攻击时13（2d8+4）点穿刺伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "c917c78c-1e1e-4473-9f4f-ee4b50d75834",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "hobgoblin-captain",
+    "name": "大地精长官",
+    "nameEn": "Hobgoblin Captain",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（类地精）",
+    "alignment": "守序邪恶",
+    "ac": 17,
+    "acNote": "半身板甲",
+    "maxHp": 39,
+    "hpDice": "6d8+12",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 14,
+    "constitution": 14,
+    "intelligence": 12,
+    "wisdom": 10,
+    "charisma": 13,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语，地精语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "成军优势Martial Advantage",
+        "text": "大地精每回合有一次机会在命中目标时造成额外10（3d6）点伤害，此时该大地精必须至少有一个未处于失能状态的盟友在该目标生物5尺距离内。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "大地精发动两次巨剑攻击"
+      },
+      {
+        "name": "领导Leadership",
+        "text": "（短休或长休后充能）在1分钟内，大地精可以对身边30尺内一个它能看见，且正在进行攻击检定或豁免检定的非敌对生物，说出一条特殊的指令或警告。若该生物可以听到并理解大地精的话则其可以在当前的检定结果里加上一个d4。一个生物一次只能受益于一个领导骰。大地精陷入失能时，该效应也随之终止。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨剑攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨剑",
+        "attackBonus": "+4",
+        "damage": "2d6+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "ca849752-d94e-4dd3-89a7-d6fb60428d14",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "gnoll",
+    "name": "鬣狗人",
+    "nameEn": "Gnoll",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（鬣狗人）",
+    "alignment": "混乱邪恶",
+    "ac": 15,
+    "acNote": "兽皮甲，盾牌",
+    "maxHp": 22,
+    "hpDice": "5d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 14,
+    "dexterity": 12,
+    "constitution": 11,
+    "intelligence": 6,
+    "wisdom": 10,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "鬣狗人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "横行Rampage",
+        "text": "鬣狗人在其自己回合以一个近战攻击使某个生物生命值降至0时，该鬣狗人可以执行一个附赠动作以移动至多等同于其速度一半的距离并发动一次啃咬攻击。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "矛",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+2",
+        "note": "或使用双手发动近战攻击时6（1d8+2）点穿刺伤害"
+      },
+      {
+        "name": "长弓",
+        "attackBonus": "+3",
+        "damage": "1d8+1",
+        "damageType": "穿刺",
+        "range": "射程150/600尺",
+        "properties": [],
+        "normalRange": 150,
+        "maxRange": 600
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "cb5ad1a9-09f5-40af-a82f-f990b02a4498",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "lizardfolk-shaman",
+    "name": "蜥蜴人萨满",
+    "nameEn": "Lizardfolk Shaman",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（蜥蜴人）",
+    "alignment": "绝对中立",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 27,
+    "hpDice": "5d8+5",
+    "speed": 30,
+    "speedNotes": "，游泳30尺",
+    "strength": 15,
+    "dexterity": 10,
+    "constitution": 13,
+    "intelligence": 10,
+    "wisdom": 15,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 4
+      },
+      {
+        "name": "生存",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "龙语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "屏息Hold Breath",
+        "text": "蜥蜴人可以憋气15分钟。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "（仅蜥蜴人形态）蜥蜴人作为5级施法者，其施法属性为感知（法术豁免DC12，法术攻击命中+4）。蜥蜴人准备了下列德鲁伊法术：戏法（随意）：德鲁伊伎俩druidcraft，燃火术produceflame，荆棘之鞭thornwhip1环（4法术位）：纠缠术entangle，云雾术fogcloud2环（3法术位）：灼热金属heatmetal，荆棘丛生spikegrowth3环（2法术位）：咒唤兽群conjure animals（仅爬行类），植物滋长plantgrowth"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "（仅蜥蜴人形态）蜥蜴人发动两次攻击：一次啃咬攻击和一次爪击攻击。"
+      },
+      {
+        "name": "变形Change Shape",
+        "text": "（短休或长休后充能）蜥蜴人以魔法化身为一只鳄鱼，并维持该形态1小时。它可以用一个附赠动作恢复其真实形态。变形时它将保留除体型外所有的资料。其身上着装或携带的所有装备将维持原样。蜥蜴人死亡时将恢复其真实形态。蜥蜴之王Lizard King蜥蜴女王LizardQueen中型类人（蜥蜴人），混乱邪恶"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬攻击"
+      },
+      {
+        "count": 1,
+        "name": "爪击攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "德鲁伊伎俩",
+            "燃火术",
+            "荆棘之鞭"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "纠缠术",
+            "云雾术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "灼热金属",
+            "荆棘丛生"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "咒唤兽群",
+            "植物滋长"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或鳄鱼形态时7（1d10+2）点穿刺伤害"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "1d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "cd1a61fd-588e-4a0d-a986-09c5c872ebab",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "tribalwarrior",
+    "name": "部族武者",
+    "nameEn": "TribalWarrior",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 12,
+    "acNote": "兽皮甲",
+    "maxHp": 11,
+    "hpDice": "2d8+2",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 11,
+    "constitution": 12,
+    "intelligence": 8,
+    "wisdom": 11,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "任意一门语言",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "集群战术Pack Tactics",
+        "text": "武者至少有一个未处于失能的盟友在目标生物5尺内时，它对该生物发动的攻击检定有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "矛",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+1",
+        "note": "或使用双手发动近战攻击时5（1d8+1）点穿刺伤害"
+      }
+    ],
+    "description": "Warrior",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "dbd55bde-688f-44d5-8c66-317f5d445dc7",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "banditcaptain",
+    "name": "匪帮队长",
+    "nameEn": "BanditCaptain",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意非守序阵营",
+    "ac": 15,
+    "acNote": "镶钉皮甲",
+    "maxHp": 65,
+    "hpDice": "10d8+20",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 16,
+    "constitution": 14,
+    "intelligence": 14,
+    "wisdom": 11,
+    "charisma": 14,
+    "savingThrows": [
+      "strength",
+      "dexterity",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 4
+      },
+      {
+        "name": "欺瞒",
+        "bonus": 4
+      }
+    ],
+    "senses": "被动察觉10",
+    "languages": "任意两门语言",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "首领发动三次近战攻击：两次弯刀攻击和一次匕首攻击。首领也可以选择进行两次远程匕首攻击。"
+      },
+      {
+        "name": "格挡Parry",
+        "text": "首领在被一次近战攻击命中时，其AC加上2。此时该首领必须能看见攻击者，且有在持用一把近战武器。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "弯刀攻击"
+      },
+      {
+        "count": 1,
+        "name": "匕首攻击"
+      },
+      {
+        "count": 2,
+        "name": "远程匕首攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "弯刀",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "匕首",
+        "attackBonus": "+5",
+        "damage": "1d4+3",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [],
+        "normalRange": 20,
+        "maxRange": 60
+      }
+    ],
+    "description": "Captain",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "dc1fd65c-e4ff-408f-ad76-e6c900fe98ba",
+    "createdAt": 1793607170319,
+    "updatedAt": 1793607171,
+    "campaignId": null
+  },
+  {
+    "templateId": "cultist",
+    "name": "邪教徒",
+    "nameEn": "Cultist",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意非善良阵营",
+    "ac": 12,
+    "acNote": "皮甲",
+    "maxHp": 9,
+    "hpDice": "2d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 12,
+    "constitution": 10,
+    "intelligence": 10,
+    "wisdom": 11,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 2
+      },
+      {
+        "name": "宗教",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉10",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "黑暗忠诚Dark Devotion",
+        "text": "邪教徒为抵抗魅惑和恐慌而进行的豁免检定具有优势。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "弯刀",
+        "attackBonus": "+3",
+        "damage": "1d6+1",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "dc6f5f00-058d-474b-8bdc-ea4da9ae7f85",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "drow-elite-warrior",
+    "name": "卓尔精英武者",
+    "nameEn": "Drow Elite Warrior",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（精灵）",
+    "alignment": "中立邪恶",
+    "ac": 18,
+    "acNote": "镶钉皮甲，盾牌",
+    "maxHp": 71,
+    "hpDice": "11d8+22",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 13,
+    "dexterity": 18,
+    "constitution": 14,
+    "intelligence": 11,
+    "wisdom": 13,
+    "charisma": 12,
+    "savingThrows": [
+      "dexterity",
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 10
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉14",
+    "languages": "精灵语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "妖精血统Fey Ancestry",
+        "text": "卓尔进行对抗魅惑的豁免检定时具有优势，且魔法效应无法使卓尔陷入睡眠。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "卓尔天生施法属性为魅力（法术豁免DC12）。它天生可施展以下法术且不需要任何相应的材料成分：随意：舞光术dancinglights每项1/日：黑暗术darkness，妖火faeriefire，浮空术levitate（仅自身）"
+      },
+      {
+        "name": "日照敏感Sunlight Sensitivity",
+        "text": "在日光照射下，卓尔的攻击检定具有劣势，其依赖视觉的感知（察觉）检定也具有劣势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "卓尔发动两次短剑攻击。"
+      },
+      {
+        "name": "格挡Parry",
+        "text": "卓尔在被一次近战攻击命中时，其AC加上3。此时该卓尔必须能看见攻击者，且有在持用一把近战武器。变体：卓尔魔法护甲及武器Variant: Drow Magic Armor andWeapons卓尔通常身穿魔法护甲并随身携带魔法武器，但其附魔加值在阳光下暴露超过1小时后将永久消失。一名卓尔drow着装 +1链甲衫chainshit，装备 +1短剑shortsword时，拥有AC16，且其短剑攻击的攻击检定和伤害掷骰具有+1加值。一名卓尔精英武者drowelite warrior着装 +2镶钉皮甲studdedleather，装备 +2短剑shortsword时，拥有AC20，且其短剑攻击的攻击检定和伤害掷骰具有+2加值。一名卓尔罗丝女祭司drowpriestess of Lolth着装+3鳞甲scalemail时，拥有AC19。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "短剑攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 12,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "舞光术",
+            "妖火",
+            "浮空术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "短剑",
+        "attackBonus": "+7",
+        "damage": "1d6+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加10（3d6）毒素伤害"
+      },
+      {
+        "name": "手弩",
+        "attackBonus": "+7",
+        "damage": "1d6+4",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120,
+        "note": "目标必须进行一次DC"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "e18f2415-b8d8-4c04-b6f9-50aa71153f11",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "priest",
+    "name": "祭司",
+    "nameEn": "Priest",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 13,
+    "acNote": "链甲衫",
+    "maxHp": 27,
+    "hpDice": "5d8+5",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 10,
+    "constitution": 12,
+    "intelligence": 13,
+    "wisdom": 16,
+    "charisma": 13,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "医药",
+        "bonus": 7
+      },
+      {
+        "name": "游说",
+        "bonus": 3
+      },
+      {
+        "name": "宗教",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "任意两门语言",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "神圣启示Divine Eminence",
+        "text": "作为一个附赠动作项，祭司可以消耗一个法术位使其近战武器攻击造成额外10（3d6）点光耀伤害。该获益持续至该回合结束。如果祭司所消耗的法术位为2环或更高环阶，则每提升一个环阶其伤害再额外增加一个1d6。"
+      },
+      {
+        "name": "施法Spellcasting",
+        "text": "祭司作为5级施法者，其施法属性为感知（法术豁免DC13，法术攻击命中+5）。祭司习有以下牧师法术：戏法（随意）：光亮术light，圣火术sacredflame，奇术thaumaturgy1环（4法术位）：疗伤术cure wounds，光导箭guidingbolt，庇护术sanctuary2环（3法术位）：次等复原术lesser restoration，灵体武器spiritualweapon3环（2法术位）：解除魔法dispel magic，灵体卫士spiritguardians"
+      }
+    ],
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 13,
+      "attackBonus": 5,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "光亮术",
+            "圣火术",
+            "奇术"
+          ]
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "疗伤术",
+            "光导箭",
+            "庇护术"
+          ]
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "次等复原术",
+            "灵体武器"
+          ]
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "解除魔法",
+            "灵体卫士"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "硬头锤",
+        "attackBonus": "+2",
+        "damage": "1d6",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "e5aaf29c-0bf3-4baf-82f2-d38e10c12d8f",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "goblin-boss",
+    "name": "地精老大",
+    "nameEn": "Goblin Boss",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "小型",
+    "type": "类人（类地精）",
+    "alignment": "中立邪恶",
+    "ac": 17,
+    "acNote": "链甲衫，盾牌",
+    "maxHp": 21,
+    "hpDice": "6d6",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 14,
+    "constitution": 10,
+    "intelligence": 10,
+    "wisdom": 8,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "隐匿",
+        "bonus": 6
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "通用语，地精语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "迅捷逃逸Nimble Escape",
+        "text": "地精可在自己的回合，以一个附赠动作来执行撤离Disengage或躲藏Hide动作。"
+      },
+      {
+        "name": "多重攻击Multattack",
+        "text": "地精发动两次弯刀攻击。第二次攻击具有劣势。"
+      },
+      {
+        "name": "攻击重定向Redirect Attack",
+        "text": "当地精被一个它能看见的生物指定为攻击目标时，它可以指定其周边5尺范围内的另一个地精并与其互换位置，然后被指定的地精将被替换为被攻击目标。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "弯刀攻击"
+      },
+      {
+        "count": 2,
+        "name": "攻击具有劣势"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "弯刀",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+2",
+        "damage": "1d6",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 1,
+    "creatureType": "humanoid",
+    "id": "e6146106-e0e5-4e91-95e2-2a46d7f20e60",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "commoner",
+    "name": "平民",
+    "nameEn": "Commoner",
+    "cr": "0",
+    "xp": 10,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 10,
+    "acNote": "10",
+    "maxHp": 4,
+    "hpDice": "1d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 10,
+    "constitution": 10,
+    "intelligence": 10,
+    "wisdom": 10,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉10",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "短棍",
+        "attackBonus": "+2",
+        "damage": "1d4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "e77ed68f-dbfa-4280-935d-058ea5b313ba",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "gladiator",
+    "name": "角斗士",
+    "nameEn": "Gladiator",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 16,
+    "acNote": "镶钉皮甲，盾牌",
+    "maxHp": 112,
+    "hpDice": "15d8+45",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 10,
+    "wisdom": 12,
+    "charisma": 15,
+    "savingThrows": [
+      "strength",
+      "dexterity",
+      "constitution"
+    ],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 10
+      },
+      {
+        "name": "威吓",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉11",
+    "languages": "任意一门语言（通常是通用语）",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "勇气Brave",
+        "text": "角斗士为抵抗恐慌而作的豁免检定具有优势。"
+      },
+      {
+        "name": "残暴Brute",
+        "text": "角斗士的近战武器攻击命中目标时，其伤害加上额外一粒伤害骰（已包含在攻击条目中）。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "角斗士发动三次近战攻击，或两次远程攻击。"
+      },
+      {
+        "name": "格挡Parry",
+        "text": "角斗士在被一次近战攻击命中时，其AC加上3。此时该角斗士必须能看见攻击者，且有在持用一把近战武器。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 3,
+        "name": "近战攻击"
+      },
+      {
+        "count": 2,
+        "name": "远程攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "矛",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "2d8+4",
+        "note": "或使用双手发动近战攻击时13（2d8+4）点穿刺伤害"
+      },
+      {
+        "name": "盾击",
+        "attackBonus": "+7",
+        "damage": "2d4+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是一个中型或更小体型生物，则目标生物必须成功通过一次DC15的力量豁免否则将应击倒地"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "e8dd3915-c196-4479-bf41-1c98ed1316d5",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  },
+  {
+    "templateId": "wereboar",
+    "name": "野猪人",
+    "nameEn": "Wereboar",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（人类，变形生物）",
+    "alignment": "中立邪恶",
+    "ac": 11,
+    "acNote": "类人形态下10，野猪与半人形态下11（天生护甲）",
+    "maxHp": 78,
+    "hpDice": "12d8+24",
+    "speed": 30,
+    "speedNotes": "（野猪形态下40尺）",
+    "strength": 17,
+    "dexterity": 10,
+    "constitution": 15,
+    "intelligence": 10,
+    "wisdom": 11,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "通用语（不能在野猪形态下说话）",
+    "damageResistances": [],
+    "damageImmunities": [
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "野猪人可以用一个动作变身成野猪与类人生物半人的形态或野猪形态，或者以同样的动作变回其真实形态即类人生物形态。其资料除AC外各个形态均相同。其着装及携带的装备也不会随之转化。死亡时它将恢复其真实形态。"
+      },
+      {
+        "name": "冲锋Charge",
+        "text": "（仅野猪与半人形态）若野猪人向其目标直线移动至少15尺，且在同一回合里以牙撕攻击命中该目标，则该目标受额外7（2d6）点挥砍伤害。若目标是生物，则该生物必须成功通过一次DC13的力量豁免，否则应击倒地。"
+      },
+      {
+        "name": "坚韧Relentless",
+        "text": "（短休或长休后充能）野猪人受到14点或更低的伤害而使其生命值降至0时，改为其生命值降至1。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "（仅类人与半人形态）野猪人发动两次攻击，其中牙撕Tusks攻击只能使用一次。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨锤",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "牙撕",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是类人生物，则其必须成功通过一次DC12的体质豁免否则将承受野猪人兽化诅咒"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "e9c5c2d3-e8a9-4f09-8b7e-9ff7b337daed",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "noble",
+    "name": "贵族",
+    "nameEn": "Noble",
+    "cr": "1/8",
+    "xp": 25,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（任意种族）",
+    "alignment": "任意阵营",
+    "ac": 15,
+    "acNote": "胸甲",
+    "maxHp": 9,
+    "hpDice": "2d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 11,
+    "dexterity": 12,
+    "constitution": 11,
+    "intelligence": 12,
+    "wisdom": 14,
+    "charisma": 16,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 5
+      },
+      {
+        "name": "洞悉",
+        "bonus": 4
+      },
+      {
+        "name": "游说",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "任意两门语言",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "格挡Parry",
+        "text": "贵族在被一次近战攻击命中时，其AC加上2。此时该贵族必须能看见攻击者，且有在持用一把近战武器。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "刺剑",
+        "attackBonus": "+3",
+        "damage": "1d8+1",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "非玩家角色",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "ea089220-8492-436f-a269-338748142e35",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "kenku",
+    "name": "天狗",
+    "nameEn": "Kenku",
+    "cr": "1/4",
+    "xp": 50,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（天狗）",
+    "alignment": "混乱中立",
+    "ac": 13,
+    "acNote": "13",
+    "maxHp": 13,
+    "hpDice": "3d8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 10,
+    "dexterity": 16,
+    "constitution": 10,
+    "intelligence": 11,
+    "wisdom": 10,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "欺瞒",
+        "bonus": 4
+      },
+      {
+        "name": "察觉",
+        "bonus": 2
+      },
+      {
+        "name": "隐匿",
+        "bonus": 5
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "懂气族语和通用语，只能通过它的拟声特质说话。",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "伏击Ambusher",
+        "text": "每场战斗的第一轮里，天狗对被自己突袭的生物发动攻击检定时具有优势。"
+      },
+      {
+        "name": "拟声Mimicry",
+        "text": "天狗可以模仿任何它曾听过的声音，包括声线。生物成功通过一次DC14的感知（洞悉）检定后便可认出其模仿的本质。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "短剑",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "短弓",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "射程80/320尺",
+        "properties": [],
+        "normalRange": 80,
+        "maxRange": 320
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "f1759fbd-76c3-4f28-96e6-c83f65f3d458",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "hobgoblin-warlord",
+    "name": "大地精军阀",
+    "nameEn": "Hobgoblin Warlord",
+    "cr": "6",
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（类地精）",
+    "alignment": "守序邪恶",
+    "ac": 20,
+    "acNote": "板甲，盾牌",
+    "maxHp": 97,
+    "hpDice": "13d8+39",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 14,
+    "constitution": 16,
+    "intelligence": 14,
+    "wisdom": 11,
+    "charisma": 15,
+    "savingThrows": [
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语，地精语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "成军优势Martial Advantage",
+        "text": "大地精每回合有一次机会在命中目标时造成额外14（4d6）点伤害，此时该大地精必须至少有一个未处于失能状态的盟友在该目标生物5尺距离内。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "大地精发动三次近战攻击。或者它也可以选择用它的标枪攻击发动两次远程攻击。"
+      },
+      {
+        "name": "领导Leadership",
+        "text": "（短休或长休后充能）在1分钟内，大地精可以对身边30尺内一个它能看见，且正在进行攻击检定或豁免检定的非敌对生物，说出一条特殊的指令或警告。若该生物可以听到并理解大地精的话则其可以在当前的检定结果里加上一个d4。一个生物一次只能受益于一个领导骰。大地精陷入失能时，该效应也随之终止。"
+      },
+      {
+        "name": "格挡Parry",
+        "text": "大地精在被一次近战攻击命中时，其AC加上3。此时该大地精必须能看见攻击者，且有在持用一把近战武器。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 3,
+        "name": "近战攻击"
+      },
+      {
+        "count": 2,
+        "name": "远程攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "长剑",
+        "attackBonus": "+9",
+        "damage": "1d8+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或使用双手时8（1d10+3）点挥砍伤害"
+      },
+      {
+        "name": "盾击",
+        "attackBonus": "+9",
+        "damage": "1d4+3",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标为大型或更小体型生物，则其必须成功通过一次DC14的力量豁免，否则应击倒地"
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+9",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "f2e2323f-a961-4dfa-837a-2debce7e939f",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "werewolf",
+    "name": "狼人",
+    "nameEn": "Werewolf",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中形",
+    "type": "类人生物（人类，变形生物）",
+    "alignment": "混乱邪恶",
+    "ac": 12,
+    "acNote": "类人形态下11，狼与半人形态下12（天生护甲）",
+    "maxHp": 58,
+    "hpDice": "9d8+18",
+    "speed": 30,
+    "speedNotes": "（狼形态下40尺）",
+    "strength": 15,
+    "dexterity": 13,
+    "constitution": 14,
+    "intelligence": 10,
+    "wisdom": 11,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      },
+      {
+        "name": "隐匿",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉14",
+    "languages": "通用语（不能在狼形态下说话）",
+    "damageResistances": [],
+    "damageImmunities": [
+      "非镀银武器且非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "变形生物Shapechanger",
+        "text": "狼人可以用一个动作变身成狼与类人生物半人的形态或狼形态，或者以同样的动作变回其真实形态即类人生物形态。其资料除AC外各个形态均相同。其着装及携带的装备也不会随之转化。死亡时它将恢复其真实形态。"
+      },
+      {
+        "name": "敏锐嗅听觉Keen Hearing and Smell",
+        "text": "狼人依赖听觉或嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "（仅类人与半人形态）狼人发动两次攻击：两次矛攻击（类人形态），或一次啃咬攻击与一次爪击攻击（半人形态）。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+4",
+        "damage": "1d8+2",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "如果目标是类人生物，则目标必须成功通过一次DC12的体质豁免，否则将遭受狼人兽化诅咒"
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+4",
+        "damage": "2d4+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "矛",
+        "attackBonus": "+4",
+        "damage": "1d6+2",
+        "damageType": "穿刺",
+        "range": "射程20/60尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 20,
+        "maxRange": 60,
+        "twoHandedDamage": "1d8+2",
+        "note": "或使用双手做近战攻击时6（1d8+2）点穿刺伤害"
+      }
+    ],
+    "description": "中形类人生物（人类，变形生物），混乱邪恶",
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "f3a720bd-8e6d-4a24-9b0c-4e74a077b387",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "orc",
+    "name": "兽人",
+    "nameEn": "Orc",
+    "cr": "1/2",
+    "xp": 100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（兽人）",
+    "alignment": "混乱邪恶",
+    "ac": 13,
+    "acNote": "兽皮甲",
+    "maxHp": 15,
+    "hpDice": "2d8+6",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 16,
+    "dexterity": 12,
+    "constitution": 16,
+    "intelligence": 7,
+    "wisdom": 11,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "威吓",
+        "bonus": 2
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉10",
+    "languages": "通用语，兽人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "好斗Aggressive",
+        "text": "作为一个附赠动作项，兽人可以向一个它能看见的敌对生物移动至多相当于其速度的距离。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨斧",
+        "attackBonus": "+5",
+        "damage": "1d12+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+5",
+        "damage": "1d6+3",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "f91f0ff3-da86-4202-8e12-88250757fe89",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "githyanki-warrior",
+    "name": "吉斯洋基武者",
+    "nameEn": "Githyanki Warrior",
+    "cr": "3",
+    "xp": 700,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "类人（吉斯人）",
+    "alignment": "守序邪恶",
+    "ac": 17,
+    "acNote": "半身板甲",
+    "maxHp": 49,
+    "hpDice": "9d8+9",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 15,
+    "dexterity": 14,
+    "constitution": 12,
+    "intelligence": 13,
+    "wisdom": 13,
+    "charisma": 10,
+    "savingThrows": [
+      "constitution",
+      "intelligence",
+      "wisdom"
+    ],
+    "skills": [],
+    "senses": "被动察觉11",
+    "languages": "吉斯语Gith",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "（灵能Psionics）吉斯洋基人天生施法属性为智力。它天生可施展以下法术而不需要任何相应的法术成分：随意：法师之手mage hand（生成隐形的手）每项3/日：跳跃术jump，迷踪步mistystep，回避侦测nondetection（仅自身）"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "吉斯洋基人发动两次巨剑攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨剑攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨剑",
+        "attackBonus": "+4",
+        "damage": "2d6+2",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加7（2d6）点心灵伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "类人生物",
+    "creatureSize": 2,
+    "creatureType": "humanoid",
+    "id": "f9f2fe3b-1c8e-4cdc-9aed-771fa9c08a68",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607176,
+    "campaignId": null
+  }
+]

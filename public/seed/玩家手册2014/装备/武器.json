@@ -1,0 +1,881 @@
+[
+  {
+    "id": "battleaxe",
+    "name": "战斧",
+    "category": "武器",
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "weight": 4,
+    "damageDice": "1d8",
+    "damageType": "挥砍",
+    "subtype": "军用近战",
+    "properties": [
+      "多用（1d10）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481564911,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "blowgun",
+    "childId": "",
+    "name": "吹箭筒",
+    "category": "武器",
+    "subtype": "军用远程",
+    "weight": 1,
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "damageDice": "1",
+    "damageType": "穿刺",
+    "acBase": "",
+    "strengthReq": 0,
+    "stealthDisadvantage": false,
+    "description": "",
+    "properties": [
+      "装填",
+      "弹药（射程25/100）"
+    ],
+    "tags": [],
+    "source": "玩家手册 2014",
+    "unit": "",
+    "isCustom": false,
+    "updatedAt": 1785122302217,
+    "campaignId": null
+  },
+  {
+    "id": "club",
+    "name": "短棒",
+    "category": "武器",
+    "price": {
+      "amount": 1,
+      "unit": "sp"
+    },
+    "weight": 2,
+    "damageDice": "1d4",
+    "damageType": "钝击",
+    "subtype": "简易近战",
+    "properties": [
+      "轻型"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481553750,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "crossbow-hand",
+    "name": "手弩",
+    "category": "武器",
+    "price": {
+      "amount": 75,
+      "unit": "gp"
+    },
+    "weight": 3,
+    "damageDice": "1d6",
+    "damageType": "穿刺",
+    "subtype": "军用远程",
+    "properties": [
+      "弹药（射程30/120）",
+      "轻型",
+      "装填"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481578522,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "crossbow-heavy",
+    "name": "重弩",
+    "category": "武器",
+    "price": {
+      "amount": 50,
+      "unit": "gp"
+    },
+    "weight": 18,
+    "damageDice": "1d10",
+    "damageType": "穿刺",
+    "subtype": "军用远程",
+    "properties": [
+      "弹药（射程100/400）",
+      "重型",
+      "装填",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481579330,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "crossbow-light",
+    "name": "轻弩",
+    "category": "武器",
+    "price": {
+      "amount": 25,
+      "unit": "gp"
+    },
+    "weight": 5,
+    "damageDice": "1d8",
+    "damageType": "穿刺",
+    "subtype": "简易远程",
+    "properties": [
+      "弹药（射程80/320）",
+      "装填",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481562223,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "dagger",
+    "name": "匕首",
+    "category": "武器",
+    "price": {
+      "amount": 2,
+      "unit": "gp"
+    },
+    "weight": 1,
+    "damageDice": "1d4",
+    "damageType": "穿刺",
+    "subtype": "简易近战",
+    "properties": [
+      "灵巧",
+      "轻型",
+      "投掷（射程20/60）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481554662,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "dart",
+    "name": "飞镖",
+    "category": "武器",
+    "price": {
+      "amount": 5,
+      "unit": "cp"
+    },
+    "weight": 0.25,
+    "damageDice": "1d4",
+    "damageType": "穿刺",
+    "subtype": "简易远程",
+    "properties": [
+      "灵巧",
+      "投掷（射程20/60）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481562886,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "flail",
+    "name": "链枷",
+    "category": "武器",
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d8",
+    "damageType": "钝击",
+    "subtype": "军用近战",
+    "properties": [],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481565704,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "glaive",
+    "name": "长柄刀",
+    "category": "武器",
+    "price": {
+      "amount": 20,
+      "unit": "gp"
+    },
+    "weight": 6,
+    "damageDice": "1d10",
+    "damageType": "挥砍",
+    "subtype": "军用近战",
+    "properties": [
+      "重型",
+      "触及",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481566527,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "greataxe",
+    "name": "巨斧",
+    "category": "武器",
+    "price": {
+      "amount": 30,
+      "unit": "gp"
+    },
+    "weight": 7,
+    "damageDice": "1d12",
+    "damageType": "挥砍",
+    "subtype": "军用近战",
+    "properties": [
+      "重型",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481567196,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "greatclub",
+    "name": "巨棒",
+    "category": "武器",
+    "price": {
+      "amount": 2,
+      "unit": "sp"
+    },
+    "weight": 10,
+    "damageDice": "1d8",
+    "damageType": "钝击",
+    "subtype": "简易近战",
+    "properties": [
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481555368,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "greatsword",
+    "name": "巨剑",
+    "category": "武器",
+    "price": {
+      "amount": 50,
+      "unit": "gp"
+    },
+    "weight": 6,
+    "damageDice": "2d6",
+    "damageType": "挥砍",
+    "subtype": "军用近战",
+    "properties": [
+      "重型",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481567859,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "halberd",
+    "name": "戟",
+    "category": "武器",
+    "price": {
+      "amount": 20,
+      "unit": "gp"
+    },
+    "weight": 6,
+    "damageDice": "1d10",
+    "damageType": "挥砍",
+    "subtype": "军用近战",
+    "properties": [
+      "重型",
+      "触及",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481568527,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "handaxe",
+    "name": "手斧",
+    "category": "武器",
+    "price": {
+      "amount": 5,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d6",
+    "damageType": "挥砍",
+    "subtype": "简易近战",
+    "properties": [
+      "轻型",
+      "投掷（射程20/60）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481556293,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "javelin",
+    "name": "标枪",
+    "category": "武器",
+    "price": {
+      "amount": 5,
+      "unit": "sp"
+    },
+    "weight": 2,
+    "damageDice": "1d6",
+    "damageType": "穿刺",
+    "subtype": "简易近战",
+    "properties": [
+      "投掷（射程30/120）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481557823,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "lance",
+    "name": "骑枪",
+    "category": "武器",
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "weight": 6,
+    "damageDice": "1d12",
+    "damageType": "穿刺",
+    "subtype": "军用近战",
+    "properties": [
+      "触及",
+      "特殊"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481569206,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "light-hammer",
+    "name": "轻锤",
+    "category": "武器",
+    "price": {
+      "amount": 2,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d4",
+    "damageType": "钝击",
+    "subtype": "简易近战",
+    "properties": [
+      "轻型",
+      "投掷（射程20/60）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481558526,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "longbow",
+    "name": "长弓",
+    "category": "武器",
+    "price": {
+      "amount": 50,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d8",
+    "damageType": "穿刺",
+    "subtype": "军用远程",
+    "properties": [
+      "弹药（射程150/600）",
+      "重型",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481580008,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "longsword",
+    "name": "长剑",
+    "category": "武器",
+    "price": {
+      "amount": 15,
+      "unit": "gp"
+    },
+    "weight": 3,
+    "damageDice": "1d8",
+    "damageType": "挥砍",
+    "subtype": "军用近战",
+    "properties": [
+      "多用（1d10）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481569905,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "mace",
+    "name": "硬头锤",
+    "category": "武器",
+    "price": {
+      "amount": 5,
+      "unit": "gp"
+    },
+    "weight": 4,
+    "damageDice": "1d6",
+    "damageType": "钝击",
+    "subtype": "简易近战",
+    "properties": [],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481559255,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "maul",
+    "name": "巨锤",
+    "category": "武器",
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "weight": 10,
+    "damageDice": "2d6",
+    "damageType": "钝击",
+    "subtype": "军用近战",
+    "properties": [
+      "重型",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481570586,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "morningstar",
+    "name": "钉头锤",
+    "category": "武器",
+    "price": {
+      "amount": 15,
+      "unit": "gp"
+    },
+    "weight": 4,
+    "damageDice": "1d8",
+    "damageType": "穿刺",
+    "subtype": "军用近战",
+    "properties": [],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481571272,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "net",
+    "name": "捕网",
+    "category": "武器",
+    "price": {
+      "amount": 1,
+      "unit": "gp"
+    },
+    "weight": 3,
+    "damageDice": "",
+    "damageType": "",
+    "subtype": "军用远程",
+    "properties": [
+      "特殊",
+      "投掷（射程5/15）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481580767,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "pike",
+    "name": "长矛",
+    "category": "武器",
+    "price": {
+      "amount": 5,
+      "unit": "gp"
+    },
+    "weight": 18,
+    "damageDice": "1d10",
+    "damageType": "穿刺",
+    "subtype": "军用近战",
+    "properties": [
+      "重型",
+      "触及",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481571987,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "quarterstaff",
+    "name": "长棍",
+    "category": "武器",
+    "price": {
+      "amount": 2,
+      "unit": "sp"
+    },
+    "weight": 4,
+    "damageDice": "1d6",
+    "damageType": "钝击",
+    "subtype": "简易近战",
+    "properties": [
+      "多用（1d8）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481560130,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "rapier",
+    "name": "刺剑",
+    "category": "武器",
+    "price": {
+      "amount": 25,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d8",
+    "damageType": "穿刺",
+    "subtype": "军用近战",
+    "properties": [
+      "灵巧"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481572927,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "scimitar",
+    "name": "弯刀",
+    "category": "武器",
+    "price": {
+      "amount": 25,
+      "unit": "gp"
+    },
+    "weight": 3,
+    "damageDice": "1d6",
+    "damageType": "挥砍",
+    "subtype": "军用近战",
+    "properties": [
+      "灵巧",
+      "轻型"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481573590,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "shortbow",
+    "name": "短弓",
+    "category": "武器",
+    "price": {
+      "amount": 25,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d6",
+    "damageType": "穿刺",
+    "subtype": "简易远程",
+    "properties": [
+      "弹药（射程80/320）",
+      "双手"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481563566,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "shortsword",
+    "name": "短剑",
+    "category": "武器",
+    "price": {
+      "amount": 10,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d6",
+    "damageType": "穿刺",
+    "subtype": "军用近战",
+    "properties": [
+      "灵巧",
+      "轻型"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481574254,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "sickle",
+    "name": "镰刀",
+    "category": "武器",
+    "price": {
+      "amount": 1,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d4",
+    "damageType": "挥砍",
+    "subtype": "简易近战",
+    "properties": [
+      "轻型"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481560796,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "sling",
+    "name": "投石索",
+    "category": "武器",
+    "price": {
+      "amount": 1,
+      "unit": "sp"
+    },
+    "weight": 0,
+    "damageDice": "1d4",
+    "damageType": "钝击",
+    "subtype": "简易远程",
+    "properties": [
+      "弹药（射程30/120）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481564233,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "spear",
+    "name": "矛",
+    "category": "武器",
+    "price": {
+      "amount": 1,
+      "unit": "gp"
+    },
+    "weight": 3,
+    "damageDice": "1d6",
+    "damageType": "穿刺",
+    "subtype": "简易近战",
+    "properties": [
+      "投掷（射程20/60）",
+      "多用（1d8）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481561527,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "trident",
+    "name": "三叉戟",
+    "category": "武器",
+    "price": {
+      "amount": 5,
+      "unit": "gp"
+    },
+    "weight": 4,
+    "damageDice": "1d6",
+    "damageType": "穿刺",
+    "subtype": "军用近战",
+    "properties": [
+      "投掷（射程20/60）",
+      "多用（1d8）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481574933,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "war-pick",
+    "name": "战镐",
+    "category": "武器",
+    "price": {
+      "amount": 5,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d8",
+    "damageType": "穿刺",
+    "subtype": "军用近战",
+    "properties": [],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481575640,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "warhammer",
+    "name": "战锤",
+    "category": "武器",
+    "price": {
+      "amount": 15,
+      "unit": "gp"
+    },
+    "weight": 2,
+    "damageDice": "1d8",
+    "damageType": "钝击",
+    "subtype": "军用近战",
+    "properties": [
+      "多用（1d10）"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481576369,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  },
+  {
+    "id": "whip",
+    "name": "鞭",
+    "category": "武器",
+    "price": {
+      "amount": 2,
+      "unit": "gp"
+    },
+    "weight": 3,
+    "damageDice": "1d4",
+    "damageType": "挥砍",
+    "subtype": "军用近战",
+    "properties": [
+      "灵巧",
+      "触及"
+    ],
+    "description": "",
+    "isCustom": false,
+    "tags": [],
+    "createdAt": 1783481577055,
+    "updatedAt": 1783579630439,
+    "source": "玩家手册 2014",
+    "campaignId": null
+  }
+]

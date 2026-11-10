@@ -1,0 +1,829 @@
+[
+  {
+    "templateId": "solar",
+    "name": "炽天神侍",
+    "nameEn": "Solar",
+    "cr": "21",
+    "xp": 33000,
+    "proficiencyBonus": 7,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "天族",
+    "alignment": "守序善良",
+    "ac": 21,
+    "acNote": "天生护甲",
+    "maxHp": 243,
+    "hpDice": "18d10+144",
+    "speed": 50,
+    "speedNotes": "，飞行150尺",
+    "strength": 26,
+    "dexterity": 22,
+    "constitution": 26,
+    "intelligence": 25,
+    "wisdom": 25,
+    "charisma": 30,
+    "savingThrows": [
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 14
+      }
+    ],
+    "senses": "真实视觉120尺，被动察觉24",
+    "languages": "全部，心灵感应120尺",
+    "damageResistances": [
+      "光耀",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [
+      "暗蚀",
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "恐慌",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "天使武器Angelic Weapons",
+        "text": "炽天神侍的武器攻击带有魔法。当炽天神侍以任何武器攻击命中目标时，其武器将额外造成6d8点光耀伤害（已包含在攻击项中）。"
+      },
+      {
+        "name": "神性警觉Divine Awareness",
+        "text": "炽天神侍可以辨出听到的谎言。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "炽天神侍天生施法属性为魅力（法术豁免DC25），它天生可施展以下法术而无需任何材料成分：随意：侦测善恶detectevil and good，隐形术invisibility（仅自身）每项3/日：剑刃护壁bladebarrier，复生术resurrection，驱逐善恶dispelevil and good每项1/日：通神术commune，操控天气controlweather"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "炽天神侍为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "炽天神侍发动两次巨剑攻击。"
+      },
+      {
+        "name": "凌空剑Flying Sword",
+        "text": "炽天神侍可以释放其巨剑使其悬浮于身边5尺内一处未占据空间。只要炽天神侍可以看到巨剑，便可用一个附赠动作对巨剑发出心灵指使，令其飞行至多50尺，然后再对一个目标发动一次攻击或者返回炽天神侍手中。如果巨剑在悬浮时被任何效应指定为目标，则炽天神侍将被视作手持该剑。如果炽天神侍死亡，悬浮的剑亦将坠落。"
+      },
+      {
+        "name": "治愈之触Healing Touch",
+        "text": "（4/日）炽天神侍触碰另一生物，被触碰目标将回复40（8d8+4）点生命值，并移除其身上所有诅咒、疾病、中毒、目盲及耳聋效应。"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "炽天神侍可以用魔法将自己传送至多120尺，到达任何它可以看到且未占据空间，其随身携带或着装的装备也将被一并传送。"
+      },
+      {
+        "name": "炽炎爆Searing Burst",
+        "text": "（消耗2动作）炽天神侍释放神圣的魔法能量。其半径10尺区域内，每个被其指定的生物必须进行一次DC23的敏捷豁免，豁免失败则受到14（4d6）点火焰伤害以及14（4d6）点光耀伤害，豁免成功则伤害减半。"
+      },
+      {
+        "name": "目盲凝视Blinding Gaze",
+        "text": "（消耗3动作）炽天神侍指定30尺内一个它能看见的生物。如果目标生物可以看见它，则其必须进行一次DC15的体质豁免，豁免失败则陷入目盲。目盲状态将一直存在至被次等复原术lesserrestoration等法术移除。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨剑攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 25,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "隐形术",
+            "复生术",
+            "驱逐善恶",
+            "操控天气"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "巨剑",
+        "attackBonus": "+15",
+        "damage": "4d6+8",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加27（6d8）光耀伤害"
+      },
+      {
+        "name": "杀戮长弓",
+        "attackBonus": "+13",
+        "damage": "2d8+6",
+        "damageType": "穿刺",
+        "range": "射程150/600尺",
+        "properties": [],
+        "normalRange": 150,
+        "maxRange": 600,
+        "note": "外加27（6d8）点光耀伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "天界生物",
+    "creatureSize": 3,
+    "creatureType": "celestial",
+    "id": "15d30432-b860-4ca7-bae2-2a3ef8156443",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607181,
+    "campaignId": null
+  },
+  {
+    "templateId": "deva",
+    "name": "天神使徒",
+    "nameEn": "Deva",
+    "cr": "10",
+    "xp": 5900,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "天族",
+    "alignment": "守序善良",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 136,
+    "hpDice": "16d8+64",
+    "speed": 30,
+    "speedNotes": "，飞行90尺",
+    "strength": 18,
+    "dexterity": 18,
+    "constitution": 18,
+    "intelligence": 17,
+    "wisdom": 20,
+    "charisma": 20,
+    "savingThrows": [
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "洞悉",
+        "bonus": 9
+      },
+      {
+        "name": "察觉",
+        "bonus": 9
+      }
+    ],
+    "senses": "黑暗视觉120尺，被动察觉19",
+    "languages": "全部，心灵感应120尺",
+    "damageResistances": [
+      "光耀",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "恐慌"
+    ],
+    "traits": [
+      {
+        "name": "天使武器Angelic Weapons",
+        "text": "天神使徒的武器攻击带有魔法。当天神使徒以任何武器攻击命中目标时，其武器将额外造成4d8点光耀伤害（已包含在攻击项中）。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "天神使徒天生施法属性为魅力（法术豁免DC17），它天生可施展以下法术且仅需言语成分：随意：侦测善恶detectevil and good每项1/日：通神术commune，死者复活raisedead"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "天神使徒为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "天神使徒发动两次近战攻击。"
+      },
+      {
+        "name": "治愈之触Healing Touch",
+        "text": "（3/日）天神使徒触碰另一生物，被触碰目标将回复20（4d8+2）点生命值，并移除其身上所有诅咒、疾病、中毒、目盲及耳聋效应。"
+      },
+      {
+        "name": "变形Change Shape",
+        "text": "天神使徒可以用魔法变形为挑战等级等于或低于其自身的类人生物或野兽，也可以同样用该动作恢复其真实形态。在死亡时，它也会回复其真实形态。它携带或着装的任何装备都将吸收为新形态的一部分或承载在新形态身上（依照天神使徒的意愿）。在新形态之下，天神使徒保留其游戏数据和对话能力，但其AC、移动方式、力量、敏捷和特殊感官将被新形态的对应条目取代，它还会获得新形态具有而其本身不具备的所有数据与能力（不包括职业特性、传奇动作以及巢穴动作）。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 17,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "死者复活"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "硬头锤",
+        "attackBonus": "+8",
+        "damage": "1d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加18（4d8）点光耀伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "天界生物",
+    "creatureSize": 2,
+    "creatureType": "celestial",
+    "id": "2c0e1f80-5f38-4f36-9187-00d3b634a297",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "empyrean",
+    "name": "至高天",
+    "nameEn": "Empyrean",
+    "cr": "23",
+    "xp": 50000,
+    "proficiencyBonus": 7,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "天族（泰坦）",
+    "alignment": "混乱善良（75%）或中立邪恶（25%）",
+    "ac": 22,
+    "acNote": "天生护甲",
+    "maxHp": 313,
+    "hpDice": "19d12+190",
+    "speed": 50,
+    "speedNotes": "，飞行50尺，游泳50尺",
+    "strength": 30,
+    "dexterity": 21,
+    "constitution": 30,
+    "intelligence": 21,
+    "wisdom": 22,
+    "charisma": 27,
+    "savingThrows": [
+      "strength",
+      "intelligence",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "洞悉",
+        "bonus": 13
+      },
+      {
+        "name": "游说",
+        "bonus": 15
+      }
+    ],
+    "senses": "真实视觉120尺，被动察觉16",
+    "languages": "全部",
+    "damageResistances": [],
+    "damageImmunities": [
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "至高天天生施法属性为魅力（法术豁免DC23，法术攻击命中+15）。它天生可施展以下法术且不需要任何相应的材料成分：随意：高等复原术greatrestoration，行动无踪passwithout trace，水下呼吸waterbreathing，水上行走waterwalk每项1/日：通神术commune，驱逐善恶dispelevil and goof，地震术earthquake，火焰风暴firestorm，位面转移plane shift（仅自身）"
+      },
+      {
+        "name": "传奇抗性Legendary Resistance",
+        "text": "（3/日）至高天豁免失败时，可以将其改为豁免成功。"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "至高天为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapon",
+        "text": "至高天的武器攻击视为魔法攻击。"
+      },
+      {
+        "name": "飞矢Bolt",
+        "text": "远程法术攻击：命中+15，射程600尺，单一目标。命中：24（7d6）点以下类型之一的伤害（由至高天选择）：强酸、寒冷、火焰、力场、闪电、光耀或雷鸣。"
+      },
+      {
+        "name": "攻击Attack",
+        "text": "至高天发动一次攻击。"
+      },
+      {
+        "name": "鼓舞Bolster",
+        "text": "至高天鼓舞身边120尺内所有非敌对生物，效应持续至其下一回合结束。受鼓舞生物不会陷入魅惑或恐慌，且在此期间进行的属性检定和豁免检定具有优势。"
+      },
+      {
+        "name": "战栗打击Trembling Strike",
+        "text": "（消耗2动作）至高天用巨锤击打地面引发一次地颤。除至高天自身外所有身处其周边60尺内的其他生物都必须进行一次DC25的力量豁免，豁免失败者将应击倒地。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 23,
+      "attackBonus": 15,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "高等复原术",
+            "行动无踪",
+            "水下呼吸",
+            "水上行走",
+            "驱逐善恶",
+            "地震术",
+            "火焰风暴",
+            "位面转移"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "巨锤",
+        "attackBonus": "+17",
+        "damage": "6d6+10",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "如果目标是生物，则必须进行一次DC15的体质豁免，豁免失败则直至至高天的下一回合结束前陷入震慑"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "天界生物",
+    "creatureSize": 4,
+    "creatureType": "celestial",
+    "id": "4ec32439-73b7-48e8-97f4-ac325708c811",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "pegasus",
+    "name": "天马",
+    "nameEn": "Pegasus",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "天族",
+    "alignment": "混乱善良",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 59,
+    "hpDice": "7d10+21",
+    "speed": 60,
+    "speedNotes": "，飞行90尺",
+    "strength": 18,
+    "dexterity": 15,
+    "constitution": 16,
+    "intelligence": 10,
+    "wisdom": 15,
+    "charisma": 13,
+    "savingThrows": [
+      "dexterity",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉16",
+    "languages": "懂天界语、通用语、精灵语和木族语但不能说",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+6",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "天界生物",
+    "creatureSize": 3,
+    "creatureType": "celestial",
+    "id": "99fa7bc9-deeb-47ef-a614-bf560c8ca831",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "planetar",
+    "name": "星天神使",
+    "nameEn": "Planetar",
+    "cr": "16",
+    "xp": 15000,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "天族",
+    "alignment": "守序善良",
+    "ac": 19,
+    "acNote": "天生护甲",
+    "maxHp": 200,
+    "hpDice": "16d10+112",
+    "speed": 40,
+    "speedNotes": "，飞行120尺",
+    "strength": 24,
+    "dexterity": 20,
+    "constitution": 24,
+    "intelligence": 19,
+    "wisdom": 22,
+    "charisma": 25,
+    "savingThrows": [
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 11
+      }
+    ],
+    "senses": "真实视觉120尺，被动察觉21",
+    "languages": "全部，心灵感应120尺",
+    "damageResistances": [
+      "光耀",
+      "非魔法攻击的钝击",
+      "穿刺",
+      "挥砍"
+    ],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "力竭",
+      "恐慌"
+    ],
+    "traits": [
+      {
+        "name": "天使武器Angelic Weapons",
+        "text": "星天神使的武器攻击带有魔法。当星天神使以任何武器攻击命中目标时，其武器将额外造成5d8点光耀伤害（已包含在攻击项中）。"
+      },
+      {
+        "name": "神性警觉Divine Awareness",
+        "text": "星天神使可以辨出听到的谎言。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "星天神使的施法属性为魅力（法术豁免DC20），它天生即可施展以下法术，而无需任何材料成分：随意：侦测善恶detectevil and good，隐形术invisibility（仅自身）每项3/日：剑刃护壁bladebarrier，驱逐善恶dispelevil and good，焰击术flamestrike，死者复活raisedead每项1/日：通神术commune，控制天气controlweather，疫病虫群insectplague"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "星天神使为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "星天神使发动两次近战攻击。"
+      },
+      {
+        "name": "治愈之触Healing Touch",
+        "text": "（4/日）星天神使触碰另一生物，被触碰目标将回复30（6d8+3）点生命值，并移除其身上所有诅咒、疾病、中毒、目盲及耳聋效应。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "近战攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 20,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "隐形术",
+            "驱逐善恶",
+            "焰击术",
+            "死者复活",
+            "控制天气",
+            "疫病虫群"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "巨剑",
+        "attackBonus": "+12",
+        "damage": "4d6+7",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "外加22（5d8）光耀伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "天界生物",
+    "creatureSize": 3,
+    "creatureType": "celestial",
+    "id": "b5df951c-e762-4ed9-96d2-4ccdb868b2c0",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "couatl",
+    "name": "羽蛇",
+    "nameEn": "Couatl",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "中型",
+    "type": "天族",
+    "alignment": "守序善良",
+    "ac": 19,
+    "acNote": "天生护甲",
+    "maxHp": 97,
+    "hpDice": "13d8+39",
+    "speed": 30,
+    "speedNotes": "，飞行90尺",
+    "strength": 16,
+    "dexterity": 20,
+    "constitution": 17,
+    "intelligence": 18,
+    "wisdom": 20,
+    "charisma": 18,
+    "savingThrows": [
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [],
+    "senses": "真实视觉120尺，被动察觉15",
+    "languages": "全部，心灵感应120尺",
+    "damageResistances": [
+      "光耀"
+    ],
+    "damageImmunities": [
+      "心灵",
+      "非魔法攻击的钝击",
+      "挥砍",
+      "穿刺"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "羽蛇天生施法属性为魅力（法术豁免DC14），它天生可施展以下法术且仅需相应的言语成分成分：随意：侦测善恶detectevil and good，侦测魔法detectmagic，侦测思想detectthoughts每项3/日：祝福术bless，造粮术createfood and water，疗伤术curewounds，次等复原术lesserrestoration，防护毒素protectionfrom poison，庇护术sanctuary，护盾术shield每项1/日：托梦术dream，高等复原术greaterrestoration，探知术scrying"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "羽蛇的武器攻击视为魔法攻击。"
+      },
+      {
+        "name": "屏蔽心灵Shielded Mind",
+        "text": "羽蛇免疫探知术，以及任何能感测其情绪、读取其思想或侦测其位置的效应。"
+      },
+      {
+        "name": "变形Change Shape",
+        "text": "羽蛇可以用魔法变形为挑战等级等于或低于其自身的类人生物或野兽，也可以同样用该动作恢复其真实形态。在死亡时，它也会回复其真实形态。它携带或着装的任何装备都将转变为适应新形态，或是直接吸收为新形态的一部分（依照羽蛇的意愿）。在新形态之下，羽蛇将保留其游戏数据和对话能力，但其AC、移动方式、力量、敏捷和其他动作项将被新形态的对应条目取代，即它同时获得新形态具有而它本身不具备的数据与能力（不包括职业特性、传奇动作以及巢穴动作）。如果新形态有啃咬攻击，羽蛇也可以在该形态下使用自己的啃咬。"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "侦测魔法",
+            "侦测思想",
+            "造粮术",
+            "疗伤术",
+            "次等复原术",
+            "防护毒素",
+            "庇护术",
+            "护盾术",
+            "高等复原术",
+            "探知术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+8",
+        "damage": "1d6+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "目标必须进行一次DC13的体质豁免，豁免失败则陷入24小时的中毒状态"
+      },
+      {
+        "name": "绞缠",
+        "attackBonus": "+6",
+        "damage": "2d6+3",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "目标被擒抱（逃脱DC15）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "天界生物",
+    "creatureSize": 2,
+    "creatureType": "celestial",
+    "id": "ba3527c2-9caf-47b8-93ed-e8c346148d0c",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "unicorn",
+    "name": "独角兽",
+    "nameEn": "Unicorn",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "天族",
+    "alignment": "守序善良",
+    "ac": 12,
+    "acNote": "12",
+    "maxHp": 67,
+    "hpDice": "9d10+18",
+    "speed": 50,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 14,
+    "constitution": 15,
+    "intelligence": 11,
+    "wisdom": 17,
+    "charisma": 16,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉13",
+    "languages": "天界语，精灵语，木族语，心灵感应60尺",
+    "damageResistances": [],
+    "damageImmunities": [
+      "毒素"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [
+      "魅惑",
+      "麻痹",
+      "中毒"
+    ],
+    "traits": [
+      {
+        "name": "冲锋Charge",
+        "text": "若独角兽向其目标直线移动至少20尺，且在同一回合里以角击攻击命中该目标，则该目标受额外9（2d8）点穿刺伤害。如果目标是生物，则该生物必须成功通过一次DC15的力量豁免，否则应击倒地。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "独角兽天生施法属性为魅力（法术豁免DC14），它天生即可施展以下法术而无需任何相应的法术成分：随意：侦测善恶DetectEvil and Good，德鲁伊伎俩Druidcraft，行动无踪Passwithout Trace每项1/日：安定心神CalmEmotion，驱逐善恶DispelEvil and Good，纠缠术Entangle"
+      },
+      {
+        "name": "魔法抗性Magic Resistance",
+        "text": "独角兽为抵抗法术和其他魔法效应而作的豁免检定具有优势。"
+      },
+      {
+        "name": "魔法武器Magic Weapons",
+        "text": "独角兽的武器攻击视为带有魔法。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "独角兽发动两次攻击：一次蹄击和一次角击。"
+      },
+      {
+        "name": "治愈之触Healing Touch",
+        "text": "（3/日）独角兽用其独角触碰目标生物。目标生物被其魔法恢复11（2d8+2）点生命值，并移除目标身上所有疾病，中和身上所有中毒影响。"
+      },
+      {
+        "name": "传送Teleport",
+        "text": "（1/日）独角兽以魔法传送自己和其身边5尺内它能看见的至多三个自愿生物，它们的着装和携带的装备也随之一并被传送。目标位置为该独角兽知晓的地点，传送距离至多1里远。"
+      },
+      {
+        "name": "蹄击Hooves",
+        "text": "独角兽发动一次蹄击。"
+      },
+      {
+        "name": "闪光护盾Shimmering Shield",
+        "text": "（消耗2动作）独角兽创造出一个闪闪发光的魔法力场围绕，使之环绕它自身或一个它身边60尺内一个它能看见的生物。目标的AC获得+2加值，其效应持续至该独角兽下一回合结束时终止。"
+      },
+      {
+        "name": "自愈Heal Self",
+        "text": "（消耗3个动作）独角兽用魔法恢复11（2d8+2）点生命值。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "蹄击"
+      },
+      {
+        "count": 1,
+        "name": "角击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测善恶",
+            "德鲁伊伎俩",
+            "行动无踪",
+            "驱逐善恶",
+            "纠缠术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "蹄击",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "角击",
+        "attackBonus": "+7",
+        "damage": "1d8+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "天界生物",
+    "creatureSize": 3,
+    "creatureType": "celestial",
+    "id": "d136d274-b151-4b8a-82a6-ec9aafe93b00",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  }
+]

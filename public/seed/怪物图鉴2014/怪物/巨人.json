@@ -1,0 +1,1195 @@
+[
+  {
+    "templateId": "troll",
+    "name": "巨魔",
+    "nameEn": "Troll",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "巨人",
+    "alignment": "混乱邪恶",
+    "ac": 15,
+    "acNote": "天生护甲",
+    "maxHp": 84,
+    "hpDice": "8d10+40",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 18,
+    "dexterity": 13,
+    "constitution": 20,
+    "intelligence": 7,
+    "wisdom": 9,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉12",
+    "languages": "巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "巨魔依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "再生Regeneration",
+        "text": "巨魔在它的回合开始时回复10点生命值。如果巨魔受到强酸或者火焰伤害，则该特质在它的下一回合里无法生效。如果巨魔以0生命值开始其自己回合且无法使用再生，则巨魔死亡。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨魔发动三次攻击：一次啃咬和两次爪击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "啃咬"
+      },
+      {
+        "count": 2,
+        "name": "爪击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "啃咬",
+        "attackBonus": "+7",
+        "damage": "1d6+4",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "2d6+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 3,
+    "creatureType": "giant",
+    "id": "17a6900d-f802-4336-8b6b-87c2d53e6f29",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "cyclops",
+    "name": "独眼巨人",
+    "nameEn": "Cyclops",
+    "cr": "6",
+    "xp": 2300,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "巨人",
+    "alignment": "混乱中立",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 138,
+    "hpDice": "12d12+60",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 22,
+    "dexterity": 11,
+    "constitution": 20,
+    "intelligence": 8,
+    "wisdom": 6,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "被动察觉8",
+    "languages": "巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "纵感欠缺Poor Depth Perception",
+        "text": "独眼巨人对30尺外的目标发动的攻击检定具有劣势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "独眼巨人发动两次巨棒攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨棒攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨棒",
+        "attackBonus": "+9",
+        "damage": "3d8+6",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+9",
+        "damage": "4d10+6",
+        "damageType": "钝击",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 4,
+    "creatureType": "giant",
+    "id": "198260a5-b33b-4f7c-b2a1-d0e165e2091b",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "cloud-giant",
+    "name": "云巨人",
+    "nameEn": "Cloud Giant",
+    "cr": "9",
+    "xp": 5000,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "巨人",
+    "alignment": "中立善良（50%）或中立邪恶（50%）",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 200,
+    "hpDice": "16d12+96",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 27,
+    "dexterity": 10,
+    "constitution": 22,
+    "intelligence": 12,
+    "wisdom": 16,
+    "charisma": 16,
+    "savingThrows": [
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "洞悉",
+        "bonus": 7
+      },
+      {
+        "name": "察觉",
+        "bonus": 7
+      }
+    ],
+    "senses": "被动察觉17",
+    "languages": "通用语，巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "敏锐嗅觉Keen Smell",
+        "text": "巨人依赖嗅觉进行的感知（察觉）检定具有优势。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "巨人天生施法属性为魅力。巨人天生可以施展以下法术且不需要任何材料成分：随意：侦测魔法detectmagic，云雾术fogcloud，光亮术light每项3/日：羽落术featherfall，飞行术fly，迷踪步mistystep，心灵遥控telekinesis每项1/日：操控天气controlweather，气化形体gaseousform"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨人发动两次钉头锤攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "钉头锤攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "钉头锤",
+        "attackBonus": "+12",
+        "damage": "3d8+8",
+        "damageType": "穿刺",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+12",
+        "damage": "4d10+8",
+        "damageType": "钝击",
+        "range": "射程60/240尺",
+        "properties": [],
+        "normalRange": 60,
+        "maxRange": 240
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 4,
+    "creatureType": "giant",
+    "id": "397c1de8-dd6e-41fb-95aa-a1856769be38",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607173,
+    "campaignId": null
+  },
+  {
+    "templateId": "ettin",
+    "name": "双头巨人",
+    "nameEn": "Ettin",
+    "cr": "4",
+    "xp": 1100,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "巨人",
+    "alignment": "混乱邪恶",
+    "ac": 12,
+    "acNote": "天生护甲",
+    "maxHp": 85,
+    "hpDice": "10d10+30",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 21,
+    "dexterity": 8,
+    "constitution": 17,
+    "intelligence": 6,
+    "wisdom": 10,
+    "charisma": 8,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "巨人语，兽人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "双头Two Head",
+        "text": "双头巨人进行感知（察觉）检定，以及为抵抗目盲，魅惑，耳聋，恐慌，震慑和应击昏迷而进行豁免检定时具有优势。"
+      },
+      {
+        "name": "警醒Wakeful",
+        "text": "双头巨人一个头睡着时，另一个头醒着。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "双头巨人发动两次攻击：一次战斧攻击和一次钉头锤攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 1,
+        "name": "战斧攻击"
+      },
+      {
+        "count": 1,
+        "name": "钉头锤攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "战斧",
+        "attackBonus": "+7",
+        "damage": "2d8+5",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "钉头锤",
+        "attackBonus": "+7",
+        "damage": "2d8+5",
+        "damageType": "穿刺",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 3,
+    "creatureType": "giant",
+    "id": "60336753-77e0-429e-9ed7-e7610d844568",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "half-ogre",
+    "name": "半食人魔",
+    "nameEn": "Half-Ogre",
+    "cr": "1",
+    "xp": 200,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "巨人",
+    "alignment": "任意混乱阵营",
+    "ac": 12,
+    "acNote": "兽皮甲",
+    "maxHp": 30,
+    "hpDice": "4d10+8",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 17,
+    "dexterity": 10,
+    "constitution": 14,
+    "intelligence": 7,
+    "wisdom": 9,
+    "charisma": 10,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉9",
+    "languages": "通用语，巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [],
+    "attacks": [
+      {
+        "name": "战斧",
+        "attackBonus": "+5",
+        "damage": "2d8+3",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [
+          "多用"
+        ],
+        "normalRange": 5,
+        "maxRange": 5,
+        "note": "或使用双手时14（2d10+3）点挥砍伤害"
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+5",
+        "damage": "2d6+3",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 3,
+    "creatureType": "giant",
+    "id": "67bdb921-d8e8-4dd3-888f-da5f466c96d4",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "fire-giant",
+    "name": "火巨人",
+    "nameEn": "Fire Giant",
+    "cr": "9",
+    "xp": 5000,
+    "proficiencyBonus": 4,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "巨人",
+    "alignment": "守序邪恶",
+    "ac": 18,
+    "acNote": "板甲",
+    "maxHp": 162,
+    "hpDice": "13d12+78",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 25,
+    "dexterity": 9,
+    "constitution": 23,
+    "intelligence": 10,
+    "wisdom": 14,
+    "charisma": 13,
+    "savingThrows": [
+      "dexterity",
+      "constitution",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 11
+      },
+      {
+        "name": "察觉",
+        "bonus": 6
+      }
+    ],
+    "senses": "被动察觉16",
+    "languages": "巨人语",
+    "damageResistances": [],
+    "damageImmunities": [
+      "火焰"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨人发动两次巨剑攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨剑攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨剑",
+        "attackBonus": "+11",
+        "damage": "6d6+7",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+11",
+        "damage": "4d10+7",
+        "damageType": "钝击",
+        "range": "射程60/240尺",
+        "properties": [],
+        "normalRange": 60,
+        "maxRange": 240
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 4,
+    "creatureType": "giant",
+    "id": "8bef7d42-4502-4cec-bf70-41840f6c3a71",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "hill-giant",
+    "name": "山丘巨人",
+    "nameEn": "Hill Giant",
+    "cr": "5",
+    "xp": 1800,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "巨人",
+    "alignment": "混乱邪恶",
+    "ac": 13,
+    "acNote": "天生护甲",
+    "maxHp": 105,
+    "hpDice": "10d12+40",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 21,
+    "dexterity": 8,
+    "constitution": 19,
+    "intelligence": 5,
+    "wisdom": 9,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 2
+      }
+    ],
+    "senses": "被动察觉12",
+    "languages": "巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨人发动两次巨棒攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨棒攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨棒",
+        "attackBonus": "+8",
+        "damage": "3d8+5",
+        "damageType": "钝击",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+8",
+        "damage": "3d10+5",
+        "damageType": "钝击",
+        "range": "射程60/240尺",
+        "properties": [],
+        "normalRange": 60,
+        "maxRange": 240
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 4,
+    "creatureType": "giant",
+    "id": "91d98909-fd07-4900-9dd3-182e96df4328",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607178,
+    "campaignId": null
+  },
+  {
+    "templateId": "oni",
+    "name": "恶鬼",
+    "nameEn": "Oni",
+    "cr": "7",
+    "xp": 2900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "巨人",
+    "alignment": "守序邪恶",
+    "ac": 16,
+    "acNote": "链甲",
+    "maxHp": 110,
+    "hpDice": "13d10+39",
+    "speed": 30,
+    "speedNotes": "，飞行30尺",
+    "strength": 19,
+    "dexterity": 11,
+    "constitution": 16,
+    "intelligence": 14,
+    "wisdom": 12,
+    "charisma": 15,
+    "savingThrows": [
+      "dexterity",
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 5
+      },
+      {
+        "name": "欺瞒",
+        "bonus": 8
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "通用语，巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "恶鬼天生施法属性为魅力（法术豁免DC13），恶鬼天生可施展下列法术且不需要任何相应的材料成分：随意：黑暗术darkness，隐形术invisibility每项1/日：魅惑类人charmperson，寒冰锥coneof cold，气化形体gaseousform，睡眠术sleep"
+      },
+      {
+        "name": "魔法武器Magic Weapon",
+        "text": "恶鬼的武器攻击视为魔法武器。"
+      },
+      {
+        "name": "再生Regeneration",
+        "text": "恶鬼在其自己的回合开始时，如果它至少还有1点生命值，则它恢复10点生命值。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "恶鬼发动两次，可以是两次爪击，或两次长柄刀攻击。"
+      },
+      {
+        "name": "变形Change Shape",
+        "text": "恶鬼用魔法变形成小型或中型体型的类人生物，或者变成一个大型的巨人，又或者以相同动作变回其真实形态。改变形态时，恶鬼的其他资料保持不变。唯一随其体型变化的装备只有它持用的长柄刀，该长柄刀会随恶鬼的变小而缩小以便在类人形态下也可以挥舞自如。恶鬼死亡时将变回其真实形态，其长柄刀也会变回原本的大小。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "爪击"
+      },
+      {
+        "count": 2,
+        "name": "长柄刀攻击"
+      }
+    ],
+    "regeneration": {
+      "amount": 10
+    },
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "黑暗术",
+            "隐形术",
+            "寒冰锥",
+            "气化形体",
+            "睡眠术"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "爪击",
+        "attackBonus": "+7",
+        "damage": "1d8+4",
+        "damageType": "挥砍",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "长柄刀",
+        "attackBonus": "+7",
+        "damage": "2d10+4",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10,
+        "note": "或在中型小型形态时9（1d10+4）点挥砍伤害"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 3,
+    "creatureType": "giant",
+    "id": "97a488af-c6bf-4e27-904b-24549143c0ae",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "stone-giant",
+    "name": "石巨人",
+    "nameEn": "Stone Giant",
+    "cr": "7",
+    "xp": 2900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "巨人",
+    "alignment": "绝对中立",
+    "ac": 17,
+    "acNote": "天生护甲",
+    "maxHp": 126,
+    "hpDice": "11d12+55",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 23,
+    "dexterity": 15,
+    "constitution": 20,
+    "intelligence": 10,
+    "wisdom": 12,
+    "charisma": 9,
+    "savingThrows": [
+      "dexterity",
+      "constitution",
+      "wisdom"
+    ],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 12
+      },
+      {
+        "name": "察觉",
+        "bonus": 4
+      }
+    ],
+    "senses": "黑暗视觉60尺，被动察觉14",
+    "languages": "巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "岩地伪装Stone Camouflage",
+        "text": "巨人在岩石地形中进行躲藏时所作的敏捷（隐匿）检定具有优势。"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨人发动两次巨棒攻击。"
+      },
+      {
+        "name": "接石Rock Catching",
+        "text": "当岩石或类似物件向该巨人投来时，它可以进行一次DC10的敏捷豁免，豁免成功则抓住该物件并免除可能造成的钝击伤害。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨棒攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨棒",
+        "attackBonus": "+9",
+        "damage": "3d8+6",
+        "damageType": "钝击",
+        "range": "触及15尺",
+        "properties": [],
+        "normalRange": 15,
+        "maxRange": 15
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+9",
+        "damage": "4d10+6",
+        "damageType": "钝击",
+        "range": "射程60/240尺",
+        "properties": [],
+        "normalRange": 60,
+        "maxRange": 240,
+        "note": "如果目标是一个生物，则目标生物必需进行一次DC17的力量豁免，豁免失败者将应击倒地"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 4,
+    "creatureType": "giant",
+    "id": "999f27b2-3b0b-4cdb-a78c-86a63b59c185",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  },
+  {
+    "templateId": "ogre",
+    "name": "食人魔",
+    "nameEn": "Ogre",
+    "cr": "2",
+    "xp": 450,
+    "proficiencyBonus": 2,
+    "pbDerived": true,
+    "size": "大型",
+    "type": "巨人",
+    "alignment": "混乱邪恶",
+    "ac": 11,
+    "acNote": "兽皮甲",
+    "maxHp": 59,
+    "hpDice": "7d10+21",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 19,
+    "dexterity": 8,
+    "constitution": 16,
+    "intelligence": 5,
+    "wisdom": 7,
+    "charisma": 7,
+    "savingThrows": [],
+    "skills": [],
+    "senses": "黑暗视觉60尺，被动察觉8",
+    "languages": "通用语，巨人语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "食人魔与兽人杂交的产物也被称为半兽食人魔ogrillon",
+        "text": "一个成年的半食人魔或半兽食人魔大概身高8尺，体重450磅左右。"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨棒",
+        "attackBonus": "+6",
+        "damage": "2d8+4",
+        "damageType": "钝击",
+        "range": "触及5尺",
+        "properties": [],
+        "normalRange": 5,
+        "maxRange": 5
+      },
+      {
+        "name": "标枪",
+        "attackBonus": "+6",
+        "damage": "2d6+4",
+        "damageType": "穿刺",
+        "range": "射程30/120尺",
+        "properties": [],
+        "normalRange": 30,
+        "maxRange": 120,
+        "note": "半食人魔Half-Ogre（半兽食人魔Ogrillon）"
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 3,
+    "creatureType": "giant",
+    "id": "9bb6d05d-8f7a-4978-b9e3-b25d249273d9",
+    "createdAt": 1793607170321,
+    "updatedAt": 1793607180,
+    "campaignId": null
+  },
+  {
+    "templateId": "fomorian",
+    "name": "废陋巨人",
+    "nameEn": "Fomorian",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "巨人",
+    "alignment": "混乱邪恶",
+    "ac": 14,
+    "acNote": "天生护甲",
+    "maxHp": 149,
+    "hpDice": "13d12+65",
+    "speed": 30,
+    "speedNotes": "",
+    "strength": 23,
+    "dexterity": 10,
+    "constitution": 20,
+    "intelligence": 9,
+    "wisdom": 14,
+    "charisma": 6,
+    "savingThrows": [],
+    "skills": [
+      {
+        "name": "察觉",
+        "bonus": 8
+      },
+      {
+        "name": "隐匿",
+        "bonus": 3
+      }
+    ],
+    "senses": "",
+    "languages": "巨人语，地底通用语",
+    "damageResistances": [],
+    "damageImmunities": [],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "废陋巨人发动两次巨棒攻击，或者发动一次巨棒攻击和一次邪眼攻击。"
+      },
+      {
+        "name": "邪眼Evil Eye",
+        "text": "废陋巨人以魔法迫使其身边60尺内一个它能看到的生物进行一次DC14的魅力豁免。豁免失败则该生物受27（6d8）点心灵伤害，豁免成功则伤害减半。"
+      },
+      {
+        "name": "邪眼诅咒Curse of the Evil Eye",
+        "text": "（短休或长休后充能）废陋巨人以一次注视发动其邪眼攻击，而本次攻击豁免失败时，该生物同时还会受到魔法的畸变诅咒。受畸变时，该生物的速度减半，而其属性检定、豁免检定以及基于力量和敏捷的攻击都具有劣势。受畸变的生物可以在完成一次长休后再进行一次该豁免，豁免成功则终止该效应。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨棒攻击"
+      },
+      {
+        "count": 1,
+        "name": "巨棒攻击"
+      },
+      {
+        "count": 1,
+        "name": "邪眼攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨棒",
+        "attackBonus": "+9",
+        "damage": "3d8+6",
+        "damageType": "钝击",
+        "range": "触及15尺",
+        "properties": [],
+        "normalRange": 15,
+        "maxRange": 15
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 4,
+    "creatureType": "giant",
+    "id": "aa7ffd67-2723-46a2-9bce-1af3013470c7",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "frost-giant",
+    "name": "霜巨人",
+    "nameEn": "Frost Giant",
+    "cr": "8",
+    "xp": 3900,
+    "proficiencyBonus": 3,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "巨人",
+    "alignment": "中立邪恶",
+    "ac": 15,
+    "acNote": "拼凑护甲",
+    "maxHp": 138,
+    "hpDice": "12d12+60",
+    "speed": 40,
+    "speedNotes": "",
+    "strength": 23,
+    "dexterity": 9,
+    "constitution": 21,
+    "intelligence": 9,
+    "wisdom": 10,
+    "charisma": 12,
+    "savingThrows": [
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "运动",
+        "bonus": 9
+      },
+      {
+        "name": "察觉",
+        "bonus": 3
+      }
+    ],
+    "senses": "被动察觉13",
+    "languages": "巨人语",
+    "damageResistances": [],
+    "damageImmunities": [
+      "寒冷"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨人发动两次巨斧攻击。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨斧攻击"
+      }
+    ],
+    "attacks": [
+      {
+        "name": "巨斧",
+        "attackBonus": "+9",
+        "damage": "3d12+6",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+9",
+        "damage": "4d10+6",
+        "damageType": "钝击",
+        "range": "射程60/240尺",
+        "properties": [],
+        "normalRange": 60,
+        "maxRange": 240
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 4,
+    "creatureType": "giant",
+    "id": "bf6ac8bf-19ee-4a26-88f5-4463f28e17cc",
+    "createdAt": 1793607170320,
+    "updatedAt": 1793607174,
+    "campaignId": null
+  },
+  {
+    "templateId": "storm-giant",
+    "name": "风暴巨人",
+    "nameEn": "Storm Giant",
+    "cr": "13",
+    "xp": 10000,
+    "proficiencyBonus": 5,
+    "pbDerived": true,
+    "size": "巨型",
+    "type": "巨人",
+    "alignment": "混乱善良",
+    "ac": 16,
+    "acNote": "鳞甲",
+    "maxHp": 230,
+    "hpDice": "20d12+100",
+    "speed": 50,
+    "speedNotes": "，游泳50尺。",
+    "strength": 29,
+    "dexterity": 14,
+    "constitution": 20,
+    "intelligence": 16,
+    "wisdom": 18,
+    "charisma": 18,
+    "savingThrows": [
+      "strength",
+      "constitution",
+      "wisdom",
+      "charisma"
+    ],
+    "skills": [
+      {
+        "name": "奥秘",
+        "bonus": 8
+      },
+      {
+        "name": "运动",
+        "bonus": 14
+      },
+      {
+        "name": "历史",
+        "bonus": 8
+      },
+      {
+        "name": "察觉",
+        "bonus": 9
+      }
+    ],
+    "senses": "被动察觉19",
+    "languages": "通用语，巨人语",
+    "damageResistances": [
+      "寒冷"
+    ],
+    "damageImmunities": [
+      "闪电",
+      "雷鸣"
+    ],
+    "damageVulnerabilities": [],
+    "conditionImmunities": [],
+    "traits": [
+      {
+        "name": "水陆两栖Amphibious",
+        "text": "巨人可以在空气和水中呼吸。"
+      },
+      {
+        "name": "天生施法Innate Spellcasting",
+        "text": "巨人天生施法属性为魅力（法术DC17）。巨人天生具有以下法术的施法能力且不需要任何材料成分：随意：侦测魔法detectmagic，羽落术featherfall，浮空术levitate，光亮术light每项3/日：操控天气controlweather，水下呼吸waterbreathing"
+      },
+      {
+        "name": "多重攻击Multiattack",
+        "text": "巨人发动两次巨剑攻击。"
+      },
+      {
+        "name": "闪电打击Lightning Strike",
+        "text": "（充能5~6）巨人向身边500尺范围内一个它能看见的点掷出一道闪电。目标点周围10尺范围内的每个生物都必须进行一次DC17的敏捷豁免，豁免失败者将则受到54（12d8）点闪电伤害，豁免成功则伤害减半。"
+      }
+    ],
+    "multiattack": [
+      {
+        "count": 2,
+        "name": "巨剑攻击"
+      }
+    ],
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 17,
+      "groups": [
+        {
+          "ring": "随意",
+          "spells": [
+            "侦测魔法",
+            "羽落术",
+            "浮空术",
+            "光亮术",
+            "水下呼吸"
+          ]
+        }
+      ]
+    },
+    "attacks": [
+      {
+        "name": "巨剑",
+        "attackBonus": "+14",
+        "damage": "6d6+9",
+        "damageType": "挥砍",
+        "range": "触及10尺",
+        "properties": [],
+        "normalRange": 10,
+        "maxRange": 10
+      },
+      {
+        "name": "掷石",
+        "attackBonus": "+14",
+        "damage": "4d12+9",
+        "damageType": "钝击",
+        "range": "射程60/240尺",
+        "properties": [],
+        "normalRange": 60,
+        "maxRange": 240
+      }
+    ],
+    "source": "怪物图鉴 2014",
+    "sourceDir": "巨人",
+    "creatureSize": 4,
+    "creatureType": "giant",
+    "id": "c39dec5c-fda3-465a-ac5a-b14ac87849f5",
+    "createdAt": 1793607170322,
+    "updatedAt": 1793607182,
+    "campaignId": null
+  }
+]
