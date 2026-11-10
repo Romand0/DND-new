@@ -9,6 +9,7 @@ export interface Mergeable {
   id: string;
   seedId?: string | null;
   deleted?: boolean;
+  campaignId?: string | null;
 }
 
 export interface MergeResult<T> {
@@ -44,9 +45,12 @@ export function mergeBaseline<T extends Mergeable>(seeds: T[], cloud: T[]): Merg
     if (hitsSeed) {
       // 覆盖行，或旧数据兼容（无 seedId 但 id 命中种子的出版物行回流）
       overlayBySeed.set(target, row);
-    } else {
+    } else if (row.campaignId) {
+      // 自建条目：团组私有（campaignId 非空）。真源自建行一定有归属团组。
       extra.push(row);
     }
+    // 无 seedId + campaignId 空 + id 不命中种子 = 旧出版物残留行（种子已不收录，如已修复的
+    // 脏数据）。丢弃，避免旧行回流覆盖新种子或产生幽灵条目。
   }
 
   const items: T[] = [];
