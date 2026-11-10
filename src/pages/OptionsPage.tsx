@@ -268,6 +268,8 @@ export default function OptionsPage() {
   useEffect(() => {
     const unsub = optionStore.subscribe(() => setOptions(optionStore.getAll()));
     setOptions(optionStore.getAll());
+    // 预热种子 + 云端覆盖行（异步，就绪后 subscribe 触发重渲染）
+    optionStore.fetchAll().catch(() => { /* 离线时保留本地种子 */ });
     return unsub;
   }, []);
 

@@ -54,6 +54,10 @@ export interface CharacterOption {
   parentName: string;
   source: string;
   campaignId?: string | null; // 归属团组（null/缺省 = 出版物条目，团组无关全局共享）
+  /** 覆盖/墓碑行指回种子条目的 id（种子与自建条目无此字段） */
+  seedId?: string | null;
+  /** 墓碑标记：仅删除种子的墓碑行含此字段，合并时剔除对应种子 */
+  deleted?: boolean;
   description: string;
   mechanics: OptionMechanics;
   traits: OptionTrait[];
