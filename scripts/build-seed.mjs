@@ -102,10 +102,25 @@ function push(kind, bookDir, group, item) {
   groups.get(group).push(item);
 }
 
+// ---------- 出版物行过滤 ----------
+// 快照取自 ?scope=all，同时含三类行：出版物（campaignId 为空）、用户私有自建（campaignId=团组 id）、
+// 覆盖/墓碑行（id 前缀 ovl-/del- 且带 seedId/deleted）。只有出版物行能进种子；后两类若混入会把
+// 某个团组的私有改动固化成全局种子，必须剔除。
+function isPublicationRow(row) {
+  if (!row || typeof row !== 'object') return false;
+  if (row.campaignId !== null && row.campaignId !== undefined) return false;
+  if (row.seedId) return false;       // 覆盖/墓碑行
+  if (row.deleted === true) return false;
+  const id = String(row.id ?? row.templateId ?? '');
+  if (id.startsWith('ovl-') || id.startsWith('del-')) return false;
+  return true;
+}
+
 // ---------- 装备 ----------
 const eqSeen = new Set();
 for (const raw of equipments) {
   if (!raw || typeof raw !== 'object') { warn(`装备条目非对象，已跳过`); continue; }
+  if (!isPublicationRow(raw)) { warn(`装备非出版物行（私有/覆盖/墓碑），已跳过: ${raw.name || raw.id || '(无标识)'}`); continue; }
   if (!raw.id || !raw.name || !raw.category) {
     warn(`装备缺字段 id/name/category，已跳过: ${raw.name || raw.id || '(无标识)'}`);
     continue;
@@ -124,6 +139,7 @@ for (const raw of equipments) {
 const monSeen = new Set();
 for (const raw of monsters) {
   if (!raw || typeof raw !== 'object') { warn(`怪物条目非对象，已跳过`); continue; }
+  if (!isPublicationRow(raw)) { warn(`怪物非出版物行（私有/覆盖/墓碑），已跳过: ${raw.name || raw.templateId || raw.id || '(无标识)'}`); continue; }
   const key = raw.templateId || raw.id;
   if (!key) { warn(`怪物缺 templateId/id: ${raw.name || '(无标识)'}`); continue; }
   if (!raw.name) { warn(`怪物缺 name，已跳过: ${key}`); continue; }
@@ -147,6 +163,7 @@ function buildOptionsTree(rows) {
 
   for (const raw of rows) {
     if (!raw || typeof raw !== 'object') { warn(`选项条目非对象，已跳过`); continue; }
+    if (!isPublicationRow(raw)) { warn(`选项非出版物行（私有/覆盖/墓碑），已跳过: ${raw.name || raw.id || '(无标识)'}`); continue; }
     if (!raw.id || !raw.name || !raw.category) {
       warn(`选项缺字段 id/name/category，已跳过: ${raw.name || raw.id || '(无标识)'}`);
       continue;
