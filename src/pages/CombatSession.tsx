@@ -41,6 +41,7 @@ import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
+import { GRID_PRESETS } from '@/types/battleground';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
@@ -1792,6 +1793,11 @@ export default function CombatSession() {
             });
           }}
           combatantPositions={combatantPositions}
+          bounds={(() => {
+            const bg = record?.id ? battlegroundStore.get(record.id) : null;
+            const preset = GRID_PRESETS[bg?.size ?? 'small'];
+            return { cols: preset.cols, rows: preset.rows };
+          })()}
           canUseAction={canUseAction(spellModal.caster.id)}
           canUseBonusAction={canUseBonusAction(spellModal.caster.id)}
           onTargetChange={(c) => setSpellModal(m => (m ? { ...m, target: c } : m))}

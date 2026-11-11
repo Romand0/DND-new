@@ -11,7 +11,7 @@ import { detectCheckModifiers, resolveModifierValue, getAppliedModifierRefs } fr
 import { getCombatRoundCtx } from '@/data/combatAffinities';
 import combatStore from '@/data/combatStore';
 import type { ForcedMovePlanDraft } from '@/data/battleGeometry';
-import type { FlowDefinition, FlowExecutionContext, FlowLogEntry, FlowDiceRequest } from '@/types/flow';
+import type { FlowDefinition, FlowExecutionContext, FlowLogEntry, FlowDiceRequest, FlowAreaInput } from '@/types/flow';
 import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
 import type { Effect } from '@/types/status';
@@ -89,6 +89,10 @@ interface Props {
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
   /** 战斗记录 ID：注入后流程内检定（豁免/法术攻击）接入检定奖惩引擎（如灾祸术 -1d4） */
   recordId?: string;
+  /** 范围施法输入（AoE 拾取步骤采集）：select_target 区域模式 / zone 节点 zoneCellsFromArea 消费 */
+  areaInput?: FlowAreaInput | null;
+  /** 摘要中的目标标签覆盖（群体效果传「锁定 N 人：名字」，区域效果传「区域 x 格」）；缺省用主目标名 */
+  targetsLabel?: string;
   /** UI 皮肤：dm=开发者向（节点日志/骰式细节）；player=引导向（单步聚焦/大输入框/通俗文案） */
   variant?: 'dm' | 'player';
   /** 材料成分评估（流程施放页顶部展示 + 阻止未满足时执行） */
@@ -108,7 +112,7 @@ const STATUS_STYLES: Record<FlowLogEntry['status'], string> = {
 };
 
 export default function FlowRunStep({
-  flow, spell, caster, target, allCombatants, combatantPositions, recordId,
+  flow, spell, caster, target, allCombatants, combatantPositions, recordId, areaInput, targetsLabel,
   variant = 'dm',
   materialEvaluation, onCraftMaterial, onCraftScroll, onBack, onApplied,
 }: Props) {
@@ -241,6 +245,8 @@ export default function FlowRunStep({
     stateSnapshot: {},
     log: [],
     positions: combatantPositions,
+    // 范围施法输入：区域模式在编译器内权威算格并写回 targets（单体流程此字段为空）
+    area: areaInput ?? undefined,
     // 参战者身份映射：编译器按参战者解析豁免/AC/HP（NPC 免角色卡）
     combatants: Object.fromEntries(allCombatants.map(c => [c.id, c])),
     damageSource: { kind: 'spell', magical: true },
@@ -435,7 +441,7 @@ export default function FlowRunStep({
     } else if (mainNegated) {
       parts.push('无效');
     }
-    const summary = `《${spell.name}》→ ${target.name}：${parts.join('，')}`;
+    const summary = `《${spell.name}》→ ${targetsLabel ?? target.name}：${parts.join('，')}`;
 
     onApplied({
       spellName: spell.name,

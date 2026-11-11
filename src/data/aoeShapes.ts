@@ -58,6 +58,20 @@ export const AOE_SHAPE_LABELS: Record<AoeShape, string> = {
   cube: '立方',
 };
 
+/** 形状中文描述（标签 + 尺寸），执行日志/摘要/预览共用 */
+export function describeAoeSpec(spec: AoeSpec): string {
+  const size = spec.radiusFt
+    ? `${spec.radiusFt}尺半径`
+    : spec.sideFt
+      ? `${spec.sideFt}尺边长`
+      : spec.lengthFt
+        ? spec.shape === 'line'
+          ? `${spec.lengthFt}尺${spec.widthFt && spec.widthFt !== 5 ? `×${spec.widthFt}尺宽` : ''}长`
+          : `${spec.lengthFt}尺`
+        : '';
+  return `${AOE_SHAPE_LABELS[spec.shape]}${size ? ' ' + size : ''}`;
+}
+
 const FEET_PER_CELL = 5;
 
 /** 8 方位整步向量（标记物法用；与 battleGeometry.bearingDelta 同构，本地复制以保持本模块零运行时依赖） */

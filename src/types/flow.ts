@@ -567,6 +567,20 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       placeholder: '多体模式时生效',
       defaultValue: 1,
     },
+    {
+      key: 'areaMode',
+      label: '区域效应类别',
+      type: 'select',
+      required: false,
+      options: [
+        { label: '群体效果（锁定范围内所有参战者）', value: 'group' },
+        { label: '区域效果（生成法术区域）', value: 'zone' },
+        { label: '群体 + 区域（先锁定再落区域）', value: 'both' },
+      ],
+      defaultValue: 'group',
+      description: '群体 = 范围内参战者自动成为目标，走后续效果节点；区域 = 只生成沙盘法术区域（配合「效果分配→地形区域」的 zoneCellsFromArea 使用）',
+      visibleWhen: { key: 'mode', equals: 'area' },
+    },
   ],
   cast_end: [],
 
@@ -965,6 +979,15 @@ export const NODE_CONFIG_SCHEMA: Record<FlowNodeType, ConfigFieldSchema[]> = {
       visibleWhen: { key: 'effectType', equals: 'zone' },
     },
     {
+      key: 'zoneCellsFromArea',
+      label: '格子取自范围施法',
+      type: 'boolean',
+      required: false,
+      defaultValue: false,
+      description: '勾选后区域格子 = 范围施法（select_target 区域模式）算得的 AoE 格子集，忽略目标位置与半径；区域效果类法术（油腻术/ web 等）勾选',
+      visibleWhen: { key: 'effectType', equals: 'zone' },
+    },
+    {
       key: 'zoneDamageAmount',
       label: '区域伤害',
       type: 'number',
@@ -1192,6 +1215,24 @@ export function groupNodeTypesByCategory(): Record<string, NodeTypeMeta[]> {
 // ======================
 
 /** 执行上下文 —— 运行时环境快照 */
+/**
+ * 范围施法输入：宿主 AoE 拾取步骤采集的施法点与朝向。
+ * 结构化定义（与 battleGeometry.Bearing / aoeShapes.AoeMethod 字面量兼容），
+ * 几何计算统一走 computeAoeCells 纯函数——UI 预览与编译器执行同源同参。
+ */
+export interface FlowAreaInput {
+  /** 施法点所在格（自身施法 = 施法者格；指点施法 = DM 所选格） */
+  origin: { col: number; row: number };
+  /** 锥/线/立方朝向；球/柱忽略 */
+  direction: 'N' | 'NE' | 'E' | 'SE' | 'S' | 'SW' | 'W' | 'NW' | 'same';
+  /** true = 源点为施法者自身格：锥/线/立方默认不含施法者格（PHB），球/柱恒含源点格 */
+  selfOriginated: boolean;
+  /** 计算方法：template = DMG/XGtE 模板法（几何覆盖）；token = XGtE 标记物法（离散格子）；缺省模板法 */
+  method?: 'template' | 'token';
+  /** 沙盘边界（越界格丢弃）；缺省不裁剪 */
+  bounds?: { cols: number; rows: number };
+}
+
 export interface FlowExecutionContext {
   casterId: string;                  // 施法者 ID
   spellId?: string;                  // 当前法术 ID
@@ -1201,6 +1242,12 @@ export interface FlowExecutionContext {
   log: FlowLogEntry[];               // 执行日志
   /** 沙盘位置字典（key 与 casterId/targets 同一身份空间），切比雪夫距离校验用；缺省时距离检查跳过 */
   positions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /**
+   * 范围施法输入（select_target mode='area' / zone 节点 zoneCellsFromArea 消费）：
+   * 宿主 AoE 拾取步骤采集的施法点与朝向。AoE 格子计算在编译器内权威执行
+   * （computeAoeCells 纯函数，UI 预览同源同参），锁定结果由 select_target 写回 context.targets。
+   */
+  area?: FlowAreaInput;
   /**
    * 参战者身份映射（战斗施法时注入）：key 与 casterId/targets 同一身份空间（参战者 id）。
    * 编译器解析施法者/目标时优先查参战者——NPC 豁免/AC 直接读参战者字段（六维+proficientSaves+proficiencyBonus/ac），
