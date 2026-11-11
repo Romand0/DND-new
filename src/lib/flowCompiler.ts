@@ -36,6 +36,8 @@ import statusLibrary from '@/data/statusLibrary';
 import type { Effect } from '@/types/status';
 import type { DamageSource, DamageType } from '@/types/damage';
 import { ZONE_PRESETS, type ZoneType } from '@/types/battleground';
+import { computeAoeCells, filterAoeTargets, spellAoeSpec, describeAoeSpec as aoeShapeLabel, type AoeSpec } from '@/data/aoeShapes';
+import type { GridBounds, GridPos } from '@/data/battleGeometry';
 
 /** 六属性全名（AbilityKey 收窄用） */
 const ABILITY_KEYS: AbilityKey[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
@@ -412,6 +414,11 @@ export class FlowCompiler {
     const mode = config?.mode || 'single';
     const maxCount = config?.maxCount || 1;
 
+    // ── 区域模式：AoE 几何权威计算（群体效果锁定目标 / 区域效果产出法术区域格子）──
+    if (mode === 'area') {
+      return this.executeAreaTargetNode(node, context);
+    }
+
     // 检查目标数量是否符合要求
     if (context.targets.length === 0) {
       return {
@@ -442,6 +449,102 @@ export class FlowCompiler {
         message: `已选择 ${context.targets.length} 个目标`
       }
     };
+  }
+
+  /**
+   * 区域目标节点（select_target mode='area'）：范围施法的两类效应（语义显式区分）。
+   * - 群体效果（group）：AoE 格子内所有存活参战者自动锁定 → 写回 context.targets，
+   *   后续效果节点（豁免/攻击/伤害/状态）按多目标逐个结算。
+   * - 区域效果（zone）：AoE 格子集作为「法术区域」输出，由 apply_effect zone 节点
+   *   （zoneCellsFromArea）落地为沙盘地形区域；效果经由区域在回合内触发（zoneRules）。
+   * - both：先锁定再落区域（油腻术类：施放即豁免 + 区域滞留）。
+   * 几何单一事实源：computeAoeCells（与 UI 预览同源同参）；法术描述为形状规格唯一来源。
+   * 群体锁定含施法者自身（火球术会炸到自己——规则如此）；死亡参战者排除；未放置跳过。
+   */
+  private executeAreaTargetNode(
+    node: FlowNodeDef,
+    context: FlowExecutionContext
+  ): NodeExecutionResult {
+    const config = node.config;
+    const areaModeRaw = String(config?.areaMode ?? 'group');
+    if (areaModeRaw !== 'group' && areaModeRaw !== 'zone' && areaModeRaw !== 'both') {
+      return {
+        status: 'failure',
+        output: { error: `未知的区域效应类别「${areaModeRaw}」（可选 group/zone/both）` },
+      };
+    }
+    const areaMode = areaModeRaw as 'group' | 'zone' | 'both';
+
+    const area = this.computeAreaCells(context);
+    if ('error' in area) {
+      return { status: 'failure', output: { error: area.error } };
+    }
+
+    const output: Record<string, any> = {
+      mode: 'area',
+      areaMode,
+      shape: area.spec.shape,
+      shapeLabel: aoeShapeLabel(area.spec),
+      method: context.area?.method ?? 'template',
+      origin: context.area?.origin,
+      direction: context.area?.direction,
+      selfOriginated: context.area?.selfOriginated === true,
+      areaCells: area.cells.map(c => `${c.col},${c.row}`),
+      cellCount: area.cells.length,
+      note: area.note,
+    };
+
+    // 群体锁定：范围内存活参战者写回 context.targets（后续效果节点按多目标结算）。
+    // 锁定结果同时进 output，供宿主摘要与先攻表格展示。
+    if (areaMode === 'group' || areaMode === 'both') {
+      const locked = filterAoeTargets(area.result, Object.values(context.combatants ?? {}).map(c => ({
+        id: c.id,
+        pos: context.positions?.[c.id] ?? null,
+      }))).filter(t => context.combatants?.[t.id]?.isDead !== true);
+      const lockedIds = locked.map(t => t.id);
+      context.targets = lockedIds;
+      output.selectedTargets = lockedIds;
+      output.lockedNames = lockedIds.map(id => context.combatants?.[id]?.name ?? id);
+      output.message = lockedIds.length > 0
+        ? `${aoeShapeLabel(area.spec)}覆盖 ${area.cells.length} 格，锁定 ${lockedIds.length} 名目标：${output.lockedNames.join('、')}`
+        : `${aoeShapeLabel(area.spec)}覆盖 ${area.cells.length} 格，范围内没有存活参战者（法术仍将消耗资源）`;
+    } else {
+      if (area.cells.length === 0) {
+        return { status: 'failure', output: { error: '施法范围未覆盖任何格子（可能越界），请重新选择施法点' } };
+      }
+      output.message = `区域效果：${aoeShapeLabel(area.spec)}覆盖 ${area.cells.length} 格`;
+    }
+
+    return { status: 'success', output };
+  }
+
+  /**
+   * 从范围施法输入 + 法术描述计算 AoE 格子（select_target 区域模式与 zone 节点共用）。
+   * computeAoeCells 为纯函数，两次调用（UI 预览 / 编译器执行）同参同果。
+   */
+  private computeAreaCells(
+    context: FlowExecutionContext,
+  ): { cells: GridPos[]; spec: AoeSpec; note: string; result: ReturnType<typeof computeAoeCells> } | { error: string } {
+    const areaInput = context.area;
+    if (!areaInput) {
+      return { error: '范围施法缺少施法点数据（origin/direction），请在目标步骤选取施法范围' };
+    }
+    const spell = context.spellId ? spellStore.getById(context.spellId) : null;
+    if (!spell) {
+      return { error: '流程未绑定法术，无法解析范围形状' };
+    }
+    const spec = spellAoeSpec(spell);
+    if (!spec) {
+      return { error: `无法从法术《${spell.name}》描述解析范围形状（描述需写明形状与尺寸，如「半径20尺」「30尺锥状」）` };
+    }
+    const result = computeAoeCells({
+      spec,
+      origin: areaInput.origin,
+      direction: areaInput.direction,
+      selfOriginated: areaInput.selfOriginated,
+      bounds: areaInput.bounds as GridBounds | undefined,
+    }, areaInput.method ?? 'template');
+    return { cells: result.cells, spec, note: result.note, result };
   }
 
   /**
@@ -1238,6 +1341,62 @@ export class FlowCompiler {
         ? (preset.damage?.magical ?? true)
         : !(magicalRaw === false || magicalRaw === 'false' || magicalRaw === '0');
       const radius = Math.max(0, Math.floor(Number(config?.zoneRadius ?? 0)) || 0);
+
+      // ── 区域效果（zoneCellsFromArea）：格子取自范围施法（select_target 区域模式）算得的
+      // AoE 格子集——法术区域先成形，效果经由区域在回合内触发（zoneRules enter/end_turn）。
+      // 与群体效果的区别：此处不锁定参战者，整个区域产出一条落地记录
+      // （targetId=施法者，仅作宿主 zone 落地的宿主键，非伤害承受者）。
+      if (config?.zoneCellsFromArea === true) {
+        const area = this.computeAreaCells(context);
+        if ('error' in area) {
+          return { status: 'failure', output: { error: area.error } };
+        }
+        if (area.cells.length === 0) {
+          return { status: 'failure', output: { error: '施法范围未覆盖任何格子（可能越界），请重新选择施法点' } };
+        }
+        const casterCombatant = this.resolveCombatant(context.casterId, context);
+        const casterCharacter = this.resolveCharacter(context.casterId, context);
+        const casterHp = casterCombatant
+          ? (typeof casterCombatant.currentHp === 'number' ? casterCombatant.currentHp : (casterCombatant.maxHp ?? 0))
+          : (casterCharacter?.currentHp ?? 0);
+        const cells = area.cells.map(c => `${c.col},${c.row}`);
+        return {
+          status: 'success',
+          output: {
+            effectType,
+            value: '0',
+            dice: null,
+            results: [{
+              targetId: context.casterId,
+              targetName: casterCombatant?.name ?? casterCharacter?.name ?? context.casterId,
+              success: true,
+              effectApplied: true,
+              effectType: 'zone',
+              zone: {
+                type: zoneType,
+                label: preset.label,
+                cells,
+                color: preset.color,
+                ...(amount > 0 ? { damage: { amount, damageType, magical } } : {}),
+                durationRounds,
+                source: context.spellId,
+              },
+              effectValue: 0,
+              finalValue: 0,
+              oldHp: casterHp,
+              newHp: casterHp,
+              tempAbsorbed: 0,
+              notes: [] as string[],
+              message: `生成【${preset.label}】（${aoeShapeLabel(area.spec)}）范围 ${cells.length} 格${durationRounds > 0 ? `，持续${durationRounds}轮` : ''}${amount > 0 ? `，每回合 ${amount} 点${damageType}伤害` : ''}`,
+            }],
+            totalFinal: 0,
+            anyResisted: false,
+            anyImmune: false,
+            anyVulnerable: false,
+            message: `区域生成完成：${aoeShapeLabel(area.spec)}覆盖 ${cells.length} 格`,
+          },
+        };
+      }
 
       // 回合数（createdRound / expireRound）由落地侧（CombatSession）按当前回合计算：
       // 编译器保持纯计算，不读战斗记录，避免预演与真实回合解耦。

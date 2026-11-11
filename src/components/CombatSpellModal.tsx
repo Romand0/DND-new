@@ -28,6 +28,9 @@ import SpellFinishStep from './combat/SpellFinishStep';
 import { evaluateSpellMaterials, isScrollItem, buildMaterialEquipment, buildScrollEquipment, type MaterialEvaluation, type MaterialRequirement } from '@/data/spellMaterials';
 import { getHeldEquipmentIds } from '@/data/spellFocus';
 import FlowRunStep, { type FlowCastPayload } from './combat/FlowRunStep';
+import AoETargetStep from './combat/AoETargetStep';
+import { spellAoeSpec } from '@/data/aoeShapes';
+import type { FlowAreaInput } from '@/types/flow';
 
 type Stage = 'list' | 'flow-target' | 'flow' | 'cast';
 
@@ -47,6 +50,8 @@ interface Props {
   currentRound?: number;
   /** 所有参战者沙盘位置字典（跨参战者距离判定，如协助动作 5 尺内约束） */
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /** 沙盘尺寸（GRID_PRESETS[size]）：范围施法（AoE）拾取网格与越界裁剪；缺省回落小沙盘 */
+  bounds?: { cols: number; rows: number } | null;
   /** 施法者是否还有可用动作次数（1 动作施法时间法术的前置门禁） */
   canUseAction?: boolean;
   /** 施法者是否还有可用附赠动作次数（附赠动作施法时间法术需要消耗） */
@@ -221,7 +226,7 @@ function FlowConsumeBar({
 
 export default function CombatSpellModal({
   caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory,
-  recordId, currentRound, combatantPositions, canUseAction = true, canUseBonusAction, onTargetChange, onFlowResolved,
+  recordId, currentRound, combatantPositions, bounds, canUseAction = true, canUseBonusAction, onTargetChange, onFlowResolved,
   isProvingGround = false, casterCombatInventory, onConsumeMaterials,
 }: Props) {
   // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
@@ -241,6 +246,9 @@ export default function CombatSpellModal({
   // 流程施放：spellId → 绑定的正式流程（挂载时从云端拉一次绑定关系；拉取失败静默降级手动管线）
   const [flowBindings, setFlowBindings] = useState<Map<string, string>>(new Map());
   const [boundFlow, setBoundFlow] = useState<FlowDefinition | null>(null);
+  // 范围施法（AoE）：拾取步骤采集的施法点/朝向输入 + 摘要标签（区域流程填，单体流程为空）
+  const [areaInput, setAreaInput] = useState<FlowAreaInput | null>(null);
+  const [areaTargetsLabel, setAreaTargetsLabel] = useState<string | undefined>(undefined);
   // 法术库缓存刷新信号：knownSpells 按名字从本地缓存解析，而绑定按云端 spell_id 查询——
   // 本地缓存可能是种子回落（id 与云端不同源），必须先 fetchAll 刷新为云端真值再查绑定
   const [spellCacheTick, setSpellCacheTick] = useState(0);
@@ -438,6 +446,8 @@ export default function CombatSpellModal({
   const handlePickSpell = async (spell: Spell) => {
     setSelectedSpell(spell);
     setFlowUiOverride(null);
+    setAreaInput(null);
+    setAreaTargetsLabel(undefined);
 
     // 自身类法术（射程「自身」）：目标恒为施法者自己——手动管线跳过 select_target
     // 步骤，流程施放直接以自己为目标（select_target mode=self 的流程节点同样无需换目标）
@@ -462,8 +472,12 @@ export default function CombatSpellModal({
       if (f) {
         setBoundFlow(f);
         // 流程含 select_target 且法术非「自身」射程 → 先选目标（触及类：防护能量等）；
-        // 自身类法术目标恒为施法者，直接进入流程执行
-        const flowNeedsTarget = !selfCast && f.nodes.some(n => n.type === 'select_target');
+        // 自身类法术目标恒为施法者，直接进入流程执行；
+        // 例外：自身射程的区域流程（select_target mode='area'）仍需 AoE 拾取步骤
+        //（确认源点/朝向，自中心球/锥默认以自身为源点）
+        const isAreaFlow = f.nodes.some(n => n.type === 'select_target' && String(n.config?.mode ?? 'single') === 'area');
+        const flowNeedsTarget = (isAreaFlow && !!spellAoeSpec(spell))
+          || (!selfCast && f.nodes.some(n => n.type === 'select_target'));
         // 流程施放的消耗默认值：本步骤内直接计算（usableSlots/scrollOptions 的 useMemo
         // 仍指向上一个 selectedSpell，此处不能复用）；可用法术位优先，其次卷轴。
         // 可用性叠加本场战斗已消耗 delta（漏斗思想：角色卡源 + delta = 战斗中真实余量）
@@ -510,6 +524,8 @@ export default function CombatSpellModal({
     setStage('list');
     setBoundFlow(null);
     setFlowConsume(null);
+    setAreaInput(null);
+    setAreaTargetsLabel(undefined);
     cast.abort();
     setCheckOutcome(null);
     setResolvedAmount(0);
@@ -770,19 +786,52 @@ export default function CombatSpellModal({
             </div>
           )}
 
-          {/* 阶段 2a-前置：流程选目标（触及类流程法术，select_target 节点驱动） */}
+          {/* 阶段 2a-前置：流程选目标（select_target 节点驱动）
+              区域模式（mode='area' 且法术描述可解析 AoE 形状）走 AoE 拾取步骤，
+              单体/触及类走 SpellTargetStep；两者确认后都进入流程执行 */}
           {stage === 'flow-target' && selectedSpell && boundFlow && (
-            <SpellTargetStep
-              spell={selectedSpell}
-              caster={caster}
-              target={effectiveTarget}
-              combatants={allCombatants}
-              combatantPositions={combatantPositions}
-              confirmLabel="目标确认，开始施法流程"
-              onSelectTarget={(c) => { setEffectiveTarget(c); onTargetChange?.(c); }}
-              onConfirm={() => setStage('flow')}
-              onForce={() => setStage('flow')}
-            />
+            boundFlow.nodes.some(n => n.type === 'select_target' && String(n.config?.mode ?? 'single') === 'area')
+              && spellAoeSpec(selectedSpell) ? (
+              <AoETargetStep
+                spell={selectedSpell}
+                caster={caster}
+                combatants={allCombatants}
+                combatantPositions={combatantPositions}
+                bounds={bounds ?? { cols: 12, rows: 18 }}
+                defaultSelfOriginated={parseSpellRange(selectedSpell.range).self}
+                confirmLabel="范围确认，开始施法流程"
+                onConfirm={(_message, data) => {
+                  setAreaInput((data.areaInput as FlowAreaInput | null) ?? null);
+                  const lockedNames = (data.lockedNames as string[] | undefined) ?? [];
+                  const cellCount = (data.cellCount as number | undefined) ?? 0;
+                  setAreaTargetsLabel(lockedNames.length > 0
+                    ? `锁定${lockedNames.length}人：${lockedNames.join('、')}`
+                    : `区域 ${cellCount} 格`);
+                  setStage('flow');
+                }}
+                onForce={(_message, data) => {
+                  setAreaInput((data.areaInput as FlowAreaInput | null) ?? null);
+                  const lockedNames = (data.lockedNames as string[] | undefined) ?? [];
+                  const cellCount = (data.cellCount as number | undefined) ?? 0;
+                  setAreaTargetsLabel(lockedNames.length > 0
+                    ? `锁定${lockedNames.length}人：${lockedNames.join('、')}`
+                    : `区域 ${cellCount} 格`);
+                  setStage('flow');
+                }}
+              />
+            ) : (
+              <SpellTargetStep
+                spell={selectedSpell}
+                caster={caster}
+                target={effectiveTarget}
+                combatants={allCombatants}
+                combatantPositions={combatantPositions}
+                confirmLabel="目标确认，开始施法流程"
+                onSelectTarget={(c) => { setEffectiveTarget(c); onTargetChange?.(c); }}
+                onConfirm={() => setStage('flow')}
+                onForce={() => setStage('flow')}
+              />
+            )
           )}
 
           {/* 阶段 2a：按流程施放（绑定正式流程时优先入口） */}
@@ -815,6 +864,8 @@ export default function CombatSpellModal({
                 allCombatants={allCombatants}
                 combatantPositions={combatantPositions}
                 recordId={recordId}
+                areaInput={areaInput}
+                targetsLabel={areaTargetsLabel}
                 variant={flowUiVariant}
                 materialEvaluation={materialEvaluation}
                 onCraftMaterial={handleCraftMaterial}
