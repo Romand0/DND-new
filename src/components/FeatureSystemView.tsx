@@ -7,13 +7,15 @@ import { collectSystemGroups, isMemberSelected, type SystemMember } from '@/data
 interface Props {
   character: Character;
   search: string;
+  /** 角色有效等级：调用方用与顶栏展示同源的口径传入（经验推导），避免 character.level 脱节 */
+  charLevel?: number;
   readOnly?: boolean;
   onAddMember?: (member: SystemMember) => void;
 }
 
 export default function FeatureSystemView(props: Props) {
-  const { character, search, readOnly, onAddMember } = props;
-  const level = character.level || 1;
+  const { character, search, charLevel, readOnly, onAddMember } = props;
+  const level = charLevel ?? (character.level || 1);
   const kw = search.trim().toLowerCase();
   const groups = collectSystemGroups(character).filter((g) => {
     if (!kw) return true;
