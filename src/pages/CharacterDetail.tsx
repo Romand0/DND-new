@@ -89,6 +89,27 @@ const proficiencyEntryLabels: Record<string, string> = {
   装备: '装备',
 };
 
+
+// 特性解锁门槛：卡片 level 优先，缺省时按选项库同名条目回填（旧卡未透传 level 时仍能挡住未达等级条目）
+function seedFeatureLevelMap(character: Character): Map<string, number> {
+  const seedLevelByKey = new Map<string, number>();
+  for (const e of collectOptionFeatureEntries(character)) {
+    if (e.level != null && e.level > 0) seedLevelByKey.set(`${e.category}:${e.name}`, e.level);
+  }
+  return seedLevelByKey;
+}
+
+function featureUnlockLevel(f: Feature, seedLevelByKey: Map<string, number>): number | undefined {
+  if (typeof f.level === 'number' && f.level > 0) return f.level;
+  return seedLevelByKey.get(`${f.category || ''}:${f.name}`)
+    ?? seedLevelByKey.get(`职业特性:${f.name}`);
+}
+
+function isFeatureLevelUnlocked(f: Feature, charLevel: number, seedLevelByKey: Map<string, number>): boolean {
+  const lv = featureUnlockLevel(f, seedLevelByKey);
+  return lv == null || lv <= charLevel;
+}
+
 // ===== 特性作用方式分类（FeatureRole）=====
 // 分类引擎共享于 src/data/featureRole.ts（战斗参战者弹窗的主动技能区也依赖同一套派生）
 import { FEATURE_RENDER_ORDER, FEATURE_ROLE_META, deriveFeatureRole } from '@/data/featureRole';
@@ -2988,12 +3009,12 @@ if (character) {
               {(() => {
                 // 熟练类派生条目（护甲/武器/工具/技能熟练项、语言、装备）收进一张集中卡片，
                 // 与图鉴选项页的熟练项卡片呈现同步；其余条目按作用方式分组渲染
+                const charLevel = character.level || 1;
+                const seedLevelByKey = seedFeatureLevelMap(character);
                 const visible = character.features.filter(
-                  // 职业特性按等级门槛显示（数据仍保留在卡上）；被 DM 隐藏的条目移入底部折叠块
+                  // 未达等级的条目只在「体系」分页以置灰展示；其它分页隐藏（数据仍保留在卡上）
                   (f) =>
-                    (f.category !== '职业特性' ||
-                      !f.level ||
-                      f.level <= (character.level || 1)) &&
+                    isFeatureLevelUnlocked(f, charLevel, seedLevelByKey) &&
                     !hiddenFeatures.has(`${f.category || ''}:${f.name}`)
                 );
                 const profGroup = visible.filter((f) => proficiencyEntryLabels[f.name]);
@@ -3127,8 +3148,11 @@ if (character) {
               })()}
               {(() => {
                 // 隐藏条目跟随当前作用方式分页，组间按渲染顺序排序
+                const charLevel = character.level || 1;
+                const seedLevelByKey = seedFeatureLevelMap(character);
                 const hiddenList = character.features
                   .filter((f) => hiddenFeatures.has(`${f.category || ''}:${f.name}`))
+                  .filter((f) => isFeatureLevelUnlocked(f, charLevel, seedLevelByKey))
                   .filter((f) => featureRoleFilter !== 'system' && deriveFeatureRole(f) === featureRoleFilter)
                   .sort(
                     (a, b) =>
