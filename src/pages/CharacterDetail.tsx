@@ -42,6 +42,8 @@ import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
 import { collectClassProficiencyEntries, collectOptionFeatureEntries } from '@/data/optionFeatures';
+import FeatureSystemView from '@/components/FeatureSystemView';
+import type { SystemMember } from '@/data/systemView';
 import { spellStore } from '@/data/spellStore';
 import { equipmentStore } from '@/data/equipmentStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
@@ -890,10 +892,10 @@ export default function CharacterDetail({
   const [hiddenFeaturesOpen, setHiddenFeaturesOpen] = useState(false);
   // 特性作用方式筛选（localStorage 持久，跨会话记住浏览视角）
   // 作用方式筛选页（无「全部」页：查找用搜索替代），旧 localStorage 里存的 'all' 视为无效回默认
-  const [featureRoleFilter, setFeatureRoleFilter] = useState<FeatureRole>(() => {
+  const [featureRoleFilter, setFeatureRoleFilter] = useState<FeatureRole | 'system'>(() => {
     try {
       const saved = localStorage.getItem('dnd-feature-role-filter');
-      if (saved === 'stat' || saved === 'passive' || saved === 'active') return saved;
+      if (saved === 'stat' || saved === 'passive' || saved === 'active' || saved === 'profile' || saved === 'system') return saved;
     } catch { /* ignore */ }
     return 'active';
   });
@@ -1212,7 +1214,7 @@ export default function CharacterDetail({
   // role 随选项库种子标注透传（无标注的条目保持缺省走关键词派生）
   const applyOptionTraits = (
     basePatch: Partial<Character>,
-    traits: { name: string; text: string; level?: number; role?: FeatureRole }[],
+    traits: { name: string; text: string; level?: number; role?: FeatureRole; system?: string; systemKind?: Feature['systemKind'] }[],
     removeCategories: string[],
     category: string,
     source: string
@@ -1231,6 +1233,8 @@ export default function CharacterDetail({
         source,
         level: t.level,
         role: t.role,
+        system: t.system,
+        systemKind: t.systemKind,
       }));
     characterStore.update(id, { ...basePatch, features: [...kept, ...fresh] });
     return fresh.length;
@@ -1280,7 +1284,7 @@ export default function CharacterDetail({
     if (opt.feature) traits.push(opt.feature);
     if (opt.mechanics?.skills) traits.push({ name: '技能熟练项', text: opt.mechanics.skills, role: 'stat' });
     if (opt.mechanics?.tools) traits.push({ name: '工具熟练项', text: opt.mechanics.tools, role: 'stat' });
-    if (opt.mechanics?.languages) traits.push({ name: '语言', text: opt.mechanics.languages, role: 'stat' });
+    if (opt.mechanics?.languages) traits.push({ name: '语言', text: opt.mechanics.languages, role: 'profile' });
     if (opt.mechanics?.equipment) traits.push({ name: '装备', text: opt.mechanics.equipment, role: 'stat' });
     applyOptionTraits({ background: opt.name }, traits, ['背景特性'], '背景特性', opt.name);
     reloadChar();
@@ -1307,6 +1311,8 @@ export default function CharacterDetail({
       source: e.source,
       level: e.level,
       role: e.role,
+      system: e.system,
+      systemKind: e.systemKind,
     }));
     characterStore.update(id, { features: [...fresh, ...kept] });
     reloadChar();
@@ -1334,6 +1340,31 @@ export default function CharacterDetail({
   };
 
   // 手动归类：下拉直选目标作用方式，显式写回 role（优先于关键词派生）；同分类直接关闭菜单
+  const handleAddSystemMember = (member: SystemMember) => {
+    if (!id || readOnly) return;
+    const exists = (character.features || []).some(
+      (f) => f.name === member.name || f.name === member.optionName
+    );
+    if (exists) return;
+    characterStore.update(id, {
+      features: [
+        ...(character.features || []),
+        {
+          id: crypto.randomUUID(),
+          name: member.name,
+          description: member.description,
+          category: member.category,
+          source: member.source,
+          level: member.level,
+          role: member.role,
+          system: member.system,
+          systemKind: 'member' as const,
+        },
+      ],
+    });
+    reloadChar();
+  };
+
   const pickFeatureRole = (feature: Feature, role: FeatureRole) => {
     setRoleMenuId('');
     if (!id || role === deriveFeatureRole(feature)) return;
@@ -2933,6 +2964,16 @@ if (character) {
                     </button>
                   );
                 })}
+                <button
+                  onClick={() => setFeatureRoleFilter('system')}
+                  className={`px-2.5 py-1 rounded-full text-xs transition-colors ${
+                    featureRoleFilter === 'system'
+                      ? 'bg-primary/15 text-primary'
+                      : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10'
+                  }`}
+                >
+                  体系
+                </button>
                 <div className="relative flex-1 min-w-[160px] ml-auto">
                   <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 dark:text-text-dark-muted light:text-text-light-muted pointer-events-none" />
                   <input
@@ -3036,6 +3077,16 @@ if (character) {
                     </div>
                   </div>
                 ) : null;
+                if (featureRoleFilter === 'system') {
+                  return (
+                    <FeatureSystemView
+                      character={character}
+                      search={featureSearch}
+                      readOnly={readOnly}
+                      onAddMember={readOnly ? undefined : handleAddSystemMember}
+                    />
+                  );
+                }
                 // 搜索模式：跨作用方式分类按名称与描述匹配（含熟练条目），平铺渲染
                 const kw = featureSearch.trim().toLowerCase();
                 if (kw) {
@@ -3078,7 +3129,7 @@ if (character) {
                 // 隐藏条目跟随当前作用方式分页，组间按渲染顺序排序
                 const hiddenList = character.features
                   .filter((f) => hiddenFeatures.has(`${f.category || ''}:${f.name}`))
-                  .filter((f) => deriveFeatureRole(f) === featureRoleFilter)
+                  .filter((f) => featureRoleFilter !== 'system' && deriveFeatureRole(f) === featureRoleFilter)
                   .sort(
                     (a, b) =>
                       FEATURE_RENDER_ORDER.indexOf(deriveFeatureRole(a)) -

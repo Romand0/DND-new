@@ -14,6 +14,9 @@ export interface OptionTrait {
   // 作用方式分类（CharacterDetail 四类页标准）；种子由 scripts/annotate-option-roles.mjs 标注，
   // 缺省时读端按名称关键词派生（deriveFeatureRole 兜底），显式值优先
   role?: FeatureRole;
+  // 玩法体系归属（超魔法/魔能祈唤等）；容器条目 systemKind=container，选项成员=member
+  system?: string;
+  systemKind?: 'container' | 'member';
   // 特性内嵌选项库（如战斗大师战技、武僧气技、魔契师魔印、术士超魔选项）
   options?: OptionTrait[];
 }

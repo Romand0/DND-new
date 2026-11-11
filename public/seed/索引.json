@@ -1,7 +1,7 @@
 {
-  "version": "2026-11-11.2",
+  "version": "2026-11-11.3",
   "generatedAt": "2026-11-11",
-  "versionNote": "角色选项特质标注 role 与 level",
+  "versionNote": "职业选项体系 system/systemKind 与嵌套 options",
   "kinds": {
     "equipments": {
       "label": "装备库",
@@ -248,8 +248,8 @@
           "group": "职业",
           "path": "玩家手册2014/角色选项/职业.json",
           "count": 12,
-          "bytes": 400064,
-          "gzip": 67450
+          "bytes": 490753,
+          "gzip": 82974
         },
         {
           "book": "玩家手册2014",
