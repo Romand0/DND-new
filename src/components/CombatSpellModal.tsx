@@ -866,6 +866,7 @@ export default function CombatSpellModal({
                 recordId={recordId}
                 areaInput={areaInput}
                 targetsLabel={areaTargetsLabel}
+                castSlotLevel={flowConsume?.method === 'slot' ? flowConsume.slotLevel : undefined}
                 variant={flowUiVariant}
                 materialEvaluation={materialEvaluation}
                 onCraftMaterial={handleCraftMaterial}
