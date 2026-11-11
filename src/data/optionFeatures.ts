@@ -4,9 +4,10 @@
 // 口径，避免同名义条目重复渲染或隐藏状态错乱）；已存在条目一律保留用户编辑（描述、隐藏状
 // 态），只追加缺失条目，因此补全操作幂等且无破坏性。
 import type { CharacterOption } from '@/types/characterOption';
-import type { Character } from '@/types/character';
+import type { Character, FeatureRole } from '@/types/character';
 import { optionStore } from '@/data/optionStore';
 import { getClassProficiencyInfo } from '@/data/classProficiencies';
+import { getSubclassDisplayName } from '@/data/subclasses';
 
 export interface OptionFeatureEntry {
   name: string;
@@ -14,29 +15,32 @@ export interface OptionFeatureEntry {
   category: '种族特质' | '亚种特质' | '职业特性' | '背景特性';
   source: string;
   level?: number;
+  /** 作用方式分类（CharacterDetail 四类页）；缺省走 deriveFeatureRole 关键词兜底 */
+  role?: FeatureRole;
 }
 
 /**
  * 职业熟练项块条目（护甲/武器/工具/技能任选）。
  * 种子数据从未包含该块（提取脚本丢失，见 classProficiencies.ts 头注），此处从手录表派生，
  * 命名与背景派生条目同风格（技能熟练项/工具熟练项…，挂在职业特性分类下）。
+ * 熟练项语义上属于属性调整层（融入数值），统一显式标 stat。
  */
 export function collectClassProficiencyEntries(className: string): OptionFeatureEntry[] {
   const info = getClassProficiencyInfo(className);
   if (!info) return [];
   const out: OptionFeatureEntry[] = [];
-  if (info.armor) out.push({ name: '护甲熟练项', description: info.armor, category: '职业特性', source: className });
-  if (info.weapons) out.push({ name: '武器熟练项', description: info.weapons, category: '职业特性', source: className });
-  if (info.tools) out.push({ name: '工具熟练项', description: info.tools, category: '职业特性', source: className });
-  if (info.skills) out.push({ name: '技能熟练项', description: info.skills, category: '职业特性', source: className });
+  if (info.armor) out.push({ name: '护甲熟练项', description: info.armor, category: '职业特性', source: className, role: 'stat' });
+  if (info.weapons) out.push({ name: '武器熟练项', description: info.weapons, category: '职业特性', source: className, role: 'stat' });
+  if (info.tools) out.push({ name: '工具熟练项', description: info.tools, category: '职业特性', source: className, role: 'stat' });
+  if (info.skills) out.push({ name: '技能熟练项', description: info.skills, category: '职业特性', source: className, role: 'stat' });
   return out;
 }
 
-/** 收集角色已选选项链上的全部特性/特质条目（顺序：种族 → 亚种 → 背景 → 职业） */
+/** 收集角色已选选项链上的全部特性/特质条目（顺序：种族 → 亚种 → 背景 → 职业 → 子职业） */
 export function collectOptionFeatureEntries(character: {
   race?: string;
   background?: string;
-  profession?: { class?: string };
+  profession?: { class?: string; subclass?: string };
 }): OptionFeatureEntry[] {
   const out: OptionFeatureEntry[] = [];
   const seen = new Set<string>();
@@ -62,7 +66,7 @@ export function collectOptionFeatureEntries(character: {
         const category = o.category === 'subrace' ? '亚种特质' : '种族特质';
         const source = o.category === 'subrace' ? o.parentName || o.name : o.name;
         for (const t of o.traits || []) {
-          if (t.name && t.text) push({ name: t.name, description: t.text, category, source, level: t.level });
+          if (t.name && t.text) push({ name: t.name, description: t.text, category, source, level: t.level, role: t.role });
         }
       }
     }
@@ -73,13 +77,14 @@ export function collectOptionFeatureEntries(character: {
     const bg = optionStore.getByName(character.background, 'background');
     if (bg) {
       if (bg.feature?.name && bg.feature?.text) {
-        push({ name: bg.feature.name, description: bg.feature.text, category: '背景特性', source: bg.name });
+        push({ name: bg.feature.name, description: bg.feature.text, category: '背景特性', source: bg.name, role: bg.feature.role });
       }
       const m = bg.mechanics || {};
-      if (m.skills) push({ name: '技能熟练项', description: m.skills, category: '背景特性', source: bg.name });
-      if (m.tools) push({ name: '工具熟练项', description: m.tools, category: '背景特性', source: bg.name });
-      if (m.languages) push({ name: '语言', description: m.languages, category: '背景特性', source: bg.name });
-      if (m.equipment) push({ name: '装备', description: m.equipment, category: '背景特性', source: bg.name });
+      // mechanics 派生条目是纯数值/装备块，语义上属于属性调整层，统一显式标 stat
+      if (m.skills) push({ name: '技能熟练项', description: m.skills, category: '背景特性', source: bg.name, role: 'stat' });
+      if (m.tools) push({ name: '工具熟练项', description: m.tools, category: '背景特性', source: bg.name, role: 'stat' });
+      if (m.languages) push({ name: '语言', description: m.languages, category: '背景特性', source: bg.name, role: 'stat' });
+      if (m.equipment) push({ name: '装备', description: m.equipment, category: '背景特性', source: bg.name, role: 'stat' });
     }
   }
 
@@ -91,7 +96,21 @@ export function collectOptionFeatureEntries(character: {
     const cls = optionStore.getByName(className, 'class');
     if (cls) {
       for (const t of cls.traits || []) {
-        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: cls.name, level: t.level });
+        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: cls.name, level: t.level, role: t.role });
+      }
+    }
+  }
+
+  // 子职业：沿 profession.subclass 补齐（种子 subclasses.features 原本漏在收集链外）。
+  // profession.subclass 存手录表 id（如 arcane_trickster），种子子职业按中文名索引——
+  // 先经手录表翻成 displayName 再查选项库；查不到时按原值兜底（兼容直接存名称的数据）
+  const subclassName = character.profession?.subclass;
+  if (subclassName) {
+    const displayName = getSubclassDisplayName(character as Character);
+    const sub = optionStore.getByName(displayName || subclassName, 'subclass') ?? optionStore.getByName(subclassName, 'subclass');
+    if (sub) {
+      for (const t of sub.traits || []) {
+        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: sub.name, level: t.level, role: t.role });
       }
     }
   }

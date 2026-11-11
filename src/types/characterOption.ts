@@ -1,5 +1,6 @@
 // 角色选项库类型（种族/亚种/背景/职业/子职业）
 // 数据源：5E不全书 PHB 2014 离线提取（scripts/extract-options.mjs）
+import type { FeatureRole } from './character';
 
 export type OptionCategory = 'race' | 'subrace' | 'background' | 'class' | 'subclass';
 
@@ -10,6 +11,9 @@ export interface OptionTrait {
   text: string;
   // 生效等级（从文本「第X级」解析；无标注的按 1 级默认，仅职业特性使用）
   level?: number;
+  // 作用方式分类（CharacterDetail 四类页标准）；种子由 scripts/annotate-option-roles.mjs 标注，
+  // 缺省时读端按名称关键词派生（deriveFeatureRole 兜底），显式值优先
+  role?: FeatureRole;
   // 特性内嵌选项库（如战斗大师战技、武僧气技、魔契师魔印、术士超魔选项）
   options?: OptionTrait[];
 }
@@ -67,7 +71,7 @@ export interface CharacterOption {
   // 亚种专属（继承自母种族的特质快照）
   parentTraits?: OptionTrait[];
   // 背景专属
-  feature?: { name: string; nameEn: string; text: string };
+  feature?: { name: string; nameEn: string; text: string; role?: FeatureRole };
   characteristics?: OptionCharacteristic[];
   dataResource: string;
   createdAt?: number;
