@@ -13,13 +13,16 @@ export const FEATURE_ROLE_META: Record<FeatureRole, { label: string; hint: strin
   stat: { label: '属性调整', hint: '融入角色数值（熟练/专精/属性等），无需单独关注', chip: 'bg-gray-500/15 text-gray-500' },
 };
 
-// 判定顺序：人物设定（名称）→ 主动技能（名称）→ 属性调整（名称或描述）→ 主动技能（描述形态词）。
+// 判定顺序：人物设定（名称）→ 主动技能（名称）→ 属性调整（名称或描述）→ 人物设定（描述）→ 主动技能（描述形态词）。
 // active 名称词优先于 stat 描述词：名称已明确动作形态的条目不被描述里的武器/护甲等泛词抢走。
-const PROFILE_ROLE_NAME_RE = /年龄|阵营|体型|速度/;
+// 语言类（含通用语）一律 profile：语言非典型熟练项且不参与战斗场景（DM 裁定）
+const PROFILE_ROLE_NAME_RE = /年龄|阵营|体型|速度|语言/;
 // 属性类只抓标题级字面（属性值/属性加成）：描述里从不直称「属性」，一律称具体属性名，裸「属性」必误伤
-const STAT_ROLE_NAME_RE = /属性值|属性加成|熟练|专精|通用语|装备|护甲|武器|工具/;
-// 属性调整描述词：比名称版更窄——无属性类词，「语言」收窄为「通用语」（避免描述里任何语言字样误伤）
-const STAT_ROLE_DESC_RE = /熟练|专精|通用语|装备|护甲|武器|工具/;
+const STAT_ROLE_NAME_RE = /属性值|属性加成|熟练|专精|装备|护甲|武器|工具/;
+// 属性调整描述词：比名称版更窄——无属性类词（避免描述里任何语言字样误伤）
+const STAT_ROLE_DESC_RE = /熟练|专精|装备|护甲|武器|工具/;
+// 人物设定描述词：描述里获得语言（如通用语）按裁定归 profile，优先于 stat 判定
+const PROFILE_ROLE_DESC_RE = /通用语/;
 // 主动技能关键词（名称）：激励/战技/骰池等消耗型，以及任何以动作形态施放的能力（决定/动作/附赠动作/反应）
 const ACTIVE_ROLE_NAME_RE = /激励|战技|卓越骰|骰池|充能|每回合|每日|次数|决定|动作|附赠动作|反应/;
 // 主动技能形态词（描述）：名称不含关键词但描述里以附赠动作/反应/额外动作施放的能力（如回气）
@@ -31,6 +34,7 @@ export function deriveFeatureRole(f: Feature): FeatureRole {
   if (PROFILE_ROLE_NAME_RE.test(f.name)) return 'profile';
   if (ACTIVE_ROLE_NAME_RE.test(f.name)) return 'active';
   if (STAT_ROLE_NAME_RE.test(f.name) || STAT_ROLE_DESC_RE.test(desc)) return 'stat';
+  if (PROFILE_ROLE_DESC_RE.test(desc)) return 'profile';
   if (ACTIVE_DESC_RE.test(desc)) return 'active';
   return 'passive';
 }
