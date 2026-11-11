@@ -83,7 +83,8 @@ export function collectOptionFeatureEntries(character: {
       // mechanics 派生条目是纯数值/装备块，语义上属于属性调整层，统一显式标 stat
       if (m.skills) push({ name: '技能熟练项', description: m.skills, category: '背景特性', source: bg.name, role: 'stat' });
       if (m.tools) push({ name: '工具熟练项', description: m.tools, category: '背景特性', source: bg.name, role: 'stat' });
-      if (m.languages) push({ name: '语言', description: m.languages, category: '背景特性', source: bg.name, role: 'stat' });
+      // 语言非典型熟练项且不参与战斗场景，按 DM 裁定一律归人物设定
+      if (m.languages) push({ name: '语言', description: m.languages, category: '背景特性', source: bg.name, role: 'profile' });
       if (m.equipment) push({ name: '装备', description: m.equipment, category: '背景特性', source: bg.name, role: 'stat' });
     }
   }
