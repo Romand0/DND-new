@@ -9,12 +9,21 @@ import {
   buildScrollFromTemplate,
 } from '@/data/spellScrolls';
 import { isMagicGenerator, GENERATOR_CARD_CLASS } from '@/data/magicGenerators';
+import {
+  type EquipmentFilters,
+  MAGIC_KIND_OPTIONS,
+  TRADE_OPTIONS,
+  SUBCATEGORY_MAP,
+  isMagicItem,
+  matchesEquipmentFilters,
+  magicCategoryLabel,
+  functionCategoryLabel,
+  magicCategoryOptions,
+  rarityOptions,
+  functionCategoryOptions,
+  TAXONOMY_CATEGORY_ORDER,
+} from '@/data/equipmentTaxonomy';
 import SpellPicker from '@/components/SpellPicker';
-
-const CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
-
-// 分类排序顺序（排除"全部"）
-const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
 
 interface EquipmentPickerProps {
   /** quantity 仅对卷轴等可批量物化的虚拟条目有意义，缺省 1 */
@@ -24,7 +33,13 @@ interface EquipmentPickerProps {
 
 export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('全部');
+  // 三层分类筛选（与装备库页同一口径）：第一级魔法/非魔法，第二级品类·稀有度·功能·交易，第三级子分类
+  const [magicFilter, setMagicFilter] = useState<string[]>([]);
+  const [magicCatFilter, setMagicCatFilter] = useState<string>('全部');
+  const [rarityFilter, setRarityFilter] = useState<string[]>([]);
+  const [funcFilter, setFuncFilter] = useState<string>('全部');
+  const [tradeFilter, setTradeFilter] = useState<string[]>([]);
+  const [subFilter, setSubFilter] = useState<string[]>([]);
   const [equipments, setEquipments] = useState<EquipmentItem[]>([]);
   const [loading, setLoading] = useState(true);
   // 卷轴选中后的数量确认（点击卷轴不立即加入，先选张数）
@@ -60,42 +75,56 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
     setScrollPick({ item: buildScrollFromTemplate(tpl, spell), qty: 1 });
   };
 
-  const filteredEquipments = useMemo(() => {
-    let result = equipments.filter((item) => {
-      const matchesCategory = selectedCategory === '全部' || item.category === selectedCategory;
-      const matchesSearch =
-        !searchQuery ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
-    });
+  const filters: EquipmentFilters = useMemo(() => ({
+    magicKinds: magicFilter,
+    magicCategory: magicCatFilter,
+    rarity: rarityFilter,
+    functionCategory: funcFilter,
+    trade: tradeFilter,
+    subcategories: subFilter,
+    search: searchQuery,
+  }), [magicFilter, magicCatFilter, rarityFilter, funcFilter, tradeFilter, subFilter, searchQuery]);
 
-    // 排序逻辑：魔法泛条目生成器恒置顶；其余在"全部"筛选下按分类顺序，否则按 ID
+  // 从实际条目派生各维度选项（以库中现有分类为准）
+  const magicCatOptions = useMemo(() => magicCategoryOptions(equipments), [equipments]);
+  const rarityOpts = useMemo(() => rarityOptions(equipments), [equipments]);
+  const funcOptions = useMemo(() => functionCategoryOptions(equipments), [equipments]);
+
+  const filteredEquipments = useMemo(() => {
+    const result = equipments.filter((item) => matchesEquipmentFilters(item, filters));
+
+    // 排序：魔法泛条目生成器恒置顶；其余按跨域品类权重，同品类按 ID
     result.sort((a, b) => {
       const ag = isMagicGenerator(a) ? 0 : 1;
       const bg = isMagicGenerator(b) ? 0 : 1;
       if (ag !== bg) return ag - bg;
 
-      if (selectedCategory === '全部') {
-        // 按分类顺序排序，同分类内按 ID 排序
-        const aCategoryIndex = CATEGORY_ORDER.indexOf(a.category);
-        const bCategoryIndex = CATEGORY_ORDER.indexOf(b.category);
-        
-        if (aCategoryIndex !== bCategoryIndex) {
-          return aCategoryIndex - bCategoryIndex;
-        }
-        
-        // 同分类内按 ID 排序
-        return a.id.localeCompare(b.id);
-      } else {
-        // 非"全部"筛选下按 ID 排序
-        return a.id.localeCompare(b.id);
-      }
+      const aLabel = isMagicItem(a) ? magicCategoryLabel(a) : functionCategoryLabel(a);
+      const bLabel = isMagicItem(b) ? magicCategoryLabel(b) : functionCategoryLabel(b);
+      const ai = TAXONOMY_CATEGORY_ORDER.indexOf(aLabel);
+      const bi = TAXONOMY_CATEGORY_ORDER.indexOf(bLabel);
+      const ar = ai < 0 ? TAXONOMY_CATEGORY_ORDER.length : ai;
+      const br = bi < 0 ? TAXONOMY_CATEGORY_ORDER.length : bi;
+      if (ar !== br) return ar - br;
+
+      return a.id.localeCompare(b.id);
     });
 
     return result;
-  }, [equipments, selectedCategory, searchQuery]);
+  }, [equipments, filters]);
+
+  const toggleTag = (list: string[], value: string): string[] =>
+    list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
+
+  const showMagicFilters = magicFilter.length === 0 || magicFilter.includes('魔法物品');
+  const showNonMagicFilters = magicFilter.length === 0 || magicFilter.includes('非魔法物品');
+
+  const pill = (active: boolean) =>
+    `px-3 py-1 text-sm rounded-full transition-colors ${
+      active
+        ? 'bg-primary text-white'
+        : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-white/10'
+    }`;
 
   const formatPrice = (item: EquipmentItem) => {
     return `${item.price.amount} ${item.price.unit}`;
@@ -119,7 +148,7 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
         </div>
 
         {/* 搜索和筛选 */}
-        <div className="p-4 border-b dark:border-border-dark light:border-border-light space-y-3">
+        <div className="p-4 border-b dark:border-border-dark light:border-border-light space-y-3 max-h-[46vh] overflow-y-auto shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 dark:text-text-dark-muted light:text-text-light-muted" />
             <input
@@ -130,21 +159,70 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
               className="w-full pl-10 pr-4 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
             />
           </div>
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1 text-sm rounded-full transition-colors ${
-                  selectedCategory === cat
-                    ? 'bg-primary text-white'
-                    : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-white/10'
-                }`}
-              >
-                {cat}
-              </button>
+          {/* 第一级：魔法 / 非魔法 */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted w-8 shrink-0">类别</span>
+            <button onClick={() => setMagicFilter([])} className={pill(magicFilter.length === 0)}>全部</button>
+            {MAGIC_KIND_OPTIONS.map((m) => (
+              <button key={m} onClick={() => setMagicFilter(toggleTag(magicFilter, m))}
+                className={pill(magicFilter.includes(m))}>{m}</button>
             ))}
           </div>
+
+          {/* 第二级 · 魔法：品类 + 稀有度 */}
+          {showMagicFilters && (
+            <>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted w-8 shrink-0">品类</span>
+                <button onClick={() => setMagicCatFilter('全部')} className={pill(magicCatFilter === '全部')}>全部</button>
+                {magicCatOptions.map((c) => (
+                  <button key={c} onClick={() => setMagicCatFilter(magicCatFilter === c ? '全部' : c)}
+                    className={pill(magicCatFilter === c)}>{c}</button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted w-8 shrink-0">稀有</span>
+                {rarityOpts.map((r) => (
+                  <button key={r} onClick={() => setRarityFilter(toggleTag(rarityFilter, r))}
+                    className={pill(rarityFilter.includes(r))}>{r}</button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* 第二级 · 非魔法：功能 + 交易；第三级子分类 */}
+          {showNonMagicFilters && (
+            <>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted w-8 shrink-0">功能</span>
+                <button onClick={() => setFuncFilter('全部')} className={pill(funcFilter === '全部')}>全部</button>
+                {funcOptions.map((c) => (
+                  <button key={c} onClick={() => {
+                    const next = funcFilter === c ? '全部' : c;
+                    setFuncFilter(next);
+                    setSubFilter([]);
+                  }}
+                    className={pill(funcFilter === c)}>{c}</button>
+                ))}
+              </div>
+              {funcFilter !== '全部' && SUBCATEGORY_MAP[funcFilter] && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted w-8 shrink-0">子类</span>
+                  {SUBCATEGORY_MAP[funcFilter].map((s) => (
+                    <button key={s} onClick={() => setSubFilter(toggleTag(subFilter, s))}
+                      className={pill(subFilter.includes(s))}>{s}</button>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted w-8 shrink-0">交易</span>
+                {TRADE_OPTIONS.map((t) => (
+                  <button key={t} onClick={() => setTradeFilter(toggleTag(tradeFilter, t))}
+                    className={pill(tradeFilter.includes(t))}>{t}</button>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         {/* 列表区：loading / 空 / 有数据 三者互斥 */}
@@ -234,7 +312,7 @@ export default function EquipmentPicker({ onSelect, onClose }: EquipmentPickerPr
                           {item.name}
                         </h3>
                         <span className="text-xs px-1.5 py-0.5 rounded dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark-muted light:text-text-light-muted">
-                          {item.category}
+                          {isMagicItem(item) ? magicCategoryLabel(item) : functionCategoryLabel(item)}
                         </span>
                         {isMagicGenerator(item) && (
                           <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-white">魔法物品生成器</span>
