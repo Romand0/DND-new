@@ -283,7 +283,65 @@ function createSandboxCharacter(data: Partial<Character>): Character {
   return char;
 }
 
+// ---------- 草稿会话（玩家变更请求 draftMode）----------
+// draftMode 下 CharacterDetail 挂载时 beginDraftSession 劫持该角色卡的读写：
+// getCharacter/saveCharacter（含公开 get/update 与全部方法族）分流到会话内副本，
+// 正式桶数据零污染；commit 返回草稿整卡供提交审批，discard 丢弃。
+// 会话内每次写入同步 localStorage 暂存（dnd-change-draft:{id}），刷新后可恢复草稿。
+const draftSessions = new Map<string, Character>();
+
+function draftStorageKey(characterId: string): string {
+  return `dnd-change-draft:${characterId}`;
+}
+
+function beginDraftSession(characterId: string): Character | null {
+  const staged = localStorage.getItem(draftStorageKey(characterId));
+  if (staged) {
+    try {
+      const draft = JSON.parse(staged) as Character;
+      draftSessions.set(characterId, draft);
+      return draft;
+    } catch {
+      // 暂存损坏则弃用，重新起稿
+    }
+  }
+  // 会话未建立时读的是正式桶
+  const base = getCharacter(characterId);
+  if (!base) return null;
+  draftSessions.set(characterId, { ...base });
+  return base;
+}
+
+function getDraftSession(characterId: string): Character | null {
+  return draftSessions.get(characterId) ?? null;
+}
+
+function persistDraft(characterId: string, char: Character): void {
+  try {
+    localStorage.setItem(draftStorageKey(characterId), JSON.stringify(char));
+  } catch {
+    // 暂存失败不阻塞编辑（会话内存仍在），仅刷新后丢失
+  }
+}
+
+function commitDraftSession(characterId: string): Character | null {
+  const draft = draftSessions.get(characterId) ?? null;
+  draftSessions.delete(characterId);
+  localStorage.removeItem(draftStorageKey(characterId));
+  return draft;
+}
+
+function discardDraftSession(characterId: string): void {
+  draftSessions.delete(characterId);
+  localStorage.removeItem(draftStorageKey(characterId));
+}
+
 function getCharacter(charId: string): Character | null {
+  // 草稿会话存活时优先返回会话副本（浅拷贝语义与正式桶一致）
+  const session = draftSessions.get(charId);
+  if (session) {
+    return { ...session, equipment: [...(session.equipment ?? [])], attacks: [...(session.attacks ?? [])] };
+  }
   const chars = getStore();
   const found = chars.find((c) => c.id === charId) || null;
   if (!found) return null;
@@ -292,6 +350,15 @@ function getCharacter(charId: string): Character | null {
 }
 
 function saveCharacter(charData: Character): Character {
+  // 草稿会话存活时只写会话 + 暂存，正式桶与云端零接触
+  const session = draftSessions.get(charData.id);
+  if (session) {
+    recalculateArmorClass(charData);
+    const next = { ...charData, updatedAt: Date.now() };
+    draftSessions.set(charData.id, next);
+    persistDraft(charData.id, next);
+    return next;
+  }
   const chars = getStore();
   const index = chars.findIndex((c) => c.id === charData.id);
   const now = Date.now();
@@ -2090,6 +2157,12 @@ export const characterStore = {
   getAllVisible: getAllVisibleCharacters,
   createSandbox: createSandboxCharacter,
   get: getCharacter,
+
+  // 草稿会话（玩家变更请求 draftMode 专用）
+  beginDraftSession,
+  getDraftSession,
+  commitDraftSession,
+  discardDraftSession,
   save: saveCharacter,
   add: addCharacter,
   update: updateCharacter,

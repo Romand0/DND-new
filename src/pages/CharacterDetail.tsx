@@ -1,5 +1,5 @@
 // DM Toolkit - Character Detail Page Component
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, useRef, Fragment } from 'react';
 import { useEditorState } from '@/data/editorState';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
@@ -28,6 +28,8 @@ import {
   ArrowUpDown,
   Download,
   Library,
+  Send,
+  Undo2,
   Tag,
   RefreshCw,
   Search,
@@ -37,6 +39,9 @@ import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore, SKILL_LABELS } from '@/data/characterStore';
+import { diffCharacter, summarizeDiff } from '@/lib/characterDiff';
+import { submitChangeRequest } from '@/lib/api';
+import type { CharacterDiffRow } from '@/types/changeRequest';
 import statusLibrary from '@/data/statusLibrary';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
@@ -879,16 +884,25 @@ function ProficienciesDialog({ character, onClose, onSave }: ProficienciesDialog
 
 export default function CharacterDetail({
   readOnly = false,
+  draftMode = false,
   externalCharacter = null,
+  onExitDraft,
 }: {
   readOnly?: boolean;
+  /** 玩家变更请求编辑态：store 写入被草稿会话劫持，顶部显示提交/放弃横幅 */
+  draftMode?: boolean;
   externalCharacter?: Character | null;
+  /** 提交成功或放弃草稿后回调（PlayerView 退出编辑态回只读视图） */
+  onExitDraft?: () => void;
 } = {}) {
 
   try {
-  
 
-  const { id } = useParams<{ id: string }>();
+
+  // PlayerView 以 /player/:playerId 路由挂载本组件（路由参数名不同），此时靠 externalCharacter 兜底
+  const params = useParams<{ id: string }>();
+  const { id: routeId } = params;
+  const { id } = { id: routeId ?? externalCharacter?.id };
   const navigate = useNavigate();
   const [character, setCharacter] = useState<Character | null>(externalCharacter);
   const [loading, setLoading] = useState(true);
@@ -1036,6 +1050,8 @@ export default function CharacterDetail({
   };
 
   useEffect(() => {
+    // draftMode 下草稿会话接管 character state，外部正式卡刷新不覆盖草稿
+    if (draftMode) return;
     if (externalCharacter) {
       setCharacter(externalCharacter);
       setLoading(false);
@@ -1046,7 +1062,61 @@ export default function CharacterDetail({
       setCharacter(char);
       setLoading(false);
     }
-  }, [id, externalCharacter]);
+  }, [id, externalCharacter, draftMode]);
+
+  // draftMode 生命周期：正式卡快照存基准（diff 与 baseUpdatedAt 用），开启草稿会话劫持 store 读写
+  const baseCardRef = useRef<Character | null>(null);
+  const draftBegunRef = useRef(false);
+  const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [submitNote, setSubmitNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const draftDiffRows: CharacterDiffRow[] = draftMode && character && baseCardRef.current
+    ? diffCharacter(baseCardRef.current, character)
+    : [];
+
+  useEffect(() => {
+    if (!draftMode || !character || draftBegunRef.current) return;
+    draftBegunRef.current = true;
+    baseCardRef.current = externalCharacter;
+    const draft = characterStore.beginDraftSession(character.id);
+    // 有暂存草稿（刷新恢复）则用它，否则会话内即正式卡副本
+    if (draft) setCharacter(draft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftMode, character?.id]);
+
+  // 卸载兜底：提交成功路径已 commit（会话清空后 discard 幂等），放弃/直接离开由这里清理
+  useEffect(() => {
+    return () => {
+      if (draftBegunRef.current && id) characterStore.discardDraftSession(id);
+    };
+  }, [id]);
+
+  const handleDiscardDraft = () => {
+    if (!character) return;
+    if (!window.confirm('放弃未提交的草稿？所有修改将被丢弃')) return;
+    characterStore.discardDraftSession(character.id);
+    onExitDraft?.();
+  };
+
+  const handleSubmitDraft = async () => {
+    if (!character || !baseCardRef.current) return;
+    if (draftDiffRows.length === 0) {
+      alert('没有检测到变更，请先修改角色卡数据');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await submitChangeRequest(character.id, character, baseCardRef.current.updatedAt ?? 0, submitNote.trim());
+      characterStore.commitDraftSession(character.id);
+      alert('变更请求已提交，等待 DM 审批');
+      setSubmitDialogOpen(false);
+      onExitDraft?.();
+    } catch (e) {
+      alert(`提交失败：${e instanceof Error ? e.message : String(e)}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // 选项库种子 chunk 晚到时重渲染一次（亚种下拉的条件渲染依赖 getSubraces）
   const [, setOptionTick] = useState(0);
@@ -1055,10 +1125,15 @@ export default function CharacterDetail({
   // 打开角色时按基线重算一次最终属性值：选项缓存异步加载会改变规则集，
   // 不重算则静态值滞留旧底、与属性解析口径漂移（基线未设置时 recompute 自动跳过）
   useEffect(() => {
+    // draftMode 下基线重算同样走草稿会话（begin effect 先行建立会话）
+    if (draftMode && id) {
+      characterStore.recomputeAbilities(id);
+      return;
+    }
     if (id && !externalCharacter) {
       characterStore.recomputeAbilities(id);
     }
-  }, [id, externalCharacter]);
+  }, [id, externalCharacter, draftMode]);
 
   useEffect(() => {
   let cancelled = false;
@@ -1687,8 +1762,31 @@ if (character) {
   
   return (
     <div className={`space-y-6 ${readOnly ? 'read-only-mode' : ''}`}>
+      {draftMode && character && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 flex items-center gap-3 flex-wrap">
+          <div className="flex-1 min-w-48">
+            <div className="text-sm font-medium text-amber-400">草稿编辑中（修改不会直接写入正式角色卡）</div>
+            <div className="text-xs text-amber-400/70 mt-0.5">
+              {draftDiffRows.length > 0 ? `已修改 ${draftDiffRows.length} 处，提交后由 DM 审批入库` : '尚未修改任何数据'}
+            </div>
+          </div>
+          <button
+            onClick={() => setSubmitDialogOpen(true)}
+            disabled={draftDiffRows.length === 0}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-primary text-white hover:bg-primary-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            <Send className="w-4 h-4" /> 提交变更
+          </button>
+          <button
+            onClick={handleDiscardDraft}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border text-amber-400 hover:bg-amber-500/20 transition-colors"
+          >
+            <Undo2 className="w-4 h-4" /> 放弃
+          </button>
+        </div>
+      )}
 
-      {!readOnly && (
+      {!readOnly && !draftMode && (
           <Link
             to="/characters"
             className="inline-flex items-center gap-2 text-white hover:text-primary transition-colors"
@@ -3285,7 +3383,7 @@ if (character) {
         </div>
       </Section>
 
-      {!readOnly && (
+      {!readOnly && !draftMode && (
       <div className="flex justify-between items-center pt-4">
         <button
           onClick={() => navigate('/characters')}
@@ -3355,7 +3453,7 @@ if (character) {
 
     showQuantity={true}
     showPackSize={true}
-    showSyncOption={true}
+    showSyncOption={!draftMode}
     onSave={(formData, syncToLibrary) => {
   hookHandleSaveEquipment(editingEquipment, formData, syncToLibrary, () => {
     setEquipmentEditorOpen(false);
@@ -3665,7 +3763,64 @@ if (character) {
       )}
 
       {/* DM 模式下显示浮动同步按钮 */}
-      {!readOnly && <SyncButton />}
+      {!readOnly && !draftMode && <SyncButton />}
+
+      {/* 变更提交弹窗：diff 明细 + 玩家说明（draftMode 专用） */}
+      {submitDialogOpen && draftMode && character && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60" onClick={() => setSubmitDialogOpen(false)}>
+          <div
+            className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b dark:border-border-dark light:border-border-light">
+              <div>
+                <h3 className="text-base font-bold dark:text-text-dark light:text-text-light">提交变更请求</h3>
+                <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
+                  {summarizeDiff(draftDiffRows)}，DM 批准后写入正式角色卡
+                </p>
+              </div>
+              <button onClick={() => setSubmitDialogOpen(false)} className="p-1.5 rounded-lg hover:bg-white/10 dark:text-text-dark light:text-text-light">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
+              {draftDiffRows.map((row, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${row.kind === 'add' ? 'bg-green-500' : row.kind === 'remove' ? 'bg-danger' : 'bg-amber-500'}`} />
+                  <span className="font-medium dark:text-text-dark light:text-text-light shrink-0">{row.path}</span>
+                  <span className="dark:text-text-dark-muted light:text-text-light-muted truncate">
+                    {row.kind === 'add' ? `→ ${row.after}` : row.kind === 'remove' ? `（${row.before}）` : `${row.before} → ${row.after}`}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t dark:border-border-dark light:border-border-light space-y-2.5">
+              <textarea
+                value={submitNote}
+                onChange={(e) => setSubmitNote(e.target.value)}
+                placeholder="变更说明（可选）：告诉 DM 这次改动的缘由，如「升级后属性重排」「买了新装备」"
+                rows={2}
+                className="w-full px-3 py-2 text-sm rounded-lg border resize-none outline-none focus:border-primary dark:bg-card-dark-hover dark:border-border-dark dark:text-text-dark light:bg-card-light-hover light:border-border-light light:text-text-light"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setSubmitDialogOpen(false)}
+                  className="px-3 py-1.5 text-sm rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleSubmitDraft}
+                  disabled={submitting}
+                  className="inline-flex items-center gap-1.5 px-4 py-1.5 text-sm rounded-lg bg-primary text-white hover:bg-primary-dark disabled:opacity-40 transition-colors"
+                >
+                  <Send className="w-4 h-4" /> {submitting ? '提交中…' : '确认提交'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
     } catch (err) {
