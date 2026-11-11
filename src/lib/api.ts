@@ -1,6 +1,7 @@
 // API Client - 与 Cloudflare Pages Functions 后端通信
 import { getCampaignId } from '@/data/campaignScope';
 import type { Campaign, CampaignMember } from '@/types/campaign';
+import type { ChangeRequest } from '@/types/changeRequest';
 
 const AUTH_TOKEN_KEY = 'auth_token';
 const DM_TOKEN_KEY = 'dm_token'; // 保留，兼容旧逻辑（设置页的 DM Token 验证）
@@ -611,4 +612,46 @@ export async function fetchMyCharacters(): Promise<{ characters: any[] }> {
 /** 查已绑定玩家账号的角色卡（DM 发起表单可选项，需管理员） */
 export async function fetchBoundCharacters(): Promise<{ characters: any[] }> {
   return apiFetch('/table/bound-characters', { headers: authHeaders() });
+}
+
+// ============ 角色卡变更请求（玩家提交 / DM 审批）============
+
+/** 变更请求列表：DM 拿本团组全量，玩家拿自己的（mine=1 强制只看自己） */
+export async function fetchChangeRequests<T = ChangeRequest[]>(mineOnly = false): Promise<T> {
+  return apiFetch<T>(`/change-requests${mineOnly ? '?mine=1' : ''}`, { headers: authHeaders() });
+}
+
+/** 玩家提交变更请求：payload 为变更后整卡快照 */
+export async function submitChangeRequest<T = { id: string }>(
+  characterId: string,
+  payload: any,
+  baseUpdatedAt: number,
+  note = ''
+): Promise<T> {
+  return apiFetch<T>('/change-requests', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ characterId, payload, baseUpdatedAt, note }),
+  });
+}
+
+/** 玩家撤回自己的待审请求 */
+export async function withdrawChangeRequest<T = { id: string }>(id: string): Promise<T> {
+  return apiFetch<T>(`/change-requests/${id}/withdraw`, { method: 'POST', headers: authHeaders() });
+}
+
+/** DM 批准：快照写入正式卡；versionDrift=true 表示审批期间正式卡已被改过 */
+export async function approveChangeRequest<T = { id: string; versionDrift: boolean; character: any }>(
+  id: string
+): Promise<T> {
+  return apiFetch<T>(`/change-requests/${id}/approve`, { method: 'POST', headers: authHeaders() });
+}
+
+/** DM 驳回：理由必填且回传玩家可见 */
+export async function rejectChangeRequest<T = { id: string }>(id: string, reviewNote: string): Promise<T> {
+  return apiFetch<T>(`/change-requests/${id}/reject`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ reviewNote }),
+  });
 }

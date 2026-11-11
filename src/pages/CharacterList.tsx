@@ -6,6 +6,7 @@ import type { Character } from '@/types/character';
 import { characterStore } from '@/data/characterStore';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { updateCharacter } from '@/lib/api';
+import ChangeRequestPanel from '@/components/ChangeRequestPanel';
 
 export default function CharacterList() {
   const { campaigns } = useCampaign();
@@ -159,6 +160,7 @@ export default function CharacterList() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <ChangeRequestPanel characters={characters} onChanged={loadCharacters} />
           <button
             onClick={handleImport}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors dark:border-border-dark dark:text-text-dark dark:hover:bg-card-dark light:border-border-light light:text-text-light light:hover:bg-card-light whitespace-nowrap"
