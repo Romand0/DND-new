@@ -49,7 +49,8 @@ function flattenSeedShards(shards: any[]): CharacterOption[] {
         category: 'class',
         parentName: '',
         description: s.flavor || s.description || '',
-        traits: s.features || [],
+        // 种子同时保留 features（提取原稿）与 traits（role/system 标注稿）；读端优先 traits
+        traits: (s.traits && s.traits.length) ? s.traits : (s.features || []),
         table: s.table || [],
         subclasses: (s.subclasses || []).map((sc: any) => sc.name),
       } as unknown as CharacterOption);
@@ -60,6 +61,7 @@ function flattenSeedShards(shards: any[]): CharacterOption[] {
           category: 'subclass',
           parentName: s.name,
           description: '',
+          // 子职业标注稿在 features（含 system/options），traits 仍是提取原稿
           traits: sc.features || [],
         } as unknown as CharacterOption);
       }

@@ -17,6 +17,8 @@ export interface OptionFeatureEntry {
   level?: number;
   /** 作用方式分类（CharacterDetail 四类页）；缺省走 deriveFeatureRole 关键词兜底 */
   role?: FeatureRole;
+  system?: string;
+  systemKind?: 'container' | 'member';
 }
 
 /**
@@ -66,7 +68,7 @@ export function collectOptionFeatureEntries(character: {
         const category = o.category === 'subrace' ? '亚种特质' : '种族特质';
         const source = o.category === 'subrace' ? o.parentName || o.name : o.name;
         for (const t of o.traits || []) {
-          if (t.name && t.text) push({ name: t.name, description: t.text, category, source, level: t.level, role: t.role });
+          if (t.name && t.text) push({ name: t.name, description: t.text, category, source, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind });
         }
       }
     }
@@ -97,7 +99,7 @@ export function collectOptionFeatureEntries(character: {
     const cls = optionStore.getByName(className, 'class');
     if (cls) {
       for (const t of cls.traits || []) {
-        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: cls.name, level: t.level, role: t.role });
+        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: cls.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind });
       }
     }
   }
@@ -111,7 +113,7 @@ export function collectOptionFeatureEntries(character: {
     const sub = optionStore.getByName(displayName || subclassName, 'subclass') ?? optionStore.getByName(subclassName, 'subclass');
     if (sub) {
       for (const t of sub.traits || []) {
-        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: sub.name, level: t.level, role: t.role });
+        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: sub.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind });
       }
     }
   }
