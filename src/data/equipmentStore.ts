@@ -10,24 +10,55 @@ import { mergeBaseline } from '@/data/libraryMerge';
 const STORAGE_KEY = 'DND-equipments';
 let listeners: (() => void)[] = [];
 
+// 模块级解析缓存：避免每次 getAll/getById 都同步 getItem + JSON.parse 全量云端行
+// （getById 被 AC 重算 / combatStore / equipmentFactory 高频调用，单件查询不能触发全库重建）
+let cloudCache: EquipmentItem[] | null = null;
+let cloudCacheCampaign: string | null = null;
+// 合并视图 memo：种子/云端任一引用变化才重算；getById/getByName 共享同一份索引
+let mergedCache: {
+  seedsRef: unknown[];
+  cloudRef: EquipmentItem[];
+  items: EquipmentItem[];
+  byId: Map<string, EquipmentItem>;
+  byName: Map<string, EquipmentItem>;
+} | null = null;
+
+function invalidateMerged(): void {
+  mergedCache = null;
+}
+
 // 规则书集变化（切换团组/编辑规则书集）触发订阅页面刷新
-subscribeLibraryScope(() => notifyListeners());
+subscribeLibraryScope(() => {
+  cloudCache = null;
+  invalidateMerged();
+  notifyListeners();
+});
 // 种子就绪（首次加载/版本更新）触发刷新
 subscribeSeed(() => notifyListeners());
 
 // localStorage 缓存 = 云端行（覆盖/墓碑/自建），不含种子
 function loadCloud(): EquipmentItem[] {
+  const campaign = getCampaignId();
+  if (cloudCache && cloudCacheCampaign === campaign) return cloudCache;
   try {
     const stored = localStorage.getItem(scopedKey(STORAGE_KEY));
-    if (stored) return JSON.parse(stored);
+    if (stored) {
+      cloudCache = JSON.parse(stored);
+      cloudCacheCampaign = campaign;
+      return cloudCache;
+    }
   } catch {
     // ignore
   }
-  return [];
+  cloudCache = [];
+  cloudCacheCampaign = campaign;
+  return cloudCache;
 }
 
 function saveCloud(equipments: EquipmentItem[]): void {
   localStorage.setItem(scopedKey(STORAGE_KEY), JSON.stringify(equipments));
+  cloudCache = equipments;
+  invalidateMerged();
   notifyListeners();
 }
 
@@ -35,10 +66,25 @@ function notifyListeners(): void {
   listeners.forEach((fn) => fn());
 }
 
-// 种子 ∪ 云端合并全量（未加载完成时仅云端）
+// 种子 ∪ 云端合并全量（未加载完成时仅云端）；结果 memo 化并携带 id/name 索引
+const EMPTY_SEEDS: EquipmentItem[] = [];
+
 function merged(): EquipmentItem[] {
-  const seeds = (getCachedSeed<EquipmentItem>('equipments') ?? []);
-  return mergeBaseline(seeds, loadCloud()).items;
+  const seeds = getCachedSeed<EquipmentItem>('equipments') ?? EMPTY_SEEDS;
+  if (mergedCache && mergedCache.seedsRef === seeds && mergedCache.cloudRef === cloudCache) {
+    return mergedCache.items;
+  }
+  const cloud = loadCloud();
+  const items = mergeBaseline(seeds, cloud).items;
+  const byId = new Map<string, EquipmentItem>();
+  const byName = new Map<string, EquipmentItem>();
+  for (const it of items) {
+    byId.set(it.id, it);
+    // 与原 find 语义一致：重名保留数组中首个匹配
+    if (!byName.has(it.name)) byName.set(it.name, it);
+  }
+  mergedCache = { seedsRef: seeds, cloudRef: cloud, items, byId, byName };
+  return items;
 }
 
 function overlayId(seedId: string): string {
@@ -58,11 +104,13 @@ export const equipmentStore = {
 
   // 全量读：角色卡引用的条目即使在当前规则书集外也保持可用（引用完整性）
   getById(id: string): EquipmentItem | undefined {
-    return merged().find((e) => e.id === id);
+    merged();
+    return mergedCache?.byId.get(id);
   },
 
   getByName(name: string): EquipmentItem | undefined {
-    return merged().find((e) => e.name === name);
+    merged();
+    return mergedCache?.byName.get(name);
   },
 
   // 是否为纯种子条目（UI 据此隐藏编辑/删除，仅管理员显示「在 GitHub 编辑」）
