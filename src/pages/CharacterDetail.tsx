@@ -1208,10 +1208,11 @@ export default function CharacterDetail({
 
   // 从选项库填充特质：先移除角色卡上指定分类的旧特质，再写入新特质（完整替换，
   // 更换种族/职业/背景时避免新旧混杂）；basePatch 顺带合并一次 update。
-  // 职业特性全量写入并携带 level，显示层按角色等级过滤（升级后自动出现新特性）
+  // 职业特性全量写入并携带 level，显示层按角色等级过滤（升级后自动出现新特性）；
+  // role 随选项库种子标注透传（无标注的条目保持缺省走关键词派生）
   const applyOptionTraits = (
     basePatch: Partial<Character>,
-    traits: { name: string; text: string; level?: number }[],
+    traits: { name: string; text: string; level?: number; role?: FeatureRole }[],
     removeCategories: string[],
     category: string,
     source: string
@@ -1229,6 +1230,7 @@ export default function CharacterDetail({
         category,
         source,
         level: t.level,
+        role: t.role,
       }));
     characterStore.update(id, { ...basePatch, features: [...kept, ...fresh] });
     return fresh.length;
@@ -1262,7 +1264,7 @@ export default function CharacterDetail({
 
   const handleClassSelect = (opt: CharacterOption) => {
     // 熟练项块（护甲/武器/工具/技能任选）种子缺失，从手录表随职业特性一并写入
-    const profTraits = collectClassProficiencyEntries(opt.name).map((e) => ({ name: e.name, text: e.description }));
+    const profTraits = collectClassProficiencyEntries(opt.name).map((e) => ({ name: e.name, text: e.description, role: e.role }));
     applyOptionTraits(
       { profession: { ...character.profession, class: opt.name } },
       [...(opt.traits || []), ...profTraits],
@@ -1274,12 +1276,12 @@ export default function CharacterDetail({
   };
 
   const handleBackgroundSelect = (opt: CharacterOption) => {
-    const traits: { name: string; text: string }[] = [];
+    const traits: { name: string; text: string; role?: FeatureRole }[] = [];
     if (opt.feature) traits.push(opt.feature);
-    if (opt.mechanics?.skills) traits.push({ name: '技能熟练项', text: opt.mechanics.skills });
-    if (opt.mechanics?.tools) traits.push({ name: '工具熟练项', text: opt.mechanics.tools });
-    if (opt.mechanics?.languages) traits.push({ name: '语言', text: opt.mechanics.languages });
-    if (opt.mechanics?.equipment) traits.push({ name: '装备', text: opt.mechanics.equipment });
+    if (opt.mechanics?.skills) traits.push({ name: '技能熟练项', text: opt.mechanics.skills, role: 'stat' });
+    if (opt.mechanics?.tools) traits.push({ name: '工具熟练项', text: opt.mechanics.tools, role: 'stat' });
+    if (opt.mechanics?.languages) traits.push({ name: '语言', text: opt.mechanics.languages, role: 'stat' });
+    if (opt.mechanics?.equipment) traits.push({ name: '装备', text: opt.mechanics.equipment, role: 'stat' });
     applyOptionTraits({ background: opt.name }, traits, ['背景特性'], '背景特性', opt.name);
     reloadChar();
   };
@@ -1304,6 +1306,7 @@ export default function CharacterDetail({
       category: e.category,
       source: e.source,
       level: e.level,
+      role: e.role,
     }));
     characterStore.update(id, { features: [...fresh, ...kept] });
     reloadChar();
