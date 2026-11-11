@@ -1723,9 +1723,13 @@ export class FlowCompiler {
     let scaleValue: number;
     let scaleSource: string;
     if (scaleBy === 'spell_level') {
+      // 升环施法：实际消耗的法术位环级（context.castSlotLevel，宿主从资源消耗步骤注入）
+      // 优先于法术登记环位——3环火球用5环位施放时按 5 级缩放
       const spell = context.spellId ? spellStore.getById(context.spellId) : null;
-      scaleValue = spell?.level ?? 0;
-      scaleSource = spell ? `${spell.name}（环位 ${scaleValue}）` : '（未指定法术，按 0 环）';
+      scaleValue = context.castSlotLevel ?? spell?.level ?? 0;
+      scaleSource = spell
+        ? `${spell.name}（法术位 ${scaleValue} 环${context.castSlotLevel != null && context.castSlotLevel !== spell.level ? `，登记 ${spell.level} 环` : ''}）`
+        : '（未指定法术，按 0 环）';
     } else {
       // 施法者等级：PC 参战者经角色卡；纯 NPC 参战者无等级概念按 0 级
       const caster = this.resolveCharacter(context.casterId, context);

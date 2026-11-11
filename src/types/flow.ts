@@ -1248,6 +1248,8 @@ export interface FlowExecutionContext {
    * （computeAoeCells 纯函数，UI 预览同源同参），锁定结果由 select_target 写回 context.targets。
    */
   area?: FlowAreaInput;
+  /** 本次施放实际消耗的法术位环级（升环法术 scaled_effect spell_level 缩放用）；缺省回落法术登记环位 */
+  castSlotLevel?: number;
   /**
    * 参战者身份映射（战斗施法时注入）：key 与 casterId/targets 同一身份空间（参战者 id）。
    * 编译器解析施法者/目标时优先查参战者——NPC 豁免/AC 直接读参战者字段（六维+proficientSaves+proficiencyBonus/ac），

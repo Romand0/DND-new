@@ -1,0 +1,99 @@
+{
+  "id": "spell:fireball",
+  "name": "火球术",
+  "category": "spell",
+  "description": "3环塑能：150尺内指定一点，半径20尺球状范围内所有生物敏捷豁免，失败受 8d6 火焰伤害，成功减半；升环每高1环+1d6",
+  "tags": ["塑能", "3环", "范围伤害", "AoE"],
+  "nodes": [
+    {
+      "id": "cast_start",
+      "type": "cast_start",
+      "label": "施法开始",
+      "position": { "x": 100, "y": 100 },
+      "config": {
+        "autoChecks": { "components": true, "range": true, "time": true }
+      }
+    },
+    {
+      "id": "select_target",
+      "type": "select_target",
+      "label": "范围施法（球状 20 尺）",
+      "position": { "x": 100, "y": 250 },
+      "config": {
+        "mode": "area",
+        "maxCount": 1,
+        "areaMode": "group"
+      }
+    },
+    {
+      "id": "dex_save",
+      "type": "saving_throw",
+      "label": "敏捷豁免（DC = 施法者法术豁免）",
+      "position": { "x": 100, "y": 400 },
+      "config": {
+        "ability": "dexterity",
+        "dc": ""
+      }
+    },
+    {
+      "id": "fire_damage",
+      "type": "scaled_effect",
+      "label": "火焰伤害（8d6，升环每环+1d6，豁免成功减半）",
+      "position": { "x": 100, "y": 550 },
+      "config": {
+        "effectType": "damage",
+        "scaleBy": "spell_level",
+        "baseLevel": 3,
+        "baseDice": "8d6",
+        "perLevelDice": "1d6",
+        "damageType": "fire",
+        "damageTypeLabel": "火焰",
+        "halfDamageOnSave": true
+      }
+    },
+    {
+      "id": "cast_end",
+      "type": "cast_end",
+      "label": "施法完成",
+      "position": { "x": 100, "y": 700 },
+      "config": {}
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_cast_start_select_target_on_complete",
+      "from": "cast_start",
+      "to": "select_target",
+      "trigger": "on_complete"
+    },
+    {
+      "id": "edge_select_target_dex_save_on_complete",
+      "from": "select_target",
+      "to": "dex_save",
+      "trigger": "on_complete"
+    },
+    {
+      "id": "edge_dex_save_fire_damage_on_complete",
+      "from": "dex_save",
+      "to": "fire_damage",
+      "trigger": "on_complete"
+    },
+    {
+      "id": "edge_fire_damage_cast_end_on_complete",
+      "from": "fire_damage",
+      "to": "cast_end",
+      "trigger": "on_complete"
+    }
+  ],
+  "metadata": {
+    "spellLevel": 3,
+    "school": "塑能",
+    "castingTime": "1 动作",
+    "range": "150 尺",
+    "components": { "verbal": true, "somatic": true, "material": true },
+    "duration": "立即",
+    "classes": ["术士", "法师"],
+    "source": "玩家手册 2014",
+    "createdDate": "2026-11-11"
+  }
+}

@@ -91,6 +91,8 @@ interface Props {
   recordId?: string;
   /** 范围施法输入（AoE 拾取步骤采集）：select_target 区域模式 / zone 节点 zoneCellsFromArea 消费 */
   areaInput?: FlowAreaInput | null;
+  /** 本次施放实际消耗的法术位环级（升环缩放用，如 5 环位施 3 环火球）；卷轴/戏法缺省回落法术登记环位 */
+  castSlotLevel?: number;
   /** 摘要中的目标标签覆盖（群体效果传「锁定 N 人：名字」，区域效果传「区域 x 格」）；缺省用主目标名 */
   targetsLabel?: string;
   /** UI 皮肤：dm=开发者向（节点日志/骰式细节）；player=引导向（单步聚焦/大输入框/通俗文案） */
@@ -112,7 +114,7 @@ const STATUS_STYLES: Record<FlowLogEntry['status'], string> = {
 };
 
 export default function FlowRunStep({
-  flow, spell, caster, target, allCombatants, combatantPositions, recordId, areaInput, targetsLabel,
+  flow, spell, caster, target, allCombatants, combatantPositions, recordId, areaInput, targetsLabel, castSlotLevel,
   variant = 'dm',
   materialEvaluation, onCraftMaterial, onCraftScroll, onBack, onApplied,
 }: Props) {
@@ -247,6 +249,8 @@ export default function FlowRunStep({
     positions: combatantPositions,
     // 范围施法输入：区域模式在编译器内权威算格并写回 targets（单体流程此字段为空）
     area: areaInput ?? undefined,
+    // 升环施法：实际消耗的法术位环级（scaled_effect spell_level 缩放）
+    castSlotLevel: castSlotLevel,
     // 参战者身份映射：编译器按参战者解析豁免/AC/HP（NPC 免角色卡）
     combatants: Object.fromEntries(allCombatants.map(c => [c.id, c])),
     damageSource: { kind: 'spell', magical: true },
