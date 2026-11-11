@@ -10,20 +10,20 @@ import type { EquipmentItem } from '@/types/equipment';
 import { equipmentStore } from '@/data/equipmentStore';
 import { getSeedEditUrl } from '@/lib/seedGitHub';
 import { isMagicGenerator, GENERATOR_CARD_CLASS } from '@/data/magicGenerators';
-
-const FUNC_CATEGORIES = ['全部', '武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
-const MAGIC_CATEGORIES = ['魔法物品', '非魔法物品'];
-const TRADE_CATEGORIES = ['冒险物品', '贵重物品'];
-
-// 分类排序顺序（排除"全部"）
-const CATEGORY_ORDER = ['武器', '护甲', '药水', '法器', '工具', '法术材料', '卷轴', '杂物', '自定义'];
-
-const SUBCATEGORY_MAP: Record<string, string[]> = {
-  '武器': ['军用近战', '军用远程', '简易近战', '简易远程'],
-  '护甲': ['轻甲', '中甲', '重甲', '盾牌'],
-  '工具': ['工匠工具', '赌具', '乐器'],
-  '法器': ['奥术法器', '德鲁伊法器', '圣徽', '材料袋'],
-};
+import {
+  type EquipmentFilters,
+  MAGIC_KIND_OPTIONS,
+  TRADE_OPTIONS,
+  SUBCATEGORY_MAP,
+  isMagicItem,
+  matchesEquipmentFilters,
+  magicCategoryLabel,
+  functionCategoryLabel,
+  magicCategoryOptions,
+  rarityOptions,
+  functionCategoryOptions,
+  TAXONOMY_CATEGORY_ORDER,
+} from '@/data/equipmentTaxonomy';
 
 export default function EquipmentList() {
   const navigate = useNavigate();
@@ -43,10 +43,13 @@ export default function EquipmentList() {
   })();
 
   const [searchQuery, setSearchQuery] = useState<string>(savedListState.searchQuery ?? '');
-  const [funcFilter, setFuncFilter] = useState<string>(savedListState.funcFilter ?? '全部');
-  const [subFilter, setSubFilter] = useState<string[]>(savedListState.subFilter ?? []);
+  // 三层分类筛选：第一级魔法/非魔法，第二级品类·稀有度·交易，第三级子分类（仅非魔法）
   const [magicFilter, setMagicFilter] = useState<string[]>(savedListState.magicFilter ?? []);
+  const [magicCatFilter, setMagicCatFilter] = useState<string>(savedListState.magicCatFilter ?? '全部');
+  const [rarityFilter, setRarityFilter] = useState<string[]>(savedListState.rarityFilter ?? []);
+  const [funcFilter, setFuncFilter] = useState<string>(savedListState.funcFilter ?? '全部');
   const [tradeFilter, setTradeFilter] = useState<string[]>(savedListState.tradeFilter ?? []);
+  const [subFilter, setSubFilter] = useState<string[]>(savedListState.subFilter ?? []);
   const savedScrollRef = useRef<number>(typeof savedListState.scrollTop === 'number' ? savedListState.scrollTop : 0);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<EquipmentItem | undefined>(undefined);
@@ -65,9 +68,10 @@ export default function EquipmentList() {
   // 筛选状态变化 → 写 sessionStorage（滚动位置由监听器单独维护）
   useEffect(() => {
     sessionStorage.setItem(LIST_STATE_KEY, JSON.stringify({
-      searchQuery, funcFilter, subFilter, magicFilter, tradeFilter, scrollTop: savedScrollRef.current,
+      searchQuery, magicFilter, magicCatFilter, rarityFilter, funcFilter, tradeFilter, subFilter,
+      scrollTop: savedScrollRef.current,
     }));
-  }, [searchQuery, funcFilter, subFilter, magicFilter, tradeFilter]);
+  }, [searchQuery, magicFilter, magicCatFilter, rarityFilter, funcFilter, tradeFilter, subFilter]);
 
   // 滚动位置节流记录（200ms）
   useEffect(() => {
@@ -109,13 +113,10 @@ export default function EquipmentList() {
 
   useEffect(() => { load(); }, []);
 
-  const categoryCounts = useMemo(() => {
-    const counts: Record<string, number> = { '全部': equipments.length };
-    for (const item of equipments) {
-      counts[item.category] = (counts[item.category] || 0) + 1;
-    }
-    return counts;
-  }, [equipments]);
+  // 从实际条目派生各维度选项（以库中现有分类为准）
+  const magicCatOptions = useMemo(() => magicCategoryOptions(equipments), [equipments]);
+  const rarityOpts = useMemo(() => rarityOptions(equipments), [equipments]);
+  const funcOptions = useMemo(() => functionCategoryOptions(equipments), [equipments]);
 
   const pill = (active: boolean) => 
     `px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
@@ -127,43 +128,42 @@ export default function EquipmentList() {
   const toggleTag = (list: string[], value: string): string[] =>
   list.includes(value) ? list.filter(v => v !== value) : [...list, value];
 
-  const filteredEquipments = useMemo(() => {
-    let result = equipments.filter((item) => {
-      const mc = item.magicCategory ?? '非魔法物品';
-      const tc = item.tradeCategory ?? '冒险物品';
-      const matchFunc = funcFilter === '全部' || item.category === funcFilter;
-      const matchSub = subFilter.length === 0 || subFilter.some(s => item.subtype?.includes(s));
-      const matchMagic = magicFilter.length === 0 || magicFilter.includes(mc);
-      const matchTrade = tradeFilter.length === 0 || tradeFilter.includes(tc);
-      const matchSearch = !searchQuery || item.name.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchFunc && matchSub && matchMagic && matchTrade && matchSearch;
-    });
+  const filters: EquipmentFilters = useMemo(() => ({
+    magicKinds: magicFilter,
+    magicCategory: magicCatFilter,
+    rarity: rarityFilter,
+    functionCategory: funcFilter,
+    trade: tradeFilter,
+    subcategories: subFilter,
+    search: searchQuery,
+  }), [magicFilter, magicCatFilter, rarityFilter, funcFilter, tradeFilter, subFilter, searchQuery]);
 
-    // 排序逻辑：魔法泛条目生成器恒置顶；其余在"全部"筛选下按分类顺序，否则按 ID
+  const filteredEquipments = useMemo(() => {
+    const result = equipments.filter((item) => matchesEquipmentFilters(item, filters));
+
+    // 排序：魔法泛条目生成器恒置顶；其余按跨域品类权重，同品类按 ID
     result.sort((a, b) => {
       const ag = isMagicGenerator(a) ? 0 : 1;
       const bg = isMagicGenerator(b) ? 0 : 1;
       if (ag !== bg) return ag - bg;
 
-      if (funcFilter === '全部') {
-        // 按分类顺序排序，同分类内按 ID 排序
-        const aCategoryIndex = CATEGORY_ORDER.indexOf(a.category);
-        const bCategoryIndex = CATEGORY_ORDER.indexOf(b.category);
-        
-        if (aCategoryIndex !== bCategoryIndex) {
-          return aCategoryIndex - bCategoryIndex;
-        }
-        
-        // 同分类内按 ID 排序
-        return a.id.localeCompare(b.id);
-      } else {
-        // 非"全部"筛选下按 ID 排序
-        return a.id.localeCompare(b.id);
-      }
+      const aLabel = isMagicItem(a) ? magicCategoryLabel(a) : functionCategoryLabel(a);
+      const bLabel = isMagicItem(b) ? magicCategoryLabel(b) : functionCategoryLabel(b);
+      const ai = TAXONOMY_CATEGORY_ORDER.indexOf(aLabel);
+      const bi = TAXONOMY_CATEGORY_ORDER.indexOf(bLabel);
+      const ar = ai < 0 ? TAXONOMY_CATEGORY_ORDER.length : ai;
+      const br = bi < 0 ? TAXONOMY_CATEGORY_ORDER.length : bi;
+      if (ar !== br) return ar - br;
+
+      return a.id.localeCompare(b.id);
     });
 
     return result;
-  }, [equipments, funcFilter, subFilter, magicFilter, tradeFilter, searchQuery]);
+  }, [equipments, filters]);
+
+  // 当前筛选是否落在魔法领域（用于决定第二/三级显示哪组控件）
+  const showMagicFilters = magicFilter.length === 0 || magicFilter.includes('魔法物品');
+  const showNonMagicFilters = magicFilter.length === 0 || magicFilter.includes('非魔法物品');
 
   // ---- 选择逻辑 ----
   const allFilteredSelected = useMemo(() => {
@@ -350,51 +350,74 @@ export default function EquipmentList() {
         )}
       </div>
 
-      {/* 三维筛选胶囊标签 */}
+      {/* 三层分类筛选：第一级魔法/非魔法，第二级按领域切换（魔法：品类·稀有度；非魔法：功能·交易），第三级子分类 */}
       <div className="space-y-2.5 rounded-xl border dark:border-border-dark light:border-border-light p-3">
-        {/* ① 功能分类 */}
+        {/* 第一级：魔法 / 非魔法 */}
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">功能</span>
-          <button onClick={() => setFuncFilter('全部')} className={pill(funcFilter === '全部')}>全部</button>
-          {FUNC_CATEGORIES.filter(c => c !== '全部').map(c => (
-            <button key={c} onClick={() => {
-              const next = funcFilter === c ? '全部' : c;
-              setFuncFilter(next);
-              setSubFilter([]); // 切换主分类时重置子分类
-            }}
-              className={pill(funcFilter === c)}>{c}</button>
-          ))}
-        </div>
-        
-        {/* 子分类：仅当主分类有预设时展开 */}
-        {funcFilter !== '全部' && SUBCATEGORY_MAP[funcFilter] && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">子类</span>
-            {SUBCATEGORY_MAP[funcFilter].map(s => (
-              <button key={s}
-                onClick={() => setSubFilter(toggleTag(subFilter, s))}
-                className={pill(subFilter.includes(s))}
-              >{s}</button>
-            ))}
-          </div>
-        )}
-        
-        {/* ② 魔法分类 */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">魔法</span>
-          {MAGIC_CATEGORIES.map(m => (
+          <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">类别</span>
+          <button onClick={() => setMagicFilter([])} className={pill(magicFilter.length === 0)}>全部</button>
+          {MAGIC_KIND_OPTIONS.map(m => (
             <button key={m} onClick={() => setMagicFilter(toggleTag(magicFilter, m))}
               className={pill(magicFilter.includes(m))}>{m}</button>
           ))}
         </div>
-        {/* ③ 交易分类 */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">交易</span>
-          {TRADE_CATEGORIES.map(t => (
-            <button key={t} onClick={() => setTradeFilter(toggleTag(tradeFilter, t))}
-              className={pill(tradeFilter.includes(t))}>{t}</button>
-          ))}
-        </div>
+
+        {/* 第二级 · 魔法领域：② 品类 + ③ 稀有度 */}
+        {showMagicFilters && (
+          <>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">品类</span>
+              <button onClick={() => setMagicCatFilter('全部')} className={pill(magicCatFilter === '全部')}>全部</button>
+              {magicCatOptions.map(c => (
+                <button key={c} onClick={() => setMagicCatFilter(magicCatFilter === c ? '全部' : c)}
+                  className={pill(magicCatFilter === c)}>{c}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">稀有度</span>
+              {rarityOpts.map(r => (
+                <button key={r} onClick={() => setRarityFilter(toggleTag(rarityFilter, r))}
+                  className={pill(rarityFilter.includes(r))}>{r}</button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* 第二级 · 非魔法领域：功能 + 交易；第三级子分类 */}
+        {showNonMagicFilters && (
+          <>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">功能</span>
+              <button onClick={() => setFuncFilter('全部')} className={pill(funcFilter === '全部')}>全部</button>
+              {funcOptions.map(c => (
+                <button key={c} onClick={() => {
+                  const next = funcFilter === c ? '全部' : c;
+                  setFuncFilter(next);
+                  setSubFilter([]); // 切换主分类时重置子分类
+                }}
+                  className={pill(funcFilter === c)}>{c}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">子类</span>
+              {funcFilter !== '全部' && SUBCATEGORY_MAP[funcFilter] ? (
+                SUBCATEGORY_MAP[funcFilter].map(s => (
+                  <button key={s} onClick={() => setSubFilter(toggleTag(subFilter, s))}
+                    className={pill(subFilter.includes(s))}>{s}</button>
+                ))
+              ) : (
+                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">选择「功能」后展开子分类</span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">交易</span>
+              {TRADE_OPTIONS.map(t => (
+                <button key={t} onClick={() => setTradeFilter(toggleTag(tradeFilter, t))}
+                  className={pill(tradeFilter.includes(t))}>{t}</button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* 全选行：仅选择模式 + DM + 有数据 */}
@@ -441,7 +464,7 @@ export default function EquipmentList() {
                     )}
                   </div>
                   <div className="flex items-center gap-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
-                    <span>{item.category}</span>
+                    <span>{isMagicItem(item) ? magicCategoryLabel(item) : functionCategoryLabel(item)}</span>
                     {item.subtype && <span>· {item.subtype}</span>}
                     {item.rarity && <span className="text-amber-400">· {item.rarity}</span>}
                   </div>
