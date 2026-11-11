@@ -47,6 +47,7 @@ import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
 import { collectClassProficiencyEntries, collectOptionFeatureEntries } from '@/data/optionFeatures';
+import { warmSeed } from '@/data/seedLoader';
 import FeatureSystemView from '@/components/FeatureSystemView';
 import type { SystemMember } from '@/data/systemView';
 import { spellStore } from '@/data/spellStore';
@@ -95,7 +96,17 @@ const proficiencyEntryLabels: Record<string, string> = {
 };
 
 
-// 特性解锁门槛：卡片 level 优先，缺省时按选项库同名条目回填（旧卡未透传 level 时仍能挡住未达等级条目）
+// 角色有效等级：与顶栏「等级」展示同源（经验推导）。character.level 是独立存储字段，
+// 旧数据/导入卡/云端行可能与经验脱节（显示 3 级、字段残留高值），用它过滤会全量放行
+function charDisplayLevel(character: Character): number {
+  return characterStore.getLevelFromExp(character.experience ?? 0) || 1;
+}
+
+// 特性解锁门槛：卡片 level 优先 → 选项库同名条目回填（旧卡未透传 level）→
+// 描述文本「第X级时/起」解析兜底（旧选项库行无标注时仍能挡住未达等级条目；
+// 严格正则与标注脚本 LEVEL_RE 一致，裸「第X级」引用不误伤 L1 特性）
+const FEATURE_TEXT_LEVEL_RE = /第\s*(\d+)\s*级(?:时|起)/;
+
 function seedFeatureLevelMap(character: Character): Map<string, number> {
   const seedLevelByKey = new Map<string, number>();
   for (const e of collectOptionFeatureEntries(character)) {
@@ -106,8 +117,14 @@ function seedFeatureLevelMap(character: Character): Map<string, number> {
 
 function featureUnlockLevel(f: Feature, seedLevelByKey: Map<string, number>): number | undefined {
   if (typeof f.level === 'number' && f.level > 0) return f.level;
-  return seedLevelByKey.get(`${f.category || ''}:${f.name}`)
+  const seeded = seedLevelByKey.get(`${f.category || ''}:${f.name}`)
     ?? seedLevelByKey.get(`职业特性:${f.name}`);
+  if (seeded != null) return seeded;
+  if (f.category === '职业特性' || !f.category) {
+    const m = (f.description || '').match(FEATURE_TEXT_LEVEL_RE);
+    if (m) return parseInt(m[1], 10);
+  }
+  return undefined;
 }
 
 function isFeatureLevelUnlocked(f: Feature, charLevel: number, seedLevelByKey: Map<string, number>): boolean {
@@ -937,6 +954,11 @@ export default function CharacterDetail({
   useEffect(() => {
     try { localStorage.setItem('dnd-feature-role-filter', featureRoleFilter); } catch { /* ignore */ }
   }, [featureRoleFilter]);
+  // 预热选项库种子：特性刷新/体系分页都依赖种子标注（level/system），本页此前不触发加载，
+  // localStorage 缓存为旧版本（无标注）或为空时，页面会拿旧数据渲染出未达等级条目
+  useEffect(() => {
+    warmSeed('options');
+  }, []);
   // 特性搜索：跨作用方式分类按名称与描述匹配（替代原「全部」页的查找职能）
   const [featureSearch, setFeatureSearch] = useState('');
   // 手动归类下拉：记录当前展开菜单的 feature id（空串关闭）；点选直接落到目标分类
@@ -3107,7 +3129,7 @@ if (character) {
               {(() => {
                 // 熟练类派生条目（护甲/武器/工具/技能熟练项、语言、装备）收进一张集中卡片，
                 // 与图鉴选项页的熟练项卡片呈现同步；其余条目按作用方式分组渲染
-                const charLevel = character.level || 1;
+                const charLevel = charDisplayLevel(character);
                 const seedLevelByKey = seedFeatureLevelMap(character);
                 const visible = character.features.filter(
                   // 未达等级的条目只在「体系」分页以置灰展示；其它分页隐藏（数据仍保留在卡上）
@@ -3201,6 +3223,7 @@ if (character) {
                     <FeatureSystemView
                       character={character}
                       search={featureSearch}
+                      charLevel={charDisplayLevel(character)}
                       readOnly={readOnly}
                       onAddMember={readOnly ? undefined : handleAddSystemMember}
                     />
@@ -3246,7 +3269,7 @@ if (character) {
               })()}
               {(() => {
                 // 隐藏条目跟随当前作用方式分页，组间按渲染顺序排序
-                const charLevel = character.level || 1;
+                const charLevel = charDisplayLevel(character);
                 const seedLevelByKey = seedFeatureLevelMap(character);
                 const hiddenList = character.features
                   .filter((f) => hiddenFeatures.has(`${f.category || ''}:${f.name}`))
