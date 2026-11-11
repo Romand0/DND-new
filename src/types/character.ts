@@ -204,6 +204,9 @@ export interface Feature {
   level?: number;
   /** 作用方式分类；缺省时读端按名称关键词派生（见 deriveFeatureRole），显式值优先 */
   role?: FeatureRole;
+  /** 玩法体系归属；与选项库 OptionTrait.system 同口径 */
+  system?: string;
+  systemKind?: 'container' | 'member';
 }
 
 export interface Character {

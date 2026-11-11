@@ -161,6 +161,72 @@ const parseLevel = (text) => {
   return m ? parseInt(m[1], 10) : undefined;
 };
 
+// 选择型体系：容器名 → 体系名（与容器同名，猎人按选择节点拆组）
+const CONTAINER_SYSTEM = {
+  '卓越战技': '卓越战技',
+  '超魔法': '超魔法',
+  '魔能祈唤': '魔能祈唤',
+  '战斗风格': '战斗风格',
+  '猎物': '猎物',
+  '防守战术': '防守战术',
+  '多重攻击': '多重攻击',
+  '高效猎人防术': '高效猎人防术',
+  '图腾精魄': '图腾精魄',
+  '兽之形': '兽之形',
+  '图腾同调': '图腾同调',
+  '引导神力': '引导神力',
+};
+const MEMBER_ROLE = {
+  箭术: 'passive', 防御: 'passive', 对决: 'passive', 巨武器战斗: 'passive', 守护: 'passive', 双武器战斗: 'passive',
+  巨像屠夫: 'passive', 巨人杀手: 'passive', 灭族者: 'passive',
+  冲出重围: 'passive', 多重防御: 'passive', 钢铁意志: 'passive',
+  箭雨: 'active', 剑刃风暴: 'active',
+  反射闪避: 'passive', 逆流而上: 'passive', 直觉闪避: 'passive',
+  熊: 'passive', 雕: 'passive', 狼: 'passive',
+  自然之怒: 'active', 驱散无信者: 'active', 破胆斥喝: 'active', 仇敌誓言: 'active', 神圣武器: 'active', 驱散不洁: 'active', 驱散亡灵: 'active',
+  诱导话术: 'stat', 符文守护者之眼: 'profile',
+};
+const memberRole = (container, o) => {
+  if (MEMBER_ROLE[o.name]) return MEMBER_ROLE[o.name];
+  if (container === '卓越战技' || container === '超魔法') return 'active';
+  if (container === '魔能祈唤') {
+    if (/施展|用[一一个]*动作|附赠动作/.test(o.text || '')) return 'active';
+    return 'passive';
+  }
+  return 'passive';
+};
+const INVOCATION_LEVEL = {
+  星移步法: 9, 惑人低语: 7, 卡瑟利之链: 15, 恐惧箴言: 7,
+  饮命者: 12, 万形之主: 15, 混沌手下: 9, 心灵泥沼: 5,
+  融身入影: 5, 超凡跳跃: 9, 重塑血肉: 7, 凶兆符记: 5,
+  饥渴魔刃: 5, 穹宇尽视: 15, 坟墓低语: 9, 巫术视界: 15,
+};
+const memberLevel = (containerTrait, o) => {
+  if (INVOCATION_LEVEL[o.name]) return INVOCATION_LEVEL[o.name];
+  const m = (o.text || '').match(/先决条件：第\s*(\d+)\s*级/);
+  if (m) return parseInt(m[1], 10);
+  return containerTrait.level;
+};
+
+const stampSystem = (t) => {
+  if (!t?.name) return;
+  if (CONTAINER_SYSTEM[t.name]) {
+    t.system = CONTAINER_SYSTEM[t.name];
+    t.systemKind = 'container';
+  } else if (/^引导神力[：:]/.test(t.name)) {
+    t.system = '引导神力';
+    t.systemKind = 'member';
+  }
+  if (!Array.isArray(t.options)) return;
+  for (const o of t.options) {
+    o.system = t.system || CONTAINER_SYSTEM[t.name];
+    o.systemKind = 'member';
+    o.role = memberRole(t.name, o);
+    const lv = memberLevel(t, o);
+    if (lv != null) o.level = lv;
+  }
+};
+
 // 同名数组消费游标：`${src}|${name}` → 已消费次数
 const consumed = new Map();
 const lookup = (src, name) => {
@@ -175,9 +241,8 @@ const lookup = (src, name) => {
   return v ?? null;
 };
 
-const stats = { annotated: 0, defaulted: 0, byRole: { active: 0, passive: 0, profile: 0, stat: 0 } };
+const stats = { annotated: 0, defaulted: 0, byRole: { active: 0, passive: 0, profile: 0, stat: 0 }, systems: 0, members: 0 };
 const missing = [];
-const levelSet = 0;
 
 const annotateTrait = (t, src, isClassLike) => {
   if (!t?.name) return;
@@ -192,10 +257,11 @@ const annotateTrait = (t, src, isClassLike) => {
   stats.byRole[role]++;
   if (isClassLike && t.level == null) {
     const lv = parseLevel(t.text);
-    if (lv) {
-      t.level = lv;
-    }
+    if (lv) t.level = lv;
   }
+  stampSystem(t);
+  if (t.system) stats.systems++;
+  if (Array.isArray(t.options)) stats.members += t.options.length;
 };
 
 for (const file of ['种族.json', '职业.json', '背景.json']) {
@@ -204,6 +270,10 @@ for (const file of ['种族.json', '职业.json', '背景.json']) {
   for (const entry of data) {
     const isClassLike = file === '职业.json';
     for (const t of entry.traits || []) annotateTrait(t, entry.name, isClassLike);
+    for (const t of entry.features || []) {
+      // features 与 traits 同名并行：只盖 system/options，不再二次 lookup（气等数组键会被耗尽）
+      stampSystem(t);
+    }
     for (const sub of entry.subraces || []) {
       for (const t of sub.traits || []) annotateTrait(t, sub.name, false);
     }
@@ -217,12 +287,21 @@ for (const file of ['种族.json', '职业.json', '背景.json']) {
       stats.annotated++;
       stats.byRole[role]++;
     }
+    // 职业层 features 与 traits 对齐（读端 optionStore 已优先 traits，双写防提取原稿回潮）
+    if (isClassLike && entry.traits?.length && entry.features?.length) {
+      const byName = new Map(entry.traits.map((t) => [t.name, t]));
+      entry.features = entry.features.map((f) => {
+        const t = byName.get(f.name);
+        return t ? { ...f, role: t.role, level: t.level, system: t.system, systemKind: t.systemKind, options: t.options } : f;
+      });
+    }
   }
   fs.writeFileSync(fp, JSON.stringify(data, null, 2) + '\n');
   console.log(`${file}: 已写回`);
 }
 
 console.log('标注总数:', stats.annotated, '分布:', JSON.stringify(stats.byRole));
+console.log('体系容器', stats.systems, '成员', stats.members);
 console.log('level 回填（职业类，从「第X级」解析）');
 if (missing.length) {
   console.error('未覆盖条目（需补映射或默认规则）:\n' + missing.join('\n'));
