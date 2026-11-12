@@ -20,6 +20,7 @@ import * as api from '@/lib/api';
 import { wearEquipment, unwearEquipment } from './equipmentWear';
 import { equipmentStore } from './equipmentStore';
 import { computeAbilityBreakdown } from './abilityBonus';
+import { resolveUnarmoredAc } from './passiveCombatRules';
 
 // 从 localStorage 读取 auth_token，构造带 JWT 的 headers
 function getAuthHeaders(): Record<string, string> {
@@ -1273,8 +1274,8 @@ function recalculateArmorClass(char: Character, combatInventory?: Equipment[]): 
       }
     }
   } else {
-    // 无护甲或找不到护甲 → 裸体 AC
-    char.armorClass = 10 + dexMod;
+    // 无护甲或找不到护甲 → 无甲防御公式（野蛮人体质/武僧感知/龙族体魄魅力），兜底裸体 AC
+    char.armorClass = resolveUnarmoredAc(char, false) ?? (10 + dexMod);
   }
 
   // 备战数据代表「进战斗会拿起」，日常状态按未持盾处理（战斗中持盾 +2 在 computeCombatantAc 按参战者手持判定）

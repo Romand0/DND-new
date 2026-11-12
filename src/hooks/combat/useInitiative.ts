@@ -4,6 +4,7 @@ import type { Character } from '@/types/character';
 import { characterStore } from '@/data/characterStore';
 import combatStore from '@/data/combatStore';
 import { computeInitiativeBonus } from '@/lib/attackBonus';
+import { deriveCharacterAffinities, deriveSpeedModifier } from '@/data/passiveCombatRules';
 
 const CIRCLE_NUMBERS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
 
@@ -63,6 +64,19 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
     const newId = crypto.randomUUID();
     // 战斗层手持初始化：从角色卡备战槽复制（进战自动拿起备战中的武器/盾牌）
     const hands = combatStore.initCombatantHands(selectedPc);
+    // 被动规则派生：伤害抗性/免疫快照 + 速度修正（快速移动/无甲移动，条件按战斗层着装/持盾）
+    const heldIds = [hands.heldLeft?.equipmentId, hands.heldRight?.equipmentId].filter(Boolean) as string[];
+    const heldEquipment = heldIds
+      .map((hid) => (selectedPc.equipment as Array<{ childId?: string; id: string; subtype?: string }> | undefined ?? [])
+        .find((e) => (e.childId || e.id) === hid))
+      .filter(Boolean) as Array<{ subtype?: string }>;
+    const armorWorn = selectedPc.wornArmorId
+      ? (selectedPc.equipment as Array<{ childId?: string; id: string }> | undefined ?? [])
+        .find((e) => (e.childId || e.id) === selectedPc.wornArmorId)
+      : null;
+    const shieldHeld = heldEquipment.some((e) => e?.subtype === '盾牌');
+    const wearingHeavyArmor = !!armorWorn && (armorWorn as { subtype?: string }).subtype?.includes('重');
+    const speedModifier = deriveSpeedModifier(selectedPc, { wearingHeavyArmor, combatShieldHeld: shieldHeld });
     const newCombatant: Combatant = {
       id: newId,
       name: selectedPc.name,
@@ -75,6 +89,8 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
       isPc: true,
       characterId: selectedPc.id,
       speed: selectedPc.speed,
+      speedModifier,
+      damageAffinities: deriveCharacterAffinities(selectedPc),
       note: '',
       actions: 1,
       heldLeft: hands.heldLeft,

@@ -481,6 +481,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       targetPos: targetPos ?? null,
       distanceCells,
       combatantPositions,
+      roster: combatStore.get(recordId)?.combatants ?? null,
       recordId,
       roundCtx: getCombatRoundCtx(recordId),
     };

@@ -15,6 +15,7 @@ import type { Attack, Character } from '@/types/character';
 import type { Effect } from '@/types/status';
 import { globalStatusManager } from './statusManager';
 import statusLibrary from './statusLibrary';
+import { detectPassiveFeatureRules } from './passiveCombatRules';
 
 // =======================
 // 场景匹配（通配组 → 具体场景）
@@ -66,6 +67,9 @@ export interface AdvantageContext {
    *  跨参战者相对距离判定（如协助：攻击对象在发出者 5 尺内）时需要；
    *  未传入时 requireTargetNearFromId 标记将无法命中。 */
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /** 全体参战者花名册（光环类被动判定：守护灵光/勇气灵光需查同阵营持有者）；
+   *  未传入时光环检测器静默跳过。 */
+  roster?: Combatant[] | null;
 }
 
 export type AdvantageDetector = (ctx: AdvantageContext) => AdvantageResult;
@@ -377,25 +381,14 @@ function detectTrait(ctx: AdvantageContext): AdvantageResult {
 }
 
 // =======================
-// 内置检测器 6：passive-feature（PC 角色卡被动技能，按特性名匹配携带情况）
+// 内置检测器 6：passive-feature（PC 角色卡被动技能，规则表驱动）
 // =======================
 
-// 妖精血统（Fey Ancestry）：对魅惑自己的魔法豁免检定具有优势，且免疫魔法导致的睡眠。
-// 魅惑类效应按来源法术名识别（魅惑人形/支配人类/催眠图纹等）；豁免上下文无状态标签，
-// 非魅惑效应的豁免由 DM 手动取消（与魔法抗性的兜底思路一致）。
+// PC 被动规则（矮人体魄/勇敢/妖精血统/侏儒狡黠/险境感知/守护灵光/勇气灵光）声明在
+// passiveCombatRules.ts 的规则表里：条目名是稳定键，文本正则只做参数/来源匹配。
 // 黑暗视觉：本工具无光照/隐藏系统，暂无机械效果点，仅随特性展示，预留此检测入口。
 function detectPassiveFeature(ctx: AdvantageContext): AdvantageResult {
-  if (ctx.scene !== 'saving_throw') return { advantage: [], disadvantage: [] };
-  const char = ctx.attackerCharacter;
-  if (!char) return { advantage: [], disadvantage: [] };
-  const hasFeyAncestry = (char.features ?? []).some(f => f.name === '妖精血统');
-  if (hasFeyAncestry && ctx.sourceSpellName && /魅惑|催眠/.test(ctx.sourceSpellName)) {
-    return {
-      advantage: [{ kind: 'trait', label: '妖精血统（对魅惑豁免优势）' }],
-      disadvantage: [],
-    };
-  }
-  return { advantage: [], disadvantage: [] };
+  return detectPassiveFeatureRules(ctx);
 }
 
 // =======================

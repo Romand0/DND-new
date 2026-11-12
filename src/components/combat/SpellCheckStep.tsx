@@ -152,6 +152,7 @@ export default function SpellCheckStep({
     saveAbility: checkType === 'save' ? SAVE_ATTR_MAP[saveAttribute] : undefined,
     sourceSpellName: spellName,
     combatantPositions,
+    roster: combatStore.get(recordId)?.combatants ?? null,
     recordId,
     roundCtx: getCombatRoundCtx(recordId),
   };
