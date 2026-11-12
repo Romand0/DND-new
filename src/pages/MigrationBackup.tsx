@@ -180,7 +180,7 @@ export default function MigrationBackup() {
       setMigrateResult({ equipments: 0, spells: 0, characters: 0, options: count });
       await fetchCounts();
     } catch (err) {
-      setMigrateError(err instanceof Error ? err.message : '推送选项种子失败');
+      setMigrateError(err instanceof Error ? err.message : '自定义条目上云失败（工坊接口预留中）');
     } finally {
       setSyncing(false);
     }
@@ -320,7 +320,7 @@ export default function MigrationBackup() {
             <button
               onClick={handlePushOptionsSeed}
               disabled={syncing || !api.hasToken()}
-              title="将内置的 PHB 种族/背景/职业数据推送到云端数据库"
+              title="【自定义工坊·预留】种子已驻留仓库（public/seed）不再整库推送；本入口保留给自定义工坊批量上传用户自建条目"
               className="flex-1 px-4 py-2 border dark:border-border-dark light:border-border-light hover:bg-primary/10 dark:text-text-dark light:text-text-light rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {syncing ? (
@@ -331,7 +331,7 @@ export default function MigrationBackup() {
               ) : (
                 <>
                   <Upload className="w-4 h-4" />
-                  推送选项种子
+                  自定义条目上云（预留）
                 </>
               )}
             </button>
