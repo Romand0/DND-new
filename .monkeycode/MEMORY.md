@@ -16,13 +16,14 @@
   - 本地全栈复现环境：`npx wrangler pages dev dist --port 8788`（先 npm run build；.dev.vars 提供 JWT_SECRET/DM_TOKEN）；改 functions/ 后端代码需重启 wrangler 终端
   - 本地 D1 文件：.wrangler/state/v3/d1/miniflare-D1DatabaseObject/910235ff9a47e17f35f828f72b94875edb99139a69e3b9ee267b5914693dab4e.sqlite（无 sqlite3 CLI，用 python3 sqlite3 模块操作）
   - 本地探针账号 probe-test/probe12345（首个注册用户自动 is_admin）
-  - 无头浏览器验证：playwright 全局安装，require(path.join(npm root -g,'playwright'))，launch 须 executablePath=/root/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome + --no-sandbox；每次新 browser context localStorage 独立，需重新登录/生成试验场人偶
+  - 无头浏览器验证：playwright 全局安装（NODE_PATH=$(npm root -g) node xxx.js），chromium 需 `npx playwright install chromium --with-deps`（版本随发布变化，用 ls /root/.cache/ms-playwright/ 确认目录名）；launch 加 --no-sandbox；每次新 browser context localStorage 独立，需重新注入登录态/数据
   - 试验场无头复现路径：/combat 点「试验场」→「敌对人偶」→ 点按钮「试验体·敌N」（芯片本身就是 button）→ 点沙盘(160,585) 放置 → 双击(160,585) 打开信息面板 →「操作」tab；模拟模式无参战者表格（放映模式才渲染 InitiativeTable）
   - 排查 UI 不可点 bug 先核对组件实例接线：同一弹窗组件可能被多处挂载（CombatSession IIFE 面板 vs Battleground 双击面板），回调 prop 漏传一处即该路径全灰
 
 [Project Knowledge Summary]
 - Date: 2026-10-24
 - Context: Discovered by Agent while building proving ground weapon presets and debugging attack modal
+
 - Category: Troubleshooting & Debugging
 - Instructions:
   - NpcAttack.normalRange / maxRange 单位是英尺（parseWeaponData 从「弹药(150/600尺)」解析），CombatAttackModal.getRangeInfo 直接当 feet 用；近战武器（徒手/长剑）不要传 normalRange，否则 isRangedWeapon 误判为远程、近战射程段被吞、显示「不在射程内」
@@ -30,12 +31,6 @@
   - 徒手击打已豁免「未手持/手部不可用」检查（CombatAttackModal getAttackStatus）
   - 沙盘棋子位置存 battlegroundStore（localStorage dnd-battlegrounds 的 tokens），不在 combatant.tokenPos；试验场放置流程 = 点「未放置」区芯片（高亮 bg-primary 确认选中）→ 点沙盘格子
   - 无头测试定位沙盘格子：querySelector('div.grid.origin-top-left') 读 children[0] 的 boundingRect（cell 约 22px）算目标格中心坐标，勿用视觉估算坐标
-
-[Project Knowledge Summary]
-- Date: 2026-10-24
-- Context: Discovered by Agent while E2E verifying blade-ward flow cast resistance in proving ground
-- Category: Troubleshooting & Debugging
-- Instructions:
   - 无头 E2E 沙盘交互的格心坐标必须每次实时读取：战斗日志每新增一条 OperationLogPanel 增高约 66px，沙盘网格整体下移，缓存 geo 会导致后续点击命中错误格子（棋子 onDoubleClick 收不到事件）
   - 沙盘 E2E 选择器要点：攻击方式条目是 div.rounded-lg.border.p-3（非 button）；CombatantInfoPanel 根元素是 fixed inset-0 z-50 全屏透明遮罩，面板开着时沙盘所有点击被挡，须先点面板标题栏 svg.lucide-x 按钮关闭；攻击检定按钮链 = 填 d20 →「确定」→「确认命中，进入伤害结算」→ 伤害弹窗填骰值 →「计算」
   - 云端 POST /api/spells 导入的法术可能缺 components 字段，cast_start 读 components.verbal 会崩——已全链路加可选链防护；自造测试法术记得带 components
@@ -181,3 +176,13 @@
   - 战斗场景中产生的一切变更（装备、HP、法术位、卷轴、材料等）都只写战斗临时副本（CombatRecord 漏斗/combatant 字段），角色卡在战斗全程只读
   - 所有变更等到战斗结算时才统一并入角色卡；新增任何战斗内资源消耗机制时必须走漏斗模式（如 spellSlotChanges），禁止立即写 characterStore
 
+[Project Knowledge Summary]
+- Date: 2026-11-11
+- Context: Discovered by Agent while root-causing feature level-gate bug (3级吟游诗人仍显示高等级特性)
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 特性等级门槛的权威口径 = getLevelFromExp(experience)（与顶栏展示同源）；character.level 是独立字段，旧数据/导入卡会脱节
+  - options 种子只在 OptionsPage 调 fetchAll 时加载；CharacterDetail 已 warmSeed('options') 兜底，新增依赖种子标注（level/system/role）的页面要同样预热
+  - seedLoader 按 索引.json 版本号缓存到 localStorage（seed:options:data + seed:options:version），版本不变不发请求；用户端旧版本缓存无 level/system 标注，刷新会写出无标注条目
+  - 纯前端无头 E2E：mock `**/api/auth/me` 返回 {user:{isAdmin:true}} + 其余 `**/api/**` 返回 {items:[]}，addInitScript 注入 auth_token/auth_user/dnd-default:DND 即可绕过登录直接测页面（无需 wrangler）
+  - 种子 traits 的 level 标注要求正文含「第X级时/起」（标注脚本 LEVEL_RE）；裸「第X级」引用（如术法起源提第18级）不标注，显示层文本解析兜底必须复刻同款锚定正则
