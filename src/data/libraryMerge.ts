@@ -42,9 +42,14 @@ export function mergeBaseline<T extends Mergeable>(seeds: T[], cloud: T[]): Merg
       // 自建条目的墓碑行：无种子可删，直接忽略
       continue;
     }
-    if (hitsSeed) {
-      // 覆盖行，或旧数据兼容（无 seedId 但 id 命中种子的出版物行回流）
+    if (row.seedId && hitsSeed) {
+      // 显式覆盖行（seedId 指回种子，图鉴编辑种子时 saveItem 生成）：云端赢
       overlayBySeed.set(target, row);
+    } else if (!row.seedId && hitsSeed) {
+      // 旧出版物整库回流行（无 seedId、id 命中种子）：种子赢。
+      // 仓库种子是唯一事实源（带 level/system/role 标注 + 清洗文本），这类行是早期
+      // 导入快照残留（旧描述/无标注/脏文本），展示与刷新一律以种子为准；
+      // 用户对种子的合法修改只会以带 seedId 的覆盖行形式存在
     } else if (row.campaignId) {
       // 自建条目：团组私有（campaignId 非空）。真源自建行一定有归属团组。
       extra.push(row);
