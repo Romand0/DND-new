@@ -46,11 +46,14 @@ export function collectOptionFeatureEntries(character: {
 }): OptionFeatureEntry[] {
   const out: OptionFeatureEntry[] = [];
   const seen = new Set<string>();
+  // 种子/云端行的特质文本可能携带上一句遗留的句末标点（早期快照导入的种族特质「。你的魅力加2」），
+  // 种子落盘前已剥（build-seed cleanTraitTexts），这里对云端覆盖行/旧缓存兜底再剥一次
+  const cleanText = (s: string) => s.replace(/^[。、：；\s]+/, '') || s;
   const push = (e: OptionFeatureEntry) => {
     const key = `${e.category}:${e.name}`;
     if (seen.has(key)) return;
     seen.add(key);
-    out.push(e);
+    out.push({ ...e, description: cleanText(e.description) });
   };
 
   // 种族链：character.race 可能指向种族或亚种（亚种沿 parentName 补齐母种族特质）；
