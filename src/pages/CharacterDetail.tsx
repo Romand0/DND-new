@@ -87,12 +87,13 @@ const proficiencyLabels: Record<ProficiencyCategory, string> = {
 const displayedProficiencyCategories: Exclude<ProficiencyCategory, 'savingThrows'>[] = ['armor', 'weapons', 'tools', 'languages'];
 
 // 特性区熟练类派生条目 → 集中卡片分组行标签（与 collectOptionFeatureEntries 派生名一一对应）
+// 语言不在列：DM 裁定语言非熟练项、归人物设定（optionFeatures.ts 派生时显式 role:'profile'），
+// 扫进熟练卡会被钉在属性调整位，与隐藏区 deriveFeatureRole 分组（人物设定）互相矛盾
 const proficiencyEntryLabels: Record<string, string> = {
   护甲熟练项: '护甲',
   武器熟练项: '武器',
   工具熟练项: '工具',
   技能熟练项: '技能',
-  语言: '语言',
   装备: '装备',
 };
 
