@@ -1787,6 +1787,7 @@ export class FlowCompiler {
       output: {
         effectType,
         damageType: normalizeDamageType(damageType) ?? damageType,
+        halfDamageOnSave: config?.halfDamageOnSave === true,
         scaleBy,
         scaleValue,
         scaleSource,
