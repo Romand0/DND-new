@@ -16,6 +16,7 @@ interface QueueEntry {
   title: string;
   detail?: string;
   source?: string;
+  battleId?: string;
 }
 
 let queue: QueueEntry[] | null = null;
@@ -64,10 +65,11 @@ async function flush(): Promise<void> {
   }
 }
 
-/** 埋点写点调用：入队 + 安排 debounce flush */
+/** 埋点写点调用：入队 + 安排 debounce flush。
+ *  战斗相关变更仅在战斗结算打包时调用（battleId 指向战斗记录）；战斗中即时埋点违反「结算入卡」原则 */
 export function pushCharacterLog(
   characterId: string,
-  entry: { category: CharacterLogCategory; kind: CharacterLogKind | string; title: string; detail?: string; source?: string },
+  entry: { category: CharacterLogCategory; kind: CharacterLogKind | string; title: string; detail?: string; source?: string; battleId?: string },
 ): void {
   if (!characterId || !entry.title) return;
   const q = loadQueue();
@@ -78,6 +80,7 @@ export function pushCharacterLog(
     title: entry.title.slice(0, 500),
     detail: entry.detail,
     source: entry.source,
+    battleId: entry.battleId,
   });
   if (q.length > MAX_QUEUE) queue = q.slice(-MAX_QUEUE);
   persistQueue();

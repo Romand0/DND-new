@@ -19,6 +19,7 @@ interface LogInput {
   title?: string;
   detail?: string;
   source?: string;
+  battleId?: string;
 }
 
 const VALID_CATEGORIES = new Set(['item', 'spell', 'growth', 'general']);
@@ -78,7 +79,7 @@ export async function onRequestPost(context: any): Promise<Response> {
 
   const ts = now();
   const stmt = env.DB.prepare(
-    'INSERT INTO character_logs (id, campaign_id, character_id, category, kind, title, detail, source, actor_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    'INSERT INTO character_logs (id, campaign_id, character_id, category, kind, title, detail, source, actor_id, battle_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
   );
   const batch = valid.map((x) =>
     stmt.bind(
@@ -91,6 +92,7 @@ export async function onRequestPost(context: any): Promise<Response> {
       x.detail ? String(x.detail).slice(0, 4000) : null,
       x.source || null,
       auth.sub,
+      x.battleId ? String(x.battleId).slice(0, 100) : null,
       ts,
     ),
   );
@@ -117,6 +119,7 @@ export async function onRequestGet(context: any): Promise<Response> {
   const url = new URL(request.url);
   const characterId = url.searchParams.get('characterId') || '';
   const category = url.searchParams.get('category') || '';
+  const battleOnly = url.searchParams.get('battle') === '1';
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10) || 50, 200);
   const offset = Math.max(parseInt(url.searchParams.get('offset') ?? '0', 10) || 0, 0);
   if (!characterId) {
@@ -142,6 +145,9 @@ export async function onRequestGet(context: any): Promise<Response> {
       sql += ' AND category = ?';
       binds.push(category);
     }
+    if (battleOnly) {
+      sql += ' AND battle_id IS NOT NULL';
+    }
     sql += ' ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?';
     binds.push(limit, offset);
     const result = await env.DB.prepare(sql).bind(...binds).all();
@@ -155,6 +161,7 @@ export async function onRequestGet(context: any): Promise<Response> {
       detail: row.detail || undefined,
       source: row.source || undefined,
       actorId: row.actor_id || undefined,
+      battleId: row.battle_id || undefined,
       createdAt: row.created_at,
     }));
     return jsonResponse(rows);

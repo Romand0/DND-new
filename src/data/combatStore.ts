@@ -772,16 +772,6 @@ const combatStore = {
     const prev = record.lastSpellCasts?.[combatantId] ?? [];
     const next = [spellId, ...prev.filter((id) => id !== spellId)].slice(0, 10);
     this.update(recordId, { lastSpellCasts: { ...(record.lastSpellCasts ?? {}), [combatantId]: next } });
-    // 全周期日志：施法记录（PC 角色卡；NPC 无卡不入日志）
-    const caster = record.combatants.find(c => c.id === combatantId);
-    if (caster?.characterId) {
-      pushCharacterLog(caster.characterId, {
-        category: 'spell',
-        kind: 'spell_cast',
-        title: `施放「${spellId}」`,
-        source: 'battle',
-      });
-    }
   },
 
   /**
@@ -1144,6 +1134,8 @@ const combatStore = {
       if (!char) continue;
       let charDirty = false;
       const charUpdate: Partial<Character> = {};
+      // 战斗线索标识：结算打包的日志全部携带，供战斗版块按场聚合
+      const battleName = record.title || '未命名战斗';
 
       // 1. 装备并入：勾选 childId 按 computeChildQtyMap 结果写回
       const selectedEq = selections.equipmentChildIds[entry.id] || [];
@@ -1153,19 +1145,58 @@ const combatStore = {
         // char.equipment 元素/数组与 store 缓存共享引用：全部改动在副本上做，最后统一写回
         const workingEquipment = [...char.equipment];
         const removedSet = new Set<string>();
+        // 战斗结算日志（拆包归类：弹药消耗/拾取 → item 领域，battleId 供战斗版块聚合）
+        const eqName = (cid: string) => char.equipment.find(e => (e.childId || e.id) === cid)?.name || '物品';
         for (const cid of selectedEq) {
           const info = qtyMap.get(cid);
           if (!info || info.combatQty === info.srcQty) continue;
           if (info.combatQty === 0) {
             // 整件移除（含 added 后又被移除的净零情况：srcQty=0 也走移除，跳过追加）
             removedSet.add(cid);
+            if (info.srcQty > 0) {
+              pushCharacterLog(char.id, {
+                category: 'item',
+                kind: 'item_remove',
+                title: `移除「${eqName(cid)}」`,
+                detail: JSON.stringify({ battleName, childId: cid, from: info.srcQty, to: 0 }),
+                source: 'battle',
+                battleId: recordId,
+              });
+            }
           } else if (info.srcQty > 0) {
             // 更新源条目数量
             const eqIdx = workingEquipment.findIndex(e => (e.childId || e.id) === cid);
             if (eqIdx >= 0) workingEquipment[eqIdx] = { ...workingEquipment[eqIdx], quantity: info.combatQty };
+            if (info.combatQty < info.srcQty) {
+              pushCharacterLog(char.id, {
+                category: 'item',
+                kind: 'item_qty',
+                title: `消耗 ${info.srcQty - info.combatQty} 个「${eqName(cid)}」`,
+                detail: JSON.stringify({ battleName, childId: cid, from: info.srcQty, to: info.combatQty }),
+                source: 'battle',
+                battleId: recordId,
+              });
+            } else {
+              pushCharacterLog(char.id, {
+                category: 'item',
+                kind: 'item_qty',
+                title: `获得 ${info.combatQty - info.srcQty} 个「${eqName(cid)}」`,
+                detail: JSON.stringify({ battleName, childId: cid, from: info.srcQty, to: info.combatQty }),
+                source: 'battle',
+                battleId: recordId,
+              });
+            }
           } else if (info.addedEq) {
             // 战斗新增：追加条目（childId 保留战斗实例值，唯一即可）
             workingEquipment.push({ ...info.addedEq, childId: cid });
+            pushCharacterLog(char.id, {
+              category: 'item',
+              kind: 'item_acquire',
+              title: `获得「${info.addedEq.name || eqName(cid)}」×${info.combatQty}`,
+              detail: JSON.stringify({ battleName, childId: cid, from: 0, to: info.combatQty }),
+              source: 'battle',
+              battleId: recordId,
+            });
           }
         }
         charUpdate.equipment = removedSet.size > 0
@@ -1174,7 +1205,7 @@ const combatStore = {
         charDirty = true;
       }
 
-      // 2. 法术位并入：delta 累加 used，clamp [0, max]
+      // 2. 法术位并入：delta 累加 used，clamp [0, max]；日志由本结算统一打包（silent 防双记）
       if (selections.spellSlotCombatantIds.includes(entry.id)) {
         const slotDeltas = record.spellSlotChanges?.[entry.id] ?? {};
         for (const [levelKey, delta] of Object.entries(slotDeltas)) {
@@ -1182,7 +1213,30 @@ const combatStore = {
           const slot = char.spells?.spellSlots?.[levelKey as SpellSlotLevel];
           if (!slot) continue;
           const clamped = Math.max(0, Math.min(slot.max, slot.used + delta));
-          characterStore.updateSpellSlots(char.id, levelKey as SpellSlotLevel, { used: clamped });
+          const res = characterStore.updateSpellSlots(char.id, levelKey as SpellSlotLevel, { used: clamped }, { silent: true });
+          if (res && res.used > slot.used) {
+            const lvNum = parseInt(levelKey.replace('level', ''), 10) || levelKey;
+            pushCharacterLog(char.id, {
+              category: 'spell',
+              kind: 'slot_change',
+              title: `消耗 ${res.used - slot.used} 个 ${lvNum}环法术位`,
+              detail: JSON.stringify({ battleName, levelKey, from: `${slot.used}/${slot.max}`, to: `${res.used}/${res.max}` }),
+              source: 'battle',
+              battleId: recordId,
+            });
+          }
+        }
+        // 施法记录：本场战斗施放过的法术（lastSpellCasts 去重列表）拆入法术版块
+        const casts = record.lastSpellCasts?.[entry.id] ?? [];
+        for (const spellName of casts) {
+          pushCharacterLog(char.id, {
+            category: 'spell',
+            kind: 'spell_cast',
+            title: `施放「${spellName}」`,
+            detail: JSON.stringify({ battleName }),
+            source: 'battle',
+            battleId: recordId,
+          });
         }
       }
 

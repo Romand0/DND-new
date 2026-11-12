@@ -1154,7 +1154,7 @@ function removeCustomSpell(charId: string, index: number): void {
 }
 
 // ---------- 法术位 (Spell Slots) ----------
-function updateSpellSlots(charId: string, levelKey: SpellSlotLevel, slotData: { max?: number; used?: number }): { max: number; used: number } | null {
+function updateSpellSlots(charId: string, levelKey: SpellSlotLevel, slotData: { max?: number; used?: number }, opts?: { silent?: boolean }): { max: number; used: number } | null {
   const char = getCharacter(charId);
   if (!char) return null;
   if (!char.spells.spellSlots[levelKey]) return null;
@@ -1163,7 +1163,8 @@ function updateSpellSlots(charId: string, levelKey: SpellSlotLevel, slotData: { 
   saveCharacter(char as Character);
   const lvNum = parseInt(levelKey.replace('level', ''), 10) || 0;
   const after = char.spells.spellSlots[levelKey];
-  if (before.used !== after.used || before.max !== after.max) {
+  // silent：战斗结算并入调用（combatStore.settleCombat）——法术位日志由结算打包统一记录（带 battleId），此处跳过防双记
+  if (!opts?.silent && (before.used !== after.used || before.max !== after.max)) {
     logStoreChange(charId, {
       category: 'spell',
       kind: 'slot_change',

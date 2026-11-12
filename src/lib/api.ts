@@ -658,14 +658,16 @@ export async function rejectChangeRequest<T = { id: string }>(id: string, review
 
 // ============ 角色全周期日志 ============
 
-/** 查询角色日志（时间倒序分页；玩家仅限自己绑定的角色） */
+/** 查询角色日志（时间倒序分页；玩家仅限自己绑定的角色；battle=1 仅战斗结算打包的条目） */
 export async function fetchCharacterLogs<T = any[]>(
   characterId: string,
   category = '',
   limit = 50,
-  offset = 0
+  offset = 0,
+  battleOnly = false
 ): Promise<T> {
   const params = new URLSearchParams({ characterId, limit: String(limit), offset: String(offset) });
   if (category) params.set('category', category);
+  if (battleOnly) params.set('battle', '1');
   return apiFetch<T>(`/character-logs?${params.toString()}`, { headers: authHeaders() });
 }

@@ -33,8 +33,10 @@ export interface CharacterLog {
   title: string;
   /** JSON 补充：前后值、法术位环级、成长任务选项（预留）等 */
   detail?: string;
-  /** 来源：battle（战斗结算/战斗中）/ change_request / store / import / growth_task */
+  /** 来源：battle（战斗结算打包）/ change_request / store / import / growth_task */
   source?: string;
+  /** 关联战斗记录 id（仅战斗结算打包写入；物资/法术版块照常按 category 拆包，战斗版块按此聚合） */
+  battleId?: string;
   /** 操作发起者账号 id（玩家提交/DM 编辑） */
   actorId?: string;
   createdAt: number;

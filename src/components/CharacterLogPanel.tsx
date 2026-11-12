@@ -2,14 +2,15 @@
 // CharacterDetail 底部区块挂载（DM 端/玩家端共用），draftMode 下隐藏（草稿不入库）。
 
 import { useState, useEffect, useCallback } from 'react';
-import { History, RefreshCw } from 'lucide-react';
+import { History, RefreshCw, Swords } from 'lucide-react';
 import type { CharacterLog, CharacterLogCategory } from '@/types/characterLog';
 import { fetchCharacterLogs } from '@/lib/api';
 
 const PAGE_SIZE = 30;
 
-const CATEGORY_TABS: { key: CharacterLogCategory | 'all'; label: string }[] = [
+const CATEGORY_TABS: { key: CharacterLogCategory | 'all' | 'battle'; label: string }[] = [
   { key: 'all', label: '全部' },
+  { key: 'battle', label: '战斗' },
   { key: 'item', label: '物资钱币' },
   { key: 'spell', label: '法术' },
   { key: 'growth', label: '角色成长' },
@@ -34,6 +35,16 @@ function formatTime(sec: number): string {
   return new Date(sec * 1000).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+/** detail JSON 里提取战斗名（打包时写入） */
+function battleNameOf(log: CharacterLog): string {
+  try {
+    const d = JSON.parse(log.detail || '{}');
+    return typeof d?.battleName === 'string' && d.battleName ? d.battleName : '未命名战斗';
+  } catch {
+    return '未命名战斗';
+  }
+}
+
 export default function CharacterLogPanel({ characterId, draftMode = false }: {
   characterId: string;
   /** 草稿编辑态隐藏（草稿修改不入库，避免误导） */
@@ -42,15 +53,15 @@ export default function CharacterLogPanel({ characterId, draftMode = false }: {
   const [logs, setLogs] = useState<CharacterLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [tab, setTab] = useState<CharacterLogCategory | 'all'>('all');
+  const [tab, setTab] = useState<CharacterLogCategory | 'all' | 'battle'>('all');
   const [expanded, setExpanded] = useState(false);
 
   const load = useCallback(async (reset: boolean) => {
     setLoading(true);
     try {
-      const category = tab === 'all' ? '' : tab;
+      const category = tab === 'all' || tab === 'battle' ? '' : tab;
       const offset = reset ? 0 : logs.length;
-      const list = await fetchCharacterLogs<CharacterLog[]>(characterId, category, PAGE_SIZE, offset);
+      const list = await fetchCharacterLogs<CharacterLog[]>(characterId, category, PAGE_SIZE, offset, tab === 'battle');
       setLogs(reset ? (Array.isArray(list) ? list : []) : [...logs, ...(Array.isArray(list) ? list : [])]);
       setLoaded(true);
     } catch {
@@ -71,6 +82,30 @@ export default function CharacterLogPanel({ characterId, draftMode = false }: {
   if (draftMode) return null;
 
   const hasMore = logs.length > 0 && logs.length % PAGE_SIZE === 0;
+
+  // 战斗版块：按 battleId 聚合成「场」组（组头 = 战斗名，组内 = 该场全部变更条目）
+  const battleGroups = tab === 'battle'
+    ? (() => {
+        const m = new Map<string, CharacterLog[]>();
+        for (const log of logs) {
+          const bid = log.battleId || 'unknown';
+          const arr = m.get(bid) ?? [];
+          arr.push(log);
+          m.set(bid, arr);
+        }
+        return [...m.entries()];
+      })()
+    : [];
+
+  const renderLogRow = (log: CharacterLog) => (
+    <div key={log.id} className="flex items-start gap-2 text-xs rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5">
+      <span className={`shrink-0 mt-0.5 ${CATEGORY_COLOR[log.category as CharacterLogCategory] ?? ''}`}>
+        [{SOURCE_LABEL[log.source ?? ''] ?? '记录'}]
+      </span>
+      <span className="flex-1 dark:text-text-dark light:text-text-light break-all">{log.title}</span>
+      <span className="shrink-0 dark:text-text-dark-muted light:text-text-light-muted">{formatTime(log.createdAt)}</span>
+    </div>
+  );
 
   return (
     <div className="rounded-xl border dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light p-4">
@@ -119,16 +154,21 @@ export default function CharacterLogPanel({ characterId, draftMode = false }: {
               <div className="text-center py-4 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                 暂无日志（升级决策任务等成长事件将在此记录）
               </div>
-            ) : (
-              logs.map((log) => (
-                <div key={log.id} className="flex items-start gap-2 text-xs rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5">
-                  <span className={`shrink-0 mt-0.5 ${CATEGORY_COLOR[log.category as CharacterLogCategory] ?? ''}`}>
-                    [{SOURCE_LABEL[log.source ?? ''] ?? '记录'}]
-                  </span>
-                  <span className="flex-1 dark:text-text-dark light:text-text-light break-all">{log.title}</span>
-                  <span className="shrink-0 dark:text-text-dark-muted light:text-text-light-muted">{formatTime(log.createdAt)}</span>
+            ) : tab === 'battle' ? (
+              battleGroups.map(([bid, groupLogs]) => (
+                <div key={bid} className="rounded-lg border dark:border-border-dark light:border-border-light p-2 space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-medium dark:text-text-dark light:text-text-light px-0.5">
+                    <Swords className="w-3.5 h-3.5 text-primary" />
+                    <span>{battleNameOf(groupLogs[0])}</span>
+                    <span className="font-normal dark:text-text-dark-muted light:text-text-light-muted">
+                      · {formatTime(groupLogs[0].createdAt)} · {groupLogs.length} 条
+                    </span>
+                  </div>
+                  {groupLogs.map(renderLogRow)}
                 </div>
               ))
+            ) : (
+              logs.map(renderLogRow)
             )}
             {hasMore && loaded && (
               <button
