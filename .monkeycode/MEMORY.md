@@ -186,3 +186,5 @@
   - seedLoader 按 索引.json 版本号缓存到 localStorage（seed:options:data + seed:options:version），版本不变不发请求；用户端旧版本缓存无 level/system 标注，刷新会写出无标注条目
   - 纯前端无头 E2E：mock `**/api/auth/me` 返回 {user:{isAdmin:true}} + 其余 `**/api/**` 返回 {items:[]}，addInitScript 注入 auth_token/auth_user/dnd-default:DND 即可绕过登录直接测页面（无需 wrangler）
   - 种子 traits 的 level 标注要求正文含「第X级时/起」（标注脚本 LEVEL_RE）；裸「第X级」引用（如术法起源提第18级）不标注，显示层文本解析兜底必须复刻同款锚定正则
+  - mergeBaseline 语义：仓库种子是唯一事实源——只有带 seedId 的显式覆盖行（saveItem 生成）云端赢；无 seedId 但 id 命中种子的 D1 整库回流行是旧快照残留，种子赢（否则旧快照行覆盖新种子，选项库/刷新全读旧数据）
+  - 种子分片 URL 带版本戳 ?v=<索引版本> 且索引 fetch 用 cache:'no-cache'；索引被浏览器启发式缓存住时版本号读旧的，页面刷新也不重拉分片（选项库显示旧数据的根因之一）
