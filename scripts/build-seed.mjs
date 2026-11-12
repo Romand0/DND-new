@@ -190,6 +190,49 @@ function cleanTraitTexts(obj) {
   }
 }
 
+// 职业引导/风味条目剪除：创建指引与开头风味散文（如战士「全能武斗家」「为冒险而生」）
+// 属于职业页叙事，写进种子会被「刷新选项特性」写上角色卡，模糊工具的核心定位。
+// 判据：条目 role=profile（风味标注）且名字匹配不进职业特性表（宽匹配：剥括号/空格/
+// 「选择」前缀后等值或互为尾缀，如「选择诗人学院」↔「吟游诗人学院」）；
+// 同名重复条目豁免未标级 flavor（武僧「气」×2，机制条带「第X级时/起」标注）。
+// features 与 traits 同名并行（读端 traits 优先、features 兜底），两处同步剪除防回潮。
+const GUIDANCE_LEVEL_RE = /第\s*\d+\s*级(?:时|起)/;
+function normalizeTableName(n) {
+  return String(n || '')
+    .replace(/[（(][^）)]*[）)]/g, '')
+    .replace(/\s+/g, '')
+    .replace(/^选择/, '');
+}
+function pruneGuidanceTraits(list, tableNames) {
+  if (!Array.isArray(list)) return list;
+  const dup = new Map();
+  for (const t of list) dup.set(t.name, (dup.get(t.name) || 0) + 1);
+  const inTable = (name) => {
+    const t = normalizeTableName(name);
+    for (const f of tableNames) {
+      if (f === t || (f && t.endsWith(f)) || (t && f.endsWith(t))) return true;
+    }
+    return false;
+  };
+  return list.filter((t) => {
+    if (t.role !== 'profile') return true;
+    if (dup.get(t.name) > 1 && !GUIDANCE_LEVEL_RE.test(t.text || '')) return false;
+    return inTable(t.name);
+  });
+}
+function pruneClassGuidance(entry) {
+  const tableNames = new Set();
+  for (const row of entry.table || []) {
+    for (const f of row.features || []) {
+      const n = normalizeTableName(f);
+      if (n) tableNames.add(n);
+    }
+  }
+  if (tableNames.size === 0) return;
+  entry.traits = pruneGuidanceTraits(entry.traits, tableNames);
+  entry.features = pruneGuidanceTraits(entry.features, tableNames);
+}
+
 function buildOptionsTree(rows) {
   const races = [];
   const classes = [];
@@ -231,6 +274,7 @@ function buildOptionsTree(rows) {
     push('options', '玩家手册2014', '种族', r);
   }
   for (const c of classes) {
+    pruneClassGuidance(c);
     c.subclasses = subclassesByParent.get(c.name) || [];
     push('options', '玩家手册2014', '职业', c);
   }

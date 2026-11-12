@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-11.4",
+  "version": "2026-11-11.5",
   "generatedAt": "2026-11-11",
   "versionNote": "职业选项体系 system/systemKind 与嵌套 options；种族特质文本剥句首标点",
   "kinds": {
@@ -248,8 +248,8 @@
           "group": "职业",
           "path": "玩家手册2014/角色选项/职业.json",
           "count": 12,
-          "bytes": 490753,
-          "gzip": 82974
+          "bytes": 422598,
+          "gzip": 58476
         },
         {
           "book": "玩家手册2014",
