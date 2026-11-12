@@ -244,9 +244,10 @@ export const optionStore = {
     }
   },
 
-  // 已废弃：种子驻留仓库，不再推送种子到云端。保留空实现避免旧调用报错
+  // 【自定义工坊·预留接口】种子已驻留仓库（public/seed），整库推送已废弃；本接口保留给
+  // 自定义工坊推送用户自建条目（届时按条目级 batchUpsertOptions 实现，勿恢复整库种子推送）
   async syncToCloud(): Promise<number> {
-    throw new Error('种子已驻留仓库，无需同步到云端');
+    throw new Error('选项库种子已驻留仓库，整库推送已废弃；自定义条目推送将在自定义工坊中提供');
   },
 
   // 预热种子 + 从云端拉取覆盖/墓碑/自建行

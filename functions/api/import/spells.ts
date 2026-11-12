@@ -1,3 +1,5 @@
+// 【自定义工坊·预留接口】当前前端无调用方；保留给自定义工坊批量上传/解析外部表格用，
+// 与种子（public/seed）解耦——本端点只应处理用户自建条目，勿用于整库导入
 import * as cheerio from 'cheerio';
 
 const LEVEL_MAP: Record<string, number> = {
