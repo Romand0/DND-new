@@ -52,7 +52,9 @@ function encodeSeedPath(path: string): string {
 
 async function loadIndex(): Promise<SeedIndex | null> {
   if (!indexPromise) {
-    indexPromise = fetch(encodeURI(SEED_INDEX_PATH))
+    // 索引每次页面加载都强制向服务器重验（no-cache）：种子按版本号幂等，索引被浏览器
+    // 启发式缓存住时新版本永远进不来（页面刷新即同步种子库的关键一环；索引仅几 KB）
+    indexPromise = fetch(encodeURI(SEED_INDEX_PATH), { cache: 'no-cache' })
       .then((res) => (res.ok ? (res.json() as Promise<SeedIndex>) : null))
       .catch((err) => {
         console.warn('[seedLoader] 索引加载失败:', err);
@@ -104,8 +106,10 @@ export async function loadSeed<T = unknown>(kind: SeedKind): Promise<T[]> {
 
   const task = Promise.all(
     meta.shards.map((shard) =>
-      // encodeSeedPath 已逐段 percent-encode，不能再套 encodeURI（会把 % 二次编码成 %25 导致全部 404）
-      fetch(encodeSeedPath(shard.path))
+      // encodeSeedPath 已逐段 percent-encode，不能再套 encodeURI（会把 % 二次编码成 %25 导致全部 404）；
+      // 分片 URL 带版本戳：同版本命中 HTTP 缓存，版本 bump 后 URL 变化强制回源，
+      // 杜绝「同路径旧内容」被浏览器缓存住导致升级后读到旧种子
+      fetch(`${encodeSeedPath(shard.path)}?v=${encodeURIComponent(idx.version)}`)
         .then((res) => (res.ok ? (res.json() as Promise<T[]>) : []))
         .then((items) => ({ path: shard.path, items, ok: true }))
         .catch((err) => {

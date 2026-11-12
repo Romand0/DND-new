@@ -56,6 +56,8 @@ import TreasureList from '@/pages/TreasureList';
 import TreasureEdit from '@/pages/TreasureEdit';
 import TreasureDistribute from '@/pages/TreasureDistribute';
 import { BindingService } from '@/services/bindingService';
+import { warmSeed } from '@/data/seedLoader';
+import { useEffect } from 'react';
 
 // 根路径壳：DM 专属路由的布局壳（requireAdmin 由 ProtectedRoute 保证）
 function RoleShell() {
@@ -89,6 +91,12 @@ function PlayerHomeRedirect() {
 export default function App() {
   // 初始化双向同步引擎
   BindingService.init();
+
+  // 页面刷新即同步角色选项种子：索引强制重验 + 版本变化自动重拉分片（seedLoader），
+  // 角色卡特性过滤/体系分页/刷新按钮都依赖种子标注（level/system/role），不能等用户进图鉴页才加载
+  useEffect(() => {
+    warmSeed('options');
+  }, []);
 
   return (
     <ThemeProvider>

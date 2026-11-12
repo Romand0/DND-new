@@ -47,7 +47,7 @@ import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
 import { collectClassProficiencyEntries, collectOptionFeatureEntries } from '@/data/optionFeatures';
-import { warmSeed } from '@/data/seedLoader';
+import { warmSeed, loadSeed } from '@/data/seedLoader';
 import FeatureSystemView from '@/components/FeatureSystemView';
 import type { SystemMember } from '@/data/systemView';
 import { spellStore } from '@/data/spellStore';
@@ -1413,31 +1413,41 @@ export default function CharacterDetail({
   //  · 选项链期望集内的条目 → 用库最新版整组重建（描述/等级/来源随库走，库删卡也删）
   //  · 期望集外的条目（手动添加的自建条目、旧数据遗留）→ 原样保留
   // 隐藏状态按「分类:名称」存 localStorage，与条目 id 无关，重建后自然延续
-  const handleRefreshOptionFeatures = () => {
-    if (!id || !character) return;
-    const expected = collectOptionFeatureEntries(character);
-    const expectedKeys = new Set(expected.map((e) => `${e.category}:${e.name}`));
-    const oldFeatures = character.features || [];
-    const kept = oldFeatures.filter((f) => !expectedKeys.has(`${f.category || ''}:${f.name}`));
-    const oldKeys = new Set(oldFeatures.map((f) => `${f.category || ''}:${f.name}`));
-    const addedCount = expected.filter((e) => !oldKeys.has(`${e.category}:${e.name}`)).length;
-    const fresh = expected.map((e) => ({
-      id: crypto.randomUUID(),
-      name: e.name,
-      description: e.description,
-      category: e.category,
-      source: e.source,
-      level: e.level,
-      role: e.role,
-      system: e.system,
-      systemKind: e.systemKind,
-    }));
-    characterStore.update(id, { features: [...fresh, ...kept] });
-    reloadChar();
-    alert(
-      `已按选项库刷新：同步 ${fresh.length} 条（其中新增 ${addedCount} 条），` +
-        `替换旧版 ${oldFeatures.length - kept.length} 条，保留自建 ${kept.length} 条`
-    );
+  // 刷新进行中标记：等待种子就绪期间防重复点击
+  const [refreshingFeatures, setRefreshingFeatures] = useState(false);
+  const handleRefreshOptionFeatures = async () => {
+    if (!id || !character || refreshingFeatures) return;
+    setRefreshingFeatures(true);
+    try {
+      // 先确保选项库种子就绪（页面刚打开种子未就绪时点击也能拿到最新库）：
+      // 索引已强制重验 + 版本变化自动重拉，await 后 expected 集一定来自最新种子
+      await loadSeed('options');
+      const expected = collectOptionFeatureEntries(character);
+      const expectedKeys = new Set(expected.map((e) => `${e.category}:${e.name}`));
+      const oldFeatures = character.features || [];
+      const kept = oldFeatures.filter((f) => !expectedKeys.has(`${f.category || ''}:${f.name}`));
+      const oldKeys = new Set(oldFeatures.map((f) => `${f.category || ''}:${f.name}`));
+      const addedCount = expected.filter((e) => !oldKeys.has(`${e.category}:${e.name}`)).length;
+      const fresh = expected.map((e) => ({
+        id: crypto.randomUUID(),
+        name: e.name,
+        description: e.description,
+        category: e.category,
+        source: e.source,
+        level: e.level,
+        role: e.role,
+        system: e.system,
+        systemKind: e.systemKind,
+      }));
+      characterStore.update(id, { features: [...fresh, ...kept] });
+      reloadChar();
+      alert(
+        `已按选项库刷新：同步 ${fresh.length} 条（其中新增 ${addedCount} 条），` +
+          `替换旧版 ${oldFeatures.length - kept.length} 条，保留自建 ${kept.length} 条`
+      );
+    } finally {
+      setRefreshingFeatures(false);
+    }
   };
 
   // 集中熟练卡片行内编辑：熟练类条目描述直接改角色卡 features（不进整卡编辑器）
@@ -3081,11 +3091,12 @@ if (character) {
             <div className="space-y-2">
               <button
                 onClick={handleRefreshOptionFeatures}
-                className="w-full py-1.5 text-xs rounded-lg border border-dashed transition-colors flex items-center justify-center gap-1.5 dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
-                title="以选项库为准重新同步：库最新内容写入角色卡，库中已移除的条目一并清掉，手动添加的自建条目保留"
+                disabled={refreshingFeatures}
+                className="w-full py-1.5 text-xs rounded-lg border border-dashed transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                title="选项库随页面加载自动同步最新种子；此按钮把库最新内容写入角色卡，库中已移除的条目一并清掉，手动添加的自建条目保留"
               >
                 <RefreshCw className="w-4 h-4" />
-                刷新选项特性与特质
+                {refreshingFeatures ? '正在同步选项库…' : '刷新选项特性与特质'}
               </button>
               {/* 作用方式分页（主动技能最大展示度 → 被动技能 → 属性调整融入数值）+ 跨分类搜索 */}
               <div className="flex items-center gap-1.5 flex-wrap">
