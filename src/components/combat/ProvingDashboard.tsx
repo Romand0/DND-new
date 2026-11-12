@@ -74,6 +74,7 @@ export default function ProvingDashboard({ record, combatant, character, combatI
       attacker: combatant,
       attackerCharacter: character,
       saveAbility: key,
+      roster: record.combatants,
       recordId: record.id,
       roundCtx: getCombatRoundCtx(record.id),
     });

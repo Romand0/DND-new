@@ -11,6 +11,7 @@ import { deriveCombatantStatusFlags } from './statusRuntime';
 import type { Equipment, Character, SpellSlotLevel, HandSlot, HandState } from '@/types/character';
 import type { StatusInstance } from '@/types/status';
 import statusLibrary from './statusLibrary';
+import { resolveUnarmoredAc } from './passiveCombatRules';
 
 const storageKey = () => scopedKey('dnd-combat-records');
 type Listener = () => void;
@@ -305,10 +306,19 @@ export function computeCombatantAc(
   const inventory = combatInventory ?? character.equipment as Equipment[] | undefined ?? [];
   const dex = character.abilities?.dexterity?.modifier ?? 0;
 
-  // 10 + 敏捷（基础）
-  let base = 10 + dex;
+  // 无甲防御（野蛮人体质/武僧感知/龙族体魄魅力）替换 10+敏 基础公式。
+  // 武僧版要求未持盾（盾在手时无甲防御整体失效，盾牌 +2 在下方手持分支独立叠加）；
+  // 穿护甲（战斗背包内实际存在）时不适用
   let armorBonus = 0;
   let dexCap: number | null = null;
+
+  const heldIdsForAc = [
+    combatant.heldLeft?.equipmentId,
+    combatant.heldRight?.equipmentId,
+  ].filter(Boolean) as string[];
+  const shieldHeld = heldIdsForAc.some(
+    (hid) => inventory.find(e => (e.childId || e.id) === hid)?.subtype === '盾牌'
+  );
 
   // wornArmorId：必须在战斗背包存在。AC 基础值读装备模板 acBase（字符串，如 "16"/"+2"），
   // 与 characterStore.recalculateArmorClass 保持同源——旧代码读 acValue（字段从未存在）导致穿甲 AC 恒 10+敏。
@@ -335,15 +345,19 @@ export function computeCombatantAc(
       }
     }
   }
-  let ac = 10 + armorBonus;
-  ac += dexCap === null ? dex : Math.min(dex, dexCap);
+  // 护甲在战斗背包内实际存在时视为「已着装」，禁用无甲防御公式
+  const wearingArmor = !!(character.wornArmorId && inventory.find(e => (e.childId || e.id) === character.wornArmorId));
+  const unarmoredAc = wearingArmor ? null : resolveUnarmoredAc(character, false, shieldHeld);
+  let ac: number;
+  if (unarmoredAc !== null) {
+    ac = unarmoredAc;
+  } else {
+    ac = 10 + armorBonus;
+    ac += dexCap === null ? dex : Math.min(dex, dexCap);
+  }
 
-  // 手持盾牌（必须在战斗背包；读参战者战斗层手持——进战时从角色卡备战槽初始化）
-  const heldIds = [
-    combatant.heldLeft?.equipmentId,
-    combatant.heldRight?.equipmentId,
-  ].filter(Boolean) as string[];
-  for (const hid of heldIds) {
+  // 手持盾牌加成（必须在战斗背包；读参战者战斗层手持——进战时从角色卡备战槽初始化）
+  for (const hid of heldIdsForAc) {
     const eq = inventory.find(e => (e.childId || e.id) === hid);
     if (eq?.subtype === '盾牌') {
       ac += 2 + (eq.magicBonus ?? 0); // 魔法盾牌：+1 盾等在基础 +2 上叠加
