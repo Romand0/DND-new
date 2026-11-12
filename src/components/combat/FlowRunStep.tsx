@@ -341,15 +341,17 @@ export default function FlowRunStep({
   const handleApply = () => {
     const saveResults: any[] = Array.isArray(saveOutput?.results) ? saveOutput.results : [];
     // 豁免成功且未配置半伤时，该目标不应用效果；半伤时仍应用减半后的结果。
-    const isNegated = (targetId: string) => {
+    // 半伤开关跟随效果节点自身 config（apply_effect / scaled_effect output 均携带），
+    // 豁免节点 output 不含此字段——此前误读 saveOutput 导致豁免成功者被整条过滤（HP 未扣）。
+    const isNegated = (targetId: string, halfOnSave: boolean) => {
       const save = saveResults.find(r => r.targetId === targetId);
-      return !!save?.success && !saveOutput?.halfDamageOnSave;
+      return !!save?.success && !halfOnSave;
     };
     const targetResults: FlowCastTargetResult[] = effectOutputs.flatMap(output => {
       const effectResults: any[] = Array.isArray(output?.results) ? output.results : [];
       const halfOnSave = output?.halfDamageOnSave === true;
       return effectResults
-        .filter(r => !r.error && r.effectApplied && !isNegated(r.targetId))
+        .filter(r => !r.error && r.effectApplied && !isNegated(r.targetId, halfOnSave))
         .map(r => ({
           combatantId: r.targetId,
           name: r.targetName,
