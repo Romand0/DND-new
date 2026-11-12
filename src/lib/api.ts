@@ -655,3 +655,17 @@ export async function rejectChangeRequest<T = { id: string }>(id: string, review
     body: JSON.stringify({ reviewNote }),
   });
 }
+
+// ============ 角色全周期日志 ============
+
+/** 查询角色日志（时间倒序分页；玩家仅限自己绑定的角色） */
+export async function fetchCharacterLogs<T = any[]>(
+  characterId: string,
+  category = '',
+  limit = 50,
+  offset = 0
+): Promise<T> {
+  const params = new URLSearchParams({ characterId, limit: String(limit), offset: String(offset) });
+  if (category) params.set('category', category);
+  return apiFetch<T>(`/character-logs?${params.toString()}`, { headers: authHeaders() });
+}

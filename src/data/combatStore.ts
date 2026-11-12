@@ -1,5 +1,6 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent } from '@/types/combat';
 import { scopedKey } from '@/data/campaignScope';
+import { pushCharacterLog } from '@/lib/characterLog';
 import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
 import type { CastStepLog } from '@/types/castStep';
 import { characterStore } from './characterStore';
@@ -771,6 +772,16 @@ const combatStore = {
     const prev = record.lastSpellCasts?.[combatantId] ?? [];
     const next = [spellId, ...prev.filter((id) => id !== spellId)].slice(0, 10);
     this.update(recordId, { lastSpellCasts: { ...(record.lastSpellCasts ?? {}), [combatantId]: next } });
+    // 全周期日志：施法记录（PC 角色卡；NPC 无卡不入日志）
+    const caster = record.combatants.find(c => c.id === combatantId);
+    if (caster?.characterId) {
+      pushCharacterLog(caster.characterId, {
+        category: 'spell',
+        kind: 'spell_cast',
+        title: `施放「${spellId}」`,
+        source: 'battle',
+      });
+    }
   },
 
   /**

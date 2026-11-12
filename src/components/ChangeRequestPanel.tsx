@@ -9,6 +9,7 @@ import type { CharacterDiffRow } from '@/types/changeRequest';
 import { fetchChangeRequests, approveChangeRequest, rejectChangeRequest } from '@/lib/api';
 import { characterStore } from '@/data/characterStore';
 import { diffCharacter, summarizeDiff } from '@/lib/characterDiff';
+import { logChangeRequestApplied } from '@/lib/characterLog';
 
 export default function ChangeRequestPanel({ characters, onChanged }: {
   characters: Character[];
@@ -59,6 +60,11 @@ export default function ChangeRequestPanel({ characters, onChanged }: {
       const res = await approveChangeRequest(req.id);
       // 快照同步本地桶（后端已写云端；store.update 的再次上云为幂等冗余，保证双端一致最简路径）
       if (res.character) characterStore.update(res.character.id, res.character);
+      // 全周期日志：diff 行按领域聚合入库（正式卡基准用批准前的本地卡）
+      const baseBefore = getBaseCard(req);
+      if (baseBefore) {
+        logChangeRequestApplied(req.characterId, diffCharacter(baseBefore, req.payload));
+      }
       setSelected(null);
       await loadRequests();
       onChanged();

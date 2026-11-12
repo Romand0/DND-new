@@ -13,6 +13,7 @@ import type {
   Currency,
 } from '@/types/character';
 import { scopedKey } from '@/data/campaignScope';
+import { pushCharacterLog } from '@/lib/characterLog';
 import { globalStatusManager } from './statusManager';
 import { getAvailableSubclasses, canChooseSubclass, getSubclassDisplayName } from './subclasses';
 import * as api from '@/lib/api';
@@ -334,6 +335,12 @@ function commitDraftSession(characterId: string): Character | null {
 function discardDraftSession(characterId: string): void {
   draftSessions.delete(characterId);
   localStorage.removeItem(draftStorageKey(characterId));
+}
+
+/** 全周期日志埋点统一入口：草稿会话存活期间跳过（玩家草稿不入库，批准入库走 cr_applied 聚合） */
+function logStoreChange(charId: string, entry: Parameters<typeof pushCharacterLog>[1]): void {
+  if (draftSessions.has(charId)) return;
+  pushCharacterLog(charId, entry);
 }
 
 function getCharacter(charId: string): Character | null {
@@ -722,7 +729,46 @@ function updateCharacter(charId: string, updatedData: Partial<Character>): Chara
   const char = getCharacter(charId);
   if (!char) return null;
   const updated = { ...char, ...updatedData, updatedAt: Date.now() };
-  return saveCharacter(updated);
+  const result = saveCharacter(updated);
+  // 全周期日志埋点：重点领域字段 diff（草稿会话内 saveCharacter 已旁路，此处检测的是直接 update 路径）
+  const curLabels: Record<string, string> = { cp: '铜币', sp: '银币', ep: '电子币', gp: '金币', pp: '铂币' };
+  if (updatedData.currency) {
+    const deltas: string[] = [];
+    for (const k of ['cp', 'sp', 'ep', 'gp', 'pp'] as const) {
+      const before = char.currency?.[k] ?? 0;
+      const after = updated.currency?.[k] ?? 0;
+      if (before !== after) deltas.push(`${curLabels[k]} ${before} → ${after}（${after - before > 0 ? '+' : ''}${after - before}）`);
+    }
+    if (deltas.length > 0) {
+      logStoreChange(charId, {
+        category: 'item',
+        kind: 'currency',
+        title: `钱币变更：${deltas.join('，')}`,
+        detail: JSON.stringify({ from: char.currency, to: updated.currency }),
+        source: 'store',
+      });
+    }
+  }
+  if (typeof updatedData.experience === 'number' && updatedData.experience !== char.experience) {
+    logStoreChange(charId, {
+      category: 'growth',
+      kind: 'exp_change',
+      title: `经验值 ${char.experience ?? 0} → ${updatedData.experience}（${updatedData.experience - (char.experience ?? 0) > 0 ? '+' : ''}${updatedData.experience - (char.experience ?? 0)}）`,
+      detail: JSON.stringify({ from: char.experience, to: updatedData.experience, level: updated.level ?? char.level }),
+      source: 'store',
+    });
+  }
+  if (typeof updatedData.level === 'number' && updatedData.level !== char.level) {
+    const up = (updatedData.level ?? 0) > (char.level ?? 0);
+    logStoreChange(charId, {
+      category: 'growth',
+      kind: 'level_up',
+      title: `等级 ${char.level ?? 0} → ${updatedData.level}${up ? '（升级）' : '（调整）'}`,
+      detail: JSON.stringify({ from: char.level, to: updatedData.level }),
+      source: 'store',
+    });
+  }
+  return result;
 }
 
 /**
@@ -948,6 +994,13 @@ function addEquipment(charId: string, equipData: Partial<Equipment>): Equipment 
 
   char.equipment.push(newEquip);
   saveCharacter(char as Character);
+  logStoreChange(charId, {
+    category: 'item',
+    kind: 'item_acquire',
+    title: `获得 ${newEquip.name} ×${newEquip.quantity}`,
+    detail: JSON.stringify({ childId, id: newEquip.id }),
+    source: 'store',
+  });
   return newEquip;
 }
 
@@ -960,8 +1013,20 @@ function updateEquipment(charId: string, equipId: string, updatedData: Partial<E
     (e) => e.childId === equipId || e.id === equipId
   );
   if (index === -1) return null;
+  const before = char.equipment[index];
   char.equipment[index] = { ...char.equipment[index], ...updatedData };
   saveCharacter(char as Character);
+  // 重点领域埋点：仅数量变化记日志（编辑器改名称等字段属噪音，不入全周期日志）
+  if (typeof updatedData.quantity === 'number' && before.quantity !== updatedData.quantity) {
+    const delta = updatedData.quantity - (before.quantity || 0);
+    logStoreChange(charId, {
+      category: 'item',
+      kind: 'item_qty',
+      title: `${before.name} ×${before.quantity || 0} → ×${updatedData.quantity}（${delta > 0 ? '+' : ''}${delta}）`,
+      detail: JSON.stringify({ childId: before.childId, id: before.id, from: before.quantity, to: updatedData.quantity }),
+      source: 'store',
+    });
+  }
   return char.equipment[index];
 }
 
@@ -992,6 +1057,13 @@ function deleteEquipment(charId: string, equipId: string): void {
   }
   char.equipment.splice(index, 1);
   saveCharacter(char as Character);
+  logStoreChange(charId, {
+    category: 'item',
+    kind: 'item_remove',
+    title: `移除 ${removed.name} ×${removed.quantity || 1}`,
+    detail: JSON.stringify({ childId: removed.childId, id: removed.id }),
+    source: 'store',
+  });
 }
 
 
@@ -1025,14 +1097,29 @@ function addCantrip(charId: string, cantripName: string): string[] | null {
   if (!char) return null;
   char.spells.cantrips.push(cantripName);
   saveCharacter(char as Character);
+  logStoreChange(charId, {
+    category: 'spell',
+    kind: 'spell_learn',
+    title: `学得戏法「${cantripName}」`,
+    source: 'store',
+  });
   return char.spells.cantrips;
 }
 
 function removeCantrip(charId: string, index: number): void {
   const char = getCharacter(charId);
   if (!char) return;
+  const removed = char.spells.cantrips[index];
   char.spells.cantrips.splice(index, 1);
   saveCharacter(char as Character);
+  if (removed) {
+    logStoreChange(charId, {
+      category: 'spell',
+      kind: 'spell_learn',
+      title: `移除戏法「${removed}」`,
+      source: 'store',
+    });
+  }
 }
 
 // ---------- 自定义法术 (Custom Spells) ----------
@@ -1041,14 +1128,29 @@ function addCustomSpell(charId: string, spellName: string): string[] | null {
   if (!char) return null;
   char.spells.custom.push(spellName);
   saveCharacter(char as Character);
+  logStoreChange(charId, {
+    category: 'spell',
+    kind: 'spell_learn',
+    title: `学得法术「${spellName}」`,
+    source: 'store',
+  });
   return char.spells.custom;
 }
 
 function removeCustomSpell(charId: string, index: number): void {
   const char = getCharacter(charId);
   if (!char) return;
+  const removed = char.spells.custom[index];
   char.spells.custom.splice(index, 1);
   saveCharacter(char as Character);
+  if (removed) {
+    logStoreChange(charId, {
+      category: 'spell',
+      kind: 'spell_learn',
+      title: `移除法术「${removed}」`,
+      source: 'store',
+    });
+  }
 }
 
 // ---------- 法术位 (Spell Slots) ----------
@@ -1056,8 +1158,20 @@ function updateSpellSlots(charId: string, levelKey: SpellSlotLevel, slotData: { 
   const char = getCharacter(charId);
   if (!char) return null;
   if (!char.spells.spellSlots[levelKey]) return null;
+  const before = char.spells.spellSlots[levelKey];
   char.spells.spellSlots[levelKey] = { ...char.spells.spellSlots[levelKey], ...slotData };
   saveCharacter(char as Character);
+  const lvNum = parseInt(levelKey.replace('level', ''), 10) || 0;
+  const after = char.spells.spellSlots[levelKey];
+  if (before.used !== after.used || before.max !== after.max) {
+    logStoreChange(charId, {
+      category: 'spell',
+      kind: 'slot_change',
+      title: `${lvNum}环法术位 ${before.used}/${before.max} → ${after.used}/${after.max}`,
+      detail: JSON.stringify({ levelKey, from: before, to: after }),
+      source: 'store',
+    });
+  }
   return char.spells.spellSlots[levelKey];
 }
 
@@ -2075,7 +2189,19 @@ function resetSpellSlots(charId: string): void {
     ensureSlot(('level' + (config.slotLevel || 1)) as SpellSlotLevel, config.slots[0] || 0);
   }
 
+  const resetSummary = Object.entries(char.spells.spellSlots)
+    .filter(([, s]: any) => s.used > 0)
+    .map(([k, s]: any) => `${parseInt(k.replace('level', ''), 10) || k}环`)
+    .join('、');
   saveCharacter(char as Character);
+  if (resetSummary) {
+    logStoreChange(charId, {
+      category: 'spell',
+      kind: 'slot_reset',
+      title: `法术位重置（长休/重置）：${resetSummary} 恢复`,
+      source: 'store',
+    });
+  }
 }
 
 function shouldShowSpellSlots(char: Character): boolean {
