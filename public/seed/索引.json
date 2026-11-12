@@ -1,7 +1,7 @@
 {
-  "version": "2026-11-11.3",
+  "version": "2026-11-11.4",
   "generatedAt": "2026-11-11",
-  "versionNote": "职业选项体系 system/systemKind 与嵌套 options",
+  "versionNote": "职业选项体系 system/systemKind 与嵌套 options；种族特质文本剥句首标点",
   "kinds": {
     "equipments": {
       "label": "装备库",
@@ -256,8 +256,8 @@
           "group": "种族",
           "path": "玩家手册2014/角色选项/种族.json",
           "count": 9,
-          "bytes": 95917,
-          "gzip": 18064
+          "bytes": 98575,
+          "gzip": 17722
         }
       ]
     }

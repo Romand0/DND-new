@@ -174,6 +174,22 @@ for (const raw of monsters) {
 
 // ---------- 角色选项 ----------
 // 快照来自 ?scope=all，条目为扁平形状（每行一个 category）。还原为嵌套：种族含亚种、职业含子职业。
+
+// 快照行里的特质文本可能携带上一句遗留的句末标点（如 D1 早期导入的种族特质「。你的魅力加2」），
+// 提取器本身会剥（extract-options L426），这里在种子落盘前兜底剥一次，保证种子文本干净
+const LEADING_PUNCT_RE = /^[。、：；\s]+/;
+function cleanTraitTexts(obj) {
+  if (!obj || typeof obj !== 'object') return;
+  for (const [k, v] of Object.entries(obj)) {
+    if (k === 'text' && typeof v === 'string' && obj.name) {
+      const cleaned = v.replace(LEADING_PUNCT_RE, '');
+      if (cleaned) obj[k] = cleaned;
+    } else if (v && typeof v === 'object') {
+      cleanTraitTexts(v);
+    }
+  }
+}
+
 function buildOptionsTree(rows) {
   const races = [];
   const classes = [];
@@ -190,6 +206,7 @@ function buildOptionsTree(rows) {
     }
     const source = normalizeSource(raw.source);
     const item = { ...raw, source, campaignId: null };
+    cleanTraitTexts(item);
     if (raw.category === 'subrace') {
       const parent = raw.parentName || '';
       if (!subracesByParent.has(parent)) subracesByParent.set(parent, []);
