@@ -188,3 +188,12 @@
   - 种子 traits 的 level 标注要求正文含「第X级时/起」（标注脚本 LEVEL_RE）；裸「第X级」引用（如术法起源提第18级）不标注，显示层文本解析兜底必须复刻同款锚定正则
   - mergeBaseline 语义：仓库种子是唯一事实源——只有带 seedId 的显式覆盖行（saveItem 生成）云端赢；无 seedId 但 id 命中种子的 D1 整库回流行是旧快照残留，种子赢（否则旧快照行覆盖新种子，选项库/刷新全读旧数据）
   - 种子分片 URL 带版本戳 ?v=<索引版本> 且索引 fetch 用 cache:'no-cache'；索引被浏览器启发式缓存住时版本号读旧的，页面刷新也不重拉分片（选项库显示旧数据的根因之一）
+
+[Project Knowledge Summary]
+- Date: 2026-11-13
+- Context: Discovered by Agent while debugging E2E probe false-failure (second dummy spawn appeared to skip combatStore.update)
+- Category: Troubleshooting & Debugging
+- Instructions:
+  - 边改代码边跑 Playwright E2E 时，Vite HMR 会让页面模块图带 ?t= 时间戳，evaluate 动态 import('/src/xxx.ts') 拿到另一个模块实例——hook 替换 store 方法、读模块级状态都会与页面不一致，表现为「函数执行了但 hook 零调用/写入丢失」；重跑 E2E 前冷重启 dev server 可排除
+  - probe 假失败排查顺序：先最小化复现（去掉 hook/多余步骤）再冷重启 dev server 复测，区分真实 bug 与 HMR 污染
+  - 试验场探针（/tmp/opencode/probe-sandbox.js）：试验场入口 button[title*="沙盒试验场"]；setRulebookScope 必须在 goto /combat 之后 evaluate（SPA 内存变量，整页刷新丢失）；种子职业 id=cletic/monk/wizard；职业表 slots keys「1环」..「9环」需映射 levelN；无甲防御=10+敏+感知（武僧），别预期体质
