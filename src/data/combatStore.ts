@@ -814,7 +814,8 @@ const combatStore = {
       ? (record.combatants[idx].actions as number)
       : 1;
     let next = Math.max(0, cur - 1);
-    if (mode === 'simulation' && next === 0) next = 1;
+    // 资源消耗模式：试验场内也按正式规则扣减（模拟环境不回 1）
+    if (mode === 'simulation' && !record.resourceConsumption && next === 0) next = 1;
     record.combatants[idx] = { ...record.combatants[idx], actions: next };
     record.updatedAt = Date.now();
     save(records);
@@ -836,7 +837,8 @@ const combatStore = {
       ? (record.combatants[idx].bonusActions as number)
       : 1;
     let next = Math.max(0, cur - 1);
-    if (mode === 'simulation' && next === 0) next = 1;
+    // 资源消耗模式：试验场内也按正式规则扣减（模拟环境不回 1）
+    if (mode === 'simulation' && !record.resourceConsumption && next === 0) next = 1;
     record.combatants[idx] = { ...record.combatants[idx], bonusActions: next };
     record.updatedAt = Date.now();
     save(records);
@@ -869,9 +871,11 @@ const combatStore = {
    */
   consumeMovement(recordId: string, combatantId: string, distanceFeet: number, mode: 'simulation' | 'playback', playbackActive: boolean): number {
     if (distanceFeet <= 0) return 0;
-    // 模拟模式 / 放映暂停：不扣减，返回全部距离
-    if (mode !== 'playback' || !playbackActive) return distanceFeet;
     const records = load();
+    // 资源消耗模式：试验场内也按正式规则扣减移动力
+    const enforce = !!records.find(r => r.id === recordId)?.resourceConsumption;
+    // 模拟模式 / 放映暂停：不扣减，返回全部距离
+    if (!enforce && (mode !== 'playback' || !playbackActive)) return distanceFeet;
     const record = records.find(r => r.id === recordId);
     if (!record) return distanceFeet;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
@@ -897,7 +901,8 @@ const combatStore = {
    */
   refundMovement(recordId: string, combatantId: string, feet: number, mode: 'simulation' | 'playback', playbackActive: boolean): void {
     if (feet <= 0) return;
-    if (mode !== 'playback' || !playbackActive) return;
+    const enforce = !!load().find(r => r.id === recordId)?.resourceConsumption;
+    if (!enforce && (mode !== 'playback' || !playbackActive)) return;
     const records = load();
     const record = records.find(r => r.id === recordId);
     if (!record) return;
@@ -915,9 +920,10 @@ const combatStore = {
    * 模拟模式 / 放映暂停 / 未设置 speed 时，返回可用移动力 (speed + speedModifier + dashExtraMovement)；
    * 否则返回 Math.max(0, battleSpeed + dashExtraMovement - movementUsed)。
    */
-  getRemainingMovement(combatant: Combatant, mode?: 'simulation' | 'playback', playbackActive?: boolean): number {
+  /** 查询参战者剩余移动力；enforceConsumption=true（试验场资源消耗模式）时模拟环境也扣减显示 */
+  getRemainingMovement(combatant: Combatant, mode?: 'simulation' | 'playback', playbackActive?: boolean, enforceConsumption?: boolean): number {
     const availableMovement = (combatant.speed ?? 0) + (combatant.speedModifier ?? 0) + (combatant.dashExtraMovement ?? 0);
-    if (!mode || mode === 'simulation' || !playbackActive) return availableMovement;
+    if (!enforceConsumption && (!mode || mode === 'simulation' || !playbackActive)) return availableMovement;
     return Math.max(0, availableMovement - (combatant.movementUsed ?? 0));
   },
 

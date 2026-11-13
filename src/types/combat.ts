@@ -492,6 +492,8 @@ export interface CombatRecord {
   mode?: 'simulation' | 'playback';
   /** 试验场标记：沙盒测试会话（入口一键进入、人偶快速生成、全库调用、仪表盘） */
   isProvingGround?: boolean;
+  /** 试验场资源消耗模式：开启后动作/移动/弹药/重装填/法术位按正式战斗规则消耗（默认关闭=无限） */
+  resourceConsumption?: boolean;
   /** 回合待办列表（放映模式专用） */
   turnTodos?: TurnTodo[];
   /** 战斗事件流（最近 50 条）：公开信息，随 delta 广播驱动玩家端摘要与动画 */

@@ -22,19 +22,22 @@ export function useActions(record: CombatRecord | null, { playbackStarted, playb
   const isPlaybackActive = (): boolean =>
     currentMode() === 'playback' && playbackStarted && !playbackPaused && !!currentTurn;
 
+  // 消耗是否生效：放映进行中，或试验场开启资源消耗模式
+  const isConsumptionActive = (): boolean => !!record?.resourceConsumption || isPlaybackActive();
+
   // 死亡/昏迷/失能一律禁止；其余：模拟模式/放映暂停恒可，放映模式 0 时禁止
   const canUseAction = (combatantId: string): boolean => {
     if (!record) return false;
     const c = record.combatants.find(x => x.id === combatantId);
     if (!c || c.isDead || c.isUnconscious || c.isIncapacitated) return false;
-    if (!isPlaybackActive()) return true;
+    if (!isConsumptionActive()) return true;
     return (typeof c.actions === 'number' ? c.actions : 1) > 0;
   };
 
   // 消耗 1 个动作（写入 store，订阅机制自动刷新 UI）；暂停期间不消耗
   const consumeCombatantAction = (combatantId: string) => {
     if (!record) return;
-    if (!isPlaybackActive()) return;
+    if (!isConsumptionActive()) return;
     combatStore.consumeAction(record.id, combatantId, 'playback');
   };
 
@@ -43,14 +46,14 @@ export function useActions(record: CombatRecord | null, { playbackStarted, playb
     if (!record) return false;
     const c = record.combatants.find(x => x.id === combatantId);
     if (!c || c.isDead || c.isUnconscious || c.isIncapacitated) return false;
-    if (!isPlaybackActive()) return true;
+    if (!isConsumptionActive()) return true;
     return (typeof c.bonusActions === 'number' ? c.bonusActions : 1) > 0;
   };
 
   // 消耗 1 个附赠动作（写入 store，订阅机制自动刷新 UI）；暂停期间不消耗
   const consumeCombatantBonusAction = (combatantId: string) => {
     if (!record) return;
-    if (!isPlaybackActive()) return;
+    if (!isConsumptionActive()) return;
     combatStore.consumeBonusAction(record.id, combatantId, 'playback');
   };
 
