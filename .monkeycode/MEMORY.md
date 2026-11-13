@@ -1,16 +1,21 @@
 
 [Project Knowledge Summary]
-- Date: 2026-10-17
-- Context: Discovered by Agent while performing CombatSession P2-2 refactor verification
+- Date: 2026-11-13
+- Context: Build Methods 汇总（CombatSession 重构验证 / CF Functions 部署失败排查 / 借机攻击实现期 TS 收窄坑）
 - Category: Build Methods
 - Instructions:
   - 本仓库 tsconfig.json 是 solution-style（只有 references），`npx tsc --noEmit` 实际不检查任何源文件，会假通过
-  - 真正的类型门禁是 `tsc -b`（npm run build 的一部分）或 `npx tsc -b --force`（全量重查，绕过增量缓存）
+  - 真正的类型门禁是 `tsc -b`（npm run build 的一部分）或 `npx tsc -b --force`（全量重查，绕过增量缓存）；快捷复查单文件域用 `npx tsc -p tsconfig.app.json --noEmit`
   - 改动共享类型/被 import 的文件后，务必用 `tsc -b --force` 验证，增量缓存会掩盖下游文件的类型错误
+  - TS 6.0.3 + tsconfig `strict:false` 下，判别式联合的取反真值收窄失效（`if (!x.ok)` 与 `if (x.ok) {} else {}` 的 else 分支都不收窄，TS2339）；可用的收窄写法：`x.ok === false` 显式比较或 `'key' in x`
+  - functions/ 相对导入 _utils 的层数 = 该文件在 functions/api/ 下的目录深度：api/xxx.ts 用 ../_utils，api/xxx/yyy.ts 用 ../../_utils，嵌套 [param]/sub/index.ts 需逐层累加（曾因少算一层导致 CF 部署失败，本地 tsc 不查 functions/）
+  - 改动 functions/ 后提交前的全量校验必须加 --bundle（esbuild 默认 transform 模式不解析 import，相对路径写错照样通过）：for f in $(find functions -name '*.ts'); do npx esbuild "$f" --bundle --packages=external --loader:.ts=ts --format=esm --outfile=/dev/null; done，ALL-OK 才推送
+  - 层数速查：functions/api/xxx.ts 用 ../_utils；functions/api/xxx/yyy.ts 用 ../../_utils；functions/api/xxx/[p]/index.ts 用 ../../../_utils；functions/api/xxx/[p]/sub/index.ts 用 ../../../../_utils（从文件所在目录数到 functions/ 根）
+  - wrangler.toml 缺 pages_build_output_dir 的警告无害（Pages 走 dashboard 构建配置），真正阻塞部署的是 Functions 打包错误
 
 [Project Knowledge Summary]
 - Date: 2026-10-24
-- Context: Discovered by Agent while reproducing cast-button bug with headless browser
+- Context: Discovered by Agent while reproducing cast-button bug and building proving ground weapon presets with headless browser
 - Category: Troubleshooting & Debugging
 - Instructions:
   - 本地全栈复现环境：`npx wrangler pages dev dist --port 8788`（先 npm run build；.dev.vars 提供 JWT_SECRET/DM_TOKEN）；改 functions/ 后端代码需重启 wrangler 终端
@@ -19,13 +24,6 @@
   - 无头浏览器验证：playwright 全局安装（NODE_PATH=$(npm root -g) node xxx.js），chromium 需 `npx playwright install chromium --with-deps`（版本随发布变化，用 ls /root/.cache/ms-playwright/ 确认目录名）；launch 加 --no-sandbox；每次新 browser context localStorage 独立，需重新注入登录态/数据
   - 试验场无头复现路径：/combat 点「试验场」→「敌对人偶」→ 点按钮「试验体·敌N」（芯片本身就是 button）→ 点沙盘(160,585) 放置 → 双击(160,585) 打开信息面板 →「操作」tab；模拟模式无参战者表格（放映模式才渲染 InitiativeTable）
   - 排查 UI 不可点 bug 先核对组件实例接线：同一弹窗组件可能被多处挂载（CombatSession IIFE 面板 vs Battleground 双击面板），回调 prop 漏传一处即该路径全灰
-
-[Project Knowledge Summary]
-- Date: 2026-10-24
-- Context: Discovered by Agent while building proving ground weapon presets and debugging attack modal
-
-- Category: Troubleshooting & Debugging
-- Instructions:
   - NpcAttack.normalRange / maxRange 单位是英尺（parseWeaponData 从「弹药(150/600尺)」解析），CombatAttackModal.getRangeInfo 直接当 feet 用；近战武器（徒手/长剑）不要传 normalRange，否则 isRangedWeapon 误判为远程、近战射程段被吞、显示「不在射程内」
   - CombatAttackModal 攻击列表来源：character?.attacks 非空才用，否则回落 attacker.attacks——影子卡 attacks 恒为空，武器条目在 combatant.attacks 上
   - 徒手击打已豁免「未手持/手部不可用」检查（CombatAttackModal getAttackStatus）
@@ -49,19 +47,13 @@
 
 [Project Knowledge Summary]
 - Date: 2026-10-25
-- Context: Discovered by Agent while E2E testing playback-mode flow cast (combatantTurn expiry) in proving ground
+- Context: Discovered by Agent while E2E testing playback-mode flow cast, target picker and concentration-status linkage (proving ground)
 - Category: Troubleshooting & Debugging
 - Instructions:
   - 放映模式开始放映链：切「放映模式」按钮 → 点先攻表格格子 ▶ 按钮 → 突袭弹窗（「确定（0）」全角括号）→ 当前回合横幅出现
   - InfoPanel 关闭必须点标题栏的第一个 svg.lucide-x；状态条目的删除 X 是面板内最后一个 lucide-x，用 .last() 会误删状态
   - 流程施放两段式：法术弹窗选法术 →「执行流程」（跑节点）→「确认应用」（onFlowResolved 落地状态）
   - 棋子定位用 [title*="参战者名"]（格子 title=名字）；施法会消耗动作（ACT 0），新回合自动恢复
-
-[Project Knowledge Summary]
-- Date: 2026-10-25
-- Context: Discovered by Agent while E2E testing flow-stage target picker and concentration-status linkage (protection from energy)
-- Category: Troubleshooting & Debugging
-- Instructions:
   - InfoPanel 打开后默认停在「快捷」tab；专注卡片与 StatusAttachPanel（状态清单/附加表单）在「状态」tab，E2E 找状态相关按钮前先点「状态」tab
   - 状态断言必须收窄到 InfoPanel 内文（div.fixed.inset-0.z-50.last() 的 innerText）：整页 innerText 会被战斗日志历史行与 StatusAttachPanel 附加表单的静态「抗性/免疫/易伤」按钮文案污染，产生假阳/假阴
   - 放映模式开参战者面板：列表卡片 button[title*="参战者详情"]（hasText 过滤名字）比沙盘格双击稳（双击第二次点击可能落在弹出的遮罩上把它关掉）
@@ -147,10 +139,7 @@
 - Context: Discovered by Agent after Cloudflare Pages deploy failed on Functions bundling (campaign deep endpoints)
 - Category: Build Methods
 - Instructions:
-  - functions/ 相对导入 _utils 的层数 = 该文件在 functions/api/ 下的目录深度：api/xxx.ts 用 ../_utils，api/xxx/yyy.ts 用 ../../_utils，嵌套 [param]/sub/index.ts 需逐层累加（曾因少算一层导致 CF 部署失败，本地 tsc 不查 functions/）
-  - 改动 functions/ 后提交前的全量校验必须加 --bundle（esbuild 默认 transform 模式不解析 import，相对路径写错照样通过）：for f in $(find functions -name '*.ts'); do npx esbuild "$f" --bundle --packages=external --loader:.ts=ts --format=esm --outfile=/dev/null; done，ALL-OK 才推送
-  - 层数速查：functions/api/xxx.ts 用 ../_utils；functions/api/xxx/yyy.ts 用 ../../_utils；functions/api/xxx/[p]/index.ts 用 ../../../_utils；functions/api/xxx/[p]/sub/index.ts 用 ../../../../_utils（从文件所在目录数到 functions/ 根）
-   - wrangler.toml 缺 pages_build_output_dir 的警告无害（Pages 走 dashboard 构建配置），真正阻塞部署的是 Functions 打包错误
+  - （已并入上方 Build Methods 汇总条目）
 
 [User Instruction Summary]
 - Date: 2026-11-04
@@ -197,3 +186,7 @@
   - 边改代码边跑 Playwright E2E 时，Vite HMR 会让页面模块图带 ?t= 时间戳，evaluate 动态 import('/src/xxx.ts') 拿到另一个模块实例——hook 替换 store 方法、读模块级状态都会与页面不一致，表现为「函数执行了但 hook 零调用/写入丢失」；重跑 E2E 前冷重启 dev server 可排除
   - probe 假失败排查顺序：先最小化复现（去掉 hook/多余步骤）再冷重启 dev server 复测，区分真实 bug 与 HMR 污染
   - 试验场探针（/tmp/opencode/probe-sandbox.js）：试验场入口 button[title*="沙盒试验场"]；setRulebookScope 必须在 goto /combat 之后 evaluate（SPA 内存变量，整页刷新丢失）；种子职业 id=cletic/monk/wizard；职业表 slots keys「1环」..「9环」需映射 levelN；无甲防御=10+敏+感知（武僧），别预期体质
+  - 点「沙盒试验场」进入会重置试验场 CombatRecord（combatants 清空、mode 回 simulation）——用 store 直接注入参战者/token 的探针必须在进入试验场之后再注入
+  - InitiativeTable（含参战者徽标：专注/激励/借机⚡）只在放映模式渲染，模拟模式是 OperationLogPanel；E2E 测徽标前先 combatStore.update(rec.id, { mode: 'playback' })
+  - CombatAttackModal 关闭 = 点背景遮罩（div.fixed.inset-0.z-50 的 onClick=onClose）或面板头第一个 X 按钮；无 Escape 监听；弹窗内嵌 CombatDamageModal 同样遮罩类名，用 .last() 取最上层
+  - 沙盘移动棋子的可靠 E2E 路径 = 点棋子格选中 → 点目标空格（两段 click），白圈长按拖拽是攻击/拾取语义，模拟移动容易落空
