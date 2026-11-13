@@ -1,4 +1,4 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent, ReactionOpportunity } from '@/types/combat';
 import { scopedKey } from '@/data/campaignScope';
 import { pushCharacterLog } from '@/lib/characterLog';
 import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
@@ -857,7 +857,7 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0 };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0, reactionUsed: false };
     record.updatedAt = Date.now();
     save(records);
     this.syncCombatantStatusFlags(recordId, combatantId);
@@ -1596,6 +1596,76 @@ const combatStore = {
     const next = list.filter(s => s.expireRound === -1 || s.expireRound >= currentRound);
     if (next.length === list.length) return;
     record.combatants[idx] = { ...combatant, pendingAdvantageSources: next };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 批量写入未决反应机会（借机攻击窗口触发时调用；机会挂在持有者身上；返回写入的完整实例含 id） */
+  addPendingReactions(recordId: string, ownerId: string, opps: Omit<ReactionOpportunity, 'id' | 'consumed' | 'round'>[], round: number): ReactionOpportunity[] {
+    if (!opps || opps.length === 0) return;
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === ownerId);
+    if (idx === -1) return;
+    const owner = record.combatants[idx];
+    const fulls: ReactionOpportunity[] = opps.map(o => ({
+      ...o,
+      round,
+      id: crypto.randomUUID(),
+      consumed: false,
+    }));
+    record.combatants[idx] = {
+      ...owner,
+      pendingReactions: [...(owner.pendingReactions || []), ...fulls],
+    };
+    record.updatedAt = Date.now();
+    save(records);
+    return fulls;
+  },
+
+  /** 消费一条反应机会（攻击确认 = 用掉反应；放弃 = 仅作废机会） */
+  consumePendingReaction(recordId: string, ownerId: string, oppId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === ownerId);
+    if (idx === -1) return;
+    const owner = record.combatants[idx];
+    const list = owner.pendingReactions || [];
+    const next = list.map(o => (o.id === oppId && !o.consumed ? { ...o, consumed: true } : o));
+    if (next === list) return;
+    record.combatants[idx] = { ...owner, pendingReactions: next };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 消耗反应（借机攻击行使时置 reactionUsed=true；每回合 1 次） */
+  consumeReaction(recordId: string, combatantId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return;
+    record.combatants[idx] = { ...record.combatants[idx], reactionUsed: true };
+    record.updatedAt = Date.now();
+    save(records);
+  },
+
+  /** 跨回合清理未决反应机会：进入新回合时，所有产生于更早回合的机会作废（同回合内保留慢慢处理） */
+  clearExpiredReactions(recordId: string, currentRound: number): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return;
+    let changed = false;
+    const nextCombatants = record.combatants.map(c => {
+      const list = c.pendingReactions || [];
+      const filtered = list.filter(o => o.round >= currentRound);
+      if (filtered.length !== list.length) { changed = true; return { ...c, pendingReactions: filtered }; }
+      return c;
+    });
+    if (!changed) return;
+    record.combatants = nextCombatants;
     record.updatedAt = Date.now();
     save(records);
   },

@@ -74,6 +74,10 @@ interface Props {
   currentRound?: number;
   /** 所有参战者沙盘位置字典（跨参战者距离判定，如协助动作 5 尺内约束） */
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
+  /** 借机攻击模式：标题/文案切换为反应语义，动作消耗由调用方按反应处理 */
+  reactionMode?: boolean;
+  /** 借机攻击模式下：攻击者反应是否已用尽（弹窗内禁用攻击，仅可放弃） */
+  reactionSpent?: boolean;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -81,7 +85,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent }: Props) {
   // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
   const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('attacks');
@@ -745,13 +749,23 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
             )}
             <Swords className="w-5 h-5 text-danger" />
             <span className="font-bold dark:text-text-dark light:text-text-light">
-              {stage === 'attacks' ? '攻击方式' : '攻击检定'}
+              {stage === 'attacks' ? (reactionMode ? '借机攻击（反应）' : '攻击方式') : '攻击检定'}
             </span>
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-white/10">
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {reactionMode && (
+          <div className={`mb-3 px-3 py-2 rounded-lg text-xs border ${reactionSpent
+            ? 'bg-amber-500/10 text-amber-500 border-amber-500/30'
+            : 'bg-primary/10 text-primary border-primary/30'}`}>
+            {reactionSpent
+              ? `${attacker.name} 的反应已用尽（每回合 1 次），只能放弃本次机会`
+              : `借机攻击：${target.name} 离开了 ${attacker.name} 的触及范围。行使将消耗 ${attacker.name} 的本回合反应，放弃则保留反应`}
+          </div>
+        )}
 
         {/* 内容区 */}
         <div className="flex-1 overflow-y-auto p-4">
@@ -881,6 +895,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
                 const hasDisadv = previewAuto.disadvantage.length > 0;
                 const handleEnterRoll = (mode?: UsageMode) => {
                   if (!status.usable) return;
+                  if (reactionMode && reactionSpent) return;
                   setSelectedAttack(attack);
                   setUsageMode(mode ?? null);
                   // 多用武器：自动检测当前是否双手握持

@@ -43,7 +43,8 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
+import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionOpportunity } from '@/types/combat';
+import { detectOpportunityAttacks } from '@/data/reactionRules';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
 import type { PlayerActionRequest } from '@/types/realtime';
 import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords, Pause, PlayCircle, Coins, RotateCcw } from 'lucide-react';
@@ -223,7 +224,14 @@ export default function CombatSession() {
     d20Total: number;
     usageMode?: 'melee' | 'thrown';
     isTwoHandedWield?: boolean;
+    /** 借机攻击路径：伤害确认/关闭后推进反应机会队列 */
+    reactionPending?: boolean;
   } | null>(null);
+  // 借机攻击机会队列：move 触发 → 弹窗逐个处理（确认/放弃/过期）→ 推进
+  const [reactionQueue, setReactionQueue] = useState<ReactionOpportunity[] | null>(null);
+  const [reactionIdx, setReactionIdx] = useState(0);
+  // 伤害结算期间挂起队列（命中确认后等伤害弹窗关闭再展示下一个机会）
+  const [reactionHold, setReactionHold] = useState(false);
   // ✅ 新增：法术施放弹窗（独立交互流程，与攻击检定解耦）
   const [spellModal, setSpellModal] = useState<{
     caster: Combatant;
@@ -481,7 +489,7 @@ export default function CombatSession() {
   };
   const applyPlayerCommit = (request: PlayerActionRequest): { ok: boolean; reason?: string } => {
     if (!record) return { ok: false, reason: '战斗记录不可用' };
-    return applyTurnCommit({
+    const outcome = applyTurnCommit({
       record,
       request,
       currentRound: (currentTurn?.round ?? -1) + 1,
@@ -493,6 +501,11 @@ export default function CombatSession() {
         beginConcentration(combatantId, spellName);
       },
     });
+    // 回合包里的移动触发借机攻击：整包已落库，机会已持久化 → 打开逐个处理队列
+    if (outcome.ok && outcome.reactions?.length) {
+      setReactionQueue(prev => [...(prev || []), ...outcome.reactions!]);
+    }
+    return outcome.ok ? { ok: true } : { ok: false, reason: outcome.reason };
   };
   const { pending: pendingPlayerActions, resolve: resolvePlayerAction } = usePlayerActionInbox(
     combatBroadcast.client,
@@ -1402,6 +1415,14 @@ export default function CombatSession() {
           onOpenInfoPanel={setInfoPanelCombatant}
           onRemoveCombatant={handleRemoveCombatant}
           onOpenSurpriseAttack={openSurpriseAttackModal}
+          onOpenReactions={(c) => {
+            // ⚡ 徽标重开：取该参战者全部未决机会重新入队（含跨触发累积的）
+            if (!record.id) return;
+            const open = (c.pendingReactions || []).filter(o => !o.consumed);
+            if (open.length === 0) return;
+            setReactionQueue(open);
+            setReactionIdx(0);
+          }}
           selectedCell={selectedCell}
           onSelectCell={setSelectedCell}
           editingCell={editingCell}
@@ -1475,12 +1496,20 @@ export default function CombatSession() {
         onSelectionChange={(id) => {
           setSandboxSelectedId(id);
         }}
-        onTokenMoved={(combatantId, pos) => {
+        onTokenMoved={(combatantId, pos, from) => {
           // 进入地形区域（着火等）→ 立即结算：油瓶规则「进入区域即受伤」
           const round = record.mode === 'playback'
             ? (isPlaybackActive() ? (currentTurn?.round ?? 0) : Math.max(0, record.rounds.length - 1))
             : 0;
           handleTokenMoved(combatantId, pos, round);
+          // 借机攻击（DM 直操移动）：离开触及范围的瞬时窗口，机会挂在持有者身上
+          if (from && record.id) {
+            const opps = detectOpportunityAttacks(record, combatantId, from, pos);
+            if (opps.length > 0) {
+              const fulls = opps.flatMap(o => combatStore.addPendingReactions(record.id, o.ownerId, [o], round));
+              setReactionQueue(prev => [...(prev || []), ...fulls]);
+            }
+          }
         }}
         onRequestAttack={(attacker, target) => {
           // 动作校验：放映模式可用动作耗尽时禁止发起攻击
@@ -1822,6 +1851,102 @@ export default function CombatSession() {
         />
       )}
 
+      {/* 借机攻击弹窗：机会队列逐个处理。行使=扣反应+消费机会（不扣动作，伤害弹窗关闭后推进队列）；
+          放弃=仅消费机会保留反应次数；机会挂在持有者身上，DM 关闭后可从参战者列表 ⚡ 徽标重开 */}
+      {(() => {
+        if (!reactionQueue || reactionIdx >= reactionQueue.length || reactionHold) return null;
+        const opp = reactionQueue[reactionIdx];
+        const owner = record.combatants.find(c => c.id === opp.ownerId);
+        const mover = record.combatants.find(c => c.id === opp.moverId);
+        // 持有者死亡/昏迷/已不可见 → 机会自动过期（不再弹窗，机会留在身上由清理机制回收）
+        if (!owner || !mover || owner.isDead || owner.isUnconscious || owner.isIncapacitated) return null;
+        const bg = record.id ? battlegroundStore.get(record.id) : null;
+        const ownerPos = bg?.tokens.find(t => t.combatantId === owner.id);
+        return (
+          <CombatAttackModal
+            attacker={owner}
+            target={mover}
+            recordId={record?.id}
+            currentRound={currentTurn?.round}
+            attackerPos={ownerPos ? { col: ownerPos.col, row: ownerPos.row } : undefined}
+            targetPos={opp.fromPos}
+            combatantPositions={combatantPositions}
+            combatInventory={getCombatInventory(record, owner)}
+            targetCharacter={mover.characterId ? characterStore.get(mover.characterId) : null}
+            targetCombatInventory={getCombatInventory(record, mover)}
+            loadedWeapons={record?.loadedWeapons}
+            loadingAttackedThisRound={record?.loadingAttackedThisRound}
+            combatMode={currentMode()}
+            playbackTurnActive={isPlaybackActive()}
+            reactionMode
+            reactionSpent={owner.reactionUsed === true}
+            onLoadedChange={(key, loaded) => {
+              if (!record) return;
+              combatStore.update(record.id, {
+                loadedWeapons: { ...(record.loadedWeapons || {}), [key]: loaded },
+                updatedAt: Date.now(),
+              });
+            }}
+            onClose={() => {
+              // 放弃：机会作废，反应次数保留（5e 可用于其他触发）
+              combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
+              setReactionIdx(i => i + 1);
+            }}
+            onConfirmHit={(attack, info) => {
+              // 行使反应：扣反应次数 + 消费机会（借机攻击不消耗动作）
+              combatStore.consumeReaction(record.id, owner.id);
+              combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
+              combatStore.pushCombatEvent(record.id, {
+                kind: 'attack',
+                round: currentTurn ? currentTurn.round + 1 : 0,
+                actorId: owner.id,
+                targetId: mover.id,
+                ranged: false,
+                hit: true,
+                critical: info.isNatural20,
+                weaponName: attack.name,
+                text: `《${attack.name}》→ ${mover.name}：借机命中`,
+              });
+              setDamageModal({
+                attacker: owner,
+                target: mover,
+                attack,
+                disadvantage: info.disadvantage,
+                isCritical: info.isNatural20,
+                d20Rolled: info.d20Rolled,
+                d20Final: info.d20Final,
+                d20Bonus: info.bonus,
+                d20Total: info.total,
+                usageMode: info.usageMode,
+                isTwoHandedWield: info.isTwoHandedWield,
+                reactionPending: true,
+              });
+              // 队列推进延后到伤害弹窗关闭（reactionHold 期间不渲染下一个机会弹窗）
+              setReactionHold(true);
+              setReactionIdx(i => i + 1);
+            }}
+            onAttackMiss={(missInfo) => {
+              combatStore.consumeReaction(record.id, owner.id);
+              combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
+              const text = `《${missInfo.attackName}》→ ${mover.name}：借机未命中`;
+              combatStore.pushCombatEvent(record.id, {
+                kind: 'attack',
+                round: currentTurn ? currentTurn.round + 1 : 0,
+                actorId: owner.id,
+                targetId: mover.id,
+                ranged: false,
+                hit: false,
+                weaponName: missInfo.attackName,
+                text,
+              });
+              recordOperation(owner.id, text, 'attack');
+              // 借机路径跳过投掷武器掉落：近战触发的投掷使用按近战口径处理，沙盘落点语义不明
+              setReactionIdx(i => i + 1);
+            }}
+          />
+        );
+      })()}
+
       {/* ✅ 新增：伤害结算弹窗 —— 攻击命中后展示 */}
       {damageModal && (
         <CombatDamageModal
@@ -1869,7 +1994,11 @@ export default function CombatSession() {
               }
             }
           }}
-          onClose={() => setDamageModal(null)}
+          onClose={() => {
+            setDamageModal(null);
+            // 借机攻击的伤害已结算 → 释放队列挂起，展示下一个机会（若有）
+            setReactionHold(false);
+          }}
         />
       )}
 

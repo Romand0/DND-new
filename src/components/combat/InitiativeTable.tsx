@@ -1,4 +1,4 @@
-import { X, Play, Pencil, Keyboard, Undo2, Trash2 } from 'lucide-react';
+import { X, Play, Pencil, Keyboard, Undo2, Trash2, Zap } from 'lucide-react';
 import type { Combatant, RoundAction } from '@/types/combat';
 import { renderLogText } from '@/lib/logRichText';
 
@@ -11,6 +11,7 @@ interface Props {
   onOpenInfoPanel: (c: Combatant) => void;
   onRemoveCombatant: (id: string) => void;
   onOpenSurpriseAttack: (round: number) => void;
+  onOpenReactions?: (c: Combatant) => void;
   selectedCell: { round: number; combatantId: string } | null;
   onSelectCell: (cell: { round: number; combatantId: string } | null) => void;
   editingCell: { round: number; combatantId: string } | null;
@@ -28,7 +29,7 @@ interface Props {
 export default function InitiativeTable(props: Props) {
   const {
     combatants, rounds, batchMode, selectedIds,
-    onToggleSelect, onOpenInfoPanel, onRemoveCombatant, onOpenSurpriseAttack,
+    onToggleSelect, onOpenInfoPanel, onRemoveCombatant, onOpenSurpriseAttack, onOpenReactions,
     selectedCell, onSelectCell, editingCell, onSetEditingCell, onCellChange,
     isPlayback, playbackStarted, playbackPaused, currentTurn,
     onStartPlayback, onOpenManualRecord, onOpenRewind,
@@ -105,6 +106,25 @@ export default function InitiativeTable(props: Props) {
                           >
                             激励{dieLabel}
                           </span>
+                        );
+                      })()}
+                      {/* 借机攻击徽标：持有未决反应机会，点击重开处理弹窗 */}
+                      {(() => {
+                        const open = (c.pendingReactions || []).filter(o => !o.consumed);
+                        if (open.length === 0 || !onOpenReactions) return null;
+                        return (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenReactions(c);
+                            }}
+                            className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-amber-500/20 text-amber-500 text-[10px] font-normal hover:bg-amber-500/30 transition-colors cursor-pointer"
+                            title={`${open.length} 个未决借机攻击机会（点击处理）`}
+                          >
+                            <Zap className="w-3 h-3" />
+                            {open.length}
+                          </button>
                         );
                       })()}
                     </span>

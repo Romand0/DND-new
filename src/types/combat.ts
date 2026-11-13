@@ -77,6 +77,23 @@ export interface PassiveChecks {
   investigation: number;
 }
 
+/** 借机攻击机会（反应机制 v1）：移动者离开触及范围的瞬时窗口，跨回合有效直到处理/过期 */
+export interface ReactionOpportunity {
+  id: string;
+  /** 反应持有者（借机攻击的攻击方） */
+  ownerId: string;
+  /** 移动者（离开触及的一方） */
+  moverId: string;
+  type: 'opportunity_attack';
+  /** 触发时移动者起点格（借机攻击的有效攻击距离按此格计算） */
+  fromPos: { col: number; row: number };
+  /** 移动者落点格 */
+  toPos: { col: number; row: number };
+  /** 产生时的放映回合；跨回合推进未处理即过期清除 */
+  round: number;
+  consumed: boolean;
+}
+
 export interface Combatant {
   id: string;
   name: string;
@@ -137,6 +154,10 @@ export interface Combatant {
   passiveChecks?: PassiveChecks;
   /** 黑暗视觉尺数（PC 入战派生：种族/特性条目；undefined = 无黑暗视觉） */
   darkvision?: number;
+  /** 反应是否已用（5e：每个回合 1 个反应，自己回合开始时恢复；undefined 视为未用） */
+  reactionUsed?: boolean;
+  /** 未决反应机会（借机攻击窗口；处理后消费，跨回合推进过期清除） */
+  pendingReactions?: ReactionOpportunity[];
   /** 魔法抗性（Magic Resistance）：对法术及魔法效应的豁免检定具有优势；NpcCreator 从模板特质「魔法抗性」识别 */
   magicResistance?: boolean;
   /** 传奇抗性剩余次数（Legendary Resistance）：豁免失败可改为成功；按 CR÷3 上取整初始化 */

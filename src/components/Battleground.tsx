@@ -68,7 +68,7 @@ interface Props {
   /** 选中参战者变更（沙盘单击棋子触发）—— 父层用它同步左上角 HUD */
   onSelectionChange?: (combatantId: string | null) => void;
   /** 棋子移动到新格子后触发（父层结算地形区域「进入区域」伤害） */
-  onTokenMoved?: (combatantId: string, pos: { col: number; row: number }) => void;
+  onTokenMoved?: (combatantId: string, pos: { col: number; row: number }, from?: { col: number; row: number }) => void;
 }
 
 export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelBardicClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved }: Props) {
@@ -707,7 +707,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     const from = tokenMap.get(combatantId);
     battlegroundStore.placeToken(sessionId, { combatantId, col, row });
     if (from && (from.col !== col || from.row !== row)) {
-      onTokenMoved?.(combatantId, { col, row });
+      onTokenMoved?.(combatantId, { col, row }, { col: from.col, row: from.row });
     }
   };
 

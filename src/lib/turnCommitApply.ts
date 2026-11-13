@@ -6,7 +6,8 @@ import combatStore, { computeChildQtyMap, getCombatInventory } from '@/data/comb
 import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
 import type { SpellSlotLevel } from '@/types/character';
-import type { CombatRecord } from '@/types/combat';
+import type { CombatRecord, ReactionOpportunity } from '@/types/combat';
+import { detectOpportunityAttacks } from '@/data/reactionRules';
 import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest } from '@/types/realtime';
 
@@ -23,7 +24,7 @@ export interface TurnCommitApplyDeps {
   beginConcentration?: (combatantId: string, spellName: string) => void;
 }
 
-export type TurnCommitApplyResult = { ok: true } | { ok: false; reason: string };
+export type TurnCommitApplyResult = { ok: true; reactions?: ReactionOpportunity[] } | { ok: false; reason: string };
 
 /** 弹药扣减：剩余发数足够走 quantityDeltas，扣到最后一发整件移除（与 DM 端攻击链一致） */
 function consumeAmmo(record: CombatRecord, combatantId: string, ammoChildId: string, count: number) {
@@ -52,6 +53,7 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
   const ops = request.action?.ops ?? [];
   const appliedChanges: Record<string, NonNullable<CombatRecord['equipmentChanges'][string]>> = {};
   const appliedDamages: string[] = [];
+  const collectedReactions: ReactionOpportunity[] = [];
   let consumedAction = false;
   let consumedBonus = false;
   let endTurn = false;
@@ -89,7 +91,21 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       }
     } else if (op.kind === 'move') {
       // placeToken 内含越界保护与目标格挤占；玩家端拖拽已限自身棋子
+      const fromToken = battlegroundStore.get(record.id)?.tokens.find(t => t.combatantId === actor.id);
+      const fromPos = fromToken ? { col: fromToken.col, row: fromToken.row } : null;
       battlegroundStore.placeToken(record.id, { combatantId: actor.id, col: op.to.col, row: op.to.row });
+      // 借机攻击判定（5e：移动者离开触及范围的瞬时窗口）：
+      // 机会持久化在持有者身上（pendingReactions），由调用方弹窗处理；
+      // 打包提交语义下后续 ops 先落库，不回滚（借机攻击不阻止移动，时间线以记录顺序近似）
+      if (fromPos) {
+        const opps = detectOpportunityAttacks(record, actor.id, fromPos, op.to);
+        if (opps.length > 0) {
+          for (const o of opps) {
+            const fulls = combatStore.addPendingReactions(record.id, o.ownerId, [o], request.round);
+            collectedReactions.push(...fulls);
+          }
+        }
+      }
       combatStore.pushCombatEvent(record.id, {
         kind: 'move',
         round: request.round,
@@ -175,5 +191,6 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
   if (appliedDamages.length > 0) {
     console.info(`[turn-commit] ${actor.name}: ${appliedDamages.join(', ')}`);
   }
-  return { ok: true };
+  // 反应机会回执：store 里已持久化（带真实 id），此处仅向调用方提示待处理的窗口
+  return collectedReactions.length > 0 ? { ok: true, reactions: collectedReactions } : { ok: true };
 }

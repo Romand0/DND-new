@@ -161,6 +161,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     if (next) {
       if (next.round > currentTurn.round) {
         combatStore.resetTurnTodosForRound(record.id, next.round);
+        // 借机攻击机会跨回合过期：round < 新回合号的未决机会全局清除（同回合内可残留慢慢处理）
+        combatStore.clearExpiredReactions(record.id, next.round);
       }
       // 进入新参战者回合时清理过期优劣势（§5.13 设计行为，页面此前漏调，接线时补齐）：
       // (1) 该参战者本身 expireRound 过期
@@ -200,6 +202,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       const updatedRounds = [...record.rounds, newRound];
       combatStore.update(record.id, { rounds: updatedRounds, updatedAt: Date.now() });
       combatStore.resetTurnTodosForRound(record.id, nextRound);
+      combatStore.clearExpiredReactions(record.id, nextRound);
       const firstInNew = findNextValidTurn(nextRound, 0, updatedRounds);
       if (firstInNew) {
         combatStore.clearExpiredAdvantage(record.id, firstInNew.combatantId, firstInNew.round);
