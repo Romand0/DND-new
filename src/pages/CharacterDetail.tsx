@@ -1074,8 +1074,7 @@ export default function CharacterDetail({
   };
 
   useEffect(() => {
-    // draftMode 下草稿会话接管 character state，外部正式卡刷新不覆盖草稿
-    if (draftMode) return;
+    // externalCharacter 落地初始快照（draftMode 下为基卡基准，begin-draft effect 随即接管覆盖草稿）
     if (externalCharacter) {
       setCharacter(externalCharacter);
       setLoading(false);
