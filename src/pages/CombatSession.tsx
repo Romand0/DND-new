@@ -46,7 +46,7 @@ import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot } from '@/types/combat';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
 import type { PlayerActionRequest } from '@/types/realtime';
-import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords, Pause, PlayCircle } from 'lucide-react';
+import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords, Pause, PlayCircle, Coins, RotateCcw } from 'lucide-react';
 import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
@@ -56,6 +56,8 @@ import TurnTodoBoard from '@/components/TurnTodoBoard';
 import CombatantInfoPanel from '@/components/CombatantInfoPanel';
 import ForcedMoveDialog from '@/components/ForcedMoveDialog';
 import CombatCommitModal from '@/components/CombatCommitModal';
+import SandboxDummyDialog, { type SandboxDummyConfig } from '@/components/combat/SandboxDummyDialog';
+import { deriveCharacterAffinities, deriveSpeedModifier } from '@/data/passiveCombatRules';
 
 // ===== 试验场人偶预设（模块级，spawnDummy 与存量数据迁移共用） =====
 // 注意：normalRange / maxRange 单位是英尺（与 parseWeaponData 解析约定一致）；纯近战武器不要传（会被误判为远程导致近战射程段丢失）
@@ -125,6 +127,14 @@ const PROVING_GROUND_EQUIPMENT: Character['equipment'] = [
 
 // 存量试验场数据迁移：旧版人偶只有徒手攻击（且射程字段单位错误）、影子卡无装备包。
 // 幂等：已是最新预设的 combatant / 影子卡自动跳过。
+
+// 影子卡经验值：按 PHB 等级-XP 表填（等级字段为真，经验仅驱动 getLevelFromExp 类派生，
+// 如武僧无甲移动速度档位）
+const SANDBOX_XP_BY_LEVEL: Record<number, number> = {
+  1: 0, 2: 300, 3: 900, 4: 2700, 5: 6500, 6: 14000, 7: 23000, 8: 34000,
+  9: 48000, 10: 64000, 11: 85000, 12: 100000, 13: 120000, 14: 140000,
+  15: 165000, 16: 195000, 17: 225000, 18: 265000, 19: 305000, 20: 355000,
+};
 function migrateProvingGroundData(record: CombatRecord) {
   let combatantsChanged = false;
   const combatants = record.combatants.map(c => {
@@ -190,6 +200,8 @@ export default function CombatSession() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // ✅ 新增：NPC 创建器
   const [npcCreatorOpen, setNpcCreatorOpen] = useState(false);
+  // 试验场己方人偶设置弹窗（职业/子职业/等级/属性/资源）
+  const [dummyDialogOpen, setDummyDialogOpen] = useState(false);
   // ✅ 新增：战斗攻击检定弹窗（在 main 上处理）
   const [attackModal, setAttackModal] = useState<{
     attacker: Combatant;
@@ -738,32 +750,78 @@ export default function CombatSession() {
   // 底层自动创建影子角色卡（isSandbox，不上云、角色列表隐藏），使人偶复用完整 PC
   // 装备手持/穿戴/AC 重算/弹药派生链路；敌我仅 isPc 与命名区分。
   const spawnDummy = (hostile: boolean) => {
+    spawnConfiguredDummy(hostile, null);
+  };
+
+  // 按配置生成人偶：hostile=true 走默认一键；己方人偶经 SandboxDummyDialog 传入配置
+  // （职业/子职业/等级 → 特性写入影子卡 + 法术位按职业表填充，被动引擎经 characterId 链路生效）
+  const spawnConfiguredDummy = (hostile: boolean, config: SandboxDummyConfig | null) => {
     if (!record) return;
     const existingCount = record.combatants.filter(c => c.name.includes('试验体·')).length;
-    const name = `试验体·${hostile ? '敌' : '友'}${existingCount + 1}`;
+    const name = config?.name || `试验体·${hostile ? '敌' : '友'}${existingCount + 1}`;
+    const maxHp = config?.maxHp ?? 20;
+    const speed = config?.speed ?? 30;
+    const level = config?.level ?? 1;
+    // 属性：config 传 score，派生 modifier；默认全 10（modifier 0）
+    const abilities = config
+      ? ({
+          strength: { score: config.abilities.strength, modifier: Math.floor((config.abilities.strength - 10) / 2) },
+          dexterity: { score: config.abilities.dexterity, modifier: Math.floor((config.abilities.dexterity - 10) / 2) },
+          constitution: { score: config.abilities.constitution, modifier: Math.floor((config.abilities.constitution - 10) / 2) },
+          intelligence: { score: config.abilities.intelligence, modifier: Math.floor((config.abilities.intelligence - 10) / 2) },
+          wisdom: { score: config.abilities.wisdom, modifier: Math.floor((config.abilities.wisdom - 10) / 2) },
+          charisma: { score: config.abilities.charisma, modifier: Math.floor((config.abilities.charisma - 10) / 2) },
+        } as Character['abilities'])
+      : undefined;
     const char = characterStore.createSandbox({
       name,
-      maxHp: 20,
-      currentHp: 20,
+      maxHp,
+      currentHp: maxHp,
       armorClass: 10,
-      speed: 30,
+      speed,
+      level,
+      experience: SANDBOX_XP_BY_LEVEL[level] ?? 0,
+      ...(config?.className
+        ? { profession: { class: config.className, ...(config.subclassName ? { subclass: config.subclassName } : {}) } as Character['profession'] }
+        : {}),
+      ...(abilities ? { abilities: abilities as Character['abilities'] } : {}),
+      ...(config?.features?.length ? { features: config.features } : {}),
+      ...(config
+        ? { spells: { cantrips: [], custom: [], spellSlots: config.spellSlots } as Character['spells'] }
+        : {}),
       equipment: PROVING_GROUND_EQUIPMENT.map(e => ({ ...e })),
       readiedRight: 'sandbox-longsword',
     });
+    // 战斗层手持初始化（与 PC 参战同源）：拿起备战中的长剑，武器攻击立即可用
+    const hands = combatStore.initCombatantHands(char);
+    const heldIds = [hands.heldLeft?.equipmentId, hands.heldRight?.equipmentId].filter(Boolean) as string[];
+    const heldEquipment = heldIds
+      .map(hid => (char.equipment ?? []).find(e => (e.childId || e.id) === hid))
+      .filter(Boolean) as Array<{ subtype?: string }>;
+    const shieldHeld = heldEquipment.some(e => e?.subtype === '盾牌');
+    const wornArmor = char.wornArmorId
+      ? (char.equipment ?? []).find(e => (e.childId || e.id) === char.wornArmorId)
+      : null;
+    // 被动派生快照（对齐 useInitiative PC 入场路径）：抗性/免疫 + 速度加成
+    const speedModifier = deriveSpeedModifier(char, { combatShieldHeld: shieldHeld, wearingHeavyArmor: !!wornArmor && (wornArmor.subtype ?? '').includes('重') });
     handleBatchCreateNpc([
       {
         name,
         initiative: Math.floor(Math.random() * 20) + 1,
-        ac: 10,
-        maxHp: 20,
-        currentHp: 20,
+        ac: char.armorClass,
+        maxHp,
+        currentHp: maxHp,
         tempHp: 0,
         isPc: !hostile,
         characterId: char.id,
-        speed: 30,
+        speed,
+        speedModifier,
+        damageAffinities: deriveCharacterAffinities(char),
         note: '试验场人偶',
         actions: 1,
         bonusActions: 1,
+        heldLeft: hands.heldLeft,
+        heldRight: hands.heldRight,
         attacks: PROVING_GROUND_ATTACKS.map(a => ({ ...a })),
       },
     ]);
@@ -963,11 +1021,31 @@ export default function CombatSession() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => spawnDummy(false)}
+                    onClick={() => setDummyDialogOpen(true)}
                     className="px-2 sm:px-3 py-2 rounded-lg border border-green-300 dark:border-green-900 text-green-600 dark:text-green-400 text-sm flex items-center gap-1 hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors"
                   >
                     <Plus className="w-4 h-4" />
                     <span className="hidden sm:inline">己方人偶</span>
+                  </button>
+                  {/* 资源消耗开关：开启后动作/移动/弹药/重装填/法术位按正式战斗规则消耗 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!record) return;
+                      combatStore.update(record.id, {
+                        resourceConsumption: !record.resourceConsumption,
+                        updatedAt: Date.now(),
+                      });
+                    }}
+                    title="资源消耗模式：开启后动作、移动、弹药、重装填、法术位按正式战斗规则消耗；关闭=无限资源"
+                    className={`px-2 sm:px-3 py-2 rounded-lg border text-sm flex items-center gap-1 transition-colors ${
+                      record.resourceConsumption
+                        ? 'bg-amber-500 border-amber-500 text-white hover:bg-amber-400'
+                        : 'border-amber-300 dark:border-amber-900 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                    }`}
+                  >
+                    <Coins className="w-4 h-4" />
+                    <span className="hidden sm:inline">资源消耗{record.resourceConsumption ? '：开' : '：关'}</span>
                   </button>
                 </>
               )}
@@ -1223,13 +1301,16 @@ export default function CombatSession() {
         if (!c) return null;
         const actions = typeof c.actions === 'number' && c.actions >= 0 ? c.actions : 1;
         const totalSpeed = c.speed ?? 0;
-        const remaining = combatStore.getRemainingMovement(c, playbackMode ? 'playback' : 'simulation', isPlaybackActive());
-        const active = playbackMode && playbackStarted && !playbackPaused;
+        const resourceMode = !!record.resourceConsumption;
+        const remaining = combatStore.getRemainingMovement(c, playbackMode ? 'playback' : 'simulation', isPlaybackActive(), resourceMode);
+        const active = (playbackMode && playbackStarted && !playbackPaused) || resourceMode;
         const actionText = active ? (actions <= 0 ? '0' : `${actions}`) : '∞';
         const moveText = totalSpeed > 0
           ? (active ? `${remaining}/${totalSpeed}` : `${totalSpeed}`)
           : '—';
-        const showEndTurn = active && !!currentTurn;
+        const showEndTurn = playbackMode && active && !!currentTurn;
+        // 资源消耗模式：动作扣完无回合推进可恢复，提供一键重置（动作/附赠/移动力）
+        const showRestoreActions = resourceMode && !playbackMode;
         // 仿显示屏：深蓝偏紫底 + 白字 + 等宽字体
         const screenBg = 'bg-indigo-950/90';
         const screenBorder = 'border border-indigo-400/20';
@@ -1249,6 +1330,32 @@ export default function CombatSession() {
               <span className={`text-sm font-bold ${labelCls(remaining <= 0)}`}>{moveText}</span>
               <span className="text-[10px] text-indigo-300/50">ft</span>
             </div>
+            {showRestoreActions && (
+              <>
+                <span className="text-indigo-400/30">|</span>
+                <button
+                  onClick={() => {
+                    if (!record) return;
+                    const latest = combatStore.get(record.id);
+                    const target = latest?.combatants.find(x => x.id === c.id);
+                    if (!target) return;
+                    combatStore.update(record.id, {
+                      combatants: latest!.combatants.map(x => (
+                        x.id === c.id
+                          ? { ...x, actions: 1, bonusActions: 1, movementUsed: 0 }
+                          : x
+                      )),
+                      updatedAt: Date.now(),
+                    });
+                  }}
+                  className="px-2.5 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap"
+                  title="恢复该人偶的动作/附赠动作/移动力（资源消耗模式无回合推进，需手动重置）"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  恢复
+                </button>
+              </>
+            )}
             {showEndTurn && (
               <>
                 <span className="text-indigo-400/30">|</span>
@@ -1350,8 +1457,9 @@ export default function CombatSession() {
         remainingMovementMap={(() => {
           const m: Record<string, number> = {};
           const active = isPlaybackActive();
+          const resourceMode = !!record.resourceConsumption;
           for (const c of record.combatants) {
-            m[c.id] = combatStore.getRemainingMovement(c, record.mode, active);
+            m[c.id] = combatStore.getRemainingMovement(c, record.mode, active, resourceMode);
           }
           return m;
         })()}
@@ -1553,6 +1661,17 @@ export default function CombatSession() {
         />
       )}
 
+      {/* 试验场：己方人偶设置弹窗（职业/子职业/等级/属性/法术位 → 影子卡） */}
+      <SandboxDummyDialog
+        open={dummyDialogOpen}
+        defaultName={`试验体·友${record.combatants.filter(c => c.name.includes('试验体·')).length + 1}`}
+        onConfirm={(config) => {
+          setDummyDialogOpen(false);
+          spawnConfiguredDummy(false, config);
+        }}
+        onClose={() => setDummyDialogOpen(false)}
+      />
+
       {/* ✅ 新增：战斗攻击检定弹窗 —— 在 main 上处理 */}
       {attackModal && (
         <CombatAttackModal
@@ -1572,8 +1691,8 @@ export default function CombatSession() {
           playbackTurnActive={isPlaybackActive()}
           onLoadedChange={(key, loaded) => {
             if (!record) return;
-            // 试验场免重装填：装填武器射击后保持已装填状态（拒绝置 false）
-            if (record.isProvingGround && !loaded) return;
+            // 试验场免重装填：装填武器射击后保持已装填状态（拒绝置 false）；资源消耗模式除外
+            if (record.isProvingGround && !record.resourceConsumption && !loaded) return;
             combatStore.update(record.id, {
               loadedWeapons: {
                 ...(record.loadedWeapons || {}),
@@ -1591,8 +1710,8 @@ export default function CombatSession() {
               markLoadingAttacked(attackModal.attacker.id);
             }
             // 命中确认：关闭攻击检定弹窗，切换至伤害结算弹窗
-            // 弹药属性武器：消耗弹药（无论命中/未命中）；试验场无限弹药，跳过扣减
-            if (info.ammoConsumed && record && !record.isProvingGround) {
+            // 弹药属性武器：消耗弹药（无论命中/未命中）；试验场无限弹药，跳过扣减（资源消耗模式除外）
+            if (info.ammoConsumed && record && (!record.isProvingGround || record.resourceConsumption)) {
               const currentChanges = record.equipmentChanges?.[attackModal.attacker.id];
               const newChanges = applyEquipmentChange(currentChanges, (ch) => {
                 const ammoId = info.ammoConsumed!.ammoChildId;
@@ -1652,8 +1771,8 @@ export default function CombatSession() {
               markLoadingAttacked(attackModal.attacker.id);
             }
             // 未命中：写入先攻表格（简化格式）
-            // 弹药属性武器：消耗弹药（无论命中/未命中）；试验场无限弹药，跳过扣减
-            if (missInfo.ammoConsumed && record && !record.isProvingGround) {
+            // 弹药属性武器：消耗弹药（无论命中/未命中）；试验场无限弹药，跳过扣减（资源消耗模式除外）
+            if (missInfo.ammoConsumed && record && (!record.isProvingGround || record.resourceConsumption)) {
               const currentChanges = record.equipmentChanges?.[attackModal.attacker.id];
               const newChanges = applyEquipmentChange(currentChanges, (ch) => {
                 const ammoId = missInfo.ammoConsumed!.ammoChildId;

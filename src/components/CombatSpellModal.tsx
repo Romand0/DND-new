@@ -229,6 +229,10 @@ export default function CombatSpellModal({
   recordId, currentRound, combatantPositions, bounds, canUseAction = true, canUseBonusAction, onTargetChange, onFlowResolved,
   isProvingGround = false, casterCombatInventory, onConsumeMaterials,
 }: Props) {
+  // 资源消耗模式：试验场内按正式规则消耗法术位（材料门禁仍豁免——影子卡无材料包，避免阻塞测试）
+  const resourceConsumption = !!combatStore.get(recordId ?? '')?.resourceConsumption;
+  // 试验场且未开资源消耗 = 无限资源（法术位消耗步骤跳过）
+  const unlimitedResources = isProvingGround && !resourceConsumption;
   // 目标角色卡：优先使用 prop 传入值，没有时按 characterId 查找（用于自动填入豁免加值）
   const targetCharacter = useMemo<Character | null>(() => {
     if (propTargetCharacter !== undefined && propTargetCharacter !== null) return propTargetCharacter;
@@ -483,7 +487,7 @@ export default function CombatSpellModal({
         // 可用性叠加本场战斗已消耗 delta（漏斗思想：角色卡源 + delta = 战斗中真实余量）
         let defaultConsume: { method: 'slot' | 'scroll'; slotLevel?: number; scrollChildId?: string; scrollName?: string } | null = null;
         const deltas = recordId ? combatStore.getSpellSlotDeltas(recordId, caster.id) : {};
-        if (character && !isProvingGround && spell.level > 0) {
+        if (character && !unlimitedResources && spell.level > 0) {
           for (let lv = Math.max(1, spell.level); lv <= 9; lv++) {
             const slot = character.spells?.spellSlots?.[`level${lv}` as SpellSlotLevel];
             if (slot && slot.max > slot.used + (deltas[`level${lv}` as SpellSlotLevel] ?? 0)) {
@@ -507,8 +511,8 @@ export default function CombatSpellModal({
     }
 
     setStage('cast');
-    // 资源消耗步骤：PC + 非试验场 + 非戏法时插入（NPC 无角色卡法术位、试验场无限资源、戏法免位）
-    cast.begin('ac', selfCast, !!character && !isProvingGround && spell.level > 0);
+    // 资源消耗步骤：PC + 非无限资源 + 非戏法时插入（NPC 无角色卡法术位、戏法免位）
+    cast.begin('ac', selfCast, !!character && !unlimitedResources && spell.level > 0);
     setCheckOutcome(null);
     setResolvedAmount(0);
     setEffectType('damage');

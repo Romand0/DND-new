@@ -187,7 +187,8 @@ export function deriveSpeedModifier(
     bonus += 10;
   }
   if (hasTrait(char, '无甲移动') && !opts.wearingHeavyArmor && !opts.combatShieldHeld) {
-    const level = characterStore.getLevelFromExp(char.experience ?? 0) || 1;
+    // 等级取卡面等级与经验推导值的较大者（影子卡可能只填 level；真实卡两处一致）
+    const level = Math.max(char.level ?? 1, characterStore.getLevelFromExp(char.experience ?? 0) || 1);
     const tier = MONK_UNARMORED_SPEED_TIERS.find((t) => level >= t.level);
     if (tier) bonus += tier.bonus;
   }
