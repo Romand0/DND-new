@@ -70,6 +70,13 @@ export function crToNumber(raw: string | number | undefined | null): number {
   return Number.isFinite(n) ? n : Number.POSITIVE_INFINITY;
 }
 
+/** 被动检定三件套（D&D 5e：被动感知/被动洞察/被动调查；基础 10，优势 +5 / 劣势 -5 由使用场景修饰） */
+export interface PassiveChecks {
+  perception: number;
+  insight: number;
+  investigation: number;
+}
+
 export interface Combatant {
   id: string;
   name: string;
@@ -126,6 +133,10 @@ export interface Combatant {
   templateId?: string;
   /** 伤害抗性/易伤/免疫快照（从模板创建时解析并固化，旧记录可按 templateId 回退） */
   damageAffinities?: DamageAffinitySet;
+  /** 被动检定快照（PC 入战派生：10 + 属性调整 + 技能熟练/专精 + 特性修正） */
+  passiveChecks?: PassiveChecks;
+  /** 黑暗视觉尺数（PC 入战派生：种族/特性条目；undefined = 无黑暗视觉） */
+  darkvision?: number;
   /** 魔法抗性（Magic Resistance）：对法术及魔法效应的豁免检定具有优势；NpcCreator 从模板特质「魔法抗性」识别 */
   magicResistance?: boolean;
   /** 传奇抗性剩余次数（Legendary Resistance）：豁免失败可改为成功；按 CR÷3 上取整初始化 */
