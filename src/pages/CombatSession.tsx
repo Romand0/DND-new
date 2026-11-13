@@ -505,7 +505,9 @@ export default function CombatSession() {
     if (outcome.ok && outcome.reactions?.length) {
       setReactionQueue(prev => [...(prev || []), ...outcome.reactions!]);
     }
-    return outcome.ok ? { ok: true } : { ok: false, reason: outcome.reason };
+    // TS6 + strict:false 下 `!outcome.ok` 真值取反不触发判别式收窄，须用 === false 显式比较
+    if (outcome.ok === false) return { ok: false, reason: outcome.reason };
+    return { ok: true };
   };
   const { pending: pendingPlayerActions, resolve: resolvePlayerAction } = usePlayerActionInbox(
     combatBroadcast.client,
