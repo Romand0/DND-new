@@ -9,7 +9,7 @@ import EquipmentEditor from '@/components/EquipmentEditor';
 import type { EquipmentItem } from '@/types/equipment';
 import { equipmentStore } from '@/data/equipmentStore';
 import { getSeedEditUrl } from '@/lib/seedGitHub';
-import { isMagicGenerator, GENERATOR_CARD_CLASS } from '@/data/magicGenerators';
+import { isMagicGenerator } from '@/data/magicGenerators';
 import {
   type EquipmentFilters,
   MAGIC_KIND_OPTIONS,
@@ -141,10 +141,12 @@ export default function EquipmentList() {
   const filteredEquipments = useMemo(() => {
     const result = equipments.filter((item) => matchesEquipmentFilters(item, filters));
 
-    // 排序：魔法泛条目生成器恒置顶；其余按跨域品类权重，同品类按 ID
+    // 排序：魔法物品模板仅在本品类标签筛选时置顶；其余按跨域品类权重，同品类按 ID
     result.sort((a, b) => {
-      const ag = isMagicGenerator(a) ? 0 : 1;
-      const bg = isMagicGenerator(b) ? 0 : 1;
+      const aPin = magicCatFilter !== '全部' && isMagicGenerator(a) && magicCategoryLabel(a) === magicCatFilter;
+      const bPin = magicCatFilter !== '全部' && isMagicGenerator(b) && magicCategoryLabel(b) === magicCatFilter;
+      const ag = aPin ? 0 : 1;
+      const bg = bPin ? 0 : 1;
       if (ag !== bg) return ag - bg;
 
       const aLabel = isMagicItem(a) ? magicCategoryLabel(a) : functionCategoryLabel(a);
@@ -159,7 +161,7 @@ export default function EquipmentList() {
     });
 
     return result;
-  }, [equipments, filters]);
+  }, [equipments, filters, magicCatFilter]);
 
   // 当前筛选是否落在魔法领域（用于决定第二/三级显示哪组控件）
   const showMagicFilters = magicFilter.length === 0 || magicFilter.includes('魔法物品');
@@ -352,12 +354,12 @@ export default function EquipmentList() {
 
       {/* 三层分类筛选：第一级魔法/非魔法，第二级按领域切换（魔法：品类·稀有度；非魔法：功能·交易），第三级子分类 */}
       <div className="space-y-2.5 rounded-xl border dark:border-border-dark light:border-border-light p-3">
-        {/* 第一级：魔法 / 非魔法 */}
+        {/* 第一级：魔法 / 非魔法（互斥单选，两领域筛选不可叠加） */}
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">类别</span>
           <button onClick={() => setMagicFilter([])} className={pill(magicFilter.length === 0)}>全部</button>
           {MAGIC_KIND_OPTIONS.map(m => (
-            <button key={m} onClick={() => setMagicFilter(toggleTag(magicFilter, m))}
+            <button key={m} onClick={() => setMagicFilter(magicFilter.includes(m) ? [] : [m])}
               className={pill(magicFilter.includes(m))}>{m}</button>
           ))}
         </div>
@@ -367,9 +369,9 @@ export default function EquipmentList() {
           <>
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-medium dark:text-text-dark light:text-text-light w-10">品类</span>
-              <button onClick={() => setMagicCatFilter('全部')} className={pill(magicCatFilter === '全部')}>全部</button>
+              <button onClick={() => { setMagicCatFilter('全部'); setRarityFilter([]); }} className={pill(magicCatFilter === '全部')}>全部</button>
               {magicCatOptions.map(c => (
-                <button key={c} onClick={() => setMagicCatFilter(magicCatFilter === c ? '全部' : c)}
+                <button key={c} onClick={() => { setMagicCatFilter(magicCatFilter === c ? '全部' : c); setRarityFilter([]); }}
                   className={pill(magicCatFilter === c)}>{c}</button>
               ))}
             </div>
@@ -437,11 +439,7 @@ export default function EquipmentList() {
         {filteredEquipments.map((item) => (
           <div key={item.id}
             onClick={() => handleCardClick(item)}
-            className={`block min-w-0 p-4 rounded-lg border transition-colors group cursor-pointer ${
-              isMagicGenerator(item)
-                ? GENERATOR_CARD_CLASS
-                : 'dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary'
-            }`}>
+            className="block min-w-0 p-4 rounded-lg border transition-colors group cursor-pointer dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light hover:border-primary">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {/* checkbox：仅选择模式 + DM（已绑法术的具体卷轴为派生条目，不参与库维护） */}
@@ -454,7 +452,7 @@ export default function EquipmentList() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="font-semibold dark:text-text-dark light:text-text-light group-hover:text-primary truncate">{item.name}</h3>
                     {isMagicGenerator(item) && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-white shrink-0">魔法物品生成器</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary text-white shrink-0">魔法物品模板</span>
                     )}
                     {item.magicCategory === '魔法物品' && !isMagicGenerator(item) && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded bg-fuchsia-500/10 text-fuchsia-400 shrink-0">魔法</span>
