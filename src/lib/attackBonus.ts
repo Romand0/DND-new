@@ -201,15 +201,18 @@ export interface InitiativeBonusResult {
   dexMod: number;
   /** 万事通加值：携带「万事通」特性且未熟练敏捷豁免时 = 熟练加值的一半（向下取整） */
   jackBonus: number;
+  /** 警觉加值（专长「警觉」：先攻 +5） */
+  alertBonus: number;
   /** 先攻加值合计 */
   total: number;
 }
 
-/** 先攻加值：敏捷调整 + 万事通（先攻属敏捷检定，万事通对非熟练技能检定加一半熟练加值） */
+/** 先攻加值：敏捷调整 + 万事通（未熟练检定加半熟练） + 警觉（+5） */
 export function computeInitiativeBonus(character: Character): InitiativeBonusResult {
   const dexMod = character.abilities?.dexterity?.modifier ?? 0;
   const jackBonus = jackOfAllTradesBonus(character, dexProficiency(character));
-  return { dexMod, jackBonus, total: dexMod + jackBonus };
+  const alertBonus = (character.features ?? []).some(f => f.name === '警觉') ? 5 : 0;
+  return { dexMod, jackBonus, alertBonus, total: dexMod + jackBonus + alertBonus };
 }
 
 /** 敏捷豁免是否熟练（先攻按敏捷检定，熟练项口径与豁免一致） */

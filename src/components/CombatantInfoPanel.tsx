@@ -526,6 +526,29 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 </span>
               </div>
 
+              {/* 被动检定三件套（PC 入战快照；优势 +5 / 劣势 -5 由 DM 按现场人工修饰） */}
+              {combatant.passiveChecks && (
+                <div className="flex justify-between text-xs">
+                  <span className="dark:text-text-dark-muted light:text-text-light-muted">被动检定</span>
+                  <span className="font-medium dark:text-text-dark light:text-text-light">
+                    感知 {combatant.passiveChecks.perception}
+                    <span className="mx-1.5 opacity-40">|</span>
+                    洞察 {combatant.passiveChecks.insight}
+                    <span className="mx-1.5 opacity-40">|</span>
+                    调查 {combatant.passiveChecks.investigation}
+                  </span>
+                </div>
+              )}
+
+              {!!combatant.darkvision && (
+                <div className="flex justify-between text-xs">
+                  <span className="dark:text-text-dark-muted light:text-text-light-muted">黑暗视觉</span>
+                  <span className="font-medium dark:text-text-dark light:text-text-light">
+                    {combatant.darkvision} 尺
+                  </span>
+                </div>
+              )}
+
               {/* 法术位（PC）：战斗临时副本视图（角色卡源 + 本场消耗 delta 叠加）。
                   实心圆=可用、空心圆=已消耗；点击实心消耗 / 空心恢复（与角色详情页同款交互，
                   但只写战斗漏斗 spellSlotChanges，角色卡在战斗结算时统一并入） */}

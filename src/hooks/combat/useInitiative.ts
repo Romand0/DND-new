@@ -4,7 +4,7 @@ import type { Character } from '@/types/character';
 import { characterStore } from '@/data/characterStore';
 import combatStore from '@/data/combatStore';
 import { computeInitiativeBonus } from '@/lib/attackBonus';
-import { deriveCharacterAffinities, deriveSpeedModifier } from '@/data/passiveCombatRules';
+import { deriveCharacterAffinities, deriveSpeedModifier, derivePassiveChecks, deriveDarkvision } from '@/data/passiveCombatRules';
 
 const CIRCLE_NUMBERS = ['①','②','③','④','⑤','⑥','⑦','⑧','⑨','⑩','⑪','⑫','⑬','⑭','⑮','⑯','⑰','⑱','⑲','⑳'];
 
@@ -91,6 +91,8 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
       speed: selectedPc.speed,
       speedModifier,
       damageAffinities: deriveCharacterAffinities(selectedPc),
+      passiveChecks: derivePassiveChecks(selectedPc),
+      darkvision: deriveDarkvision(selectedPc),
       note: '',
       actions: 1,
       heldLeft: hands.heldLeft,

@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { computeInitiativeBonus } from '@/lib/attackBonus';
+import { deriveInitiativeAdvantage } from '@/data/passiveCombatRules';
 
 interface Props {
   open: boolean;
@@ -16,7 +17,8 @@ export default function InitiativeRollDialog(props: Props) {
 
   if (!open || !selectedPc) return null;
 
-  const { dexMod, jackBonus, total: initBonus } = computeInitiativeBonus(selectedPc);
+  const { dexMod, jackBonus, alertBonus, total: initBonus } = computeInitiativeBonus(selectedPc);
+  const initAdvantage = deriveInitiativeAdvantage(selectedPc);
   const d20Value = parseInt(d20Input, 10);
   const total = isNaN(d20Value) ? null : d20Value + initBonus;
 
@@ -48,8 +50,19 @@ export default function InitiativeRollDialog(props: Props) {
                   <span className="text-primary font-bold ml-1">+{jackBonus}</span>
                 </span>
               )}
+              {alertBonus > 0 && (
+                <span className="ml-2">
+                  警觉：
+                  <span className="text-primary font-bold ml-1">+{alertBonus}</span>
+                </span>
+              )}
             </div>
           </div>
+          {initAdvantage && (
+            <div className="px-3 py-2 rounded-lg text-xs bg-primary/10 text-primary border border-primary/30">
+              {initAdvantage.label}
+            </div>
+          )}
           <div>
             <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5 block">
               输入 d20 结果（1-20）

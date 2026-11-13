@@ -5,7 +5,7 @@
 // 纯函数 + 常量表：种子条目名（种族特质/职业特性）是稳定键，文本正则只用于
 // 参数提取（如龙裔抗性类型取自「龙族血统」条目），不靠正则识别条目本身。
 import type { Character } from '@/types/character';
-import type { Combatant, AdvantageResult } from '@/types/combat';
+import type { Combatant, AdvantageResult, PassiveChecks } from '@/types/combat';
 import type { AdvantageContext } from '@/data/advantageRules';
 import type { DamageAffinitySet, DamageType, AffinityEntry } from '@/types/damage';
 import { extractDamageType } from '@/data/damageRules';
@@ -193,6 +193,116 @@ export function deriveSpeedModifier(
     if (tier) bonus += tier.bonus;
   }
   return bonus;
+}
+
+// =======================
+// 类4：被动感知/洞察/调查（Passive Perception / Insight / Investigation）
+// =======================
+
+/** 被动检定定义：属性 + 技能熟练来源 */
+const PASSIVE_CHECK_DEFS = [
+  { key: 'perception', ability: 'wisdom', skill: 'perception' },
+  { key: 'insight', ability: 'wisdom', skill: 'insight' },
+  { key: 'investigation', ability: 'intelligence', skill: 'investigation' },
+] as const;
+
+/** 特性对被动检定的固定修正（条目名是稳定键） */
+const PASSIVE_CHECK_BONUS_RULES: { trait: string; target: keyof PassiveChecks; bonus: number }[] = [
+  // 专长「观察者」：被动感知 +5
+  { trait: '观察者', target: 'perception', bonus: 5 },
+];
+
+/**
+ * 派生被动检定三件套（PC 入战快照，写入 combatant.passiveChecks）。
+ * 公式：10 + 属性调整值 + 技能熟练(×1)/专精(×2) × 熟练加值 + 技能 extra + 特性修正。
+ * 影子卡/无技能数据时 skills 缺省视为未熟练，退化为 10 + 属性调整。
+ */
+export function derivePassiveChecks(char: Character | null | undefined): PassiveChecks | undefined {
+  if (!char) return undefined;
+  const prof = char.proficiencyBonus ?? 0;
+  const result = {} as PassiveChecks;
+  for (const def of PASSIVE_CHECK_DEFS) {
+    const abilityMod = char.abilities?.[def.ability]?.modifier ?? 0;
+    const skill = char.skills?.[def.skill];
+    const profMult = skill?.expertise ? 2 : skill?.proficient ? 1 : 0;
+    result[def.key] = 10 + abilityMod + profMult * prof + (skill?.extra ?? 0);
+  }
+  for (const rule of PASSIVE_CHECK_BONUS_RULES) {
+    if (hasActiveTrait(char, rule.trait)) result[rule.target] += rule.bonus;
+  }
+  return result;
+}
+
+// =======================
+// 类5：黑暗视觉（Darkvision）
+// =======================
+
+/** 种子条目名 → 尺数（名字是稳定键；条目文本提取失败时兜底） */
+const DARKVISION_TRAIT_RANGES: { match: RegExp; range: number }[] = [
+  { match: /增强黑暗视觉/, range: 120 },
+  { match: /黑暗视觉/, range: 60 },
+];
+
+/** 无条目时按种族名兜底（角色卡 race 只填种族名的旧数据） */
+const DARKVISION_RACE_FALLBACK: { match: RegExp; range: number }[] = [
+  { match: /黑暗精灵|卓尔/, range: 120 },
+  { match: /矮人|精灵|侏儒|半精灵|半兽人|提夫林/, range: 60 },
+];
+
+/**
+ * 派生黑暗视觉尺数（PC 入战快照，写入 combatant.darkvision）。
+ * features / race 字段里找「黑暗视觉」条目：文本提取尺数优先，失败按条目名兜底；
+ * 两处都无条目时按种族名兜底。返回 undefined = 无黑暗视觉。
+ */
+export function deriveDarkvision(char: Character | null | undefined): number | undefined {
+  if (!char) return undefined;
+  const feature = char.features?.find((f) => /黑暗视觉/.test(f.name) && isActiveFeature(f, char));
+  if (feature) {
+    const m = /(\d+)\s*尺/.exec(feature.description ?? '');
+    if (m) return Number(m[1]);
+    for (const r of DARKVISION_TRAIT_RANGES) {
+      if (r.match.test(feature.name)) return r.range;
+    }
+  }
+  if (char.race) {
+    for (const r of DARKVISION_RACE_FALLBACK) {
+      if (r.match.test(char.race)) return r.range;
+    }
+  }
+  return undefined;
+}
+
+// =======================
+// 类6：先攻优劣势（野性直觉）
+// =======================
+
+/**
+ * 先攻优劣势特性（PC 入战提示，InitiativeRollDialog 展示；先攻骰由 DM 手动执行优劣势）。
+ * 返回 null = 无先攻优劣势特性。
+ */
+export function deriveInitiativeAdvantage(char: Character | null | undefined): AdvantageResult['advantage'][number] | null {
+  if (!char) return null;
+  // 野蛮人 L7「野性直觉」：骰先攻时具有优势
+  if (hasActiveTrait(char, '野性直觉')) {
+    return { kind: 'trait', label: '野性直觉（先攻优势：请掷 2d20 取较高值）' };
+  }
+  return null;
+}
+
+// =======================
+// 条目等级门槛
+// =======================
+
+/** 单条特性是否已达到生效等级（职业特性带 level 标注，未达标不参与派生） */
+function isActiveFeature(f: NonNullable<Character['features']>[number], char: Character): boolean {
+  const level = Math.max(char.level ?? 1, characterStore.getLevelFromExp(char.experience ?? 0) || 1);
+  return f.level == null || f.level <= level;
+}
+
+/** hasTrait 的等级门槛版：新派生函数一律用这个，防止高等级特性在低级角色上生效 */
+function hasActiveTrait(char: Character | null | undefined, name: string): boolean {
+  if (!char?.features?.length) return false;
+  return char.features.some((f) => f.name === name && isActiveFeature(f, char));
 }
 
 // =======================
