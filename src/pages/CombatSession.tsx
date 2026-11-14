@@ -44,8 +44,8 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Character, Attack } from '@/types/character';
-import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionOpportunity } from '@/types/combat';
-import { detectOpportunityAttacks } from '@/data/reactionRules';
+import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionPrompt } from '@/types/combat';
+import { detectReactions } from '@/data/reactionRules';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
 import type { PlayerActionRequest } from '@/types/realtime';
 import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords, Pause, PlayCircle, Coins, RotateCcw, Send } from 'lucide-react';
@@ -230,7 +230,7 @@ export default function CombatSession() {
     reactionPending?: boolean;
   } | null>(null);
   // 借机攻击机会队列：move 触发 → 弹窗逐个处理（确认/放弃/过期）→ 推进
-  const [reactionQueue, setReactionQueue] = useState<ReactionOpportunity[] | null>(null);
+  const [reactionQueue, setReactionQueue] = useState<ReactionPrompt[] | null>(null);
   const [reactionIdx, setReactionIdx] = useState(0);
   // 伤害结算期间挂起队列（命中确认后等伤害弹窗关闭再展示下一个机会）
   const [reactionHold, setReactionHold] = useState(false);
@@ -1476,9 +1476,9 @@ export default function CombatSession() {
           handleTokenMoved(combatantId, pos, round);
           // 借机攻击（DM 直操移动）：离开触及范围的瞬时窗口，机会挂在持有者身上
           if (from && record.id) {
-            const opps = detectOpportunityAttacks(record, combatantId, from, pos);
-            if (opps.length > 0) {
-              const fulls = opps.flatMap(o => combatStore.addPendingReactions(record.id, o.ownerId, [o], round));
+            const matches = detectReactions(record, { kind: 'move', moverId: combatantId, from, to: pos, source: 'dm_drag' });
+            if (matches.length > 0) {
+              const fulls = matches.flatMap(m => combatStore.addReactionPrompts(record.id, m.ownerId, [m], round));
               setReactionQueue(prev => [...(prev || []), ...fulls]);
             }
           }
@@ -1828,6 +1828,8 @@ export default function CombatSession() {
       {(() => {
         if (!reactionQueue || reactionIdx >= reactionQueue.length || reactionHold) return null;
         const opp = reactionQueue[reactionIdx];
+        // P1 只有 attack 解决适配器（借机攻击）；其它触发的 prompt 留给 P2 的通用外壳
+        if (opp.trigger !== 'move_leave_reach' || !opp.moverId) return null;
         const owner = record.combatants.find(c => c.id === opp.ownerId);
         const mover = record.combatants.find(c => c.id === opp.moverId);
         // 持有者死亡/昏迷/已不可见 → 机会自动过期（不再弹窗，机会留在身上由清理机制回收）

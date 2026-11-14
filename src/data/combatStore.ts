@@ -1,4 +1,4 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent, ReactionOpportunity } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent, ReactionPrompt } from '@/types/combat';
 import { scopedKey } from '@/data/campaignScope';
 import { pushCharacterLog } from '@/lib/characterLog';
 import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
@@ -533,6 +533,30 @@ function load(): CombatRecord[] {
           })(),
           // 语音可用状态（失能 toggle 写入；缺省 undefined = 未手动置灰）
           canSpeak: typeof c.canSpeak === 'boolean' ? c.canSpeak : undefined,
+          // 反应状态（战斗临时数据；白名单重建，缺兜底会在刷新后丢未决反应且下次保存永久抹掉）
+          reactionUsed: c.reactionUsed === true,
+          pendingReactions: Array.isArray(c.pendingReactions) ? c.pendingReactions.filter(
+            (o: any) => o && typeof o === 'object' && typeof o.id === 'string'
+          ).map((o: any) => ({
+            id: o.id,
+            ownerId: typeof o.ownerId === 'string' ? o.ownerId : c.id,
+            // v1 老数据没有 definitionId/trigger，回填为内置借机攻击
+            definitionId: typeof o.definitionId === 'string' ? o.definitionId : 'builtin:opportunity_attack',
+            trigger: typeof o.trigger === 'string' ? o.trigger : 'move_leave_reach',
+            round: typeof o.round === 'number' && Number.isFinite(o.round) ? Math.trunc(o.round) : 0,
+            consumed: !!o.consumed,
+            moverId: typeof o.moverId === 'string' ? o.moverId : undefined,
+            attackerId: typeof o.attackerId === 'string' ? o.attackerId : undefined,
+            casterId: typeof o.casterId === 'string' ? o.casterId : undefined,
+            targetId: typeof o.targetId === 'string' ? o.targetId : undefined,
+            fromPos: o.fromPos && typeof o.fromPos.col === 'number' && typeof o.fromPos.row === 'number'
+              ? { col: o.fromPos.col, row: o.fromPos.row } : undefined,
+            toPos: o.toPos && typeof o.toPos.col === 'number' && typeof o.toPos.row === 'number'
+              ? { col: o.toPos.col, row: o.toPos.row } : undefined,
+            amount: typeof o.amount === 'number' && Number.isFinite(o.amount) ? o.amount : undefined,
+            damageType: typeof o.damageType === 'string' ? o.damageType : undefined,
+            spellId: typeof o.spellId === 'string' ? o.spellId : undefined,
+          })) : [],
           // 战斗层手持（进战从备战槽初始化；缺兜底会在刷新后丢手持且下次保存永久抹掉）
           heldLeft: normalizeHandSlot(c.heldLeft),
           heldRight: normalizeHandSlot(c.heldRight),
@@ -1620,16 +1644,16 @@ const combatStore = {
     save(records);
   },
 
-  /** 批量写入未决反应机会（借机攻击窗口触发时调用；机会挂在持有者身上；返回写入的完整实例含 id） */
-  addPendingReactions(recordId: string, ownerId: string, opps: Omit<ReactionOpportunity, 'id' | 'consumed' | 'round'>[], round: number): ReactionOpportunity[] {
-    if (!opps || opps.length === 0) return;
+  /** 批量写入未决反应（通用反应引擎入口；挂在持有者身上；返回写入的完整实例含 id） */
+  addReactionPrompts(recordId: string, ownerId: string, matches: Omit<ReactionPrompt, 'id' | 'consumed' | 'round'>[], round: number): ReactionPrompt[] {
+    if (!matches || matches.length === 0) return [];
     const records = load();
     const record = records.find(r => r.id === recordId);
-    if (!record) return;
+    if (!record) return [];
     const idx = record.combatants.findIndex(c => c.id === ownerId);
-    if (idx === -1) return;
+    if (idx === -1) return [];
     const owner = record.combatants[idx];
-    const fulls: ReactionOpportunity[] = opps.map(o => ({
+    const fulls: ReactionPrompt[] = matches.map(o => ({
       ...o,
       round,
       id: crypto.randomUUID(),
@@ -1642,6 +1666,11 @@ const combatStore = {
     record.updatedAt = Date.now();
     save(records);
     return fulls;
+  },
+
+  /** 兼容包装：借机攻击 v1 调用点（P2 起全部改走 addReactionPrompts） */
+  addPendingReactions(recordId: string, ownerId: string, opps: Omit<ReactionPrompt, 'id' | 'consumed' | 'round'>[], round: number): ReactionPrompt[] {
+    return combatStore.addReactionPrompts(recordId, ownerId, opps, round);
   },
 
   /** 消费一条反应机会（攻击确认 = 用掉反应；放弃 = 仅作废机会） */
