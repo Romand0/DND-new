@@ -2,20 +2,35 @@
 // 协议见 types/realtime.ts CombatDeltaPayload；玩家侧只收不发（DO 端拒 player 写 combat.delta）。
 // 断线自动重连由 CombatRoomClient 内置；重连成功后发 snapshot.request 取最近 delta 恢复状态
 // （DM 端只在数据变化时广播，静止期没有新消息可等）。
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Eye, Link2, LogOut, RefreshCw, Skull, Sparkles, Ban, Moon, Swords, Wifi, WifiOff, Hand } from 'lucide-react';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyCharacters } from '@/lib/api';
-import SpectatorBoard from '@/components/spectate/SpectatorBoard';
 import SpectatorTable from '@/components/spectate/SpectatorTable';
 import AnimationOverlay from '@/components/spectate/AnimationOverlay';
 import RoundNarrativeBoard from '@/components/spectate/RoundNarrativeBoard';
 import { MyCombatantsSection } from '@/components/spectate/MyCombatantPanel';
 import MyTurnPanel from '@/components/spectate/MyTurnPanel';
+import Battleground from '@/components/Battleground';
+import { rosterEntryToCombatant, rosterInventoryToEquipmentList } from '@/components/spectate/combatantAdapter';
+import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, TurnCommitOp } from '@/types/realtime';
+
+// 观战投影 → DM 侧沙盘数据结构（Battleground 投影模式入参）：棋子/掉落物/边界墙/地形区域一一映射
+function projectionToBg(board: BoardProjection, sessionId: string): BattlegroundData {
+  return {
+    sessionId,
+    size: board.size,
+    tokens: board.tokens.map((t) => ({ combatantId: t.combatantId, col: t.col, row: t.row })),
+    itemTokens: board.items.map((i) => ({ id: i.id, col: i.col, row: i.row, name: i.name, equipmentData: {} })),
+    paintedCells: board.painted,
+    zones: board.zones.map((z) => ({ id: z.id, type: 'custom' as const, label: z.label, cells: z.cells, color: z.color })),
+    updatedAt: 0,
+  };
+}
 
 function takeLatestDelta(deltas: { payload: unknown }[]): CombatDeltaPayload | null {
   // snapshot.deltas 的 payload 是透传 unknown，逐条嗅探是否有 v1 快照特征字段
@@ -137,6 +152,25 @@ export default function PlayerSpectate() {
   }
   const addOp = (op: TurnCommitOp) => setPendingOps((prev) => [...prev, op]);
 
+  // 我的参战者：当前回合且绑定自身角色 —— 沙盘仅它可移动（与 DM 端 playbackOnlyMovableId 同语义）
+  const myTurnActor = spectate?.turn?.combatantId
+    ? roster.find((r) => r.id === spectate.turn?.combatantId && r.characterId && myCharacterIds.has(r.characterId)) ?? null
+    : null;
+  // 沙盘投影换算（delta 是完整快照，整块重建即可）
+  const bgData = useMemo(
+    () => (spectate?.board ? projectionToBg(spectate.board, spectate.recordId) : null),
+    [spectate?.board, spectate?.recordId]
+  );
+  // 投影参战者 → Combatant 形状（沙盘渲染与双击信息面板读它）
+  const combatantsForBoard = useMemo(() => roster.map((r) => rosterEntryToCombatant(r, null)), [roster]);
+  // 白圈「攻击/施法」按钮 → 我的回合面板弹窗（seq 去重）
+  const [boardRequest, setBoardRequest] = useState<{ kind: 'attack' | 'cast'; targetId: string; seq: number } | null>(null);
+  const boardReqSeq = useRef(0);
+  const openBoardRequest = (kind: 'attack' | 'cast', targetId: string) => {
+    boardReqSeq.current += 1;
+    setBoardRequest({ kind, targetId, seq: boardReqSeq.current });
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -243,6 +277,8 @@ export default function PlayerSpectate() {
                 ops={pendingOps}
                 onOpsChange={setPendingOps}
                 board={spectate.board ?? null}
+                boardRequest={boardRequest}
+                onBoardRequestHandled={() => setBoardRequest(null)}
               />
             );
           })()}
@@ -260,13 +296,18 @@ export default function PlayerSpectate() {
             <RoundNarrativeBoard events={spectate.events ?? []} />
           )}
 
-          {spectate && spectate.board && (
-            <SpectatorBoard
-              board={spectate.board}
-              roster={roster}
-              currentCombatantId={spectate.turn?.combatantId ?? null}
-              movableIds={roster.filter((r) => r.characterId && myCharacterIds.has(r.characterId)).map((r) => r.id)}
-              onMoveToken={(combatantId, to) => {
+          {spectate && spectate.board && bgData && (
+            <Battleground
+              sessionId={spectate.recordId}
+              bgData={bgData}
+              combatants={combatantsForBoard}
+              readOnly={!myTurnActor}
+              mode="playback"
+              playbackActive={spectate.turn?.playback === true}
+              activeTurnCombatantId={spectate.turn?.combatantId ?? null}
+              playbackOnlyMovableId={myTurnActor?.id ?? null}
+              combatInventories={myTurnActor ? { [myTurnActor.id]: rosterInventoryToEquipmentList(myTurnActor) } : undefined}
+              onRequestMoveToken={(combatantId, to) => {
                 const r = roster.find((x) => x.id === combatantId);
                 addOp({
                   kind: 'move',
@@ -274,11 +315,18 @@ export default function PlayerSpectate() {
                   roundText: `${r?.name ?? '我'}移动到（第 ${to.col + 1} 列，第 ${to.row + 1} 行）`,
                 });
               }}
-            >
-              {(cell) => (
+              onRequestAttack={(attacker, target) => {
+                if (attacker.id !== myTurnActor?.id) return;
+                openBoardRequest('attack', target.id);
+              }}
+              onRequestSpell={(caster, target) => {
+                if (caster.id !== myTurnActor?.id) return;
+                openBoardRequest('cast', target.id);
+              }}
+              projectionOverlay={(cell) => (
                 <AnimationOverlay anim={activeAnim} cell={cell} board={spectate.board!} roster={roster} />
               )}
-            </SpectatorBoard>
+            />
           )}
 
           {spectate && (

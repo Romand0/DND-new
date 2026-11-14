@@ -69,11 +69,24 @@ interface Props {
   onSelectionChange?: (combatantId: string | null) => void;
   /** 棋子移动到新格子后触发（父层结算地形区域「进入区域」伤害） */
   onTokenMoved?: (combatantId: string, pos: { col: number; row: number }, from?: { col: number; row: number }) => void;
+  /**
+   * 投影模式（玩家端观战）：沙盘数据由外部只读快照提供，本组件不读写 battlegroundStore，
+   * 破坏性操作（橡皮/撤回/清空/放置/删除/回收）全部关闭，移动只通过 onRequestMoveToken 上报。
+   * 传 undefined = DM 端常规模式（行为不变）。
+   */
+  bgData?: BG | null;
+  /** 投影模式下：请求把某参战者移动到目标格（宿主转成 move op；不传则不可移动） */
+  onRequestMoveToken?: (combatantId: string, to: { col: number; row: number }) => void;
+  /** 投影模式下：棋盘坐标系内的覆盖层（动画特效），cell 为当前格子像素尺寸 */
+  projectionOverlay?: (cellSize: number) => React.ReactNode;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelBardicClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelBardicClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay }: Props) {
   const navigate = useNavigate();
-  const [bg, setBg] = useState<BG | null>(null);
+  // 投影模式：数据来自外部快照，禁止一切写库操作
+  const projectionMode = bgData !== undefined;
+  const [storeBg, setStoreBg] = useState<BG | null>(null);
+  const bg = bgData !== undefined ? bgData : storeBg;
   const [selectedCombatantId, setSelectedCombatantId] = useState<string | null>(null);
   // 同步选中状态到父层
   useEffect(() => {
@@ -173,12 +186,13 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   };
 
   useEffect(() => {
-    setBg(battlegroundStore.getOrCreate(sessionId));
+    if (bgData !== undefined) return;
+    setStoreBg(battlegroundStore.getOrCreate(sessionId));
     const unsub = battlegroundStore.subscribe(() => {
-      setBg(battlegroundStore.get(sessionId));
+      setStoreBg(battlegroundStore.get(sessionId));
     });
     return unsub;
-  }, [sessionId]);
+  }, [sessionId, bgData === undefined]);
 
   // 参战者地图，便于查名称/PC标记
   const combatantMap = useMemo(() => {
@@ -315,10 +329,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   const preset = GRID_PRESETS[bg.size];
 
   const handleSizeChange = (size: GridSize) => {
+    if (projectionMode) return;
     battlegroundStore.setSize(sessionId, size);
   };
 
   const handleClear = () => {
+    if (projectionMode) return;
     if (confirm('确定清空所有棋子吗？')) battlegroundStore.clearTokens(sessionId);
   };
 
@@ -705,6 +721,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
    */
   const moveToken = (combatantId: string, col: number, row: number) => {
     const from = tokenMap.get(combatantId);
+    // 投影模式：只上报移动意图（转成 ops），不写本地沙盘，位置由 DM 端 delta 回显
+    if (onRequestMoveToken) {
+      onRequestMoveToken(combatantId, { col, row });
+      return;
+    }
     battlegroundStore.placeToken(sessionId, { combatantId, col, row });
     if (from && (from.col !== col || from.row !== row)) {
       onTokenMoved?.(combatantId, { col, row }, { col: from.col, row: from.row });
@@ -719,7 +740,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       return;
     }
     const existingCombatantId = cellToken.get(`${col},${row}`);
-    if (eraserMode) {
+    if (eraserMode && !projectionMode) {
       const key = `${col},${row}`;
       if (existingCombatantId) {
         battlegroundStore.removeToken(sessionId, existingCombatantId);
@@ -890,7 +911,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           </span>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {/* 大小切换 */}
+          {/* 大小切换（投影模式由 DM 端控制） */}
+          {!projectionMode && (
           <div className="flex rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">
             {(Object.keys(GRID_PRESETS) as GridSize[]).map((s) => (
               <button
@@ -906,6 +928,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
               </button>
             ))}
           </div>
+          )}
+          {!projectionMode && (
+          <>
           <button
             onClick={() => {
               if (playbackOnlyMovableId) return; // 放映模式禁用橡皮
@@ -945,6 +970,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             <Trash2 className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">清空</span>
           </button>
+          </>
+          )}
           {/* 缩放控制 */}
           <div className="flex items-center gap-1 ml-1">
             <button
@@ -969,7 +996,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
               <ZoomIn className="w-3.5 h-3.5" />
             </button>
           </div>
-          {/* 绘图模式入口 */}
+          {/* 绘图模式入口（投影模式无绘图权限） */}
+          {!projectionMode && (
           <button
             onClick={() => navigate(`/combat/${sessionId}/battleground-editor`)}
             className="px-2 py-1 text-xs rounded-lg border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-primary/10 hover:text-primary transition-colors flex items-center gap-1"
@@ -978,6 +1006,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             <PenTool className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">绘图</span>
           </button>
+          )}
         </div>
       </div>
 
@@ -1003,8 +1032,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                 if (eraserMode) return;
                 if (!selectable) return;
                 if (selectedCombatantId === c.id) {
-                  // 已选中 → 点击回收框收回
-                  battlegroundStore.removeToken(sessionId, c.id);
+                  // 已选中 → 点击回收框收回（投影模式只取消选中，不删 token）
+                  if (!projectionMode) battlegroundStore.removeToken(sessionId, c.id);
                   setSelectedCombatantId(null);
                 } else {
                   setSelectedCombatantId(c.id);
@@ -1023,7 +1052,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             );
           })}
         </div>
-        {/* 未放置：点击选中后到沙盘放置 */}
+        {/* 未放置：点击选中后到沙盘放置（投影模式全部由 DM 摆放，不显示） */}
+        {!projectionMode && (
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">
             未放置
@@ -1056,6 +1086,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             );
           })}
         </div>
+        )}
         {/* 提示语 —— 固定双行高度，避免选中状态切换导致沙盘整体位移 */}
         <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted min-h-[2rem] leading-4">
           {modeHint}
@@ -1108,7 +1139,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   {z.damage ? ` · ${z.damage.amount}${z.damage.damageType}` : ''}
                   {typeof z.expireRound === 'number' ? ` · 至第${z.expireRound + 1}轮` : ''}
                 </span>
-                {!readOnly && !playbackOnlyMovableId && (
+                {!readOnly && !playbackOnlyMovableId && !projectionMode && (
                   <button
                     onClick={() => battlegroundStore.removeZone(sessionId, z.id)}
                     className="text-danger hover:text-danger/80"
@@ -1149,7 +1180,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           </div>
         )}
         <div
-          className="grid origin-top-left"
+          className="grid origin-top-left relative"
           style={{
             gridTemplateColumns: `repeat(${preset.cols}, ${cellSize}px)`,
             gridTemplateRows: `repeat(${preset.rows}, ${cellSize}px)`,
@@ -1157,6 +1188,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
           }}
         >
+          {/* 投影模式动画覆盖层：与棋盘同坐标系（随平移缩放一起变换） */}
+          {projectionOverlay && (
+            <div className="absolute inset-0 pointer-events-none z-30">
+              {projectionOverlay(cellSize)}
+            </div>
+          )}
           {Array.from({ length: preset.cols * preset.rows }).map((_, i) => {
             const col = i % preset.cols;
             const row = Math.floor(i / preset.cols);
@@ -1580,8 +1617,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
           );
         })()}
 
-        {/* 锁定物品 token 后的拾起按钮 */}
-        {lockedItemTokenId && (() => {
+        {/* 锁定物品 token 后的拾起按钮（无拾取回调时不显示） */}
+        {lockedItemTokenId && onPickupItem && (() => {
           const itemToken = (bg?.itemTokens || []).find(t => t.id === lockedItemTokenId);
           if (!itemToken) return null;
           const rect = gridWrapRef.current?.getBoundingClientRect();
@@ -1678,8 +1715,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onClose={() => setDoubleClickedCombatant(null)}
                   combatants={combatants}
                   tokenMap={tokenMap}
-                  recordId={sessionId}
-                  sealed={readOnly && !isProvingGround}
+                  recordId={projectionMode ? undefined : sessionId}
+                  sealed={projectionMode || (readOnly && !isProvingGround)}
                   combatInventory={combatInventories?.[live.id]}
                   onRemoveItem={onRemoveItem ? (item) => onRemoveItem(live.id, item) : undefined}
                   equipmentChanges={equipmentChangesMap?.[live.id]}

@@ -55,6 +55,9 @@ interface Props {
   onOpsChange: (updater: (prev: TurnCommitOp[]) => TurnCommitOp[]) => void;
   /** 沙盘投影：射程/触及提示用（棋盘未开启时为 null） */
   board?: BoardProjection | null;
+  /** 沙盘白圈「攻击/施法」按钮发起的请求（seq 用于重复请求去重），宿主处理后回 handled 清空 */
+  boardRequest?: { kind: 'attack' | 'cast'; targetId: string; seq: number } | null;
+  onBoardRequestHandled?: () => void;
 }
 
 /** 弹窗外壳：换持 / 其他行动这类轻量弹窗用（掷骰类弹窗直接复用 DM 侧组件） */
@@ -93,7 +96,7 @@ function isRangedAttack(atk: Attack | NpcAttack): boolean {
   return props.includes('弹药') || props.includes('投掷') || ((atk as Attack).normalRange ?? 0) > 0;
 }
 
-export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board }: Props) {
+export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board, boardRequest, onBoardRequestHandled }: Props) {
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
   const myResult = result && result.requestId === lastRequestId ? result : null;
@@ -113,6 +116,15 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
   const targets = roster.filter((r) => r.id !== actor.id && !r.dead);
   const [targetId, setTargetId] = useState<string>(targets[0]?.id ?? '');
   const target = targets.find((t) => t.id === targetId) ?? targets[0] ?? null;
+
+  // 沙盘白圈请求：锁定目标并直接打开对应弹窗（与 DM 端长按锁定后点按钮同一路径）
+  useEffect(() => {
+    if (!boardRequest) return;
+    setTargetId(boardRequest.targetId);
+    setDialog(boardRequest.kind);
+    onBoardRequestHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardRequest?.seq]);
 
   // 本人角色卡：攻击加值/法术位/法术列表都按它计算（拉取失败则弹窗降级为无角色卡模式）
   const [character, setCharacter] = useState<Character | null>(null);
