@@ -56,7 +56,7 @@ interface Props {
   /** 沙盘投影：射程/触及提示用（棋盘未开启时为 null） */
   board?: BoardProjection | null;
   /** 沙盘白圈「攻击/施法」按钮发起的请求（seq 用于重复请求去重），宿主处理后回 handled 清空 */
-  boardRequest?: { kind: 'attack' | 'cast'; targetId: string; seq: number } | null;
+  boardRequest?: { kind: 'attack' | 'cast'; targetId?: string; seq: number } | null;
   onBoardRequestHandled?: () => void;
 }
 
@@ -120,7 +120,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
   // 沙盘白圈请求：锁定目标并直接打开对应弹窗（与 DM 端长按锁定后点按钮同一路径）
   useEffect(() => {
     if (!boardRequest) return;
-    setTargetId(boardRequest.targetId);
+    if (boardRequest.targetId) setTargetId(boardRequest.targetId);
     setDialog(boardRequest.kind);
     onBoardRequestHandled?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps

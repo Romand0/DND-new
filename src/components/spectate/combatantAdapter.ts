@@ -109,14 +109,19 @@ export function rosterEntryToCombatant(entry: CombatRosterEntry, character: Char
  * 投影里的手持要等 DM 审核入账后才有新 delta，若不等就会导致「先换武器再攻击」读到手部旧状态。
  */
 export function applyPendingHandOps(combatant: Combatant, ops: TurnCommitOp[]): Combatant {
-  const mine = ops.filter((o): o is Extract<TurnCommitOp, { kind: 'ready-item' }> => o.kind === 'ready-item');
-  if (mine.length === 0) return combatant;
-  const last = (slot: 'left' | 'right') => [...mine].reverse().find((o) => o.slot === slot);
-  const left = last('left');
-  const right = last('right');
-  return {
-    ...combatant,
-    heldLeft: left ? { equipmentId: left.childId, state: 'ready' } : combatant.heldLeft,
-    heldRight: right ? { equipmentId: right.childId, state: 'ready' } : combatant.heldRight,
-  };
+  let left = combatant.heldLeft;
+  let right = combatant.heldRight;
+  for (const op of ops) {
+    if (op.kind === 'ready-item') {
+      const slot = op.slot === 'left' ? { equipmentId: op.childId, state: 'ready' as const } : null;
+      if (slot) left = slot;
+      else right = { equipmentId: op.childId, state: 'ready' };
+    } else if (op.kind === 'hand-state') {
+      const base = op.slot === 'left' ? left : right;
+      const next = { equipmentId: base?.equipmentId ?? null, state: op.state };
+      if (op.slot === 'left') left = next;
+      else right = next;
+    }
+  }
+  return { ...combatant, heldLeft: left, heldRight: right };
 }

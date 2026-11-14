@@ -53,9 +53,13 @@ interface Props {
   characterOverride?: Character | null;
   /** 手持变更请求（玩家端提供后不写本地战斗记录，改由宿主转成 ready-item op）；传 null 表示放下 */
   onRequestHandChange?: (side: 'left' | 'right', item: Equipment | null) => void;
+  /** 手持状态变更请求（玩家端提供后转成 hand-state op） */
+  onRequestHandState?: (side: 'left' | 'right', state: 'ready' | 'action' | 'unavailable') => void;
+  /** 主动停止专注（玩家端提供后转成 stop-concentration op） */
+  onRequestStopConcentration?: () => void;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -63,6 +67,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   // 战斗背包筛选：分类药丸
   const [invFilter, setInvFilter] = useState<string>('全部');
 
+  // 玩家复用模式：宿主提供换持回调（面板不写本地战斗记录，改产出 op）
+  const playerMode = !!onRequestHandChange;
   // 玩家端由宿主传入 characterOverride 覆盖本地 store 读取（本地没有同团角色卡）
   const character = characterOverride !== undefined
     ? characterOverride
@@ -164,24 +170,40 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   };
 
   const handleSetAction = (hand: 'left' | 'right' | 'both') => {
+    if (onRequestHandState && hand !== 'both') {
+      onRequestHandState(hand, 'action');
+      return;
+    }
     if (!recordId) return;
     combatStore.setCombatantHandState(recordId, combatant.id, hand, 'action');
     setRefreshKey(k => k + 1);
   };
 
   const handleEndAction = (hand: 'left' | 'right' | 'both') => {
+    if (onRequestHandState && hand !== 'both') {
+      onRequestHandState(hand, 'ready');
+      return;
+    }
     if (!recordId) return;
     combatStore.setCombatantHandState(recordId, combatant.id, hand, 'ready');
     setRefreshKey(k => k + 1);
   };
 
   const handleSetUnavailable = (hand: 'left' | 'right' | 'both') => {
+    if (onRequestHandState && hand !== 'both') {
+      onRequestHandState(hand, 'unavailable');
+      return;
+    }
     if (!recordId) return;
     combatStore.setCombatantHandState(recordId, combatant.id, hand, 'unavailable');
     setRefreshKey(k => k + 1);
   };
 
   const handleRestoreHand = (hand: 'left' | 'right' | 'both') => {
+    if (onRequestHandState && hand !== 'both') {
+      onRequestHandState(hand, 'ready');
+      return;
+    }
     if (!recordId) return;
     combatStore.setCombatantHandState(recordId, combatant.id, hand, 'ready');
     setRefreshKey(k => k + 1);
@@ -775,9 +797,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">左手</span>
                         {(!sealed || !!onRequestHandChange) && (isUnavailable ? (
-                          recordId && <button onClick={() => handleRestoreHand('left')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
+                          (recordId || onRequestHandState) && <button onClick={() => handleRestoreHand('left')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
                         ) : isAction ? (
-                          recordId && <button onClick={() => handleEndAction('left')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
+                          (recordId || onRequestHandState) && <button onClick={() => handleEndAction('left')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
                         ) : heldLeftItem ? (
                           <button onClick={() => handleUnhold('left')} className="px-1.5 py-0.5 text-xs rounded bg-danger/10 text-danger">放下</button>
                         ) : isReady && (
@@ -820,9 +842,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">右手</span>
                         {(!sealed || !!onRequestHandChange) && (isUnavailable ? (
-                          recordId && <button onClick={() => handleRestoreHand('right')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
+                          (recordId || onRequestHandState) && <button onClick={() => handleRestoreHand('right')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
                         ) : isAction ? (
-                          recordId && <button onClick={() => handleEndAction('right')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
+                          (recordId || onRequestHandState) && <button onClick={() => handleEndAction('right')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
                         ) : heldRightItem ? (
                           <button onClick={() => handleUnhold('right')} className="px-1.5 py-0.5 text-xs rounded bg-danger/10 text-danger">放下</button>
                         ) : isReady && (
@@ -854,8 +876,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
           {activeTab === 'status' && (
             <div className="space-y-3">
-              {/* 能力开关 */}
-              <div className="rounded-lg border dark:border-border-dark light:border-border-light p-3">
+              {/* 能力开关：DM 专属（言语/手势能力覆盖） */}
+              <div className={`rounded-lg border dark:border-border-dark light:border-border-light p-3 ${playerMode ? 'hidden' : ''}`}>
                 <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">能力开关</div>
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
@@ -924,6 +946,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       </p>
                       <button
                         onClick={() => {
+                          if (onRequestStopConcentration) {
+                            onRequestStopConcentration();
+                            return;
+                          }
                           const rec = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
                           if (!rec) return;
                           const latest = combatStore.get(rec.id);
@@ -1255,7 +1281,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 <div className="grid grid-cols-2 gap-1.5">
                   {ALL_ACTIONS.map((type) => {
                     const statusBlocked = !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated);
-                    const clickable = !sealed && !statusBlocked && (
+                    // 玩家复用模式：动作按钮同样可用（回调由宿主接回合面板弹窗 / 行动记录）
+                    const clickable = (!sealed || playerMode) && !statusBlocked && (
                       (type === 'help' && !!onHelpClick) ||
                       (type === 'attack' && !!onAttackClick) ||
                       (type === 'cast' && !!onCastClick) ||
@@ -1294,7 +1321,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     {combatant.isDead ? '已死亡，无法行动' : combatant.isUnconscious ? '已昏迷，无法行动' : '已失能，无法行动'}
                   </p>
                 )}
-                {onForcedMoveClick && (
+                {onForcedMoveClick && !playerMode && (
                   <button
                     type="button"
                     onClick={onForcedMoveClick}
@@ -1317,7 +1344,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           <button
                             key={f.id}
                             type="button"
-                            disabled={sealed || !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated)}
+                            disabled={(sealed && !playerMode) || !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated)}
                             onClick={() => {
                               if (isBardic && onBardicClick) {
                                 onBardicClick();
@@ -1325,7 +1352,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                                 alert(`「${f.name}」暂未接入自动化流程，请按特性描述手动处理`);
                               }
                             }}
-                            className={`px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/15'}`}
+                            className={`px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed && !playerMode ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/15'}`}
                             title={isBardic ? '附赠动作·发放激励骰' : (f.description || '').slice(0, 60)}
                           >
                             <span className="block truncate">{f.name}</span>
@@ -1357,14 +1384,18 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
 
               {/* 操作按钮区 */}
               <div className="flex gap-2 p-3 shrink-0">
-                <button
-                  onClick={() => { handleSetAction(selectingHand); setSelectingHand(null); }}
-                  className="flex-1 py-1.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
-                >动作</button>
-                <button
-                  onClick={() => { handleSetUnavailable(selectingHand); setSelectingHand(null); }}
-                  className="flex-1 py-1.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
-                >不可用</button>
+                {(recordId || onRequestHandState) && (
+                  <button
+                    onClick={() => { handleSetAction(selectingHand); setSelectingHand(null); }}
+                    className="flex-1 py-1.5 text-xs rounded bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+                  >动作</button>
+                )}
+                {(recordId || onRequestHandState) && (
+                  <button
+                    onClick={() => { handleSetUnavailable(selectingHand); setSelectingHand(null); }}
+                    className="flex-1 py-1.5 text-xs rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
+                  >不可用</button>
+                )}
                 {((selectingHand === 'left' && heldLeftItem) || (selectingHand === 'right' && heldRightItem)) && (
                   <button
                     onClick={() => { handleUnhold(selectingHand); setSelectingHand(null); }}

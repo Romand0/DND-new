@@ -34,6 +34,16 @@ function opText(op: TurnCommitOp): string {
   if (op.kind === 'ready-item') {
     return op.itemName ? `换持：${op.slot === 'left' ? '左手' : '右手'} → ${op.itemName}` : `放下${op.slot === 'left' ? '左手' : '右手'}物品`;
   }
+  if (op.kind === 'hand-state') {
+    const label = op.state === 'action' ? '进入动作中' : op.state === 'unavailable' ? '标记不可用' : '恢复待用';
+    return `手持：${op.slot === 'left' ? '左手' : '右手'}${label}`;
+  }
+  if (op.kind === 'spell-slot') {
+    return op.consume ? `消耗 ${op.level} 环法术位` : `恢复 ${op.level} 环法术位`;
+  }
+  if (op.kind === 'stop-concentration') {
+    return '主动停止专注';
+  }
   const roll = `d20 ${op.d20}+${op.bonus}=${op.d20 + op.bonus}`;
   const verdict = op.critical ? '暴击命中' : op.hit ? '命中' : '未命中';
   const ammo = op.ammoCount ? `，弹药 -${op.ammoCount}` : '';

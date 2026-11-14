@@ -106,6 +106,24 @@ export type TurnCommitOp =
       itemName: string | null;
       roundText: string;
     }
+  | {
+      kind: 'hand-state';
+      slot: 'left' | 'right';
+      state: 'ready' | 'action' | 'unavailable';
+      roundText: string;
+    }
+  | {
+      kind: 'spell-slot';
+      /** 环阶（1-9；0 不使用） */
+      level: number;
+      /** true=消耗一个环位，false=恢复一个环位 */
+      consume: boolean;
+      roundText: string;
+    }
+  | {
+      kind: 'stop-concentration';
+      roundText: string;
+    }
   | { kind: 'end-turn' };
 
 export interface TurnCommitPayload {

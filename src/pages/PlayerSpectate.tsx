@@ -7,7 +7,7 @@ import { useSearchParams } from 'react-router-dom';
 import { Eye, Link2, LogOut, RefreshCw, Skull, Sparkles, Ban, Moon, Swords, Wifi, WifiOff, Hand } from 'lucide-react';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchMyCharacters } from '@/lib/api';
+import { fetchMyCharacters, fetchCharacter } from '@/lib/api';
 import SpectatorTable from '@/components/spectate/SpectatorTable';
 import AnimationOverlay from '@/components/spectate/AnimationOverlay';
 import RoundNarrativeBoard from '@/components/spectate/RoundNarrativeBoard';
@@ -67,14 +67,31 @@ export default function PlayerSpectate() {
   // 绑定关系与房间无关，登录后拉一次即可
   useEffect(() => {
     if (!token) return;
+    let alive = true;
+    // my-characters 只返回摘要（id/name/class…），双击面板与换持需要完整卡（装备/特性/法术）
     fetchMyCharacters()
-      .then((res) => {
-        setMyCharacters((res.characters ?? []) as Character[]);
+      .then(async (res) => {
+        const ids = ((res.characters ?? []) as { id: string }[]).map((c) => c.id);
+        const full = await Promise.all(
+          ids.map(async (id) => {
+            try {
+              return await fetchCharacter<Character>(id);
+            } catch {
+              return null;
+            }
+          })
+        );
+        if (!alive) return;
+        setMyCharacters(full.filter((c): c is Character => !!c));
       })
       .catch((e) => {
+        if (!alive) return;
         setMyCharacters([]);
         setNotice(`绑定角色查询失败：${String(e?.message ?? e)}（无法识别你的参战者）`);
       });
+    return () => {
+      alive = false;
+    };
   }, [token]);
 
   const leave = () => {
@@ -163,6 +180,16 @@ export default function PlayerSpectate() {
     () => (spectate?.board ? projectionToBg(spectate.board, spectate.recordId) : null),
     [spectate?.board, spectate?.recordId]
   );
+  // 战斗背包投影：本团所有自己的参战者都提供（面板换持/背包不只在当前回合可用）
+  const combatInventories = useMemo(() => {
+    const map: Record<string, ReturnType<typeof rosterInventoryToEquipmentList>> = {};
+    for (const r of roster) {
+      if (r.characterId && myCharacters.some((c) => c.id === r.characterId)) {
+        map[r.id] = rosterInventoryToEquipmentList(r);
+      }
+    }
+    return map;
+  }, [roster, myCharacters]);
   // 双击信息面板：把「我的角色卡」按参战者投给面板（面板自身只读本地 store 拿不到云端卡）
   const panelCharacters = useMemo(() => {
     const map: Record<string, Character | null> = {};
@@ -182,9 +209,9 @@ export default function PlayerSpectate() {
     [roster, panelCharacters, myTurnActor?.id, pendingOps]
   );
   // 白圈「攻击/施法」按钮 → 我的回合面板弹窗（seq 去重）
-  const [boardRequest, setBoardRequest] = useState<{ kind: 'attack' | 'cast'; targetId: string; seq: number } | null>(null);
+  const [boardRequest, setBoardRequest] = useState<{ kind: 'attack' | 'cast'; targetId?: string; seq: number } | null>(null);
   const boardReqSeq = useRef(0);
-  const openBoardRequest = (kind: 'attack' | 'cast', targetId: string) => {
+  const openBoardRequest = (kind: 'attack' | 'cast', targetId?: string) => {
     boardReqSeq.current += 1;
     setBoardRequest({ kind, targetId, seq: boardReqSeq.current });
   };
@@ -324,7 +351,7 @@ export default function PlayerSpectate() {
               playbackActive={spectate.turn?.playback === true}
               activeTurnCombatantId={spectate.turn?.combatantId ?? null}
               playbackOnlyMovableId={myTurnActor?.id ?? null}
-              combatInventories={myTurnActor ? { [myTurnActor.id]: rosterInventoryToEquipmentList(myTurnActor) } : undefined}
+              combatInventories={combatInventories}
               panelCharacters={panelCharacters}
               onRequestHandChange={(combatantId, side, item) => {
                 if (combatantId !== myTurnActor?.id) return;
@@ -337,6 +364,36 @@ export default function PlayerSpectate() {
                     ? `${side === 'left' ? '左手' : '右手'}换持为 ${item.name}`
                     : `放下${side === 'left' ? '左手' : '右手'}物品`,
                 });
+              }}
+              onRequestHandState={(combatantId, side, state) => {
+                if (combatantId !== myTurnActor?.id) return;
+                const label = state === 'action' ? '进入动作中' : state === 'unavailable' ? '标记不可用' : '恢复待用';
+                addOp({
+                  kind: 'hand-state',
+                  slot: side,
+                  state,
+                  roundText: `${side === 'left' ? '左手' : '右手'}${label}`,
+                });
+              }}
+              onRequestStopConcentration={(combatantId) => {
+                if (combatantId !== myTurnActor?.id) return;
+                addOp({ kind: 'stop-concentration', roundText: '主动停止专注' });
+              }}
+              onPanelAttackClick={(c) => {
+                if (c.id !== myTurnActor?.id) return;
+                openBoardRequest('attack');
+              }}
+              onPanelCastClick={(c) => {
+                if (c.id !== myTurnActor?.id) return;
+                openBoardRequest('cast');
+              }}
+              onPanelDashClick={(c) => {
+                if (c.id !== myTurnActor?.id) return;
+                addOp({ kind: 'note', roundText: '疾走（本回合移动力翻倍）', actionCost: 'action' });
+              }}
+              onPanelHelpClick={(c) => {
+                if (c.id !== myTurnActor?.id) return;
+                addOp({ kind: 'note', roundText: '协助（为同伴创造优势）', actionCost: 'action' });
               }}
               onRequestMoveToken={(combatantId, to) => {
                 const r = roster.find((x) => x.id === combatantId);

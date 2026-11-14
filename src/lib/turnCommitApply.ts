@@ -147,6 +147,26 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       } else {
         combatStore.unsetCombatantHand(record.id, actor.id, op.slot);
       }
+    } else if (op.kind === 'hand-state') {
+      combatStore.setCombatantHandState(record.id, actor.id, op.slot, op.state);
+    } else if (op.kind === 'spell-slot') {
+      const levelKey = `level${op.level}` as SpellSlotLevel;
+      if (op.consume) {
+        if (!combatStore.consumeSpellSlot(record.id, actor.id, levelKey)) {
+          return { ok: false, reason: `${op.level} 环法术位不足，提交被拒` };
+        }
+      } else {
+        combatStore.restoreSpellSlot(record.id, actor.id, levelKey);
+      }
+    } else if (op.kind === 'stop-concentration') {
+      const latest = combatStore.get(record.id) ?? record;
+      const self = latest.combatants.find((c) => c.id === actor.id);
+      combatStore.removeConcentrationStatuses(self?.concentration);
+      combatStore.update(record.id, {
+        combatants: latest.combatants.map((c) => (c.id === actor.id ? { ...c, concentration: undefined } : c)),
+        updatedAt: Date.now(),
+      });
+      combatStore.cleanupConcentrationMaintainTodos(record.id);
     } else if (op.kind === 'note') {
       if (op.actionCost === 'action' && !consumedAction) {
         consumeAction(actor.id);

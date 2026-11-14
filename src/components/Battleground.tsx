@@ -83,9 +83,13 @@ interface Props {
   panelCharacters?: Record<string, Character | null>;
   /** 投影模式下：信息面板的手持变更请求（宿主转成 ready-item op） */
   onRequestHandChange?: (combatantId: string, side: 'left' | 'right', item: Equipment | null) => void;
+  /** 投影模式下：信息面板的手持状态变更（宿主转成 hand-state op） */
+  onRequestHandState?: (combatantId: string, side: 'left' | 'right', state: 'ready' | 'action' | 'unavailable') => void;
+  /** 投影模式下：信息面板主动停止专注（宿主转成 stop-concentration op） */
+  onRequestStopConcentration?: (combatantId: string) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelBardicClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, onRequestHandChange }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelBardicClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
   const navigate = useNavigate();
   // 投影模式：数据来自外部快照，禁止一切写库操作
   const projectionMode = bgData !== undefined;
@@ -1736,6 +1740,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onForcedMoveClick={() => onPanelForcedMoveClick?.(live)}
                   characterOverride={panelCharacters ? panelCharacters[live.id] : undefined}
                   onRequestHandChange={onRequestHandChange ? (side, item) => onRequestHandChange(live.id, side, item) : undefined}
+                  onRequestHandState={onRequestHandState ? (side, state) => onRequestHandState(live.id, side, state) : undefined}
+                  onRequestStopConcentration={onRequestStopConcentration ? () => onRequestStopConcentration(live.id) : undefined}
                 />
         );
       })()}
