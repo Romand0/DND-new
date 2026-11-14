@@ -1317,7 +1317,8 @@ export default function CombatSession() {
         if (!c) return null;
         const actions = typeof c.actions === 'number' && c.actions >= 0 ? c.actions : 1;
         const bonusActions = typeof c.bonusActions === 'number' && c.bonusActions >= 0 ? c.bonusActions : 1;
-        const totalSpeed = c.speed ?? 0;
+        // 总移动力含速度修正与疾走加成（与 getRemainingMovement 的 availableMovement 同源）
+        const totalSpeed = (c.speed ?? 0) + (c.speedModifier ?? 0) + (c.dashExtraMovement ?? 0);
         const resourceMode = !!record.resourceConsumption;
         const remaining = combatStore.getRemainingMovement(c, playbackMode ? 'playback' : 'simulation', isPlaybackActive(), resourceMode);
         const active = (playbackMode && playbackStarted && !playbackPaused) || resourceMode;

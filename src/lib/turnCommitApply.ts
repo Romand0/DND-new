@@ -93,6 +93,25 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       // placeToken 内含越界保护与目标格挤占；玩家端拖拽已限自身棋子
       const fromToken = battlegroundStore.get(record.id)?.tokens.find(t => t.combatantId === actor.id);
       const fromPos = fromToken ? { col: fromToken.col, row: fromToken.row } : null;
+      // 移动力校验 + 消耗：与 DM 端沙盘 onConsumeMovement 同语义（放映模式按尺扣减）
+      if (fromPos) {
+        const feet = Math.max(Math.abs(op.to.col - fromPos.col), Math.abs(op.to.row - fromPos.row)) * 5;
+        if (feet > 0) {
+          const latest = combatStore.get(record.id) ?? record;
+          const live = latest.combatants.find((c) => c.id === actor.id) ?? actor;
+          const total = (live.speed ?? 0) + (live.speedModifier ?? 0) + (live.dashExtraMovement ?? 0);
+          const remaining = total - (live.movementUsed ?? 0);
+          if (total > 0 && remaining < feet) {
+            return { ok: false, reason: `移动力不足：需要 ${feet} 尺，只剩 ${Math.max(0, remaining)} 尺，提交被拒` };
+          }
+          combatStore.update(record.id, {
+            combatants: latest.combatants.map((c) =>
+              c.id === actor.id ? { ...c, movementUsed: (c.movementUsed ?? 0) + feet } : c
+            ),
+            updatedAt: Date.now(),
+          });
+        }
+      }
       battlegroundStore.placeToken(record.id, { combatantId: actor.id, col: op.to.col, row: op.to.row });
       // 借机攻击判定（5e：移动者离开触及范围的瞬时窗口）：
       // 机会持久化在持有者身上（pendingReactions），由调用方弹窗处理；
@@ -167,6 +186,21 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         updatedAt: Date.now(),
       });
       combatStore.cleanupConcentrationMaintainTodos(record.id);
+    } else if (op.kind === 'dash') {
+      // 疾走：额外移动力 = 战斗速度（speed + speedModifier），消耗一个动作
+      const latest = combatStore.get(record.id) ?? record;
+      const live = latest.combatants.find((c) => c.id === actor.id) ?? actor;
+      const battleSpeed = (live.speed ?? 30) + (live.speedModifier ?? 0);
+      combatStore.update(record.id, {
+        combatants: latest.combatants.map((c) =>
+          c.id === actor.id ? { ...c, dashExtraMovement: (c.dashExtraMovement ?? 0) + battleSpeed } : c
+        ),
+        updatedAt: Date.now(),
+      });
+      if (!consumedAction) {
+        consumeAction(actor.id);
+        consumedAction = true;
+      }
     } else if (op.kind === 'note') {
       if (op.actionCost === 'action' && !consumedAction) {
         consumeAction(actor.id);

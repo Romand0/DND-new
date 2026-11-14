@@ -293,6 +293,8 @@ export default function PlayerSpectate() {
           action = 1;
           attackSeen = true;
         }
+      } else if (op.kind === 'dash') {
+        action = 1;
       } else if (op.kind === 'cast' || op.kind === 'note') {
         if (op.actionCost === 'action') action = 1;
         else if (op.actionCost === 'bonus') bonus = 1;
@@ -317,9 +319,17 @@ export default function PlayerSpectate() {
   }, [spectate?.board, myTurnActor, pendingOps]);
 
   const turnActive = spectate?.turn?.playback === true && !spectate?.turn?.paused;
-  const myTotalSpeed = myTurnActor ? (myTurnActor.speed ?? 0) + (myTurnActor.speedModifier ?? 0) + (myTurnActor.dashExtraMovement ?? 0) : 0;
+  const myBaseSpeed = myTurnActor ? (myTurnActor.speed ?? 0) + (myTurnActor.speedModifier ?? 0) : 0;
+  // 未提交的疾走：额外移动力 = 战斗速度（与 DM 端疾走一致）
+  const pendingDash = pendingOps.some((op) => op.kind === 'dash');
+  const myTotalSpeed = myTurnActor
+    ? myBaseSpeed + (myTurnActor.dashExtraMovement ?? 0) + (pendingDash ? myBaseSpeed : 0)
+    : 0;
+  // 暂停/未开始时资源不生效：展示与范围按满移动力（与 DM 端 getRemainingMovement 同语义）
   const myRemainingMovement = myTurnActor
-    ? Math.max(0, myTotalSpeed - (myTurnActor.movementUsed ?? 0) - pendingMovementFeet)
+    ? turnActive
+      ? Math.max(0, myTotalSpeed - (myTurnActor.movementUsed ?? 0) - pendingMovementFeet)
+      : myTotalSpeed
     : 0;
   const myActions = Math.max(0, (myTurnActor?.actions ?? 0) - pendingActionUse.action);
   const myBonusActions = Math.max(0, (myTurnActor?.bonusActions ?? 0) - pendingActionUse.bonus);
@@ -507,7 +517,7 @@ export default function PlayerSpectate() {
               }}
               onPanelDashClick={(c) => {
                 if (c.id !== myTurnActor?.id) return;
-                addOp({ kind: 'note', roundText: '疾走（本回合移动力翻倍）', actionCost: 'action' });
+                addOp({ kind: 'dash', roundText: '疾走（+移动力）' });
               }}
               onPanelHelpClick={(c) => {
                 if (c.id !== myTurnActor?.id) return;

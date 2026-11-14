@@ -44,6 +44,9 @@ function opText(op: TurnCommitOp): string {
   if (op.kind === 'stop-concentration') {
     return '主动停止专注';
   }
+  if (op.kind === 'dash') {
+    return '疾走（+移动力）';
+  }
   const roll = `d20 ${op.d20}+${op.bonus}=${op.d20 + op.bonus}`;
   const verdict = op.critical ? '暴击命中' : op.hit ? '命中' : '未命中';
   const ammo = op.ammoCount ? `，弹药 -${op.ammoCount}` : '';

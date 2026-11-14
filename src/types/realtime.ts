@@ -124,6 +124,10 @@ export type TurnCommitOp =
       kind: 'stop-concentration';
       roundText: string;
     }
+  | {
+      kind: 'dash';
+      roundText: string;
+    }
   | { kind: 'end-turn' };
 
 export interface TurnCommitPayload {
