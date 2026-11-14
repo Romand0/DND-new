@@ -191,6 +191,14 @@ export interface CombatRosterEntry {
   /** 放映模式剩余动作（模拟模式数值无意义，玩家端按 turn.playback 显示） */
   actions?: number;
   bonusActions?: number;
+  /** 战斗速度（尺，含种族/装备修正前的基准）；0/缺省 = 不追踪移动力 */
+  speed?: number;
+  /** 速度修正（尺） */
+  speedModifier?: number;
+  /** 本回合已消耗移动力（尺） */
+  movementUsed?: number;
+  /** 疾走获得的额外移动力（尺） */
+  dashExtraMovement?: number;
   concentration?: { spellName: string; startedRound: number } | null;
   deathSaves?: { failures: number; successes: number } | null;
   /** 回合待办摘要（该参战者相关的持续效果提醒） */
@@ -256,6 +264,8 @@ export interface CombatTurnState {
   round: number;
   combatantId: string | null;
   playback: boolean;
+  /** 放映已暂停（资源不生效；玩家端据此刻画 HUD 与移动范围） */
+  paused?: boolean;
 }
 
 /** 沙盘观战投影：棋子/物品/墙体/地形区域；不含 equipmentData（背包隐私）与移动历史等 DM 侧数据 */

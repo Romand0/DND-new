@@ -138,6 +138,10 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
       heldRight: projectHand(record, c, c.heldRight),
       actions: c.actions ?? 0,
       bonusActions: c.bonusActions ?? 0,
+      speed: c.speed ?? 0,
+      speedModifier: c.speedModifier ?? 0,
+      movementUsed: c.movementUsed ?? 0,
+      dashExtraMovement: c.dashExtraMovement ?? 0,
       concentration: c.concentration
         ? { spellName: c.concentration.spellName, startedRound: c.concentration.startedRound }
         : null,
@@ -163,6 +167,7 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
         round: (record.playbackState.currentTurn?.round ?? 0) + 1,
         combatantId: record.playbackState.currentTurn?.combatantId ?? null,
         playback: true,
+        paused: record.playbackState.paused === true,
       }
     : null;
   return {

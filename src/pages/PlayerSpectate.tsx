@@ -14,6 +14,7 @@ import RoundNarrativeBoard from '@/components/spectate/RoundNarrativeBoard';
 import { MyCombatantsSection } from '@/components/spectate/MyCombatantPanel';
 import MyTurnPanel from '@/components/spectate/MyTurnPanel';
 import Battleground from '@/components/Battleground';
+import CombatResourceHud from '@/components/combat/CombatResourceHud';
 import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHandOps } from '@/components/spectate/combatantAdapter';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
@@ -218,6 +219,48 @@ export default function PlayerSpectate() {
       }),
     [roster, panelCharacters, myTurnActor?.id, pendingOps]
   );
+  // 本回合资源（动作/附赠/移动力）：投影快照 + 未提交 ops 乐观扣减（DM 入账后才回 delta）
+  const pendingActionUse = useMemo(() => {
+    let action = 0;
+    let bonus = 0;
+    let attackSeen = false;
+    for (const op of pendingOps) {
+      if (op.kind === 'attack') {
+        if (!attackSeen) {
+          action = 1;
+          attackSeen = true;
+        }
+      } else if (op.kind === 'cast' || op.kind === 'note') {
+        if (op.actionCost === 'action') action = 1;
+        else if (op.actionCost === 'bonus') bonus = 1;
+      }
+    }
+    return { action, bonus };
+  }, [pendingOps]);
+
+  // 未提交的移动：按落点顺序累加切比雪夫距离（5 尺/格）
+  const pendingMovementFeet = useMemo(() => {
+    if (!myTurnActor) return 0;
+    const start = spectate?.board?.tokens.find((t) => t.combatantId === myTurnActor.id);
+    if (!start) return 0;
+    let pos = { col: start.col, row: start.row };
+    let feet = 0;
+    for (const op of pendingOps) {
+      if (op.kind !== 'move') continue;
+      feet += Math.max(Math.abs(op.to.col - pos.col), Math.abs(op.to.row - pos.row)) * 5;
+      pos = op.to;
+    }
+    return feet;
+  }, [spectate?.board, myTurnActor, pendingOps]);
+
+  const turnActive = spectate?.turn?.playback === true && !spectate?.turn?.paused;
+  const myTotalSpeed = myTurnActor ? (myTurnActor.speed ?? 0) + (myTurnActor.speedModifier ?? 0) + (myTurnActor.dashExtraMovement ?? 0) : 0;
+  const myRemainingMovement = myTurnActor
+    ? Math.max(0, myTotalSpeed - (myTurnActor.movementUsed ?? 0) - pendingMovementFeet)
+    : 0;
+  const myActions = Math.max(0, (myTurnActor?.actions ?? 0) - pendingActionUse.action);
+  const myBonusActions = Math.max(0, (myTurnActor?.bonusActions ?? 0) - pendingActionUse.bonus);
+
   // 白圈「攻击/施法」按钮 → 我的回合面板弹窗（seq 去重）
   const [boardRequest, setBoardRequest] = useState<{ kind: 'attack' | 'cast'; targetId?: string; seq: number } | null>(null);
   const boardReqSeq = useRef(0);
@@ -358,9 +401,10 @@ export default function PlayerSpectate() {
               combatants={combatantsForBoard}
               readOnly={!myTurnActor}
               mode="playback"
-              playbackActive={spectate.turn?.playback === true}
+              playbackActive={turnActive}
               activeTurnCombatantId={spectate.turn?.combatantId ?? null}
               playbackOnlyMovableId={myTurnActor?.id ?? null}
+              remainingMovementMap={myTurnActor && myTotalSpeed > 0 ? { [myTurnActor.id]: myRemainingMovement } : undefined}
               combatInventories={combatInventories}
               panelCharacters={panelCharacters}
               panelSpellSlots={panelSpellSlots}
@@ -425,6 +469,17 @@ export default function PlayerSpectate() {
               projectionOverlay={(cell) => (
                 <AnimationOverlay anim={activeAnim} cell={cell} board={spectate.board!} roster={roster} />
               )}
+            />
+          )}
+
+          {/* 资源悬浮面板：与 DM 端同款（读投影 + 未提交 ops 乐观扣减） */}
+          {myTurnActor && (
+            <CombatResourceHud
+              actions={myActions}
+              bonusActions={myBonusActions}
+              remainingMovement={myTotalSpeed > 0 ? myRemainingMovement : null}
+              totalSpeed={myTotalSpeed}
+              active={turnActive}
             />
           )}
 

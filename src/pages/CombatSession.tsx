@@ -54,6 +54,7 @@ import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
+import CombatResourceHud from '@/components/combat/CombatResourceHud';
 import CombatantInfoPanel from '@/components/CombatantInfoPanel';
 import ForcedMoveDialog from '@/components/ForcedMoveDialog';
 import CombatCommitModal from '@/components/CombatCommitModal';
@@ -1315,78 +1316,35 @@ export default function CombatSession() {
         const c = record.combatants.find(x => x.id === hudId) ?? null;
         if (!c) return null;
         const actions = typeof c.actions === 'number' && c.actions >= 0 ? c.actions : 1;
+        const bonusActions = typeof c.bonusActions === 'number' && c.bonusActions >= 0 ? c.bonusActions : 1;
         const totalSpeed = c.speed ?? 0;
         const resourceMode = !!record.resourceConsumption;
         const remaining = combatStore.getRemainingMovement(c, playbackMode ? 'playback' : 'simulation', isPlaybackActive(), resourceMode);
         const active = (playbackMode && playbackStarted && !playbackPaused) || resourceMode;
-        const actionText = active ? (actions <= 0 ? '0' : `${actions}`) : '∞';
-        const moveText = totalSpeed > 0
-          ? (active ? `${remaining}/${totalSpeed}` : `${totalSpeed}`)
-          : '—';
-        const showEndTurn = playbackMode && active && !!currentTurn;
-        // 资源消耗模式：动作扣完无回合推进可恢复，提供一键重置（动作/附赠/移动力）
-        const showRestoreActions = resourceMode && !playbackMode;
-        // 仿显示屏：深蓝偏紫底 + 白字 + 等宽字体
-        const screenBg = 'bg-indigo-950/90';
-        const screenBorder = 'border border-indigo-400/20';
-        const labelCls = (isZero: boolean) =>
-          active
-            ? (isZero ? 'text-red-400' : 'text-white')
-            : 'text-indigo-300/60';
         return (
-          <div className={`fixed bottom-6 left-6 z-30 flex items-center gap-3 px-4 py-3 rounded-lg backdrop-blur shadow-lg ${screenBorder} ${screenBg} font-mono max-w-[calc(100vw-3rem)]`}>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-indigo-300/50 tracking-wider">ACT</span>
-              <span className={`text-sm font-bold ${labelCls(actions <= 0)}`}>{actionText}</span>
-            </div>
-            <span className="text-indigo-400/30">|</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-indigo-300/50 tracking-wider">MOV</span>
-              <span className={`text-sm font-bold ${labelCls(remaining <= 0)}`}>{moveText}</span>
-              <span className="text-[10px] text-indigo-300/50">ft</span>
-            </div>
-            {showRestoreActions && (
-              <>
-                <span className="text-indigo-400/30">|</span>
-                <button
-                  onClick={() => {
-                    if (!record) return;
-                    const latest = combatStore.get(record.id);
-                    const target = latest?.combatants.find(x => x.id === c.id);
-                    if (!target) return;
-                    combatStore.update(record.id, {
-                      combatants: latest!.combatants.map(x => (
-                        x.id === c.id
-                          ? { ...x, actions: 1, bonusActions: 1, movementUsed: 0 }
-                          : x
-                      )),
-                      updatedAt: Date.now(),
-                    });
-                  }}
-                  className="px-2.5 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap"
-                  title="恢复该人偶的动作/附赠动作/移动力（资源消耗模式无回合推进，需手动重置）"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  恢复
-                </button>
-              </>
-            )}
-            {showEndTurn && (
-              <>
-                <span className="text-indigo-400/30">|</span>
-                <button
-                  onClick={() => setConfirmEndTurnOpen(true)}
-                  className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-medium transition-colors flex items-center gap-1 whitespace-nowrap"
-                  title="完成当前回合，进入下一个"
-                >
-                  <SkipForward className="w-3.5 h-3.5" />
-                  完成回合
-                </button>
-              </>
-            )}
-          </div>
+          <CombatResourceHud
+            actions={actions}
+            bonusActions={bonusActions}
+            remainingMovement={totalSpeed > 0 ? remaining : null}
+            totalSpeed={totalSpeed}
+            active={active}
+            showEndTurn={playbackMode && active && !!currentTurn}
+            onEndTurn={() => setConfirmEndTurnOpen(true)}
+            showRestore={resourceMode && !playbackMode}
+            onRestore={() => {
+              const latest = combatStore.get(record.id);
+              const target = latest?.combatants.find(x => x.id === c.id);
+              if (!latest || !target) return;
+              combatStore.update(record.id, {
+                combatants: latest.combatants.map(x => (
+                  x.id === c.id ? { ...x, actions: 1, bonusActions: 1, movementUsed: 0 } : x
+                )),
+                updatedAt: Date.now(),
+              });
+            }}
+          />
         );
-      })()}
+    })()}
 
       {/* ✅ 回合待办展示板 —— 放映模式 + 已开始 + 当前回合存在时显示（暂停状态也显示） */}
       {record.mode === 'playback' && playbackStarted && currentTurn && (

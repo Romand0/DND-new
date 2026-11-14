@@ -100,6 +100,10 @@ export function rosterEntryToCombatant(entry: CombatRosterEntry, character: Char
     characterId: entry.characterId ?? undefined,
     actions: entry.actions,
     bonusActions: entry.bonusActions,
+    speed: entry.speed,
+    speedModifier: entry.speedModifier,
+    movementUsed: entry.movementUsed,
+    dashExtraMovement: entry.dashExtraMovement,
     attacks: buildRosterAttacks(entry, character),
   };
 }
