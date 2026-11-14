@@ -43,6 +43,21 @@ function takeLatestDelta(deltas: { payload: unknown }[]): CombatDeltaPayload | n
   return null;
 }
 
+/** 未提交回合操作缓存键：记录 + 轮次 + 参战者三者任一变化即视为新回合上下文 */
+const OPS_CACHE_PREFIX = 'dnd:player-pending-ops';
+const opsCacheKey = (recordId: string, round: number, combatantId: string) =>
+  `${OPS_CACHE_PREFIX}:${recordId}:${round}:${combatantId}`;
+function readCachedOps(key: string): TurnCommitOp[] {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as TurnCommitOp[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function PlayerSpectate() {
   const { token } = useAuth();
   const [searchParams] = useSearchParams();
@@ -64,6 +79,8 @@ export default function PlayerSpectate() {
   // ops 提升到页面层：沙盘拖拽与回合面板共享同一操作列表
   const [pendingOps, setPendingOps] = useState<TurnCommitOp[]>([]);
   const lastOpsRoundRef = useRef<number | null>(null);
+  // 未提交 ops 的缓存键（刷新/断线重连后据此恢复）
+  const opsKeyRef = useRef<string | null>(null);
 
   // 绑定关系与房间无关，登录后拉一次即可
   useEffect(() => {
@@ -165,12 +182,58 @@ export default function PlayerSpectate() {
   // 动画播放器：从事件流增量提取新事件，串行驱动沙盘覆盖层特效
   const { current: activeAnim } = useAnimationPlayer(spectate?.events ?? []);
 
+  // 未提交 ops 落本地缓存：DM 入账前刷新页面不丢（键含轮次/参战者，跨上下文自动作废）
+  const persistOps = (ops: TurnCommitOp[]) => {
+    const key = opsKeyRef.current;
+    if (!key) return;
+    try {
+      if (ops.length === 0) localStorage.removeItem(key);
+      else localStorage.setItem(key, JSON.stringify(ops));
+    } catch {
+      // 隐私模式下 localStorage 不可写：仅本次会话生效
+    }
+  };
+  const updateOps = (updater: (prev: TurnCommitOp[]) => TurnCommitOp[]) => {
+    setPendingOps((prev) => {
+      const next = updater(prev);
+      persistOps(next);
+      return next;
+    });
+  };
+
+  // 回合上下文变化：清旧缓存、按新键恢复（刷新后首条 delta 到达即恢复未提交操作）
+  useEffect(() => {
+    const rid = spectate?.recordId;
+    const turn = spectate?.turn;
+    if (!rid || !turn?.combatantId) return;
+    const key = opsCacheKey(rid, turn.round, turn.combatantId);
+    if (opsKeyRef.current === key) return;
+    const prevKey = opsKeyRef.current;
+    opsKeyRef.current = key;
+    if (prevKey && prevKey !== key) {
+      try {
+        localStorage.removeItem(prevKey);
+      } catch {
+        // ignore
+      }
+    }
+    setPendingOps(readCachedOps(key));
+  }, [spectate?.recordId, spectate?.turn?.round, spectate?.turn?.combatantId]);
+
   // 轮次推进即作废未提交的 ops（跨回合残留会带错 round 语义）
   if (spectate?.turn && lastOpsRoundRef.current !== spectate.turn.round) {
     lastOpsRoundRef.current = spectate.turn.round;
-    if (pendingOps.length > 0) setPendingOps([]);
+    if (pendingOps.length > 0) {
+      try {
+        const key = opsKeyRef.current;
+        if (key) localStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
+      setPendingOps([]);
+    }
   }
-  const addOp = (op: TurnCommitOp) => setPendingOps((prev) => [...prev, op]);
+  const addOp = (op: TurnCommitOp) => updateOps((prev) => [...prev, op]);
 
   // 我的参战者：当前回合且绑定自身角色 —— 沙盘仅它可移动（与 DM 端 playbackOnlyMovableId 同语义）
   const myTurnActor = spectate?.turn?.combatantId
@@ -373,7 +436,7 @@ export default function PlayerSpectate() {
                 result={lastResult}
                 onNotice={setNotice}
                 ops={pendingOps}
-                onOpsChange={setPendingOps}
+                onOpsChange={updateOps}
                 board={spectate.board ?? null}
                 boardRequest={boardRequest}
                 onBoardRequestHandled={() => setBoardRequest(null)}
