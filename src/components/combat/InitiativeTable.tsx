@@ -108,7 +108,7 @@ export default function InitiativeTable(props: Props) {
                           </span>
                         );
                       })()}
-                      {/* 借机攻击徽标：持有未决反应机会，点击重开处理弹窗 */}
+                      {/* 反应徽标：持有未决反应（借机攻击/法术反应等），点击重开处理弹窗 */}
                       {(() => {
                         const open = (c.pendingReactions || []).filter(o => !o.consumed);
                         if (open.length === 0 || !onOpenReactions) return null;
@@ -120,7 +120,7 @@ export default function InitiativeTable(props: Props) {
                               onOpenReactions(c);
                             }}
                             className="shrink-0 inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-amber-500/20 text-amber-500 text-[10px] font-normal hover:bg-amber-500/30 transition-colors cursor-pointer"
-                            title={`${open.length} 个未决借机攻击机会（点击处理）`}
+                            title={`${open.length} 个未决反应（点击处理）`}
                           >
                             <Zap className="w-3 h-3" />
                             {open.length}

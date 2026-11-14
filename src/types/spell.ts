@@ -1,3 +1,5 @@
+import type { ReactionTrigger, ReactionResolution } from '@/types/combat';
+
 /**
  * 法术材料成分的结构化描述。
  * 缺省时由 materialInfo 文本惰性解析（价值/耗材关键字），见 data/spellMaterials.ts。
@@ -14,6 +16,24 @@ export interface SpellMaterial {
   costGp?: number;
 }
 
+/**
+ * 法术作为反应触发的声明（数据驱动，见 data/reactionRules.ts 检测器）。
+ * 只声明「何时能反应、用哪种解决方式」，具体效果沿用既有法术流程/状态库结算，
+ * 引擎不内置任何具体法术名或效果逻辑。
+ */
+export interface SpellReaction {
+  /** 触发时机（attack_targeted：被指定为攻击目标；spell_cast：他人施法） */
+  trigger: ReactionTrigger;
+  /** 解决方式，缺省 'spell'（提示 DM 走法术流程） */
+  resolution?: ReactionResolution;
+  /** 可使用者范围：self = 被攻击者本人（缺省）；ally = 同阵营（不含本人） */
+  scope?: 'self' | 'ally';
+  /** 弹窗提示文案（DM 结算指引） */
+  prompt?: string;
+  /** 消耗法术位环级；0 = 不耗环（缺省 = 法术自身环级） */
+  slotLevel?: number;
+}
+
 export interface Spell {
   id: string;
   name: string;
@@ -21,6 +41,8 @@ export interface Spell {
   school: string;
   castingTime: string;
   range: string;
+  /** 反应触发声明（可选；仅声明式数据，不含效果逻辑） */
+  reaction?: SpellReaction;
   components: {
     verbal: boolean;
     somatic: boolean;

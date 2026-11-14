@@ -86,6 +86,14 @@ export type ReactionTrigger =
   | 'damage_taken'       // 受到伤害（减伤/反击）
   | 'spell_cast';        // 他人施法（法术反制）
 
+/** 反应解决方式：决定弹窗主体与落地链路 */
+export type ReactionResolution =
+  | 'attack'           // 走 CombatAttackModal 攻击链（借机攻击）
+  | 'spell'            // 提示 DM 走既有法术流程（护盾术等）
+  | 'status'           // 挂状态/附加效果
+  | 'damage_modifier'  // 伤害结算前修正（减伤/反弹）
+  | 'movement';        // 强制位移（复用 useForcedMove）
+
 /**
  * 未决反应机会（通用反应引擎）：触发事件快照 + 解决所需上下文。
  * 挂在持有者 Combatant.pendingReactions 上（战斗临时数据，与 EquipmentChanges 同层级）。
@@ -95,8 +103,10 @@ export interface ReactionPrompt {
   id: string;
   /** 反应持有者（行使反应的一方） */
   ownerId: string;
-  /** 反应定义稳定键（builtin:opportunity_attack / spell:shield / feature:sentinel ...） */
+  /** 反应定义稳定键（builtin:opportunity_attack / spell:<id> / feature:<名> ...） */
   definitionId: string;
+  /** 定义显示名（写入时快照，避免定义/法术库变动后历史 prompt 无法展示） */
+  definitionName?: string;
   trigger: ReactionTrigger;
   /** 产生时的放映回合；跨回合推进未处理即过期清除 */
   round: number;
