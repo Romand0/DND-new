@@ -1,16 +1,11 @@
 // 通用反应定义表：数据驱动的反应来源登记 + 保守识别。
-// 「识别不了的来源不自动生效」——只有登记在表里的定义会被检测器产出，
-// 书籍/特性/法术条目须在此显式映射（后续阶段从 character.features / spellStore / npcTemplate 抽取）。
-// P1 仅内置借机攻击；护盾术/哨兵/法术反制在 P2 扩充。
-import type { ReactionTrigger } from '@/types/combat';
+// 「识别不了的来源不自动生效」——只有静态登记的定义或法术库中带 reaction 声明的法术会被检测器产出。
+// 具体法术不做硬编码：spell:<id> 的定义在运行时由 Spell.reaction 数据派生（见 resolveReactionDefinition）。
+import { spellStore } from '@/data/spellStore';
+import type { ReactionTrigger, ReactionResolution } from '@/types/combat';
+import type { Spell } from '@/types/spell';
 
-/** 反应解决方式：决定弹窗主体与落地链路 */
-export type ReactionResolution =
-  | 'attack'           // 走 CombatAttackModal 攻击链（借机攻击）
-  | 'spell'            // 走 CombatSpellModal 简化施放（护盾术）
-  | 'status'           // 挂状态/附加效果
-  | 'damage_modifier'  // 伤害结算前修正（减伤/反弹）
-  | 'movement';        // 强制位移（复用 useForcedMove）
+export type { ReactionResolution };
 
 export interface ReactionDefinition {
   /** 稳定键：builtin:* / spell:<id> / feature:<名> / book:<条目名> */
@@ -46,6 +41,35 @@ export interface ReactionDefinition {
 }
 
 const registry = new Map<string, ReactionDefinition>();
+
+/** 由法术数据的 reaction 声明派生反应定义（spell:<id>）；无声明返回 null */
+export function definitionFromSpell(spell: Spell): ReactionDefinition | null {
+  const rx = spell.reaction;
+  if (!rx?.trigger) return null;
+  return {
+    id: `spell:${spell.id}`,
+    name: spell.name,
+    trigger: rx.trigger,
+    resolution: rx.resolution ?? 'spell',
+    usesPerRound: 1,
+    cost: rx.slotLevel === 0 ? undefined : { spellSlot: rx.slotLevel ?? Math.max(0, spell.level) },
+    prompt: {
+      title: `${spell.name}（反应）`,
+      body: rx.prompt,
+    },
+  };
+}
+
+/** 解析定义：先查静态表，再按 spell: 前缀从法术库派生（数据驱动，无硬编码法术条目） */
+export function resolveReactionDefinition(id: string): ReactionDefinition | null {
+  const stat = registry.get(id);
+  if (stat) return stat;
+  if (id.startsWith('spell:')) {
+    const spell = spellStore.getById(id.slice('spell:'.length));
+    return spell ? definitionFromSpell(spell) : null;
+  }
+  return null;
+}
 
 export function registerReactionDefinition(def: ReactionDefinition): void {
   if (!def?.id) return;

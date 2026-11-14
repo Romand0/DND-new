@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
-import type { Spell } from '@/types/spell';
+import type { Spell, SpellReaction } from '@/types/spell';
 
 interface SpellEditorProps {
   spell?: Spell;
@@ -239,6 +239,107 @@ const [formData, setFormData] = useState<Spell>({
                 placeholder="1分钟"
                 className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
               />
+            </div>
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-3 dark:border-border-dark light:border-border-light">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium dark:text-text-dark light:text-text-light">反应触发（可选）</span>
+              <span className="text-xs dark:text-text-dark/60 light:text-text-light/60">声明式：只登记触发时机，效果走既有法术流程</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs mb-1 dark:text-text-dark light:text-text-light">触发时机</label>
+                <select
+                  value={formData.reaction?.trigger ?? ''}
+                  onChange={(e) => {
+                    const trigger = e.target.value;
+                    setFormData({
+                      ...formData,
+                      reaction: trigger
+                        ? { ...(formData.reaction ?? {}), trigger: trigger as SpellReaction['trigger'] }
+                        : undefined,
+                    });
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="" className="dark:bg-bg-dark light:bg-bg-light">不声明</option>
+                  <option value="attack_targeted" className="dark:bg-bg-dark light:bg-bg-light">被指定为攻击目标</option>
+                  <option value="ally_attacked" className="dark:bg-bg-dark light:bg-bg-light">盟友被攻击</option>
+                  <option value="move_leave_reach" className="dark:bg-bg-dark light:bg-bg-light">移动离开触及</option>
+                  <option value="enter_reach" className="dark:bg-bg-dark light:bg-bg-light">移动进入触及</option>
+                  <option value="damage_taken" className="dark:bg-bg-dark light:bg-bg-light">受到伤害</option>
+                  <option value="spell_cast" className="dark:bg-bg-dark light:bg-bg-light">他人施法</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1 dark:text-text-dark light:text-text-light">解决方式</label>
+                <select
+                  value={formData.reaction?.resolution ?? 'spell'}
+                  disabled={!formData.reaction?.trigger}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    reaction: formData.reaction ? { ...formData.reaction, resolution: e.target.value as SpellReaction['resolution'] } : undefined,
+                  })}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none text-sm disabled:opacity-50 dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="spell" className="dark:bg-bg-dark light:bg-bg-light">法术流程（提示 DM 结算）</option>
+                  <option value="status" className="dark:bg-bg-dark light:bg-bg-light">状态附加</option>
+                  <option value="damage_modifier" className="dark:bg-bg-dark light:bg-bg-light">伤害修正</option>
+                  <option value="movement" className="dark:bg-bg-dark light:bg-bg-light">强制位移</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs mb-1 dark:text-text-dark light:text-text-light">可使用者</label>
+                <select
+                  value={formData.reaction?.scope ?? 'self'}
+                  disabled={!formData.reaction?.trigger}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    reaction: formData.reaction ? { ...formData.reaction, scope: e.target.value as 'self' | 'ally' } : undefined,
+                  })}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none text-sm disabled:opacity-50 dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="self" className="dark:bg-bg-dark light:bg-bg-light">被攻击者本人</option>
+                  <option value="ally" className="dark:bg-bg-dark light:bg-bg-light">同阵营（不含本人）</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs mb-1 dark:text-text-dark light:text-text-light">消耗法术位环级</label>
+                <select
+                  value={formData.reaction?.slotLevel ?? ''}
+                  disabled={!formData.reaction?.trigger}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    reaction: formData.reaction
+                      ? { ...formData.reaction, slotLevel: e.target.value === '' ? undefined : Number(e.target.value) }
+                      : undefined,
+                  })}
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none text-sm disabled:opacity-50 dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                >
+                  <option value="" className="dark:bg-bg-dark light:bg-bg-light">默认（法术自身环级）</option>
+                  <option value="0" className="dark:bg-bg-dark light:bg-bg-light">不耗环</option>
+                  {[1,2,3,4,5,6,7,8,9].map(lv => (
+                    <option key={lv} value={lv} className="dark:bg-bg-dark light:bg-bg-light">{lv} 环</option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-3">
+                <label className="block text-xs mb-1 dark:text-text-dark light:text-text-light">弹窗提示</label>
+                <input
+                  type="text"
+                  disabled={!formData.reaction?.trigger}
+                  value={formData.reaction?.prompt ?? ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    reaction: formData.reaction ? { ...formData.reaction, prompt: e.target.value } : undefined,
+                  })}
+                  placeholder="给 DM 的结算指引，如：AC+5 直到下回合开始"
+                  className="w-full px-3 py-2 rounded-lg border bg-transparent outline-none text-sm disabled:opacity-50 dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light focus:border-primary"
+                />
+              </div>
             </div>
           </div>
 

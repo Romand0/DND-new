@@ -45,7 +45,9 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Character, Attack } from '@/types/character';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionPrompt } from '@/types/combat';
+import type { SpellSlotLevel } from '@/types/character';
 import { detectReactions } from '@/data/reactionRules';
+import { resolveReactionDefinition } from '@/data/reactionDefinitions';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
 import type { PlayerActionRequest } from '@/types/realtime';
 import { Plus, Trash2, ArrowLeft, Users, X, Check, SkipForward, Undo2, CheckCircle2, Swords, Pause, PlayCircle, Coins, RotateCcw, Send } from 'lucide-react';
@@ -54,6 +56,7 @@ import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
+import ReactionPromptModal from '@/components/ReactionPromptModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
 import CombatResourceHud from '@/components/combat/CombatResourceHud';
 import CombatantInfoPanel from '@/components/CombatantInfoPanel';
@@ -234,6 +237,20 @@ export default function CombatSession() {
   const [reactionIdx, setReactionIdx] = useState(0);
   // 伤害结算期间挂起队列（命中确认后等伤害弹窗关闭再展示下一个机会）
   const [reactionHold, setReactionHold] = useState(false);
+  // 命中确认后若有防御方反应（attack_targeted），伤害弹窗延后到反应队列处理完毕再打开
+  const [pendingDamage, setPendingDamage] = useState<{
+    attacker: Combatant;
+    target: Combatant;
+    attack: Attack | NpcAttack;
+    disadvantage: boolean;
+    isCritical: boolean;
+    d20Rolled: number[];
+    d20Final: number;
+    d20Bonus: number;
+    d20Total: number;
+    usageMode?: 'melee' | 'thrown';
+    isTwoHandedWield?: boolean;
+  } | null>(null);
   // ✅ 新增：法术施放弹窗（独立交互流程，与攻击检定解耦）
   const [spellModal, setSpellModal] = useState<{
     caster: Combatant;
@@ -304,6 +321,34 @@ export default function CombatSession() {
 
   // 强制位移落位引擎（手动入口与流程绑定共用，design.md 单一落位引擎）
   const { executeForcedMove } = useForcedMove(record?.id ?? null);
+
+  // 防御方反应队列处理完毕（且无挂起的借机伤害）→ 打开延后的伤害结算弹窗
+  useEffect(() => {
+    if (!pendingDamage || damageModal || reactionHold) return;
+    if (reactionIdx < (reactionQueue?.length ?? 0)) return;
+    setDamageModal(pendingDamage);
+    setPendingDamage(null);
+  }, [pendingDamage, damageModal, reactionHold, reactionIdx, reactionQueue]);
+
+  // 队列头部持有者已失效（死亡/昏迷/失能）→ 自动作废并推进，避免队列卡死挡住延后的伤害弹窗
+  useEffect(() => {
+    if (!record || !reactionQueue || reactionIdx >= reactionQueue.length) return;
+    const head = reactionQueue[reactionIdx];
+    const headOwner = record.combatants.find(c => c.id === head.ownerId);
+    if (!headOwner || headOwner.isDead || headOwner.isUnconscious || headOwner.isIncapacitated) {
+      combatStore.consumePendingReaction(record.id, head.ownerId, head.id);
+      setReactionIdx(i => i + 1);
+    }
+  }, [record, reactionQueue, reactionIdx]);
+
+  /** 反应法术位剩余（角色卡槽位 - 战斗内已消耗增量）；无角色卡/无该环返回 0 */
+  const reactionSlotRemaining = (owner: Combatant, level: number): number => {
+    const char = owner.characterId ? characterStore.get(owner.characterId) : null;
+    const slot = char?.spells?.spellSlots?.[`level${level}` as SpellSlotLevel];
+    if (!slot) return 0;
+    const delta = record?.spellSlotChanges?.[owner.id]?.[`level${level}`] ?? 0;
+    return Math.max(0, slot.max - slot.used - delta);
+  };
 
   // 原内容：完全保留，一个字都没改（加载逻辑100%不变，保证能进入）
   useEffect(() => {
@@ -1749,7 +1794,7 @@ export default function CombatSession() {
               weaponName: attack.name,
               text: `《${attack.name}》→ ${attackModal.target.name}：命中`,
             });
-            setDamageModal({
+            const damagePayload = {
               attacker: attackModal.attacker,
               target: attackModal.target,
               attack,
@@ -1761,8 +1806,20 @@ export default function CombatSession() {
               d20Total: info.total,
               usageMode: info.usageMode,
               isTwoHandedWield: info.isTwoHandedWield,
-            });
+            };
             setAttackModal(null);
+            // 防御方反应窗口（attack_targeted）：命中确认后、伤害结算前，先处理被攻击方/其盟友的反应
+            const rxMatches = record
+              ? detectReactions(record, { kind: 'attack', attackerId: attackModal.attacker.id, targetId: attackModal.target.id })
+              : [];
+            if (rxMatches.length > 0 && record) {
+              const rxRound = currentTurn ? currentTurn.round + 1 : 0;
+              const fulls = rxMatches.flatMap(m => combatStore.addReactionPrompts(record.id, m.ownerId, [m], rxRound));
+              setPendingDamage(damagePayload);
+              setReactionQueue(prev => [...(prev || []), ...fulls]);
+            } else {
+              setDamageModal(damagePayload);
+            }
           }}
           onAttackMiss={(missInfo) => {
             // 攻击（无论是否命中）消耗 1 个动作
@@ -1828,12 +1885,60 @@ export default function CombatSession() {
       {(() => {
         if (!reactionQueue || reactionIdx >= reactionQueue.length || reactionHold) return null;
         const opp = reactionQueue[reactionIdx];
-        // P1 只有 attack 解决适配器（借机攻击）；其它触发的 prompt 留给 P2 的通用外壳
-        if (opp.trigger !== 'move_leave_reach' || !opp.moverId) return null;
         const owner = record.combatants.find(c => c.id === opp.ownerId);
+        // 持有者死亡/昏迷/已不可见 → 由自动作废 effect 回收（此处只跳过渲染）
+        if (!owner || owner.isDead || owner.isUnconscious || owner.isIncapacitated) return null;
+        const definition = resolveReactionDefinition(opp.definitionId);
+        const resolution = definition?.resolution ?? (opp.trigger === 'move_leave_reach' ? 'attack' : 'spell');
+
+        if (resolution === 'spell') {
+          const target = record.combatants.find(c => c.id === (opp.targetId ?? opp.moverId));
+          const targetName = target?.name ?? '目标';
+          // 无角色卡的参战者（试验场影子卡/NPC）不扣法术位，避免因无槽位数据而无法测试
+          const slotLevel = owner.characterId ? (definition?.cost?.spellSlot ?? 0) : 0;
+          const slotAvailable = slotLevel <= 0 || reactionSlotRemaining(owner, slotLevel) > 0;
+          const name = definition?.name ?? opp.definitionName ?? '反应';
+          return (
+            <ReactionPromptModal
+              prompt={opp}
+              definition={definition}
+              owner={owner}
+              targetName={targetName}
+              slotLevel={slotLevel}
+              slotAvailable={slotAvailable}
+              onSkip={() => {
+                combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
+                setReactionIdx(i => i + 1);
+              }}
+              onConfirm={() => {
+                if (slotLevel > 0) {
+                  const ok = combatStore.consumeSpellSlot(record.id, owner.id, `level${slotLevel}` as SpellSlotLevel);
+                  if (!ok) {
+                    alert(`法术位不足，无法行使《${name}》`);
+                    return;
+                  }
+                }
+                combatStore.consumeReaction(record.id, owner.id);
+                combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
+                const text = `${owner.name} 行使反应《${name}》→ ${targetName}（请按法术流程结算）`;
+                recordOperation(owner.id, text, 'spell');
+                combatStore.pushCombatEvent(record.id, {
+                  kind: 'cast',
+                  round: currentTurn ? currentTurn.round + 1 : 0,
+                  actorId: owner.id,
+                  targetId: target?.id,
+                  spellName: name,
+                  text,
+                });
+                setReactionIdx(i => i + 1);
+              }}
+            />
+          );
+        }
+
+        if (!opp.moverId) return null;
         const mover = record.combatants.find(c => c.id === opp.moverId);
-        // 持有者死亡/昏迷/已不可见 → 机会自动过期（不再弹窗，机会留在身上由清理机制回收）
-        if (!owner || !mover || owner.isDead || owner.isUnconscious || owner.isIncapacitated) return null;
+        if (!mover) return null;
         const bg = record.id ? battlegroundStore.get(record.id) : null;
         const ownerPos = bg?.tokens.find(t => t.combatantId === owner.id);
         return (

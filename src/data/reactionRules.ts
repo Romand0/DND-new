@@ -8,8 +8,10 @@
 import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
 import { BUILTIN_OPPORTUNITY_ATTACK } from '@/data/reactionDefinitions';
+import { spellStore } from '@/data/spellStore';
 import type { CombatRecord, Combatant, ReactionPrompt, NpcAttack } from '@/types/combat';
 import type { Attack } from '@/types/character';
+import type { Spell } from '@/types/spell';
 
 type AnyAttack = Attack | NpcAttack;
 
@@ -154,6 +156,57 @@ registerReactionDetector((record, event) => {
         moverId,
         fromPos,
         toPos,
+      });
+    }
+  }
+  return results;
+});
+
+/**
+ * 法术反应候选（数据驱动）：参战者已知法术中带 reaction 声明者。
+ * 试验场开放全库（便于测试受术方反应）；普通战斗只取角色卡习得列表，按名字回查法术库。
+ * 纯只读，不校验反应次数/法术位（可用性由弹窗二次校验，避免检测阶段丢信息）。
+ */
+function getKnownReactionSpells(record: CombatRecord, combatant: Combatant): Spell[] {
+  if (!combatant.characterId && !record.isProvingGround) return [];
+  const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+  if (!character && !record.isProvingGround) return [];
+  const all = spellStore.getAll().filter(s => !!s.reaction?.trigger);
+  if (record.isProvingGround) return all;
+  const names = new Set([...(character?.spells?.cantrips ?? []), ...(character?.spells?.custom ?? [])]);
+  return all.filter(s => names.has(s.name));
+}
+
+/** 攻击目标触发的反应检测器（attack_targeted）：被攻击者本人 / 其同阵营者按法术声明产出 */
+registerReactionDetector((record, event) => {
+  if (event.kind !== 'attack') return [];
+  const attacker = record.combatants.find(c => c.id === event.attackerId);
+  const target = record.combatants.find(c => c.id === event.targetId);
+  if (!attacker || !target) return [];
+  if (target.isDead || target.isUnconscious) return [];
+  const results: ReactionMatch[] = [];
+  for (const owner of record.combatants) {
+    if (owner.isDead || owner.isUnconscious || owner.isIncapacitated) continue;
+    if (owner.id === attacker.id) continue;
+    // 必须与攻击方敌对（同阵营不反应）
+    if (!!owner.isPc === !!attacker.isPc) continue;
+    for (const spell of getKnownReactionSpells(record, owner)) {
+      const rx = spell.reaction!;
+      if (rx.trigger !== 'attack_targeted') continue;
+      const scope = rx.scope ?? 'self';
+      if (scope === 'self' && owner.id !== target.id) continue;
+      if (scope === 'ally') {
+        if (!!owner.isPc !== !!target.isPc) continue;
+        if (owner.id === target.id) continue;
+      }
+      results.push({
+        ownerId: owner.id,
+        definitionId: `spell:${spell.id}`,
+        definitionName: spell.name,
+        trigger: 'attack_targeted',
+        attackerId: attacker.id,
+        targetId: target.id,
+        spellId: spell.id,
       });
     }
   }
