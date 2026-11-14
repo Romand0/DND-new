@@ -432,15 +432,8 @@ export default function CombatSession() {
       setPlaybackStarted(true);
       setPlaybackPaused(true);
       pausedTurnRef.current = ps.currentTurn;
-      // 恢复 actions 并拍快照（恢复放映后的标准流程）
-      const freshRecord = combatStore.get(record.id);
-      const freshCombatant = freshRecord?.combatants.find(c => c.id === ps.currentTurn!.combatantId);
-      const isFreshTurn = !freshCombatant
-        || ((typeof freshCombatant.actions === 'number' ? freshCombatant.actions : 1) >= 1
-            && (freshCombatant.movementUsed ?? 0) === 0);
-      if (isFreshTurn) {
-        resetCombatantActions(ps.currentTurn.combatantId);
-      }
+      // 只拍快照，不重置动作/移动力：刷新前该回合已消耗的资源必须原样保留
+      // （回合开始时的重置由 advanceTurn/startPlayback 负责，这里重复重置会丢数据）
       takeTurnSnapshot(ps.currentTurn.round, ps.currentTurn.combatantId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps

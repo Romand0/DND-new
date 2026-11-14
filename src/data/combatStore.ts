@@ -847,7 +847,8 @@ const combatStore = {
 
   /**
    * 重置某参战者的可用动作数为 1（放映模式每回合开始时调用）。
-   * 同时将 movementUsed 归零（D&D 5e：每回合开始恢复完整移动力）。
+   * 同时将 movementUsed / dashExtraMovement 归零（D&D 5e：每回合开始恢复完整移动力）。
+   * speedModifier 是常驻被动（快速移动/无甲移动等派生），跨回合保留，不能在此清零。
    * 附赠动作重置为 0：5e 只有特性明确赋予附赠动作时才可用，需由 DM 手动授予（grantBonusAction）。
    * @returns 重置后的可用动作数（恒为 1）；找不到参战者时返回 null
    */
@@ -857,7 +858,7 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 0, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0, reactionUsed: false };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 0, movementUsed: 0, dashExtraMovement: 0, reactionUsed: false };
     record.updatedAt = Date.now();
     save(records);
     this.syncCombatantStatusFlags(recordId, combatantId);
