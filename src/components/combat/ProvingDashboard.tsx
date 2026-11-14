@@ -121,7 +121,7 @@ export default function ProvingDashboard({ record, combatant, character, combatI
         <Stat label="AC" value={String(ac)} />
         <Stat label="速度" value={`${speed}${combatant.speedModifier ? '*' : ''}`} />
         <Stat label="动作" value={String(combatant.actions ?? 1)} />
-        <Stat label="附赠" value={String(combatant.bonusActions ?? 1)} />
+        <Stat label="附赠" value={String(combatant.bonusActions ?? 0)} />
       </div>
       {combatant.speedModifier ? (
         <p className="text-[10px] dark:text-text-dark-muted light:text-text-light-muted">

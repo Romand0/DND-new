@@ -3,7 +3,7 @@
 // 数据来源：观战投影（roster/board）+ 本人角色卡（云端拉取，仅用于攻击加值/法术位/法术列表）。
 // 投影经 combatantAdapter 映射成 Combatant 形状，弹窗内的射程/弹药/装填/优劣势判定与 DM 端同源。
 import { useEffect, useMemo, useState } from 'react';
-import { Dices, Hand, PenLine, Send, Sparkles, Swords, Trash2, X } from 'lucide-react';
+import { Dices, Hand, PenLine, RotateCcw, Send, Sparkles, Swords, Trash2, X } from 'lucide-react';
 import { useTextInput } from '@/hooks/useInput';
 import { fetchCharacter } from '@/lib/api';
 import { spellStore } from '@/data/spellStore';
@@ -98,6 +98,8 @@ function isRangedAttack(atk: Attack | NpcAttack): boolean {
 
 export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board, boardRequest, onBoardRequestHandled }: Props) {
   const [sentAt, setSentAt] = useState<number | null>(null);
+  // 发送失败（连接未就绪）或已被 DM 拒绝时进入可重试态：保留 ops 与服务端基线，原样重发
+  const [sendFailed, setSendFailed] = useState(false);
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
   const myResult = result && result.requestId === lastRequestId ? result : null;
   // 当前打开的弹窗：attack/cast/damage 直接复用 DM 侧组件，ready/note 用轻量外壳
@@ -109,6 +111,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
       onOpsChange(() => []);
       setSentAt(null);
       setLastRequestId(null);
+      setSendFailed(false);
       setDialog(null);
     }
   }, [myResult?.accepted, myResult?.requestId]);
@@ -347,13 +350,18 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
       action: payload,
     });
     if (!ok) {
-      onNotice('发送失败：连接未就绪');
+      setSendFailed(true);
+      onNotice('发送失败：连接未就绪，可点击「重试提交」');
       return;
     }
+    setSendFailed(false);
     onNotice('');
     setSentAt(Date.now());
     setLastRequestId(requestId);
   };
+
+  // 重试：沿用当前 ops 完整重发（拒绝时服务端未入账、发送失败时未送达，均可安全重发）
+  const retrySubmit = () => submit();
 
   const spells = actor.spells ?? [];
   const primaryBtn = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40';
@@ -434,14 +442,21 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
 
       {/* 提交与回执 */}
       <div className="flex items-center gap-2 flex-wrap pt-1">
-        <button
-          onClick={submit}
-          disabled={sentAt !== null && !myResult}
-          className={primaryBtn}
-        >
-          <Send className="w-4 h-4" />
-          结束回合并提交{ops.length > 0 ? `（打包 ${ops.length} 项）` : ''}
-        </button>
+        {(() => {
+          const retryable = sendFailed || (!!myResult && !myResult.accepted);
+          return (
+            <button
+              onClick={retryable ? retrySubmit : submit}
+              disabled={sentAt !== null && !myResult && !sendFailed}
+              className={retryable ? `${primaryBtn} bg-amber-600` : primaryBtn}
+            >
+              {retryable ? <RotateCcw className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+              {retryable
+                ? `重试提交（打包 ${ops.length} 项）`
+                : `结束回合并提交${ops.length > 0 ? `（打包 ${ops.length} 项）` : ''}`}
+            </button>
+          );
+        })()}
         {sentAt !== null && !myResult && (
           <span className="text-xs text-amber-500">已提交，等待 DM 审核…</span>
         )}
@@ -503,7 +518,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           casterCombatInventory={myInventory}
           bounds={bounds}
           canUseAction={(actor.actions ?? 1) > 0}
-          canUseBonusAction={(actor.bonusActions ?? 1) > 0}
+          canUseBonusAction={(actor.bonusActions ?? 0) > 0}
           currentRound={round}
           onTargetChange={(c) => setTargetId(c.id)}
           onClose={() => setDialog(null)}

@@ -50,6 +50,7 @@ export default function CombatList() {
           speed: c.speed,
           note: '',
           actions: 1,
+          bonusActions: 0,
           ...(hands ? { heldLeft: hands.heldLeft, heldRight: hands.heldRight } : {}),
         };
       });

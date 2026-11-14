@@ -1230,8 +1230,21 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-medium dark:text-text-dark light:text-text-light">附赠动作</span>
-                    <span className="text-sm font-semibold dark:text-text-dark light:text-text-light">
-                      {Math.max(0, typeof bonusActions === 'number' ? bonusActions : (typeof combatant.bonusActions === 'number' ? combatant.bonusActions : 1))}
+                    <span className="flex items-center gap-1">
+                      <span className="text-sm font-semibold dark:text-text-dark light:text-text-light">
+                        {Math.max(0, typeof bonusActions === 'number' ? bonusActions : (typeof combatant.bonusActions === 'number' ? combatant.bonusActions : 0))}
+                      </span>
+                      {/* 5e 附赠动作由特性/法术赋予：默认 0，DM 在此显式授予（上限 1） */}
+                      {!onRequestHandChange && !sealed && record && (
+                        <button
+                          type="button"
+                          title="授予 1 个附赠动作（特性/法术赋予时使用）"
+                          onClick={() => combatStore.grantBonusAction(record.id, combatant.id)}
+                          className="p-0.5 rounded hover:bg-white/10 dark:text-text-dark-muted light:text-text-light-muted"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </span>
                   </div>
                 </div>

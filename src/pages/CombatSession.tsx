@@ -835,7 +835,7 @@ export default function CombatSession() {
         damageAffinities: deriveCharacterAffinities(char),
         note: '试验场人偶',
         actions: 1,
-        bonusActions: 1,
+        bonusActions: 0,
         heldLeft: hands.heldLeft,
         heldRight: hands.heldRight,
         attacks: PROVING_GROUND_ATTACKS.map(a => ({ ...a })),
@@ -1316,7 +1316,7 @@ export default function CombatSession() {
         const c = record.combatants.find(x => x.id === hudId) ?? null;
         if (!c) return null;
         const actions = typeof c.actions === 'number' && c.actions >= 0 ? c.actions : 1;
-        const bonusActions = typeof c.bonusActions === 'number' && c.bonusActions >= 0 ? c.bonusActions : 1;
+        const bonusActions = typeof c.bonusActions === 'number' && c.bonusActions >= 0 ? c.bonusActions : 0;
         // 总移动力含速度修正与疾走加成（与 getRemainingMovement 的 availableMovement 同源）
         const totalSpeed = (c.speed ?? 0) + (c.speedModifier ?? 0) + (c.dashExtraMovement ?? 0);
         const resourceMode = !!record.resourceConsumption;
@@ -1338,7 +1338,7 @@ export default function CombatSession() {
               if (!latest || !target) return;
               combatStore.update(record.id, {
                 combatants: latest.combatants.map(x => (
-                  x.id === c.id ? { ...x, actions: 1, bonusActions: 1, movementUsed: 0 } : x
+                  x.id === c.id ? { ...x, actions: 1, bonusActions: 0, movementUsed: 0 } : x
                 )),
                 updatedAt: Date.now(),
               });

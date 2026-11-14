@@ -47,7 +47,7 @@ export function useActions(record: CombatRecord | null, { playbackStarted, playb
     const c = record.combatants.find(x => x.id === combatantId);
     if (!c || c.isDead || c.isUnconscious || c.isIncapacitated) return false;
     if (!isConsumptionActive()) return true;
-    return (typeof c.bonusActions === 'number' ? c.bonusActions : 1) > 0;
+    return (typeof c.bonusActions === 'number' ? c.bonusActions : 0) > 0;
   };
 
   // 消耗 1 个附赠动作（写入 store，订阅机制自动刷新 UI）；暂停期间不消耗

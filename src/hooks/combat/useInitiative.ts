@@ -95,6 +95,7 @@ export function useInitiative(record: CombatRecord | null, props: UseInitiativeP
       darkvision: deriveDarkvision(selectedPc),
       note: '',
       actions: 1,
+      bonusActions: 0,
       heldLeft: hands.heldLeft,
       heldRight: hands.heldRight,
     };

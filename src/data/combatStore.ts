@@ -812,7 +812,7 @@ const combatStore = {
     if (idx === -1) return null;
     const cur = typeof record.combatants[idx].actions === 'number' && (record.combatants[idx].actions as number) >= 0
       ? (record.combatants[idx].actions as number)
-      : 1;
+      : 0;
     let next = Math.max(0, cur - 1);
     // 资源消耗模式：试验场内也按正式规则扣减（模拟环境不回 1）
     if (mode === 'simulation' && !record.resourceConsumption && next === 0) next = 1;
@@ -848,7 +848,7 @@ const combatStore = {
   /**
    * 重置某参战者的可用动作数为 1（放映模式每回合开始时调用）。
    * 同时将 movementUsed 归零（D&D 5e：每回合开始恢复完整移动力）。
-   * 附赠动作也恢复为 1（D&D 5e：每回合开始恢复附赠动作）。
+   * 附赠动作重置为 0：5e 只有特性明确赋予附赠动作时才可用，需由 DM 手动授予（grantBonusAction）。
    * @returns 重置后的可用动作数（恒为 1）；找不到参战者时返回 null
    */
   resetActions(recordId: string, combatantId: string): number | null {
@@ -857,11 +857,30 @@ const combatStore = {
     if (!record) return null;
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
-    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 1, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0, reactionUsed: false };
+    record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 0, movementUsed: 0, speedModifier: 0, dashExtraMovement: 0, reactionUsed: false };
     record.updatedAt = Date.now();
     save(records);
     this.syncCombatantStatusFlags(recordId, combatantId);
     return 1;
+  },
+
+  /**
+   * 授予 1 个附赠动作（上限 1，5e 每回合最多一个）。
+   * 默认值只随回合开始清零，特性/法术赋予附赠动作时由 DM 显式授予。
+   * @returns 授予后的附赠动作数；找不到参战者时返回 null
+   */
+  grantBonusAction(recordId: string, combatantId: string): number | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return null;
+    const cur = typeof record.combatants[idx].bonusActions === 'number' ? (record.combatants[idx].bonusActions as number) : 0;
+    const next = Math.min(1, Math.max(0, cur) + 1);
+    record.combatants[idx] = { ...record.combatants[idx], bonusActions: next };
+    record.updatedAt = Date.now();
+    save(records);
+    return next;
   },
 
   /**
