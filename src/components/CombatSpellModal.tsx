@@ -68,6 +68,12 @@ interface Props {
   /** 施放完成：回传完整信息由 main 写入先攻表格与应用 HP 变化（契约冻结） */
   /** 收尾时消耗材料 / 卷轴（宿主写入战斗变更漏斗） */
   onConsumeMaterials?: (items: { childId: string; name: string; quantity: number }[]) => void;
+  /**
+   * 覆盖施法者角色卡来源（玩家端复用：角色卡不在本地 characterStore 里，由宿主传入云端拉取的卡）。
+   * undefined = 沿用 characterStore 读取（DM 端行为不变）；null = 显式视为无角色卡。
+   * 覆盖模式下禁用「快捷补货」写库入口（玩家端不向本地 store 写入）。
+   */
+  characterOverride?: Character | null;
   onCastResolved: (info: {
     spellName: string;
     /** 施法时间原文（如 "1 动作"），用于动作机制判定 */
@@ -227,7 +233,7 @@ function FlowConsumeBar({
 export default function CombatSpellModal({
   caster, target, onClose, onCastResolved, targetCharacter: propTargetCharacter, targetCombatInventory,
   recordId, currentRound, combatantPositions, bounds, canUseAction = true, canUseBonusAction, onTargetChange, onFlowResolved,
-  isProvingGround = false, casterCombatInventory, onConsumeMaterials,
+  isProvingGround = false, casterCombatInventory, onConsumeMaterials, characterOverride,
 }: Props) {
   // 资源消耗模式：试验场内按正式规则消耗法术位（材料门禁仍豁免——影子卡无材料包，避免阻塞测试）
   const resourceConsumption = !!combatStore.get(recordId ?? '')?.resourceConsumption;
@@ -283,10 +289,12 @@ export default function CombatSpellModal({
   const [calculated, setCalculated] = useState<number | null>(null);
 
   // 施法者角色卡（NPC 无 character，无法用法术弹窗——按钮层会拦截，这里兜底）
+  // 玩家端由宿主传入 characterOverride 覆盖本地 store 读取
   const character = useMemo<Character | null>(() => {
+    if (characterOverride !== undefined) return characterOverride;
     if (caster.characterId) return characterStore.get(caster.characterId);
     return null;
-  }, [caster.characterId]);
+  }, [caster.characterId, characterOverride]);
 
   const spellAbilityKey = character ? characterStore.getSpellcastingAbility(character) : null;
   const spellAbilityLabel = spellAbilityKey
@@ -311,9 +319,9 @@ export default function CombatSpellModal({
     });
   }, [selectedSpell, casterCombatInventory, craftedMaterials, character, isProvingGround, caster]);
 
-  // 快捷补货：把法术材料 / 卷轴加入施法者背包（PC 限定）
+  // 快捷补货：把法术材料 / 卷轴加入施法者背包（PC 限定；角色卡来自 override 时不写本地 store）
   const handleCraftMaterial = (req: MaterialRequirement) => {
-    if (!selectedSpell || !character) return;
+    if (!selectedSpell || !character || characterOverride !== undefined) return;
     const existing = [...(casterCombatInventory || []), ...craftedMaterials]
       .find(it => (it.materialKey || it.name) === req.name || it.materialKey === req.key);
     if (existing) return;
@@ -323,7 +331,7 @@ export default function CombatSpellModal({
   };
 
   const handleCraftScroll = () => {
-    if (!selectedSpell || !character) return;
+    if (!selectedSpell || !character || characterOverride !== undefined) return;
     const existing = [...(casterCombatInventory || []), ...craftedMaterials]
       .find(it => it.scrollSpellId === selectedSpell.id);
     if (existing) return;

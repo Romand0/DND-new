@@ -1,30 +1,44 @@
-// 玩家回合操作面板：与 DM 端手感一致——点动作按钮开弹窗，掷骰自动判定命中/伤害，
-// 确认即自动记入本回合操作序列（无需先填表再点「记入」），回合末统一打包提交给 DM。
-// 数据来源：观战投影（inventory 攻击快照 / spells 法术列表 / roster HP-AC）+ 本人角色卡（攻击加值自动算）。
-// 提交走 player.action（回合批提交模型），回执 accepted 清空、rejected 保留重改。
-import { useEffect, useMemo, useRef, useState } from 'react';
+// 玩家回合操作面板：复用 DM 侧战斗流程（CombatAttackModal → CombatDamageModal / CombatSpellModal），
+// 玩家操作完即自动记入本回合操作序列，回合末统一打包提交给 DM 审核入账。
+// 数据来源：观战投影（roster/board）+ 本人角色卡（云端拉取，仅用于攻击加值/法术位/法术列表）。
+// 投影经 combatantAdapter 映射成 Combatant 形状，弹窗内的射程/弹药/装填/优劣势判定与 DM 端同源。
+import { useEffect, useMemo, useState } from 'react';
 import { Dices, Hand, PenLine, Send, Sparkles, Swords, Trash2, X } from 'lucide-react';
-import { useNumberInput, useTextInput } from '@/hooks/useInput';
-import { calcAttackBonus } from '@/lib/attackBonus';
-import { rollDice } from '@/data/diceService';
+import { useTextInput } from '@/hooks/useInput';
 import { fetchCharacter } from '@/lib/api';
+import { spellStore } from '@/data/spellStore';
 import { isOneActionCast, isBonusActionCast } from '@/types/combat';
-import type { Character } from '@/types/character';
-import type { BoardProjection, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterInventoryItem, RosterSpellEntry, TurnCommitOp, TurnCommitPayload } from '@/types/realtime';
-
-const AMMO_MAP: Record<string, string[]> = {
-  短弓: ['箭矢'],
-  长弓: ['箭矢'],
-  轻弩: ['弩矢'],
-  手弩: ['弩矢'],
-  重弩: ['弩矢'],
-  投石索: ['弹丸'],
-  吹箭筒: ['吹箭针'],
-};
-
-const DAMAGE_TYPES = ['挥砍', '穿刺', '钝击', '火', '寒', '雷', '酸', '毒', '光耀', '黯蚀', '心灵', '力场', '闪电'];
+import { GRID_PRESETS } from '@/types/battleground';
+import CombatAttackModal from '@/components/CombatAttackModal';
+import CombatDamageModal from '@/components/CombatDamageModal';
+import CombatSpellModal from '@/components/CombatSpellModal';
+import { rosterEntryToCombatant, rosterInventoryToEquipmentList } from './combatantAdapter';
+import type { Character, Attack } from '@/types/character';
+import type { NpcAttack } from '@/types/combat';
+import type { BoardProjection, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterInventoryItem, TurnCommitOp, TurnCommitPayload } from '@/types/realtime';
 
 const fieldCls = 'w-full px-2 py-1.5 rounded-lg border text-sm dark:bg-card-dark dark:border-border-dark dark:text-text-dark light:bg-card-light light:border-border-light light:text-text-light';
+
+/** 攻击检定回执（CombatAttackModal onConfirmHit 的 info 子集） */
+interface HitInfo {
+  d20Final: number;
+  bonus: number;
+  total: number;
+  isNatural20: boolean;
+  usageMode?: 'melee' | 'thrown';
+  isTwoHandedWield?: boolean;
+  ammoConsumed?: { ammoChildId: string; ammoName: string };
+}
+
+/** 攻击未命中回执 */
+interface MissInfo {
+  attack: Attack | NpcAttack;
+  d20Final: number;
+  bonus: number;
+  total: number;
+  isNatural1: boolean;
+  ammoConsumed?: { ammoChildId: string; ammoName: string };
+}
 
 interface Props {
   actor: CombatRosterEntry;
@@ -43,24 +57,7 @@ interface Props {
   board?: BoardProjection | null;
 }
 
-/** 武器是否远程（飞矢动画与射程提示共用判定：弹药/投掷属性或带射程数据） */
-function isRangedWeapon(atk: NonNullable<RosterInventoryItem['attack']>): boolean {
-  const props = atk.properties ?? [];
-  return props.includes('弹药') || props.includes('投掷') || (atk.normalRange ?? 0) > 0;
-}
-
-/** 解析武器伤害骰 "2d6+3" / "1d8" / "1d4-1"；解析失败返回 null（禁用掷骰按钮） */
-function parseDamageDice(damage: string): { count: number; sides: number; flat: number } | null {
-  const m = /^(\d+)\s*d\s*(\d+)\s*(?:([+-])\s*(\d+))?$/.exec(damage.trim());
-  if (!m) return null;
-  const count = parseInt(m[1], 10);
-  const sides = parseInt(m[2], 10);
-  if (!count || !sides) return null;
-  const flat = m[3] ? (m[3] === '-' ? -1 : 1) * parseInt(m[4], 10) : 0;
-  return { count, sides, flat };
-}
-
-/** 弹窗外壳：与 DM 端战斗弹窗同构（遮罩 + 标题栏 + 滚动体 + 底部操作区） */
+/** 弹窗外壳：换持 / 其他行动这类轻量弹窗用（掷骰类弹窗直接复用 DM 侧组件） */
 function DialogShell({ title, onClose, children, footer }: {
   title: string;
   onClose: () => void;
@@ -90,12 +87,18 @@ function DialogShell({ title, onClose, children, footer }: {
   );
 }
 
+/** 武器是否远程（飞矢动画与先攻表格标注用：弹药/投掷属性或带射程数据） */
+function isRangedAttack(atk: Attack | NpcAttack): boolean {
+  const props = atk.properties ?? [];
+  return props.includes('弹药') || props.includes('投掷') || ((atk as Attack).normalRange ?? 0) > 0;
+}
+
 export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board }: Props) {
   const [sentAt, setSentAt] = useState<number | null>(null);
   const [lastRequestId, setLastRequestId] = useState<string | null>(null);
   const myResult = result && result.requestId === lastRequestId ? result : null;
-  // 当前打开的动作用弹窗（与 DM 端点按钮开弹窗一致）
-  const [dialog, setDialog] = useState<'attack' | 'cast' | 'ready' | 'note' | null>(null);
+  // 当前打开的弹窗：attack/cast/damage 直接复用 DM 侧组件，ready/note 用轻量外壳
+  const [dialog, setDialog] = useState<'attack' | 'damage' | 'cast' | 'ready' | 'note' | null>(null);
 
   // 回执到达：入账成功清空操作列表与提交态；拒绝保留 ops 供修改后重交
   useEffect(() => {
@@ -107,23 +110,11 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
     }
   }, [myResult?.accepted, myResult?.requestId]);
 
-  const weapons = useMemo(() => (actor.inventory ?? []).filter((i) => i.attack), [actor.inventory]);
-  const [weaponChildId, setWeaponChildId] = useState<string>('');
-
   const targets = roster.filter((r) => r.id !== actor.id && !r.dead);
   const [targetId, setTargetId] = useState<string>(targets[0]?.id ?? '');
-
-  const d20Input = useNumberInput(20, { fallback: 20 });
-  const bonusInput = useNumberInput(0);
-  const dmgInput = useNumberInput(0);
-  const [damageType, setDamageType] = useState('挥砍');
-  const noteInput = useTextInput('');
-  const [noteCost, setNoteCost] = useState<'none' | 'action' | 'bonus'>('none');
-
-  const selectedWeapon = weapons.find((w) => w.childId === weaponChildId) ?? weapons[0] ?? null;
   const target = targets.find((t) => t.id === targetId) ?? targets[0] ?? null;
 
-  // 本人角色卡：攻击加值自动计算（拉取失败则退回手填）
+  // 本人角色卡：攻击加值/法术位/法术列表都按它计算（拉取失败则弹窗降级为无角色卡模式）
   const [character, setCharacter] = useState<Character | null>(null);
   useEffect(() => {
     let alive = true;
@@ -138,192 +129,132 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
     };
   }, [actor.characterId]);
 
-  const autoBonus = useMemo(() => {
-    if (!character || !selectedWeapon?.attack) return null;
-    return calcAttackBonus(
-      { name: selectedWeapon.name, subtype: selectedWeapon.attack.subtype, properties: selectedWeapon.attack.properties, magicBonus: selectedWeapon.magicBonus },
-      character
-    ).bonus;
-  }, [character, selectedWeapon]);
+  // 投影 → Combatant 形状（弹窗读手持/攻击列表/AC 用）
+  const myCombatant = useMemo(() => rosterEntryToCombatant(actor, character), [actor, character]);
+  const myInventory = useMemo(() => rosterInventoryToEquipmentList(actor), [actor.inventory]);
+  const targetCombatant = useMemo(
+    () => (target ? rosterEntryToCombatant(target, null) : myCombatant),
+    [target, myCombatant]
+  );
 
-  // 换武器时用自动加值覆盖手填值；角色卡未就绪时保持手填
-  const prevAutoBonusRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (autoBonus != null && autoBonus !== prevAutoBonusRef.current) {
-      prevAutoBonusRef.current = autoBonus;
-      bonusInput.setExternal(autoBonus);
-    }
-  }, [autoBonus]);
+  // 沙盘坐标（射程判定 / 范围法术拾取）
+  const positions = useMemo(() => {
+    const map: Record<string, { col: number; row: number }> = {};
+    (board?.tokens ?? []).forEach((t) => {
+      map[t.combatantId] = { col: t.col, row: t.row };
+    });
+    return map;
+  }, [board]);
+  const bounds = board ? { cols: GRID_PRESETS[board.size].cols, rows: GRID_PRESETS[board.size].rows } : null;
 
-  const ammoInfo = useMemo(() => {
-    if (!selectedWeapon?.attack) return null;
-    const props = selectedWeapon.attack.properties ?? [];
-    if (!props.includes('弹药') || props.includes('投掷')) return null;
-    const ammoNames = AMMO_MAP[selectedWeapon.name] ?? [];
-    const ammo = (actor.inventory ?? []).find((i) => ammoNames.includes(i.name));
-    return { ammo, weaponName: selectedWeapon.name };
-  }, [selectedWeapon, actor.inventory]);
-
-  // 手持武器标注（heldLeft/Right 投影只有 name，按名匹配）
-  const handLabel = (childId: string) => {
-    const item = (actor.inventory ?? []).find((i) => i.childId === childId);
-    if (!item) return '';
-    if (actor.heldLeft?.name === item.name) return '（左手）';
-    if (actor.heldRight?.name === item.name) return '（右手）';
-    return '';
-  };
-
-  const d20 = d20Input.value ?? 0;
-  const bonus = bonusInput.value ?? 0;
-  const total = d20 + bonus;
-  const ac = target?.ac ?? 10;
-  const critical = d20 === 20;
-  const miss = d20 === 1;
-  const hit = !miss && (critical || total >= ac);
-
-  // 射程/触及提示：切比雪夫距离 × 5 尺（与 DM 端沙盘同规则）
-  const selfTok = board?.tokens.find((t) => t.combatantId === actor.id) ?? null;
-  const tgtTok = target ? board?.tokens.find((t) => t.combatantId === target.id) ?? null : null;
-  const distanceCells = selfTok && tgtTok ? Math.max(Math.abs(selfTok.col - tgtTok.col), Math.abs(selfTok.row - tgtTok.row)) : null;
-  const rangeHints = useMemo(() => {
-    const atk = selectedWeapon?.attack;
-    if (!atk || distanceCells == null) return [] as { level: 'warn' | 'block'; text: string }[];
-    const props = atk.properties ?? [];
-    const isRanged = isRangedWeapon(atk);
-    const feet = distanceCells * 5;
-    const hints: { level: 'warn' | 'block'; text: string }[] = [];
-    if (isRanged) {
-      if (atk.maxRange && feet > atk.maxRange) {
-        hints.push({ level: 'block', text: `超出最大射程（${feet} 尺 > ${atk.maxRange} 尺），无法攻击` });
-      } else if (atk.normalRange && feet > atk.normalRange) {
-        hints.push({ level: 'warn', text: `远距攻击（${feet} 尺 > 常规 ${atk.normalRange} 尺）：d20 劣势，请掷两次取低` });
-      } else if (distanceCells === 1 && !props.includes('投掷')) {
-        hints.push({ level: 'warn', text: '5 尺内有近身敌人：远程攻击劣势，请掷两次取低' });
+  // 装填武器状态（与 DM 端同 key："{combatantId}:{attackName}"），初值取投影快照
+  const [loadedWeapons, setLoadedWeapons] = useState<Record<string, boolean>>(() => {
+    const out: Record<string, boolean> = {};
+    (actor.inventory ?? []).forEach((i) => {
+      if (i.attack && (i.attack.properties ?? []).includes('装填')) {
+        out[`${actor.id}:${i.name}`] = i.attack.loaded ?? true;
       }
-    } else if (distanceCells > 1) {
-      hints.push({ level: 'warn', text: `目标距离 ${feet} 尺，超出近战触及（5 尺）` });
-    }
-    return hints;
-  }, [selectedWeapon, distanceCells]);
-  const rangeBlocked = rangeHints.some((h) => h.level === 'block');
-  const disadvantage = rangeHints.some((h) => h.level === 'warn' && h.text.includes('劣势'));
+    });
+    return out;
+  });
+  // 放映模式装填武器每回合一次：本回合已击发过的武器（回合变化自动清空）
+  const [loadingAttacked, setLoadingAttacked] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    setLoadingAttacked({});
+  }, [round]);
 
-  /** 掷攻击骰：劣势自动掷两次取低（与 DM 端检定一致） */
-  const rollAttack = () => {
-    const rolled = rollDice({ sides: 20, count: disadvantage ? 2 : 1, mode: 'sum' });
-    const picked = disadvantage ? Math.min(...rolled.values) : rolled.total;
-    d20Input.setExternal(picked);
-    onNotice(disadvantage ? `劣势掷骰 ${rolled.values.join(' / ')}，取低 ${picked}` : `攻击骰 d20 = ${picked}`);
+  // 攻击命中后的伤害结算上下文（攻击弹窗确认 → 伤害弹窗）
+  const [attackCtx, setAttackCtx] = useState<{ attack: Attack | NpcAttack; info: HitInfo } | null>(null);
+
+  /** 攻击检定确认（命中）：转交伤害弹窗 */
+  const handleConfirmHit = (attack: Attack | NpcAttack, info: HitInfo) => {
+    if ((attack.properties ?? []).includes('装填')) {
+      setLoadingAttacked((prev) => ({ ...prev, [actor.id]: true }));
+    }
+    setAttackCtx({ attack, info });
+    setDialog('damage');
   };
 
-  /** 记录攻击：校验 → 自动追加 op（成功返回 true，弹窗随即关闭） */
-  const addAttackOp = (): boolean => {
-    if (!target) { onNotice('请选择攻击目标'); return false; }
-    if (!selectedWeapon) { onNotice('没有可用武器，请改用备注行动'); return false; }
-    if (rangeBlocked) { onNotice(rangeHints.find((h) => h.level === 'block')?.text ?? '目标超出射程'); return false; }
-    if (ammoInfo && (!ammoInfo.ammo || ammoInfo.ammo.quantity <= 0)) {
-      onNotice(`${selectedWeapon.name} 需要弹药（${(AMMO_MAP[selectedWeapon.name] ?? []).join('/')}），背包投影中未找到`);
-      return false;
-    }
-    const dmg = dmgInput.value ?? 0;
-    if (hit && dmg <= 0) { onNotice('命中时请先掷伤害骰或填写伤害量'); return false; }
-    const wName = selectedWeapon.name;
-    const tName = target.name;
-    const rollText = `d20 ${d20}+${bonus}=${total} vs AC ${ac}`;
-    const roundText = `用${wName}攻击${tName}：${rollText} ${critical ? '暴击命中' : hit ? '命中' : '未命中'}${
-      hit ? `，${dmg} 点${damageType}伤害` : ''
+  /** 记录一条攻击操作（命中/未命中统一出口） */
+  const recordAttackOp = (
+    attack: Attack | NpcAttack,
+    roll: { d20Final: number; bonus: number; total: number; isNatural20?: boolean; ammoConsumed?: { ammoChildId: string } },
+    hit: boolean,
+    damage: { amount: number; type: string } | null
+  ) => {
+    const tName = target?.name ?? '目标';
+    const ac = target?.ac ?? 10;
+    const critical = !!roll.isNatural20 && hit;
+    const rollText = `d20 ${roll.d20Final}${roll.bonus >= 0 ? '+' : ''}${roll.bonus}=${roll.total} vs AC ${ac}`;
+    const roundText = `用${attack.name}攻击${tName}：${rollText} ${critical ? '暴击命中' : hit ? '命中' : '未命中'}${
+      hit && damage ? `，${damage.amount} 点${damage.type}伤害` : ''
     }`;
     onOpsChange((prev) => [
       ...prev,
       {
         kind: 'attack',
-        weaponChildId: selectedWeapon.childId,
-        weaponName: wName,
-        targetId: target.id,
+        weaponChildId: (attack as Attack).id ?? null,
+        weaponName: attack.name,
+        targetId: target?.id ?? '',
         targetName: tName,
-        d20,
-        bonus,
+        d20: roll.d20Final,
+        bonus: roll.bonus,
         hit,
         critical,
-        ranged: isRangedWeapon(selectedWeapon.attack),
-        damage: hit ? { amount: dmg, type: damageType } : null,
-        ...(ammoInfo?.ammo ? { ammoChildId: ammoInfo.ammo.childId, ammoCount: 1 } : {}),
+        ranged: isRangedAttack(attack),
+        damage: hit && damage ? { amount: damage.amount, type: damage.type } : null,
+        ...(roll.ammoConsumed ? { ammoChildId: roll.ammoConsumed.ammoChildId, ammoCount: 1 } : {}),
         roundText,
       },
     ]);
-    // 记录后：伤害值清零，命中骰保留（一回合多打时复用加值）
-    dmgInput.setExternal(0);
-    return true;
   };
 
-  const rollDamage = () => {
-    const atk = selectedWeapon?.attack;
-    if (!atk) return;
-    const dice = parseDamageDice(atk.damage);
-    if (!dice) return onNotice(`伤害骰「${atk.damage}」无法解析，请手填伤害量`);
-    const count = critical ? dice.count * 2 : dice.count;
-    const rolled = rollDice({ sides: dice.sides as 4 | 6 | 8 | 10 | 12 | 20, count, mode: 'sum' });
-    const total_ = Math.max(0, rolled.total + dice.flat);
-    dmgInput.setExternal(total_);
-    if (DAMAGE_TYPES.includes(atk.damageType)) setDamageType(atk.damageType);
-    onNotice(`掷伤害 ${count}d${dice.sides}${dice.flat ? (dice.flat > 0 ? `+${dice.flat}` : dice.flat) : ''} = ${total_}${critical ? '（暴击骰数翻倍）' : ''}`);
+  /** 伤害弹窗确认：落成攻击 op */
+  const handleApplyDamage = (attack: Attack | NpcAttack, payload: { damage: number }) => {
+    if (!attackCtx) return;
+    recordAttackOp(attackCtx.attack, attackCtx.info, true, { amount: payload.damage, type: attack.damageType || '未分类' });
+    setAttackCtx(null);
+    setDialog(null);
   };
 
-  const addNoteOp = (): boolean => {
-    const text = noteInput.value.trim();
-    if (!text) { onNotice('请填写行动内容'); return false; }
-    onOpsChange((prev) => [
-      ...prev,
-      {
-        kind: 'note',
-        roundText: text,
-        actionCost: noteCost === 'none' ? null : noteCost,
-      },
-    ]);
-    noteInput.reset();
-    return true;
-  };
-
-  // ── 施法 ──
-  const spells: RosterSpellEntry[] = actor.spells ?? [];
-  const [spellId, setSpellId] = useState<string>('');
-  const selectedSpell = spells.find((s) => s.id === spellId) ?? spells[0] ?? null;
-  const [spellTargetId, setSpellTargetId] = useState<string>('');
-  const spellTarget = spellTargetId ? targets.find((t) => t.id === spellTargetId) ?? null : null;
-  const spellActionCost: 'action' | 'bonus' | null = useMemo(() => {
-    const ct = selectedSpell?.castingTime ?? '';
-    if (!ct) return null;
-    if (isBonusActionCast(ct)) return 'bonus';
-    if (isOneActionCast(ct)) return 'action';
-    return null;
-  }, [selectedSpell]);
-  const spellSlot = selectedSpell && selectedSpell.level > 0 ? (actor.spellSlots ?? []).find((s) => s.level === selectedSpell.level) ?? null : null;
-  const spellSlotAvailable = selectedSpell?.level > 0 ? (spellSlot ? spellSlot.max - spellSlot.used > 0 : false) : true;
-
-  const addCastOp = (): boolean => {
-    if (!selectedSpell) { onNotice('角色卡没有可施放的法术'); return false; }
-    if (selectedSpell.level > 0 && !spellSlotAvailable) {
-      onNotice(`${selectedSpell.name} 需要 ${selectedSpell.level} 环法术位，当前已用尽`);
-      return false;
-    }
-    const slotText = selectedSpell.level > 0 ? `，消耗 ${selectedSpell.level} 环法术位` : '（戏法）';
-    const roundText = `施放 ${selectedSpell.name}${spellTarget ? `（目标 ${spellTarget.name}）` : ''}${slotText}${
-      selectedSpell.concentration ? '，需要专注' : ''
-    }`;
+  /** 施法完成：落成施法 op（法术位消耗由 DM 端按 slotLevel 应用） */
+  const handleCastResolved = (info: {
+    spellName: string;
+    castingTime?: string;
+    success: boolean;
+    effectType: 'damage' | 'heal';
+    amount: number;
+    damageType?: string;
+    concentration?: boolean;
+  }) => {
+    const spell = spellStore.getAll().find((s) => s.name === info.spellName) ?? null;
+    const ct = info.castingTime ?? spell?.castingTime ?? '';
+    const actionCost: 'action' | 'bonus' | null = isBonusActionCast(ct) ? 'bonus' : isOneActionCast(ct) ? 'action' : null;
+    const slotLevel = spell && spell.level > 0 ? spell.level : 0;
+    const effectText =
+      info.effectType === 'damage' && info.success && info.amount > 0
+        ? `，造成 ${info.amount} 点${info.damageType ?? spell?.damageType ?? '伤害'}`
+        : info.effectType === 'heal' && info.amount > 0
+          ? `，恢复 ${info.amount} 点生命`
+          : '';
+    const targetName = target?.name;
+    const roundText = `施放 ${info.spellName}${targetName ? `（目标 ${targetName}）` : ''}${
+      slotLevel > 0 ? `，消耗 ${slotLevel} 环法术位` : '（戏法）'
+    }${info.concentration || spell?.concentration ? '，需要专注' : ''}${effectText}`;
     onOpsChange((prev) => [
       ...prev,
       {
         kind: 'cast',
-        spellId: selectedSpell.id,
-        spellName: selectedSpell.name,
-        slotLevel: selectedSpell.level > 0 ? selectedSpell.level : 0,
-        ...(spellTarget ? { targetId: spellTarget.id, targetName: spellTarget.name } : {}),
-        ...(selectedSpell.concentration ? { concentration: true } : {}),
-        actionCost: spellActionCost,
+        spellId: spell?.id ?? '',
+        spellName: info.spellName,
+        slotLevel,
+        ...(target && (info.effectType !== 'heal' || info.success) ? { targetId: target.id, targetName: target.name } : {}),
+        ...(info.concentration || spell?.concentration ? { concentration: true } : {}),
+        actionCost,
         roundText,
       },
     ]);
-    return true;
+    setDialog(null);
   };
 
   // ── 换持 ──
@@ -362,6 +293,25 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
     return true;
   };
 
+  // ── 其他行动 ──
+  const noteInput = useTextInput('');
+  const [noteCost, setNoteCost] = useState<'none' | 'action' | 'bonus'>('none');
+
+  const addNoteOp = (): boolean => {
+    const text = noteInput.value.trim();
+    if (!text) { onNotice('请填写行动内容'); return false; }
+    onOpsChange((prev) => [
+      ...prev,
+      {
+        kind: 'note',
+        roundText: text,
+        actionCost: noteCost === 'none' ? null : noteCost,
+      },
+    ]);
+    noteInput.reset();
+    return true;
+  };
+
   /** 回合末打包：ops + end-turn 一并提交，DM 端一次审核入账 */
   const submit = () => {
     const requestId = crypto.randomUUID();
@@ -382,6 +332,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
     setLastRequestId(requestId);
   };
 
+  const spells = actor.spells ?? [];
   const primaryBtn = 'flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-40';
   const ghostBtn = 'px-3 py-1.5 rounded-lg border text-sm dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:opacity-80 transition-opacity';
 
@@ -397,9 +348,9 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
         </span>
       </div>
 
-      {/* 动作按钮条：点开弹窗执行，确认后自动记入下方序列 */}
+      {/* 动作按钮条：点开与 DM 端同一套弹窗，确认后自动记入下方序列 */}
       <div className="flex items-center gap-2 flex-wrap">
-        <button onClick={() => setDialog('attack')} className={primaryBtn}>
+        <button onClick={() => setDialog('attack')} disabled={!target} className={primaryBtn}>
           <Swords className="w-4 h-4" />
           攻击
         </button>
@@ -415,6 +366,20 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           <PenLine className="w-4 h-4 inline mr-1" />
           其他行动
         </button>
+        {targets.length > 0 && (
+          <select
+            value={target?.id ?? ''}
+            onChange={(e) => setTargetId(e.target.value)}
+            className="px-2 py-1.5 rounded-lg border text-sm dark:bg-card-dark dark:border-border-dark dark:text-text-dark light:bg-card-light light:border-border-light light:text-text-light"
+            title="攻击目标（施法目标在施法弹窗内选择）"
+          >
+            {targets.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}（HP {t.hp}/{t.maxHp} · AC {t.ac ?? '—'}）
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* 已自动记录的操作序列：可删除，回合末打包 */}
@@ -465,197 +430,62 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
         )}
       </div>
 
-      {/* ── 攻击弹窗：掷骰自动判定命中 → 命中则掷伤害 → 确认自动记录 ── */}
+      {/* ── 攻击：DM 侧攻击检定弹窗（手持/射程/弹药/装填/优劣势全同源） ── */}
       {dialog === 'attack' && (
-        <DialogShell
-          title={`攻击 — ${actor.name}`}
+        <CombatAttackModal
+          attacker={myCombatant}
+          target={targetCombatant}
+          combatInventory={myInventory}
+          attackerPos={positions[actor.id] ?? null}
+          targetPos={target ? positions[target.id] ?? null : null}
+          combatantPositions={positions}
+          loadedWeapons={loadedWeapons}
+          onLoadedChange={(key, loaded) => setLoadedWeapons((prev) => ({ ...prev, [key]: loaded }))}
+          loadingAttackedThisRound={loadingAttacked}
+          combatMode="playback"
+          playbackTurnActive
+          currentRound={round}
+          characterOverride={character}
           onClose={() => setDialog(null)}
-          footer={
-            <>
-              <button onClick={() => setDialog(null)} className={ghostBtn}>取消</button>
-              <button
-                onClick={() => { if (addAttackOp()) setDialog(null); }}
-                disabled={!target || rangeBlocked || !selectedWeapon}
-                className={primaryBtn}
-              >
-                <Swords className="w-4 h-4" />
-                记录攻击
-              </button>
-            </>
-          }
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <label className="space-y-1">
-              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">武器</span>
-              <select value={selectedWeapon?.childId ?? ''} onChange={(e) => setWeaponChildId(e.target.value)} className={fieldCls}>
-                {weapons.length === 0 && <option value="">（无武器）</option>}
-                {weapons.map((w) => (
-                  <option key={w.childId} value={w.childId}>
-                    {w.name}
-                    {handLabel(w.childId)}
-                    {w.quantity > 1 ? ` ×${w.quantity}` : ''}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">目标</span>
-              <select value={target?.id ?? ''} onChange={(e) => setTargetId(e.target.value)} className={fieldCls}>
-                {targets.length === 0 && <option value="">（无存活目标）</option>}
-                {targets.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {t.name}（HP {t.hp}/{t.maxHp} · AC {t.ac ?? '—'}）
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-
-          {selectedWeapon?.attack && (
-            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-              {selectedWeapon.attack.damage} {selectedWeapon.attack.damageType}
-              {selectedWeapon.attack.normalRange ? ` · 射程 ${selectedWeapon.attack.normalRange}/${selectedWeapon.attack.maxRange ?? selectedWeapon.attack.normalRange} 尺` : ''}
-              {selectedWeapon.attack.properties.length > 0 ? ` · ${selectedWeapon.attack.properties.join('、')}` : ''}
-              {ammoInfo ? ` · 弹药 ${ammoInfo.ammo?.quantity ?? 0}` : ''}
-              {distanceCells != null ? ` · 距目标 ${distanceCells * 5} 尺` : ''}
-            </p>
-          )}
-
-          {rangeHints.map((h, i) => (
-            <p key={i} className={`text-xs font-medium ${h.level === 'block' ? 'text-red-500' : 'text-amber-500'}`}>
-              {h.text}
-            </p>
-          ))}
-
-          <div className="grid grid-cols-2 gap-2 items-end">
-            <label className="space-y-1">
-              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">d20{disadvantage ? '（劣势取低）' : ''}</span>
-              <input
-                type="number"
-                min={1}
-                max={20}
-                value={d20Input.text}
-                onChange={(e) => d20Input.onChange(e.target.value)}
-                onBlur={d20Input.onBlur}
-                className={`${fieldCls} font-mono`}
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                攻击加值{autoBonus != null ? '（自动）' : ''}
-              </span>
-              <input
-                type="number"
-                value={bonusInput.text}
-                onChange={(e) => bonusInput.onChange(e.target.value)}
-                onBlur={bonusInput.onBlur}
-                className={`${fieldCls} font-mono`}
-              />
-            </label>
-          </div>
-
-          <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={rollAttack} className={ghostBtn}>
-              <Dices className="w-4 h-4 inline mr-1" />
-              掷攻击骰
-            </button>
-            {autoBonus != null && (
-              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">加值按角色卡自动计算，可改</span>
-            )}
-          </div>
-
-          {d20 >= 1 && d20 <= 20 && target && (
-            <p className={`text-xs font-medium ${critical ? 'text-amber-500' : hit ? 'text-emerald-500' : 'text-red-500'}`}>
-              {d20 === 1 ? '大失败（恒未命中）' : critical ? '暴击！（d20=20 恒命中）' : `${total} vs AC ${ac} → ${hit ? '命中' : '未命中'}`}
-            </p>
-          )}
-
-          {hit && (
-            <div className="grid grid-cols-2 gap-2 items-end">
-              <label className="space-y-1">
-                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">伤害量</span>
-                <input
-                  type="number"
-                  value={dmgInput.text}
-                  onChange={(e) => dmgInput.onChange(e.target.value)}
-                  onBlur={dmgInput.onBlur}
-                  className={`${fieldCls} font-mono`}
-                />
-              </label>
-              <label className="space-y-1">
-                <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">伤害类型</span>
-                <select value={damageType} onChange={(e) => setDamageType(e.target.value)} className={fieldCls}>
-                  {DAMAGE_TYPES.map((t) => (
-                    <option key={t} value={t}>{t}</option>
-                  ))}
-                </select>
-              </label>
-              {selectedWeapon?.attack && parseDamageDice(selectedWeapon.attack.damage) && (
-                <button onClick={rollDamage} className={`${ghostBtn} col-span-2`}>
-                  <Dices className="w-4 h-4 inline mr-1" />
-                  掷伤害骰{critical ? '（暴击翻倍）' : ''}
-                </button>
-              )}
-            </div>
-          )}
-        </DialogShell>
+          onConfirmHit={(attack, info) => handleConfirmHit(attack, info)}
+          onAttackMiss={(info) => {
+            recordAttackOp(info.attack, info, false, null);
+            setDialog(null);
+          }}
+        />
       )}
 
-      {/* ── 施法弹窗 ── */}
-      {dialog === 'cast' && (
-        <DialogShell
-          title={`施法 — ${actor.name}`}
-          onClose={() => setDialog(null)}
-          footer={
-            <>
-              <button onClick={() => setDialog(null)} className={ghostBtn}>取消</button>
-              <button
-                onClick={() => { if (addCastOp()) setDialog(null); }}
-                disabled={!!selectedSpell && selectedSpell.level > 0 && !spellSlotAvailable}
-                className={primaryBtn}
-              >
-                <Sparkles className="w-4 h-4" />
-                记录施法
-              </button>
-            </>
-          }
-        >
-          <div className="grid grid-cols-2 gap-2">
-            <label className="space-y-1">
-              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">法术</span>
-              <select value={selectedSpell?.id ?? ''} onChange={(e) => setSpellId(e.target.value)} className={fieldCls}>
-                {spells.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}（{s.level === 0 ? '戏法' : `${s.level} 环`}）
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="space-y-1">
-              <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">目标（可选）</span>
-              <select value={spellTargetId} onChange={(e) => setSpellTargetId(e.target.value)} className={fieldCls}>
-                <option value="">（无目标 / 自身 / 范围）</option>
-                {targets.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
-              </select>
-            </label>
-          </div>
+      {/* ── 伤害：DM 侧伤害结算弹窗（暴击/抗性/伤害骰解析同源） ── */}
+      {dialog === 'damage' && attackCtx && (
+        <CombatDamageModal
+          attacker={myCombatant}
+          target={targetCombatant}
+          attack={attackCtx.attack}
+          isCritical={attackCtx.info.isNatural20}
+          isTwoHandedWield={!!attackCtx.info.isTwoHandedWield}
+          onClose={() => {
+            setAttackCtx(null);
+            setDialog(null);
+          }}
+          onApplyDamage={(payload) => handleApplyDamage(attackCtx.attack, payload)}
+        />
+      )}
 
-          {selectedSpell && (
-            <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-              施法时间 {selectedSpell.castingTime || '未知'}
-              {spellActionCost ? ` · 消耗${spellActionCost === 'action' ? '主动作' : '附赠动作'}` : ' · 不占动作'}
-              {selectedSpell.level > 0 && spellSlot ? ` · ${spellSlot.label} 剩余 ${spellSlot.max - spellSlot.used}/${spellSlot.max}` : ''}
-            </p>
-          )}
-          {selectedSpell?.level > 0 && !spellSlotAvailable && (
-            <p className="text-xs font-medium text-red-500">{selectedSpell.level} 环法术位已用尽，无法施放</p>
-          )}
-          {selectedSpell?.concentration && (
-            <p className="text-xs font-medium text-amber-500">专注法术：施放后进入专注状态（再施放新专注法术会打断旧的）</p>
-          )}
-        </DialogShell>
+      {/* ── 施法：DM 侧施法弹窗（法术列表/法术位/成分/步骤化流程同源；法术位由 DM 端统一扣） ── */}
+      {dialog === 'cast' && (
+        <CombatSpellModal
+          caster={myCombatant}
+          target={targetCombatant}
+          characterOverride={character}
+          casterCombatInventory={myInventory}
+          bounds={bounds}
+          canUseAction={(actor.actions ?? 1) > 0}
+          canUseBonusAction={(actor.bonusActions ?? 1) > 0}
+          currentRound={round}
+          onTargetChange={(c) => setTargetId(c.id)}
+          onClose={() => setDialog(null)}
+          onCastResolved={(info) => handleCastResolved(info)}
+        />
       )}
 
       {/* ── 换持弹窗 ── */}

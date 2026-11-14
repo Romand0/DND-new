@@ -78,6 +78,11 @@ interface Props {
   reactionMode?: boolean;
   /** 借机攻击模式下：攻击者反应是否已用尽（弹窗内禁用攻击，仅可放弃） */
   reactionSpent?: boolean;
+  /**
+   * 覆盖攻击者角色卡来源（玩家端复用：角色卡不在本地 characterStore 里，由宿主传入云端拉取的卡）。
+   * undefined = 沿用 characterStore 读取（DM 端行为不变）；null = 显式视为无角色卡。
+   */
+  characterOverride?: Character | null;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -85,7 +90,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride }: Props) {
   // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
   const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
   const [stage, setStage] = useState<Stage>('attacks');
@@ -111,12 +116,13 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   // 「装备」选择器：正在为哪只手挑选物品（null = 关闭）
   const [pickingHand, setPickingHand] = useState<'left' | 'right' | null>(null);
 
-  // 获取 PC 的角色卡数据（NPC 无 character）
+  // 获取 PC 的角色卡数据（NPC 无 character）；玩家端由宿主传入 characterOverride 覆盖本地 store 读取
   const character = useMemo(() => {
+    if (characterOverride !== undefined) return characterOverride;
     if (attacker.characterId) return characterStore.get(attacker.characterId);
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attacker.characterId, handRefreshKey]);
+  }, [attacker.characterId, handRefreshKey, characterOverride]);
 
   // PC 手持装备：战斗层手持（参战者上，进战时从角色卡备战槽初始化）；仅从战斗背包查找，物品被消耗后自然为 null
   const heldLeftId = combatStore.getCombatantHandSlot(attacker, 'left').equipmentId;
