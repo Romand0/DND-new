@@ -57,9 +57,11 @@ interface Props {
   onRequestHandState?: (side: 'left' | 'right', state: 'ready' | 'action' | 'unavailable') => void;
   /** 主动停止专注（玩家端提供后转成 stop-concentration op） */
   onRequestStopConcentration?: () => void;
+  /** 法术位只读视图（玩家端没有本地战斗记录时由投影提供） */
+  spellSlotsOverride?: { level: number; label: string; used: number; max: number }[] | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -592,13 +594,23 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
               {/* 法术位（PC）：战斗临时副本视图（角色卡源 + 本场消耗 delta 叠加）。
                   实心圆=可用、空心圆=已消耗；点击实心消耗 / 空心恢复（与角色详情页同款交互，
                   但只写战斗漏斗 spellSlotChanges，角色卡在战斗结算时统一并入） */}
-              {combatant.isPc && !isProvingGround && record && (() => {
-                const slots = combatStore.getCombatSpellSlotView(record.id, combatant.id);
+              {combatant.isPc && !isProvingGround && (record || (playerMode && !!spellSlotsOverride)) && (() => {
+                // 玩家端没有本地记录：法术位只读展示投影（战斗中消耗随结算入账）
+                const readOnly = !record;
+                const slots = readOnly
+                  ? (spellSlotsOverride ?? []).map((s) => ({
+                      level: s.level,
+                      label: s.label,
+                      max: s.max,
+                      available: Math.max(0, s.max - s.used),
+                      isWarlock: false,
+                    }))
+                  : combatStore.getCombatSpellSlotView(record!.id, combatant.id);
                 if (!slots || slots.length === 0) return null;
                 const updateSlot = (levelKey: SpellSlotLevel, consume: boolean) => {
-                  if (sealed) return;
-                  if (consume) combatStore.consumeSpellSlot(record.id, combatant.id, levelKey);
-                  else combatStore.restoreSpellSlot(record.id, combatant.id, levelKey);
+                  if (readOnly || sealed) return;
+                  if (consume) combatStore.consumeSpellSlot(record!.id, combatant.id, levelKey);
+                  else combatStore.restoreSpellSlot(record!.id, combatant.id, levelKey);
                   setRefreshKey(k => k + 1);
                 };
                 return (
@@ -624,8 +636,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                                   <button
                                     type="button"
                                     onClick={() => updateSlot(levelKey, filled)}
-                                    title={filled ? '消耗一个环位' : '恢复一个环位'}
-                                    className="w-4.5 h-4.5 rounded-full border-2 border-gray-500 dark:border-gray-400 hover:border-primary p-[2px] transition-colors"
+                                    disabled={!record}
+                                    title={!record ? '战斗中已消耗的环位（结算时并入角色卡）' : filled ? '消耗一个环位' : '恢复一个环位'}
+                                    className={`w-4.5 h-4.5 rounded-full border-2 border-gray-500 dark:border-gray-400 p-[2px] transition-colors ${record ? 'hover:border-primary' : 'cursor-default'}`}
                                   >
                                     <span
                                       className={`block w-full h-full rounded-full transition-colors ${
@@ -1080,7 +1093,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           )}
 
           {/* 试验场：状态附加面板（任意参战者附加/解除状态库任意状态） */}
-          {activeTab === 'status' && (recordId || provingRecord?.id) && (
+          {activeTab === 'status' && !playerMode && (recordId || provingRecord?.id) && (
             <div className="mt-3 pt-3 border-t dark:border-border-dark light:border-border-light">
               <StatusAttachPanel recordId={(recordId || provingRecord?.id)!} combatant={combatant} />
             </div>
@@ -1089,7 +1102,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
           {activeTab === 'inventory' && combatInventory && (
             <div className="space-y-3">
               {/* 变更信息按钮 */}
-              {onUpdateChanges && !sealed && (
+              {onUpdateChanges && !sealed && !playerMode && (
                 <button
                   onClick={() => setShowChangesEditor(true)}
                   className="w-full flex items-center justify-center gap-1.5 py-1.5 text-xs rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
@@ -1167,7 +1180,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             </button>
                           )}
                           {/* 删除按钮：通过变更信息漏斗移除 */}
-                          {onRemoveItem && !sealed && (
+                          {onRemoveItem && !sealed && !playerMode && (
                             <button
                               onClick={() => {
                                 if (confirm(`确定从战斗背包中移除「${item.name || '未命名物品'}」？`)) {

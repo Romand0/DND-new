@@ -199,6 +199,16 @@ export default function PlayerSpectate() {
     }
     return map;
   }, [roster, myCharacters]);
+  // 双击信息面板：法术位只读投影（玩家不能手动改环位）
+  const panelSpellSlots = useMemo(() => {
+    const map: Record<string, { level: number; label: string; used: number; max: number }[]> = {};
+    for (const r of roster) {
+      if (r.characterId && myCharacters.some((c) => c.id === r.characterId) && r.spellSlots) {
+        map[r.id] = r.spellSlots.map((s) => ({ level: s.level, label: s.label, used: s.used, max: s.max }));
+      }
+    }
+    return map;
+  }, [roster, myCharacters]);
   // 投影参战者 → Combatant 形状（沙盘渲染与双击信息面板读它）；自己的手持叠加未提交 ops
   const combatantsForBoard = useMemo(
     () =>
@@ -353,6 +363,7 @@ export default function PlayerSpectate() {
               playbackOnlyMovableId={myTurnActor?.id ?? null}
               combatInventories={combatInventories}
               panelCharacters={panelCharacters}
+              panelSpellSlots={panelSpellSlots}
               onRequestHandChange={(combatantId, side, item) => {
                 if (combatantId !== myTurnActor?.id) return;
                 addOp({
