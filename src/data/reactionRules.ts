@@ -1,6 +1,6 @@
 // 通用反应引擎：战斗事件抽象 + 注册式检测器（与 advantageRules 同构：纯只读检测，消费由调用方确认后执行）。
-// P1 事件面：move（双向触发 move_leave_reach / enter_reach 的检测器自行分流）；
-// attack / damage / spell_cast 的事件面在 P2 接入对应插桩点，类型先定好避免后续改签名。
+// 已接插桩：move（P1）、attack（P2 命中后/伤害前）；damage / spell_cast 事件类型已定好，
+// 检测器与插桩点留待 P3（避免后续改签名）。
 // 借机攻击语义：移动者起点格在持有者任一近战武器触及内、落点格在触及外 → 打开机会。
 // 攻击距离按「起点格」计算（离开触及的瞬时点），与 5e「借机攻击不阻止移动」一致。
 // 近战判定与 CombatAttackModal.isRangedWeapon/isThrownWeapon 同口径（复制而非共享——
