@@ -352,7 +352,7 @@ export default function PlayerSpectate() {
       {!activeRoomId && (
         <div className="p-5 rounded-xl border space-y-4 dark:bg-card-dark dark:border-border-dark light:bg-card-light light:border-border-light">
           <p className="text-sm dark:text-text-dark-muted light:text-text-light-muted">
-            向 DM 要观战房间号（DM 战斗页顶部绿点，点击可复制），粘贴后加入即可实时看到 HP、状态与回合推进。
+            等 DM 在战斗页顶部点「抛送观战」，圆桌页会出现邀请卡片，点击即可加入；也可向 DM 要房间号（combat-xxxx）在此粘贴加入。
           </p>
           <div className="flex gap-2 flex-wrap">
             <input
