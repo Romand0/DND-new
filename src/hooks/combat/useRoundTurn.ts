@@ -4,6 +4,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
 import * as snapDb from '@/lib/combatSnapshots';
+import { appendRoundLines } from '@/lib/combatActionSummary';
 
 // 再导出共享类型：stale usePlayback（P4 迁移前）仍从此处 import TurnSnapshot
 export type { TurnSnapshot };
@@ -266,8 +267,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
   const appendRoundRecord = (round: number, combatantId: string, newLine: string) => {
     if (!record) return;
     const existing = record.rounds[round]?.[combatantId] || '';
-    const finalText = existing ? `${existing}\n${newLine}` : newLine;
-    handleCellChange(round, combatantId, finalText);
+    handleCellChange(round, combatantId, appendRoundLines(existing, [newLine]));
   };
 
   // ✅ 统一操作记录入口：按 record.mode 分流——放映写先攻表格（resolveWriteCell 内部处理

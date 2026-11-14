@@ -9,7 +9,8 @@ import type { SpellSlotLevel } from '@/types/character';
 import type { CombatRecord, ReactionOpportunity } from '@/types/combat';
 import { detectOpportunityAttacks } from '@/data/reactionRules';
 import type { DamageApplication, DamageApplyResult } from '@/types/damage';
-import type { PlayerActionRequest } from '@/types/realtime';
+import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
+import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
 
 export interface TurnCommitApplyDeps {
   record: CombatRecord;
@@ -58,7 +59,9 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
   let consumedBonus = false;
   let endTurn = false;
 
+  const summaryLines: string[] = [];
   for (const op of ops) {
+    const opCtx: SummaryContext = {};
     if (op.kind === 'attack') {
       if (op.ammoChildId && (op.ammoCount ?? 0) > 0) {
         appliedChanges[actor.id] = consumeAmmo(record, actor.id, op.ammoChildId, op.ammoCount!);
@@ -82,7 +85,10 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
           sourceName: actor.name,
           damageType: op.damage.type,
         });
-        if (result) appliedDamages.push(`${op.targetName} -${result.damage}`);
+        if (result) {
+          appliedDamages.push(`${op.targetName} -${result.damage}`);
+          opCtx.damage = { amount: result.damage, oldHp: result.oldHp, newHp: result.newHp };
+        }
       }
       // 同一回合多次攻击只扣一次主动作（额外攻击规则由 DM 桌面把握）
       if (!consumedAction) {
@@ -191,6 +197,7 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       const latest = combatStore.get(record.id) ?? record;
       const live = latest.combatants.find((c) => c.id === actor.id) ?? actor;
       const battleSpeed = (live.speed ?? 30) + (live.speedModifier ?? 0);
+      opCtx.dashFeet = battleSpeed;
       combatStore.update(record.id, {
         combatants: latest.combatants.map((c) =>
           c.id === actor.id ? { ...c, dashExtraMovement: (c.dashExtraMovement ?? 0) + battleSpeed } : c
@@ -213,24 +220,21 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
     } else if (op.kind === 'end-turn') {
       endTurn = true;
     }
+    summaryLines.push(...summarizeOp(op, opCtx));
   }
 
   // 先推进回合再写表格/装备：advanceTurn 闭包基于旧 state 补新回合行，
   // 本轮文本在其之后写回才不会被旧快照覆盖
   if (endTurn) advanceTurn();
 
-  const roundTexts = ops
-    .map((op) => (op.kind === 'end-turn' ? '' : op.roundText))
-    .filter(Boolean);
-  if (roundTexts.length > 0 || Object.keys(appliedChanges).length > 0) {
+  if (summaryLines.length > 0 || Object.keys(appliedChanges).length > 0) {
     const latest = combatStore.get(record.id) ?? record;
     const patch: Partial<CombatRecord> = {};
-    if (roundTexts.length > 0) {
+    if (summaryLines.length > 0) {
       const rounds = (latest.rounds ?? []).map((r) => ({ ...r }));
       while (rounds.length < request.round) rounds.push({});
       const row = rounds[request.round - 1] ?? {};
-      const merged = [row[actor.id], ...roundTexts].filter(Boolean).join('；');
-      rounds[request.round - 1] = { ...row, [actor.id]: merged };
+      rounds[request.round - 1] = { ...row, [actor.id]: appendRoundLines(row[actor.id] ?? '', summaryLines) };
       patch.rounds = rounds;
     }
     if (Object.keys(appliedChanges).length > 0) {
