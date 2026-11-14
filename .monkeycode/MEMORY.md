@@ -26,6 +26,7 @@
   - 排查 UI 不可点 bug 先核对组件实例接线：同一弹窗组件可能被多处挂载（CombatSession IIFE 面板 vs Battleground 双击面板），回调 prop 漏传一处即该路径全灰
   - NpcAttack.normalRange / maxRange 单位是英尺（parseWeaponData 从「弹药(150/600尺)」解析），CombatAttackModal.getRangeInfo 直接当 feet 用；近战武器（徒手/长剑）不要传 normalRange，否则 isRangedWeapon 误判为远程、近战射程段被吞、显示「不在射程内」
   - CombatAttackModal 攻击列表来源：character?.attacks 非空才用，否则回落 attacker.attacks——影子卡 attacks 恒为空，武器条目在 combatant.attacks 上
+  - CombatRecord.combatants 在 combatStore.load() 走字段白名单重建：新增任何 combatant 字段（含 reactionUsed/pendingReactions 一类战斗临时数据）必须同步加进该白名单，否则刷新后字段丢失且下一次 save 永久抹掉
   - 徒手击打已豁免「未手持/手部不可用」检查（CombatAttackModal getAttackStatus）
   - 沙盘棋子位置存 battlegroundStore（localStorage dnd-battlegrounds 的 tokens），不在 combatant.tokenPos；试验场放置流程 = 点「未放置」区芯片（高亮 bg-primary 确认选中）→ 点沙盘格子
   - 无头测试定位沙盘格子：querySelector('div.grid.origin-top-left') 读 children[0] 的 boundingRect（cell 约 22px）算目标格中心坐标，勿用视觉估算坐标
