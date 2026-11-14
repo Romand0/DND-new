@@ -5,7 +5,7 @@
 import { calcAttackBonus } from '@/lib/attackBonus';
 import type { Character, Attack, Equipment, HandSlot } from '@/types/character';
 import type { Combatant } from '@/types/combat';
-import type { CombatRosterEntry, RosterInventoryItem } from '@/types/realtime';
+import type { CombatRosterEntry, RosterInventoryItem, TurnCommitOp } from '@/types/realtime';
 
 /** 投影背包条目 → DM 侧 Equipment 形状（弹窗手部/弹药查找按 childId/id 匹配） */
 export function rosterItemToEquipment(item: RosterInventoryItem): Equipment {
@@ -101,5 +101,22 @@ export function rosterEntryToCombatant(entry: CombatRosterEntry, character: Char
     actions: entry.actions,
     bonusActions: entry.bonusActions,
     attacks: buildRosterAttacks(entry, character),
+  };
+}
+
+/**
+ * 把本回合尚未提交的换持 op 叠加到参战者手持上（玩家端乐观回显）。
+ * 投影里的手持要等 DM 审核入账后才有新 delta，若不等就会导致「先换武器再攻击」读到手部旧状态。
+ */
+export function applyPendingHandOps(combatant: Combatant, ops: TurnCommitOp[]): Combatant {
+  const mine = ops.filter((o): o is Extract<TurnCommitOp, { kind: 'ready-item' }> => o.kind === 'ready-item');
+  if (mine.length === 0) return combatant;
+  const last = (slot: 'left' | 'right') => [...mine].reverse().find((o) => o.slot === slot);
+  const left = last('left');
+  const right = last('right');
+  return {
+    ...combatant,
+    heldLeft: left ? { equipmentId: left.childId, state: 'ready' } : combatant.heldLeft,
+    heldRight: right ? { equipmentId: right.childId, state: 'ready' } : combatant.heldRight,
   };
 }

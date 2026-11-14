@@ -49,9 +49,13 @@ interface Props {
   recordId?: string;
   /** 记录已封存（结算完成）：全部写操作禁用，仅保留查看 */
   sealed?: boolean;
+  /** 角色卡覆盖（玩家端复用：本地 store 没有该卡时由宿主传入云端卡） */
+  characterOverride?: Character | null;
+  /** 手持变更请求（玩家端提供后不写本地战斗记录，改由宿主转成 ready-item op）；传 null 表示放下 */
+  onRequestHandChange?: (side: 'left' | 'right', item: Equipment | null) => void;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -59,7 +63,12 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   // 战斗背包筛选：分类药丸
   const [invFilter, setInvFilter] = useState<string>('全部');
 
-  const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+  // 玩家端由宿主传入 characterOverride 覆盖本地 store 读取（本地没有同团角色卡）
+  const character = characterOverride !== undefined
+    ? characterOverride
+    : combatant.characterId
+      ? characterStore.get(combatant.characterId)
+      : null;
 
   // 主动技能区：只有角色卡特性与特质里归类为主动技能的条目才展示（NPC/无卡参战者不显示）。
   // 名称含「激励」的条目接入吟游诗人激励流程，其余主动技能暂为提示占位
@@ -122,6 +131,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   const rightUsable = heldRightItem ? combatStore.isCombatantWeaponUsable(combatant, 'right', combatInventory) : false;
 
   const handleHoldSelect = (item: Equipment, hand: 'left' | 'right') => {
+    // 玩家端：换持只产出 ready-item op，由 DM 端审核入账
+    if (onRequestHandChange) {
+      onRequestHandChange(hand, item);
+      return;
+    }
     if (!recordId) return;
     // 若目标手仍持有已不在战斗背包中的物品（悬空引用），先清空，避免换手报"手不可用"
     const rawSlot = combatStore.getCombatantHandSlot(combatant, hand);
@@ -140,6 +154,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   };
 
   const handleUnhold = (hand: 'left' | 'right' | 'both') => {
+    if (onRequestHandChange && hand !== 'both') {
+      onRequestHandChange(hand, null);
+      return;
+    }
     if (!recordId) return;
     combatStore.unsetCombatantHand(recordId, combatant.id, hand);
     setRefreshKey(k => k + 1);
@@ -756,10 +774,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     }`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">左手</span>
-                        {!sealed && (isUnavailable ? (
-                          <button onClick={() => handleRestoreHand('left')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
+                        {(!sealed || !!onRequestHandChange) && (isUnavailable ? (
+                          recordId && <button onClick={() => handleRestoreHand('left')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
                         ) : isAction ? (
-                          <button onClick={() => handleEndAction('left')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
+                          recordId && <button onClick={() => handleEndAction('left')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
                         ) : heldLeftItem ? (
                           <button onClick={() => handleUnhold('left')} className="px-1.5 py-0.5 text-xs rounded bg-danger/10 text-danger">放下</button>
                         ) : isReady && (
@@ -801,10 +819,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     }`}>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">右手</span>
-                        {!sealed && (isUnavailable ? (
-                          <button onClick={() => handleRestoreHand('right')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
+                        {(!sealed || !!onRequestHandChange) && (isUnavailable ? (
+                          recordId && <button onClick={() => handleRestoreHand('right')} className="px-1.5 py-0.5 text-xs rounded bg-primary/10 text-primary">恢复</button>
                         ) : isAction ? (
-                          <button onClick={() => handleEndAction('right')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
+                          recordId && <button onClick={() => handleEndAction('right')} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">结束</button>
                         ) : heldRightItem ? (
                           <button onClick={() => handleUnhold('right')} className="px-1.5 py-0.5 text-xs rounded bg-danger/10 text-danger">放下</button>
                         ) : isReady && (
@@ -1104,7 +1122,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           {isWornArmor && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">盔甲</span>}
                           {isWornOutfit && <span className="text-xs px-1.5 py-0.5 rounded bg-accent/20 text-accent">服装</span>}
                           {/* 手持按钮：可手持且当前未手持时显示 */}
-                          {character && isHoldable && !isHeldLeft && !isHeldRight && !sealed && (
+                          {character && isHoldable && !isHeldLeft && !isHeldRight && (!sealed || !!onRequestHandChange) && (
                             <button
                               onClick={() => {
                                 // 优先放空手，否则放另一只手

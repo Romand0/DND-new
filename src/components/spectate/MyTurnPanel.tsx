@@ -12,7 +12,7 @@ import { GRID_PRESETS } from '@/types/battleground';
 import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
-import { rosterEntryToCombatant, rosterInventoryToEquipmentList } from './combatantAdapter';
+import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHandOps } from './combatantAdapter';
 import type { Character, Attack } from '@/types/character';
 import type { NpcAttack } from '@/types/combat';
 import type { BoardProjection, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterInventoryItem, TurnCommitOp, TurnCommitPayload } from '@/types/realtime';
@@ -142,7 +142,17 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
   }, [actor.characterId]);
 
   // 投影 → Combatant 形状（弹窗读手持/攻击列表/AC 用）
-  const myCombatant = useMemo(() => rosterEntryToCombatant(actor, character), [actor, character]);
+  // 未提交的换持 op 叠加到手持上：弹窗（攻击/施法可用性）与换持基线都要按「最新意图」判断
+  const effectiveHand = (slot: 'left' | 'right'): string | null => {
+    const last = [...ops].reverse().find((o) => o.kind === 'ready-item' && o.slot === slot);
+    if (last && last.kind === 'ready-item') return last.childId ? last.itemName : null;
+    const cur = slot === 'left' ? actor.heldLeft : actor.heldRight;
+    return cur?.name ?? null;
+  };
+  const myCombatant = useMemo(
+    () => applyPendingHandOps(rosterEntryToCombatant(actor, character), ops),
+    [actor, character, ops]
+  );
   const myInventory = useMemo(() => rosterInventoryToEquipmentList(actor), [actor.inventory]);
   const targetCombatant = useMemo(
     () => (target ? rosterEntryToCombatant(target, null) : myCombatant),
@@ -277,8 +287,9 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
   const [rightSel, setRightSel] = useState<string>(() => childIdByName(actor.heldRight?.name));
 
   const addReadyOps = (): boolean => {
-    const curLeft = childIdByName(actor.heldLeft?.name);
-    const curRight = childIdByName(actor.heldRight?.name);
+    // 基线取「投影 + 未提交 ops」，避免连续换持时重复产出同一条 op
+    const curLeft = childIdByName(effectiveHand('left'));
+    const curRight = childIdByName(effectiveHand('right'));
     const pending: TurnCommitOp[] = [];
     if (leftSel !== curLeft) {
       const item = leftSel ? itemByChildId.get(leftSel) : null;

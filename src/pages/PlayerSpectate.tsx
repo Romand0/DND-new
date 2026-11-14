@@ -14,10 +14,11 @@ import RoundNarrativeBoard from '@/components/spectate/RoundNarrativeBoard';
 import { MyCombatantsSection } from '@/components/spectate/MyCombatantPanel';
 import MyTurnPanel from '@/components/spectate/MyTurnPanel';
 import Battleground from '@/components/Battleground';
-import { rosterEntryToCombatant, rosterInventoryToEquipmentList } from '@/components/spectate/combatantAdapter';
+import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHandOps } from '@/components/spectate/combatantAdapter';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, TurnCommitOp } from '@/types/realtime';
+import type { Character } from '@/types/character';
 
 // 观战投影 → DM 侧沙盘数据结构（Battleground 投影模式入参）：棋子/掉落物/边界墙/地形区域一一映射
 function projectionToBg(board: BoardProjection, sessionId: string): BattlegroundData {
@@ -53,7 +54,8 @@ export default function PlayerSpectate() {
   // join 回调引用：自动加入（?room=）与手动加入共用
   const joinRef = useRef<(room: string) => void>(() => {});
   // 我的绑定角色：识别「自身参战者」以显示战斗面板
-  const [myCharacters, setMyCharacters] = useState<{ id: string; name: string }[]>([]);
+  // 保留完整角色卡：沙盘双击面板要读装备/属性（本地 store 没有同团角色卡）
+  const [myCharacters, setMyCharacters] = useState<Character[]>([]);
   const myCharacterIds = new Set(myCharacters.map((c) => c.id));
   // 回合提交（回合批提交模型）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
   const lastDeltaSeqRef = useRef(0);
@@ -67,7 +69,7 @@ export default function PlayerSpectate() {
     if (!token) return;
     fetchMyCharacters()
       .then((res) => {
-        setMyCharacters(((res.characters ?? []) as { id: string; name: string }[]).map((c) => ({ id: c.id, name: c.name ?? '' })));
+        setMyCharacters((res.characters ?? []) as Character[]);
       })
       .catch((e) => {
         setMyCharacters([]);
@@ -161,8 +163,24 @@ export default function PlayerSpectate() {
     () => (spectate?.board ? projectionToBg(spectate.board, spectate.recordId) : null),
     [spectate?.board, spectate?.recordId]
   );
-  // 投影参战者 → Combatant 形状（沙盘渲染与双击信息面板读它）
-  const combatantsForBoard = useMemo(() => roster.map((r) => rosterEntryToCombatant(r, null)), [roster]);
+  // 双击信息面板：把「我的角色卡」按参战者投给面板（面板自身只读本地 store 拿不到云端卡）
+  const panelCharacters = useMemo(() => {
+    const map: Record<string, Character | null> = {};
+    for (const r of roster) {
+      const card = r.characterId ? myCharacters.find((c) => c.id === r.characterId) : null;
+      if (card) map[r.id] = card;
+    }
+    return map;
+  }, [roster, myCharacters]);
+  // 投影参战者 → Combatant 形状（沙盘渲染与双击信息面板读它）；自己的手持叠加未提交 ops
+  const combatantsForBoard = useMemo(
+    () =>
+      roster.map((r) => {
+        const c = rosterEntryToCombatant(r, panelCharacters[r.id] ?? null);
+        return r.id === myTurnActor?.id ? applyPendingHandOps(c, pendingOps) : c;
+      }),
+    [roster, panelCharacters, myTurnActor?.id, pendingOps]
+  );
   // 白圈「攻击/施法」按钮 → 我的回合面板弹窗（seq 去重）
   const [boardRequest, setBoardRequest] = useState<{ kind: 'attack' | 'cast'; targetId: string; seq: number } | null>(null);
   const boardReqSeq = useRef(0);
@@ -307,6 +325,19 @@ export default function PlayerSpectate() {
               activeTurnCombatantId={spectate.turn?.combatantId ?? null}
               playbackOnlyMovableId={myTurnActor?.id ?? null}
               combatInventories={myTurnActor ? { [myTurnActor.id]: rosterInventoryToEquipmentList(myTurnActor) } : undefined}
+              panelCharacters={panelCharacters}
+              onRequestHandChange={(combatantId, side, item) => {
+                if (combatantId !== myTurnActor?.id) return;
+                addOp({
+                  kind: 'ready-item',
+                  slot: side,
+                  childId: item ? item.childId ?? item.id : null,
+                  itemName: item?.name ?? null,
+                  roundText: item
+                    ? `${side === 'left' ? '左手' : '右手'}换持为 ${item.name}`
+                    : `放下${side === 'left' ? '左手' : '右手'}物品`,
+                });
+              }}
               onRequestMoveToken={(combatantId, to) => {
                 const r = roster.find((x) => x.id === combatantId);
                 addOp({

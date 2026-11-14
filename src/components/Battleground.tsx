@@ -6,7 +6,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone, ZoneType } from '@/types/battleground';
 import type { Combatant, CombatRecord, EquipmentChanges } from '@/types/combat';
-import type { Equipment } from '@/types/character';
+import type { Character, Equipment } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
 
 interface Props {
@@ -79,9 +79,13 @@ interface Props {
   onRequestMoveToken?: (combatantId: string, to: { col: number; row: number }) => void;
   /** 投影模式下：棋盘坐标系内的覆盖层（动画特效），cell 为当前格子像素尺寸 */
   projectionOverlay?: (cellSize: number) => React.ReactNode;
+  /** 投影模式下：参战者对应的角色卡（本地 store 无卡时供信息面板读取） */
+  panelCharacters?: Record<string, Character | null>;
+  /** 投影模式下：信息面板的手持变更请求（宿主转成 ready-item op） */
+  onRequestHandChange?: (combatantId: string, side: 'left' | 'right', item: Equipment | null) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelBardicClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelBardicClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, onRequestHandChange }: Props) {
   const navigate = useNavigate();
   // 投影模式：数据来自外部快照，禁止一切写库操作
   const projectionMode = bgData !== undefined;
@@ -1730,6 +1734,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onCastClick={() => onPanelCastClick?.(live)}
                   onDashClick={() => onPanelDashClick?.(live)}
                   onForcedMoveClick={() => onPanelForcedMoveClick?.(live)}
+                  characterOverride={panelCharacters ? panelCharacters[live.id] : undefined}
+                  onRequestHandChange={onRequestHandChange ? (side, item) => onRequestHandChange(live.id, side, item) : undefined}
                 />
         );
       })()}
