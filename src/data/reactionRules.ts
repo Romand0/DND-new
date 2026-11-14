@@ -1,14 +1,63 @@
-// 反应机制（v1：借机攻击）：触及变化判定纯函数。
-// 触发语义：移动者起点格在持有者任一近战武器触及内、落点格在触及外 → 打开借机攻击开关。
+// 通用反应引擎：战斗事件抽象 + 注册式检测器（与 advantageRules 同构：纯只读检测，消费由调用方确认后执行）。
+// P1 事件面：move（双向触发 move_leave_reach / enter_reach 的检测器自行分流）；
+// attack / damage / spell_cast 的事件面在 P2 接入对应插桩点，类型先定好避免后续改签名。
+// 借机攻击语义：移动者起点格在持有者任一近战武器触及内、落点格在触及外 → 打开机会。
 // 攻击距离按「起点格」计算（离开触及的瞬时点），与 5e「借机攻击不阻止移动」一致。
 // 近战判定与 CombatAttackModal.isRangedWeapon/isThrownWeapon 同口径（复制而非共享——
 // 弹窗内的是闭包函数，抽公共模块的收益低于双份维护的漂移风险，改动时两处同步）。
 import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
-import type { CombatRecord, Combatant, ReactionOpportunity, NpcAttack } from '@/types/combat';
+import { BUILTIN_OPPORTUNITY_ATTACK } from '@/data/reactionDefinitions';
+import type { CombatRecord, Combatant, ReactionPrompt, NpcAttack } from '@/types/combat';
 import type { Attack } from '@/types/character';
 
 type AnyAttack = Attack | NpcAttack;
+
+/** 位置格（切比雪夫网格坐标） */
+export interface GridPos {
+  col: number;
+  row: number;
+}
+
+/**
+ * 战斗事件（反应触发面）：
+ * - move：移动完成时（DM 直操落子 / 玩家回合包 move op 落库）
+ * - attack：攻击被确认指定（P2 护盾术窗口：命中判定后、伤害结算前）
+ * - damage：伤害即将落地（P2 减伤/反击窗口）
+ * - spell_cast：法术施放完成前（P2 法术反制窗口）
+ */
+export type ReactionCombatEvent =
+  | { kind: 'move'; moverId: string; from: GridPos; to: GridPos; source: 'dm_drag' | 'turn_commit' }
+  | { kind: 'attack'; attackerId: string; targetId: string }
+  | { kind: 'damage'; targetId: string; attackerId?: string; amount: number; damageType: string }
+  | { kind: 'spell_cast'; casterId: string; spellId: string };
+
+/** 检测产出的候选（id/round/consumed 由 store 写入时补齐） */
+export type ReactionMatch = Omit<ReactionPrompt, 'id' | 'round' | 'consumed'>;
+
+/** 检测器：纯函数，读事件 + 记录；返回所有命中的候选（可含多个持有者） */
+export type ReactionDetector = (record: CombatRecord, event: ReactionCombatEvent) => ReactionMatch[];
+
+const detectors: ReactionDetector[] = [];
+
+export function registerReactionDetector(fn: ReactionDetector): void {
+  detectors.push(fn);
+}
+
+/** 引擎入口：执行全部已注册检测器并合并结果（只读，不修改任何状态） */
+export function detectReactions(record: CombatRecord, event: ReactionCombatEvent): ReactionMatch[] {
+  const out: ReactionMatch[] = [];
+  for (const fn of detectors) {
+    try {
+      out.push(...fn(record, event));
+    } catch (err) {
+      // 单个检测器异常不拖垮整条触发链（反应失败不应阻断移动/攻击落库）
+      console.error('[reactionRules] detector failed', err);
+    }
+  }
+  return out;
+}
+
 
 /** 纯远程武器判定（同 CombatAttackModal.isRangedWeapon） */
 function isRangedWeapon(attack: AnyAttack): boolean {
@@ -68,17 +117,14 @@ function chebyshev(a: { col: number; row: number }, b: { col: number; row: numbe
 }
 
 /**
- * 借机攻击判定：移动者 fromPos → toPos，遍历敌方参战者，
+ * 借机攻击检测器（move 事件）：移动者 fromPos → toPos，遍历敌方参战者，
  * 起点 ≤ 任一近战触及 且 落点 > 同一触及（用该 owner 的最大触及格数判定跨界）。
  * 死亡/昏迷/失能/反应已用的持有者仍生成机会（弹窗内显示反应已用尽，由 DM 放弃）——
  * 5e 语义：机会窗口客观存在，能否行使取决于反应可用性。
  */
-export function detectOpportunityAttacks(
-  record: CombatRecord,
-  moverId: string,
-  fromPos: { col: number; row: number },
-  toPos: { col: number; row: number }
-): Omit<ReactionOpportunity, 'id' | 'consumed' | 'round'>[] {
+registerReactionDetector((record, event) => {
+  if (event.kind !== 'move') return [];
+  const { moverId, from: fromPos, to: toPos } = event;
   const mover = record.combatants.find(c => c.id === moverId);
   if (!mover || mover.isDead || mover.isUnconscious) return [];
   const bg = battlegroundStore.get(record.id);
@@ -88,7 +134,7 @@ export function detectOpportunityAttacks(
     return t ? { col: t.col, row: t.row } : null;
   };
 
-  const results: Omit<ReactionOpportunity, 'id' | 'consumed' | 'round'>[] = [];
+  const results: ReactionMatch[] = [];
   for (const owner of record.combatants) {
     if (owner.id === moverId) continue;
     // 敌对阵营：isPc 不同（PC/NPC 两阵营；同侧不借机）
@@ -103,12 +149,13 @@ export function detectOpportunityAttacks(
     if (chebyshev(fromPos, pos) <= reach && chebyshev(toPos, pos) > reach) {
       results.push({
         ownerId: owner.id,
+        definitionId: BUILTIN_OPPORTUNITY_ATTACK,
+        trigger: 'move_leave_reach',
         moverId,
-        type: 'opportunity_attack',
         fromPos,
         toPos,
       });
     }
   }
   return results;
-}
+});

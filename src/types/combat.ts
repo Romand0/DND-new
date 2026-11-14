@@ -77,22 +77,53 @@ export interface PassiveChecks {
   investigation: number;
 }
 
-/** 借机攻击机会（反应机制 v1）：移动者离开触及范围的瞬时窗口，跨回合有效直到处理/过期 */
-export interface ReactionOpportunity {
+/** 反应触发类型（通用反应引擎）：决定检测时机与解决方式 */
+export type ReactionTrigger =
+  | 'move_leave_reach'   // 移动者离开触及范围（借机攻击）
+  | 'enter_reach'        // 移动者进入触及范围（哨兵）
+  | 'attack_targeted'    // 被指定为攻击目标（护盾术）
+  | 'ally_attacked'      // 盟友被攻击（守护）
+  | 'damage_taken'       // 受到伤害（减伤/反击）
+  | 'spell_cast';        // 他人施法（法术反制）
+
+/**
+ * 未决反应机会（通用反应引擎）：触发事件快照 + 解决所需上下文。
+ * 挂在持有者 Combatant.pendingReactions 上（战斗临时数据，与 EquipmentChanges 同层级）。
+ * 生命周期：检测只读入队 → 弹窗确认（二次校验）→ 消费 consumed + reactionUsed → 回合过期清除。
+ */
+export interface ReactionPrompt {
   id: string;
-  /** 反应持有者（借机攻击的攻击方） */
+  /** 反应持有者（行使反应的一方） */
   ownerId: string;
-  /** 移动者（离开触及的一方） */
-  moverId: string;
-  type: 'opportunity_attack';
-  /** 触发时移动者起点格（借机攻击的有效攻击距离按此格计算） */
-  fromPos: { col: number; row: number };
-  /** 移动者落点格 */
-  toPos: { col: number; row: number };
+  /** 反应定义稳定键（builtin:opportunity_attack / spell:shield / feature:sentinel ...） */
+  definitionId: string;
+  trigger: ReactionTrigger;
   /** 产生时的放映回合；跨回合推进未处理即过期清除 */
   round: number;
   consumed: boolean;
+  /** 触发事件快照（按 trigger 取用对应字段） */
+  /** 移动者（move_leave_reach / enter_reach） */
+  moverId?: string;
+  /** 攻击方（attack_targeted / ally_attacked / damage_taken） */
+  attackerId?: string;
+  /** 施法者（spell_cast） */
+  casterId?: string;
+  /** 事件目标（被攻击/被施法/受伤方） */
+  targetId?: string;
+  /** 触发时移动者起点格（借机攻击的有效攻击距离按此格计算） */
+  fromPos?: { col: number; row: number };
+  /** 移动者落点格 */
+  toPos?: { col: number; row: number };
+  /** 伤害量（damage_taken） */
+  amount?: number;
+  /** 伤害类型（damage_taken） */
+  damageType?: string;
+  /** 法术 ID（spell_cast） */
+  spellId?: string;
 }
+
+/** 借机攻击机会（v1 兼容别名）：通用 prompt 的「移动离开触及」特例 */
+export type ReactionOpportunity = ReactionPrompt;
 
 export interface Combatant {
   id: string;
