@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, RotateCcw, SkipForward } from 'lucide-react';
+import { ChevronLeft, Gauge, RotateCcw, SkipForward } from 'lucide-react';
 
 // 战斗资源悬浮面板（左下角仿显示屏）：动作 / 附赠动作 / 移动力。
 // DM 端读本地战斗记录，玩家端读观战投影——两边共用同一视觉与语义，避免各写一套。
-// 窄屏适配：数值区可横向滚动，整体可向侧方收起（收起后仍保留完成回合/恢复按钮）。
+// 窄屏适配：数值区可横向滚动；收起后缩成左下角悬浮小方块（点击展开，数值不再占位）。
 interface Props {
   /** 剩余动作数（active 为 false 时显示 ∞） */
   actions: number;
@@ -40,41 +40,41 @@ export default function CombatResourceHud({
   const moveText = totalSpeed > 0 ? (active ? `${remainingMovement ?? 0}/${totalSpeed}` : `${totalSpeed}`) : '—';
   const labelCls = (isZero: boolean) => (active ? (isZero ? 'text-red-400' : 'text-white') : 'text-indigo-300/60');
 
+  if (collapsed) {
+    return (
+      <button
+        onClick={() => setCollapsed(false)}
+        className="fixed bottom-6 left-6 z-30 w-11 h-11 rounded-lg border border-indigo-400/20 bg-indigo-950/90 backdrop-blur shadow-lg flex items-center justify-center text-indigo-300 hover:text-white hover:bg-indigo-900/90 transition-colors"
+        title="展开资源面板"
+        aria-label="展开资源面板"
+        aria-expanded={false}
+      >
+        <Gauge className="w-5 h-5" />
+      </button>
+    );
+  }
+
   return (
     <div className="fixed bottom-6 left-6 z-30 flex items-stretch max-w-[calc(100vw-3rem)] rounded-lg border border-indigo-400/20 bg-indigo-950/90 backdrop-blur shadow-lg font-mono overflow-hidden">
-      {collapsed ? (
-        // 收起态：保留一行紧凑数值，超宽时自身横向滚动
-        <div className="flex items-center gap-2 px-3 py-2.5 min-w-0 overflow-x-auto text-[11px] whitespace-nowrap">
-          <span className="text-indigo-300/50">ACT</span>
-          <span className={`font-bold ${labelCls(actions <= 0)}`}>{actionText}</span>
+      <div className="flex items-center gap-3 px-4 py-3 min-w-0 overflow-x-auto overscroll-x-contain">
+        <div className="flex items-center gap-3 min-w-max">
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-indigo-300/50 tracking-wider">ACT</span>
+            <span className={`text-sm font-bold ${labelCls(actions <= 0)}`}>{actionText}</span>
+          </div>
           <span className="text-indigo-400/30">|</span>
-          <span className="text-indigo-300/50">BON</span>
-          <span className={`font-bold ${labelCls(bonusActions <= 0)}`}>{bonusText}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-indigo-300/50 tracking-wider">BON</span>
+            <span className={`text-sm font-bold ${labelCls(bonusActions <= 0)}`}>{bonusText}</span>
+          </div>
           <span className="text-indigo-400/30">|</span>
-          <span className="text-indigo-300/50">MOV</span>
-          <span className={`font-bold ${labelCls((remainingMovement ?? 0) <= 0)}`}>{moveText}</span>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3 px-4 py-3 min-w-0 overflow-x-auto overscroll-x-contain">
-          <div className="flex items-center gap-3 min-w-max">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-indigo-300/50 tracking-wider">ACT</span>
-              <span className={`text-sm font-bold ${labelCls(actions <= 0)}`}>{actionText}</span>
-            </div>
-            <span className="text-indigo-400/30">|</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-indigo-300/50 tracking-wider">BON</span>
-              <span className={`text-sm font-bold ${labelCls(bonusActions <= 0)}`}>{bonusText}</span>
-            </div>
-            <span className="text-indigo-400/30">|</span>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] text-indigo-300/50 tracking-wider">MOV</span>
-              <span className={`text-sm font-bold ${labelCls((remainingMovement ?? 0) <= 0)}`}>{moveText}</span>
-              <span className="text-[10px] text-indigo-300/50">ft</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-indigo-300/50 tracking-wider">MOV</span>
+            <span className={`text-sm font-bold ${labelCls((remainingMovement ?? 0) <= 0)}`}>{moveText}</span>
+            <span className="text-[10px] text-indigo-300/50">ft</span>
           </div>
         </div>
-      )}
+      </div>
 
       {/* 操作区固定在右侧：窄屏滚动数值区时不跟着滚走 */}
       <div className="flex items-center gap-1.5 px-2 py-2 shrink-0 border-l border-indigo-400/10">
@@ -101,11 +101,11 @@ export default function CombatResourceHud({
         <button
           onClick={() => setCollapsed((v) => !v)}
           className="p-1.5 rounded hover:bg-indigo-500/20 text-indigo-300/70 hover:text-indigo-200 transition-colors"
-          title={collapsed ? '展开资源面板' : '收起资源面板'}
-          aria-label={collapsed ? '展开资源面板' : '收起资源面板'}
-          aria-expanded={!collapsed}
+          title="收起资源面板"
+          aria-label="收起资源面板"
+          aria-expanded={true}
         >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          <ChevronLeft className="w-4 h-4" />
         </button>
       </div>
     </div>
