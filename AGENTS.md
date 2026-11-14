@@ -27,6 +27,7 @@
 | 改登录 / 权限 | `src/contexts/AuthContext.tsx` + `functions/_utils.ts` | AuthContext 里 user/isAdmin/isAuthenticated 是三大派生（isDM 仅是游戏身份），不要加冲突的局部判断 |
 | 改样式 / 主题 | Tailwind class（内联）+ `public/css/main.css`（全局 token） | 不要手写 CSS 文件，尽量用 Tailwind；暗黑模式 class 后缀 `-dark` |
 | 加新功能页面 | 建 `src/pages/Xxx.tsx` → 在 `src/App.tsx` 注册路由 → 在 `Layout` / `PlayerLayout` 对应菜单里加入口 | |
+| 恢复跨会话功能 / 交接 | `.monkeycode/specs/<feature>/progress.md`（模板 `.monkeycode/specs/_template/`） | 靠会话历史记忆当前进度 |
 | 改数据库表结构 | `migrations/NNNN_name.sql`（新建迁移文件，不要改旧的）+ `functions/_utils.ts` 对应类型 | 迁移文件追加式，D1 手动 apply |
 | 侦查 / 定位代码模块（先读文档再读源码） | `docs/generated/src/**`（按源码路径镜像的 .md 概述文档，见 §5.14） | 文档是路由表不是唯一事实源，关键判断仍以 `src/` 源码为准；改代码后需重新触发 docs workflow 更新文档 |
 
@@ -412,7 +413,7 @@ git commit -m "feat: 描述本次提交的具体变更内容"   # 用 convention
 
 ```bash
 # 1. 在功能分支上跑完整验证（见 §8）
-npx tsc --noEmit && npm run build
+npx tsc -p tsconfig.app.json --noEmit && npm run build
 
 # 2. 验证通过后，切回 main 并同步最新
 git checkout main
@@ -422,7 +423,7 @@ git pull origin main
 git merge --no-ff feature/your-feature-name
 
 # 4. 再次在 main 上构建验证（合并后可能有冲突后新引入的问题）
-npx tsc --noEmit && npm run build   ✅通过 → 立即执行下一步，不等用户说「push」
+npx tsc -p tsconfig.app.json --noEmit && npm run build   ✅通过 → 立即执行下一步，不等用户说「push」
 
 # 5. 验证通过后推送到远程 main（默认自动执行，用户不说话就推）
 git push origin main
@@ -431,3 +432,15 @@ git push origin main
 git branch -d feature/your-feature-name
 git push origin --delete feature/your-feature-name   # 如果推送过远程分支
 ```
+
+### 9.4 跨会话接力
+
+同一功能的开发会跨多次会话，交接靠仓库文件，不靠对话历史。
+
+恢复工作时按此顺序读，读完即可开工：
+1. `.monkeycode/specs/<feature>/progress.md`：阶段状态 / 已决策 / 下一步 / 验证命令
+2. 同目录 `design.md`（需要规则细节时再读 `requirements.md`）
+3. `docs/generated/src/**` 或 `grep -n` 定位相关源码
+4. `sh scripts/probes/run.sh` 跑一次基线，确认起点全绿
+
+收尾时必须回写 `progress.md` 的「阶段状态 / 已决策 / 下一步」，耗时约 1 分钟。新功能开工前先建 `progress.md`（模板 `.monkeycode/specs/_template/progress.md`）。
