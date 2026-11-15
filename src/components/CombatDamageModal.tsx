@@ -37,6 +37,8 @@ interface Props {
   isCritical?: boolean;
   /** 多用武器：是否双手握持（由攻击检定阶段带入，可在伤害阶段切换） */
   isTwoHandedWield?: boolean;
+  /** 遮罩层级（反应弹窗叠加时降到 z-40，保证反应窗口在上层） */
+  zIndexClass?: string;
 }
 
 /** 解析伤害骰字符串，如 "1d6+2"、"2d8 + 3"、"d4"、"1d6" */
@@ -98,6 +100,7 @@ export default function CombatDamageModal({
   onClose,
   isCritical = false,
   isTwoHandedWield = false,
+  zIndexClass = 'z-50',
 }: Props) {
   // 优先使用 rollMode，回退到 disadvantage prop（向后兼容）
   const effectiveMode: 'none' | 'advantage' | 'disadvantage' =
@@ -218,7 +221,7 @@ export default function CombatDamageModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className={`fixed inset-0 ${zIndexClass} flex items-center justify-center bg-black/50`} onClick={onClose}>
       <div
         className="dark:bg-card-dark light:bg-card-light rounded-xl shadow-2xl w-[90vw] max-w-md max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}

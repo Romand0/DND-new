@@ -107,6 +107,8 @@ export interface ReactionPrompt {
   definitionId: string;
   /** 定义显示名（写入时快照，避免定义/法术库变动后历史 prompt 无法展示） */
   definitionName?: string;
+  /** 触发事件摘要（写入时快照，如「受到 12 点火焰伤害」「施放《火球术》」） */
+  eventLabel?: string;
   trigger: ReactionTrigger;
   /** 产生时的放映回合；跨回合推进未处理即过期清除 */
   round: number;

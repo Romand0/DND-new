@@ -403,6 +403,97 @@ async function main() {
     }
   }
 
+  // ===== 8. P3：damage_taken / enter_reach / spell_cast 检测 + 特性数据源 =====
+  await page.evaluate(async () => {
+    const { setRulebookScope } = await import('/src/data/libraryScope.ts');
+    setRulebookScope(['玩家手册 2014']);
+    const { spellStore } = await import('/src/data/spellStore.ts');
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const battlegroundStore = (await import('/src/data/battlegroundStore.ts')).default;
+    const probeIds = new Set(['probe:reaction-spell', 'probe:damage-reaction', 'probe:enter-reach', 'probe:counterspell']);
+    const all = spellStore.getAllRaw().filter(s => !probeIds.has(s.id));
+    const base = {
+      level: 1, school: '防护系', source: '玩家手册 2014', castingTime: '1 反应', range: '自身',
+      components: { verbal: true, somatic: true, material: false }, duration: '1 轮',
+      description: '探针数据，仅声明触发，不含效果逻辑。', classes: [],
+    };
+    all.push(
+      { ...base, id: 'probe:damage-reaction', name: '探测减伤术', reaction: { trigger: 'damage_taken', resolution: 'spell', scope: 'self', slotLevel: 0 } },
+      { ...base, id: 'probe:enter-reach', name: '探测哨兵术', reaction: { trigger: 'enter_reach', resolution: 'spell', scope: 'self', slotLevel: 0 } },
+      { ...base, id: 'probe:counterspell', name: '探测反制术', reaction: { trigger: 'spell_cast', resolution: 'spell', scope: 'self', slotLevel: 0 } },
+    );
+    spellStore.save(all);
+
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const pc = rec.combatants.find(c => c.id === 'react-pc');
+    // 早期搭建把 add() 返回的 Character 对象直接塞进了 characterId；读回真实 id 修正，
+    // 否则特性来源（要求 characterId 可查）无法参与检测。
+    const pcChar = characterStore.getAll().find(c => c.isSandbox && c.name === '反应测试·战士') || null;
+    if (pcChar) {
+      characterStore.update(pcChar.id, {
+        features: [
+          ...(pcChar.features || []).filter(f => f.name !== '探针特性反应'),
+          {
+            name: '探针特性反应', description: '探针数据', category: '职业特性', level: 1,
+            reaction: { trigger: 'damage_taken', resolution: 'spell', scope: 'self', slotLevel: 0 },
+          },
+        ],
+      });
+    }
+    // PC 习得三张探测法术（普通战斗只取习得列表）
+    if (pcChar) {
+      characterStore.update(pcChar.id, {
+        spells: {
+          ...(pcChar.spells || {}),
+          cantrips: Array.from(new Set([...(pcChar.spells?.cantrips || []), '探测减伤术', '探测哨兵术', '探测反制术'])),
+        },
+      });
+    }
+    combatStore.update(rec.id, {
+      combatants: rec.combatants.map(c => ({
+        ...c,
+        characterId: c.id === 'react-pc' && pcChar ? pcChar.id : c.characterId,
+        pendingReactions: [],
+        reactionUsed: false,
+      })),
+      updatedAt: Date.now(),
+    });
+    battlegroundStore.setTokens(rec.id, [
+      { combatantId: 'react-pc', col: 2, row: 2 },
+      { combatantId: 'react-npc', col: 3, row: 2 },
+    ]);
+  });
+  await page.waitForTimeout(500);
+
+  const p3 = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { detectReactions } = await import('/src/data/reactionRules.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const defs = (arr) => arr.map(m => m.definitionId).sort();
+    const damage = detectReactions(rec, { kind: 'damage', targetId: 'react-pc', attackerId: 'react-npc', amount: 5, damageType: '挥砍' });
+    const enter = detectReactions(rec, { kind: 'move', moverId: 'react-npc', from: { col: 6, row: 2 }, to: { col: 2, row: 3 }, source: 'dm_drag' });
+    const cast = detectReactions(rec, { kind: 'spell_cast', casterId: 'react-npc', spellId: 'probe:reaction-spell' });
+    const selfOnly = detectReactions(rec, { kind: 'damage', targetId: 'react-npc', attackerId: 'react-pc', amount: 5, damageType: '挥砍' });
+    return {
+      damage: defs(damage),
+      damageOwner: damage[0]?.ownerId,
+      damageLabel: damage.find(m => m.trigger === 'damage_taken')?.eventLabel,
+      enter: defs(enter),
+      enterTrigger: enter[0]?.trigger,
+      cast: defs(cast),
+      castCaster: cast[0]?.casterId,
+      castTrigger: cast[0]?.trigger,
+      selfCount: selfOnly.filter(m => m.ownerId === 'react-pc').length,
+    };
+  });
+  check('8a damage_taken 法术来源命中', p3.damage.includes('spell:probe:damage-reaction'), p3);
+  check('8b damage_taken 特性来源（feature: 前缀）', p3.damage.includes('feature:探针特性反应'), p3);
+  check('8c damage_taken 事件标签含伤害量', typeof p3.damageLabel === 'string' && p3.damageLabel.includes('5'), p3);
+  check('8d enter_reach 哨兵触发', p3.enter.includes('spell:probe:enter-reach') && p3.enterTrigger === 'enter_reach', p3);
+  check('8e spell_cast 敌对施法者触发反制', p3.cast.includes('spell:probe:counterspell') && p3.castTrigger === 'spell_cast' && p3.castCaster === 'react-npc', p3);
+  check('8f self 范围不误伤他人（受击者为 NPC 时 PC 不触发）', p3.selfCount === 0, p3);
+
   console.log(`\n==== probe-reaction: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

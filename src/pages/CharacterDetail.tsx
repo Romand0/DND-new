@@ -1333,7 +1333,7 @@ export default function CharacterDetail({
   // role 随选项库种子标注透传（无标注的条目保持缺省走关键词派生）
   const applyOptionTraits = (
     basePatch: Partial<Character>,
-    traits: { name: string; text: string; level?: number; role?: FeatureRole; system?: string; systemKind?: Feature['systemKind'] }[],
+    traits: { name: string; text: string; level?: number; role?: FeatureRole; system?: string; systemKind?: Feature['systemKind']; reaction?: Feature['reaction'] }[],
     removeCategories: string[],
     category: string,
     source: string
@@ -1354,6 +1354,7 @@ export default function CharacterDetail({
         role: t.role,
         system: t.system,
         systemKind: t.systemKind,
+        ...(t.reaction ? { reaction: t.reaction } : {}),
       }));
     characterStore.update(id, { ...basePatch, features: [...kept, ...fresh] });
     return fresh.length;

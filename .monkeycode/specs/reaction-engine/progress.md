@@ -8,9 +8,9 @@
 ## 阶段状态
 - [x] P1 事件抽象 + `ReactionPrompt` 超集 + 定义注册表，借机攻击迁入（8538dd7，main b05bd61）
 - [x] P2 攻击目标反应窗口（命中后、伤害前）+ 法术反应声明 `Spell.reaction` + 通用反应弹窗（a7fd672，main 5662dba）
-- [ ] P3 `damage_taken` / `spell_cast` 插桩 + 特性数据源 + 玩家提交窗口化
+- [x] P3 `damage_taken` / `spell_cast` 插桩 + 特性数据源 + 玩家提交窗口化（本分支待合并）
 
-当前：P2 已合并并推送（main 0367ce5），P3 未开工。
+当前：P3 代码完成，typecheck/build 通过，`probe-reaction.cjs` 48 项全绿，等待合并推送。
 
 ## 已决策
 - 事件面用 `ReactionTrigger` 判别联合（move / attack / damage / spell_cast），检测器走 `registerReactionDetector`，新增来源不改弹窗与队列
@@ -25,17 +25,15 @@
 - 放弃：P2 顺带做 `spell_cast` —— 插桩点分散在流程施放/手动施放/卷轴三条路径，单独放 P3 保证 P2 可独立验证
 
 ## 下一步
-1. P3-a `damage_taken` 检测器 + `CombatDamageModal` 结算前窗口（复用 pendingDamage 队列）
-2. P3-b `spell_cast` 插桩：`CombatSpellModal` 收尾确认前 emit，支撑法术反制（同回合反应，与 `reactionUsed` 互斥）
-3. P3-c 特性数据源：`character.features` 增加声明式 reaction 字段，支撑哨兵/专长
-4. P3-d 玩家回合提交（`lib/turnCommitApply.ts`）把攻击窗口让给 DM 端处理
+1. 合并 `feature/reaction-engine-p3` 到 main 并推送
+2. 后续接入更多数据来源（怪物动作 / 专长）时，只需扩展 `getOwnerReactionSources` 或注册检测器
 
 ## 验证方式
 - 基线：`sh scripts/probes/run.sh`（期望末行 `ALL PROBES OK`）
-- 本功能探针：`scripts/probes/probe-reaction.cjs`（42 项，含持久化与 P2 法术反应）
+- 本功能探针：`scripts/probes/probe-reaction.cjs`（48 项，含持久化、P2 攻击反应、P3 damage/enter_reach/spell_cast/特性来源）
 - 构建：`npx tsc -p tsconfig.app.json --noEmit && npm run build`
 
 ## 分支与提交
 - `feature/reaction-engine-p1`：8538dd7 → 合并 b05bd61
 - `feature/reaction-engine-p2`：a7fd672 → 合并 5662dba
-- P3 使用 `feature/reaction-engine-p3`
+- P3 使用 `feature/reaction-engine-p3`（待合并）

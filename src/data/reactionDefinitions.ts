@@ -1,8 +1,10 @@
 // 通用反应定义表：数据驱动的反应来源登记 + 保守识别。
 // 「识别不了的来源不自动生效」——只有静态登记的定义或法术库中带 reaction 声明的法术会被检测器产出。
 // 具体法术不做硬编码：spell:<id> 的定义在运行时由 Spell.reaction 数据派生（见 resolveReactionDefinition）。
+import { characterStore } from '@/data/characterStore';
 import { spellStore } from '@/data/spellStore';
 import type { ReactionTrigger, ReactionResolution } from '@/types/combat';
+import type { Feature } from '@/types/character';
 import type { Spell } from '@/types/spell';
 
 export type { ReactionResolution };
@@ -60,13 +62,38 @@ export function definitionFromSpell(spell: Spell): ReactionDefinition | null {
   };
 }
 
-/** 解析定义：先查静态表，再按 spell: 前缀从法术库派生（数据驱动，无硬编码法术条目） */
+/** 由特性数据的 reaction 声明派生反应定义（feature:<名>）；无声明返回 null */
+export function definitionFromFeature(feature: Feature): ReactionDefinition | null {
+  const rx = feature.reaction;
+  if (!rx?.trigger) return null;
+  return {
+    id: `feature:${feature.name}`,
+    name: feature.name,
+    trigger: rx.trigger,
+    resolution: rx.resolution ?? 'spell',
+    usesPerRound: 1,
+    cost: rx.slotLevel && rx.slotLevel > 0 ? { spellSlot: rx.slotLevel } : undefined,
+    prompt: {
+      title: `${feature.name}（反应）`,
+      body: rx.prompt,
+    },
+  };
+}
+
+/** 解析定义：先查静态表，再按 spell:/feature: 前缀从数据源派生（无硬编码条目） */
 export function resolveReactionDefinition(id: string): ReactionDefinition | null {
   const stat = registry.get(id);
   if (stat) return stat;
   if (id.startsWith('spell:')) {
     const spell = spellStore.getById(id.slice('spell:'.length));
     return spell ? definitionFromSpell(spell) : null;
+  }
+  if (id.startsWith('feature:')) {
+    const name = id.slice('feature:'.length);
+    for (const character of characterStore.getAll()) {
+      const feature = (character.features || []).find(f => f.name === name && f.reaction?.trigger);
+      if (feature) return definitionFromFeature(feature);
+    }
   }
   return null;
 }

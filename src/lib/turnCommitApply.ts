@@ -90,6 +90,15 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
           opCtx.damage = { amount: result.damage, oldHp: result.oldHp, newHp: result.newHp };
         }
       }
+      // 玩家提交的攻击包先落库；防御方反应窗口（attack_targeted）在目标仍存活时检测，
+      // 机会持久化后由 DM 端队列处理（玩家端无法交互，时间线按「先落库再提示」近似）
+      if (op.hit) {
+        const rxMatches = detectReactions(record, { kind: 'attack', attackerId: actor.id, targetId: op.targetId });
+        for (const m of rxMatches) {
+          const fulls = combatStore.addReactionPrompts(record.id, m.ownerId, [m], request.round);
+          collectedReactions.push(...fulls);
+        }
+      }
       // 同一回合多次攻击只扣一次主动作（额外攻击规则由 DM 桌面把握）
       if (!consumedAction) {
         consumeAction(actor.id);

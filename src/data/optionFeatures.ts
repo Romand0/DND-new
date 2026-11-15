@@ -4,7 +4,7 @@
 // 口径，避免同名义条目重复渲染或隐藏状态错乱）；已存在条目一律保留用户编辑（描述、隐藏状
 // 态），只追加缺失条目，因此补全操作幂等且无破坏性。
 import type { CharacterOption } from '@/types/characterOption';
-import type { Character, FeatureRole } from '@/types/character';
+import type { Character, FeatureReaction, FeatureRole } from '@/types/character';
 import { optionStore } from '@/data/optionStore';
 import { getClassProficiencyInfo } from '@/data/classProficiencies';
 import { getSubclassDisplayName } from '@/data/subclasses';
@@ -19,6 +19,8 @@ export interface OptionFeatureEntry {
   role?: FeatureRole;
   system?: string;
   systemKind?: 'container' | 'member';
+  /** 反应触发声明（透传到角色卡 Feature.reaction） */
+  reaction?: FeatureReaction;
 }
 
 /**
@@ -71,7 +73,7 @@ export function collectOptionFeatureEntries(character: {
         const category = o.category === 'subrace' ? '亚种特质' : '种族特质';
         const source = o.category === 'subrace' ? o.parentName || o.name : o.name;
         for (const t of o.traits || []) {
-          if (t.name && t.text) push({ name: t.name, description: t.text, category, source, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind });
+          if (t.name && t.text) push({ name: t.name, description: t.text, category, source, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction });
         }
       }
     }
@@ -82,7 +84,7 @@ export function collectOptionFeatureEntries(character: {
     const bg = optionStore.getByName(character.background, 'background');
     if (bg) {
       if (bg.feature?.name && bg.feature?.text) {
-        push({ name: bg.feature.name, description: bg.feature.text, category: '背景特性', source: bg.name, role: bg.feature.role });
+        push({ name: bg.feature.name, description: bg.feature.text, category: '背景特性', source: bg.name, role: bg.feature.role, reaction: bg.feature.reaction });
       }
       const m = bg.mechanics || {};
       // mechanics 派生条目是纯数值/装备块，语义上属于属性调整层，统一显式标 stat
@@ -102,7 +104,7 @@ export function collectOptionFeatureEntries(character: {
     const cls = optionStore.getByName(className, 'class');
     if (cls) {
       for (const t of cls.traits || []) {
-        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: cls.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind });
+        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: cls.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction });
       }
     }
   }
@@ -116,7 +118,7 @@ export function collectOptionFeatureEntries(character: {
     const sub = optionStore.getByName(displayName || subclassName, 'subclass') ?? optionStore.getByName(subclassName, 'subclass');
     if (sub) {
       for (const t of sub.traits || []) {
-        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: sub.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind });
+        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: sub.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction });
       }
     }
   }

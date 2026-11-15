@@ -57,6 +57,7 @@ function traitsToFeatures(traits: OptionTrait[], level: number): Feature[] {
       ...(t.role ? { role: t.role } : {}),
       ...(t.system ? { system: t.system } : {}),
       ...(t.systemKind ? { systemKind: t.systemKind } : {}),
+      ...(t.reaction ? { reaction: t.reaction } : {}),
     }));
 }
 
