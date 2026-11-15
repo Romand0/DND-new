@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Package, Sparkles, Heart, Zap, CheckCircle2 } from 'lucide-react';
+import { X, Package, Sparkles, Heart, Zap, CheckCircle2, Coins } from 'lucide-react';
 import combatStore from '@/data/combatStore';
 import statusLibrary from '@/data/statusLibrary';
 import type { CombatRecord, SettlementPreview, SettlementSelections, SettlementEntry, SettlementStatusLine } from '@/types/combat';
@@ -56,6 +56,7 @@ export default function SettlementDialog({ record, onClose, onSettled }: Props) 
   const [preview, setPreview] = useState<SettlementPreview | null>(null);
   const [selEq, setSelEq] = useState<Record<string, Set<string>>>({});
   const [selSlots, setSelSlots] = useState<Set<string>>(new Set());
+  const [selPools, setSelPools] = useState<Set<string>>(new Set());
   const [selHp, setSelHp] = useState<Set<string>>(new Set());
   const [selStatus, setSelStatus] = useState<Record<string, Set<string>>>({});
   const [error, setError] = useState<string | null>(null);
@@ -71,22 +72,25 @@ export default function SettlementDialog({ record, onClose, onSettled }: Props) 
     const eq: Record<string, Set<string>> = {};
     const st: Record<string, Set<string>> = {};
     const slots = new Set<string>();
+    const pools = new Set<string>();
     const hp = new Set<string>();
     for (const e of p.entries) {
       eq[e.combatantId] = new Set(e.equipment.map(l => l.childId));
       const inheritable = e.statuses.filter(s => s.inheritable).map(s => s.instance.instanceId);
       if (inheritable.length > 0) st[e.combatantId] = new Set(inheritable);
       if (e.spellSlots.length > 0) slots.add(e.combatantId);
+      if (e.featurePools.length > 0) pools.add(e.combatantId);
       if (e.hp) hp.add(e.combatantId);
     }
     setSelEq(eq);
     setSelStatus(st);
     setSelSlots(slots);
+    setSelPools(pools);
     setSelHp(hp);
   }, [record.id]);
 
   const hasAnyChange = preview?.entries.some(e =>
-    e.equipment.length > 0 || e.spellSlots.length > 0 || e.hp || e.statuses.length > 0
+    e.equipment.length > 0 || e.spellSlots.length > 0 || e.featurePools.length > 0 || e.hp || e.statuses.length > 0
   ) ?? false;
 
   const handleConfirm = () => {
@@ -96,6 +100,7 @@ export default function SettlementDialog({ record, onClose, onSettled }: Props) 
         Object.entries(selEq).map(([k, v]) => [k, [...v]]),
       ),
       spellSlotCombatantIds: [...selSlots],
+      featurePoolCombatantIds: [...selPools],
       hpCombatantIds: [...selHp],
       statusInstanceIds: Object.fromEntries(
         Object.entries(selStatus).map(([k, v]) => [k, [...v]]),
@@ -181,6 +186,30 @@ export default function SettlementDialog({ record, onClose, onSettled }: Props) 
         </div>
       )}
 
+      {/* 特性资源池消耗 */}
+      {e.featurePools.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1.5 text-xs font-medium mb-1 dark:text-text-dark-muted light:text-text-light-muted">
+            <Coins className="w-3.5 h-3.5" /> 特性资源消耗
+          </div>
+          <label className="flex items-center gap-2 py-1 text-xs cursor-pointer">
+            <input
+              type="checkbox"
+              checked={selPools.has(e.combatantId)}
+              onChange={() => setSelPools(prev => {
+                const next = new Set(prev);
+                if (next.has(e.combatantId)) next.delete(e.combatantId); else next.add(e.combatantId);
+                return next;
+              })}
+              className="w-4 h-4 accent-primary"
+            />
+            <span className="dark:text-text-dark light:text-text-light flex-1">
+              {e.featurePools.map(p => `${p.name} ×${p.delta}`).join('、')}
+            </span>
+          </label>
+        </div>
+      )}
+
       {/* HP */}
       {e.hp && (
         <div>
@@ -231,7 +260,7 @@ export default function SettlementDialog({ record, onClose, onSettled }: Props) 
         </div>
       )}
 
-      {e.equipment.length === 0 && e.spellSlots.length === 0 && !e.hp && e.statuses.length === 0 && (
+      {e.equipment.length === 0 && e.spellSlots.length === 0 && e.featurePools.length === 0 && !e.hp && e.statuses.length === 0 && (
         <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted py-1">无变更</div>
       )}
     </div>

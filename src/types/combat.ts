@@ -396,6 +396,8 @@ export interface TurnSnapshot {
   equipmentChanges?: Record<string, EquipmentChanges>;
   /** 法术位消耗漏斗快照（回溯时与装备变更一起还原） */
   spellSlotChanges?: Record<string, Partial<Record<SpellSlotLevel, number>>>;
+  /** 特性资源消耗漏斗快照（回溯时与法术位漏斗一起还原） */
+  featureUses?: Record<string, Record<string, number>>;
   /** 沙盘地形区域快照（回溯时连同棋子一起还原） */
   zones?: import('@/types/battleground').BattlegroundZone[];
 }
@@ -585,6 +587,12 @@ export interface CombatRecord {
     */
    spellSlotChanges?: Record<string, Partial<Record<SpellSlotLevel, number>>>;
    /**
+    * 特性资源消耗漏斗（主动技能池消耗，与 spellSlotChanges 同思想：战斗内不直接修改角色卡）。
+    * key 为 combatantId，内层 key 为 `feature:<池条目名>`，value 为本场战斗已消耗的池量（正 delta）。
+    * 可用池量 = 池公式满量 - 角色卡已用 - delta；战斗结束随记录丢弃，并入角色卡由战斗结算统一处理。
+    */
+   featureUses?: Record<string, Record<string, number>>;
+   /**
      * 装填武器状态：key 为 "{combatantId}:{attackId}" 或 "{combatantId}:{attackName}", value=true 已装填
      */
     loadedWeapons?: Record<string, boolean>;
@@ -648,6 +656,19 @@ export interface SettlementStatusLine {
   excludeReason?: string;
 }
 
+/** 结算预览：特性资源池并入明细 */
+export interface SettlementPoolLine {
+  /** 池键（feature:<池条目名>） */
+  featureKey: string;
+  name: string;
+  /** 本场消耗数（featureUses delta） */
+  delta: number;
+  /** 角色卡已用（并入前） */
+  used: number;
+  /** 池满量（公式实时计算） */
+  max: number;
+}
+
 /** 结算预览：单参战者分组 */
 export interface SettlementEntry {
   combatantId: string;
@@ -657,6 +678,8 @@ export interface SettlementEntry {
   characterMissing?: boolean;
   equipment: SettlementEquipLine[];
   spellSlots: SettlementSlotLine[];
+  /** 特性资源池消耗（主动技能引擎） */
+  featurePools: SettlementPoolLine[];
   hp: { from: number; to: number } | null;
   statuses: SettlementStatusLine[];
 }
@@ -673,6 +696,8 @@ export interface SettlementSelections {
   equipmentChildIds: Record<string, string[]>;
   /** 勾选法术位并入的参战者 ID（整体并入该参战者全部环位） */
   spellSlotCombatantIds: string[];
+  /** 勾选特性资源池并入的参战者 ID（整体并入该参战者全部池） */
+  featurePoolCombatantIds: string[];
   /** 勾选 HP 并入的参战者 ID */
   hpCombatantIds: string[];
   /** combatantId → 勾选继承的状态实例 ID 列表 */

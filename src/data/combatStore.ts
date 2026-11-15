@@ -12,6 +12,7 @@ import type { Equipment, Character, SpellSlotLevel, HandSlot, HandState } from '
 import type { StatusInstance } from '@/types/status';
 import statusLibrary from './statusLibrary';
 import { resolveUnarmoredAc } from './passiveCombatRules';
+import { featurePoolKey, getPoolMax, getPoolUsed, findPoolOwner } from './featurePool';
 
 const storageKey = () => scopedKey('dnd-combat-records');
 type Listener = () => void;
@@ -596,6 +597,22 @@ function load(): CombatRecord[] {
           }
           return out;
         })(),
+        // 特性资源消耗漏斗（与 spellSlotChanges 同构：白名单重建数字正值兜底）
+        featureUses: (() => {
+          const src = r.featureUses;
+          const out: Record<string, Record<string, number>> = {};
+          if (src && typeof src === 'object') {
+            for (const [cid, pools] of Object.entries(src as Record<string, unknown>)) {
+              if (!pools || typeof pools !== 'object') continue;
+              const pv: Record<string, number> = {};
+              for (const [pk, n] of Object.entries(pools as Record<string, unknown>)) {
+                if (typeof n === 'number' && Number.isFinite(n) && n > 0) pv[pk] = n;
+              }
+              out[cid] = pv;
+            }
+          }
+          return out;
+        })(),
         loadedWeapons: r.loadedWeapons && typeof r.loadedWeapons === 'object' ? { ...r.loadedWeapons } : undefined,
         loadingAttackedThisRound: r.loadingAttackedThisRound && typeof r.loadingAttackedThisRound === 'object' ? { ...r.loadingAttackedThisRound } : undefined,
         playbackState: r.playbackState && typeof r.playbackState === 'object' ? {
@@ -1072,6 +1089,64 @@ const combatStore = {
   },
 
   // =======================
+  // 特性资源池漏斗（主动技能引擎：池消耗与 spellSlotChanges 同构）
+  // 可用池量 = 池公式满量 - 角色卡已用 - 本场 delta；角色卡只在结算并入时变更
+  // =======================
+
+  /** 读某参战者本场战斗已消耗的池 delta（poolKey → 消耗数；无记录返回 {}） */
+  getFeaturePoolDeltas(recordId: string, combatantId: string): Record<string, number> {
+    const record = load().find(r => r.id === recordId);
+    return { ...(record?.featureUses?.[combatantId] ?? {}) };
+  },
+
+  /** 消耗池量：available 不足时 no-op 返回 false（cost 缺省 1） */
+  consumeFeatureUse(recordId: string, combatantId: string, poolKey: string, cost = 1): boolean {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return false;
+    const combatant = record.combatants.find(c => c.id === combatantId);
+    const char = combatant?.characterId ? characterStore.get(combatant.characterId) : null;
+    const owner = char ? findPoolOwner(char, poolKey) : null;
+    if (!owner?.poolFormula) return false;
+    const max = getPoolMax(char, owner.poolFormula);
+    const usedCard = getPoolUsed(char, poolKey);
+    const delta = record.featureUses?.[combatantId]?.[poolKey] ?? 0;
+    if (max - usedCard - delta < cost) return false;
+    if (!record.featureUses) record.featureUses = {};
+    const pools = { ...(record.featureUses[combatantId] ?? {}) };
+    pools[poolKey] = delta + cost;
+    record.featureUses = { ...record.featureUses, [combatantId]: pools };
+    record.updatedAt = Date.now();
+    save(records);
+    return true;
+  },
+
+  /** 战斗中的池视图：角色卡池主条目 ×（满量/卡已用/本场 delta/可用），供战斗侧 UI 直接渲染 */
+  getFeaturePoolView(recordId: string, combatantId: string) {
+    const record = load().find(r => r.id === recordId);
+    const combatant = record?.combatants.find(c => c.id === combatantId);
+    const char = combatant?.characterId ? characterStore.get(combatant.characterId) : null;
+    if (!char) return null;
+    const deltas = record?.featureUses?.[combatantId] ?? {};
+    return (char.features || [])
+      .filter((f) => f.resource === 'pool' && f.poolFormula != null)
+      .map((f) => {
+        const poolKey = featurePoolKey(f.name);
+        const max = getPoolMax(char, f.poolFormula);
+        const usedCard = getPoolUsed(char, poolKey);
+        const delta = deltas[poolKey] ?? 0;
+        return {
+          featureKey: poolKey,
+          name: f.name,
+          max,
+          usedCard,
+          usedCombat: delta,
+          available: Math.max(0, max - usedCard - delta),
+        };
+      });
+  },
+
+  // =======================
   // 战斗结算（Settlement）：变更并入角色卡 + 记录封存
   // =======================
 
@@ -1095,11 +1170,27 @@ const combatStore = {
         characterMissing: !char,
         equipment: [],
         spellSlots: [],
+        featurePools: [],
         hp: null,
         statuses: [],
       };
       entries.push(entry);
       if (!char) continue;
+
+      // 特性资源池消耗（delta > 0 才列出）
+      const poolDeltas = record.featureUses?.[c.id] ?? {};
+      for (const [poolKey, delta] of Object.entries(poolDeltas)) {
+        if (!delta || delta <= 0) continue;
+        const owner = findPoolOwner(char, poolKey);
+        if (!owner?.poolFormula) continue;
+        entry.featurePools.push({
+          featureKey: poolKey,
+          name: owner.name,
+          delta,
+          used: getPoolUsed(char, poolKey),
+          max: getPoolMax(char, owner.poolFormula),
+        });
+      }
 
       // 装备净变化（与变更信息弹窗同语义：delta = combatQty - srcQty，removed 优先抵消）
       const changes = record.equipmentChanges?.[c.id];
@@ -1302,6 +1393,32 @@ const combatStore = {
             battleId: recordId,
           });
         }
+      }
+
+      // 2.5 特性资源池并入：delta 累加 used，clamp [0, max]；与法术位并入同构
+      if (selections.featurePoolCombatantIds.includes(entry.id)) {
+        const poolDeltas = record.featureUses?.[entry.id] ?? {};
+        const mergedPools: Record<string, { used: number }> = { ...(char.featurePools ?? {}) };
+        for (const [poolKey, delta] of Object.entries(poolDeltas)) {
+          if (!delta || delta <= 0) continue;
+          const owner = findPoolOwner(char, poolKey);
+          if (!owner?.poolFormula) continue;
+          const max = getPoolMax(char, owner.poolFormula);
+          const before = getPoolUsed(char, poolKey);
+          const clamped = Math.max(0, Math.min(max, before + delta));
+          if (clamped === before) continue;
+          mergedPools[poolKey] = { used: clamped };
+          pushCharacterLog(char.id, {
+            category: 'growth',
+            kind: 'pool_change',
+            title: `消耗 ${clamped - before} 点「${owner.name}」资源`,
+            detail: JSON.stringify({ battleName, poolKey, from: before, to: clamped, max }),
+            source: 'battle',
+            battleId: recordId,
+          });
+        }
+        charUpdate.featurePools = mergedPools;
+        charDirty = true;
       }
 
       // 3. HP 并入：参战者当前 HP clamp [0, maxHp] 写回（临时 HP 丢弃）

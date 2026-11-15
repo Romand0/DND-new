@@ -1,6 +1,6 @@
 // 角色选项库类型（种族/亚种/背景/职业/子职业）
 // 数据源：5E不全书 PHB 2014 离线提取（scripts/extract-options.mjs）
-import type { FeatureReaction, FeatureRole } from './character';
+import type { FeatureReaction, FeatureRole, FeatureActivation, FeatureResourceKind, FeaturePoolFormula } from './character';
 
 export type OptionCategory = 'race' | 'subrace' | 'background' | 'class' | 'subclass';
 
@@ -19,6 +19,15 @@ export interface OptionTrait {
   systemKind?: 'container' | 'member';
   // 反应触发声明（数据驱动；透传到角色卡 Feature.reaction）
   reaction?: FeatureReaction;
+  // 施法形态 / 资源模型（主动技能；种子由 scripts/annotate-feature-resources.mjs 标注）
+  activation?: FeatureActivation;
+  resource?: FeatureResourceKind;
+  // 池量公式（resource='pool' 且为池主时存在）
+  poolFormula?: FeaturePoolFormula;
+  // 消耗的池条目名（成员引用池主；缺省：池主自身 / system 容器名）
+  pool?: string;
+  // 单次消耗池量（缺省 1）
+  cost?: number;
   // 特性内嵌选项库（如战斗大师战技、武僧气技、魔契师魔印、术士超魔选项）
   options?: OptionTrait[];
 }

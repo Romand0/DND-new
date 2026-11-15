@@ -92,6 +92,11 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
               Object.entries(latestForSnapshot.spellSlotChanges).map(([k, v]) => [k, { ...v }]),
             )
           : undefined,
+        featureUses: latestForSnapshot?.featureUses
+          ? Object.fromEntries(
+              Object.entries(latestForSnapshot.featureUses).map(([k, v]) => [k, { ...v }]),
+            )
+          : undefined,
       };
       rollbackSnapshotRef.current = { initial: initialSnap, snapshots: {} };
       // 同步写入 IndexedDB：刷新/关闭页面后恢复可用
@@ -122,6 +127,9 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
             : undefined,
           spellSlotChanges: init.spellSlotChanges
             ? Object.fromEntries(Object.entries(init.spellSlotChanges).map(([k, v]) => [k, { ...v }]))
+            : undefined,
+          featureUses: init.featureUses
+            ? Object.fromEntries(Object.entries(init.featureUses).map(([k, v]) => [k, { ...v }]))
             : undefined,
           updatedAt: Date.now(),
         });
@@ -274,6 +282,9 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
           : undefined,
         spellSlotChanges: init.spellSlotChanges
           ? Object.fromEntries(Object.entries(init.spellSlotChanges).map(([k, v]) => [k, { ...v }]))
+          : undefined,
+        featureUses: init.featureUses
+          ? Object.fromEntries(Object.entries(init.featureUses).map(([k, v]) => [k, { ...v }]))
           : undefined,
         updatedAt: Date.now(),
       });
