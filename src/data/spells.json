@@ -270,6 +270,12 @@
       "游侠"
     ],
     "notes": "反应动作施放",
+    "reaction": {
+      "trigger": "spell_cast",
+      "resolution": "spell",
+      "slotLevel": 3,
+      "prompt": "对 60 尺内施法者施放反制法术：若目标法术为 3 环及以下自动失效；4 环及以上需施法关键属性检定（DC=10+目标法术环阶）"
+    },
     "source": "玩家手册 2014"
   },
   {

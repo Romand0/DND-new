@@ -1,7 +1,9 @@
-// PC 角色卡被动战斗规则引擎：声明式规则表驱动的三类被动效果
-//   1. 优劣势/豁免触发（advantageRules 的 passive 检测器数据源）
-//   2. 伤害抗性/免疫（combatant.damageAffinities 的角色卡派生源）
-//   3. AC 公式替换（无甲防御）与速度加成（快速移动/无甲移动）
+// PC 角色卡被动战斗规则引擎：声明式规则表驱动的被动效果
+//   类1 优劣势/豁免触发（advantageRules 的 passive 检测器数据源）
+//   类2 伤害抗性/免疫（combatant.damageAffinities 的角色卡派生源）
+//   类3 AC 公式替换（无甲防御）与速度加成（快速移动/无甲移动）
+//   类4 被动检定三件套 / 类5 黑暗视觉 / 类6 先攻优劣势
+// 七类口径冻结表见 .monkeycode/specs/passive-engine/progress.md。
 // 纯函数 + 常量表：种子条目名（种族特质/职业特性）是稳定键，文本正则只用于
 // 参数提取（如龙裔抗性类型取自「龙族血统」条目），不靠正则识别条目本身。
 import type { Character } from '@/types/character';
@@ -19,10 +21,11 @@ function hasTrait(char: Character | null | undefined, name: string): boolean {
   return !!char?.features?.some((f) => f.name === name);
 }
 
-/** 种族特质可能被「刷新选项特性」写进 features，也可能只填在 race 字段；两处都查 */
-function hasTraitOrRace(char: Character | null | undefined, name: string): boolean {
-  if (hasTrait(char, name)) return true;
-  return !!char?.race && char.race.includes(name);
+/** 多名称特性携带判定：种族特质可能被「刷新选项特性」写进 features，也可能只填在 race 字段。
+ *  特性部分带等级门槛（hasActiveTrait）；race 字段兜底不过门槛（种族特质天生）。 */
+function hasAnyTraitOrRace(char: Character | null | undefined, names: string[]): boolean {
+  if (names.some((n) => hasActiveTrait(char, n))) return true;
+  return !!char?.race && names.some((n) => char.race!.includes(n));
 }
 
 // =======================
@@ -75,7 +78,7 @@ export function deriveCharacterAffinities(char: Character | null | undefined): D
     char.features?.find((f) => f.name === name)?.description ?? '';
 
   for (const rule of AFFINITY_RULES) {
-    if (!hasTrait(char, rule.trait)) continue;
+    if (!hasActiveTrait(char, rule.trait)) continue;
     if (rule.occupationIncludes && !(char.profession?.class ?? '').includes(rule.occupationIncludes)) continue;
     let types = rule.types ?? [];
     if (rule.textFrom && types.length === 0) {
@@ -133,7 +136,7 @@ export function deriveUnarmoredAc(char: Character | null | undefined): Unarmored
   if (!char) return null;
   const occupation = char.profession?.class ?? '';
   const rule = UNARMORED_AC_RULES.find(
-    (r) => hasTrait(char, r.trait) && (!r.occupationIncludes || occupation.includes(r.occupationIncludes))
+    (r) => hasActiveTrait(char, r.trait) && (!r.occupationIncludes || occupation.includes(r.occupationIncludes))
   );
   if (!rule) return null;
   return { extraAbility: rule.extraAbility, shieldForbidden: rule.shieldForbidden, ruleLabel: rule.trait };
@@ -183,10 +186,10 @@ export function deriveSpeedModifier(
 ): number {
   if (!char) return 0;
   let bonus = 0;
-  if (hasTrait(char, '快速移动') && !opts.wearingHeavyArmor) {
+  if (hasActiveTrait(char, '快速移动') && !opts.wearingHeavyArmor) {
     bonus += 10;
   }
-  if (hasTrait(char, '无甲移动') && !opts.wearingHeavyArmor && !opts.combatShieldHeld) {
+  if (hasActiveTrait(char, '无甲移动') && !opts.wearingHeavyArmor && !opts.combatShieldHeld) {
     // 等级取卡面等级与经验推导值的较大者（影子卡可能只填 level；真实卡两处一致）
     const level = Math.max(char.level ?? 1, characterStore.getLevelFromExp(char.experience ?? 0) || 1);
     const tier = MONK_UNARMORED_SPEED_TIERS.find((t) => level >= t.level);
@@ -311,6 +314,8 @@ function hasActiveTrait(char: Character | null | undefined, name: string): boole
 
 interface PassiveSaveRule {
   trait: string;
+  /** 兼容旧手录卡的别名（半身人勇气在部分卡上写作「勇敢」） */
+  alias?: string;
   label: string;
   /** 限定豁免属性；缺省任意 */
   saveAbility?: AbilityKey[];
@@ -322,7 +327,7 @@ interface PassiveSaveRule {
 
 const PASSIVE_SAVE_RULES: PassiveSaveRule[] = [
   { trait: '矮人体魄', label: '矮人体魄（对毒素豁免优势）', saveAbility: ['constitution'], spellMatch: /毒/ },
-  { trait: '勇敢', label: '勇敢（对恐慌豁免优势）', spellMatch: /恐惧|恐慌/ },
+  { trait: '勇气', alias: '勇敢', label: '勇气（对恐慌豁免优势）', spellMatch: /恐惧|恐慌/ },
   { trait: '妖精血统', label: '妖精血统（对魅惑豁免优势）', spellMatch: /魅惑|催眠/ },
   {
     trait: '侏儒狡黠',
@@ -369,7 +374,7 @@ function findAuraBenefactor(
     if (ally.id === roller.id || ally.isPc !== roller.isPc || ally.isDead) continue;
     const allyChar = ally.characterId ? characterStore.get(ally.characterId) : null;
     if (!allyChar) continue;
-    if (!hasTrait(allyChar, rule.trait)) continue;
+    if (!hasActiveTrait(allyChar, rule.trait)) continue;
     const allyPos = ctx.combatantPositions?.[ally.id];
     if (!allyPos) continue;
     const dist = Math.max(Math.abs(allyPos.col - rollerPos.col), Math.abs(allyPos.row - rollerPos.row));
@@ -391,7 +396,7 @@ export function detectPassiveFeatureRules(ctx: AdvantageContext): AdvantageResul
 
   // 条目级规则：按豁免属性 + 来源名匹配
   for (const rule of PASSIVE_SAVE_RULES) {
-    if (!hasTraitOrRace(char, rule.trait)) continue;
+    if (!hasAnyTraitOrRace(char, rule.alias ? [rule.trait, rule.alias] : [rule.trait])) continue;
     if (rule.saveAbility && ctx.saveAbility && !rule.saveAbility.includes(ctx.saveAbility)) continue;
     if (rule.spellMatch && !(rule.unrestricted && !ctx.sourceSpellName)) {
       if (!ctx.sourceSpellName || !rule.spellMatch.test(ctx.sourceSpellName)) continue;
@@ -401,7 +406,7 @@ export function detectPassiveFeatureRules(ctx: AdvantageContext): AdvantageResul
   // 对法术豁免优势类（无属性/来源限定）
   if (ctx.sourceSpellName) {
     for (const rule of PASSIVE_SAVE_ADVANTAGE_SPELL_RULES) {
-      if (!hasTraitOrRace(char, rule.trait)) continue;
+      if (!hasAnyTraitOrRace(char, [rule.trait])) continue;
       result.advantage.push({ kind: 'trait', label: rule.label });
     }
   }

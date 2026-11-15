@@ -142,6 +142,116 @@ async function main() {
   check('7a 野性直觉L7先攻优势', typeof unit.i1 === 'string' && unit.i1.includes('野性直觉'), unit.i1);
   check('7b L2不触发', unit.i2 === null, unit.i2);
 
+  // ===== 1.5 整改验收：类1/2/3/4 等级门槛 + 勇气/勇敢别名 =====
+  const gate = await page.evaluate(async () => {
+    const m = await import('/src/data/passiveCombatRules.ts');
+    const ar = await import('/src/data/advantageRules.ts');
+    const { characterStore } = await import('/src/data/characterStore.ts');
+
+    const mk = (name, features, extra = {}) => characterStore.add({
+      name,
+      race: '',
+      level: 5,
+      experience: 3500,
+      abilities: { strength: { score: 10, modifier: 0 }, dexterity: { score: 14, modifier: 2 }, constitution: { score: 16, modifier: 3 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 10, modifier: 0 }, charisma: { score: 10, modifier: 0 } },
+      skills: {},
+      proficiencyBonus: 3,
+      features,
+      ...extra,
+    }).id;
+    const saveCtx = (char, saveAbility, sourceSpellName) => ar.detectAdvantage({
+      scene: 'saving_throw', attacker: { id: 'c1' }, attackerCharacter: char,
+      saveAbility, sourceSpellName, roster: [],
+    }).advantage.map(a => a.label);
+
+    const out = {};
+
+    // 类1 险境感知 L2 门槛
+    const r1 = mk('验·险L1', [{ name: '险境感知', description: 'DEX豁免优势', level: 2 }], { profession: { class: '游侠' }, level: 1, experience: 0 });
+    const r2 = mk('验·险L2', [{ name: '险境感知', description: 'DEX豁免优势', level: 2 }], { profession: { class: '游侠' }, level: 2, experience: 0 });
+    out.g1 = saveCtx(characterStore.get(r1), 'dexterity');
+    out.g2 = saveCtx(characterStore.get(r2), 'dexterity');
+
+    // 类2 自然之护 L10 门槛（德鲁伊）
+    const d2 = mk('验·德L2', [{ name: '自然之护', description: '免疫毒素疾病', level: 10 }], { profession: { class: '德鲁伊' }, level: 2, experience: 0 });
+    const d10 = mk('验·德L10', [{ name: '自然之护', description: '免疫毒素疾病', level: 10 }], { profession: { class: '德鲁伊' }, level: 10, experience: 0 });
+    out.g3 = m.deriveCharacterAffinities(characterStore.get(d2))?.immunities?.length ?? 0;
+    out.g4 = m.deriveCharacterAffinities(characterStore.get(d10))?.immunities?.map(e => e.types.flat()) ?? [];
+
+    // 类3 速度门槛
+    const s1 = mk('验·速L1', [{ name: '快速移动', description: '未穿重甲+10尺', level: 5 }], { profession: { class: '游侠' }, level: 1, experience: 0 });
+    const s5 = mk('验·速L5', [{ name: '快速移动', description: '未穿重甲+10尺', level: 5 }], { profession: { class: '游侠' }, level: 5, experience: 0 });
+    out.g5 = m.deriveSpeedModifier(characterStore.get(s1), {});
+    out.g6 = m.deriveSpeedModifier(characterStore.get(s5), {});
+    const m1 = mk('验·僧L1', [{ name: '无甲移动', description: '移动力增加', level: 2 }], { profession: { class: '武僧' }, level: 1, experience: 0 });
+    const m2 = mk('验·僧L2', [{ name: '无甲移动', description: '移动力增加', level: 2 }], { profession: { class: '武僧' }, level: 2, experience: 0 });
+    out.g7 = m.deriveSpeedModifier(characterStore.get(m1), {});
+    out.g8 = m.deriveSpeedModifier(characterStore.get(m2), {});
+
+    // 类1 勇气（新种子名）+ 勇敢（旧别名）
+    const c1 = mk('验·勇', [{ name: '勇气', description: '对恐慌豁免优势' }], { race: '半身人' });
+    const c2 = mk('验·敢', [{ name: '勇敢', description: '对恐慌豁免优势' }], { race: '半身人' });
+    out.g9 = saveCtx(characterStore.get(c1), 'wisdom', '恐惧之源');
+    out.g10 = saveCtx(characterStore.get(c2), 'wisdom', '恐惧之源');
+
+    for (const id of [r1, r2, d2, d10, s1, s5, m1, m2, c1, c2]) characterStore.delete(id);
+    return out;
+  });
+  await page.waitForTimeout(300);
+  check('8a 险境感知L1不触发', (gate.g1 || []).length === 0, gate.g1);
+  check('8b 险境感知L2触发', (gate.g2 || []).length >= 1, gate.g2);
+  check('8c 自然之护L2无免疫', gate.g3 === 0, gate.g3);
+  check('8d 自然之护L10毒素免疫', (gate.g4 || []).flat().includes('毒素'), gate.g4);
+  check('8e 快速移动L1不生效', gate.g5 === 0, gate.g5);
+  check('8f 快速移动L5生效', gate.g6 === 10, gate.g6);
+  check('8g 无甲移动L1不生效', gate.g7 === 0, gate.g7);
+  check('8h 无甲移动L2生效', gate.g8 === 10, gate.g8);
+  check('8i 勇气恐慌豁免优势', (gate.g9 || []).some(l => l.includes('勇气')), gate.g9);
+  check('8j 旧名勇敢仍命中', (gate.g10 || []).some(l => l.includes('勇气')), gate.g10);
+
+  // ===== 3. 种子反应数据（src 捆绑反制法术 + fallback 三反应法术）=====
+  const seedRx = await page.evaluate(async () => {
+    const rd = await import('/src/data/reactionDefinitions.ts');
+    const rr = await import('/src/data/reactionRules.ts');
+    const { spellStore } = await import('/src/data/spellStore.ts');
+    const out = {};
+
+    // src 捆绑种子：反制法术带 reaction 声明
+    const cs = spellStore.getById('counterspell');
+    out.rs1 = cs?.reaction?.trigger === 'spell_cast' && cs.reaction?.slotLevel === 3;
+    out.rs2 = rd.resolveReactionDefinition('spell:counterspell')?.cost?.spellSlot === 3;
+
+    // fallback 全库三反应法术（护盾术/法术反制/炼狱叱喝）
+    const res = await fetch('/spells-fallback.json');
+    const all = await res.json();
+    const threeIds = ['shield', 'counterspell', 'hellish-rebuke'];
+    const three = all.filter(s => threeIds.includes(s.id));
+    out.rs3 = three.filter(s => s.reaction?.trigger).map(s => s.id).sort();
+    const merged = [...spellStore.getAllRaw().filter(s => !threeIds.includes(s.id)), ...three];
+    spellStore.save(merged);
+
+    // 试验场伪记录（全库开放）下检测三类触发
+    const fake = {
+      id: 'probe-fake',
+      isProvingGround: true,
+      combatants: [
+        { id: 'pc', name: '探针PC', isPc: true, isDead: false, isUnconscious: false, isIncapacitated: false },
+        { id: 'npc', name: '探针NPC', isPc: false, isDead: false, isUnconscious: false, isIncapacitated: false },
+      ],
+    };
+    out.rs4 = rr.detectReactions(fake, { kind: 'attack', attackerId: 'npc', targetId: 'pc' }).map(x => `${x.definitionId}@${x.ownerId}`);
+    out.rs5 = rr.detectReactions(fake, { kind: 'spell_cast', casterId: 'npc', spellId: 'fireball' }).map(x => `${x.definitionId}@${x.ownerId}`);
+    out.rs6 = rr.detectReactions(fake, { kind: 'damage', targetId: 'pc', attackerId: 'npc', amount: 12, damageType: '火焰' }).map(x => `${x.definitionId}@${x.ownerId}`);
+    return out;
+  });
+  await page.waitForTimeout(300);
+  check('9a src种子反制法术spell_cast声明', seedRx.rs1 === true, seedRx);
+  check('9b 反应定义法术位3环', seedRx.rs2 === true);
+  check('9c fallback三法术全带trigger', (seedRx.rs3 || []).join(',') === 'counterspell,hellish-rebuke,shield', seedRx.rs3);
+  check('9d attack触发护盾术@pc', (seedRx.rs4 || []).includes('spell:shield@pc'), seedRx.rs4);
+  check('9e spell_cast触发法术反制@pc', (seedRx.rs5 || []).includes('spell:counterspell@pc'), seedRx.rs5);
+  check('9f damage触发炼狱叱喝@pc', (seedRx.rs6 || []).includes('spell:hellish-rebuke@pc'), seedRx.rs6);
+
   // ===== 2. UI 冒烟：入战快照链路（先攻弹窗 → 参战者面板）=====
   let ui = { step: 'start', dlg: false, alert5: false, panel: false, dv: false };
   try {
