@@ -10,7 +10,7 @@
 - [x] P2 攻击目标反应窗口（命中后、伤害前）+ 法术反应声明 `Spell.reaction` + 通用反应弹窗（a7fd672，main 5662dba）
 - [x] P3 `damage_taken` / `spell_cast` 插桩 + 特性数据源 + 玩家提交窗口化（本分支待合并）
 
-当前：P3 代码完成，typecheck/build 通过，`probe-reaction.cjs` 48 项全绿，等待合并推送。
+当前：P3 已合并并推送（main 735931b），全量探针 ALL PROBES OK。
 
 ## 已决策
 - 事件面用 `ReactionTrigger` 判别联合（move / attack / damage / spell_cast），检测器走 `registerReactionDetector`，新增来源不改弹窗与队列
@@ -36,4 +36,4 @@
 ## 分支与提交
 - `feature/reaction-engine-p1`：8538dd7 → 合并 b05bd61
 - `feature/reaction-engine-p2`：a7fd672 → 合并 5662dba
-- P3 使用 `feature/reaction-engine-p3`（待合并）
+- `feature/reaction-engine-p3`：f0ce07a → 合并 735931b
