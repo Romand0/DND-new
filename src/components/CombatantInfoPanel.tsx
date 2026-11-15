@@ -3,12 +3,14 @@ import { X, Plus, ChevronDown, ChevronUp, Trash2, Hand, ScrollText, Minus } from
 
 import { characterStore } from '@/data/characterStore';
 import { deriveFeatureRole } from '@/data/featureRole';
+import { resolvePoolKey } from '@/data/featurePool';
+import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import combatStore from '@/data/combatStore';
 import type { Combatant, NpcAttack, EquipmentChanges, CreatureSize, CreatureType, CombatRecord } from '@/types/combat';
 import { ACTION_LABELS, ALL_ACTIONS, CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
-import type { Character, Attack, Equipment, SpellSlotLevel } from '@/types/character';
+import type { Character, Attack, Equipment, SpellSlotLevel, Feature } from '@/types/character';
 import ProvingDashboard from './combat/ProvingDashboard';
 import StatusAttachPanel from './combat/StatusAttachPanel';
 
@@ -33,6 +35,11 @@ interface Props {
   onHelpClick?: () => void;
   /** 点击「吟游诗人激励」动作时回调（由 CombatSession 实现友方选择 + 附赠动作消耗） */
   onBardicClick?: () => void;
+  /**
+   * 点击非激励主动技能时回调（CombatSession 挂扣动作 + 扣池 + 通道路由）。
+   * poolInfo.available 为 null = 该特性无池消耗（free/manual 路径），宿主自行裁定动作成本
+   */
+  onFeatureClick?: (feature: Feature, poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => void;
   /** 点击「攻击」动作时回调（用于替代 info 面板内按钮，保持动作面板入口统一） */
   onAttackClick?: () => void;
   /** 点击「施法」动作时回调 */
@@ -61,7 +68,7 @@ interface Props {
   spellSlotsOverride?: { level: number; label: string; used: number; max: number }[] | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -85,6 +92,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
     [character]
   );
   const hasBardicFeature = activeFeatures.some((f) => /激励/.test(f.name));
+  // 池视图：池满量/卡已用/本场消耗/可用量（refreshKey 每秒跳动，顺带驱动池数据刷新）
+  const poolView = useMemo(
+    () => (recordId ? combatStore.getFeaturePoolView(recordId, combatant.id) : null),
+    [recordId, combatant.id, refreshKey, character],
+  );
 
   // 旧参战者（体型/种类/AC 固化前创建）缺失字段时从图鉴模板反查兜底
   const fallbackTemplate = useMemo(
@@ -1357,7 +1369,8 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     强制位移（推离/推近）
                   </button>
                 )}
-                {/* 主动技能区：按角色卡特性与特质过滤，只有真的携带对应主动技能的角色才显示对应按钮 */}
+                {/* 主动技能区：按角色卡特性与特质过滤，只有真的携带对应主动技能的角色才显示对应按钮。
+                    池驱动：resource='pool' 的成员/池主显示池量徽标，可用量为 0 禁用；激励继续走专用流程 */}
                 {activeFeatures.length > 0 && (
                   <div className="mt-3">
                     <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
@@ -1366,22 +1379,58 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     <div className="grid grid-cols-2 gap-1.5">
                       {activeFeatures.map((f) => {
                         const isBardic = /激励/.test(f.name);
+                        const capability = resolveFeatureCapability(f.name);
+                        const poolKey = resolvePoolKey(f);
+                        // 池量信息：战斗池视图优先；无战斗记录（玩家端投影等）时 poolInfo 置空
+                        const poolEntry = poolKey && poolView ? poolView.find((p) => p.featureKey === poolKey) : undefined;
+                        const cost = Math.max(1, Math.floor(f.cost ?? 1));
+                        const poolInfo = {
+                          poolKey: poolKey ?? null,
+                          available: poolEntry ? poolEntry.available : null,
+                          max: poolEntry ? poolEntry.max : null,
+                          cost,
+                        };
+                        const exhausted = poolEntry != null && poolEntry.available < cost;
+                        const activationLabel =
+                          f.activation === 'bonus' ? '附赠'
+                          : f.activation === 'reaction' ? '反应'
+                          : f.activation === 'action' ? '动作'
+                          : f.activation === 'free' ? '自由'
+                          : null;
                         return (
                           <button
                             key={f.id}
                             type="button"
-                            disabled={(sealed && !playerMode) || !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated)}
+                            disabled={(sealed && !playerMode) || !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated) || exhausted}
                             onClick={() => {
                               if (isBardic && onBardicClick) {
                                 onBardicClick();
-                              } else if (!isBardic) {
+                              } else if (onFeatureClick) {
+                                onFeatureClick(f, poolInfo);
+                              } else {
                                 alert(`「${f.name}」暂未接入自动化流程，请按特性描述手动处理`);
                               }
                             }}
-                            className={`px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed && !playerMode ? 'opacity-50 cursor-not-allowed' : 'hover:bg-primary/15'}`}
-                            title={isBardic ? '附赠动作·发放激励骰' : (f.description || '').slice(0, 60)}
+                            className={`px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed && !playerMode ? 'opacity-50 cursor-not-allowed' : exhausted ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary/15'}`}
+                            title={[
+                              isBardic ? '附赠动作·发放激励骰' : capability.hint || (f.description || '').slice(0, 60),
+                              poolEntry != null ? `资源 ${poolEntry.available}/${poolEntry.max}` : null,
+                              activationLabel ? `${activationLabel}消耗` : null,
+                            ].filter(Boolean).join(' · ')}
                           >
-                            <span className="block truncate">{f.name}</span>
+                            <span className="flex items-center gap-1">
+                              <span className="truncate flex-1">{f.name}</span>
+                              {poolEntry != null && (
+                                <span className={`flex-shrink-0 tabular-nums text-[10px] ${exhausted ? 'text-danger' : 'text-accent'}`}>
+                                  {poolEntry.available}/{poolEntry.max}
+                                </span>
+                              )}
+                              {activationLabel && (
+                                <span className="flex-shrink-0 text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                                  {activationLabel}
+                                </span>
+                              )}
+                            </span>
                           </button>
                         );
                       })}

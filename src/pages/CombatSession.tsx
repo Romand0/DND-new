@@ -40,10 +40,12 @@ import { globalStatusManager } from '@/data/statusManager';
 import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
+import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { resolvePoolKey } from '@/data/featurePool';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
-import type { Character, Attack } from '@/types/character';
+import type { Character, Attack, Feature } from '@/types/character';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionPrompt } from '@/types/combat';
 import type { SpellSlotLevel } from '@/types/character';
 import { detectReactions } from '@/data/reactionRules';
@@ -1006,7 +1008,45 @@ export default function CombatSession() {
 
   const openBardicFor = (c: Combatant) => {
     if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
+    // 激励池守卫：激励标注为池资源且已耗尽时拦截（未标注池的老数据无该条目，直接放行）
+    const poolEntry = combatStore.getFeaturePoolView(record.id, c.id)?.find(p => p.featureKey === 'feature:诗人激励');
+    if (poolEntry && poolEntry.available < 1) {
+      alert(`激励池已用尽（${poolEntry.available}/${poolEntry.max}），短休/长休后恢复`);
+      return;
+    }
     setBardicModal({ from: c });
+  };
+
+  /**
+   * 主动技能触发（非激励）：按池驱动扣动作 + 扣池 + 通道路由。
+   *  - activation action/bonus → ensureCanAct 校验并消耗对应动作；reaction/free 无动作成本
+   *  - 有池 → consumeFeatureUse 写 featureUses 漏斗（结算统一并入）；池不足直接拦截
+   *  - 通道路由走 featureCapabilities 注册表；manual 通道弹手动结算提示
+   */
+  const handleFeatureUse = (c: Combatant, feature: Feature, poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => {
+    // 1. 动作成本（reaction/free 不扣动作）
+    if (feature.activation === 'action') {
+      if (!ensureCanAct(c, canUseAction(c.id))) return;
+    } else if (feature.activation === 'bonus') {
+      if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
+    }
+    // 2. 池扣减（无池语义直接跳过，老数据优雅降级）
+    if (poolInfo.poolKey && poolInfo.available != null) {
+      const ok = combatStore.consumeFeatureUse(record.id, c.id, poolInfo.poolKey, poolInfo.cost);
+      if (!ok) {
+        alert(`「${feature.name}」资源不足（可用 ${poolInfo.available}/${poolInfo.max ?? '?'}）`);
+        return;
+      }
+    }
+    // 3. 动作消耗落到 combatant（与激励同口径）
+    if (feature.activation === 'action') consumeCombatantAction(c.id);
+    else if (feature.activation === 'bonus') consumeCombatantBonusAction(c.id);
+    // 4. 通道路由：已注册通道的提示文案；manual 通道提示 DM 手动结算
+    const capability = resolveFeatureCapability(feature.name);
+    recordOperation(c.id, `发动「${feature.name}」`, 'record');
+    if (capability.channel === 'manual' || capability.channel === 'checkModifier') {
+      alert(`「${feature.name}」已消耗资源${poolInfo.poolKey ? `（${poolInfo.cost} 点）` : ''}。请按特性描述手动结算：${capability.hint || (feature.description || '').slice(0, 80)}`);
+    }
   };
 
   const openAttackFor = (c: Combatant) => {
@@ -2593,6 +2633,8 @@ export default function CombatSession() {
                         });
                         // 消耗 1 个附赠动作
                         consumeCombatantBonusAction(from.id);
+                        // 激励池扣减（激励标注为池资源时生效；老数据无公式时 consumeFeatureUse 自动 no-op）
+                        combatStore.consumeFeatureUse(record.id, from.id, 'feature:诗人激励', 1);
                         recordOperation(from.id, `激励 ${f.name}（${die.label}）`, 'record');
                         setBardicModal(null);
                       }}
@@ -2809,6 +2851,7 @@ export default function CombatSession() {
             bonusActions={liveCombatant.bonusActions}
             onHelpClick={() => openHelpFor(liveCombatant)}
             onBardicClick={() => openBardicFor(liveCombatant)}
+            onFeatureClick={(feature, poolInfo) => handleFeatureUse(liveCombatant, feature, poolInfo)}
             onAttackClick={() => openAttackFor(liveCombatant)}
             onCastClick={() => {
               openCastFor(liveCombatant);

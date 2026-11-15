@@ -4,7 +4,7 @@
 // 口径，避免同名义条目重复渲染或隐藏状态错乱）；已存在条目一律保留用户编辑（描述、隐藏状
 // 态），只追加缺失条目，因此补全操作幂等且无破坏性。
 import type { CharacterOption } from '@/types/characterOption';
-import type { Character, FeatureReaction, FeatureRole } from '@/types/character';
+import type { Character, FeatureReaction, FeatureRole, FeatureActivation, FeatureResourceKind, FeaturePoolFormula } from '@/types/character';
 import { optionStore } from '@/data/optionStore';
 import { getClassProficiencyInfo } from '@/data/classProficiencies';
 import { getSubclassDisplayName } from '@/data/subclasses';
@@ -21,6 +21,12 @@ export interface OptionFeatureEntry {
   systemKind?: 'container' | 'member';
   /** 反应触发声明（透传到角色卡 Feature.reaction） */
   reaction?: FeatureReaction;
+  /** 施法形态 / 资源模型（主动技能；种子由 scripts/annotate-feature-resources.mjs 标注） */
+  activation?: FeatureActivation;
+  resource?: FeatureResourceKind;
+  poolFormula?: FeaturePoolFormula;
+  pool?: string;
+  cost?: number;
 }
 
 /**
@@ -73,7 +79,7 @@ export function collectOptionFeatureEntries(character: {
         const category = o.category === 'subrace' ? '亚种特质' : '种族特质';
         const source = o.category === 'subrace' ? o.parentName || o.name : o.name;
         for (const t of o.traits || []) {
-          if (t.name && t.text) push({ name: t.name, description: t.text, category, source, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction });
+          if (t.name && t.text) push({ name: t.name, description: t.text, category, source, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction, activation: t.activation, resource: t.resource, poolFormula: t.poolFormula, pool: t.pool, cost: t.cost });
         }
       }
     }
@@ -104,7 +110,7 @@ export function collectOptionFeatureEntries(character: {
     const cls = optionStore.getByName(className, 'class');
     if (cls) {
       for (const t of cls.traits || []) {
-        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: cls.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction });
+        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: cls.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction, activation: t.activation, resource: t.resource, poolFormula: t.poolFormula, pool: t.pool, cost: t.cost });
       }
     }
   }
@@ -118,7 +124,7 @@ export function collectOptionFeatureEntries(character: {
     const sub = optionStore.getByName(displayName || subclassName, 'subclass') ?? optionStore.getByName(subclassName, 'subclass');
     if (sub) {
       for (const t of sub.traits || []) {
-        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: sub.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction });
+        if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: sub.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction, activation: t.activation, resource: t.resource, poolFormula: t.poolFormula, pool: t.pool, cost: t.cost });
       }
     }
   }
