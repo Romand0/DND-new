@@ -211,6 +211,37 @@ export interface FeatureReaction {
   slotLevel?: number;
 }
 
+/** 特性施法形态（主动技能路由器的动作成本依据） */
+export type FeatureActivation = 'action' | 'bonus' | 'reaction' | 'free';
+
+/**
+ * 特性资源模型：
+ *  - pool：池消耗（气/卓越骰/引导神力次数等，池量由 poolFormula 计算）
+ *  - toggle：状态切换（无池消耗，如狂暴/鲁莽攻击，效果走状态引擎）
+ *  - manual：手动裁定（无自动化通道，按钮提示 DM 按描述结算）
+ */
+export type FeatureResourceKind = 'pool' | 'toggle' | 'manual';
+
+/**
+ * 池量公式（职业资源满池计算）：
+ *  - fixed：固定值（引导神力 1/短休、荒野变形 2/短休）
+ *  - classLevel：职业等级 × multiplier（气 = 等级、圣疗 = 等级×5）
+ *  - abilityMod：plus + 属性调整值（诗人激励 = 魅调、神圣感知 = 1 + 魅调）
+ *  - levelTiers：取 min ≤ 角色等级的最大档（卓越骰 4/5/6、动作如潮 1→2）
+ */
+export interface FeaturePoolFormula {
+  type: 'fixed' | 'classLevel' | 'abilityMod' | 'levelTiers';
+  value?: number;
+  multiplier?: number;
+  plus?: number;
+  ability?: AbilityKey;
+  tiers?: { min: number; value: number }[];
+  /** 池量下限（如激励 = max(1, 魅调)） */
+  floor?: number;
+  /** 恢复时机：short = 短休恢复，long = 长休恢复（长休同时恢复 short 池） */
+  restKind: 'short' | 'long';
+}
+
 export interface Feature {
   id?: string;
   name: string;
@@ -226,6 +257,16 @@ export interface Feature {
   systemKind?: 'container' | 'member';
   /** 反应触发声明（可选；哨兵/专长等数据驱动反应来源） */
   reaction?: FeatureReaction;
+  /** 施法形态（主动技能；缺省按 manual 兜底处理） */
+  activation?: FeatureActivation;
+  /** 资源模型（主动技能） */
+  resource?: FeatureResourceKind;
+  /** 池量公式（resource='pool' 且为池主时存在） */
+  poolFormula?: FeaturePoolFormula;
+  /** 消耗的池条目名（成员引用池主；缺省：池主自身 / system 容器名） */
+  pool?: string;
+  /** 单次消耗池量（缺省 1） */
+  cost?: number;
 }
 
 export interface Character {
@@ -308,6 +349,8 @@ export interface Character {
   /** 持久状态源：战斗结算继承的状态实例（global 域），下次开战自动挂载到参战者。
    *  这是状态的唯一持久化位置——globalStatusManager 为纯内存运行时，刷新即失 */
   statuses?: StatusInstance[];
+  /** 职业资源池已用量：key = `feature:<池条目名>`，战斗结算并入 / 休息重置时变更 */
+  featurePools?: Record<string, { used: number }>;
 }
 
 /** 手持槽状态 */

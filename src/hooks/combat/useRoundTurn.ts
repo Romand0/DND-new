@@ -309,6 +309,9 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       spellSlotChanges: latest.spellSlotChanges
         ? Object.fromEntries(Object.entries(latest.spellSlotChanges).map(([k, v]) => [k, { ...v }]))
         : undefined,
+      featureUses: latest.featureUses
+        ? Object.fromEntries(Object.entries(latest.featureUses).map(([k, v]) => [k, { ...v }]))
+        : undefined,
     };
     const memKey = `${round}:${combatantId}`;
     // 只在第一次拍（始终回到该回合最初状态）
@@ -405,6 +408,9 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
         : undefined,
       spellSlotChanges: snap.spellSlotChanges
         ? Object.fromEntries(Object.entries(snap.spellSlotChanges).map(([k, v]) => [k, { ...v }]))
+        : undefined,
+      featureUses: snap.featureUses
+        ? Object.fromEntries(Object.entries(snap.featureUses).map(([k, v]) => [k, { ...v }]))
         : undefined,
       updatedAt: Date.now(),
     });

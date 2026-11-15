@@ -21,6 +21,7 @@ import { wearEquipment, unwearEquipment } from './equipmentWear';
 import { equipmentStore } from './equipmentStore';
 import { computeAbilityBreakdown } from './abilityBonus';
 import { resolveUnarmoredAc } from './passiveCombatRules';
+import { featurePoolKey, getPoolUsed, findPoolOwner } from './featurePool';
 
 // 从 localStorage 读取 auth_token，构造带 JWT 的 headers
 function getAuthHeaders(): Record<string, string> {
@@ -2210,6 +2211,38 @@ function shouldShowSpellSlots(char: Character): boolean {
   return hasSpellcasting(char);
 }
 
+/**
+ * 特性资源池重置（休息恢复）：
+ *  - long：重置全部池（长休同时恢复 short 池）
+ *  - short：仅重置 poolFormula.restKind === 'short' 的池
+ * used 归零写回 featurePools；每次实际恢复记 pool_reset 日志。
+ */
+function resetFeaturePools(charId: string, restKind: 'long' | 'short'): void {
+  const char = getCharacter(charId);
+  if (!char) return;
+  const features = char.features || [];
+  const pools: Record<string, { used: number }> = { ...(char.featurePools ?? {}) };
+  const restored: string[] = [];
+  for (const f of features) {
+    if (f.resource !== 'pool' || !f.poolFormula) continue;
+    if (restKind === 'short' && f.poolFormula.restKind !== 'short') continue;
+    const poolKey = featurePoolKey(f.name);
+    const before = getPoolUsed(char, poolKey);
+    if (before <= 0) continue;
+    pools[poolKey] = { used: 0 };
+    restored.push(f.name);
+  }
+  if (restored.length === 0) return;
+  char.featurePools = pools;
+  saveCharacter(char);
+  logStoreChange(charId, {
+    category: 'growth',
+    kind: 'pool_reset',
+    title: `特性资源恢复（${restKind === 'long' ? '长休' : '短休'}）：${restored.join('、')}`,
+    source: 'store',
+  });
+}
+
 // ============================================================
 // 子职业管理
 // ============================================================
@@ -2378,6 +2411,7 @@ export const characterStore = {
   getSpellSlotsByLevel,
   getSpellSlotDisplayData,
   resetSpellSlots,
+  resetFeaturePools,
   shouldShowSpellSlots,
 
   // 子项 CRUD

@@ -39,6 +39,7 @@ import type { CharacterOption } from '@/types/characterOption';
 import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore, SKILL_LABELS } from '@/data/characterStore';
+import { featurePoolKey, getPoolMax, getPoolUsed } from '@/data/featurePool';
 import { diffCharacter, summarizeDiff } from '@/lib/characterDiff';
 import { submitChangeRequest } from '@/lib/api';
 import type { CharacterDiffRow } from '@/types/changeRequest';
@@ -1440,6 +1441,12 @@ export default function CharacterDetail({
         role: e.role,
         system: e.system,
         systemKind: e.systemKind,
+        reaction: e.reaction,
+        activation: e.activation,
+        resource: e.resource,
+        poolFormula: e.poolFormula,
+        pool: e.pool,
+        cost: e.cost,
       }));
       characterStore.update(id, { features: [...fresh, ...kept] });
       reloadChar();
@@ -1508,6 +1515,12 @@ export default function CharacterDetail({
   const renderFeatureCard = (feature: Feature, inHiddenBlock: boolean) => {
     const role = deriveFeatureRole(feature);
     const roleMeta = FEATURE_ROLE_META[role];
+    // 池主徽标：resource='pool' 且自带公式 → 显示 已用 x/max + 短休恢复按钮（长休由长休按钮统一重置）
+    const isPoolOwner = feature.resource === 'pool' && feature.poolFormula != null && !!id;
+    const poolKey = isPoolOwner ? featurePoolKey(feature.name) : '';
+    const poolMax = isPoolOwner && character ? getPoolMax(character, feature.poolFormula) : 0;
+    const poolUsed = isPoolOwner && character ? getPoolUsed(character, poolKey) : 0;
+    const canShortRest = isPoolOwner && feature.poolFormula?.restKind === 'short';
     return (
     <div
       key={feature.id}
@@ -1526,6 +1539,31 @@ export default function CharacterDetail({
           <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0">
             {feature.category}
           </span>
+        )}
+        {isPoolOwner && (
+          <span
+            className={`px-1.5 py-0.5 rounded-full text-xs flex-shrink-0 tabular-nums ${
+              poolUsed >= poolMax
+                ? 'bg-danger/10 text-danger'
+                : 'bg-accent/10 text-accent'
+            }`}
+            title={feature.poolFormula?.restKind === 'short' ? '短休恢复' : '长休恢复'}
+          >
+            已用 {poolUsed}/{poolMax}
+          </span>
+        )}
+        {isPoolOwner && canShortRest && poolUsed > 0 && (
+          <button
+            onClick={() => {
+              if (!id) return;
+              characterStore.resetFeaturePools(id, 'short');
+              reloadChar();
+            }}
+            className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs flex-shrink-0 hover:bg-primary/20 transition-colors"
+            title={`短休恢复「${feature.name}」`}
+          >
+            短休恢复
+          </button>
         )}
         <span className="relative flex-shrink-0">
           <button
@@ -2692,9 +2730,11 @@ if (character) {
                   <button
                     onClick={() => {
                       characterStore.resetSpellSlots(id!);
+                      characterStore.resetFeaturePools(id!, 'long');
                       reloadChar();
                     }}
                     className="px-2 py-1 text-xs rounded border dark:border-border-dark dark:text-text-dark-muted hover:border-primary hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+                    title="法术位恢复 + 全部特性资源池恢复（长休）"
                   >
                     长休重置
                   </button>
