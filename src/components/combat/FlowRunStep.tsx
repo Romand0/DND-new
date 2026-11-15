@@ -66,6 +66,8 @@ export interface FlowCastTargetResult {
 
 /** 流程施放完成回传（契约：CombatSession.onFlowResolved 消费） */
 export interface FlowCastPayload {
+  /** 法术 ID（反应窗口按 id 识别施法事件） */
+  spellId?: string;
   spellName: string;
   castingTime?: string;
   /** 主目标受影响（豁免失败/被命中）；豁免成功或无效果节点时 false */
@@ -450,6 +452,7 @@ export default function FlowRunStep({
     const summary = `《${spell.name}》→ ${targetsLabel ?? target.name}：${parts.join('，')}`;
 
     onApplied({
+      spellId: spell.id,
       spellName: spell.name,
       castingTime: spell.castingTime,
       success,

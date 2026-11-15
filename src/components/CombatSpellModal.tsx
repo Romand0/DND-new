@@ -75,6 +75,7 @@ interface Props {
    */
   characterOverride?: Character | null;
   onCastResolved: (info: {
+    spellId?: string;
     spellName: string;
     /** 施法时间原文（如 "1 动作"），用于动作机制判定 */
     castingTime?: string;
@@ -664,6 +665,7 @@ export default function CombatSpellModal({
     }
 
     onCastResolved({
+      spellId: selectedSpell.id,
       spellName: selectedSpell.name,
       castingTime: selectedSpell.castingTime,
       success: cast.checkType === 'none' ? true : (checkOutcome?.success ?? true),

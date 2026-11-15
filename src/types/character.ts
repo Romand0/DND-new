@@ -1,4 +1,5 @@
 // DM Toolkit - Character Type Definitions
+import type { ReactionResolution, ReactionTrigger } from './combat';
 import type { StatusInstance } from './status';
 
 export interface AbilityScore {
@@ -194,6 +195,22 @@ export interface Proficiencies {
  */
 export type FeatureRole = 'stat' | 'passive' | 'active' | 'profile';
 
+/**
+ * 特性作为反应触发的声明（数据驱动，与 SpellReaction 同口径）。
+ * 只声明「何时能反应、用哪种解决方式」，具体效果由 DM 按既有流程结算。
+ */
+export interface FeatureReaction {
+  trigger: ReactionTrigger;
+  /** 解决方式，缺省 'spell'（提示 DM 走既有流程） */
+  resolution?: ReactionResolution;
+  /** 可使用者范围：self = 事件目标本人（缺省）；ally = 同阵营（不含本人） */
+  scope?: 'self' | 'ally';
+  /** 弹窗提示文案（DM 结算指引） */
+  prompt?: string;
+  /** 消耗法术位环级；0/缺省 = 不耗环 */
+  slotLevel?: number;
+}
+
 export interface Feature {
   id?: string;
   name: string;
@@ -207,6 +224,8 @@ export interface Feature {
   /** 玩法体系归属；与选项库 OptionTrait.system 同口径 */
   system?: string;
   systemKind?: 'container' | 'member';
+  /** 反应触发声明（可选；哨兵/专长等数据驱动反应来源） */
+  reaction?: FeatureReaction;
 }
 
 export interface Character {

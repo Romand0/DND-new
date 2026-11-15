@@ -231,6 +231,8 @@ export default function CombatSession() {
     isTwoHandedWield?: boolean;
     /** 借机攻击路径：伤害确认/关闭后推进反应机会队列 */
     reactionPending?: boolean;
+    /** 本次伤害已过 damage_taken 反应窗口：再次确认时直接结算 */
+    reactionWindowDone?: boolean;
   } | null>(null);
   // 借机攻击机会队列：move 触发 → 弹窗逐个处理（确认/放弃/过期）→ 推进
   const [reactionQueue, setReactionQueue] = useState<ReactionPrompt[] | null>(null);
@@ -250,6 +252,19 @@ export default function CombatSession() {
     d20Total: number;
     usageMode?: 'melee' | 'thrown';
     isTwoHandedWield?: boolean;
+  } | null>(null);
+  // 法术反应窗口：施法效果延后到 spell_cast 队列清空后应用
+  const [pendingCast, setPendingCast] = useState<{
+    label: string;
+    casterId: string;
+    exercised: boolean;
+    finalize: () => void;
+  } | null>(null);
+  // 有反应被行使时，施法效果是否应用交给 DM 二次确认（反制场景默认不应用）
+  const [pendingCastConfirm, setPendingCastConfirm] = useState<{
+    label: string;
+    casterId: string;
+    finalize: () => void;
   } | null>(null);
   // ✅ 新增：法术施放弹窗（独立交互流程，与攻击检定解耦）
   const [spellModal, setSpellModal] = useState<{
@@ -329,6 +344,43 @@ export default function CombatSession() {
     setDamageModal(pendingDamage);
     setPendingDamage(null);
   }, [pendingDamage, damageModal, reactionHold, reactionIdx, reactionQueue]);
+
+  // 施法反应窗口处理完毕（且无挂起的伤害/弹窗）→ 应用延后的施法效果；
+  // 已行使反应时先让 DM 确认是否仍应用（法术反制应在此取消）
+  useEffect(() => {
+    if (!pendingCast) return;
+    if (reactionHold || damageModal || pendingDamage) return;
+    if (reactionIdx < (reactionQueue?.length ?? 0)) return;
+    const current = pendingCast;
+    setPendingCast(null);
+    if (current.exercised) {
+      setPendingCastConfirm({ label: current.label, casterId: current.casterId, finalize: current.finalize });
+    } else {
+      current.finalize();
+    }
+  }, [pendingCast, reactionHold, damageModal, pendingDamage, reactionIdx, reactionQueue]);
+
+  /** 标记本次反应窗口已有反应被行使（决定施法效果是否进入二次确认） */
+  const noteReactionExercised = () => {
+    setPendingCast(prev => (prev ? { ...prev, exercised: true } : prev));
+  };
+
+  /** 施法确认前的反应窗口：有 spell_cast 机会则延后 finalize，队列清空后再应用 */
+  const beginSpellCastWindow = (casterId: string, spellId: string | undefined, spellName: string, finalize: () => void) => {
+    if (!record || !spellId) {
+      finalize();
+      return;
+    }
+    const matches = detectReactions(record, { kind: 'spell_cast', casterId, spellId });
+    if (matches.length === 0) {
+      finalize();
+      return;
+    }
+    const rxRound = currentTurn ? currentTurn.round + 1 : 0;
+    const fulls = matches.flatMap(m => combatStore.addReactionPrompts(record.id, m.ownerId, [m], rxRound));
+    setPendingCast({ label: spellName, casterId, exercised: false, finalize });
+    setReactionQueue(prev => [...(prev || []), ...fulls]);
+  };
 
   // 队列头部持有者已失效（死亡/昏迷/失能）→ 自动作废并推进，避免队列卡死挡住延后的伤害弹窗
   useEffect(() => {
@@ -1880,7 +1932,7 @@ export default function CombatSession() {
         />
       )}
 
-      {/* 借机攻击弹窗：机会队列逐个处理。行使=扣反应+消费机会（不扣动作，伤害弹窗关闭后推进队列）；
+      {/* 通用反应机会队列：行使=扣反应+消费机会（伤害弹窗关闭后推进队列）；
           放弃=仅消费机会保留反应次数；机会挂在持有者身上，DM 关闭后可从参战者列表 ⚡ 徽标重开 */}
       {(() => {
         if (!reactionQueue || reactionIdx >= reactionQueue.length || reactionHold) return null;
@@ -1889,10 +1941,11 @@ export default function CombatSession() {
         // 持有者死亡/昏迷/已不可见 → 由自动作废 effect 回收（此处只跳过渲染）
         if (!owner || owner.isDead || owner.isUnconscious || owner.isIncapacitated) return null;
         const definition = resolveReactionDefinition(opp.definitionId);
-        const resolution = definition?.resolution ?? (opp.trigger === 'move_leave_reach' ? 'attack' : 'spell');
+        const resolution = definition?.resolution
+          ?? (opp.trigger === 'move_leave_reach' || opp.trigger === 'enter_reach' ? 'attack' : 'spell');
 
-        if (resolution === 'spell') {
-          const target = record.combatants.find(c => c.id === (opp.targetId ?? opp.moverId));
+        if (resolution !== 'attack') {
+          const target = record.combatants.find(c => c.id === (opp.targetId ?? opp.moverId ?? opp.casterId));
           const targetName = target?.name ?? '目标';
           // 无角色卡的参战者（试验场影子卡/NPC）不扣法术位，避免因无槽位数据而无法测试
           const slotLevel = owner.characterId ? (definition?.cost?.spellSlot ?? 0) : 0;
@@ -1918,9 +1971,10 @@ export default function CombatSession() {
                     return;
                   }
                 }
+                noteReactionExercised();
                 combatStore.consumeReaction(record.id, owner.id);
                 combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
-                const text = `${owner.name} 行使反应《${name}》→ ${targetName}（请按法术流程结算）`;
+                const text = `${owner.name} 行使反应《${name}》→ ${targetName}（请按对应流程结算）`;
                 recordOperation(owner.id, text, 'spell');
                 combatStore.pushCombatEvent(record.id, {
                   kind: 'cast',
@@ -1936,23 +1990,30 @@ export default function CombatSession() {
           );
         }
 
-        if (!opp.moverId) return null;
-        const mover = record.combatants.find(c => c.id === opp.moverId);
-        if (!mover) return null;
+        // 攻击型反应的目标：移动事件取移动者；伤害/施法事件取攻击者/施法者
+        const reactionTargetId = opp.moverId ?? opp.attackerId;
+        if (!reactionTargetId) return null;
+        const reactionTarget = record.combatants.find(c => c.id === reactionTargetId);
+        if (!reactionTarget) return null;
         const bg = record.id ? battlegroundStore.get(record.id) : null;
         const ownerPos = bg?.tokens.find(t => t.combatantId === owner.id);
+        const targetToken = bg?.tokens.find(t => t.combatantId === reactionTarget.id);
+        // 借机攻击按离开触及的起点格计算距离；进入触及/反击按目标当前落点计算
+        const targetPos = opp.trigger === 'enter_reach'
+          ? opp.toPos
+          : (opp.fromPos ?? (targetToken ? { col: targetToken.col, row: targetToken.row } : undefined));
         return (
           <CombatAttackModal
             attacker={owner}
-            target={mover}
+            target={reactionTarget}
             recordId={record?.id}
             currentRound={currentTurn?.round}
             attackerPos={ownerPos ? { col: ownerPos.col, row: ownerPos.row } : undefined}
-            targetPos={opp.fromPos}
+            targetPos={targetPos}
             combatantPositions={combatantPositions}
             combatInventory={getCombatInventory(record, owner)}
-            targetCharacter={mover.characterId ? characterStore.get(mover.characterId) : null}
-            targetCombatInventory={getCombatInventory(record, mover)}
+            targetCharacter={reactionTarget.characterId ? characterStore.get(reactionTarget.characterId) : null}
+            targetCombatInventory={getCombatInventory(record, reactionTarget)}
             loadedWeapons={record?.loadedWeapons}
             loadingAttackedThisRound={record?.loadingAttackedThisRound}
             combatMode={currentMode()}
@@ -1972,23 +2033,24 @@ export default function CombatSession() {
               setReactionIdx(i => i + 1);
             }}
             onConfirmHit={(attack, info) => {
-              // 行使反应：扣反应次数 + 消费机会（借机攻击不消耗动作）
+              // 行使反应：扣反应次数 + 消费机会（反应攻击不消耗主动作）
+              noteReactionExercised();
               combatStore.consumeReaction(record.id, owner.id);
               combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
               combatStore.pushCombatEvent(record.id, {
                 kind: 'attack',
                 round: currentTurn ? currentTurn.round + 1 : 0,
                 actorId: owner.id,
-                targetId: mover.id,
+                targetId: reactionTarget.id,
                 ranged: false,
                 hit: true,
                 critical: info.isNatural20,
                 weaponName: attack.name,
-                text: `《${attack.name}》→ ${mover.name}：借机命中`,
+                text: `《${attack.name}》→ ${reactionTarget.name}：${definition?.name ?? '反应'}命中`,
               });
               setDamageModal({
                 attacker: owner,
-                target: mover,
+                target: reactionTarget,
                 attack,
                 disadvantage: info.disadvantage,
                 isCritical: info.isNatural20,
@@ -2005,14 +2067,15 @@ export default function CombatSession() {
               setReactionIdx(i => i + 1);
             }}
             onAttackMiss={(missInfo) => {
+              noteReactionExercised();
               combatStore.consumeReaction(record.id, owner.id);
               combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
-              const text = `《${missInfo.attackName}》→ ${mover.name}：借机未命中`;
+              const text = `《${missInfo.attackName}》→ ${reactionTarget.name}：${definition?.name ?? '反应'}未命中`;
               combatStore.pushCombatEvent(record.id, {
                 kind: 'attack',
                 round: currentTurn ? currentTurn.round + 1 : 0,
                 actorId: owner.id,
-                targetId: mover.id,
+                targetId: reactionTarget.id,
                 ranged: false,
                 hit: false,
                 weaponName: missInfo.attackName,
@@ -2035,43 +2098,65 @@ export default function CombatSession() {
           disadvantage={damageModal.disadvantage}
           isCritical={damageModal.isCritical}
           isTwoHandedWield={damageModal.isTwoHandedWield}
+          zIndexClass={!reactionHold && reactionQueue && reactionIdx < reactionQueue.length ? 'z-40' : 'z-50'}
           onApplyDamage={({ damage, newHp, status, resolution }) => {
-            // 1. 应用 HP / 状态：伤害量由攻击方结算结果直接传入
-            const result = handleApplyDamage({
-              targetId: damageModal.target.id,
-              amount: damage,
-              status,
-              sourceId: damageModal.attacker.id,
-              sourceName: damageModal.attacker.name,
-              sourceKind: 'weapon',
-              damageType: damageModal.attack.damageType,
-            });
-            // 2. 记录操作（放映写表格 / 模拟写日志，简化格式 + 目标 HP 变动）
-            const oldHp = result?.oldHp ?? damageModal.target.currentHp;
-            const actualNewHp = result?.newHp ?? newHp;
-            let text = `《${damageModal.attack.name}》→ ${damageModal.target.name}：【${damage}】伤害`;
-            if (oldHp != null) text += `，HP【${oldHp}→${actualNewHp}】`;
-            if (result?.tempAbsorbed) text += `，临时HP吸收${result.tempAbsorbed}`;
-            const breakdown = formatDamageBreakdown(resolution);
-            if (breakdown) text += `，${breakdown}`;
-            if (result?.status === 'unconscious') text += '，击昏';
-            else if (result?.status === 'dead') text += '，杀死';
-            recordOperation(damageModal.attacker.id, text, 'damage');
-            // 3. 投掷武器掉落：命中也掉落
-            const bg = record ? battlegroundStore.get(record.id) : null;
-            if (bg) {
-              const attackerToken = bg.tokens.find(t => t.combatantId === damageModal.attacker.id);
-              const targetToken = bg.tokens.find(t => t.combatantId === damageModal.target.id);
-              if (attackerToken && targetToken) {
-                executeThrownDrop(
-                  damageModal.attacker, damageModal.target,
-                  damageModal.attack,
-                  { col: attackerToken.col, row: attackerToken.row },
-                  { col: targetToken.col, row: targetToken.row },
-                  true, record, damageModal.usageMode,
-                );
+            const applyDamageNow = () => {
+              // 1. 应用 HP / 状态：伤害量由攻击方结算结果直接传入
+              const result = handleApplyDamage({
+                targetId: damageModal.target.id,
+                amount: damage,
+                status,
+                sourceId: damageModal.attacker.id,
+                sourceName: damageModal.attacker.name,
+                sourceKind: 'weapon',
+                damageType: damageModal.attack.damageType,
+              });
+              // 2. 记录操作（放映写表格 / 模拟写日志，简化格式 + 目标 HP 变动）
+              const oldHp = result?.oldHp ?? damageModal.target.currentHp;
+              const actualNewHp = result?.newHp ?? newHp;
+              let text = `《${damageModal.attack.name}》→ ${damageModal.target.name}：【${damage}】伤害`;
+              if (oldHp != null) text += `，HP【${oldHp}→${actualNewHp}】`;
+              if (result?.tempAbsorbed) text += `，临时HP吸收${result.tempAbsorbed}`;
+              const breakdown = formatDamageBreakdown(resolution);
+              if (breakdown) text += `，${breakdown}`;
+              if (result?.status === 'unconscious') text += '，击昏';
+              else if (result?.status === 'dead') text += '，杀死';
+              recordOperation(damageModal.attacker.id, text, 'damage');
+              // 3. 投掷武器掉落：命中也掉落
+              const bg = record ? battlegroundStore.get(record.id) : null;
+              if (bg) {
+                const attackerToken = bg.tokens.find(t => t.combatantId === damageModal.attacker.id);
+                const targetToken = bg.tokens.find(t => t.combatantId === damageModal.target.id);
+                if (attackerToken && targetToken) {
+                  executeThrownDrop(
+                    damageModal.attacker, damageModal.target,
+                    damageModal.attack,
+                    { col: attackerToken.col, row: attackerToken.row },
+                    { col: targetToken.col, row: targetToken.row },
+                    true, record, damageModal.usageMode,
+                  );
+                }
+              }
+            };
+
+            // damage_taken 反应窗口：结算前先给目标/其盟友机会，弹窗保持打开并保留本次计算值
+            if (!damageModal.reactionWindowDone && damage > 0 && record) {
+              const matches = detectReactions(record, {
+                kind: 'damage',
+                targetId: damageModal.target.id,
+                attackerId: damageModal.attacker.id,
+                amount: damage,
+                damageType: damageModal.attack.damageType,
+              });
+              if (matches.length > 0) {
+                const rxRound = currentTurn ? currentTurn.round + 1 : 0;
+                const fulls = matches.flatMap(m => combatStore.addReactionPrompts(record.id, m.ownerId, [m], rxRound));
+                setReactionQueue(prev => [...(prev || []), ...fulls]);
+                setDamageModal(prev => (prev ? { ...prev, reactionWindowDone: true } : prev));
+                return;
               }
             }
+            applyDamageNow();
           }}
           onClose={() => {
             setDamageModal(null);
@@ -2130,6 +2215,7 @@ export default function CombatSession() {
           onTargetChange={(c) => setSpellModal(m => (m ? { ...m, target: c } : m))}
           onClose={() => setSpellModal(null)}
           onFlowResolved={(payload) => {
+            const finalizeFlow = () => {
             // 流程施放与手动管线同一动作语义：按施法时间扣动作
             if (isOneActionCast(payload.castingTime)) {
               consumeCombatantAction(spellModal.caster.id);
@@ -2261,8 +2347,11 @@ export default function CombatSession() {
               if (concNote) flowSummary += concNote;
             }
             recordOperation(spellModal.caster.id, flowSummary, 'spell');
+            };
+            beginSpellCastWindow(spellModal.caster.id, payload.spellId, payload.spellName, finalizeFlow);
           }}
           onCastResolved={(info) => {
+            const finalizeCast = () => {
             // 施法时间 = "1 动作" 的法术消耗 1 个动作（无论是否命中/被豁免）
             if (isOneActionCast(info.castingTime)) {
               consumeCombatantAction(spellModal.caster.id);
@@ -2307,8 +2396,47 @@ export default function CombatSession() {
             }
             if (concNote) text += concNote;
             recordOperation(spellModal.caster.id, text, 'spell');
+            };
+            beginSpellCastWindow(spellModal.caster.id, info.spellId, info.spellName, finalizeCast);
           }}
         />
+      )}
+
+      {/* 施法反应窗口结束：有反应被行使时由 DM 决定是否仍应用施法效果（反制场景选不应用） */}
+      {pendingCastConfirm && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light">
+            <h3 className="text-lg font-bold mb-2 dark:text-text-dark light:text-text-light">施法反应窗口结束</h3>
+            <p className="text-sm mb-3 dark:text-text-dark light:text-text-light">
+              《{pendingCastConfirm.label}》的反应已处理。是否仍应用本次施法效果？
+            </p>
+            <p className="text-xs mb-4 dark:text-text-dark-muted light:text-text-light-muted">
+              若反应成功反制或改变了施法结果，请选择「不应用」；后续如需结算可手动补录。
+            </p>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  const current = pendingCastConfirm;
+                  setPendingCastConfirm(null);
+                  recordOperation(current.casterId, `《${current.label}》施法效果未应用（反应窗口）`, 'spell');
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm border dark:border-border-dark dark:text-text-dark light:border-border-light light:text-text-light hover:bg-white/10"
+              >
+                不应用（视为被反制）
+              </button>
+              <button
+                onClick={() => {
+                  const current = pendingCastConfirm;
+                  setPendingCastConfirm(null);
+                  current.finalize();
+                }}
+                className="px-3 py-1.5 rounded-lg text-sm bg-primary text-white hover:opacity-90"
+              >
+                应用施法效果
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ✅ 协助（Help）动作弹窗 */}

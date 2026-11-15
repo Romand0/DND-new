@@ -1,6 +1,5 @@
 // 通用反应引擎：战斗事件抽象 + 注册式检测器（与 advantageRules 同构：纯只读检测，消费由调用方确认后执行）。
-// 已接插桩：move（P1）、attack（P2 命中后/伤害前）；damage / spell_cast 事件类型已定好，
-// 检测器与插桩点留待 P3（避免后续改签名）。
+// 已接插桩：move（P1）、attack（P2 命中后/伤害前）、damage（P3 伤害结算前）、spell_cast（P3 施法确认前）。
 // 借机攻击语义：移动者起点格在持有者任一近战武器触及内、落点格在触及外 → 打开机会。
 // 攻击距离按「起点格」计算（离开触及的瞬时点），与 5e「借机攻击不阻止移动」一致。
 // 近战判定与 CombatAttackModal.isRangedWeapon/isThrownWeapon 同口径（复制而非共享——
@@ -9,8 +8,8 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
 import { BUILTIN_OPPORTUNITY_ATTACK } from '@/data/reactionDefinitions';
 import { spellStore } from '@/data/spellStore';
-import type { CombatRecord, Combatant, ReactionPrompt, NpcAttack } from '@/types/combat';
-import type { Attack } from '@/types/character';
+import type { CombatRecord, Combatant, ReactionPrompt, ReactionResolution, ReactionTrigger, NpcAttack } from '@/types/combat';
+import type { Attack, Feature } from '@/types/character';
 import type { Spell } from '@/types/spell';
 
 type AnyAttack = Attack | NpcAttack;
@@ -162,22 +161,88 @@ registerReactionDetector((record, event) => {
   return results;
 });
 
+/** 反应来源（法术/特性）统一视图：检测器只关心「何时触发、怎么解决」 */
+interface ReactionSource {
+  definitionId: string;
+  definitionName: string;
+  trigger: ReactionTrigger;
+  resolution: ReactionResolution;
+  scope?: 'self' | 'ally';
+  slotLevel?: number;
+  spellId?: string;
+}
+
+/** 参战者是否仍能行使反应（死亡/昏迷/失能均不能） */
+function canReact(c: Combatant): boolean {
+  return !c.isDead && !c.isUnconscious && !c.isIncapacitated;
+}
+
+/** 特性反应候选：角色卡上带 reaction 声明且已达生效等级的特性 */
+function getFeatureReactionSources(combatant: Combatant): ReactionSource[] {
+  const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+  if (!character) return [];
+  const level = Math.max(
+    character.level ?? 1,
+    characterStore.getLevelFromExp(character.experience ?? 0) || 1,
+  );
+  return (character.features || [])
+    .filter(f => f.reaction?.trigger && (f.level == null || f.level <= level))
+    .map(f => ({
+      definitionId: `feature:${f.name}`,
+      definitionName: f.name,
+      trigger: f.reaction!.trigger,
+      resolution: f.reaction!.resolution ?? 'spell',
+      scope: f.reaction!.scope,
+      slotLevel: f.reaction!.slotLevel,
+    }));
+}
+
 /**
  * 法术反应候选（数据驱动）：参战者已知法术中带 reaction 声明者。
  * 试验场开放全库（便于测试受术方反应）；普通战斗只取角色卡习得列表，按名字回查法术库。
  * 纯只读，不校验反应次数/法术位（可用性由弹窗二次校验，避免检测阶段丢信息）。
  */
-function getKnownReactionSpells(record: CombatRecord, combatant: Combatant): Spell[] {
+function getSpellReactionSources(record: CombatRecord, combatant: Combatant): ReactionSource[] {
   if (!combatant.characterId && !record.isProvingGround) return [];
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
   if (!character && !record.isProvingGround) return [];
   const all = spellStore.getAll().filter(s => !!s.reaction?.trigger);
-  if (record.isProvingGround) return all;
-  const names = new Set([...(character?.spells?.cantrips ?? []), ...(character?.spells?.custom ?? [])]);
-  return all.filter(s => names.has(s.name));
+  const known = record.isProvingGround
+    ? all
+    : (() => {
+        const names = new Set([...(character?.spells?.cantrips ?? []), ...(character?.spells?.custom ?? [])]);
+        return all.filter(s => names.has(s.name));
+      })();
+  return known.map(spell => ({
+    definitionId: `spell:${spell.id}`,
+    definitionName: spell.name,
+    trigger: spell.reaction!.trigger,
+    resolution: spell.reaction!.resolution ?? 'spell',
+    scope: spell.reaction!.scope,
+    slotLevel: spell.reaction!.slotLevel,
+    spellId: spell.id,
+  }));
 }
 
-/** 攻击目标触发的反应检测器（attack_targeted）：被攻击者本人 / 其同阵营者按法术声明产出 */
+/** 合并法术与特性来源，按 definitionId 去重（同一条声明只出一个机会） */
+function getOwnerReactionSources(record: CombatRecord, owner: Combatant): ReactionSource[] {
+  const seen = new Set<string>();
+  const out: ReactionSource[] = [];
+  for (const src of [...getSpellReactionSources(record, owner), ...getFeatureReactionSources(owner)]) {
+    if (seen.has(src.definitionId)) continue;
+    seen.add(src.definitionId);
+    out.push(src);
+  }
+  return out;
+}
+
+/** self = 事件目标本人；ally = 同阵营（不含本人） */
+function matchesSelfOrAlly(owner: Combatant, target: Combatant, scope?: 'self' | 'ally'): boolean {
+  if ((scope ?? 'self') === 'self') return owner.id === target.id;
+  return owner.id !== target.id && !!owner.isPc === !!target.isPc;
+}
+
+/** 攻击目标触发的反应检测器（attack_targeted）：被攻击者本人 / 其同阵营者按声明产出 */
 registerReactionDetector((record, event) => {
   if (event.kind !== 'attack') return [];
   const attacker = record.combatants.find(c => c.id === event.attackerId);
@@ -186,27 +251,124 @@ registerReactionDetector((record, event) => {
   if (target.isDead || target.isUnconscious) return [];
   const results: ReactionMatch[] = [];
   for (const owner of record.combatants) {
-    if (owner.isDead || owner.isUnconscious || owner.isIncapacitated) continue;
+    if (!canReact(owner)) continue;
     if (owner.id === attacker.id) continue;
     // 必须与攻击方敌对（同阵营不反应）
     if (!!owner.isPc === !!attacker.isPc) continue;
-    for (const spell of getKnownReactionSpells(record, owner)) {
-      const rx = spell.reaction!;
-      if (rx.trigger !== 'attack_targeted') continue;
-      const scope = rx.scope ?? 'self';
-      if (scope === 'self' && owner.id !== target.id) continue;
-      if (scope === 'ally') {
-        if (!!owner.isPc !== !!target.isPc) continue;
-        if (owner.id === target.id) continue;
-      }
+    for (const src of getOwnerReactionSources(record, owner)) {
+      if (src.trigger !== 'attack_targeted') continue;
+      if (!matchesSelfOrAlly(owner, target, src.scope)) continue;
       results.push({
         ownerId: owner.id,
-        definitionId: `spell:${spell.id}`,
-        definitionName: spell.name,
+        definitionId: src.definitionId,
+        definitionName: src.definitionName,
         trigger: 'attack_targeted',
         attackerId: attacker.id,
         targetId: target.id,
-        spellId: spell.id,
+        spellId: src.spellId,
+      });
+    }
+  }
+  return results;
+});
+
+/** 进入触及检测器（enter_reach）：移动者落点进入持有者近战触及、起点在触及外（哨兵类反应） */
+registerReactionDetector((record, event) => {
+  if (event.kind !== 'move') return [];
+  const { moverId, from: fromPos, to: toPos } = event;
+  const mover = record.combatants.find(c => c.id === moverId);
+  if (!mover || mover.isDead || mover.isUnconscious) return [];
+  const bg = battlegroundStore.get(record.id);
+  const tokens = bg?.tokens ?? [];
+  const ownerPosOf = (id: string) => {
+    const t = tokens.find(x => x.combatantId === id);
+    return t ? { col: t.col, row: t.row } : null;
+  };
+
+  const results: ReactionMatch[] = [];
+  for (const owner of record.combatants) {
+    if (owner.id === moverId || !canReact(owner)) continue;
+    if (!!owner.isPc === !!mover.isPc) continue;
+    const sources = getOwnerReactionSources(record, owner).filter(s => s.trigger === 'enter_reach');
+    if (sources.length === 0) continue;
+    const pos = ownerPosOf(owner.id);
+    if (!pos) continue;
+    const attacks = getMeleeAttacks(record, owner);
+    if (attacks.length === 0) continue;
+    const reach = Math.max(...attacks.map(a => getMeleeReachCells(a) ?? 0));
+    if (reach <= 0) continue;
+    if (chebyshev(fromPos, pos) > reach && chebyshev(toPos, pos) <= reach) {
+      for (const src of sources) {
+        results.push({
+          ownerId: owner.id,
+          definitionId: src.definitionId,
+          definitionName: src.definitionName,
+          trigger: 'enter_reach',
+          moverId,
+          fromPos,
+          toPos,
+          eventLabel: '移动者进入你的触及范围',
+        });
+      }
+    }
+  }
+  return results;
+});
+
+/** 受到伤害检测器（damage_taken）：伤害结算前，目标本人 / 其同阵营者按声明产出 */
+registerReactionDetector((record, event) => {
+  if (event.kind !== 'damage') return [];
+  const target = record.combatants.find(c => c.id === event.targetId);
+  if (!target || target.isDead || target.isUnconscious) return [];
+  const results: ReactionMatch[] = [];
+  for (const owner of record.combatants) {
+    if (!canReact(owner)) continue;
+    for (const src of getOwnerReactionSources(record, owner)) {
+      if (src.trigger !== 'damage_taken') continue;
+      if (!matchesSelfOrAlly(owner, target, src.scope)) continue;
+      results.push({
+        ownerId: owner.id,
+        definitionId: src.definitionId,
+        definitionName: src.definitionName,
+        trigger: 'damage_taken',
+        attackerId: event.attackerId,
+        targetId: target.id,
+        amount: event.amount,
+        damageType: event.damageType,
+        spellId: src.spellId,
+        eventLabel: `受到 ${event.amount} 点${event.damageType || ''}伤害`,
+      });
+    }
+  }
+  return results;
+});
+
+/** 他人施法检测器（spell_cast）：施法确认前，敌对持有者按声明产出（法术反制类） */
+registerReactionDetector((record, event) => {
+  if (event.kind !== 'spell_cast') return [];
+  const caster = record.combatants.find(c => c.id === event.casterId);
+  if (!caster || caster.isDead) return [];
+  const spellName = spellStore.getById(event.spellId)?.name ?? event.spellId;
+  const results: ReactionMatch[] = [];
+  for (const owner of record.combatants) {
+    if (owner.id === caster.id || !canReact(owner)) continue;
+    for (const src of getOwnerReactionSources(record, owner)) {
+      if (src.trigger !== 'spell_cast') continue;
+      // scope=ally：保护同阵营施法者；缺省 self：对敌对施法者反应（反制）
+      if (src.scope === 'ally') {
+        if (!!owner.isPc !== !!caster.isPc) continue;
+      } else if (!!owner.isPc === !!caster.isPc) {
+        continue;
+      }
+      results.push({
+        ownerId: owner.id,
+        definitionId: src.definitionId,
+        definitionName: src.definitionName,
+        trigger: 'spell_cast',
+        casterId: caster.id,
+        targetId: caster.id,
+        spellId: event.spellId,
+        eventLabel: `施放《${spellName}》`,
       });
     }
   }

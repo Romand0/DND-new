@@ -70,12 +70,14 @@
 - 种子 traits 的 level 标注要求正文含「第X级时/起」，显示层解析必须复刻同款锚定正则
 - mergeBaseline：仓库种子为唯一事实源；只有带 seedId 的显式覆盖云端赢，无 seedId 但 id 命中种子视为旧快照（种子赢）
 
-## 反应引擎（P1/P2）
-- 触发时机一律用数据声明：普适法术走 Spell.reaction（trigger/resolution/scope/slotLevel/prompt），特性/怪物后续走特性数据；代码零法术名与效果逻辑
-- 定义解析 resolveReactionDefinition：内置表优先，其次 `spell:<id>` 运行时从 spellStore 派生
+## 反应引擎（P1-P3）
+- 触发时机一律用数据声明：法术走 Spell.reaction、特性走 Feature.reaction（trigger/resolution/scope/slotLevel/prompt）；代码零法术名与效果逻辑
+- 定义解析 resolveReactionDefinition：内置表优先，其次 `spell:<id>` / `feature:<名>` 运行时派生
 - 命中窗口：onConfirmHit 先 detectReactions({kind:'attack'})，有反应则 pendingDamage 延后，伤害弹窗由 effect 在队列清空后打开
+- 伤害窗口：onApplyDamage 先 detectReactions({kind:'damage'})，弹窗保持打开（reactionWindowDone 防重入），队列清空后再应用
+- 施法窗口：onCastResolved/onFlowResolved 包 beginSpellCastWindow；有反应被行使时进入 pendingCastConfirm 让 DM 决定是否应用效果（反制）
 - 检测器纯只读（不判次数/法术位），可用性在弹窗二次校验；无 characterId 参战者不扣法术位
-- move / attack 已接插桩；damage_taken / spell_cast 事件类型已定，检测器与插桩留待 P3
+- move / attack / damage / spell_cast 均已接插桩；玩家回合提交的攻击窗口在 turnCommitApply
 
 ## 用户指令
 - git push 失败一次即停：执行完整 fetch+rebase+push 周期，仍被拒立即报告，不反复重试

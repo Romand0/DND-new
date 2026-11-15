@@ -1,6 +1,6 @@
 // 角色选项库类型（种族/亚种/背景/职业/子职业）
 // 数据源：5E不全书 PHB 2014 离线提取（scripts/extract-options.mjs）
-import type { FeatureRole } from './character';
+import type { FeatureReaction, FeatureRole } from './character';
 
 export type OptionCategory = 'race' | 'subrace' | 'background' | 'class' | 'subclass';
 
@@ -17,6 +17,8 @@ export interface OptionTrait {
   // 玩法体系归属（超魔法/魔能祈唤等）；容器条目 systemKind=container，选项成员=member
   system?: string;
   systemKind?: 'container' | 'member';
+  // 反应触发声明（数据驱动；透传到角色卡 Feature.reaction）
+  reaction?: FeatureReaction;
   // 特性内嵌选项库（如战斗大师战技、武僧气技、魔契师魔印、术士超魔选项）
   options?: OptionTrait[];
 }
@@ -74,7 +76,7 @@ export interface CharacterOption {
   // 亚种专属（继承自母种族的特质快照）
   parentTraits?: OptionTrait[];
   // 背景专属
-  feature?: { name: string; nameEn: string; text: string; role?: FeatureRole };
+  feature?: { name: string; nameEn: string; text: string; role?: FeatureRole; reaction?: FeatureReaction };
   characteristics?: OptionCharacteristic[];
   dataResource: string;
   createdAt?: number;
