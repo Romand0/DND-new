@@ -4,9 +4,10 @@
 //   状态     ← 「状态」（手持/专注/失能/死亡豁免，无能力开关）
 //   背包     ← 「背包」（inventory 投影：名称/类目/数量/手持标注/攻击属性，只读）
 //   操作     ← 「操作」（动作计数 + 主动技能 + 回合待办，砍 NPC 特质）
+// 主动技能按钮是唯一的操作出口：点击经 onFeatureUse 打包进回合提交，由 DM 审核入账。
 import { useState } from 'react';
 import { Ban, Info, Moon, Skull, Sparkles, Backpack, Zap, Activity, Hand } from 'lucide-react';
-import type { CombatRosterEntry, RosterInventoryItem } from '@/types/realtime';
+import type { CombatRosterEntry, RosterActiveFeature, RosterInventoryItem } from '@/types/realtime';
 
 const HAND_STATE_LABELS: Record<string, string> = {
   ready: '待用',
@@ -27,10 +28,13 @@ export function MyCombatantsSection({
   roster,
   myCharacterIds,
   playback,
+  onFeatureUse,
 }: {
   roster: CombatRosterEntry[];
   myCharacterIds: Set<string>;
   playback: boolean;
+  /** 主动技能按钮回调（缺省 = 只读展示）；页面层负责回合归属校验与 op 打包 */
+  onFeatureUse?: (combatant: CombatRosterEntry, feature: RosterActiveFeature) => void;
 }) {
   const mine = roster.filter((c) => c.characterId && myCharacterIds.has(c.characterId));
   if (mine.length === 0) return null;
@@ -39,14 +43,22 @@ export function MyCombatantsSection({
       <h3 className="text-sm font-bold dark:text-text-dark light:text-text-light px-1">我的参战者</h3>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {mine.map((c) => (
-          <MyCombatantPanel key={c.id} c={c} playback={playback} />
+          <MyCombatantPanel key={c.id} c={c} playback={playback} onFeatureUse={onFeatureUse} />
         ))}
       </div>
     </div>
   );
 }
 
-export function MyCombatantPanel({ c, playback }: { c: CombatRosterEntry; playback: boolean }) {
+export function MyCombatantPanel({
+  c,
+  playback,
+  onFeatureUse,
+}: {
+  c: CombatRosterEntry;
+  playback: boolean;
+  onFeatureUse?: (combatant: CombatRosterEntry, feature: RosterActiveFeature) => void;
+}) {
   const [tab, setTab] = useState<TabKey>('info');
   const hpRatio = c.maxHp > 0 ? Math.max(0, Math.min(1, (c.hp + c.tempHp) / c.maxHp)) : 0;
 
@@ -131,7 +143,7 @@ export function MyCombatantPanel({ c, playback }: { c: CombatRosterEntry; playba
         {tab === 'info' && <InfoTab c={c} />}
         {tab === 'status' && <StatusTab c={c} />}
         {tab === 'inventory' && <InventoryTab c={c} />}
-        {tab === 'actions' && <ActionsTab c={c} playback={playback} />}
+        {tab === 'actions' && <ActionsTab c={c} playback={playback} onFeatureUse={onFeatureUse} />}
       </div>
     </div>
   );
@@ -327,9 +339,18 @@ function InventoryRow({ item, held }: { item: RosterInventoryItem; held: boolean
   );
 }
 
-/** 操作：动作/附赠计数 + 主动技能 + 我的回合待办——对应 DM「操作」（只读，砍 NPC 特质） */
-function ActionsTab({ c, playback }: { c: CombatRosterEntry; playback: boolean }) {
+/** 操作：动作/附赠计数 + 主动技能 + 我的回合待办——对应 DM「操作」（砍 NPC 特质） */
+function ActionsTab({
+  c,
+  playback,
+  onFeatureUse,
+}: {
+  c: CombatRosterEntry;
+  playback: boolean;
+  onFeatureUse?: (combatant: CombatRosterEntry, feature: RosterActiveFeature) => void;
+}) {
   const features = c.activeFeatures ?? [];
+  const blocked = c.dead || c.downed || c.incapacitated;
   return (
     <div className="space-y-2">
       {playback && (
@@ -351,18 +372,56 @@ function ActionsTab({ c, playback }: { c: CombatRosterEntry; playback: boolean }
       {features.length > 0 && (
         <div>
           <div className="font-medium mb-1 dark:text-text-dark light:text-text-light">主动技能</div>
-          <div className="space-y-1">
-            {features.map((f) => (
-              <div key={f.name} className="rounded-lg px-2.5 py-1.5 dark:bg-bg-dark light:bg-bg-light-2">
-                <div className="font-medium dark:text-text-dark light:text-text-light">{f.name}</div>
-                {f.description && (
-                  <div className="mt-0.5 leading-4 dark:text-text-dark-muted light:text-text-light-muted">
-                    {f.description}
-                  </div>
-                )}
-              </div>
-            ))}
+          <div className="grid grid-cols-2 gap-1.5">
+            {features.map((f) => {
+              const exhausted = f.disabled === true;
+              const activationLabel =
+                f.activation === 'bonus' ? '附赠'
+                : f.activation === 'reaction' ? '反应'
+                : f.activation === 'action' ? '动作'
+                : '自由';
+              const resourceLabel =
+                f.resource === 'toggle' ? '状态'
+                : f.resource === 'manual' ? '手动'
+                : null;
+              const disabled = !onFeatureUse || blocked || exhausted;
+              return (
+                <button
+                  key={f.name}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => onFeatureUse?.(c, f)}
+                  className={`px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-light-muted light:text-text-light-muted active:scale-[0.98] ${
+                    disabled ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary/15 dark:text-text-dark light:text-text-light'
+                  }`}
+                  title={[
+                    f.description || f.name,
+                    f.poolMax != null ? `资源 ${f.poolLeft ?? 0}/${f.poolMax}` : null,
+                    resourceLabel ? `${resourceLabel}结算` : null,
+                    blocked ? '当前无法行动' : exhausted ? '资源已耗尽' : null,
+                    !onFeatureUse ? '未在放映回合（只读）' : null,
+                  ].filter(Boolean).join(' · ')}
+                >
+                  <span className="flex items-center gap-1">
+                    <span className="truncate flex-1 dark:text-text-dark light:text-text-light">{f.name}</span>
+                    {f.poolMax != null && (
+                      <span className={`flex-shrink-0 tabular-nums text-[10px] ${exhausted ? 'text-danger' : 'text-accent'}`}>
+                        {f.poolLeft ?? 0}/{f.poolMax}
+                      </span>
+                    )}
+                    <span className="flex-shrink-0 text-[10px] dark:text-text-dark-muted light:text-text-light-muted">
+                      {activationLabel}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
           </div>
+          {onFeatureUse && features.some((f) => f.resource === 'manual' || f.resource === 'toggle') && (
+            <p className="mt-1 text-[10px] dark:text-text-dark-muted light:text-text-light-muted px-1">
+              手动/状态类技能提交后由 DM 按描述结算；反应类技能在满足触发条件时自动提示。
+            </p>
+          )}
         </div>
       )}
       <div>

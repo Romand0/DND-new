@@ -41,6 +41,11 @@ function opText(op: TurnCommitOp): string {
   if (op.kind === 'spell-slot') {
     return op.consume ? `消耗 ${op.level} 环法术位` : `恢复 ${op.level} 环法术位`;
   }
+  if (op.kind === 'feature-use') {
+    const cost = op.poolKey ? `（${op.cost ?? 1} 点）` : '';
+    const act = op.activation === 'action' ? '（主动作）' : op.activation === 'bonus' ? '（附赠动作）' : '';
+    return `主动技能：${op.featureName}${cost}${act}`;
+  }
   if (op.kind === 'stop-concentration') {
     return '主动停止专注';
   }

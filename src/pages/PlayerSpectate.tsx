@@ -295,6 +295,9 @@ export default function PlayerSpectate() {
         }
       } else if (op.kind === 'dash') {
         action = 1;
+      } else if (op.kind === 'feature-use') {
+        if (op.activation === 'action') action = 1;
+        else if (op.activation === 'bonus') bonus = 1;
       } else if (op.kind === 'cast' || op.kind === 'note') {
         if (op.actionCost === 'action') action = 1;
         else if (op.actionCost === 'bonus') bonus = 1;
@@ -557,7 +560,29 @@ export default function PlayerSpectate() {
           )}
 
           {spectate && (
-            <MyCombatantsSection roster={roster} myCharacterIds={myCharacterIds} playback={spectate.turn?.playback === true} />
+            <MyCombatantsSection
+              roster={roster}
+              myCharacterIds={myCharacterIds}
+              playback={spectate.turn?.playback === true}
+              onFeatureUse={(combatant, feature) => {
+                // 主动技能属回合内动作：仅当前回合行动者可提交，打包进回合包统一审核
+                if (combatant.id !== myTurnActor?.id) {
+                  setNotice('只有当前回合行动的参战者可以使用主动技能');
+                  return;
+                }
+                if (pendingOps.some((op) => op.kind === 'feature-use' && op.featureName === feature.name)) {
+                  setNotice(`「${feature.name}」已在本回合操作列表中，提交后由 DM 审核`);
+                  return;
+                }
+                addOp({
+                  kind: 'feature-use',
+                  featureName: feature.name,
+                  ...(feature.poolKey ? { poolKey: feature.poolKey, cost: feature.cost ?? 1 } : {}),
+                  activation: feature.activation,
+                  roundText: `发动「${feature.name}」${feature.poolKey ? `（${feature.cost ?? 1} 点）` : ''}`,
+                });
+              }}
+            />
           )}
 
           {connected && !spectate && (

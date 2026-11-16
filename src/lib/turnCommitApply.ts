@@ -10,6 +10,7 @@ import type { CombatRecord, ReactionPrompt } from '@/types/combat';
 import { detectReactions } from '@/data/reactionRules';
 import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
+import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
 
 export interface TurnCommitApplyDeps {
@@ -223,6 +224,26 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       if (op.actionCost === 'bonus' && !consumedBonus) {
         consumeBonusAction(actor.id);
         consumedBonus = true;
+      }
+    } else if (op.kind === 'feature-use') {
+      // 主动技能（玩家回合包）：池扣减走 featureUses 漏斗（与 DM 端 handleFeatureUse 同构），
+      // 动作消耗按 activation；通道执行与 DM 端共用 executeFeatureChannel（status/advantage 落地）。
+      if (op.poolKey) {
+        const ok = combatStore.consumeFeatureUse(record.id, actor.id, op.poolKey, op.cost ?? 1);
+        if (!ok) {
+          return { ok: false, reason: `「${op.featureName}」资源不足（需要 ${op.cost ?? 1} 点），提交被拒` };
+        }
+      }
+      if (op.activation === 'action' && !consumedAction) {
+        consumeAction(actor.id);
+        consumedAction = true;
+      } else if (op.activation === 'bonus' && !consumedBonus) {
+        consumeBonusAction(actor.id);
+        consumedBonus = true;
+      }
+      const channelResult = executeFeatureChannel(record, actor, op.featureName, request.round - 1);
+      if (channelResult.note) {
+        opCtx.featureNote = channelResult.note;
       }
     } else if (op.kind === 'end-turn') {
       endTurn = true;
