@@ -41,6 +41,7 @@ import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { resolvePoolKey } from '@/data/featurePool';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
@@ -1041,11 +1042,23 @@ export default function CombatSession() {
     // 3. 动作消耗落到 combatant（与激励同口径）
     if (feature.activation === 'action') consumeCombatantAction(c.id);
     else if (feature.activation === 'bonus') consumeCombatantBonusAction(c.id);
-    // 4. 通道路由：已注册通道的提示文案；manual 通道提示 DM 手动结算
+    // 4. 通道路由：status/advantage 走通道执行器（挂状态/pending 优劣势），reaction 说明自动触发，
+    //    manual/checkModifier 提示 DM 手动结算（checkModifier 待接入独立弹窗）
     const capability = resolveFeatureCapability(feature.name);
     recordOperation(c.id, `发动「${feature.name}」`, 'record');
     if (capability.channel === 'manual' || capability.channel === 'checkModifier') {
       alert(`「${feature.name}」已消耗资源${poolInfo.poolKey ? `（${poolInfo.cost} 点）` : ''}。请按特性描述手动结算：${capability.hint || (feature.description || '').slice(0, 80)}`);
+      return;
+    }
+    if (capability.channel === 'reaction') {
+      alert(`「${feature.name}」为反应类特性：满足触发条件时（被攻击/受伤等）会自动弹出反应提示，无需主动使用`);
+      return;
+    }
+    // status / advantage 通道：与玩家回合包 feature-use op 共用执行器
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    const channelResult = executeFeatureChannel(record, c, feature.name, currentRound0);
+    if (channelResult.note) {
+      alert(`「${feature.name}」：${channelResult.note}`);
     }
   };
 

@@ -4230,7 +4230,13 @@
         "role": "active",
         "level": 3,
         "activation": "reaction",
-        "resource": "manual"
+        "resource": "manual",
+        "reaction": {
+          "trigger": "attack_targeted",
+          "resolution": "damage_modifier",
+          "scope": "self",
+          "prompt": "被远程武器攻击命中时，可用反应减伤 1d10＋敏捷调整值＋武僧职业等级（减至 0 可耗 1 气接住飞弹反击）"
+        }
       },
       {
         "name": "属性值提升",
@@ -4246,7 +4252,13 @@
         "role": "active",
         "level": 4,
         "activation": "reaction",
-        "resource": "manual"
+        "resource": "manual",
+        "reaction": {
+          "trigger": "damage_taken",
+          "resolution": "damage_modifier",
+          "scope": "self",
+          "prompt": "承受坠地伤害时，可用反应减少 5×武僧职业等级的伤害"
+        }
       },
       {
         "name": "额外攻击",
@@ -6498,7 +6510,13 @@
         "role": "active",
         "level": 5,
         "activation": "reaction",
-        "resource": "manual"
+        "resource": "manual",
+        "reaction": {
+          "trigger": "attack_targeted",
+          "resolution": "damage_modifier",
+          "scope": "self",
+          "prompt": "攻击命中你时，可用反应使此次伤害减半（消耗反应）"
+        }
       },
       {
         "name": "反射闪避",
