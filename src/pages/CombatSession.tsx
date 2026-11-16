@@ -27,6 +27,7 @@ import PlaybackToolbar from '@/components/combat/PlaybackToolbar';
 import RewindDialog from '@/components/combat/RewindDialog';
 import SurpriseAttackDialog from '@/components/combat/SurpriseAttackDialog';
 import PlayerActionReviewPanel from '@/components/combat/PlayerActionReviewPanel';
+import CombatantTraitPanel from '@/components/combat/CombatantTraitPanel';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import * as snapDb from '@/lib/combatSnapshots';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -723,6 +724,26 @@ export default function CombatSession() {
     return map;
     // battlegroundTick：棋子位置变化不写战斗记录，需要显式依赖触发重算
   }, [record?.id, record?.combatants.length, record?.updatedAt, battlegroundTick]);
+
+  // 战斗中可打开 NpcCreator 编辑模板，订阅刷新让特性面板读到最新数据
+  const [npcTemplateTick, setNpcTemplateTick] = useState(0);
+  useEffect(() => {
+    return npcTemplateStore.subscribe(() => setNpcTemplateTick(t => t + 1));
+  }, []);
+
+  // 放映中当前回合 NPC 的图鉴模板（沙盘下方特性面板数据源）：
+  // 仅放映已开始且处于 NPC 回合时解析；PC 回合 / 暂停（currentTurn 清空）/ 非放映 / 自定义 NPC 均为 null。
+  // combatant.templateId 是模板业务键（非 store 内部 id），与拾取逻辑同款按 templateId 字段查找。
+  const activeTurnNpcTemplate = useMemo(() => {
+    if (!record || record.mode !== 'playback' || !playbackStarted || !currentTurn) return null;
+    const combatant = record.combatants.find(c => c.id === currentTurn.combatantId);
+    if (!combatant || combatant.isPc || !combatant.templateId) return null;
+    const tpl = npcTemplateStore.getAll().find(t => t.templateId === combatant.templateId) ?? null;
+    // 模板存在但既无结构化 traits 也无 features 原文时不占位，避免空面板
+    if (!tpl || !(tpl.traits?.length || tpl.features?.trim())) return null;
+    return tpl;
+    // npcTemplateTick：模板编辑后刷新
+  }, [record, currentTurn, playbackStarted, npcTemplateTick]);
 
   // 突袭回合标记：状态与弹窗逻辑由 hook 接管；onConfirmed 负责与「从头播放」流程联动
   const {
@@ -1794,6 +1815,9 @@ export default function CombatSession() {
           });
         }}
       />
+
+      {/* ✅ 放映中 NPC 回合：展示该参战者来源图鉴条目的「其他信息 > 特性」版块（沙盘下方、玩家操作审阅上方） */}
+      {activeTurnNpcTemplate && <CombatantTraitPanel template={activeTurnNpcTemplate} />}
 
       {/* ✅ 玩家操作审阅窗口：沙盘下方常驻区块（待审提交 diff + 通过/拒绝 + 直接放行开关） */}
       <PlayerActionReviewPanel
