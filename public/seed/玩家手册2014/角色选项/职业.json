@@ -7140,8 +7140,13 @@
         "text": "第2级时，你解除了体内魔力之源的封印，从中涌现的魔力体现为你的可用术法点。你可以使用术法点创造各种魔法效应。",
         "role": "active",
         "level": 2,
-        "activation": "free",
-        "resource": "manual"
+        "activation": "bonus",
+        "resource": "pool",
+        "poolFormula": {
+          "type": "classLevel",
+          "multiplier": 1,
+          "restKind": "long"
+        }
       },
       {
         "name": "超魔法",
