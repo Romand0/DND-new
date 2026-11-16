@@ -1,12 +1,13 @@
 // 伤害弹窗 —— 攻击命中后展示，解析伤害骰、输入各骰结果、计算伤害、影响 HP
 import { useState, useMemo, Fragment } from 'react';
-import { X, Swords, Dices, Calculator } from 'lucide-react';
+import { X, Swords, Dices, Calculator, Zap } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import type { Combatant, NpcAttack, AdvantageReason } from '@/types/combat';
-import type { Attack } from '@/types/character';
+import type { Attack, SpellSlotLevel } from '@/types/character';
 import type { DamageResolution } from '@/types/damage';
 import { createUntypedResolution, formatDamageBreakdown, inferWeaponDamageSource, normalizeDamageType, resolveDamage } from '@/data/damageRules';
 import { getCombatantAffinities } from '@/data/combatAffinities';
+import type { AttackRiderOption, AttackRiderSelection } from '@/data/attackRiders';
 
 interface Props {
   attacker: Combatant;
@@ -20,6 +21,8 @@ interface Props {
   reasons?: AdvantageReason[];
   /** 应用伤害：由 main 调用 combatStore.update 写入新 HP；致命伤害（HP 归零）时附带状态决定，
    * 同时返回完整信息用于 main 写入先攻表格 */
+  /** 命中触发类 rider（至圣斩/震慑拳）：勾选后追加骰 / 豁免判定，资源由 main 落地扣减 */
+  riders?: AttackRiderOption[];
   onApplyDamage: (payload: {
     damage: number;
     /** 抗性前原始伤害（重击加骰后） */
@@ -31,6 +34,8 @@ interface Props {
     isCritical: boolean;    // 是否重击（由主方传入）
     /** 抗性结算明细（未声明伤害类型时为 untyped 结果） */
     resolution: DamageResolution;
+    /** 勾选的命中触发 rider（至圣斩环级 / 震慑拳豁免结果），main 据此扣资源与挂状态 */
+    riders?: AttackRiderSelection[];
   }) => void;
   onClose: () => void;
   /** 由攻击检定阶段带入，决定是否为重击 */
@@ -96,6 +101,7 @@ export default function CombatDamageModal({
   disadvantage,
   rollMode,
   reasons,
+  riders,
   onApplyDamage,
   onClose,
   isCritical = false,
@@ -123,15 +129,66 @@ export default function CombatDamageModal({
   const [calculated, setCalculated] = useState<number | null>(null);
   // NPC 致命伤害时的状态决定：昏迷 / 死亡
   const [downedStatus, setDownedStatus] = useState<'unconscious' | 'dead' | null>(null);
+  // 命中触发 rider（至圣斩/震慑拳）：勾选状态、选环、rider 骰输入与豁免结果
+  const [riderChecks, setRiderChecks] = useState<Record<string, boolean>>({});
+  const [riderSlotLevel, setRiderSlotLevel] = useState<Record<string, SpellSlotLevel | undefined>>({});
+  const [riderDice, setRiderDice] = useState<Record<string, string[]>>({});
+  const [riderSaveRoll, setRiderSaveRoll] = useState<Record<string, string>>({});
 
-  // 计算总伤害：重击只翻倍伤害骰，不翻倍固定加值
+  /** rider 的骰子数：基础 + 环级升级 + 目标种类加骰（不死/邪眷） */
+  const riderDiceCount = (option: AttackRiderOption, slotLevel?: SpellSlotLevel): number => {
+    let count = parseDamage(option.damage?.dice ?? '').count;
+    if (option.perSlotDice && slotLevel) {
+      const extra = Math.max(0, (parseInt(slotLevel.replace('level', ''), 10) || 1) - 1);
+      count += extra * parseDamage(option.perSlotDice.dice).count;
+    }
+    if (option.bonusDice && target.creatureType && option.bonusDice.vs.includes(target.creatureType)) {
+      count += parseDamage(option.bonusDice.dice).count;
+    }
+    return count;
+  };
+  const riderDiceSides = (option: AttackRiderOption): number =>
+    parseDamage(option.damage?.dice ?? option.perSlotDice?.dice ?? '').sides;
+
+  const updateRiderDice = (name: string, len: number, idx: number, val: string) => {
+    setRiderDice((prev) => {
+      const arr = [...(prev[name] ?? Array.from({ length: len }).map(() => ''))];
+      arr[idx] = val;
+      return { ...prev, [name]: arr };
+    });
+    setCalculated(null);
+    setDownedStatus(null);
+  };
+
+  const rollRiderDice = (name: string, count: number, sides: number) => {
+    if (count === 0 || sides === 0) return;
+    const result = rollDice({ sides: sides as 4 | 6 | 8 | 10 | 12 | 20, count, mode: 'independent' });
+    setRiderDice((prev) => ({ ...prev, [name]: result.values.map(String) }));
+    setCalculated(null);
+    setDownedStatus(null);
+  };
+
+  const checkedRiders = (riders ?? []).filter(o => riderChecks[o.featureName]);
+
+  // 计算总伤害：重击只翻倍伤害骰，不翻倍固定加值；rider 骰随重击一起翻倍（5e 至圣斩重击语义）
   const computeTotal = (): number => {
     let diceSum = 0;
     for (const v of diceValues) {
       const n = parseInt(v, 10);
       if (!isNaN(n)) diceSum += n;
     }
-    return parsed.bonus + (isCritical ? diceSum * 2 : diceSum);
+    let total = parsed.bonus + (isCritical ? diceSum * 2 : diceSum);
+    for (const option of checkedRiders) {
+      const len = riderDiceCount(option, riderSlotLevel[option.featureName]);
+      const arr = riderDice[option.featureName] ?? [];
+      let riderSum = 0;
+      for (const v of arr.slice(0, len)) {
+        const n = parseInt(v, 10);
+        if (!isNaN(n)) riderSum += n;
+      }
+      total += isCritical ? riderSum * 2 : riderSum;
+    }
+    return total;
   };
 
   const handleCalc = () => {
@@ -165,13 +222,48 @@ export default function CombatDamageModal({
   const damageType = useMemo(() => normalizeDamageType(attack.damageType), [attack.damageType]);
   const resolution = useMemo<DamageResolution | null>(() => {
     if (calculated === null) return null;
-    if (!damageType) return createUntypedResolution(calculated);
+    // 武器分量（含固定加值与重击翻倍）
+    let weaponDiceSum = 0;
+    for (const v of diceValues) {
+      const n = parseInt(v, 10);
+      if (!isNaN(n)) weaponDiceSum += n;
+    }
+    const weaponAmount = parsed.bonus + (isCritical ? weaponDiceSum * 2 : weaponDiceSum);
+    // rider 分量：光耀等独立类型分组件走抗性/易伤（rider 骰随重击一起翻倍）
+    const riderParts: { type: NonNullable<ReturnType<typeof normalizeDamageType>>; amount: number }[] = [];
+    for (const option of checkedRiders) {
+      const riderType = normalizeDamageType(option.damage?.damageType ?? option.bonusDice?.damageType ?? '');
+      if (!riderType) continue;
+      const len = riderDiceCount(option, riderSlotLevel[option.featureName]);
+      const arr = riderDice[option.featureName] ?? [];
+      let riderSum = 0;
+      for (const v of arr.slice(0, len)) {
+        const n = parseInt(v, 10);
+        if (!isNaN(n)) riderSum += n;
+      }
+      riderParts.push({ type: riderType, amount: isCritical ? riderSum * 2 : riderSum });
+    }
+    // 武器未声明类型：绕过抗性（历史语义），rider 分量独立结算后手工合并
+    if (!damageType) {
+      const weaponRes = createUntypedResolution(weaponAmount);
+      if (riderParts.length === 0) return weaponRes;
+      const riderRes = resolveDamage(riderParts, getCombatantAffinities(target), inferWeaponDamageSource(attack));
+      return {
+        base: weaponRes.base + riderRes.base,
+        final: weaponRes.final + riderRes.final,
+        components: [...weaponRes.components, ...riderRes.components],
+        notes: [...weaponRes.notes, ...riderRes.notes],
+        anyResisted: riderRes.anyResisted,
+        anyImmune: riderRes.anyImmune,
+        anyVulnerable: riderRes.anyVulnerable,
+      };
+    }
     return resolveDamage(
-      [{ type: damageType, amount: calculated }],
+      [{ type: damageType, amount: weaponAmount }, ...riderParts],
       getCombatantAffinities(target),
       inferWeaponDamageSource(attack),
     );
-  }, [calculated, damageType, target, attack]);
+  }, [calculated, damageType, target, attack, checkedRiders, riderDice, riderSlotLevel, isCritical, parsed.bonus, diceValues]);
 
   // HP 计算
   const maxHp = target.maxHp ?? 0;
@@ -206,7 +298,22 @@ export default function CombatDamageModal({
   const handleConfirm = () => {
     // NPC 致命伤害必须先做状态决定；PC 致命伤害不附带状态（角色机制暂不考虑）
     if (needDownedDecision && !downedStatus) return;
+    // 带 save 的 rider（震慑拳）勾选后必须填写豁免结果
+    for (const option of checkedRiders) {
+      if (option.save && !(riderSaveRoll[option.featureName] ?? '').trim()) return;
+    }
     const diceNums = diceValues.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
+    const riderSelections: AttackRiderSelection[] = checkedRiders.map(option => ({
+      featureName: option.featureName,
+      ...(option.kind === 'spellSlot' ? { slotLevel: riderSlotLevel[option.featureName] ?? option.slotLevels?.[0]?.level } : {}),
+      ...(option.save
+        ? {
+            saveResult: (parseInt(riderSaveRoll[option.featureName], 10) || 0) < option.save.dc
+              ? ('fail' as const)
+              : ('success' as const),
+          }
+        : {}),
+    }));
     onApplyDamage({
       damage,
       baseDamage,
@@ -216,6 +323,7 @@ export default function CombatDamageModal({
       damageBonus: parsed.bonus,
       isCritical,
       resolution: resolution ?? createUntypedResolution(baseDamage),
+      ...(riderSelections.length > 0 ? { riders: riderSelections } : {}),
     });
     onClose();
   };
@@ -343,6 +451,132 @@ export default function CombatDamageModal({
             </div>
           )}
 
+          {/* 命中触发 rider（至圣斩/震慑拳）：勾选追加骰 / 豁免判定，资源由确认时扣减 */}
+          {riders && riders.length > 0 && (
+            <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 space-y-2">
+              <div className="text-sm font-medium text-yellow-500 flex items-center gap-1.5">
+                <Zap className="w-4 h-4" />
+                命中触发
+              </div>
+              {riders.map(option => {
+                const checked = riderChecks[option.featureName] === true;
+                const slotLevel = riderSlotLevel[option.featureName];
+                const diceLen = checked ? riderDiceCount(option, slotLevel) : 0;
+                const diceSides = riderDiceSides(option);
+                return (
+                  <div key={option.featureName} className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          const next = e.target.checked;
+                          setRiderChecks(prev => ({ ...prev, [option.featureName]: next }));
+                          if (next) {
+                            // 默认选最低有余量的环级；初始化 rider 骰输入行
+                            if (option.kind === 'spellSlot' && option.slotLevels?.length) {
+                              setRiderSlotLevel(prev => ({ ...prev, [option.featureName]: prev[option.featureName] ?? option.slotLevels![0].level }));
+                            }
+                            const len = riderDiceCount(option, option.kind === 'spellSlot' ? (riderSlotLevel[option.featureName] ?? option.slotLevels?.[0]?.level) : undefined);
+                            setRiderDice(prev => ({ ...prev, [option.featureName]: prev[option.featureName] ?? Array.from({ length: len }).map(() => '') }));
+                          }
+                          setCalculated(null);
+                          setDownedStatus(null);
+                        }}
+                        className="accent-yellow-500"
+                      />
+                      <span className="font-medium">{option.featureName}</span>
+                      <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                        {option.kind === 'pool'
+                          ? `消耗 ${option.poolCost} 点${option.poolAvailable != null ? `（余 ${option.poolAvailable}）` : ''}`
+                          : '消耗法术位（选环升级）'}
+                      </span>
+                    </label>
+                    <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted leading-relaxed">{option.hint}</div>
+                    {checked && option.kind === 'spellSlot' && option.slotLevels && option.slotLevels.length > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <span className="dark:text-text-dark-muted light:text-text-light-muted">消耗环级</span>
+                        {option.slotLevels.map(s => (
+                          <button
+                            key={s.level}
+                            onClick={() => {
+                              setRiderSlotLevel(prev => ({ ...prev, [option.featureName]: s.level }));
+                              const len = riderDiceCount(option, s.level);
+                              setRiderDice(prev => ({ ...prev, [option.featureName]: Array.from({ length: len }).map(() => '') }));
+                              setCalculated(null);
+                            }}
+                            className={`px-2 py-0.5 rounded text-xs transition-all ${
+                              slotLevel === s.level
+                                ? 'bg-yellow-500 text-white'
+                                : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light hover:bg-yellow-500/10'
+                            }`}
+                          >
+                            {s.level.replace('level', '环')}（余{s.remaining}）
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {checked && diceLen > 0 && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
+                          {option.featureName}骰（{diceLen}d{diceSides}）
+                        </span>
+                        {Array.from({ length: diceLen }).map((_, i) => (
+                          <Fragment key={i}>
+                            {i > 0 && <span className="dark:text-text-dark-muted light:text-text-light-muted">+</span>}
+                            <input
+                              type="number"
+                              min={1}
+                              max={diceSides}
+                              value={riderDice[option.featureName]?.[i] ?? ''}
+                              onChange={(e) => updateRiderDice(option.featureName, diceLen, i, e.target.value)}
+                              placeholder={`d${diceSides}`}
+                              className="w-14 px-2 py-1 text-center rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                            />
+                          </Fragment>
+                        ))}
+                        <button
+                          onDoubleClick={() => rollRiderDice(option.featureName, diceLen, diceSides)}
+                          className="px-2 py-1 rounded-lg bg-yellow-500 text-white flex items-center gap-1 hover:bg-yellow-600 active:scale-90 transition-all text-xs shrink-0 select-none"
+                          title="双击摇骰"
+                        >
+                          <Dices className="w-3 h-3" />
+                          摇骰
+                        </button>
+                      </div>
+                    )}
+                    {checked && option.save && (
+                      <div className="text-xs space-y-1">
+                        <div className="dark:text-text-dark-muted light:text-text-light-muted">
+                          目标{option.save.abilityLabel}豁免，DC {option.save.dc}（填写豁免总结果，含加值）
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number"
+                            min={1}
+                            max={30}
+                            value={riderSaveRoll[option.featureName] ?? ''}
+                            onChange={(e) => {
+                              setRiderSaveRoll(prev => ({ ...prev, [option.featureName]: e.target.value }));
+                              setCalculated(null);
+                            }}
+                            placeholder="豁免总值"
+                            className="w-20 px-2 py-1 text-center rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                          />
+                          {(riderSaveRoll[option.featureName] ?? '').trim() !== '' && (
+                            <span className={parseInt(riderSaveRoll[option.featureName], 10) >= option.save.dc ? 'text-green-400' : 'text-red-400 font-medium'}>
+                              {parseInt(riderSaveRoll[option.featureName], 10) >= option.save.dc ? '豁免成功' : '豁免失败 → 震慑'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* 计算按钮 */}
           <button
             onClick={handleCalc}
@@ -460,17 +694,21 @@ export default function CombatDamageModal({
                 </div>
               )}
 
-              {/* 确认按钮：NPC 致命伤害未决定时禁用 */}
+              {/* 确认按钮：NPC 致命伤害未决定 / rider 豁免未填写时禁用 */}
               <button
                 onClick={handleConfirm}
-                disabled={needDownedDecision && !downedStatus}
+                disabled={(needDownedDecision && !downedStatus) || checkedRiders.some(o => o.save && !(riderSaveRoll[o.featureName] ?? '').trim())}
                 className={`w-full py-2.5 rounded-lg font-medium transition-colors ${
-                  needDownedDecision && !downedStatus
+                  (needDownedDecision && !downedStatus) || checkedRiders.some(o => o.save && !(riderSaveRoll[o.featureName] ?? '').trim())
                     ? 'bg-gray-400/60 text-white/70 cursor-not-allowed'
                     : 'bg-primary text-white hover:bg-primary/90'
                 }`}
               >
-                {needDownedDecision && !downedStatus ? '请先决定状态' : '确认伤害'}
+                {needDownedDecision && !downedStatus
+                  ? '请先决定状态'
+                  : checkedRiders.some(o => o.save && !(riderSaveRoll[o.featureName] ?? '').trim())
+                    ? '请先填写 rider 豁免结果'
+                    : '确认伤害'}
               </button>
             </div>
           )}

@@ -16,6 +16,7 @@ import MyTurnPanel from '@/components/spectate/MyTurnPanel';
 import Battleground from '@/components/Battleground';
 import CombatResourceHud from '@/components/combat/CombatResourceHud';
 import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHandOps } from '@/components/spectate/combatantAdapter';
+import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, TurnCommitOp } from '@/types/realtime';
@@ -572,6 +573,16 @@ export default function PlayerSpectate() {
                 }
                 if (pendingOps.some((op) => op.kind === 'feature-use' && op.featureName === feature.name)) {
                   setNotice(`「${feature.name}」已在本回合操作列表中，提交后由 DM 审核`);
+                  return;
+                }
+                // 命中触发类（至圣斩/震慑拳）：仅声明，池/法术位由 DM 在命中时于伤害弹窗结算
+                if (resolveFeatureCapability(feature.name).channel === 'attack_rider') {
+                  addOp({
+                    kind: 'feature-use',
+                    featureName: feature.name,
+                    activation: feature.activation,
+                    roundText: `发动「${feature.name}」（命中时 DM 结算）`,
+                  });
                   return;
                 }
                 addOp({

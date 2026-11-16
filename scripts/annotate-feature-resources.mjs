@@ -26,6 +26,8 @@ const POOL_OWNERS = {
   混元体: { activation: 'action', formula: { type: 'fixed', value: 1, restKind: 'long' } },
   // 职业级覆盖：圣武士誓言引导神力次数表与牧师不同（PHB2014 圣武士固定 1 次/短休），按「名@职业」优先匹配
   '引导神力@圣武士': { activation: 'free', formula: { type: 'fixed', value: 1, restKind: 'short' } },
+  // 魔力泉涌（法师）：附赠动作，每层环位长休恢复 1 点（PHB2014 恢复于长休，公式按职业等级 = 环位数）
+  魔力泉涌: { activation: 'bonus', formula: { type: 'classLevel', multiplier: 1, restKind: 'long' } },
 };
 
 // 池成员显式映射（武僧宗派成员无 system 链接，显式 pool 引用气；cost 与文本核对）

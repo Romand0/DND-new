@@ -331,6 +331,90 @@ async function main() {
   check('7e 短休只恢复 short 池（卓越0 激励1 不动）', settle.shortMastery === 0 && settle.shortInspire === 1, settle);
   check('7f 长休恢复 long 池（激励0）', settle.longInspire === 0, settle);
 
+  // ===== 8. P3 attack_rider 通道：法术位 rider（至圣斩）+ 池 rider（震慑拳）+ 魔力泉涌池公式 =====
+  const rider = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const paladinChar = characterStore.add({
+      name: '主动技能·圣骑士', race: '人类', level: 5, profession: { class: '圣武士' },
+      maxHp: 42, currentHp: 42, isSandbox: true,
+      abilities: { strength: { score: 16, modifier: 3 }, dexterity: { score: 10, modifier: 0 }, constitution: { score: 14, modifier: 2 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 10, modifier: 0 }, charisma: { score: 14, modifier: 2 } },
+      attacks: [{ name: '长剑', damageDice: '1d8', damageType: '挥砍', bonus: 5, range: '5尺', properties: [] }],
+      spells: { spellSlots: { level1: { max: 4, used: 0 }, level2: { max: 2, used: 0 } } },
+      features: [{ name: '至圣斩', description: '命中时耗法术位追加 2d8 光耀伤害', category: '职业特性', role: 'active', level: 2, activation: 'free', resource: 'manual' }],
+    });
+    const monkChar = characterStore.add({
+      name: '主动技能·武僧', race: '人类', level: 5, profession: { class: '武僧' },
+      proficiencyBonus: 3,
+      maxHp: 38, currentHp: 38, isSandbox: true,
+      abilities: { strength: { score: 12, modifier: 1 }, dexterity: { score: 16, modifier: 3 }, constitution: { score: 14, modifier: 2 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 16, modifier: 3 }, charisma: { score: 10, modifier: 0 } },
+      attacks: [{ name: '徒手打击', damageDice: '1d6', damageType: '钝击', bonus: 3, range: '5尺', properties: [] }],
+      features: [
+        { name: '气', description: '武僧气池：短休恢复，数量等于武僧职业等级', category: '职业特性', role: 'active', level: 1, activation: 'free', resource: 'pool', poolFormula: { type: 'classLevel', multiplier: 1, restKind: 'short' } },
+        { name: '震慑拳', description: '命中时耗1点气：目标体质豁免（DC 8＋熟练＋感知）失败则震慑', category: '职业特性', role: 'active', level: 1, activation: 'free', resource: 'pool', pool: '气', cost: 1 },
+        { name: '魔力泉涌', description: '法师魔力泉涌：附赠动作，每环位 1 点', category: '职业特性', role: 'active', level: 1, activation: 'bonus', resource: 'pool', poolFormula: { type: 'classLevel', multiplier: 1, restKind: 'long' } },
+      ],
+    });
+    // 武僧兼任魔力泉涌载体（L5 → max=5，公式隔离于特性本身）
+    const addC = (id, name, isPc, characterId, hp) => ({
+      id, name, isPc, ...(characterId ? { characterId } : {}), initiative: 7,
+      actions: 1, bonusActions: 1, reactions: 1, currentHp: hp, maxHp: hp, movementUsed: 0,
+      heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [],
+    });
+    combatStore.update(rec.id, {
+      combatants: [
+        ...rec.combatants,
+        addC('feat-paladin', '技能圣骑士', true, paladinChar.id, 42),
+        addC('feat-monk', '技能武僧', true, monkChar.id, 38),
+      ],
+      updatedAt: Date.now(),
+    });
+    const { getAttackRiders, applyAttackRiders } = await import('/src/data/attackRiders.ts');
+    const palOpts = getAttackRiders(combatStore.get(rec.id), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-paladin'));
+    const monkOpts = getAttackRiders(combatStore.get(rec.id), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-monk'));
+    // 圣骑士：至圣斩 spellSlot 选项
+    const palOpt = palOpts[0];
+    // 落地：耗 1 环法术位（无豁免 rider）
+    const palLines = applyAttackRiders(combatStore.get(rec.id), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-paladin'), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc'), [{ featureName: '至圣斩', slotLevel: 'level1' }], 0);
+    const palDelta1 = combatStore.getSpellSlotDeltas(rec.id, 'feat-paladin').level1;
+    // 武僧：震慑拳 pool 选项 + DC（8+prof3+wis3=14）
+    const monkOpt = monkOpts[0];
+    // 落地：耗 1 气 + 豁免失败挂震慑（目标 feat-npc 存活）
+    const monkLines = applyAttackRiders(combatStore.get(rec.id), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-monk'), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc'), [{ featureName: '震慑拳', saveResult: 'fail' }], 2);
+    const monkKiDelta = combatStore.getFeaturePoolView(rec.id, 'feat-monk').find(v => v.featureKey === 'feature:气')?.usedCombat;
+    const stunnedOn = globalStatusManager.getActiveStatuses('feat-npc').some(i => i.definitionId === 'stunned');
+    const todo = combatStore.get(rec.id).turnTodos?.find(t => t.combatantId === 'feat-npc' && t.type === 'condition_check');
+    // 魔力泉涌池公式：classLevel multiplier 1 → max = 5
+    const spring = combatStore.getFeaturePoolView(rec.id, 'feat-monk').find(v => v.featureKey === 'feature:魔力泉涌');
+    // 死亡目标：资源照扣，跳过震慑挂载（用 feat-pc2 当死靶）
+    globalStatusManager.getActiveStatuses('feat-pc2').forEach(i => globalStatusManager.declareEnd(i.instanceId));
+    const deadLines = applyAttackRiders(combatStore.get(rec.id), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-monk'), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2'), [{ featureName: '震慑拳', saveResult: 'fail' }], 2, { targetAlive: false });
+    const deadStunned = globalStatusManager.getActiveStatuses('feat-pc2').some(i => i.definitionId === 'stunned');
+    // 清场：回滚 delta + 解除状态
+    combatStore.update(rec.id, {
+      featureUses: {}, spellSlotChanges: {}, turnTodos: [],
+      combatants: rec.combatants,
+      updatedAt: Date.now(),
+    });
+    globalStatusManager.getActiveStatuses('feat-npc').forEach(i => globalStatusManager.declareEnd(i.instanceId));
+    return {
+      palOpt: { name: palOpt?.featureName, kind: palOpt?.kind, dmg: palOpt?.damage, perSlot: palOpt?.perSlotDice, bonusVs: palOpt?.bonusDice, levels: palOpt?.slotLevels },
+      palLine: palLines[0], palDelta1,
+      monkOpt: { name: monkOpt?.featureName, kind: monkOpt?.kind, poolKey: monkOpt?.poolKey, cost: monkOpt?.poolCost, avail: monkOpt?.poolAvailable, max: monkOpt?.poolMax, save: monkOpt?.save },
+      monkLine: monkLines[0], monkKiDelta, stunnedOn, todoRound: todo ? { start: todo.startRound, end: todo.endRound, name: todo.name } : null,
+      springMax: spring?.max, springAvail: spring?.available,
+      deadStunned, deadLine: deadLines[0],
+    };
+  });
+  check('8a 至圣斩 spellSlot 选项（2d8 光耀 + 每环 1d8 + 不死/邪异 +1d8 + 1/2 环余量 4/2）', rider.palOpt?.name === '至圣斩' && rider.palOpt?.kind === 'spellSlot' && rider.palOpt?.dmg?.dice === '2d8' && rider.palOpt?.dmg?.damageType === '光耀' && rider.palOpt?.perSlot?.dice === '1d8' && Array.isArray(rider.palOpt?.bonusVs?.vs) && rider.palOpt?.levels?.find(l => l.level === 'level1')?.remaining === 4 && rider.palOpt?.levels?.find(l => l.level === 'level2')?.remaining === 2, rider.palOpt);
+  check('8b 震慑拳 pool 选项（池 feature:气 余量 5/5 DC14 体质豁免）', rider.monkOpt?.name === '震慑拳' && rider.monkOpt?.kind === 'pool' && rider.monkOpt?.poolKey === 'feature:气' && rider.monkOpt?.cost === 1 && rider.monkOpt?.avail === 5 && rider.monkOpt?.max === 5 && rider.monkOpt?.save?.dc === 14 && rider.monkOpt?.save?.abilityLabel === '体质', rider.monkOpt);
+  check('8c 至圣斩落地扣 1 环法术位 delta=1 + 记录行含「1环法术位」', rider.palDelta1 === 1 && (rider.palLine ?? '').includes('至圣斩') && (rider.palLine ?? '').includes('1环法术位'), rider);
+  check('8d 震慑拳落地扣 1 气 + 豁免失败挂 stunned + 待办 endRound=start+2', rider.monkKiDelta === 1 && rider.stunnedOn === true && rider.todoRound?.start === 2 && rider.todoRound?.end === 4 && (rider.monkLine ?? '').includes('震慑'), rider);
+  check('8e 魔力泉涌 classLevel 池 max=5 余量 5', rider.springMax === 5 && rider.springAvail === 5, rider.spring);
+  check('8f 死亡目标跳过震慑挂载（资源行仍返回）', rider.deadStunned === false && (rider.deadLine ?? '').includes('震慑'), rider);
+
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

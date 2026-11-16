@@ -31,3 +31,9 @@
 - 使用 `CombatSession` 组件时，需要传入 `sessionId` 参数，该参数表示当前战斗会话的 ID。
 - `CombatSession` 组件需要依赖 `AuthContext`，确保用户具有访问战斗会话的权限。
 - `CombatSession` 组件中包含多个 hooks 和组件，需要根据具体需求进行使用。
+
+## 主动技能与命中触发（active-skills-engine P2/P3）
+
+- `handleFeatureUse`：主动技能按钮统一入口。流程为「动作成本 → 池扣减（featureUses 漏斗）→ 通道执行」。attack_rider 通道（至圣斩/震慑拳）是声明入口，跳过池扣，弹提示引导 DM 在伤害结算弹窗勾选发动；manual/checkModifier/reaction 通道弹提示说明。
+- 伤害弹窗渲染处按 usageMode（近战/投掷）实时调用 `getAttackRiders` 传入 rider 选项（取 record 最新参战者对象）；`onApplyDamage` 在伤害落地后调用 `applyAttackRiders` 扣资源/挂震慑，返回行以 kind 'record' 写入回合记录。
+- 玩家端 PlayerSpectate 对 attack_rider 特性仅提交声明 op（不带 poolKey），由 DM 在命中时结算。

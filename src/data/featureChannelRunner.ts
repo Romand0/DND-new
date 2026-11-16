@@ -81,5 +81,10 @@ export function executeFeatureChannel(
     return { note: incoming ? '自身近战攻击获得优势，敌人对你的近战攻击也获得优势（至下回合开始）' : '相关检定获得优劣势标记（至下回合开始）' };
   }
 
+  // attack_rider（命中触发）：声明不扣资源，实际消耗与效果在命中时刻由伤害结算弹窗落地
+  if (capability.channel === 'attack_rider' && capability.attackRider) {
+    return { note: `命中时结算：${capability.attackRider.hint}` };
+  }
+
   return { note: null };
 }
