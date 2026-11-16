@@ -256,13 +256,18 @@ registerReactionDetector((record, event) => {
     // 必须与攻击方敌对（同阵营不反应）
     if (!!owner.isPc === !!attacker.isPc) continue;
     for (const src of getOwnerReactionSources(record, owner)) {
-      if (src.trigger !== 'attack_targeted') continue;
+      // attack_targeted：被攻击者本人（scope=self）或其同阵营者（scope=ally，如护盾术式守护）
+      // ally_attacked：盟友被攻击（守护反击类，如哨兵），固定 scope=ally 语义
+      const triggerOk =
+        src.trigger === 'attack_targeted' ||
+        (src.trigger === 'ally_attacked' && (src.scope ?? 'self') === 'ally');
+      if (!triggerOk) continue;
       if (!matchesSelfOrAlly(owner, target, src.scope)) continue;
       results.push({
         ownerId: owner.id,
         definitionId: src.definitionId,
         definitionName: src.definitionName,
-        trigger: 'attack_targeted',
+        trigger: src.trigger,
         attackerId: attacker.id,
         targetId: target.id,
         spellId: src.spellId,

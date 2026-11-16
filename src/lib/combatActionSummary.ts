@@ -7,6 +7,8 @@ export interface SummaryContext {
   damage?: { amount: number; oldHp: number | null; newHp: number | null } | null;
   /** 疾走获得的额外移动力（尺） */
   dashFeet?: number;
+  /** feature-use 通道执行结果说明（挂状态/优劣势标记） */
+  featureNote?: string | null;
 }
 
 const HAND_STATE_LABELS: Record<'ready' | 'action' | 'unavailable', string> = {
@@ -44,6 +46,11 @@ export function summarizeOp(op: TurnCommitOp, ctx: SummaryContext = {}): string[
       return [`${op.slot === 'left' ? '左手' : '右手'}：${HAND_STATE_LABELS[op.state]}`];
     case 'spell-slot':
       return [op.consume ? `消耗 ${op.level} 环法术位` : `恢复 ${op.level} 环法术位`];
+    case 'feature-use': {
+      const lines = [op.roundText || `发动「${op.featureName}」`];
+      if (ctx.featureNote) lines.push(`「${op.featureName}」：${ctx.featureNote}`);
+      return lines;
+    }
     case 'stop-concentration':
       return ['停止专注'];
     case 'note':

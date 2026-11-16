@@ -9,11 +9,12 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
-import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterHandInfo, RosterInventoryItem, RosterSpellEntry, RosterSpellSlot } from '@/types/realtime';
+import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, RosterActiveFeature, RosterHandInfo, RosterInventoryItem, RosterSpellEntry, RosterSpellSlot } from '@/types/realtime';
 import { TURN_TODO_TYPE_LABELS } from '@/types/combat';
 import type { CombatRecord, Combatant } from '@/types/combat';
 import type { HandSlot } from '@/types/character';
 import { deriveFeatureRole } from '@/data/featureRole';
+import { resolvePoolKey, getPoolCost } from '@/data/featurePool';
 import { spellStore } from '@/data/spellStore';
 
 const BROADCAST_DEBOUNCE_MS = 300;
@@ -63,14 +64,35 @@ function projectSpellSlots(record: CombatRecord, c: Combatant): RosterSpellSlot[
   return view.map((s) => ({ level: s.level, label: s.label, used: s.used, max: s.max }));
 }
 
-/** PC 主动技能 → 投影：角色卡 features 按作用方式派生（与 DM「操作」tab 同源） */
-function projectActiveFeatures(c: Combatant): { name: string; description: string }[] | null {
+/** PC 主动技能 → 投影：角色卡 features 按作用方式派生 + 池量漏斗实时值（玩家端按钮免解析） */
+function projectActiveFeatures(record: CombatRecord, c: Combatant): RosterActiveFeature[] | null {
   if (!c.isPc || !c.characterId) return null;
   const character = characterStore.get(c.characterId);
   if (!character) return null;
   const active = (character.features ?? []).filter((f) => deriveFeatureRole(f) === 'active');
   if (active.length === 0) return null;
-  return active.map((f) => ({ name: f.name, description: f.description ?? '' }));
+  const poolView = combatStore.getFeaturePoolView(record.id, c.id) ?? [];
+  return active.map((f) => {
+    const poolKey = resolvePoolKey(f);
+    const cost = getPoolCost(f);
+    const poolEntry = poolKey ? poolView.find((p) => p.featureKey === poolKey) : undefined;
+    const hasPool = poolKey != null && poolEntry != null;
+    return {
+      name: f.name,
+      description: f.description ?? '',
+      activation: f.activation ?? 'free',
+      resource: f.resource ?? 'manual',
+      ...(hasPool
+        ? {
+            poolKey: poolKey!,
+            poolLeft: poolEntry!.available,
+            poolMax: poolEntry!.max,
+            cost: Math.max(1, cost),
+            disabled: poolEntry!.available < Math.max(1, cost),
+          }
+        : {}),
+    };
+  });
 }
 
 /** PC 法术 → 投影：角色卡只存法术名（cantrips + custom），按名匹配模板库取环阶/施法时间/专注标记 */
@@ -157,7 +179,7 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
         })),
       inventory: projectInventory(record, c),
       spellSlots: projectSpellSlots(record, c),
-      activeFeatures: projectActiveFeatures(c),
+      activeFeatures: projectActiveFeatures(record, c),
       spells: projectSpells(c),
     };
   });

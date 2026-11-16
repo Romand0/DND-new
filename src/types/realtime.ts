@@ -121,6 +121,17 @@ export type TurnCommitOp =
       roundText: string;
     }
   | {
+      kind: 'feature-use';
+      featureName: string;
+      /** 池键（resource=pool 的特性才携带）；DM 端 consumeFeatureUse 校验余量 */
+      poolKey?: string;
+      /** 单次消耗量（与投影 cost 同值） */
+      cost?: number;
+      /** 施法形态：DM 端按此扣动作 */
+      activation: 'action' | 'bonus' | 'reaction' | 'free';
+      roundText: string;
+    }
+  | {
       kind: 'stop-concentration';
       roundText: string;
     }
@@ -212,10 +223,30 @@ export interface CombatRosterEntry {
   inventory?: RosterInventoryItem[] | null;
   /** PC 战斗法术位视图（角色卡法术位 + 战斗消耗漏斗后的真实可用数；NPC 或无法术位为 null） */
   spellSlots?: RosterSpellSlot[] | null;
-  /** PC 主动技能（角色卡 features 按作用方式派生；NPC 为 null） */
-  activeFeatures?: { name: string; description: string }[] | null;
+  /** PC 主动技能（角色卡 features 按作用方式派生，含池量漏斗实时值；NPC 为 null） */
+  activeFeatures?: RosterActiveFeature[] | null;
   /** PC 可施法术列表（角色卡法术名解析模板库所得；NPC 或无法术为 null） */
   spells?: RosterSpellEntry[] | null;
+}
+
+/** 主动技能投影条目（玩家端主动技能按钮所需最小集，含池量与动作成本） */
+export interface RosterActiveFeature {
+  name: string;
+  description: string;
+  /** 施法形态：动作消耗依据 */
+  activation: 'action' | 'bonus' | 'reaction' | 'free';
+  /** 资源模型：pool=池消耗 / toggle=状态切换 / manual=手动裁定 */
+  resource: 'pool' | 'toggle' | 'manual';
+  /** 池键（resource=pool 时存在）；feature:<名> 口径 */
+  poolKey?: string;
+  /** 池可用数（漏斗后实时值；resource=pool 时存在） */
+  poolLeft?: number;
+  /** 池满量 */
+  poolMax?: number;
+  /** 单次消耗量 */
+  cost?: number;
+  /** 不可用（池耗尽等）：按钮禁用 */
+  disabled?: boolean;
 }
 
 /** 战斗法术投影条目（玩家施法表单所需最小集） */

@@ -42,6 +42,20 @@ const TOGGLES = {
   鲁莽攻击: { activation: 'free' },
 };
 
+// D 类反应声明（FeatureReaction 同口径：trigger/resolution/scope/prompt；slotLevel 缺省不耗环）。
+// 只声明「何时能反应、用哪种解决方式」，具体效果由 DM 按既有流程结算。
+// trigger 枚举：move_leave_reach/enter_reach/attack_targeted/ally_attacked/damage_taken/spell_cast
+// resolution 枚举：attack/spell/status/damage_modifier/movement
+// 注意：damage_taken 触发面在战斗伤害结算前插桩（P3 窗口），声明先行不阻断。
+const REACTIONS = {
+  直觉闪避: { trigger: 'attack_targeted', scope: 'self', resolution: 'damage_modifier', prompt: '攻击命中你时，可用反应使此次伤害减半（消耗反应）' },
+  拨挡飞弹: { trigger: 'attack_targeted', scope: 'self', resolution: 'damage_modifier', prompt: '被远程武器攻击命中时，可用反应减伤 1d10＋敏捷调整值＋武僧职业等级（减至 0 可耗 1 气接住飞弹反击）' },
+  轻身坠: { trigger: 'damage_taken', scope: 'self', resolution: 'damage_modifier', prompt: '承受坠地伤害时，可用反应减少 5×武僧职业等级的伤害' },
+};
+
+const REACTION_TRIGGERS = new Set(['move_leave_reach', 'enter_reach', 'attack_targeted', 'ally_attacked', 'damage_taken', 'spell_cast']);
+const REACTION_RESOLUTIONS = new Set(['attack', 'spell', 'status', 'damage_modifier', 'movement']);
+
 // activation 文本派生（manual 兜底用）：附赠动作 → bonus > 反应 → reaction > 动作 → action > free
 function deriveActivation(text) {
   if (/附赠动作/.test(text)) return 'bonus';
@@ -74,6 +88,7 @@ const ownerNames = new Set(Object.keys(POOL_OWNERS));
 let explicitCount = 0;
 let manualCount = 0;
 let activeCount = 0;
+let reactionCount = 0;
 
 for (const { file, opt, t, scope } of allTraits) {
   const isActive = t.role === 'active';
@@ -86,6 +101,24 @@ for (const { file, opt, t, scope } of allTraits) {
   // 100% 覆盖约束的参与集：role='active' 或进入任一显式映射
   if (isExplicit) activeCount++;
   else continue;
+
+  // 反应声明：独立于资源分类的附加标注（映射条目无论落在哪个桶都补 reaction 字段）
+  const rx = REACTIONS[t.name];
+  if (rx) {
+    if (!REACTION_TRIGGERS.has(rx.trigger)) {
+      errors.push(`[${scope}] 反应声明「${t.name}」trigger 非法：${rx.trigger}`);
+      continue;
+    }
+    if (rx.resolution && !REACTION_RESOLUTIONS.has(rx.resolution)) {
+      errors.push(`[${scope}] 反应声明「${t.name}」resolution 非法：${rx.resolution}`);
+      continue;
+    }
+    if (t.activation && t.activation !== 'reaction') {
+      warnings.push(`[${scope}] 反应声明「${t.name}」activation=${t.activation}（反应类特性通常为 reaction）`);
+    }
+    t.reaction = { trigger: rx.trigger, resolution: rx.resolution, scope: rx.scope, prompt: rx.prompt };
+    reactionCount++;
+  }
 
   if (owner) {
     // 池主：校验恢复时机文本证据（短休或长休的条目文本必有「休息/短休/长休」字样，卓越战技等漏写条目仅警告）
@@ -147,5 +180,5 @@ for (const file of FILES) {
   fs.writeFileSync(path, JSON.stringify(fileData.get(file), null, 2) + '\n');
 }
 
-console.log(`标注完成：显式 ${explicitCount}（池主/成员/切换）+ 默认 manual ${manualCount}，共 ${activeCount} 条`);
+console.log(`标注完成：显式 ${explicitCount}（池主/成员/切换）+ 默认 manual ${manualCount}，共 ${activeCount} 条；反应声明 ${reactionCount} 条`);
 for (const w of warnings) console.log('  WARN: ' + w);

@@ -403,6 +403,31 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'dice',
       },
     });
+
+    // 狂暴（野蛮人核心机制，主动技能引擎 status 通道挂载）：优劣势效果由施加方以
+    // instance.metadata.effects 注入（力量检定/力量豁免优势，AdvantageEffectConfig），
+    // 近战伤害加值与物理抗性属数值/结算裁定，走 TurnTodo 提醒 DM 手动结算。
+    // 叠加按缺省 replace：再次狂暴刷新持续时间（提前结束规则由待办文案提醒）。
+    this.register({
+      id: 'rage',
+      name: '狂暴',
+      description: '力量检定与力量豁免优势；力量近战武器攻击伤害获得加值；对钝击/穿刺/挥砍伤害具备抗性。回合内既未攻击也未受到伤害则提前结束。',
+      shortDescription: '力量检定/豁免优势 + 近战伤害加值 + 物理抗性',
+      startTrigger: {
+        type: 'manual',
+        description: '野蛮人用附赠动作发动狂暴。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '持续 1 分钟（10 轮）；回合内未攻击且未受伤则提前结束，或主动解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'red',
+        icon: 'flame',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {
