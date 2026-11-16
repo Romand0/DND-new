@@ -3,6 +3,8 @@
 ## 功能概述
 该文件定义了 `CombatDamageModal` 组件，用于在角色扮演游戏中展示伤害弹窗。当攻击命中后，该组件会解析伤害骰、输入各骰结果、计算伤害、影响 HP，并允许用户确认伤害结果。
 
+P3 起新增「命中触发」区（attack_rider 通道）：近战/投掷攻击命中结算时可勾选至圣斩/震慑拳，rider 骰与武器骰合并输入、重击一起翻倍，rider 伤害（如光耀）作为独立伤害分量走抗性结算；带豁免的 rider（震慑拳）需输入豁免成败后才能确认。
+
 ## 主要导出/接口
 ```typescript
 interface Props {
@@ -12,6 +14,7 @@ interface Props {
   disadvantage?: boolean;
   rollMode?: 'none' | 'advantage' | 'disadvantage';
   reasons?: AdvantageReason[];
+  riders?: AttackRiderOption[];   // 命中触发选项（近战/投掷时由 CombatSession 实时派生传入）
   onApplyDamage: (payload: {
     damage: number;
     newHp: number;
@@ -19,6 +22,7 @@ interface Props {
     diceValues: number[];
     damageBonus: number;
     isCritical: boolean;
+    riders?: AttackRiderSelection[]; // 勾选结果回传，落地在 attackRiders.applyAttackRiders
   }) => void;
   onClose: () => void;
   isCritical?: boolean;
