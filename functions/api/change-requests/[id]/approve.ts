@@ -6,6 +6,7 @@ import {
   errorResponse,
   handleOptions,
   authenticateRequest,
+  readJsonBody,
   now,
   getCampaignContext,
 } from '../../../_utils';
@@ -53,10 +54,26 @@ export async function onRequestPost(context: any): Promise<Response> {
       .first<{ base_updated_at: number }>();
     const versionDrift = !!charRow && !!baseRow && charRow.updated_at !== baseRow.base_updated_at;
 
-    const payload = JSON.parse(row.payload);
+    // 字段级采纳：DM 前端按勾选把未采纳字段回退为正式卡现状后回传合并快照；
+    // id 必须与请求角色一致，防错卡覆盖；缺省走请求原快照整体覆盖（兼容旧调用方）
+    const body = await readJsonBody<{ mergedPayload?: unknown }>(request);
+    let writePayload: any = JSON.parse(row.payload);
+    if (
+      body &&
+      typeof body.mergedPayload === 'object' &&
+      body.mergedPayload !== null &&
+      !Array.isArray(body.mergedPayload)
+    ) {
+      const mp = body.mergedPayload as Record<string, unknown>;
+      if (mp.id !== row.character_id) {
+        return errorResponse(400, '合并快照与请求角色不匹配');
+      }
+      writePayload = mp;
+    }
+
     const ts = now();
     // 快照回写 createdAt/updatedAt 保持表内一致（updatedAt 变更让其他端感知漂移）
-    payload.updatedAt = ts;
+    writePayload.updatedAt = ts;
 
     await env.DB.batch([
       env.DB
@@ -64,11 +81,11 @@ export async function onRequestPost(context: any): Promise<Response> {
           'UPDATE characters SET data = ?, name = ?, class = ?, level = ?, race = ?, updated_at = ? WHERE id = ?'
         )
         .bind(
-          JSON.stringify(payload),
-          payload.name || '',
-          payload.class || '',
-          payload.level || 1,
-          payload.race || '',
+          JSON.stringify(writePayload),
+          writePayload.name || '',
+          writePayload.class || '',
+          writePayload.level || 1,
+          writePayload.race || '',
           ts,
           row.character_id,
         ),
@@ -77,7 +94,7 @@ export async function onRequestPost(context: any): Promise<Response> {
         .bind(auth.sub, ts, id),
     ]);
 
-    return jsonResponse({ id, status: 'approved', versionDrift, character: payload });
+    return jsonResponse({ id, status: 'approved', versionDrift, character: writePayload });
   } catch (e: any) {
     return errorResponse(500, e.message || '数据库操作失败');
   }

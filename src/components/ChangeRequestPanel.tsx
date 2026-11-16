@@ -1,14 +1,17 @@
 // 变更审批面板（DM 端）：待审徽标按钮 + 请求列表 + 字段级 diff 明细 + 批准/驳回。
-// 数据源云端 change-requests；diff 基准用 DM 本地桶正式卡（与云端一致，批准后同步）。
+// 数据源云端 change-requests；diff 与漂移基准优先用云端正式卡（与 baseUpdatedAt 同为服务器
+// 时间戳，时钟域一致），云端拉取失败才回退父级列表/本地桶（降级为旧行为，漂移判断可能失真）。
+// 批准支持字段级采纳：勾选的行采纳玩家值，未勾选行回退正式卡现状，合并快照交后端写入。
 
 import { useState, useCallback } from 'react';
 import { GitPullRequest, CheckCircle2, XCircle, ChevronLeft, AlertTriangle } from 'lucide-react';
 import type { Character } from '@/types/character';
 import type { ChangeRequest } from '@/types/changeRequest';
 import type { CharacterDiffRow } from '@/types/changeRequest';
-import { fetchChangeRequests, approveChangeRequest, rejectChangeRequest } from '@/lib/api';
+import { fetchChangeRequests, fetchAllCharacters, approveChangeRequest, rejectChangeRequest } from '@/lib/api';
 import { characterStore } from '@/data/characterStore';
 import { diffCharacter, summarizeDiff } from '@/lib/characterDiff';
+import { mergeAdoptedFields } from '@/lib/characterAdoption';
 import { logChangeRequestApplied } from '@/lib/characterLog';
 
 export default function ChangeRequestPanel({ characters, onChanged }: {
@@ -21,27 +24,42 @@ export default function ChangeRequestPanel({ characters, onChanged }: {
   const [selected, setSelected] = useState<ChangeRequest | null>(null);
   const [rejectNote, setRejectNote] = useState('');
   const [busy, setBusy] = useState(false);
+  /** 云端正式卡（打开面板时拉取，作为 diff/漂移基准的第一优先级） */
+  const [cloudChars, setCloudChars] = useState<Character[] | null>(null);
+  /** 字段采纳勾选：null = 全部采纳（默认）；仅收录「未采纳」行 key 以省状态量 */
+  const [skipKeys, setSkipKeys] = useState<Set<string> | null>(null);
 
   const pendingCount = (requests ?? []).filter((r) => r.status === 'pending').length;
 
   const loadRequests = useCallback(async () => {
+    setRequests(null);
     try {
       const list = await fetchChangeRequests<ChangeRequest[]>();
       setRequests(Array.isArray(list) ? list : []);
     } catch {
       setRequests([]);
     }
+    // 云端正式卡并行拉取；失败置 null 回退父级/本地基准（不阻塞审批）
+    try {
+      const chars = await fetchAllCharacters<Character[]>();
+      setCloudChars(Array.isArray(chars) ? chars : []);
+    } catch {
+      setCloudChars(null);
+    }
   }, []);
 
   const handleOpen = () => {
     setOpen(true);
     setSelected(null);
+    setSkipKeys(null);
     loadRequests();
   };
 
-  // diff 基准：DM 本地桶正式卡（characters 已由父级从本地+云端同步）
+  // 基准卡三级回退：云端正式卡 → 父级列表（异步刷新后即云端行）→ 本地桶
   const getBaseCard = (req: ChangeRequest): Character | null =>
-    characters.find((c) => c.id === req.characterId) ?? characterStore.get(req.characterId);
+    cloudChars?.find((c) => c.id === req.characterId)
+      ?? characters.find((c) => c.id === req.characterId)
+      ?? characterStore.get(req.characterId);
 
   const getVersionDrift = (req: ChangeRequest): boolean => {
     const base = getBaseCard(req);
@@ -49,26 +67,48 @@ export default function ChangeRequestPanel({ characters, onChanged }: {
     return (base.updatedAt ?? 0) !== req.baseUpdatedAt;
   };
 
+  /** 当前勾选状态下的合并快照与采纳统计；rows 由调用方按同一基准产出 */
+  const buildMerged = (req: ChangeRequest, base: Character, rows: CharacterDiffRow[]):
+    { merged: Character; skipped: number } => {
+    const adopted = new Set<string>();
+    for (const row of rows) {
+      if (row.key && skipKeys?.has(row.key)) continue;
+      if (row.key) adopted.add(row.key);
+    }
+    const merged = mergeAdoptedFields(base, req.payload, rows, adopted);
+    const skipped = rows.filter((r) => r.key && skipKeys?.has(r.key)).length;
+    return { merged, skipped };
+  };
+
   const handleApprove = async (req: ChangeRequest) => {
-    if (getVersionDrift(req)) {
-      if (!window.confirm('正式卡在该请求提交后已被修改过。仍要以请求快照为准入库吗？（正式卡将被快照整体覆盖）')) return;
+    const base = getBaseCard(req);
+    const rows = base ? diffCharacter(base, req.payload) : [];
+    const { merged, skipped } = base
+      ? buildMerged(req, base, rows)
+      : { merged: req.payload, skipped: 0 };
+    const drift = getVersionDrift(req);
+    if (drift) {
+      if (!window.confirm('正式卡在该请求提交后已被修改过。仍要按当前勾选写入吗？（勾选字段将覆盖正式卡对应值）')) return;
+    } else if (skipped > 0) {
+      if (!window.confirm(`按勾选写入正式卡？（未勾选的 ${skipped} 项保留正式卡现状）`)) return;
     } else if (!window.confirm(`批准「${req.characterName || req.characterId}」的变更并写入正式卡？`)) {
       return;
     }
     setBusy(true);
     try {
-      const res = await approveChangeRequest(req.id);
+      // 存在未勾选行时回传合并快照；全量采纳走后端原快照（与旧行为等价）
+      const res = await approveChangeRequest(req.id, skipped > 0 ? merged : undefined);
       // 快照同步本地桶（后端已写云端；store.update 的再次上云为幂等冗余，保证双端一致最简路径）
       if (res.character) characterStore.update(res.character.id, res.character);
-      // 全周期日志：diff 行按领域聚合入库（正式卡基准用批准前的本地卡）
-      const baseBefore = getBaseCard(req);
-      if (baseBefore) {
-        logChangeRequestApplied(req.characterId, diffCharacter(baseBefore, req.payload));
+      // 全周期日志：记录实际生效 diff（基准用批准前的正式卡，快照用合并结果）
+      if (base) {
+        logChangeRequestApplied(req.characterId, diffCharacter(base, merged));
       }
       setSelected(null);
+      setSkipKeys(null);
       await loadRequests();
       onChanged();
-      if (res.versionDrift) alert('已批准入库（注意：入库版本覆盖了期间的其他修改）');
+      if (res.versionDrift) alert('已批准入库（注意：勾选字段覆盖了期间的其他修改）');
       else alert('已批准入库');
     } catch (e) {
       alert(`批准失败：${e instanceof Error ? e.message : String(e)}`);
@@ -155,7 +195,7 @@ export default function ChangeRequestPanel({ characters, onChanged }: {
                   requests.map((r) => (
                     <button
                       key={r.id}
-                      onClick={() => r.status === 'pending' && setSelected(r)}
+                      onClick={() => { if (r.status === 'pending') { setSelected(r); setSkipKeys(null); } }}
                       disabled={r.status !== 'pending'}
                       className={`w-full text-left rounded-lg border p-3 space-y-1 transition-colors dark:border-border-dark light:border-border-light ${r.status === 'pending' ? 'hover:border-primary' : 'opacity-60'}`}
                     >
@@ -195,6 +235,16 @@ export default function ChangeRequestPanel({ characters, onChanged }: {
               const base = getBaseCard(selected);
               const rows: CharacterDiffRow[] = base ? diffCharacter(base, selected.payload) : [];
               const drift = getVersionDrift(selected);
+              const adoptableRows = rows.filter((r) => !!r.key);
+              const skipCount = adoptableRows.filter((r) => skipKeys?.has(r.key as string)).length;
+              const toggleRow = (key: string, checked: boolean) => {
+                setSkipKeys((prev) => {
+                  const next = new Set(prev ?? []);
+                  if (checked) next.delete(key);
+                  else next.add(key);
+                  return next;
+                });
+              };
               return (
                 <div className="flex-1 overflow-hidden flex flex-col">
                   <div className="px-4 pt-3 space-y-1">
@@ -205,8 +255,25 @@ export default function ChangeRequestPanel({ characters, onChanged }: {
                     {drift && (
                       <div className="flex items-center gap-1.5 text-xs text-amber-400 rounded-lg bg-amber-500/10 px-2.5 py-1.5">
                         <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-                        正式卡在此请求提交后已被修改过；批准将以请求快照整体覆盖正式卡
+                        正式卡在此请求提交后已被修改过；批准将按勾选覆盖对应字段
                       </div>
+                    )}
+                  </div>
+                  <div className="px-4 pt-2 flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                      采纳 {adoptableRows.length - skipCount}/{adoptableRows.length} 项；未勾选项保留正式卡现状
+                    </span>
+                    {adoptableRows.length > 0 && (
+                      <span className="flex gap-2 text-xs">
+                        <button
+                          onClick={() => setSkipKeys(new Set())}
+                          className="text-primary hover:underline"
+                        >全部保留现状</button>
+                        <button
+                          onClick={() => setSkipKeys(null)}
+                          className="text-primary hover:underline"
+                        >全部采纳</button>
+                      </span>
                     )}
                   </div>
                   <div className="flex-1 overflow-y-auto p-4 space-y-1.5">
@@ -215,15 +282,29 @@ export default function ChangeRequestPanel({ characters, onChanged }: {
                         与当前正式卡无差异（可能已被其他修改覆盖）
                       </div>
                     ) : (
-                      rows.map((row, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5">
-                          <span className={`w-2 h-2 rounded-full shrink-0 ${row.kind === 'add' ? 'bg-green-500' : row.kind === 'remove' ? 'bg-danger' : 'bg-amber-500'}`} />
-                          <span className="font-medium dark:text-text-dark light:text-text-light shrink-0">{row.path}</span>
-                          <span className="dark:text-text-dark-muted light:text-text-light-muted truncate">
-                            {row.kind === 'add' ? `→ ${row.after}` : row.kind === 'remove' ? `（${row.before}）` : `${row.before} → ${row.after}`}
-                          </span>
-                        </div>
-                      ))
+                      rows.map((row, i) => {
+                        const adopted = row.key ? !skipKeys?.has(row.key) : true;
+                        return (
+                          <label
+                            key={i}
+                            className={`flex items-center gap-2 text-xs rounded-lg bg-black/5 dark:bg-white/5 px-2.5 py-1.5 ${row.key ? 'cursor-pointer' : 'opacity-70'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={adopted}
+                              disabled={!row.key || busy}
+                              onChange={(e) => row.key && toggleRow(row.key, e.target.checked)}
+                              className="w-3.5 h-3.5 shrink-0 accent-primary"
+                              title={row.key ? undefined : '该行暂不支持字段级采纳，批准时将保留玩家值'}
+                            />
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${row.kind === 'add' ? 'bg-green-500' : row.kind === 'remove' ? 'bg-danger' : 'bg-amber-500'}`} />
+                            <span className="font-medium dark:text-text-dark light:text-text-light shrink-0">{row.path}</span>
+                            <span className={`dark:text-text-dark-muted light:text-text-light-muted truncate ${adopted ? '' : 'line-through'}`}>
+                              {row.kind === 'add' ? `→ ${row.after}` : row.kind === 'remove' ? `（${row.before}）` : `${row.before} → ${row.after}`}
+                            </span>
+                          </label>
+                        );
+                      })
                     )}
                   </div>
                   <div className="p-4 border-t dark:border-border-dark light:border-border-light space-y-2.5">

@@ -6,6 +6,8 @@ import type { Character } from './character';
 export interface CharacterDiffRow {
   /** 展示路径（如「属性·力量」「装备·长剑×2」「特性·回气」） */
   path: string;
+  /** 机器可寻址键（字段级采纳合并用，如 `abilities.strength.score`、`equipment:<childId>`；早期调用方未填时视为强制采纳） */
+  key?: string;
   before: string;
   after: string;
   kind: 'add' | 'remove' | 'change';

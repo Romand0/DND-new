@@ -640,11 +640,17 @@ export async function withdrawChangeRequest<T = { id: string }>(id: string): Pro
   return apiFetch<T>(`/change-requests/${id}/withdraw`, { method: 'POST', headers: authHeaders() });
 }
 
-/** DM 批准：快照写入正式卡；versionDrift=true 表示审批期间正式卡已被改过 */
+/** DM 批准：快照写入正式卡；versionDrift=true 表示审批期间正式卡已被改过。
+ *  mergedPayload 可选：字段级采纳合并后的整卡快照（与请求快照 id 必须一致），缺省用请求原快照整体覆盖 */
 export async function approveChangeRequest<T = { id: string; versionDrift: boolean; character: any }>(
-  id: string
+  id: string,
+  mergedPayload?: any
 ): Promise<T> {
-  return apiFetch<T>(`/change-requests/${id}/approve`, { method: 'POST', headers: authHeaders() });
+  return apiFetch<T>(`/change-requests/${id}/approve`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: mergedPayload ? JSON.stringify({ mergedPayload }) : undefined,
+  });
 }
 
 /** DM 驳回：理由必填且回传玩家可见 */

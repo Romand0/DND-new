@@ -31,7 +31,7 @@ function fmt(v: unknown): string {
 }
 
 /** 装备行标识：childId 优先（背包实例唯一），缺省退化 id+名称 */
-function equipKey(e: any): string {
+export function equipKey(e: any): string {
   return String(e?.childId || e?.id || '') || String(e?.name ?? '');
 }
 
@@ -51,35 +51,36 @@ function skillState(s: any): string {
 
 export function diffCharacter(base: Character, draft: Character): CharacterDiffRow[] {
   const rows: CharacterDiffRow[] = [];
-  const push = (path: string, before: unknown, after: unknown, emptyAs?: 'add' | 'remove') => {
+  // key 为机器可寻址地址（与 mergeAdoptedFields 的回退解析一一对应）；数组类用 `<前缀>:<业务主键>` 形态
+  const push = (path: string, before: unknown, after: unknown, key?: string, emptyAs?: 'add' | 'remove') => {
     if (fmt(before) === fmt(after)) return;
     const kind = emptyAs === 'add' && fmt(before) === '（空）' ? 'add'
       : emptyAs === 'remove' && fmt(after) === '（空）' ? 'remove'
       : 'change';
-    rows.push({ path, before: fmt(before), after: fmt(after), kind });
+    rows.push({ path, key, before: fmt(before), after: fmt(after), kind });
   };
 
   // 顶层标量
-  push('姓名', base.name, draft.name);
-  push('种族', base.race, draft.race);
-  push('职业', base.profession?.class, draft.profession?.class);
-  push('等级', base.level, draft.level);
-  push('背景', base.background, draft.background);
-  push('阵营', base.alignment, draft.alignment);
-  push('体型', base.size, draft.size);
-  push('生命值上限', base.maxHp, draft.maxHp);
-  push('当前生命值', base.currentHp, draft.currentHp);
-  push('临时生命值', base.tempHp, draft.tempHp);
-  push('护甲等级', base.armorClass, draft.armorClass);
-  push('速度', base.speed, draft.speed);
-  push('熟练加值', base.proficiencyBonus, draft.proficiencyBonus);
-  push('经验值', base.experience, draft.experience);
+  push('姓名', base.name, draft.name, 'name');
+  push('种族', base.race, draft.race, 'race');
+  push('职业', base.profession?.class, draft.profession?.class, 'profession.class');
+  push('等级', base.level, draft.level, 'level');
+  push('背景', base.background, draft.background, 'background');
+  push('阵营', base.alignment, draft.alignment, 'alignment');
+  push('体型', base.size, draft.size, 'size');
+  push('生命值上限', base.maxHp, draft.maxHp, 'maxHp');
+  push('当前生命值', base.currentHp, draft.currentHp, 'currentHp');
+  push('临时生命值', base.tempHp, draft.tempHp, 'tempHp');
+  push('护甲等级', base.armorClass, draft.armorClass, 'armorClass');
+  push('速度', base.speed, draft.speed, 'speed');
+  push('熟练加值', base.proficiencyBonus, draft.proficiencyBonus, 'proficiencyBonus');
+  push('经验值', base.experience, draft.experience, 'experience');
 
   // 货币
   const bc = (base.currency ?? {}) as any;
   const dc = (draft.currency ?? {}) as any;
   for (const cur of ['cp', 'sp', 'ep', 'gp', 'pp'] as const) {
-    push(`货币·${CURRENCY_LABELS[cur]}`, bc[cur], dc[cur]);
+    push(`货币·${CURRENCY_LABELS[cur]}`, bc[cur], dc[cur], `currency.${cur}`);
   }
 
   // 六维属性（score；undefined 视为缺省不比对）
@@ -89,7 +90,7 @@ export function diffCharacter(base: Character, draft: Character): CharacterDiffR
     const bScore = typeof ba[k]?.score === 'number' ? ba[k].score : undefined;
     const dScore = typeof da[k]?.score === 'number' ? da[k].score : undefined;
     if (bScore === undefined && dScore === undefined) continue;
-    push(`属性·${ABILITY_LABELS[k]}`, bScore ?? '（空）', dScore ?? '（空）');
+    push(`属性·${ABILITY_LABELS[k]}`, bScore ?? '（空）', dScore ?? '（空）', `abilities.${k}.score`);
   }
 
   // 技能熟练（proficient/expertise）
@@ -101,6 +102,7 @@ export function diffCharacter(base: Character, draft: Character): CharacterDiffR
     if (bTxt !== dTxt) {
       rows.push({
         path: `技能·${(SKILL_LABELS as any)[key] ?? key}`,
+        key: `skills.${key}`,
         before: bTxt, after: dTxt,
         kind: bTxt === '（空）' ? 'add' : dTxt === '（空）' ? 'remove' : 'change',
       });
@@ -115,10 +117,10 @@ export function diffCharacter(base: Character, draft: Character): CharacterDiffR
     const bSet = new Set(bp[cat] ?? []);
     const dSet = new Set(dp[cat] ?? []);
     for (const item of dSet) {
-      if (!bSet.has(item)) rows.push({ path: `${profLabels[cat]}·${item}`, before: '', after: '新增', kind: 'add' });
+      if (!bSet.has(item)) rows.push({ path: `${profLabels[cat]}·${item}`, key: `proficiencies:${cat}:${item}`, before: '', after: '新增', kind: 'add' });
     }
     for (const item of bSet) {
-      if (!dSet.has(item)) rows.push({ path: `${profLabels[cat]}·${item}`, before: '原有', after: '已移除', kind: 'remove' });
+      if (!dSet.has(item)) rows.push({ path: `${profLabels[cat]}·${item}`, key: `proficiencies:${cat}:${item}`, before: '原有', after: '已移除', kind: 'remove' });
     }
   }
 
@@ -130,16 +132,16 @@ export function diffCharacter(base: Character, draft: Character): CharacterDiffR
   for (const [key, dItem] of dMap) {
     const bItem = bMap.get(key);
     if (!bItem) {
-      rows.push({ path: `装备·${equipLabel(dItem)}`, before: '', after: '新增', kind: 'add' });
+      rows.push({ path: `装备·${equipLabel(dItem)}`, key: `equipment:${key}`, before: '', after: '新增', kind: 'add' });
     } else if (fmt(bItem.quantity) !== fmt(dItem.quantity)) {
-      rows.push({ path: `装备·${String(bItem.name ?? '')}`, before: `×${fmt(bItem.quantity)}`, after: `×${fmt(dItem.quantity)}`, kind: 'change' });
+      rows.push({ path: `装备·${String(bItem.name ?? '')}`, key: `equipment:${key}`, before: `×${fmt(bItem.quantity)}`, after: `×${fmt(dItem.quantity)}`, kind: 'change' });
     } else if (JSON.stringify(bItem) !== JSON.stringify(dItem)) {
-      rows.push({ path: `装备·${String(bItem.name ?? '')}`, before: '原条目', after: '有修改', kind: 'change' });
+      rows.push({ path: `装备·${String(bItem.name ?? '')}`, key: `equipment:${key}`, before: '原条目', after: '有修改', kind: 'change' });
     }
   }
   for (const [key, bItem] of bMap) {
     if (!dMap.has(key)) {
-      rows.push({ path: `装备·${equipLabel(bItem)}`, before: '原有条目', after: '已移除', kind: 'remove' });
+      rows.push({ path: `装备·${equipLabel(bItem)}`, key: `equipment:${key}`, before: '原有条目', after: '已移除', kind: 'remove' });
     }
   }
 
@@ -151,19 +153,19 @@ export function diffCharacter(base: Character, draft: Character): CharacterDiffR
   for (const [key, dFeat] of dfMap) {
     const bFeat = bfMap.get(key);
     if (!bFeat) {
-      rows.push({ path: `特性·${key}`, before: '', after: '新增', kind: 'add' });
+      rows.push({ path: `特性·${key}`, key: `features:${key}`, before: '', after: '新增', kind: 'add' });
       continue;
     }
     if (fmt(bFeat.role) !== fmt(dFeat.role)) {
-      rows.push({ path: `特性·${key}（作用方式）`, before: fmt(bFeat.role), after: fmt(dFeat.role), kind: 'change' });
+      rows.push({ path: `特性·${key}（作用方式）`, key: `features:${key}:role`, before: fmt(bFeat.role), after: fmt(dFeat.role), kind: 'change' });
     }
     if (String(bFeat.description ?? '') !== String(dFeat.description ?? '')) {
-      rows.push({ path: `特性·${key}（描述）`, before: '原文', after: '已修改', kind: 'change' });
+      rows.push({ path: `特性·${key}（描述）`, key: `features:${key}:desc`, before: '原文', after: '已修改', kind: 'change' });
     }
   }
   for (const key of bfMap.keys()) {
     if (!dfMap.has(key)) {
-      rows.push({ path: `特性·${key}`, before: '原有特性', after: '已移除', kind: 'remove' });
+      rows.push({ path: `特性·${key}`, key: `features:${key}`, before: '原有特性', after: '已移除', kind: 'remove' });
     }
   }
 
@@ -177,7 +179,7 @@ export function diffCharacter(base: Character, draft: Character): CharacterDiffR
     const bTxt = b ? `${b.used ?? 0}/${b.max ?? 0}` : '（空）';
     const dTxt = d ? `${d.used ?? 0}/${d.max ?? 0}` : '（空）';
     if (bTxt !== dTxt) {
-      rows.push({ path: `法术位·${SLOT_LABELS[key] ?? key}`, before: bTxt, after: dTxt, kind: 'change' });
+      rows.push({ path: `法术位·${SLOT_LABELS[key] ?? key}`, key: `spells.spellSlots.${key}`, before: bTxt, after: dTxt, kind: 'change' });
     }
   }
 
@@ -185,10 +187,10 @@ export function diffCharacter(base: Character, draft: Character): CharacterDiffR
   const bNames = new Set([...(base.spells?.cantrips ?? []), ...(base.spells?.custom ?? [])]);
   const dNames = new Set([...(draft.spells?.cantrips ?? []), ...(draft.spells?.custom ?? [])]);
   for (const n of dNames) {
-    if (!bNames.has(n)) rows.push({ path: `法术·${n}`, before: '', after: '新增', kind: 'add' });
+    if (!bNames.has(n)) rows.push({ path: `法术·${n}`, key: `spells.cantrips:${n}`, before: '', after: '新增', kind: 'add' });
   }
   for (const n of bNames) {
-    if (!dNames.has(n)) rows.push({ path: `法术·${n}`, before: '原有', after: '已移除', kind: 'remove' });
+    if (!dNames.has(n)) rows.push({ path: `法术·${n}`, key: `spells.custom:${n}`, before: '原有', after: '已移除', kind: 'remove' });
   }
 
   return rows;
