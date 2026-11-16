@@ -11,6 +11,7 @@ import { detectReactions } from '@/data/reactionRules';
 import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
+import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
 
 export interface TurnCommitApplyDeps {
@@ -228,7 +229,9 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
     } else if (op.kind === 'feature-use') {
       // 主动技能（玩家回合包）：池扣减走 featureUses 漏斗（与 DM 端 handleFeatureUse 同构），
       // 动作消耗按 activation；通道执行与 DM 端共用 executeFeatureChannel（status/advantage 落地）。
-      if (op.poolKey) {
+      // attack_rider（命中触发类）为声明 op：资源在命中时刻由伤害结算弹窗扣，此处不扣池。
+      const capability = resolveFeatureCapability(op.featureName);
+      if (op.poolKey && capability.channel !== 'attack_rider') {
         const ok = combatStore.consumeFeatureUse(record.id, actor.id, op.poolKey, op.cost ?? 1);
         if (!ok) {
           return { ok: false, reason: `「${op.featureName}」资源不足（需要 ${op.cost ?? 1} 点），提交被拒` };

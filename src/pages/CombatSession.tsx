@@ -42,6 +42,7 @@ import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
+import { getAttackRiders, applyAttackRiders } from '@/data/attackRiders';
 import { resolvePoolKey } from '@/data/featurePool';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
@@ -1025,14 +1026,16 @@ export default function CombatSession() {
    *  - 通道路由走 featureCapabilities 注册表；manual 通道弹手动结算提示
    */
   const handleFeatureUse = (c: Combatant, feature: Feature, poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => {
+    const capability = resolveFeatureCapability(feature.name);
     // 1. 动作成本（reaction/free 不扣动作）
     if (feature.activation === 'action') {
       if (!ensureCanAct(c, canUseAction(c.id))) return;
     } else if (feature.activation === 'bonus') {
       if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
     }
-    // 2. 池扣减（无池语义直接跳过，老数据优雅降级）
-    if (poolInfo.poolKey && poolInfo.available != null) {
+    // 2. 池扣减（无池语义直接跳过，老数据优雅降级）；
+    //    attack_rider（命中触发类）为声明入口：资源在命中时刻由伤害结算弹窗扣，此处不扣
+    if (poolInfo.poolKey && poolInfo.available != null && capability.channel !== 'attack_rider') {
       const ok = combatStore.consumeFeatureUse(record.id, c.id, poolInfo.poolKey, poolInfo.cost);
       if (!ok) {
         alert(`「${feature.name}」资源不足（可用 ${poolInfo.available}/${poolInfo.max ?? '?'}）`);
@@ -1044,10 +1047,14 @@ export default function CombatSession() {
     else if (feature.activation === 'bonus') consumeCombatantBonusAction(c.id);
     // 4. 通道路由：status/advantage 走通道执行器（挂状态/pending 优劣势），reaction 说明自动触发，
     //    manual/checkModifier 提示 DM 手动结算（checkModifier 待接入独立弹窗）
-    const capability = resolveFeatureCapability(feature.name);
     recordOperation(c.id, `发动「${feature.name}」`, 'record');
     if (capability.channel === 'manual' || capability.channel === 'checkModifier') {
       alert(`「${feature.name}」已消耗资源${poolInfo.poolKey ? `（${poolInfo.cost} 点）` : ''}。请按特性描述手动结算：${capability.hint || (feature.description || '').slice(0, 80)}`);
+      return;
+    }
+    if (capability.channel === 'attack_rider') {
+      // 命中触发类：池/法术位在命中时刻于伤害结算弹窗勾选扣减，此处已扣的动作照常
+      alert(`「${feature.name}」为命中触发类特性：近战武器攻击命中后，在伤害结算弹窗的「命中触发」区勾选发动。${capability.attackRider?.hint ?? ''}`);
       return;
     }
     if (capability.channel === 'reaction') {
@@ -2151,8 +2158,16 @@ export default function CombatSession() {
           disadvantage={damageModal.disadvantage}
           isCritical={damageModal.isCritical}
           isTwoHandedWield={damageModal.isTwoHandedWield}
+          riders={(() => {
+            // 命中触发 rider 仅近战/投掷可用（至圣斩/震慑拳 5e 语义）；渲染时实时取最新参战者
+            const mode = damageModal.usageMode;
+            if (mode !== 'melee' && mode !== 'thrown' || !record) return undefined;
+            const live = record.combatants.find(c => c.id === damageModal.attacker.id) ?? damageModal.attacker;
+            const options = getAttackRiders(record, live);
+            return options.length > 0 ? options : undefined;
+          })()}
           zIndexClass={!reactionHold && reactionQueue && reactionIdx < reactionQueue.length ? 'z-40' : 'z-50'}
-          onApplyDamage={({ damage, newHp, status, resolution }) => {
+          onApplyDamage={({ damage, newHp, status, resolution, riders: riderSelections }) => {
             const applyDamageNow = () => {
               // 1. 应用 HP / 状态：伤害量由攻击方结算结果直接传入
               const result = handleApplyDamage({
@@ -2175,6 +2190,13 @@ export default function CombatSession() {
               if (result?.status === 'unconscious') text += '，击昏';
               else if (result?.status === 'dead') text += '，杀死';
               recordOperation(damageModal.attacker.id, text, 'damage');
+              // 2.5 命中触发 rider：扣资源（池/法术位）+ 豁免失败挂震慑（死亡目标跳过状态）
+              if (riderSelections && riderSelections.length > 0 && record) {
+                const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+                const alive = result?.status !== 'dead';
+                const riderLines = applyAttackRiders(record, damageModal.attacker, damageModal.target, riderSelections, currentRound0, { targetAlive: alive });
+                for (const line of riderLines) recordOperation(damageModal.attacker.id, line, 'record');
+              }
               // 3. 投掷武器掉落：命中也掉落
               const bg = record ? battlegroundStore.get(record.id) : null;
               if (bg) {

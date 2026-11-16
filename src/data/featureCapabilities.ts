@@ -6,8 +6,9 @@
  */
 
 import type { AdvantageEffectConfig, CheckScene, CheckSceneGroup } from '@/types/combat';
+import type { AbilityKey, Character, SpellSlotLevel } from '@/types/character';
 
-export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'manual';
+export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'manual';
 
 /** advantage 通道单条 pending 优劣势参数（复用 PendingAdvantageSource 的场景/方向字段） */
 export interface FeatureAdvantageSpec {
@@ -22,6 +23,11 @@ export interface FeatureCapability {
   channel: FeatureChannel;
   /** 展示用说明（面板 tooltip / 手动结算提示文案） */
   hint?: string;
+  /**
+   * attack_rider 通道契约：近战武器攻击命中后，在伤害结算弹窗勾选追加的资源消耗。
+   * 资源消耗与效果落地在命中时刻结算（5e「当你命中时」语义），勾选声明不扣资源。
+   */
+  attackRider?: AttackRiderSpec;
   /**
    * status 通道参数：挂载状态库键。状态的实际效果（如优劣势）由通道执行器以
    * instance.metadata.effects 注入；伤害加值等数值效果走 TurnTodo 提醒 DM 手动结算。
@@ -43,6 +49,33 @@ export interface FeatureCapability {
     self: FeatureAdvantageSpec;
     incoming?: FeatureAdvantageSpec;
   };
+}
+
+/**
+ * attack_rider 资源消耗与效果契约（至圣斩/震慑拳类「命中触发」特性）。
+ * damage 骰在弹窗内与武器骰合并输入，重击一起翻倍；伤害类型分组件走抗性结算。
+ */
+export interface AttackRiderSpec {
+  /** 资源消耗：pool = 特性池（气等）；spellSlot = 法术位（环级可升级，每高 1 环 +perSlotDice） */
+  cost: { kind: 'pool'; cost: number } | { kind: 'spellSlot' };
+  /** 基础追加伤害骰 */
+  damage?: { dice: string; damageType: string };
+  /** 目标生物类型匹配时追加骰（至圣斩对不死/邪眷） */
+  bonusDice?: { dice: string; damageType: string; vs: string[] };
+  /** spellSlot 成本按环级升级：每高于基准环 1 级追加一组骰 */
+  perSlotDice?: { dice: string; damageType: string };
+  /** 命中后豁免 rider（震慑拳）：失败挂状态 + TurnTodo 提醒解除 */
+  save?: {
+    ability: AbilityKey;
+    /** DC 由攻击者角色卡推导（8 + 熟练 + 属性调整值） */
+    dc: (attacker: Character) => number;
+    failStatus: 'stunned';
+    /** 状态持续回合数（durationRounds 2 ≈ 至施用者下回合结束） */
+    durationRounds: number;
+    todo: string;
+  };
+  /** 弹窗勾选区与声明摘要文案 */
+  hint: string;
 }
 
 const registry = new Map<string, FeatureCapability>();
@@ -79,6 +112,37 @@ register('鲁莽攻击', {
     incoming: { mode: 'advantage', scene: 'attack_melee', reason: '目标处于鲁莽攻击（对你的近战攻击优势）' },
   },
   hint: '本回合近战武器攻击优势，代价是下回合开始前敌人的近战攻击对你也有优势',
+});
+
+// P3 注册表：attack_rider 命中触发通道（至圣斩/震慑拳）
+register('至圣斩', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'spellSlot' },
+    damage: { dice: '2d8', damageType: '光耀' },
+    bonusDice: { dice: '1d8', damageType: '光耀', vs: ['undead', 'fiend'] },
+    perSlotDice: { dice: '1d8', damageType: '光耀' },
+    hint: '命中时消耗 1 环法术位：+2d8 光耀（不死/邪眷再 +1d8），每高 1 环再 +1d8',
+  },
+});
+
+register('震慑拳', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'pool', cost: 1 },
+    save: {
+      ability: 'constitution',
+      dc: (attacker) => {
+        // 熟练加值：卡上缺失时按等级推导（L1-4→2，每 4 级 +1）
+        const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+        return 8 + prof + (attacker.abilities?.wisdom?.modifier ?? 0);
+      },
+      failStatus: 'stunned',
+      durationRounds: 2,
+      todo: '震慑解除检查（至施用者下回合结束）',
+    },
+    hint: '命中时消耗 1 点气：目标体质豁免 DC 8+熟练+感调，失败震慑至施用者下回合结束',
+  },
 });
 
 /** 查特性能力（未注册回退 manual） */
