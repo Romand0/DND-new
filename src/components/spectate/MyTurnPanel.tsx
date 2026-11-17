@@ -12,9 +12,11 @@ import { GRID_PRESETS } from '@/types/battleground';
 import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
+import { getAttackRidersForPlayer } from '@/data/attackRiders';
 import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHandOps } from './combatantAdapter';
 import type { Character, Attack } from '@/types/character';
 import type { NpcAttack } from '@/types/combat';
+import type { AttackRiderSelection } from '@/data/attackRiders';
 import type { BoardProjection, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterInventoryItem, TurnCommitOp, TurnCommitPayload } from '@/types/realtime';
 
 const fieldCls = 'w-full px-2 py-1.5 rounded-lg border text-sm dark:bg-card-dark dark:border-border-dark dark:text-text-dark light:bg-card-light light:border-border-light light:text-text-light';
@@ -191,6 +193,12 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
   // 攻击命中后的伤害结算上下文（攻击弹窗确认 → 伤害弹窗）
   const [attackCtx, setAttackCtx] = useState<{ attack: Attack | NpcAttack; info: HitInfo } | null>(null);
 
+  // 命中触发 rider 选项（至圣斩/震慑拳）：投影池/法术位余量 + 角色卡推导 DC/骰面
+  const riderOptions = useMemo(
+    () => (character ? getAttackRidersForPlayer(character, actor.activeFeatures, actor.spellSlots) : []),
+    [character, actor.activeFeatures, actor.spellSlots]
+  );
+
   /** 攻击检定确认（命中）：转交伤害弹窗 */
   const handleConfirmHit = (attack: Attack | NpcAttack, info: HitInfo) => {
     if ((attack.properties ?? []).includes('装填')) {
@@ -205,7 +213,8 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
     attack: Attack | NpcAttack,
     roll: { d20Final: number; bonus: number; total: number; isNatural20?: boolean; ammoConsumed?: { ammoChildId: string } },
     hit: boolean,
-    damage: { amount: number; type: string } | null
+    damage: { amount: number; type: string } | null,
+    riders?: AttackRiderSelection[]
   ) => {
     const tName = target?.name ?? '目标';
     const ac = target?.ac ?? 10;
@@ -229,15 +238,16 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
         ranged: isRangedAttack(attack),
         damage: hit && damage ? { amount: damage.amount, type: damage.type } : null,
         ...(roll.ammoConsumed ? { ammoChildId: roll.ammoConsumed.ammoChildId, ammoCount: 1 } : {}),
+        ...(riders && riders.length > 0 ? { riders: riders.map(r => ({ featureName: r.featureName, ...(r.slotLevel ? { slotLevel: r.slotLevel } : {}), ...(r.saveResult ? { saveResult: r.saveResult } : {}) })) } : {}),
         roundText,
       },
     ]);
   };
 
-  /** 伤害弹窗确认：落成攻击 op */
-  const handleApplyDamage = (attack: Attack | NpcAttack, payload: { damage: number }) => {
+  /** 伤害弹窗确认：落成攻击 op（rider 骰已并入 payload.damage，勾选结果随 op 交 DM 入账扣资源） */
+  const handleApplyDamage = (attack: Attack | NpcAttack, payload: { damage: number; riders?: AttackRiderSelection[] }) => {
     if (!attackCtx) return;
-    recordAttackOp(attackCtx.attack, attackCtx.info, true, { amount: payload.damage, type: attack.damageType || '未分类' });
+    recordAttackOp(attackCtx.attack, attackCtx.info, true, { amount: payload.damage, type: attack.damageType || '未分类' }, payload.riders);
     setAttackCtx(null);
     setDialog(null);
   };
@@ -493,7 +503,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
         />
       )}
 
-      {/* ── 伤害：DM 侧伤害结算弹窗（暴击/抗性/伤害骰解析同源） ── */}
+      {/* ── 伤害：DM 侧伤害结算弹窗（暴击/抗性/伤害骰解析同源；rider 选项投影构建，近战/投掷限定同 DM 端） ── */}
       {dialog === 'damage' && attackCtx && (
         <CombatDamageModal
           attacker={myCombatant}
@@ -501,6 +511,11 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           attack={attackCtx.attack}
           isCritical={attackCtx.info.isNatural20}
           isTwoHandedWield={!!attackCtx.info.isTwoHandedWield}
+          riders={(() => {
+            const mode = attackCtx.info.usageMode;
+            if ((mode !== 'melee' && mode !== 'thrown') || riderOptions.length === 0) return undefined;
+            return riderOptions;
+          })()}
           onClose={() => {
             setAttackCtx(null);
             setDialog(null);

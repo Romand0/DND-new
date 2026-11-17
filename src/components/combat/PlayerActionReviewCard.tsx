@@ -59,7 +59,10 @@ function opText(op: TurnCommitOp, combatantNames?: Record<string, string>): stri
   const verdict = op.critical ? '暴击命中' : op.hit ? '命中' : '未命中';
   const ammo = op.ammoCount ? `，弹药 -${op.ammoCount}` : '';
   const dmg = op.hit && op.damage ? `，${op.damage.amount} 点${op.damage.type}` : '';
-  return `攻击：${op.weaponName} → ${op.targetName}（${roll} vs AC）${verdict}${dmg}${ammo}`;
+  const riders = op.hit && op.riders && op.riders.length > 0
+    ? `，命中触发：${op.riders.map(r => `${r.featureName}${r.slotLevel ? `（${r.slotLevel.replace('level', '')} 环）` : ''}${r.saveResult ? `（豁免${r.saveResult === 'fail' ? '失败' : '成功'}）` : ''}`).join('、')}`
+    : '';
+  return `攻击：${op.weaponName} → ${op.targetName}（${roll} vs AC）${verdict}${dmg}${ammo}${riders}`;
 }
 
 export default function PlayerActionReviewCard({ request, fromName, actorName, boundOk, roundOk, currentRound, combatantNames, onApply, onReject }: Props) {

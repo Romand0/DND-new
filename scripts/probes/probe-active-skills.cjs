@@ -466,6 +466,81 @@ async function main() {
   check('9d 回合包 targetId：池扣 1 + pending 含激励原因', cm.commitOk === true && cm.inspireDelta === 1 && (cm.cmReason ?? '').includes('吟游诗人激励'), cm);
   check('9e 回合行含通道说明（激励 d6）', (cm.rowText ?? '').includes('吟游诗人激励') && (cm.rowText ?? '').includes('d6'), cm);
 
+  // ===== 10. 玩家 attack riders 协议（方案 B）：投影构建选项 + attack op 携带 riders 入账 =====
+  const pr = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const { getAttackRidersForPlayer } = await import('/src/data/attackRiders.ts');
+    const { applyTurnCommit } = await import('/src/lib/turnCommitApply.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    // 复用第 8 段的圣武士/武僧沙盒卡构建玩家侧投影
+    const paladinChar = characterStore.getAll().find(c => c.name === '主动技能·圣骑士');
+    const monkChar = characterStore.getAll().find(c => c.name === '主动技能·武僧');
+    const palFeat = [{ name: '至圣斩', description: '', activation: 'free', resource: 'manual' }];
+    const palSlots = [{ level: 1, label: '1环', used: 0, max: 4 }];
+    const monkFeat = [{ name: '震慑拳', description: '', activation: 'free', resource: 'pool', poolKey: 'feature:气', poolLeft: 5, poolMax: 5, cost: 1 }];
+    const palOpts = getAttackRidersForPlayer(paladinChar, palFeat, palSlots);
+    const monkOpts = getAttackRidersForPlayer(monkChar, monkFeat, []);
+    const monkExhausted = getAttackRidersForPlayer(monkChar, [{ ...monkFeat[0], poolLeft: 0, disabled: true }], []);
+
+    // attack op 携带 riders → DM 入账扣法术位/池 + 挂状态
+    const addC = (id, name, characterId) => ({
+      id, name, isPc: true, characterId, initiative: 7,
+      actions: 1, bonusActions: 1, reactions: 1, movementUsed: 0,
+      heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [],
+    });
+    const baseRoster = combatStore.get(rec.id).combatants;
+    combatStore.update(rec.id, {
+      combatants: [...baseRoster, addC('probe-pal', '探针圣骑士', paladinChar.id), addC('probe-monk', '探针武僧', monkChar.id)],
+      featureUses: {}, spellSlotChanges: {}, turnTodos: [],
+      updatedAt: Date.now(),
+    });
+    const noop = () => {};
+    const req = (ops) => ({
+      requestId: `probe-pr-${Date.now()}-${Math.random()}`, round: 1, combatantId: 'probe-pal', baseSeq: 0,
+      action: { ops },
+    });
+    const r1 = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: req([{ kind: 'attack', weaponChildId: null, weaponName: '长剑', targetId: 'feat-npc', targetName: '技能地精', d20: 15, bonus: 5, hit: true, critical: false, damage: { amount: 8, type: '挥砍' }, riders: [{ featureName: '至圣斩', slotLevel: 'level1' }], roundText: '用长剑攻击技能地精' }]),
+      currentRound: 1, applyDamage: () => null, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const after1 = combatStore.get(rec.id);
+    const slotDelta = after1.spellSlotChanges?.['probe-pal']?.level1;
+    const palRow = JSON.stringify(after1.rounds?.[0]?.['probe-pal'] ?? '');
+    // 震慑拳走 attack op（武僧行动者）：池扣 + 豁免失败挂震慑
+    const r2 = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: { ...req([{ kind: 'attack', weaponChildId: null, weaponName: '徒手打击', targetId: 'feat-npc', targetName: '技能地精', d20: 12, bonus: 3, hit: true, critical: false, damage: { amount: 3, type: '钝击' }, riders: [{ featureName: '震慑拳', saveResult: 'fail' }], roundText: '用徒手打击攻击技能地精' }]), combatantId: 'probe-monk' },
+      currentRound: 1, applyDamage: () => null, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const after2 = combatStore.get(rec.id);
+    const kiDelta = after2.featureUses?.['probe-monk']?.['feature:气'];
+    const stunnedOn = globalStatusManager.getActiveStatuses('feat-npc').some(i => i.definitionId === 'stunned');
+    const todoOn = after2.turnTodos?.some(t => t.combatantId === 'feat-npc' && t.type === 'condition_check');
+    // 清场：回滚资源 delta + 解除状态 + 移除探针参战者
+    combatStore.update(rec.id, {
+      combatants: baseRoster, featureUses: {}, spellSlotChanges: {}, turnTodos: [],
+      updatedAt: Date.now(),
+    });
+    globalStatusManager.getActiveStatuses('feat-npc').forEach(i => globalStatusManager.declareEnd(i.instanceId));
+    return {
+      palOpt: palOpts[0] ? { name: palOpts[0].featureName, kind: palOpts[0].kind, lv1: palOpts[0].slotLevels?.[0]?.remaining } : null,
+      monkOpt: monkOpts[0] ? { name: monkOpts[0].featureName, kind: monkOpts[0].kind, key: monkOpts[0].poolKey, cost: monkOpts[0].poolCost, avail: monkOpts[0].poolAvailable, max: monkOpts[0].poolMax, dc: monkOpts[0].save?.dc } : null,
+      exhaustedN: monkExhausted.length,
+      r1Ok: r1.ok, slotDelta, palRow,
+      r2Ok: r2.ok, kiDelta, stunnedOn, todoOn,
+    };
+  });
+  check('10a 玩家投影构建至圣斩选项（spellSlot 余量 4）', pr.palOpt?.name === '至圣斩' && pr.palOpt?.kind === 'spellSlot' && pr.palOpt?.lv1 === 4, pr.palOpt);
+  check('10b 玩家投影构建震慑拳选项（池 5/5 DC14）', pr.monkOpt?.name === '震慑拳' && pr.monkOpt?.kind === 'pool' && pr.monkOpt?.key === 'feature:气' && pr.monkOpt?.cost === 1 && pr.monkOpt?.avail === 5 && pr.monkOpt?.max === 5 && pr.monkOpt?.dc === 14, pr.monkOpt);
+  check('10c 池耗尽投影（poolLeft0+disabled）无选项', pr.exhaustedN === 0, pr);
+  check('10d attack op riders：至圣斩入账扣 1 环 + 记录行含至圣斩', pr.r1Ok === true && pr.slotDelta === 1 && (pr.palRow ?? '').includes('至圣斩'), pr);
+  check('10e attack op riders：震慑拳入账扣 1 气 + 震慑挂载', pr.r2Ok === true && pr.kiDelta === 1 && pr.stunnedOn === true && pr.todoOn === true, pr);
+
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

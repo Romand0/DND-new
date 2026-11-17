@@ -12,6 +12,7 @@ import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { applyAttackRiders } from '@/data/attackRiders';
 import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
 
 export interface TurnCommitApplyDeps {
@@ -90,6 +91,26 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         if (result) {
           appliedDamages.push(`${op.targetName} -${result.damage}`);
           opCtx.damage = { amount: result.damage, oldHp: result.oldHp, newHp: result.newHp };
+        }
+      }
+      // 命中触发 rider（玩家伤害弹窗勾选随 op 提交）：入账时刻统一扣池/法术位 + 豁免失败挂状态。
+      // 「命中即扣」在 DM 审批入账时实现一次，声明阶段零资源，天然防双扣。
+      if (op.hit && op.riders && op.riders.length > 0) {
+        const target = (combatStore.get(record.id) ?? record).combatants.find(c => c.id === op.targetId);
+        const riderLines = applyAttackRiders(
+          record,
+          actor,
+          target ?? actor,
+          op.riders.map(r => ({
+            featureName: r.featureName,
+            ...(r.slotLevel ? { slotLevel: r.slotLevel as SpellSlotLevel } : {}),
+            ...(r.saveResult ? { saveResult: r.saveResult } : {}),
+          })),
+          request.round - 1,
+          { targetAlive: !!target && ((combatStore.get(record.id) ?? record).combatants.find(c => c.id === op.targetId)?.currentHp ?? 0) > 0 },
+        );
+        if (riderLines.length > 0) {
+          opCtx.featureNote = riderLines.join('；');
         }
       }
       // 玩家提交的攻击包先落库；防御方反应窗口（attack_targeted）在目标仍存活时检测，
