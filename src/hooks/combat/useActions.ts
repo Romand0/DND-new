@@ -42,12 +42,13 @@ export function useActions(record: CombatRecord | null, { playbackStarted, playb
   };
 
   // 死亡/昏迷/失能一律禁止；其余：模拟模式/放映暂停恒可，放映模式 0 时禁止
+  // bonusActions 字段缺失按 1 兜底（老数据/未显式初始化的参战者默认每回合有附赠动作）
   const canUseBonusAction = (combatantId: string): boolean => {
     if (!record) return false;
     const c = record.combatants.find(x => x.id === combatantId);
     if (!c || c.isDead || c.isUnconscious || c.isIncapacitated) return false;
     if (!isConsumptionActive()) return true;
-    return (typeof c.bonusActions === 'number' ? c.bonusActions : 0) > 0;
+    return (typeof c.bonusActions === 'number' ? c.bonusActions : 1) > 0;
   };
 
   // 消耗 1 个附赠动作（写入 store，订阅机制自动刷新 UI）；暂停期间不消耗

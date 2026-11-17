@@ -1599,7 +1599,7 @@ export default function CombatSession() {
               if (!latest || !target) return;
               combatStore.update(record.id, {
                 combatants: latest.combatants.map(x => (
-                  x.id === c.id ? { ...x, actions: 1, bonusActions: 0, movementUsed: 0 } : x
+                  x.id === c.id ? { ...x, actions: 1, bonusActions: 1, movementUsed: 0 } : x
                 )),
                 updatedAt: Date.now(),
               });
