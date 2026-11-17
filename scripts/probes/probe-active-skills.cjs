@@ -659,6 +659,26 @@ async function main() {
   check('11e 回合包 direction：池扣 1 + 锥内 pc2 掉血 + 锥外 NPC 无损 + 记录行含吐息',
     aoe.commitOk === true && aoe.dragonDelta === 1 && aoe.pc2HpAfter < aoe.pc2HpBefore && aoe.npcHpAfter === aoe.npcHpBefore && (aoe.rowText ?? '').includes('吐息'), aoe);
 
+  // ===== 12. 附赠动作默认回合恢复（激励可用性修复）：每回合开始 resetActions 恢复 1 =====
+  const ba = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const actor = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2');
+    // 老数据兜底：先手动置 0 模拟「本回合已用掉」，再走回合重置链路
+    combatStore.update(rec.id, {
+      combatants: combatStore.get(rec.id).combatants.map(c => c.id === 'feat-pc2' ? { ...c, bonusActions: 0 } : c),
+      updatedAt: Date.now(),
+    });
+    const zeroed = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').bonusActions;
+    const consumed = combatStore.consumeBonusAction(rec.id, 'feat-pc2', 'playback');
+    const afterConsume = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').bonusActions;
+    combatStore.resetActions(rec.id, 'feat-pc2');
+    const afterReset = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').bonusActions;
+    return { zeroed, consumed, afterConsume, afterReset };
+  });
+  check('12a 用掉的附赠动作扣减到 0（放映模式不再自愈）', ba.zeroed === 0 && ba.consumed === 0 && ba.afterConsume === 0, ba);
+  check('12b resetActions 每回合开始恢复附赠动作为 1（激励不再需要 DM 手动授予）', ba.afterReset === 1, ba);
+
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

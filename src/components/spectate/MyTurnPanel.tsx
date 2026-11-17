@@ -385,7 +385,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           我的回合 — {actor.name}
         </h3>
         <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-          第 {round} 轮 · 主动作 {actor.actions ?? 0} · 附赠 {actor.bonusActions ?? 0}
+          第 {round} 轮 · 主动作 {actor.actions ?? 1} · 附赠 {actor.bonusActions ?? 1}
         </span>
       </div>
 
@@ -533,7 +533,7 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           casterCombatInventory={myInventory}
           bounds={bounds}
           canUseAction={(actor.actions ?? 1) > 0}
-          canUseBonusAction={(actor.bonusActions ?? 0) > 0}
+          canUseBonusAction={(actor.bonusActions ?? 1) > 0}
           currentRound={round}
           onTargetChange={(c) => setTargetId(c.id)}
           onClose={() => setDialog(null)}

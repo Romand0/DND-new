@@ -364,7 +364,7 @@ function ActionsTab({
           <div className="rounded-lg px-2.5 py-1.5 dark:bg-bg-dark light:bg-bg-light-2">
             <div className="dark:text-text-dark-muted light:text-text-light-muted">附赠动作</div>
             <div className="text-base font-bold font-mono dark:text-text-dark light:text-text-light">
-              {c.bonusActions ?? 0}
+              {c.bonusActions ?? 1}
             </div>
           </div>
         </div>
