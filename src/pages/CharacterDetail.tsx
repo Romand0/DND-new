@@ -60,7 +60,6 @@ import OptionPicker from '@/components/OptionPicker';
 import optionStore from '@/data/optionStore';
 import EquipmentEditor from '@/components/EquipmentEditor';
 import AttackEditor from '@/components/AttackEditor';
-import SyncButton from '@/components/SyncButton';
 import CharacterLogPanel from '@/components/CharacterLogPanel';
 import CharacterEquipmentCard from '@/components/CharacterEquipmentCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -3837,9 +3836,6 @@ if (character) {
           </div>
         </div>
       )}
-
-      {/* DM 模式下显示浮动同步按钮 */}
-      {!readOnly && !draftMode && <SyncButton />}
 
       {/* 全周期日志：物资钱币/法术/角色成长三领域变更记录（玩家端只读页同样展示） */}
       {character && !draftMode && (
