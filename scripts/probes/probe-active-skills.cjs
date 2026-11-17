@@ -679,6 +679,49 @@ async function main() {
   check('12a 用掉的附赠动作扣减到 0（放映模式不再自愈）', ba.zeroed === 0 && ba.consumed === 0 && ba.afterConsume === 0, ba);
   check('12b resetActions 每回合开始恢复附赠动作为 1（激励不再需要 DM 手动授予）', ba.afterReset === 1, ba);
 
+  // ===== 13. 双击棋子面板主动技能按钮接线（Battleground onPanelFeatureClick → handleFeatureUse） =====
+  // 修复前：Battleground 内挂载的 InfoPanel 漏传 onFeatureClick，点池类特性弹「暂未接入自动化流程」
+  // 修复后：走 handleFeatureUse 完整链路（扣池 + 记录行 + 手动结算提示）
+  await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const battlegroundStore = (await import('/src/data/battlegroundStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    // 野蛮人（卓越战技 池 4/短休，未注册 → manual 分支）放置到 (2,2)
+    battlegroundStore.setTokens(rec.id, [{ combatantId: 'feat-pc', col: 2, row: 2 }]);
+  });
+  let dialogText = null;
+  page.once('dialog', (d) => { dialogText = d.message(); d.dismiss(); });
+  const geo = await page.evaluate(() => {
+    const g = document.querySelector('div.grid.origin-top-left');
+    const r = g.children[0].getBoundingClientRect();
+    return { x: r.x, y: r.y, cell: r.width };
+  });
+  await page.mouse.dblclick(geo.x + 2.5 * geo.cell, geo.y + 2.5 * geo.cell);
+  await page.waitForTimeout(400);
+  const panel = page.locator('div.fixed.inset-0.z-50').last();
+  // 主动技能区在「操作」tab（面板默认停在「快捷」tab）
+  await panel.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const panelHasFeat = await panel.getByRole('button', { name: /卓越战技/ }).count();
+  if (panelHasFeat > 0) {
+    await panel.getByRole('button', { name: /卓越战技/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  const wiring = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc']?.['feature:卓越战技'] ?? 0;
+    // 清场：恢复初始 roster 的 token 状态与池
+    const baseTokens = (await import('/src/data/battlegroundStore.ts')).default.get(rec.id)?.tokens ?? [];
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    return { used, tokensLeft: baseTokens.length };
+  });
+  check('13a 双击棋子面板含主动技能按钮（InfoPanel 打开且特性已投影）', panelHasFeat > 0, { panelHasFeat });
+  check('13b 面板按钮走 handleFeatureUse（alert 为手动结算提示，非「暂未接入」）',
+    dialogText != null && dialogText.includes('已消耗资源') && dialogText.includes('手动结算') && !dialogText.includes('暂未接入'), dialogText);
+  check('13c 面板发动卓越战技扣池（featureUses +1）', wiring.used === 1, wiring);
+
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

@@ -6,7 +6,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone, ZoneType } from '@/types/battleground';
 import type { Combatant, CombatRecord, EquipmentChanges } from '@/types/combat';
-import type { Character, Equipment } from '@/types/character';
+import type { Character, Equipment, Feature } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
 
 interface Props {
@@ -46,6 +46,8 @@ interface Props {
   onPanelDashClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：强制位移按钮（交由 main 打开 ForcedMoveDialog） */
   onPanelForcedMoveClick?: (combatant: Combatant) => void;
+  /** 双击棋子信息面板：主动技能按钮（交由 main 走 handleFeatureUse 扣池扣动作链路；漏传则面板降级为提示） */
+  onPanelFeatureClick?: (combatant: Combatant, feature: Feature, poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => void;
   /** 双击棋子信息面板：试验场标记（仪表盘 tab / 状态附加面板 / 法术全库的开关） */
   isProvingGround?: boolean;
   /** 双击棋子信息面板：试验场记录引用（ProvingDashboard 数据源） */
@@ -89,7 +91,7 @@ interface Props {
   onRequestStopConcentration?: (combatantId: string) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, panelSpellSlots, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelForcedMoveClick, onPanelFeatureClick, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, panelSpellSlots, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
   const navigate = useNavigate();
   // 投影模式：数据来自外部快照，禁止一切写库操作
   const projectionMode = bgData !== undefined;
@@ -1737,6 +1739,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onCastClick={() => onPanelCastClick?.(live)}
                   onDashClick={() => onPanelDashClick?.(live)}
                   onForcedMoveClick={() => onPanelForcedMoveClick?.(live)}
+                  onFeatureClick={onPanelFeatureClick ? (feature, poolInfo) => onPanelFeatureClick(live, feature, poolInfo) : undefined}
                   characterOverride={panelCharacters ? panelCharacters[live.id] : undefined}
                   spellSlotsOverride={panelSpellSlots?.[live.id] ?? undefined}
                   onRequestHandChange={onRequestHandChange ? (side, item) => onRequestHandChange(live.id, side, item) : undefined}
