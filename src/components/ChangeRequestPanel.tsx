@@ -10,6 +10,7 @@ import type { ChangeRequest } from '@/types/changeRequest';
 import type { CharacterDiffRow } from '@/types/changeRequest';
 import { fetchChangeRequests, fetchAllCharacters, approveChangeRequest, rejectChangeRequest } from '@/lib/api';
 import { characterStore } from '@/data/characterStore';
+import { toTimestampSeconds } from '@/lib/cloudTimestamp';
 import { diffCharacter, summarizeDiff } from '@/lib/characterDiff';
 import { mergeAdoptedFields } from '@/lib/characterAdoption';
 import { logChangeRequestApplied } from '@/lib/characterLog';
@@ -64,7 +65,8 @@ export default function ChangeRequestPanel({ characters, onChanged }: {
   const getVersionDrift = (req: ChangeRequest): boolean => {
     const base = getBaseCard(req);
     if (!base) return false;
-    return (base.updatedAt ?? 0) !== req.baseUpdatedAt;
+    // baseUpdatedAt 为服务端秒级；base 卡可能是云端秒级或本地毫秒（入桶已归一），统一到秒再比
+    return toTimestampSeconds(base.updatedAt) !== req.baseUpdatedAt;
   };
 
   /** 当前勾选状态下的合并快照与采纳统计；rows 由调用方按同一基准产出 */

@@ -14,6 +14,7 @@ import type {
 } from '@/types/character';
 import { scopedKey } from '@/data/campaignScope';
 import { pushCharacterLog } from '@/lib/characterLog';
+import { toTimestampMillis } from '@/lib/cloudTimestamp';
 import { globalStatusManager } from './statusManager';
 import { getAvailableSubclasses, canChooseSubclass, getSubclassDisplayName } from './subclasses';
 import * as api from '@/lib/api';
@@ -442,6 +443,17 @@ async function replaceAllFromBackend(): Promise<Character[]> {
   // （历史版本可能把缺标记的影子卡推上云，拉回后会在角色列表露出）
   const migrated = chars
     .map((c: any) => migrateCharacter(c))
+    // 云端 data JSON 内时间戳为服务端秒级，本地桶写路径统一毫秒：入桶前归一，
+    // 否则混用单位会让同步护栏（SyncButton）把秒值当毫秒误判「云端较新」、列表排序错乱
+    .map((c: any) => {
+      const updatedAt = toTimestampMillis(c.updatedAt);
+      const createdAt = toTimestampMillis(c.createdAt);
+      return {
+        ...c,
+        ...(updatedAt !== undefined ? { updatedAt } : {}),
+        ...(createdAt !== undefined ? { createdAt } : {}),
+      };
+    })
     .filter((c: any) => !c.isSandbox && !String(c.name || '').startsWith('试验体·'));
   // 保留本地试验场影子卡（云端不存在，全量替换会把它们洗掉导致人偶装备派生失效）
   const localSandbox = getStore().filter(c => c.isSandbox);
