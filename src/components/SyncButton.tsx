@@ -6,6 +6,7 @@ import { editorState } from '@/data/editorState';
 import * as api from '@/lib/api';
 import { hasToken } from '@/lib/api';
 import { stableStringify } from '@/lib/characterAdoption';
+import { toTimestampSeconds } from '@/lib/cloudTimestamp';
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
@@ -72,8 +73,10 @@ export default function SyncButton() {
         toUpload.push(char); // 云端缺失：存量卡补传（本按钮的核心合法用途）
       } else if (canonicalize(cloud) === canonicalize(char)) {
         unchanged += 1; // 内容一致：上传纯属无操作，跳过避免无谓 bump updated_at
-      } else if ((cloud.updatedAt ?? 0) > Math.floor((char.updatedAt ?? 0) / 1000) + 5) {
-        // 内容分叉且云端时间戳显著较新（秒级 vs 本地毫秒/1000，容差 5s 抵消时钟偏差）：
+      } else if (toTimestampSeconds(cloud.updatedAt) > toTimestampSeconds(char.updatedAt) + 5) {
+        // 内容分叉且云端时间戳显著较新（两侧统一归一到秒再比：云端 data JSON 由服务端写秒级，
+        // 本地桶正常为毫秒但历史拉取卡可能残留秒级——若直接把秒值当毫秒除以 1000 会必然误判
+        // 「云端较新」拦截 DM 本地最新数据；容差 5s 抵消时钟偏差）：
         // 大概率云端含其他写方的变更（玩家批准 / 其他设备），默认跳过
         cloudAhead.push(char);
       } else {
