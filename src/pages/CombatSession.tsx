@@ -1672,6 +1672,7 @@ export default function CombatSession() {
         onPanelCastClick={openCastFor}
         onPanelDashClick={dashFor}
         onPanelForcedMoveClick={(c) => setForcedMoveTarget(c)}
+        onPanelFeatureClick={handleFeatureUse}
         isProvingGround={record.isProvingGround ?? false}
         provingRecord={record.isProvingGround ? record : null}
         combatInventories={combatInventories}
