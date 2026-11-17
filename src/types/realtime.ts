@@ -127,6 +127,8 @@ export type TurnCommitOp =
       poolKey?: string;
       /** 单次消耗量（与投影 cost 同值） */
       cost?: number;
+      /** checkModifier 通道受益人参战者 ID（玩家端目标选择弹窗产出） */
+      targetId?: string;
       /** 施法形态：DM 端按此扣动作 */
       activation: 'action' | 'bonus' | 'reaction' | 'free';
       roundText: string;

@@ -19,8 +19,9 @@ import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHan
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
-import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, TurnCommitOp } from '@/types/realtime';
+import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterActiveFeature, TurnCommitOp } from '@/types/realtime';
 import type { Character } from '@/types/character';
+import FeatureCheckModifierModal from '@/components/combat/FeatureCheckModifierModal';
 
 // 观战投影 → DM 侧沙盘数据结构（Battleground 投影模式入参）：棋子/掉落物/边界墙/地形区域一一映射
 function projectionToBg(board: BoardProjection, sessionId: string): BattlegroundData {
@@ -77,6 +78,8 @@ export default function PlayerSpectate() {
   // 回合提交（回合批提交模型）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
   const lastDeltaSeqRef = useRef(0);
   const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
+  // checkModifier 通道目标选择（激励骰等）：选定受益人后打包 feature-use op（携带 targetId）
+  const [checkModifierPick, setCheckModifierPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature } | null>(null);
   // ops 提升到页面层：沙盘拖拽与回合面板共享同一操作列表
   const [pendingOps, setPendingOps] = useState<TurnCommitOp[]>([]);
   const lastOpsRoundRef = useRef<number | null>(null);
@@ -585,6 +588,11 @@ export default function PlayerSpectate() {
                   });
                   return;
                 }
+                // checkModifier 通道（激励骰等）：先选受益人再打包 op，资源由 DM 入账时扣
+                if (resolveFeatureCapability(feature.name).channel === 'checkModifier') {
+                  setCheckModifierPick({ combatant, feature });
+                  return;
+                }
                 addOp({
                   kind: 'feature-use',
                   featureName: feature.name,
@@ -595,6 +603,31 @@ export default function PlayerSpectate() {
               }}
             />
           )}
+
+          {checkModifierPick && spectate && (() => {
+            const from = rosterEntryToCombatant(checkModifierPick.combatant, panelCharacters[checkModifierPick.combatant.id] ?? null);
+            const friendlies = combatantsForBoard.filter(c => c.id !== from.id && c.isPc === from.isPc && !c.isDead);
+            return (
+              <FeatureCheckModifierModal
+                from={from}
+                featureName={checkModifierPick.feature.name}
+                friendlies={friendlies}
+                onConfirm={(targetId) => {
+                  const targetName = combatantsForBoard.find(c => c.id === targetId)?.name ?? '目标';
+                  addOp({
+                    kind: 'feature-use',
+                    featureName: checkModifierPick.feature.name,
+                    ...(checkModifierPick.feature.poolKey ? { poolKey: checkModifierPick.feature.poolKey, cost: checkModifierPick.feature.cost ?? 1 } : {}),
+                    targetId,
+                    activation: checkModifierPick.feature.activation,
+                    roundText: `发动「${checkModifierPick.feature.name}」→ ${targetName}${checkModifierPick.feature.poolKey ? `（${checkModifierPick.feature.cost ?? 1} 点）` : ''}`,
+                  });
+                  setCheckModifierPick(null);
+                }}
+                onClose={() => setCheckModifierPick(null)}
+              />
+            );
+          })()}
 
           {connected && !spectate && (
             <div className="text-center py-10 dark:text-text-dark-muted light:text-text-light-muted">

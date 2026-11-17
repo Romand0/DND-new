@@ -244,7 +244,7 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         consumeBonusAction(actor.id);
         consumedBonus = true;
       }
-      const channelResult = executeFeatureChannel(record, actor, op.featureName, request.round - 1);
+      const channelResult = executeFeatureChannel(record, actor, op.featureName, request.round - 1, { targetId: op.targetId });
       if (channelResult.note) {
         opCtx.featureNote = channelResult.note;
       }

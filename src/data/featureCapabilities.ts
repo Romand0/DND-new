@@ -7,6 +7,8 @@
 
 import type { AdvantageEffectConfig, CheckScene, CheckSceneGroup } from '@/types/combat';
 import type { AbilityKey, Character, SpellSlotLevel } from '@/types/character';
+import type { Combatant } from '@/types/combat';
+import { characterStore } from '@/data/characterStore';
 
 export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'manual';
 
@@ -16,6 +18,24 @@ export interface FeatureAdvantageSpec {
   scene: CheckScene | CheckSceneGroup | 'any';
   /** pending 标记的 reason 文案；缺省用特性名 */
   reason?: string;
+}
+
+/**
+ * checkModifier 通道参数：写入 PendingCheckModifier（复用次数型检定加值引擎）。
+ * 骰面/文案按施用者推导（激励骰随诗人等级 d6→d12），故为函数。
+ */
+export interface FeatureCheckModifierSpec {
+  /** 加值骰参数（激励：1 枚 d6-d12） */
+  dice: (caster: Combatant) => { count: number; sides: number; flatBonus?: number };
+  /** 骰面标签（面板/记录展示，如 d6/d8/d10/d12）；缺省按 sides 推导 */
+  diceLabel?: (caster: Combatant) => string;
+  /** 适用场景（'any' 覆盖攻击/法术/豁免/技能检定） */
+  scene: CheckScene | CheckSceneGroup | 'any';
+  /** pending 标记文案（含施用者名与骰面） */
+  reason: (caster: Combatant) => string;
+  mode?: 'bonus' | 'penalty';
+  /** 有效期（绝对回合，-1 = 整场战斗）；缺省 -1 */
+  expireRound?: number;
 }
 
 export interface FeatureCapability {
@@ -28,6 +48,11 @@ export interface FeatureCapability {
    * 资源消耗与效果落地在命中时刻结算（5e「当你命中时」语义），勾选声明不扣资源。
    */
   attackRider?: AttackRiderSpec;
+  /**
+   * checkModifier 通道参数：DM/玩家选目标后由通道执行器写入目标身上的
+   * PendingCheckModifier（弹窗确认时扣动作与池，取消不扣）。
+   */
+  checkModifier?: FeatureCheckModifierSpec;
   /**
    * status 通道参数：挂载状态库键。状态的实际效果（如优劣势）由通道执行器以
    * instance.metadata.effects 注入；伤害加值等数值效果走 TurnTodo 提醒 DM 手动结算。
@@ -85,9 +110,30 @@ function register(featureName: string, capability: FeatureCapability): void {
 }
 
 // P1 注册表：仅已接入的通道；新增通道时在此登记，勿在 UI 组件硬编码分支
+
+// 激励骰面派生：诗人 1-4 级 d6、5-9 d8、10-14 d10、15+ d12（5e 激励特性随等级成长）。
+// 非诗人（或 NPC/无角色卡）默认 d6——DM 对魔法物品等来源裁量发放。
+function bardicDieSides(caster: Combatant): number {
+  const char = caster.characterId ? characterStore.get(caster.characterId) : null;
+  const cls = String(char?.profession?.class ?? (char as any)?.class ?? '');
+  if (cls.includes('吟游诗人') && char) {
+    const lv = typeof char.level === 'number' ? char.level : 1;
+    if (lv >= 15) return 12;
+    if (lv >= 10) return 10;
+    if (lv >= 5) return 8;
+  }
+  return 6;
+}
+
 register('诗人激励', {
   channel: 'checkModifier',
-  hint: '确认后为目标下一次能力检定加骰奖励（走圆桌检定加值引擎）',
+  checkModifier: {
+    dice: (caster) => ({ count: 1, sides: bardicDieSides(caster), flatBonus: 0 }),
+    diceLabel: (caster) => `d${bardicDieSides(caster)}`,
+    scene: 'any',
+    reason: (caster) => `${caster.name} 的吟游诗人激励（d${bardicDieSides(caster)}）`,
+  },
+  hint: '附赠动作发出激励骰：目标下一次能力检定/攻击/豁免可将骰面加到结果上',
 });
 
 // P2 注册表：C 类状态切换与优劣势通道

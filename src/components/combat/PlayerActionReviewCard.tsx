@@ -12,11 +12,13 @@ interface Props {
   boundOk: boolean | null;
   roundOk: boolean;
   currentRound: number;
+  /** 参战者 ID → 名称（op 中目标/受益人可读化） */
+  combatantNames?: Record<string, string>;
   onApply: (ops: TurnCommitOp[]) => void;
   onReject: (reason: string) => void;
 }
 
-function opText(op: TurnCommitOp): string {
+function opText(op: TurnCommitOp, combatantNames?: Record<string, string>): string {
   if (op.kind === 'end-turn') return '结束回合';
   if (op.kind === 'note') {
     const cost = op.actionCost === 'action' ? '（主动作）' : op.actionCost === 'bonus' ? '（附赠动作）' : '';
@@ -44,7 +46,8 @@ function opText(op: TurnCommitOp): string {
   if (op.kind === 'feature-use') {
     const cost = op.poolKey ? `（${op.cost ?? 1} 点）` : '';
     const act = op.activation === 'action' ? '（主动作）' : op.activation === 'bonus' ? '（附赠动作）' : '';
-    return `主动技能：${op.featureName}${cost}${act}`;
+    const targetName = op.targetId ? (combatantNames?.[op.targetId] ?? '') : '';
+    return `主动技能：${op.featureName}${targetName ? ` → ${targetName}` : ''}${cost}${act}`;
   }
   if (op.kind === 'stop-concentration') {
     return '主动停止专注';
@@ -59,7 +62,7 @@ function opText(op: TurnCommitOp): string {
   return `攻击：${op.weaponName} → ${op.targetName}（${roll} vs AC）${verdict}${dmg}${ammo}`;
 }
 
-export default function PlayerActionReviewCard({ request, fromName, actorName, boundOk, roundOk, currentRound, onApply, onReject }: Props) {
+export default function PlayerActionReviewCard({ request, fromName, actorName, boundOk, roundOk, currentRound, combatantNames, onApply, onReject }: Props) {
   const ops = request.action?.ops ?? [];
   // 伤害金额可编辑：按 op 下标存编辑值（未编辑的 op 用原始 amount）
   const [damageEdits, setDamageEdits] = useState<Record<number, number>>({});
@@ -103,7 +106,7 @@ export default function PlayerActionReviewCard({ request, fromName, actorName, b
       <div className="space-y-1">
         {ops.map((op, i) => (
           <div key={i} className="rounded-lg px-2 py-1.5 text-xs space-y-1 dark:bg-bg-dark light:bg-bg-light-2">
-            <div className="dark:text-text-dark light:text-text-light">{opText(op)}</div>
+            <div className="dark:text-text-dark light:text-text-light">{opText(op, combatantNames)}</div>
             {op.kind === 'attack' && op.damage && (
               <div className="flex items-center gap-1.5">
                 <span className="dark:text-text-dark-muted light:text-text-light-muted">伤害改为</span>

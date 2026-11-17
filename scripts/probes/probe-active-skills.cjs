@@ -415,6 +415,57 @@ async function main() {
   check('8e 魔力泉涌 classLevel 池 max=5 余量 5', rider.springMax === 5 && rider.springAvail === 5, rider.spring);
   check('8f 死亡目标跳过震慑挂载（资源行仍返回）', rider.deadStunned === false && (rider.deadLine ?? '').includes('震慑'), rider);
 
+  // ===== 9. checkModifier 通道：直调执行器 + 回合包 targetId 落地 =====
+  const cm = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { executeFeatureChannel } = await import('/src/data/featureChannelRunner.ts');
+    const { applyTurnCommit } = await import('/src/lib/turnCommitApply.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    // 复位到干净状态（前段可能改过池/状态）
+    combatStore.update(rec.id, { featureUses: {}, spellSlotChanges: {}, turnTodos: [], updatedAt: Date.now() });
+    const pc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc');
+    const npc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc');
+
+    // 9-1 直调：激励 → feat-pc2（野蛮人非诗人 → 骰面回退 d6）
+    const r1 = executeFeatureChannel(combatStore.get(rec.id), pc, '诗人激励', 0, { targetId: 'feat-pc2' });
+    const after1 = combatStore.get(rec.id);
+    const pendingOnAlly = (after1.combatants.find(c => c.id === 'feat-pc2').pendingCheckModifiers || [])[0];
+    // 9-2 直调：目标死亡 → 不写入
+    combatStore.update(rec.id, { combatants: after1.combatants.map(c => c.id === 'feat-npc' ? { ...c, isDead: true } : c) });
+    const r2 = executeFeatureChannel(combatStore.get(rec.id), pc, '诗人激励', 0, { targetId: 'feat-npc' });
+    const deadCount = (combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc').pendingCheckModifiers || []).length;
+    combatStore.update(rec.id, { combatants: combatStore.get(rec.id).combatants.map(c => c.id === 'feat-npc' ? { ...c, isDead: false } : c), pendingCheckModifiers: {} });
+
+    // 9-3 回合包：激励 op 带 targetId → 池扣 + pending 落地 + 记录行
+    const noop = () => {};
+    const req = (ops) => ({
+      requestId: `probe-cm-${Date.now()}`, round: 1, combatantId: 'feat-pc', baseSeq: 0,
+      action: { ops },
+    });
+    const ok = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: req([{ kind: 'feature-use', featureName: '诗人激励', poolKey: 'feature:诗人激励', cost: 1, targetId: 'feat-pc2', activation: 'bonus', roundText: '发动「诗人激励」→ 哨兵战士（1 点）' }]),
+      currentRound: 1, applyDamage: () => null, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const afterCommit = combatStore.get(rec.id);
+    const inspireDelta = afterCommit.featureUses?.['feat-pc']?.['feature:诗人激励'];
+    const cmPending = (afterCommit.combatants.find(c => c.id === 'feat-pc2').pendingCheckModifiers || []).find(m => (m.reason ?? '').includes('吟游诗人激励'));
+    const rowText = JSON.stringify(afterCommit.rounds?.[0]?.['feat-pc'] ?? '');
+    // 清场
+    combatStore.update(rec.id, { featureUses: {}, turnTodos: [], updatedAt: Date.now() });
+    return {
+      note1: r1.note, sides: pendingOnAlly?.dice?.sides, scene: pendingOnAlly?.scene, expire: pendingOnAlly?.expireRound, uses: pendingOnAlly?.remainingUses ?? pendingOnAlly?.uses,
+      note2: r2.note, deadCount,
+      commitOk: ok.ok, inspireDelta, cmReason: cmPending?.reason, rowText,
+    };
+  });
+  check('9a 直调激励：note 含目标名与骰面', (cm.note1 ?? '').includes('哨兵战士') && (cm.note1 ?? '').includes('d6'), cm);
+  check('9b pending 落地 feat-pc2：d6/any/整场/1 次', cm.sides === 6 && cm.scene === 'any' && cm.expire === -1 && cm.uses === 1, cm);
+  check('9c 死亡目标不写入（note=null 且 pending 空）', cm.note2 === null && cm.deadCount === 0, cm);
+  check('9d 回合包 targetId：池扣 1 + pending 含激励原因', cm.commitOk === true && cm.inspireDelta === 1 && (cm.cmReason ?? '').includes('吟游诗人激励'), cm);
+  check('9e 回合行含通道说明（激励 d6）', (cm.rowText ?? '').includes('吟游诗人激励') && (cm.rowText ?? '').includes('d6'), cm);
+
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);
