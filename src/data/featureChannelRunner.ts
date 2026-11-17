@@ -15,13 +15,42 @@ export interface FeatureChannelResult {
   statusInstanceId?: string;
 }
 
+/** 通道执行扩展参数（按通道可选；checkModifier 的受益人由调用方先选定） */
+export interface FeatureChannelOptions {
+  /** checkModifier 通道：加值标记的受益人参战者 ID（缺省不执行） */
+  targetId?: string;
+}
+
 export function executeFeatureChannel(
   record: CombatRecord,
   combatant: Combatant,
   featureName: string,
   currentRound0: number,
+  opts?: FeatureChannelOptions,
 ): FeatureChannelResult {
   const capability = resolveFeatureCapability(featureName);
+
+  if (capability.channel === 'checkModifier' && capability.checkModifier && opts?.targetId) {
+    const spec = capability.checkModifier;
+    const target = record.combatants.find(c => c.id === opts.targetId);
+    if (!target || target.isDead) return { note: null };
+    const dice = spec.dice(combatant);
+    const reason = spec.reason(combatant);
+    combatStore.addPendingCheckModifier(record.id, target.id, {
+      fromId: combatant.id,
+      fromName: combatant.name,
+      reason,
+      mode: spec.mode ?? 'bonus',
+      dice,
+      scene: spec.scene,
+      forced: false,
+      createdRound: currentRound0,
+      expireRound: spec.expireRound ?? -1,
+      uses: 1,
+    });
+    const label = spec.diceLabel?.(combatant) ?? `d${dice.sides}`;
+    return { note: `${target.name} 获得「${reason}」（${label}，下次适用检定可加）` };
+  }
 
   if (capability.channel === 'status' && capability.status) {
     const { statusKey, durationRounds, todo, effects } = capability.status;

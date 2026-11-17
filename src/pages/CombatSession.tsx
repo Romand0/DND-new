@@ -60,6 +60,8 @@ import Battleground from '@/components/Battleground';
 import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
+import FeatureCheckModifierModal from '@/components/combat/FeatureCheckModifierModal';
+import FeatureAoeSaveModal from '@/components/combat/FeatureAoeSaveModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import ReactionPromptModal from '@/components/ReactionPromptModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
@@ -170,20 +172,6 @@ function migrateProvingGroundData(record: CombatRecord) {
   });
 }
 
-// 吟游诗人激励骰面派生：诗人 1-4 级 d6、5-9 d8、10-14 d10、15+ d12（5e 激励特性随等级成长）。
-// 非诗人（或 NPC/无角色卡）默认 d6——DM 对魔法物品等来源裁量发放。
-function getBardicDie(c: Combatant): { sides: number; label: string } {
-  const char = c.characterId ? characterStore.get(c.characterId) : null;
-  const cls = String(char?.profession?.class ?? (char as any)?.class ?? '');
-  if (cls.includes('吟游诗人') && char) {
-    const lv = typeof char.level === 'number' ? char.level : 1;
-    if (lv >= 15) return { sides: 12, label: 'd12' };
-    if (lv >= 10) return { sides: 10, label: 'd10' };
-    if (lv >= 5) return { sides: 8, label: 'd8' };
-  }
-  return { sides: 6, label: 'd6' };
-}
-
 function ensureCanAct(c: Combatant, canUse: boolean, kind: 'action' | 'bonus' = 'action'): boolean {
   const reason = actionDeniedReason(c);
   if (reason) {
@@ -280,7 +268,22 @@ export default function CombatSession() {
   const [settlementOpen, setSettlementOpen] = useState(false);
   // ✅ 新增：协助（Help）动作弹窗 —— 选择友方 → 挂 pending 优劣势标记
   const [helpModal, setHelpModal] = useState<{ from: Combatant } | null>(null);
-  const [bardicModal, setBardicModal] = useState<{ from: Combatant } | null>(null);
+  // ✅ checkModifier 通道弹窗（激励骰等）：选受益人 → 确认时扣动作与池
+  const [checkModifierModal, setCheckModifierModal] = useState<{
+    from: Combatant;
+    featureName: string;
+    activation: Feature['activation'];
+    poolKey: string | null;
+    cost: number;
+  } | null>(null);
+  // ✅ aoe_save 通道弹窗（吐息武器等）：范围拾取 + 逐目标豁免 → 确认时扣动作与池并落 HP
+  const [aoeSaveModal, setAoeSaveModal] = useState<{
+    from: Combatant;
+    featureName: string;
+    activation: Feature['activation'];
+    poolKey: string | null;
+    cost: number;
+  } | null>(null);
 
   // ✅ 选中格状态（先攻表格操作 + 手动记录弹窗依赖）
   const [selectedCell, setSelectedCell] = useState<{ round: number; combatantId: string } | null>(null);
@@ -1029,15 +1032,68 @@ export default function CombatSession() {
     setHelpModal({ from: c });
   };
 
-  const openBardicFor = (c: Combatant) => {
-    if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
-    // 激励池守卫：激励标注为池资源且已耗尽时拦截（未标注池的老数据无该条目，直接放行）
-    const poolEntry = combatStore.getFeaturePoolView(record.id, c.id)?.find(p => p.featureKey === 'feature:诗人激励');
-    if (poolEntry && poolEntry.available < 1) {
-      alert(`激励池已用尽（${poolEntry.available}/${poolEntry.max}），短休/长休后恢复`);
+  const openCheckModifierFor = (c: Combatant, featureName: string, activation: Feature['activation'], poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => {
+    if (activation === 'action') {
+      if (!ensureCanAct(c, canUseAction(c.id))) return;
+    } else if (activation === 'bonus') {
+      if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
+    }
+    if (poolInfo.poolKey && poolInfo.available != null && poolInfo.available < poolInfo.cost) {
+      alert(`「${featureName}」资源不足（可用 ${poolInfo.available}/${poolInfo.max ?? '?'}）`);
       return;
     }
-    setBardicModal({ from: c });
+    setCheckModifierModal({ from: c, featureName, activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
+  };
+
+  // checkModifier 通道确认：动作与池在确认时扣（取消不损失资源），随后由通道执行器写目标身上的加值标记
+  const confirmCheckModifier = (targetId: string) => {
+    if (!record || !checkModifierModal) return;
+    const { from, featureName, activation, poolKey, cost } = checkModifierModal;
+    if (poolKey) {
+      const ok = combatStore.consumeFeatureUse(record.id, from.id, poolKey, cost);
+      if (!ok) {
+        alert(`「${featureName}」资源不足`);
+        return;
+      }
+    }
+    if (activation === 'action') consumeCombatantAction(from.id);
+    else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    const channelResult = executeFeatureChannel(record, from, featureName, currentRound0, { targetId });
+    recordOperation(from.id, `发动「${featureName}」${channelResult.note ? `：${channelResult.note}` : ''}`, 'record');
+    setCheckModifierModal(null);
+  };
+
+  // aoe_save 通道确认：动作与池在确认时扣（取消不损失资源），逐目标 HP 经 handleApplyDamage 落地
+  const resolveAoeSave = (payload: {
+    results: { combatantId: string; name: string; damage: number; damageType: string }[];
+    message: string;
+  }) => {
+    if (!record || !aoeSaveModal) return;
+    const { from, featureName, activation, poolKey, cost } = aoeSaveModal;
+    if (poolKey) {
+      const ok = combatStore.consumeFeatureUse(record.id, from.id, poolKey, cost);
+      if (!ok) {
+        alert(`「${featureName}」资源不足`);
+        return;
+      }
+    }
+    if (activation === 'action') consumeCombatantAction(from.id);
+    else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
+    for (const r of payload.results) {
+      if (r.damage > 0) {
+        handleApplyDamage({
+          targetId: r.combatantId,
+          amount: r.damage,
+          sourceId: from.id,
+          sourceName: from.name,
+          sourceKind: 'effect',
+          damageType: r.damageType,
+        });
+      }
+    }
+    recordOperation(from.id, payload.message, 'damage');
+    setAoeSaveModal(null);
   };
 
   /**
@@ -1048,13 +1104,29 @@ export default function CombatSession() {
    */
   const handleFeatureUse = (c: Combatant, feature: Feature, poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => {
     const capability = resolveFeatureCapability(feature.name);
-    // 1. 动作成本（reaction/free 不扣动作）
+    // 1. 动作成本校验（reaction/free 不扣动作；checkModifier 实际扣减在弹窗确认时）
     if (feature.activation === 'action') {
       if (!ensureCanAct(c, canUseAction(c.id))) return;
     } else if (feature.activation === 'bonus') {
       if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
     }
-    // 2. 池扣减（无池语义直接跳过，老数据优雅降级）；
+    // 2. checkModifier 通道：先选受益人，动作与池在弹窗确认时扣（取消不损失资源）
+    if (capability.channel === 'checkModifier' && capability.checkModifier) {
+      openCheckModifierFor(c, feature.name, feature.activation, poolInfo);
+      return;
+    }
+    // 2.5 aoe_save 通道（吐息武器）：范围拾取 + 逐目标豁免，动作与池在弹窗确认时扣
+    if (capability.channel === 'aoe_save' && capability.aoeSave) {
+      const bg = battlegroundStore.get(record.id);
+      const placed = (bg?.tokens ?? []).some(t => t.combatantId === c.id);
+      if (!placed) {
+        alert(`「${feature.name}」需要先将该参战者放置在沙盘上（范围以自身为源点）`);
+        return;
+      }
+      setAoeSaveModal({ from: c, featureName: feature.name, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
+      return;
+    }
+    // 3. 池扣减（无池语义直接跳过，老数据优雅降级）；
     //    attack_rider（命中触发类）为声明入口：资源在命中时刻由伤害结算弹窗扣，此处不扣
     if (poolInfo.poolKey && poolInfo.available != null && capability.channel !== 'attack_rider') {
       const ok = combatStore.consumeFeatureUse(record.id, c.id, poolInfo.poolKey, poolInfo.cost);
@@ -1063,13 +1135,13 @@ export default function CombatSession() {
         return;
       }
     }
-    // 3. 动作消耗落到 combatant（与激励同口径）
+    // 4. 动作消耗落到 combatant（与激励同口径）
     if (feature.activation === 'action') consumeCombatantAction(c.id);
     else if (feature.activation === 'bonus') consumeCombatantBonusAction(c.id);
-    // 4. 通道路由：status/advantage 走通道执行器（挂状态/pending 优劣势），reaction 说明自动触发，
-    //    manual/checkModifier 提示 DM 手动结算（checkModifier 待接入独立弹窗）
+    // 5. 通道路由：status/advantage 走通道执行器（挂状态/pending 优劣势），reaction 说明自动触发，
+    //    manual 提示 DM 手动结算
     recordOperation(c.id, `发动「${feature.name}」`, 'record');
-    if (capability.channel === 'manual' || capability.channel === 'checkModifier') {
+    if (capability.channel === 'manual') {
       alert(`「${feature.name}」已消耗资源${poolInfo.poolKey ? `（${poolInfo.cost} 点）` : ''}。请按特性描述手动结算：${capability.hint || (feature.description || '').slice(0, 80)}`);
       return;
     }
@@ -1596,7 +1668,6 @@ export default function CombatSession() {
         combatants={record.combatants}
         readOnly={!!record.settledAt}
         onPanelHelpClick={openHelpFor}
-        onPanelBardicClick={openBardicFor}
         onPanelAttackClick={openAttackFor}
         onPanelCastClick={openCastFor}
         onPanelDashClick={dashFor}
@@ -2634,83 +2705,36 @@ export default function CombatSession() {
         );
       })()}
 
-      {/* 吟游诗人激励弹窗：附赠动作发放一枚消耗型检定加值骰（复用次数型奖惩引擎） */}
-      {bardicModal && record && (() => {
-        const from = bardicModal.from;
-        const die = getBardicDie(from);
+      {/* checkModifier 通道弹窗：选受益人 → 确认时扣动作与池 → 通道执行器写加值标记 */}
+      {checkModifierModal && record && (() => {
         const friendlies = record.combatants.filter(
-          c => c.id !== from.id && c.isPc === from.isPc && !c.isDead,
+          c => c.id !== checkModifierModal.from.id && c.isPc === checkModifierModal.from.isPc && !c.isDead,
         );
         return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50" onClick={() => setBardicModal(null)}>
-            <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light" onClick={e => e.stopPropagation()}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
-                  吟游诗人激励
-                </h3>
-                <button onClick={() => setBardicModal(null)} className="p-1 rounded hover:bg-white/10">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-2">
-                发出者：<span className="font-medium dark:text-text-dark light:text-text-light">{from.name}</span>
-              </p>
-              <ul className="text-xs dark:text-text-dark-muted light:text-text-light-muted space-y-0.5 mb-4 list-disc pl-5">
-                <li>效果：获得一枚{die.label}，进行能力检定 / 攻击检定 / 豁免检定后可将其结果加到检定值上（弹窗内自行决定是否使用）</li>
-                <li>类型：一次性消耗，用后即失效</li>
-                <li>有效期：10 分钟内（按战斗尺度等效整场战斗）</li>
-                <li>消耗：发出者的 1 个附赠动作</li>
-              </ul>
-              <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
-                选择激励对象（友方 · {friendlies.length}）
-              </div>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {friendlies.length === 0 && (
-                  <div className="text-xs opacity-60 text-center py-6">当前没有可选择的友方</div>
-                )}
-                {friendlies.map(f => {
-                  const held = (f.pendingCheckModifiers || []).some(m => !m.consumed && m.remainingUses > 0);
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => {
-                        if (!record) return;
-                        const curRound = currentTurn?.round ?? 0;
-                        // scene='any' 覆盖攻击/法术/豁免/技能检定；forced=false 让玩家在检定弹窗自行决定是否使用
-                        combatStore.addPendingCheckModifier(record.id, f.id, {
-                          fromId: from.id,
-                          fromName: from.name,
-                          reason: `${from.name} 的吟游诗人激励（${die.label}）`,
-                          mode: 'bonus',
-                          dice: { count: 1, sides: die.sides, flatBonus: 0 },
-                          scene: 'any',
-                          forced: false,
-                          createdRound: curRound,
-                          expireRound: -1,
-                          uses: 1,
-                        });
-                        // 消耗 1 个附赠动作
-                        consumeCombatantBonusAction(from.id);
-                        // 激励池扣减（激励标注为池资源时生效；老数据无公式时 consumeFeatureUse 自动 no-op）
-                        combatStore.consumeFeatureUse(record.id, from.id, 'feature:诗人激励', 1);
-                        recordOperation(from.id, `激励 ${f.name}（${die.label}）`, 'record');
-                        setBardicModal(null);
-                      }}
-                      className="w-full text-left px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light hover:border-primary/60 hover:bg-primary/5 transition-colors"
-                    >
-                      <div className="text-sm font-medium dark:text-text-dark light:text-text-light">{f.name}</div>
-                      <div className="text-xs opacity-60">
-                        {f.isPc ? '玩家角色' : 'NPC'}
-                        {f.initiative ? ` · 先攻 ${f.initiative}` : ''}
-                        {held ? ' · 已持有激励骰' : ''}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          <FeatureCheckModifierModal
+            from={checkModifierModal.from}
+            featureName={checkModifierModal.featureName}
+            friendlies={friendlies}
+            onConfirm={confirmCheckModifier}
+            onClose={() => setCheckModifierModal(null)}
+          />
+        );
+      })()}
+
+      {/* aoe_save 通道弹窗（吐息武器等）：范围拾取 + 逐目标豁免结算 */}
+      {aoeSaveModal && record && (() => {
+        const bg = battlegroundStore.get(record.id);
+        const preset = GRID_PRESETS[bg?.size ?? 'small'];
+        return (
+          <FeatureAoeSaveModal
+            caster={aoeSaveModal.from}
+            featureName={aoeSaveModal.featureName}
+            combatants={record.combatants}
+            combatantPositions={combatantPositions}
+            bounds={{ cols: preset.cols, rows: preset.rows }}
+            onResolve={resolveAoeSave}
+            onClose={() => setAoeSaveModal(null)}
+          />
         );
       })()}
 
@@ -2909,7 +2933,6 @@ export default function CombatSession() {
             actions={liveCombatant.actions}
             bonusActions={liveCombatant.bonusActions}
             onHelpClick={() => openHelpFor(liveCombatant)}
-            onBardicClick={() => openBardicFor(liveCombatant)}
             onFeatureClick={(feature, poolInfo) => handleFeatureUse(liveCombatant, feature, poolInfo)}
             onAttackClick={() => openAttackFor(liveCombatant)}
             onCastClick={() => {

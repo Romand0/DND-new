@@ -8,6 +8,7 @@ import { resolvePoolKey } from '@/data/featurePool';
 import { globalStatusManager } from '@/data/statusManager';
 import type { CombatRecord, Combatant } from '@/types/combat';
 import type { Character, SpellSlotLevel } from '@/types/character';
+import type { RosterActiveFeature, RosterSpellSlot } from '@/types/realtime';
 
 /** 伤害弹窗勾选区的一个可发动 rider 选项（只读快照，落地时按此扣资源） */
 export interface AttackRiderOption {
@@ -97,6 +98,66 @@ export function getAttackRiders(record: CombatRecord, attacker: Combatant): Atta
       if (levels.length === 0) continue;
       options.push({
         featureName: f.name,
+        hint: spec.hint,
+        kind: 'spellSlot',
+        slotLevels: levels,
+        damage: spec.damage,
+        bonusDice: spec.bonusDice,
+        perSlotDice: spec.perSlotDice,
+      });
+    }
+  }
+  return options;
+}
+
+/**
+ * 玩家端 rider 选项构建（投影版）：玩家浏览器没有本地 CombatRecord，
+ * 池/法术位余量从广播投影（RosterActiveFeature / RosterSpellSlot）读取。
+ * DC 与伤害骰仍由注册表 spec 按玩家角色卡推导，与 DM 端 getAttackRiders 同构。
+ */
+export function getAttackRidersForPlayer(
+  char: Character,
+  activeFeatures: RosterActiveFeature[] | null | undefined,
+  spellSlots?: RosterSpellSlot[] | null,
+): AttackRiderOption[] {
+  if (!activeFeatures || activeFeatures.length === 0) return [];
+  const options: AttackRiderOption[] = [];
+
+  for (const rf of activeFeatures) {
+    const capability = resolveFeatureCapability(rf.name);
+    if (capability.channel !== 'attack_rider' || !capability.attackRider) continue;
+    const spec: AttackRiderSpec = capability.attackRider;
+    if (spec.cost.kind === 'pool') {
+      const poolKey = rf.poolKey;
+      const cost = rf.cost ?? spec.cost.cost;
+      // disabled = 池耗尽投影标记；poolLeft 缺省按不可用处理（老 DM 版本无该字段）
+      if (!poolKey || rf.disabled || rf.poolLeft == null || rf.poolLeft < cost) continue;
+      options.push({
+        featureName: rf.name,
+        hint: spec.hint,
+        kind: 'pool',
+        poolKey,
+        poolCost: cost,
+        poolAvailable: rf.poolLeft,
+        poolMax: rf.poolMax,
+        damage: spec.damage,
+        bonusDice: spec.bonusDice,
+        save: spec.save
+          ? { abilityLabel: ABILITY_LABELS[spec.save.ability] ?? spec.save.ability, dc: spec.save.dc(char), failHint: spec.save.todo }
+          : undefined,
+      });
+    } else {
+      // 法术位成本：从投影余量（max - used，已含战斗 delta）列出可用环级
+      const levels: { level: SpellSlotLevel; remaining: number }[] = [];
+      for (const s of spellSlots ?? []) {
+        const remaining = s.max - s.used;
+        if (remaining > 0) {
+          levels.push({ level: `level${s.level}` as SpellSlotLevel, remaining });
+        }
+      }
+      if (levels.length === 0) continue;
+      options.push({
+        featureName: rf.name,
         hint: spec.hint,
         kind: 'spellSlot',
         slotLevels: levels,

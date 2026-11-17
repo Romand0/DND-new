@@ -15,12 +15,17 @@ import { MyCombatantsSection } from '@/components/spectate/MyCombatantPanel';
 import MyTurnPanel from '@/components/spectate/MyTurnPanel';
 import Battleground from '@/components/Battleground';
 import CombatResourceHud from '@/components/combat/CombatResourceHud';
+import AoETargetStep from '@/components/combat/AoETargetStep';
+import { parseAoeSpec } from '@/data/aoeShapes';
+import { GRID_PRESETS } from '@/types/battleground';
+import type { Bearing } from '@/data/battleGeometry';
 import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHandOps } from '@/components/spectate/combatantAdapter';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
-import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, TurnCommitOp } from '@/types/realtime';
+import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterActiveFeature, TurnCommitOp } from '@/types/realtime';
 import type { Character } from '@/types/character';
+import FeatureCheckModifierModal from '@/components/combat/FeatureCheckModifierModal';
 
 // 观战投影 → DM 侧沙盘数据结构（Battleground 投影模式入参）：棋子/掉落物/边界墙/地形区域一一映射
 function projectionToBg(board: BoardProjection, sessionId: string): BattlegroundData {
@@ -34,6 +39,11 @@ function projectionToBg(board: BoardProjection, sessionId: string): Battleground
     updatedAt: 0,
   };
 }
+
+/** aoe_save op 朝向中文标签（审核卡/记录行展示） */
+const BEARING_LABELS: Record<string, string> = {
+  NW: '西北', N: '北', NE: '东北', W: '西', E: '东', SW: '西南', S: '南', SE: '东南',
+};
 
 function takeLatestDelta(deltas: { payload: unknown }[]): CombatDeltaPayload | null {
   // snapshot.deltas 的 payload 是透传 unknown，逐条嗅探是否有 v1 快照特征字段
@@ -77,6 +87,10 @@ export default function PlayerSpectate() {
   // 回合提交（回合批提交模型）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
   const lastDeltaSeqRef = useRef(0);
   const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
+  // checkModifier 通道目标选择（激励骰等）：选定受益人后打包 feature-use op（携带 targetId）
+  const [checkModifierPick, setCheckModifierPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature } | null>(null);
+  // aoe_save 通道方向拾取（吐息武器等）：玩家选朝向后打包 feature-use op（携带 direction），DM 入账时全自动结算
+  const [aoePick, setAoePick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature } | null>(null);
   // ops 提升到页面层：沙盘拖拽与回合面板共享同一操作列表
   const [pendingOps, setPendingOps] = useState<TurnCommitOp[]>([]);
   const lastOpsRoundRef = useRef<number | null>(null);
@@ -585,6 +599,16 @@ export default function PlayerSpectate() {
                   });
                   return;
                 }
+                // checkModifier 通道（激励骰等）：先选受益人再打包 op，资源由 DM 入账时扣
+                if (resolveFeatureCapability(feature.name).channel === 'checkModifier') {
+                  setCheckModifierPick({ combatant, feature });
+                  return;
+                }
+                // aoe_save 通道（吐息武器等）：先选朝向再打包 op，几何/豁免/伤害由 DM 入账时全自动结算
+                if (resolveFeatureCapability(feature.name).channel === 'aoe_save') {
+                  setAoePick({ combatant, feature });
+                  return;
+                }
                 addOp({
                   kind: 'feature-use',
                   featureName: feature.name,
@@ -595,6 +619,84 @@ export default function PlayerSpectate() {
               }}
             />
           )}
+
+          {checkModifierPick && spectate && (() => {
+            const from = rosterEntryToCombatant(checkModifierPick.combatant, panelCharacters[checkModifierPick.combatant.id] ?? null);
+            const friendlies = combatantsForBoard.filter(c => c.id !== from.id && c.isPc === from.isPc && !c.isDead);
+            return (
+              <FeatureCheckModifierModal
+                from={from}
+                featureName={checkModifierPick.feature.name}
+                friendlies={friendlies}
+                onConfirm={(targetId) => {
+                  const targetName = combatantsForBoard.find(c => c.id === targetId)?.name ?? '目标';
+                  addOp({
+                    kind: 'feature-use',
+                    featureName: checkModifierPick.feature.name,
+                    ...(checkModifierPick.feature.poolKey ? { poolKey: checkModifierPick.feature.poolKey, cost: checkModifierPick.feature.cost ?? 1 } : {}),
+                    targetId,
+                    activation: checkModifierPick.feature.activation,
+                    roundText: `发动「${checkModifierPick.feature.name}」→ ${targetName}${checkModifierPick.feature.poolKey ? `（${checkModifierPick.feature.cost ?? 1} 点）` : ''}`,
+                  });
+                  setCheckModifierPick(null);
+                }}
+                onClose={() => setCheckModifierPick(null)}
+              />
+            );
+          })()}
+
+          {aoePick && spectate && (() => {
+            const from = rosterEntryToCombatant(aoePick.combatant, panelCharacters[aoePick.combatant.id] ?? null);
+            const spec = parseAoeSpec(aoePick.feature.description);
+            const positions: Record<string, { col: number; row: number }> = {};
+            (spectate.board?.tokens ?? []).forEach((t) => { positions[t.combatantId] = { col: t.col, row: t.row }; });
+            const preset = GRID_PRESETS[spectate.board?.size ?? 'small'];
+            const packOp = (_msg: string, data: Record<string, unknown>) => {
+              const direction = (data.direction as Bearing) ?? 'E';
+              addOp({
+                kind: 'feature-use',
+                featureName: aoePick.feature.name,
+                ...(aoePick.feature.poolKey ? { poolKey: aoePick.feature.poolKey, cost: aoePick.feature.cost ?? 1 } : {}),
+                direction,
+                activation: aoePick.feature.activation,
+                roundText: `发动「${aoePick.feature.name}」（${data.shapeLabel ?? '范围'}，朝向${BEARING_LABELS[direction] ?? direction}）${aoePick.feature.poolKey ? `（${aoePick.feature.cost ?? 1} 点）` : ''}`,
+              });
+              setAoePick(null);
+            };
+            return (
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setAoePick(null)}>
+                <div
+                  className="dark:bg-card-dark light:bg-card-light rounded-xl shadow-2xl w-[92vw] max-w-lg max-h-[85vh] overflow-y-auto p-4 space-y-3"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h4 className="font-bold dark:text-text-dark light:text-text-light">
+                    {aoePick.feature.name}
+                    <span className="ml-2 text-xs font-normal dark:text-text-dark-muted light:text-text-light-muted">
+                      选择呼出朝向，结算由 DM 完成
+                    </span>
+                  </h4>
+                  {spec ? (
+                    <AoETargetStep
+                      aoeSpec={spec}
+                      rangeFeet={null}
+                      lockSelfOriginated
+                      caster={from}
+                      combatants={combatantsForBoard}
+                      combatantPositions={positions}
+                      bounds={{ cols: preset.cols, rows: preset.rows }}
+                      confirmLabel="确认朝向，提交 DM 结算"
+                      onConfirm={packOp}
+                      onForce={packOp}
+                    />
+                  ) : (
+                    <p className="text-sm text-amber-400">
+                      无法从特性描述解析范围形状（需含「15尺锥状」等表述），请联系 DM 修正特性描述。
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
 
           {connected && !spectate && (
             <div className="text-center py-10 dark:text-text-dark-muted light:text-text-light-muted">

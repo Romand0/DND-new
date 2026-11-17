@@ -70,6 +70,8 @@ export default function PlayerActionReviewPanel({
             const boundIds = boundByUser.get(from.userId);
             const boundOk = boundIds ? (actor?.characterId ? boundIds.has(actor.characterId) : false) : null;
             const roundOk = request.round === currentRound;
+            const combatantNames: Record<string, string> = {};
+            combatants.forEach((c) => { combatantNames[c.id] = c.name; });
             return (
               <PlayerActionReviewCard
                 key={request.requestId}
@@ -79,6 +81,7 @@ export default function PlayerActionReviewPanel({
                 boundOk={boundOk}
                 roundOk={roundOk}
                 currentRound={currentRound}
+                combatantNames={combatantNames}
                 onApply={(ops) => onApply(request, ops)}
                 onReject={(reason) => onReject(request.requestId, reason)}
               />

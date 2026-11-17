@@ -33,8 +33,6 @@ interface Props {
   bonusActions?: number;
   /** 点击「协助」动作时回调（由 CombatSession 实现友方选择 + pending 标记） */
   onHelpClick?: () => void;
-  /** 点击「吟游诗人激励」动作时回调（由 CombatSession 实现友方选择 + 附赠动作消耗） */
-  onBardicClick?: () => void;
   /**
    * 点击非激励主动技能时回调（CombatSession 挂扣动作 + 扣池 + 通道路由）。
    * poolInfo.available 为 null = 该特性无池消耗（free/manual 路径），宿主自行裁定动作成本
@@ -68,7 +66,7 @@ interface Props {
   spellSlotsOverride?: { level: number; label: string; used: number; max: number }[] | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onBardicClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -86,12 +84,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
       : null;
 
   // 主动技能区：只有角色卡特性与特质里归类为主动技能的条目才展示（NPC/无卡参战者不显示）。
-  // 名称含「激励」的条目接入吟游诗人激励流程，其余主动技能暂为提示占位
+  // 通道路由（激励=checkModifier、狂暴=status 等）由 featureCapabilities 注册表驱动
   const activeFeatures = useMemo(
     () => (character?.features || []).filter((f) => deriveFeatureRole(f) === 'active'),
     [character]
   );
-  const hasBardicFeature = activeFeatures.some((f) => /激励/.test(f.name));
   // 池视图：池满量/卡已用/本场消耗/可用量（refreshKey 每秒跳动，顺带驱动池数据刷新）
   const poolView = useMemo(
     () => (recordId ? combatStore.getFeaturePoolView(recordId, combatant.id) : null),
@@ -1370,7 +1367,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                   </button>
                 )}
                 {/* 主动技能区：按角色卡特性与特质过滤，只有真的携带对应主动技能的角色才显示对应按钮。
-                    池驱动：resource='pool' 的成员/池主显示池量徽标，可用量为 0 禁用；激励继续走专用流程 */}
+                    池驱动：resource='pool' 的成员/池主显示池量徽标，可用量为 0 禁用；通道路由由注册表决定 */}
                 {activeFeatures.length > 0 && (
                   <div className="mt-3">
                     <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
@@ -1378,7 +1375,6 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     </div>
                     <div className="grid grid-cols-2 gap-1.5">
                       {activeFeatures.map((f) => {
-                        const isBardic = /激励/.test(f.name);
                         const capability = resolveFeatureCapability(f.name);
                         const poolKey = resolvePoolKey(f);
                         // 池量信息：战斗池视图优先；无战斗记录（玩家端投影等）时 poolInfo 置空
@@ -1403,9 +1399,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             type="button"
                             disabled={(sealed && !playerMode) || !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated) || exhausted}
                             onClick={() => {
-                              if (isBardic && onBardicClick) {
-                                onBardicClick();
-                              } else if (onFeatureClick) {
+                              if (onFeatureClick) {
                                 onFeatureClick(f, poolInfo);
                               } else {
                                 alert(`「${f.name}」暂未接入自动化流程，请按特性描述手动处理`);
@@ -1413,7 +1407,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                             }}
                             className={`px-2 py-1.5 rounded text-xs text-left transition-colors dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light active:scale-[0.98] ${sealed && !playerMode ? 'opacity-50 cursor-not-allowed' : exhausted ? 'opacity-40 cursor-not-allowed' : 'hover:bg-primary/15'}`}
                             title={[
-                              isBardic ? '附赠动作·发放激励骰' : capability.hint || (f.description || '').slice(0, 60),
+                              capability.hint || (f.description || '').slice(0, 60),
                               poolEntry != null ? `资源 ${poolEntry.available}/${poolEntry.max}` : null,
                               activationLabel ? `${activationLabel}消耗` : null,
                             ].filter(Boolean).join(' · ')}

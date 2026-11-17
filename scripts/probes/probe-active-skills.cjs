@@ -415,6 +415,250 @@ async function main() {
   check('8e 魔力泉涌 classLevel 池 max=5 余量 5', rider.springMax === 5 && rider.springAvail === 5, rider.spring);
   check('8f 死亡目标跳过震慑挂载（资源行仍返回）', rider.deadStunned === false && (rider.deadLine ?? '').includes('震慑'), rider);
 
+  // ===== 9. checkModifier 通道：直调执行器 + 回合包 targetId 落地 =====
+  const cm = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { executeFeatureChannel } = await import('/src/data/featureChannelRunner.ts');
+    const { applyTurnCommit } = await import('/src/lib/turnCommitApply.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    // 复位到干净状态（前段可能改过池/状态）
+    combatStore.update(rec.id, { featureUses: {}, spellSlotChanges: {}, turnTodos: [], updatedAt: Date.now() });
+    const pc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc');
+    const npc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc');
+
+    // 9-1 直调：激励 → feat-pc2（野蛮人非诗人 → 骰面回退 d6）
+    const r1 = executeFeatureChannel(combatStore.get(rec.id), pc, '诗人激励', 0, { targetId: 'feat-pc2' });
+    const after1 = combatStore.get(rec.id);
+    const pendingOnAlly = (after1.combatants.find(c => c.id === 'feat-pc2').pendingCheckModifiers || [])[0];
+    // 9-2 直调：目标死亡 → 不写入
+    combatStore.update(rec.id, { combatants: after1.combatants.map(c => c.id === 'feat-npc' ? { ...c, isDead: true } : c) });
+    const r2 = executeFeatureChannel(combatStore.get(rec.id), pc, '诗人激励', 0, { targetId: 'feat-npc' });
+    const deadCount = (combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc').pendingCheckModifiers || []).length;
+    combatStore.update(rec.id, { combatants: combatStore.get(rec.id).combatants.map(c => c.id === 'feat-npc' ? { ...c, isDead: false } : c), pendingCheckModifiers: {} });
+
+    // 9-3 回合包：激励 op 带 targetId → 池扣 + pending 落地 + 记录行
+    const noop = () => {};
+    const req = (ops) => ({
+      requestId: `probe-cm-${Date.now()}`, round: 1, combatantId: 'feat-pc', baseSeq: 0,
+      action: { ops },
+    });
+    const ok = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: req([{ kind: 'feature-use', featureName: '诗人激励', poolKey: 'feature:诗人激励', cost: 1, targetId: 'feat-pc2', activation: 'bonus', roundText: '发动「诗人激励」→ 哨兵战士（1 点）' }]),
+      currentRound: 1, applyDamage: () => null, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const afterCommit = combatStore.get(rec.id);
+    const inspireDelta = afterCommit.featureUses?.['feat-pc']?.['feature:诗人激励'];
+    const cmPending = (afterCommit.combatants.find(c => c.id === 'feat-pc2').pendingCheckModifiers || []).find(m => (m.reason ?? '').includes('吟游诗人激励'));
+    const rowText = JSON.stringify(afterCommit.rounds?.[0]?.['feat-pc'] ?? '');
+    // 清场
+    combatStore.update(rec.id, { featureUses: {}, turnTodos: [], updatedAt: Date.now() });
+    return {
+      note1: r1.note, sides: pendingOnAlly?.dice?.sides, scene: pendingOnAlly?.scene, expire: pendingOnAlly?.expireRound, uses: pendingOnAlly?.remainingUses ?? pendingOnAlly?.uses,
+      note2: r2.note, deadCount,
+      commitOk: ok.ok, inspireDelta, cmReason: cmPending?.reason, rowText,
+    };
+  });
+  check('9a 直调激励：note 含目标名与骰面', (cm.note1 ?? '').includes('哨兵战士') && (cm.note1 ?? '').includes('d6'), cm);
+  check('9b pending 落地 feat-pc2：d6/any/整场/1 次', cm.sides === 6 && cm.scene === 'any' && cm.expire === -1 && cm.uses === 1, cm);
+  check('9c 死亡目标不写入（note=null 且 pending 空）', cm.note2 === null && cm.deadCount === 0, cm);
+  check('9d 回合包 targetId：池扣 1 + pending 含激励原因', cm.commitOk === true && cm.inspireDelta === 1 && (cm.cmReason ?? '').includes('吟游诗人激励'), cm);
+  check('9e 回合行含通道说明（激励 d6）', (cm.rowText ?? '').includes('吟游诗人激励') && (cm.rowText ?? '').includes('d6'), cm);
+
+  // ===== 10. 玩家 attack riders 协议（方案 B）：投影构建选项 + attack op 携带 riders 入账 =====
+  const pr = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const { getAttackRidersForPlayer } = await import('/src/data/attackRiders.ts');
+    const { applyTurnCommit } = await import('/src/lib/turnCommitApply.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    // 复用第 8 段的圣武士/武僧沙盒卡构建玩家侧投影
+    const paladinChar = characterStore.getAll().find(c => c.name === '主动技能·圣骑士');
+    const monkChar = characterStore.getAll().find(c => c.name === '主动技能·武僧');
+    const palFeat = [{ name: '至圣斩', description: '', activation: 'free', resource: 'manual' }];
+    const palSlots = [{ level: 1, label: '1环', used: 0, max: 4 }];
+    const monkFeat = [{ name: '震慑拳', description: '', activation: 'free', resource: 'pool', poolKey: 'feature:气', poolLeft: 5, poolMax: 5, cost: 1 }];
+    const palOpts = getAttackRidersForPlayer(paladinChar, palFeat, palSlots);
+    const monkOpts = getAttackRidersForPlayer(monkChar, monkFeat, []);
+    const monkExhausted = getAttackRidersForPlayer(monkChar, [{ ...monkFeat[0], poolLeft: 0, disabled: true }], []);
+
+    // attack op 携带 riders → DM 入账扣法术位/池 + 挂状态
+    const addC = (id, name, characterId) => ({
+      id, name, isPc: true, characterId, initiative: 7,
+      actions: 1, bonusActions: 1, reactions: 1, movementUsed: 0,
+      heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [],
+    });
+    const baseRoster = combatStore.get(rec.id).combatants;
+    combatStore.update(rec.id, {
+      combatants: [...baseRoster, addC('probe-pal', '探针圣骑士', paladinChar.id), addC('probe-monk', '探针武僧', monkChar.id)],
+      featureUses: {}, spellSlotChanges: {}, turnTodos: [],
+      updatedAt: Date.now(),
+    });
+    const noop = () => {};
+    const req = (ops) => ({
+      requestId: `probe-pr-${Date.now()}-${Math.random()}`, round: 1, combatantId: 'probe-pal', baseSeq: 0,
+      action: { ops },
+    });
+    const r1 = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: req([{ kind: 'attack', weaponChildId: null, weaponName: '长剑', targetId: 'feat-npc', targetName: '技能地精', d20: 15, bonus: 5, hit: true, critical: false, damage: { amount: 8, type: '挥砍' }, riders: [{ featureName: '至圣斩', slotLevel: 'level1' }], roundText: '用长剑攻击技能地精' }]),
+      currentRound: 1, applyDamage: () => null, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const after1 = combatStore.get(rec.id);
+    const slotDelta = after1.spellSlotChanges?.['probe-pal']?.level1;
+    const palRow = JSON.stringify(after1.rounds?.[0]?.['probe-pal'] ?? '');
+    // 震慑拳走 attack op（武僧行动者）：池扣 + 豁免失败挂震慑
+    const r2 = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: { ...req([{ kind: 'attack', weaponChildId: null, weaponName: '徒手打击', targetId: 'feat-npc', targetName: '技能地精', d20: 12, bonus: 3, hit: true, critical: false, damage: { amount: 3, type: '钝击' }, riders: [{ featureName: '震慑拳', saveResult: 'fail' }], roundText: '用徒手打击攻击技能地精' }]), combatantId: 'probe-monk' },
+      currentRound: 1, applyDamage: () => null, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const after2 = combatStore.get(rec.id);
+    const kiDelta = after2.featureUses?.['probe-monk']?.['feature:气'];
+    const stunnedOn = globalStatusManager.getActiveStatuses('feat-npc').some(i => i.definitionId === 'stunned');
+    const todoOn = after2.turnTodos?.some(t => t.combatantId === 'feat-npc' && t.type === 'condition_check');
+    // 清场：回滚资源 delta + 解除状态 + 移除探针参战者
+    combatStore.update(rec.id, {
+      combatants: baseRoster, featureUses: {}, spellSlotChanges: {}, turnTodos: [],
+      updatedAt: Date.now(),
+    });
+    globalStatusManager.getActiveStatuses('feat-npc').forEach(i => globalStatusManager.declareEnd(i.instanceId));
+    return {
+      palOpt: palOpts[0] ? { name: palOpts[0].featureName, kind: palOpts[0].kind, lv1: palOpts[0].slotLevels?.[0]?.remaining } : null,
+      monkOpt: monkOpts[0] ? { name: monkOpts[0].featureName, kind: monkOpts[0].kind, key: monkOpts[0].poolKey, cost: monkOpts[0].poolCost, avail: monkOpts[0].poolAvailable, max: monkOpts[0].poolMax, dc: monkOpts[0].save?.dc } : null,
+      exhaustedN: monkExhausted.length,
+      r1Ok: r1.ok, slotDelta, palRow,
+      r2Ok: r2.ok, kiDelta, stunnedOn, todoOn,
+    };
+  });
+  check('10a 玩家投影构建至圣斩选项（spellSlot 余量 4）', pr.palOpt?.name === '至圣斩' && pr.palOpt?.kind === 'spellSlot' && pr.palOpt?.lv1 === 4, pr.palOpt);
+  check('10b 玩家投影构建震慑拳选项（池 5/5 DC14）', pr.monkOpt?.name === '震慑拳' && pr.monkOpt?.kind === 'pool' && pr.monkOpt?.key === 'feature:气' && pr.monkOpt?.cost === 1 && pr.monkOpt?.avail === 5 && pr.monkOpt?.max === 5 && pr.monkOpt?.dc === 14, pr.monkOpt);
+  check('10c 池耗尽投影（poolLeft0+disabled）无选项', pr.exhaustedN === 0, pr);
+  check('10d attack op riders：至圣斩入账扣 1 环 + 记录行含至圣斩', pr.r1Ok === true && pr.slotDelta === 1 && (pr.palRow ?? '').includes('至圣斩'), pr);
+  check('10e attack op riders：震慑拳入账扣 1 气 + 震慑挂载', pr.r2Ok === true && pr.kiDelta === 1 && pr.stunnedOn === true && pr.todoOn === true, pr);
+
+  // ===== 11. aoe_save 通道（吐息武器）：几何规划 + 豁免结算 + 回合包全自动落库 =====
+  const aoe = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const battlegroundStore = (await import('/src/data/battlegroundStore.ts')).default;
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const { planAoeSave, applyAoeSave, saveBonusFor, rollAoeDamage } = await import('/src/data/aoeSaveEngine.ts');
+    const { resolveFeatureCapability } = await import('/src/data/featureCapabilities.ts');
+    const { applyTurnCommit } = await import('/src/lib/turnCommitApply.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+
+    // 龙裔沙盒卡：吐息武器（15尺锥状，池=1）
+    const dmkChar = characterStore.add({
+      name: '探针·龙裔', race: '龙裔', level: 5, profession: { class: '战士' }, proficiencyBonus: 3,
+      maxHp: 40, currentHp: 40, isSandbox: true,
+      abilities: { strength: { score: 14, modifier: 2 }, dexterity: { score: 10, modifier: 0 }, constitution: { score: 14, modifier: 2 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 10, modifier: 0 }, charisma: { score: 10, modifier: 0 } },
+      attacks: [{ name: '长剑', damageDice: '1d8', damageType: '挥砍', bonus: 4, range: '5尺', properties: [] }],
+      features: [
+        { name: '吐息武器', description: '用动作呼出15尺锥状的破坏性能量（2d6 伤害），范围内敏捷豁免失败受全额、成功减半', category: '种族特性', role: 'active', activation: 'action', resource: 'pool', poolFormula: { type: 'classLevel', multiplier: 1, restKind: 'short' } },
+      ],
+    });
+    const cap = resolveFeatureCapability('吐息武器');
+    const dc = cap.aoeSave.dc({ id: 'probe-dragon', characterId: dmkChar.id, name: '探针·龙裔' });
+
+    // 摆位：龙裔 (4,4) 朝 E 吐息 → 锥形覆盖 (5,4)/(6,4) 等，源点格 (4,4) 被排除
+    const mk = (id, name, isPc, characterId, hp) => ({
+      id, name, isPc, ...(characterId ? { characterId } : {}), initiative: 7,
+      actions: 1, bonusActions: 1, reactions: 1, currentHp: hp, maxHp: hp, movementUsed: 0,
+      heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [],
+    });
+    const baseRoster = combatStore.get(rec.id).combatants;
+    const baseTokens = battlegroundStore.get(rec.id)?.tokens ?? [];
+    combatStore.update(rec.id, {
+      combatants: [...baseRoster, mk('probe-dragon', '探针·龙裔', true, dmkChar.id, 40)],
+      featureUses: {}, turnTodos: [],
+      updatedAt: Date.now(),
+    });
+    battlegroundStore.setTokens(rec.id, [
+      { combatantId: 'probe-dragon', col: 4, row: 4 },
+      { combatantId: 'feat-pc2', col: 5, row: 4 },
+      { combatantId: 'feat-npc', col: 3, row: 4 },
+    ]);
+    const dragon = combatStore.get(rec.id).combatants.find(c => c.id === 'probe-dragon');
+    const pc2 = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2');
+    const npc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc');
+
+    // 11-1 planAoeSave：锥形几何 + DC 推导（探针龙裔 = 8+熟练3+体质2 = DC13）
+    const plan = planAoeSave(dragon, dmkChar.features[0].description, dc, 'dexterity', [
+      { combatant: pc2, pos: { col: 5, row: 4 } },
+      { combatant: npc, pos: { col: 3, row: 4 } },
+    ], { origin: { col: 4, row: 4 }, direction: 'E', bounds: { cols: 20, rows: 20 } });
+    const cellKeys = plan.area.cells.map(c => `${c.col},${c.row}`);
+    const planIds = plan.targets.map(t => t.combatantId);
+
+    // 11-2 applyAoeSave：固定骰值 + 伤害覆写（失败全额 8 / 成功减半 4）
+    const dmgOverride = rollAoeDamage('2d6');
+    const results = applyAoeSave([
+      { combatant: pc2, roll: 5, saveBonus: saveBonusFor(pc2, 'dexterity').bonus, dc },
+      { combatant: npc, roll: 20, saveBonus: saveBonusFor(npc, 'dexterity').bonus, dc },
+    ], 8, '火焰', { halfOnSave: true });
+    const rPc2 = results.find(r => r.combatantId === 'feat-pc2');
+    const rNpc = results.find(r => r.combatantId === 'feat-npc');
+
+    // 11-3 回合包：feature-use op 带 direction → 池扣 + HP 落地（stub applyDamage 写库）+ 记录行
+    const noop = () => {};
+    const applyDamageStub = (event) => {
+      const cur = combatStore.get(rec.id);
+      const t = cur.combatants.find(c => c.id === event.targetId);
+      if (!t) return null;
+      const oldHp = t.currentHp;
+      const newHp = Math.max(0, oldHp - event.amount);
+      combatStore.update(rec.id, {
+        combatants: cur.combatants.map(c => c.id === event.targetId ? { ...c, currentHp: newHp } : c),
+        updatedAt: Date.now(),
+      });
+      return { damage: event.amount, oldHp, newHp };
+    };
+    const npcHpBefore = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc').currentHp;
+    const pc2HpBefore = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').currentHp;
+    const ok = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: {
+        requestId: `probe-aoe-${Date.now()}`, round: 1, combatantId: 'probe-dragon', baseSeq: 0,
+        action: { ops: [{ kind: 'feature-use', featureName: '吐息武器', poolKey: 'feature:吐息武器', cost: 1, direction: 'E', activation: 'action', roundText: '发动「吐息武器」（锥状15尺，朝向东）' }] },
+      },
+      currentRound: 1, applyDamage: applyDamageStub, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const after = combatStore.get(rec.id);
+    const dragonDelta = after.featureUses?.['probe-dragon']?.['feature:吐息武器'];
+    const npcHpAfter = after.combatants.find(c => c.id === 'feat-npc').currentHp;
+    const pc2HpAfter = after.combatants.find(c => c.id === 'feat-pc2').currentHp;
+    const rowText = JSON.stringify(after.rounds?.[0]?.['probe-dragon'] ?? '');
+
+    // 清场：恢复 roster/tokens，清 delta
+    combatStore.update(rec.id, {
+      combatants: baseRoster, featureUses: {}, turnTodos: [],
+      updatedAt: Date.now(),
+    });
+    battlegroundStore.setTokens(rec.id, baseTokens);
+    return {
+      dc, planError: plan.error, shapeLabel: plan.shapeLabel,
+      hasOriginCell: cellKeys.includes('4,4'), hasEastCell: cellKeys.includes('5,4'),
+      planIds, npcInPlan: planIds.includes('feat-npc'), dragonInPlan: planIds.includes('probe-dragon'),
+      pc2Dc: plan.targets.find(t => t.combatantId === 'feat-pc2')?.dc,
+      rollAoeDamageOk: typeof dmgOverride === 'number' && dmgOverride >= 2 && dmgOverride <= 12,
+      rPc2: rPc2 ? { success: rPc2.success, damage: rPc2.damage } : null,
+      rNpc: rNpc ? { success: rNpc.success, damage: rNpc.damage } : null,
+      commitOk: ok.ok, dragonDelta, npcHpBefore, npcHpAfter, pc2HpBefore, pc2HpAfter, rowText,
+    };
+  });
+  check('11a 吐息武器注册 aoe_save 通道且 DC=13（8+熟练3+体质2）', aoe.dc === 13, aoe);
+  check('11b 锥状几何：E 向含 (5,4)、源点格 (4,4) 排除、西向 NPC 不入目标', aoe.hasEastCell === true && aoe.hasOriginCell === false && aoe.npcInPlan === false && aoe.dragonInPlan === false, aoe);
+  check('11c 豁免结算：roll5 失败全额 8、roll20 成功减半 4', aoe.rPc2?.success === false && aoe.rPc2?.damage === 8 && aoe.rNpc?.success === true && aoe.rNpc?.damage === 4, aoe);
+  check('11d rollAoeDamage 解析 2d6 范围合法', aoe.rollAoeDamageOk === true, aoe);
+  // 11e：几何只把东侧 pc2 收进锥形，西向 NPC 应分文未损；伤害骰/豁免骰为自动随机 → 只断言结构性结果
+  check('11e 回合包 direction：池扣 1 + 锥内 pc2 掉血 + 锥外 NPC 无损 + 记录行含吐息',
+    aoe.commitOk === true && aoe.dragonDelta === 1 && aoe.pc2HpAfter < aoe.pc2HpBefore && aoe.npcHpAfter === aoe.npcHpBefore && (aoe.rowText ?? '').includes('吐息'), aoe);
+
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

@@ -69,6 +69,9 @@ export type TurnCommitOp =
       ammoCount?: number;
       /** 远程武器（飞矢动画判定用；缺省近战） */
       ranged?: boolean;
+      /** 命中触发的追加效果选择（至圣斩/震慑拳等；近战/投掷攻击才携带）。
+       *  DM 入账时 applyAttackRiders 统一扣池/法术位 + 挂状态，伤害骰已并入 damage.amount */
+      riders?: { featureName: string; slotLevel?: string; saveResult?: 'success' | 'fail' }[];
       /** 写入先攻表格的行动文本 */
       roundText: string;
     }
@@ -127,6 +130,10 @@ export type TurnCommitOp =
       poolKey?: string;
       /** 单次消耗量（与投影 cost 同值） */
       cost?: number;
+      /** checkModifier 通道受益人参战者 ID（玩家端目标选择弹窗产出） */
+      targetId?: string;
+      /** aoe_save 通道朝向（玩家端范围拾取产出；锥/线/立方几何结算用） */
+      direction?: string;
       /** 施法形态：DM 端按此扣动作 */
       activation: 'action' | 'bonus' | 'reaction' | 'free';
       roundText: string;

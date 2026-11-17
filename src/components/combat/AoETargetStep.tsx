@@ -6,6 +6,7 @@ import type { Combatant } from '@/types/combat';
 import type { Spell } from '@/types/spell';
 import { parseSpellRange } from '@/utils/spellRange';
 import { computeAoeCells, filterAoeTargets, spellAoeSpec, describeAoeSpec } from '@/data/aoeShapes';
+import type { AoeSpec } from '@/data/aoeShapes';
 import type { Bearing } from '@/data/battleGeometry';
 
 const DIRECTIONS: { b: Bearing; label: string }[] = [
@@ -15,7 +16,14 @@ const DIRECTIONS: { b: Bearing; label: string }[] = [
 ];
 
 interface Props {
-  spell: Spell;
+  /** 施法模式：AoE 形状解析自法术描述 */
+  spell?: Spell;
+  /** 特性模式（吐息武器等）：AoE 形状规格直传，与 spell 二选一 */
+  aoeSpec?: AoeSpec;
+  /** 特性模式射程（尺；null = 不设射程门禁） */
+  rangeFeet?: number | null;
+  /** 锁定以自身为源点（吐息武器恒从自身呼出，隐藏「以自身为源点」切换） */
+  lockSelfOriginated?: boolean;
   caster: Combatant;
   combatants: Combatant[];
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
@@ -30,14 +38,16 @@ interface Props {
 }
 
 export default function AoETargetStep({
-  spell, caster, combatants, combatantPositions, bounds, defaultSelfOriginated, confirmLabel, onConfirm, onForce,
+  spell, aoeSpec, rangeFeet, lockSelfOriginated, caster, combatants, combatantPositions, bounds, defaultSelfOriginated, confirmLabel, onConfirm, onForce,
 }: Props) {
-  const spec = spellAoeSpec(spell);
-  const range = parseSpellRange(spell.range);
+  const spec = aoeSpec ?? (spell ? spellAoeSpec(spell) : null);
+  const range = spell
+    ? parseSpellRange(spell.range)
+    : { feet: rangeFeet ?? null, label: rangeFeet != null ? `${rangeFeet}尺` : '特性' };
   const needsDirection = spec?.shape === 'cone' || spec?.shape === 'line' || spec?.shape === 'cube';
 
   const casterPos = combatantPositions?.[caster.id] ?? null;
-  const [selfOriginated, setSelfOriginated] = useState(defaultSelfOriginated === true);
+  const [selfOriginated, setSelfOriginated] = useState(defaultSelfOriginated === true || lockSelfOriginated === true);
   const [origin, setOrigin] = useState<{ col: number; row: number } | null>(null);
   const [direction, setDirection] = useState<Bearing>('same');
   const [method, setMethod] = useState<'template' | 'token'>('template');
@@ -76,7 +86,7 @@ export default function AoETargetStep({
     return (
       <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-sm text-amber-400 flex items-start gap-2">
         <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-        <span>无法从法术《{spell.name}》描述解析范围形状，请在法术描述中写明形状与尺寸（如「半径20尺」「30尺锥状」）。</span>
+        <span>无法从{spell ? `法术《${spell.name}》` : '特性'}描述解析范围形状，请在描述中写明形状与尺寸（如「半径20尺」「30尺锥状」）。</span>
       </div>
     );
   }
@@ -151,7 +161,7 @@ export default function AoETargetStep({
           </span>
           <button
             onClick={() => setSelfOriginated(v => !v)}
-            disabled={!casterPos}
+            disabled={!casterPos || lockSelfOriginated === true}
             className={`px-2 py-0.5 rounded text-xs transition-colors disabled:opacity-40 ${
               selfOriginated
                 ? 'bg-primary/15 text-primary font-medium'
