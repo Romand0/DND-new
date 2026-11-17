@@ -541,6 +541,120 @@ async function main() {
   check('10d attack op riders：至圣斩入账扣 1 环 + 记录行含至圣斩', pr.r1Ok === true && pr.slotDelta === 1 && (pr.palRow ?? '').includes('至圣斩'), pr);
   check('10e attack op riders：震慑拳入账扣 1 气 + 震慑挂载', pr.r2Ok === true && pr.kiDelta === 1 && pr.stunnedOn === true && pr.todoOn === true, pr);
 
+  // ===== 11. aoe_save 通道（吐息武器）：几何规划 + 豁免结算 + 回合包全自动落库 =====
+  const aoe = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const battlegroundStore = (await import('/src/data/battlegroundStore.ts')).default;
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const { planAoeSave, applyAoeSave, saveBonusFor, rollAoeDamage } = await import('/src/data/aoeSaveEngine.ts');
+    const { resolveFeatureCapability } = await import('/src/data/featureCapabilities.ts');
+    const { applyTurnCommit } = await import('/src/lib/turnCommitApply.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+
+    // 龙裔沙盒卡：吐息武器（15尺锥状，池=1）
+    const dmkChar = characterStore.add({
+      name: '探针·龙裔', race: '龙裔', level: 5, profession: { class: '战士' }, proficiencyBonus: 3,
+      maxHp: 40, currentHp: 40, isSandbox: true,
+      abilities: { strength: { score: 14, modifier: 2 }, dexterity: { score: 10, modifier: 0 }, constitution: { score: 14, modifier: 2 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 10, modifier: 0 }, charisma: { score: 10, modifier: 0 } },
+      attacks: [{ name: '长剑', damageDice: '1d8', damageType: '挥砍', bonus: 4, range: '5尺', properties: [] }],
+      features: [
+        { name: '吐息武器', description: '用动作呼出15尺锥状的破坏性能量（2d6 伤害），范围内敏捷豁免失败受全额、成功减半', category: '种族特性', role: 'active', activation: 'action', resource: 'pool', poolFormula: { type: 'classLevel', multiplier: 1, restKind: 'short' } },
+      ],
+    });
+    const cap = resolveFeatureCapability('吐息武器');
+    const dc = cap.aoeSave.dc({ id: 'probe-dragon', characterId: dmkChar.id, name: '探针·龙裔' });
+
+    // 摆位：龙裔 (4,4) 朝 E 吐息 → 锥形覆盖 (5,4)/(6,4) 等，源点格 (4,4) 被排除
+    const mk = (id, name, isPc, characterId, hp) => ({
+      id, name, isPc, ...(characterId ? { characterId } : {}), initiative: 7,
+      actions: 1, bonusActions: 1, reactions: 1, currentHp: hp, maxHp: hp, movementUsed: 0,
+      heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [],
+    });
+    const baseRoster = combatStore.get(rec.id).combatants;
+    const baseTokens = battlegroundStore.get(rec.id)?.tokens ?? [];
+    combatStore.update(rec.id, {
+      combatants: [...baseRoster, mk('probe-dragon', '探针·龙裔', true, dmkChar.id, 40)],
+      featureUses: {}, turnTodos: [],
+      updatedAt: Date.now(),
+    });
+    battlegroundStore.setTokens(rec.id, [
+      { combatantId: 'probe-dragon', col: 4, row: 4 },
+      { combatantId: 'feat-pc2', col: 5, row: 4 },
+      { combatantId: 'feat-npc', col: 3, row: 4 },
+    ]);
+    const dragon = combatStore.get(rec.id).combatants.find(c => c.id === 'probe-dragon');
+    const pc2 = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2');
+    const npc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc');
+
+    // 11-1 planAoeSave：锥形几何 + DC 推导（探针龙裔 = 8+熟练3+体质2 = DC13）
+    const plan = planAoeSave(dragon, dmkChar.features[0].description, dc, 'dexterity', [
+      { combatant: pc2, pos: { col: 5, row: 4 } },
+      { combatant: npc, pos: { col: 3, row: 4 } },
+    ], { origin: { col: 4, row: 4 }, direction: 'E', bounds: { cols: 20, rows: 20 } });
+    const cellKeys = plan.area.cells.map(c => `${c.col},${c.row}`);
+    const planIds = plan.targets.map(t => t.combatantId);
+
+    // 11-2 applyAoeSave：固定骰值 + 伤害覆写（失败全额 8 / 成功减半 4）
+    const dmgOverride = rollAoeDamage('2d6');
+    const results = applyAoeSave([
+      { combatant: pc2, roll: 5, saveBonus: saveBonusFor(pc2, 'dexterity').bonus, dc },
+      { combatant: npc, roll: 20, saveBonus: saveBonusFor(npc, 'dexterity').bonus, dc },
+    ], 8, '火焰', { halfOnSave: true });
+    const rPc2 = results.find(r => r.combatantId === 'feat-pc2');
+    const rNpc = results.find(r => r.combatantId === 'feat-npc');
+
+    // 11-3 回合包：feature-use op 带 direction → 池扣 + HP 落地（stub applyDamage 写库）+ 记录行
+    const noop = () => {};
+    const applyDamageStub = (event) => {
+      const cur = combatStore.get(rec.id);
+      const t = cur.combatants.find(c => c.id === event.targetId);
+      if (!t) return null;
+      const oldHp = t.currentHp;
+      const newHp = Math.max(0, oldHp - event.amount);
+      combatStore.update(rec.id, {
+        combatants: cur.combatants.map(c => c.id === event.targetId ? { ...c, currentHp: newHp } : c),
+        updatedAt: Date.now(),
+      });
+      return { damage: event.amount, oldHp, newHp };
+    };
+    const npcHpBefore = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc').currentHp;
+    const ok = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: {
+        requestId: `probe-aoe-${Date.now()}`, round: 1, combatantId: 'probe-dragon', baseSeq: 0,
+        action: { ops: [{ kind: 'feature-use', featureName: '吐息武器', poolKey: 'feature:吐息武器', cost: 1, direction: 'E', activation: 'action', roundText: '发动「吐息武器」（锥状15尺，朝向东）' }] },
+      },
+      currentRound: 1, applyDamage: applyDamageStub, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const after = combatStore.get(rec.id);
+    const dragonDelta = after.featureUses?.['probe-dragon']?.['feature:吐息武器'];
+    const npcHpAfter = after.combatants.find(c => c.id === 'feat-npc').currentHp;
+    const rowText = JSON.stringify(after.rounds?.[0]?.['probe-dragon'] ?? '');
+
+    // 清场：恢复 roster/tokens，清 delta
+    combatStore.update(rec.id, {
+      combatants: baseRoster, featureUses: {}, turnTodos: [],
+      updatedAt: Date.now(),
+    });
+    battlegroundStore.setTokens(rec.id, baseTokens);
+    return {
+      dc, planError: plan.error, shapeLabel: plan.shapeLabel,
+      hasOriginCell: cellKeys.includes('4,4'), hasEastCell: cellKeys.includes('5,4'),
+      planIds, npcInPlan: planIds.includes('feat-npc'), dragonInPlan: planIds.includes('probe-dragon'),
+      pc2Dc: plan.targets.find(t => t.combatantId === 'feat-pc2')?.dc,
+      rollAoeDamageOk: typeof dmgOverride === 'number' && dmgOverride >= 2 && dmgOverride <= 12,
+      rPc2: rPc2 ? { success: rPc2.success, damage: rPc2.damage } : null,
+      rNpc: rNpc ? { success: rNpc.success, damage: rNpc.damage } : null,
+      commitOk: ok.ok, dragonDelta, npcHpBefore, npcHpAfter, rowText,
+    };
+  });
+  check('11a 吐息武器注册 aoe_save 通道且 DC=13（8+熟练3+体质2）', aoe.dc === 13, aoe);
+  check('11b 锥状几何：E 向含 (5,4)、源点格 (4,4) 排除、西向 NPC 不入目标', aoe.hasEastCell === true && aoe.hasOriginCell === false && aoe.npcInPlan === false && aoe.dragonInPlan === false, aoe);
+  check('11c 豁免结算：roll5 失败全额 8、roll20 成功减半 4', aoe.rPc2?.success === false && aoe.rPc2?.damage === 8 && aoe.rNpc?.success === true && aoe.rNpc?.damage === 4, aoe);
+  check('11d rollAoeDamage 解析 2d6 范围合法', aoe.rollAoeDamageOk === true, aoe);
+  check('11e 回合包 direction：池扣 1 + NPC HP 下降 + 记录行含吐息', aoe.commitOk === true && aoe.dragonDelta === 1 && aoe.npcHpAfter < aoe.npcHpBefore && (aoe.rowText ?? '').includes('吐息'), aoe);
+
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

@@ -61,6 +61,7 @@ import NpcCreator from '@/components/NpcCreator';
 import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import FeatureCheckModifierModal from '@/components/combat/FeatureCheckModifierModal';
+import FeatureAoeSaveModal from '@/components/combat/FeatureAoeSaveModal';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import ReactionPromptModal from '@/components/ReactionPromptModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
@@ -269,6 +270,14 @@ export default function CombatSession() {
   const [helpModal, setHelpModal] = useState<{ from: Combatant } | null>(null);
   // ✅ checkModifier 通道弹窗（激励骰等）：选受益人 → 确认时扣动作与池
   const [checkModifierModal, setCheckModifierModal] = useState<{
+    from: Combatant;
+    featureName: string;
+    activation: Feature['activation'];
+    poolKey: string | null;
+    cost: number;
+  } | null>(null);
+  // ✅ aoe_save 通道弹窗（吐息武器等）：范围拾取 + 逐目标豁免 → 确认时扣动作与池并落 HP
+  const [aoeSaveModal, setAoeSaveModal] = useState<{
     from: Combatant;
     featureName: string;
     activation: Feature['activation'];
@@ -1055,6 +1064,38 @@ export default function CombatSession() {
     setCheckModifierModal(null);
   };
 
+  // aoe_save 通道确认：动作与池在确认时扣（取消不损失资源），逐目标 HP 经 handleApplyDamage 落地
+  const resolveAoeSave = (payload: {
+    results: { combatantId: string; name: string; damage: number; damageType: string }[];
+    message: string;
+  }) => {
+    if (!record || !aoeSaveModal) return;
+    const { from, featureName, activation, poolKey, cost } = aoeSaveModal;
+    if (poolKey) {
+      const ok = combatStore.consumeFeatureUse(record.id, from.id, poolKey, cost);
+      if (!ok) {
+        alert(`「${featureName}」资源不足`);
+        return;
+      }
+    }
+    if (activation === 'action') consumeCombatantAction(from.id);
+    else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
+    for (const r of payload.results) {
+      if (r.damage > 0) {
+        handleApplyDamage({
+          targetId: r.combatantId,
+          amount: r.damage,
+          sourceId: from.id,
+          sourceName: from.name,
+          sourceKind: 'effect',
+          damageType: r.damageType,
+        });
+      }
+    }
+    recordOperation(from.id, payload.message, 'damage');
+    setAoeSaveModal(null);
+  };
+
   /**
    * 主动技能触发（非激励）：按池驱动扣动作 + 扣池 + 通道路由。
    *  - activation action/bonus → ensureCanAct 校验并消耗对应动作；reaction/free 无动作成本
@@ -1072,6 +1113,17 @@ export default function CombatSession() {
     // 2. checkModifier 通道：先选受益人，动作与池在弹窗确认时扣（取消不损失资源）
     if (capability.channel === 'checkModifier' && capability.checkModifier) {
       openCheckModifierFor(c, feature.name, feature.activation, poolInfo);
+      return;
+    }
+    // 2.5 aoe_save 通道（吐息武器）：范围拾取 + 逐目标豁免，动作与池在弹窗确认时扣
+    if (capability.channel === 'aoe_save' && capability.aoeSave) {
+      const bg = battlegroundStore.get(record.id);
+      const placed = (bg?.tokens ?? []).some(t => t.combatantId === c.id);
+      if (!placed) {
+        alert(`「${feature.name}」需要先将该参战者放置在沙盘上（范围以自身为源点）`);
+        return;
+      }
+      setAoeSaveModal({ from: c, featureName: feature.name, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
       return;
     }
     // 3. 池扣减（无池语义直接跳过，老数据优雅降级）；
@@ -2665,6 +2717,23 @@ export default function CombatSession() {
             friendlies={friendlies}
             onConfirm={confirmCheckModifier}
             onClose={() => setCheckModifierModal(null)}
+          />
+        );
+      })()}
+
+      {/* aoe_save 通道弹窗（吐息武器等）：范围拾取 + 逐目标豁免结算 */}
+      {aoeSaveModal && record && (() => {
+        const bg = battlegroundStore.get(record.id);
+        const preset = GRID_PRESETS[bg?.size ?? 'small'];
+        return (
+          <FeatureAoeSaveModal
+            caster={aoeSaveModal.from}
+            featureName={aoeSaveModal.featureName}
+            combatants={record.combatants}
+            combatantPositions={combatantPositions}
+            bounds={{ cols: preset.cols, rows: preset.rows }}
+            onResolve={resolveAoeSave}
+            onClose={() => setAoeSaveModal(null)}
           />
         );
       })()}

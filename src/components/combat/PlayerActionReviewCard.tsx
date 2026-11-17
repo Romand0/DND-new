@@ -4,6 +4,11 @@ import { useState } from 'react';
 import { Swords, ShieldAlert, ShieldCheck, ShieldQuestion, Send, Ban } from 'lucide-react';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 
+/** aoe_save op 朝向中文标签（与 PlayerSpectate BEARING_LABELS 同口径） */
+const BEARING_LABELS: Record<string, string> = {
+  NW: '西北', N: '北', NE: '东北', W: '西', E: '东', SW: '西南', S: '南', SE: '东南',
+};
+
 interface Props {
   request: PlayerActionRequest;
   fromName: string;
@@ -47,7 +52,8 @@ function opText(op: TurnCommitOp, combatantNames?: Record<string, string>): stri
     const cost = op.poolKey ? `（${op.cost ?? 1} 点）` : '';
     const act = op.activation === 'action' ? '（主动作）' : op.activation === 'bonus' ? '（附赠动作）' : '';
     const targetName = op.targetId ? (combatantNames?.[op.targetId] ?? '') : '';
-    return `主动技能：${op.featureName}${targetName ? ` → ${targetName}` : ''}${cost}${act}`;
+    const dir = op.direction ? `，朝向${BEARING_LABELS[op.direction] ?? op.direction}` : '';
+    return `主动技能：${op.featureName}${targetName ? ` → ${targetName}` : ''}${dir}${cost}${act}`;
   }
   if (op.kind === 'stop-concentration') {
     return '主动停止专注';

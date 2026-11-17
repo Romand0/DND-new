@@ -132,6 +132,8 @@ export type TurnCommitOp =
       cost?: number;
       /** checkModifier 通道受益人参战者 ID（玩家端目标选择弹窗产出） */
       targetId?: string;
+      /** aoe_save 通道朝向（玩家端范围拾取产出；锥/线/立方几何结算用） */
+      direction?: string;
       /** 施法形态：DM 端按此扣动作 */
       activation: 'action' | 'bonus' | 'reaction' | 'free';
       roundText: string;

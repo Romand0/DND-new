@@ -10,7 +10,7 @@ import type { AbilityKey, Character, SpellSlotLevel } from '@/types/character';
 import type { Combatant } from '@/types/combat';
 import { characterStore } from '@/data/characterStore';
 
-export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'manual';
+export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'aoe_save' | 'manual';
 
 /** advantage 通道单条 pending 优劣势参数（复用 PendingAdvantageSource 的场景/方向字段） */
 export interface FeatureAdvantageSpec {
@@ -38,6 +38,21 @@ export interface FeatureCheckModifierSpec {
   expireRound?: number;
 }
 
+/**
+ * aoe_save 通道参数：范围 + 豁免 + 伤害一次性结算（5e 吐息武器语义）。
+ * 伤害类型随龙裔血统变化，注册表只给默认值，弹窗提供 6 类切换。
+ */
+export interface FeatureAoeSaveSpec {
+  /** 伤害骰（龙裔 5 级 2d6；16 级 3d6 等成长由 DM 在特性描述/卡面维护） */
+  damage: { dice: string; damageType: string };
+  /** 豁免属性（吐息武器 = 敏捷） */
+  saveAbility: AbilityKey;
+  /** DC 推导（吐息武器 = 8 + 熟练 + 体质调整值） */
+  dc: (caster: Combatant) => number;
+  /** 豁免成功减半；缺省 true */
+  halfOnSave?: boolean;
+}
+
 export interface FeatureCapability {
   /** 路由通道 */
   channel: FeatureChannel;
@@ -53,6 +68,11 @@ export interface FeatureCapability {
    * PendingCheckModifier（弹窗确认时扣动作与池，取消不扣）。
    */
   checkModifier?: FeatureCheckModifierSpec;
+  /**
+   * aoe_save 通道参数（吐息武器类范围豁免特性）：范围形状解析自特性描述文本
+   * （aoeShapes.parseAoeSpec，「15尺锥状」「30尺线状」），豁免 DC/伤害按施用者推导。
+   */
+  aoeSave?: FeatureAoeSaveSpec;
   /**
    * status 通道参数：挂载状态库键。状态的实际效果（如优劣势）由通道执行器以
    * instance.metadata.effects 注入；伤害加值等数值效果走 TurnTodo 提醒 DM 手动结算。
@@ -134,6 +154,29 @@ register('诗人激励', {
     reason: (caster) => `${caster.name} 的吟游诗人激励（d${bardicDieSides(caster)}）`,
   },
   hint: '附赠动作发出激励骰：目标下一次能力检定/攻击/豁免可将骰面加到结果上',
+});
+
+// 吐息武器（龙裔种族特性）：动作呼出锥状能量，范围内敏捷豁免失败全额伤害、成功减半。
+// 伤害类型随龙系血统变化（火/电/毒/寒/酸/钝击），注册表给默认值，结算弹窗可切换。
+function casterProfBonus(caster: Combatant): number {
+  const char = caster.characterId ? characterStore.get(caster.characterId) : null;
+  return typeof char?.proficiencyBonus === 'number' ? char.proficiencyBonus : 2;
+}
+function casterConMod(caster: Combatant): number {
+  const char = caster.characterId ? characterStore.get(caster.characterId) : null;
+  return char?.abilities?.constitution?.modifier
+    ?? Math.floor((((caster as any).constitution ?? 10) - 10) / 2);
+}
+
+register('吐息武器', {
+  channel: 'aoe_save',
+  aoeSave: {
+    damage: { dice: '2d6', damageType: '火焰' },
+    saveAbility: 'dexterity',
+    dc: (caster) => 8 + casterProfBonus(caster) + casterConMod(caster),
+    halfOnSave: true,
+  },
+  hint: '动作呼出破坏性能量（形状与尺寸见特性描述），范围内目标敏捷豁免失败受全额伤害、成功减半',
 });
 
 // P2 注册表：C 类状态切换与优劣势通道

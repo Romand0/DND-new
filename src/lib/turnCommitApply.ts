@@ -13,6 +13,10 @@ import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import { applyAttackRiders } from '@/data/attackRiders';
+import { planAoeSave, applyAoeSave, saveBonusFor, rollAoeDamage } from '@/data/aoeSaveEngine';
+import { rollDice } from '@/data/diceService';
+import { GRID_PRESETS } from '@/types/battleground';
+import type { Bearing } from '@/data/battleGeometry';
 import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
 
 export interface TurnCommitApplyDeps {
@@ -268,6 +272,60 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       const channelResult = executeFeatureChannel(record, actor, op.featureName, request.round - 1, { targetId: op.targetId });
       if (channelResult.note) {
         opCtx.featureNote = channelResult.note;
+      }
+      // aoe_save 通道（玩家吐息武器）：朝向随 op 提交，入账时全自动结算——
+      // 几何（planAoeSave 以自身为源点）+ 逐目标 d20 自动骰 + 伤害骰池 + applyDamage 落 HP
+      if (capability.channel === 'aoe_save' && capability.aoeSave && op.direction) {
+        const aoeSpec = capability.aoeSave;
+        const bg = battlegroundStore.get(record.id);
+        const tokens = bg?.tokens ?? [];
+        const originToken = tokens.find(t => t.combatantId === actor.id);
+        const preset = GRID_PRESETS[bg?.size ?? 'small'];
+        const char = actor.characterId ? characterStore.get(actor.characterId) : null;
+        const description = (char?.features ?? []).find(f => f.name === op.featureName)?.description ?? '';
+        if (originToken) {
+          const candidates = record.combatants
+            .filter(c => !c.isDead && tokens.some(t => t.combatantId === c.id))
+            .map(c => {
+              const t = tokens.find(x => x.combatantId === c.id)!;
+              return { combatant: c, pos: { col: t.col, row: t.row } };
+            });
+          const plan = planAoeSave(
+            actor,
+            description,
+            aoeSpec.dc(actor),
+            aoeSpec.saveAbility,
+            candidates,
+            { origin: { col: originToken.col, row: originToken.row }, direction: op.direction as Bearing, bounds: { cols: preset.cols, rows: preset.rows } },
+          );
+          const damageAmount = rollAoeDamage(aoeSpec.damage.dice) ?? 0;
+          const entries = plan.targets.map(t => {
+            const combatant = candidates.find(c => c.combatant.id === t.combatantId)!.combatant;
+            const { bonus } = saveBonusFor(combatant, aoeSpec.saveAbility);
+            return { combatant, roll: rollDice({ sides: 20, count: 1, mode: 'sum' }).total, saveBonus: bonus, dc: t.dc };
+          });
+          const results = applyAoeSave(entries, damageAmount, aoeSpec.damage.damageType, { halfOnSave: aoeSpec.halfOnSave !== false });
+          for (const r of results) {
+            if (r.damage > 0) {
+              const dr = applyDamage({
+                targetId: r.combatantId,
+                amount: r.damage,
+                sourceId: actor.id,
+                sourceName: actor.name,
+                sourceKind: 'effect',
+                damageType: r.damageType,
+              });
+              if (dr) appliedDamages.push(`${r.name} -${dr.damage}`);
+            }
+          }
+          opCtx.featureNote = plan.error
+            ? `${op.featureName}：${plan.error}`
+            : `${op.featureName}：${plan.shapeLabel} @ (${originToken.col},${originToken.row})，${aoeSpec.damage.damageType} ${damageAmount} 点；${
+              results.length === 0
+                ? '范围内没有目标'
+                : results.map(r => `${r.name}（豁免 ${r.roll}${r.saveBonus >= 0 ? '+' : ''}${r.saveBonus}=${r.total} vs DC${r.dc} ${r.success ? '成功' : '失败'}${r.damage > 0 ? `，${r.damage} 点${r.damageType}` : '，免疫'}）`).join('、')
+            }`;
+        }
       }
     } else if (op.kind === 'end-turn') {
       endTurn = true;
