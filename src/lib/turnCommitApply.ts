@@ -318,9 +318,10 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
               if (dr) appliedDamages.push(`${r.name} -${dr.damage}`);
             }
           }
+          // summarizeOp 会在 feature-use 行前补「特性名」前缀，此处只写明细本体避免重复
           opCtx.featureNote = plan.error
-            ? `${op.featureName}：${plan.error}`
-            : `${op.featureName}：${plan.shapeLabel} @ (${originToken.col},${originToken.row})，${aoeSpec.damage.damageType} ${damageAmount} 点；${
+            ? plan.error
+            : `${plan.shapeLabel} @ (${originToken.col},${originToken.row})，${aoeSpec.damage.damageType} ${damageAmount} 点；${
               results.length === 0
                 ? '范围内没有目标'
                 : results.map(r => `${r.name}（豁免 ${r.roll}${r.saveBonus >= 0 ? '+' : ''}${r.saveBonus}=${r.total} vs DC${r.dc} ${r.success ? '成功' : '失败'}${r.damage > 0 ? `，${r.damage} 点${r.damageType}` : '，免疫'}）`).join('、')

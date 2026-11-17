@@ -618,6 +618,7 @@ async function main() {
       return { damage: event.amount, oldHp, newHp };
     };
     const npcHpBefore = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc').currentHp;
+    const pc2HpBefore = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').currentHp;
     const ok = applyTurnCommit({
       record: combatStore.get(rec.id),
       request: {
@@ -630,6 +631,7 @@ async function main() {
     const after = combatStore.get(rec.id);
     const dragonDelta = after.featureUses?.['probe-dragon']?.['feature:吐息武器'];
     const npcHpAfter = after.combatants.find(c => c.id === 'feat-npc').currentHp;
+    const pc2HpAfter = after.combatants.find(c => c.id === 'feat-pc2').currentHp;
     const rowText = JSON.stringify(after.rounds?.[0]?.['probe-dragon'] ?? '');
 
     // 清场：恢复 roster/tokens，清 delta
@@ -646,14 +648,16 @@ async function main() {
       rollAoeDamageOk: typeof dmgOverride === 'number' && dmgOverride >= 2 && dmgOverride <= 12,
       rPc2: rPc2 ? { success: rPc2.success, damage: rPc2.damage } : null,
       rNpc: rNpc ? { success: rNpc.success, damage: rNpc.damage } : null,
-      commitOk: ok.ok, dragonDelta, npcHpBefore, npcHpAfter, rowText,
+      commitOk: ok.ok, dragonDelta, npcHpBefore, npcHpAfter, pc2HpBefore, pc2HpAfter, rowText,
     };
   });
   check('11a 吐息武器注册 aoe_save 通道且 DC=13（8+熟练3+体质2）', aoe.dc === 13, aoe);
   check('11b 锥状几何：E 向含 (5,4)、源点格 (4,4) 排除、西向 NPC 不入目标', aoe.hasEastCell === true && aoe.hasOriginCell === false && aoe.npcInPlan === false && aoe.dragonInPlan === false, aoe);
   check('11c 豁免结算：roll5 失败全额 8、roll20 成功减半 4', aoe.rPc2?.success === false && aoe.rPc2?.damage === 8 && aoe.rNpc?.success === true && aoe.rNpc?.damage === 4, aoe);
   check('11d rollAoeDamage 解析 2d6 范围合法', aoe.rollAoeDamageOk === true, aoe);
-  check('11e 回合包 direction：池扣 1 + NPC HP 下降 + 记录行含吐息', aoe.commitOk === true && aoe.dragonDelta === 1 && aoe.npcHpAfter < aoe.npcHpBefore && (aoe.rowText ?? '').includes('吐息'), aoe);
+  // 11e：几何只把东侧 pc2 收进锥形，西向 NPC 应分文未损；伤害骰/豁免骰为自动随机 → 只断言结构性结果
+  check('11e 回合包 direction：池扣 1 + 锥内 pc2 掉血 + 锥外 NPC 无损 + 记录行含吐息',
+    aoe.commitOk === true && aoe.dragonDelta === 1 && aoe.pc2HpAfter < aoe.pc2HpBefore && aoe.npcHpAfter === aoe.npcHpBefore && (aoe.rowText ?? '').includes('吐息'), aoe);
 
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();

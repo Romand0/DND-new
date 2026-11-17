@@ -30,6 +30,8 @@ export function summarizeOp(op: TurnCommitOp, ctx: SummaryContext = {}): string[
         if (oldHp != null && newHp != null) line += `，HP【${oldHp}→${newHp}】`;
         lines.push(line);
       }
+      // attack_rider（至圣斩/震慑拳等随 op 提交的 rider）在入账时统一扣资源，明细追加一行
+      if (ctx.featureNote) lines.push(ctx.featureNote);
       return lines;
     }
     case 'cast':
