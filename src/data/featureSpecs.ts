@@ -21,13 +21,22 @@ export interface HealSpec {
   type: 'hp' | 'temp';
 }
 
-/** B7 resource_conv 渠道 spec：资源转换（动作如潮 附赠→主动作；灵巧动作 附赠→疾走/撤消/躲藏三选一） */
+/**
+ * B7 resource_conv 渠道 spec：资源获取/转换，两形态二选一（校验器强制）。
+ *  - convert：把一种动作换成动作项（灵巧动作：附赠动作 → 撤离/疾走/躲藏三选一）
+ *  - grants：直接获得额外资源（动作如潮：获得一个额外动作，1 次/回合）
+ */
 export interface ResourceConvSpec {
-  convert: {
+  /** convert 型：from 动作 → to 动作项集（多元素时结算端提供选择） */
+  convert?: {
     from: 'bonus' | 'action';
-    /** 可转换目标集（多元素时结算端提供选择） */
     to: ('action' | 'dash' | 'disengage' | 'hide' | 'bonus')[];
   };
+  /** grants 型：每回合可获额外资源（1 次/回合，1e 动作如潮语义） */
+  grants?: {
+    /** 获得一个额外主动作 */
+    extraAction?: boolean;
+  }[];
 }
 
 export type FeatureSpecChannel = 'heal' | 'resource_conv';

@@ -14,7 +14,7 @@
   },
   "动作如潮": {
     "channel": "resource_conv",
-    "spec": { "convert": { "from": "bonus", "to": ["action"] } },
+    "spec": { "grants": [ { "extraAction": true } ] },
     "source": "seed_batch",
     "confidence": 0.9
   },
