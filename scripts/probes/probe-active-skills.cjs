@@ -735,7 +735,7 @@ async function main() {
       poetChannel: poet.channel, poetSource: poet.source ?? 'registry',
       healChannel: heal.channel, healSource: heal.source, healDice: heal.heal?.dice, healEngine: heal.engineAvailable,
       convChannel: conv.channel, convSource: conv.source, convEngine: conv.engineAvailable,
-      convFrom: conv.resourceConv?.convert?.from, convTo: conv.resourceConv?.convert?.to,
+      convExtraAction: conv.resourceConv?.grants?.[0]?.extraAction === true,
       dashTo: dash.resourceConv?.convert?.to,
       noneChannel: none.channel,
     };
@@ -744,8 +744,8 @@ async function main() {
     specDb.poetChannel === 'checkModifier' && specDb.poetSource === 'registry', specDb);
   check('14b SPEC_DB 生效：回气 heal 渠道、dice=1d10、引擎未实现（engineAvailable=false）',
     specDb.healChannel === 'heal' && specDb.healSource === 'spec_db' && specDb.healDice === '1d10' && specDb.healEngine === false, specDb);
-  check('14c SPEC_DB 生效：动作如潮 resource_conv（bonus→action）、引擎未实现',
-    specDb.convChannel === 'resource_conv' && specDb.convSource === 'spec_db' && specDb.convFrom === 'bonus' && specDb.convTo?.[0] === 'action' && specDb.convEngine === false, specDb);
+  check('14c SPEC_DB 生效：动作如潮 grants 型（每回合额外动作）、引擎未实现',
+    specDb.convChannel === 'resource_conv' && specDb.convSource === 'spec_db' && specDb.convExtraAction === true && specDb.convEngine === false, specDb);
   check('14d SPEC_DB 生效：灵巧动作多目标转换（dash/disengage/hide）',
     specDb.dashTo?.length === 3, specDb);
   check('14e manual 兜底：未登记特性解析为 manual', specDb.noneChannel === 'manual', specDb);
@@ -807,6 +807,51 @@ async function main() {
   check('14j engineAvailable=false 落 manual alert（手动结算提示，非静默掉入末尾分支）',
     healDialog != null && healDialog.includes('回气') && healDialog.includes('手动结算'), healDialog);
   check('14k 回气池照常扣减（featureUses +1）', healWiring.used === 1, healWiring);
+
+  // ===== 15. 数据提取器（feature-fullcycle P2）：UI 单项流程 + 批量 dry 报告 =====
+  // 自建专测卡：回气 level=1（角色页特性解锁按 experience→等级 过滤，XP=0 时 level 2 条目会被隐藏）
+  const charId15 = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const old = characterStore.getAll().find(c => c.name === '提取器·测试卡');
+    if (old) characterStore.delete(old.id);
+    const c = characterStore.createSandbox({ name: '提取器·测试卡', level: 5, profession: { class: '战士' } });
+    characterStore.save({ ...c, features: [{ id: 'feat-ext-1', name: '回气', description: '你可以用附赠动作恢复生命值，恢复 1d10＋战士等级', category: '职业特性', role: 'active', level: 1 }] });
+    return c.id;
+  });
+  await page.goto(BASE + '/characters/' + charId15, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  // 15a 特性卡「引擎」按钮存在（回气卡，data-extract-feature 定位）
+  const extBtn = page.locator('button[data-extract-feature="回气"]');
+  check('15a 特性卡含数据提取器入口（data-extract-feature）', await extBtn.count() === 1, { count: await extBtn.count() });
+  if (await extBtn.count() > 0) {
+    await extBtn.click();
+    await page.waitForTimeout(400);
+  }
+  const modalOpen = await page.locator('[data-testid="feature-extractor-modal"]').count();
+  check('15b 提取器 Modal 打开', modalOpen === 1, { modalOpen });
+  // 15c draft 预填：回气 → heal + dice 1d10（提取核心正则预填，非空白模板）
+  const draftText = await page.locator('[data-testid="extractor-draft"]').inputValue();
+  check('15c draft 预填 heal 渠道 + 恢复骰 1d10',
+    draftText.includes('"channel": "heal"') && draftText.includes('"dice": "1d10"'), draftText);
+  // 15d 校验通过 + 命中高亮渲染
+  const validateText = await page.locator('[data-testid="extractor-validate"]').innerText();
+  check('15d draft 过 schema 校验（校验通过）', validateText.includes('校验通过'), validateText);
+  const markCount = await page.locator('[data-testid="feature-extractor-modal"] mark').count();
+  check('15e 描述命中片段 mark 高亮渲染', markCount >= 1, { markCount });
+  await page.locator('[data-testid="feature-extractor-modal"]').getByRole('button', { name: '关闭' }).click();
+  await page.waitForTimeout(200);
+  const modalClosed = await page.locator('[data-testid="feature-extractor-modal"]').count();
+  check('15f Modal 关闭', modalClosed === 0, { modalClosed });
+
+  // 15g 批量脚本 dry 报告（node 侧，execSync 捕 stdout）
+  const { execSync } = require('child_process');
+  const path = require('path');
+  const repoRoot = path.resolve(__dirname, '..', '..');
+  const batchOut = execSync('node scripts/extract-features-batch.mjs', { cwd: repoRoot, encoding: 'utf8' });
+  check('15g 批量 dry：produce 含无踪步（convert bonus→hide）',
+    batchOut.includes('produce 1') && batchOut.includes('[produce] 无踪步'), batchOut.split('\n')[0]);
+  check('15h 批量 dry：manual 含圣疗/休憩曲（低置信人工确认，无静默产出）',
+    batchOut.includes('圣疗') && batchOut.includes('休憩曲') && batchOut.includes('manual 5'));
 
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();

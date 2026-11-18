@@ -65,6 +65,7 @@ import CharacterEquipmentCard from '@/components/CharacterEquipmentCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useEquipmentActions } from '@/hooks/useEquipmentActions';
 import TradeModal from '@/components/TradeModal';
+import FeatureExtractorModal from '@/components/FeatureExtractorModal';
 import SpellMaterialRequirementBlock from '@/components/SpellMaterialRequirementBlock';
 
 const abilityLabels: Record<AbilityKey, string> = {
@@ -965,6 +966,8 @@ export default function CharacterDetail({
   const [featureSearch, setFeatureSearch] = useState('');
   // 手动归类下拉：记录当前展开菜单的 feature id（空串关闭）；点选直接落到目标分类
   const [roleMenuId, setRoleMenuId] = useState('');
+  // 特性数据提取器（feature-fullcycle P2）：目标特性 → 弹窗
+  const [extractorFeature, setExtractorFeature] = useState<Feature | null>(null);
   // 隐藏操作需二次确认（防误触）；恢复显示无破坏性，直接执行
   const [hideConfirmKey, setHideConfirmKey] = useState<string | null>(null);
   const toggleFeatureHidden = (key: string) => {
@@ -1564,6 +1567,15 @@ export default function CharacterDetail({
             短休恢复
           </button>
         )}
+        {/* 引擎接入：数据提取器入口（单项提取 → spec 草案复制合并） */}
+        <button
+          onClick={() => setExtractorFeature(feature)}
+          data-extract-feature={feature.name}
+          className="px-1.5 py-0.5 rounded-full bg-accent/10 text-accent text-xs flex-shrink-0 hover:bg-accent/20 transition-colors"
+          title="接入引擎（数据提取器）"
+        >
+          引擎
+        </button>
         <span className="relative flex-shrink-0">
           <button
             onClick={() => setRoleMenuId(roleMenuId === feature.id ? '' : feature.id)}
@@ -3513,6 +3525,14 @@ if (character) {
         <TradeModal
           characterId={id}
           onClose={() => setTradeOpen(false)}
+        />
+      )}
+
+      {extractorFeature && (
+        <FeatureExtractorModal
+          featureName={extractorFeature.name}
+          description={extractorFeature.description ?? ''}
+          onClose={() => setExtractorFeature(null)}
         />
       )}
 
