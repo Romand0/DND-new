@@ -58,10 +58,14 @@ function validateSpecBody(name, channel, spec) {
     if (spec.levelAttr != null && typeof spec.levelAttr !== 'string') errors.push(`${tag} heal.levelAttr 必须为字符串`);
     if (spec.type !== 'hp' && spec.type !== 'temp') errors.push(`${tag} heal.type 必须为 hp/temp`);
   } else if (channel === 'resource_conv') {
-    const c = spec.convert;
-    if (c == null || typeof c !== 'object' || Array.isArray(c)) {
-      errors.push(`${tag} resource_conv.convert 必填`);
-    } else {
+    // 两形态二选一：convert（动作换动作项）/ grants（每回合额外资源）
+    const hasConvert = spec.convert != null && typeof spec.convert === 'object' && !Array.isArray(spec.convert);
+    const hasGrants = Array.isArray(spec.grants) && spec.grants.length > 0;
+    if (!hasConvert && !hasGrants) {
+      errors.push(`${tag} resource_conv 需 convert 或 grants 至少一者`);
+    }
+    if (hasConvert) {
+      const c = spec.convert;
       if (c.from !== 'bonus' && c.from !== 'action') errors.push(`${tag} convert.from 必须为 bonus/action`);
       const to = c.to;
       if (!Array.isArray(to) || to.length === 0) {
@@ -69,6 +73,15 @@ function validateSpecBody(name, channel, spec) {
       } else {
         for (const t of to) {
           if (!CONV_TARGETS.includes(t)) errors.push(`${tag} convert.to 元素非法：${String(t)}（白名单：${CONV_TARGETS.join('/')}）`);
+        }
+      }
+    }
+    if (hasGrants) {
+      for (const [i, g] of spec.grants.entries()) {
+        if (g == null || typeof g !== 'object' || Array.isArray(g)) {
+          errors.push(`${tag} grants[${i}] 必须为对象`);
+        } else if (g.extraAction !== true) {
+          errors.push(`${tag} grants[${i}] 当前仅支持 extraAction: true`);
         }
       }
     }
