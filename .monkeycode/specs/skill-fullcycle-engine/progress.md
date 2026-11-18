@@ -17,7 +17,7 @@
 |------|------|------|
 | P0 规划 | [x] 完成 | 五决策定稿，文档 2 份合入 main（bc0cb68 / 89dc4f1 / 8878830） |
 | P1 spec 数据层 | [x] 完成 | 分支 feature/fullcycle-p1，merge `536b911`，探针 75/75 |
-| P2 数据提取器 | [ ] 未开始 | 正则集 + 批量脚本（主路径）+ UI 单项（产出 JSON 文本） |
+| P2 数据提取器 | [x] 完成 | 分支 feature/fullcycle-p2，merge `0e85e99`+`7f9ca0e`，探针 83/83 |
 | P3 引擎补齐一 | [ ] 未开始 | B3 heal + B7 resource_conv：engines/ 处理器 + 预览 + op + 入账 |
 | P4 被动扩容 | [ ] 未开始 | A1-A7 规则表数据化 + 156 被动分批接入 + 接入徽标 |
 | P5 收尾 | [ ] 未开始 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
@@ -31,9 +31,29 @@
 - `src/pages/CombatSession.tsx`：handleFeatureUse manual 分支拦截 engineAvailable===false
 - 探针 14 段（14a-14k 共 11 断言）：解析链三级 + 校验器拒收 + 回气 UI（面板按钮/alert 手动结算/池扣）
 
+## P2 交付明细（2026-11-18）
+
+- `src/data/featureExtractCore.mjs`（+d.mts）：提取核心单一实现——heal 四形态判别（自动触发/休整期/池分配/资源消耗 → manual）+ 主动 heal 需动作成本语境；conv 野兽主体判别 manual；触发词窗口放宽（恢复.{0,20}点生命）；candidates 携带 highlight{text,start}
+- `src/data/featureExtract.ts`：TS 包装 + validateSpecDraft 单项校验（UI 生成前门禁）
+- `scripts/extract-features-batch.mjs`：批量提取（dry/--write/--json；produce/skip/suggest/manual/unmatched 五类报告）
+- `src/components/FeatureExtractorModal.tsx`：候选渠道切换/描述 mark 高亮/低置信警示/draft JSON 编辑/schema 校验/复制条目
+- `src/pages/CharacterDetail.tsx`：特性卡「引擎」入口（data-extract-feature）+ Modal 挂载
+- 契约修正补交（8bad330）：resource_conv 两形态二选一（convert/grants），校验器+类型+json 同步
+- 批量 dry 口径：317 条种子 → produce 1（无踪步）/ skip 9 / suggest 59 / manual 5（休憩曲/圣疗/上古斗士/特殊训练/战斗荒野变形，理由各异）/ unmatched 243
+- 探针 15 段（15a-15g 共 8 断言）：专测卡（level=1 绕 experience 解锁过滤）→ UI 流程 → 批量 dry
+
+## P3 开工顺序（heal + resource_conv 引擎）
+
+1. `src/data/engines/` heal 处理器：HealSpec 投掷（dice+levelFactor / flat / temp）→ HP/temp HP 变更
+2. resource_conv 处理器：convert（from 动作 → to 动作项选择）+ grants（extraAction）
+3. featureCapabilities.ts 登记 ENGINE_READY_CHANNELS += heal/resource_conv（激活 spec_db 条目）
+4. CombatSession/featureChannelRunner/turnCommitApply 接 heal/conv 分支（DM 入账 + 玩家 op）
+5. 提取器圣疗 poolDrain 子型评估（P3 扩展）
+
 ## 验证方式
 
-- 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（75 断言）
+- 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（83 断言）
+- 批量提取：`node scripts/extract-features-batch.mjs`（dry 报告；--write 写 spec 文件）
 - 全量：`sh scripts/probes/run.sh`（期望末行 `ALL PROBES OK`）
 - 构建：`npm run build`（tsc -b + vite build，含 spec 校验门禁）
 - 类型：`node_modules/.bin/tsc -p tsconfig.app.json --noEmit`（勿用 npx tsc，node 侧用 tsconfig.node.json）
@@ -44,10 +64,5 @@
 - spec 文件键 = 种子特性名（孤儿构建失败）；`_note` 字段仅注释用（校验器忽略未知字段？——当前校验器只查已知字段，多余字段不报错）
 - REGISTRY 覆盖 SPEC_DB 的同名条目（代码注册表优先，探针 14a 锁定）
 - 诗人激励 spec 文件占位条目（confidence 0.1）是回归哨兵，切勿接入引擎
-
-## 下一步（P2 开工顺序）
-
-1. `src/data/featureExtract.ts`：正则集（骰式/DC/恢复/临时HP/伤害类型/范围/属性/池/门槛）+ 置信度规则
-2. `scripts/extract-features-batch.mjs`：批量跑种子（36 显式 + 被动 156 名分类清单）→ 写 phb2014.json + 逐条报告
-3. `src/components/FeatureExtractorModal.tsx`：UI 单项流程（选渠道→提取高亮→确认→产出 JSON 文本）
-4. 探针 15 段：提取器流程断言
+- P2 提取无静默默认：置信度 <0.6 / 结构不可表达（池分配/环阶缩放/自动触发/休整期/野兽主体）一律 manual，理由落报告；produce 仅剩白名单+高置信+非 manual+键不存在
+- suggest 59 条是 P3/P4 素材分类（save_advantage/damage_affinity/advantage/check_modifier/attack_rider/reaction/attack_extra 七类标注）
