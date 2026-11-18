@@ -21,6 +21,9 @@ import { GRID_PRESETS } from '@/types/battleground';
 import type { Bearing } from '@/data/battleGeometry';
 import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHandOps } from '@/components/spectate/combatantAdapter';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { rollHealAmount } from '@/data/engines/healEngine';
+import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
+import FeatureConvTargetModal from '@/components/combat/FeatureConvTargetModal';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterActiveFeature, TurnCommitOp } from '@/types/realtime';
@@ -91,6 +94,8 @@ export default function PlayerSpectate() {
   const [checkModifierPick, setCheckModifierPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature } | null>(null);
   // aoe_save 通道方向拾取（吐息武器等）：玩家选朝向后打包 feature-use op（携带 direction），DM 入账时全自动结算
   const [aoePick, setAoePick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature } | null>(null);
+  // resource_conv convert 多目标选择（灵巧动作类）：选定动作项后打包 feature-use op（携带 convertTarget）
+  const [convTargetPick, setConvTargetPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature; targets: string[] } | null>(null);
   // ops 提升到页面层：沙盘拖拽与回合面板共享同一操作列表
   const [pendingOps, setPendingOps] = useState<TurnCommitOp[]>([]);
   const lastOpsRoundRef = useRef<number | null>(null);
@@ -609,6 +614,28 @@ export default function PlayerSpectate() {
                   setAoePick({ combatant, feature });
                   return;
                 }
+                // heal 通道（回气类）：玩家端掷定恢复量随 op 提交（决策③），DM 入账直接采用
+                {
+                  const cap = resolveFeatureCapability(feature.name);
+                  if (cap.channel === 'heal' && cap.heal) {
+                    const char = panelCharacters[combatant.id] ?? null;
+                    const plan = rollHealAmount(cap.heal, char?.level ?? 1);
+                    addOp({
+                      kind: 'feature-use',
+                      featureName: feature.name,
+                      ...(feature.poolKey ? { poolKey: feature.poolKey, cost: feature.cost ?? 1 } : {}),
+                      healAmount: plan.amount,
+                      activation: feature.activation,
+                      roundText: `发动「${feature.name}」→ ${cap.heal.type === 'temp' ? '获得临时生命' : '恢复'} ${plan.amount}（${plan.detail}）${feature.poolKey ? `，${feature.cost ?? 1} 点` : ''}`,
+                    });
+                    return;
+                  }
+                  // resource_conv convert 多目标（灵巧动作类）：先选动作项再打包 op（携带 convertTarget）
+                  if (cap.channel === 'resource_conv' && cap.resourceConv?.convert && cap.resourceConv.convert.to.length > 1) {
+                    setConvTargetPick({ combatant, feature, targets: cap.resourceConv.convert.to });
+                    return;
+                  }
+                }
                 addOp({
                   kind: 'feature-use',
                   featureName: feature.name,
@@ -641,6 +668,29 @@ export default function PlayerSpectate() {
                   setCheckModifierPick(null);
                 }}
                 onClose={() => setCheckModifierPick(null)}
+              />
+            );
+          })()}
+
+          {convTargetPick && spectate && (() => {
+            const from = rosterEntryToCombatant(convTargetPick.combatant, panelCharacters[convTargetPick.combatant.id] ?? null);
+            return (
+              <FeatureConvTargetModal
+                from={from}
+                featureName={convTargetPick.feature.name}
+                targets={convTargetPick.targets}
+                onConfirm={(target) => {
+                  addOp({
+                    kind: 'feature-use',
+                    featureName: convTargetPick.feature.name,
+                    ...(convTargetPick.feature.poolKey ? { poolKey: convTargetPick.feature.poolKey, cost: convTargetPick.feature.cost ?? 1 } : {}),
+                    convertTarget: target,
+                    activation: convTargetPick.feature.activation,
+                    roundText: `发动「${convTargetPick.feature.name}」→ ${CONV_TARGET_LABELS[target] ?? target}${convTargetPick.feature.poolKey ? `（${convTargetPick.feature.cost ?? 1} 点）` : ''}`,
+                  });
+                  setConvTargetPick(null);
+                }}
+                onClose={() => setConvTargetPick(null)}
               />
             );
           })()}

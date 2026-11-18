@@ -62,6 +62,8 @@ import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import FeatureCheckModifierModal from '@/components/combat/FeatureCheckModifierModal';
 import FeatureAoeSaveModal from '@/components/combat/FeatureAoeSaveModal';
+import FeatureConvTargetModal from '@/components/combat/FeatureConvTargetModal';
+import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import ReactionPromptModal from '@/components/ReactionPromptModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
@@ -280,6 +282,15 @@ export default function CombatSession() {
   const [aoeSaveModal, setAoeSaveModal] = useState<{
     from: Combatant;
     featureName: string;
+    activation: Feature['activation'];
+    poolKey: string | null;
+    cost: number;
+  } | null>(null);
+  // resource_conv convert 通道弹窗（灵巧动作类）：to 多元素先选动作项，确认时扣动作与池
+  const [convTargetPick, setConvTargetPick] = useState<{
+    from: Combatant;
+    featureName: string;
+    targets: string[];
     activation: Feature['activation'];
     poolKey: string | null;
     cost: number;
@@ -615,6 +626,7 @@ export default function CombatSession() {
       request,
       currentRound: (currentTurn?.round ?? -1) + 1,
       applyDamage: (event) => handleApplyDamage(event),
+      applyHealing: (targetId, amount) => handleApplyHealing(targetId, amount),
       consumeAction: consumeCombatantAction,
       consumeBonusAction: consumeCombatantBonusAction,
       advanceTurn,
@@ -1126,6 +1138,11 @@ export default function CombatSession() {
       setAoeSaveModal({ from: c, featureName: feature.name, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
       return;
     }
+    // 2.6 resource_conv convert 多目标（灵巧动作类）：先选动作项再扣资源（取消不损失，对齐 checkModifier 模式）
+    if (capability.channel === 'resource_conv' && capability.resourceConv?.convert && capability.resourceConv.convert.to.length > 1) {
+      setConvTargetPick({ from: c, featureName: feature.name, targets: capability.resourceConv.convert.to, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
+      return;
+    }
     // 3. 池扣减（无池语义直接跳过，老数据优雅降级）；
     //    attack_rider（命中触发类）为声明入口：资源在命中时刻由伤害结算弹窗扣，此处不扣
     if (poolInfo.poolKey && poolInfo.available != null && capability.channel !== 'attack_rider') {
@@ -1141,7 +1158,33 @@ export default function CombatSession() {
     // 5. 通道路由：status/advantage 走通道执行器（挂状态/pending 优劣势），reaction 说明自动触发，
     //    manual 提示 DM 手动结算
     recordOperation(c.id, `发动「${feature.name}」`, 'record');
-    // manual 兜底：未注册，或 spec 数据渠道的引擎尚未实现（engineAvailable=false，P3 登记 heal/resource_conv 后自动切换）
+    // heal 通道（P3）：执行器掷定恢复量计划，HP 落库走 handleApplyHealing（hp 型）/ addTempHp（temp 型）
+    if (capability.channel === 'heal' && capability.heal) {
+      const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+      const r = executeFeatureChannel(record, c, feature.name, currentRound0);
+      if (r.heal) {
+        if (r.heal.type === 'temp') {
+          const tp = combatStore.addTempHp(record.id, r.heal.targetId, r.heal.amount);
+          alert(`「${feature.name}」：${c.name} 获得临时生命 ${tp ?? r.heal.amount}（${r.heal.detail}）`);
+        } else {
+          const hr = handleApplyHealing(r.heal.targetId, r.heal.amount);
+          alert(`「${feature.name}」：${c.name} 恢复 ${hr?.healed ?? 0} 点生命（${r.heal.detail}${hr != null && hr.healed < r.heal.amount ? '，已达生命上限' : ''}）`);
+        }
+      } else if (r.note) {
+        alert(`「${feature.name}」：${r.note}`);
+      }
+      return;
+    }
+    // resource_conv 通道（P3）：grants 额外动作 / convert 单目标（多目标已走 2.6 弹窗）
+    if (capability.channel === 'resource_conv' && capability.resourceConv) {
+      const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+      const r = executeFeatureChannel(record, c, feature.name, currentRound0, { convertTarget: capability.resourceConv.convert?.to[0] });
+      if (r.note) {
+        alert(`「${feature.name}」：${r.note}`);
+      }
+      return;
+    }
+    // manual 兜底：未注册，或 spec 数据渠道的引擎尚未实现（engineAvailable=false，P3 已登记 heal/resource_conv 自动切换）
     if (capability.channel === 'manual' || capability.engineAvailable === false) {
       alert(`「${feature.name}」已消耗资源${poolInfo.poolKey ? `（${poolInfo.cost} 点）` : ''}。请按特性描述手动结算：${capability.hint || (feature.description || '').slice(0, 80)}`);
       return;
@@ -1160,6 +1203,34 @@ export default function CombatSession() {
     const channelResult = executeFeatureChannel(record, c, feature.name, currentRound0);
     if (channelResult.note) {
       alert(`「${feature.name}」：${channelResult.note}`);
+    }
+  };
+
+  /**
+   * resource_conv convert 多目标弹窗确认：此处才扣动作与池（取消不损失资源，对齐 checkModifier 模式），
+   * 随后经执行器按所选动作项落地（dash 移动力账务 / disengage+hide 声明）。
+   */
+  const confirmConvTargetUse = (from: Combatant, featureName: string, target: string, activation: Feature['activation'], poolKey: string | null, cost: number) => {
+    setConvTargetPick(null);
+    if (activation === 'action') {
+      if (!ensureCanAct(from, canUseAction(from.id))) return;
+    } else if (activation === 'bonus') {
+      if (!ensureCanAct(from, canUseBonusAction(from.id), 'bonus')) return;
+    }
+    if (poolKey) {
+      const ok = combatStore.consumeFeatureUse(record.id, from.id, poolKey, cost);
+      if (!ok) {
+        alert(`「${featureName}」资源不足（需要 ${cost} 点）`);
+        return;
+      }
+    }
+    if (activation === 'action') consumeCombatantAction(from.id);
+    else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
+    recordOperation(from.id, `发动「${featureName}」→ ${CONV_TARGET_LABELS[target] ?? target}`, 'record');
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    const r = executeFeatureChannel(record, from, featureName, currentRound0, { convertTarget: target });
+    if (r.note) {
+      alert(`「${featureName}」：${r.note}`);
     }
   };
 
@@ -2739,6 +2810,17 @@ export default function CombatSession() {
           />
         );
       })()}
+
+      {/* resource_conv convert 多目标选择弹窗（灵巧动作类） */}
+      {convTargetPick && record && (
+        <FeatureConvTargetModal
+          from={convTargetPick.from}
+          featureName={convTargetPick.featureName}
+          targets={convTargetPick.targets}
+          onConfirm={(target) => confirmConvTargetUse(convTargetPick.from, convTargetPick.featureName, target, convTargetPick.activation, convTargetPick.poolKey, convTargetPick.cost)}
+          onClose={() => setConvTargetPick(null)}
+        />
+      )}
 
       {/* ✅ 突袭选择弹窗 */}
       {surpriseAttackOpen && (

@@ -134,6 +134,10 @@ export type TurnCommitOp =
       targetId?: string;
       /** aoe_save 通道朝向（玩家端范围拾取产出；锥/线/立方几何结算用） */
       direction?: string;
+      /** heal 通道：玩家端掷定的恢复量（决策③ 玩家掷骰随 op 提交，DM 入账直接采用；缺省 DM 端按 spec 重掷） */
+      healAmount?: number;
+      /** resource_conv convert 型目标动作项（玩家端选择弹窗产出；缺省取 spec.to[0]） */
+      convertTarget?: string;
       /** 施法形态：DM 端按此扣动作 */
       activation: 'action' | 'bonus' | 'reaction' | 'free';
       roundText: string;
