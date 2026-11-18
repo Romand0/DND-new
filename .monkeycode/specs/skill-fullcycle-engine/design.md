@@ -12,6 +12,7 @@ Updated: 2026-11-18
 - 决策 1（作用域）：站点默认 + 团组覆盖。configs 表 `scope` 字段区分，解析时团组覆盖站点。
 - 决策 2（开放效果分流）：引导神力拆形态接入既有引擎；荒野变形 P5 硬编码候选；神圣干预另议；奥术回想/魔能掌控非战斗后置。裁定队列机制本轮不建。
 - 决策 3（骰值归属）：玩家端掷（与 attack d20 玩家填值先例一致），结果随 op 提交，DM 入账直接采用、零额外操作。依据：线下 DND 工具定位。
+- 决策 4（架构归属，2026-11-18 补确认）：**技能为核心，调用时将技能数据导入引擎**。技能是开放集合（294 名，配置数据），引擎是封闭集合（8 类结算模式，无状态处理器代码）。见下方文件架构与调用时序。
 
 ## Architecture
 
@@ -45,6 +46,32 @@ graph TD
 ```
 
 解析顺序（R5）：代码注册表 → 云端配置（团组覆盖站点）→ manual 兜底（现有行为）。开放效果技能按 R6 分流（拆形态/硬编码候选/范围外标记）。
+
+### 文件架构（决策 4：技能为核心）
+
+```
+src/data/
+├── featureSpecs.ts        # spec 类型定义（8 渠道 schema）+ engineRegistry：channel → 处理器
+├── engines/               # 无状态处理器，一渠道一文件
+│   ├── healEngine.ts          execute(feature, spec, ctx) → SettlementResult
+│   ├── resourceConvEngine.ts
+│   ├── checkModifierEngine.ts   （从 featureCapabilities 迁出）
+│   └── ...
+├── featureCapabilities.ts # 解析链（REGISTRY 专用硬编码 → cloudConfigs → manual），键=技能名
+└── featureExtract.ts      # 提取正则集，产出单位=技能 spec
+```
+
+归属原则：技能是开放集合（配置数据，云端表 + 提取器产出，增长零代码改动）；引擎是封闭集合（结算模式处理器，execute/settle 均为 `(skillSpec, ctx) => result` 纯函数）。专用硬编码条目同样以技能为键登记在 REGISTRY。
+
+### 调用时序（一次发动）
+
+```
+玩家点「回气」
+→ resolveFeatureCapability('回气')        → { source:'cloud', channel:'heal', spec }
+→ computeFeaturePreview(spec, ctx)        → 技能数据导入引擎求值 → 区间预览
+→ 玩家掷骰 → op { featureName, channel, specRef, params }
+→ turnCommitApply → engineRegistry['heal'].settle(op, spec, ctx) → HP/池/记录行
+```
 
 ## 引擎类型清单（定稿口径）
 
@@ -205,7 +232,7 @@ interface ResourceConvSpec { convert?: { from: 'bonus'|'action'; to: 'action'|'d
 |------|------|---------|------|
 | P1 配置数据层 | 迁移 0017 + API CRUD + resolveFeatureCapability 数据化 + 6 条注册平移验证 | migrations/0017、functions/api/feature-configs/*、src/lib/api.ts、src/data/featureCapabilities.ts | 探针 1-13 回归 + 14 段 |
 | P2 数据提取器 | 正则集 + Modal + 单项流程 + 批量脚本跑种子 | src/data/featureExtract.ts、src/components/FeatureExtractorModal.tsx、scripts/extract-features-batch.mjs | 15 段 + 批量报告 |
-| P3 引擎补齐一 | B3 heal + B7 resource_conv（schema/预览/op/入账） | src/data/featureSpecs.ts、combatStore、turnCommitApply、MyTurnPanel | 16 段 |
+| P3 引擎补齐一 | B3 heal + B7 resource_conv（schema/预览/op/入账） | src/data/featureSpecs.ts、src/data/engines/{healEngine,resourceConvEngine}.ts、combatStore、turnCommitApply、MyTurnPanel | 16 段 |
 | P4 被动扩容 | A1-A7 配置表数据化 + 156 被动分批接入 + 徽标 | passiveCombatRules/advantageRules 读取 configs、CharacterDetail | probe-passive2 扩展 |
 | P5 收尾 | 专用硬编码批次（空灵体/混元体等）+ 引导神力拆形态 + 荒野变形评估 + 反应数据面 + 已有通道 spec 化机会评估 | 专用引擎组件、引导神力选择弹窗 | 全量探针 + progress.md 回写 |
 
