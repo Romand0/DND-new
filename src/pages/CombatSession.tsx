@@ -1141,7 +1141,8 @@ export default function CombatSession() {
     // 5. 通道路由：status/advantage 走通道执行器（挂状态/pending 优劣势），reaction 说明自动触发，
     //    manual 提示 DM 手动结算
     recordOperation(c.id, `发动「${feature.name}」`, 'record');
-    if (capability.channel === 'manual') {
+    // manual 兜底：未注册，或 spec 数据渠道的引擎尚未实现（engineAvailable=false，P3 登记 heal/resource_conv 后自动切换）
+    if (capability.channel === 'manual' || capability.engineAvailable === false) {
       alert(`「${feature.name}」已消耗资源${poolInfo.poolKey ? `（${poolInfo.cost} 点）` : ''}。请按特性描述手动结算：${capability.hint || (feature.description || '').slice(0, 80)}`);
       return;
     }

@@ -9,8 +9,19 @@ import type { AdvantageEffectConfig, CheckScene, CheckSceneGroup } from '@/types
 import type { AbilityKey, Character, SpellSlotLevel } from '@/types/character';
 import type { Combatant } from '@/types/combat';
 import { characterStore } from '@/data/characterStore';
+import { SPEC_DB } from '@/data/featureSpecs';
+import type { HealSpec, ResourceConvSpec } from '@/data/featureSpecs';
 
-export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'aoe_save' | 'manual';
+/**
+ * FeatureChannel 双来源：
+ *  - 代码注册表渠道（checkModifier/advantage/status/reaction/attack_rider/aoe_save）：spec 含推导函数，仅 REGISTRY 可表达
+ *  - spec 数据渠道（heal/resource_conv）：纯数据 spec 由仓库 featureSpecs/phb2014.json 提供（决策 1）
+ * manual = 未注册兜底。
+ */
+export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'aoe_save' | 'heal' | 'resource_conv' | 'manual';
+
+/** 已实现引擎的渠道集：spec 数据渠道命中此集才可走功能引擎；未命中时消费方按 manual 兜底（P3 登记 heal/resource_conv） */
+const ENGINE_READY_CHANNELS = new Set<string>(['checkModifier', 'advantage', 'status', 'reaction', 'attack_rider', 'aoe_save']);
 
 /** advantage 通道单条 pending 优劣势参数（复用 PendingAdvantageSource 的场景/方向字段） */
 export interface FeatureAdvantageSpec {
@@ -94,6 +105,14 @@ export interface FeatureCapability {
     self: FeatureAdvantageSpec;
     incoming?: FeatureAdvantageSpec;
   };
+  /** heal 渠道 spec（spec 数据层，P3 引擎结算；engineAvailable=false 期间按 manual 兜底） */
+  heal?: HealSpec;
+  /** resource_conv 渠道 spec（spec 数据层，P3 引擎结算；engineAvailable=false 期间按 manual 兜底） */
+  resourceConv?: ResourceConvSpec;
+  /** 解析来源：registry = 代码注册表（缺省）；spec_db = 仓库 spec 文件 */
+  source?: 'registry' | 'spec_db';
+  /** 渠道引擎是否已实现；spec_db 条目 channel 未登记 ENGINE_READY_CHANNELS 时为 false */
+  engineAvailable?: boolean;
 }
 
 /**
@@ -234,7 +253,24 @@ register('震慑拳', {
   },
 });
 
-/** 查特性能力（未注册回退 manual） */
+/**
+ * 查特性能力（三级解析，决策 4：技能为核心、调用时导入引擎）：
+ *  1. REGISTRY（代码注册表，含推导函数的通道；同名覆盖 spec 文件）
+ *  2. SPEC_DB（仓库静态 spec 文件，纯数据通道；engineAvailable 标记渠道引擎是否已实现）
+ *  3. manual 兜底（现有行为：池扣自动化 + 手动结算提示）
+ */
 export function resolveFeatureCapability(featureName: string): FeatureCapability {
-  return registry.get(`feature:${featureName}`) ?? { channel: 'manual' };
+  const reg = registry.get(`feature:${featureName}`);
+  if (reg) return reg;
+  const entry = SPEC_DB[featureName];
+  if (entry) {
+    return {
+      channel: entry.channel,
+      ...(entry.channel === 'heal' ? { heal: entry.spec as HealSpec } : {}),
+      ...(entry.channel === 'resource_conv' ? { resourceConv: entry.spec as ResourceConvSpec } : {}),
+      source: 'spec_db',
+      engineAvailable: ENGINE_READY_CHANNELS.has(entry.channel),
+    };
+  }
+  return { channel: 'manual' };
 }

@@ -1,0 +1,27 @@
+{
+  "诗人激励": {
+    "channel": "heal",
+    "spec": { "type": "hp", "flat": 0 },
+    "source": "seed_batch",
+    "confidence": 0.1,
+    "_note": "同名共存样本：REGISTRY 的 checkModifier 条目运行时优先覆盖本条（探针 14a 断言），切勿接入引擎"
+  },
+  "回气": {
+    "channel": "heal",
+    "spec": { "type": "hp", "dice": "1d10", "levelFactor": 1, "levelAttr": "战士等级" },
+    "source": "seed_batch",
+    "confidence": 0.9
+  },
+  "动作如潮": {
+    "channel": "resource_conv",
+    "spec": { "convert": { "from": "bonus", "to": ["action"] } },
+    "source": "seed_batch",
+    "confidence": 0.9
+  },
+  "灵巧动作": {
+    "channel": "resource_conv",
+    "spec": { "convert": { "from": "bonus", "to": ["dash", "disengage", "hide"] } },
+    "source": "seed_batch",
+    "confidence": 0.8
+  }
+}
