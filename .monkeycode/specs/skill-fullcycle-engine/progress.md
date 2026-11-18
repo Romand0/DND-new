@@ -18,7 +18,7 @@
 | P0 规划 | [x] 完成 | 五决策定稿，文档 2 份合入 main（bc0cb68 / 89dc4f1 / 8878830） |
 | P1 spec 数据层 | [x] 完成 | 分支 feature/fullcycle-p1，merge `536b911`，探针 75/75 |
 | P2 数据提取器 | [x] 完成 | 分支 feature/fullcycle-p2，merge `0e85e99`+`7f9ca0e`，探针 83/83 |
-| P3 引擎补齐一 | [ ] 未开始 | B3 heal + B7 resource_conv：engines/ 处理器 + 预览 + op + 入账 |
+| P3 引擎补齐一 | [x] 完成 | 分支 feature/fullcycle-p3，merge `a025cee`，探针 92/92 + 全量 ALL PROBES OK |
 | P4 被动扩容 | [ ] 未开始 | A1-A7 规则表数据化 + 156 被动分批接入 + 接入徽标 |
 | P5 收尾 | [ ] 未开始 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
 
@@ -42,17 +42,31 @@
 - 批量 dry 口径：317 条种子 → produce 1（无踪步）/ skip 9 / suggest 59 / manual 5（休憩曲/圣疗/上古斗士/特殊训练/战斗荒野变形，理由各异）/ unmatched 243
 - 探针 15 段（15a-15g 共 8 断言）：专测卡（level=1 绕 experience 解锁过滤）→ UI 流程 → 批量 dry
 
-## P3 开工顺序（heal + resource_conv 引擎）
+## P3 交付明细（2026-11-18，merge a025cee）
 
-1. `src/data/engines/` heal 处理器：HealSpec 投掷（dice+levelFactor / flat / temp）→ HP/temp HP 变更
-2. resource_conv 处理器：convert（from 动作 → to 动作项选择）+ grants（extraAction）
-3. featureCapabilities.ts 登记 ENGINE_READY_CHANNELS += heal/resource_conv（激活 spec_db 条目）
-4. CombatSession/featureChannelRunner/turnCommitApply 接 heal/conv 分支（DM 入账 + 玩家 op）
-5. 提取器圣疗 poolDrain 子型评估（P3 扩展）
+- `src/data/engines/healEngine.ts`：rollHealAmount（dice 正则 + levelFactor/levelAttr + flat；HP 型 / temp 型）
+- `src/data/engines/resourceConvEngine.ts`：applyConvTarget（dash=+speed 移动力 / disengage+hide=声明 note）+ CONV_TARGET_LABELS
+- `src/data/featureChannelRunner.ts`：heal 分支（返回计划，hp→handleApplyHealing / temp→addTempHp）+ resource_conv 分支（grants→grantAction 上限 3，convert→applyConvTarget，convertTarget 缺省 to[0]）
+- `src/data/featureCapabilities.ts`：ENGINE_READY_CHANNELS += heal/resource_conv（SPEC_DB 条目激活，探针 14b/14c 断言随更新）
+- `src/data/combatStore.ts`：grantAction（上限 3）+ addTempHp（5e 取高者）；**load() 白名单补 bonusActions（combatant 级）+ resourceConsumption（record 级）**——reload 后字段丢失且保存后永久抹掉的两个数据完整性 bug
+- `src/types/realtime.ts`：op 扩展 healAmount/convertTarget；`src/lib/turnCommitApply.ts`：deps.applyHealing + heal 通道结算
+- `src/pages/CombatSession.tsx`：handleFeatureUse heal 掷骰 + conv 多目标弹窗分支 + confirmConvTargetUse；`src/components/combat/FeatureConvTargetModal.tsx`（新建，对齐 checkModifier 模式：取消不扣资源）
+- `src/pages/PlayerSpectate.tsx`：heal 玩家掷骰随 op 提交 + convTargetPick
+- `src/data/featureSpecs/phb2014.json`：补「无踪步」entry（conv bonus→hide 单目标，manual/0.95——P1 提取疏漏，runner 直调暴露）
+- 探针 16 段（16a-16i）：16c/16d/16e/16f 由 UI 面板交互改为数据级直调 executeFeatureChannel（等价断言：池扣 + 槽扣 + note + dash/grants 落库），原因见下「已知限制」；16g-16i 玩家 op 入账（applyTurnCommit 直调）
+
+## 已知限制与经验（P3 收尾决策 B）
+
+- **16 段 UI 面板交互探针不可靠**：reload 后 dblclick 打开参战者面板的交互链在沙盘 token/grid 水合时序上偶发失效（tokenDom=0 甚至 grid=null，现象漂移）。16c-16f 的面板→按钮 UI 断言改为 runner 数据级直调；FeatureConvTargetModal 的弹窗打开/选定 UI 断言暂缺，靠手动验证。
+- **dev server 腐化规律**：长时间运行 + 大量 HMR（尤其 merge 改写多文件后）进入腐化态——探针大面积无关 FAIL 或 update 日志丢失、参战者未落库。带 `--force` 冷重启（绕过 node_modules/.vite 磁盘缓存）即恢复。探针异常时先重启 dev server 再排查。
+- 提取器幂等 skip：条目入库后批量 dry 从 produce 转 skip（15g 断言随之更新为 produce 0 / skip 10）。
+- 严格模式扣槽前提：探针构造的记录必须 `resourceConsumption: true`（load 白名单修复后该开关才在 reload 后存活）。
+
+## P4 开工顺序（被动扩容，待启动）
 
 ## 验证方式
 
-- 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（83 断言）
+- 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（92 断言）
 - 批量提取：`node scripts/extract-features-batch.mjs`（dry 报告；--write 写 spec 文件）
 - 全量：`sh scripts/probes/run.sh`（期望末行 `ALL PROBES OK`）
 - 构建：`npm run build`（tsc -b + vite build，含 spec 校验门禁）
@@ -65,4 +79,5 @@
 - REGISTRY 覆盖 SPEC_DB 的同名条目（代码注册表优先，探针 14a 锁定）
 - 诗人激励 spec 文件占位条目（confidence 0.1）是回归哨兵，切勿接入引擎
 - P2 提取无静默默认：置信度 <0.6 / 结构不可表达（池分配/环阶缩放/自动触发/休整期/野兽主体）一律 manual，理由落报告；produce 仅剩白名单+高置信+非 manual+键不存在
-- suggest 59 条是 P3/P4 素材分类（save_advantage/damage_affinity/advantage/check_modifier/attack_rider/reaction/attack_extra 七类标注）
+- suggest 59 条是 P4/P5 素材分类（save_advantage/damage_affinity/advantage/check_modifier/attack_rider/reaction/attack_extra 七类标注）
+- P3 遗留到 P4/P5：圣疗 poolDrain 子型评估延后；conv disengage/hide 机制未建（声明 note 交 DM 裁定）
