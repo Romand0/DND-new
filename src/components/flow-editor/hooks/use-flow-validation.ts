@@ -32,7 +32,8 @@ export function useFlowValidation(flow: FlowDefinition): UseFlowValidationReturn
   // 自动修复 Hook
   const autoFix = useAutoFix(flow);
 
-  // 发布门禁与保存同源：用 validateForPublish 判定，避免「面板显示可发布、保存却失败」
+  // 校验结果只服务于界面展示：保存/发布放行，绑定门禁在 BindingService.bindSpellToFlow
+  // 沿用 validateForPublish 保证「面板报的错误」与「绑定被拦的原因」同源一致
   const collectErrors = useCallback((target: FlowDefinition): ValidationError[] => {
     const result = validateForPublish(target);
     if (result.valid) return [];

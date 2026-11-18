@@ -1,6 +1,7 @@
 import { bindingStore } from '@/data/bindingStore';
 import { spellStore } from '@/data/spellStore';
 import flowStore from '@/data/flowStore';
+import { validateForPublish } from '@/utils/flow-editor/validation';
 import type { Spell } from '@/types/spell';
 import type { FlowDefinition, FlowNodeDef, FlowEdgeDef } from '@/types/flow';
 import type { SpellFlowBinding } from '@/types/binding';
@@ -47,8 +48,26 @@ export class BindingService {
   }
   /**
    * 创建法术与流程的绑定关系
+   *
+   * 合法性校验的唯一门禁：保存/发布放行（允许脏数据落库），绑定是投入应用的
+   * 最后一环，在此拦截防止脏流程被运行时消费。所有绑定入口（编辑器发布后同步、
+   * 法术/流程详情管理器、FlowConsole）都经过这里。
    */
   static async bindSpellToFlow(spellId: string, flowId: string): Promise<SpellFlowBinding> {
+    // 校验流程合法性：本地镜像找不到流程（未发布或镜像缺失）同样无法投入应用
+    const flow = flowStore.getById(flowId);
+    if (!flow) {
+      throw new Error('流程不存在或尚未发布，无法绑定');
+    }
+
+    const validation = validateForPublish(flow);
+    if (!validation.valid) {
+      const detail = 'details' in validation && validation.details?.length
+        ? validation.details.map(d => d.message).join('；')
+        : ('error' in validation ? validation.error : '流程校验未通过');
+      throw new Error(`流程校验未通过，无法绑定：${detail}`);
+    }
+
     // 检查是否已经绑定
     const existingBindings = bindingStore.getBySpellId(spellId);
     const alreadyBound = existingBindings.find(b => b.flow_id === flowId);

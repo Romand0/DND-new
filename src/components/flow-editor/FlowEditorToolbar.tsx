@@ -6,7 +6,6 @@ interface FlowEditorToolbarProps {
   flowName: string;
   flowStatus: 'draft' | 'published';
   saveStatus: 'idle' | 'saving' | 'saved';
-  validationStatus: 'valid' | 'invalid';
   syncStatus: 'idle' | 'syncing' | 'synced';
   onExit: () => void;
   onSave: () => void;
@@ -19,7 +18,6 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
   flowName,
   flowStatus,
   saveStatus,
-  validationStatus,
   syncStatus,
   onExit,
   onSave,
@@ -66,8 +64,8 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
         </button>
         <button
           onClick={onSave}
-          disabled={saveStatus === 'saving' || validationStatus === 'invalid'}
-          title={validationStatus === 'invalid' ? '流程校验未通过，无法发布' : '保存即发布到云端正式版'}
+          disabled={saveStatus === 'saving'}
+          title="保存即发布到云端正式版；校验未通过时仍可保存，但绑定法术会被阻止"
           className={`
             flex items-center gap-1 px-2 sm:px-3 py-1.5 h-10 rounded-lg text-xs font-medium shrink-0
             transition-all duration-300
@@ -75,8 +73,6 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
               ? 'bg-emerald-500 text-white scale-95'
               : saveStatus === 'saving'
               ? 'bg-primary/60 text-white/70 cursor-wait'
-              : validationStatus === 'invalid'
-              ? 'bg-gray-400 text-white/70 cursor-not-allowed'
               : 'bg-primary text-white hover:bg-primary/90 active:scale-95'
             }
           `}

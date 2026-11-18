@@ -1,7 +1,6 @@
 import type { FlowDefinition } from '../types/flow';
 import { parseFlowId } from '../types/flow';
 import { apiFetch } from '../lib/api';
-import { validateForPublish } from '../utils/flow-editor/validation';
 import { createBlankFlow } from './flowFactory';
 
 /**
@@ -304,19 +303,13 @@ const flowStore = {
   // ──────────── 发布 ────────────
 
   /**
-   * 发布：本地校验 → 覆写云端正式版 → 同步本地镜像。
+   * 发布：覆写云端正式版 → 同步本地镜像。
    * 编辑器不再先写本地草稿，直接把内存中的流程传进来；发布成功即成为唯一真相。
+   * 合法性校验在此放行（允许不完美流程落库），门禁收敛在 BindingService.bindSpellToFlow：
+   * 绑定是投入应用的最后一环，脏流程在绑定时被拦下，无法被运行时消费。
    */
   async publish(flow: FlowDefinition): Promise<FlowDefinition> {
     if (!flow?.id) throw new Error('流程数据不完整');
-
-    const validation = validateForPublish(flow);
-    if (!validation.valid) {
-      const detail = 'details' in validation && validation.details
-        ? validation.details.map(d => d.message).join('; ')
-        : (validation as { error?: string }).error || '流程校验未通过';
-      throw new Error(`发布失败: ${detail}`);
-    }
 
     // 类别以 ID 前缀为准：避免 category 与 id 漂移导致后端按旧类别入库
     const withCategory: FlowDefinition = {

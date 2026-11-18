@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Terminal, Play, Trash2, Plus, CheckCircle, AlertCircle, Loader2, X, BookOpen, Link, Unlink, Search } from 'lucide-react';
 import flowStore from '@/data/flowStore';
 import { buildFlowId, parseFlowId, nameToSlug } from '@/types/flow';
-import { validateFlowDefinition, validateForPublish } from '@/utils/flow-validation';
 import { BindingService } from '@/services/bindingService';
 import { fetchAllSpells, fetchBindingsByFlow } from '@/lib/api';
 import type { SpellFlowBinding } from '@/types/binding';
@@ -115,16 +114,6 @@ export default function FlowConsole({ onClose }: Props) {
               updatedAt: now,
             };
 
-            const validation = validateForPublish(newFlow);
-            if (!validation.valid) {
-              failedItems.push({
-                name: flowData.name,
-                reason: validation.errors.join(', '),
-              });
-              fail++;
-              continue;
-            }
-
             await flowStore.publishDirect(newFlow);
             success++;
           } else if (mode === 'update') {
@@ -171,16 +160,6 @@ export default function FlowConsole({ onClose }: Props) {
               version: (existing.version || 1) + 1,
               updatedAt: Date.now(),
             };
-
-            const validation = validateForPublish(updatedFlow);
-            if (!validation.valid) {
-              failedItems.push({
-                name: flowData.name,
-                reason: validation.errors.join(', '),
-              });
-              fail++;
-              continue;
-            }
 
             await flowStore.publishDirect(updatedFlow);
             success++;

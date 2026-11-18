@@ -706,11 +706,15 @@ flowStore.saveViewportSnapshot(flowId, {
       // 已发布流程改了 ID：新 ID 已落云端，旧 ID 随之删除，避免两条正式版并存
       const renamed = flowId !== NEW_FLOW_ID && !!flowId && published.id !== flowId;
 
-      // 绑定关系依赖云端流程记录：改过绑定或换了 ID 才同步，避免误清空既有绑定
+      // 绑定关系依赖云端流程记录：改过绑定或换了 ID 才同步，避免误清空既有绑定；
+      // 目标绑定缺失时（上次发布因校验未通过被绑定门禁拦下）重试同步。
+      // syncBinding 内部先查云端真实绑定再写，重复触发幂等。
       const bindingChanged = (baselineSpellIdRef.current ?? '') !== (published.spellId ?? '');
-      if (bindingChanged || renamed) {
-        await spellBinding.syncBinding(published.id, published.spellId);
-      }
+      const hasTargetBinding = !published.spellId
+        || spellBinding.bindingStore.getByFlowId(published.id).some(b => b.spell_id === published.spellId);
+      const bindingOk = (bindingChanged || renamed || !hasTargetBinding)
+        ? await spellBinding.syncBinding(published.id, published.spellId)
+        : true;
 
       // 旧 ID 的云端行（含其绑定）在新 ID 落库后再清理
       if (renamed) {
@@ -728,8 +732,14 @@ flowStore.saveViewportSnapshot(flowId, {
       flowNameInput.setExternal(published.name);
       setSaveStatus('saved');
       setSyncStatus('synced');
-      validation.setShowValidation(false);
-      showToast('success', `已发布 v${published.publishedVersion}`);
+      // 绑定被校验门禁拦下时保留校验面板，让用户看到需要修复的错误
+      if (bindingOk) validation.setShowValidation(false);
+      showToast(
+        bindingOk ? 'success' : 'error',
+        bindingOk
+          ? `已发布 v${published.publishedVersion}`
+          : `已发布 v${published.publishedVersion}，但流程校验未通过，绑定法术被阻止`
+      );
       setTimeout(() => setSaveStatus('idle'), 2000);
     } catch (err) {
       setSaveStatus('error');
@@ -847,7 +857,6 @@ flowStore.saveViewportSnapshot(flowId, {
         flowName={flow.name}
         flowStatus={flow.status}
         saveStatus={saveStatus as 'idle' | 'saving' | 'saved'}
-        validationStatus={validation.validationStatus}
         syncStatus={syncStatus}
         onExit={() => setExitModalOpen(true)}
         onSave={saveFlow}
@@ -977,13 +986,13 @@ flowStore.saveViewportSnapshot(flowId, {
                   {validation.validationStatus === 'valid' ? (
               <>
                 <CheckCircle className="w-4 h-4 text-green-400" />
-                <span className="text-sm font-medium text-green-400">可以发布</span>
+                <span className="text-sm font-medium text-green-400">可以绑定</span>
               </>
             ) : (
               <>
                 <AlertCircle className="w-4 h-4 text-red-400" />
                 <span className="text-sm font-medium text-red-400">
-                   无法发布（{validation.validationErrors.length} 个错误）
+                   可保存，绑定将被阻止（{validation.validationErrors.length} 个错误）
                 </span>
               </>
             )}

@@ -69,9 +69,12 @@ export function useSpellBinding(
    * 把内存中的 spellId 同步为云端绑定（发布成功后调用）。
    * 云端只允许「流程存在」后绑定，因此必须等 publish 落库再调用。
    * spellId 为空表示解绑：清掉该流程的所有绑定。
+   *
+   * 绑定写入走 BindingService.bindSpellToFlow（流程合法性门禁）：
+   * 校验未通过时被拦，返回 false 并把具体原因透传给 toast，供保存流程区分「已发布但绑定被阻止」。
    */
-  const syncBinding = useCallback(async (flowId: string, spellId: string | undefined) => {
-    if (!flowId) return;
+  const syncBinding = useCallback(async (flowId: string, spellId: string | undefined): Promise<boolean> => {
+    if (!flowId) return true;
     setSyncing(true);
     try {
       const existing = await fetchBindingsByFlow<any[]>(flowId);
@@ -79,7 +82,7 @@ export function useSpellBinding(
 
       if (!spellId) {
         for (const b of list) await BindingService.unbindSpellFromFlow(b.id);
-        return;
+        return true;
       }
 
       if (list.some(b => b.spell_id === spellId)) {
@@ -87,7 +90,7 @@ export function useSpellBinding(
         for (const b of list) {
           if (b.spell_id !== spellId) await BindingService.unbindSpellFromFlow(b.id);
         }
-        return;
+        return true;
       }
 
       // 一个流程只保留一条绑定：先清掉指向其他法术的旧绑定
@@ -95,9 +98,11 @@ export function useSpellBinding(
         await BindingService.unbindSpellFromFlow(b.id);
       }
       await BindingService.bindSpellToFlow(spellId, flowId);
+      return true;
     } catch (error) {
       console.error('同步法术绑定失败:', error);
-      showToast('error', '法术绑定同步失败');
+      showToast('error', error instanceof Error ? error.message : '法术绑定同步失败');
+      return false;
     } finally {
       setSyncing(false);
     }
