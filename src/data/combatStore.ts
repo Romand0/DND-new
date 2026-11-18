@@ -469,6 +469,8 @@ function load(): CombatRecord[] {
           characterId: c.characterId ?? undefined,
           note: typeof c.note === 'string' ? c.note : '',
           speed,
+          // 动作槽位（mk 写入 number；白名单缺失会在刷新后丢 bonusActions 且保存后永久抹掉）
+          bonusActions: typeof c.bonusActions === 'number' && Number.isFinite(c.bonusActions) && c.bonusActions >= 0 ? Math.trunc(c.bonusActions) : undefined,
           childId: c.childId ?? undefined,
           templateId: c.templateId ?? undefined,
           damageAffinities: c.damageAffinities && typeof c.damageAffinities === 'object' ? c.damageAffinities : undefined,
@@ -570,6 +572,8 @@ function load(): CombatRecord[] {
         rounds: r.rounds ?? [],
         mode: r.mode,
         isProvingGround: r.isProvingGround ?? false,
+        // 严格资源消耗开关（白名单重建，缺失会在刷新后静默关闭 UI 扣槽）
+        resourceConsumption: r.resourceConsumption === true,
         settledAt: typeof r.settledAt === 'number' && Number.isFinite(r.settledAt) ? r.settledAt : undefined,
         turnTodos: (r.turnTodos || []).map((t: any) => ({
           id: t.id ?? crypto.randomUUID(),
@@ -923,6 +927,56 @@ const combatStore = {
     record.combatants[idx] = { ...record.combatants[idx], bonusActions: next };
     record.updatedAt = Date.now();
     save(records);
+    return next;
+  },
+
+  /**
+   * 授予一个额外主动作（grants.extraAction 语义：动作如潮类「获得一个额外动作」）。
+   * 每回合使用次数由资源池漏斗（featureUses）控制，此处仅做槽位累加（上限 3 防异常连点）。
+   * @returns 授予后的可用动作数；找不到参战者时返回 null
+   */
+  grantAction(recordId: string, combatantId: string): number | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return null;
+    const cur = typeof record.combatants[idx].actions === 'number' && (record.combatants[idx].actions as number) >= 0
+      ? (record.combatants[idx].actions as number)
+      : 1;
+    const next = Math.min(3, cur + 1);
+    record.combatants[idx] = { ...record.combatants[idx], actions: next };
+    record.updatedAt = Date.now();
+    save(records);
+    return next;
+  },
+
+  /**
+   * 获得临时生命（heal spec type='temp'）。5e 规则：临时生命不叠加，新值与现有值取较高者；
+   * 推送 heal 事件驱动玩家端飘字与回合摘要（低值授予时事件量记 0，仅记录说明文本）。
+   * @returns 授予后的临时生命值；找不到参战者时返回 null
+   */
+  addTempHp(recordId: string, combatantId: string, amount: number): number | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return null;
+    const idx = record.combatants.findIndex(c => c.id === combatantId);
+    if (idx === -1) return null;
+    const target = record.combatants[idx];
+    const gained = Math.max(0, Math.floor(amount));
+    const cur = Math.max(0, target.tempHp ?? 0);
+    const next = Math.max(cur, gained);
+    record.combatants[idx] = { ...target, tempHp: next };
+    record.updatedAt = Date.now();
+    save(records);
+    this.pushCombatEvent(recordId, {
+      kind: 'heal',
+      targetId: combatantId,
+      amount: 0,
+      text: gained > cur
+        ? `${target.name} 获得临时生命 ${gained}`
+        : `${target.name} 的临时生命保持 ${cur}（新值 ${gained} 未超过现有值，5e 取高者）`,
+    });
     return next;
   },
 

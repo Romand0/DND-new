@@ -12,6 +12,7 @@ import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { rollHealAmount } from '@/data/engines/healEngine';
 import { applyAttackRiders } from '@/data/attackRiders';
 import { planAoeSave, applyAoeSave, saveBonusFor, rollAoeDamage } from '@/data/aoeSaveEngine';
 import { rollDice } from '@/data/diceService';
@@ -25,6 +26,8 @@ export interface TurnCommitApplyDeps {
   /** DM 端当前放映轮次（1-based，与 request.round 同语义）；不一致则拒绝 */
   currentRound: number;
   applyDamage: (event: DamageApplication) => DamageApplyResult | null;
+  /** heal 通道（回气类）：治疗落 HP（maxHp 截断 + 昏迷恢复），复用 useDamageAndHp.handleApplyHealing */
+  applyHealing?: (targetId: string, amount: number) => { healed: number } | null;
   consumeAction: (combatantId: string) => void;
   consumeBonusAction: (combatantId: string) => void;
   advanceTurn: () => void;
@@ -269,9 +272,29 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         consumeBonusAction(actor.id);
         consumedBonus = true;
       }
-      const channelResult = executeFeatureChannel(record, actor, op.featureName, request.round - 1, { targetId: op.targetId });
+      const channelResult = executeFeatureChannel(record, actor, op.featureName, request.round - 1, { targetId: op.targetId, convertTarget: op.convertTarget });
       if (channelResult.note) {
         opCtx.featureNote = channelResult.note;
+      }
+      // heal 通道（P3 回气类）：恢复量随 op 提交（玩家端掷骰，决策③），缺省 DM 端按 spec 重掷兜底；
+      // hp 型走 applyHealing（maxHp 截断 + 昏迷恢复），temp 型走 combatStore.addTempHp（5e 取高者）
+      if (capability.channel === 'heal' && capability.heal) {
+        const spec = capability.heal;
+        const char = actor.characterId ? characterStore.get(actor.characterId) : null;
+        const plan = op.healAmount != null
+          ? { amount: op.healAmount, detail: `玩家掷定 ${op.healAmount}` }
+          : rollHealAmount(spec, char?.level ?? 1);
+        if (spec.type === 'temp') {
+          const tp = combatStore.addTempHp(record.id, actor.id, plan.amount);
+          opCtx.featureNote = `获得临时生命 ${tp ?? plan.amount}（${plan.detail}）`;
+        } else if (deps.applyHealing) {
+          const hr = deps.applyHealing(actor.id, plan.amount);
+          opCtx.featureNote = hr
+            ? `恢复 ${hr.healed} 点生命（${plan.detail}${hr.healed < plan.amount ? '，已达生命上限' : ''}）`
+            : `治疗未生效（参战者不在场）`;
+        } else {
+          opCtx.featureNote = `治疗 ${plan.amount} 点（${plan.detail}；DM 端未注入治疗钩子，请手动结算）`;
+        }
       }
       // aoe_save 通道（玩家吐息武器）：朝向随 op 提交，入账时全自动结算——
       // 几何（planAoeSave 以自身为源点）+ 逐目标 d20 自动骰 + 伤害骰池 + applyDamage 落 HP

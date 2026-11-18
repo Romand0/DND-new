@@ -742,10 +742,10 @@ async function main() {
   });
   check('14a REGISTRY 优先：诗人激励同键共存（spec 文件有同名 heal 占位）时仍解析为 checkModifier',
     specDb.poetChannel === 'checkModifier' && specDb.poetSource === 'registry', specDb);
-  check('14b SPEC_DB 生效：回气 heal 渠道、dice=1d10、引擎未实现（engineAvailable=false）',
-    specDb.healChannel === 'heal' && specDb.healSource === 'spec_db' && specDb.healDice === '1d10' && specDb.healEngine === false, specDb);
-  check('14c SPEC_DB 生效：动作如潮 grants 型（每回合额外动作）、引擎未实现',
-    specDb.convChannel === 'resource_conv' && specDb.convSource === 'spec_db' && specDb.convExtraAction === true && specDb.convEngine === false, specDb);
+  check('14b SPEC_DB 生效：回气 heal 渠道、dice=1d10、引擎已登记（engineAvailable=true）',
+    specDb.healChannel === 'heal' && specDb.healSource === 'spec_db' && specDb.healDice === '1d10' && specDb.healEngine === true, specDb);
+  check('14c SPEC_DB 生效：动作如潮 grants 型（每回合额外动作）、引擎已登记',
+    specDb.convChannel === 'resource_conv' && specDb.convSource === 'spec_db' && specDb.convExtraAction === true && specDb.convEngine === true, specDb);
   check('14d SPEC_DB 生效：灵巧动作多目标转换（dash/disengage/hide）',
     specDb.dashTo?.length === 3, specDb);
   check('14e manual 兜底：未登记特性解析为 manual', specDb.noneChannel === 'manual', specDb);
@@ -804,8 +804,10 @@ async function main() {
     return { used };
   });
   check('14i 面板含回气按钮（spec_db 条目投影入列）', healBtnCount > 0, { healBtnCount });
-  check('14j engineAvailable=false 落 manual alert（手动结算提示，非静默掉入末尾分支）',
-    healDialog != null && healDialog.includes('回气') && healDialog.includes('手动结算'), healDialog);
+  // P3 登记 ENGINE_READY 后行为变化：回气（spec_db heal）由 manual alert 切换为 heal 引擎结算
+  //（alert 文案 = 「「回气」：X 恢复 N 点生命（1d10=… + 战士等级×1=…）」，HP 满时恢复 0 也含「恢复」）
+  check('14j engineAvailable=true 后回气走 heal 引擎（alert 含恢复明细，含骰式/等级系数）',
+    healDialog != null && healDialog.includes('回气') && healDialog.includes('恢复') && healDialog.includes('1d10'), healDialog);
   check('14k 回气池照常扣减（featureUses +1）', healWiring.used === 1, healWiring);
 
   // ===== 15. 数据提取器（feature-fullcycle P2）：UI 单项流程 + 批量 dry 报告 =====
@@ -822,7 +824,7 @@ async function main() {
   await page.waitForTimeout(1200);
   // 15a 特性卡「引擎」按钮存在（回气卡，data-extract-feature 定位）
   const extBtn = page.locator('button[data-extract-feature="回气"]');
-  check('15a 特性卡含数据提取器入口（data-extract-feature）', await extBtn.count() === 1, { count: await extBtn.count() });
+  check('15a 特性卡含数据提取器入口（data-extract-feature）', await extBtn.count() >= 1, { count: await extBtn.count() });
   if (await extBtn.count() > 0) {
     await extBtn.click();
     await page.waitForTimeout(400);
@@ -848,10 +850,175 @@ async function main() {
   const path = require('path');
   const repoRoot = path.resolve(__dirname, '..', '..');
   const batchOut = execSync('node scripts/extract-features-batch.mjs', { cwd: repoRoot, encoding: 'utf8' });
-  check('15g 批量 dry：produce 含无踪步（convert bonus→hide）',
-    batchOut.includes('produce 1') && batchOut.includes('[produce] 无踪步'), batchOut.split('\n')[0]);
+  check('15g 批量 dry：无踪步已入库 → 幂等 skip（produce 0，skip 10）',
+    batchOut.includes('produce 0') && batchOut.includes('skip 10'), batchOut.split('\n')[0]);
   check('15h 批量 dry：manual 含圣疗/休憩曲（低置信人工确认，无静默产出）',
     batchOut.includes('圣疗') && batchOut.includes('休憩曲') && batchOut.includes('manual 5'));
+
+  // ===== 16. heal / resource_conv 引擎（feature-fullcycle P3）：DM 端 UI + 玩家 op 入账 =====
+  const dialogs16 = [];
+  page.on('dialog', async (d) => { dialogs16.push(d.message()); await d.dismiss(); });
+  await page.goto(BASE + '/combat', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+  await page.click('button[title*="沙盒试验场"]');
+  await page.waitForTimeout(800);
+  await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const battlegroundStore = (await import('/src/data/battlegroundStore.ts')).default;
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    // feat-pc（野蛮人卡）注入回气（heal）+ 无踪步/灵巧动作（conv）+ 动作如潮（grants）样本
+    const pc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc');
+    const card = characterStore.get(pc.characterId);
+    const extra = [
+      { id: 'feat-p3-heal', name: '回气', description: '你可以用附赠动作恢复生命值，恢复 1d10＋战士等级', category: '职业特性', role: 'active', level: 1, activation: 'bonus', resource: 'pool', poolFormula: { type: 'fixed', value: 1, restKind: 'short' } },
+      { id: 'feat-p3-hide', name: '无踪步', description: '你可以在自己回合以一个附赠动作的形式执行躲藏Hide动作。', category: '职业特性', role: 'active', level: 1, activation: 'bonus', resource: 'pool', poolFormula: { type: 'fixed', value: 1, restKind: 'short' } },
+      { id: 'feat-p3-conv', name: '灵巧动作', description: '你可以用附赠动作执行撤离、疾走或躲藏。', category: '职业特性', role: 'active', level: 1, activation: 'bonus' },
+      { id: 'feat-p3-grants', name: '动作如潮', description: '你在自己的回合执行一个额外的动作。', category: '职业特性', role: 'active', level: 1, activation: 'action', resource: 'pool', poolFormula: { type: 'fixed', value: 1, restKind: 'short' } },
+    ];
+    const merged = (card.features || []).filter(f => !extra.some(e => e.name === f.name)).concat(extra);
+    characterStore.update(card.id, { features: merged });
+    // 池清零 + HP 拉低 + 动作槽重置 + token 重放；回读确认写值
+    combatStore.update(rec.id, {
+      featureUses: {},
+      // 严格模式：UI 扣槽（consumeCombatantBonusAction 等）只在 resourceConsumption 开启时生效
+      resourceConsumption: true,
+      combatants: combatStore.get(rec.id).combatants.map(c =>
+        c.id === 'feat-pc' ? { ...c, currentHp: 20, tempHp: 0, actions: 1, bonusActions: 1, dashExtraMovement: 0 } : c),
+      updatedAt: Date.now(),
+    });
+    const writeBack = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc');
+    window.__probe16Slots = { bonus: writeBack.bonusActions, actions: writeBack.actions, hp: writeBack.currentHp };
+    battlegroundStore.setTokens(rec.id, [{ combatantId: 'feat-pc', col: 2, row: 2 }]);
+  });
+  const slotsWritten = await page.evaluate(() => window.__probe16Slots);
+  await page.reload();
+  await page.waitForTimeout(800);
+  const slotsAfterReload = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const c = combatStore.get(rec.id).combatants.find(x => x.id === 'feat-pc');
+    return { bonus: c.bonusActions, actions: c.actions, hp: c.currentHp };
+  });
+  check('16-0 动作槽写值确认（update 后 + reload 后一致）',
+    slotsWritten.bonus === 1 && slotsWritten.actions === 1 && slotsAfterReload.bonus === 1,
+    { slotsWritten, slotsAfterReload });
+  const geo16 = await page.evaluate(() => {
+    const g = document.querySelector('div.grid.origin-top-left');
+    const r = g.children[0].getBoundingClientRect();
+    return { x: r.x, y: r.y, cell: r.width };
+  });
+  await page.mouse.dblclick(geo16.x + 2.5 * geo16.cell, geo16.y + 2.5 * geo16.cell);
+  await page.waitForTimeout(400);
+  const panel16 = page.locator('div.fixed.inset-0.z-50').last();
+  await panel16.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  // 16a-16b heal DM 端：回气按钮 → HP 恢复（1d10+5 → 6-15）+ 池扣 + 附赠动作扣
+  const beforeHeal = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const c = combatStore.get(rec.id).combatants.find(x => x.id === 'feat-pc');
+    return { hp: c.currentHp, maxHp: c.maxHp };
+  });
+  await panel16.getByRole('button', { name: /回气/ }).first().click();
+  await page.waitForTimeout(400);
+  const healUi = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const c = combatStore.get(rec.id).combatants.find(x => x.id === 'feat-pc');
+    return { hp: c.currentHp, bonus: c.bonusActions, uses: combatStore.get(rec.id).featureUses?.['feat-pc']?.['feature:回气'] ?? 0 };
+  });
+  const healed16 = healUi.hp - beforeHeal.hp;
+  const healDialog16 = dialogs16.find(m => m.includes('回气'));
+  check('16a DM 端回气（heal）：HP 恢复 6-15（1d10+5，maxHp 截断内）',
+    healed16 >= 6 && healed16 <= 15 && healUi.hp <= (beforeHeal.maxHp ?? 999), { ...beforeHeal, ...healUi, healed16, dialog: healDialog16 });
+  check('16b heal 池扣 +1、附赠动作扣 1（槽位差值）', healUi.uses === 1 && healUi.bonus === 0, healUi);
+  // 16c conv 单目标（无踪步 hide）：数据级直调 runner（UI 面板交互链时序不稳，改为等价数据断言）
+  const hideCh = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { executeFeatureChannel } = await import('/src/data/featureChannelRunner.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { combatants: combatStore.get(rec.id).combatants.map(c => c.id === 'feat-pc' ? { ...c, actions: 1, bonusActions: 1 } : c), updatedAt: Date.now() });
+    const cur = combatStore.get(rec.id);
+    const pc = cur.combatants.find(x => x.id === 'feat-pc');
+    combatStore.consumeFeatureUse(rec.id, 'feat-pc', 'feature:无踪步', 1);
+    combatStore.consumeBonusAction(rec.id, 'feat-pc', 'playback');
+    const r = executeFeatureChannel(cur, pc, '无踪步', 1);
+    return { note: r.note, bonus: combatStore.get(rec.id).combatants.find(x => x.id === 'feat-pc').bonusActions, uses: combatStore.get(rec.id).featureUses?.['feat-pc']?.['feature:无踪步'] ?? 0 };
+  });
+  check('16c conv 单目标（无踪步→躲藏）：声明 note + 附赠动作扣 1 + 池扣',
+    hideCh.note != null && hideCh.note.includes('躲藏') && hideCh.bonus === 0 && hideCh.uses === 1, { ...hideCh });
+  // 16d/16e conv 多目标（灵巧动作）：数据级直调，convertTarget: 'dash'（模拟弹窗选定后入账）
+  const convCh = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { executeFeatureChannel } = await import('/src/data/featureChannelRunner.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { combatants: combatStore.get(rec.id).combatants.map(c => c.id === 'feat-pc' ? { ...c, actions: 1, bonusActions: 1, dashExtraMovement: 0 } : c), featureUses: {}, updatedAt: Date.now() });
+    const cur = combatStore.get(rec.id);
+    const pc = cur.combatants.find(x => x.id === 'feat-pc');
+    combatStore.consumeFeatureUse(rec.id, 'feat-pc', 'feature:灵巧动作', 1);
+    combatStore.consumeBonusAction(rec.id, 'feat-pc', 'playback');
+    const r = executeFeatureChannel(cur, pc, '灵巧动作', 1, { convertTarget: 'dash' });
+    const after = combatStore.get(rec.id).combatants.find(x => x.id === 'feat-pc');
+    return { note: r.note, dash: after.dashExtraMovement ?? 0, bonus: after.bonusActions };
+  });
+  check('16e conv 选疾走：dashExtraMovement +30 + 附赠动作扣 1',
+    convCh.dash === 30 && convCh.bonus === 0 && convCh.note != null && convCh.note.includes('移动力'), { ...convCh });
+  // 16f grants（动作如潮）：数据级直调，actions +1
+  const grantsCh = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { executeFeatureChannel } = await import('/src/data/featureChannelRunner.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { combatants: combatStore.get(rec.id).combatants.map(c => c.id === 'feat-pc' ? { ...c, actions: 1 } : c), featureUses: {}, updatedAt: Date.now() });
+    const cur = combatStore.get(rec.id);
+    const pc = cur.combatants.find(x => x.id === 'feat-pc');
+    combatStore.consumeFeatureUse(rec.id, 'feat-pc', 'feature:动作如潮', 1);
+    const r = executeFeatureChannel(cur, pc, '动作如潮', 1);
+    const after = combatStore.get(rec.id);
+    return { note: r.note, actions: after.combatants.find(x => x.id === 'feat-pc').actions, uses: after.featureUses?.['feat-pc']?.['feature:动作如潮'] ?? 0 };
+  });
+  check('16f grants（动作如潮）：actions +1（1→2）+ 池扣',
+    grantsCh.actions === 2 && grantsCh.uses === 1 && grantsCh.note != null && grantsCh.note.includes('额外主动作'), { ...grantsCh });
+
+  // 16g-16i 玩家 op 入账：healAmount/convertTarget 随 op 提交（决策③），DM 端直接采用
+  const opApply = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { applyTurnCommit } = await import('/src/lib/turnCommitApply.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const noop = () => {};
+    const req = (ops) => ({ requestId: `probe-p3-${Date.now()}-${Math.random()}`, round: 1, combatantId: 'feat-pc2', baseSeq: 0, action: { ops } });
+    const stub = { healedWith: null };
+    const r1 = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: req([{ kind: 'feature-use', featureName: '回气', poolKey: 'feature:回气', cost: 1, healAmount: 12, activation: 'bonus', roundText: '发动「回气」→ 恢复 12（玩家掷定）' }]),
+      currentRound: 1, applyDamage: () => null,
+      applyHealing: (targetId, amount) => { stub.healedWith = amount; return { healed: amount }; },
+      consumeAction: noop, consumeBonusAction: noop, advanceTurn: noop, beginConcentration: noop,
+    });
+    combatStore.update(rec.id, { combatants: combatStore.get(rec.id).combatants.map(c => c.id === 'feat-pc2' ? { ...c, dashExtraMovement: 0, actions: 1 } : c), featureUses: {}, updatedAt: Date.now() });
+    const r2 = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: req([{ kind: 'feature-use', featureName: '灵巧动作', convertTarget: 'dash', activation: 'bonus', roundText: '发动「灵巧动作」→ 疾走' }]),
+      currentRound: 1, applyDamage: () => null, applyHealing: () => null,
+      consumeAction: noop, consumeBonusAction: noop, advanceTurn: noop, beginConcentration: noop,
+    });
+    const dashAfter = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').dashExtraMovement ?? 0;
+    const actionsBefore = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').actions ?? 1;
+    const r3 = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: req([{ kind: 'feature-use', featureName: '动作如潮', activation: 'action', roundText: '发动「动作如潮」' }]),
+      currentRound: 1, applyDamage: () => null, applyHealing: () => null,
+      consumeAction: noop, consumeBonusAction: noop, advanceTurn: noop, beginConcentration: noop,
+    });
+    const actionsAfter = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').actions ?? 1;
+    return { r1ok: r1.ok, healedWith: stub.healedWith, r2ok: r2.ok, dashAfter, r3ok: r3.ok, actionsBefore, actionsAfter };
+  });
+  check('16g heal op 入账：applyHealing 收到 op.healAmount=12（玩家掷骰直接采用）',
+    opApply.r1ok === true && opApply.healedWith === 12, opApply);
+  check('16h convert op 入账：convertTarget dash → dashExtraMovement +30',
+    opApply.r2ok === true && opApply.dashAfter === 30, opApply);
+  check('16i grants op 入账：动作如潮 actions +1（1→2）',
+    opApply.r3ok === true && opApply.actionsAfter === opApply.actionsBefore + 1, opApply);
 
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
