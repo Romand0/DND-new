@@ -62,13 +62,13 @@ export function FlowPropertiesHeader({
           {validation.validationStatus === 'valid' ? (
             <>
               <CheckCircle className="w-4 h-4 text-green-400" />
-              <span className="text-sm font-medium text-green-400">流程可以发布</span>
+              <span className="text-sm font-medium text-green-400">流程可以绑定</span>
             </>
           ) : (
             <>
               <AlertCircle className="w-4 h-4 text-red-400" />
               <span className="text-sm font-medium text-red-400">
-                流程无法发布（{validation.validationErrors.length} 个错误）
+                可保存，绑定将被阻止（{validation.validationErrors.length} 个错误）
               </span>
             </>
           )}
