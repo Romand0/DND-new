@@ -4,7 +4,12 @@ export interface ExtractHit {
   text: string;
   label: string;
 }
+export interface ExtractHighlight {
+  text: string;
+  start: number;
+}
 export interface ExtractCandidate {
+  highlight: ExtractHighlight | null;
   channel: 'heal' | 'resource_conv';
   spec: Record<string, unknown>;
   hits: ExtractHit[];
