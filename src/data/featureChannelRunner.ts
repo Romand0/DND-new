@@ -5,6 +5,9 @@
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { rollHealAmount } from '@/data/engines/healEngine';
+import { applyConvTarget, CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
+import { characterStore } from '@/data/characterStore';
 import type { AdvantageSourceKind, CombatRecord, Combatant } from '@/types/combat';
 import type { Effect } from '@/types/status';
 
@@ -13,12 +16,21 @@ export interface FeatureChannelResult {
   note: string | null;
   /** status 通道挂载的状态实例 ID */
   statusInstanceId?: string;
+  /**
+   * heal 通道结算计划（P3）：HP 落库由调用方执行——
+   * type hp → useDamageAndHp.handleApplyHealing（maxHp 截断 + 昏迷恢复）；
+   * type temp → combatStore.addTempHp（5e 临时生命取高者）。
+   * 玩家端打包已掷定 healAmount 时由调用方直接采用，此计划仅 DM 端即时结算产出。
+   */
+  heal?: { targetId: string; amount: number; detail: string; type: 'hp' | 'temp' };
 }
 
-/** 通道执行扩展参数（按通道可选；checkModifier 的受益人由调用方先选定） */
+/** 通道执行扩展参数（按通道可选；checkModifier 的受益人、convert 的目标动作项由调用方先选定） */
 export interface FeatureChannelOptions {
   /** checkModifier 通道：加值标记的受益人参战者 ID（缺省不执行） */
   targetId?: string;
+  /** resource_conv convert 通道：目标动作项（to 多元素时调用方弹窗选定；缺省取 spec.to[0]） */
+  convertTarget?: string;
 }
 
 export function executeFeatureChannel(
@@ -113,6 +125,35 @@ export function executeFeatureChannel(
   // attack_rider（命中触发）：声明不扣资源，实际消耗与效果在命中时刻由伤害结算弹窗落地
   if (capability.channel === 'attack_rider' && capability.attackRider) {
     return { note: `命中时结算：${capability.attackRider.hint}` };
+  }
+
+  // heal 通道（P3）：掷定恢复量计划，HP 落库由调用方执行（见 FeatureChannelResult.heal 注释）
+  if (capability.channel === 'heal' && capability.heal) {
+    const spec = capability.heal;
+    const char = combatant.characterId ? characterStore.get(combatant.characterId) : null;
+    const plan = rollHealAmount(spec, char?.level ?? 1);
+    return {
+      note: null,
+      heal: { targetId: combatant.id, amount: plan.amount, detail: plan.detail, type: spec.type },
+    };
+  }
+
+  // resource_conv 通道（P3）：grants 额外主动作（combatStore.grantAction，次数由池漏斗控制）；
+  // convert 按 opts.convertTarget（缺省 spec.to[0]）执行——dash 移动力账务 / disengage+hide 声明。
+  // from 槽扣减（activation 对应 actions/bonusActions）由调用方统一执行，此处不重复扣。
+  if (capability.channel === 'resource_conv' && capability.resourceConv) {
+    const conv = capability.resourceConv;
+    const notes: string[] = [];
+    if (conv.grants && conv.grants.length > 0) {
+      const actions = combatStore.grantAction(record.id, combatant.id);
+      notes.push(actions != null ? `获得一个额外主动作（本回合可用动作 ${actions}）` : '无法授予额外动作');
+    }
+    if (conv.convert) {
+      const target = opts?.convertTarget ?? conv.convert.to[0];
+      const r = applyConvTarget(record.id, combatant, target);
+      notes.push(`${CONV_TARGET_LABELS[target] ?? target}：${r.note}`);
+    }
+    return { note: notes.length > 0 ? notes.join('；') : null };
   }
 
   return { note: null };

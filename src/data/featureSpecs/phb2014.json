@@ -23,5 +23,11 @@
     "spec": { "convert": { "from": "bonus", "to": ["dash", "disengage", "hide"] } },
     "source": "seed_batch",
     "confidence": 0.8
+  },
+  "无踪步": {
+    "channel": "resource_conv",
+    "spec": { "convert": { "from": "bonus", "to": ["hide"] } },
+    "source": "manual",
+    "confidence": 0.95
   }
 }

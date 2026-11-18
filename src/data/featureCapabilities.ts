@@ -20,8 +20,8 @@ import type { HealSpec, ResourceConvSpec } from '@/data/featureSpecs';
  */
 export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'aoe_save' | 'heal' | 'resource_conv' | 'manual';
 
-/** 已实现引擎的渠道集：spec 数据渠道命中此集才可走功能引擎；未命中时消费方按 manual 兜底（P3 登记 heal/resource_conv） */
-const ENGINE_READY_CHANNELS = new Set<string>(['checkModifier', 'advantage', 'status', 'reaction', 'attack_rider', 'aoe_save']);
+/** 已实现引擎的渠道集：spec 数据渠道命中此集才可走功能引擎；未命中时消费方按 manual 兜底（P3 已登记 heal/resource_conv） */
+const ENGINE_READY_CHANNELS = new Set<string>(['checkModifier', 'advantage', 'status', 'reaction', 'attack_rider', 'aoe_save', 'heal', 'resource_conv']);
 
 /** advantage 通道单条 pending 优劣势参数（复用 PendingAdvantageSource 的场景/方向字段） */
 export interface FeatureAdvantageSpec {
