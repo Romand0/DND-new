@@ -9,10 +9,11 @@ Updated: 2026-11-18
 三层接入架构：被动处理器零操作（层 A）、主动技能按结算模式引擎化 + 数据提取器（层 B）、复杂技能专用硬编码（层 B 保留）。核心目标：玩家异步提交前一切数值静态可得，DM 审批零手填。
 
 决策记录（2026-11-18 用户拍板）：
-- 决策 1（作用域）：站点默认 + 团组覆盖。configs 表 `scope` 字段区分，解析时团组覆盖站点。
+- 决策 1（数据形态）：**技能 spec 全部硬编码入库（git 仓库静态文件）**，与种子库同构（public/seed/*.json 模式）。提取器产出的 spec 提交进仓库，随构建分发。已废弃早期草案的云端 D1 配置表方案（迁移 0017 + feature-configs API 不建）——规则书数据是静态内容，走 git 版本管理（可 review/回溯），运行时可变配置不符合其性质。
 - 决策 2（开放效果分流）：引导神力拆形态接入既有引擎；荒野变形 P5 硬编码候选；神圣干预另议；奥术回想/魔能掌控非战斗后置。裁定队列机制本轮不建。
 - 决策 3（骰值归属）：玩家端掷（与 attack d20 玩家填值先例一致），结果随 op 提交，DM 入账直接采用、零额外操作。依据：线下 DND 工具定位。
-- 决策 4（架构归属，2026-11-18 补确认）：**技能为核心，调用时将技能数据导入引擎**。技能是开放集合（294 名，配置数据），引擎是封闭集合（8 类结算模式，无状态处理器代码）。见下方文件架构与调用时序。
+- 决策 4（架构归属，2026-11-18 补确认）：**技能为核心，调用时将技能数据导入引擎**。技能是开放集合（294 名，仓库静态 spec 数据），引擎是封闭集合（8 类结算模式，无状态处理器代码）。见下方文件架构与调用时序。
+- 附带修正：原「站点默认+团组覆盖」作用域方案随决策 1 作废——spec 是站点级仓库文件；团组级自定义规则若未来确有需求另议。
 
 ## Architecture
 
@@ -22,10 +23,11 @@ graph TD
         SEED[种子库 PHB2014 特性] --> BATCH[批量提取脚本]
         DMEDIT[DM 特性编辑界面] --> EXTRACT[数据提取器 Modal]
     end
-    EXTRACT --> CONF
-    BATCH --> CONF
-    CONF[云端 feature_engine_configs D1] --> RESOLVE
+    EXTRACT -->|产出 spec JSON 文本| COMMIT[人工合并提交 git]
+    BATCH -->|产出 spec JSON 文件| COMMIT
+    COMMIT --> SPEC[仓库静态文件 featureSpecs/phb2014.json]
     REG[代码注册表 featureCapabilities.ts] --> RESOLVE
+    SPEC --> RESOLVE
     RESOLVE[resolveFeatureCapability 解析链] --> PLAYER[玩家端 MyTurnPanel]
     RESOLVE --> DMSIDE[DM 端面板/沙盘]
     PLAYER -->|静态预览| PLAYER
@@ -45,7 +47,7 @@ graph TD
     end
 ```
 
-解析顺序（R5）：代码注册表 → 云端配置（团组覆盖站点）→ manual 兜底（现有行为）。开放效果技能按 R6 分流（拆形态/硬编码候选/范围外标记）。
+解析顺序（R5）：代码注册表（专用硬编码）→ 仓库 spec 文件（提取器产出，静态）→ manual 兜底（现有行为）。开放效果技能按 R6 分流（拆形态/硬编码候选/范围外标记）。
 
 ### 文件架构（决策 4：技能为核心）
 
@@ -61,7 +63,7 @@ src/data/
 └── featureExtract.ts      # 提取正则集，产出单位=技能 spec
 ```
 
-归属原则：技能是开放集合（配置数据，云端表 + 提取器产出，增长零代码改动）；引擎是封闭集合（结算模式处理器，execute/settle 均为 `(skillSpec, ctx) => result` 纯函数）。专用硬编码条目同样以技能为键登记在 REGISTRY。
+归属原则：技能是开放集合（仓库静态 spec 数据 + 提取器产出，增长零代码改动）；引擎是封闭集合（结算模式处理器，execute/settle 均为 `(skillSpec, ctx) => result` 纯函数）。专用硬编码条目同样以技能为键登记在 REGISTRY。
 
 ### 调用时序（一次发动）
 
@@ -110,44 +112,49 @@ src/data/
 
 ## Components and Interfaces
 
-### 1. 配置数据层（P1）
+### 1. spec 数据层（P1）：仓库静态文件
 
-**迁移 `migrations/0017_feature_engine_configs.sql`：**
+**spec 数据文件 `src/data/featureSpecs/phb2014.json`（决策 1：硬编码入库，与种子库同构）：**
 
-```sql
-CREATE TABLE feature_engine_configs (
-  id TEXT PRIMARY KEY,
-  feature_name TEXT NOT NULL,      -- 特性名（解析键）
-  channel TEXT NOT NULL,           -- 'heal'|'check_modifier'|'resource_conv'|'reaction'|...
-  spec_json TEXT NOT NULL,         -- 引擎 spec（渠道 schema 校验后入库）
-  scope TEXT NOT NULL,             -- 'site' 或 campaign id（决策点 1）
-  source TEXT,                     -- 'extractor'|'seed_batch'|'manual'
-  confidence REAL,                 -- 提取器置信度 0~1
-  created_by TEXT,
-  created_at INTEGER,
-  updated_at INTEGER
-);
-CREATE INDEX idx_fec_name ON feature_engine_configs(feature_name);
-CREATE INDEX idx_fec_scope ON feature_engine_configs(scope);
+```jsonc
+{
+  "回气": {
+    "channel": "heal",
+    "spec": { "dice": "1d10", "levelFactor": 1, "levelAttr": "战士等级", "type": "hp" },
+    "source": "extractor",
+    "confidence": 0.9
+  },
+  "动作如潮": {
+    "channel": "resource_conv",
+    "spec": { "convert": { "from": "bonus", "to": "action" } },
+    "source": "extractor",
+    "confidence": 0.9
+  }
+}
 ```
 
-**API（`functions/api/feature-configs/`）：** `index.ts` GET（?scope=&name= 批量）/ POST；`[id].ts` PUT / DELETE。写权限 admin；玩家端 GET 无需 admin（读配置算预览）。`src/lib/api.ts` 同步客户端函数。
+- 键 = 特性名（与角色卡/种子库特性名同源）；`source`/`confidence` 记录提取来源供 review。
+- 提取器产出的 JSON 由人工合并提交 git，随构建分发；规则变更走 commit review，与种子库同流程。
+- 体积预估：294 名全量 spec 约 30-60KB，打包静态加载无压力；按需可拆职业/种族多文件（同目录 index 聚合）。
 
 **resolveFeatureCapability 数据化（`src/data/featureCapabilities.ts`）：**
 
 ```
 resolveFeatureCapability(feature, ctx):
-  1. REGISTRY（代码注册表，现有 6 条 + 专用硬编码）
-  2. cloudConfigCache（combat 开战时 api 拉取，localStorage 缓存兜底离线）
-     - scope 匹配：当前团组条目覆盖同名 site 条目
+  1. REGISTRY（代码注册表，现有 6 条 + 专用硬编码——代码优先，可覆盖 spec 文件）
+  2. SPEC_DB（import featureSpecs/phb2014.json，模块级加载，构建时校验 schema）
   3. 无配置 → manual 兜底（现有行为：池扣自动化 + 手动结算提示 + 「未接入」标记）
 ```
+
+- 构建期校验：vite 插件或独立脚本在 build 时对 spec 文件跑渠道 schema 校验（`featureSpecs.ts` 类型守卫），非法 spec 直接构建失败——把数据正确性左移到 CI。
+- 离线天然可用（静态资源），无缓存/回退逻辑。
 
 ### 2. 数据提取器（P2）
 
 **组件 `src/components/FeatureExtractorModal.tsx`：**
 入口：CharacterDetail 特性区「接入引擎」按钮（DM 权限）+ 数据页种子库批量入口。
-流程：选引擎类型（按描述关键词预推荐 channel）→ 文本提取（命中片段 `<mark>` 高亮 + 表单预填）→ 低置信项逐项「需人工确认」标记 → 确认提交（schema 校验）→ POST configs。
+流程：选引擎类型（按描述关键词预推荐 channel）→ 文本提取（命中片段 `<mark>` 高亮 + 表单预填）→ 低置信项逐项「需人工确认」标记 → 确认生成（schema 校验）→ **输出 spec JSON 文本（复制/下载）**，人工合并进 `src/data/featureSpecs/phb2014.json` 提交 git——运行时 UI 产出物，仓库为准（决策 1）。
+批量路径（主路径）：`scripts/extract-features-batch.mjs` 直接读写仓库 spec 文件，无需 UI。
 
 **提取正则集（`src/data/featureExtract.ts`，纯函数可单测）：**
 
@@ -165,7 +172,7 @@ resolveFeatureCapability(feature, ctx):
 
 置信度规则：骰式+类型双命中=0.9；单命中=0.6；公式推断=0.5；缺命中=0（标记人工）。
 
-**批量脚本 `scripts/extract-features-batch.mjs`：** 读种子 36 显式条目 + 被动 156 名分类清单 → 跑正则集 → 输出逐条报告（成功/低置信/失败清单）→ 成功项 POST 站点级 configs（预填，`source: 'seed_batch'`）。
+**批量脚本 `scripts/extract-features-batch.mjs`：** 读种子 36 显式条目 + 被动 156 名分类清单 → 跑正则集 → 输出逐条报告（成功/低置信/失败清单）→ 成功项写入 `src/data/featureSpecs/phb2014.json`（预填，`source: 'seed_batch'`），diff review 后提交 git。
 
 ### 3. 引擎补齐（P3：B3 heal + B7 resource_conv）
 
@@ -182,7 +189,7 @@ interface ResourceConvSpec { convert?: { from: 'bonus'|'action'; to: 'action'|'d
 
 **玩家端静态预览 `computeFeaturePreview(feature, spec, ctx)`（combatStore 纯函数）：** 返回 {消耗, 恢复区间, DC, 描述}，MyTurnPanel/MyCombatantPanel 特性按钮 hover/展开展示。
 
-**op 协议扩展（决策 3：玩家端掷）：** `feature-use` op 增 `channel` + `specRef`(configId 或 registry key) + `params`（含玩家已掷骰值，如 heal 的 `diceRolls`）。玩家预览先展示区间，掷骰后展示确定值，提交前最终确认。turnCommitApply 增分支：
+**op 协议扩展（决策 3：玩家端掷）：** `feature-use` op 增 `channel` + `specRef`(spec 名或 registry key) + `params`（含玩家已掷骰值，如 heal 的 `diceRolls`）。玩家预览先展示区间，掷骰后展示确定值，提交前最终确认。turnCommitApply 增分支：
 - heal → hp += op.params.diceRolls 求和（DM 入账直接采用，可复核），记录行含骰值明细
 - resource_conv → combatant actions/bonusActions 调整
 - spec 缺失/解析失败 → manual 兜底（R7.3 零回归）
@@ -196,33 +203,33 @@ interface ResourceConvSpec { convert?: { from: 'bonus'|'action'; to: 'action'|'d
 
 ## Data Models
 
-- 配置表见上 SQL。spec_json 内部结构按渠道 schema（featureSpecs.ts 类型定义，入库前校验）。
-- combat 开战快照新增 `featureConfigs: Record<featureName, ResolvedCapability>`（随记录回溯可重算）。
+- spec 数据：`src/data/featureSpecs/phb2014.json`（仓库静态文件，键=特性名，值=channel+spec+source+confidence），结构按渠道 schema（`featureSpecs.ts` 类型定义，构建期校验）。
+- combat 开战快照新增 `featureConfigs: Record<featureName, ResolvedCapability>`（随记录回溯可重算；来源标记 registry/spec_db）。
 - 特性编辑界面（CharacterDetail）展示接入徽标：「已接入·heal」/「未接入」（R1.3/R1.4）。
 
 ## Correctness Properties
 
-1. 解析确定性：同名特性在任何端解析结果一致（代码 > 团组 > 站点 > manual 兜底）。
+1. 解析确定性：同名特性在任何端解析结果一致（代码注册表 > 仓库 spec 文件 > manual 兜底）。
 2. 预览=结算一致：玩家预览的消耗（池/动作）与 turnCommitApply 扣减量恒等。
 3. 源不可变性：引擎结算只写 CombatRecord/equipmentChanges，源角色卡不受影响（既有不变量）。
-4. 配置回退安全：云端不可达时 localStorage 缓存兜底；无缓存时降级 manual 行为（R7.3 零回归）。
+4. 数据可信性：spec 文件构建期 schema 校验失败即构建失败；非法数据无法进入产物（R3.4/R7 的左移形态）。
 5. 提取器无静默默认：置信度低于阈值的字段必须人工确认后才入库。
 6. 骰值单次确认：op 携带的骰值由玩家端一次性掷出并锁定，DM 入账原样采用（可复核记录行），结算不再重掷。
 
 ## Error Handling
 
-- spec schema 校验失败：POST 返回 400 + 具体字段错误；提取器 UI 逐项标红。
-- 云端配置拉取失败：降级缓存/代码注册表，UI 提示「配置离线」。
+- spec schema 校验失败：构建期直接失败（vite 插件/校验脚本）；提取器 UI 生成前逐项标红。
 - op 结算时 spec 缺失（DM 端比玩家端旧）：op 携带 spec 快照，DM 端优先用快照结算，缺失再降级 manual 兜底。
 - 种子批量提取失败项：报告清单输出，人工补录入口（不阻塞批次）。
+- spec 文件与种子特性名漂移（改名/删除）：构建期校验器对 spec 键与种子特性名做交叉检查，孤儿 spec 告警。
 
 ## Test Strategy
 
 - 探针扩展（`probe-active-skills.cjs`）：
-  - 第 14 段：解析顺序（代码覆盖云端/团组覆盖站点/离线回退）
-  - 第 15 段：提取器 UI 流程（打开→提取→确认→写入→立即生效）
+  - 第 14 段：解析顺序（REGISTRY 覆盖 spec 文件 / spec 文件生效 / 无配置 manual 兜底）
+  - 第 15 段：提取器流程（提取→确认→产出 JSON→合并生效）
   - 第 16 段：heal/resource_conv 全周期（玩家 op → DM 入账 → HP/动作变化 + 记录行 + 预览一致）
-- `probe-passive2.cjs` 扩展：配置表扩容条目派生断言（A1-A7 各抽新条目）
+- `probe-passive2.cjs` 扩展：被动规则表扩容条目派生断言（A1-A7 各抽新条目）
 - 单测性质正则集：featureExtract 纯函数在探针内跑样本断言（无需测试框架）
 - 每阶段验证：`npx tsc -p tsconfig.app.json --noEmit` + `npm run build`（background_terminal）+ 全量 `run.sh` ALL PROBES OK
 
@@ -230,10 +237,10 @@ interface ResourceConvSpec { convert?: { from: 'bonus'|'action'; to: 'action'|'d
 
 | 阶段 | 内容 | 主要文件 | 验证 |
 |------|------|---------|------|
-| P1 配置数据层 | 迁移 0017 + API CRUD + resolveFeatureCapability 数据化 + 6 条注册平移验证 | migrations/0017、functions/api/feature-configs/*、src/lib/api.ts、src/data/featureCapabilities.ts | 探针 1-13 回归 + 14 段 |
-| P2 数据提取器 | 正则集 + Modal + 单项流程 + 批量脚本跑种子 | src/data/featureExtract.ts、src/components/FeatureExtractorModal.tsx、scripts/extract-features-batch.mjs | 15 段 + 批量报告 |
-| P3 引擎补齐一 | B3 heal + B7 resource_conv（schema/预览/op/入账） | src/data/featureSpecs.ts、src/data/engines/{healEngine,resourceConvEngine}.ts、combatStore、turnCommitApply、MyTurnPanel | 16 段 |
-| P4 被动扩容 | A1-A7 配置表数据化 + 156 被动分批接入 + 徽标 | passiveCombatRules/advantageRules 读取 configs、CharacterDetail | probe-passive2 扩展 |
+| P1 spec 数据层 | spec 文件结构 + 构建期 schema 校验 + resolveFeatureCapability 数据化（REGISTRY→SPEC_DB→manual）+ 6 条注册平移验证 | src/data/featureSpecs/phb2014.json、src/data/featureSpecs.ts、src/data/featureCapabilities.ts、vite 校验脚本 | 探针 1-13 回归 + 14 段 |
+| P2 数据提取器 | 正则集 + 批量脚本跑种子产出 spec 文件 + UI 单项流程（产出 JSON 文本） | src/data/featureExtract.ts、scripts/extract-features-batch.mjs、src/components/FeatureExtractorModal.tsx | 15 段 + 批量报告 |
+| P3 引擎补齐一 | B3 heal + B7 resource_conv（schema/预览/op/入账） | src/data/engines/{healEngine,resourceConvEngine}.ts、combatStore、turnCommitApply、MyTurnPanel | 16 段 |
+| P4 被动扩容 | A1-A7 规则表数据化（仓库文件/常量表）+ 156 被动分批接入 + 徽标 | passiveCombatRules/advantageRules 读取 spec 数据、CharacterDetail | probe-passive2 扩展 |
 | P5 收尾 | 专用硬编码批次（空灵体/混元体等）+ 引导神力拆形态 + 荒野变形评估 + 反应数据面 + 已有通道 spec 化机会评估 | 专用引擎组件、引导神力选择弹窗 | 全量探针 + progress.md 回写 |
 
 每阶段独立分支（feature/fullcycle-pN）+ 原子提交 + 合并前全绿。P1/P2 为基建优先；P3 后每阶段结束都有可验收的用户价值增量。
