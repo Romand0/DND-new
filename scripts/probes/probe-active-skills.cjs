@@ -722,6 +722,92 @@ async function main() {
     dialogText != null && dialogText.includes('已消耗资源') && dialogText.includes('手动结算') && !dialogText.includes('暂未接入'), dialogText);
   check('13c 面板发动卓越战技扣池（featureUses +1）', wiring.used === 1, wiring);
 
+  // ===== 14. spec 数据层解析链（feature-fullcycle P1）：REGISTRY → SPEC_DB → manual =====
+  const specDb = await page.evaluate(async () => {
+    const fc = await import('/src/data/featureCapabilities.ts');
+    const resolve = fc.resolveFeatureCapability;
+    const poet = resolve('诗人激励');
+    const heal = resolve('回气');
+    const conv = resolve('动作如潮');
+    const dash = resolve('灵巧动作');
+    const none = resolve('不存在技能XYZ');
+    return {
+      poetChannel: poet.channel, poetSource: poet.source ?? 'registry',
+      healChannel: heal.channel, healSource: heal.source, healDice: heal.heal?.dice, healEngine: heal.engineAvailable,
+      convChannel: conv.channel, convSource: conv.source, convEngine: conv.engineAvailable,
+      convFrom: conv.resourceConv?.convert?.from, convTo: conv.resourceConv?.convert?.to,
+      dashTo: dash.resourceConv?.convert?.to,
+      noneChannel: none.channel,
+    };
+  });
+  check('14a REGISTRY 优先：诗人激励同键共存（spec 文件有同名 heal 占位）时仍解析为 checkModifier',
+    specDb.poetChannel === 'checkModifier' && specDb.poetSource === 'registry', specDb);
+  check('14b SPEC_DB 生效：回气 heal 渠道、dice=1d10、引擎未实现（engineAvailable=false）',
+    specDb.healChannel === 'heal' && specDb.healSource === 'spec_db' && specDb.healDice === '1d10' && specDb.healEngine === false, specDb);
+  check('14c SPEC_DB 生效：动作如潮 resource_conv（bonus→action）、引擎未实现',
+    specDb.convChannel === 'resource_conv' && specDb.convSource === 'spec_db' && specDb.convFrom === 'bonus' && specDb.convTo?.[0] === 'action' && specDb.convEngine === false, specDb);
+  check('14d SPEC_DB 生效：灵巧动作多目标转换（dash/disengage/hide）',
+    specDb.dashTo?.length === 3, specDb);
+  check('14e manual 兜底：未登记特性解析为 manual', specDb.noneChannel === 'manual', specDb);
+
+  // 14.6-14.8 校验器（node 侧单一实现 = vite buildStart 同款）：全量合法 + 非法拒收
+  const { pathToFileURL } = require('node:url');
+  const { validateFeatureSpecDb, validateFull } = await import(pathToFileURL(require('node:path').join(process.cwd(), 'plugins/featureSpecSchema.mjs')).href);
+  const vOk = validateFull(process.cwd());
+  check('14f 构建期校验器：仓库 spec 文件全量合法（schema + 种子孤儿交叉检查）', vOk.length === 0, vOk);
+  const vBad1 = validateFeatureSpecDb({ '未知技能': { channel: 'fly', spec: {} } });
+  check('14g 校验器拒收未知 channel', vBad1.length > 0, vBad1);
+  const vBad2 = validateFeatureSpecDb({ '回气': { channel: 'heal', spec: { type: 'hp' } } });
+  check('14h 校验器拒收 heal 缺数值来源', vBad2.length > 0, vBad2);
+
+  // 14.9 UI：spec_db 条目 engineAvailable=false 时 handleFeatureUse 落 manual alert（P3 引擎实现前行为与 manual 完全一致）
+  await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, {
+      features: [
+        ...(card.features ?? []).filter(f => f.name !== '回气'),
+        { name: '回气', description: '你可以用附赠动作恢复生命值，恢复 1d10＋战士等级', category: '职业特性', role: 'active', level: 2, activation: 'bonus', resource: 'pool', poolFormula: { type: 'fixed', value: 1, restKind: 'short' } },
+      ],
+    });
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    // 13 段清场后 token 只剩 feat-pc；feat-pc2（哨兵战士）重放到 (3,2)
+    (await import('/src/data/battlegroundStore.ts')).default.setTokens(rec.id, [{ combatantId: 'feat-pc2', col: 3, row: 2 }]);
+  });
+  await page.reload();
+  await page.waitForTimeout(800);
+  let healDialog = null;
+  page.once('dialog', (d) => { healDialog = d.message(); d.dismiss(); });
+  const geo14 = await page.evaluate(() => {
+    const g = document.querySelector('div.grid.origin-top-left');
+    const r = g.children[0].getBoundingClientRect();
+    return { x: r.x, y: r.y, cell: r.width };
+  });
+  // feat-pc2（哨兵战士）在 (3,2)
+  await page.mouse.dblclick(geo14.x + 3.5 * geo14.cell, geo14.y + 2.5 * geo14.cell);
+  await page.waitForTimeout(400);
+  const panel14 = page.locator('div.fixed.inset-0.z-50').last();
+  await panel14.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const healBtnCount = await panel14.getByRole('button', { name: /回气/ }).count();
+  if (healBtnCount > 0) {
+    await panel14.getByRole('button', { name: /回气/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  const healWiring = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:回气'] ?? 0;
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    return { used };
+  });
+  check('14i 面板含回气按钮（spec_db 条目投影入列）', healBtnCount > 0, { healBtnCount });
+  check('14j engineAvailable=false 落 manual alert（手动结算提示，非静默掉入末尾分支）',
+    healDialog != null && healDialog.includes('回气') && healDialog.includes('手动结算'), healDialog);
+  check('14k 回气池照常扣减（featureUses +1）', healWiring.used === 1, healWiring);
+
   console.log(`\n==== probe-active-skills: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);

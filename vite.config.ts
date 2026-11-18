@@ -1,10 +1,25 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'path'
+import { validateFull } from './plugins/featureSpecSchema.mjs'
+
+// 特性 spec 数据构建期门禁（feature-fullcycle P1）：schema 校验 + 种子孤儿交叉检查，失败即构建失败。
+// dev/serve 同样触发（buildStart），数据问题在启动时即暴露。
+function featureSpecsPlugin(): Plugin {
+  return {
+    name: 'validate-feature-specs',
+    buildStart() {
+      const errors = validateFull(path.resolve(__dirname))
+      if (errors.length > 0) {
+        throw new Error(`[feature-specs] spec 数据校验失败：\n  ${errors.join('\n  ')}`)
+      }
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [featureSpecsPlugin(), react(), tailwindcss()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
