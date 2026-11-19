@@ -25,6 +25,7 @@ import { planHealAmount } from '@/data/engines/healEngine';
 import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import FeatureConvTargetModal from '@/components/combat/FeatureConvTargetModal';
 import HealRollModal from '@/components/combat/HealRollModal';
+import DiceInputModal from '@/components/combat/DiceInputModal';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterActiveFeature, TurnCommitOp } from '@/types/realtime';
@@ -93,8 +94,9 @@ export default function PlayerSpectate() {
   const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
   // checkModifier 通道目标选择（激励骰等）：选定受益人后打包 feature-use op（携带 targetId）
   const [checkModifierPick, setCheckModifierPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature } | null>(null);
-  // aoe_save 通道方向拾取（吐息武器等）：玩家选朝向后打包 feature-use op（携带 direction），DM 入账时全自动结算
+  // aoe_save 通道方向拾取（吐息武器等）：玩家选朝向 → 伤害骰值环节（线下骰）→ 打包 feature-use op
   const [aoePick, setAoePick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature } | null>(null);
+  const [aoeDamagePending, setAoeDamagePending] = useState<{ feature: RosterActiveFeature; diceText: string; direction: string; roundText: string } | null>(null);
   // resource_conv convert 多目标选择（灵巧动作类）：选定动作项后打包 feature-use op（携带 convertTarget）
   const [convTargetPick, setConvTargetPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature; targets: string[] } | null>(null);
   // heal 骰值环节（线下骰口径）：填入线下掷骰结果后打包 feature-use op（携带 healAmount 合计）
@@ -703,6 +705,29 @@ export default function PlayerSpectate() {
             );
           })()}
 
+          {/* aoe 伤害骰值环节（线下骰）：填入玩家线下掷的伤害骰合计后打包 op（aoeDamage） */}
+          {aoeDamagePending && (
+            <DiceInputModal
+              title={`掷骰 · ${aoeDamagePending.feature.name}`}
+              diceText={aoeDamagePending.diceText}
+              hint="同一骰值对范围内所有目标生效"
+              confirmLabel="提交 DM 结算"
+              onConfirm={(aoeDamage) => {
+                addOp({
+                  kind: 'feature-use',
+                  featureName: aoeDamagePending.feature.name,
+                  ...(aoeDamagePending.feature.poolKey ? { poolKey: aoeDamagePending.feature.poolKey, cost: aoeDamagePending.feature.cost ?? 1 } : {}),
+                  direction: aoeDamagePending.direction,
+                  aoeDamage,
+                  activation: aoeDamagePending.feature.activation,
+                  roundText: `${aoeDamagePending.roundText}，掷 ${aoeDamagePending.diceText}=${aoeDamage}`,
+                });
+                setAoeDamagePending(null);
+              }}
+              onClose={() => setAoeDamagePending(null)}
+            />
+          )}
+
           {/* heal 骰值环节（线下骰）：填入线下掷骰结果后打包 op，healAmount=填入骰值+固定+等级合计 */}
           {healRollPick && spectate && (() => {
             const from = rosterEntryToCombatant(healRollPick.combatant, panelCharacters[healRollPick.combatant.id] ?? null);
@@ -737,13 +762,26 @@ export default function PlayerSpectate() {
             const preset = GRID_PRESETS[spectate.board?.size ?? 'small'];
             const packOp = (_msg: string, data: Record<string, unknown>) => {
               const direction = (data.direction as Bearing) ?? 'E';
+              const diceText = resolveFeatureCapability(aoePick.feature.name).aoeSave?.damage?.dice;
+              const baseText = `发动「${aoePick.feature.name}」（${data.shapeLabel ?? '范围'}，朝向${BEARING_LABELS[direction] ?? direction}）${aoePick.feature.poolKey ? `（${aoePick.feature.cost ?? 1} 点）` : ''}`;
+              // aoe 骰值环节（线下骰口径）：spec 带伤害骰 → 先填玩家线下掷骰结果再打包；无骰式直接提交
+              if (diceText) {
+                setAoeDamagePending({
+                  feature: aoePick.feature,
+                  diceText,
+                  direction,
+                  roundText: baseText,
+                });
+                setAoePick(null);
+                return;
+              }
               addOp({
                 kind: 'feature-use',
                 featureName: aoePick.feature.name,
                 ...(aoePick.feature.poolKey ? { poolKey: aoePick.feature.poolKey, cost: aoePick.feature.cost ?? 1 } : {}),
                 direction,
                 activation: aoePick.feature.activation,
-                roundText: `发动「${aoePick.feature.name}」（${data.shapeLabel ?? '范围'}，朝向${BEARING_LABELS[direction] ?? direction}）${aoePick.feature.poolKey ? `（${aoePick.feature.cost ?? 1} 点）` : ''}`,
+                roundText: baseText,
               });
               setAoePick(null);
             };

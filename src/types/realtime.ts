@@ -134,8 +134,12 @@ export type TurnCommitOp =
       targetId?: string;
       /** aoe_save 通道朝向（玩家端范围拾取产出；锥/线/立方几何结算用） */
       direction?: string;
-      /** heal 通道：玩家端掷定的恢复量（决策③ 玩家掷骰随 op 提交，DM 入账直接采用；缺省 DM 端按 spec 重掷） */
+      /** heal 通道：玩家端骰值环节填入的线下骰合计（决策③ 玩家掷骰随 op 提交，DM 入账直接采用；缺省按固定+等级落账并标注缺骰） */
       healAmount?: number;
+      /** aoe_save 通道：玩家端骰值环节填入的线下伤害骰合计（全目标共用一次掷骰；缺省 0 伤害并标注缺骰） */
+      aoeDamage?: number;
+      /** aoe_save 通道：DM 入账前采集的逐目标线下豁免 d20 结果（缺省目标跳过伤害并标注，不虚构骰值） */
+      aoeSaveRolls?: Record<string, number>;
       /** resource_conv convert 型目标动作项（玩家端选择弹窗产出；缺省取 spec.to[0]） */
       convertTarget?: string;
       /** 施法形态：DM 端按此扣动作 */
