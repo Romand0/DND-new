@@ -20,6 +20,7 @@
 | P2 数据提取器 | [x] 完成 | 分支 feature/fullcycle-p2，merge `0e85e99`+`7f9ca0e`，探针 83/83 |
 | P3 引擎补齐一 | [x] 完成 | 分支 feature/fullcycle-p3，merge `a025cee`，探针 92/92 + 全量 ALL PROBES OK |
 | P4 被动扩容 | [x] 完成 | 分支 feature/fullcycle-p4，merge `643d7e7`，probe-passive2 45/45 + 全量 ALL PROBES OK；口径修正见交付明细 |
+| P4b chip 收编 | [x] 完成 | 分支 feature/feature-info-dialog，merge `52fe3a9`，探针全绿（probe-passive2 45 + active-skills 93）；见交付明细 |
 | P5 收尾 | [ ] 未开始 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
 
 ## P1 交付明细（2026-11-18）
@@ -72,6 +73,14 @@
 - `scripts/passive-roster.mjs`：正式口径统计工具（role 分类 + 渠道猜测 + 已接入标记，--stdout）
 - 探针 probe-passive2 38→45 断言：1d/1e/1f（法术抗性双命中/大地行者正负例）+ 2c（心灵抗性）+ UI-d/e/f（徽标三态 DOM）
 - 未收条目记录：极效潜行（需 ctx.skillKey 扩展，条件判定引擎拿不到）、守御灵光（光环抗性需动态结算，入战快照语义不匹配）、反射闪避/金刚魂/偷袭等（伤害减半/重骰/伤害 rider 机制，属未来专用处理器）
+
+## P4b 交付明细（2026-11-19，merge 52fe3a9，chip 收编）
+
+- 用户指令：特性卡上开发工具类 chip（引擎按钮/role chip/被动三态徽标）收编为「…」圆形按钮 + 信息对话框
+- `src/pages/CharacterDetail.tsx`：renderFeatureCard 卡头删三块，改 `data-feature-info` 「…」按钮；新增信息对话框（作用方式四按钮切换=原 roleMenuId 菜单 / 被动三态徽标+note=原卡上徽标 / 提取器入口=原引擎按钮）；删 roleMenuId 死 state
+- `data-extract-feature` 属性随迁对话框按钮；probe-active-skills 15a 改两步点击（…→对话框→提取器），断言 92→93
+- probe-passive2 UI-d/e/f 改逐卡开对话框断言三态；**踩坑**：对话框按 feature.id 查找，探针建卡 features 无 id 时 setInfoFeatureId(undefined) 恒命中首条徽标全 engine——修复=探针建卡补固定 id（真实 UI 建卡路径均补 id）
+- 验证：双 tsc + build + probe-passive2 45/45 + probe-active-skills 93/93 + 全量 run.sh（main 上）；main 最终 `8d15227`（集成远程 P0 脚本树 45a4287）
 
 ## P5 开工顺序（收尾，待启动）
 
