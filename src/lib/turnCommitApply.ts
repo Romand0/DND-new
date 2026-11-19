@@ -12,7 +12,7 @@ import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
-import { rollHealAmount } from '@/data/engines/healEngine';
+import { planHealAmount } from '@/data/engines/healEngine';
 import { applyAttackRiders } from '@/data/attackRiders';
 import { planAoeSave, applyAoeSave, saveBonusFor, rollAoeDamage } from '@/data/aoeSaveEngine';
 import { rollDice } from '@/data/diceService';
@@ -276,14 +276,15 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       if (channelResult.note) {
         opCtx.featureNote = channelResult.note;
       }
-      // heal 通道（P3 回气类）：恢复量随 op 提交（玩家端掷骰，决策③），缺省 DM 端按 spec 重掷兜底；
+      // heal 通道（P3 回气类）：恢复量随 op 提交（玩家端骰值环节填入的线下骰结果，决策③），DM 端直接采用；
+      // 缺省按固定+等级部分落账（引擎标注缺骰，不虚构线下骰值）；
       // hp 型走 applyHealing（maxHp 截断 + 昏迷恢复），temp 型走 combatStore.addTempHp（5e 取高者）
       if (capability.channel === 'heal' && capability.heal) {
         const spec = capability.heal;
         const char = actor.characterId ? characterStore.get(actor.characterId) : null;
         const plan = op.healAmount != null
-          ? { amount: op.healAmount, detail: `玩家掷定 ${op.healAmount}` }
-          : rollHealAmount(spec, char?.level ?? 1);
+          ? { amount: op.healAmount, detail: `线下骰合计 ${op.healAmount}` }
+          : planHealAmount(spec, char?.level ?? 1);
         if (spec.type === 'temp') {
           const tp = combatStore.addTempHp(record.id, actor.id, plan.amount);
           opCtx.featureNote = `获得临时生命 ${tp ?? plan.amount}（${plan.detail}）`;

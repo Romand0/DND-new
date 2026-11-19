@@ -20,10 +20,11 @@ import { parseAoeSpec } from '@/data/aoeShapes';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Bearing } from '@/data/battleGeometry';
 import { rosterEntryToCombatant, rosterInventoryToEquipmentList, applyPendingHandOps } from '@/components/spectate/combatantAdapter';
-import { resolveFeatureCapability } from '@/data/featureCapabilities';
-import { rollHealAmount } from '@/data/engines/healEngine';
+import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
+import { planHealAmount } from '@/data/engines/healEngine';
 import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import FeatureConvTargetModal from '@/components/combat/FeatureConvTargetModal';
+import HealRollModal from '@/components/combat/HealRollModal';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterActiveFeature, TurnCommitOp } from '@/types/realtime';
@@ -96,6 +97,8 @@ export default function PlayerSpectate() {
   const [aoePick, setAoePick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature } | null>(null);
   // resource_conv convert 多目标选择（灵巧动作类）：选定动作项后打包 feature-use op（携带 convertTarget）
   const [convTargetPick, setConvTargetPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature; targets: string[] } | null>(null);
+  // heal 骰值环节（线下骰口径）：填入线下掷骰结果后打包 feature-use op（携带 healAmount 合计）
+  const [healRollPick, setHealRollPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature; cap: FeatureCapability } | null>(null);
   // ops 提升到页面层：沙盘拖拽与回合面板共享同一操作列表
   const [pendingOps, setPendingOps] = useState<TurnCommitOp[]>([]);
   const lastOpsRoundRef = useRef<number | null>(null);
@@ -614,12 +617,17 @@ export default function PlayerSpectate() {
                   setAoePick({ combatant, feature });
                   return;
                 }
-                // heal 通道（回气类）：玩家端掷定恢复量随 op 提交（决策③），DM 入账直接采用
+                // heal 通道（回气类）：spec 带 dice 先走骰值环节（线下骰口径），填入结果随 op 提交（决策③）；
+                // 无 dice 直接按固定+等级打包
                 {
                   const cap = resolveFeatureCapability(feature.name);
                   if (cap.channel === 'heal' && cap.heal) {
+                    if (cap.heal.dice) {
+                      setHealRollPick({ combatant, feature, cap });
+                      return;
+                    }
                     const char = panelCharacters[combatant.id] ?? null;
-                    const plan = rollHealAmount(cap.heal, char?.level ?? 1);
+                    const plan = planHealAmount(cap.heal, char?.level ?? 1);
                     addOp({
                       kind: 'feature-use',
                       featureName: feature.name,
@@ -691,6 +699,32 @@ export default function PlayerSpectate() {
                   setConvTargetPick(null);
                 }}
                 onClose={() => setConvTargetPick(null)}
+              />
+            );
+          })()}
+
+          {/* heal 骰值环节（线下骰）：填入线下掷骰结果后打包 op，healAmount=填入骰值+固定+等级合计 */}
+          {healRollPick && spectate && (() => {
+            const from = rosterEntryToCombatant(healRollPick.combatant, panelCharacters[healRollPick.combatant.id] ?? null);
+            const cap = healRollPick.cap;
+            return (
+              <HealRollModal
+                featureName={healRollPick.feature.name}
+                spec={cap.heal!}
+                casterLevel={panelCharacters[healRollPick.combatant.id]?.level ?? 1}
+                onConfirm={(rolledDice) => {
+                  const plan = planHealAmount(cap.heal!, panelCharacters[healRollPick.combatant.id]?.level ?? 1, rolledDice);
+                  addOp({
+                    kind: 'feature-use',
+                    featureName: healRollPick.feature.name,
+                    ...(healRollPick.feature.poolKey ? { poolKey: healRollPick.feature.poolKey, cost: healRollPick.feature.cost ?? 1 } : {}),
+                    healAmount: plan.amount,
+                    activation: healRollPick.feature.activation,
+                    roundText: `发动「${healRollPick.feature.name}」→ ${cap.heal!.type === 'temp' ? '获得临时生命' : '恢复'} ${plan.amount}（${plan.detail}）${healRollPick.feature.poolKey ? `，${healRollPick.feature.cost ?? 1} 点` : ''}`,
+                  });
+                  setHealRollPick(null);
+                }}
+                onClose={() => setHealRollPick(null)}
               />
             );
           })()}

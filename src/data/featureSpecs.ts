@@ -9,7 +9,7 @@ import specData from './featureSpecs/phb2014.json';
 
 /** B3 heal 渠道 spec：恢复量 = 骰式 + 固定值 + 等级系数（回气 1d10+战士等级） */
 export interface HealSpec {
-  /** 恢复骰（'1d10'）；与 flat/levelFactor 求和 */
+  /** 恢复骰（'1d10'）：提示玩家线下掷骰的模板，引擎零暗骰，结果由 UI 骰值环节填入（rolledDice）；与 flat/levelFactor 求和 */
   dice?: string;
   /** 固定值 */
   flat?: number;
