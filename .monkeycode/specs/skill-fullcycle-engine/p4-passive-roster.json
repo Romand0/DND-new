@@ -1,0 +1,3781 @@
+{
+  "generatedAt": "2026-11-19",
+  "stat": {
+    "total": 294,
+    "roleDist": {
+      "stat": 49,
+      "profile": 24,
+      "active": 79,
+      "passive": 142
+    },
+    "passiveTotal": 142,
+    "passiveCovered": 13,
+    "passiveGuessDist": {
+      "unmatched": 108,
+      "reaction": 1,
+      "initiative_adv": 4,
+      "check_modifier": 1,
+      "advantage": 8,
+      "damage_affinity": 2,
+      "speed_mod": 2,
+      "attack_extra": 3
+    },
+    "passiveNotCovered": [
+      {
+        "name": "石中精妙",
+        "guess": null
+      },
+      {
+        "name": "出神",
+        "guess": "reaction"
+      },
+      {
+        "name": "坚韧不屈",
+        "guess": null
+      },
+      {
+        "name": "凶蛮攻击",
+        "guess": null
+      },
+      {
+        "name": "幸运",
+        "guess": null
+      },
+      {
+        "name": "半身人灵巧",
+        "guess": null
+      },
+      {
+        "name": "地狱遗赠",
+        "guess": null
+      },
+      {
+        "name": "额外攻击",
+        "guess": null
+      },
+      {
+        "name": "凶蛮重击",
+        "guess": null
+      },
+      {
+        "name": "坚韧狂暴",
+        "guess": null
+      },
+      {
+        "name": "持久狂暴",
+        "guess": null
+      },
+      {
+        "name": "不屈勇武",
+        "guess": null
+      },
+      {
+        "name": "精魄寻者",
+        "guess": null
+      },
+      {
+        "name": "图腾精魄",
+        "guess": null
+      },
+      {
+        "name": "兽之形",
+        "guess": null
+      },
+      {
+        "name": "精魄行者",
+        "guess": null
+      },
+      {
+        "name": "图腾同调",
+        "guess": null
+      },
+      {
+        "name": "无我狂暴",
+        "guess": null
+      },
+      {
+        "name": "万事通",
+        "guess": null
+      },
+      {
+        "name": "休憩曲",
+        "guess": null
+      },
+      {
+        "name": "激励之源",
+        "guess": null
+      },
+      {
+        "name": "先发激励",
+        "guess": "initiative_adv"
+      },
+      {
+        "name": "额外魔法奥秘",
+        "guess": null
+      },
+      {
+        "name": "超凡技艺",
+        "guess": "check_modifier"
+      },
+      {
+        "name": "摧毁亡灵",
+        "guess": null
+      },
+      {
+        "name": "附赠戏法",
+        "guess": null
+      },
+      {
+        "name": "精通闪光",
+        "guess": null
+      },
+      {
+        "name": "强力施法",
+        "guess": null
+      },
+      {
+        "name": "引导神力：导引打击",
+        "guess": null
+      },
+      {
+        "name": "战斗化身",
+        "guess": null
+      },
+      {
+        "name": "生命门徒",
+        "guess": null
+      },
+      {
+        "name": "神佑医者",
+        "guess": null
+      },
+      {
+        "name": "极效治疗",
+        "guess": null
+      },
+      {
+        "name": "透视过去",
+        "guess": null
+      },
+      {
+        "name": "雷霆打击",
+        "guess": null
+      },
+      {
+        "name": "风暴降生",
+        "guess": null
+      },
+      {
+        "name": "不朽身",
+        "guess": null
+      },
+      {
+        "name": "大德鲁伊",
+        "guess": null
+      },
+      {
+        "name": "自然恢复",
+        "guess": null
+      },
+      {
+        "name": "结社法术",
+        "guess": null
+      },
+      {
+        "name": "大地行者",
+        "guess": "advantage"
+      },
+      {
+        "name": "自然庇护所",
+        "guess": null
+      },
+      {
+        "name": "结社形态",
+        "guess": null
+      },
+      {
+        "name": "原初打击",
+        "guess": null
+      },
+      {
+        "name": "元素荒野变形",
+        "guess": null
+      },
+      {
+        "name": "千面相",
+        "guess": null
+      },
+      {
+        "name": "战斗风格",
+        "guess": null
+      },
+      {
+        "name": "不屈",
+        "guess": null
+      },
+      {
+        "name": "额外战斗风格",
+        "guess": null
+      },
+      {
+        "name": "生还者",
+        "guess": null
+      },
+      {
+        "name": "施法",
+        "guess": null
+      },
+      {
+        "name": "坚韧",
+        "guess": "initiative_adv"
+      },
+      {
+        "name": "武艺",
+        "guess": null
+      },
+      {
+        "name": "真气注拳",
+        "guess": null
+      },
+      {
+        "name": "反射闪避",
+        "guess": null
+      },
+      {
+        "name": "金刚魂",
+        "guess": null
+      },
+      {
+        "name": "超凡入圣",
+        "guess": "initiative_adv"
+      },
+      {
+        "name": "四象门徒",
+        "guess": null
+      },
+      {
+        "name": "幽影斗篷",
+        "guess": null
+      },
+      {
+        "name": "神佑",
+        "guess": null
+      },
+      {
+        "name": "精通至圣斩",
+        "guess": null
+      },
+      {
+        "name": "守御灵光",
+        "guess": "damage_affinity"
+      },
+      {
+        "name": "不灭哨卫",
+        "guess": null
+      },
+      {
+        "name": "复仇天使",
+        "guess": "advantage"
+      },
+      {
+        "name": "奉献灵光",
+        "guess": null
+      },
+      {
+        "name": "纯净之魂",
+        "guess": null
+      },
+      {
+        "name": "宿敌",
+        "guess": "advantage"
+      },
+      {
+        "name": "自然探索者",
+        "guess": null
+      },
+      {
+        "name": "野性感官",
+        "guess": null
+      },
+      {
+        "name": "猎物",
+        "guess": null
+      },
+      {
+        "name": "防守战术",
+        "guess": null
+      },
+      {
+        "name": "多重攻击",
+        "guess": null
+      },
+      {
+        "name": "高效猎人防术",
+        "guess": null
+      },
+      {
+        "name": "兽性狂怒",
+        "guess": null
+      },
+      {
+        "name": "法术共享",
+        "guess": null
+      },
+      {
+        "name": "偷袭",
+        "guess": "speed_mod"
+      },
+      {
+        "name": "可靠才能",
+        "guess": null
+      },
+      {
+        "name": "听声辨位",
+        "guess": null
+      },
+      {
+        "name": "飘忽不定",
+        "guess": "advantage"
+      },
+      {
+        "name": "幸运一击",
+        "guess": null
+      },
+      {
+        "name": "暗杀",
+        "guess": "advantage"
+      },
+      {
+        "name": "专业渗透",
+        "guess": null
+      },
+      {
+        "name": "冒充者",
+        "guess": "advantage"
+      },
+      {
+        "name": "梁上君子",
+        "guess": "speed_mod"
+      },
+      {
+        "name": "极效潜行",
+        "guess": "advantage"
+      },
+      {
+        "name": "使用魔法装置",
+        "guess": null
+      },
+      {
+        "name": "窃盗本能",
+        "guess": "initiative_adv"
+      },
+      {
+        "name": "诡术伏击",
+        "guess": null
+      },
+      {
+        "name": "术法复苏",
+        "guess": null
+      },
+      {
+        "name": "狂野魔法浪涌",
+        "guess": "attack_extra"
+      },
+      {
+        "name": "混乱之潮",
+        "guess": "advantage"
+      },
+      {
+        "name": "操控混沌",
+        "guess": null
+      },
+      {
+        "name": "法术轰击",
+        "guess": "attack_extra"
+      },
+      {
+        "name": "巨龙先祖",
+        "guess": null
+      },
+      {
+        "name": "元素亲和",
+        "guess": null
+      },
+      {
+        "name": "契约魔法",
+        "guess": null
+      },
+      {
+        "name": "魔能祈唤",
+        "guess": null
+      },
+      {
+        "name": "链之魔契",
+        "guess": null
+      },
+      {
+        "name": "书之魔契",
+        "guess": null
+      },
+      {
+        "name": "唤醒心灵",
+        "guess": null
+      },
+      {
+        "name": "思维之盾",
+        "guess": null
+      },
+      {
+        "name": "黑暗赐福",
+        "guess": null
+      },
+      {
+        "name": "黑暗强运",
+        "guess": null
+      },
+      {
+        "name": "直坠噩梦",
+        "guess": null
+      },
+      {
+        "name": "变化学者",
+        "guess": null
+      },
+      {
+        "name": "次级炼金",
+        "guess": null
+      },
+      {
+        "name": "变形生物",
+        "guess": null
+      },
+      {
+        "name": "咒法学者",
+        "guess": null
+      },
+      {
+        "name": "咒法专注",
+        "guess": null
+      },
+      {
+        "name": "强韧召唤",
+        "guess": null
+      },
+      {
+        "name": "塑能学者",
+        "guess": null
+      },
+      {
+        "name": "法术塑形",
+        "guess": null
+      },
+      {
+        "name": "强力戏法",
+        "guess": null
+      },
+      {
+        "name": "强效塑能",
+        "guess": null
+      },
+      {
+        "name": "超限导能",
+        "guess": null
+      },
+      {
+        "name": "幻术学者",
+        "guess": null
+      },
+      {
+        "name": "精通次级幻象",
+        "guess": null
+      },
+      {
+        "name": "惑控学者",
+        "guess": null
+      },
+      {
+        "name": "分裂惑控",
+        "guess": null
+      },
+      {
+        "name": "死灵学者",
+        "guess": null
+      },
+      {
+        "name": "惧怖收割",
+        "guess": null
+      },
+      {
+        "name": "不死适应",
+        "guess": null
+      },
+      {
+        "name": "防护学者",
+        "guess": null
+      },
+      {
+        "name": "奥术守御",
+        "guess": null
+      },
+      {
+        "name": "法术抗性",
+        "guess": "damage_affinity"
+      },
+      {
+        "name": "预言学者",
+        "guess": null
+      },
+      {
+        "name": "预兆",
+        "guess": "attack_extra"
+      },
+      {
+        "name": "预言专家",
+        "guess": null
+      },
+      {
+        "name": "高等预兆",
+        "guess": null
+      }
+    ]
+  },
+  "roster": [
+    {
+      "name": "属性值加成",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:龙裔",
+        "种族:矮人",
+        "种族:精灵"
+      ],
+      "text": "你力量加2，魅力加1。"
+    },
+    {
+      "name": "年龄",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:龙裔",
+        "种族:矮人",
+        "种族:精灵"
+      ],
+      "text": "年幼的龙裔成长速度很快，在孵化后几小时就可以行走。其3岁时就达到了人类10岁儿童的体型和发育水平，然后在15岁时成年。其一生总共能活大约80年。"
+    },
+    {
+      "name": "阵营",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:龙裔",
+        "种族:矮人",
+        "种族:精灵"
+      ],
+      "text": "龙裔的阵营趋于极端化，他们在世间善恶斗争（各自代表为巴哈姆特Bahamut和提亚马特Tiamat）中有意识的作出选择。大多数龙裔都是善良者，而那些选择了邪恶道路"
+    },
+    {
+      "name": "体型",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:龙裔",
+        "种族:矮人",
+        "种族:精灵"
+      ],
+      "text": "龙裔比人类更高大。体重也更高。其直立身高超过6尺，平均体重250磅。属于中型体型。"
+    },
+    {
+      "name": "速度",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:龙裔",
+        "种族:矮人",
+        "种族:精灵"
+      ],
+      "text": "你的基础步行速度为30尺。"
+    },
+    {
+      "name": "龙族血统",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:龙裔"
+      ],
+      "text": "你拥有巨龙的血统。在表格“龙族血统”中选择一个龙种，并基于所选龙种，决定你吐息的形式和具有的伤害抗性。"
+    },
+    {
+      "name": "吐息武器",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:龙裔"
+      ],
+      "text": "你可以使用动作呼出破坏性的能量。你的龙族血统决定了吐息的范围、形状以及其伤害类型。 使用吐息时，你吐息范围内的每个生物都必须进行一次豁免，其豁免类型取决于你的龙"
+    },
+    {
+      "name": "伤害抗性",
+      "role": "passive",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "种族:龙裔"
+      ],
+      "text": "你的龙族血统为你带来相应伤害类型的伤害抗性。"
+    },
+    {
+      "name": "语言",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:龙裔",
+        "种族:矮人",
+        "种族:精灵"
+      ],
+      "text": "你能够说、读、写通用语和龙语。龙语被认为是最古老的语言之一，且时常被人用于魔法的研习中。对其他生物来说，龙语听起来非常刺耳，其中还饱含了很多硬辅音和齿擦音。 龙"
+    },
+    {
+      "name": "黑暗视觉",
+      "role": "passive",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "种族:矮人",
+        "种族:精灵",
+        "种族:侏儒"
+      ],
+      "text": "你习惯了地下生活，因而在黑暗和微光环境下有着良好的视力 。在微光光照下，你身边60尺内可以视为等同于明亮光照。而在黑暗中，该范围内可视为等同于微光光照。你无法在"
+    },
+    {
+      "name": "矮人体魄",
+      "role": "passive",
+      "guess": "save_advantage",
+      "covered": true,
+      "sources": [
+        "种族:矮人"
+      ],
+      "text": "你进行对抗毒素的豁免时具有优势，并且拥有毒素伤害的抗性。"
+    },
+    {
+      "name": "矮人战斗训练",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:矮人"
+      ],
+      "text": "你具有战斧，手斧，轻锤和战锤的熟练项。"
+    },
+    {
+      "name": "工具熟练项",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:矮人"
+      ],
+      "text": "你获得一个工匠工具的熟练项，从以下项目中自选其一：铁匠工具，酿酒工具或石匠工具。"
+    },
+    {
+      "name": "石中精妙",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:矮人"
+      ],
+      "text": "每当你对一件石制品的起源做智力（历史）检定时，你视为具有历史技能的熟练项，并可以在检定中加上双倍的熟练加值，而非你平时的熟练加值。"
+    },
+    {
+      "name": "亚种",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:矮人",
+        "种族:精灵",
+        "种族:侏儒"
+      ],
+      "text": "DND世界中居住着以下两种主要的矮人亚种：丘陵矮人hill dwarves和山地矮人mountain dwarves。你可以从这些亚种选项中选择其一。 作为一名"
+    },
+    {
+      "name": "敏锐感官",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:精灵"
+      ],
+      "text": "你拥有察觉技能的熟练项。"
+    },
+    {
+      "name": "妖精血统",
+      "role": "passive",
+      "guess": "save_advantage",
+      "covered": true,
+      "sources": [
+        "种族:精灵",
+        "种族:半精灵"
+      ],
+      "text": "你进行对抗魅惑的豁免时具有优势，并且不会因魔法效应而陷入睡眠。"
+    },
+    {
+      "name": "出神",
+      "role": "passive",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "种族:精灵"
+      ],
+      "text": "精灵不需要睡眠。他们会在需要休息时陷入持续4个小时的半清醒深度冥想中（通用语中描述此状态的词是“出神Trance”）。冥想时精灵也会做梦，这种梦其实是反应多年来"
+    },
+    {
+      "name": "侏儒狡黠",
+      "role": "passive",
+      "guess": "save_advantage",
+      "covered": true,
+      "sources": [
+        "种族:侏儒"
+      ],
+      "text": "你进行对抗魔法的智力、感知和魅力豁免时具有优势。"
+    },
+    {
+      "name": "多才多艺",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:半精灵"
+      ],
+      "text": "你获得两项自选技能的熟练项。"
+    },
+    {
+      "name": "凶恶",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:半兽人"
+      ],
+      "text": "你获得威吓技能的熟练项。"
+    },
+    {
+      "name": "坚韧不屈",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:半兽人"
+      ],
+      "text": "当你生命值降至0而没有立即死亡时，可以改为使生命值降至1。此特质生效后必须完成一次长休后才能再次生效。"
+    },
+    {
+      "name": "凶蛮攻击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:半兽人"
+      ],
+      "text": "使用近战武器攻击造成重击时，你可以额外掷一个该武器的伤害骰，并将其数值加入到重击的额外伤害中。"
+    },
+    {
+      "name": "幸运",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:半身人"
+      ],
+      "text": "当攻击检定、属性检定以及豁免检定掷出1时，你可以再重掷一次，但必须使用重掷的结果。"
+    },
+    {
+      "name": "勇气",
+      "role": "passive",
+      "guess": "save_advantage",
+      "covered": true,
+      "sources": [
+        "种族:半身人"
+      ],
+      "text": "你进行对抗恐慌的豁免时具有优势。"
+    },
+    {
+      "name": "半身人灵巧",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:半身人"
+      ],
+      "text": "你可以穿越任何体形比你大的生物所在空间。"
+    },
+    {
+      "name": "炎狱抗性",
+      "role": "passive",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "种族:提夫林"
+      ],
+      "text": "你对火焰伤害具有抗性。"
+    },
+    {
+      "name": "地狱遗赠",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "种族:提夫林"
+      ],
+      "text": "你习得戏法奇术thaumaturgy。 达到3级后，你可以用此特质免费施展一次2环版本的炼狱叱喝hellish rebuke。完成一次长休后你重获以此免费施展这"
+    },
+    {
+      "name": "狂暴",
+      "role": "active",
+      "guess": "save_advantage",
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "你带着原初的狂怒作战。你可以在自己回合内以一个附赠动作进入狂暴。 狂暴持续期间，只要你未着装重甲就获得以下增益： · 你进行力量检定和力量豁免时具有优势。 · "
+    },
+    {
+      "name": "无甲防御",
+      "role": "stat",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人",
+        "职业:武僧"
+      ],
+      "text": "未着装任何护甲时，你的AC等于10＋你的敏捷调整值＋你的体质调整值。使用盾牌不会影响你从此特性获益。"
+    },
+    {
+      "name": "鲁莽攻击",
+      "role": "active",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第2级起，你可以抛弃一切防御的执念进行狂乱的攻击。你在自己回合内发动第一次攻击时，可以选择发动鲁莽攻击。使用此特性后，你本回合内所有使用力量值发动的近战武器攻击"
+    },
+    {
+      "name": "险境感知",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": true,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第2级时，你获得对周遭异常情况超乎寻常的感测力，让你能先一步脱离危险。 在受到你能看见的效应（诸如陷阱和法术）影响时，你对其进行的敏捷豁免具有优势。你无法在目盲"
+    },
+    {
+      "name": "原初道途",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第3级时，你选择一种道途来塑造你狂怒时的特质。你可以从狂战士Berserker和图腾武者Totem Warrior中选择其一。随后，你将在第3、第6、第10、第"
+    },
+    {
+      "name": "属性值提升",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人",
+        "职业:吟游诗人"
+      ],
+      "text": "当达到第4、8、12、16、19级时，你可以选择一项属性值提升2点，或是选择两项属性各提升1点。不过你不能通过此特性让属性值超过20。"
+    },
+    {
+      "name": "额外攻击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人",
+        "职业:吟游诗人"
+      ],
+      "text": "第5级起，你在自己回合内执行攻击动作时可以发动两次攻击而非一次。"
+    },
+    {
+      "name": "快速移动",
+      "role": "stat",
+      "guess": "speed_mod",
+      "covered": true,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第5级起，你在未着装重甲时速度提升10尺。"
+    },
+    {
+      "name": "野性直觉",
+      "role": "passive",
+      "guess": "initiative_adv",
+      "covered": true,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第7级时，你的直觉变的异常敏锐，从而使你骰先攻时具有优势。 此外，如果你在战斗开始时被突袭但并未陷入失能，则你仍可以在你的第一回合正常行动。不过你必须在那一回合"
+    },
+    {
+      "name": "凶蛮重击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第9级起，计算近战攻击的重击伤害时，你可以额外骰一枚所用武器的伤害骰。 第13级时，你可以额外骰两枚；第17级时，你可以额外骰三枚。"
+    },
+    {
+      "name": "坚韧狂暴",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第11级起，狂暴的力量让你即使身受重伤也能持续战斗。狂暴期间，若你的生命值被降至0但未立即死亡，你可以进行一次DC10的体质豁免。豁免成功则你的生命值改为降至1"
+    },
+    {
+      "name": "持久狂暴",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第15级起，你狂暴期间的情绪高涨得难以抑制，以至于只有当你陷入昏迷或是主动终止才能使你的狂暴提前结束。"
+    },
+    {
+      "name": "不屈勇武",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第18级起，你进行力量检定的结果低于你的力量值时，可以直接使用力量值作为检定结果。"
+    },
+    {
+      "name": "原初斗士",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第20级时，你的存在即是野性之力的具现。你的力量和体质各提升4。并且你这两项属性的上限变为24。"
+    },
+    {
+      "name": "精魄寻者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "你追求融入自然之道，与动物为友。在你选择此道途的第3级时，你获得施展法术野兽知觉beast sense与动物交谈speak with animals的能力，但你"
+    },
+    {
+      "name": "图腾精魄",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "在你选择此道途的第3级时，选择一项图腾精魄并获得其能力。你必须制造或获取一个象征图腾兽其毛，羽，爪，牙或骨的图腾物件，可以是项链，也可以是其他类似的物件。如果你"
+    },
+    {
+      "name": "兽之形",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第6级时，你根据所选的图腾兽获得一项魔法能力。你可以选择和第3级时相同的图腾，也可以另做选择。"
+    },
+    {
+      "name": "精魄行者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第10级时，你获得施展法术问道自然Commune with Nature的能力，但你只能以仪式的方式施展它。施展此法术时，你所选的图腾兽会以精魄形态现身并提供你"
+    },
+    {
+      "name": "图腾同调",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第14级时，你根据所选的图腾兽获得一项魔法能力。你可以选择和之前相同的图腾，也可以另做选择。"
+    },
+    {
+      "name": "狂怒",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "从你第3级选择此道途起，你可以在进入狂暴的同时进入狂怒。使用此特性时，你可以在本回合之后狂暴持续时间内的每个回合里，以一个附赠动作发动一次近战武器攻击。而当本次"
+    },
+    {
+      "name": "无我狂暴",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第6级起，你在狂暴期间无法被魅惑或恐慌。如果你开始狂暴时已经陷入魅惑或恐慌，则该效应在你狂暴期间被压制。"
+    },
+    {
+      "name": "威慑之姿",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第10级起，你可以用一个动作展示自己的可怖姿态来恐吓他人。指定30尺内一个你能看见的生物。如果该生物能看见你或听见你的声音，则其必须进行一次感知豁免（DC为8＋"
+    },
+    {
+      "name": "报偿",
+      "role": "stat",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:野蛮人",
+        "职业:野蛮人"
+      ],
+      "text": "第14级起，身边5尺内敌人对你造成伤害时，你可以用反应对该生物发动一次近战武器攻击。"
+    },
+    {
+      "name": "诗人激励",
+      "role": "active",
+      "guess": "check_modifier",
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "从第1级起，你可以用热血的话语和音乐激励他人。此时，你可以在自己回合内用一个附赠动作指定身边60尺内一个能听到你声音的生物（不能指定你自身），并使该生物获得一个"
+    },
+    {
+      "name": "万事通",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第2级起，在你进行属性检定时，如果检定结果不包含你的熟练加值，则你可以将自身熟练加值的一半（向下取整）加入到检定结果中。"
+    },
+    {
+      "name": "休憩曲",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第2级起，你可以在短休时用轻柔的音乐或话语帮助伙伴们恢复伤势。如果你或任何友方生物可以在其短休时听到你的演奏声，且决定在此时使用生命骰恢复生命值，则其恢复量可以"
+    },
+    {
+      "name": "吟游诗人学院",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第3级时，你将选择加入一个吟游诗人的学院协会，以探寻更精深的技艺。你可以从逸闻学院College of Lore或勇气学院College of Valor中选择"
+    },
+    {
+      "name": "专精",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人",
+        "职业:游荡者"
+      ],
+      "text": "第3级起，你选择两个已有的技能熟练项。此后你进行所选技能的属性检定时，可以使用双倍的熟练加值。 第10级后，你可以再选择另外两个已有的技能熟练项从该特性中获益。"
+    },
+    {
+      "name": "激励之源",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第5级起，你可以在完成短休或长休后恢复你已消耗的诗人激励次数。"
+    },
+    {
+      "name": "反迷惑",
+      "role": "active",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第6级起，你获得用音乐或话语来打断心控效应的能力。你可以使用一个动作开始一场持续至你的下一回合结束的演出。在这段时间内，你与你身边30尺内的友方生物进行对抗恐慌"
+    },
+    {
+      "name": "魔法奥秘",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第10级起，你从旋律中了解了大量的魔法知识，使你可以从所有职业的法术列表里选择两个法术（包括诗人列表）加入已知法术中。你所选择的法术必须是你当前等级可以施展的环"
+    },
+    {
+      "name": "先发激励",
+      "role": "passive",
+      "guess": "initiative_adv",
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第20级起，你骰先攻时若没有可用的诗人激励次数，则你获得一次使用次数。"
+    },
+    {
+      "name": "附赠熟练项",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "在第3级选择勇气学院时，你获得中甲、盾牌和军用武器的熟练项。"
+    },
+    {
+      "name": "战斗激励",
+      "role": "active",
+      "guess": "check_modifier",
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第3级起，你学会里如何激励他人作战。从你身上获得诗人激励的生物投掷武器伤害掷骰时，可以使用该激励骰并将其骰值加入本次伤害掷骰中。另外，从你身上获得诗人激励的生物"
+    },
+    {
+      "name": "战斗魔法",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第14级起，你可以自如地同时使用音乐魔法和武器。每当用动作施展一个诗人法术时，你同时还可以用附赠动作发动一次武器攻击。"
+    },
+    {
+      "name": "语出惊人",
+      "role": "active",
+      "guess": "check_modifier",
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第3级起，你学会运用你的妙语连珠来打断敌人，迷惑对方或影响他人的信心。当你身边60尺内一个你能看见的生物进行攻击检定，属性检定或伤害掷骰时，你可以用反应消耗一次"
+    },
+    {
+      "name": "额外魔法奥秘",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第6级时，你从任意职业的法术列表里选择两个法术加入已知法术中。你选择的法术必须是你当前等级可以施展的环阶或戏法。所选法术对你而言视为吟游诗人法术，但不包含在“诗"
+    },
+    {
+      "name": "超凡技艺",
+      "role": "passive",
+      "guess": "check_modifier",
+      "covered": false,
+      "sources": [
+        "职业:吟游诗人",
+        "职业:吟游诗人"
+      ],
+      "text": "第14级起，你进行属性检定时，可以花费一次诗人激励次数并掷一次激励骰，然后将结果加到你的属性检定上。你可以在掷完属性检定后，DM宣布结果前决定是否使用此特性。"
+    },
+    {
+      "name": "神圣领域",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "你将选择一个与你所信仰神的神职相关的神圣领域。你可以从知识Knowledge、生命Life、光明Light、自然Nature、风暴Tempest、诡术Trick"
+    },
+    {
+      "name": "引导神力",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师",
+        "职业:圣武士"
+      ],
+      "text": "第2级时，你获得引导神所授予神圣能量的能力，所引导的能量将用以实现各种魔法效应。你最初将获得两种效应：驱散亡灵和另一个与你所选领域相关的效应。随着你在冒险中提升"
+    },
+    {
+      "name": "摧毁亡灵",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第5级起，当亡灵进行对抗你驱散特性的豁免失败时，如果其挑战等级等于或低于一个既定的下限，则该亡灵将被即时摧毁。相应的数值列举在表格“摧毁亡灵”中。"
+    },
+    {
+      "name": "神圣干预",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第10级起，你可以在迫切需要帮助时，召唤神的协助。 你需要用一个动作来请求所信仰神的帮助。描述你所需要的帮助，然后掷d100。如果你的结果等于或者小于你的牧师等"
+    },
+    {
+      "name": "附赠戏法",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师",
+        "职业:德鲁伊"
+      ],
+      "text": "在你第1级选择该领域时，获得戏法光亮术Light，如果你已经学会则不会重新获得。"
+    },
+    {
+      "name": "守御闪光",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第1级起，你可以在自己与正发动攻击的敌人之间建起一道神圣之光。当你身边30尺内一个你能看见的生物向你发动攻击时，你可以用你的反应在攻击完成前对攻击者闪出一道光亮"
+    },
+    {
+      "name": "引导神力：黎明曙光",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第2级起，你可以用引导神力特性驱策阳光，以驱逐黑暗并对敌人造成光耀伤害。 作为一个动作，你可以展示你的圣徽，并驱散你身边30尺内所有魔法黑暗。此外，你身边30尺"
+    },
+    {
+      "name": "精通闪光",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第6级时，你能看见的生物在你周边30尺内攻击除你之外的某个生物时，你可以对该攻击者使用你的“守御闪光”。"
+    },
+    {
+      "name": "强力施法",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第8级起，你施展牧师戏法造成伤害时，可以再加上你的感知调整值。"
+    },
+    {
+      "name": "额外熟练项",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第1级起，你获得军用武器和重甲的熟练项。"
+    },
+    {
+      "name": "战争祭司",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第1级起，你的守护神在战斗中给你激励。当你执行攻击动作时，你可以用一个附赠动作发动一次武器攻击。 你可以使用该特性的次数等于你的感知调整值（至少为一次）。而你将"
+    },
+    {
+      "name": "引导神力：导引打击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第2级起，你可以用引导神力特性作出精准的打击。你在进行攻击检定时，可以使用引导神力令该次检定获得 +10加值。你可以在看到掷骰结果后DM公布是否命中前，决定是否"
+    },
+    {
+      "name": "引导神力：战神祝福",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第6级起，身处你周边30尺范围内的一个生物进行攻击检定时，你可以用一个反应使用引导神力令该检定获得 +10加值。你可以在看到掷骰结果后DM公布是否命中前，决定是"
+    },
+    {
+      "name": "神圣打击",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第8级起，你可以使你的武器充满神圣能量。你在每个自己回合里有一次，可以在用武器攻击命中某生物时，使该攻击额外造成1d8点与该武器伤害类型相同的伤害。14级时，该"
+    },
+    {
+      "name": "战斗化身",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第17级时，你对非魔法攻击造成的钝击、穿刺、挥砍伤害具有抗性。"
+    },
+    {
+      "name": "生命门徒",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第1级起，你的治疗法术更加有效。当你使用1环或更高环阶法术恢复生物生命值时，你的目标额外恢复2＋法术环阶数值的生命值。"
+    },
+    {
+      "name": "引导神力：维持生命",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第2级起，你可以用引导神力特性来恢复严重的伤害。 你用一个动作展示圣徽，引导治疗能量来恢复等于你牧师等级五倍的生命值。你指定身边30尺内的任意生物作为该特性的目"
+    },
+    {
+      "name": "神佑医者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第6级起，你施展的治疗法术也会治疗你自身。你对其他生物施展1环或更高环阶法术恢复其生命时，可对自身恢复2＋法术环阶数值的生命值。"
+    },
+    {
+      "name": "极效治疗",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第17级起，当你需要用一个法术来掷一粒或多粒骰子计算你所恢复的生命值时，所有骰子将取其最高值。例如，法术为某一生物恢复2d6生命值，则其结果直接取12。"
+    },
+    {
+      "name": "知识祝福",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "在第1级时，你学会两门自选语言。你还从以下技能中选择两项加入你的熟练项中：奥秘、历史、自然、宗教。 你进行关于所选两项技能的属性检定时，可以加上双倍的熟练加值。"
+    },
+    {
+      "name": "引导神力：岁月知识",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第2级起，你可以用引导神力特性接入神圣的知识之井。作为一个动作，你可以选定一个技能或工具，并在接下来的10分钟内视为拥有其熟练项。"
+    },
+    {
+      "name": "引导神力：读心",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第6级起，你可以用引导神力特性阅读某生物的思想，以此接触其意识并对其下达命令。 作为一个动作，你指定身边60尺内一个你可以看见的生物。该生物必须进行一次感知豁免"
+    },
+    {
+      "name": "透视过去",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第17级起，你可以看到过去的情形。你花费至少1分钟冥想，然后将以梦幻阴暗的形式瞥见最近发生的事件。你在维持幻觉的时长分钟数等于你的感知值。而在这段时间里，你必须"
+    },
+    {
+      "name": "自然侍僧",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第1级时，你习得一个自选的德鲁伊戏法。你还可以获得以下技能之一的熟练项：驯兽、自然、生存。这个戏法不计入你的已知戏法数量中。"
+    },
+    {
+      "name": "引导神力：魅惑动植物",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第2级起，你可以用引导神力特性魅惑动物和植物。 作为一个动作，你可以展示你的圣徽同时呼唤守护神之名。身处你身边30尺内每个你能看见的野兽或植物生物都必须进行一次"
+    },
+    {
+      "name": "抑制元素",
+      "role": "active",
+      "guess": "damage_affinity",
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第6级起，身处你或身处你身边30尺内的一个生物受到强酸、寒冷、火焰、闪电、或雷鸣伤害时，你可以用反应为那个生物获得对抗那次伤害的抗性。"
+    },
+    {
+      "name": "自然之主",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第17级起，你获得命令动物和植物生物的能力。当生物受你的魅惑动植物特性魅惑时，你可以在自己回合内执行一个附赠动作并发出一个口头指令，而所有这些受魅惑生物都将在其"
+    },
+    {
+      "name": "诡术祝福",
+      "role": "active",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "从第1级选择该领域起，你可以用你的动作触碰除你自身之外的一个自愿目标，并使他在进行敏捷（隐匿）检定时具有优势。该祝福持续1小时或直至你再次使用该特性为止。"
+    },
+    {
+      "name": "引导神力：召唤分身",
+      "role": "active",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第2级起，你可以用引导神力特性来创造一个你自身的幻象分身。 作为一个动作，你可以创造一个完美的自身幻象。该幻象持续存在一分钟，或直至你失去对该特性的专注（等同于"
+    },
+    {
+      "name": "引导神力：幽影斗篷",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第6级起，你可以用引导神力特性来消失不见。 作为一个动作，你变成隐形状态，该状态将持续至你的下一回合结束。当你攻击或施法时，将随即显形。"
+    },
+    {
+      "name": "精通分身",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第17级起，你使用召唤分身时可以同时制造至多四个自身的幻象分身而非一个。作为你自己回合内的一个附赠动作，你可以让任意数量的该分身移动至多30尺到某个你可以看见的"
+    },
+    {
+      "name": "风暴狂怒",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第1级起，你可以用雷霆驱逐攻击者。身处你周边5尺范围内一个你能看见的生物攻击命中你时，你可以用你的反应迫使该生物进行一次敏捷豁免。豁免失败者将受到2d8点闪电或"
+    },
+    {
+      "name": "引导神力：毁灭狂怒",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第2级起，你可以用引导神力特性为自己装备无拘束的凶猛风暴之力。 当你造成闪电或雷鸣伤害时，可以使用引导神力使该伤害的伤害掷骰直接取最高值而无需掷骰。"
+    },
+    {
+      "name": "雷霆打击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第6级起，当你对一个大型或更小体型的生物造成闪电伤害时，你还可以同时将其往远离你的方向推动至多10尺。"
+    },
+    {
+      "name": "风暴降生",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:牧师",
+        "职业:牧师"
+      ],
+      "text": "第17级起，当你不在地底或室内时，你得到等同于你步行速度的飞行速度。"
+    },
+    {
+      "name": "德鲁伊语",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "你习得德鲁伊语即一种德鲁伊间的秘密语言。你可以说这门语言并用它留下隐藏的信息。懂得这门语言的人（包括你自己）会自动注意到此信息，而不懂此语言的人通过一次DC15"
+    },
+    {
+      "name": "荒野变形",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第2级起，你可以用动作以魔力变化为曾见识过的野兽形态。该特性可以使用两次，且在完成一次短休或长休后，你将重新获得所有消耗掉的荒野变形次数。 你的德鲁伊职业等级决"
+    },
+    {
+      "name": "德鲁伊结社",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第2级时，你将选择参与一个德鲁伊结社。你可以从大地结社Circle of the Land或月亮结社Circle of the Moon中选择其一。随后，你将在"
+    },
+    {
+      "name": "不朽身",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊",
+        "职业:武僧"
+      ],
+      "text": "第18级起，你行使的原初荒野魔力让你的衰老速度减缓。每经过10年的岁月，你的身体就仿佛只过了1年。"
+    },
+    {
+      "name": "大德鲁伊",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第20级时，你可以无限次的使用荒野变形。 另外，你还可以将德鲁伊法术中的姿势和言语成分，以及无价值和不被法术消耗的材料成分忽略。你在原形态和荒野变形下都可以从此"
+    },
+    {
+      "name": "自然恢复",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第2级起，你可以通过静坐冥想与自然建立交流，并以此恢复部分魔法能量。完成一次短休后，你可以选择恢复部分已使用的法术位。所恢复法术位环阶的总和等于你德鲁伊职业等级"
+    },
+    {
+      "name": "结社法术",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "你跟大地之间的神秘链接让你可以施展特别的法术。在第3、第5、第7、第9级时，你根据成为德鲁伊时的所在地获得相应的结社法术。选择一个地形：极地、海岸、荒漠、森林、"
+    },
+    {
+      "name": "大地行者",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊",
+        "职业:游侠"
+      ],
+      "text": "第6级起，你穿过非魔法的困难地形时不会消耗额外移动力。你穿过非魔法的植物时不会消耗额外的移动力，且这类植物的荆棘、毛刺或类似的危害物也无法对你造成伤害。 另外，"
+    },
+    {
+      "name": "自然之护",
+      "role": "passive",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第10级起，你免疫元素生物或妖精造成的魅惑或恐慌状态，并且免疫中毒和疾病。"
+    },
+    {
+      "name": "自然庇护所",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第14级起，自然界的生物感知到你跟自然的链接而不会主动攻击你。当一个野兽或植物类的生物攻击你时，该生物必须先进行一次对抗你德鲁伊法术DC的感知豁免。豁免失败时，"
+    },
+    {
+      "name": "战斗荒野变形",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "从你选择该结社的第2级起，你可以在自己回合内用一个附赠动作而不是动作来使用荒野变形特性。 此外，在你荒野变形期间，你可以用附赠动作消耗一个法术位来恢复相应法术位"
+    },
+    {
+      "name": "结社形态",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "结社的力量让你可以变成更危险的动物形态。第2级起，你用荒野变形特性变身的野兽其挑战等级至高为1（无视表格“野兽形态”中的“最高CR栏”，但限制依然生效）。 第6"
+    },
+    {
+      "name": "原初打击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第6级起，你以野兽形态攻击时，如果目标对非魔法攻击或伤害具有免疫或抗性，则你的攻击此时视为魔法攻击。"
+    },
+    {
+      "name": "元素荒野变形",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第10级起，你可以花费两次荒野变形次数以变成气元素，土元素，火元素或者水元素。"
+    },
+    {
+      "name": "千面相",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:德鲁伊",
+        "职业:德鲁伊"
+      ],
+      "text": "第14级起，你学会了用魔法精确改变自身外形的方法。你可以随意施展法术变身术alter self。"
+    },
+    {
+      "name": "战斗风格",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士",
+        "职业:圣武士"
+      ],
+      "text": "你专精于一种战斗风格，并从下列选项中选择。另外，即使你有多次选择战斗风格的机会，也不能多次选择同一个战斗风格。"
+    },
+    {
+      "name": "回气",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "你拥有少量精力储备可用来保护自己免受伤害。你可以在自己回合内用一个附赠动作恢复生命值，其总值为1d10＋你的战士职业等级。你必须完成一次短休或长休才能再次使用该"
+    },
+    {
+      "name": "动作如潮",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第2级起，你可以在短时间内突破极限，以使你在自己回合内执行一个额外的动作。 该特性在使用后必须完成一次短休或长休才能再使用。第17级起，你可在休息前使用两次该特"
+    },
+    {
+      "name": "武术范型",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第3级时，你选择一种范型以体现你的战斗风格和技巧。你可以从诸如勇士Champion、战斗大师Battle Master、奥法骑士Eldritch Knight等"
+    },
+    {
+      "name": "不屈",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第9级起，你可以重掷失败的豁免检定。不过你必须采用重掷的结果。你必须完成一次长休才能再次使用该特性。 第13级起，你可以在两次长休之间使用两次该特性。第17级起"
+    },
+    {
+      "name": "精通重击",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "从你第3级选择此范型起，你的武器攻击在掷出19或20时都算作掷出了重击。"
+    },
+    {
+      "name": "运动健将",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第7级起，你可以将一半的熟练加值（向上取整）加在你不包含熟练加值的任何力量、敏捷或体质检定上。 另外，当你助跑跳远时，你能跳出的距离增加等同于你力量调整值的尺数"
+    },
+    {
+      "name": "额外战斗风格",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第10级时，你可以额外选择一个战斗风格。"
+    },
+    {
+      "name": "高效重击",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第15级起，你的武器攻击掷出18~20时即可造成重击。"
+    },
+    {
+      "name": "生还者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第18级时，你持续战斗的能力达到巅峰。你每回合开始时如果生命值不到上限的一半，则你恢复一部分生命值，其数值等于5＋你的体质调整值。你生命值为0时不能以此获益。"
+    },
+    {
+      "name": "施法",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士",
+        "职业:游荡者"
+      ],
+      "text": "第3级时，你学会以武斗技术施展法术的能力。参考第10章的施法规则，以及第11章的法师法术列表。"
+    },
+    {
+      "name": "武器联结",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第3级时，你习得一种让你和你的武器建立魔法联结的仪式。仪式耗时1小时，且可在短休时进行。仪式过程中武器必须在你的触及范围内，直至仪式结束前，你都要碰触该武器以完"
+    },
+    {
+      "name": "战争魔法",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第7级起，当你使用动作施展戏法时，可以用附赠动作发动一次武器攻击。"
+    },
+    {
+      "name": "秘法打击",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第10级时，你习得用武器攻击削弱敌人对你法术抵抗能力的方法。当你的武器攻击命中敌人后，直至你下一回合结束前，该生物对抗你下一个法术所进行的豁免检定具有劣势。"
+    },
+    {
+      "name": "秘法冲锋",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第15级时，你可以在使用动作如潮时传送至多30尺距离。传送的目的地必须是你能看到且未占据空间。你可以在使用动作如潮提供的额外动作之前或之后进行传送。"
+    },
+    {
+      "name": "精通战争魔法",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第18级起，你执行施法动作时，可以用附赠动作发动一次武器攻击。"
+    },
+    {
+      "name": "卓越战技",
+      "role": "active",
+      "guess": "check_modifier",
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "在你选择此范型的第3级时，你习得战技并获得驱动战技的卓越骰。"
+    },
+    {
+      "name": "战争学徒",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第3级时，你选择一种工匠工具并获得其熟练项。"
+    },
+    {
+      "name": "知己知彼",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第7级起，你在战斗外观察某生物或与之交互至少1分钟后，可以获知有关其能力的一些情报。从下列选项中选择其二，DM将告诉你在这两项上你是强于该生物，弱于该生物，或是"
+    },
+    {
+      "name": "精通卓越战技",
+      "role": "active",
+      "guess": "check_modifier",
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第10级时，你的卓越骰变为d10。第18级时，你的卓越骰变为d12。"
+    },
+    {
+      "name": "坚韧",
+      "role": "passive",
+      "guess": "initiative_adv",
+      "covered": false,
+      "sources": [
+        "职业:战士",
+        "职业:战士"
+      ],
+      "text": "第15级起，你骰先攻时若没可用的卓越骰，则你获得1枚卓越骰。"
+    },
+    {
+      "name": "武艺",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第1级时，你修行的武艺让你使用徒手打击和武僧武器时得心应手。武僧武器包括短剑和所有不含双手与重型属性的简易近战武器。 未着装任何护甲也没持用盾牌时，如果你徒手或"
+    },
+    {
+      "name": "气",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第2级起，你掌握一股名为气的神秘能量。此后你将拥有一定数量的气作为储备。而气的储备量由你的武僧等级决定，具体数值见“武僧职业表”中“气”一栏。 你可以消耗气以行"
+    },
+    {
+      "name": "气豁免",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "＝8＋你的熟练加值＋你的感知调整值"
+    },
+    {
+      "name": "无甲移动",
+      "role": "stat",
+      "guess": "speed_mod",
+      "covered": true,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第2级起，当未穿着任何护甲也没持用盾牌时，你的移动速度增加10尺。该加值将随着武僧职业等级的提升而增加，具体数值见“武僧职业表”中“无甲移动”一栏。 第9级起，"
+    },
+    {
+      "name": "宗派",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第3级时，你选择投入一个宗派精进你的技艺。你可以从散打宗、暗影宗、四象宗中选择其一。随后，你的将在第3、第6、第11、第17级时获得相应宗派的特性传承。"
+    },
+    {
+      "name": "拨挡飞弹",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第3级起，你可以用你的反应拨挡或抓取一个击中你的远程武器攻击。使用本特性后，该次攻击的伤害将被削弱，其减数值等于1d10＋你的敏捷调整值＋你的武僧职业等级。 当"
+    },
+    {
+      "name": "轻身坠",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第4级起，当你要承受坠地伤害时，你可以使用反应将伤害减少等同于五倍武僧职业等级的数值。"
+    },
+    {
+      "name": "震慑拳",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第5级起，你能够阻碍敌人体内的气的流动。你的近战武器攻击命中时，可以消耗1点气尝试发动震慑拳。被命中目标必须进行一次体质豁免，豁免失败则受到震慑，并持续至你的下"
+    },
+    {
+      "name": "真气注拳",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第6级起，攻击对非魔法攻击或伤害具有抗性或免疫的目标时，你的徒手打击视为魔法攻击。"
+    },
+    {
+      "name": "反射闪避",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧",
+        "职业:游荡者"
+      ],
+      "text": "第7级起，你敏锐的直觉让你可以躲过某些特定的区域效应，比如蓝龙的闪电吐息或是法术火球术fireball。你在成为某一范围效应影响对象时，若该效应允许你通过成功的"
+    },
+    {
+      "name": "心如止水",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第7级起，你可以用你的动作结束一个正影响你的魅惑或恐慌状态。"
+    },
+    {
+      "name": "百病不侵",
+      "role": "passive",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第10级起，你浑身的气流动使你免疫疾病和毒素。"
+    },
+    {
+      "name": "天语通",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第13级起，你学会了如何触及他人心灵中流动的气，因此，你能够听懂所有语言。不仅如此，任何可以理解至少一门语言的生物都能理解你所讲的话语。"
+    },
+    {
+      "name": "金刚魂",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第14级起，你对气的掌控令你所有的豁免检定都成了熟练项。 另外，当豁免失败时，你可以消耗1点气重掷豁免并使用重掷的结果。"
+    },
+    {
+      "name": "空灵体",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第18级起，你可以消耗4点气并使用动作隐形1分钟。此时，你对力场伤害之外的所有伤害都具有抗性。 另外，你可以消耗8点气施展法术星界投影astral projec"
+    },
+    {
+      "name": "超凡入圣",
+      "role": "passive",
+      "guess": "initiative_adv",
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第20级起，若你骰先攻时身上未有储备的气，则你获得4点气。"
+    },
+    {
+      "name": "四象门徒",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第3级选择本宗派起，你开始学习操控元素的法门。每种法门在使用时都需要消耗气。 你会先习得元素同调法门和另一个自选法门，所有法门具体见下。你将在第6、第11、第1"
+    },
+    {
+      "name": "散打技巧",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第3级选择散打宗后，你可以在击中敌人时操作其体内的气。当你用疾风连击特性的攻击击中敌人时，你可以让该目标承受下列效应之一： · 目标必须进行一次敏捷豁免，豁免失"
+    },
+    {
+      "name": "混元体",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第6级起，你获得自疗的能力。你可以使用一个动作获得等同于三倍武僧职业等级的生命值。你必须完成一次长休才能再次使用该特性。"
+    },
+    {
+      "name": "宁神境",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第11级起，你可以进入一种特殊的冥想状态，使浑身环绕着和平的灵光。完成长休后，你将获得法术庇护术sanctuary的效应，其效应持续至你再次开始长休之前（该法术"
+    },
+    {
+      "name": "渗透劲",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第17级起，你可以将暗劲击入他人体内。你的徒手打击命中目标生物时，可以消耗3点气将一股致命的劲力送入敌人体内。劲力的持续日数等于你的武僧等级，且在你用动作终止劲"
+    },
+    {
+      "name": "暗影技艺",
+      "role": "active",
+      "guess": "darkvision",
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第3级你选择本宗派起，你可复制某些特定法术的效应。你可用一个动作消耗2点气以施放黑暗术darkness，黑暗视觉darkvision，行动无踪pass with"
+    },
+    {
+      "name": "暗影步",
+      "role": "active",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第6级起，你获得在阴影中漫步的能力。你处于微光光照或黑暗环境时，可以用附赠动作传送至多60尺，到达一个你能看见且未被占据还必须同样处于微光光照或黑暗环境中的区域"
+    },
+    {
+      "name": "幽影斗篷",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第11级起，你学会如何化身为幽影。当你处于微光光照或黑暗环境时，可以用动作变为隐形。隐形状态将一直持续至你发动攻击、施展法术或进入明亮光照区域时结束。"
+    },
+    {
+      "name": "灵机一斩",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:武僧",
+        "职业:武僧"
+      ],
+      "text": "第17级起，你可以抓住利用生物被攻击命中时的短暂停顿。身处你身边5尺范围内的生物被除你之外的生物攻击命中时，你可以用反应对该被攻击生物发动一次近战攻击。"
+    },
+    {
+      "name": "神圣感知",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "强大的邪恶存在于你有如带毒的香气，而强大的善良光环于你则如仙乐般悠扬。你可以使用一个动作扩展你的意识，以侦测此类势力。直到你下回合结束前，你可以对身边60尺范围"
+    },
+    {
+      "name": "圣疗",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "你的触碰溢满祝福，可以医治伤口。你获得一个治疗能量池，其内的治疗能量在每次完成长休后自动补满。治疗能量池储备的可恢复生命值总值等于你的圣武士职业等级×5。 你可"
+    },
+    {
+      "name": "至圣斩",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第2级起，你使用近战武器攻击命中一个生物时，可以消耗一枚法术位，并对目标造成除武器伤害外附加的光耀伤害。额外伤害的数值为1环法术位时的2d8，以及更高法术位时每"
+    },
+    {
+      "name": "神佑",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第3级起，你体内涌动的神圣魔法使你免疫疾病。"
+    },
+    {
+      "name": "神圣誓言",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第3级起，你将立下神圣誓言，并永远与你的圣武士身份同在。你在此之前的圣武士修行被认为仅仅是接受了一条道路而尚未立誓遵从，你之前所躬行的行为都是为此刻作准备。神圣"
+    },
+    {
+      "name": "守护灵光",
+      "role": "passive",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第6级起，你与友方生物在你身边10尺内进行豁免检定时，可以将你的魅力调整值作为加值加在其豁免结果上（至少为 +1）。提供该加值时你必须保持意识清醒。 第18级起"
+    },
+    {
+      "name": "勇气灵光",
+      "role": "passive",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第10级起，你与友方生物在你身边10尺内不会陷入恐慌。提供该增益时你必须保持意识清醒。 第18级起，该灵光的作用范围扩展至30尺。"
+    },
+    {
+      "name": "精通至圣斩",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第11级起，你体内充盈的公正之力使你的近战武器打击中携带着神圣的力量。当你使用近战武器命中一个生物时，该生物将额外受到1d8点光耀伤害。"
+    },
+    {
+      "name": "净化之触",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第14级起，你可以用动作触碰你自身或一个自愿生物，以中止该目标身上的一个法术效应。 该特性的可用次数等于你的魅力调整值（至少一次）。而已消耗的特性使用次数则可以"
+    },
+    {
+      "name": "守御灵光",
+      "role": "passive",
+      "guess": "damage_affinity",
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第7级起，强大的远古魔法眷顾着你，以至于在你身边形成了一道神秘的结界。你和距离你10尺以内的友善生物获得对法术伤害的抗性。 第18级起，灵光的范围增加至30尺。"
+    },
+    {
+      "name": "不灭哨卫",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第15级起，你生命值降至0点，但尚未被直接杀死时，可以选择让你的生命值降到1点而不是0点。你必须完成一次长休后才能再次使用该能力。 此外，你不受任何衰老减益。也"
+    },
+    {
+      "name": "上古斗士",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第20级起，你可以化作远古自然力量的化身，并获得一项你自己决定的外貌特征。例如，你的皮肤可能变成绿色，或者长出树皮般的纹理。你的头发也许会变得像树叶或青苔一般，"
+    },
+    {
+      "name": "无情复仇",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第7级起，你超自然的专注力使你可以拦截敌人撤退。你以借机攻击中命中一个生物时，可以在该攻击后立刻移动至多相当于你速度一半的距离，本次移动是原反应的一部分。且本次"
+    },
+    {
+      "name": "复仇之魂",
+      "role": "stat",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第15级起，你立下仇敌誓言时所宣誓之存在赐予你更大的力量以击倒敌人。一个受你仇敌誓言影响的生物发动攻击时，如果其身处你的近战武器攻击范围内，则你就可以用你的反应"
+    },
+    {
+      "name": "复仇天使",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第20级起，你可以化身为复仇的天使。你可以使用动作实行这种转变，并在接下来的1小时内获得以下增益： · 你背生双翼，获得60尺飞行速度。 · 你散发出一个30尺"
+    },
+    {
+      "name": "奉献灵光",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第7级起，你与友方生物在你身边10尺内不会被魅惑。提供该增益时你必须保持意识清醒。 第18级起，灵光的作用范围扩展至30尺。"
+    },
+    {
+      "name": "纯净之魂",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第15级起，你会永远处于法术防护善恶protection from evil and good的效应之下。"
+    },
+    {
+      "name": "至圣光轮",
+      "role": "active",
+      "guess": "speed_mod",
+      "covered": false,
+      "sources": [
+        "职业:圣武士",
+        "职业:圣武士"
+      ],
+      "text": "第20级时，你可以用一个动作生成一个散发阳光的灵光。在随后的1分钟内，明亮光照从你身边往外辐射半径30尺的球状区域，并在该范围外额外辐射30尺范围的微光光照。 "
+    },
+    {
+      "name": "宿敌",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第1级起，你针对一种特定类型敌人的研究令你有着充足的经验用以追踪、狩猎乃至与之交流。 从下列种类中选择其一作为宿敌：异怪、野兽、天族、构装生物、龙、元素生物、妖"
+    },
+    {
+      "name": "自然探索者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "你对某种自然环境特别熟悉，并适应了在其中行走及生存。从下列类别中选择一种偏爱地形：极地arctic、海岸coast、荒漠desert、丛林forest、草原gr"
+    },
+    {
+      "name": "游侠范型",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第3级时，你选择学习一种特定的战斗范型。你可以从猎人Hunter或驯兽师Beast Master中进行选择。随后，你将在第3，第7，第11、第15级时获得所选范"
+    },
+    {
+      "name": "原初意识",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第3级起，你可以消耗一枚游侠法术位，并用动作将你的意识集中在身处的区域，感测1里内是否存在以下类型生物（在偏爱地形中时，扩展至6里）：异怪、天族、龙、妖精、邪魔"
+    },
+    {
+      "name": "遁术",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第10级起，你可以花1分钟来为自己制作伪装。你需要取用新鲜的泥土、植物、煤烟、以及其他天然物料制作这套伪装。 伪装完成后，你可以将自己贴上至少跟自己等高等阔的实"
+    },
+    {
+      "name": "无踪步",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第14级起，你可以在自己回合以一个附赠动作的形式执行躲藏Hide动作。此时，你无法被非魔法手段追踪到，除非你主动留下踪迹。"
+    },
+    {
+      "name": "野性感官",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第18级时，你获得超自然的感官以帮助你对抗看不到的生物。此后，你攻击一个看不到的生物时不会因此承受劣势。 另外，你还能感测30尺内所有隐形敌人的位置，前提是该生"
+    },
+    {
+      "name": "屠灭众敌",
+      "role": "active",
+      "guess": "check_modifier",
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第20级时，你成为了猎杀敌人的无双猎手。你在自己的每个回合内，都有一次机会将你的感知调整值加到你对宿敌进行的攻击检定或伤害掷骰上。你可以在掷骰之前或者之后决定使"
+    },
+    {
+      "name": "猎物",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第3级时，你选择获得以下特性之一。"
+    },
+    {
+      "name": "防守战术",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第7级时，你选择获得以下特性之一。"
+    },
+    {
+      "name": "多重攻击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第11级时，你选择获得以下特性之一。"
+    },
+    {
+      "name": "高效猎人防术",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第15级时，你选择获得以下特性之一。"
+    },
+    {
+      "name": "游侠伴侣",
+      "role": "stat",
+      "guess": "initiative_adv",
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第3级时，你获得一个野兽伴侣陪你一起冒险，这名训练有素的伙伴能与你合作无间地战斗。指定一个不大于中型体型，且挑战等级为1/4或更低的野兽（其属性数据以附录D中的"
+    },
+    {
+      "name": "特殊训练",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第7级起，如果你的野兽伴侣在你的回合内未曾发动攻击，则你可以在本回合用一个附赠动作命令该野兽在其回合内执行“疾走”“撤离”或“协助”动作。此外，该野兽的攻击作用"
+    },
+    {
+      "name": "兽性狂怒",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第11级起，当你命令野兽伴侣执行攻击动作时，它可以发动两次攻击。或者，若其拥有“多重攻击Multiattack”动作项，则它也可以执行该动作项。"
+    },
+    {
+      "name": "法术共享",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游侠",
+        "职业:游侠"
+      ],
+      "text": "第15级起，当你施展一个目标为自身的法术时，如果你的野兽伴侣处于你身边30尺范围内，则该法术效应同时也作用于你的野兽伴侣。"
+    },
+    {
+      "name": "偷袭",
+      "role": "passive",
+      "guess": "speed_mod",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第1级起，你就知道如何精确地攻击分心的敌人。每当你的攻击命中一个生物时，如果该攻击的攻击检定带有优势，则可以造成额外1d6的伤害。该伤害每回合可以产生一次，且造"
+    },
+    {
+      "name": "盗贼黑话",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "作为一名游荡者，你在平时的练习中学会了盗贼间的黑话。盗贼黑话是一门混合了土话、术语和密语的秘密语言，掌握这门语言后，你可以在平时对话中不落痕迹的加入隐藏信息。而"
+    },
+    {
+      "name": "灵巧动作",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第2级起，你精妙的反应与身手使你的行动无比迅速。你在战斗中每回合可执行一次附赠动作，该附赠动作可用以执行撤离Disengage、疾走Dash或躲藏Hide三种动"
+    },
+    {
+      "name": "游荡者范型",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第3级时，你选择学习一种特定的战斗范型。你可以从盗贼Thief、刺客Assassin或者诡术师Arcane Trickster中选择其一。随后，你将在第3，第9"
+    },
+    {
+      "name": "直觉闪避",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第5级起，当一个你能看见的敌人攻击命中你时，你可以用反应让此次攻击的伤害减半。"
+    },
+    {
+      "name": "可靠才能",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第11级起，你自身技能经过精炼而更趋于完美。每当你进行的属性检定可以使用熟练加值时，你可以将d20骰中9或以下的结果都视为10。"
+    },
+    {
+      "name": "听声辨位",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第14级起，只要能听到声音，你就可以定位身边10尺内躲藏或隐形的生物。"
+    },
+    {
+      "name": "圆滑心智",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第15级起，你的心理素质获得了大大的加强，并因此获得感知豁免的熟练项。"
+    },
+    {
+      "name": "飘忽不定",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第18级起，你飘忽不定的身形让敌人攻击时无从下手。除非你处于失能状态，否则以你为目标的攻击检定无法取得优势。"
+    },
+    {
+      "name": "幸运一击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第20级时，你掌握了一手非凡技巧，让你可以随时把握自己的成功之时。当你的攻击未命中时，可以直接更改判定为命中。或者，当你的属性检定失败时，可以直接将d20骰的结"
+    },
+    {
+      "name": "暗杀",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第3级起，你一旦获得先机就会变得更加致命。你对战斗开始后还没开始过自己回合的生物发动攻击时，所进行的攻击检定具有优势。此外，当你攻击命中被突袭的生物时，你本次攻"
+    },
+    {
+      "name": "专业渗透",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第9级起，你可以不限次的为自己伪造身份。你必须花费七天和25gp来为身份编造历史、工作和人际关系。不过你不能伪造成已存在的角色。例如，你获得相应的衣服、介绍信和"
+    },
+    {
+      "name": "冒充者",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第13级起，你获得准确模仿他人说话，写字和行为的能力。你必须花费至少三小时来学习模仿目标的这三方面行为：听他说话，练习写字并观察其特殊习惯。 这种伪装手段主要针"
+    },
+    {
+      "name": "致命一击",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第17级起，你熟练掌握瞬杀的技巧。你攻击命中一个被突袭的生物时，该生物必须进行一次体质豁免（DC8＋你的敏捷调整值＋你的熟练加值）。豁免失败时，你将对其造成双倍"
+    },
+    {
+      "name": "快手",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第3级起，你可以使用从“灵巧动作”特性中得到的附赠动作来进行一次敏捷（巧手）检定，或是以该附赠动作使用盗贼工具来解除陷阱、撬锁，或执行“使用物件”动作。"
+    },
+    {
+      "name": "梁上君子",
+      "role": "passive",
+      "guess": "speed_mod",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第3级选择此范型起，你获得比通常情况更快的攀爬速度，从而使攀爬不再消耗额外的移动力。 此外，当你做一个有助跑的跳远时，跳远距离增加一定的尺数，其数值等于你的敏捷"
+    },
+    {
+      "name": "极效潜行",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第9级起，当回合内移动距离不超过自身速度一半时，你的敏捷（隐匿）检定将获得优势。"
+    },
+    {
+      "name": "使用魔法装置",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第13级起，你学习的魔法知识足以让你使用并不是为你设计的魔法物品。此后你在使用魔法物品时，可以忽略所有职业、种族和等级的限制条件。"
+    },
+    {
+      "name": "窃盗本能",
+      "role": "passive",
+      "guess": "initiative_adv",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第17级起，你变的更加擅长伏击和快速脱离险境。战斗的第一轮里，你可以行动两个回合：即你先以自己正常的先攻执行一个回合行动，再以先攻数值减10的数值作为另一先攻额"
+    },
+    {
+      "name": "法师之手诈术",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第3级起，你施展法师之手mage hand时可以制作一个隐形的幽灵手，且你可以用它来做下列特殊任务： · 你可以传递一个幽灵手持握的物件到其他生物携带或着装的容"
+    },
+    {
+      "name": "诡术伏击",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第9级起，如果你在针对某个生物躲藏的状态下对其施法，则该生物在本回合里对抗该法术所进行的豁免检定具有劣势。"
+    },
+    {
+      "name": "万能诡术",
+      "role": "active",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第13级时，你获得用你的法师之手mage hand使目标分心的能力。作为一个附赠动作，你可以在自己的回合内指定该法术之幽灵手周边5尺内的一个生物。直至该回合结束"
+    },
+    {
+      "name": "法术窃贼",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:游荡者",
+        "职业:游荡者"
+      ],
+      "text": "第17级起，你获得盗取其他施法者施法知识的能力。 当一个生物施展的一个法术以你为目标，或其法术效应范围包含你所在区域时，你可以立即用你的反应强迫该生物以其施法属"
+    },
+    {
+      "name": "术法起源",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "选择一个术法起源作为你天赋魔力的源泉。你可在龙族血脉Draconic Bloodline或狂野魔法Wild Magic中选择其一。 随后，你将在第1、第6、第1"
+    },
+    {
+      "name": "魔力泉涌",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第2级时，你解除了体内魔力之源的封印，从中涌现的魔力体现为你的可用术法点。你可以使用术法点创造各种魔法效应。"
+    },
+    {
+      "name": "超魔法",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第3级起，你可以扭曲所施展的法术使其符合你的需求。从下述超魔法选项中选择其二。随后你将在第10和第17级分别再获得其一。 除非特别说明，否则对一个法术只能应用一"
+    },
+    {
+      "name": "术法复苏",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第20级时，你每完成一次短休，可以恢复4术法点。"
+    },
+    {
+      "name": "狂野魔法浪涌",
+      "role": "passive",
+      "guess": "attack_extra",
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "在你第1级选择该起源开始，你施法时会释放出未经塑造的魔法浪涌。你每次施展一个不低于1环的术士法术后，DM都可以要求你立刻骰一次d20。如果你骰出1，则请根据表格"
+    },
+    {
+      "name": "混乱之潮",
+      "role": "passive",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第1级起，你可以驾驭机运与混乱的力量，以使一次攻击检定，属性检定或豁免检定具有优势。此后，你必须完成一次长休后才能再次使用该特性。 在你重获使用混乱之潮的能力前"
+    },
+    {
+      "name": "扭曲幸运",
+      "role": "active",
+      "guess": "check_modifier",
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第6级起，你获得用你的狂野魔法扭曲命运的能力。当一个你能看见的生物进行攻击检定、属性检定或豁免检定时，你可以用一个反应并消耗2术法点骰一次1d4，再将结果用作加"
+    },
+    {
+      "name": "操控混沌",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第14级起，你获得了对狂野魔法涌动的些微掌控。你每次骰狂野魔法浪涌效果时，可以骰两次检定再自选其一生效。"
+    },
+    {
+      "name": "法术轰击",
+      "role": "passive",
+      "guess": "attack_extra",
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第18级起，你法术中的伤害性能量极度扩张。你在为法术进行伤害掷骰时，如果其中的任何一粒骰子掷出最大值，则选择这些骰子之一再骰一次，并将其结果加在伤害数值上。你每"
+    },
+    {
+      "name": "巨龙先祖",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第1级时，你选择一种巨龙作为你的先祖。对应的伤害类型将在随后获得的特性中用到。"
+    },
+    {
+      "name": "龙族体魄",
+      "role": "stat",
+      "guess": null,
+      "covered": true,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "魔法在你的体内流动，并使你显露出你巨龙先祖的部分身体特质。第1级时，你的生命值上限提升1点，此后每提升一个术士等级，都将再次提升1点。 此外，你部分皮肤覆盖着龙"
+    },
+    {
+      "name": "元素亲和",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第6级起，当你施展伤害类型与你巨龙先祖相对应的法术时，可以将你的魅力调整值附加到该法术其中一次伤害掷骰中。此时你还可以用1术法点来获得持续1小时的相应伤害抗性。"
+    },
+    {
+      "name": "龙翼",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:术士",
+        "职业:术士"
+      ],
+      "text": "第14级时，你获得一对可以从背后张开的龙翼，并获得等于你当前速度的飞行速度。你可以在自己回合内用一个附赠动作生成龙翼。龙翼持续存在至你在自己回合内用一个附赠动作"
+    },
+    {
+      "name": "异界宗主",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第1级时，你就跟某个异界的存在订下契约。你可以从至高妖精Archfey、邪魔Fiend、旧日支配者Great Old One等选项中选择其一。随后你将在第1、第"
+    },
+    {
+      "name": "契约魔法",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "你的法术力量源于你的奥秘研究和宗主的魔法馈赠。参考第10章的施法规则，以及第11章的魔契师法术列表。"
+    },
+    {
+      "name": "魔能祈唤",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "你在神秘学识的研习过程中发掘出魔能祈唤的方式，这些禁忌的知识残章让你获得了持久的魔法能力。 第2级时，你获得两种自选的魔能祈唤（祈唤的具体内容见后文）。在获得更"
+    },
+    {
+      "name": "魔契恩泽",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第3级时，你的宗主赋予你一份馈赠作为你忠诚服务的回馈。你可以从下列特性中自选其一。"
+    },
+    {
+      "name": "链之魔契",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "你的魔宠比普通的魔宠更加机敏。其默认形态是你的宗主的侧面体现，如至高妖精宗主的是小仙灵和伪龙，邪魔宗主则是小魔鬼和小恶魔 。因为旧日支配者不可名状的本质，任何形"
+    },
+    {
+      "name": "书之魔契",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "你那由高贵的至高妖精宗主所赐予的影之书可能是一本记载着惑控系和幻术系法术的精装 镀金边书册。你的邪魔宗主可能赐予你一本革质 封皮附铁扣的沉重书册，其中 记载着咒"
+    },
+    {
+      "name": "玄奥秘法",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第11级时，你的宗主赋予你一种称为秘法的魔法奥秘。你可以选择一个6环的魔契师法术作为你的玄奥秘法。 你施展秘法时无需消耗法术位，而消耗掉的秘法可以通过完成一次长"
+    },
+    {
+      "name": "魔能掌控",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第20级时，你可以利用储备的魔力祈求你的宗主为你恢复已消耗的法术位。你可以花1分钟祈求宗主的帮助，恢复所有你已消耗的契约魔法法术位。使用该特性恢复法术位后，你必"
+    },
+    {
+      "name": "唤醒心灵",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第1级时，你的异界知识赋予你接触其他生物心灵的能力。你可以与身边30尺内任意你能看见的生物通过心灵感应方式进行交流。你不必须懂得该生物的语言也能使其理解你通过心"
+    },
+    {
+      "name": "熵光结界",
+      "role": "active",
+      "guess": "advantage",
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第6级时，你习得了一种可以帮你抵挡攻击的魔法结界，并可将敌人失败的攻击转化为自己的幸运。当一个生物对你发动攻击检定时，你可以用你的反应迫使该攻击检定具有劣势。如"
+    },
+    {
+      "name": "思维之盾",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第10级时，除非获得你的允许，否则你的思维无法被心灵感应或者其他手段阅读。此外你还具有对心灵伤害抗性，且每当一个生物对你造成心灵伤害时，该生物将受到与你相同的伤"
+    },
+    {
+      "name": "创造奴仆",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第14级时，你从获得以宗主的异界魔法感染类人生物心智的能力。你可以用你的动作触碰一个处于失能状态的类人生物。该生物随即陷入受你魅惑的状态，直至被施以法术移除诅咒"
+    },
+    {
+      "name": "妖精仪态",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第1级时，你的宗主授予你如同妖精一般魅惑和威吓他人的能力。作为一个动作，你可以令以你为原点的10尺立方区域内所有生物进行一次对抗你法术豁免DC的感知豁免，豁免失"
+    },
+    {
+      "name": "雾遁",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第6级起，你在受到伤害时可以在一团迷雾中消失无踪。你受到伤害时，可以使用你的反应进入隐形，并传送到60尺内一处你能看见且未占据空间。直至你的下一回合开始，或直至"
+    },
+    {
+      "name": "斗转星移",
+      "role": "active",
+      "guess": "damage_affinity",
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第10级时，你的宗主教会你如何通过逆转敌人所施展的心智魔法对付其自身。你获得魅惑状态的免疫，且当其他生物试图魅惑你时，你可以使用你的反应将魅惑效应反施予该生物。"
+    },
+    {
+      "name": "幻影黑幕",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第14级时，你可以使一个生物陷入虚幻领域中。作为一个动作，你可以指定你周边60尺范围内一个你能看见的生物。目标生物必须进行一次对抗你法术豁免DC的感知豁免。豁免"
+    },
+    {
+      "name": "黑暗赐福",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第1级起，每当你把一个敌对生物的生命值降至0，你都会获得等同于你的魅力调整值＋你的邪术师等级的临时生命值（最低为1）。"
+    },
+    {
+      "name": "黑暗强运",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第6级起，你可以呼唤你的宗主有利的改写你的命运。当你进行属性检定或豁免检定时，可以使用该特性为此次掷骰增添一个d10骰。你可在看到掷骰结果后，其结果生效前使用该"
+    },
+    {
+      "name": "邪魔体魄",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第10级起，每当你完成一次长休或短休后你都可以选择一种伤害类型。直到你使用此能力选择另外一种伤害类型之前，你都拥有对于所选伤害类型的抗性。魔法武器或镀银武器所造"
+    },
+    {
+      "name": "直坠噩梦",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:魔契师",
+        "职业:魔契师"
+      ],
+      "text": "第14级起，每当你的攻击成功命中一个生物时，你可以使用此能力将目标瞬间传送并穿越下层位面。该生物立刻消失并前往如同噩梦一般的风景。 在你下一回合结束时，目标返回"
+    },
+    {
+      "name": "奥术回想",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "你学会了通过研读法术书来恢复魔法能量的办法。你可以每日使用一次奥术回想，以在你完成一次短休后恢复若干已消耗的法术位，所恢复的法术位环阶总和不得大于你法师等级的一"
+    },
+    {
+      "name": "奥术传承",
+      "role": "profile",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第2级时，你选择一种奥术传承以使你的训练专注于八个学派之一。从防护、咒法、预言、惑控、塑能、幻术、死灵、变化各学派中选择其一。 随后，你将在第2、第6、第10、"
+    },
+    {
+      "name": "变化学者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你向法术书中抄写变化系法术的时间和金钱花费减半。"
+    },
+    {
+      "name": "次级炼金",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你可以暂时转变一件非魔法物件的物理属性，将其构成材料变成另一种物质。你对一件物件施行某些特殊的炼金程序使其完成转化，该物件必须完全由木材"
+    },
+    {
+      "name": "变化师之石",
+      "role": "stat",
+      "guess": "damage_affinity",
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第6级起，你可以花费8小时时间创造一颗储存着变化魔力的变化师之石。你可以自己保有石头获得其增益或将其赠予别人。持有变化师之石的生物将从中获得你所选择的增益。在创"
+    },
+    {
+      "name": "变形生物",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第10级起，如果你的法术书中尚未包含变形术polumorph，则你将之加入法术书。你可以无需消耗法术位的施展变形术。此时，你可以指定的目标将限定为你自身，而其效"
+    },
+    {
+      "name": "变化宗师",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第14级起，你可以用你的动作将储存在你变化师之石中的变化魔力一次耗尽。此时你可以选择下述效应之一。你的变化师之石将因此被毁，而你必须完成一次长休后才能再创作新的"
+    },
+    {
+      "name": "咒法学者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你向法术书中抄写咒法系法术的时间和金钱花费减半。"
+    },
+    {
+      "name": "次级咒术",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你可以用你的动作咒唤一件非活化的物件。该物件将出现在你手中，或者你周边10尺范围内一处那你能看见且未占据空间的地面上。该物件每边长度不得"
+    },
+    {
+      "name": "王车易位",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第6级起，你可以用你的动作传送至多30尺，至一处你能看见且未占据空间。你也可以指定一处传送距离内被一个小型或中型生物所占据的空间，如果该生物愿意，则你与它将同时"
+    },
+    {
+      "name": "咒法专注",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第10级起，你在专注于咒法系法术期间，你的专注不会因承受伤害而被打断。"
+    },
+    {
+      "name": "强韧召唤",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第14级起，被你用咒法系法术召唤出来或创造出来的生物都将具有30点临时生命值。"
+    },
+    {
+      "name": "塑能学者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你向法术书中抄写塑能系法术的时间和金钱花费减半。"
+    },
+    {
+      "name": "法术塑形",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第2级起，你的塑能系法术作用范围里可以保留一小部分相对安全的区域。你施展某个塑能系法术时，如果该法术的效应影响你能看见的其他生物，则你可以从中指定一定数量的生物"
+    },
+    {
+      "name": "强力戏法",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第6级起，你造成伤害的戏法可以影响本可免受戏法效应影响的生物。生物对抗你戏法的豁免成功时，它仍将受到一半伤害（若有），但仍不会受该戏法的其他效应影响。"
+    },
+    {
+      "name": "强效塑能",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第10级起，你可以将你的智力调整值加入到任何由你施展的法师塑能法术的其中一次伤害掷骰中。"
+    },
+    {
+      "name": "超限导能",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第14级起，你可以为你的简单法术增强力量。施展一个造成伤害的1~5环法师法术时，你可以让法术的伤害直接取其最大值。该特性不能作用于戏法。 首次发动该特性时，你并"
+    },
+    {
+      "name": "幻术学者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你向法术书中抄写幻术系法术的时间和金钱花费减半。"
+    },
+    {
+      "name": "精通次级幻象",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你习得戏法次级幻象minor illusion。如果你已学会此戏法，则你可以学习另一个自选的法师戏法。该戏法不计入你的已知戏法数目限制。"
+    },
+    {
+      "name": "易变幻象",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第6级起，你施展持续时间不少于1分钟的幻术系法术时，可以用你的动作改变幻象的外形（仍需遵守相应法术的描述），前提是你必须可以看见该幻象。"
+    },
+    {
+      "name": "幻影化形",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第10级起，你可以如同本能反应般，瞬间创造出一个自身的幻象分身以应对危险。当一个生物对你发动攻击检定时，你可以用你的反应，在攻击者和你之间插入你自身的幻象分身。"
+    },
+    {
+      "name": "亦真亦幻",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第14级起，你学会将暗影魔法编入幻术中的秘法，并以此使你的幻术获得半真实的效果。你施展一个1环或更高环阶的幻术系法术时，可以选择幻象中一个非活化的非魔法物件，并"
+    },
+    {
+      "name": "惑控学者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你向法术书中抄写惑控系法术的时间和金钱花费减半。"
+    },
+    {
+      "name": "催眠凝视",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你可以用轻柔的语言和魅惑的目光来施展魔法奴役其他生物。作为一个动作，你指定身边5尺范围内一个你能看见的生物。如果该生物能看见你或者能听到"
+    },
+    {
+      "name": "直觉魅惑",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第6级起，一个身处你周边30尺范围内你能看见的生物对你发动攻击检定时，你可以用你的反应来偏转本次攻击，前提是必须有另一生物在本次攻击的攻击范围内。攻击者必须进行"
+    },
+    {
+      "name": "分裂惑控",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第10级起，你施展一个以单一生物为目标的1环或更高环阶的惑控系法术时，可以为该法术指定第二个目标。"
+    },
+    {
+      "name": "编演记忆",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第14级起，你获得让生物无法认识到你对其魔法影响的能力。你施展一个可以魅惑一个或更多生物的惑控系法术时，可以改变某一个生物的认识，以令其无法察觉自己已经被魅惑。"
+    },
+    {
+      "name": "死灵学者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你向法术书中抄写死灵系法术的时间和金钱花费减半。"
+    },
+    {
+      "name": "惧怖收割",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第2级时，你可以在用法术杀死敌人时汲取其生命能量。你每回合有一次机会，在以一个环阶不低于1环的法术杀死一个或多个生物时，可以恢复等于该法术环阶两倍的生命值。如果"
+    },
+    {
+      "name": "不死奴仆",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第6级起，如果你法术书中未有法术活化死尸，则将之加入法术书。施展活化死尸 时，你可以指定额外的一具尸体或一堆骸骨以创造一个额外的丧尸或骷髅，并按法术详述进行设定"
+    },
+    {
+      "name": "不死适应",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第10级起，你对暗蚀伤害具有抗性，且你的生命值上限无法被降低。你已经花了相当长的时间研究亡灵和驱役其力量，所以你已经可以适应其一些负面效应。"
+    },
+    {
+      "name": "命令亡灵",
+      "role": "active",
+      "guess": "save_advantage",
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第14级起，你可以用魔法夺取亡灵的控制权，甚至可以夺取其他法师所创造的亡灵。作为一个动作，你可以指定一个在距你60尺内你能看见的亡灵。该生物必须进行一次对抗你法"
+    },
+    {
+      "name": "防护学者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你向法术书中抄写防护系法术的时间和金钱花费减半。"
+    },
+    {
+      "name": "奥术守御",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第2级起，你可以编织身边的魔法用作防护。你施展一道1环或更高环阶的防护系法术时，可以用该法术的一丝魔力创造一个保护自己的魔法结界，该结界将持续至你完成一次长休。"
+    },
+    {
+      "name": "投射守御",
+      "role": "active",
+      "guess": "reaction",
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第6级起，你周边30尺内一个你能看见的生物受到伤害时，你可以用你的反应，以你现有的奥术守御吸收这次伤害。如果这次伤害将守御的生命值降至0，则被保护的目标仍会承受"
+    },
+    {
+      "name": "精通防护",
+      "role": "stat",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第10级起，你施展一个需要你在施法过程中进行属性检定的防护系法术时（比如法术反制counterspell和解除魔法dispel magic），你可以在进行相应的"
+    },
+    {
+      "name": "法术抗性",
+      "role": "passive",
+      "guess": "damage_affinity",
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第14级起，你抵抗法术时进行的豁免检定具有优势。 此外，你对法术造成的伤害具有抗性。"
+    },
+    {
+      "name": "预言学者",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，你向法术书中抄写预言系法术的时间和金钱花费减半。"
+    },
+    {
+      "name": "预兆",
+      "role": "passive",
+      "guess": "attack_extra",
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "从第2级你选择该学派起，预知未来的片段会时常在你意识中闪过。你在每次完成长休时投两次d20并记下骰出的骰值。此后，你可以用这两组预见骰骰值中的任意一个，替代任何"
+    },
+    {
+      "name": "预言专家",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第6级起，你对施展预言法术的技巧驾轻就熟，几乎不用使什么力气。你用法术位施展一道环阶不低于二环的预言系法术时，你恢复一个已消耗的法术位。所恢复的法术位环阶必须低"
+    },
+    {
+      "name": "天眼通",
+      "role": "active",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第10级起，你可以用你的动作增强你的感知能力。使用此特性时，你选择以下增益其中之一并获得之。其效应将持续至你陷入失能状态，或直至你开始一次短休或长休为之。你必须"
+    },
+    {
+      "name": "高等预兆",
+      "role": "passive",
+      "guess": null,
+      "covered": false,
+      "sources": [
+        "职业:法师",
+        "职业:法师"
+      ],
+      "text": "第14级起，你梦中的景象更为清晰精确的在你意识中描绘出了将要发生的一切。在你的预兆特性中，每次长休你都可以投掷三枚D20，而不再是两枚。"
+    }
+  ]
+}
