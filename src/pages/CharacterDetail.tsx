@@ -138,6 +138,7 @@ function isFeatureLevelUnlocked(f: Feature, charLevel: number, seedLevelByKey: M
 // ===== 特性作用方式分类（FeatureRole）=====
 // 分类引擎共享于 src/data/featureRole.ts（战斗参战者弹窗的主动技能区也依赖同一套派生）
 import { FEATURE_RENDER_ORDER, FEATURE_ROLE_META, deriveFeatureRole } from '@/data/featureRole';
+import { resolvePassiveTraitMeta } from '@/data/passiveRules';
 
 function renderSpellDice(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
@@ -1576,6 +1577,24 @@ export default function CharacterDetail({
         >
           引擎
         </button>
+        {/* 被动徽标三态：engine=已接入引擎自动派生 / mechanic=机制·DM裁定 / setting=纯设定（P4） */}
+        {role === 'passive' && (() => {
+          const pm = resolvePassiveTraitMeta(feature.name);
+          const meta = pm.kind === 'engine'
+            ? { label: '已接入引擎', chip: 'bg-emerald-500/15 text-emerald-500' }
+            : pm.kind === 'setting'
+              ? { label: '设定型', chip: 'bg-gray-500/15 text-gray-500' }
+              : { label: '机制·DM裁定', chip: 'bg-amber-500/15 text-amber-500' };
+          return (
+            <span
+              data-passive-badge={pm.kind}
+              className={`px-1.5 py-0.5 rounded-full text-xs flex-shrink-0 ${meta.chip}`}
+              title={pm.note ?? `${meta.label}：${feature.name}`}
+            >
+              {meta.label}
+            </span>
+          );
+        })()}
         <span className="relative flex-shrink-0">
           <button
             onClick={() => setRoleMenuId(roleMenuId === feature.id ? '' : feature.id)}
