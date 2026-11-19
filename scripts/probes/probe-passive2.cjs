@@ -63,6 +63,16 @@ async function main() {
     out.s2 = ar.detectAdvantage({ scene: 'saving_throw', attacker: { id: 'c1' }, attackerCharacter: dwarfChar, saveAbility: 'dexterity', roster: [] }).advantage.map(a => a.label);
     out.s3 = ar.detectAdvantage({ scene: 'saving_throw', attacker: { id: 'c1' }, attackerCharacter: dwarfChar, saveAbility: 'wisdom', roster: [] }).advantage.map(a => a.label);
 
+    // 类1 新条目（P4）：法术抗性（spell 表）/ 大地行者（植物效应 spellMatch）
+    const caster = mk('验·术士', [
+      { name: '魔法抗性', description: '对法术豁免优势' },
+      { name: '法术抗性', description: '对法术豁免优势' },
+    ], { profession: { class: '术士' } });
+    out.s4 = ar.detectAdvantage({ scene: 'saving_throw', attacker: { id: 'c1' }, attackerCharacter: characterStore.get(caster), saveAbility: 'wisdom', sourceSpellName: '火球术', roster: [] }).advantage.map(a => a.label).join('|');
+    const druid = mk('验·德鲁伊', [{ name: '大地行者', description: '对植物效应豁免优势' }], { profession: { class: '德鲁伊' } });
+    out.s5 = ar.detectAdvantage({ scene: 'saving_throw', attacker: { id: 'c1' }, attackerCharacter: characterStore.get(druid), saveAbility: 'strength', sourceSpellName: '纠缠术', roster: [] }).advantage.map(a => a.label).join('|');
+    out.s6 = ar.detectAdvantage({ scene: 'saving_throw', attacker: { id: 'c1' }, attackerCharacter: characterStore.get(druid), saveAbility: 'strength', sourceSpellName: '火球术', roster: [] }).advantage.map(a => a.label).join('|');
+
     // 类2 伤害抗性/免疫
     const dragonborn = mk('验·龙裔', [
       { name: '伤害抗性', description: '你获得火焰伤害的抗性' },
@@ -71,6 +81,10 @@ async function main() {
     const aff = m.deriveCharacterAffinities(characterStore.get(dragonborn));
     out.f1 = (aff?.resistances ?? []).map(e => e.types);
     out.f2 = (aff?.immunities ?? []).map(e => e.types);
+
+    // 类2 新条目（P4）：思维之盾 → 心灵抗性
+    const mindShield = mk('验·魔导师', [{ name: '思维之盾', description: '心灵伤害抗性' }], { profession: { class: '魔导师' } });
+    out.f3 = (m.deriveCharacterAffinities(characterStore.get(mindShield))?.resistances ?? []).map(e => e.types).flat().join(',');
 
     // 类3 无甲防御 AC + 类4 速度修正
     const barbarian = mk('验·野蛮人', [{ name: '无甲防御', description: 'AC=10+敏捷+体质' }], { profession: { class: '野蛮人' } });
@@ -119,9 +133,13 @@ async function main() {
   check('1a 矮人体魄毒豁免优势', (unit.s1 || []).some(l => l.includes('矮人体魄')), unit.s1);
   check('1b 险境感知未知来源DEX优势', (unit.s2 || []).length >= 1, unit.s2);
   check('1c WIS未知来源不误报', (unit.s3 || []).length === 0, unit.s3);
-  // 类2
+  check('1d 法术抗性（spell 表）：对法术豁免双命中', typeof unit.s4 === 'string' && unit.s4.includes('魔法抗性') && unit.s4.includes('法术抗性'), unit.s4);
+  check('1e 大地行者：纠缠术命中', typeof unit.s5 === 'string' && unit.s5.includes('大地行者'), unit.s5);
+  check('1f 大地行者：火球术不误报', (unit.s6 || []).length === 0 || !unit.s6.includes('大地行者'), unit.s6);
+
   check('2a 龙裔火焰抗性', (unit.f1 || []).flat().includes('火焰'), unit.f1);
   check('2b 百病不侵毒素免疫', (unit.f2 || []).flat().includes('毒素'), unit.f2);
+  check('2c 思维之盾：心灵伤害抗性', unit.f3 === '心灵', unit.f3);
   // 类3
   check('3a 野蛮人无甲AC15', unit.a1 === 15, unit.a1);
   check('3b 穿甲后无无甲AC', unit.a2 === null, unit.a2);
@@ -266,6 +284,7 @@ async function main() {
           { name: '黑暗视觉', description: '你拥有 60 尺的黑暗视觉。', category: '种族' },
           { name: '观察者', description: '被动感知+5', category: '专长' },
           { name: '警觉', description: '先攻+5', category: '专长' },
+          { name: '出神', description: '4 小时冥想代替 8 小时睡眠。', category: '种族' },
         ],
       });
     });
@@ -296,6 +315,30 @@ async function main() {
   check('UI-a 先攻弹窗显示警觉+5', ui.dlg && ui.alert5, ui);
   check('UI-b 面板显示被动感知20', ui.panel, ui);
   check('UI-c 面板显示黑暗视觉60尺', ui.dv, ui);
+
+  // ===== 2.5 被动徽标三态（CharacterDetail：engine=已接入引擎 / mechanic=DM裁定 / setting=设定型）=====
+  let badge = { step: 'start', engine: 0, mechanic: 0, setting: 0 };
+  try {
+    const charId = await page.evaluate(async () => {
+      const { characterStore } = await import('/src/data/characterStore.ts');
+      return characterStore.getAll().find(c => c.name === '验收·入战卡')?.id ?? '';
+    });
+    badge.step = 'goto-detail';
+    await page.goto(BASE + '/characters/' + charId, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(700);
+    badge.step = 'passive-tab';
+    await page.click('button:has-text("被动技能")').catch(() => {});
+    await page.waitForTimeout(500);
+    badge.step = 'count';
+    badge.engine = await page.locator('[data-passive-badge="engine"]').count();
+    badge.mechanic = await page.locator('[data-passive-badge="mechanic"]').count();
+    badge.setting = await page.locator('[data-passive-badge="setting"]').count();
+  } catch (e) {
+    console.error('Badge smoke error at', badge.step, ':', e.message.split('\n')[0]);
+  }
+  check('UI-d 徽标 engine≥2（黑暗视觉/观察者已接入表）', badge.engine >= 2, badge);
+  check('UI-e 徽标 mechanic≥1（警觉未标注默认 DM 裁定）', badge.mechanic >= 1, badge);
+  check('UI-f 徽标 setting=1（出神显式标注）', badge.setting === 1, badge);
 
   console.log(`\n==== probe-passive2: ${pass} pass, ${fail} fail ====`);
   await browser.close();

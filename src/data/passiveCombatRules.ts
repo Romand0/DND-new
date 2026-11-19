@@ -1,10 +1,10 @@
-// PC 角色卡被动战斗规则引擎：声明式规则表驱动的被动效果
+// PC 角色卡被动战斗规则引擎：规则表驱动的被动效果（P4 数据化——表迁至 passiveRules.ts，本文件只留派生逻辑）
 //   类1 优劣势/豁免触发（advantageRules 的 passive 检测器数据源）
 //   类2 伤害抗性/免疫（combatant.damageAffinities 的角色卡派生源）
 //   类3 AC 公式替换（无甲防御）与速度加成（快速移动/无甲移动）
 //   类4 被动检定三件套 / 类5 黑暗视觉 / 类6 先攻优劣势
 // 七类口径冻结表见 .monkeycode/specs/passive-engine/progress.md。
-// 纯函数 + 常量表：种子条目名（种族特质/职业特性）是稳定键，文本正则只用于
+// 纯函数 + 数据表：种子条目名（种族特质/职业特性）是稳定键，文本正则只用于
 // 参数提取（如龙裔抗性类型取自「龙族血统」条目），不靠正则识别条目本身。
 import type { Character } from '@/types/character';
 import type { Combatant, AdvantageResult, PassiveChecks } from '@/types/combat';
@@ -12,6 +12,20 @@ import type { AdvantageContext } from '@/data/advantageRules';
 import type { DamageAffinitySet, DamageType, AffinityEntry } from '@/types/damage';
 import { extractDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
+import type { AbilityKey, PassiveAuraRule } from '@/data/passiveRules';
+import {
+  PASSIVE_SAVE_RULES,
+  PASSIVE_SAVE_ADVANTAGE_SPELL_RULES,
+  PASSIVE_AURA_RULES,
+  AFFINITY_RULES,
+  UNARMORED_AC_RULES,
+  SPEED_MOD_RULES,
+  MONK_UNARMORED_SPEED_TIERS,
+  PASSIVE_CHECK_BONUS_RULES,
+  DARKVISION_TRAIT_RANGES,
+  DARKVISION_RACE_FALLBACK,
+  INITIATIVE_ADVANTAGE_RULES,
+} from '@/data/passiveRules';
 
 // =======================
 // 特性携带判定
@@ -31,33 +45,6 @@ function hasAnyTraitOrRace(char: Character | null | undefined, names: string[]):
 // =======================
 // 类2：伤害抗性/免疫派生
 // =======================
-
-interface AffinityRule {
-  /** 触发条目名（features 中的 name） */
-  trait: string;
-  /** 仅职业子类持有（如龙族体魄属术士·龙族血脉），需要 occupation 前缀匹配 */
-  occupationIncludes?: string;
-  kind: 'resistance' | 'immunity';
-  /** 固定伤害类型；留空时按 textFrom 提取 */
-  types?: DamageType[];
-  /** 从这些条目的文本依次提取伤害类型（龙裔品种可能写在「龙族血统」或「伤害抗性」自身描述里） */
-  textFrom?: string[];
-  /** 无法自动判定的附加说明（进 affinity notes，提示 DM） */
-  note?: string;
-}
-
-const AFFINITY_RULES: AffinityRule[] = [
-  { trait: '炎狱抗性', kind: 'resistance', types: ['火焰'] },
-  { trait: '矮人体魄', kind: 'resistance', types: ['毒素'] },
-  {
-    trait: '伤害抗性',
-    textFrom: ['龙族血统', '伤害抗性'],
-    kind: 'resistance',
-    note: '抗性类型由龙族血统品种决定（自动识别，异常时请人工核对）',
-  },
-  { trait: '百病不侵', kind: 'immunity', types: ['毒素'], note: '另免疫疾病（非伤害类型，需 DM 记录）' },
-  { trait: '自然之护', kind: 'immunity', types: ['毒素'], note: '另免疫疾病；魅惑/恐慌免疫仅限元素生物与妖精来源' },
-];
 
 /** 构造亲和条目（id 稳定：同卡同条目名只命中一次） */
 function makeEntry(id: string, kind: AffinityEntry['kind'], types: DamageType[], note?: string): AffinityEntry {
@@ -106,25 +93,6 @@ export function deriveCharacterAffinities(char: Character | null | undefined): D
 // 类3：无甲防御 AC 公式
 // =======================
 
-type AbilityKey = 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
-
-interface UnarmoredAcRule {
-  trait: string;
-  /** 公式额外属性（10+敏+X 的 X） */
-  extraAbility: AbilityKey;
-  /** 武僧版要求未持盾才生效；野蛮人/龙族体魄可用盾 */
-  shieldForbidden: boolean;
-  /** 识别职业（野蛮人/武僧同名条目区分公式；龙族体魄按职业） */
-  occupationIncludes?: string;
-}
-
-// 武僧「没持用盾牌时」才生效；野蛮人「使用盾牌不会影响获益」；龙族体魄（术士·龙族血脉）未着装护甲即生效
-const UNARMORED_AC_RULES: UnarmoredAcRule[] = [
-  { trait: '无甲防御', extraAbility: 'constitution', shieldForbidden: false, occupationIncludes: '野蛮人' },
-  { trait: '无甲防御', extraAbility: 'wisdom', shieldForbidden: true, occupationIncludes: '武僧' },
-  { trait: '龙族体魄', extraAbility: 'charisma', shieldForbidden: false, occupationIncludes: '术士' },
-];
-
 export interface UnarmoredAcProfile {
   extraAbility: AbilityKey;
   shieldForbidden: boolean;
@@ -163,21 +131,12 @@ export function resolveUnarmoredAc(
 }
 
 // =======================
-// 类3：速度加成（快速移动 / 无甲移动）
+// 类3：速度加成（快速移动 / 无甲移动——SPEED_MOD_RULES 表驱动）
 // =======================
-
-/** 武僧无甲移动档位：PHB 职业表（L2 +10 / L6 +15 / L10 +20 / L14 +25 / L18 +30） */
-const MONK_UNARMORED_SPEED_TIERS: { level: number; bonus: number }[] = [
-  { level: 18, bonus: 30 },
-  { level: 14, bonus: 25 },
-  { level: 10, bonus: 20 },
-  { level: 6, bonus: 15 },
-  { level: 2, bonus: 10 },
-];
 
 /**
  * 派生参战者速度修正（写入 combatant.speedModifier，combatStore 消耗移动力时叠加）。
- * @param wearingHeavyArmor 战斗背包中是否穿戴重甲（快速移动失效条件）
+ * @param wearingHeavyArmor 战斗背包中是否穿戴重甲（快速移动/无甲移动失效条件）
  * @param combatShieldHeld 战斗层是否持盾（无甲移动失效条件之一）
  */
 export function deriveSpeedModifier(
@@ -185,15 +144,19 @@ export function deriveSpeedModifier(
   opts: { wearingHeavyArmor?: boolean; combatShieldHeld?: boolean } = {}
 ): number {
   if (!char) return 0;
+  // 等级取卡面等级与经验推导值的较大者（影子卡可能只填 level；真实卡两处一致）
+  const level = Math.max(char.level ?? 1, characterStore.getLevelFromExp(char.experience ?? 0) || 1);
   let bonus = 0;
-  if (hasActiveTrait(char, '快速移动') && !opts.wearingHeavyArmor) {
-    bonus += 10;
-  }
-  if (hasActiveTrait(char, '无甲移动') && !opts.wearingHeavyArmor && !opts.combatShieldHeld) {
-    // 等级取卡面等级与经验推导值的较大者（影子卡可能只填 level；真实卡两处一致）
-    const level = Math.max(char.level ?? 1, characterStore.getLevelFromExp(char.experience ?? 0) || 1);
-    const tier = MONK_UNARMORED_SPEED_TIERS.find((t) => level >= t.level);
-    if (tier) bonus += tier.bonus;
+  for (const rule of SPEED_MOD_RULES) {
+    if (!hasActiveTrait(char, rule.trait)) continue;
+    if (rule.heavyArmorForbidden && opts.wearingHeavyArmor) continue;
+    if (rule.shieldForbidden && opts.combatShieldHeld) continue;
+    if (rule.flatBonus) {
+      bonus += rule.flatBonus;
+    } else if (rule.tierTable === 'monk') {
+      const tier = MONK_UNARMORED_SPEED_TIERS.find((t) => level >= t.level);
+      if (tier) bonus += tier.bonus;
+    }
   }
   return bonus;
 }
@@ -209,11 +172,7 @@ const PASSIVE_CHECK_DEFS = [
   { key: 'investigation', ability: 'intelligence', skill: 'investigation' },
 ] as const;
 
-/** 特性对被动检定的固定修正（条目名是稳定键） */
-const PASSIVE_CHECK_BONUS_RULES: { trait: string; target: keyof PassiveChecks; bonus: number }[] = [
-  // 专长「观察者」：被动感知 +5
-  { trait: '观察者', target: 'perception', bonus: 5 },
-];
+/** 特性对被动检定的固定修正：PASSIVE_CHECK_BONUS_RULES（passiveRules.ts）表驱动 */
 
 /**
  * 派生被动检定三件套（PC 入战快照，写入 combatant.passiveChecks）。
@@ -240,18 +199,6 @@ export function derivePassiveChecks(char: Character | null | undefined): Passive
 // 类5：黑暗视觉（Darkvision）
 // =======================
 
-/** 种子条目名 → 尺数（名字是稳定键；条目文本提取失败时兜底） */
-const DARKVISION_TRAIT_RANGES: { match: RegExp; range: number }[] = [
-  { match: /增强黑暗视觉/, range: 120 },
-  { match: /黑暗视觉/, range: 60 },
-];
-
-/** 无条目时按种族名兜底（角色卡 race 只填种族名的旧数据） */
-const DARKVISION_RACE_FALLBACK: { match: RegExp; range: number }[] = [
-  { match: /黑暗精灵|卓尔/, range: 120 },
-  { match: /矮人|精灵|侏儒|半精灵|半兽人|提夫林/, range: 60 },
-];
-
 /**
  * 派生黑暗视觉尺数（PC 入战快照，写入 combatant.darkvision）。
  * features / race 字段里找「黑暗视觉」条目：文本提取尺数优先，失败按条目名兜底；
@@ -276,7 +223,7 @@ export function deriveDarkvision(char: Character | null | undefined): number | u
 }
 
 // =======================
-// 类6：先攻优劣势（野性直觉）
+// 类6：先攻优劣势（INITIATIVE_ADVANTAGE_RULES 表驱动）
 // =======================
 
 /**
@@ -285,9 +232,10 @@ export function deriveDarkvision(char: Character | null | undefined): number | u
  */
 export function deriveInitiativeAdvantage(char: Character | null | undefined): AdvantageResult['advantage'][number] | null {
   if (!char) return null;
-  // 野蛮人 L7「野性直觉」：骰先攻时具有优势
-  if (hasActiveTrait(char, '野性直觉')) {
-    return { kind: 'trait', label: '野性直觉（先攻优势：请掷 2d20 取较高值）' };
+  for (const rule of INITIATIVE_ADVANTAGE_RULES) {
+    if (hasActiveTrait(char, rule.trait)) {
+      return { kind: 'trait', label: rule.label };
+    }
   }
   return null;
 }
@@ -309,57 +257,8 @@ function hasActiveTrait(char: Character | null | undefined, name: string): boole
 }
 
 // =======================
-// 类1：优劣势/豁免触发规则表（advantageRules passive 检测器的数据源）
+// 类1：优劣势/豁免触发规则表（PASSIVE_SAVE_RULES / PASSIVE_SAVE_ADVANTAGE_SPELL_RULES / PASSIVE_AURA_RULES——passiveRules.ts）
 // =======================
-
-interface PassiveSaveRule {
-  trait: string;
-  /** 兼容旧手录卡的别名（半身人勇气在部分卡上写作「勇敢」） */
-  alias?: string;
-  label: string;
-  /** 限定豁免属性；缺省任意 */
-  saveAbility?: AbilityKey[];
-  /** 豁免来源名（法术名/效应名）必须命中（保守模式：识别不了来源不自动给优势，DM 手动） */
-  spellMatch?: RegExp;
-  /** true = 来源未知时也自动命中（险境感知：DEX 豁免绝大多数是可见区域效应） */
-  unrestricted?: boolean;
-}
-
-const PASSIVE_SAVE_RULES: PassiveSaveRule[] = [
-  { trait: '矮人体魄', label: '矮人体魄（对毒素豁免优势）', saveAbility: ['constitution'], spellMatch: /毒/ },
-  { trait: '勇气', alias: '勇敢', label: '勇气（对恐慌豁免优势）', spellMatch: /恐惧|恐慌/ },
-  { trait: '妖精血统', label: '妖精血统（对魅惑豁免优势）', spellMatch: /魅惑|催眠/ },
-  {
-    trait: '侏儒狡黠',
-    label: '侏儒狡黠（对魔法的智力/感知/魅力豁免优势）',
-    saveAbility: ['intelligence', 'wisdom', 'charisma'],
-    spellMatch: /./,
-  },
-  { trait: '险境感知', label: '险境感知（DEX 豁免优势）', saveAbility: ['dexterity'], unrestricted: true },
-];
-
-/** 对法术豁免优势类（对齐魔法抗性兜底哲学：豁免上下文无效应类型，给优势由 DM 手动取消） */
-const PASSIVE_SAVE_ADVANTAGE_SPELL_RULES: PassiveSaveRule[] = [
-  { trait: '魔法抗性', label: '魔法抗性（对法术及魔法效应豁免优势）' },
-];
-
-/**
- * 光环规则：同阵营持有者在 N 格内时，被检定者获优势。
- * 守护灵光（圣武士 L6，10 尺 = 2 格）：豁免优势；勇气灵光（L10）：恐慌免疫 → 恐惧豁免优势近似。
- */
-interface PassiveAuraRule {
-  trait: string;
-  label: string;
-  saveAbility?: AbilityKey[];
-  spellMatch?: RegExp;
-  /** 光环半径（格）；10 尺 = 2 格 */
-  radiusCells: number;
-}
-
-const PASSIVE_AURA_RULES: PassiveAuraRule[] = [
-  { trait: '守护灵光', label: '守护灵光（圣武士光环：豁免优势）', radiusCells: 2 },
-  { trait: '勇气灵光', label: '勇气灵光（圣武士光环：恐慌免疫）', spellMatch: /恐惧|恐慌/, radiusCells: 2 },
-];
 
 function findAuraBenefactor(
   ctx: AdvantageContext,
