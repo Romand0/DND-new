@@ -122,10 +122,11 @@ export default function FeatureAoeSaveModal({ caster, featureName, combatants, c
       return;
     }
     const results = buildResults();
+    // message 落先攻表/事件流（logRichText 标记语言）：数值【】、豁免通过/失败关键字
     const hitText = results.length === 0
       ? '范围内没有目标'
-      : results.map(r => `${r.name}（豁免 ${r.roll}${r.saveBonus >= 0 ? '+' : ''}${r.saveBonus}=${r.total} vs DC${r.dc} ${r.success ? '成功' : '失败'}${r.damage > 0 ? `，${r.damage} 点${r.damageType}` : '，免疫'}）`).join('、');
-    const message = `${featureName}：${pick.shapeLabel} @ (${pick.origin.col},${pick.origin.row})，${damageType} ${damageAmount} 点；${hitText}`;
+      : results.map(r => `${r.name}（豁免 ${r.roll}${r.saveBonus >= 0 ? '+' : ''}${r.saveBonus}=${r.total} vs DC${r.dc} ${r.success ? '豁免通过' : '失败'}${r.damage > 0 ? `，【${r.damage}】点${r.damageType}` : '，免疫'}）`).join('、');
+    const message = `${featureName}：${pick.shapeLabel} @ (${pick.origin.col},${pick.origin.row})，${damageType}【${damageAmount}】点；${hitText}`;
     onResolve({
       direction: pick.direction,
       origin: pick.origin,

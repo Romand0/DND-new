@@ -605,7 +605,7 @@ export default function PlayerSpectate() {
                     kind: 'feature-use',
                     featureName: feature.name,
                     activation: feature.activation,
-                    roundText: `发动「${feature.name}」（命中时 DM 结算）`,
+                    roundText: `发动《${feature.name}》（命中时 DM 结算）`,
                   });
                   return;
                 }
@@ -636,7 +636,7 @@ export default function PlayerSpectate() {
                       ...(feature.poolKey ? { poolKey: feature.poolKey, cost: feature.cost ?? 1 } : {}),
                       healAmount: plan.amount,
                       activation: feature.activation,
-                      roundText: `发动「${feature.name}」→ ${cap.heal.type === 'temp' ? '获得临时生命' : '恢复'} ${plan.amount}（${plan.detail}）${feature.poolKey ? `，${feature.cost ?? 1} 点` : ''}`,
+                      roundText: `发动《${feature.name}》→ ${cap.heal.type === 'temp' ? '获得临时生命' : '恢复'}【${plan.amount}】（${plan.detail}）${feature.poolKey ? `，【${feature.cost ?? 1}】点` : ''}`,
                     });
                     return;
                   }
@@ -651,7 +651,7 @@ export default function PlayerSpectate() {
                   featureName: feature.name,
                   ...(feature.poolKey ? { poolKey: feature.poolKey, cost: feature.cost ?? 1 } : {}),
                   activation: feature.activation,
-                  roundText: `发动「${feature.name}」${feature.poolKey ? `（${feature.cost ?? 1} 点）` : ''}`,
+                  roundText: `发动《${feature.name}》${feature.poolKey ? `（【${feature.cost ?? 1}】点）` : ''}`,
                 });
               }}
             />
@@ -673,7 +673,7 @@ export default function PlayerSpectate() {
                     ...(checkModifierPick.feature.poolKey ? { poolKey: checkModifierPick.feature.poolKey, cost: checkModifierPick.feature.cost ?? 1 } : {}),
                     targetId,
                     activation: checkModifierPick.feature.activation,
-                    roundText: `发动「${checkModifierPick.feature.name}」→ ${targetName}${checkModifierPick.feature.poolKey ? `（${checkModifierPick.feature.cost ?? 1} 点）` : ''}`,
+                    roundText: `发动《${checkModifierPick.feature.name}》→ ${targetName}${checkModifierPick.feature.poolKey ? `（【${checkModifierPick.feature.cost ?? 1}】点）` : ''}`,
                   });
                   setCheckModifierPick(null);
                 }}
@@ -696,7 +696,7 @@ export default function PlayerSpectate() {
                     ...(convTargetPick.feature.poolKey ? { poolKey: convTargetPick.feature.poolKey, cost: convTargetPick.feature.cost ?? 1 } : {}),
                     convertTarget: target,
                     activation: convTargetPick.feature.activation,
-                    roundText: `发动「${convTargetPick.feature.name}」→ ${CONV_TARGET_LABELS[target] ?? target}${convTargetPick.feature.poolKey ? `（${convTargetPick.feature.cost ?? 1} 点）` : ''}`,
+                    roundText: `发动《${convTargetPick.feature.name}》→ ${CONV_TARGET_LABELS[target] ?? target}${convTargetPick.feature.poolKey ? `（【${convTargetPick.feature.cost ?? 1}】点）` : ''}`,
                   });
                   setConvTargetPick(null);
                 }}
@@ -720,7 +720,7 @@ export default function PlayerSpectate() {
                   direction: aoeDamagePending.direction,
                   aoeDamage,
                   activation: aoeDamagePending.feature.activation,
-                  roundText: `${aoeDamagePending.roundText}，掷 ${aoeDamagePending.diceText}=${aoeDamage}`,
+                  roundText: `${aoeDamagePending.roundText}，掷 ${aoeDamagePending.diceText}=【${aoeDamage}】`,
                 });
                 setAoeDamagePending(null);
               }}
@@ -745,7 +745,7 @@ export default function PlayerSpectate() {
                     ...(healRollPick.feature.poolKey ? { poolKey: healRollPick.feature.poolKey, cost: healRollPick.feature.cost ?? 1 } : {}),
                     healAmount: plan.amount,
                     activation: healRollPick.feature.activation,
-                    roundText: `发动「${healRollPick.feature.name}」→ ${cap.heal!.type === 'temp' ? '获得临时生命' : '恢复'} ${plan.amount}（${plan.detail}）${healRollPick.feature.poolKey ? `，${healRollPick.feature.cost ?? 1} 点` : ''}`,
+                    roundText: `发动《${healRollPick.feature.name}》→ ${cap.heal!.type === 'temp' ? '获得临时生命' : '恢复'}【${plan.amount}】（${plan.detail}）${healRollPick.feature.poolKey ? `，【${healRollPick.feature.cost ?? 1}】点` : ''}`,
                   });
                   setHealRollPick(null);
                 }}
@@ -763,7 +763,7 @@ export default function PlayerSpectate() {
             const packOp = (_msg: string, data: Record<string, unknown>) => {
               const direction = (data.direction as Bearing) ?? 'E';
               const diceText = resolveFeatureCapability(aoePick.feature.name).aoeSave?.damage?.dice;
-              const baseText = `发动「${aoePick.feature.name}」（${data.shapeLabel ?? '范围'}，朝向${BEARING_LABELS[direction] ?? direction}）${aoePick.feature.poolKey ? `（${aoePick.feature.cost ?? 1} 点）` : ''}`;
+              const baseText = `发动《${aoePick.feature.name}》（${data.shapeLabel ?? '范围'}，朝向${BEARING_LABELS[direction] ?? direction}）${aoePick.feature.poolKey ? `（【${aoePick.feature.cost ?? 1}】点）` : ''}`;
               // aoe 骰值环节（线下骰口径）：spec 带伤害骰 → 先填玩家线下掷骰结果再打包；无骰式直接提交
               if (diceText) {
                 setAoeDamagePending({

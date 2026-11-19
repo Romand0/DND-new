@@ -992,8 +992,8 @@ export interface CombatEvent {
   /** 1-based 回合（模拟模式为 0） */
   round: number;
   at: number;
-  kind: 'attack' | 'move' | 'cast' | 'damage' | 'heal' | 'note';
-  /** 自然语言摘要（回合摘要面板直接渲染） */
+  kind: 'attack' | 'move' | 'cast' | 'damage' | 'heal' | 'note' | 'skill';
+  /** 自然语言摘要（回合摘要面板直接渲染；写入端用 logRichText 标记语言，《名称》/【数值】） */
   text: string;
   /** 发起者（移动/攻击/施法者） */
   actorId?: string;

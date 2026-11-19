@@ -22,19 +22,20 @@ export function planHealAmount(spec: HealSpec, casterLevel: number, rolledDice?:
   if (m) {
     if (rolledDice != null && rolledDice >= 0) {
       total += rolledDice;
-      parts.push(`${spec.dice}(线下骰)=${rolledDice}`);
+      // detail 是结算文本（先攻表/事件流）与预览共用源，数值走 logRichText 标记语言
+      parts.push(`${spec.dice}(线下骰)=【${rolledDice}】`);
     } else {
       parts.push(`${spec.dice}未填(跳过)`);
     }
   }
   if (typeof spec.flat === 'number' && spec.flat > 0) {
     total += spec.flat;
-    parts.push(`固定 ${spec.flat}`);
+    parts.push(`固定【${spec.flat}】`);
   }
   if (spec.levelFactor != null && spec.levelFactor !== 0) {
     const lv = spec.levelFactor * Math.max(0, casterLevel);
     total += lv;
-    parts.push(`${spec.levelAttr ?? '等级'}×${spec.levelFactor}=${lv}`);
+    parts.push(`${spec.levelAttr ?? '等级'}×${spec.levelFactor}=【${lv}】`);
   }
   return { amount: total, detail: parts.length > 0 ? parts.join(' + ') : '0' };
 }

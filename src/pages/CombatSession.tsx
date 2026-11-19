@@ -1081,7 +1081,8 @@ export default function CombatSession() {
     else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
     const channelResult = executeFeatureChannel(record, from, featureName, currentRound0, { targetId });
-    recordOperation(from.id, `发动「${featureName}」${channelResult.note ? `：${channelResult.note}` : ''}`, 'record');
+    recordOperation(from.id, `发动《${featureName}》${channelResult.note ? `：${channelResult.note}` : ''}`, 'record');
+    combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId, text: `《${featureName}》→ ${channelResult.note ?? '发动'}` });
     setCheckModifierModal(null);
   };
 
@@ -1114,6 +1115,7 @@ export default function CombatSession() {
       }
     }
     recordOperation(from.id, payload.message, 'damage');
+    combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, text: `《${featureName}》→ ${payload.message}` });
     setAoeSaveModal(null);
   };
 
@@ -1171,7 +1173,7 @@ export default function CombatSession() {
     else if (feature.activation === 'bonus') consumeCombatantBonusAction(c.id);
     // 5. 通道路由：status/advantage 走通道执行器（挂状态/pending 优劣势），reaction 说明自动触发，
     //    manual 提示 DM 手动结算
-    recordOperation(c.id, `发动「${feature.name}」`, 'record');
+    recordOperation(c.id, `发动《${feature.name}》`, 'record');
     // heal 通道（P3）：执行器掷定恢复量计划，HP 落库走 handleApplyHealing（hp 型）/ addTempHp（temp 型）
     if (capability.channel === 'heal' && capability.heal) {
       const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
@@ -1179,12 +1181,22 @@ export default function CombatSession() {
       if (r.heal) {
         if (r.heal.type === 'temp') {
           const tp = combatStore.addTempHp(record.id, r.heal.targetId, r.heal.amount);
-          alert(`「${feature.name}」：${c.name} 获得临时生命 ${tp ?? r.heal.amount}（${r.heal.detail}）`);
+          const healLine = `《${feature.name}》→ ${c.name} 获得临时生命【${tp ?? r.heal.amount}】（${r.heal.detail}）`;
+          recordOperation(c.id, healLine, 'record');
+          combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: c.id, targetId: r.heal.targetId, text: healLine });
+          // alert 是 DM 直读 UI，剥离标记符号（detail 与先攻表/事件流共用）
+          alert(`「${feature.name}」：${c.name} 获得临时生命 ${tp ?? r.heal.amount}（${r.heal.detail.replace(/[【】]/g, '')}）`);
         } else {
           const hr = handleApplyHealing(r.heal.targetId, r.heal.amount);
-          alert(`「${feature.name}」：${c.name} 恢复 ${hr?.healed ?? 0} 点生命（${r.heal.detail}${hr != null && hr.healed < r.heal.amount ? '，已达生命上限' : ''}）`);
+          const healLine = `《${feature.name}》→ ${c.name} 恢复【${hr?.healed ?? 0}】点生命（${r.heal.detail}）`;
+          recordOperation(c.id, healLine, 'record');
+          combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: c.id, targetId: r.heal.targetId, text: healLine });
+          alert(`「${feature.name}」：${c.name} 恢复 ${hr?.healed ?? 0} 点生命（${r.heal.detail.replace(/[【】]/g, '')}${hr != null && hr.healed < r.heal.amount ? '，已达生命上限' : ''}）`);
         }
       } else if (r.note) {
+        const noteLine = `《${feature.name}》→ ${r.note}`;
+        recordOperation(c.id, noteLine, 'record');
+        combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: c.id, text: noteLine });
         alert(`「${feature.name}」：${r.note}`);
       }
       return;
@@ -1194,6 +1206,9 @@ export default function CombatSession() {
       const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
       const r = executeFeatureChannel(record, c, feature.name, currentRound0, { convertTarget: capability.resourceConv.convert?.to[0] });
       if (r.note) {
+        const noteLine = `《${feature.name}》→ ${r.note}`;
+        recordOperation(c.id, noteLine, 'record');
+        combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: c.id, text: noteLine });
         alert(`「${feature.name}」：${r.note}`);
       }
       return;
@@ -1216,6 +1231,9 @@ export default function CombatSession() {
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
     const channelResult = executeFeatureChannel(record, c, feature.name, currentRound0);
     if (channelResult.note) {
+      const noteLine = `《${feature.name}》→ ${channelResult.note}`;
+      recordOperation(c.id, noteLine, 'record');
+      combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: c.id, text: noteLine });
       alert(`「${feature.name}」：${channelResult.note}`);
     }
   };
@@ -1240,10 +1258,13 @@ export default function CombatSession() {
     }
     if (activation === 'action') consumeCombatantAction(from.id);
     else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
-    recordOperation(from.id, `发动「${featureName}」→ ${CONV_TARGET_LABELS[target] ?? target}`, 'record');
+    recordOperation(from.id, `发动《${featureName}》→ ${CONV_TARGET_LABELS[target] ?? target}`, 'record');
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
     const r = executeFeatureChannel(record, from, featureName, currentRound0, { convertTarget: target });
     if (r.note) {
+      const noteLine = `《${featureName}》→ ${r.note}`;
+      recordOperation(from.id, noteLine, 'record');
+      combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, text: noteLine });
       alert(`「${featureName}」：${r.note}`);
     }
   };
@@ -1270,18 +1291,28 @@ export default function CombatSession() {
     }
     if (activation === 'action') consumeCombatantAction(from.id);
     else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
-    recordOperation(from.id, `发动「${feature.name}」`, 'record');
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
     const r = executeFeatureChannel(record, from, feature.name, currentRound0, { rolledDice });
+    // 结算结果并入先攻表文本（对齐玩家回合包的两行语义：发动行 + 结算明细行）
+    recordOperation(from.id, `发动《${feature.name}》`, 'record');
     if (r.heal) {
       if (r.heal.type === 'temp') {
         const tp = combatStore.addTempHp(record.id, r.heal.targetId, r.heal.amount);
-        alert(`「${feature.name}」：${from.name} 获得临时生命 ${tp ?? r.heal.amount}（${r.heal.detail}）`);
+        const healLine = `《${feature.name}》→ ${from.name} 获得临时生命【${tp ?? r.heal.amount}】（${r.heal.detail}）`;
+        recordOperation(from.id, healLine, 'record');
+        combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId: r.heal.targetId, text: healLine });
+        alert(`「${feature.name}」：${from.name} 获得临时生命 ${tp ?? r.heal.amount}（${r.heal.detail.replace(/[【】]/g, '')}）`);
       } else {
         const hr = handleApplyHealing(r.heal.targetId, r.heal.amount);
-        alert(`「${feature.name}」：${from.name} 恢复 ${hr?.healed ?? 0} 点生命（${r.heal.detail}${hr != null && hr.healed < r.heal.amount ? '，已达生命上限' : ''}）`);
+        const healLine = `《${feature.name}》→ ${from.name} 恢复【${hr?.healed ?? 0}】点生命（${r.heal.detail}）`;
+        recordOperation(from.id, healLine, 'record');
+        combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId: r.heal.targetId, text: healLine });
+        alert(`「${feature.name}」：${from.name} 恢复 ${hr?.healed ?? 0} 点生命（${r.heal.detail.replace(/[【】]/g, '')}${hr != null && hr.healed < r.heal.amount ? '，已达生命上限' : ''}）`);
       }
     } else if (r.note) {
+      const noteLine = `《${feature.name}》→ ${r.note}`;
+      recordOperation(from.id, noteLine, 'record');
+      combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, text: noteLine });
       alert(`「${feature.name}」：${r.note}`);
     }
   };
