@@ -1,5 +1,6 @@
 import type { FlowDefinition, FlowNodeType } from '@/types/flow';
 import { NODE_CONFIG_SCHEMA, NODE_TYPE_REGISTRY, isConfigFieldVisible } from '@/types/flow';
+import type { FlowScript, ScriptBlock } from '@/types/flowScript';
 
 const VALID_NODE_TYPES = new Set(NODE_TYPE_REGISTRY.map(n => n.type));
 
@@ -139,8 +140,74 @@ export function validateFlowWithDetails(flow: FlowDefinition): ValidationError[]
   return errors;
 }
 
+// ===== 脚本树校验（Scratch 式积木模型） =====
+
+/** 单块配置必填检查（与图校验的节点配置检查同规则：schema required + 可见性） */
+function validateBlockConfig(nodeType: FlowNodeType, label: string, config: Record<string, any> | undefined, prefix: string, errors: ValidationError[]): void {
+  const schema = NODE_CONFIG_SCHEMA[nodeType];
+  if (!schema || !config || typeof config !== 'object') return;
+  for (const field of schema) {
+    if (!isConfigFieldVisible(field, config)) continue;
+    if (field.required && !field.allowEmpty && (config[field.key] === undefined || config[field.key] === null || config[field.key] === '')) {
+      errors.push({ type: 'node', id: label, message: `${prefix}「${label}」缺少必需配置: ${field.label}`, field: field.key });
+    }
+  }
+}
+
+/**
+ * 脚本树校验：配置必填（schema required）、帽子存在、条件分支条件非空（schema 覆盖）、块 id 唯一。
+ * 拓扑类错误（孤立块/悬空引用/重复连线/自环/缺分支出边）在树模型下结构性不存在，无需检查。
+ */
+export function validateScript(script: FlowScript | undefined | null): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (!script || !script.hat) {
+    errors.push({ type: 'global', message: '脚本缺少入口块（施法开始）' });
+    return errors;
+  }
+
+  const seenIds = new Set<string>();
+  const walk = (blocks: ScriptBlock[], pathLabel: string): void => {
+    for (const b of blocks) {
+      const prefix = pathLabel ? `${pathLabel} > ${b.label}` : b.label;
+      if (seenIds.has(b.id)) {
+        errors.push({ type: 'node', id: b.id, message: `${prefix} 的块 ID 重复: ${b.id}` });
+      } else {
+        seenIds.add(b.id);
+      }
+      if (!VALID_NODE_TYPES.has(b.nodeType as FlowNodeType)) {
+        errors.push({ type: 'node', id: b.id, message: `${prefix} 的块类型非法: ${b.nodeType}` });
+      }
+      validateBlockConfig(b.nodeType, b.label, b.config, pathLabel ? `${pathLabel} >` : '', errors);
+      if (b.kind === 'if') {
+        walk(b.onTrue, prefix);
+        walk(b.onFalse, prefix);
+      }
+    }
+  };
+
+  // 帽子块配置（cast_start 的 autoChecks 等）
+  validateBlockConfig('cast_start', script.hat.label, script.hat.config, '', errors);
+  walk(script.body, '');
+
+  return errors;
+}
+
 // 发布前特殊验证
 export function validateForPublish(flow: FlowDefinition) {
+  // 含脚本树的流程走脚本校验：拓扑类错误结构性不存在，只查配置完整性与结构唯一性
+  if (flow.script) {
+    const scriptErrors = validateScript(flow.script);
+    if (scriptErrors.length > 0) {
+      return {
+        valid: false,
+        error: `存在 ${scriptErrors.length} 个脚本验证错误`,
+        details: scriptErrors,
+        suggestions: ['请修复积木块标记的错误后再尝试发布', '选中块后在属性面板补全必填配置']
+      };
+    }
+    return { valid: true };
+  }
+
   // 1. 检查流程状态（法术绑定现在是可选的）
   // 已发布的流程可以不绑定法术，草稿也可以不绑定法术
 
