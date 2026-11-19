@@ -4,6 +4,7 @@
 import type { Spell } from './spell';
 import type { DamageSource } from './damage';
 import type { Combatant } from './combat';
+import type { FlowScript } from './flowScript';
 
 // ======================
 // 一、节点（Node）—— 游戏环节的原子单元
@@ -80,6 +81,8 @@ export interface FlowDefinition {
   description?: string;              // 流程描述
   nodes: FlowNodeDef[];              // 节点列表
   edges: FlowEdgeDef[];              // 边列表
+  /** 脚本树（Scratch 式积木模型）：编辑器唯一读写格式，发布时编译为 nodes/edges */
+  script?: FlowScript;
   tags?: string[];                   // 标签（用于检索和分类）
   version?: number;                  // 版本号（迭代管理）
   status?: 'draft' | 'published';    // 流程状态（草稿或已发布）
