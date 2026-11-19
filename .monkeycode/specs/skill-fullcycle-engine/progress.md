@@ -22,6 +22,7 @@
 | P4 被动扩容 | [x] 完成 | 分支 feature/fullcycle-p4，merge `643d7e7`，probe-passive2 45/45 + 全量 ALL PROBES OK；口径修正见交付明细 |
 | P4b chip 收编 | [x] 完成 | 分支 feature/feature-info-dialog，merge `52fe3a9`，探针全绿（probe-passive2 45 + active-skills 93）；见交付明细 |
 | P4c heal 线下骰 | [x] 完成 | 分支 feature/heal-open-dice，merge `43a2d25`，probe-active-skills 95/95 + 全量 ALL PROBES OK；见交付明细 |
+| P4d aoe 线下骰 | [x] 完成 | 分支 feature/aoe-open-dice，merge `6100e59`，probe-active-skills 96/96 + 全量 ALL PROBES OK；全渠道零暗骰收尾 |
 | P5 收尾 | [ ] 未开始 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
 
 ## P1 交付明细（2026-11-18）
@@ -92,6 +93,15 @@
 - `src/components/combat/HealRollModal.tsx`（新建）：掷骰提示 + 输入框 + 明细预览 + 范围校验（NdM 合计 ∈ [n, n*m]）；确认时扣资源（取消不损失，对齐 conv/checkModifier 模式）
 - CombatSession 2.7 弹窗拦截（heal+dice → setHealRollPick；无 dice 直接执行）+ confirmHealRoll 确认回调；PlayerSpectate 填值后打包 op（healAmount=合计，传输语义不变）
 - 探针：16a-0（弹窗出现）/16g-2（op 缺值兜底=固定+等级 5）新增，14j/16a 改填值流（填 7→12），95/95 + 全量 ALL PROBES OK
+
+## P4d 交付明细（2026-11-19，merge 6100e59，aoe 线下骰收尾）
+
+- **全渠道暗骰盘点**（用户问「其他引擎呢」触发）：checkModifier（检定弹窗 modifierRolledValues 手填）/ attack_rider（伤害弹窗 rider 骰输入）/ 法术效果骰（effectDiceValues 槽位）/ attack d20 / 伤害弹窗 / resource_conv / grants / status / advantage / reaction 全部合规；唯一残留 = aoe_save 双暗骰（turnCommitApply rollAoeDamage + 逐目标 rollDice(20)）；flow 脚本树 P0 尚未接入伤害执行（apply_effect 落地走 FlowRunStep→法术链），接入时按同口径
+- turnCommitApply aoe 段：op.aoeDamage（玩家线下掷的伤害骰合计，全目标共用一次掷骰）+ op.aoeSaveRolls（DM 采集的逐目标豁免 d20）；缺省零虚构——伤害未填 → 0 伤害 + 记录行标注「伤害骰未填，请手动结算」，某目标豁免未填 → 该目标跳过 + 标注
+- TurnCommitOp 扩展 aoeDamage / aoeSaveRolls
+- PlayerSpectate：朝向确认 → DiceInputModal（新通用线下骰填值弹窗，后续 flow 脚本树可复用）→ op 带 aoeDamage
+- FeatureAoeSaveModal（DM 端）：预填暗骰改空默认，confirm 强制校验（伤害 0 / 豁免空 → alert 阻断）；掷骰按钮保留（显式便捷动作）
+- 探针：11e 改带值断言（伤害 8 + 豁免 5 → 失败全额 8）+ 11f 缺省兜底新增；96/96 + 全量 ALL PROBES OK；main `6100e59`
 
 ## P5 开工顺序（收尾，待启动）
 
