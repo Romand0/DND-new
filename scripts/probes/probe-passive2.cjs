@@ -281,10 +281,10 @@ async function main() {
         skills: { perception: { proficient: true, extra: 0 } },
         proficiencyBonus: 3,
         features: [
-          { name: '黑暗视觉', description: '你拥有 60 尺的黑暗视觉。', category: '种族' },
-          { name: '观察者', description: '被动感知+5', category: '专长' },
-          { name: '警觉', description: '先攻+5', category: '专长' },
-          { name: '出神', description: '4 小时冥想代替 8 小时睡眠。', category: '种族' },
+          { id: 'pf-dv', name: '黑暗视觉', description: '你拥有 60 尺的黑暗视觉。', category: '种族' },
+          { id: 'pf-obs', name: '观察者', description: '被动感知+5', category: '专长' },
+          { id: 'pf-alert', name: '警觉', description: '先攻+5', category: '专长' },
+          { id: 'pf-trance', name: '出神', description: '4 小时冥想代替 8 小时睡眠。', category: '种族' },
         ],
       });
     });
@@ -316,7 +316,7 @@ async function main() {
   check('UI-b 面板显示被动感知20', ui.panel, ui);
   check('UI-c 面板显示黑暗视觉60尺', ui.dv, ui);
 
-  // ===== 2.5 被动徽标三态（CharacterDetail：engine=已接入引擎 / mechanic=DM裁定 / setting=设定型）=====
+  // ===== 2.5 被动徽标三态（「…」信息对话框内：engine/mechanic/setting）=====
   let badge = { step: 'start', engine: 0, mechanic: 0, setting: 0 };
   try {
     const charId = await page.evaluate(async () => {
@@ -329,10 +329,18 @@ async function main() {
     badge.step = 'passive-tab';
     await page.click('button:has-text("被动技能")').catch(() => {});
     await page.waitForTimeout(500);
-    badge.step = 'count';
-    badge.engine = await page.locator('[data-passive-badge="engine"]').count();
-    badge.mechanic = await page.locator('[data-passive-badge="mechanic"]').count();
-    badge.setting = await page.locator('[data-passive-badge="setting"]').count();
+    badge.step = 'badges';
+    const kinds = [];
+    for (const name of ['黑暗视觉', '观察者', '警觉', '出神']) {
+      await page.click(`[data-feature-info="${name}"]`);
+      await page.waitForTimeout(200);
+      kinds.push(await page.locator('[data-passive-badge]').getAttribute('data-passive-badge'));
+      await page.click('[data-close-info]');
+      await page.waitForTimeout(200);
+    }
+    badge.engine = kinds.filter(k => k === 'engine').length;
+    badge.mechanic = kinds.filter(k => k === 'mechanic').length;
+    badge.setting = kinds.filter(k => k === 'setting').length;
   } catch (e) {
     console.error('Badge smoke error at', badge.step, ':', e.message.split('\n')[0]);
   }

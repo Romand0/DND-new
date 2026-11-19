@@ -965,8 +965,8 @@ export default function CharacterDetail({
   }, []);
   // 特性搜索：跨作用方式分类按名称与描述匹配（替代原「全部」页的查找职能）
   const [featureSearch, setFeatureSearch] = useState('');
-  // 手动归类下拉：记录当前展开菜单的 feature id（空串关闭）；点选直接落到目标分类
-  const [roleMenuId, setRoleMenuId] = useState('');
+  // 特性「…」信息对话框（阶段开发工具信息收编：作用方式/被动接入状态/提取器入口）
+  const [infoFeatureId, setInfoFeatureId] = useState('');
   // 特性数据提取器（feature-fullcycle P2）：目标特性 → 弹窗
   const [extractorFeature, setExtractorFeature] = useState<Feature | null>(null);
   // 隐藏操作需二次确认（防误触）；恢复显示无破坏性，直接执行
@@ -1506,7 +1506,6 @@ export default function CharacterDetail({
   };
 
   const pickFeatureRole = (feature: Feature, role: FeatureRole) => {
-    setRoleMenuId('');
     if (!id || role === deriveFeatureRole(feature)) return;
     characterStore.update(id, {
       features: (character.features || []).map((f) => (f.id === feature.id ? { ...f, role } : f)),
@@ -1517,7 +1516,6 @@ export default function CharacterDetail({
   // 特性/特质卡片（主列表与底部隐藏折叠块共用）；inHiddenBlock 时眼睛按钮变为恢复
   const renderFeatureCard = (feature: Feature, inHiddenBlock: boolean) => {
     const role = deriveFeatureRole(feature);
-    const roleMeta = FEATURE_ROLE_META[role];
     // 池主徽标：resource='pool' 且自带公式 → 显示 已用 x/max + 短休恢复按钮（长休由长休按钮统一重置）
     const isPoolOwner = feature.resource === 'pool' && feature.poolFormula != null && !!id;
     const poolKey = isPoolOwner ? featurePoolKey(feature.name) : '';
@@ -1568,68 +1566,15 @@ export default function CharacterDetail({
             短休恢复
           </button>
         )}
-        {/* 引擎接入：数据提取器入口（单项提取 → spec 草案复制合并） */}
+        {/* 「…」信息对话框（data-feature-info 供探针定位）：作用方式/被动接入状态/提取器入口 */}
         <button
-          onClick={() => setExtractorFeature(feature)}
-          data-extract-feature={feature.name}
-          className="px-1.5 py-0.5 rounded-full bg-accent/10 text-accent text-xs flex-shrink-0 hover:bg-accent/20 transition-colors"
-          title="接入引擎（数据提取器）"
+          onClick={() => setInfoFeatureId(feature.id)}
+          data-feature-info={feature.name}
+          className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs flex items-center justify-center flex-shrink-0 hover:bg-primary/20 transition-colors"
+          title="特性信息与工具"
         >
-          引擎
+          …
         </button>
-        {/* 被动徽标三态：engine=已接入引擎自动派生 / mechanic=机制·DM裁定 / setting=纯设定（P4） */}
-        {role === 'passive' && (() => {
-          const pm = resolvePassiveTraitMeta(feature.name);
-          const meta = pm.kind === 'engine'
-            ? { label: '已接入引擎', chip: 'bg-emerald-500/15 text-emerald-500' }
-            : pm.kind === 'setting'
-              ? { label: '设定型', chip: 'bg-gray-500/15 text-gray-500' }
-              : { label: '机制·DM裁定', chip: 'bg-amber-500/15 text-amber-500' };
-          return (
-            <span
-              data-passive-badge={pm.kind}
-              className={`px-1.5 py-0.5 rounded-full text-xs flex-shrink-0 ${meta.chip}`}
-              title={pm.note ?? `${meta.label}：${feature.name}`}
-            >
-              {meta.label}
-            </span>
-          );
-        })()}
-        <span className="relative flex-shrink-0">
-          <button
-            onClick={() => setRoleMenuId(roleMenuId === feature.id ? '' : feature.id)}
-            className={`px-1.5 py-0.5 rounded-full text-xs ${roleMeta.chip}`}
-            title="点击调整作用方式分类"
-          >
-            {roleMeta.label}
-          </button>
-          {roleMenuId === feature.id && (
-            <>
-              {/* 透明遮罩：点菜单外任意处关闭 */}
-              <div className="fixed inset-0 z-40" onClick={() => setRoleMenuId('')} />
-              <div className="absolute left-0 top-full mt-1 z-50 w-28 rounded-lg border shadow-xl py-1 dark:bg-bg-dark dark:border-border-dark light:bg-bg-light light:border-border-light">
-                {FEATURE_RENDER_ORDER.map((r) => {
-                  const meta = FEATURE_ROLE_META[r];
-                  const isCurrent = r === role;
-                  return (
-                    <button
-                      key={r}
-                      onClick={() => pickFeatureRole(feature, r)}
-                      className={`w-full flex items-center justify-between px-2.5 py-1.5 text-xs text-left transition-colors ${
-                        isCurrent
-                          ? 'bg-primary/10 text-primary font-medium'
-                          : 'dark:text-text-dark light:text-text-light hover:bg-primary/10'
-                      }`}
-                    >
-                      {meta.label}
-                      {isCurrent && <span>✓</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </span>
         <button
           onClick={() => {
             if (inHiddenBlock) toggleFeatureHidden(`${feature.category || ''}:${feature.name}`);
@@ -3554,6 +3499,93 @@ if (character) {
           onClose={() => setExtractorFeature(null)}
         />
       )}
+
+      {/* 特性「…」信息对话框：作用方式切换 / 被动接入三态（含 note）/ 数据提取器入口 */}
+      {(() => {
+        const infoFeature = character?.features.find((f) => f.id === infoFeatureId);
+        if (!infoFeature) return null;
+        const infoRole = deriveFeatureRole(infoFeature);
+        const pm = resolvePassiveTraitMeta(infoFeature.name);
+        const pmMeta = pm.kind === 'engine'
+          ? { label: '已接入引擎', chip: 'bg-emerald-500/15 text-emerald-500', desc: '规则表条目命中，入战快照自动派生数值' }
+          : pm.kind === 'setting'
+            ? { label: '设定型', chip: 'bg-gray-500/15 text-gray-500', desc: '纯背景设定，无战斗影响' }
+            : { label: '机制·DM裁定', chip: 'bg-amber-500/15 text-amber-500', desc: '引擎暂未表达该机制，按现状由 DM 手动裁定' };
+        return (
+          <div
+            className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4"
+            onClick={() => setInfoFeatureId('')}
+          >
+            <div
+              className="rounded-xl w-full max-w-sm p-4 space-y-3 dark:bg-bg-dark-2 light:bg-bg-light"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium dark:text-text-dark light:text-text-light">{infoFeature.name}</span>
+                {infoFeature.category && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
+                    {infoFeature.category}
+                  </span>
+                )}
+                {infoFeature.level != null && infoFeature.category === '职业特性' && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-xs">Lv.{infoFeature.level}</span>
+                )}
+                <button
+                  onClick={() => setInfoFeatureId('')}
+                  data-close-info
+                  className="ml-auto p-1 rounded dark:hover:bg-bg-dark light:hover:bg-bg-light-3 dark:text-text-dark-muted light:text-text-light-muted"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div>
+                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5">作用方式</div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {FEATURE_RENDER_ORDER.map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => {
+                        pickFeatureRole(infoFeature, r);
+                        setInfoFeatureId('');
+                      }}
+                      className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
+                        r === infoRole
+                          ? 'bg-primary/15 text-primary font-medium'
+                          : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10'
+                      }`}
+                    >
+                      {FEATURE_ROLE_META[r].label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {infoRole === 'passive' && (
+                <div>
+                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5">被动接入状态</div>
+                  <div className="flex items-start gap-2">
+                    <span className={`px-1.5 py-0.5 rounded-full text-xs flex-shrink-0 ${pmMeta.chip}`} data-passive-badge={pm.kind}>
+                      {pmMeta.label}
+                    </span>
+                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted leading-5">
+                      {pm.note ?? pmMeta.desc}
+                    </span>
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => {
+                  setInfoFeatureId('');
+                  setExtractorFeature(infoFeature);
+                }}
+                data-extract-feature={infoFeature.name}
+                className="w-full py-1.5 text-xs rounded-lg border border-dashed transition-colors dark:border-border-dark dark:text-text-dark-muted dark:hover:border-primary dark:hover:text-primary light:border-border-light light:text-text-light-muted light:hover:border-primary light:hover:text-primary"
+              >
+                接入引擎（数据提取器）
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {equipmentEditorOpen && (
   <EquipmentEditor

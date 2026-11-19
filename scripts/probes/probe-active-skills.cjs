@@ -822,9 +822,15 @@ async function main() {
   });
   await page.goto(BASE + '/characters/' + charId15, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
-  // 15a 特性卡「引擎」按钮存在（回气卡，data-extract-feature 定位）
+  // 15a 特性卡「…」对话框 → 提取器入口（信息对话框收编后为两步点击）
+  const infoBtn = page.locator('button[data-feature-info="回气"]');
+  check('15a 特性卡含「…」信息对话框入口', await infoBtn.count() >= 1, { count: await infoBtn.count() });
+  if (await infoBtn.count() > 0) {
+    await infoBtn.click();
+    await page.waitForTimeout(300);
+  }
   const extBtn = page.locator('button[data-extract-feature="回气"]');
-  check('15a 特性卡含数据提取器入口（data-extract-feature）', await extBtn.count() >= 1, { count: await extBtn.count() });
+  check('15a-2 …对话框含数据提取器入口（data-extract-feature）', await extBtn.count() >= 1, { count: await extBtn.count() });
   if (await extBtn.count() > 0) {
     await extBtn.click();
     await page.waitForTimeout(400);
