@@ -1,8 +1,10 @@
 // 回合摘要面板（玩家观战，战斗沙盘上方近邻）：以自然语言展示最近发生的行动。
 // 最新一条大字高亮（6 秒后沉入历史），历史保留 5 条小字；每条附回合徽标。
+// 文本写入端用 logRichText 标记语言（《名称》/【数值】），渲染走 renderLogText 着色。
 import { useEffect, useMemo, useState } from 'react';
 import { ScrollText } from 'lucide-react';
 import type { CombatEvent } from '@/types/combat';
+import { renderLogText } from '@/lib/logRichText';
 
 const HIGHLIGHT_MS = 6000;
 
@@ -50,7 +52,7 @@ export default function RoundNarrativeBoard({ events }: { events: CombatEvent[] 
               <span
                 className={`flex-1 ${i === 0 ? 'text-sm font-semibold dark:text-text-dark light:text-text-light' : 'text-xs dark:text-text-dark-muted light:text-text-light-muted'}`}
               >
-                {e.text}
+                {renderLogText(e.text)}
               </span>
             </div>
           ))}

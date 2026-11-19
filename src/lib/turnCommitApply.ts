@@ -286,14 +286,14 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
           : planHealAmount(spec, char?.level ?? 1);
         if (spec.type === 'temp') {
           const tp = combatStore.addTempHp(record.id, actor.id, plan.amount);
-          opCtx.featureNote = `获得临时生命 ${tp ?? plan.amount}（${plan.detail}）`;
+          opCtx.featureNote = `获得临时生命【${tp ?? plan.amount}】（${plan.detail}）`;
         } else if (deps.applyHealing) {
           const hr = deps.applyHealing(actor.id, plan.amount);
           opCtx.featureNote = hr
-            ? `恢复 ${hr.healed} 点生命（${plan.detail}${hr.healed < plan.amount ? '，已达生命上限' : ''}）`
+            ? `恢复【${hr.healed}】点生命（${plan.detail}${hr.healed < plan.amount ? '，已达生命上限' : ''}）`
             : `治疗未生效（参战者不在场）`;
         } else {
-          opCtx.featureNote = `治疗 ${plan.amount} 点（${plan.detail}；DM 端未注入治疗钩子，请手动结算）`;
+          opCtx.featureNote = `治疗【${plan.amount}】点（${plan.detail}；DM 端未注入治疗钩子，请手动结算）`;
         }
       }
       // aoe_save 通道（玩家吐息武器）：朝向 + 线下骰值随 op 提交——伤害骰全目标共用（玩家掷），
@@ -344,18 +344,28 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
               if (dr) appliedDamages.push(`${r.name} -${dr.damage}`);
             }
           }
-          // summarizeOp 会在 feature-use 行前补「特性名」前缀，此处只写明细本体避免重复
+          // summarizeOp 会在 feature-use 行前补「特性名」前缀，此处只写明细本体避免重复；
+          // 数值/成败走 logRichText 标记语言（成功 → 豁免通过 命中关键字着色）
           const resultText = results.length === 0 && skipped.length === 0
             ? '范围内没有目标'
             : [
-              ...results.map(r => `${r.name}（豁免 ${r.roll}${r.saveBonus >= 0 ? '+' : ''}${r.saveBonus}=${r.total} vs DC${r.dc} ${r.success ? '成功' : '失败'}${r.damage > 0 ? `，${r.damage} 点${r.damageType}` : '，免疫'}）`),
+              ...results.map(r => `${r.name}（豁免 ${r.roll}${r.saveBonus >= 0 ? '+' : ''}${r.saveBonus}=${r.total} vs DC${r.dc} ${r.success ? '豁免通过' : '失败'}${r.damage > 0 ? `，【${r.damage}】点${r.damageType}` : '，免疫'}）`),
               ...skipped.map(n => `${n}（豁免骰未填，请手动结算）`),
             ].join('、');
           opCtx.featureNote = plan.error
             ? plan.error
-            : `${plan.shapeLabel} @ (${originToken.col},${originToken.row})，${aoeSpec.damage.damageType}${diceMissing ? '（伤害骰未填，请手动结算）' : ` ${damageAmount} 点`}；${resultText}`;
+            : `${plan.shapeLabel} @ (${originToken.col},${originToken.row})，${aoeSpec.damage.damageType}${diceMissing ? '（伤害骰未填，请手动结算）' : `【${damageAmount}】点`}；${resultText}`;
         }
       }
+      // 技能结算事件（§5.2 特殊文本记录）：先攻表走 summarizeOp/rounds，事件流在此补一条，
+      // 玩家端回合摘要面板（RoundNarrativeBoard）据此展示；文本与先攻表同源同标记语言
+      combatStore.pushCombatEvent(record.id, {
+        kind: 'skill',
+        round: request.round,
+        actorId: actor.id,
+        targetId: op.targetId,
+        text: opCtx.featureNote ? `《${op.featureName}》→ ${opCtx.featureNote}` : `《${op.featureName}》→ 发动`,
+      });
     } else if (op.kind === 'end-turn') {
       endTurn = true;
     }

@@ -49,8 +49,8 @@ export function summarizeOp(op: TurnCommitOp, ctx: SummaryContext = {}): string[
     case 'spell-slot':
       return [op.consume ? `消耗 ${op.level} 环法术位` : `恢复 ${op.level} 环法术位`];
     case 'feature-use': {
-      const lines = [op.roundText || `发动「${op.featureName}」`];
-      if (ctx.featureNote) lines.push(`「${op.featureName}」：${ctx.featureNote}`);
+      const lines = [op.roundText || `发动《${op.featureName}》`];
+      if (ctx.featureNote) lines.push(`《${op.featureName}》→ ${ctx.featureNote}`);
       return lines;
     }
     case 'stop-concentration':

@@ -647,6 +647,9 @@ async function main() {
     });
     const rowTextBare = JSON.stringify(combatStore.get(rec.id).rounds?.[0]?.['probe-dragon'] ?? '');
     const pc2HpAfterBare = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').currentHp;
+    // skill 事件（§5.2 特殊文本记录）：feature-use 入账时 pushCombatEvent(kind 'skill')，标记语言与先攻表同源
+    const skillEvts = (after.combatEvents ?? []).filter(e => e.kind === 'skill').map(e => e.text);
+    const skillEvtBare = (combatStore.get(rec.id).combatEvents ?? []).filter(e => e.kind === 'skill' && e.text.includes('伤害骰未填')).length;
 
     // 清场：恢复 roster/tokens，清 delta
     combatStore.update(rec.id, {
@@ -663,6 +666,7 @@ async function main() {
       rPc2: rPc2 ? { success: rPc2.success, damage: rPc2.damage } : null,
       rNpc: rNpc ? { success: rNpc.success, damage: rNpc.damage } : null,
       commitOk: ok.ok, dragonDelta, npcHpBefore, npcHpAfter, pc2HpBefore, pc2HpAfter, rowText, commitOkBare: okBare.ok, pc2HpAfterBare, rowTextBare,
+      skillEvts, skillEvtBare,
     };
   });
   check('11a 吐息武器注册 aoe_save 通道且 DC=13（8+熟练3+体质2）', aoe.dc === 13, aoe);
@@ -675,6 +679,12 @@ async function main() {
   // 11f 缺省兜底（零暗骰）：op 缺 aoeDamage/aoeSaveRolls → 0 伤害 + 记录行标注未填，pc2 不再掉血
   check('11f op 缺骰值兜底：0 伤害落账 + 标注「未填」（不虚构线下骰值）',
     aoe.commitOkBare === true && aoe.pc2HpAfterBare === aoe.pc2HpAfter && (aoe.rowTextBare ?? '').includes('未填'), aoe);
+  // 11g skill 事件双写：feature-use 入账同时落先攻表与事件流，标记语言（《技能名》→ …【数值】点）
+  check('11g skill 事件：kind=skill 文本含《吐息武器》+【8】点+失败关键字（与先攻表同源）',
+    aoe.skillEvts.length >= 1 && aoe.skillEvts.some(t => t.includes('《吐息武器》→') && t.includes('【8】点') && t.includes('失败')), aoe);
+  // 11h 缺省兜底事件：bare 包也产出 skill 事件（标注伤害骰未填），零暗骰口径在事件流同样成立
+  check('11h skill 事件缺省兜底：bare 包产出「伤害骰未填」事件',
+    aoe.skillEvtBare >= 1, aoe);
 
   // ===== 12. 附赠动作默认回合恢复（激励可用性修复）：每回合开始 resetActions 恢复 1 =====
   const ba = await page.evaluate(async () => {
@@ -963,13 +973,20 @@ async function main() {
     const combatStore = (await import('/src/data/combatStore.ts')).default;
     const rec = combatStore.getAll().find(r => r.isProvingGround);
     const c = combatStore.get(rec.id).combatants.find(x => x.id === 'feat-pc');
-    return { hp: c.currentHp, bonus: c.bonusActions, uses: combatStore.get(rec.id).featureUses?.['feat-pc']?.['feature:回气'] ?? 0 };
+    // skill 事件 + 先攻表全量行（确认 heal 结算文本双写与标记语言落地）
+    const roundsAll = JSON.stringify(combatStore.get(rec.id).rounds ?? []);
+    const skillEvts16 = (combatStore.get(rec.id).combatEvents ?? []).filter(e => e.kind === 'skill').map(e => e.text);
+    return { hp: c.currentHp, bonus: c.bonusActions, uses: combatStore.get(rec.id).featureUses?.['feat-pc']?.['feature:回气'] ?? 0, roundsAll, skillEvts16 };
   });
   const healed16 = healUi.hp - beforeHeal.hp;
   const healDialog16 = dialogs16.find(m => m.includes('回气'));
   check('16a DM 端回气（heal）：填 7 → HP 恢复 12（1d10(线下骰)=7 + 战士等级×1=5）',
     healed16 === 12 && healUi.hp <= (beforeHeal.maxHp ?? 999), { ...beforeHeal, ...healUi, healed16, dialog: healDialog16 });
   check('16b heal 池扣 +1、附赠动作扣 1（槽位差值）', healUi.uses === 1 && healUi.bonus === 0, healUi);
+  // 16l skill 事件 + 先攻表双写（§5.2）：结算明细行用标记语言（数值【】），事件流与先攻表同源
+  check('16l skill 事件 + 先攻表结算行：heal 明细标记语言（恢复【12】点生命 + 1d10(线下骰)=【7】）',
+    healUi.skillEvts16.some(t => t.includes('《回气》→') && t.includes('恢复【12】点生命') && t.includes('1d10(线下骰)=【7】'))
+      && (healUi.roundsAll ?? '').includes('恢复【12】点生命') && (healUi.roundsAll ?? '').includes('1d10(线下骰)=【7】'), healUi);
   // 16c conv 单目标（无踪步 hide）：数据级直调 runner（UI 面板交互链时序不稳，改为等价数据断言）
   const hideCh = await page.evaluate(async () => {
     const combatStore = (await import('/src/data/combatStore.ts')).default;

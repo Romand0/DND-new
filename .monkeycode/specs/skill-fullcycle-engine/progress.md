@@ -23,7 +23,8 @@
 | P4b chip 收编 | [x] 完成 | 分支 feature/feature-info-dialog，merge `52fe3a9`，探针全绿（probe-passive2 45 + active-skills 93）；见交付明细 |
 | P4c heal 线下骰 | [x] 完成 | 分支 feature/heal-open-dice，merge `43a2d25`，probe-active-skills 95/95 + 全量 ALL PROBES OK；见交付明细 |
 | P4d aoe 线下骰 | [x] 完成 | 分支 feature/aoe-open-dice，merge `6100e59`，probe-active-skills 96/96 + 全量 ALL PROBES OK；全渠道零暗骰收尾 |
-| P5 收尾 | [ ] 未开始 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
+| P5-1 技能特殊文本 | [x] 完成 | 分支 feat/skill-event-text；build 通过；探针 1-13 段过（含 11g/11h），14 段 UI 崩溃遗留待查；见交付明细 |
+| P5 收尾 | [ ] 进行中 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
 
 ## P1 交付明细（2026-11-18）
 
@@ -102,6 +103,15 @@
 - PlayerSpectate：朝向确认 → DiceInputModal（新通用线下骰填值弹窗，后续 flow 脚本树可复用）→ op 带 aoeDamage
 - FeatureAoeSaveModal（DM 端）：预填暗骰改空默认，confirm 强制校验（伤害 0 / 豁免空 → alert 阻断）；掷骰按钮保留（显式便捷动作）
 - 探针：11e 改带值断言（伤害 8 + 豁免 5 → 失败全额 8）+ 11f 缺省兜底新增；96/96 + 全量 ALL PROBES OK；main `6100e59`
+
+## P5-1 交付明细（2026-11-19，技能结算特殊文本双写）
+
+- **CombatEvent.kind 扩展 `skill`**（types/combat.ts）：feature-use 入账时 pushCombatEvent，text = `《技能名》→ ${featureNote ?? '发动'}`，与先攻表 summarizeOp 同源同标记语言（ui-design.md §5.2 落地）
+- **标记语言统一**：healEngine planHealAmount detail 标记化（`1d10(线下骰)=【7】`/`固定【5】`/`战士等级×1=【5】`）；turnCommitApply heal/aoe featureNote 标记化（`恢复【12】点生命`/`【8】点`/`成功`→`豁免通过`）；summarizeOp feature-use 行 `「」`→`《》`；PlayerSpectate 7 处 roundText + DM 端四处记录（confirmCheckModifier/通用 handler/confirmConvTargetUse/confirmHealRoll 重构为结算后两行）+ FeatureAoeSaveModal message 全部《》+【】
+- **DM 端补 skill 事件**：checkModifier/通用 heal/conv/confirmHealRoll/resolveAoeSave 均补 pushCombatEvent(kind 'skill')——DM 直接操作与玩家异步提交两端事件流对齐；alert 剥离标记符号（detail 与日志共用源）
+- **RoundNarrativeBoard 接 renderLogText**：修复 attack/cast 事件标记裸显的潜在问题，为 skill 事件就绪
+- 探针：11g（skill 事件带值断言《吐息武器》+【8】点+失败）+ 11h（bare 包缺省兜底事件）+ 16l（DM UI heal 事件 + 先攻表标记行）新增，96→99 断言
+- **遗留（P5 下批次首先排查）**：probe-active-skills 14 段 geo14 崩溃（`div.grid.origin-top-left` null，reload 后）——1-13 段全过含 11g/11h；冷重启复现；main 基线未及验证（用户裁定跳过探针直接推送）；crash 点在 14.9 evaluate 的 setTokens + reload 之后，疑似与 13 段清场/重放状态相关，与 skill 事件写入的相关性未证实
 
 ## P5 开工顺序（收尾，待启动）
 
