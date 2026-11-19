@@ -19,7 +19,7 @@
 | P1 spec 数据层 | [x] 完成 | 分支 feature/fullcycle-p1，merge `536b911`，探针 75/75 |
 | P2 数据提取器 | [x] 完成 | 分支 feature/fullcycle-p2，merge `0e85e99`+`7f9ca0e`，探针 83/83 |
 | P3 引擎补齐一 | [x] 完成 | 分支 feature/fullcycle-p3，merge `a025cee`，探针 92/92 + 全量 ALL PROBES OK |
-| P4 被动扩容 | [ ] 未开始 | A1-A7 规则表数据化 + 156 被动分批接入 + 接入徽标 |
+| P4 被动扩容 | [x] 完成 | 分支 feature/fullcycle-p4，merge `643d7e7`，probe-passive2 45/45 + 全量 ALL PROBES OK；口径修正见交付明细 |
 | P5 收尾 | [ ] 未开始 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
 
 ## P1 交付明细（2026-11-18）
@@ -62,11 +62,32 @@
 - 提取器幂等 skip：条目入库后批量 dry 从 produce 转 skip（15g 断言随之更新为 produce 0 / skip 10）。
 - 严格模式扣槽前提：探针构造的记录必须 `resourceConsumption: true`（load 白名单修复后该开关才在 reload 后存活）。
 
-## P4 开工顺序（被动扩容，待启动）
+## P4 交付明细（2026-11-19，merge 643d7e7）
+
+- **口径修正**：正式统计（`scripts/passive-roster.mjs` + `p4-passive-roster.json`）实测种子 294 名 → passive 142（requirements 人工口径 156/112 偏高）。逐名判定后 **A1-A7 可表达的仅约 25 名**（含已接入 20），其余 ~117 名为机制型（反射闪避/偷袭/额外攻击/双回合等，引擎语义外）/条件选择型（宿敌/图腾精魄）。P4 语义落地为「可表达条目接入 + 全量徽标三态」。
+- `src/data/passiveRules.ts`（新建数据层）：七张表平移（A1 三表/A2/A3/A4/A5/A6/A7）+ A4/A7 从硬编码 if 改表驱动（SpeedModRule/InitiativeAdvRule）+ `PASSIVE_ENGINE_TRAITS` 自动汇总（A6 正则条目名显式列出）+ `PASSIVE_TRAIT_META`（显式 setting 标注，未标注默认 mechanic）+ `resolvePassiveTraitMeta`
+- `src/data/passiveCombatRules.ts`：表迁出，只留派生逻辑；函数签名不变（7 处接线点零改动）
+- **新条目 3 条**：法术抗性（A1 spell 表，术士 L14 对法术豁免优势）/ 大地行者（A1 植物效应 spellMatch）/ 思维之盾（A2 心灵抗性，读心免疫进 note）
+- `src/pages/CharacterDetail.tsx`：被动徽标三态 chip（data-passive-badge：engine=已接入引擎 / mechanic=机制·DM裁定 / setting=设定型）
+- `scripts/passive-roster.mjs`：正式口径统计工具（role 分类 + 渠道猜测 + 已接入标记，--stdout）
+- 探针 probe-passive2 38→45 断言：1d/1e/1f（法术抗性双命中/大地行者正负例）+ 2c（心灵抗性）+ UI-d/e/f（徽标三态 DOM）
+- 未收条目记录：极效潜行（需 ctx.skillKey 扩展，条件判定引擎拿不到）、守御灵光（光环抗性需动态结算，入战快照语义不匹配）、反射闪避/金刚魂/偷袭等（伤害减半/重骰/伤害 rider 机制，属未来专用处理器）
+
+## P5 开工顺序（收尾，待启动）
+
+1. 专用硬编码批次评估：空灵体（四气多效应）/ 混元体（伤害类型切换）/ 渗透劲·暗影技艺（命中 debuff）/ 灵魂力量——逐个立项或标记 mechanic
+2. 引导神力拆 4 形态映射引擎（决策 2）
+3. 荒野变形评估（硬编码候选，决策 2）
+4. 反应数据面：种子 reaction 渠道条目填充（suggest 19 条素材）
+5. P4 遗留评估：极效潜行（需 AdvantageContext.skillKey 扩展）/ 守御灵光（光环抗性动态结算）
+6. 已有通道 spec 化机会评估（B2 advantage / B1 checkModifier 白名单扩展，suggest 素材 advantage 19 / check_modifier 10）
+7. 收尾回写 + 五决策遗留确认
 
 ## 验证方式
 
 - 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（92 断言）
+- 被动探针：`node scripts/probes/probe-passive2.cjs`（45 断言：七类单元 + 门槛别名 + 种子反应 + UI 冒烟 + 徽标三态）
+- 被动名单统计：`node scripts/passive-roster.mjs [--stdout]`（正式口径清单 p4-passive-roster.json）
 - 批量提取：`node scripts/extract-features-batch.mjs`（dry 报告；--write 写 spec 文件）
 - 全量：`sh scripts/probes/run.sh`（期望末行 `ALL PROBES OK`）
 - 构建：`npm run build`（tsc -b + vite build，含 spec 校验门禁）
