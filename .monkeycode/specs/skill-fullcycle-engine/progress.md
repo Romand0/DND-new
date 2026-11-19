@@ -1,7 +1,7 @@
 # 进度：skill-fullcycle-engine（技能全周期引擎）
 
 > 唯一状态源。规划定稿于 2026-11-18（requirements.md + design.md，五决策闭环）。
-> 文档：同目录 `requirements.md`（R1-R7）/ `design.md`（三层架构 + 8 渠道清单 + P1-P5）。
+> 文档：同目录 `requirements.md`（R1-R7）/ `design.md`（三层架构 + 8 渠道清单 + P1-P5）/ `ui-design.md`（弹窗家族总表 + 交互惯例 + P5 UI 前瞻）。
 
 ## 五决策（全部定稿）
 
@@ -115,7 +115,7 @@
 
 ## 验证方式
 
-- 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（92 断言）
+- 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（96 断言，含 11e/11f aoe 带值与缺省兜底、14j heal 填骰流）
 - 被动探针：`node scripts/probes/probe-passive2.cjs`（45 断言：七类单元 + 门槛别名 + 种子反应 + UI 冒烟 + 徽标三态）
 - 被动名单统计：`node scripts/passive-roster.mjs [--stdout]`（正式口径清单 p4-passive-roster.json）
 - 批量提取：`node scripts/extract-features-batch.mjs`（dry 报告；--write 写 spec 文件）
