@@ -132,3 +132,4 @@
 - P2 提取无静默默认：置信度 <0.6 / 结构不可表达（池分配/环阶缩放/自动触发/休整期/野兽主体）一律 manual，理由落报告；produce 仅剩白名单+高置信+非 manual+键不存在
 - suggest 59 条是 P4/P5 素材分类（save_advantage/damage_affinity/advantage/check_modifier/attack_rider/reaction/attack_extra 七类标注）
 - P3 遗留到 P4/P5：圣疗 poolDrain 子型评估延后；conv disengage/hide 机制未建（声明 note 交 DM 裁定）
+- 特殊资源双线索（2026-11-19）：技能线索型池挂特性自身（已实现 featurePools 漏斗）；体系线索型共享池 `system:<名>` + spec `poolRef` 引用（卓越骰先例，待建）；技能结算文本统一 logRichText 标记语言——详见同目录 `ui-design.md` §5/§6
