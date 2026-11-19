@@ -21,6 +21,7 @@
 | P3 引擎补齐一 | [x] 完成 | 分支 feature/fullcycle-p3，merge `a025cee`，探针 92/92 + 全量 ALL PROBES OK |
 | P4 被动扩容 | [x] 完成 | 分支 feature/fullcycle-p4，merge `643d7e7`，probe-passive2 45/45 + 全量 ALL PROBES OK；口径修正见交付明细 |
 | P4b chip 收编 | [x] 完成 | 分支 feature/feature-info-dialog，merge `52fe3a9`，探针全绿（probe-passive2 45 + active-skills 93）；见交付明细 |
+| P4c heal 线下骰 | [x] 完成 | 分支 feature/heal-open-dice，merge `43a2d25`，probe-active-skills 95/95 + 全量 ALL PROBES OK；见交付明细 |
 | P5 收尾 | [ ] 未开始 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
 
 ## P1 交付明细（2026-11-18）
@@ -81,6 +82,16 @@
 - `data-extract-feature` 属性随迁对话框按钮；probe-active-skills 15a 改两步点击（…→对话框→提取器），断言 92→93
 - probe-passive2 UI-d/e/f 改逐卡开对话框断言三态；**踩坑**：对话框按 feature.id 查找，探针建卡 features 无 id 时 setInfoFeatureId(undefined) 恒命中首条徽标全 engine——修复=探针建卡补固定 id（真实 UI 建卡路径均补 id）
 - 验证：双 tsc + build + probe-passive2 45/45 + probe-active-skills 93/93 + 全量 run.sh（main 上）；main 最终 `8d15227`（集成远程 P0 脚本树 45a4287）
+
+## P4c 交付明细（2026-11-19，merge 43a2d25，heal 线下骰口径）
+
+- **架构口径（用户定稿）**：①「硬编码」语义 = 种子静态条目直接携带引擎接收面格式化数据（骰值格式/渠道/资源），调用时直接灌入——SPEC_DB 即此形态；②全周期自动化含数值填入：玩家唯一保留动作 = 线下掷骰 + 按提示填结果，其余（格式提示/灌引擎/资源账务/HP 落账/记录）全自动；③**引擎零暗骰**——P3 的 rollDice 暗骰是偏离，heal 对齐攻击/施法填值惯例（CombatDamageModal「输入各骰结果」/CombatAttackModal 手填 d20）；④技能数据入库由 Agent 全责，SPEC_DB 新条目直接手写（TS 类型约束格式），数据提取器降级为「外部规则书导入辅助」，人工合并工序取消
+- `src/data/engines/healEngine.ts`：rollHealAmount → planHealAmount(spec, level, rolledDice?) 纯计算，移除 rollDice；dice 缺省时跳过骰式项并在 detail 标注「1d10 未填(跳过)」（不虚构线下骰值）
+- `src/data/featureChannelRunner.ts`：FeatureChannelOptions.rolledDice 透传
+- `src/lib/turnCommitApply.ts`：op 缺 healAmount 兜底由 DM 重掷改为固定+等级落账；决策③「玩家端掷骰」语义修正为「玩家端骰值环节填入的线下骰结果」
+- `src/components/combat/HealRollModal.tsx`（新建）：掷骰提示 + 输入框 + 明细预览 + 范围校验（NdM 合计 ∈ [n, n*m]）；确认时扣资源（取消不损失，对齐 conv/checkModifier 模式）
+- CombatSession 2.7 弹窗拦截（heal+dice → setHealRollPick；无 dice 直接执行）+ confirmHealRoll 确认回调；PlayerSpectate 填值后打包 op（healAmount=合计，传输语义不变）
+- 探针：16a-0（弹窗出现）/16g-2（op 缺值兜底=固定+等级 5）新增，14j/16a 改填值流（填 7→12），95/95 + 全量 ALL PROBES OK
 
 ## P5 开工顺序（收尾，待启动）
 
