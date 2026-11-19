@@ -60,7 +60,8 @@ export default function FeatureAoeSaveModal({ caster, featureName, combatants, c
   const [stage, setStage] = useState<'pick' | 'settle'>('pick');
   const [pick, setPick] = useState<{ origin: { col: number; row: number }; direction: Bearing; method: 'template' | 'token'; shapeLabel: string } | null>(null);
   const [damageType, setDamageType] = useState(spec?.damage.damageType ?? '火焰');
-  const [damageAmount, setDamageAmount] = useState<number>(() => rollAoeDamage(spec?.damage.dice ?? '2d6') ?? 0);
+  // 线下骰口径：骰值默认空（0 = 未填），由 DM 手填或点掷骰按钮；确认时校验，不预填暗骰值
+  const [damageAmount, setDamageAmount] = useState<number>(0);
   const [rolls, setRolls] = useState<Record<string, number>>({});
   const [plans, setPlans] = useState<AoeSaveTargetPlan[]>([]);
 
@@ -84,7 +85,7 @@ export default function FeatureAoeSaveModal({ caster, featureName, combatants, c
   const dc = spec.dc(caster);
   const abilityLabel = ABILITY_LABEL_MAP[spec.saveAbility];
 
-  // 第二段进入：按拾取结果做几何规划（planAoeSave 引擎）+ 逐目标自动骰
+  // 第二段进入：按拾取结果做几何规划（planAoeSave 引擎）；骰值由 DM 在结算段手填/掷骰，不预填
   const enterSettle = (data: Record<string, unknown>) => {
     const origin = data.origin as { col: number; row: number };
     const direction = (data.direction as Bearing) ?? 'E';
@@ -93,14 +94,9 @@ export default function FeatureAoeSaveModal({ caster, featureName, combatants, c
       .filter(c => !c.isDead && combatantPositions?.[c.id])
       .map(c => ({ combatant: c, pos: combatantPositions![c.id]! }));
     const plan = planAoeSave(caster, description, dc, spec.saveAbility, candidates, { origin, direction, method, bounds });
-    const autoRolls: Record<string, number> = {};
-    for (const t of plan.targets) {
-      autoRolls[t.combatantId] = rollDice({ sides: 20, count: 1, mode: 'sum' }).total;
-    }
-    setRolls(autoRolls);
+    setRolls({});
     setPlans(plan.targets);
     setPick({ origin, direction, method, shapeLabel: plan.shapeLabel || (data.shapeLabel as string) });
-    setDamageAmount(rollAoeDamage(spec.damage.dice) ?? damageAmount);
     setStage('settle');
   };
 
@@ -115,6 +111,16 @@ export default function FeatureAoeSaveModal({ caster, featureName, combatants, c
 
   const confirm = () => {
     if (!pick) return;
+    // 线下骰口径：伤害骰与逐目标豁免骰必须已填（0/空 = 未填），阻断确认避免暗骰默认路径
+    if (damageAmount <= 0) {
+      alert(`请先填入或掷 ${spec.damage.dice} 伤害骰值`);
+      return;
+    }
+    const unfilled = plans.filter(t => !rolls[t.combatantId]);
+    if (unfilled.length > 0) {
+      alert(`以下目标豁免骰未填：${unfilled.map(t => t.name).join('、')}`);
+      return;
+    }
     const results = buildResults();
     const hitText = results.length === 0
       ? '范围内没有目标'

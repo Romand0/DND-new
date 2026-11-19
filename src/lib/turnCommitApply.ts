@@ -14,8 +14,7 @@ import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import { planHealAmount } from '@/data/engines/healEngine';
 import { applyAttackRiders } from '@/data/attackRiders';
-import { planAoeSave, applyAoeSave, saveBonusFor, rollAoeDamage } from '@/data/aoeSaveEngine';
-import { rollDice } from '@/data/diceService';
+import { planAoeSave, applyAoeSave, saveBonusFor } from '@/data/aoeSaveEngine';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Bearing } from '@/data/battleGeometry';
 import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
@@ -297,8 +296,9 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
           opCtx.featureNote = `治疗 ${plan.amount} 点（${plan.detail}；DM 端未注入治疗钩子，请手动结算）`;
         }
       }
-      // aoe_save 通道（玩家吐息武器）：朝向随 op 提交，入账时全自动结算——
-      // 几何（planAoeSave 以自身为源点）+ 逐目标 d20 自动骰 + 伤害骰池 + applyDamage 落 HP
+      // aoe_save 通道（玩家吐息武器）：朝向 + 线下骰值随 op 提交——伤害骰全目标共用（玩家掷），
+      // 豁免骰逐目标（目标方掷，DM 入账前采集进 op.aoeSaveRolls）；缺省不虚构骰值：
+      // 伤害未填 → 0 伤害并标注；某目标豁免未填 → 该目标跳过并标注（手动结算）
       if (capability.channel === 'aoe_save' && capability.aoeSave && op.direction) {
         const aoeSpec = capability.aoeSave;
         const bg = battlegroundStore.get(record.id);
@@ -322,13 +322,15 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
             candidates,
             { origin: { col: originToken.col, row: originToken.row }, direction: op.direction as Bearing, bounds: { cols: preset.cols, rows: preset.rows } },
           );
-          const damageAmount = rollAoeDamage(aoeSpec.damage.dice) ?? 0;
-          const entries = plan.targets.map(t => {
+          const diceMissing = op.aoeDamage == null;
+          const damageAmount = diceMissing ? 0 : op.aoeDamage!;
+          const rolled = plan.targets.filter(t => op.aoeSaveRolls?.[t.combatantId] != null).map(t => {
             const combatant = candidates.find(c => c.combatant.id === t.combatantId)!.combatant;
             const { bonus } = saveBonusFor(combatant, aoeSpec.saveAbility);
-            return { combatant, roll: rollDice({ sides: 20, count: 1, mode: 'sum' }).total, saveBonus: bonus, dc: t.dc };
+            return { combatant, roll: op.aoeSaveRolls![t.combatantId], saveBonus: bonus, dc: t.dc };
           });
-          const results = applyAoeSave(entries, damageAmount, aoeSpec.damage.damageType, { halfOnSave: aoeSpec.halfOnSave !== false });
+          const skipped = plan.targets.filter(t => op.aoeSaveRolls?.[t.combatantId] == null).map(t => t.name);
+          const results = applyAoeSave(rolled, damageAmount, aoeSpec.damage.damageType, { halfOnSave: aoeSpec.halfOnSave !== false });
           for (const r of results) {
             if (r.damage > 0) {
               const dr = applyDamage({
@@ -343,13 +345,15 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
             }
           }
           // summarizeOp 会在 feature-use 行前补「特性名」前缀，此处只写明细本体避免重复
+          const resultText = results.length === 0 && skipped.length === 0
+            ? '范围内没有目标'
+            : [
+              ...results.map(r => `${r.name}（豁免 ${r.roll}${r.saveBonus >= 0 ? '+' : ''}${r.saveBonus}=${r.total} vs DC${r.dc} ${r.success ? '成功' : '失败'}${r.damage > 0 ? `，${r.damage} 点${r.damageType}` : '，免疫'}）`),
+              ...skipped.map(n => `${n}（豁免骰未填，请手动结算）`),
+            ].join('、');
           opCtx.featureNote = plan.error
             ? plan.error
-            : `${plan.shapeLabel} @ (${originToken.col},${originToken.row})，${aoeSpec.damage.damageType} ${damageAmount} 点；${
-              results.length === 0
-                ? '范围内没有目标'
-                : results.map(r => `${r.name}（豁免 ${r.roll}${r.saveBonus >= 0 ? '+' : ''}${r.saveBonus}=${r.total} vs DC${r.dc} ${r.success ? '成功' : '失败'}${r.damage > 0 ? `，${r.damage} 点${r.damageType}` : '，免疫'}）`).join('、')
-            }`;
+            : `${plan.shapeLabel} @ (${originToken.col},${originToken.row})，${aoeSpec.damage.damageType}${diceMissing ? '（伤害骰未填，请手动结算）' : ` ${damageAmount} 点`}；${resultText}`;
         }
       }
     } else if (op.kind === 'end-turn') {

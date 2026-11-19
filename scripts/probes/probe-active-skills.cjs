@@ -619,11 +619,12 @@ async function main() {
     };
     const npcHpBefore = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-npc').currentHp;
     const pc2HpBefore = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').currentHp;
+    // 线下骰口径：op 带 aoeDamage=8（玩家掷 2d6）+ aoeSaveRolls={feat-pc2:5}（DM 采集的目标豁免骰）→ pc2 失败全额 8
     const ok = applyTurnCommit({
       record: combatStore.get(rec.id),
       request: {
         requestId: `probe-aoe-${Date.now()}`, round: 1, combatantId: 'probe-dragon', baseSeq: 0,
-        action: { ops: [{ kind: 'feature-use', featureName: '吐息武器', poolKey: 'feature:吐息武器', cost: 1, direction: 'E', activation: 'action', roundText: '发动「吐息武器」（锥状15尺，朝向东）' }] },
+        action: { ops: [{ kind: 'feature-use', featureName: '吐息武器', poolKey: 'feature:吐息武器', cost: 1, direction: 'E', aoeDamage: 8, aoeSaveRolls: { 'feat-pc2': 5 }, activation: 'action', roundText: '发动「吐息武器」（锥状15尺，朝向东），掷 2d6=8' }] },
       },
       currentRound: 1, applyDamage: applyDamageStub, consumeAction: noop, consumeBonusAction: noop,
       advanceTurn: noop, beginConcentration: noop,
@@ -633,6 +634,19 @@ async function main() {
     const npcHpAfter = after.combatants.find(c => c.id === 'feat-npc').currentHp;
     const pc2HpAfter = after.combatants.find(c => c.id === 'feat-pc2').currentHp;
     const rowText = JSON.stringify(after.rounds?.[0]?.['probe-dragon'] ?? '');
+
+    // 11-3b 缺省兜底：op 无 aoeDamage/aoeSaveRolls → 0 伤害落账 + 记录行标注「未填」，不虚构线下骰值
+    const okBare = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      request: {
+        requestId: `probe-aoe-${Date.now()}-bare`, round: 1, combatantId: 'probe-dragon', baseSeq: 1,
+        action: { ops: [{ kind: 'feature-use', featureName: '吐息武器', poolKey: 'feature:吐息武器', cost: 1, direction: 'E', activation: 'action', roundText: '发动「吐息武器」（锥状15尺，朝向东）' }] },
+      },
+      currentRound: 1, applyDamage: applyDamageStub, consumeAction: noop, consumeBonusAction: noop,
+      advanceTurn: noop, beginConcentration: noop,
+    });
+    const rowTextBare = JSON.stringify(combatStore.get(rec.id).rounds?.[0]?.['probe-dragon'] ?? '');
+    const pc2HpAfterBare = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').currentHp;
 
     // 清场：恢复 roster/tokens，清 delta
     combatStore.update(rec.id, {
@@ -648,16 +662,19 @@ async function main() {
       rollAoeDamageOk: typeof dmgOverride === 'number' && dmgOverride >= 2 && dmgOverride <= 12,
       rPc2: rPc2 ? { success: rPc2.success, damage: rPc2.damage } : null,
       rNpc: rNpc ? { success: rNpc.success, damage: rNpc.damage } : null,
-      commitOk: ok.ok, dragonDelta, npcHpBefore, npcHpAfter, pc2HpBefore, pc2HpAfter, rowText,
+      commitOk: ok.ok, dragonDelta, npcHpBefore, npcHpAfter, pc2HpBefore, pc2HpAfter, rowText, commitOkBare: okBare.ok, pc2HpAfterBare, rowTextBare,
     };
   });
   check('11a 吐息武器注册 aoe_save 通道且 DC=13（8+熟练3+体质2）', aoe.dc === 13, aoe);
   check('11b 锥状几何：E 向含 (5,4)、源点格 (4,4) 排除、西向 NPC 不入目标', aoe.hasEastCell === true && aoe.hasOriginCell === false && aoe.npcInPlan === false && aoe.dragonInPlan === false, aoe);
   check('11c 豁免结算：roll5 失败全额 8、roll20 成功减半 4', aoe.rPc2?.success === false && aoe.rPc2?.damage === 8 && aoe.rNpc?.success === true && aoe.rNpc?.damage === 4, aoe);
   check('11d rollAoeDamage 解析 2d6 范围合法', aoe.rollAoeDamageOk === true, aoe);
-  // 11e：几何只把东侧 pc2 收进锥形，西向 NPC 应分文未损；伤害骰/豁免骰为自动随机 → 只断言结构性结果
-  check('11e 回合包 direction：池扣 1 + 锥内 pc2 掉血 + 锥外 NPC 无损 + 记录行含吐息',
-    aoe.commitOk === true && aoe.dragonDelta === 1 && aoe.pc2HpAfter < aoe.pc2HpBefore && aoe.npcHpAfter === aoe.npcHpBefore && (aoe.rowText ?? '').includes('吐息'), aoe);
+  // 11e：几何只把东侧 pc2 收进锥形，西向 NPC 应分文未损；op 带线下骰值（伤害 8 + 豁免 5 失败全额）
+  check('11e 回合包 direction：池扣 1 + pc2 掉血 8（豁免 5 失败全额）+ 锥外 NPC 无损 + 记录行含吐息',
+    aoe.commitOk === true && aoe.dragonDelta === 1 && aoe.pc2HpBefore - aoe.pc2HpAfter === 8 && aoe.npcHpAfter === aoe.npcHpBefore && (aoe.rowText ?? '').includes('吐息'), aoe);
+  // 11f 缺省兜底（零暗骰）：op 缺 aoeDamage/aoeSaveRolls → 0 伤害 + 记录行标注未填，pc2 不再掉血
+  check('11f op 缺骰值兜底：0 伤害落账 + 标注「未填」（不虚构线下骰值）',
+    aoe.commitOkBare === true && aoe.pc2HpAfterBare === aoe.pc2HpAfter && (aoe.rowTextBare ?? '').includes('未填'), aoe);
 
   // ===== 12. 附赠动作默认回合恢复（激励可用性修复）：每回合开始 resetActions 恢复 1 =====
   const ba = await page.evaluate(async () => {
