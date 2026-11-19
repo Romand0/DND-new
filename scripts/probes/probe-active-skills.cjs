@@ -795,6 +795,12 @@ async function main() {
   if (healBtnCount > 0) {
     await panel14.getByRole('button', { name: /回气/ }).first().click();
     await page.waitForTimeout(400);
+    // heal 骰值环节（线下骰）：填入结果 8 → 确认 → 引擎灌入结算（8+2=10）
+    if (await page.locator('[data-testid="heal-roll-modal"]').count() === 1) {
+      await page.fill('[data-testid="heal-roll-input"]', '8');
+      await page.locator('[data-testid="heal-roll-modal"]').getByRole('button', { name: '确认结算' }).click();
+      await page.waitForTimeout(400);
+    }
   }
   const healWiring = await page.evaluate(async () => {
     const combatStore = (await import('/src/data/combatStore.ts')).default;
@@ -806,8 +812,8 @@ async function main() {
   check('14i 面板含回气按钮（spec_db 条目投影入列）', healBtnCount > 0, { healBtnCount });
   // P3 登记 ENGINE_READY 后行为变化：回气（spec_db heal）由 manual alert 切换为 heal 引擎结算
   //（alert 文案 = 「「回气」：X 恢复 N 点生命（1d10=… + 战士等级×1=…）」，HP 满时恢复 0 也含「恢复」）
-  check('14j engineAvailable=true 后回气走 heal 引擎（alert 含恢复明细，含骰式/等级系数）',
-    healDialog != null && healDialog.includes('回气') && healDialog.includes('恢复') && healDialog.includes('1d10'), healDialog);
+  check('14j engineAvailable=true 后回气走 heal 引擎（骰值环节填 8 → alert 含线下骰明细）',
+    healDialog != null && healDialog.includes('回气') && healDialog.includes('恢复') && healDialog.includes('线下骰'), healDialog);
   check('14k 回气池照常扣减（featureUses +1）', healWiring.used === 1, healWiring);
 
   // ===== 15. 数据提取器（feature-fullcycle P2）：UI 单项流程 + 批量 dry 报告 =====
@@ -928,6 +934,14 @@ async function main() {
   });
   await panel16.getByRole('button', { name: /回气/ }).first().click();
   await page.waitForTimeout(400);
+  // 16a heal 骰值环节（线下骰口径）：弹窗出现 → 填入线下骰结果 7 → 确认 → 7+5=12
+  const modalUp = await page.locator('[data-testid="heal-roll-modal"]').count();
+  check('16a-0 heal 弹出骰值环节（HealRollModal，引擎零暗骰）', modalUp === 1, { modalUp });
+  if (modalUp === 1) {
+    await page.fill('[data-testid="heal-roll-input"]', '7');
+    await page.locator('[data-testid="heal-roll-modal"]').getByRole('button', { name: '确认结算' }).click();
+    await page.waitForTimeout(400);
+  }
   const healUi = await page.evaluate(async () => {
     const combatStore = (await import('/src/data/combatStore.ts')).default;
     const rec = combatStore.getAll().find(r => r.isProvingGround);
@@ -936,8 +950,8 @@ async function main() {
   });
   const healed16 = healUi.hp - beforeHeal.hp;
   const healDialog16 = dialogs16.find(m => m.includes('回气'));
-  check('16a DM 端回气（heal）：HP 恢复 6-15（1d10+5，maxHp 截断内）',
-    healed16 >= 6 && healed16 <= 15 && healUi.hp <= (beforeHeal.maxHp ?? 999), { ...beforeHeal, ...healUi, healed16, dialog: healDialog16 });
+  check('16a DM 端回气（heal）：填 7 → HP 恢复 12（1d10(线下骰)=7 + 战士等级×1=5）',
+    healed16 === 12 && healUi.hp <= (beforeHeal.maxHp ?? 999), { ...beforeHeal, ...healUi, healed16, dialog: healDialog16 });
   check('16b heal 池扣 +1、附赠动作扣 1（槽位差值）', healUi.uses === 1 && healUi.bonus === 0, healUi);
   // 16c conv 单目标（无踪步 hide）：数据级直调 runner（UI 面板交互链时序不稳，改为等价数据断言）
   const hideCh = await page.evaluate(async () => {
@@ -1017,10 +1031,21 @@ async function main() {
       consumeAction: noop, consumeBonusAction: noop, advanceTurn: noop, beginConcentration: noop,
     });
     const actionsAfter = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2').actions ?? 1;
-    return { r1ok: r1.ok, healedWith: stub.healedWith, r2ok: r2.ok, dashAfter, r3ok: r3.ok, actionsBefore, actionsAfter };
+    const stubNoDice = { healedWith: null };
+    const r4 = applyTurnCommit({
+      record: combatStore.get(rec.id),
+      // op 缺 healAmount（玩家端未填骰值的异常路径）：兜底按固定+等级落账（5 = 0 跳骰 + 等级 5），不虚构线下骰值
+      request: req([{ kind: 'feature-use', featureName: '回气', poolKey: 'feature:回气', cost: 1, activation: 'bonus', roundText: '发动「回气」' }]),
+      currentRound: 1, applyDamage: () => null,
+      applyHealing: (targetId, amount) => { stubNoDice.healedWith = amount; return { healed: amount }; },
+      consumeAction: noop, consumeBonusAction: noop, advanceTurn: noop, beginConcentration: noop,
+    });
+    return { r1ok: r1.ok, healedWith: stub.healedWith, r2ok: r2.ok, dashAfter, r3ok: r3.ok, actionsBefore, actionsAfter, r4ok: r4.ok, healedNoDice: stubNoDice.healedWith };
   });
-  check('16g heal op 入账：applyHealing 收到 op.healAmount=12（玩家掷骰直接采用）',
+  check('16g heal op 入账：applyHealing 收到 op.healAmount=12（玩家线下骰填值直接采用）',
     opApply.r1ok === true && opApply.healedWith === 12, opApply);
+  check('16g-2 op 缺 healAmount 兜底：固定+等级=5 落账（1d10 未填跳过，零暗骰）',
+    opApply.r4ok === true && opApply.healedNoDice === 5, opApply);
   check('16h convert op 入账：convertTarget dash → dashExtraMovement +30',
     opApply.r2ok === true && opApply.dashAfter === 30, opApply);
   check('16i grants op 入账：动作如潮 actions +1（1→2）',

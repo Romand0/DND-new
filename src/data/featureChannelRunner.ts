@@ -5,7 +5,7 @@
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
-import { rollHealAmount } from '@/data/engines/healEngine';
+import { planHealAmount } from '@/data/engines/healEngine';
 import { applyConvTarget, CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import { characterStore } from '@/data/characterStore';
 import type { AdvantageSourceKind, CombatRecord, Combatant } from '@/types/combat';
@@ -31,6 +31,8 @@ export interface FeatureChannelOptions {
   targetId?: string;
   /** resource_conv convert 通道：目标动作项（to 多元素时调用方弹窗选定；缺省取 spec.to[0]） */
   convertTarget?: string;
+  /** heal 通道：玩家线下掷骰填入的结果（UI 骰值环节采集；缺省按固定+等级落账并标注缺骰） */
+  rolledDice?: number;
 }
 
 export function executeFeatureChannel(
@@ -127,11 +129,12 @@ export function executeFeatureChannel(
     return { note: `命中时结算：${capability.attackRider.hint}` };
   }
 
-  // heal 通道（P3）：掷定恢复量计划，HP 落库由调用方执行（见 FeatureChannelResult.heal 注释）
+  // heal 通道（P3）：恢复量计划，HP 落库由调用方执行（见 FeatureChannelResult.heal 注释）。
+  // 骰值口径（线下骰）：rolledDice 由调用方 UI 骰值环节填入，引擎零暗骰；缺省按固定+等级落账并标注
   if (capability.channel === 'heal' && capability.heal) {
     const spec = capability.heal;
     const char = combatant.characterId ? characterStore.get(combatant.characterId) : null;
-    const plan = rollHealAmount(spec, char?.level ?? 1);
+    const plan = planHealAmount(spec, char?.level ?? 1, opts?.rolledDice);
     return {
       note: null,
       heal: { targetId: combatant.id, amount: plan.amount, detail: plan.detail, type: spec.type },

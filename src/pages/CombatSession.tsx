@@ -41,7 +41,7 @@ import { globalStatusManager } from '@/data/statusManager';
 import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
-import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { getAttackRiders, applyAttackRiders } from '@/data/attackRiders';
 import { resolvePoolKey } from '@/data/featurePool';
@@ -63,6 +63,7 @@ import CombatDamageModal from '@/components/CombatDamageModal';
 import FeatureCheckModifierModal from '@/components/combat/FeatureCheckModifierModal';
 import FeatureAoeSaveModal from '@/components/combat/FeatureAoeSaveModal';
 import FeatureConvTargetModal from '@/components/combat/FeatureConvTargetModal';
+import HealRollModal from '@/components/combat/HealRollModal';
 import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import ReactionPromptModal from '@/components/ReactionPromptModal';
@@ -292,6 +293,14 @@ export default function CombatSession() {
     featureName: string;
     targets: string[];
     activation: Feature['activation'];
+    poolKey: string | null;
+    cost: number;
+  } | null>(null);
+  // heal 骰值环节弹窗（线下骰口径）：spec 带 dice 的 heal 先填线下骰结果，确认时扣动作与池
+  const [healRollPick, setHealRollPick] = useState<{
+    from: Combatant;
+    feature: Feature;
+    capability: FeatureCapability;
     poolKey: string | null;
     cost: number;
   } | null>(null);
@@ -1143,6 +1152,11 @@ export default function CombatSession() {
       setConvTargetPick({ from: c, featureName: feature.name, targets: capability.resourceConv.convert.to, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
       return;
     }
+    // 2.7 heal 骰值环节（线下骰口径）：spec 带 dice 先填线下骰结果，确认时扣资源（取消不损失）；无 dice 直接执行
+    if (capability.channel === 'heal' && capability.heal && capability.heal.dice) {
+      setHealRollPick({ from: c, feature, capability, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
+      return;
+    }
     // 3. 池扣减（无池语义直接跳过，老数据优雅降级）；
     //    attack_rider（命中触发类）为声明入口：资源在命中时刻由伤害结算弹窗扣，此处不扣
     if (poolInfo.poolKey && poolInfo.available != null && capability.channel !== 'attack_rider') {
@@ -1231,6 +1245,44 @@ export default function CombatSession() {
     const r = executeFeatureChannel(record, from, featureName, currentRound0, { convertTarget: target });
     if (r.note) {
       alert(`「${featureName}」：${r.note}`);
+    }
+  };
+
+  /** heal 骰值环节确认（线下骰口径）：此处才扣动作与池（取消不损失，对齐 conv/checkModifier 模式），
+   *  随后带填入的骰结果经执行器结算（HP 落账走 handleApplyHealing / addTempHp）。 */
+  const confirmHealRoll = (rolledDice: number) => {
+    const pick = healRollPick;
+    if (!pick) return;
+    setHealRollPick(null);
+    const { from, feature, capability } = pick;
+    const activation = feature.activation;
+    if (activation === 'action') {
+      if (!ensureCanAct(from, canUseAction(from.id))) return;
+    } else if (activation === 'bonus') {
+      if (!ensureCanAct(from, canUseBonusAction(from.id), 'bonus')) return;
+    }
+    if (pick.poolKey) {
+      const ok = combatStore.consumeFeatureUse(record.id, from.id, pick.poolKey, pick.cost);
+      if (!ok) {
+        alert(`「${feature.name}」资源不足（需要 ${pick.cost} 点）`);
+        return;
+      }
+    }
+    if (activation === 'action') consumeCombatantAction(from.id);
+    else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
+    recordOperation(from.id, `发动「${feature.name}」`, 'record');
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    const r = executeFeatureChannel(record, from, feature.name, currentRound0, { rolledDice });
+    if (r.heal) {
+      if (r.heal.type === 'temp') {
+        const tp = combatStore.addTempHp(record.id, r.heal.targetId, r.heal.amount);
+        alert(`「${feature.name}」：${from.name} 获得临时生命 ${tp ?? r.heal.amount}（${r.heal.detail}）`);
+      } else {
+        const hr = handleApplyHealing(r.heal.targetId, r.heal.amount);
+        alert(`「${feature.name}」：${from.name} 恢复 ${hr?.healed ?? 0} 点生命（${r.heal.detail}${hr != null && hr.healed < r.heal.amount ? '，已达生命上限' : ''}）`);
+      }
+    } else if (r.note) {
+      alert(`「${feature.name}」：${r.note}`);
     }
   };
 
@@ -2821,6 +2873,20 @@ export default function CombatSession() {
           onClose={() => setConvTargetPick(null)}
         />
       )}
+
+      {/* heal 骰值环节（线下骰）：按 spec 骰模板填入线下掷骰结果，确认时扣资源 */}
+      {healRollPick && record && (() => {
+        const char = healRollPick.from.characterId ? characterStore.get(healRollPick.from.characterId) : null;
+        return (
+          <HealRollModal
+            featureName={healRollPick.feature.name}
+            spec={healRollPick.capability.heal!}
+            casterLevel={char?.level ?? 1}
+            onConfirm={confirmHealRoll}
+            onClose={() => setHealRollPick(null)}
+          />
+        );
+      })()}
 
       {/* ✅ 突袭选择弹窗 */}
       {surpriseAttackOpen && (
