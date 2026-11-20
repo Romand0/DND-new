@@ -19,6 +19,7 @@ Updated: 2026-11-19
 | HealRollModal | `components/combat/HealRollModal.tsx` | DM + 玩家 | heal：线下掷恢复骰 → 填结果 → 明细预览确认 | `capability.heal`（HealSpec: dice/flat/levelFactor/type） | `heal-roll-modal` / `heal-roll-input` |
 | DiceInputModal | `components/combat/DiceInputModal.tsx` | 玩家（PlayerSpectate） | 通用线下骰填值（当前用于 aoe 伤害骰） | 无 spec 依赖（纯通用件：title/diceText/hint/min/max） | `dice-input-modal` / `dice-input-value` |
 | FeatureAoeSaveModal | `components/combat/FeatureAoeSaveModal.tsx` | 仅 DM | aoe_save：几何放置 + 伤害骰填值 + 逐目标豁免 d20 采集 | `capability.aoeSave`（save DC / damage / aoeShapes 几何） | 伤害输入框 + 逐目标豁免输入框 + 掷骰按钮 |
+| QuiveringPalmModal | `components/combat/QuiveringPalmModal.tsx` | 仅 DM | attack_rider embed（渗透劲）延迟引爆：目标豁免 d20 手填（失败=生命归 0 / 成功=填伤害总量）+ 无害终止 | `capability.attackRiders[].embed.detonate`（ability/dc/damageDice/damageType） | `quivering-palm-modal` / `quivering-save-input` / `quivering-damage-input` / `quivering-confirm` / `quivering-harmless` |
 | 特性「…」信息对话框 | 内嵌于 `pages/CharacterDetail.tsx`（非独立文件） | 角色卡（非战斗层） | 只读信息：作用方式切换 / 被动三态徽标+note / 提取器入口 | spec 数据（被动七表、提取器正则命中） | `data-feature-info` / `data-passive-badge` / `data-extract-feature` |
 
 辅助组件（非战斗弹窗，一并登记防遗漏）：

@@ -10,6 +10,15 @@ function check(name, cond, extra) {
 }
 
 async function openInfoByChip(page, name) {
+  // 先关遗留的 InfoPanel/技能弹窗（纯内存 store 探针段不再 reload，遗留遮罩会拦截芯片点击）
+  for (let i = 0; i < 4; i++) {
+    const closeBtns = page.locator(
+      'div.fixed.inset-0.z-50 button:has(.lucide-x), div.fixed.inset-0.z-\\[60\\] button:has(.lucide-x), [data-testid="quivering-close"]'
+    );
+    if ((await closeBtns.count()) === 0) break;
+    await closeBtns.last().click();
+    await page.waitForTimeout(200);
+  }
   await page.locator('button[title="查看参战者信息"]').filter({ hasText: name }).click();
   await page.waitForTimeout(400);
   return page.locator('div.fixed.inset-0.z-50').last();
@@ -961,6 +970,7 @@ async function main() {
   await page.goto(BASE + '/characters/' + charId14, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(1200);
   const infoBtn14 = page.locator('button[data-feature-info="引导神力"]');
+  await infoBtn14.first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
   check('14u-1 特性卡含引导神力「…」信息对话框入口', await infoBtn14.count() >= 1, { count: await infoBtn14.count() });
   if (await infoBtn14.count() > 0) {
     await infoBtn14.first().click();
@@ -1052,6 +1062,159 @@ async function main() {
   check('14w 预选毁灭路由 manual：alert 含形态结算提示 + 池与动作按容器扣减',
     doomDialog != null && doomDialog.includes('毁灭') && wWiring2.used === 1 && wWiring2.actions === 1,
     { doomDialog, wWiring2 });
+
+  // ===== 14x 渗透劲延迟引爆（P5 核心B）：埋劲 rider → 标记唯一性 → 引爆弹窗 CON 豁免 HP0 =====
+  const qPalm = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const fc = await import('/src/data/featureCapabilities.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const qMonk = characterStore.add({
+      name: '渗透劲·武僧', race: '人类', level: 17, profession: { class: '武僧' }, proficiencyBonus: 6,
+      maxHp: 80, currentHp: 80, isSandbox: true,
+      abilities: { strength: { score: 12, modifier: 1 }, dexterity: { score: 16, modifier: 3 }, constitution: { score: 14, modifier: 2 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 16, modifier: 3 }, charisma: { score: 10, modifier: 0 } },
+      attacks: [{ name: '徒手打击', damageDice: '1d10', damageType: '钝击', bonus: 9, range: '5尺', properties: [] }],
+      features: [
+        { name: '气', description: '气池：数量等于武僧职业等级', category: '职业特性', role: 'active', level: 1, activation: 'free', resource: 'pool', poolFormula: { type: 'classLevel', multiplier: 1, restKind: 'short' } },
+        { name: '渗透劲', description: '命中时耗3气埋劲，可用动作引爆', category: '职业特性', role: 'active', level: 17, activation: 'free', resource: 'pool', pool: '气', cost: 3 },
+      ],
+    });
+    const addC = (id, name, isPc, characterId, hp) => ({ id, name, isPc, ...(characterId ? { characterId } : {}), initiative: 7, actions: 1, bonusActions: 1, reactions: 1, currentHp: hp, maxHp: hp, movementUsed: 0, heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [] });
+    combatStore.update(rec.id, {
+      combatants: [
+        ...rec.combatants,
+        addC('feat-qmonk', '劲力武僧', true, qMonk.id, 80),
+        addC('feat-qnpc', '劲力目标', false, null, 30),
+        addC('feat-qnpc2', '劲力目标二', false, null, 30),
+      ],
+      updatedAt: Date.now(),
+    });
+    const { applyAttackRiders } = await import('/src/data/attackRiders.ts');
+    const cap = fc.resolveFeatureCapability('渗透劲');
+    const monk = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qmonk');
+    const npc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qnpc');
+    const npc2 = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qnpc2');
+    // 埋劲：池扣 3 + 标记挂载（metadata.attackerId）
+    const lines = applyAttackRiders(combatStore.get(rec.id), monk, npc, [{ featureName: '渗透劲' }], 0);
+    const mark1 = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').find(i => i.definitionId === 'quivering_palm');
+    const kiUsed = combatStore.getFeaturePoolView(rec.id, 'feat-qmonk').find(v => v.featureKey === 'feature:气')?.usedCombat;
+    // 再埋第二个目标：第一个标记应解除（同一时间仅一个目标）
+    applyAttackRiders(combatStore.get(rec.id), monk, npc2, [{ featureName: '渗透劲' }], 0);
+    const mark1After = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').find(i => i.definitionId === 'quivering_palm');
+    const mark2 = globalStatusManager.getActiveStatuses('feat-qnpc2', 'combat').find(i => i.definitionId === 'quivering_palm');
+    // 清场：恢复单标记在 npc1（引爆 UI 断言用），npc2 标记解除
+    globalStatusManager.getActiveStatuses('feat-qnpc2', 'combat').forEach(i => globalStatusManager.declareEnd(i.instanceId));
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    // 重埋 npc1（池扣清零后重跑一次）
+    applyAttackRiders(combatStore.get(rec.id), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qmonk'), npc, [{ featureName: '渗透劲' }], 0);
+    const markFinal = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').find(i => i.definitionId === 'quivering_palm');
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    return {
+      capChannel: cap.channel, capCost: cap.attackRider?.cost, embedStatus: cap.attackRider?.embed?.statusId,
+      dc: cap.attackRider?.embed?.detonate.dc(qMonk),
+      line: lines[0],
+      markOn: !!mark1, attackerId: mark1?.metadata?.attackerId, kiUsed,
+      mark1Cleared: !mark1After, mark2On: !!mark2,
+      markFinalOn: !!markFinal,
+    };
+  });
+  check('14x-1 渗透劲注册表：attack_rider embed 通道 + 池扣 3 气 + 引爆 DC 8+6+3=17',
+    qPalm.capChannel === 'attack_rider' && qPalm.capCost?.kind === 'pool' && qPalm.capCost?.cost === 3
+      && qPalm.embedStatus === 'quivering_palm' && qPalm.dc === 17, qPalm);
+  check('14x-2 埋劲落地：标记挂载带 attackerId + 池扣 3 + 记录行含埋入目标',
+    qPalm.markOn && qPalm.attackerId === 'feat-qmonk' && qPalm.kiUsed === 3 && (qPalm.line ?? '').includes('劲力已埋入'), qPalm);
+  check('14x-3 同一时间仅一个目标：再埋第二目标后旧标记解除',
+    qPalm.mark1Cleared && qPalm.mark2On && qPalm.markFinalOn, qPalm);
+
+  // 14y 引爆 UI：带标记时渗透劲按钮变引爆入口 → 弹窗填豁免失败 → HP0 + 动作扣减 + 标记解除
+  // 注意：statusManager 纯内存，reload 会丢标记，因此沿用 14x evaluate 后的活页面
+  // 动作扣减依赖 resourceConsumption 开关，这里显式开启
+  await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { resourceConsumption: true, updatedAt: Date.now() });
+  });
+  await page.waitForTimeout(400);
+  const panel14q = await openInfoByChip(page, '劲力武僧');
+  await panel14q.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const qBtnCount = await panel14q.getByRole('button', { name: /渗透劲/ }).count();
+  if (qBtnCount > 0) {
+    await panel14q.getByRole('button', { name: /渗透劲/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  const qModalOpen = await page.locator('[data-testid="quivering-palm-modal"]').count();
+  const qConfirmDisabled = qModalOpen > 0
+    ? await page.locator('[data-testid="quivering-confirm"]').isDisabled()
+    : null;
+  if (qModalOpen > 0) {
+    await page.fill('[data-testid="quivering-save-input"]', '3');
+    await page.waitForTimeout(200);
+  }
+  const qConfirmReady = qModalOpen > 0 && !(await page.locator('[data-testid="quivering-confirm"]').isDisabled());
+  if (qModalOpen > 0) {
+    await page.locator('[data-testid="quivering-confirm"]').click();
+    await page.waitForTimeout(500);
+  }
+  const qAfter = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const npc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qnpc');
+    const monk = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qmonk');
+    const markLeft = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').some(i => i.definitionId === 'quivering_palm');
+    const logText = JSON.stringify(rec.rounds.map(r => r.cells ?? {})) + JSON.stringify(rec.operationLog ?? []);
+    combatStore.update(rec.id, {
+      featureUses: {},
+      combatants: rec.combatants.map(c => (c.id === 'feat-qnpc'
+        ? { ...c, currentHp: c.maxHp, isDead: false, isUnconscious: false }
+        : c.id === 'feat-qmonk' ? { ...c, actions: 1 } : c)),
+      updatedAt: Date.now(),
+    });
+    return { hp: npc?.currentHp, isDead: npc?.isDead, monkActions: monk?.actions, markLeft, logged: logText.includes('劲力引爆') && logText.includes('生命归 0') };
+  });
+  check('14y-1 带标记时渗透劲按钮打开引爆弹窗（未填豁免时确认禁用）',
+    qBtnCount > 0 && qModalOpen === 1 && qConfirmDisabled === true, { qBtnCount, qModalOpen, qConfirmDisabled });
+  check('14y-2 豁免 3 < DC17 失败引爆：目标 HP0 + 武僧动作扣 1 + 标记解除 + 记录行落账',
+    qConfirmReady && qAfter.hp === 0 && qAfter.isDead === true && qAfter.monkActions === 0 && qAfter.markLeft === false && qAfter.logged,
+    { qAfter, qConfirmReady });
+  check('14y-3 清场后标记复位（重埋标记待无害终止断言）', qPalm.markFinalOn, {});
+
+  // 14z 无害终止：零消耗解除标记（同样沿用活页面，内存标记仍在）
+  await page.waitForTimeout(400);
+  const panel14h = await openInfoByChip(page, '劲力武僧');
+  await panel14h.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  if (await panel14h.getByRole('button', { name: /渗透劲/ }).count() > 0) {
+    await panel14h.getByRole('button', { name: /渗透劲/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  if (await page.locator('[data-testid="quivering-palm-modal"]').count() === 1) {
+    await page.locator('[data-testid="quivering-harmless"]').click();
+    await page.waitForTimeout(500);
+  }
+  const qHarmless = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const monk = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qmonk');
+    const markLeft = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').some(i => i.definitionId === 'quivering_palm');
+    const used = combatStore.get(rec.id).featureUses?.['feat-qmonk'] ?? {};
+    // 清场：移除临时参战者与卡，还原资源消耗开关
+    combatStore.update(rec.id, {
+      combatants: rec.combatants.filter(c => !c.id.startsWith('feat-q')),
+      featureUses: {},
+      resourceConsumption: false,
+      updatedAt: Date.now(),
+    });
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const qCard = characterStore.getAll().find(c => c.name === '渗透劲·武僧');
+    if (qCard) characterStore.delete(qCard.id);
+    return { markLeft, monkActions: monk?.actions, poolUsed: Object.keys(used).length };
+  });
+  check('14z 无害终止：标记解除 + 动作与池零消耗',
+    qHarmless.markLeft === false && qHarmless.monkActions === 1 && qHarmless.poolUsed === 0, qHarmless);
 
   // ===== 15. 数据提取器（feature-fullcycle P2）：UI 单项流程 + 批量 dry 报告 =====
   // 自建专测卡：回气 level=1（角色页特性解锁按 experience→等级 过滤，XP=0 时 level 2 条目会被隐藏）
