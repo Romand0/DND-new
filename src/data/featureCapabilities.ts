@@ -148,6 +148,20 @@ export interface AttackRiderSpec {
     durationRounds: number;
     todo: string;
   };
+  /**
+   * 延迟引爆 rider（渗透劲类）：命中勾选不结算即时效果，改为在目标身上挂标记状态
+   * （metadata.attackerId 记录施劲者）；引爆由 DM 后续主动发起（耗动作），引爆 DC/伤害由
+   * detonate 声明。同一时间仅一个目标受影响（挂载前由执行器解除旧标记）。
+   */
+  embed?: {
+    statusId: string;
+    detonate: {
+      ability: AbilityKey;
+      dc: (attacker: Character) => number;
+      damageDice: string;
+      damageType: string;
+    };
+  };
   /** 弹窗勾选区与声明摘要文案 */
   hint: string;
 }
@@ -260,6 +274,28 @@ register('震慑拳', {
       todo: '震慑解除检查（至施用者下回合结束）',
     },
     hint: '命中时消耗 1 点气：目标体质豁免 DC 8+熟练+感调，失败震慑至施用者下回合结束',
+  },
+});
+
+// P5 注册表：渗透劲延迟引爆（散打宗 17 级）。埋劲走 attack_rider 命中勾选（3 气在命中时刻扣），
+// 引爆为 DM 主动入口：带劲力标记时特性按钮变为引爆弹窗（CON 豁免失败 HP0 / 成功 10d10 暗蚀，耗动作）。
+register('渗透劲', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'pool', cost: 3 },
+    embed: {
+      statusId: 'quivering_palm',
+      detonate: {
+        ability: 'constitution',
+        dc: (attacker) => {
+          const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+          return 8 + prof + (attacker.abilities?.wisdom?.modifier ?? 0);
+        },
+        damageDice: '10d10',
+        damageType: '暗蚀',
+      },
+    },
+    hint: '命中时消耗 3 点气：劲力埋入目标体内（同一时间仅一个目标），之后可用动作引爆——目标体质豁免 DC 8+熟练+感调，失败生命归 0、成功受 10d10 暗蚀',
   },
 });
 

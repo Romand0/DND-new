@@ -62,6 +62,7 @@ import CombatAttackModal from '@/components/CombatAttackModal';
 import CombatDamageModal from '@/components/CombatDamageModal';
 import FeatureCheckModifierModal from '@/components/combat/FeatureCheckModifierModal';
 import FeatureAoeSaveModal from '@/components/combat/FeatureAoeSaveModal';
+import QuiveringPalmModal from '@/components/combat/QuiveringPalmModal';
 import FeatureConvTargetModal from '@/components/combat/FeatureConvTargetModal';
 import HealRollModal from '@/components/combat/HealRollModal';
 import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
@@ -306,6 +307,15 @@ export default function CombatSession() {
     capability: FeatureCapability;
     poolKey: string | null;
     cost: number;
+  } | null>(null);
+  // 渗透劲引爆弹窗：目标身上带施劲者标记时，渗透劲按钮变引爆入口；确认时耗动作/落地伤害/解除标记
+  const [quiveringPalmModal, setQuiveringPalmModal] = useState<{
+    from: Combatant;
+    target: Combatant;
+    markInstanceIds: string[];
+    dc: number;
+    damageDice: string;
+    damageType: string;
   } | null>(null);
 
   // ✅ 选中格状态（先攻表格操作 + 手动记录弹窗依赖）
@@ -1237,7 +1247,33 @@ export default function CombatSession() {
       return;
     }
     if (capability.channel === 'attack_rider') {
-      // 命中触发类：池/法术位在命中时刻于伤害结算弹窗勾选扣减，此处已扣的动作照常
+      // 渗透劲类延迟引爆：目标身上带本参战者的劲力标记 → 按钮变引爆入口（耗动作结算豁免/伤害）；
+      // 无标记 → 命中触发声明入口（池/法术位在命中时刻由伤害结算弹窗扣）
+      const embedSpec = capability.attackRider?.embed;
+      if (embedSpec) {
+        const markedTarget = record.combatants.find(t => {
+          if (t.id === c.id) return false;
+          return globalStatusManager
+            .getActiveStatuses(t.id, 'combat')
+            .some(i => i.definitionId === embedSpec.statusId && (i.metadata as Record<string, unknown> | undefined)?.attackerId === c.id);
+        });
+        if (markedTarget) {
+          const detOwner = c.characterId ? characterStore.get(c.characterId) : null;
+          const markIds = globalStatusManager
+            .getActiveStatuses(markedTarget.id, 'combat')
+            .filter(i => i.definitionId === embedSpec.statusId)
+            .map(i => i.instanceId);
+          setQuiveringPalmModal({
+            from: c,
+            target: markedTarget,
+            markInstanceIds: markIds,
+            dc: embedSpec.detonate.dc(detOwner ?? (c as unknown as Character)),
+            damageDice: embedSpec.detonate.damageDice,
+            damageType: embedSpec.detonate.damageType,
+          });
+          return;
+        }
+      }
       alert(`「${feature.name}」为命中触发类特性：近战武器攻击命中后，在伤害结算弹窗的「命中触发」区勾选发动。${capability.attackRider?.hint ?? ''}`);
       return;
     }
@@ -1333,6 +1369,33 @@ export default function CombatSession() {
       combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, text: noteLine });
       alert(`「${feature.name}」：${r.note}`);
     }
+  };
+
+  /** 渗透劲引爆确认：harmless 仅解除标记（零消耗）；fail/success 耗 1 动作 + 伤害落地 + 解除标记。
+   *  动作消耗在确认时执行（弹窗取消零损失，对齐 checkModifier 模式）。 */
+  const confirmQuiveringPalm = (payload: { saveResult: 'success' | 'fail' | 'harmless'; damage?: number; saveRoll?: number }) => {
+    if (!record || !quiveringPalmModal) return;
+    const { from, target, markInstanceIds, dc } = quiveringPalmModal;
+    setQuiveringPalmModal(null);
+    for (const id of markInstanceIds) globalStatusManager.declareEnd(id);
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    if (payload.saveResult === 'harmless') {
+      const line = `《渗透劲》→ ${from.name} 无害终止对 ${target.name} 的劲力（标记解除）`;
+      recordOperation(from.id, line, 'record');
+      combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId: target.id, text: line });
+      return;
+    }
+    consumeCombatantAction(from.id);
+    recordOperation(from.id, `发动《渗透劲》`, 'record');
+    const amount = payload.saveResult === 'fail' ? Math.max(0, combatStore.get(record.id)?.combatants.find(c => c.id === target.id)?.currentHp ?? 0) : (payload.damage ?? 0);
+    const dr = amount > 0
+      ? handleApplyDamage({ targetId: target.id, amount, sourceId: from.id, sourceName: from.name, sourceKind: 'effect', damageType: '暗蚀' })
+      : null;
+    const line = payload.saveResult === 'fail'
+      ? `《渗透劲》→ ${target.name} 体质豁免失败（d20=${payload.saveRoll ?? '?'} < DC${dc}），劲力引爆：生命归 0`
+      : `《渗透劲》→ ${target.name} 体质豁免成功（d20=${payload.saveRoll ?? '?'} ≥ DC${dc}），劲力引爆：${amount > 0 ? dr ? `-${dr.damage}（${dr.oldHp}→${dr.newHp}）` : `-${amount} 点暗蚀` : '伤害 0（未填）'}`;
+    recordOperation(from.id, line, 'damage');
+    combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId: target.id, text: line });
   };
 
   const openAttackFor = (c: Combatant) => {
@@ -2938,6 +3001,19 @@ export default function CombatSession() {
           />
         );
       })()}
+
+      {/* 渗透劲引爆（延迟引爆 rider）：豁免 d20 与伤害总量线下手填，确认时耗动作/落地伤害/解除标记 */}
+      {quiveringPalmModal && record && (
+        <QuiveringPalmModal
+          attackerName={quiveringPalmModal.from.name}
+          targetName={quiveringPalmModal.target.name}
+          dc={quiveringPalmModal.dc}
+          damageDice={quiveringPalmModal.damageDice}
+          damageType={quiveringPalmModal.damageType}
+          onConfirm={confirmQuiveringPalm}
+          onClose={() => setQuiveringPalmModal(null)}
+        />
+      )}
 
       {/* ✅ 突袭选择弹窗 */}
       {surpriseAttackOpen && (
