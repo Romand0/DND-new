@@ -4,7 +4,7 @@
 // currentRound0 为 0-based 放映轮次（与 playbackState.currentTurn.round 同口径）。
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
-import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
 import { planHealAmount } from '@/data/engines/healEngine';
 import { applyConvTarget, CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import { characterStore } from '@/data/characterStore';
@@ -33,6 +33,8 @@ export interface FeatureChannelOptions {
   convertTarget?: string;
   /** heal 通道：玩家线下掷骰填入的结果（UI 骰值环节采集；缺省按固定+等级落账并标注缺骰） */
   rolledDice?: number;
+  /** 容器子形态能力覆盖（引导神力/暗影技艺预选后按形态能力执行；缺省按 featureName 注册表解析） */
+  capability?: FeatureCapability;
 }
 
 export function executeFeatureChannel(
@@ -42,7 +44,7 @@ export function executeFeatureChannel(
   currentRound0: number,
   opts?: FeatureChannelOptions,
 ): FeatureChannelResult {
-  const capability = resolveFeatureCapability(featureName);
+  const capability = opts?.capability ?? resolveFeatureCapability(featureName);
 
   if (capability.channel === 'checkModifier' && capability.checkModifier && opts?.targetId) {
     const spec = capability.checkModifier;

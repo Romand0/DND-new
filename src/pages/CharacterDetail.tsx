@@ -40,6 +40,7 @@ import type { Spell } from '@/types/spell';
 import type { EquipmentItem } from '@/types/equipment';
 import { characterStore, SKILL_LABELS } from '@/data/characterStore';
 import { featurePoolKey, getPoolMax, getPoolUsed } from '@/data/featurePool';
+import { resolveFeatureCapability } from '@/data/featureCapabilities';
 import { diffCharacter, summarizeDiff } from '@/lib/characterDiff';
 import { submitChangeRequest } from '@/lib/api';
 import type { CharacterDiffRow } from '@/types/changeRequest';
@@ -1509,6 +1510,17 @@ export default function CharacterDetail({
     if (!id || role === deriveFeatureRole(feature)) return;
     characterStore.update(id, {
       features: (character.features || []).map((f) => (f.id === feature.id ? { ...f, role } : f)),
+    });
+    reloadChar();
+  };
+
+  // 容器形态预选（引导神力/暗影技艺类）：点选即固化到 feature.chosenForm，再点同项取消；
+  // 战斗层按 chosenForm 路由子形态能力，未预选时按钮拦截提示
+  const pickFeatureForm = (feature: Feature, formKey: string) => {
+    if (!id) return;
+    const next = feature.chosenForm === formKey ? undefined : formKey;
+    characterStore.update(id, {
+      features: (character.features || []).map((f) => (f.id === feature.id ? { ...f, chosenForm: next } : f)),
     });
     reloadChar();
   };
@@ -3506,6 +3518,8 @@ if (character) {
         if (!infoFeature) return null;
         const infoRole = deriveFeatureRole(infoFeature);
         const pm = resolvePassiveTraitMeta(infoFeature.name);
+        const infoCapability = resolveFeatureCapability(infoFeature.name);
+        const containerForms = infoCapability.channel === 'container' ? infoCapability.container?.forms ?? [] : [];
         const pmMeta = pm.kind === 'engine'
           ? { label: '已接入引擎', chip: 'bg-emerald-500/15 text-emerald-500', desc: '规则表条目命中，入战快照自动派生数值' }
           : pm.kind === 'setting'
@@ -3569,6 +3583,31 @@ if (character) {
                     <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted leading-5">
                       {pm.note ?? pmMeta.desc}
                     </span>
+                  </div>
+                </div>
+              )}
+              {containerForms.length > 0 && (
+                <div>
+                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5">形态预选（战斗层按此路由，未预选不可用）</div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {containerForms.map((form) => (
+                      <button
+                        key={form.key}
+                        data-feature-form={form.key}
+                        onClick={() => pickFeatureForm(infoFeature, form.key)}
+                        title={form.capability.hint}
+                        className={`px-2 py-0.5 rounded-full text-xs transition-colors ${
+                          infoFeature.chosenForm === form.key
+                            ? 'bg-primary/15 text-primary font-medium'
+                            : 'dark:text-text-dark-muted light:text-text-light-muted hover:bg-primary/10'
+                        }`}
+                      >
+                        {form.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">
+                    当前预选：{infoFeature.chosenForm ?? '未预选'}
                   </div>
                 </div>
               )}

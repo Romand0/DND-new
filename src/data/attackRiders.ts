@@ -201,7 +201,23 @@ export function applyAttackRiders(
       combatStore.consumeSpellSlot(record.id, attacker.id, sel.slotLevel);
     }
     let line = `「${sel.featureName}」发动${spec.cost.kind === 'pool' ? `（${spec.cost.cost} 点）` : `（${SLOT_LABEL[sel.slotLevel!] ?? sel.slotLevel ?? ''}法术位）`}`;
-    if (sel.saveResult) {
+    // 延迟引爆 rider（渗透劲类）：命中勾选即埋劲——挂标记状态（metadata.attackerId 记录施劲者）；
+    // 同一时间仅一个目标受影响：挂载前解除其他目标上的旧标记
+    if (spec.embed) {
+      for (const other of record.combatants) {
+        if (other.id === target.id) continue;
+        for (const inst of globalStatusManager.getActiveStatuses(other.id, 'combat')) {
+          if (inst.definitionId === spec.embed.statusId) globalStatusManager.declareEnd(inst.instanceId);
+        }
+      }
+      const mark = globalStatusManager.applyEffect(target.id, spec.embed.statusId, 'combat', record.id, {
+        ...(record.mode === 'playback'
+          ? { combatMode: 'playback' as const, startRound: currentRound0 }
+          : { combatMode: 'simulation' as const }),
+      });
+      mark.metadata = { ...mark.metadata, attackerId: attacker.id, attackerName: attacker.name };
+      line += `：劲力已埋入「${target.name}」（DM 可用动作引爆）`;
+    } else if (sel.saveResult) {
       line += sel.saveResult === 'fail'
         ? `：目标${ABILITY_LABELS[spec.save!.ability] ?? ''}豁免失败，震慑`
         : `：目标${ABILITY_LABELS[spec.save!.ability] ?? ''}豁免成功`;

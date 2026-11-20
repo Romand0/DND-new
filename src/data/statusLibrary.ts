@@ -428,6 +428,30 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'flame',
       },
     });
+
+    // 渗透劲·劲力标记（散打宗 17 级）：震慑拳 rider 埋劲后挂载在目标身上的延迟引爆载体。
+    // 无任何机械效果——目标只是被标记；引爆（体质豁免 HP0 / 10d10 暗蚀）由 DM 主动发起，
+    // metadata.attackerId 记录施劲者（引爆入口按此找目标），同时仅一个生物受影响（挂载前扫旧实例解除）。
+    this.register({
+      id: 'quivering_palm',
+      name: '渗透劲·劲力',
+      description: '武僧的劲力已埋入你体内。施劲武僧可用动作终结你（体质豁免失败生命归 0、成功受 10d10 暗蚀伤害），也可无害解除。',
+      shortDescription: '劲力埋体：施劲者可动作引爆（体豁 HP0 / 10d10 暗蚀）',
+      startTrigger: {
+        type: 'manual',
+        description: '武僧近战命中时消耗 3 气（伤害结算弹窗「命中触发」勾选）。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: 'DM 引爆（耗施劲者动作）或无害终止（零消耗）；武僧死亡或再埋新目标时旧标记解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'amber',
+        icon: 'zap',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {

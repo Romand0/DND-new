@@ -1377,6 +1377,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       {activeFeatures.map((f) => {
                         const capability = resolveFeatureCapability(f.name);
                         const poolKey = resolvePoolKey(f);
+                        // 容器特性：按钮显示已选形态徽标（点击直走子形态渠道；未预选时 onFeatureClick 内拦截）
+                        const containerForms = capability.channel === 'container' ? capability.container?.forms ?? [] : [];
+                        const chosenFormLabel = containerForms.find(x => x.key === f.chosenForm)?.label;
                         // 池量信息：战斗池视图优先；无战斗记录（玩家端投影等）时 poolInfo 置空
                         const poolEntry = poolKey && poolView ? poolView.find((p) => p.featureKey === poolKey) : undefined;
                         const cost = Math.max(1, Math.floor(f.cost ?? 1));
@@ -1414,6 +1417,11 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           >
                             <span className="flex items-center gap-1">
                               <span className="truncate flex-1">{f.name}</span>
+                              {chosenFormLabel && (
+                                <span className="flex-shrink-0 text-[10px] text-accent" data-container-form={chosenFormLabel}>
+                                  {chosenFormLabel}
+                                </span>
+                              )}
                               {poolEntry != null && (
                                 <span className={`flex-shrink-0 tabular-nums text-[10px] ${exhausted ? 'text-danger' : 'text-accent'}`}>
                                   {poolEntry.available}/{poolEntry.max}

@@ -18,10 +18,10 @@ import type { HealSpec, ResourceConvSpec } from '@/data/featureSpecs';
  *  - spec 数据渠道（heal/resource_conv）：纯数据 spec 由仓库 featureSpecs/phb2014.json 提供（决策 1）
  * manual = 未注册兜底。
  */
-export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'aoe_save' | 'heal' | 'resource_conv' | 'manual';
+export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'aoe_save' | 'heal' | 'resource_conv' | 'container' | 'manual';
 
 /** 已实现引擎的渠道集：spec 数据渠道命中此集才可走功能引擎；未命中时消费方按 manual 兜底（P3 已登记 heal/resource_conv） */
-const ENGINE_READY_CHANNELS = new Set<string>(['checkModifier', 'advantage', 'status', 'reaction', 'attack_rider', 'aoe_save', 'heal', 'resource_conv']);
+const ENGINE_READY_CHANNELS = new Set<string>(['checkModifier', 'advantage', 'status', 'reaction', 'attack_rider', 'aoe_save', 'heal', 'resource_conv', 'container']);
 
 /** advantage 通道单条 pending 优劣势参数（复用 PendingAdvantageSource 的场景/方向字段） */
 export interface FeatureAdvantageSpec {
@@ -69,6 +69,16 @@ export interface FeatureCapability {
   channel: FeatureChannel;
   /** 展示用说明（面板 tooltip / 手动结算提示文案） */
   hint?: string;
+  /**
+   * 容器通道参数（引导神力/暗影技艺类多形态特性）：forms 为子形态完整能力表，
+   * 角色卡 chosenForm 预选后战斗层按所选形态能力接管通道路由；
+   * 池扣与动作扣始终按容器特性本身（容器为池主）。
+   */
+  container?: {
+    forms: { key: string; label: string; capability: FeatureCapability }[];
+    /** 未预选时的拦截文案；缺省通用提示 */
+    unchosenHint?: string;
+  };
   /**
    * attack_rider 通道契约：近战武器攻击命中后，在伤害结算弹窗勾选追加的资源消耗。
    * 资源消耗与效果落地在命中时刻结算（5e「当你命中时」语义），勾选声明不扣资源。
@@ -137,6 +147,20 @@ export interface AttackRiderSpec {
     /** 状态持续回合数（durationRounds 2 ≈ 至施用者下回合结束） */
     durationRounds: number;
     todo: string;
+  };
+  /**
+   * 延迟引爆 rider（渗透劲类）：命中勾选不结算即时效果，改为在目标身上挂标记状态
+   * （metadata.attackerId 记录施劲者）；引爆由 DM 后续主动发起（耗动作），引爆 DC/伤害由
+   * detonate 声明。同一时间仅一个目标受影响（挂载前由执行器解除旧标记）。
+   */
+  embed?: {
+    statusId: string;
+    detonate: {
+      ability: AbilityKey;
+      dc: (attacker: Character) => number;
+      damageDice: string;
+      damageType: string;
+    };
   };
   /** 弹窗勾选区与声明摘要文案 */
   hint: string;
@@ -250,6 +274,94 @@ register('震慑拳', {
       todo: '震慑解除检查（至施用者下回合结束）',
     },
     hint: '命中时消耗 1 点气：目标体质豁免 DC 8+熟练+感调，失败震慑至施用者下回合结束',
+  },
+});
+
+// P5 注册表：渗透劲延迟引爆（散打宗 17 级）。埋劲走 attack_rider 命中勾选（3 气在命中时刻扣），
+// 引爆为 DM 主动入口：带劲力标记时特性按钮变为引爆弹窗（CON 豁免失败 HP0 / 成功 10d10 暗蚀，耗动作）。
+register('渗透劲', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'pool', cost: 3 },
+    embed: {
+      statusId: 'quivering_palm',
+      detonate: {
+        ability: 'constitution',
+        dc: (attacker) => {
+          const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+          return 8 + prof + (attacker.abilities?.wisdom?.modifier ?? 0);
+        },
+        damageDice: '10d10',
+        damageType: '暗蚀',
+      },
+    },
+    hint: '命中时消耗 3 点气：劲力埋入目标体内（同一时间仅一个目标），之后可用动作引爆——目标体质豁免 DC 8+熟练+感调，失败生命归 0、成功受 10d10 暗蚀',
+  },
+});
+
+function casterChaMod(caster: Combatant): number {
+  const char = caster.characterId ? characterStore.get(caster.characterId) : null;
+  return char?.abilities?.charisma?.modifier
+    ?? Math.floor((((caster as any).charisma ?? 10) - 10) / 2);
+}
+
+// P5 注册表：容器预选通道（引导神力/暗影技艺类多形态特性）。
+// 角色卡「…」信息对话框四选一固化 chosenForm，战斗层按所选形态能力接管通道路由；
+// 池扣与动作扣始终按容器特性本身（卡上容器为池主，子形态不重复扣）。
+register('引导神力', {
+  channel: 'container',
+  container: {
+    forms: [
+      {
+        key: '生命', label: '生命',
+        capability: {
+          channel: 'heal',
+          heal: { type: 'hp', levelFactor: 5, levelAttr: '圣武士等级' },
+          hint: '引导神力（生命）：恢复生命等于 5×圣武士等级（可分配给范围内生物，此处简化为自身恢复）',
+        },
+      },
+      {
+        key: '毁灭', label: '毁灭',
+        capability: {
+          channel: 'manual',
+          hint: '引导神力（毁灭）：下一次神威打击的伤害骰全部取最大值，请按描述手动结算',
+        },
+      },
+      {
+        key: '不灭信念', label: '不灭信念',
+        capability: {
+          channel: 'reaction',
+          hint: '引导神力（不灭信念）：承受伤害时触发，按誓言描述手动结算（反应类，满足条件时自动提示）',
+        },
+      },
+      {
+        key: '光辉', label: '光辉',
+        capability: {
+          channel: 'aoe_save',
+          aoeSave: {
+            damage: { dice: '2d10', damageType: '光耀' },
+            saveAbility: 'dexterity',
+            dc: (caster) => 8 + casterProfBonus(caster) + casterChaMod(caster),
+            halfOnSave: true,
+          },
+          hint: '引导神力（光辉）：范围内敏捷豁免失败受 2d10 光耀、成功减半（可见目标）',
+        },
+      },
+    ],
+    unchosenHint: '「引导神力」未预选形态，请回角色卡特性「…」信息对话框预选后使用',
+  },
+});
+
+register('暗影技艺', {
+  channel: 'container',
+  container: {
+    forms: [
+      { key: '黑暗术', label: '黑暗术', capability: { channel: 'manual', hint: '暗影技艺（黑暗术）：消耗 2 气，15 尺球形黑暗区域，黑暗内视觉失效，请手动结算' } },
+      { key: '黑暗视觉', label: '黑暗视觉', capability: { channel: 'manual', hint: '暗影技艺（黑暗视觉）：消耗 2 气，获得黑暗视觉至下回合结束，请手动结算' } },
+      { key: '行动无踪', label: '行动无踪', capability: { channel: 'manual', hint: '暗影技艺（行动无踪）：消耗 2 气，隐身于暗影中（轻步/潜行优势），请手动结算' } },
+      { key: '沉默术', label: '沉默术', capability: { channel: 'manual', hint: '暗影技艺（沉默术）：消耗 2 气，10 尺球形静默区域（言语/施法含声成分受阻），请手动结算' } },
+    ],
+    unchosenHint: '「暗影技艺」未预选形态，请回角色卡特性「…」信息对话框预选后使用',
   },
 });
 

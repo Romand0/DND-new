@@ -10,6 +10,15 @@ function check(name, cond, extra) {
 }
 
 async function openInfoByChip(page, name) {
+  // 先关遗留的 InfoPanel/技能弹窗（纯内存 store 探针段不再 reload，遗留遮罩会拦截芯片点击）
+  for (let i = 0; i < 4; i++) {
+    const closeBtns = page.locator(
+      'div.fixed.inset-0.z-50 button:has(.lucide-x), div.fixed.inset-0.z-\\[60\\] button:has(.lucide-x), [data-testid="quivering-close"]'
+    );
+    if ((await closeBtns.count()) === 0) break;
+    await closeBtns.last().click();
+    await page.waitForTimeout(200);
+  }
   await page.locator('button[title="查看参战者信息"]').filter({ hasText: name }).click();
   await page.waitForTimeout(400);
   return page.locator('div.fixed.inset-0.z-50').last();
@@ -764,6 +773,7 @@ async function main() {
     const heal = resolve('回气');
     const conv = resolve('动作如潮');
     const dash = resolve('灵巧动作');
+    const wholeness = resolve('混元体');
     const none = resolve('不存在技能XYZ');
     return {
       poetChannel: poet.channel, poetSource: poet.source ?? 'registry',
@@ -771,6 +781,8 @@ async function main() {
       convChannel: conv.channel, convSource: conv.source, convEngine: conv.engineAvailable,
       convExtraAction: conv.resourceConv?.grants?.[0]?.extraAction === true,
       dashTo: dash.resourceConv?.convert?.to,
+      wChannel: wholeness.channel, wSource: wholeness.source, wDice: wholeness.heal?.dice ?? null,
+      wLevelFactor: wholeness.heal?.levelFactor, wEngine: wholeness.engineAvailable,
       noneChannel: none.channel,
     };
   });
@@ -783,6 +795,9 @@ async function main() {
   check('14d SPEC_DB 生效：灵巧动作多目标转换（dash/disengage/hide）',
     specDb.dashTo?.length === 3, specDb);
   check('14e manual 兜底：未登记特性解析为 manual', specDb.noneChannel === 'manual', specDb);
+  check('14o SPEC_DB 生效：混元体 heal 渠道无骰直结（dice 缺省 + levelFactor 3 + 引擎已登记）',
+    specDb.wChannel === 'heal' && specDb.wSource === 'spec_db' && specDb.wDice === null
+      && specDb.wLevelFactor === 3 && specDb.wEngine === true, specDb);
 
   // 14.6-14.8 校验器（node 侧单一实现 = vite buildStart 同款）：全量合法 + 非法拒收
   const { pathToFileURL } = require('node:url');
@@ -842,6 +857,365 @@ async function main() {
     healDialog != null && healDialog.includes('回气') && healDialog.includes('恢复') && healDialog.includes('线下骰'), healDialog);
   check('14k 回气池照常扣减（featureUses +1）', healWiring.used === 1, healWiring);
 
+  // 14p 混元体（P5 热身）：无骰 heal 直结——不弹 HealRollModal，动作+池照扣，alert 含等级系数明细
+  await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, {
+      features: [
+        ...(card.features ?? []).filter(f => f.name !== '混元体'),
+        { name: '混元体', description: '你可以用一个动作恢复生命值，数值等同于三倍你的武僧等级', category: '职业特性', role: 'active', level: 1, activation: 'action', resource: 'pool', poolFormula: { type: 'fixed', value: 1, restKind: 'long' } },
+      ],
+    });
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+  });
+  await page.reload();
+  await page.waitForTimeout(800);
+  let whDialog = null;
+  page.once('dialog', (d) => { whDialog = d.message(); d.dismiss(); });
+  const panel14w = await openInfoByChip(page, '哨兵战士');
+  await panel14w.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const wBtnCount = await panel14w.getByRole('button', { name: /混元体/ }).count();
+  let wModalShown = 0;
+  if (wBtnCount > 0) {
+    await panel14w.getByRole('button', { name: /混元体/ }).first().click();
+    await page.waitForTimeout(400);
+    wModalShown = await page.locator('[data-testid="heal-roll-modal"]').count();
+  }
+  const wWiring = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:混元体'] ?? 0;
+    // 恢复哨兵战士卡原状，避免影响后续段
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, { features: (card.features ?? []).filter(f => f.name !== '混元体') });
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    return { used };
+  });
+  check('14p 面板含混元体按钮（spec_db 条目投影入列）', wBtnCount > 0, { wBtnCount });
+  check('14q 无骰 heal 直结：跳过 HealRollModal，alert 含等级系数明细（武僧等级×3）',
+    wModalShown === 0 && whDialog != null && whDialog.includes('混元体') && whDialog.includes('恢复') && whDialog.includes('武僧等级×3'), { whDialog, wModalShown });
+  check('14r 混元体池照常扣减（featureUses +1）', wWiring.used === 1, wWiring);
+
+  // ===== 14s 容器预选（P5 核心A）：REGISTRY container 通道 + 角色卡四选一写回 + 战斗层按预选路由 =====
+  const contDb = await page.evaluate(async () => {
+    const fc = await import('/src/data/featureCapabilities.ts');
+    const resolve = fc.resolveFeatureCapability;
+    const cd = resolve('引导神力');
+    const shadow = resolve('暗影技艺');
+    const form = (key) => cd.container?.forms?.find(f => f.key === key)?.capability;
+    return {
+      ch: cd.channel,
+      forms: cd.container?.forms?.map(f => f.key),
+      lifeChannel: form('生命')?.channel, lifeFactor: form('生命')?.heal?.levelFactor,
+      doomChannel: form('毁灭')?.channel,
+      faithChannel: form('不灭信念')?.channel,
+      radiantChannel: form('光辉')?.channel,
+      radiantDice: form('光辉')?.aoeSave?.damage?.dice,
+      shadowCh: shadow.channel, shadowForms: shadow.container?.forms?.map(f => f.key),
+    };
+  });
+  check('14s 容器注册表：引导神力 4 形态（生命heal/毁灭manual/不灭信念reaction/光辉aoe_save）+ 暗影技艺 4 形态',
+    contDb.ch === 'container' && contDb.forms?.length === 4 && contDb.lifeChannel === 'heal' && contDb.lifeFactor === 5
+      && contDb.doomChannel === 'manual' && contDb.faithChannel === 'reaction' && contDb.radiantChannel === 'aoe_save'
+      && contDb.radiantDice === '2d10' && contDb.shadowCh === 'container' && contDb.shadowForms?.length === 4, contDb);
+
+  // 14t 未预选拦截：容器特性点按钮 alert 回角色卡预选，池与动作零消耗
+  await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, {
+      features: [
+        ...(card.features ?? []).filter(f => f.name !== '引导神力'),
+        { id: 'feat-chan-div', name: '引导神力', description: '引导神力（15尺锥状）：四形态容器，按预选路由', category: '职业特性', role: 'active', level: 1, activation: 'action', resource: 'pool', poolFormula: { type: 'fixed', value: 1, restKind: 'short' } },
+      ],
+    });
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    (await import('/src/data/battlegroundStore.ts')).default.setTokens(rec.id, [{ combatantId: 'feat-pc2', col: 3, row: 2 }]);
+  });
+  await page.reload();
+  await page.waitForTimeout(800);
+  let cdBlock = null;
+  page.once('dialog', (d) => { cdBlock = d.message(); d.dismiss(); });
+  const panel14c = await openInfoByChip(page, '哨兵战士');
+  await panel14c.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const cdBtnCount = await panel14c.getByRole('button', { name: /引导神力/ }).count();
+  if (cdBtnCount > 0) {
+    await panel14c.getByRole('button', { name: /引导神力/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  const cdWiring = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:引导神力'] ?? 0;
+    const pc2 = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2');
+    return { used, actions: pc2?.actions };
+  });
+  check('14t 未预选拦截：alert 提示回角色卡预选，池与动作零消耗',
+    cdBtnCount > 0 && cdBlock != null && cdBlock.includes('未预选形态') && cdWiring.used === 0 && cdWiring.actions === 1,
+    { cdBlock, cdBtnCount, cdWiring });
+
+  // 14u 角色卡信息对话框四选一写回 chosenForm
+  const charId14 = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    return characterStore.getAll().find(c => c.name === '主动技能·哨兵战士').id;
+  });
+  await page.goto(BASE + '/characters/' + charId14, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  const infoBtn14 = page.locator('button[data-feature-info="引导神力"]');
+  await infoBtn14.first().waitFor({ state: 'visible', timeout: 8000 }).catch(() => {});
+  check('14u-1 特性卡含引导神力「…」信息对话框入口', await infoBtn14.count() >= 1, { count: await infoBtn14.count() });
+  if (await infoBtn14.count() > 0) {
+    await infoBtn14.first().click();
+    await page.waitForTimeout(300);
+  }
+  const formBtnCount = await page.locator('button[data-feature-form]').count();
+  if (formBtnCount > 0) {
+    await page.locator('button[data-feature-form="光辉"]').first().click();
+    await page.waitForTimeout(300);
+  }
+  const chosenAfter = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    return card.features.find(f => f.name === '引导神力')?.chosenForm ?? null;
+  });
+  check('14u-2 …对话框含四形态预选按钮组（data-feature-form）', formBtnCount === 4, { formBtnCount });
+  check('14u-3 点击「光辉」写回 chosenForm', chosenAfter === '光辉', { chosenAfter });
+
+  // 14v 已预选光辉 → 战斗层点按钮打开 aoe_save 弹窗（子形态接管路由；取消零损失）
+  await page.goto(BASE + '/combat', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+  await page.click('button[title*="沙盒试验场"]');
+  await page.waitForTimeout(800);
+  const panel14d = await openInfoByChip(page, '哨兵战士');
+  await panel14d.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const aoeBtn14 = panel14d.getByRole('button', { name: /引导神力/ });
+  const radiantBadge = await panel14d.locator('[data-container-form="光辉"]').count();
+  if (await aoeBtn14.count() > 0) {
+    await aoeBtn14.first().click();
+    await page.waitForTimeout(500);
+  }
+  const aoeModal14 = await page.locator('div.fixed.inset-0.z-\\[60\\]').count();
+  const aoeModalText = aoeModal14 > 0 ? await page.locator('div.fixed.inset-0.z-\\[60\\]').first().innerText() : '';
+  // 取消（点背景关闭）→ 零损失
+  if (aoeModal14 > 0) {
+    await page.locator('div.fixed.inset-0.z-\\[60\\]').first().click({ position: { x: 8, y: 8 } });
+    await page.waitForTimeout(300);
+  }
+  const vWiring = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:引导神力'] ?? 0;
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    return { used };
+  });
+  check('14v 预选光辉路由 aoe_save：面板徽标显示形态 + 点按钮打开 aoe 弹窗 + 取消零损失',
+    radiantBadge === 1 && aoeModal14 > 0 && aoeModalText.includes('引导神力') && vWiring.used === 0,
+    { radiantBadge, aoeModal14, aoeModalText: aoeModalText.slice(0, 60), vWiring });
+
+  // 14w 已预选毁灭 → manual 子形态 alert（池+动作按容器扣）
+  await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, {
+      features: (card.features ?? []).map(f => (f.name === '引导神力' ? { ...f, chosenForm: '毁灭' } : f)),
+    });
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+  });
+  await page.reload();
+  await page.waitForTimeout(800);
+  let doomDialog = null;
+  page.once('dialog', (d) => { doomDialog = d.message(); d.dismiss(); });
+  const panel14e = await openInfoByChip(page, '哨兵战士');
+  await panel14e.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  if (await panel14e.getByRole('button', { name: /引导神力/ }).count() > 0) {
+    await panel14e.getByRole('button', { name: /引导神力/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  const wWiring2 = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:引导神力'] ?? 0;
+    const pc2 = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2');
+    // 清场：移除容器特性，恢复卡与战斗状态
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, { features: (card.features ?? []).filter(f => f.name !== '引导神力') });
+    combatStore.update(rec.id, {
+      featureUses: {},
+      combatants: rec.combatants.map(c => (c.id === 'feat-pc2' ? { ...c, actions: 1 } : c)),
+      updatedAt: Date.now(),
+    });
+    return { used, actions: pc2?.actions };
+  });
+  check('14w 预选毁灭路由 manual：alert 含形态结算提示 + 池与动作按容器扣减',
+    doomDialog != null && doomDialog.includes('毁灭') && wWiring2.used === 1 && wWiring2.actions === 1,
+    { doomDialog, wWiring2 });
+
+  // ===== 14x 渗透劲延迟引爆（P5 核心B）：埋劲 rider → 标记唯一性 → 引爆弹窗 CON 豁免 HP0 =====
+  const qPalm = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const fc = await import('/src/data/featureCapabilities.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const qMonk = characterStore.add({
+      name: '渗透劲·武僧', race: '人类', level: 17, profession: { class: '武僧' }, proficiencyBonus: 6,
+      maxHp: 80, currentHp: 80, isSandbox: true,
+      abilities: { strength: { score: 12, modifier: 1 }, dexterity: { score: 16, modifier: 3 }, constitution: { score: 14, modifier: 2 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 16, modifier: 3 }, charisma: { score: 10, modifier: 0 } },
+      attacks: [{ name: '徒手打击', damageDice: '1d10', damageType: '钝击', bonus: 9, range: '5尺', properties: [] }],
+      features: [
+        { name: '气', description: '气池：数量等于武僧职业等级', category: '职业特性', role: 'active', level: 1, activation: 'free', resource: 'pool', poolFormula: { type: 'classLevel', multiplier: 1, restKind: 'short' } },
+        { name: '渗透劲', description: '命中时耗3气埋劲，可用动作引爆', category: '职业特性', role: 'active', level: 17, activation: 'free', resource: 'pool', pool: '气', cost: 3 },
+      ],
+    });
+    const addC = (id, name, isPc, characterId, hp) => ({ id, name, isPc, ...(characterId ? { characterId } : {}), initiative: 7, actions: 1, bonusActions: 1, reactions: 1, currentHp: hp, maxHp: hp, movementUsed: 0, heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [] });
+    combatStore.update(rec.id, {
+      combatants: [
+        ...rec.combatants,
+        addC('feat-qmonk', '劲力武僧', true, qMonk.id, 80),
+        addC('feat-qnpc', '劲力目标', false, null, 30),
+        addC('feat-qnpc2', '劲力目标二', false, null, 30),
+      ],
+      updatedAt: Date.now(),
+    });
+    const { applyAttackRiders } = await import('/src/data/attackRiders.ts');
+    const cap = fc.resolveFeatureCapability('渗透劲');
+    const monk = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qmonk');
+    const npc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qnpc');
+    const npc2 = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qnpc2');
+    // 埋劲：池扣 3 + 标记挂载（metadata.attackerId）
+    const lines = applyAttackRiders(combatStore.get(rec.id), monk, npc, [{ featureName: '渗透劲' }], 0);
+    const mark1 = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').find(i => i.definitionId === 'quivering_palm');
+    const kiUsed = combatStore.getFeaturePoolView(rec.id, 'feat-qmonk').find(v => v.featureKey === 'feature:气')?.usedCombat;
+    // 再埋第二个目标：第一个标记应解除（同一时间仅一个目标）
+    applyAttackRiders(combatStore.get(rec.id), monk, npc2, [{ featureName: '渗透劲' }], 0);
+    const mark1After = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').find(i => i.definitionId === 'quivering_palm');
+    const mark2 = globalStatusManager.getActiveStatuses('feat-qnpc2', 'combat').find(i => i.definitionId === 'quivering_palm');
+    // 清场：恢复单标记在 npc1（引爆 UI 断言用），npc2 标记解除
+    globalStatusManager.getActiveStatuses('feat-qnpc2', 'combat').forEach(i => globalStatusManager.declareEnd(i.instanceId));
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    // 重埋 npc1（池扣清零后重跑一次）
+    applyAttackRiders(combatStore.get(rec.id), combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qmonk'), npc, [{ featureName: '渗透劲' }], 0);
+    const markFinal = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').find(i => i.definitionId === 'quivering_palm');
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    return {
+      capChannel: cap.channel, capCost: cap.attackRider?.cost, embedStatus: cap.attackRider?.embed?.statusId,
+      dc: cap.attackRider?.embed?.detonate.dc(qMonk),
+      line: lines[0],
+      markOn: !!mark1, attackerId: mark1?.metadata?.attackerId, kiUsed,
+      mark1Cleared: !mark1After, mark2On: !!mark2,
+      markFinalOn: !!markFinal,
+    };
+  });
+  check('14x-1 渗透劲注册表：attack_rider embed 通道 + 池扣 3 气 + 引爆 DC 8+6+3=17',
+    qPalm.capChannel === 'attack_rider' && qPalm.capCost?.kind === 'pool' && qPalm.capCost?.cost === 3
+      && qPalm.embedStatus === 'quivering_palm' && qPalm.dc === 17, qPalm);
+  check('14x-2 埋劲落地：标记挂载带 attackerId + 池扣 3 + 记录行含埋入目标',
+    qPalm.markOn && qPalm.attackerId === 'feat-qmonk' && qPalm.kiUsed === 3 && (qPalm.line ?? '').includes('劲力已埋入'), qPalm);
+  check('14x-3 同一时间仅一个目标：再埋第二目标后旧标记解除',
+    qPalm.mark1Cleared && qPalm.mark2On && qPalm.markFinalOn, qPalm);
+
+  // 14y 引爆 UI：带标记时渗透劲按钮变引爆入口 → 弹窗填豁免失败 → HP0 + 动作扣减 + 标记解除
+  // 注意：statusManager 纯内存，reload 会丢标记，因此沿用 14x evaluate 后的活页面
+  // 动作扣减依赖 resourceConsumption 开关，这里显式开启
+  await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { resourceConsumption: true, updatedAt: Date.now() });
+  });
+  await page.waitForTimeout(400);
+  const panel14q = await openInfoByChip(page, '劲力武僧');
+  await panel14q.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const qBtnCount = await panel14q.getByRole('button', { name: /渗透劲/ }).count();
+  if (qBtnCount > 0) {
+    await panel14q.getByRole('button', { name: /渗透劲/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  const qModalOpen = await page.locator('[data-testid="quivering-palm-modal"]').count();
+  const qConfirmDisabled = qModalOpen > 0
+    ? await page.locator('[data-testid="quivering-confirm"]').isDisabled()
+    : null;
+  if (qModalOpen > 0) {
+    await page.fill('[data-testid="quivering-save-input"]', '3');
+    await page.waitForTimeout(200);
+  }
+  const qConfirmReady = qModalOpen > 0 && !(await page.locator('[data-testid="quivering-confirm"]').isDisabled());
+  if (qModalOpen > 0) {
+    await page.locator('[data-testid="quivering-confirm"]').click();
+    await page.waitForTimeout(500);
+  }
+  const qAfter = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const npc = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qnpc');
+    const monk = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qmonk');
+    const markLeft = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').some(i => i.definitionId === 'quivering_palm');
+    const logText = JSON.stringify(rec.rounds.map(r => r.cells ?? {})) + JSON.stringify(rec.operationLog ?? []);
+    combatStore.update(rec.id, {
+      featureUses: {},
+      combatants: rec.combatants.map(c => (c.id === 'feat-qnpc'
+        ? { ...c, currentHp: c.maxHp, isDead: false, isUnconscious: false }
+        : c.id === 'feat-qmonk' ? { ...c, actions: 1 } : c)),
+      updatedAt: Date.now(),
+    });
+    return { hp: npc?.currentHp, isDead: npc?.isDead, monkActions: monk?.actions, markLeft, logged: logText.includes('劲力引爆') && logText.includes('生命归 0') };
+  });
+  check('14y-1 带标记时渗透劲按钮打开引爆弹窗（未填豁免时确认禁用）',
+    qBtnCount > 0 && qModalOpen === 1 && qConfirmDisabled === true, { qBtnCount, qModalOpen, qConfirmDisabled });
+  check('14y-2 豁免 3 < DC17 失败引爆：目标 HP0 + 武僧动作扣 1 + 标记解除 + 记录行落账',
+    qConfirmReady && qAfter.hp === 0 && qAfter.isDead === true && qAfter.monkActions === 0 && qAfter.markLeft === false && qAfter.logged,
+    { qAfter, qConfirmReady });
+  check('14y-3 清场后标记复位（重埋标记待无害终止断言）', qPalm.markFinalOn, {});
+
+  // 14z 无害终止：零消耗解除标记（同样沿用活页面，内存标记仍在）
+  await page.waitForTimeout(400);
+  const panel14h = await openInfoByChip(page, '劲力武僧');
+  await panel14h.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  if (await panel14h.getByRole('button', { name: /渗透劲/ }).count() > 0) {
+    await panel14h.getByRole('button', { name: /渗透劲/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  if (await page.locator('[data-testid="quivering-palm-modal"]').count() === 1) {
+    await page.locator('[data-testid="quivering-harmless"]').click();
+    await page.waitForTimeout(500);
+  }
+  const qHarmless = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const monk = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-qmonk');
+    const markLeft = globalStatusManager.getActiveStatuses('feat-qnpc', 'combat').some(i => i.definitionId === 'quivering_palm');
+    const used = combatStore.get(rec.id).featureUses?.['feat-qmonk'] ?? {};
+    // 清场：移除临时参战者与卡，还原资源消耗开关
+    combatStore.update(rec.id, {
+      combatants: rec.combatants.filter(c => !c.id.startsWith('feat-q')),
+      featureUses: {},
+      resourceConsumption: false,
+      updatedAt: Date.now(),
+    });
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const qCard = characterStore.getAll().find(c => c.name === '渗透劲·武僧');
+    if (qCard) characterStore.delete(qCard.id);
+    return { markLeft, monkActions: monk?.actions, poolUsed: Object.keys(used).length };
+  });
+  check('14z 无害终止：标记解除 + 动作与池零消耗',
+    qHarmless.markLeft === false && qHarmless.monkActions === 1 && qHarmless.poolUsed === 0, qHarmless);
+
   // ===== 15. 数据提取器（feature-fullcycle P2）：UI 单项流程 + 批量 dry 报告 =====
   // 自建专测卡：回气 level=1（角色页特性解锁按 experience→等级 过滤，XP=0 时 level 2 条目会被隐藏）
   const charId15 = await page.evaluate(async () => {
@@ -888,8 +1262,8 @@ async function main() {
   const path = require('path');
   const repoRoot = path.resolve(__dirname, '..', '..');
   const batchOut = execSync('node scripts/extract-features-batch.mjs', { cwd: repoRoot, encoding: 'utf8' });
-  check('15g 批量 dry：无踪步已入库 → 幂等 skip（produce 0，skip 10）',
-    batchOut.includes('produce 0') && batchOut.includes('skip 10'), batchOut.split('\n')[0]);
+  check('15g 批量 dry：无踪步/混元体已入库 → 幂等 skip（produce 0，skip 11）',
+    batchOut.includes('produce 0') && batchOut.includes('skip 11'), batchOut.split('\n')[0]);
   check('15h 批量 dry：manual 含圣疗/休憩曲（低置信人工确认，无静默产出）',
     batchOut.includes('圣疗') && batchOut.includes('休憩曲') && batchOut.includes('manual 5'));
 
