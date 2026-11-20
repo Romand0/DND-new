@@ -24,7 +24,8 @@
 | P4c heal 线下骰 | [x] 完成 | 分支 feature/heal-open-dice，merge `43a2d25`，probe-active-skills 95/95 + 全量 ALL PROBES OK；见交付明细 |
 | P4d aoe 线下骰 | [x] 完成 | 分支 feature/aoe-open-dice，merge `6100e59`，probe-active-skills 96/96 + 全量 ALL PROBES OK；全渠道零暗骰收尾 |
 | P5-1 技能特殊文本 | [x] 完成 | 分支 feat/skill-event-text；build 通过；探针 1-13 段过（含 11g/11h），14 段 UI 崩溃遗留待查；见交付明细 |
-| P5 收尾 | [ ] 进行中 | 专用硬编码批次 + 引导神力拆形态 + 荒野变形评估 + 反应数据面 |
+| P5-2 专用硬编码批次 | [x] 完成 | 分支 feat/container-preselect，merge `d1bc6ec`：混元体 heal 直结 / 容器预选（引导神力/暗影技艺）/ 渗透劲延迟引爆；probe-active-skills 117/117 + p2 99/99 + 全量 ALL PROBES OK；见交付明细 |
+| P5 收尾 | [ ] 进行中 | 剩余：荒野变形评估 / 反应数据面 / 极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 |
 
 ## P1 交付明细（2026-11-18）
 
@@ -144,3 +145,19 @@
 - P3 遗留到 P4/P5：圣疗 poolDrain 子型评估延后；conv disengage/hide 机制未建（声明 note 交 DM 裁定）
 - 特殊资源双线索（2026-11-19）：技能线索型池挂特性自身（已实现 featurePools 漏斗）；体系线索型共享池 `system:<名>` + spec `poolRef` 引用（卓越骰先例，待建）；技能结算文本统一 logRichText 标记语言——详见同目录 `ui-design.md` §5/§6
 - 容器技能预选（2026-11-19 用户拍板）：引导神力/暗影技艺等容器四选一在**角色卡预选**（特性「…」信息对话框内），固化到 feature 静态数据随战斗载入；战斗层按已选形态路由渠道，未预选不可用——战斗中不做角色构建决策，对齐「玩家异步提交前一切数值静态可得」核心目标
+
+## P5-2 交付明细（2026-11-20，专用硬编码批次）
+
+- **热身混元体**（`ed16513`）：phb2014.json 混元体条目 `{channel:'heal', spec:{type:'hp', levelFactor:3, levelAttr:'武僧等级'}}`；探针 14o resolve 断言 + 14p/14q/14r UI 无弹窗直结（池扣）→ 103/103
+- **容器预选**（`cb53655`）：
+  - `types/character.ts` Feature + `chosenForm?: string`；`featureCapabilities.ts` FeatureChannel + `'container'` + `FeatureCapability.container{forms[],unchosenHint}` + casterChaMod；注册引导神力（生命 heal 5×圣武士等级 / 毁灭 manual / 不灭信念 reaction / 光辉 aoe_save 2d10 光耀 DEX 减半 DC 8+prof+魅调）与暗影技艺（全 manual）
+  - 容器路由 = capability 重定向：handleFeatureUse 入口替换 capability 为子形态，后续分支全复用；池/动作按容器扣
+  - CharacterDetail 信息对话框四选一（toggle 取消，`data-feature-form`）；CombatantInfoPanel 容器徽标 `data-container-form`
+  - 探针 14s-14w → 110/110
+- **渗透劲延迟引爆**（`4765915` + `da298b4`）：
+  - statusLibrary `quivering_palm`（permanent 无 effects）；attackRiders AttackRiderSpec + `embed{statusId,detonate{ability,dc,damageDice,damageType}}`；注册渗透劲 cost 3 气 DC 8+prof+WIS 10d10 暗蚀；applyAttackRiders 埋劲分支（declareEnd 旧标记保唯一性 + metadata attackerId/attackerName）
+  - `QuiveringPalmModal`（z-[60]）：豁免 d20 手填——失败=HP 归 0（走 handleApplyDamage）/ 成功=填伤害总量 / 无害终止=零消耗仅解除；确认时扣 1 动作 + 解除全部标记实例
+  - 引爆入口复用渗透劲按钮：带标记（metadata.attackerId===自己）→ 弹窗，无标记 → 命中触发声明 alert
+  - 探针 14x-14z → 117/117
+- **探针卫生**：probe-dbg.cjs 转正改名 `probe-skill-engine-p2.cjs`（此前带调试 exit(3) 从未跑完 16 段）；16l 断言口径修正——live 模式 heal 行落 operationLog（rounds cell 双写属放映口径）；16 段 setup 清 combatEvents 防跨运行污染；p2 补 setViewportSize(1280×900)（默认 720 高致双击点视口外）
+- 新知识回写 `.monkeycode/MEMORY.md`：statusManager 纯内存 reload 丢实例 / 探针默认 viewport 陷阱 / dev server 腐化（改 json 触发重优化→模块图分裂）
