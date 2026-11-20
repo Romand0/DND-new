@@ -33,6 +33,10 @@
 - 技能嵌套弹窗（HealRollModal / DiceInputModal / FeatureAoeSaveModal / Conv / CheckModifier）必须 z-[60]，盖过 InfoPanel 的 z-50，否则确认按钮被 `grid grid-cols-2` 操作区分流拦截
 - 试验场数据：种子职业 id=cletic/monk/wizard；职业 slots keys「1环」..「9环」→ levelN；武僧无甲防御=10+敏+感知
 - reload 后 dblclick 打参战者面板的 UI 交互链在沙盘 token/grid 水合时序上偶发失效（token 不渲染、现象漂移，重试无效）——引擎/数据断言改用 evaluate 直调 executeFeatureChannel/applyTurnCommit（池扣 consumeFeatureUse + 槽扣 consumeBonusAction(recId,cid,'playback') 后再调 runner），UI 接线留手动验证
+- statusManager（globalStatusManager）纯内存无持久化：探针 evaluate 埋的状态标记 page.reload() 即丢——UI 段（弹窗路由）沿用 evaluate 后的活页面，开面板前先关遗留 z-50/z-[60] 遮罩（点 button:has(.lucide-x)）
+- 探针 newContext 默认 viewport 1280×720：沙盘 y≈744 的双击点落视口外（elementFromPoint 返回 null），探针统一 setViewportSize({width:1280, height:900})
+- combatEvents/operationLog/rounds cells 跨探针运行持久累积：依赖「本次产生行」的断言（如 heal 明细）需在段 setup 清 combatEvents；live 模式结算行落 operationLog，rounds cell 双写是放映模式口径——断言先确认 record.mode
+- 改 phb2014.json 等种子 json 会触发 vite 依赖重优化 → 页面模块图分裂（写丢/池拒绝/null.find、无 PAGE ERROR）：冷重启 dev server 即恢复，与 HMR 腐化同处理
 
 ## 战斗数据约定
 - CombatRecord.combatants 与记录级字段都走白名单重建（combatStore.load）：新增 combatant 字段（reactionUsed/pendingReactions/bonusActions）或记录字段（resourceConsumption / combatEvents）必须同步白名单，否则刷新丢字段且下次 save 永久抹掉
