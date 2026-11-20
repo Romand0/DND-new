@@ -48,7 +48,7 @@ async function main() {
       combatStore.update(record.id, {
         combatants: [
           { id: 'react-pc', name: '反应战士', isPc: true, characterId: pcChar, initiative: 10, actions: 1, bonusActions: 1, reactions: 0, currentHp: 40, maxHp: 40, movementUsed: 0, heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [] },
-          { id: 'react-npc', name: '反应地精', isPc: false, initiative: 5, actions: 1, bonusActions: 1, reactions: 0, currentHp: 7, maxHp: 7, movementUsed: 0, heldLeft: null, heldRight: null, status: '', attacks: [{ name: '弯刀', damageDice: '1d6', damageType: '挥砍', bonus: 2, range: '5尺', properties: ['灵巧'] }], pendingAdvantageSources: [], pendingCheckModifiers: [] },
+          { id: 'react-npc', name: '反应地精', isPc: false, initiative: 5, actions: 1, bonusActions: 1, reactions: 0, currentHp: 7, maxHp: 7, movementUsed: 0, heldLeft: null, heldRight: null, status: '', attacks: [{ name: '弯刀', damage: '1d6+2', damageType: '挥砍', range: '5尺', properties: ['灵巧'] }], pendingAdvantageSources: [], pendingCheckModifiers: [] },
         ],
         rounds: [{ 'react-pc': '', 'react-npc': '' }, { 'react-pc': '', 'react-npc': '' }],
         updatedAt: Date.now(),
@@ -493,6 +493,207 @@ async function main() {
   check('8d enter_reach 哨兵触发', p3.enter.includes('spell:probe:enter-reach') && p3.enterTrigger === 'enter_reach', p3);
   check('8e spell_cast 敌对施法者触发反制', p3.cast.includes('spell:probe:counterspell') && p3.castTrigger === 'spell_cast' && p3.castCaster === 'react-npc', p3);
   check('8f self 范围不误伤他人（受击者为 NPC 时 PC 不触发）', p3.selfCount === 0, p3);
+
+  // ===== 17. P5 反应数据面：种子声明透传 + damage_modifier 直连 + attack 路由 =====
+  const seedDecl = await page.evaluate(async () => {
+    const data = await (await fetch('/seed/玩家手册2014/角色选项/职业.json')).json();
+    const found = {};
+    const walk = (node) => {
+      if (Array.isArray(node)) { node.forEach(walk); return; }
+      if (node && typeof node === 'object') {
+        if (Array.isArray(node.traits)) {
+          node.traits.forEach(t => { if (t && typeof t.name === 'string' && t.reaction && !found[t.name]) found[t.name] = t.reaction; });
+        }
+        Object.values(node).forEach(walk);
+      }
+    };
+    walk(data);
+    const want = ['报偿', '投射守御', '守御闪光', '风暴狂怒', '幻影化形', '直觉魅惑', '法术窃贼', '雾遁'];
+    return {
+      decls: want.filter(n => found[n]?.trigger && found[n]?.prompt).length,
+      retal: found['报偿']?.trigger === 'damage_taken' && found['报偿']?.resolution === 'attack',
+      ward: found['投射守御']?.trigger === 'damage_taken' && found['投射守御']?.resolution === 'damage_modifier' && found['投射守御']?.scope === 'ally',
+      flash: found['守御闪光']?.trigger === 'attack_targeted' && !found['守御闪光']?.resolution,
+      warGod: typeof found['引导神力：战神祝福']?.prompt === 'string' && !found['引导神力：战神祝福']?.trigger,
+    };
+  });
+  check('17a 种子 reaction 声明 8 条齐备（trigger+prompt）', seedDecl.decls === 8, seedDecl);
+  check('17b 直连声明：报偿 attack / 投射守御 damage_modifier+ally / 守御闪光 manual', seedDecl.retal && seedDecl.ward && seedDecl.flash, seedDecl);
+  check('17c 战神祝福 prompt 意图记录（无 trigger，待第 2 期）', seedDecl.warGod === true, seedDecl);
+
+  await page.evaluate(async () => {
+    const { setRulebookScope } = await import('/src/data/libraryScope.ts');
+    setRulebookScope(['玩家手册 2014']);
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const battlegroundStore = (await import('/src/data/battlegroundStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    // 清掉 7/8 段注入的探测法术：试验场反应检测取全库，probe 法术会混进 17 段反应队列
+    const { spellStore } = await import('/src/data/spellStore.ts');
+    spellStore.save(spellStore.getAllRaw().filter(s => !s.id.startsWith('probe:')));
+    // 保留 0 段的 react-pc/react-npc（panel 选中 id 存活）；报偿+守御闪光挂 react-pc 卡
+    const pcChar = characterStore.getAll().find(c => c.isSandbox && c.name === '反应测试·战士');
+    if (pcChar) {
+      // level 提到 14：getFeatureReactionSources 按 f.level <= level 过滤（报偿 14）
+      characterStore.update(pcChar.id, {
+        level: 14,
+        features: [
+          { name: '报偿', description: '探针', category: '职业特性', level: 14, activation: 'reaction', resource: 'manual', reaction: { trigger: 'damage_taken', resolution: 'attack', scope: 'self' } },
+          { name: '守御闪光', description: '探针', category: '职业特性', level: 1, activation: 'reaction', resource: 'manual', reaction: { trigger: 'attack_targeted', scope: 'self' } },
+        ],
+      });
+    }
+    // 投射守御挂新 PC 卡（ally scope 排除本人 → 守御者与受击者须为两个参战者）
+    characterStore.add({
+      name: 'RX17守御者', race: '人类', level: 6, profession: { class: '战士' },
+      maxHp: 30, currentHp: 30, isSandbox: true,
+      abilities: { strength: { score: 14, modifier: 2 }, dexterity: { score: 12, modifier: 1 }, constitution: { score: 14, modifier: 2 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 10, modifier: 0 }, charisma: { score: 10, modifier: 0 } },
+      features: [
+        { name: '投射守御', description: '探针', category: '职业特性', level: 6, activation: 'reaction', resource: 'manual', reaction: { trigger: 'damage_taken', resolution: 'damage_modifier', scope: 'ally' } },
+      ],
+    });
+    const warderId = characterStore.getAll().find(c => c.isSandbox && c.name === 'RX17守御者')?.id ?? null;
+    const combatants = rec.combatants.filter(c => c.id === 'react-pc' || c.id === 'react-npc').map(c => ({
+      ...c,
+      currentHp: c.id === 'react-pc' ? 40 : 7,
+      pendingReactions: [],
+      reactionUsed: false,
+      actions: 1,
+      bonusActions: 1,
+    }));
+    // ally2 排尾：potentialTarget = 第一个非本人活体（npc 视角恒为 react-pc）
+    combatants.push({ id: 'react-ally2', name: 'RX17守御盟友', isPc: true, characterId: warderId, initiative: 7, actions: 1, bonusActions: 1, reactions: 0, currentHp: 30, maxHp: 30, movementUsed: 0, heldLeft: null, heldRight: null, status: '', pendingAdvantageSources: [], pendingCheckModifiers: [] });
+    combatStore.update(rec.id, {
+      combatants,
+      rounds: [{ 'react-pc': '', 'react-npc': '', 'react-ally2': '' }, { 'react-pc': '', 'react-npc': '', 'react-ally2': '' }],
+      currentTurn: { round: 0, combatantId: 'react-npc' },
+      mode: 'simulation',
+      updatedAt: Date.now(),
+    });
+    battlegroundStore.setTokens(rec.id, [
+      { combatantId: 'react-pc', col: 2, row: 2 },
+      { combatantId: 'react-npc', col: 3, row: 3 },
+      { combatantId: 'react-ally2', col: 4, row: 2 },
+    ]);
+  });
+  await page.waitForTimeout(500);
+  const dom17 = await page.locator('div[title]').evaluateAll(els => els.map(e => e.getAttribute('title')).filter(t => t && t.includes('RX17')));
+  console.log('DEBUG 17-setup pieces:', JSON.stringify(dom17));
+
+  const det17 = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { detectReactions } = await import('/src/data/reactionRules.ts');
+    const { resolveReactionDefinition } = await import('/src/data/reactionDefinitions.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const pcDmg = detectReactions(rec, { kind: 'damage', targetId: 'react-pc', attackerId: 'react-npc', amount: 5, damageType: '挥砍' });
+    const pcAtk = detectReactions(rec, { kind: 'attack', attackerId: 'react-npc', targetId: 'react-pc' });
+    return {
+      wardOwner: pcDmg.find(m => m.definitionId === 'feature:投射守御')?.ownerId,
+      wardRes: resolveReactionDefinition('feature:投射守御')?.resolution,
+      retalOwner: pcDmg.find(m => m.definitionId === 'feature:报偿')?.ownerId,
+      retalRes: resolveReactionDefinition('feature:报偿')?.resolution,
+      flashOwner: pcAtk.find(m => m.definitionId === 'feature:守御闪光')?.ownerId,
+    };
+  });
+  check('17d 投射守御 ally 受伤产出（owner=守御者）', det17.wardOwner === 'react-ally2', det17);
+  check('17e 报偿 self 受伤产出', det17.retalOwner === 'react-pc', det17);
+  check('17f 守御闪光 attack_targeted 被攻者产出', det17.flashOwner === 'react-pc', det17);
+  check('17g 派生定义 resolution：报偿 attack / 投射守御 damage_modifier', det17.retalRes === 'attack' && det17.wardRes === 'damage_modifier', det17);
+
+  // ---- 17h UI 全链：投射守御减伤直连（守御闪光 prompt → 伤害弹窗 → 吸收弹窗 → finalDamage 落账）----
+  // 双击用格子坐标（probe-active-skills 13 段模式）：locator dblclick 在参战者替换后受 actionability 检查拖死
+  const geo17 = await page.evaluate(() => {
+    const g = document.querySelector('div.grid.origin-top-left');
+    const r = g.children[0].getBoundingClientRect();
+    return { x: r.x, y: r.y, cell: r.width };
+  });
+  // 7 段遗留的面板仍显示被替换掉的旧参战者 → 点远端空格清选择，再重开
+  await page.mouse.click(geo17.x + 22.5 * geo17.cell, geo17.y + 22.5 * geo17.cell);
+  await page.waitForTimeout(400);
+  let ui17 = { absorb: false, retal: false, hp: null, logLine: '', step: 'start' };
+  try {
+    ui17.step = 'dblclick';
+    await page.mouse.dblclick(geo17.x + 3.5 * geo17.cell, geo17.y + 3.5 * geo17.cell);
+    await page.waitForTimeout(600);
+    ui17.step = 'op-tab';
+    await page.getByRole('button', { name: '操作', exact: true }).first().click();
+    await page.waitForTimeout(400);
+    ui17.step = 'attack-btn';
+    await page.getByRole('button', { name: '攻击', exact: true }).first().click();
+    await page.waitForTimeout(600);
+    ui17.step = 'attack-entry';
+    await page.locator('div.rounded-lg.border.p-3').filter({ hasText: '弯刀' }).first().click();
+    await page.waitForTimeout(400);
+    ui17.step = 'd20';
+    await page.locator('input[placeholder="输入 1-20"]').first().fill('20');
+    await page.getByRole('button', { name: '确定', exact: true }).first().click();
+    await page.waitForTimeout(500);
+    ui17.step = 'confirm-hit';
+    await page.getByRole('button', { name: '确认命中，进入伤害结算' }).first().click();
+    await page.waitForTimeout(700);
+    ui17.step = 'flash-prompt';
+    // 守御闪光（attack_targeted 窗口）：放弃（保留反应），推进到伤害弹窗
+    await page.getByRole('button', { name: '放弃（保留反应）' }).first().click();
+    await page.waitForTimeout(700);
+    ui17.step = 'damage-calc';
+    const dbgCalc = await page.evaluate(() => {
+      const modals = Array.from(document.querySelectorAll('div.fixed.inset-0')).map(m => ({ z: m.className.includes('z-50') ? 'z50' : 'z40', text: m.textContent.slice(0, 90) }));
+      const inputs = Array.from(document.querySelectorAll('input')).map(i => i.placeholder).filter(Boolean);
+      return { modals, inputs };
+    });
+    console.log('DEBUG 17h-dmg:', JSON.stringify(dbgCalc, null, 1));
+    await page.locator('input[placeholder="d6"]').first().fill('3');
+    await page.getByRole('button', { name: '计算', exact: true }).first().click();
+    await page.waitForTimeout(500);
+    ui17.step = 'confirm-damage';
+    await page.getByRole('button', { name: '确认伤害' }).first().click();
+    await page.waitForTimeout(900);
+    ui17.step = 'retaliate-open';
+    // damage_taken 窗口队列 [报偿(attack), 投射守御(absorb)]：报偿先弹（react-pc 排前）→ 借机攻击弹窗
+    const dbgRq = await page.evaluate(async () => {
+      const combatStore = (await import('/src/data/combatStore.ts')).default;
+      const rec = combatStore.getAll().find(r => r.isProvingGround);
+      const pc = rec.combatants.find(c => c.id === 'react-pc');
+      return {
+        pending: (pc.pendingReactions || []).map(p => `${p.definitionId}@consumed:${p.consumed}`),
+        pcUsed: pc.reactionUsed,
+        npcActions: rec.combatants.find(c => c.id === 'react-npc').actions,
+      };
+    });
+    console.log('DEBUG 17h-rq:', JSON.stringify(dbgRq));
+    ui17.retal = (await page.locator('text=借机攻击（反应）').count()) >= 1;
+    if (ui17.retal) {
+      ui17.step = 'retaliate-close';
+      // X 关闭报偿（保留反应）→ 队列推进到投射守御（用标题文本定位弹窗，避免 .last() 命中伤害弹窗）
+      await page.locator('div.fixed.inset-0').filter({ hasText: '借机攻击（反应）' }).locator('svg.lucide-x').first().click().catch(() => {});
+      await page.waitForTimeout(700);
+      ui17.step = 'absorb-open';
+      ui17.absorb = (await page.locator('[data-testid="damage-absorb-modal"]').count()) >= 1;
+    }
+    if (ui17.absorb) {
+      ui17.step = 'absorb-fill';
+      await page.locator('[data-testid="damage-absorb-input"]').fill('2');
+      await page.locator('[data-testid="damage-absorb-confirm"]').click();
+      await page.waitForTimeout(700);
+      ui17.step = 'confirm-damage-final';
+      // 队列清空 → 伤害弹窗仍在（reactionWindowDone），再次确认 → finalDamage = 5 - 2
+      await page.getByRole('button', { name: '确认伤害' }).first().click();
+      await page.waitForTimeout(700);
+      ui17.hp = await page.evaluate(async () => {
+        const combatStore = (await import('/src/data/combatStore.ts')).default;
+        const rec = combatStore.getAll().find(r => r.isProvingGround);
+        const pc = rec.combatants.find(c => c.id === 'react-pc');
+        const log = JSON.stringify(rec.operationLog || rec.rounds || []);
+        return { pcHp: pc.currentHp, maxHp: pc.maxHp, logLine: log.includes('反应吸收2') ? '吸收记录' : (log.includes('【3】') ? '3伤' : '') };
+      });
+    }
+  } catch (e) {
+    console.error('section17 UI error at', ui17.step, ':', e.message.split('\n')[0]);
+  }
+  check('17k 报偿路由到借机攻击弹窗（reactionMode）', ui17.retal === true, ui17);
+  check('17h 吸收弹窗弹出（damage_modifier 直连）', ui17.absorb === true, ui17);
+  check('17i finalDamage = 5 - 2 = 3，反应战士 HP 40→37', ui17.hp?.pcHp === 37 && ui17.hp?.maxHp === 40, ui17.hp);
+  check('17j 操作日志含反应吸收记录', ui17.hp?.logLine === '吸收记录', ui17.hp);
 
   console.log(`\n==== probe-reaction: ${pass} pass, ${fail} fail ====`);
   await browser.close();
