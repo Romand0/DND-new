@@ -110,8 +110,8 @@
 - **标记语言统一**：healEngine planHealAmount detail 标记化（`1d10(线下骰)=【7】`/`固定【5】`/`战士等级×1=【5】`）；turnCommitApply heal/aoe featureNote 标记化（`恢复【12】点生命`/`【8】点`/`成功`→`豁免通过`）；summarizeOp feature-use 行 `「」`→`《》`；PlayerSpectate 7 处 roundText + DM 端四处记录（confirmCheckModifier/通用 handler/confirmConvTargetUse/confirmHealRoll 重构为结算后两行）+ FeatureAoeSaveModal message 全部《》+【】
 - **DM 端补 skill 事件**：checkModifier/通用 heal/conv/confirmHealRoll/resolveAoeSave 均补 pushCombatEvent(kind 'skill')——DM 直接操作与玩家异步提交两端事件流对齐；alert 剥离标记符号（detail 与日志共用源）
 - **RoundNarrativeBoard 接 renderLogText**：修复 attack/cast 事件标记裸显的潜在问题，为 skill 事件就绪
-- 探针：11g（skill 事件带值断言《吐息武器》+【8】点+失败）+ 11h（bare 包缺省兜底事件）+ 16l（DM UI heal 事件 + 先攻表标记行）新增，96→99 断言
-- **遗留（P5 下批次首先排查）**：probe-active-skills 14 段 geo14 崩溃（`div.grid.origin-top-left` null，reload 后）——1-13 段全过含 11g/11h；冷重启复现；main 基线未及验证（用户裁定跳过探针直接推送）；crash 点在 14.9 evaluate 的 setTokens + reload 之后，疑似与 13 段清场/重放状态相关，与 skill 事件写入的相关性未证实
+- 探针：11g（skill 事件带值断言《吐息武器》+【8】点+失败）+ 11h（bare 包缺省兜底事件）+ 16l（DM UI heal 事件 + 先攻表/操作日志标记行）新增，96→99 断言
+- **探针崩溃已修（2026-11-20）**：根因是模拟模式战斗日志把沙盘顶出默认 720 视口，`mouse.dblclick` 点空（grid 仍在 DOM，y≈689）；HealRollModal 原 z-50 被 InfoPanel 同层挡住确认按钮。修复：14/16 段改点「参战者」芯片开面板；HealRollModal/DiceInputModal 提到 z-[60] 对齐同家族；16l 模拟模式同时认 operationLog；load() 白名单补 combatEvents（reload 丢事件独立 bug）。probe-active-skills 99/99
 
 ## P5 开工顺序（收尾，待启动）
 
@@ -125,7 +125,7 @@
 
 ## 验证方式
 
-- 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（96 断言，含 11e/11f aoe 带值与缺省兜底、14j heal 填骰流）
+- 单探针：`BASE_URL=http://localhost:5174 NODE_PATH=$(npm root -g) node scripts/probes/probe-active-skills.cjs`（99 断言，含 11e/11f aoe、11g/11h skill 事件、14j/16a heal 填骰流、16l 双写）
 - 被动探针：`node scripts/probes/probe-passive2.cjs`（45 断言：七类单元 + 门槛别名 + 种子反应 + UI 冒烟 + 徽标三态）
 - 被动名单统计：`node scripts/passive-roster.mjs [--stdout]`（正式口径清单 p4-passive-roster.json）
 - 批量提取：`node scripts/extract-features-batch.mjs`（dry 报告；--write 写 spec 文件）
