@@ -116,7 +116,7 @@
 ## P5 开工顺序（收尾，待启动）
 
 1. 专用硬编码批次评估：空灵体（四气多效应）/ 混元体（伤害类型切换）/ 渗透劲·暗影技艺（命中 debuff）/ 灵魂力量——逐个立项或标记 mechanic
-2. 引导神力拆 4 形态映射引擎（决策 2）
+2. 引导神力拆 4 形态映射引擎（决策 2；**容器形态角色卡预选**——2026-11-19 用户拍板：四选一在特性信息对话框完成并固化到 feature 静态数据，战斗载入零现选，见 ui-design.md §3）
 3. 荒野变形评估（硬编码候选，决策 2）
 4. 反应数据面：种子 reaction 渠道条目填充（suggest 19 条素材）
 5. P4 遗留评估：极效潜行（需 AdvantageContext.skillKey 扩展）/ 守御灵光（光环抗性动态结算）
@@ -143,3 +143,4 @@
 - suggest 59 条是 P4/P5 素材分类（save_advantage/damage_affinity/advantage/check_modifier/attack_rider/reaction/attack_extra 七类标注）
 - P3 遗留到 P4/P5：圣疗 poolDrain 子型评估延后；conv disengage/hide 机制未建（声明 note 交 DM 裁定）
 - 特殊资源双线索（2026-11-19）：技能线索型池挂特性自身（已实现 featurePools 漏斗）；体系线索型共享池 `system:<名>` + spec `poolRef` 引用（卓越骰先例，待建）；技能结算文本统一 logRichText 标记语言——详见同目录 `ui-design.md` §5/§6
+- 容器技能预选（2026-11-19 用户拍板）：引导神力/暗影技艺等容器四选一在**角色卡预选**（特性「…」信息对话框内），固化到 feature 静态数据随战斗载入；战斗层按已选形态路由渠道，未预选不可用——战斗中不做角色构建决策，对齐「玩家异步提交前一切数值静态可得」核心目标
