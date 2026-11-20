@@ -764,6 +764,7 @@ async function main() {
     const heal = resolve('回气');
     const conv = resolve('动作如潮');
     const dash = resolve('灵巧动作');
+    const wholeness = resolve('混元体');
     const none = resolve('不存在技能XYZ');
     return {
       poetChannel: poet.channel, poetSource: poet.source ?? 'registry',
@@ -771,6 +772,8 @@ async function main() {
       convChannel: conv.channel, convSource: conv.source, convEngine: conv.engineAvailable,
       convExtraAction: conv.resourceConv?.grants?.[0]?.extraAction === true,
       dashTo: dash.resourceConv?.convert?.to,
+      wChannel: wholeness.channel, wSource: wholeness.source, wDice: wholeness.heal?.dice ?? null,
+      wLevelFactor: wholeness.heal?.levelFactor, wEngine: wholeness.engineAvailable,
       noneChannel: none.channel,
     };
   });
@@ -783,6 +786,9 @@ async function main() {
   check('14d SPEC_DB 生效：灵巧动作多目标转换（dash/disengage/hide）',
     specDb.dashTo?.length === 3, specDb);
   check('14e manual 兜底：未登记特性解析为 manual', specDb.noneChannel === 'manual', specDb);
+  check('14o SPEC_DB 生效：混元体 heal 渠道无骰直结（dice 缺省 + levelFactor 3 + 引擎已登记）',
+    specDb.wChannel === 'heal' && specDb.wSource === 'spec_db' && specDb.wDice === null
+      && specDb.wLevelFactor === 3 && specDb.wEngine === true, specDb);
 
   // 14.6-14.8 校验器（node 侧单一实现 = vite buildStart 同款）：全量合法 + 非法拒收
   const { pathToFileURL } = require('node:url');
@@ -842,6 +848,50 @@ async function main() {
     healDialog != null && healDialog.includes('回气') && healDialog.includes('恢复') && healDialog.includes('线下骰'), healDialog);
   check('14k 回气池照常扣减（featureUses +1）', healWiring.used === 1, healWiring);
 
+  // 14p 混元体（P5 热身）：无骰 heal 直结——不弹 HealRollModal，动作+池照扣，alert 含等级系数明细
+  await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, {
+      features: [
+        ...(card.features ?? []).filter(f => f.name !== '混元体'),
+        { name: '混元体', description: '你可以用一个动作恢复生命值，数值等同于三倍你的武僧等级', category: '职业特性', role: 'active', level: 1, activation: 'action', resource: 'pool', poolFormula: { type: 'fixed', value: 1, restKind: 'long' } },
+      ],
+    });
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+  });
+  await page.reload();
+  await page.waitForTimeout(800);
+  let whDialog = null;
+  page.once('dialog', (d) => { whDialog = d.message(); d.dismiss(); });
+  const panel14w = await openInfoByChip(page, '哨兵战士');
+  await panel14w.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const wBtnCount = await panel14w.getByRole('button', { name: /混元体/ }).count();
+  let wModalShown = 0;
+  if (wBtnCount > 0) {
+    await panel14w.getByRole('button', { name: /混元体/ }).first().click();
+    await page.waitForTimeout(400);
+    wModalShown = await page.locator('[data-testid="heal-roll-modal"]').count();
+  }
+  const wWiring = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:混元体'] ?? 0;
+    // 恢复哨兵战士卡原状，避免影响后续段
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, { features: (card.features ?? []).filter(f => f.name !== '混元体') });
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    return { used };
+  });
+  check('14p 面板含混元体按钮（spec_db 条目投影入列）', wBtnCount > 0, { wBtnCount });
+  check('14q 无骰 heal 直结：跳过 HealRollModal，alert 含等级系数明细（武僧等级×3）',
+    wModalShown === 0 && whDialog != null && whDialog.includes('混元体') && whDialog.includes('恢复') && whDialog.includes('武僧等级×3'), { whDialog, wModalShown });
+  check('14r 混元体池照常扣减（featureUses +1）', wWiring.used === 1, wWiring);
+
   // ===== 15. 数据提取器（feature-fullcycle P2）：UI 单项流程 + 批量 dry 报告 =====
   // 自建专测卡：回气 level=1（角色页特性解锁按 experience→等级 过滤，XP=0 时 level 2 条目会被隐藏）
   const charId15 = await page.evaluate(async () => {
@@ -888,8 +938,8 @@ async function main() {
   const path = require('path');
   const repoRoot = path.resolve(__dirname, '..', '..');
   const batchOut = execSync('node scripts/extract-features-batch.mjs', { cwd: repoRoot, encoding: 'utf8' });
-  check('15g 批量 dry：无踪步已入库 → 幂等 skip（produce 0，skip 10）',
-    batchOut.includes('produce 0') && batchOut.includes('skip 10'), batchOut.split('\n')[0]);
+  check('15g 批量 dry：无踪步/混元体已入库 → 幂等 skip（produce 0，skip 11）',
+    batchOut.includes('produce 0') && batchOut.includes('skip 11'), batchOut.split('\n')[0]);
   check('15h 批量 dry：manual 含圣疗/休憩曲（低置信人工确认，无静默产出）',
     batchOut.includes('圣疗') && batchOut.includes('休憩曲') && batchOut.includes('manual 5'));
 

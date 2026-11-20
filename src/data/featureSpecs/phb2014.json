@@ -12,6 +12,13 @@
     "source": "seed_batch",
     "confidence": 0.9
   },
+  "混元体": {
+    "channel": "heal",
+    "spec": { "type": "hp", "levelFactor": 3, "levelAttr": "武僧等级" },
+    "source": "seed_batch",
+    "confidence": 0.9,
+    "_note": "散打宗 6 级：无骰 heal（直接引擎结算，不弹 HealRollModal），动作恢复 3×武僧等级，长休 1 次"
+  },
   "动作如潮": {
     "channel": "resource_conv",
     "spec": { "grants": [ { "extraAction": true } ] },
