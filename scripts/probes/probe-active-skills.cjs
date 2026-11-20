@@ -9,6 +9,12 @@ function check(name, cond, extra) {
   else { fail++; console.log(`FAIL ${name}`, extra ?? ''); }
 }
 
+async function openInfoByChip(page, name) {
+  await page.locator('button[title="查看参战者信息"]').filter({ hasText: name }).click();
+  await page.waitForTimeout(400);
+  return page.locator('div.fixed.inset-0.z-50').last();
+}
+
 async function main() {
   const browser = await chromium.launch();
   const ctx = await browser.newContext();
@@ -19,6 +25,7 @@ async function main() {
   }, USER);
   await ctx.route('**/api/auth/me', r => r.fulfill({ json: { user: USER } }));
   const page = await ctx.newPage();
+  await page.setViewportSize({ width: 1280, height: 900 });
   page.on('pageerror', e => console.error('PAGE ERROR:', e.message));
   await page.goto(BASE + '/combat', { waitUntil: 'networkidle' });
   await page.waitForTimeout(500);
@@ -807,15 +814,7 @@ async function main() {
   await page.waitForTimeout(800);
   let healDialog = null;
   page.once('dialog', (d) => { healDialog = d.message(); d.dismiss(); });
-  const geo14 = await page.evaluate(() => {
-    const g = document.querySelector('div.grid.origin-top-left');
-    const r = g.children[0].getBoundingClientRect();
-    return { x: r.x, y: r.y, cell: r.width };
-  });
-  // feat-pc2（哨兵战士）在 (3,2)
-  await page.mouse.dblclick(geo14.x + 3.5 * geo14.cell, geo14.y + 2.5 * geo14.cell);
-  await page.waitForTimeout(400);
-  const panel14 = page.locator('div.fixed.inset-0.z-50').last();
+  const panel14 = await openInfoByChip(page, '哨兵战士');
   await panel14.getByRole('button', { name: '操作' }).click();
   await page.waitForTimeout(300);
   const healBtnCount = await panel14.getByRole('button', { name: /回气/ }).count();
@@ -942,14 +941,7 @@ async function main() {
   check('16-0 动作槽写值确认（update 后 + reload 后一致）',
     slotsWritten.bonus === 1 && slotsWritten.actions === 1 && slotsAfterReload.bonus === 1,
     { slotsWritten, slotsAfterReload });
-  const geo16 = await page.evaluate(() => {
-    const g = document.querySelector('div.grid.origin-top-left');
-    const r = g.children[0].getBoundingClientRect();
-    return { x: r.x, y: r.y, cell: r.width };
-  });
-  await page.mouse.dblclick(geo16.x + 2.5 * geo16.cell, geo16.y + 2.5 * geo16.cell);
-  await page.waitForTimeout(400);
-  const panel16 = page.locator('div.fixed.inset-0.z-50').last();
+  const panel16 = await openInfoByChip(page, '技能野蛮人');
   await panel16.getByRole('button', { name: '操作' }).click();
   await page.waitForTimeout(300);
   // 16a-16b heal DM 端：回气按钮 → HP 恢复（1d10+5 → 6-15）+ 池扣 + 附赠动作扣
@@ -974,9 +966,10 @@ async function main() {
     const rec = combatStore.getAll().find(r => r.isProvingGround);
     const c = combatStore.get(rec.id).combatants.find(x => x.id === 'feat-pc');
     // skill 事件 + 先攻表全量行（确认 heal 结算文本双写与标记语言落地）
-    const roundsAll = JSON.stringify(combatStore.get(rec.id).rounds ?? []);
-    const skillEvts16 = (combatStore.get(rec.id).combatEvents ?? []).filter(e => e.kind === 'skill').map(e => e.text);
-    return { hp: c.currentHp, bonus: c.bonusActions, uses: combatStore.get(rec.id).featureUses?.['feat-pc']?.['feature:回气'] ?? 0, roundsAll, skillEvts16 };
+    const recNow = combatStore.get(rec.id);
+    const logText = JSON.stringify(recNow.rounds ?? []) + JSON.stringify((recNow.operationLog ?? []).map(e => e.text));
+    const skillEvts16 = (recNow.combatEvents ?? []).filter(e => e.kind === 'skill').map(e => e.text);
+    return { hp: c.currentHp, bonus: c.bonusActions, uses: recNow.featureUses?.['feat-pc']?.['feature:回气'] ?? 0, logText, skillEvts16 };
   });
   const healed16 = healUi.hp - beforeHeal.hp;
   const healDialog16 = dialogs16.find(m => m.includes('回气'));
@@ -984,9 +977,9 @@ async function main() {
     healed16 === 12 && healUi.hp <= (beforeHeal.maxHp ?? 999), { ...beforeHeal, ...healUi, healed16, dialog: healDialog16 });
   check('16b heal 池扣 +1、附赠动作扣 1（槽位差值）', healUi.uses === 1 && healUi.bonus === 0, healUi);
   // 16l skill 事件 + 先攻表双写（§5.2）：结算明细行用标记语言（数值【】），事件流与先攻表同源
-  check('16l skill 事件 + 先攻表结算行：heal 明细标记语言（恢复【12】点生命 + 1d10(线下骰)=【7】）',
+  check('16l skill 事件 + 先攻表/操作日志结算行：heal 明细标记语言（恢复【12】点生命 + 1d10(线下骰)=【7】）',
     healUi.skillEvts16.some(t => t.includes('《回气》→') && t.includes('恢复【12】点生命') && t.includes('1d10(线下骰)=【7】'))
-      && (healUi.roundsAll ?? '').includes('恢复【12】点生命') && (healUi.roundsAll ?? '').includes('1d10(线下骰)=【7】'), healUi);
+      && (healUi.logText ?? '').includes('恢复【12】点生命') && (healUi.logText ?? '').includes('1d10(线下骰)=【7】'), healUi);
   // 16c conv 单目标（无踪步 hide）：数据级直调 runner（UI 面板交互链时序不稳，改为等价数据断言）
   const hideCh = await page.evaluate(async () => {
     const combatStore = (await import('/src/data/combatStore.ts')).default;

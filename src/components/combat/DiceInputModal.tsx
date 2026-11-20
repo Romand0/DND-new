@@ -24,7 +24,7 @@ export default function DiceInputModal({ title, diceText, hint, min, max, confir
   const valid = value !== '' && !isNaN(parsed) && (!hasRange || (parsed >= min! && parsed <= max!));
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="rounded-xl w-full max-w-xs p-4 space-y-3 dark:bg-bg-dark-2 light:bg-bg-light" onClick={(e) => e.stopPropagation()} data-testid="dice-input-modal">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium dark:text-text-dark light:text-text-light">{title}</span>

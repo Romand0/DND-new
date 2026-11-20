@@ -651,6 +651,31 @@ function load(): CombatRecord[] {
           kind: e.kind,
           text: e.text,
         })) : [],
+        combatEvents: Array.isArray(r.combatEvents) ? r.combatEvents.filter(
+          (e: any) => e && typeof e === 'object'
+            && typeof e.id === 'string'
+            && typeof e.round === 'number' && Number.isFinite(e.round)
+            && typeof e.at === 'number' && Number.isFinite(e.at)
+            && typeof e.kind === 'string'
+            && typeof e.text === 'string',
+        ).map((e: any) => ({
+          id: e.id,
+          round: Math.trunc(e.round),
+          at: e.at,
+          kind: e.kind,
+          text: e.text,
+          actorId: typeof e.actorId === 'string' ? e.actorId : undefined,
+          targetId: typeof e.targetId === 'string' ? e.targetId : undefined,
+          ranged: typeof e.ranged === 'boolean' ? e.ranged : undefined,
+          hit: typeof e.hit === 'boolean' ? e.hit : undefined,
+          critical: typeof e.critical === 'boolean' ? e.critical : undefined,
+          weaponName: typeof e.weaponName === 'string' ? e.weaponName : undefined,
+          spellName: typeof e.spellName === 'string' ? e.spellName : undefined,
+          amount: typeof e.amount === 'number' && Number.isFinite(e.amount) ? e.amount : undefined,
+          damageType: typeof e.damageType === 'string' ? e.damageType : undefined,
+          to: e.to && typeof e.to.col === 'number' && typeof e.to.row === 'number'
+            ? { col: e.to.col, row: e.to.row } : undefined,
+        })).slice(-50) : undefined,
         createdAt: Number(r.createdAt) || Date.now(),
         updatedAt: Number(r.updatedAt) || Date.now(),
       };
@@ -713,7 +738,7 @@ const combatStore = {
     const found = load().find(r => r.id === id) ?? null;
     if (!found) return null;
     // 浅拷贝：防止调用方 mutate 污染内存缓存（原实现每次 parse 天然隔离）
-    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds], turnTodos: found.turnTodos ? [...found.turnTodos] : undefined, castLogs: found.castLogs ? [...found.castLogs] : undefined, lastSpellCasts: found.lastSpellCasts ? { ...found.lastSpellCasts } : undefined };
+    return { ...found, combatants: [...found.combatants], rounds: [...found.rounds], turnTodos: found.turnTodos ? [...found.turnTodos] : undefined, castLogs: found.castLogs ? [...found.castLogs] : undefined, lastSpellCasts: found.lastSpellCasts ? { ...found.lastSpellCasts } : undefined, combatEvents: found.combatEvents ? [...found.combatEvents] : undefined };
   },
 
   /**

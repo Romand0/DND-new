@@ -23,18 +23,19 @@
 - InitiativeTable（⚡/专注/激励徽标）只在放映模式渲染；测徽标先 combatStore.update(rec.id,{mode:'playback'})
 - 边改代码边跑 E2E：Vite HMR 让动态 import('/src/x.ts') 拿到另一模块实例（hook 替换无效、写入丢失），重跑前冷重启 dev server；失败先最小化复现区分真实 bug 与 HMR 污染
 - dev server 长时间运行 + 大量 HMR（尤其 merge 改写多文件后）会进入腐化态：探针大面积无关 FAIL、参战者未落库、update 日志为空——用 `npm run dev -- --port 5174 --force` 冷重启（绕过 node_modules/.vite 磁盘缓存）即恢复，先重启再排查
-- 沙盘坐标：querySelector('div.grid.origin-top-left') 的 children[0].boundingRect（cell≈22px）；坐标每步实时读——日志每增一行网格下移≈66px，缓存 geo 会点空格
+- 沙盘坐标：querySelector('div.grid.origin-top-left') 的 children[0].boundingRect（cell≈22px）；坐标每步实时读——日志每增一行网格下移≈66px，缓存 geo 会点空格。默认 Playwright 视口 720 高时模拟模式日志可把网格顶到屏外（y≈689），`mouse.dblclick` 点空而 grid 仍在 DOM（表现为「操作」按钮超时，非 children of null）
 - 棋子位置存 battlegroundStore（dnd-battlegrounds.tokens），不在 combatant.tokenPos；放置 = 点「未放置」芯片（bg-primary 高亮）→ 点沙盘格
 - 移动棋子可靠路径 = 点棋子格选中 → 点目标空格（白圈长按拖拽是攻击/拾取语义）
 - 面板遮挡：CombatantInfoPanel 根是 fixed inset-0 z-50，开着时沙盘不可点；关闭点标题栏 svg.lucide-x（状态条目的 X 是最后一个，.last() 会误删状态）
 - 状态断言收窄到 `div.fixed.inset-0.z-50.last()` 的 innerText，整页 innerText 会被战斗日志/附加表单静态文案污染
 - 攻击链：InfoPanel「操作」tab → 攻击条目 div.rounded-lg.border.p-3（非 button）→ 填 d20「确定」→「确认命中，进入伤害结算」→ 伤害弹窗填值「计算」；相邻格才可攻击
-- 放映模式开面板用列表卡片 button[title*="参战者详情"]，比双击沙盘格稳（第二次点击可能落到遮罩上）
+- 放映模式开面板用列表卡片 button[title*="参战者详情"]；模拟模式用日志条芯片 `button[title="查看参战者信息"]`（filter hasText 名），比双击沙盘格稳。芯片面板接 handleFeatureUse，与沙盘双击面板等价
+- 技能嵌套弹窗（HealRollModal / DiceInputModal / FeatureAoeSaveModal / Conv / CheckModifier）必须 z-[60]，盖过 InfoPanel 的 z-50，否则确认按钮被 `grid grid-cols-2` 操作区分流拦截
 - 试验场数据：种子职业 id=cletic/monk/wizard；职业 slots keys「1环」..「9环」→ levelN；武僧无甲防御=10+敏+感知
 - reload 后 dblclick 打参战者面板的 UI 交互链在沙盘 token/grid 水合时序上偶发失效（token 不渲染、现象漂移，重试无效）——引擎/数据断言改用 evaluate 直调 executeFeatureChannel/applyTurnCommit（池扣 consumeFeatureUse + 槽扣 consumeBonusAction(recId,cid,'playback') 后再调 runner），UI 接线留手动验证
 
 ## 战斗数据约定
-- CombatRecord.combatants 与记录级字段都走白名单重建（combatStore.load）：新增 combatant 字段（reactionUsed/pendingReactions/bonusActions）或记录字段（resourceConsumption）必须同步白名单，否则刷新丢字段且下次 save 永久抹掉
+- CombatRecord.combatants 与记录级字段都走白名单重建（combatStore.load）：新增 combatant 字段（reactionUsed/pendingReactions/bonusActions）或记录字段（resourceConsumption / combatEvents）必须同步白名单，否则刷新丢字段且下次 save 永久抹掉
 - 严格资源消耗开关：combatant 扣槽（consumeCombatantBonusAction 等）只在 `record.resourceConsumption === true` 或放映时生效，关闭时静默跳过——探针构造记录必须显式开启
 - 战斗内一切变更只写临时副本（equipmentChanges/spellSlotChanges/combatant 字段），角色卡全程只读，结算时统一并入；禁止立即写 characterStore
 - 法术位扣减统一在收尾 handleFinishConfirm：characterStore.get 重读 used/max（useMemo 快照陈旧），used<max 才写

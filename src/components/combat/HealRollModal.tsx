@@ -29,7 +29,7 @@ export default function HealRollModal({ featureName, spec, casterLevel, onConfir
   const hint = diceCount > 0 ? `请线下掷 ${spec.dice}，填入点数合计（${diceCount * (diceSides || 0) ? `${diceCount}~${diceCount * diceSides}` : ''}）` : '无需掷骰';
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] bg-black/50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="rounded-xl w-full max-w-xs p-4 space-y-3 dark:bg-bg-dark-2 light:bg-bg-light" onClick={(e) => e.stopPropagation()} data-testid="heal-roll-modal">
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium dark:text-text-dark light:text-text-light">掷骰 · {featureName}</span>

@@ -43,7 +43,7 @@ Updated: 2026-11-19
 | 通用单值 | DiceInputModal | 任意「掷一次填一个数」（aoe 伤害、未来 flow 脚本树 damage 节点） | 零业务依赖，props 传骰面文本与范围 |
 | 逐骰槽位 | CombatDamageModal（既有） | 伤害多骰袋逐项填值 | attack_rider / 法术 effectDiceValues 同口径 |
 
-选择规则：需要结算明细预览或等级缩放推导的用专用形态；无推导逻辑的一律 DiceInputModal，禁止再造单骰专用弹窗。
+选择规则：需要结算明细预览或等级缩放推导的用专用形态；无推导逻辑的一律 DiceInputModal，禁止再造单骰专用弹窗。嵌套于 InfoPanel（z-50）之上的技能弹窗一律 `z-[60]`（HealRollModal / DiceInputModal 与 Conv / CheckModifier / AoeSave 同层）。
 
 ### 2.3 DM 强校验 vs op 缺值标注兜底的分界
 
