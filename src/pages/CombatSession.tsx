@@ -275,6 +275,7 @@ export default function CombatSession() {
   const [checkModifierModal, setCheckModifierModal] = useState<{
     from: Combatant;
     featureName: string;
+    capability?: FeatureCapability;
     activation: Feature['activation'];
     poolKey: string | null;
     cost: number;
@@ -283,6 +284,7 @@ export default function CombatSession() {
   const [aoeSaveModal, setAoeSaveModal] = useState<{
     from: Combatant;
     featureName: string;
+    capability?: FeatureCapability;
     activation: Feature['activation'];
     poolKey: string | null;
     cost: number;
@@ -291,6 +293,7 @@ export default function CombatSession() {
   const [convTargetPick, setConvTargetPick] = useState<{
     from: Combatant;
     featureName: string;
+    capability?: FeatureCapability;
     targets: string[];
     activation: Feature['activation'];
     poolKey: string | null;
@@ -1053,7 +1056,7 @@ export default function CombatSession() {
     setHelpModal({ from: c });
   };
 
-  const openCheckModifierFor = (c: Combatant, featureName: string, activation: Feature['activation'], poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => {
+  const openCheckModifierFor = (c: Combatant, featureName: string, activation: Feature['activation'], poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }, capability?: FeatureCapability) => {
     if (activation === 'action') {
       if (!ensureCanAct(c, canUseAction(c.id))) return;
     } else if (activation === 'bonus') {
@@ -1063,13 +1066,13 @@ export default function CombatSession() {
       alert(`「${featureName}」资源不足（可用 ${poolInfo.available}/${poolInfo.max ?? '?'}）`);
       return;
     }
-    setCheckModifierModal({ from: c, featureName, activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
+    setCheckModifierModal({ from: c, featureName, capability, activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
   };
 
   // checkModifier 通道确认：动作与池在确认时扣（取消不损失资源），随后由通道执行器写目标身上的加值标记
   const confirmCheckModifier = (targetId: string) => {
     if (!record || !checkModifierModal) return;
-    const { from, featureName, activation, poolKey, cost } = checkModifierModal;
+    const { from, featureName, capability, activation, poolKey, cost } = checkModifierModal;
     if (poolKey) {
       const ok = combatStore.consumeFeatureUse(record.id, from.id, poolKey, cost);
       if (!ok) {
@@ -1080,7 +1083,7 @@ export default function CombatSession() {
     if (activation === 'action') consumeCombatantAction(from.id);
     else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
-    const channelResult = executeFeatureChannel(record, from, featureName, currentRound0, { targetId });
+    const channelResult = executeFeatureChannel(record, from, featureName, currentRound0, { targetId, capability });
     recordOperation(from.id, `发动《${featureName}》${channelResult.note ? `：${channelResult.note}` : ''}`, 'record');
     combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId, text: `《${featureName}》→ ${channelResult.note ?? '发动'}` });
     setCheckModifierModal(null);
@@ -1126,7 +1129,22 @@ export default function CombatSession() {
    *  - 通道路由走 featureCapabilities 注册表；manual 通道弹手动结算提示
    */
   const handleFeatureUse = (c: Combatant, feature: Feature, poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => {
-    const capability = resolveFeatureCapability(feature.name);
+    let capability = resolveFeatureCapability(feature.name);
+    // 0. 容器预选（引导神力/暗影技艺类）：未预选拦截，已预选按形态能力接管后续通道路由；
+    //    动作/池扣按容器特性本身（poolInfo/activation 不变），效果按子形态通道执行
+    if (capability.channel === 'container' && capability.container) {
+      const formKey = feature.chosenForm;
+      if (!formKey) {
+        alert(capability.container.unchosenHint ?? `「${feature.name}」未预选形态，请回角色卡特性「…」信息对话框预选后使用`);
+        return;
+      }
+      const form = capability.container.forms.find(f => f.key === formKey);
+      if (!form) {
+        alert(`「${feature.name}」预选形态「${formKey}」无效，请回角色卡重新预选`);
+        return;
+      }
+      capability = form.capability;
+    }
     // 1. 动作成本校验（reaction/free 不扣动作；checkModifier 实际扣减在弹窗确认时）
     if (feature.activation === 'action') {
       if (!ensureCanAct(c, canUseAction(c.id))) return;
@@ -1135,7 +1153,7 @@ export default function CombatSession() {
     }
     // 2. checkModifier 通道：先选受益人，动作与池在弹窗确认时扣（取消不损失资源）
     if (capability.channel === 'checkModifier' && capability.checkModifier) {
-      openCheckModifierFor(c, feature.name, feature.activation, poolInfo);
+      openCheckModifierFor(c, feature.name, feature.activation, poolInfo, capability);
       return;
     }
     // 2.5 aoe_save 通道（吐息武器）：范围拾取 + 逐目标豁免，动作与池在弹窗确认时扣
@@ -1146,12 +1164,12 @@ export default function CombatSession() {
         alert(`「${feature.name}」需要先将该参战者放置在沙盘上（范围以自身为源点）`);
         return;
       }
-      setAoeSaveModal({ from: c, featureName: feature.name, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
+      setAoeSaveModal({ from: c, featureName: feature.name, capability, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
       return;
     }
     // 2.6 resource_conv convert 多目标（灵巧动作类）：先选动作项再扣资源（取消不损失，对齐 checkModifier 模式）
     if (capability.channel === 'resource_conv' && capability.resourceConv?.convert && capability.resourceConv.convert.to.length > 1) {
-      setConvTargetPick({ from: c, featureName: feature.name, targets: capability.resourceConv.convert.to, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
+      setConvTargetPick({ from: c, featureName: feature.name, capability, targets: capability.resourceConv.convert.to, activation: feature.activation, poolKey: poolInfo.poolKey, cost: poolInfo.cost });
       return;
     }
     // 2.7 heal 骰值环节（线下骰口径）：spec 带 dice 先填线下骰结果，确认时扣资源（取消不损失）；无 dice 直接执行
@@ -1177,7 +1195,7 @@ export default function CombatSession() {
     // heal 通道（P3）：执行器掷定恢复量计划，HP 落库走 handleApplyHealing（hp 型）/ addTempHp（temp 型）
     if (capability.channel === 'heal' && capability.heal) {
       const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
-      const r = executeFeatureChannel(record, c, feature.name, currentRound0);
+      const r = executeFeatureChannel(record, c, feature.name, currentRound0, { capability });
       if (r.heal) {
         if (r.heal.type === 'temp') {
           const tp = combatStore.addTempHp(record.id, r.heal.targetId, r.heal.amount);
@@ -1204,7 +1222,7 @@ export default function CombatSession() {
     // resource_conv 通道（P3）：grants 额外动作 / convert 单目标（多目标已走 2.6 弹窗）
     if (capability.channel === 'resource_conv' && capability.resourceConv) {
       const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
-      const r = executeFeatureChannel(record, c, feature.name, currentRound0, { convertTarget: capability.resourceConv.convert?.to[0] });
+      const r = executeFeatureChannel(record, c, feature.name, currentRound0, { convertTarget: capability.resourceConv.convert?.to[0], capability });
       if (r.note) {
         const noteLine = `《${feature.name}》→ ${r.note}`;
         recordOperation(c.id, noteLine, 'record');
@@ -1229,7 +1247,7 @@ export default function CombatSession() {
     }
     // status / advantage 通道：与玩家回合包 feature-use op 共用执行器
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
-    const channelResult = executeFeatureChannel(record, c, feature.name, currentRound0);
+    const channelResult = executeFeatureChannel(record, c, feature.name, currentRound0, { capability });
     if (channelResult.note) {
       const noteLine = `《${feature.name}》→ ${channelResult.note}`;
       recordOperation(c.id, noteLine, 'record');
@@ -1242,7 +1260,7 @@ export default function CombatSession() {
    * resource_conv convert 多目标弹窗确认：此处才扣动作与池（取消不损失资源，对齐 checkModifier 模式），
    * 随后经执行器按所选动作项落地（dash 移动力账务 / disengage+hide 声明）。
    */
-  const confirmConvTargetUse = (from: Combatant, featureName: string, target: string, activation: Feature['activation'], poolKey: string | null, cost: number) => {
+  const confirmConvTargetUse = (from: Combatant, featureName: string, target: string, activation: Feature['activation'], poolKey: string | null, cost: number, capability?: FeatureCapability) => {
     setConvTargetPick(null);
     if (activation === 'action') {
       if (!ensureCanAct(from, canUseAction(from.id))) return;
@@ -1260,7 +1278,7 @@ export default function CombatSession() {
     else if (activation === 'bonus') consumeCombatantBonusAction(from.id);
     recordOperation(from.id, `发动《${featureName}》→ ${CONV_TARGET_LABELS[target] ?? target}`, 'record');
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
-    const r = executeFeatureChannel(record, from, featureName, currentRound0, { convertTarget: target });
+    const r = executeFeatureChannel(record, from, featureName, currentRound0, { convertTarget: target, capability });
     if (r.note) {
       const noteLine = `《${featureName}》→ ${r.note}`;
       recordOperation(from.id, noteLine, 'record');
@@ -2870,6 +2888,7 @@ export default function CombatSession() {
           <FeatureCheckModifierModal
             from={checkModifierModal.from}
             featureName={checkModifierModal.featureName}
+            capability={checkModifierModal.capability}
             friendlies={friendlies}
             onConfirm={confirmCheckModifier}
             onClose={() => setCheckModifierModal(null)}
@@ -2885,6 +2904,7 @@ export default function CombatSession() {
           <FeatureAoeSaveModal
             caster={aoeSaveModal.from}
             featureName={aoeSaveModal.featureName}
+            capability={aoeSaveModal.capability}
             combatants={record.combatants}
             combatantPositions={combatantPositions}
             bounds={{ cols: preset.cols, rows: preset.rows }}
@@ -2900,7 +2920,7 @@ export default function CombatSession() {
           from={convTargetPick.from}
           featureName={convTargetPick.featureName}
           targets={convTargetPick.targets}
-          onConfirm={(target) => confirmConvTargetUse(convTargetPick.from, convTargetPick.featureName, target, convTargetPick.activation, convTargetPick.poolKey, convTargetPick.cost)}
+          onConfirm={(target) => confirmConvTargetUse(convTargetPick.from, convTargetPick.featureName, target, convTargetPick.activation, convTargetPick.poolKey, convTargetPick.cost, convTargetPick.capability)}
           onClose={() => setConvTargetPick(null)}
         />
       )}

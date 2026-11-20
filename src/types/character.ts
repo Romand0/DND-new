@@ -267,6 +267,8 @@ export interface Feature {
   pool?: string;
   /** 单次消耗池量（缺省 1） */
   cost?: number;
+  /** 容器形态预选（引导神力/暗影技艺类）：角色卡信息对话框四选一固化，战斗层按此路由子形态 */
+  chosenForm?: string;
 }
 
 export interface Character {

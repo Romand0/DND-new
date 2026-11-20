@@ -892,6 +892,167 @@ async function main() {
     wModalShown === 0 && whDialog != null && whDialog.includes('混元体') && whDialog.includes('恢复') && whDialog.includes('武僧等级×3'), { whDialog, wModalShown });
   check('14r 混元体池照常扣减（featureUses +1）', wWiring.used === 1, wWiring);
 
+  // ===== 14s 容器预选（P5 核心A）：REGISTRY container 通道 + 角色卡四选一写回 + 战斗层按预选路由 =====
+  const contDb = await page.evaluate(async () => {
+    const fc = await import('/src/data/featureCapabilities.ts');
+    const resolve = fc.resolveFeatureCapability;
+    const cd = resolve('引导神力');
+    const shadow = resolve('暗影技艺');
+    const form = (key) => cd.container?.forms?.find(f => f.key === key)?.capability;
+    return {
+      ch: cd.channel,
+      forms: cd.container?.forms?.map(f => f.key),
+      lifeChannel: form('生命')?.channel, lifeFactor: form('生命')?.heal?.levelFactor,
+      doomChannel: form('毁灭')?.channel,
+      faithChannel: form('不灭信念')?.channel,
+      radiantChannel: form('光辉')?.channel,
+      radiantDice: form('光辉')?.aoeSave?.damage?.dice,
+      shadowCh: shadow.channel, shadowForms: shadow.container?.forms?.map(f => f.key),
+    };
+  });
+  check('14s 容器注册表：引导神力 4 形态（生命heal/毁灭manual/不灭信念reaction/光辉aoe_save）+ 暗影技艺 4 形态',
+    contDb.ch === 'container' && contDb.forms?.length === 4 && contDb.lifeChannel === 'heal' && contDb.lifeFactor === 5
+      && contDb.doomChannel === 'manual' && contDb.faithChannel === 'reaction' && contDb.radiantChannel === 'aoe_save'
+      && contDb.radiantDice === '2d10' && contDb.shadowCh === 'container' && contDb.shadowForms?.length === 4, contDb);
+
+  // 14t 未预选拦截：容器特性点按钮 alert 回角色卡预选，池与动作零消耗
+  await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, {
+      features: [
+        ...(card.features ?? []).filter(f => f.name !== '引导神力'),
+        { id: 'feat-chan-div', name: '引导神力', description: '引导神力（15尺锥状）：四形态容器，按预选路由', category: '职业特性', role: 'active', level: 1, activation: 'action', resource: 'pool', poolFormula: { type: 'fixed', value: 1, restKind: 'short' } },
+      ],
+    });
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    (await import('/src/data/battlegroundStore.ts')).default.setTokens(rec.id, [{ combatantId: 'feat-pc2', col: 3, row: 2 }]);
+  });
+  await page.reload();
+  await page.waitForTimeout(800);
+  let cdBlock = null;
+  page.once('dialog', (d) => { cdBlock = d.message(); d.dismiss(); });
+  const panel14c = await openInfoByChip(page, '哨兵战士');
+  await panel14c.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const cdBtnCount = await panel14c.getByRole('button', { name: /引导神力/ }).count();
+  if (cdBtnCount > 0) {
+    await panel14c.getByRole('button', { name: /引导神力/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  const cdWiring = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:引导神力'] ?? 0;
+    const pc2 = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2');
+    return { used, actions: pc2?.actions };
+  });
+  check('14t 未预选拦截：alert 提示回角色卡预选，池与动作零消耗',
+    cdBtnCount > 0 && cdBlock != null && cdBlock.includes('未预选形态') && cdWiring.used === 0 && cdWiring.actions === 1,
+    { cdBlock, cdBtnCount, cdWiring });
+
+  // 14u 角色卡信息对话框四选一写回 chosenForm
+  const charId14 = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    return characterStore.getAll().find(c => c.name === '主动技能·哨兵战士').id;
+  });
+  await page.goto(BASE + '/characters/' + charId14, { waitUntil: 'domcontentloaded' });
+  await page.waitForTimeout(1200);
+  const infoBtn14 = page.locator('button[data-feature-info="引导神力"]');
+  check('14u-1 特性卡含引导神力「…」信息对话框入口', await infoBtn14.count() >= 1, { count: await infoBtn14.count() });
+  if (await infoBtn14.count() > 0) {
+    await infoBtn14.first().click();
+    await page.waitForTimeout(300);
+  }
+  const formBtnCount = await page.locator('button[data-feature-form]').count();
+  if (formBtnCount > 0) {
+    await page.locator('button[data-feature-form="光辉"]').first().click();
+    await page.waitForTimeout(300);
+  }
+  const chosenAfter = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    return card.features.find(f => f.name === '引导神力')?.chosenForm ?? null;
+  });
+  check('14u-2 …对话框含四形态预选按钮组（data-feature-form）', formBtnCount === 4, { formBtnCount });
+  check('14u-3 点击「光辉」写回 chosenForm', chosenAfter === '光辉', { chosenAfter });
+
+  // 14v 已预选光辉 → 战斗层点按钮打开 aoe_save 弹窗（子形态接管路由；取消零损失）
+  await page.goto(BASE + '/combat', { waitUntil: 'networkidle' });
+  await page.waitForTimeout(500);
+  await page.click('button[title*="沙盒试验场"]');
+  await page.waitForTimeout(800);
+  const panel14d = await openInfoByChip(page, '哨兵战士');
+  await panel14d.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  const aoeBtn14 = panel14d.getByRole('button', { name: /引导神力/ });
+  const radiantBadge = await panel14d.locator('[data-container-form="光辉"]').count();
+  if (await aoeBtn14.count() > 0) {
+    await aoeBtn14.first().click();
+    await page.waitForTimeout(500);
+  }
+  const aoeModal14 = await page.locator('div.fixed.inset-0.z-\\[60\\]').count();
+  const aoeModalText = aoeModal14 > 0 ? await page.locator('div.fixed.inset-0.z-\\[60\\]').first().innerText() : '';
+  // 取消（点背景关闭）→ 零损失
+  if (aoeModal14 > 0) {
+    await page.locator('div.fixed.inset-0.z-\\[60\\]').first().click({ position: { x: 8, y: 8 } });
+    await page.waitForTimeout(300);
+  }
+  const vWiring = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:引导神力'] ?? 0;
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+    return { used };
+  });
+  check('14v 预选光辉路由 aoe_save：面板徽标显示形态 + 点按钮打开 aoe 弹窗 + 取消零损失',
+    radiantBadge === 1 && aoeModal14 > 0 && aoeModalText.includes('引导神力') && vWiring.used === 0,
+    { radiantBadge, aoeModal14, aoeModalText: aoeModalText.slice(0, 60), vWiring });
+
+  // 14w 已预选毁灭 → manual 子形态 alert（池+动作按容器扣）
+  await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, {
+      features: (card.features ?? []).map(f => (f.name === '引导神力' ? { ...f, chosenForm: '毁灭' } : f)),
+    });
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    combatStore.update(rec.id, { featureUses: {}, updatedAt: Date.now() });
+  });
+  await page.reload();
+  await page.waitForTimeout(800);
+  let doomDialog = null;
+  page.once('dialog', (d) => { doomDialog = d.message(); d.dismiss(); });
+  const panel14e = await openInfoByChip(page, '哨兵战士');
+  await panel14e.getByRole('button', { name: '操作' }).click();
+  await page.waitForTimeout(300);
+  if (await panel14e.getByRole('button', { name: /引导神力/ }).count() > 0) {
+    await panel14e.getByRole('button', { name: /引导神力/ }).first().click();
+    await page.waitForTimeout(400);
+  }
+  const wWiring2 = await page.evaluate(async () => {
+    const { characterStore } = await import('/src/data/characterStore.ts');
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const used = combatStore.get(rec.id).featureUses?.['feat-pc2']?.['feature:引导神力'] ?? 0;
+    const pc2 = combatStore.get(rec.id).combatants.find(c => c.id === 'feat-pc2');
+    // 清场：移除容器特性，恢复卡与战斗状态
+    const card = characterStore.getAll().find(c => c.name === '主动技能·哨兵战士');
+    characterStore.update(card.id, { features: (card.features ?? []).filter(f => f.name !== '引导神力') });
+    combatStore.update(rec.id, {
+      featureUses: {},
+      combatants: rec.combatants.map(c => (c.id === 'feat-pc2' ? { ...c, actions: 1 } : c)),
+      updatedAt: Date.now(),
+    });
+    return { used, actions: pc2?.actions };
+  });
+  check('14w 预选毁灭路由 manual：alert 含形态结算提示 + 池与动作按容器扣减',
+    doomDialog != null && doomDialog.includes('毁灭') && wWiring2.used === 1 && wWiring2.actions === 1,
+    { doomDialog, wWiring2 });
+
   // ===== 15. 数据提取器（feature-fullcycle P2）：UI 单项流程 + 批量 dry 报告 =====
   // 自建专测卡：回气 level=1（角色页特性解锁按 experience→等级 过滤，XP=0 时 level 2 条目会被隐藏）
   const charId15 = await page.evaluate(async () => {

@@ -3,18 +3,20 @@
 // 资源与动作由宿主在确认回调时扣减（取消不损失资源）。
 import { X } from 'lucide-react';
 import type { Combatant } from '@/types/combat';
-import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
 
 interface Props {
   from: Combatant;
   featureName: string;
+  /** 容器子形态能力覆盖（缺省按 featureName 注册表解析） */
+  capability?: FeatureCapability;
   friendlies: Combatant[];
   onConfirm: (targetId: string) => void;
   onClose: () => void;
 }
 
-export default function FeatureCheckModifierModal({ from, featureName, friendlies, onConfirm, onClose }: Props) {
-  const capability = resolveFeatureCapability(featureName);
+export default function FeatureCheckModifierModal({ from, featureName, capability: capabilityProp, friendlies, onConfirm, onClose }: Props) {
+  const capability = capabilityProp ?? resolveFeatureCapability(featureName);
   const spec = capability.checkModifier;
   if (!spec) return null;
   const die = spec.dice(from);

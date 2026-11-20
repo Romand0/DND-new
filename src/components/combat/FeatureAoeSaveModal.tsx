@@ -9,7 +9,7 @@ import type { Bearing } from '@/data/battleGeometry';
 import AoETargetStep from './AoETargetStep';
 import { parseAoeSpec } from '@/data/aoeShapes';
 import { planAoeSave, applyAoeSave, saveBonusFor, rollAoeDamage, type AoeSaveTargetPlan } from '@/data/aoeSaveEngine';
-import { resolveFeatureCapability, type FeatureAoeSaveSpec } from '@/data/featureCapabilities';
+import { resolveFeatureCapability, type FeatureAoeSaveSpec, type FeatureCapability } from '@/data/featureCapabilities';
 import { characterStore } from '@/data/characterStore';
 import { rollDice } from '@/data/diceService';
 import { ABILITY_LABEL_MAP } from '@/lib/saveBonus';
@@ -32,6 +32,8 @@ interface Stage2Result {
 interface Props {
   caster: Combatant;
   featureName: string;
+  /** 容器子形态能力覆盖（缺省按 featureName 注册表解析） */
+  capability?: FeatureCapability;
   combatants: Combatant[];
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
   bounds: { cols: number; rows: number };
@@ -47,8 +49,8 @@ interface Props {
   onClose: () => void;
 }
 
-export default function FeatureAoeSaveModal({ caster, featureName, combatants, combatantPositions, bounds, onResolve, onClose }: Props) {
-  const capability = resolveFeatureCapability(featureName);
+export default function FeatureAoeSaveModal({ caster, featureName, capability: capabilityProp, combatants, combatantPositions, bounds, onResolve, onClose }: Props) {
+  const capability = capabilityProp ?? resolveFeatureCapability(featureName);
   const spec: FeatureAoeSaveSpec | undefined = capability.aoeSave;
   // 形状规格：从角色卡特性描述解析（「15尺锥状」等），AoETargetStep 特性模式直传
   const description = useMemo(() => {
