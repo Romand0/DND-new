@@ -137,6 +137,35 @@ export interface ReactionPrompt {
 /** 借机攻击机会（v1 兼容别名）：通用 prompt 的「移动离开触及」特例 */
 export type ReactionOpportunity = ReactionPrompt;
 
+/** 荒野变形状态（德鲁伊）：变身 = 参战者战斗形状按野兽模板替换，快照保存原形数据供还原 */
+export interface WildShapeState {
+  /** 野兽模板业务键（npcTemplateStore.templateId，如 wolf） */
+  beastKey: string;
+  /** 野兽显示名（狼/巨狼蛛/…） */
+  beastName: string;
+  /** 原形快照：恢复原形（自愿解除 / 野兽 HP 归 0）时还原 */
+  snapshot: {
+    name: string;
+    currentHp?: number;
+    maxHp?: number;
+    ac?: number;
+    attacks?: NpcAttack[];
+    speed?: number;
+    creatureSize?: CreatureSize;
+    creatureType?: CreatureType;
+    templateId?: string;
+    note?: string;
+    /** 变身覆盖的六维（力/敏/体按野兽数据，智/魅/感保留原形）；还原时清回 */
+    strength?: number;
+    dexterity?: number;
+    constitution?: number;
+    intelligence?: number;
+    wisdom?: number;
+    charisma?: number;
+    proficiencyBonus?: number;
+  };
+}
+
 export interface Combatant {
   id: string;
   name: string;
@@ -224,6 +253,8 @@ export interface Combatant {
   regenNegate?: string;
   /** NPC 攻击方式（从模板带入） */
   attacks?: NpcAttack[];
+  /** 荒野变形状态（德鲁伊 PC）：存在 = 已处于野兽形态，参战者战斗字段已被野兽数据覆盖 */
+  wildShape?: WildShapeState;
   /** 当前可用动作数（放映模式每回合恢复，模拟模式无限） */
   actions?: number;
   /** 体型级别（0=微型…5=超巨型），仅 NPC 使用 */

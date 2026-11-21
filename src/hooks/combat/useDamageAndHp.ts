@@ -1,5 +1,6 @@
 import combatStore from '@/data/combatStore';
-import type { CombatRecord } from '@/types/combat';
+import { restoreWildShapeForm } from '@/data/wildShapeBeasts';
+import type { CombatRecord, Combatant } from '@/types/combat';
 import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
 
 export interface UseDamageAndHpProps {
@@ -13,36 +14,38 @@ export function useDamageAndHp(
 ) {
   const { currentTurn, playbackMode } = props;
 
-  /** 写入目标 HP / 存活状态，返回更新后的参战者数组 */
+  /** 写入目标 HP / 存活状态，返回更新后的参战者数组；replacement 传入时用其整体替换（野形破碎还原用） */
   const writeCombatantHp = (
     targetId: string,
     newHp: number,
     tempHpAfter: number,
     status: 'unconscious' | 'dead' | undefined,
     wasUnconscious: boolean,
+    replacement?: Combatant,
   ) => {
     if (!record) return [];
     const latest = combatStore.get(record.id);
     if (!latest) return [];
     const updatedCombatants = latest.combatants.map(c => {
       if (c.id !== targetId) return c;
+      const base = replacement ?? c;
       if (newHp <= 0 && status === 'dead') {
-        return { ...c, currentHp: newHp, tempHp: tempHpAfter, isDead: true, isUnconscious: false };
+        return { ...base, currentHp: newHp, tempHp: tempHpAfter, isDead: true, isUnconscious: false };
       }
       if (newHp <= 0 && status === 'unconscious') {
         const firstDown = !wasUnconscious;
         return {
-          ...c,
+          ...base,
           currentHp: newHp,
           tempHp: tempHpAfter,
           isDead: false,
           isUnconscious: true,
-          deathSaveFailures: firstDown ? 0 : (c.deathSaveFailures ?? 0),
-          deathSaveSuccesses: firstDown ? 0 : (c.deathSaveSuccesses ?? 0),
+          deathSaveFailures: firstDown ? 0 : (base.deathSaveFailures ?? 0),
+          deathSaveSuccesses: firstDown ? 0 : (base.deathSaveSuccesses ?? 0),
         };
       }
       return {
-        ...c,
+        ...base,
         currentHp: newHp,
         tempHp: tempHpAfter,
         isDead: false,
@@ -67,7 +70,6 @@ export function useDamageAndHp(
     if (!latest || !target) return null;
 
     const wasUnconscious = target.isUnconscious ?? false;
-    const isPc = target.isPc ?? false;
     const oldHp = target.currentHp ?? 0;
     const damage = Math.max(0, Math.floor(event.amount));
     const tempHpBefore = Math.max(0, target.tempHp ?? 0);
@@ -90,14 +92,34 @@ export function useDamageAndHp(
     const tempAbsorbed = Math.min(tempHpBefore, damage);
     const tempHpAfter = tempHpBefore - tempAbsorbed;
     const hpDamage = damage - tempAbsorbed;
-    const newHp = Math.max(0, oldHp - hpDamage);
+    let newHp = Math.max(0, oldHp - hpDamage);
+
+    // 野形破碎（德鲁伊荒野变形 5e 规则）：野兽形态 HP 归 0 时自动恢复原形，
+    // 溢出伤害（超出野兽 HP 的部分）扣原形 HP；还原后 HP 决定原形存活状态。
+    // writeCombatantHp 用还原后的参战者对象落账（名字/AC/攻击等一并还原）。
+    let wildShapeBroken: DamageApplyResult['wildShapeBroken'];
+    let effectiveTarget: Combatant = target;
+    if (target.wildShape && hpDamage > 0 && newHp <= 0) {
+      const snap = target.wildShape.snapshot;
+      const overflow = hpDamage - oldHp;
+      const restoredHp = Math.max(0, (snap.currentHp ?? 0) - overflow);
+      wildShapeBroken = {
+        beastName: target.wildShape.beastName,
+        overflow,
+        restoredName: snap.name,
+        restoredHp,
+      };
+      effectiveTarget = restoreWildShapeForm({ ...target, wildShape: { ...target.wildShape, snapshot: { ...snap, currentHp: restoredHp } } });
+      newHp = restoredHp;
+    }
+
     // 尸体不会被伤害“复活”；NPC 未指定致命状态时默认死亡，避免 0 HP 仍站立
     const status: 'unconscious' | 'dead' | undefined =
       newHp <= 0
-        ? (target.isDead ? 'dead' : (event.status ?? (isPc ? 'unconscious' : 'dead')))
+        ? (effectiveTarget.isDead ? 'dead' : (event.status ?? (effectiveTarget.isPc ? 'unconscious' : 'dead')))
         : undefined;
 
-    const updatedCombatants = writeCombatantHp(event.targetId, newHp, tempHpAfter, status, wasUnconscious);
+    const updatedCombatants = writeCombatantHp(event.targetId, newHp, tempHpAfter, status, wasUnconscious, effectiveTarget);
 
     // 专注豁免（D&D 5e）：DC = max(10, floor(承受伤害/2))。
     // 伤害量来自攻击方结算，包含被临时 HP 吸收的部分；HP 归零时专注直接中断。
@@ -124,7 +146,7 @@ export function useDamageAndHp(
       });
     }
 
-    if (playbackMode && isPc && newHp <= 0 && status === 'unconscious') {
+    if (playbackMode && effectiveTarget.isPc && newHp <= 0 && status === 'unconscious') {
       const existing = combatStore.get(record.id)?.turnTodos?.some(
         t => t.type === 'death_save' && t.combatantId === event.targetId,
       );
@@ -164,6 +186,7 @@ export function useDamageAndHp(
       tempAbsorbed,
       tempHpAfter,
       status,
+      wildShapeBroken,
     };
   };
 

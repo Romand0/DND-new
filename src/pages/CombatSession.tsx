@@ -49,7 +49,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Character, Attack, Feature } from '@/types/character';
-import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionPrompt } from '@/types/combat';
+import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionPrompt, WildShapeState } from '@/types/combat';
 import type { SpellSlotLevel } from '@/types/character';
 import { detectReactions } from '@/data/reactionRules';
 import { resolveReactionDefinition } from '@/data/reactionDefinitions';
@@ -69,6 +69,8 @@ import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import ReactionPromptModal from '@/components/ReactionPromptModal';
 import DamageAbsorbModal from '@/components/DamageAbsorbModal';
+import WildShapeModal from '@/components/WildShapeModal';
+import { applyWildShapeForm, restoreWildShapeForm } from '@/data/wildShapeBeasts';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
 import CombatResourceHud from '@/components/combat/CombatResourceHud';
 import CombatantInfoPanel from '@/components/CombatantInfoPanel';
@@ -204,6 +206,15 @@ export default function CombatSession() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // ✅ 新增：NPC 创建器
   const [npcCreatorOpen, setNpcCreatorOpen] = useState(false);
+  // 荒野变形弹窗状态（德鲁伊 2 级战斗变形）：确认时执行参战者数据替换/还原
+  const [wildShapeModal, setWildShapeModal] = useState<{
+    combatantId: string;
+    current: WildShapeState | null;
+    poolKey: string | null;
+    cost: number;
+    featureName: string;
+    activation: 'action' | 'bonus' | 'free' | 'reaction' | undefined;
+  } | null>(null);
   // 试验场己方人偶设置弹窗（职业/子职业/等级/属性/资源）
   const [dummyDialogOpen, setDummyDialogOpen] = useState(false);
   // ✅ 新增：战斗攻击检定弹窗（在 main 上处理）
@@ -1102,6 +1113,54 @@ export default function CombatSession() {
     setCheckModifierModal(null);
   };
 
+  // 荒野变形确认：变身 = 参战者战斗形状按图鉴野兽模板整体替换（原形快照入参战者）；
+  // 还原 = 快照回填。动作与池在确认时扣（取消不损失资源）；已变身状态 onConfirm('')
+  // 走还原分支（弹窗还原模式无野兽选择）。
+  const applyWildShapeConfirm = (beastTemplateId: string) => {
+    if (!record || !wildShapeModal) return;
+    const { combatantId, current, poolKey, cost, featureName, activation } = wildShapeModal;
+    const combatant = record.combatants.find(x => x.id === combatantId);
+    if (!combatant) {
+      setWildShapeModal(null);
+      return;
+    }
+    if (!current) {
+      const beast = npcTemplateStore.getAll().find(t => t.templateId === beastTemplateId);
+      if (!beast) {
+        alert(`野兽模板「${beastTemplateId}」不存在（图鉴库已变更）`);
+        return;
+      }
+      const updated = applyWildShapeForm(combatant, beast);
+      if (poolKey) {
+        const ok = combatStore.consumeFeatureUse(record.id, combatantId, poolKey, cost);
+        if (!ok) {
+          alert(`「${featureName}」资源不足`);
+          return;
+        }
+      }
+      if (activation === 'action') consumeCombatantAction(combatantId);
+      else if (activation === 'bonus') consumeCombatantBonusAction(combatantId);
+      combatStore.update(record.id, {
+        combatants: record.combatants.map(x => (x.id === combatantId ? updated : x)),
+        updatedAt: Date.now(),
+      });
+      recordOperation(combatantId, `《${featureName}》：变身为${beast.name}（HP【${beast.maxHp}】AC【${beast.ac}】）`, 'record');
+      combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: combatantId, targetId: combatantId, text: `《${featureName}》→ 变身${beast.name}` });
+    } else {
+      const restoredHp = current.snapshot.currentHp ?? 0;
+      const updated = restoreWildShapeForm(combatant);
+      if (activation === 'action') consumeCombatantAction(combatantId);
+      else if (activation === 'bonus') consumeCombatantBonusAction(combatantId);
+      combatStore.update(record.id, {
+        combatants: record.combatants.map(x => (x.id === combatantId ? updated : x)),
+        updatedAt: Date.now(),
+      });
+      recordOperation(combatantId, `《${featureName}》：恢复原形${current.beastName ? `（${current.beastName}形态结束，HP 回到【${restoredHp}】）` : ''}`, 'record');
+      combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: combatantId, targetId: combatantId, text: `《${featureName}》→ 恢复原形` });
+    }
+    setWildShapeModal(null);
+  };
+
   // aoe_save 通道确认：动作与池在确认时扣（取消不损失资源），逐目标 HP 经 handleApplyDamage 落地
   const resolveAoeSave = (payload: {
     results: { combatantId: string; name: string; damage: number; damageType: string }[];
@@ -1167,6 +1226,19 @@ export default function CombatSession() {
     // 2. checkModifier 通道：先选受益人，动作与池在弹窗确认时扣（取消不损失资源）
     if (capability.channel === 'checkModifier' && capability.checkModifier) {
       openCheckModifierFor(c, feature.name, feature.activation, poolInfo, capability);
+      return;
+    }
+    // 1.8 wildShape 通道（荒野变形）：弹窗选野兽，确认时执行参战者替换/还原 +
+    // 动作与池扣（取消不损失资源）；已变身状态再次点按 = 还原模式
+    if (capability.channel === 'wildShape') {
+      setWildShapeModal({
+        combatantId: c.id,
+        current: c.wildShape ?? null,
+        poolKey: poolInfo.poolKey,
+        cost: poolInfo.cost,
+        featureName: feature.name,
+        activation: feature.activation,
+      });
       return;
     }
     // 2.5 aoe_save 通道（吐息武器）：范围拾取 + 逐目标豁免，动作与池在弹窗确认时扣
@@ -2154,6 +2226,16 @@ export default function CombatSession() {
         />
       )}
 
+      {/* 荒野变形弹窗（德鲁伊）：图鉴野兽选择变身 / 已变身状态还原 */}
+      {wildShapeModal && record && (
+        <WildShapeModal
+          current={wildShapeModal.current}
+          targetName={record.combatants.find(c => c.id === wildShapeModal.combatantId)?.name ?? '参战者'}
+          onConfirm={applyWildShapeConfirm}
+          onClose={() => setWildShapeModal(null)}
+        />
+      )}
+
       {/* 试验场：己方人偶设置弹窗（职业/子职业/等级/属性/法术位 → 影子卡） */}
       <SandboxDummyDialog
         open={dummyDialogOpen}
@@ -2559,6 +2641,10 @@ export default function CombatSession() {
               if (breakdown) text += `，${breakdown}`;
               if (result?.status === 'unconscious') text += '，击昏';
               else if (result?.status === 'dead') text += '，杀死';
+              if (result?.wildShapeBroken) {
+                const ws = result.wildShapeBroken;
+                text += `，${ws.beastName}形态破碎→恢复${ws.restoredName}原形（溢出${ws.overflow}伤，原形HP【${ws.restoredHp}】）`;
+              }
               recordOperation(damageModal.attacker.id, text, 'damage');
               // 2.5 命中触发 rider：扣资源（池/法术位）+ 豁免失败挂震慑（死亡目标跳过状态）
               if (riderSelections && riderSelections.length > 0 && record) {

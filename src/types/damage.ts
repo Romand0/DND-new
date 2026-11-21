@@ -122,6 +122,8 @@ export interface DamageApplyResult {
   tempAbsorbed: number;
   tempHpAfter: number;
   status?: 'unconscious' | 'dead';
+  /** 野形破碎（德鲁伊荒野变形：野兽 HP 归 0 自动恢复原形，溢出伤害扣原形 HP） */
+  wildShapeBroken?: { beastName: string; overflow: number; restoredName: string; restoredHp: number };
 }
 
 /** 治疗应用结果 */
