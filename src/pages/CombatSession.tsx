@@ -1148,6 +1148,14 @@ export default function CombatSession() {
       combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: combatantId, targetId: combatantId, text: `《${featureName}》→ 变身${beast.name}` });
     } else {
       const restoredHp = current.snapshot.currentHp ?? 0;
+      // 5e 2014：变回原形同样消耗 1 次荒野变形（使用特性语义）
+      if (poolKey) {
+        const ok = combatStore.consumeFeatureUse(record.id, combatantId, poolKey, cost);
+        if (!ok) {
+          alert(`「${featureName}」资源不足，无法解除变形`);
+          return;
+        }
+      }
       const updated = restoreWildShapeForm(combatant);
       if (activation === 'action') consumeCombatantAction(combatantId);
       else if (activation === 'bonus') consumeCombatantBonusAction(combatantId);
