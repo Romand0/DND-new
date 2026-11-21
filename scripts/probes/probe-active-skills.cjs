@@ -1262,8 +1262,8 @@ async function main() {
   const path = require('path');
   const repoRoot = path.resolve(__dirname, '..', '..');
   const batchOut = execSync('node scripts/extract-features-batch.mjs', { cwd: repoRoot, encoding: 'utf8' });
-  check('15g 批量 dry：无踪步/混元体已入库 → 幂等 skip（produce 0，skip 11）',
-    batchOut.includes('produce 0') && batchOut.includes('skip 11'), batchOut.split('\n')[0]);
+  check('15g 批量 dry：无踪步/混元体入库 + 种子已标注 skip → 幂等（produce 0，skip 22）',
+    batchOut.includes('produce 0') && batchOut.includes('skip 22'), batchOut.split('\n')[0]);
   check('15h 批量 dry：manual 含圣疗/休憩曲（低置信人工确认，无静默产出）',
     batchOut.includes('圣疗') && batchOut.includes('休憩曲') && batchOut.includes('manual 5'));
 

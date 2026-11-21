@@ -68,6 +68,7 @@ import HealRollModal from '@/components/combat/HealRollModal';
 import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import CombatSpellModal from '@/components/CombatSpellModal';
 import ReactionPromptModal from '@/components/ReactionPromptModal';
+import DamageAbsorbModal from '@/components/DamageAbsorbModal';
 import TurnTodoBoard from '@/components/TurnTodoBoard';
 import CombatResourceHud from '@/components/combat/CombatResourceHud';
 import CombatantInfoPanel from '@/components/CombatantInfoPanel';
@@ -230,6 +231,8 @@ export default function CombatSession() {
     reactionPending?: boolean;
     /** 本次伤害已过 damage_taken 反应窗口：再次确认时直接结算 */
     reactionWindowDone?: boolean;
+    /** damage_taken 窗口内 damage_modifier 反应累计吸收量：结算时从伤害中扣减 */
+    absorbedDamage?: number;
   } | null>(null);
   // 借机攻击机会队列：move 触发 → 弹窗逐个处理（确认/放弃/过期）→ 推进
   const [reactionQueue, setReactionQueue] = useState<ReactionPrompt[] | null>(null);
@@ -2343,6 +2346,39 @@ export default function CombatSession() {
           const slotLevel = owner.characterId ? (definition?.cost?.spellSlot ?? 0) : 0;
           const slotAvailable = slotLevel <= 0 || reactionSlotRemaining(owner, slotLevel) > 0;
           const name = definition?.name ?? opp.definitionName ?? '反应';
+          // damage_modifier 直连（damage_taken 窗口）：吸收量手填，确认时累计进本次伤害结算；
+          // 前提是伤害弹窗仍开着（absorbedDamage 落 damageModal state）——effect 伤害无窗口，走通用提示弹窗
+          // reactionWindowDone 只表示检测窗口已跑过（防重复入队），与直连前提无关
+          if (resolution === 'damage_modifier' && opp.trigger === 'damage_taken' && damageModal) {
+            return (
+              <DamageAbsorbModal
+                definitionName={name}
+                targetName={targetName}
+                amount={opp.amount ?? 0}
+                damageType={opp.damageType}
+                eventLabel={opp.eventLabel}
+                onSkip={() => {
+                  combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
+                  setReactionIdx(i => i + 1);
+                }}
+                onConfirm={(absorb) => {
+                  noteReactionExercised();
+                  combatStore.consumeReaction(record.id, owner.id);
+                  combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
+                  const line = `${owner.name} 行使反应《${name}》→ 吸收 ${absorb} 点伤害（${targetName}）`;
+                  recordOperation(owner.id, line, 'record');
+                  combatStore.pushCombatEvent(record.id, {
+                    kind: 'skill',
+                    actorId: owner.id,
+                    targetId: target?.id,
+                    text: line,
+                  });
+                  setDamageModal(prev => (prev ? { ...prev, absorbedDamage: (prev.absorbedDamage ?? 0) + absorb } : prev));
+                  setReactionIdx(i => i + 1);
+                }}
+              />
+            );
+          }
           return (
             <ReactionPromptModal
               prompt={opp}
@@ -2500,11 +2536,12 @@ export default function CombatSession() {
           })()}
           zIndexClass={!reactionHold && reactionQueue && reactionIdx < reactionQueue.length ? 'z-40' : 'z-50'}
           onApplyDamage={({ damage, newHp, status, resolution, riders: riderSelections }) => {
-            const applyDamageNow = () => {
+            const applyDamageNow = () => {              // damage_taken 窗口内 damage_modifier 反应的累计吸收量：从结算伤害中扣减
+              const finalDamage = Math.max(0, damage - (damageModal.absorbedDamage ?? 0));
               // 1. 应用 HP / 状态：伤害量由攻击方结算结果直接传入
               const result = handleApplyDamage({
                 targetId: damageModal.target.id,
-                amount: damage,
+                amount: finalDamage,
                 status,
                 sourceId: damageModal.attacker.id,
                 sourceName: damageModal.attacker.name,
@@ -2514,7 +2551,8 @@ export default function CombatSession() {
               // 2. 记录操作（放映写表格 / 模拟写日志，简化格式 + 目标 HP 变动）
               const oldHp = result?.oldHp ?? damageModal.target.currentHp;
               const actualNewHp = result?.newHp ?? newHp;
-              let text = `《${damageModal.attack.name}》→ ${damageModal.target.name}：【${damage}】伤害`;
+              let text = `《${damageModal.attack.name}》→ ${damageModal.target.name}：【${finalDamage}】伤害`;
+              if (damageModal.absorbedDamage) text += `，反应吸收${damageModal.absorbedDamage}`;
               if (oldHp != null) text += `，HP【${oldHp}→${actualNewHp}】`;
               if (result?.tempAbsorbed) text += `，临时HP吸收${result.tempAbsorbed}`;
               const breakdown = formatDamageBreakdown(resolution);
@@ -2560,10 +2598,12 @@ export default function CombatSession() {
                 const fulls = matches.flatMap(m => combatStore.addReactionPrompts(record.id, m.ownerId, [m], rxRound));
                 setReactionQueue(prev => [...(prev || []), ...fulls]);
                 setDamageModal(prev => (prev ? { ...prev, reactionWindowDone: true } : prev));
-                return;
+                // 告知弹窗本次结算已挂起：保持打开，队列清空后由 DM 二次确认落账
+                return true;
               }
             }
             applyDamageNow();
+            return false;
           }}
           onClose={() => {
             setDamageModal(null);

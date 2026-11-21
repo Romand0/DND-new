@@ -32,6 +32,14 @@ const SUGGEST_CHANNEL = [
   { re: /每回合.*只能|进行一次攻击|额外攻击/, channel: 'attack_extra', stage: 'P3 白名单扩展' },
 ];
 
+// 反应误报排除表：文本含「反应」字样但语义非战斗反应的条目，命中即标记排除理由。
+// 散打技巧实为主动攻击附加效应（attack_rider 渠道待办），出神/遁术为休整与探索特性。
+const REACTION_FALSE_POSITIVE = new Map([
+  ['出神', '长休替代（4 小时冥想），文本「反应」指思维活动，非战斗反应'],
+  ['遁术', '探索特性（伪装+隐匿 +10），文本「反应」指执行反应后重新伪装，非战斗反应'],
+  ['散打技巧', '疾风连击命中三选一效应 = 主动攻击附加（attack_rider 渠道待办），非反应'],
+]);
+
 function mkHit(field, text, label) {
   return { field, text, label };
 }
@@ -151,9 +159,12 @@ export function extractFeature(name, text) {
   if (heal) candidates.push(heal);
   const conv = extractConv(name, src);
   if (conv) candidates.push(conv);
-  // 渠道预推荐：优先白名单内草案，其次白名单外建议
+  // 渠道预推荐：误报排除优先 → 白名单内草案 → 白名单外建议
   let guess = null;
-  if (candidates.length > 0) {
+  const excluded = REACTION_FALSE_POSITIVE.get(name);
+  if (excluded) {
+    guess = { channel: 'excluded', reason: `反应误报排除：${excluded}` };
+  } else if (candidates.length > 0) {
     const best = candidates.reduce((a, b) => (b.confidence > a.confidence ? b : a));
     guess = { channel: best.channel, reason: `描述命中 ${best.channel} 触发词` };
   } else {

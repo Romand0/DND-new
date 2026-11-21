@@ -25,7 +25,8 @@
 | P4d aoe 线下骰 | [x] 完成 | 分支 feature/aoe-open-dice，merge `6100e59`，probe-active-skills 96/96 + 全量 ALL PROBES OK；全渠道零暗骰收尾 |
 | P5-1 技能特殊文本 | [x] 完成 | 分支 feat/skill-event-text；build 通过；探针 1-13 段过（含 11g/11h），14 段 UI 崩溃遗留待查；见交付明细 |
 | P5-2 专用硬编码批次 | [x] 完成 | 分支 feat/container-preselect，merge `d1bc6ec`：混元体 heal 直结 / 容器预选（引导神力/暗影技艺）/ 渗透劲延迟引爆；probe-active-skills 117/117 + p2 99/99 + 全量 ALL PROBES OK；见交付明细 |
-| P5 收尾 | [ ] 进行中 | 剩余：荒野变形评估 / 反应数据面 / 极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 |
+| P5 反应数据面 | [x] 第 1 期交付 | 分支 feat/reaction-data：种子 8 条标注 / 提取器渠道 / DamageAbsorbModal 直连 / 挂起修复（`cffb1d9`）；probe-reaction 59/59 + 全量 ALL PROBES OK；见交付明细 |
+| P5 收尾 | [ ] 进行中 | 剩余：荒野变形评估 / 极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
 
 ## P1 交付明细（2026-11-18）
 
@@ -161,3 +162,19 @@
   - 探针 14x-14z → 117/117
 - **探针卫生**：probe-dbg.cjs 转正改名 `probe-skill-engine-p2.cjs`（此前带调试 exit(3) 从未跑完 16 段）；16l 断言口径修正——live 模式 heal 行落 operationLog（rounds cell 双写属放映口径）；16 段 setup 清 combatEvents 防跨运行污染；p2 补 setViewportSize(1280×900)（默认 720 高致双击点视口外）
 - 新知识回写 `.monkeycode/MEMORY.md`：statusManager 纯内存 reload 丢实例 / 探针默认 viewport 陷阱 / dev server 腐化（改 json 触发重优化→模块图分裂）
+
+## P5 反应数据面·第 1 期交付明细（2026-11-20，分支 feat/reaction-data）
+
+- **种子标注**（`5510373`）：职业.json 8 条 reaction 声明（报偿 damage_taken/attack/self、投射守御 damage_modifier/ally、守御闪光 attack_targeted manual、风暴狂怒/幻影化形/直觉魅惑/法术窃贼/雾遁 manual 弹窗）+ 战神祝福 prompt 无 trigger（第 2 期 any_attack 意图）+ 遁术降 passive；种族.json 零 diff（出神排除）
+- **提取器**（`4a84e86`）：REACTION_FALSE_POSITIVE 排除表（出神/遁术/散打技巧→attack_rider 待办）+ collectTraits 透传 reaction + 已标注 skip
+- **damage_modifier 直连**（`a76501b`）：DamageAbsorbModal（testid damage-absorb-modal/input/confirm，吸收 0..amount 手填，放弃保留反应）+ CombatSession 反应队列 damage_modifier 分支（absorbedDamage 累计 → applyDamageNow finalDamage 扣减 → 记录行「反应吸收N」→ 专注 DC 跟随）
+- **探针 17 段**（`126911a`）：probe-reaction.cjs 17a-g + 17k PASS（56/59）——种子 fetch 断言 / 数据级 detect + resolve / UI 链守御闪光 prompt → 伤害弹窗 → 报偿 attack 弹窗路由 ✓
+- **探针踩坑记录**（复用价值）：
+  - characterId 必须真实 id（add() 返回对象含陈旧 id）；characterStore level 过滤 f.level <= level（报偿 14 需卡 level≥14）
+  - 换参战者保 panel 选中 id 存活（新增参战者排尾，potentialTarget= 第一个非本人活体）；棋子双击用 mouse.dblclick 坐标（locator dblclick 受 actionability 拖死）
+  - NpcAttack 形状 = damage 字段（damageDice 是 CharacterAttack 字段——之前所有链止步弹窗未暴露）；试验场反应检测取全库 → probe: 法术 17 段前必须清
+  - 弹窗层叠用文本过滤定位（`.last()` z-50 会命中错误层）
+- **遗留（17h/17i/17j，3 断言）**：已修复（`cffb1d9`）——根因是 CombatDamageModal.handleConfirm 无条件 onClose 关掉了挂起中的伤害弹窗（damageModal null → 直连分支失守）；修复 = onApplyDamage 返回挂起信号 boolean，handleConfirm 按信号跳过 onClose；直连分支条件同步去掉 !reactionWindowDone 子条件（语义是防重复入队，与弹窗开闭无关）；probe-reaction **59/59** 全绿
+- **关键探针知识**：d20 填 20 = nat20 重击（伤害骰翻倍：1d6+2 → 填 3 得 8 伤）；15g 提取器口径断言在 probe-active-skills 与 p2 各有一份（skip 11→22 已同步）
+- **第 2-4 期**（design.md 附录）：attack_modifier 家族（守御闪光劣势/幻影化形强制 miss/战神祝福 +10 + trigger any_attack）→ target_save 家族（风暴狂怒/法术窃贼/斗转星移 + trigger status_applied）→ 特殊触发（无情复仇/复仇之魂/灵机一斩 + trigger opportunity_hit/foe_attacked/any_attacked + 雾遁复合）
+- 通用约束：零暗骰手填 / 确认扣资源放弃零损失 / damage_taken 窗口仅攻击链（effect 伤害走通用提示）

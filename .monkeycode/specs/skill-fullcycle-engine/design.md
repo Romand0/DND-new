@@ -254,3 +254,41 @@ interface ResourceConvSpec { convert?: { from: 'bonus'|'action'; to: 'action'|'d
 [^5]: `src/data/advantageRules.ts` — 注册式优劣势引擎
 [^6]: `src/data/passiveCombatRules.ts` — 七类被动派生
 [^7]: `scripts/annotate-feature-resources.mjs` — 现有种子标注脚本（POOLED 21 池主映射）
+
+## 附录：反应数据面四期规划（2026-11-20 决策定稿：全量扩枚举，分四期落地）
+
+种子 19 条反应语义特性全量自动化的分期路线。数据面第 1 期已全覆盖（种子 traits reaction 声明 11 条 + 纯文本 5 条 + 误标排除 3 条）。
+
+### 第 1 期（已完成，feat/reaction-data）
+
+- **直连 2 条**（现有枚举零/微改动）：
+  - 报偿 `damage_taken/attack`——反应攻击链复用（CombatAttackModal reactionMode）
+  - 投射守御 `damage_taken/damage_modifier`——DamageAbsorbModal 吸收量手填，累计进伤害结算（absorbedDamage）
+- **manual 可弹 6 条**（trigger 对上现有检测器，弹窗提示 DM 按描述裁定）：守御闪光（attack_targeted）、风暴狂怒（damage_taken）、幻影化形（attack_targeted）、直觉魅惑（attack_targeted）、法术窃贼（spell_cast）、雾遁（damage_taken）
+- **纯文本 5 条**（trigger 枚举缺位，reaction.prompt 已记意图待激活）：战神祝福（需 any_attack）、斗转星移（需 status_applied）、无情复仇（需 opportunity_hit）、复仇之魂（需 foe_attacked）、灵机一斩（需 any_attacked）
+- **误标排除 3 条**（featureExtractCore REACTION_FALSE_POSITIVE）：出神（长休替代）、遁术（探索）、散打技巧（attack_rider 待办）
+
+### 第 2 期：attack_modifier 家族
+
+- 新 resolution `attack_modifier`：攻击检定修正（劣势/强制 miss/加值），交互窗口=攻击 d20 填值前（守御闪光）或看骰后（战神祝福）
+- 新 trigger `any_attack`：任意攻击检定事件（不限目标关系），战神祝福（+10 引导神力池）激活
+- 落地：守御闪光（劣势）、幻影化形（强制 miss）从 manual 升级；战神祝福补 trigger 激活
+- 直觉魅惑（重定向）拆第 3 期（含豁免链）
+
+### 第 3 期：target_save 家族
+
+- 新 resolution `target_save`：施动者填 DC → 目标填豁免 d20 → 失败落效应（伤害/取消/反施）
+- 新 trigger `status_applied`：状态施加事件（斗转星移）
+- 落地：风暴狂怒（2d8 自选伤害）、法术窃贼（豁免+取消+窃取）、斗转星移（反施魅惑）、直觉魅惑（转攻最近者）
+
+### 第 4 期：特殊触发与复合效应
+
+- 新 trigger：`opportunity_hit`（借机命中）、`foe_attacked`（誓言敌攻击）、`any_attacked`（任意生物被命中）
+- 落地：无情复仇（movement 变体：借机命中后移动半速）、复仇之魂（attack）、灵机一斩（attack）
+- 复合效应：雾遁（隐形 status + 传送 movement 二选一或串联）
+
+### 通用约束
+
+- 所有期沿用「引擎零暗骰」：骰值（豁免 d20/伤害/吸收量）一律手填
+- 弹窗确认时扣资源（反应次数 combatStore.consumeReaction 恒扣；池/法术位按声明），放弃零损失
+- damage_taken 窗口只在攻击伤害弹窗链插桩；effect 类伤害（handleApplyDamage 直调）无反应窗口——第 4 期评估是否补插桩

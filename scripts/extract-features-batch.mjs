@@ -33,7 +33,7 @@ function collectTraits() {
       if (node && typeof node === 'object') {
         if (Array.isArray(node.traits)) {
           node.traits.forEach((t) => {
-            if (t && typeof t.name === 'string') out.push({ name: t.name, text: t.text ?? '', file });
+            if (t && typeof t.name === 'string') out.push({ name: t.name, text: t.text ?? '', reaction: t.reaction ?? null, file });
           });
         }
         Object.values(node).forEach(walk);
@@ -59,6 +59,11 @@ function runBatch() {
   const report = [];
   let writes = 0;
   for (const t of traits) {
+    // 种子 traits 已带 reaction 声明的条目走反应数据面（definitionFromFeature），SPEC 渠道不再处理
+    if (t.reaction?.trigger) {
+      report.push({ name: t.name, cls: 'skip', reason: '种子已标注 reaction 声明（反应数据面，非 SPEC 渠道）', guess: 'reaction' });
+      continue;
+    }
     const r = extractFeature(t.name, t.text);
     if (REGISTRY_NAMES.includes(t.name)) {
       report.push({ name: t.name, cls: 'skip', reason: 'REGISTRY 已注册（代码注册表优先，spec 文件不产出）', guess: r.guess?.channel ?? null });
