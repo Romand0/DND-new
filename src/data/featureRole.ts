@@ -26,7 +26,7 @@ const PROFILE_ROLE_DESC_RE = /通用语/;
 // 主动技能关键词（名称）：激励/战技/骰池等消耗型，以及任何以动作形态施放的能力（决定/动作/附赠动作/反应）
 const ACTIVE_ROLE_NAME_RE = /激励|战技|卓越骰|骰池|充能|每回合|每日|次数|决定|动作|附赠动作|反应/;
 // 主动技能形态词（描述）：名称不含关键词但描述里以附赠动作/反应/额外动作施放的能力（如回气）
-const ACTIVE_DESC_RE = /附赠动作|反应|一个动作|用你的动作|额外动作/;
+const ACTIVE_DESC_RE = /附赠动作|反应|一个动作|用你的动作|作为动作|额外动作/;
 
 export function deriveFeatureRole(f: Feature): FeatureRole {
   if (f.role) return f.role;
