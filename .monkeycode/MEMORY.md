@@ -23,6 +23,9 @@
 - InitiativeTable（⚡/专注/激励徽标）只在放映模式渲染；测徽标先 combatStore.update(rec.id,{mode:'playback'})
 - 边改代码边跑 E2E：Vite HMR 让动态 import('/src/x.ts') 拿到另一模块实例（hook 替换无效、写入丢失），重跑前冷重启 dev server；失败先最小化复现区分真实 bug 与 HMR 污染
 - dev server 长时间运行 + 大量 HMR（尤其 merge 改写多文件后）会进入腐化态：探针大面积无关 FAIL、参战者未落库、update 日志为空——用 `npm run dev -- --port 5174 --force` 冷重启（绕过 node_modules/.vite 磁盘缓存）即恢复，先重启再排查
+- chromium「随机」Target closed / 渲染空页 = 容器缺字体：必须 `apt-get install -y fontconfig fonts-wqy-zenhei`；缺字体时 Skia FATAL（SkFontMgr_FontConfigInterface Not implemented），DEBUG=pw:browser 可见；与内存/代码无关
+- 探针播种 localStorage 必须走 ctx.addInitScript（先于应用脚本）：页面加载后 evaluate 播种会被 store 模块 fetchRemote 的镜像回写竞态清掉（模块读的旧内存覆盖新种子）
+- 排查疑似回归：起 git worktree 挂基线提交 + 软链 node_modules + 独立端口 dev server 跑同款探针对照，区分「真回归」与「陈旧 dev server」
 - 沙盘坐标：querySelector('div.grid.origin-top-left') 的 children[0].boundingRect（cell≈22px）；坐标每步实时读——日志每增一行网格下移≈66px，缓存 geo 会点空格。默认 Playwright 视口 720 高时模拟模式日志可把网格顶到屏外（y≈689），`mouse.dblclick` 点空而 grid 仍在 DOM（表现为「操作」按钮超时，非 children of null）
 - 棋子位置存 battlegroundStore（dnd-battlegrounds.tokens），不在 combatant.tokenPos；放置 = 点「未放置」芯片（bg-primary 高亮）→ 点沙盘格
 - 移动棋子可靠路径 = 点棋子格选中 → 点目标空格（白圈长按拖拽是攻击/拾取语义）
