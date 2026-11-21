@@ -18,10 +18,10 @@ import type { HealSpec, ResourceConvSpec } from '@/data/featureSpecs';
  *  - spec 数据渠道（heal/resource_conv）：纯数据 spec 由仓库 featureSpecs/phb2014.json 提供（决策 1）
  * manual = 未注册兜底。
  */
-export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'aoe_save' | 'heal' | 'resource_conv' | 'container' | 'manual';
+export type FeatureChannel = 'checkModifier' | 'advantage' | 'status' | 'reaction' | 'attack_rider' | 'aoe_save' | 'heal' | 'resource_conv' | 'container' | 'wildShape' | 'manual';
 
 /** 已实现引擎的渠道集：spec 数据渠道命中此集才可走功能引擎；未命中时消费方按 manual 兜底（P3 已登记 heal/resource_conv） */
-const ENGINE_READY_CHANNELS = new Set<string>(['checkModifier', 'advantage', 'status', 'reaction', 'attack_rider', 'aoe_save', 'heal', 'resource_conv', 'container']);
+const ENGINE_READY_CHANNELS = new Set<string>(['checkModifier', 'advantage', 'status', 'reaction', 'attack_rider', 'aoe_save', 'heal', 'resource_conv', 'container', 'wildShape']);
 
 /** advantage 通道单条 pending 优劣势参数（复用 PendingAdvantageSource 的场景/方向字段） */
 export interface FeatureAdvantageSpec {
@@ -119,6 +119,11 @@ export interface FeatureCapability {
   heal?: HealSpec;
   /** resource_conv 渠道 spec（spec 数据层，P3 引擎结算；engineAvailable=false 期间按 manual 兜底） */
   resourceConv?: ResourceConvSpec;
+  /**
+   * wildShape 通道参数（德鲁伊荒野变形）：无推导参数——野兽代表表
+   * （wildShapeBeasts.WILD_SHAPE_BEASTS）由弹窗读取；变身/还原在消费方执行。
+   */
+  wildShape?: {};
   /** 解析来源：registry = 代码注册表（缺省）；spec_db = 仓库 spec 文件 */
   source?: 'registry' | 'spec_db';
   /** 渠道引擎是否已实现；spec_db 条目 channel 未登记 ENGINE_READY_CHANNELS 时为 false */
@@ -363,6 +368,16 @@ register('暗影技艺', {
     ],
     unchosenHint: '「暗影技艺」未预选形态，请回角色卡特性「…」信息对话框预选后使用',
   },
+});
+
+// P5 注册表：荒野变形（德鲁伊 2 级战斗变形）。变身 = 参战者战斗形状按野兽模板整体替换
+// （HP/AC/速度/六维/攻击），原形数据快照存参战者 wildShape.snapshot；再次点按特性 =
+// 自愿解除还原（HP 保留野兽侧受损语义由 DM 手动校正）；野兽 HP 归 0 自动恢复原形。
+// 野兽池扣（2 次/短休）按特性池体系在弹窗确认时扣（poolInfo 透传）。
+register('荒野变形', {
+  channel: 'wildShape',
+  wildShape: {},
+  hint: '荒野变形：变身为野兽（图鉴野兽模板，CR 按德鲁伊等级），参战者战斗数据整体替换为野兽数据；再次使用可恢复原形',
 });
 
 /**

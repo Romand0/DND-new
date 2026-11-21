@@ -563,6 +563,35 @@ function load(): CombatRecord[] {
           // 战斗层手持（进战从备战槽初始化；缺兜底会在刷新后丢手持且下次保存永久抹掉）
           heldLeft: normalizeHandSlot(c.heldLeft),
           heldRight: normalizeHandSlot(c.heldRight),
+          // 荒野变形状态（德鲁伊战斗变形快照；缺兜底会在刷新后丢快照且下次保存永久抹掉）
+          wildShape: (() => {
+            const ws = c.wildShape;
+            if (!ws || typeof ws !== 'object' || typeof ws.beastKey !== 'string') return undefined;
+            const snap = ws.snapshot && typeof ws.snapshot === 'object' ? ws.snapshot : {};
+            return {
+              beastKey: ws.beastKey,
+              beastName: typeof ws.beastName === 'string' ? ws.beastName : '',
+              snapshot: {
+                name: typeof snap.name === 'string' ? snap.name : '',
+                currentHp: typeof snap.currentHp === 'number' ? snap.currentHp : undefined,
+                maxHp: typeof snap.maxHp === 'number' ? snap.maxHp : undefined,
+                ac: typeof snap.ac === 'number' ? snap.ac : undefined,
+                attacks: Array.isArray(snap.attacks) ? snap.attacks : undefined,
+                speed: typeof snap.speed === 'number' ? snap.speed : undefined,
+                creatureSize: typeof snap.creatureSize === 'number' ? snap.creatureSize : undefined,
+                creatureType: typeof snap.creatureType === 'string' ? snap.creatureType : undefined,
+                templateId: typeof snap.templateId === 'string' ? snap.templateId : undefined,
+                note: typeof snap.note === 'string' ? snap.note : undefined,
+                strength: typeof snap.strength === 'number' ? snap.strength : undefined,
+                dexterity: typeof snap.dexterity === 'number' ? snap.dexterity : undefined,
+                constitution: typeof snap.constitution === 'number' ? snap.constitution : undefined,
+                intelligence: typeof snap.intelligence === 'number' ? snap.intelligence : undefined,
+                wisdom: typeof snap.wisdom === 'number' ? snap.wisdom : undefined,
+                charisma: typeof snap.charisma === 'number' ? snap.charisma : undefined,
+                proficiencyBonus: typeof snap.proficiencyBonus === 'number' ? snap.proficiencyBonus : undefined,
+              },
+            };
+          })(),
         };
       });
       return {
