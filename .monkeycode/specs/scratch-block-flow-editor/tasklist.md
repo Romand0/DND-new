@@ -11,7 +11,6 @@
 - [x] T5 `scripts/probes/probe-flow-script.cjs`：26 项断言全绿——10 场景对拍 + fireball 黄金对照 + T4 校验分流
 - [x] T6 验证收尾：tsc + build 通过；已合入 main（见 progress.md）
 
-## P1 编辑器（未开工）
-
-- [ ] T7 FlowScriptCanvas / FlowBlockCard / FlowDropSlot / use-script-dnd / palette 改造
-- [ ] T8 FlowEditor 状态切换 + 迁移告警面板；旧画布退役
+## P1 编辑器
+- [x] T7 FlowScriptCanvas / FlowBlockCard / FlowDropSlot / use-script-dnd / palette 改造（另增 `src/lib/flowScriptTree.ts` 树操作层 + FlowMigrationPanel）
+- [x] T8 FlowEditor 状态切换 + 迁移告警面板；旧画布退役（探针 `probe-flow-editor-script.cjs` 23 项全绿）

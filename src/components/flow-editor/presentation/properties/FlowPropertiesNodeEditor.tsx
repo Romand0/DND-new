@@ -17,6 +17,8 @@ interface FlowPropertiesNodeEditorProps {
   deleteEdge: (edgeId: string) => void;
   selectedEdgeId?: string | null;
   setSelectedEdgeId?: (edgeId: string | null) => void;
+  /** 积木模式隐藏连线管理（出边为结构性衍生，不可手工编辑） */
+  hideConnections?: boolean;
 }
 
 export default function FlowPropertiesNodeEditor({
@@ -30,6 +32,7 @@ export default function FlowPropertiesNodeEditor({
   deleteEdge,
   selectedEdgeId,
   setSelectedEdgeId,
+  hideConnections,
 }: FlowPropertiesNodeEditorProps) {
   // 本地即时回显：配置写入由页面防抖落盘，直接读 node 会有 300ms 延迟，
   // 本地副本保证属性摘要与输入同步；node.id 变化或外部值更新时重置。
@@ -100,13 +103,15 @@ export default function FlowPropertiesNodeEditor({
         isDark={isDark}
       />
 
-      {/* 连接管理组件 */}
-      <NodeConnections
-        flow={flow}
-        selectedNode={draftNode}
-        deleteEdge={deleteEdge}
-        isDark={isDark}
-      />
+      {/* 连接管理组件（积木模式隐藏：出边为结构性衍生） */}
+      {!hideConnections && (
+        <NodeConnections
+          flow={flow}
+          selectedNode={draftNode}
+          deleteEdge={deleteEdge}
+          isDark={isDark}
+        />
+      )}
     </div>
   );
 }
