@@ -25,8 +25,8 @@
 | P4d aoe 线下骰 | [x] 完成 | 分支 feature/aoe-open-dice，merge `6100e59`，probe-active-skills 96/96 + 全量 ALL PROBES OK；全渠道零暗骰收尾 |
 | P5-1 技能特殊文本 | [x] 完成 | 分支 feat/skill-event-text；build 通过；探针 1-13 段过（含 11g/11h），14 段 UI 崩溃遗留待查；见交付明细 |
 | P5-2 专用硬编码批次 | [x] 完成 | 分支 feat/container-preselect，merge `d1bc6ec`：混元体 heal 直结 / 容器预选（引导神力/暗影技艺）/ 渗透劲延迟引爆；probe-active-skills 117/117 + p2 99/99 + 全量 ALL PROBES OK；见交付明细 |
-| P5 反应数据面 | [x] 第 1 期交付 | 分支 feat/reaction-data：种子 8 条标注 / 提取器渠道 / DamageAbsorbModal 直连 / 探针 17 段（17a-g+17k 过，17h-17j 吸收链 3 断言遗留）；见交付明细 |
-| P5 收尾 | [ ] 进行中 | 剩余：吸收链 3 断言排查 / 荒野变形评估 / 极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
+| P5 反应数据面 | [x] 第 1 期交付 | 分支 feat/reaction-data：种子 8 条标注 / 提取器渠道 / DamageAbsorbModal 直连 / 挂起修复（`cffb1d9`）；probe-reaction 59/59 + 全量 ALL PROBES OK；见交付明细 |
+| P5 收尾 | [ ] 进行中 | 剩余：荒野变形评估 / 极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
 
 ## P1 交付明细（2026-11-18）
 
@@ -174,6 +174,7 @@
   - 换参战者保 panel 选中 id 存活（新增参战者排尾，potentialTarget= 第一个非本人活体）；棋子双击用 mouse.dblclick 坐标（locator dblclick 受 actionability 拖死）
   - NpcAttack 形状 = damage 字段（damageDice 是 CharacterAttack 字段——之前所有链止步弹窗未暴露）；试验场反应检测取全库 → probe: 法术 17 段前必须清
   - 弹窗层叠用文本过滤定位（`.last()` z-50 会命中错误层）
-- **遗留（17h/17i/17j，3 断言）**：报偿 attack 弹窗 X 关闭后 DamageAbsorbModal 未弹出——X 定位已改文本过滤（hasText 借机攻击（反应））未复跑验证；若仍不出，查 attack 分支 onClose 是否推进 reactionIdx 到投射守御条目（damage_modifier 分支条件 damageModal && !reactionWindowDone）
+- **遗留（17h/17i/17j，3 断言）**：已修复（`cffb1d9`）——根因是 CombatDamageModal.handleConfirm 无条件 onClose 关掉了挂起中的伤害弹窗（damageModal null → 直连分支失守）；修复 = onApplyDamage 返回挂起信号 boolean，handleConfirm 按信号跳过 onClose；直连分支条件同步去掉 !reactionWindowDone 子条件（语义是防重复入队，与弹窗开闭无关）；probe-reaction **59/59** 全绿
+- **关键探针知识**：d20 填 20 = nat20 重击（伤害骰翻倍：1d6+2 → 填 3 得 8 伤）；15g 提取器口径断言在 probe-active-skills 与 p2 各有一份（skip 11→22 已同步）
 - **第 2-4 期**（design.md 附录）：attack_modifier 家族（守御闪光劣势/幻影化形强制 miss/战神祝福 +10 + trigger any_attack）→ target_save 家族（风暴狂怒/法术窃贼/斗转星移 + trigger status_applied）→ 特殊触发（无情复仇/复仇之魂/灵机一斩 + trigger opportunity_hit/foe_attacked/any_attacked + 雾遁复合）
 - 通用约束：零暗骰手填 / 确认扣资源放弃零损失 / damage_taken 窗口仅攻击链（effect 伤害走通用提示）
