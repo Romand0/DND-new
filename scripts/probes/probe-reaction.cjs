@@ -577,8 +577,6 @@ async function main() {
     ]);
   });
   await page.waitForTimeout(500);
-  const dom17 = await page.locator('div[title]').evaluateAll(els => els.map(e => e.getAttribute('title')).filter(t => t && t.includes('RX17')));
-  console.log('DEBUG 17-setup pieces:', JSON.stringify(dom17));
 
   const det17 = await page.evaluate(async () => {
     const combatStore = (await import('/src/data/combatStore.ts')).default;
@@ -636,12 +634,6 @@ async function main() {
     await page.getByRole('button', { name: '放弃（保留反应）' }).first().click();
     await page.waitForTimeout(700);
     ui17.step = 'damage-calc';
-    const dbgCalc = await page.evaluate(() => {
-      const modals = Array.from(document.querySelectorAll('div.fixed.inset-0')).map(m => ({ z: m.className.includes('z-50') ? 'z50' : 'z40', text: m.textContent.slice(0, 90) }));
-      const inputs = Array.from(document.querySelectorAll('input')).map(i => i.placeholder).filter(Boolean);
-      return { modals, inputs };
-    });
-    console.log('DEBUG 17h-dmg:', JSON.stringify(dbgCalc, null, 1));
     await page.locator('input[placeholder="d6"]').first().fill('3');
     await page.getByRole('button', { name: '计算', exact: true }).first().click();
     await page.waitForTimeout(500);
@@ -650,17 +642,6 @@ async function main() {
     await page.waitForTimeout(900);
     ui17.step = 'retaliate-open';
     // damage_taken 窗口队列 [报偿(attack), 投射守御(absorb)]：报偿先弹（react-pc 排前）→ 借机攻击弹窗
-    const dbgRq = await page.evaluate(async () => {
-      const combatStore = (await import('/src/data/combatStore.ts')).default;
-      const rec = combatStore.getAll().find(r => r.isProvingGround);
-      const pc = rec.combatants.find(c => c.id === 'react-pc');
-      return {
-        pending: (pc.pendingReactions || []).map(p => `${p.definitionId}@consumed:${p.consumed}`),
-        pcUsed: pc.reactionUsed,
-        npcActions: rec.combatants.find(c => c.id === 'react-npc').actions,
-      };
-    });
-    console.log('DEBUG 17h-rq:', JSON.stringify(dbgRq));
     ui17.retal = (await page.locator('text=借机攻击（反应）').count()) >= 1;
     if (ui17.retal) {
       ui17.step = 'retaliate-close';
@@ -676,7 +657,7 @@ async function main() {
       await page.locator('[data-testid="damage-absorb-confirm"]').click();
       await page.waitForTimeout(700);
       ui17.step = 'confirm-damage-final';
-      // 队列清空 → 伤害弹窗仍在（reactionWindowDone），再次确认 → finalDamage = 5 - 2
+      // 队列清空 → 伤害弹窗仍在（挂起未关），再次确认 → finalDamage = 重击 8 - 吸收 2 = 6
       await page.getByRole('button', { name: '确认伤害' }).first().click();
       await page.waitForTimeout(700);
       ui17.hp = await page.evaluate(async () => {
@@ -692,7 +673,7 @@ async function main() {
   }
   check('17k 报偿路由到借机攻击弹窗（reactionMode）', ui17.retal === true, ui17);
   check('17h 吸收弹窗弹出（damage_modifier 直连）', ui17.absorb === true, ui17);
-  check('17i finalDamage = 5 - 2 = 3，反应战士 HP 40→37', ui17.hp?.pcHp === 37 && ui17.hp?.maxHp === 40, ui17.hp);
+  check('17i 重击 8 伤 - 吸收 2 = 6，反应战士 HP 40→34', ui17.hp?.pcHp === 34 && ui17.hp?.maxHp === 40, ui17.hp);
   check('17j 操作日志含反应吸收记录', ui17.hp?.logLine === '吸收记录', ui17.hp);
 
   console.log(`\n==== probe-reaction: ${pass} pass, ${fail} fail ====`);
