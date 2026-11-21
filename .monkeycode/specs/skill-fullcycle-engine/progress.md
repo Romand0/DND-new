@@ -26,7 +26,8 @@
 | P5-1 技能特殊文本 | [x] 完成 | 分支 feat/skill-event-text；build 通过；探针 1-13 段过（含 11g/11h），14 段 UI 崩溃遗留待查；见交付明细 |
 | P5-2 专用硬编码批次 | [x] 完成 | 分支 feat/container-preselect，merge `d1bc6ec`：混元体 heal 直结 / 容器预选（引导神力/暗影技艺）/ 渗透劲延迟引爆；probe-active-skills 117/117 + p2 99/99 + 全量 ALL PROBES OK；见交付明细 |
 | P5 反应数据面 | [x] 第 1 期交付 | 分支 feat/reaction-data：种子 8 条标注 / 提取器渠道 / DamageAbsorbModal 直连 / 挂起修复（`cffb1d9`）；probe-reaction 59/59 + 全量 ALL PROBES OK；见交付明细 |
-| P5 收尾 | [ ] 进行中 | 剩余：荒野变形评估 / 极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
+| P5 荒野变形 | [x] 完成 | 分支 feat/wildshape-p5：图鉴野兽复用 + wildShape 通道 + 参战者形状替换/快照还原 + HP0 破碎；probe-wildshape 29/29 + 全量 ALL PROBES OK；见交付明细 |
+| P5 收尾 | [ ] 进行中 | 剩余：极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
 
 ## P1 交付明细（2026-11-18）
 
@@ -115,11 +116,29 @@
 - 探针：11g（skill 事件带值断言《吐息武器》+【8】点+失败）+ 11h（bare 包缺省兜底事件）+ 16l（DM UI heal 事件 + 先攻表/操作日志标记行）新增，96→99 断言
 - **探针崩溃已修（2026-11-20）**：根因是模拟模式战斗日志把沙盘顶出默认 720 视口，`mouse.dblclick` 点空（grid 仍在 DOM，y≈689）；HealRollModal 原 z-50 被 InfoPanel 同层挡住确认按钮。修复：14/16 段改点「参战者」芯片开面板；HealRollModal/DiceInputModal 提到 z-[60] 对齐同家族；16l 模拟模式同时认 operationLog；load() 白名单补 combatEvents（reload 丢事件独立 bug）。probe-active-skills 99/99
 
+## P5 荒野变形交付明细（2026-11-21）
+
+**决策修正**：原计划「5 种 NPC 野兽模板做代表（硬编码候选）」，开工后用户纠正——**怪物图鉴是本地三库之一，野兽数据直接复用 npcTemplateStore 过滤，零硬编码**。引擎只留变身/还原机制，数据面全量走图鉴（野兽.json 95 条，CR≤1/4 约 40 条可选）。
+
+交付（分支 feat/wildshape-p5，4 个原子提交）：
+1. **引擎与数据源**（`wildShapeBeasts.ts`）：`listWildShapeBeasts(maxCr?)` 图鉴野兽过滤（creatureType==='beast'，CR 文本转数值过滤）+ `applyWildShapeForm`（参战者战斗形状整体替换：名字后缀·狼形 / HP/AC/速度/六维/攻击/ creatureType='beast'/templateId/note 拼野形特性）+ `restoreWildShapeForm`（快照显式回填，undefined 恢复角色卡引用路径）
+2. **wildShape 通道**（featureCapabilities）：register('荒野变形')，弹窗选野兽 → 确认时扣动作/池（取消零损失）；还原也耗 1 次（5e 2014 使用特性语义）
+3. **Combatant.wildShape 快照**（types/combat.ts + combatStore 白名单兜底）：原形 name/HP/AC/attacks/速度/六维/note 全量备份；白名单结构化重建防刷新丢失
+4. **野形破碎**（useDamageAndHp）：野兽 HP 归 0 自动恢复原形，溢出伤扣原形 HP（writeCombatantHp 加 replacement 参数整体替换）；记录行「形态破碎→恢复原形（溢出N伤）」
+5. **UI**（WildShapeModal）：图鉴列表（name/CR/AC/HP/速度/攻击行）+ 还原模式双形态；featureRole ACTIVE_DESC_RE 补「作为动作」兜底真实卡归类
+6. **探针**（probe-wildshape.cjs 29 断言）：数据级 14（图鉴过滤/快照/回填）+ UI 全链 15（面板按钮→弹窗→变身落账→池扣→还原→攻击链 d20 15/d6 13+2=15 伤→HP 40-溢出4=36 破碎断言）
+
+探针踩坑（新固化）：
+- **InfoPanel 遮罩（fixed inset-0 z-50）无 onClick**——panel 开着时挡住沙盘双击/先攻表一切点击；关闭唯一途径 = 面板内 X（svg.lucide-x）；重开用先攻表名字按钮（`getByRole('button',{name:/参战者名/})`，等价沙盘双击）
+- 怪物图鉴种子需 `loadSeed('monsters')` 预热 + **规则书集需含「怪物图鉴 2014」**（登录态下出版物条目按 currentRulebooks 过滤，probe setup 的 setRulebookScope 只给玩家手册会滤掉野兽）
+- characterStore.add() 返回**对象**，参战者 characterId 必须传 `pcChar.id`（直传对象 → 角色卡查找失败 → 特性按钮不渲染）
+- 角色卡特性 role 显式 'active' 与提取器标注同口径；「荒野变形」名称无 active 关键词，靠描述「作为动作」正则兜底（本轮已补）
+
 ## P5 开工顺序（收尾，待启动）
 
 1. 专用硬编码批次评估：空灵体（四气多效应）/ 混元体（伤害类型切换）/ 渗透劲·暗影技艺（命中 debuff）/ 灵魂力量——逐个立项或标记 mechanic
 2. 引导神力拆 4 形态映射引擎（决策 2；**容器形态角色卡预选**——2026-11-19 用户拍板：四选一在特性信息对话框完成并固化到 feature 静态数据，战斗载入零现选，见 ui-design.md §3）
-3. 荒野变形评估（硬编码候选，决策 2）
+3. ~~荒野变形评估~~（[x] 2026-11-21 完成，图鉴复用方案替代硬编码，见交付明细）
 4. 反应数据面：种子 reaction 渠道条目填充（suggest 19 条素材）
 5. P4 遗留评估：极效潜行（需 AdvantageContext.skillKey 扩展）/ 守御灵光（光环抗性动态结算）
 6. 已有通道 spec 化机会评估（B2 advantage / B1 checkModifier 白名单扩展，suggest 素材 advantage 19 / check_modifier 10）
