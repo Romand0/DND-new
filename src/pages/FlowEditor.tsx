@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 
 // 防抖函数
 function debounce(func: Function, wait: number) {
@@ -14,16 +14,16 @@ function debounce(func: Function, wait: number) {
 }
 import { useFlowEditorToast } from '@/components/flow-editor/hooks/use-flow-editor-toast';
 import { useFlowValidation } from '@/components/flow-editor/hooks/use-flow-validation';
-import { useAutoFix } from '@/components/flow-editor/hooks/use-auto-fix';
 import { useFlowStatistics } from '@/components/flow-editor/hooks/use-flow-statistics';
 import { FlowPropertiesHeader } from '@/components/flow-editor/presentation/properties/FlowPropertiesHeader';
 import FlowPropertiesCategories from '@/components/flow-editor/presentation/properties/FlowPropertiesCategories';
 import FlowPropertiesSpellBinding from '@/components/flow-editor/presentation/properties/FlowPropertiesSpellBinding';
 import FlowPropertiesNodeEditor from '@/components/flow-editor/presentation/properties/FlowPropertiesNodeEditor';
 import FlowPropertiesStatistics from '@/components/flow-editor/presentation/properties/FlowPropertiesStatistics';
-import EdgePropertiesPanel from '@/components/flow-editor/presentation/properties/EdgePropertiesPanel';
 import { FlowNodePalette } from '@/components/flow-editor/presentation/nodes/FlowNodePalette';
-import FlowTopologyEditorCanvas from '@/components/flow-editor/presentation/canvas/FlowTopologyEditorCanvas';
+import FlowScriptCanvas from '@/components/flow-editor/script/FlowScriptCanvas';
+import FlowMigrationPanel from '@/components/flow-editor/script/FlowMigrationPanel';
+import { useScriptDnd } from '@/components/flow-editor/hooks/use-script-dnd';
 import { FlowEditorToolbar } from '@/components/flow-editor/FlowEditorToolbar';
 import { FlowEditorFunctionBar } from '@/components/flow-editor/FlowEditorFunctionBar';
 import SpellPicker from '@/components/SpellPicker';
@@ -38,21 +38,38 @@ import flowStore from '@/data/flowStore';
 import type {
   FlowDefinition,
   FlowNodeDef,
-  FlowEdgeDef,
   NodeTypeMeta,
   ConfigFieldSchema,
 } from '@/types/flow';
 import { groupNodeTypesByCategory, parseFlowId } from '@/types/flow';
-import { tidyFlowLayout, layoutTopology } from '@/utils/flow-editor/topology-layout';
 import { NODE_CONFIG_SCHEMA, isConfigFieldVisible } from '@/types/flow';
-import { insertNodeAfter, appendIsolatedNode, moveNodeWithinRank, canInsertAfter } from '@/utils/flow-editor/topology-edit';
-// FLOW_CATEGORIES, parseFlowId, buildFlowId 已移至 FlowPropertiesCategories 组件
 import { SCALE_MIN, SCALE_MAX, SCALE_STEP } from '@/utils/flow-editor/constants';
 import { useSpellBinding } from '@/components/flow-editor/hooks/use-spell-binding';
 import { createBlankFlow } from '@/data/flowFactory';
+import { migrateGraphToScript } from '@/lib/flowScriptMigrate';
+import { compileScriptToGraph } from '@/lib/flowScriptCompile';
+import {
+  insertBlock, deleteBlock, updateBlock, findBlock, moveBlock, parseSlotKey,
+  type SlotPath,
+} from '@/lib/flowScriptTree';
+import type { FlowScript, ScriptBlock, ScriptStep, ScriptIf, MigrationWarning } from '@/types/flowScript';
+import { BLOCK_SHAPE_REGISTRY } from '@/types/flowScript';
 
 /** 新建流程的占位路由 ID：此时流程只存在于编辑器内存中 */
 const NEW_FLOW_ID = 'new';
+
+/** 面板插入提示：插槽锚点 → 定位描述；无锚点 → 追加提示 */
+function describeInsertTarget(script: FlowScript | null, slot: SlotPath | null): string {
+  if (!script) return '点击条目将添加为积木块';
+  if (!slot) return '点击条目追加到脚本末尾；点击插槽可指定插入点';
+  if (slot.viaIds.length === 0) return `将插入到脚本第 ${slot.index + 1} 位`;
+  const parent = findBlock(script.body, slot.viaIds[slot.viaIds.length - 1]);
+  if (!parent || parent.kind !== 'if') return '点击条目追加到脚本末尾';
+  const branch = slot.branches[slot.branches.length - 1];
+  const pair = BLOCK_SHAPE_REGISTRY[parent.nodeType]?.cPair;
+  const label = branch === 'onTrue' ? (pair?.trueLabel ?? '满足') : (pair?.falseLabel ?? '否则');
+  return `将插入到「${parent.label}」的${label}体第 ${slot.index + 1} 位`;
+}
 
 
 
@@ -91,13 +108,13 @@ export default function FlowEditor() {
   const flow = flowState.flow;
   const flowLoaded = flowState.loaded;
   // 编辑器操作更新（保持 loaded 不变）
-  // 每次结构变更后按拓扑重算坐标：编辑态坐标恒为派生值，落盘也保持整洁
+  // 结构真相源是 flow.script；nodes/edges 是编译产物（updateScript 同步），供统计/校验/云端消费
   const setFlow = useCallback((updater: FlowDefinition | ((prev: FlowDefinition) => FlowDefinition)) => {
     setFlowState(prev => {
       const next = typeof updater === 'function'
         ? (updater as (p: FlowDefinition) => FlowDefinition)(prev.flow)
         : updater;
-      return { flow: tidyFlowLayout(next), loaded: prev.loaded };
+      return { flow: next, loaded: prev.loaded };
     });
   }, []);
   // 数据加载完成（置 loaded，结束占位）
@@ -117,12 +134,57 @@ export default function FlowEditor() {
     name: f.name,
     description: f.description ?? '',
     tags: f.tags ?? [],
+    script: f.script ?? null,
     nodes: f.nodes,
     edges: f.edges,
     spellId: f.spellId ?? null,
   }), []);
   const isDirty = flowLoaded && baselineRef.current !== '' && baselineRef.current !== flowSignature(flow);
   
+  // ===== 脚本树引入：加载/云端覆盖共用 =====
+  // 有 script 直接用；无 script 先迁移（有告警进确认面板）；缺入口 → 迁移失败面板
+  const [migration, setMigration] = useState<{
+    script: FlowScript | null;
+    warnings: MigrationWarning[];
+    lossless: boolean;
+  } | null>(null);
+  const [migrationConfirmed, setMigrationConfirmed] = useState(false);
+
+  const ingestFlow = useCallback((f: FlowDefinition, set: (flow: FlowDefinition) => void) => {
+    if (f.script) {
+      // 脚本流程：编译产物与树同步（防御旧数据树与图不一致）
+      const graph = compileScriptToGraph(f.script);
+      set({ ...f, nodes: graph.nodes, edges: graph.edges });
+      setMigration(null);
+      setMigrationConfirmed(true);
+      return;
+    }
+    const m = migrateGraphToScript(f);
+    if (!m.script) {
+      setMigration({ script: null, warnings: m.warnings, lossless: false });
+      set(f);
+      return;
+    }
+    if (m.warnings.length === 0) {
+      const graph = compileScriptToGraph(m.script);
+      set({ ...f, script: m.script, nodes: graph.nodes, edges: graph.edges });
+      setMigration(null);
+      setMigrationConfirmed(true);
+      return;
+    }
+    setMigration({ script: m.script, warnings: m.warnings, lossless: m.lossless });
+    set(f);
+  }, []);
+
+  // 确认迁移：采纳脚本树并编译落图
+  const confirmMigration = useCallback(() => {
+    if (!migration?.script) return;
+    const graph = compileScriptToGraph(migration.script);
+    setFlow(prev => ({ ...prev, script: migration.script!, nodes: graph.nodes, edges: graph.edges, updatedAt: Date.now() }));
+    setMigration(null);
+    setMigrationConfirmed(true);
+  }, [migration, setFlow]);
+
   // 初始化加载流程数据（只读镜像；镜像缺失时从云端取正式版）
   useEffect(() => {
     if (!flowId) return;
@@ -130,23 +192,32 @@ export default function FlowEditor() {
     // 切换流程时重置基线：脏检测与绑定同步都以「本次加载的内容」为准
     baselineRef.current = '';
     baselineSpellIdRef.current = undefined;
+    setMigration(null);
+    setMigrationConfirmed(false);
 
-    // 新建流程：只存在于编辑器内存，publish 之后才产生云端记录
+    // 新建流程：只存在于编辑器内存，publish 之后才产生云端记录。
+    // 直接播种帽子块脚本（无迁移面板）
     if (flowId === NEW_FLOW_ID) {
       const blank = createBlankFlow();
-      setLoadedFlow(blank);
-      flowRef.current = blank;
+      const hatScript: FlowScript = {
+        hat: { kind: 'hat', id: 'cast_start', label: '施法开始', config: { autoChecks: { components: true, range: true, time: true } } },
+        body: [],
+      };
+      const graph = compileScriptToGraph(hatScript);
+      const blankWithScript = { ...blank, script: hatScript, nodes: graph.nodes, edges: graph.edges };
+      setLoadedFlow(blankWithScript);
+      flowRef.current = blankWithScript;
       flowNameInput.setExternal(blank.name);
       return;
     }
 
     const loaded = flowStore.getById(flowId);
     if (loaded) {
-      // 编辑态坐标全部由拓扑派生，落盘坐标仅作兼容：加载时统一归一化
-      const normalized = tidyFlowLayout(loaded);
-      setLoadedFlow(normalized);
-      flowRef.current = normalized;
-      flowNameInput.setExternal(normalized.name);
+      ingestFlow(loaded, f => {
+        setLoadedFlow(f);
+        flowRef.current = f;
+        flowNameInput.setExternal(f.name);
+      });
     } else {
       // 镜像里没有，尝试从云端取正式版
       (async () => {
@@ -154,10 +225,11 @@ export default function FlowEditor() {
           await flowStore.fetchRemote();
           const remote = flowStore.getById(flowId);
           if (remote) {
-            const normalized = tidyFlowLayout(remote);
-            setLoadedFlow(normalized);
-            flowRef.current = normalized;
-            flowNameInput.setExternal(normalized.name);
+            ingestFlow(remote, f => {
+              setLoadedFlow(f);
+              flowRef.current = f;
+              flowNameInput.setExternal(f.name);
+            });
           } else {
             // 确实不存在，回退列表页
             navigate('/flows', { replace: true });
@@ -173,13 +245,8 @@ export default function FlowEditor() {
   useEffect(() => { flowRef.current = flow; });
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
-  // 从左侧环节库添加节点时的插入锚点（卡片「后插」按钮设置）
-  const [insertAnchorId, setInsertAnchorId] = useState<string | null>(null);
-  
-  const [selectedEdgeId, setSelectedEdgeId] = useState<string | null>(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [connectFromId, setConnectFromId] = useState<string | null>(null);
-  const [connectTrigger, setConnectTrigger] = useState<string>('on_complete');
+  // 插槽点击锚点：面板追加目标（无锚点时追加到脚本末尾）
+  const [insertSlot, setInsertSlot] = useState<SlotPath | null>(null);
 
   const flowNameInput = useTextInput('');
   const [showLeftPanel, setShowLeftPanel] = useState(false);
@@ -446,210 +513,141 @@ flowStore.saveViewportSnapshot(flowId, {
     return defaults;
   }, []);
 
-  /** 构造新节点：Schema 默认值优先，defaultConfig 兜底 */
-  const buildNewNode = useCallback((typeMeta: NodeTypeMeta): FlowNodeDef => {
+  /** 构造新块：Schema 默认值优先，defaultConfig 兜底；C 形类型产出双空体 ScriptIf */
+  const buildNewBlock = useCallback((typeMeta: NodeTypeMeta): ScriptBlock => {
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const schemaDefaults = collectSchemaDefaults(
       NODE_CONFIG_SCHEMA[typeMeta.type] ?? [],
       { ...(typeMeta.defaultConfig ?? {}) },
     );
-    return {
-      id,
-      type: typeMeta.type,
-      label: typeMeta.label,
-      config: { ...typeMeta.defaultConfig, ...schemaDefaults },
-    };
+    const config = { ...typeMeta.defaultConfig, ...schemaDefaults };
+    if (BLOCK_SHAPE_REGISTRY[typeMeta.type]?.shape === 'c') {
+      return {
+        kind: 'if',
+        nodeType: typeMeta.type,
+        id,
+        label: typeMeta.label,
+        condition: (config.condition as string) ?? '',
+        onTrue: [],
+        onFalse: [],
+        config,
+      };
+    }
+    return { kind: 'step', nodeType: typeMeta.type, id, label: typeMeta.label, config };
   }, [collectSchemaDefaults]);
 
-  // ===== 添加节点：有插入锚点时插到锚点之后，否则追加为孤立节点 =====
-  const addNode = useCallback((typeMeta: NodeTypeMeta) => {
-    const newNode = buildNewNode(typeMeta);
-    // 显式「后插」优先，否则以当前选中节点作为锚点
-    const candidate = insertAnchorId ?? selectedNodeId;
-    const anchorId = candidate && flow.nodes.some(n => n.id === candidate) ? candidate : null;
-
-    if (anchorId && !canInsertAfter(flow, anchorId)) {
-      // 分支节点的出边多于一条，无法判断插入位置：改为孤立节点并提示手动连接
-      setFlow(prev => appendIsolatedNode(prev, newNode));
-      showToast('info', '该节点有多个分支，已追加为独立环节，请手动连接');
-    } else {
-      setFlow(prev => (
-        anchorId ? insertNodeAfter(prev, anchorId, newNode) : appendIsolatedNode(prev, newNode)
-      ));
-    }
-    setInsertAnchorId(null);
-    setSelectedNodeId(newNode.id);
-    setSelectedEdgeId(null);
-  }, [buildNewNode, insertAnchorId, selectedNodeId, flow, setFlow, showToast]);
-
-  // ===== 卡片「后插」：选中该节点并等待从左侧环节库挑选类型 =====
-  const beginInsertAfter = useCallback((nodeId: string) => {
-    setSelectedNodeId(nodeId);
-    setSelectedEdgeId(null);
-    setInsertAnchorId(nodeId);
-    setShowLeftPanel(true);
-  }, []);
-
-  // ===== 层内左右移动 =====
-  const moveWithinRank = useCallback((nodeId: string, direction: -1 | 1) => {
-    setFlow(prev => moveNodeWithinRank(prev, nodeId, direction));
-  }, []);
-
-
-  // ===== 删除节点 =====
-  const deleteNode = useCallback((nodeId: string) => {
-    setFlow(prev => tidyFlowLayout({
-      ...prev,
-      nodes: prev.nodes.filter(n => n.id !== nodeId),
-      edges: prev.edges.filter(e => e.from !== nodeId && e.to !== nodeId),
-      updatedAt: Date.now(),
-    }));
-    if (selectedNodeId === nodeId) setSelectedNodeId(null);
-    if (insertAnchorId === nodeId) setInsertAnchorId(null);
-  }, [selectedNodeId, insertAnchorId]);
-
-  // ===== 更新节点配置 =====
-  const updateNodeConfig = useCallback(debounce((nodeId: string, key: string, value: any) => {
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => {
-        if (n.id !== nodeId) return n;
-        const config = { ...n.config, [key]: value };
-        // 切换 effectType 等条件字段后，新出现的字段可能还没有默认值，按可见性补齐
-        const defaults = collectSchemaDefaults(NODE_CONFIG_SCHEMA[n.type] ?? [], { ...config });
-        for (const [k, v] of Object.entries(defaults)) {
-          if (config[k] === undefined) config[k] = v;
-        }
-        return { ...n, config };
-      }),
-      updatedAt: Date.now(),
-    }));
-  }, 300), [collectSchemaDefaults]);
-
-  // ===== 更新节点标签 / 备注 =====
-  const updateNodeLabel = useCallback((nodeId: string, label: string) => {
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => (n.id === nodeId ? { ...n, label } : n)),
-      updatedAt: Date.now(),
-    }));
+  // ===== 脚本树更新：唯一结构写入通道（树 + 编译产物同步落 state） =====
+  const updateScript = useCallback((next: FlowScript) => {
+    setFlow(prev => {
+      const graph = compileScriptToGraph(next);
+      return { ...prev, script: next, nodes: graph.nodes, edges: graph.edges, updatedAt: Date.now() };
+    });
   }, [setFlow]);
+
+  // ===== 添加块：插槽锚点优先，否则追加到脚本末尾 =====
+  const addBlock = useCallback((typeMeta: NodeTypeMeta) => {
+    const script = flowRef.current?.script;
+    if (!script) return;
+    const block = buildNewBlock(typeMeta);
+    const target: SlotPath = insertSlot ?? { viaIds: [], branches: [], index: script.body.length };
+    updateScript({ ...script, body: insertBlock(script.body, target, block) });
+    setSelectedNodeId(block.id);
+    setShowRightPanel(true);
+  }, [buildNewBlock, insertSlot, updateScript]);
+
+  // ===== 拖拽移动：useScriptDnd 提交通道 =====
+  const moveBlocks = useCallback((originId: string, targetKey: string) => {
+    const script = flowRef.current?.script;
+    if (!script) return;
+    const next = moveBlock(script.body, originId, parseSlotKey(targetKey));
+    if (next !== script.body) updateScript({ ...script, body: next });
+  }, [updateScript]);
+
+  const { dnd, beginDrag } = useScriptDnd({
+    onMove: moveBlocks,
+    onSelect: id => {
+      setSelectedNodeId(id);
+      setInsertSlot(null);
+    },
+  });
+
+  // ===== 删除块（含子树） =====
+  const deleteNode = useCallback((nodeId: string) => {
+    const script = flowRef.current?.script;
+    if (!script || nodeId === script.hat.id) return;
+    updateScript({ ...script, body: deleteBlock(script.body, nodeId) });
+    if (selectedNodeId === nodeId) setSelectedNodeId(null);
+    if (insertSlot?.viaIds.includes(nodeId)) setInsertSlot(null);
+  }, [selectedNodeId, insertSlot, updateScript]);
+
+  // ===== 更新块配置（防抖；C 形 condition 双写保持校验器单一来源） =====
+  const updateNodeConfig = useCallback(debounce((nodeId: string, key: string, value: any) => {
+    const script = flowRef.current?.script;
+    if (!script) return;
+    if (nodeId === script.hat.id) {
+      updateScript({ ...script, hat: { ...script.hat, config: { ...script.hat.config, [key]: value } } });
+      return;
+    }
+    const block = findBlock(script.body, nodeId);
+    if (!block) return;
+    const config = { ...block.config, [key]: value };
+    // 切换 effectType 等条件字段后，新出现的字段可能还没有默认值，按可见性补齐
+    const defaults = collectSchemaDefaults(NODE_CONFIG_SCHEMA[block.nodeType] ?? [], { ...config });
+    for (const [k, v] of Object.entries(defaults)) {
+      if (config[k] === undefined) config[k] = v;
+    }
+    const patch = block.kind === 'if' && key === 'condition'
+      ? { config, condition: String(value ?? '') }
+      : { config };
+    updateScript({ ...script, body: updateBlock(script.body, nodeId, patch) });
+  }, 300), [collectSchemaDefaults, updateScript]);
+
+  // ===== 更新块标签 / 备注 =====
+  const updateNodeLabel = useCallback((nodeId: string, label: string) => {
+    const script = flowRef.current?.script;
+    if (!script) return;
+    if (nodeId === script.hat.id) {
+      updateScript({ ...script, hat: { ...script.hat, label } });
+      return;
+    }
+    updateScript({ ...script, body: updateBlock(script.body, nodeId, { label }) });
+  }, [updateScript]);
 
   const updateNodeNotes = useCallback((nodeId: string, notes: string) => {
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => (n.id === nodeId ? { ...n, notes } : n)),
-      updatedAt: Date.now(),
-    }));
-  }, [setFlow]);
+    const script = flowRef.current?.script;
+    if (!script) return;
+    if (nodeId === script.hat.id) {
+      updateScript({ ...script, hat: { ...script.hat, notes } });
+      return;
+    }
+    updateScript({ ...script, body: updateBlock(script.body, nodeId, { notes }) });
+  }, [updateScript]);
 
-  // ===== 删除节点配置键（自定义字段） =====
+  // ===== 删除块配置键（自定义字段） =====
   const removeNodeConfigKey = useCallback((nodeId: string, key: string) => {
-    setFlow(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => {
-        if (n.id !== nodeId || !n.config) return n;
-        const config = { ...n.config };
-        delete config[key];
-        return { ...n, config };
-      }),
-      updatedAt: Date.now(),
-    }));
-  }, [setFlow]);
-
-  // ===== 添加边 =====
-  const addEdge = useCallback((fromId: string, toId: string, trigger: string) => {
-    if (fromId === toId) return;
-    const exists = flow.edges.some(e => e.from === fromId && e.to === toId);
-    if (exists) return;
-
-    const edgeId = `edge-${fromId}-${toId}-${Date.now()}`;
-    const newEdge: FlowEdgeDef = {
-      id: edgeId,
-      from: fromId,
-      to: toId,
-      trigger: trigger as any,
-      label: triggerToLabel(trigger),
-    };
-    setFlow(prev => ({
-      ...prev,
-      edges: [...prev.edges, newEdge],
-      updatedAt: Date.now(),
-    }));
-    setSelectedEdgeId(edgeId);
-  }, [flow.edges]);
-
-  // ===== 删除边 =====
-  const deleteEdge = useCallback((edgeId: string) => {
-    setFlow(prev => ({
-      ...prev,
-      edges: prev.edges.filter(e => e.id !== edgeId),
-      updatedAt: Date.now(),
-    }));
-    if (selectedEdgeId === edgeId) setSelectedEdgeId(null);
-  }, [selectedEdgeId]);
-
-  // ===== 触发时机 → 标签 =====
-  function triggerToLabel(trigger: string): string {
-    const map: Record<string, string> = {
-      on_complete: '完成',
-      on_success: '成功',
-      on_failure: '失败',
-      on_partial: '部分',
-      on_true: '是',
-      on_false: '否',
-    };
-    return map[trigger] || trigger;
-  }
-
-
-
-
+    const script = flowRef.current?.script;
+    if (!script) return;
+    if (nodeId === script.hat.id) {
+      const config = { ...script.hat.config };
+      delete config[key];
+      updateScript({ ...script, hat: { ...script.hat, config } });
+      return;
+    }
+    const block = findBlock(script.body, nodeId);
+    if (!block?.config) return;
+    const config = { ...block.config };
+    delete config[key];
+    updateScript({ ...script, body: updateBlock(script.body, nodeId, { config }) });
+  }, [updateScript]);
 
   // ===== 画布空白处点击取消选中 =====
   const handleCanvasClick = useCallback(() => {
     setSelectedNodeId(null);
-    setSelectedEdgeId(null);
-    setInsertAnchorId(null);
-    setIsConnecting(false);
-    setConnectFromId(null);
+    setInsertSlot(null);
   }, []);
 
-  // ===== 画布事件：节点点击（选择或连接） =====
-  const handleNodeClick = useCallback((nodeId: string) => {
-    if (isConnecting) {
-      if (connectFromId && connectFromId !== nodeId) {
-        addEdge(connectFromId, nodeId, connectTrigger);
-      }
-      // 再次点击源节点等同于取消连接
-      setIsConnecting(false);
-      setConnectFromId(null);
-      return;
-    }
-    setSelectedNodeId(nodeId);
-    setSelectedEdgeId(null);
-    setInsertAnchorId(null);
-  }, [isConnecting, connectFromId, connectTrigger, addEdge]);
-
-  // ===== 开始连接模式 =====
-  const startConnecting = useCallback((nodeId: string) => {
-    setIsConnecting(true);
-    setConnectFromId(nodeId);
-    setSelectedNodeId(nodeId);
-    setInsertAnchorId(null);
-  }, []);
-
-  // ===== 取消连接模式 =====
-  const cancelConnecting = useCallback(() => {
-    setIsConnecting(false);
-    setConnectFromId(null);
-  }, []);
-
-  // ===== 验证逻辑（已迁移至 useFlowValidation Hook） =====
+  // ===== 验证逻辑（已迁移至 useFlowValidation Hook，脚本流程走 validateScript） =====
   const validation = useFlowValidation(flow);
-
-  // ===== 自动修复逻辑（已迁移至 useAutoFix Hook） =====
-  const autoFix = useAutoFix(flow);
 
   // ===== 用云端正式版覆盖编辑器 =====
   // 编辑态不落盘，本地改动随时会被丢弃，因此覆盖前先确认
@@ -664,42 +662,49 @@ flowStore.saveViewportSnapshot(flowId, {
         showToast('error', '云端没有该流程的正式版');
         return;
       }
-      const normalized = tidyFlowLayout(remote);
-      setLoadedFlow(normalized);
-      flowRef.current = normalized;
-      flowNameInput.setExternal(normalized.name);
-      baselineRef.current = flowSignature(normalized);
-      baselineSpellIdRef.current = normalized.spellId;
+      ingestFlow(remote, f => {
+        setLoadedFlow(f);
+        flowRef.current = f;
+        flowNameInput.setExternal(f.name);
+      });
+      baselineRef.current = '';
+      baselineSpellIdRef.current = remote.spellId;
       setSelectedNodeId(null);
-      setSelectedEdgeId(null);
+      setInsertSlot(null);
       setSyncStatus('synced');
-      showToast('success', `已载入云端正式版 v${normalized.publishedVersion ?? 0}`);
+      showToast('success', `已载入云端正式版 v${remote.publishedVersion ?? 0}`);
       setTimeout(() => setSyncStatus('idle'), 2000);
     } catch (error) {
       setSyncStatus('idle');
       showToast('error', error instanceof Error ? error.message : '同步失败');
     }
-  }, [syncStatus, flowId, isDirty, setLoadedFlow, flowNameInput, flowSignature, showToast]);
+  }, [syncStatus, flowId, isDirty, setLoadedFlow, flowNameInput, flowSignature, showToast, ingestFlow]);
 
-  // ===== 清空画布 =====
+  // ===== 清空画布（保留帽子块） =====
   const clearCanvas = useCallback(() => {
-    if (confirm('确定要清空当前画布吗？所有节点和连线将被删除（流程 ID 与名称保留）。')) {
-      setFlow(prev => ({ ...prev, nodes: [], edges: [], updatedAt: Date.now() }));
+    const script = flowRef.current?.script;
+    if (!script) return;
+    if (confirm('确定要清空当前画布吗？所有积木块将被删除（入口帽子块与流程信息保留）。')) {
+      updateScript({ ...script, body: [] });
       setSelectedNodeId(null);
-      setSelectedEdgeId(null);
+      setInsertSlot(null);
     }
-  }, []);
+  }, [updateScript]);
 
   // ===== 保存 =====
   // 编辑态只在内存里，保存即发布到云端：写入正式版并同步本地镜像。
+  // nodes/edges 已由 updateScript 实时编译同步，保存前做一次防御性重编译。
   const saveFlow = useCallback(async () => {
     setSaveStatus('saving');
     try {
-      const updatedFlow = tidyFlowLayout({
+      const script = flow.script;
+      const compiled = script ? compileScriptToGraph(script) : null;
+      const updatedFlow: FlowDefinition = {
         ...flow,
         name: flowNameInput.value || flow.name,
         updatedAt: Date.now(),
-      });
+        ...(compiled ? { nodes: compiled.nodes, edges: compiled.edges } : {}),
+      };
 
       const published = await flowStore.publish(updatedFlow);
 
@@ -749,14 +754,6 @@ flowStore.saveViewportSnapshot(flowId, {
     }
   }, [flow, flowNameInput, flowId, navigate, setFlow, showToast, spellBinding, flowSignature]);
 
-  // ===== 整理布局：按拓扑分层重排（与查看模式同款布局），写回流程并随自动保存持久化 =====
-  const handleTidyLayout = useCallback(() => {
-    const source = flowRef.current ?? flow;
-    if (source.nodes.length === 0) return;
-    setFlow(tidyFlowLayout(source));
-    showToast('success', '已按拓扑结构整理布局');
-  }, [flow, setFlow, showToast]);
-
   // ===== 基线建立 + 未发布改动保护 =====
   // 加载完成后把当前内容记为基线；之后与基线不一致才拦截关闭
   useEffect(() => {
@@ -779,24 +776,27 @@ flowStore.saveViewportSnapshot(flowId, {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
 
-  // ===== 获取选中节点 =====
-  const selectedNode = flow.nodes.find(n => n.id === selectedNodeId) || null;
-  const selectedEdge = flow.edges.find(e => e.id === selectedEdgeId) || null;
+  // ===== 选中块视图（帽子块 + 树内块统一为 FlowNodeDef 形态供属性面板消费） =====
+  const script = flow.script ?? null;
+  const selectedNode: FlowNodeDef | null = (() => {
+    if (!script || !selectedNodeId) return null;
+    if (script.hat.id === selectedNodeId) {
+      return { id: script.hat.id, type: 'cast_start', label: script.hat.label, config: script.hat.config, notes: script.hat.notes };
+    }
+    const block = findBlock(script.body, selectedNodeId);
+    if (!block) return null;
+    return {
+      id: block.id,
+      type: block.nodeType,
+      label: block.label,
+      config: block.config,
+      notes: block.notes,
+    };
+  })();
 
   // ===== 受控输入（useTextInput：输入态字符串与业务值分离，外部值变化时自动同步） =====
   const nodeLabelInput = useTextInput(selectedNode?.label ?? '');
   const nodeNotesInput = useTextInput(selectedNode?.notes ?? '');
-  const edgeLabelInput = useTextInput(selectedEdge?.label ?? '');
-  const edgeConditionInput = useTextInput(selectedEdge?.condition ?? '');
-  const edgeDataMapInput = useTextInput(
-    selectedEdge?.dataMap ? JSON.stringify(selectedEdge.dataMap, null, 2) : ''
-  );
-
-  // ===== 画布内容尺寸：与拓扑派生布局保持一致，避免固定空白滚动区 =====
-  const canvasSize = useMemo(() => {
-    const layout = layoutTopology(flow);
-    return { width: layout.width, height: layout.height };
-  }, [flow]);
 
   // ===== 节点分类面板 =====
   const nodeGroups = groupNodeTypesByCategory();
@@ -811,48 +811,6 @@ flowStore.saveViewportSnapshot(flowId, {
   // ===== 渲染 =====
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col dark:bg-bg-dark light:bg-bg-light relative">
-      {/* 自定义样式卡片节点 */}
-      <style>{`
-        @media (max-width: 1024px) {
-          .node-card-container {
-            -webkit-overflow-scrolling: touch;
-            scroll-behavior: smooth;
-            padding-right: 20px;
-          }
-          
-          .node-card {
-            flex-direction: row !important;
-            justify-content: flex-start !important;
-            align-items: center !important;
-            width: auto !important;
-            min-width: 100px !important;
-            max-width: 300px !important;
-            height: 44px !important;
-            padding: 0.625rem 0.75rem !important;
-            gap: 0.5rem !important;
-          }
-          
-          .node-card span:first-child {
-            width: 0.75rem !important;
-            height: 0.75rem !important;
-            margin-bottom: 0 !important;
-            margin-right: 0.25rem !important;
-          }
-          
-          .node-card span:last-child {
-            flex: 1 !important;
-            min-width: 0 !important;
-            text-align: left !important;
-          }
-        }
-        
-        @media (hover: none) {
-          .node-card:hover {
-            transform: none;
-            box-shadow: none;
-          }
-        }
-      `}</style>
       <FlowEditorToolbar
         flowName={flow.name}
         flowStatus={flow.status}
@@ -860,7 +818,6 @@ flowStore.saveViewportSnapshot(flowId, {
         syncStatus={syncStatus}
         onExit={() => setExitModalOpen(true)}
         onSave={saveFlow}
-        onTidyLayout={handleTidyLayout}
         onFlowNameChange={(value) => flowNameInput.onChange(value)}
         onFlowNameBlur={flowNameInput.onBlur}
       />
@@ -882,31 +839,26 @@ flowStore.saveViewportSnapshot(flowId, {
         scaleStep={SCALE_STEP}
       />
 
-      {/* ===== 连接模式提示 ===== */}
-      {isConnecting && (
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-primary/90 text-white text-xs font-medium z-50 shadow-lg whitespace-nowrap">
-          连接模式：点击目标节点完成连接
-          <button onClick={cancelConnecting} className="ml-2 underline">取消</button>
-        </div>
-      )}
-
       {/* ===== 内容区域（左面板 + 画布 + 右面板） ===== */}
       <div className="flex-1 flex overflow-hidden relative">
+        {migration ? (
+          <FlowMigrationPanel
+            scriptAvailable={migration.script !== null}
+            warnings={migration.warnings}
+            isDark={isDark}
+            onConfirm={confirmMigration}
+            onCancel={() => navigate('/flows')}
+          />
+        ) : (
+          <>
         <FlowNodePalette
           showLeftPanel={showLeftPanel}
           onToggleLeftPanel={() => setShowLeftPanel(!showLeftPanel)}
           nodeGroups={nodeGroups}
           isDark={isDark}
-          onAdd={addNode}
-          insertHint={(() => {
-            const anchor = insertAnchorId
-              ? flow.nodes.find(n => n.id === insertAnchorId)
-              : (selectedNodeId ? flow.nodes.find(n => n.id === selectedNodeId) : undefined);
-            if (!anchor) return '点击条目将追加为新环节';
-            return canInsertAfter(flow, anchor.id)
-              ? `将插入到「${anchor.label}」之后`
-              : `「${anchor.label}」分支过多，将追加为独立环节`;
-          })()}
+          onAdd={addBlock}
+          disabledTypes={script ? ['cast_start'] : []}
+          insertHint={describeInsertTarget(script, insertSlot)}
         />
 
         {/* 左侧遮罩（窄屏抽屉打开时） */}
@@ -919,7 +871,7 @@ flowStore.saveViewportSnapshot(flowId, {
 
       {/* ===== 中央：画布区域 ===== */}
       <div className="flex-1 relative overflow-hidden min-w-0">
-        {/* 画布 */}
+        {/* 画布：脚本树垂直列表，缩放走 transform */}
           <div
             ref={canvasRef}
             className="absolute inset-0 overflow-auto dark:bg-bg-dark light:bg-gray-50 select-none"
@@ -927,47 +879,24 @@ flowStore.saveViewportSnapshot(flowId, {
             onWheel={handleCanvasWheel}
             onTouchStart={handleTouchStart}
             onTouchEnd={handleTouchEnd}
+            onClick={handleCanvasClick}
           >
-            {/* 外层占据缩放后的尺寸，内层按 1:1 画布坐标绘制再整体缩放 */}
-            <div
-              className="relative origin-top-left"
-              style={{
-                width: canvasSize.width * canvasScale,
-                height: canvasSize.height * canvasScale,
-              }}
-            >
-              <div
-                className="absolute top-0 left-0 origin-top-left"
-                style={{
-                  width: canvasSize.width,
-                  height: canvasSize.height,
-                  transform: `translate(${canvasTranslate.x}px, ${canvasTranslate.y}px) scale(${canvasScale})`,
-                }}
-              >
-            {/* 画布区域 */}
-            <FlowTopologyEditorCanvas
-              flow={flow}
-              selectedNodeId={selectedNodeId}
-              selectedEdgeId={selectedEdgeId}
-              connectFromId={connectFromId}
-              canvasScale={canvasScale}
-              isDark={isDark}
-              onNodeSelect={handleNodeClick}
-              onEdgeSelect={(edgeId) => {
-                setSelectedEdgeId(edgeId);
-                setSelectedNodeId(null);
-                setInsertAnchorId(null);
-              }}
-              onCanvasClick={handleCanvasClick}
-              onInsertAfter={beginInsertAfter}
-              onStartConnecting={startConnecting}
-              onMoveWithinRank={moveWithinRank}
-              onDeleteNode={deleteNode}
-            />
-              </div>
+            {script && (
+              <FlowScriptCanvas
+                script={script}
+                isDark={isDark}
+                canvasScale={canvasScale}
+                selectedId={selectedNodeId}
+                dnd={dnd}
+                beginDrag={beginDrag}
+                onDelete={deleteNode}
+                onSlotPick={key => setInsertSlot(parseSlotKey(key))}
+              />
+            )}
           </div>
         </div>
-       </div>
+          </>
+        )}
 
       {/* ===== 右侧：属性面板 ===== */}
       <div
@@ -996,21 +925,12 @@ flowStore.saveViewportSnapshot(flowId, {
                 </span>
               </>
             )}
-            <button 
+            <button
               onClick={() => validation.setShowValidation(!validation.showValidation)}
               className="ml-auto text-xs text-gray-400 hover:text-gray-200"
             >
                {validation.showValidation ? '隐藏' : '显示'}详情
             </button>
-            {autoFix.hasSuggestions && (
-              <button 
-                onClick={autoFix.handleAutoFix}
-                className="ml-2 text-xs text-blue-400 hover:text-blue-200"
-                disabled={autoFix.isFixing}
-              >
-                自动修复 ({autoFix.suggestionCount})
-              </button>
-            )}
           </div>
           
            {validation.showValidation && validation.validationErrors.length > 0 && (
@@ -1061,7 +981,7 @@ flowStore.saveViewportSnapshot(flowId, {
           )}
         </div>
 
-          {/* 节点属性 */}
+          {/* 块属性 */}
           {selectedNode ? (
             <FlowPropertiesNodeEditor
               node={selectedNode}
@@ -1071,27 +991,9 @@ flowStore.saveViewportSnapshot(flowId, {
               removeNodeConfigKey={removeNodeConfigKey}
               updateNodeLabel={updateNodeLabel}
               updateNodeNotes={updateNodeNotes}
-              deleteEdge={deleteEdge}
-              selectedEdgeId={selectedEdgeId}
-              setSelectedEdgeId={setSelectedEdgeId}
+              deleteEdge={() => {}}
+              hideConnections
             />
-) : selectedEdge ? (
-            <EdgePropertiesPanel
-              edge={selectedEdge}
-              flow={flow}
-              onUpdateEdge={(edgeId, updates) => {
-                setFlow(prev => ({
-                  ...prev,
-                  edges: prev.edges.map(ed =>
-                    ed.id === edgeId ? { ...ed, ...updates } : ed
-                  ),
-                  updatedAt: Date.now(),
-                }));
-              }}
-              onDeleteEdge={deleteEdge}
-              isDark={isDark}
-            />
-
           ) : (
             <div>
               <FlowPropertiesHeader
@@ -1134,7 +1036,6 @@ flowStore.saveViewportSnapshot(flowId, {
                 statistics={statistics}
                 onNodeSelect={(nodeId) => {
                   setSelectedNodeId(nodeId);
-                  setSelectedEdgeId(null);
                   // 可选：滚动到对应节点位置
                   const nodeElement = document.querySelector(`[data-node-id="${nodeId}"]`);
                   if (nodeElement) {
@@ -1144,7 +1045,6 @@ flowStore.saveViewportSnapshot(flowId, {
                 onNodeEdit={(nodeId) => {
                   // 编辑节点：选中并显示右侧栏
                   setSelectedNodeId(nodeId);
-                  setSelectedEdgeId(null);
                   // 确保右侧栏显示
                   setShowRightPanel(true);
                   // 窄屏下可能需要滚动到右侧栏

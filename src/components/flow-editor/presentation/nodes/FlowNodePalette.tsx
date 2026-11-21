@@ -1,7 +1,7 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import PaletteAddItem from './PaletteAddItem';
-import { NodeTypeMeta } from '@/types/flow';
+import { NodeTypeMeta, FlowNodeType } from '@/types/flow';
 
 interface FlowNodePaletteProps {
   showLeftPanel: boolean;
@@ -12,6 +12,8 @@ interface FlowNodePaletteProps {
   onAdd: (meta: NodeTypeMeta) => void;
   /** 当前插入目标提示（选中节点或末尾） */
   insertHint?: string;
+  /** 禁用类型（如帽子块已存在时禁用 cast_start） */
+  disabledTypes?: FlowNodeType[];
 }
 
 export const FlowNodePalette: React.FC<FlowNodePaletteProps> = ({
@@ -21,6 +23,7 @@ export const FlowNodePalette: React.FC<FlowNodePaletteProps> = ({
   isDark,
   onAdd,
   insertHint,
+  disabledTypes,
 }) => {
   return (
     <div className={`${
@@ -56,7 +59,12 @@ export const FlowNodePalette: React.FC<FlowNodePaletteProps> = ({
               </h3>
               <div className="flex flex-wrap gap-2">
                 {metas.map(meta => (
-                  <PaletteAddItem key={meta.type} meta={meta} onAdd={onAdd} />
+                  <PaletteAddItem
+                    key={meta.type}
+                    meta={meta}
+                    onAdd={onAdd}
+                    disabled={disabledTypes?.includes(meta.type)}
+                  />
                 ))}
               </div>
             </div>

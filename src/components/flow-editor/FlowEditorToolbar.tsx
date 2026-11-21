@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Save, CheckCircle, AlertCircle, Loader2, Wand2 } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { useTextInput } from '@/hooks/useInput';
 
 interface FlowEditorToolbarProps {
@@ -9,7 +9,6 @@ interface FlowEditorToolbarProps {
   syncStatus: 'idle' | 'syncing' | 'synced';
   onExit: () => void;
   onSave: () => void;
-  onTidyLayout: () => void;
   onFlowNameChange: (value: string) => void;
   onFlowNameBlur: () => void;
 }
@@ -21,7 +20,6 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
   syncStatus,
   onExit,
   onSave,
-  onTidyLayout,
   onFlowNameChange,
   onFlowNameBlur,
 }) => {
@@ -54,14 +52,6 @@ export const FlowEditorToolbar: React.FC<FlowEditorToolbarProps> = ({
         />
       </div>
       <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 shrink-0">
-        <button
-          onClick={onTidyLayout}
-          className="flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors shrink-0 dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-white/5"
-          title="按拓扑结构重新排列所有节点"
-        >
-          <Wand2 className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">整理布局</span>
-        </button>
         <button
           onClick={onSave}
           disabled={saveStatus === 'saving'}
