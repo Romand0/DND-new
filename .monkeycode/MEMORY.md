@@ -37,6 +37,8 @@
 - 探针 newContext 默认 viewport 1280×720：沙盘 y≈744 的双击点落视口外（elementFromPoint 返回 null），探针统一 setViewportSize({width:1280, height:900})
 - combatEvents/operationLog/rounds cells 跨探针运行持久累积：依赖「本次产生行」的断言（如 heal 明细）需在段 setup 清 combatEvents；live 模式结算行落 operationLog，rounds cell 双写是放映模式口径——断言先确认 record.mode
 - 改 phb2014.json 等种子 json 会触发 vite 依赖重优化 → 页面模块图分裂（写丢/池拒绝/null.find、无 PAGE ERROR）：冷重启 dev server 即恢复，与 HMR 腐化同处理
+- 怪物图鉴（npcTemplateStore）探针使用：先 `loadSeed('monsters')` 预热（fetchAll 会打云端 API，dev 未跑后端时用 loadSeed）；setRulebookScope 必须含「怪物图鉴 2014」——登录态下出版物条目按规则书集过滤，只给玩家手册会滤掉全部野兽
+- characterStore.add() 返回完整对象：参战者 characterId 必须传 `pcChar.id`，直传对象会导致角色卡查找失败（特性按钮/属性全部静默消失）
 
 ## 战斗数据约定
 - CombatRecord.combatants 与记录级字段都走白名单重建（combatStore.load）：新增 combatant 字段（reactionUsed/pendingReactions/bonusActions）或记录字段（resourceConsumption / combatEvents）必须同步白名单，否则刷新丢字段且下次 save 永久抹掉
