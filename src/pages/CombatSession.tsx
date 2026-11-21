@@ -2348,7 +2348,8 @@ export default function CombatSession() {
           const name = definition?.name ?? opp.definitionName ?? '反应';
           // damage_modifier 直连（damage_taken 窗口）：吸收量手填，确认时累计进本次伤害结算；
           // 前提是伤害弹窗仍开着（absorbedDamage 落 damageModal state）——effect 伤害无窗口，走通用提示弹窗
-          if (resolution === 'damage_modifier' && opp.trigger === 'damage_taken' && damageModal && !damageModal.reactionWindowDone) {
+          // reactionWindowDone 只表示检测窗口已跑过（防重复入队），与直连前提无关
+          if (resolution === 'damage_modifier' && opp.trigger === 'damage_taken' && damageModal) {
             return (
               <DamageAbsorbModal
                 definitionName={name}
@@ -2535,8 +2536,7 @@ export default function CombatSession() {
           })()}
           zIndexClass={!reactionHold && reactionQueue && reactionIdx < reactionQueue.length ? 'z-40' : 'z-50'}
           onApplyDamage={({ damage, newHp, status, resolution, riders: riderSelections }) => {
-            const applyDamageNow = () => {
-              // damage_taken 窗口内 damage_modifier 反应的累计吸收量：从结算伤害中扣减
+            const applyDamageNow = () => {              // damage_taken 窗口内 damage_modifier 反应的累计吸收量：从结算伤害中扣减
               const finalDamage = Math.max(0, damage - (damageModal.absorbedDamage ?? 0));
               // 1. 应用 HP / 状态：伤害量由攻击方结算结果直接传入
               const result = handleApplyDamage({
@@ -2598,10 +2598,12 @@ export default function CombatSession() {
                 const fulls = matches.flatMap(m => combatStore.addReactionPrompts(record.id, m.ownerId, [m], rxRound));
                 setReactionQueue(prev => [...(prev || []), ...fulls]);
                 setDamageModal(prev => (prev ? { ...prev, reactionWindowDone: true } : prev));
-                return;
+                // 告知弹窗本次结算已挂起：保持打开，队列清空后由 DM 二次确认落账
+                return true;
               }
             }
             applyDamageNow();
+            return false;
           }}
           onClose={() => {
             setDamageModal(null);

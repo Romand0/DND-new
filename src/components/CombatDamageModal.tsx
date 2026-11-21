@@ -36,7 +36,7 @@ interface Props {
     resolution: DamageResolution;
     /** 勾选的命中触发 rider（至圣斩环级 / 震慑拳豁免结果），main 据此扣资源与挂状态 */
     riders?: AttackRiderSelection[];
-  }) => void;
+  }) => boolean | void;
   onClose: () => void;
   /** 由攻击检定阶段带入，决定是否为重击 */
   isCritical?: boolean;
@@ -314,7 +314,8 @@ export default function CombatDamageModal({
           }
         : {}),
     }));
-    onApplyDamage({
+    // 返回 true = main 挂起了本次结算（damage_taken 反应窗口），弹窗保持打开等待队列清空后二次确认
+    const suspended = onApplyDamage({
       damage,
       baseDamage,
       newHp,
@@ -325,7 +326,7 @@ export default function CombatDamageModal({
       resolution: resolution ?? createUntypedResolution(baseDamage),
       ...(riderSelections.length > 0 ? { riders: riderSelections } : {}),
     });
-    onClose();
+    if (suspended !== true) onClose();
   };
 
   return (
