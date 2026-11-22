@@ -18,6 +18,8 @@ interface FlowScriptCanvasProps {
   dnd: ScriptDndState;
   /** 只读渲染（FlowView 预览）：块无拖柄/删除，插槽静态 */
   readOnly?: boolean;
+  /** 点击卡头/帽子块选中（FlowEditor 据此自动展开右侧编辑面板）；缺省 = 不可点 */
+  onSelectBlock?: (blockId: string) => void;
   beginDrag: (e: React.PointerEvent, blockId: string) => void;
   onDelete: (blockId: string) => void;
   onSlotPick: (slotKey: string) => void;
@@ -30,6 +32,7 @@ export const FlowScriptCanvas: React.FC<FlowScriptCanvasProps> = ({
   selectedId,
   dnd,
   readOnly,
+  onSelectBlock,
   beginDrag,
   onDelete,
   onSlotPick,
@@ -54,7 +57,8 @@ export const FlowScriptCanvas: React.FC<FlowScriptCanvasProps> = ({
         {/* 帽子块（固定入口） */}
         <div
           data-node-id={script.hat.id}
-          className="flex items-center gap-2 px-3 py-3 rounded-t-2xl rounded-b-lg border border-b-0 text-left"
+          onClick={!readOnly && onSelectBlock ? () => onSelectBlock(script.hat.id) : undefined}
+          className={`flex items-center gap-2 px-3 py-3 rounded-t-2xl rounded-b-lg border border-b-0 text-left ${!readOnly && onSelectBlock ? 'cursor-pointer' : ''} ${selectedId === script.hat.id ? 'ring-1 ring-primary/40 shadow-md' : ''}`}
           style={{
             borderLeft: '4px solid #eab308',
             backgroundColor: isDark ? 'rgba(234,179,8,0.08)' : 'rgba(234,179,8,0.12)',
@@ -92,6 +96,7 @@ export const FlowScriptCanvas: React.FC<FlowScriptCanvasProps> = ({
                 dragId={dnd.dragId}
                 activeSlotKey={dnd.activeSlotKey}
                 readOnly={readOnly}
+                onSelect={onSelectBlock}
                 beginDrag={beginDrag}
                 onDelete={onDelete}
                 onSlotPick={onSlotPick}

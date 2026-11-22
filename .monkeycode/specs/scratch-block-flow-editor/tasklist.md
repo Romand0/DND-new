@@ -20,3 +20,4 @@
 - [x] T10 生成器改产脚本树：skills/流程生成器 SKILL.md 配方/产出格式/审查门 A 全部改写为 script 树表达（检定块即 C 形、分支语义对照表、位置布局节删除）；templates 两份示例 JSON 改 script 格式；flowStore.import 编译桥（ensureCompiledGraph：compileScriptToGraph + ensureNodePositions，过「节点缺少位置」门禁后直入 publish）
 - [x] T11 探针 `probe-flow-view-script.cjs` 20 项全绿——A 积木只读渲染（块数/插槽标签/无删除钮/无调色板）、B 图回退、C 编译桥（节点5/边5/全节点坐标/C 形边语义/缺 description 拒绝）
 - [x] T12 验证收尾：tsc + build 通过；全量基线 29/29
+- [x] T13 卡片选中自动展开右侧编辑面板：FlowBlockCard/帽子块点击 → selectBlock（选中 + 清锚点 + setShowRightPanel(true)），帽子块补选中高亮；UI 链按 §8.2 人工验收（探针只跑既有回归 23/23 + 26/26）

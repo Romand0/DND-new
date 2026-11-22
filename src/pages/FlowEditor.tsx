@@ -563,12 +563,16 @@ flowStore.saveViewportSnapshot(flowId, {
     if (next !== script.body) updateScript({ ...script, body: next });
   }, [updateScript]);
 
+  // ===== 选中块（卡片/帽子点击、拖拽未动松手共用）：选中 + 清插入锚点 + 自动展开右侧编辑面板 =====
+  const selectBlock = useCallback((id: string) => {
+    setSelectedNodeId(id);
+    setInsertSlot(null);
+    setShowRightPanel(true);
+  }, []);
+
   const { dnd, beginDrag } = useScriptDnd({
     onMove: moveBlocks,
-    onSelect: id => {
-      setSelectedNodeId(id);
-      setInsertSlot(null);
-    },
+    onSelect: selectBlock,
   });
 
   // ===== 删除块（含子树） =====
@@ -888,6 +892,7 @@ flowStore.saveViewportSnapshot(flowId, {
                 canvasScale={canvasScale}
                 selectedId={selectedNodeId}
                 dnd={dnd}
+                onSelectBlock={selectBlock}
                 beginDrag={beginDrag}
                 onDelete={deleteNode}
                 onSlotPick={key => setInsertSlot(parseSlotKey(key))}

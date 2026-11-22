@@ -28,6 +28,8 @@
 - readOnly 复用策略：FlowView 直接复用 FlowBlockCard/FlowScriptCanvas/FlowDropSlot 加 readOnly prop（无拖柄、无删除钮、插槽静态、空态提示隐藏）；readOnly 必须随 BranchBody 递归透传（首版漏传，探针 A5 暴露）
 - 生成器只产 script 字段：flowStore.import 边界 ensureCompiledGraph（compileScriptToGraph + ensureNodePositions）补编译产物与布局坐标，过「节点缺少位置」门禁后直入 publish；publish 不做本地校验，position 仅 import 门禁要求
 - SKILL.md 反模式保留：数值线性分档用 scaled_effect 三件套，condition_branch 只表达判定分流；on_partial 在积木语言无对应分支，半伤用 halfDamageOnSave 或 onFalse 体表达
+- 卡片点击选中即展开右栏：selectBlock 单一入口（dnd onSelect / 卡头 onClick / 帽子 onClick 共用）= 选中 + 清插入锚点 + setShowRightPanel(true)；画布空白点击仍只清选中（右栏保持打开，内容回落到流程级属性）
+- onSelect/onClick 均可选 prop（readOnly 时不挂），FlowView 只读复用零改动
 
 ## 下一步
 1. P3 清理（可选）：flow 图时代的 position/tidyLayout/ensureNodePositions 残留收敛
