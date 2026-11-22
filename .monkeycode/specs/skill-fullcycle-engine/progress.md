@@ -27,7 +27,7 @@
 | P5-2 专用硬编码批次 | [x] 完成 | 分支 feat/container-preselect，merge `d1bc6ec`：混元体 heal 直结 / 容器预选（引导神力/暗影技艺）/ 渗透劲延迟引爆；probe-active-skills 117/117 + p2 99/99 + 全量 ALL PROBES OK；见交付明细 |
 | P5 反应数据面 | [x] 第 1 期交付 | 分支 feat/reaction-data：种子 8 条标注 / 提取器渠道 / DamageAbsorbModal 直连 / 挂起修复（`cffb1d9`）；probe-reaction 59/59 + 全量 ALL PROBES OK；见交付明细 |
 | P5 荒野变形 | [x] 完成 | 分支 feat/wildshape-p5：图鉴野兽复用 + wildShape 通道 + 参战者形状替换/快照还原 + HP0 破碎；probe-wildshape 29/29 + 全量 ALL PROBES OK；见交付明细 |
-| P6 战技接线 | [ ] 调查完成 | 16 条战斗大师战技 + 散打技巧三选一 + 神圣打击子型；基建覆盖 ~60%，缺口 8 项；分期方案见调查段 |
+| P6 战技接线 | [x] P6-1 完成 | 体系池接线落地：池主入卡+16 成员展开+进战合并补齐+池扣链全通（probe-p61 10/10）；下一步 P6-2 rider 子型 |
 | P5 收尾 | [ ] 进行中 | 剩余：极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
 
 ## P1 交付明细（2026-11-18）
@@ -236,6 +236,27 @@
 - P6-2 rider 子型扩展：save.failStatus 枚举（5 条战技直接落）+ rider choice（散打三选一）+ perRound 子型（神圣打击）
 - P6-3 通道 register：格挡（reaction damage_modifier）/ 精准（checkModifier attack）/ 重整旗鼓（heal tempHp）
 - P6-4 新子型 + 复合：横扫 secondTarget / 扰乱 incoming advantage / 诡诈混合 / 反击（等反应第 4 期）/ 指挥官·灵动 manual
+
+## P6-1 体系池接线完成（2026-11-22，`7aa21e4` 合并 `48e252d` 已推送）
+
+### 落地内容
+
+- **种子**：战斗大师 features 拷贝卓越战技容器补 `resource:'pool'` + `activation:'free'` + `poolFormula`（levelTiers 4/5/6 short，从 traits 拷贝复制）——**关键发现：子职业读端走 `sc.features`**（optionStore L62-67 `traits: sc.features || []`），池主此前只在 traits 拷贝 → 角色卡永远缺池主；16 条战技 options 已自带 system/systemKind=member/role=active 标注（调查报告的「零标注」过时），顺手清了 nameEn 句号
+- **optionFeatures**：
+  - `collectOptionFeatureEntries` 容器成员展开：`MEMBER_EXPAND_CONTAINERS`（当前仅卓越战技）名单限定——学习集型容器成员派生为独立卡上条目；单选预选型容器（引导神力/暗影技艺）沿用 chosenForm 不展开，防超魔/魔印类全量灌卡
+  - `mergeFeatureMechanics` 追加体系条目：池主容器（systemKind=container && 名单内）+ 成员（systemKind=member && system 在名单）缺失时按库全量补齐（existingKeys 查重幂等）；其余全量期望条目（熟练项等选择型）仍走手动「刷新」防改变构建语义
+- **CombatSession**：合并 effect 加 `optionTick`（optionStore.subscribe 计数）——种子 chunk 晚到时 collect 空跑后补跑；`seedReady`（getByName('勇士','class')）判定通过才记账，避免未就绪时永久 skip
+- **池链全通实证**：成员 resolvePoolKey → `feature:卓越战技`（**保持 feature: 前缀，体系池=池主为容器条目的池，无新前缀**，双线索决策的 `system:` 设想被现状覆盖）→ findPoolOwner 命中容器 → L5 档满量 4 → consumeFeatureUse 连扣 4 拒第 5 → 面板池视图 max/available 同步
+
+### 探针与验证
+
+- `probe-p61.cjs` 转正（run.sh glob 收编，29/29 全绿）：10 断言 = A1 池主入卡 / A2 16 成员展开 / A3 标注完整 / A4 池键 / A5 池主命中 / A6 满量 / A7-A9 池视图与扣减 / A10 操作 tab 战技按钮
+- probe-econ 11/11 回归通过（merge 扩展未破坏 B1/B2/B3）；build 通过；main 合并后复验双探针全绿
+
+### 下一步
+
+- P6-2 rider 子型扩展（failStatus 枚举 5 条 + choice + perRound）
+- 提取管道 options 采集线（extract-features-batch.mjs collectTraits 扩 options 遍历）——报告侧，随 P6-3 一并做
 
 ## P6 前置经济修复（2026-11-22，用户报障：回气不扣附赠动作）
 
