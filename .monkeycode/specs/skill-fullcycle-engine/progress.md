@@ -236,3 +236,12 @@
 - P6-2 rider 子型扩展：save.failStatus 枚举（5 条战技直接落）+ rider choice（散打三选一）+ perRound 子型（神圣打击）
 - P6-3 通道 register：格挡（reaction damage_modifier）/ 精准（checkModifier attack）/ 重整旗鼓（heal tempHp）
 - P6-4 新子型 + 复合：横扫 secondTarget / 扰乱 incoming advantage / 诡诈混合 / 反击（等反应第 4 期）/ 指挥官·灵动 manual
+
+## P6 前置经济修复（2026-11-22，用户报障：回气不扣附赠动作）
+
+- **根因**：capability 引擎按名字命中 SPEC_DB（回气走 heal 引擎结算成功），但动作/池扣减依赖角色卡 features 上的 activation/resource/poolFormula 标注；早期创建/预置卡（罗勒等）条目缺标注且补全幂等跳过已存在条目 → 回血成功、池与附赠动作零消耗（probe-econ B3 复现：老卡 heal 引擎跑通、bonusActions=1、poolUsed=0）
+- **修复**（`1f38d17`）：optionFeatures.mergeFeatureMechanics 幂等合并（机械字段 role/level/system/systemKind/reaction/activation/resource/poolFormula/pool/cost 以库为准，description 保留、库无标注不动、changed 才写防循环）+ CharacterDetail 打卡自动合并（optionTick 种子就绪重跑、draftMode 跳过）+ CombatSession 进战全参战者合并（mechanicsSyncedRef 记账——战斗页无角色卡详情打开路径也能升级）+ 试验场资源消耗开关 title 澄清「特性资源池始终记账」
+- **行为矩阵**（probe-econ 11 断言锁定）：试验场开关关=动作不扣/池照扣（按钮文案合法化）；开关开或放映=动作+池真扣；老卡进战自动升级后全模式正确记账
+- **新探针 probe-econ.cjs**（11 断言转正）：三变体（开关关新卡/开关开新卡/开关开老卡）+ heal 引擎 alert 断言；dbg-17/dbg-ws 改名脱离 run.sh glob
+- **踩坑再验证**：探针大面积无关 FAIL（reaction 11 fail/p2 FATAL）= 陈旧 dev server 腐化态（长跑 3.5h + HMR + stash 往复改写源文件），MEMORY 基线对照法条目已有——冷重启 --force 即恢复，ALL PROBES OK；stash 对照必须在干净 server 上跑（腐化 server 上两版本同烂=对照无效）
+- 远程并行活动：b0c9c34（flow-editor detour 形态 docs）、7dd154b（flow-editor P1 积木编辑器，独立域不涉战斗）——rebase 无冲突
