@@ -544,7 +544,7 @@ flowStore.saveViewportSnapshot(flowId, {
     });
   }, [setFlow]);
 
-  // ===== 添加块：插槽锚点优先，否则追加到脚本末尾 =====
+  // ===== 添加块：插槽锚点优先，否则追加到脚本末尾；只选中高亮，右栏保持现状（点卡片才展开） =====
   const addBlock = useCallback((typeMeta: NodeTypeMeta) => {
     const script = flowRef.current?.script;
     if (!script) return;
@@ -552,7 +552,6 @@ flowStore.saveViewportSnapshot(flowId, {
     const target: SlotPath = insertSlot ?? { viaIds: [], branches: [], index: script.body.length };
     updateScript({ ...script, body: insertBlock(script.body, target, block) });
     setSelectedNodeId(block.id);
-    setShowRightPanel(true);
   }, [buildNewBlock, insertSlot, updateScript]);
 
   // ===== 拖拽移动：useScriptDnd 提交通道 =====
