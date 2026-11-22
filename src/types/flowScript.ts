@@ -36,6 +36,11 @@ export interface BlockShapeMeta {
  * 块形状注册表 —— 按节点类型索引。
  * 依据 flowCompiler.triggerMatches 的互斥组：on_true/on_false（result === true/false）
  * 与 on_success/on_failure（status === success/failure）各自互斥，与 Scratch if/else 语义一致。
+ *
+ * 注意：shape 只声明「能力」，实际形态由数据（kind）决定。检定/命中块（saving_throw/
+ * attack_roll）默认以堆叠形态创建——结果是沿链传递的信号，由下游效果节点自行消化
+ * （如 halfDamageOnSave）；C 形仅在两个结果要走不同效果链时显式使用（convertBlockForm
+ * 可切换）。condition_branch 即分流本身，恒为 C 形。
  */
 export const BLOCK_SHAPE_REGISTRY: Record<FlowNodeType, BlockShapeMeta> = {
   cast_start: { shape: 'hat' },

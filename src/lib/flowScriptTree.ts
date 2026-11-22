@@ -191,3 +191,35 @@ export function isCType(nodeType: FlowNodeType): boolean {
 export function isIfBlock(b: ScriptBlock): b is ScriptIf {
   return b.kind === 'if';
 }
+
+/**
+ * 检定/命中块形态转换：堆叠 ⇄ C 形。
+ *
+ * 语义分层（battleflow 设计原则）：检定块默认「堆叠」= 结果信号沿链传递，由下游
+ * 效果节点自行消化（如 apply_effect.halfDamageOnSave 吃上游豁免结果）；「C 形」=
+ * 显式结果分流，仅在两个结果要走完全不同的效果链时使用。condition_branch 的
+ * 存在意义即分流，不参与转换。
+ *
+ * 返回新 body；无需变更返回原引用；不可转换（非检定类型 / 收敛时分支体非空）返回 null。
+ */
+export function convertBlockForm(body: ScriptBlock[], blockId: string, to: 'step' | 'if'): ScriptBlock[] | null {
+  const target = findBlock(body, blockId);
+  if (!target) return null;
+  if (target.nodeType === 'condition_branch' || !isCType(target.nodeType)) return null;
+  if (target.kind === to) return body;
+  if (to === 'step' && target.kind === 'if' && (target.onTrue.length > 0 || target.onFalse.length > 0)) return null;
+
+  const conv = (b: ScriptBlock): ScriptBlock => {
+    if (b.id === blockId) {
+      if (to === 'step') {
+        const src = b as ScriptIf;
+        return { kind: 'step', nodeType: src.nodeType, id: src.id, label: src.label, config: src.config, notes: src.notes };
+      }
+      const src = b as ScriptStep;
+      return { kind: 'if', nodeType: src.nodeType, id: src.id, label: src.label, config: src.config, notes: src.notes, onTrue: [], onFalse: [] };
+    }
+    if (b.kind === 'if') return { ...b, onTrue: b.onTrue.map(conv), onFalse: b.onFalse.map(conv) };
+    return b;
+  };
+  return body.map(conv);
+}
