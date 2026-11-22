@@ -41,6 +41,7 @@ import { globalStatusManager } from '@/data/statusManager';
 import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
+import { optionStore } from '@/data/optionStore';
 import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
@@ -474,17 +475,23 @@ export default function CombatSession() {
   // 一次（description 保留、库无标注不动、changed 才写入防循环）；与 CharacterDetail 的
   // 打卡刷新同源（mergeFeatureMechanics），战斗页无角色卡详情打开路径也能升级。
   const mechanicsSyncedRef = useRef<Set<string>>(new Set());
+  // 种子 chunk 晚到时 collectOptionFeatureEntries 返回空、合并空跑——optionTick 让种子
+  // 就绪（store notify）后重跑一遍，避免进战瞬间升级失败且不再补跑
+  const [optionTick, setOptionTick] = useState(0);
+  useEffect(() => optionStore.subscribe(() => setOptionTick((t) => t + 1)), []);
   useEffect(() => {
     if (!record) return;
+    const seedReady = !!optionStore.getByName('勇士', 'class');
     for (const c of record.combatants) {
-      if (!c.characterId || mechanicsSyncedRef.current.has(c.characterId)) continue;
+      if (!c.characterId) continue;
+      if (seedReady && mechanicsSyncedRef.current.has(c.characterId)) continue;
       const char = characterStore.get(c.characterId);
       if (!char) continue;
       const { features, changed } = mergeFeatureMechanics(char);
-      mechanicsSyncedRef.current.add(c.characterId);
+      if (seedReady) mechanicsSyncedRef.current.add(c.characterId);
       if (changed) characterStore.update(char.id, { features });
     }
-  }, [record?.id]);
+  }, [record?.id, optionTick]);
 
   // 放映生命周期：由 hook 接管（暂停/恢复/从头播放/退出确认/initial 快照 IDB 持久化）。
   // 置于 useActions 之前：isPlaybackActive 依赖本 hook 的 playbackPaused。
