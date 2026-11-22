@@ -111,6 +111,14 @@ collectChain(nodeId, visited):
 
 ## Data Models
 
+**块形态语义分层（2026-11-22 用户观察确立，不可照搬 if/else 逻辑树）**：战斗流程节点有意设计为非最小逻辑单元——
+- `saving_throw` / `attack_roll` 是**结果信号发射器**：结果（成功/失败、命中/未命中）沿链传递给下游，默认堆叠形态；
+- `apply_effect` 是**结果信号反应器**：`halfDamageOnSave` 等配置由效果节点自行消化上游结果（「成功时伤害减半」是效果分配的自身逻辑，非图级分支）；
+- `scaled_effect` 是**内嵌条件的作用器**：分档/公式取值即条件分支与作用器的结合，恒为堆叠；
+- `condition_branch` 是唯一的**显式控制分流**原语，恒为 C 形。
+
+检定块 C 形（`onTrue`/`onFalse` 体）仅在两个结果要走完全不同效果链时使用；编辑器右侧栏提供 堆叠 ⇄ 分支 切换（`convertBlockForm`，分支体非空不可收敛）。调色板新增检定块默认建堆叠（`buildNewBlock` 仅 `condition_branch` 建 if）。
+
 ```ts
 // src/types/flowScript.ts
 export interface ScriptHat {

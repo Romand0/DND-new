@@ -50,6 +50,7 @@ import { migrateGraphToScript } from '@/lib/flowScriptMigrate';
 import { compileScriptToGraph } from '@/lib/flowScriptCompile';
 import {
   insertBlock, deleteBlock, updateBlock, findBlock, moveBlock, parseSlotKey,
+  isCType, convertBlockForm,
   type SlotPath,
 } from '@/lib/flowScriptTree';
 import type { FlowScript, ScriptBlock, ScriptStep, ScriptIf, MigrationWarning } from '@/types/flowScript';
@@ -513,7 +514,7 @@ flowStore.saveViewportSnapshot(flowId, {
     return defaults;
   }, []);
 
-  /** 构造新块：Schema 默认值优先，defaultConfig 兜底；C 形类型产出双空体 ScriptIf */
+  /** 构造新块：Schema 默认值优先，defaultConfig 兜底。检定/命中块默认堆叠（结果信号沿链传递，下游效果节点自行消化）；仅 condition_branch 直接建 C 形（其存在意义即分流） */
   const buildNewBlock = useCallback((typeMeta: NodeTypeMeta): ScriptBlock => {
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const schemaDefaults = collectSchemaDefaults(
@@ -521,7 +522,7 @@ flowStore.saveViewportSnapshot(flowId, {
       { ...(typeMeta.defaultConfig ?? {}) },
     );
     const config = { ...typeMeta.defaultConfig, ...schemaDefaults };
-    if (BLOCK_SHAPE_REGISTRY[typeMeta.type]?.shape === 'c') {
+    if (typeMeta.type === 'condition_branch') {
       return {
         kind: 'if',
         nodeType: typeMeta.type,
@@ -797,6 +798,20 @@ flowStore.saveViewportSnapshot(flowId, {
     };
   })();
 
+  // 检定/命中块形态切换上下文：堆叠（信号传递）⇄ C 形（结果分流）
+  const selectedBlock: ScriptBlock | null = script && selectedNodeId ? findBlock(script.body, selectedNodeId) : null;
+  const canToggleBlockForm = !!selectedBlock && selectedBlock.nodeType !== 'condition_branch' && isCType(selectedBlock.nodeType);
+  const toggleBlockForm = useCallback((to: 'step' | 'if') => {
+    const s = flowRef.current?.script;
+    if (!s || !selectedNodeId) return;
+    const next = convertBlockForm(s.body, selectedNodeId, to);
+    if (!next) {
+      showToast('error', to === 'step' ? '分支体非空：先清空两个分支体再收敛为堆叠' : '该块不可切换为分支形态');
+      return;
+    }
+    if (next !== s.body) updateScript({ ...s, body: next });
+  }, [selectedNodeId, updateScript, showToast]);
+
   // ===== 受控输入（useTextInput：输入态字符串与业务值分离，外部值变化时自动同步） =====
   const nodeLabelInput = useTextInput(selectedNode?.label ?? '');
   const nodeNotesInput = useTextInput(selectedNode?.notes ?? '');
@@ -984,6 +999,40 @@ flowStore.saveViewportSnapshot(flowId, {
             </div>
           )}
         </div>
+
+          {/* 检定/命中块形态切换：堆叠 = 结果信号沿链传递（下游效果节点自行消化，如半伤）；C 形 = 两个结果走不同效果链 */}
+          {canToggleBlockForm && selectedBlock && (
+            <div className={`mb-3 p-3 rounded-lg border ${isDark ? 'border-border-dark' : 'border-border-light'}`}>
+              <div className="text-xs font-medium mb-2 opacity-70">块形态</div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => toggleBlockForm('step')}
+                  disabled={selectedBlock.kind === 'step'}
+                  className={`flex-1 px-2 py-1.5 rounded text-xs font-medium border transition-colors ${
+                    selectedBlock.kind === 'step'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : isDark ? 'border-border-dark hover:bg-white/5' : 'border-border-light hover:bg-black/5'
+                  }`}
+                >
+                  堆叠 · 信号传递
+                </button>
+                <button
+                  onClick={() => toggleBlockForm('if')}
+                  disabled={selectedBlock.kind === 'if'}
+                  className={`flex-1 px-2 py-1.5 rounded text-xs font-medium border transition-colors ${
+                    selectedBlock.kind === 'if'
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : isDark ? 'border-border-dark hover:bg-white/5' : 'border-border-light hover:bg-black/5'
+                  }`}
+                >
+                  分支 · 结果分流
+                </button>
+              </div>
+              <p className="text-[10px] opacity-50 mt-2 leading-relaxed">
+                堆叠：豁免/命中结果沿链传给下游（如「成功减半」配置在效果节点自身）；分支：两个结果走不同效果链，收敛回堆叠前需清空分支体。
+              </p>
+            </div>
+          )}
 
           {/* 块属性 */}
           {selectedNode ? (

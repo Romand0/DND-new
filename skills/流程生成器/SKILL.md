@@ -200,9 +200,20 @@
 
 ### 2.3 可直接复用的积木配方
 
-**产出格式为脚本树（`FlowScript`，P2 起）**：堆叠（`body` 数组顺序）编码线性拓扑，C 形块（`onTrue`/`onFalse` 分支体）编码分流。编译桥（flowStore 入库边界）自动把 script 编译成 nodes/edges 图，生成器只需产出 script 字段。
+**产出格式为脚本树（`FlowScript`，P2 起）**：堆叠（`body` 数组顺序）编码线性拓扑，C 形块（`onTrue`/`onFalse` 分支体）编码显式分流。编译桥（flowStore 入库边界）自动把 script 编译成 nodes/edges 图，生成器只需产出 script 字段。
 
-线性直伤 + 敏捷豁免（检定块即 C 形，`onTrue` 体放伤害）：
+**块形态语义分层（不可照搬 if/else 逻辑树的根源）**——战斗流程节点有意设计为非最小逻辑单元：
+
+| 角色 | 块类型 | 语义 |
+|------|--------|------|
+| 结果信号发射器 | `saving_throw` / `attack_roll` | 检定结果（成功/失败、命中/未命中）沿链传递给下游，自身默认堆叠形态 |
+| 结果信号反应器 | `apply_effect` | **下游节点自行消化上游结果**：`halfDamageOnSave: true` 即「效果分配自行处理成功时伤害减半」，无需拆分支 |
+| 内嵌条件的作用器 | `scaled_effect` | 分档/公式取值是块内逻辑，条件分支与作用器的结合体，恒为堆叠 |
+| 显式条件分支 | `condition_branch` | 唯一的控制分流原语，恒为 C 形 |
+
+**默认写法：检定块用堆叠（信号传递），只有两个结果要走完全不同的效果链时才切 C 形。**
+
+线性直伤 + 敏捷豁免（推荐：堆叠信号传递，半伤留在效果节点配置）：
 
 ```json
 {
@@ -210,22 +221,31 @@
     "hat": { "kind": "hat", "id": "cast_start", "label": "开始施法", "config": { "autoChecks": { "components": true, "range": true, "time": true } } },
     "body": [
       { "kind": "step", "nodeType": "select_target", "id": "select_target", "label": "选择目标", "config": { "mode": "single", "maxCount": 1 } },
-      { "kind": "if", "nodeType": "saving_throw", "id": "save_dex", "label": "敏捷豁免", "config": { "ability": "dexterity", "dc": "" },
-        "onTrue": [ { "kind": "step", "nodeType": "apply_effect", "id": "damage_fire", "label": "火焰伤害", "config": { "effectType": "damage", "value": "8d6", "damageType": "fire" } } ],
-        "onFalse": [ { "kind": "step", "nodeType": "apply_effect", "id": "damage_half", "label": "半伤", "config": { "effectType": "damage", "value": "4d6", "damageType": "fire", "halfDamageOnSave": true } } ]
-      },
+      { "kind": "step", "nodeType": "saving_throw", "id": "save_dex", "label": "敏捷豁免", "config": { "ability": "dexterity", "dc": "" } },
+      { "kind": "step", "nodeType": "apply_effect", "id": "damage_fire", "label": "火焰伤害", "config": { "effectType": "damage", "value": "8d6", "damageType": "fire", "halfDamageOnSave": true } },
       { "kind": "step", "nodeType": "cast_end", "id": "cast_end", "label": "施法结束" }
     ]
   }
 }
 ```
 
-> 豁免伤害推荐写法：`onTrue` 满伤 + `onFalse` 体用 `halfDamageOnSave: true` 的 damage 块，或干脆 `onFalse` 留空数组（空体 = 直接连到汇合点，即跳过伤害）。半伤数字差值用满伤骰式的一半表达。
+> `halfDamageOnSave: true` = 豁免成功时每个伤害分量先减半再结算抗性（失败受满伤）。这是「效果分配消化上游检定信号」的官方路径，与火球术等存量流程的真实形态一致。
 
-法术攻击（C 形 `attack_roll`，插槽标签「命中/未命中」）：
+显式结果分流（C 形，仅当两个结果走**不同效果链**——如未通过要附加状态、通过要伤害）：
 
 ```json
-{ "kind": "if", "nodeType": "attack_roll", "id": "attack", "label": "法术攻击", "onTrue": [ /* 伤害块 */ ], "onFalse": [] }
+{ "kind": "if", "nodeType": "saving_throw", "id": "save_wis", "label": "感知豁免", "config": { "ability": "wisdom", "dc": "" },
+  "onTrue": [ { "kind": "step", "nodeType": "apply_effect", "id": "damage", "label": "伤害", "config": { "effectType": "damage", "value": "3d8", "damageType": "psychic" } } ],
+  "onFalse": [ { "kind": "step", "nodeType": "apply_effect", "id": "fear", "label": "恐惧状态", "config": { "effectType": "status", "affinityKind": "resistance", "damageTypes": "" } } ]
+}
+```
+
+> 编辑器右侧栏「块形态」可在 堆叠 ⇄ 分支 间切换（分支体非空时不可收敛回堆叠）；生成器直接产出对应 `kind` 即可，无需迁移。
+
+法术攻击（同构：默认堆叠信号传递；显式分流时用 C 形 `attack_roll`，插槽标签「命中/未命中」）：
+
+```json
+{ "kind": "step", "nodeType": "attack_roll", "id": "attack", "label": "法术攻击" }
 ```
 
 治疗 / 控制 / 检定奖惩（纯堆叠，无分支）：
@@ -296,7 +316,7 @@
 
 - 恰好一个帽子块（`cast_start`），只能位于 `script.hat`。
 - 块 `id` 全局唯一（编译后即节点 ID），`snake_case` 表意。
-- C 形块 `nodeType` 仅限 `saving_throw` / `attack_roll` / `condition_branch`（见 `BLOCK_SHAPE_REGISTRY`）；其余类型一律堆叠块。
+- `saving_throw` / `attack_roll` 默认堆叠形态（结果信号沿链传递）；C 形（`onTrue`/`onFalse` 体）仅当两个结果要走不同效果链时使用，且 C 形收敛回堆叠前分支体必须为空。`condition_branch` 恒为 C 形（其存在意义即分流）。
 - `condition_branch` 的 C 形块需带 `condition` 表达式；检定块靠结果状态分流，无需 `condition`。
 - 分支体允许为空数组（= 直接连汇合点），但 C 形块两体字段（`onTrue`/`onFalse`）必须存在。
 - 回流/循环无法表达（编译时按死代码丢弃）；需要重复触发的机制改为多段堆叠或留人工评审。
@@ -394,7 +414,7 @@
 | 图边 trigger | 积木表达 |
 |--------------|----------|
 | `on_complete` | 堆叠顺序（`body` 数组先后），隐式无字段 |
-| `on_success` / `on_failure` | `saving_throw` / `attack_roll` C 形块的 `onTrue` / `onFalse` 体 |
+| `on_success` / `on_failure` | 二选一：检定块堆叠形态（沿链传递，下游节点按结果信号自行处理——如 `halfDamageOnSave`），或 C 形块的 `onTrue` / `onFalse` 体 |
 | `on_true` / `on_false` | `condition_branch` C 形块的 `onTrue` / `onFalse` 体（条件写在块 `condition` 字段） |
 | `on_partial` | 无对应表达（见 §2.4）；半伤用 `halfDamageOnSave` 或 `onFalse` 体 |
 
