@@ -134,6 +134,8 @@ export default function CombatDamageModal({
   const [riderSlotLevel, setRiderSlotLevel] = useState<Record<string, SpellSlotLevel | undefined>>({});
   const [riderDice, setRiderDice] = useState<Record<string, string[]>>({});
   const [riderSaveRoll, setRiderSaveRoll] = useState<Record<string, string>>({});
+  // 多选一 rider（散打技巧）：featureName → 选定的 choice key（豁免输入复用 riderSaveRoll）
+  const [riderChoiceKey, setRiderChoiceKey] = useState<Record<string, string>>({});
 
   /** rider 的骰子数：基础 + 环级升级 + 目标种类加骰（不死/邪眷） */
   const riderDiceCount = (option: AttackRiderOption, slotLevel?: SpellSlotLevel): number => {
@@ -301,19 +303,41 @@ export default function CombatDamageModal({
     // 带 save 的 rider（震慑拳）勾选后必须填写豁免结果
     for (const option of checkedRiders) {
       if (option.save && !(riderSaveRoll[option.featureName] ?? '').trim()) return;
+      // 多选一 rider：必须选定一项；选定项带豁免时必填结果
+      if (option.choice) {
+        const picked = option.choice.find(o => o.key === riderChoiceKey[option.featureName]);
+        if (!picked) return;
+        if (picked.abilityLabel && picked.dc != null && !(riderSaveRoll[option.featureName] ?? '').trim()) return;
+      }
     }
     const diceNums = diceValues.map(v => parseInt(v, 10)).filter(n => !isNaN(n));
-    const riderSelections: AttackRiderSelection[] = checkedRiders.map(option => ({
-      featureName: option.featureName,
-      ...(option.kind === 'spellSlot' ? { slotLevel: riderSlotLevel[option.featureName] ?? option.slotLevels?.[0]?.level } : {}),
-      ...(option.save
-        ? {
-            saveResult: (parseInt(riderSaveRoll[option.featureName], 10) || 0) < option.save.dc
-              ? ('fail' as const)
-              : ('success' as const),
-          }
-        : {}),
-    }));
+    const riderSelections: AttackRiderSelection[] = checkedRiders.map(option => {
+      const picked = option.choice?.find(o => o.key === riderChoiceKey[option.featureName]);
+      const choiceHasSave = picked?.abilityLabel != null && picked?.dc != null;
+      return {
+        featureName: option.featureName,
+        ...(option.kind === 'spellSlot' ? { slotLevel: riderSlotLevel[option.featureName] ?? option.slotLevels?.[0]?.level } : {}),
+        ...(option.save
+          ? {
+              saveResult: (parseInt(riderSaveRoll[option.featureName], 10) || 0) < option.save.dc
+                ? ('fail' as const)
+                : ('success' as const),
+            }
+          : {}),
+        ...(picked
+          ? {
+              choiceKey: picked.key,
+              ...(choiceHasSave
+                ? {
+                    choiceSaveResult: (parseInt(riderSaveRoll[option.featureName], 10) || 0) < picked.dc
+                      ? ('fail' as const)
+                      : ('success' as const),
+                  }
+                : {}),
+            }
+          : {}),
+      };
+    });
     // 返回 true = main 挂起了本次结算（damage_taken 反应窗口），弹窗保持打开等待队列清空后二次确认
     const suspended = onApplyDamage({
       damage,
@@ -490,7 +514,9 @@ export default function CombatDamageModal({
                       <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
                         {option.kind === 'pool'
                           ? `消耗 ${option.poolCost} 点${option.poolAvailable != null ? `（余 ${option.poolAvailable}）` : ''}`
-                          : '消耗法术位（选环升级）'}
+                          : option.kind === 'spellSlot'
+                            ? '消耗法术位（选环升级）'
+                            : '无资源消耗'}
                       </span>
                     </label>
                     <div className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted leading-relaxed">{option.hint}</div>
@@ -570,6 +596,58 @@ export default function CombatDamageModal({
                             </span>
                           )}
                         </div>
+                      </div>
+                    )}
+                    {checked && option.choice && (
+                      <div className="text-xs space-y-1.5">
+                        <div className="dark:text-text-dark-muted light:text-text-light-muted">三选一（点击选定效应）</div>
+                        {option.choice.map(o => {
+                          const picked = riderChoiceKey[option.featureName] === o.key;
+                          return (
+                            <div key={o.key} className="space-y-1">
+                              <button
+                                onClick={() => {
+                                  setRiderChoiceKey(prev => ({ ...prev, [option.featureName]: o.key }));
+                                  setCalculated(null);
+                                }}
+                                className={`w-full text-left px-2 py-1 rounded transition-all ${
+                                  picked
+                                    ? 'bg-yellow-500/20 border border-yellow-500 text-yellow-500'
+                                    : 'dark:bg-bg-dark light:bg-bg-light-2 dark:text-text-dark light:text-text-light border border-transparent hover:border-yellow-500/40'
+                                }`}
+                              >
+                                {o.label}
+                                {o.abilityLabel && o.dc != null && ` — 目标${o.abilityLabel}豁免 DC ${o.dc}`}
+                                {o.pushLabel && ` — ${o.pushLabel}`}
+                                {o.directHint}
+                              </button>
+                              {picked && o.abilityLabel && o.dc != null && (
+                                <div className="flex items-center gap-2 pl-2">
+                                  <input
+                                    type="number"
+                                    min={1}
+                                    max={30}
+                                    value={riderSaveRoll[option.featureName] ?? ''}
+                                    onChange={(e) => {
+                                      setRiderSaveRoll(prev => ({ ...prev, [option.featureName]: e.target.value }));
+                                      setCalculated(null);
+                                    }}
+                                    placeholder="豁免总值"
+                                    className="w-20 px-2 py-1 text-center rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                                  />
+                                  {(riderSaveRoll[option.featureName] ?? '').trim() !== '' && (
+                                    <span className={parseInt(riderSaveRoll[option.featureName], 10) >= o.dc ? 'text-green-400' : 'text-red-400 font-medium'}>
+                                      {parseInt(riderSaveRoll[option.featureName], 10) >= o.dc ? '豁免成功' : `豁免失败 → ${o.failLabel}`}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
+                              {picked && o.directHint && (
+                                <div className="pl-2 dark:text-text-dark-muted light:text-text-light-muted">{o.directHint}</div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
