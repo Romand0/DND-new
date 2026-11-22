@@ -1,6 +1,6 @@
 {
   "name": "火球术",
-  "description": "1 动作，60 尺，V，区域，敏捷豁免，未通过受 8d6+1 火焰伤害，通过受一半（4d6+1 减半结算）",
+  "description": "1 动作，60 尺，V，区域，敏捷豁免，未通过受 8d6+1 火焰伤害，成功减半（halfDamageOnSave）",
   "script": {
     "hat": {
       "kind": "hat",
@@ -17,29 +17,18 @@
         "config": { "mode": "area", "maxCount": 10 }
       },
       {
-        "kind": "if",
+        "kind": "step",
         "nodeType": "saving_throw",
         "id": "save_dex",
         "label": "敏捷豁免",
-        "config": { "ability": "dexterity", "dc": "15" },
-        "onTrue": [
-          {
-            "kind": "step",
-            "nodeType": "apply_effect",
-            "id": "damage_fire",
-            "label": "火焰伤害",
-            "config": { "effectType": "damage", "value": "8d6+1", "damageType": "fire" }
-          }
-        ],
-        "onFalse": [
-          {
-            "kind": "step",
-            "nodeType": "apply_effect",
-            "id": "damage_half",
-            "label": "火焰伤害（减半）",
-            "config": { "effectType": "damage", "value": "4d6", "damageType": "fire", "halfDamageOnSave": true }
-          }
-        ]
+        "config": { "ability": "dexterity", "dc": "15" }
+      },
+      {
+        "kind": "step",
+        "nodeType": "apply_effect",
+        "id": "damage_fire",
+        "label": "火焰伤害",
+        "config": { "effectType": "damage", "value": "8d6+1", "damageType": "fire", "halfDamageOnSave": true }
       },
       {
         "kind": "step",
