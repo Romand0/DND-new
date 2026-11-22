@@ -27,7 +27,7 @@
 | P5-2 专用硬编码批次 | [x] 完成 | 分支 feat/container-preselect，merge `d1bc6ec`：混元体 heal 直结 / 容器预选（引导神力/暗影技艺）/ 渗透劲延迟引爆；probe-active-skills 117/117 + p2 99/99 + 全量 ALL PROBES OK；见交付明细 |
 | P5 反应数据面 | [x] 第 1 期交付 | 分支 feat/reaction-data：种子 8 条标注 / 提取器渠道 / DamageAbsorbModal 直连 / 挂起修复（`cffb1d9`）；probe-reaction 59/59 + 全量 ALL PROBES OK；见交付明细 |
 | P5 荒野变形 | [x] 完成 | 分支 feat/wildshape-p5：图鉴野兽复用 + wildShape 通道 + 参战者形状替换/快照还原 + HP0 破碎；probe-wildshape 29/29 + 全量 ALL PROBES OK；见交付明细 |
-| P6 战技接线 | [x] P6-1 完成 | 体系池接线落地：池主入卡+16 成员展开+进战合并补齐+池扣链全通（probe-p61 10/10）；下一步 P6-2 rider 子型 |
+| P6 战技接线 | [x] P6-2 完成 | 5 条 rider+save 战技落地（倒地/恐惧/挑衅/缴械 + 推撞位移）；下一步 P6-3 register + options 采集线 |
 | P5 收尾 | [ ] 进行中 | 剩余：极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
 
 ## P1 交付明细（2026-11-18）
@@ -257,6 +257,33 @@
 
 - P6-2 rider 子型扩展（failStatus 枚举 5 条 + choice + perRound）
 - 提取管道 options 采集线（extract-features-batch.mjs collectTraits 扩 options 遍历）——报告侧，随 P6-3 一并做
+
+## P6-2 战技 rider 豁免落地完成（2026-11-22，`0e80cd3` 合并 `3029983` 已推送）
+
+### 落地内容
+
+- **statusLibrary 4 新状态**：倒地 prone（自身攻击劣势 + 5 尺内近战对己优势 + 远程对己优势）/ 恐惧 frightened（对恐惧源攻击劣势，距离 DM 把握）/ 挑衅 goaded（对挑衅者以外攻击劣势）/ 缴械 disarmed（无引擎效果，武器落地 DM 手动处理拾取）——全部手动声明/手动解除
+- **AttackRiderSpec 扩展**：failStatus 枚举扩（stunned|prone|frightened|goaded|disarmed）+ `push: { feet }` 位移子型（纯位移不挂状态）；`battleMasterDc` helper（8+熟练+力敏调**较高者**，覆盖 PHB「力敏自选」免卡上配置）
+- **5 条战技注册**（attack_rider 通道）：摔绊（dex→prone）/ 恐吓（wis→frightened）/ 挑衅（wis→goaded）/ 推撞（str→push 10 尺）/ 缴械（dex→disarmed）——池 cost 1（卓越骰）+ damage 1d8 战技骰（damageType 空串 = 并入武器伤害同类型，弹窗 rider 骰无独立类型标签）
+- **applyAttackRiders 推撞分支**：按攻击者→目标方向 sign(dx)/sign(dz) 切比雪夫步进推 feet/5 格，clamp 沙盘边界；无棋子记提示行；成功/失败不挂状态不挂 TurnTodo
+- **UI**：FAIL_LABELS 行文本映射（震慑/倒地/恐惧/挑衅/缴械）+ AttackRiderOption.save.failLabel 透传，CombatDamageModal 失败提示从硬编码「震慑」改动态
+
+### 探针与验证
+
+- probe-p62 转正 11 断言：5 选项构建 / DC 13（8+熟练3+力敏2，卡显式 proficiencyBonus:3）/ 战技骰 1d8+failLabel / 池视图 / 四状态挂载+TurnTodo+池扣 / 推撞位移 (4,2)→(6,2) 且不挂状态 / 成功零挂载
+- build 通过；run.sh 29/29 全绿（probe-p62 glob 收编）
+- **跨会话遗留清理**：probe-flow-editor-script / probe-flow-script 改名 `flow-*-legacy.cjs` 脱离 glob——f8d58d4（另一会话）删除 data/ 目录后 fixture 失效，探针必然 ENOENT
+
+### 关键踩坑（本轮新增）
+
+- **evaluate 动态 import 必须带 .ts 后缀**：`import('/src/data/statusManager')` 与 `import('/src/data/statusManager.ts')` 是两个模块 URL → **globalStatusManager 内存单例分叉**（挂载查不到）；localStorage 型 store（combatStore）双实例无感，内存型 store（statusManager instances）断言必失真。probe-active-skills 一直带 .ts 所以绿，本轮 probe-p62 无后缀踩坑。修法：探针统一 `import('/src/data/xxx.ts')`
+- async 探针 helper 忘 await → Promise 序列化成 `{}` 全字段 undefined，断言信息全失——runOne 类 helper 必须 await
+- 池公式 levelTiers 按卡等级取档：L1 战斗大师 min3 档 → max 0 → getAttackRiders 全部 skip——探针卡等级必须 ≥ 战技解锁级（L5 档 = 4 骰）
+
+### 下一步
+
+- P6-3 register 通道：格挡（reaction damage_modifier）/ 精准（checkModifier attack）/ 重整旗鼓（heal tempHp）+ 提取管道 options 采集线
+- rider choice 子型（散打技巧三选一）/ perRound 子型（神圣打击）——随 P6-3/P6-4 一并
 
 ## P6 前置经济修复（2026-11-22，用户报障：回气不扣附赠动作）
 
