@@ -23,3 +23,4 @@
 - [x] T13 卡片选中自动展开右侧编辑面板：FlowBlockCard/帽子块点击 → selectBlock（选中 + 清锚点 + setShowRightPanel(true)），帽子块补选中高亮；UI 链按 §8.2 人工验收（探针只跑既有回归 23/23 + 26/26）
 - [x] T14 调色板添加不展开右栏：addBlock 只选中高亮新块，setShowRightPanel(true) 移除（点卡片才展开）；UI 链人工验收
 - [x] T15 块形态语义分层（用户观察：检定=信号发射器/效果=信号反应器/分级=内嵌条件作用器）：buildNewBlock 检定块默认堆叠（仅 condition_branch 建 C 形）；flowScriptTree.convertBlockForm（堆叠⇄分支，分支体非空不可收敛）；右栏「块形态」切换条；SKILL.md 语义分层表 + 配方改信号传递默认（halfDamageOnSave 留效果节点）、templates 示例改堆叠形态（旧 onFalse 体放 halfDamageOnSave 是语义 bug）；design.md Data Models 记原则；回归 23/23+26/26+20/20
+- [x] T16 单分支 detour 形态（用户观察：D&D 法术多为「一方特殊效果，另一方正常进下一环节」，大路+小路拐回大路而非岔路口）：ScriptIf.form?: 'ifelse'|'detour'（缺省 ifelse 兼容存量）；detour 恒 onFalse 空、编译语义=双分支且否则体为空（零编译器改动）；convertBlockForm 三态（step/detour/ifelse，ifelse→detour 需清否则体）；FlowBlockCard detour 渲染否则路径为「直接向下」提示条（无插槽）；右栏三态切换（检定块 堆叠/单分支/双分支，condition_branch 单分支/双分支且默认 detour）；SKILL.md 三态表 + detour 配方；回归 23/23+26/26+20/20

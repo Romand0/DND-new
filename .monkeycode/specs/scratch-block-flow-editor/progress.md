@@ -30,7 +30,8 @@
 - SKILL.md 反模式保留：数值线性分档用 scaled_effect 三件套，condition_branch 只表达判定分流；on_partial 在积木语言无对应分支，半伤用 halfDamageOnSave 或 onFalse 体表达
 - 卡片点击选中即展开右栏：selectBlock 单一入口（dnd onSelect / 卡头 onClick / 帽子 onClick 共用）= 选中 + 清插入锚点 + setShowRightPanel(true)；画布空白点击仍只清选中（右栏保持打开，内容回落到流程级属性）
 - onSelect/onClick 均可选 prop（readOnly 时不挂），FlowView 只读复用零改动
-- **块形态语义分层（2026-11-22 用户观察确立）**：节点有意非最小逻辑单元——检定块是结果信号发射器（默认堆叠，结果沿链传递），效果分配是信号反应器（halfDamageOnSave 自行消化「成功减半」，非图级分支），scaled_effect 是内嵌条件的作用器（恒堆叠），condition_branch 是唯一显式分流（恒 C 形）。调色板检定块默认建堆叠；convertBlockForm 提供堆叠⇄分支切换（分支体非空不可收敛）；右栏「块形态」条承载切换。C 形检定仅当两个结果走不同效果链
+- **块形态语义分层（2026-11-22 用户观察确立）**：节点有意非最小逻辑单元——检定块是结果信号发射器（默认堆叠，结果沿链传递），效果分配是信号反应器（halfDamageOnSave 自行消化「成功减半」，非图级分支），scaled_effect 是内嵌条件的作用器（恒堆叠），condition_branch 是显式分流。调色板检定块默认建堆叠；convertBlockForm 提供形态切换。C 形检定仅当两个结果走不同效果链
+- **单分支 detour 形态（同日追加）**：D&D 法术多为「一方特殊效果，另一方正常进下一环节」= 大路+小路拐回大路。ScriptIf.form: 'ifelse'|'detour'（缺省 ifelse 兼容存量）；detour 恒 onFalse 空，编译语义 = 双分支且否则体为空（编译器零改动）；渲染为满足体 + 「否则 → 直接向下」提示条；condition_branch 默认 detour；收敛守卫：ifelse→detour 需清否则体、detour→堆叠需清满足体
 
 ## 下一步
 1. P3 清理（可选）：flow 图时代的 position/tidyLayout/ensureNodePositions 残留收敛

@@ -12,7 +12,7 @@
 - [ ] 每个 `body` 块含 `kind` / `nodeType` / `id` / `label`
 - [ ] 块 ID 全局唯一（含分支体内的块）
 - [ ] C 形块 `nodeType` 仅限 `saving_throw` / `attack_roll` / `condition_branch`，且 `onTrue` / `onFalse` 字段存在
-- [ ] 检定/命中块默认堆叠形态（结果信号沿链传递，半伤等结果处理留在效果节点配置）；C 形仅当两个结果要走不同效果链
+- [ ] 检定/命中块默认堆叠形态（结果信号沿链传递，半伤等结果处理留在效果节点配置）；detour 形态 `onFalse` 恒为空数组；双分支仅当两个结果要走不同效果链
 - [ ] 无回流/循环结构（编译时按死代码丢弃）
 - [ ] 未使用 `apply_damage` 等非法类型
 

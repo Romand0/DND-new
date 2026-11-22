@@ -193,21 +193,34 @@ export function isIfBlock(b: ScriptBlock): b is ScriptIf {
 }
 
 /**
- * 检定/命中块形态转换：堆叠 ⇄ C 形。
+ * 块形态转换：堆叠 / 单分支小路（detour）/ 双分支岔路口（ifelse）。
  *
  * 语义分层（battleflow 设计原则）：检定块默认「堆叠」= 结果信号沿链传递，由下游
- * 效果节点自行消化（如 apply_effect.halfDamageOnSave 吃上游豁免结果）；「C 形」=
- * 显式结果分流，仅在两个结果要走完全不同的效果链时使用。condition_branch 的
- * 存在意义即分流，不参与转换。
+ * 效果节点自行消化（如 apply_effect.halfDamageOnSave 吃上游豁免结果）；「detour」=
+ * 满足走小路拐回大路、未满足直接向下（onFalse 恒空）；「ifelse」= 两个结果各自
+ * 展开走不同效果链。condition_branch 支持 detour ⇄ ifelse（其存在意义即分流，
+ * 无堆叠形态）。
  *
- * 返回新 body；无需变更返回原引用；不可转换（非检定类型 / 收敛时分支体非空）返回 null。
+ * 返回新 body；无需变更返回原引用；不可转换（目标形态受限 / 收敛时分支体非空）返回 null。
  */
-export function convertBlockForm(body: ScriptBlock[], blockId: string, to: 'step' | 'if'): ScriptBlock[] | null {
+export function convertBlockForm(body: ScriptBlock[], blockId: string, to: 'step' | 'detour' | 'ifelse'): ScriptBlock[] | null {
   const target = findBlock(body, blockId);
   if (!target) return null;
-  if (target.nodeType === 'condition_branch' || !isCType(target.nodeType)) return null;
-  if (target.kind === to) return body;
-  if (to === 'step' && target.kind === 'if' && (target.onTrue.length > 0 || target.onFalse.length > 0)) return null;
+  if (!isCType(target.nodeType)) return null;
+  if (to === 'step' && target.nodeType === 'condition_branch') return null;
+
+  const kind = target.kind;
+  const form = kind === 'if' ? (target.form ?? 'ifelse') : null;
+  if (to === 'step' && kind === 'step') return body;
+  if (to === 'detour' && kind === 'if' && form === 'detour') return body;
+  if (to === 'ifelse' && kind === 'if' && form === 'ifelse') return body;
+
+  // 收敛/切换守卫：非空体不可丢
+  if (kind === 'if') {
+    const ifb = target;
+    if (to === 'step' && (ifb.onTrue.length > 0 || ifb.onFalse.length > 0)) return null;
+    if (to === 'detour' && ifb.onFalse.length > 0) return null;
+  }
 
   const conv = (b: ScriptBlock): ScriptBlock => {
     if (b.id === blockId) {
@@ -216,7 +229,17 @@ export function convertBlockForm(body: ScriptBlock[], blockId: string, to: 'step
         return { kind: 'step', nodeType: src.nodeType, id: src.id, label: src.label, config: src.config, notes: src.notes };
       }
       const src = b as ScriptStep;
-      return { kind: 'if', nodeType: src.nodeType, id: src.id, label: src.label, config: src.config, notes: src.notes, onTrue: [], onFalse: [] };
+      return {
+        kind: 'if',
+        nodeType: src.nodeType,
+        id: src.id,
+        label: src.label,
+        form: to === 'detour' ? 'detour' : undefined,
+        config: src.config,
+        notes: src.notes,
+        onTrue: [],
+        onFalse: [],
+      };
     }
     if (b.kind === 'if') return { ...b, onTrue: b.onTrue.map(conv), onFalse: b.onFalse.map(conv) };
     return b;

@@ -86,11 +86,19 @@ export interface ScriptIf {
   nodeType: FlowNodeType;
   id: string;
   label: string;
+  /**
+   * 分支形态（缺省 'ifelse' = 双分支岔路口）：
+   * - 'ifelse'：onTrue / onFalse 两体各自展开，汇合于下一兄弟
+   * - 'detour'：单分支小路——满足体走完汇合回主链，未满足直接向下（onFalse 恒为空数组，
+   *   UI 渲染为「否则 → 直接向下」提示条）。编译语义与「双分支且否则体为空」完全一致，
+   *   大多数法术「成功/失败一方有特殊效果，另一方正常进下一环节」用此形态
+   */
+  form?: 'ifelse' | 'detour';
   /** 分流条件表达式；仅 condition_branch 使用（检定块由结果状态分流，无条件参数） */
   condition?: string;
   /** 满足体/通过体/命中体 */
   onTrue: ScriptBlock[];
-  /** 否则体/未通过体/未命中体 */
+  /** 否则体/未通过体/未命中体（detour 形态恒为空数组） */
   onFalse: ScriptBlock[];
   config?: Record<string, any>;
   notes?: string;

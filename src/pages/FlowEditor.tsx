@@ -514,7 +514,7 @@ flowStore.saveViewportSnapshot(flowId, {
     return defaults;
   }, []);
 
-  /** 构造新块：Schema 默认值优先，defaultConfig 兜底。检定/命中块默认堆叠（结果信号沿链传递，下游效果节点自行消化）；仅 condition_branch 直接建 C 形（其存在意义即分流） */
+  /** 构造新块：Schema 默认值优先，defaultConfig 兜底。检定/命中块默认堆叠（结果信号沿链传递，下游效果节点自行消化）；condition_branch 默认单分支小路（D&D 法术多为「一方有特殊效果，另一方正常进下一环节」），恒不带堆叠形态 */
   const buildNewBlock = useCallback((typeMeta: NodeTypeMeta): ScriptBlock => {
     const id = `${typeMeta.type}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
     const schemaDefaults = collectSchemaDefaults(
@@ -528,6 +528,7 @@ flowStore.saveViewportSnapshot(flowId, {
         nodeType: typeMeta.type,
         id,
         label: typeMeta.label,
+        form: 'detour',
         condition: (config.condition as string) ?? '',
         onTrue: [],
         onFalse: [],
@@ -798,15 +799,25 @@ flowStore.saveViewportSnapshot(flowId, {
     };
   })();
 
-  // 检定/命中块形态切换上下文：堆叠（信号传递）⇄ C 形（结果分流）
+  // 检定/条件块形态切换上下文：堆叠（信号传递）/ 单分支小路（detour）/ 双分支岔路口（ifelse）
   const selectedBlock: ScriptBlock | null = script && selectedNodeId ? findBlock(script.body, selectedNodeId) : null;
-  const canToggleBlockForm = !!selectedBlock && selectedBlock.nodeType !== 'condition_branch' && isCType(selectedBlock.nodeType);
-  const toggleBlockForm = useCallback((to: 'step' | 'if') => {
+  const canToggleBlockForm = !!selectedBlock && isCType(selectedBlock.nodeType);
+  const selectedBlockForm: 'step' | 'detour' | 'ifelse' | null = (() => {
+    if (!selectedBlock || !isCType(selectedBlock.nodeType)) return null;
+    if (selectedBlock.kind === 'step') return 'step';
+    return selectedBlock.form ?? 'ifelse';
+  })();
+  const toggleBlockForm = useCallback((to: 'step' | 'detour' | 'ifelse') => {
     const s = flowRef.current?.script;
     if (!s || !selectedNodeId) return;
     const next = convertBlockForm(s.body, selectedNodeId, to);
     if (!next) {
-      showToast('error', to === 'step' ? '分支体非空：先清空两个分支体再收敛为堆叠' : '该块不可切换为分支形态');
+      const msgs: Record<typeof to, string> = {
+        step: '分支体非空：先清空分支体再收敛为堆叠',
+        detour: '「否则」分支体非空：先清空否则体，或改用双分支形态',
+        ifelse: '该块不可切换为双分支形态',
+      };
+      showToast('error', msgs[to]);
       return;
     }
     if (next !== s.body) updateScript({ ...s, body: next });
@@ -1000,36 +1011,49 @@ flowStore.saveViewportSnapshot(flowId, {
           )}
         </div>
 
-          {/* 检定/命中块形态切换：堆叠 = 结果信号沿链传递（下游效果节点自行消化，如半伤）；C 形 = 两个结果走不同效果链 */}
-          {canToggleBlockForm && selectedBlock && (
+          {/* 检定/条件块形态切换：堆叠 = 结果信号沿链传递；单分支 = 满足走小路拐回主链，未满足直接向下；双分支 = 两个结果各自展开 */}
+          {canToggleBlockForm && selectedBlock && selectedBlockForm && (
             <div className={`mb-3 p-3 rounded-lg border ${isDark ? 'border-border-dark' : 'border-border-light'}`}>
               <div className="text-xs font-medium mb-2 opacity-70">块形态</div>
               <div className="flex gap-2">
+                {selectedBlock.nodeType !== 'condition_branch' && (
+                  <button
+                    onClick={() => toggleBlockForm('step')}
+                    disabled={selectedBlockForm === 'step'}
+                    className={`flex-1 px-1.5 py-1.5 rounded text-[11px] font-medium border transition-colors ${
+                      selectedBlockForm === 'step'
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : isDark ? 'border-border-dark hover:bg-white/5' : 'border-border-light hover:bg-black/5'
+                    }`}
+                  >
+                    堆叠
+                  </button>
+                )}
                 <button
-                  onClick={() => toggleBlockForm('step')}
-                  disabled={selectedBlock.kind === 'step'}
-                  className={`flex-1 px-2 py-1.5 rounded text-xs font-medium border transition-colors ${
-                    selectedBlock.kind === 'step'
+                  onClick={() => toggleBlockForm('detour')}
+                  disabled={selectedBlockForm === 'detour'}
+                  className={`flex-1 px-1.5 py-1.5 rounded text-[11px] font-medium border transition-colors ${
+                    selectedBlockForm === 'detour'
                       ? 'border-primary bg-primary/10 text-primary'
                       : isDark ? 'border-border-dark hover:bg-white/5' : 'border-border-light hover:bg-black/5'
                   }`}
                 >
-                  堆叠 · 信号传递
+                  单分支
                 </button>
                 <button
-                  onClick={() => toggleBlockForm('if')}
-                  disabled={selectedBlock.kind === 'if'}
-                  className={`flex-1 px-2 py-1.5 rounded text-xs font-medium border transition-colors ${
-                    selectedBlock.kind === 'if'
+                  onClick={() => toggleBlockForm('ifelse')}
+                  disabled={selectedBlockForm === 'ifelse'}
+                  className={`flex-1 px-1.5 py-1.5 rounded text-[11px] font-medium border transition-colors ${
+                    selectedBlockForm === 'ifelse'
                       ? 'border-primary bg-primary/10 text-primary'
                       : isDark ? 'border-border-dark hover:bg-white/5' : 'border-border-light hover:bg-black/5'
                   }`}
                 >
-                  分支 · 结果分流
+                  双分支
                 </button>
               </div>
               <p className="text-[10px] opacity-50 mt-2 leading-relaxed">
-                堆叠：豁免/命中结果沿链传给下游（如「成功减半」配置在效果节点自身）；分支：两个结果走不同效果链，收敛回堆叠前需清空分支体。
+                堆叠：结果沿链传给下游（如半伤配在效果节点上）。单分支：满足走分支体后汇合回主链，未满足直接向下。双分支：两个结果走不同效果链，收敛前需清空分支体。
               </p>
             </div>
           )}
