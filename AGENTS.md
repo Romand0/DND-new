@@ -64,7 +64,6 @@
 │  权限模型：账号 is_admin（站点权限）+ role（游戏身份）      │
 ├─────────────────────────────────────────────────────────────┤
 │  数据种子 / 静态资源                                        │
-│  data/players/*.json：预置角色卡（可被覆盖）                │
 │  src/data/equipments.json、spells.json：预置装备库/法术库  │
 │  migrations/*.sql：D1 建表迁移（0001~0009）                │
 │  public/images/*：静态图片                                  │
