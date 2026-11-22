@@ -16,6 +16,8 @@ interface FlowScriptCanvasProps {
   canvasScale: number;
   selectedId: string | null;
   dnd: ScriptDndState;
+  /** 只读渲染（FlowView 预览）：块无拖柄/删除，插槽静态 */
+  readOnly?: boolean;
   beginDrag: (e: React.PointerEvent, blockId: string) => void;
   onDelete: (blockId: string) => void;
   onSlotPick: (slotKey: string) => void;
@@ -27,6 +29,7 @@ export const FlowScriptCanvas: React.FC<FlowScriptCanvasProps> = ({
   canvasScale,
   selectedId,
   dnd,
+  readOnly,
   beginDrag,
   onDelete,
   onSlotPick,
@@ -76,6 +79,7 @@ export const FlowScriptCanvas: React.FC<FlowScriptCanvasProps> = ({
                 slotKey={slotKeyOf(topSlotPath(i))}
                 active={dragging && dnd.activeSlotKey === slotKeyOf(topSlotPath(i))}
                 dragging={dragging}
+                readOnly={readOnly}
                 onPick={onSlotPick}
               />
               <FlowBlockCard
@@ -87,6 +91,7 @@ export const FlowScriptCanvas: React.FC<FlowScriptCanvasProps> = ({
                 dragging={dragging}
                 dragId={dnd.dragId}
                 activeSlotKey={dnd.activeSlotKey}
+                readOnly={readOnly}
                 beginDrag={beginDrag}
                 onDelete={onDelete}
                 onSlotPick={onSlotPick}
@@ -98,11 +103,12 @@ export const FlowScriptCanvas: React.FC<FlowScriptCanvasProps> = ({
             slotKey={slotKeyOf(topSlotPath(script.body.length))}
             active={dragging && dnd.activeSlotKey === slotKeyOf(topSlotPath(script.body.length))}
             dragging={dragging}
+            readOnly={readOnly}
             onPick={onSlotPick}
           />
         </div>
 
-        {script.body.length === 0 && !dragging && (
+        {script.body.length === 0 && !dragging && !readOnly && (
           <p className="text-center text-xs text-gray-400 mt-4">
             从左侧环节库点击添加积木，或拖动积木到插槽中
           </p>

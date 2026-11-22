@@ -9,18 +9,20 @@ interface FlowDropSlotProps {
   active: boolean;
   /** 是否处于拖拽会话（拉高感应条） */
   dragging: boolean;
+  /** 只读渲染（FlowView 预览）：静态分隔条，不可点 */
+  readOnly?: boolean;
   /** 点击插槽（非拖拽态）设置插入锚点 */
   onPick: (slotKey: string) => void;
 }
 
-export const FlowDropSlot: React.FC<FlowDropSlotProps> = ({ slotKey, active, dragging, onPick }) => {
+export const FlowDropSlot: React.FC<FlowDropSlotProps> = ({ slotKey, active, dragging, readOnly, onPick }) => {
   return (
     <div
       data-slot-key={slotKey}
-      onClick={e => { e.stopPropagation(); onPick(slotKey); }}
+      onClick={readOnly ? undefined : e => { e.stopPropagation(); onPick(slotKey); }}
       className={`relative w-full transition-all duration-100 ${
         dragging ? 'h-5 my-0.5' : 'h-2.5'
-      } ${active ? 'bg-primary/30 border-y-2 border-dashed border-primary rounded' : 'hover:bg-primary/10 rounded'}`}
+      } ${active ? 'bg-primary/30 border-y-2 border-dashed border-primary rounded' : readOnly ? '' : 'hover:bg-primary/10 rounded'}`}
     >
       {active && (
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] text-primary font-medium pointer-events-none">
