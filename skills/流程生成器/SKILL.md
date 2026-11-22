@@ -37,9 +37,9 @@
 **FlowConsole 发布校验必填项**（`src/utils/flow-validation.ts`，缺任一即被发布门禁拒绝，JSON 交付前逐项自检）：
 
 - 顶层：`id`（字符串，前缀须与 `category` 一致，如 `spell:xxx`）、`name`、`description`、`category`（`spell` / `class_features` / `custom` 之一）
-- 每个节点：`id`、`type`、`label`（中文字符串，画布显示名）、`position`（缺坐标仅警告，但建议带上）
-- 每条边：`id`、`from`、`to`、`trigger`
-- `position` 缺失会触发「打开编辑器时自动布局」警告；`label` 与 `category` 缺失是硬错误
+- `script`：脚本树对象（`hat` + `body`，见 §2.3）；flowStore 入库编译桥自动编译出 `nodes` / `edges` 并过图校验，手写 JSON 只需给 script
+- 块：`kind`（`hat` / `step` / `if`）、`nodeType`、`id`、`label`（中文字符串）
+- `label` 与 `category` 缺失是硬错误
 
 ### 0.3 权威来源金字塔
 
@@ -65,7 +65,7 @@
 | attack_roll | `attackBonus` / `targetAC` / `criticalRange` 等 | 无配置，运行时硬编码加成 5、AC 15 |
 | concentration_check | `dc` / `damageHalf` | 无配置，运行时硬编码体质 DC 10 |
 
-`docs/nodes` 额外收录了 `apply_damage`，它**不在** `FlowNodeType` 联合类型里，属于无效类型，不要在图里使用。伤害统一用 `apply_effect` + `effectType: "damage"`。
+`docs/nodes` 额外收录了 `apply_damage`，它**不在** `FlowNodeType` 联合类型里，属于无效类型，不要在脚本里使用。伤害统一用 `apply_effect` + `effectType: "damage"`。
 
 ### 0.5 运行成熟度（编写时的现实约束）
 
@@ -198,51 +198,54 @@
 | `on_true` | 条件为真 | `condition_branch` 必备出口 |
 | `on_false` | 条件为假 | `condition_branch` 必备出口 |
 
-### 2.3 可直接复用的拓扑配方
+### 2.3 可直接复用的积木配方
 
-线性直伤 + 敏捷豁免：
+**产出格式为脚本树（`FlowScript`，P2 起）**：堆叠（`body` 数组顺序）编码线性拓扑，C 形块（`onTrue`/`onFalse` 分支体）编码分流。编译桥（flowStore 入库边界）自动把 script 编译成 nodes/edges 图，生成器只需产出 script 字段。
 
-```
-cast_start → select_target → saving_throw → apply_effect(damage) → cast_end
-```
+线性直伤 + 敏捷豁免（检定块即 C 形，`onTrue` 体放伤害）：
 
-法术攻击：
-
-```
-cast_start → select_target → attack_roll → apply_effect(damage) → cast_end
-```
-
-治疗：
-
-```
-cast_start → select_target → apply_effect(healing) → cast_end
-```
-
-控制/状态：
-
-```
-cast_start → select_target → saving_throw → apply_effect(status) → cast_end
+```json
+{
+  "script": {
+    "hat": { "kind": "hat", "id": "cast_start", "label": "开始施法", "config": { "autoChecks": { "components": true, "range": true, "time": true } } },
+    "body": [
+      { "kind": "step", "nodeType": "select_target", "id": "select_target", "label": "选择目标", "config": { "mode": "single", "maxCount": 1 } },
+      { "kind": "if", "nodeType": "saving_throw", "id": "save_dex", "label": "敏捷豁免", "config": { "ability": "dexterity", "dc": "" },
+        "onTrue": [ { "kind": "step", "nodeType": "apply_effect", "id": "damage_fire", "label": "火焰伤害", "config": { "effectType": "damage", "value": "8d6", "damageType": "fire" } } ],
+        "onFalse": [ { "kind": "step", "nodeType": "apply_effect", "id": "damage_half", "label": "半伤", "config": { "effectType": "damage", "value": "4d6", "damageType": "fire", "halfDamageOnSave": true } } ]
+      },
+      { "kind": "step", "nodeType": "cast_end", "id": "cast_end", "label": "施法结束" }
+    ]
+  }
+}
 ```
 
-检定奖惩（如祝福术、灾祸术）：
+> 豁免伤害推荐写法：`onTrue` 满伤 + `onFalse` 体用 `halfDamageOnSave: true` 的 damage 块，或干脆 `onFalse` 留空数组（空体 = 直接连到汇合点，即跳过伤害）。半伤数字差值用满伤骰式的一半表达。
 
-```
-cast_start → select_target → apply_effect(check_modifier) → cast_end
-```
+法术攻击（C 形 `attack_roll`，插槽标签「命中/未命中」）：
 
-持续/专注：
-
-```
-cast_start → select_target → apply_effect(status) → concentration_check → cast_end
+```json
+{ "kind": "if", "nodeType": "attack_roll", "id": "attack", "label": "法术攻击", "onTrue": [ /* 伤害块 */ ], "onFalse": [] }
 ```
 
-**分级缩放（戏法按角色等级 / 升环按环位）——用 `scaled_effect`，禁止分支链**：
+治疗 / 控制 / 检定奖惩（纯堆叠，无分支）：
 
-```
-cast_start → select_target → saving_throw → scaled_effect → cast_end
+```json
+"body": [
+  { "kind": "step", "nodeType": "select_target", "id": "select_target", "label": "选择目标", "config": { "mode": "single", "maxCount": 1 } },
+  { "kind": "step", "nodeType": "apply_effect", "id": "heal", "label": "治疗", "config": { "effectType": "healing", "value": "2d8+4" } }
+]
 ```
 
-`condition_branch` 只表达**判定/状态**分流（豁免成败、HP 阈值）。数值随等级/环位线性分档属于**取值**逻辑，用 `scaled_effect` 的分档表表达；用分支链拆 4d4/3d4/2d4/1d4 是反模式（节点爆炸、改档位要同步改边）。
+持续/专注：在堆叠尾部追加 `concentration_check` 堆叠块（无分支语义）。
+
+**分级缩放（戏法按角色等级 / 升环按环位）——用 `scaled_effect` 堆叠块，禁止分支链**：
+
+```json
+{ "kind": "step", "nodeType": "scaled_effect", "id": "scaled_dmg", "label": "按环缩放伤害", "config": { "scaleBy": "caster_level", "tiers": [ { "level": 17, "value": "4d4" }, { "level": 11, "value": "3d4" }, { "level": 5, "value": "2d4" }, { "level": 1, "value": "1d4" } ], "effectType": "damage", "damageType": "psychic" } }
+```
+
+`condition_branch` 只表达**判定/状态**分流（豁免成败、HP 阈值），对应 C 形块 `onTrue`/`onFalse` 体。数值随等级/环位线性分档属于**取值**逻辑，用 `scaled_effect` 的分档表表达；用分支链拆 4d4/3d4/2d4/1d4 是反模式（块爆炸、改档位要同步改分支体）。
 
 `scaled_effect` 配置契约（以 `NODE_CONFIG_SCHEMA.scaled_effect` 为准）：
 
@@ -275,36 +278,46 @@ cast_start → select_target → saving_throw → scaled_effect → cast_end
 
 输出字段：`scaleBy / scaleValue / scaleSource / matchedTier / tiers / dice / results`（`scaleSource` 是人类可读的取值来源说明，直接进运行日志）。
 
-带条件分流（升环、阈值）：
+带条件分流（升环、阈值）——C 形 `condition_branch`，条件写在块上：
 
+```json
+{
+  "kind": "if",
+  "nodeType": "condition_branch",
+  "id": "level_gate",
+  "label": "环位门槛",
+  "condition": "scaleValue >= 5",
+  "onTrue": [ /* 分支 A：高环效果块 */ ],
+  "onFalse": [ /* 分支 B：基础效果块 */ ]
+}
 ```
-... → condition_branch ─(on_true)→ 分支 A ─┐
-                       └(on_false)→ 分支 B ─┴→ cast_end
-```
 
-### 2.4 硬性图规则（违反即不可发布）
+### 2.4 硬性脚本规则（违反即不可发布）
 
-- 至少一个 `cast_start`；建议恰好一个。
-- 每条边 `from` / `to` 必须指向存在的节点。
-- `condition_branch` 必须同时有 `on_true` 与 `on_false` 出边。
-- 禁止自环（`from === to`）。
-- 禁止平行边（同一 `from → to` + 同一 `trigger` 重复）。
-- 每个节点都应可达；孤立节点会被校验器标记。
-- 节点 ID 与边 ID 全局唯一。
+- 恰好一个帽子块（`cast_start`），只能位于 `script.hat`。
+- 块 `id` 全局唯一（编译后即节点 ID），`snake_case` 表意。
+- C 形块 `nodeType` 仅限 `saving_throw` / `attack_roll` / `condition_branch`（见 `BLOCK_SHAPE_REGISTRY`）；其余类型一律堆叠块。
+- `condition_branch` 的 C 形块需带 `condition` 表达式；检定块靠结果状态分流，无需 `condition`。
+- 分支体允许为空数组（= 直接连汇合点），但 C 形块两体字段（`onTrue`/`onFalse`）必须存在。
+- 回流/循环无法表达（编译时按死代码丢弃）；需要重复触发的机制改为多段堆叠或留人工评审。
+- `on_partial`（半伤等中间态）在积木语言中无对应分支；半伤用 `halfDamageOnSave` 配置或 `onFalse` 体表达。
 - 不得使用 `apply_damage`（非合法类型）。
+- 编译产物（nodes/edges）由编译桥生成：自环、平行边、孤立节点、边 ID 冲突等图不变量在编译器内保证，生成器无需手写边。
 
 ### 2.5 建模原则
 
-- **一个节点承载一个机制原子**。多个机制混合时拆成多个节点。
-- **优先线性**，仅当原文存在真实分流时才引入分支。分支让图更难评审。
-- **因果方向一致**：边从「判定」指向「结果」，从「结果」指向「收尾」。
-- **语义命名**：节点 ID 用 `snake_case` 且表意，如 `save_dex`、`damage_fire`；边 ID 用 `edge_<from>_<to>_<trigger>`。
+- **一个块承载一个机制原子**。多个机制混合时拆成多个块。
+- **优先堆叠**，仅当原文存在真实分流时才用 C 形块。分支让脚本更难评审。
+- **因果方向一致**：判定块的「满足体」放结果，否则体放替代结果；堆叠顺序即执行顺序。
+- **语义命名**：块 ID 用 `snake_case` 且表意，如 `save_dex`、`damage_fire`；边 ID 由编译器自动生成（`edge_<seq>_<from>_<to>`），无需手写。
 
 ---
 
 ## 版块 3：属性设置规范
 
-### 3.1 节点配置（以代码读取为准）
+> **P2 格式切换**：产出格式为脚本树。下列配置键按「块」理解（`ScriptStep.config` / `ScriptIf.config`），键名与图节点时代完全一致，直接填进块对象的 `config` 字段。
+
+### 3.1 块配置（以代码读取为准）
 
 `cast_start`
 
@@ -374,27 +387,20 @@ cast_start → select_target → saving_throw → scaled_effect → cast_end
 
 `attack_roll`、`concentration_check`、`cast_end`：无配置字段。传入额外键不会报错，但运行时忽略；建议留空 `config`。
 
-### 3.2 边属性
+### 3.2 分支语义（边属性的积木表达）
 
-| 键 | 必填 | 规范 |
-|----|------|------|
-| `id` | 是 | `edge_<from>_<to>_<trigger>` |
-| `from` / `to` | 是 | 存在的节点 ID |
-| `trigger` | 是 | 见 §2.2；线性串联用 `on_complete` |
-| `label` | 否 | 中文短标签，如「成功」「失败」「半伤」 |
-| `dataMap` | 否 | 上下游输出的字段映射；当前声明性使用 |
-| `condition` | 否 | 守卫条件；当前声明性使用 |
+图时代的边属性在脚本树中的对应写法：
 
-### 3.3 位置与布局
+| 图边 trigger | 积木表达 |
+|--------------|----------|
+| `on_complete` | 堆叠顺序（`body` 数组先后），隐式无字段 |
+| `on_success` / `on_failure` | `saving_throw` / `attack_roll` C 形块的 `onTrue` / `onFalse` 体 |
+| `on_true` / `on_false` | `condition_branch` C 形块的 `onTrue` / `onFalse` 体（条件写在块 `condition` 字段） |
+| `on_partial` | 无对应表达（见 §2.4）；半伤用 `halfDamageOnSave` 或 `onFalse` 体 |
 
-不提供坐标也可（编辑器会 `ensureNodePositions` 自动布局），但控制台创建的图建议给出坐标以便阅读。按拓扑层级递推：
+`label`（「成功/失败/半伤」等）由 C 形插槽内置（`BLOCK_SHAPE_REGISTRY` 的 `cPair` 标签），无需手写；`dataMap` / 边 `condition`（守卫）积木语言暂不表达，需要时留人工评审。
 
-```
-startX = 100, startY = 100, spacingX = 200, spacingY = 150
-第 0 层 y=100；第 1 层 y=250；同层 x 依次 +200
-```
-
-### 3.4 流程级字段（控制台入库要求）
+### 3.3 流程级字段（控制台入库要求）
 
 | 字段 | 必填 | 规范 |
 |------|------|------|
@@ -402,7 +408,7 @@ startX = 100, startY = 100, spacingX = 200, spacingY = 150
 | `name` | 是 | 中文显示名，作为控制台更新/删除的匹配键，必须唯一 |
 | `description` | 是 | **非空字符串**。控制台校验要求 `description` 为真值，空串会失败 |
 | `category` | 是 | `spell` / `class_features` / `custom` |
-| `nodes` / `edges` | 是 | 数组 |
+| `script` | 是 | 脚本树对象（`hat` + `body`，结构见 §2.3）。`nodes` / `edges` 由 flowStore 入库编译桥自动编译填充，手写 JSON 可省略 |
 | `tags` | 否 | 字符串数组 |
 | `version` | 否 | 控制台创建时自动置 1，更新时自增 |
 
@@ -455,19 +461,17 @@ startX = 100, startY = 100, spacingX = 200, spacingY = 150
 
 ### 5.1 门 A：结构合法（机器可查）
 
-对照 `src/utils/flow-validation.ts`（控制台门禁）与 `src/utils/flow-editor/validation.ts`（编辑器门禁）。重复边、自环、孤立节点等规则在编辑器门禁中为错误，在控制台门禁中为警告：
+脚本树不变量（§2.4）+ 编译产物图过两道校验器（`src/utils/flow-validation.ts` 控制台门禁 / `src/utils/flow-editor/validation.ts` 编辑器门禁；编译桥入库时自动执行）：
 
 - `id` / `name` / `description` 均为非空字符串。
 - `category` 属于三类；`id` 前缀与 `category` 一致。
-- `nodes` / `edges` 为数组；节点含 `id` / `type` / `label`；边含 `id` / `from` / `to` / `trigger`。
-- 至少一个 `cast_start`。
-- 无重复节点 ID、无重复边 ID、无自环、无平行边。
-- `condition_branch` 同时具备 `on_true` 与 `on_false`。
-- 无孤立节点，全部可达。
+- `script` 为对象：`hat.kind === 'hat'` 且 `nodeType === 'cast_start'`；`body` 为数组；块含 `id` / `label` / `nodeType`（step/if）。
+- 块 ID 全局唯一；C 形块 `nodeType` 限于三种检定/条件类型。
+- 编译产物图自动满足：至少一个 `cast_start`、无自环、无平行边、全部可达、`condition_branch` 双出边。
 
 ### 5.2 门 B：语义忠实
 
-- 规格表中每一项机制在图上都有对应节点或边。
+- 规格表中每一项机制在脚本树里都有对应块或分支体。
 - 图上没有规格表之外的多余机制。
 - 目标的「自身/单体/多体/区域」与 `select_target.mode` 一致。
 - 判定路径正确：攻击用法术攻击，豁免用对应属性豁免。
@@ -475,11 +479,11 @@ startX = 100, startY = 100, spacingX = 200, spacingY = 150
 
 ### 5.3 门 C：配置完整
 
-- 每个节点所需键都存在，键名与 §3.1 完全一致。
+- 每个块所需键都存在，键名与 §3.1 完全一致。
 - `cast_start.config.autoChecks` 存在。
-- `saving_throw.dc` 是数字字符串。
+- `saving_throw.dc` 是数字字符串（或留空 = 施法者法术 DC）。
 - `select_target.maxCount` 是数字。
-- 提供了坐标，且布局可读。
+- 脚本结构可读：线性步骤成堆叠、分流收进对应分支体。
 - 没有把 `docs/nodes` 的旧键名（如 `targetType`、`saveDC`）写进 JSON。
 
 ### 5.4 门 D：运行现实核对
@@ -497,7 +501,7 @@ startX = 100, startY = 100, spacingX = 200, spacingY = 150
 | `concentration_check` | 体质调整值按 score 重算，DC 10 | dc 配置键不存在（§0.4），固定 10 |
 | 边遍历 | 已实现：trigger 匹配 + visited 防环 + 日志落 context.log | 多目标混合结果走 on_partial 边；dataMap 仍为声明性 |
 
-若某个机制完全依赖尚未实现的运行支撑，在报告中明确写「图已表达，运行未实现」，交由人类决定是否入库。
+若某个机制完全依赖尚未实现的运行支撑，在报告中明确写「脚本已表达，运行未实现」，交由人类决定是否入库。
 
 ### 5.5 门 E：人工预演（由人类执行）
 
@@ -510,7 +514,7 @@ startX = 100, startY = 100, spacingX = 200, spacingY = 150
 | 标准 | 通过条件 | 常见失败 |
 |------|----------|----------|
 | 可发布 | 门 A 全绿 | 缺 `cast_start`；`description` 为空；ID 前缀与类别不符 |
-| 可读 | 布局分层、ID 表意 | 节点坐标全为 0；ID 用 `n1`/`n2` |
+| 可读 | 结构清晰、ID 表意 | ID 用 `n1`/`n2`；分流逻辑平铺成堆叠 |
 | 忠实 | 门 B 无缺项无多项 | 把豁免法术写成攻击检定 |
 | 可运行 | 门 C 全绿 | 漏 `autoChecks`；DC 写成模板变量 |
 | 透明 | 门 D 已标注 | 把占位节点当作已实现机制 |
@@ -532,8 +536,8 @@ startX = 100, startY = 100, spacingX = 200, spacingY = 150
 | 环节 | Agent | 人类 |
 |------|-------|------|
 | 解析法术文本 | 抽取、归一化、列出待确认 | 确认歧义与缺失数值 |
-| 机制建模 | 选节点、连边、定分流 | 审定游戏机制正确性 |
-| 属性设置 | 按 schema 填配置、给坐标 | 抽查关键数值 |
+| 机制建模 | 选块、嵌套分支体、定分流 | 审定游戏机制正确性 |
+| 属性设置 | 按 schema 填块配置 | 抽查关键数值 |
 | 自审 | 跑门 A–D、写报告 | 执行门 E 预演 |
 | 入库 | 提供 JSON 与报告，等待 | 在控制台执行创建/更新/删除 |
 | 绑定法术 | 不参与 | 在控制台中绑定/解绑 |
