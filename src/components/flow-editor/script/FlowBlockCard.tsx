@@ -50,6 +50,8 @@ interface BlockCommonProps {
   dragging: boolean;
   dragId: string | null;
   activeSlotKey: string | null;
+  /** 只读渲染（FlowView 预览）：无拖柄、无删除钮、插槽不可点 */
+  readOnly?: boolean;
   beginDrag: (e: React.PointerEvent, blockId: string) => void;
   onDelete: (blockId: string) => void;
   onSlotPick: (slotKey: string) => void;
@@ -74,6 +76,7 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
   dragId,
   activeSlotKey,
   isHat,
+  readOnly,
   beginDrag,
   onDelete,
   onSlotPick,
@@ -95,8 +98,8 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
       style={{ borderLeft: `4px solid ${color}`, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#fff' }}
     >
       <span
-        onPointerDown={isHat ? undefined : e => beginDrag(e, block.id)}
-        className={`flex-shrink-0 cursor-grab active:cursor-grabbing touch-none ${isHat ? 'opacity-30' : 'opacity-50 hover:opacity-100'}`}
+        onPointerDown={isHat || readOnly ? undefined : e => beginDrag(e, block.id)}
+        className={`flex-shrink-0 touch-none ${isHat ? 'opacity-30' : readOnly ? 'opacity-50' : 'opacity-50 hover:opacity-100'} ${readOnly ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
         title={isHat ? '入口块固定在顶部' : '拖动移动块（含子块）'}
       >
         <GripVertical className="w-4 h-4" style={{ color }} />
@@ -111,7 +114,7 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
         </div>
       </div>
       {isC && <GitBranch className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />}
-      {!isHat && (
+      {!isHat && !readOnly && (
         <button
           onClick={e => { e.stopPropagation(); onDelete(block.id); }}
           className="flex-shrink-0 p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 max-lg:opacity-100 transition-opacity"
@@ -140,13 +143,13 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
           label={trueLabel}
           blocks={cBlock.onTrue}
           containerPath={{ viaIds: bodyPath.viaIds, branches: [...branches, 'onTrue'] }}
-          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, beginDrag, onDelete, onSlotPick, slotKeyOf }}
+          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, beginDrag, onDelete, onSlotPick, slotKeyOf }}
         />
         <BranchBody
           label={falseLabel}
           blocks={cBlock.onFalse}
           containerPath={{ viaIds: bodyPath.viaIds, branches: [...branches, 'onFalse'] }}
-          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, beginDrag, onDelete, onSlotPick, slotKeyOf }}
+          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, beginDrag, onDelete, onSlotPick, slotKeyOf }}
         />
       </div>
       <div
@@ -177,6 +180,7 @@ const BranchBody: React.FC<BranchBodyProps> = ({ label, blocks, containerPath, .
             slotKey={slotKeyOf(slotPath(i))}
             active={dragging && activeSlotKey === slotKeyOf(slotPath(i))}
             dragging={dragging}
+            readOnly={common.readOnly}
             onPick={onSlotPick}
           />
           <FlowBlockCard
@@ -191,6 +195,7 @@ const BranchBody: React.FC<BranchBodyProps> = ({ label, blocks, containerPath, .
         slotKey={slotKeyOf(slotPath(blocks.length))}
         active={dragging && activeSlotKey === slotKeyOf(slotPath(blocks.length))}
         dragging={dragging}
+        readOnly={common.readOnly}
         onPick={onSlotPick}
       />
     </div>

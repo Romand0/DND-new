@@ -4,16 +4,33 @@ import {
   ArrowLeft, GitBranch, Edit2, Trash2, Zap, ListTree, Network, BookOpen,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import flowStore from '@/data/flowStore';
 import { FlowSpellBindingManager } from '@/components/FlowSpellBindingManager';
 import { fetchBindingsByFlow } from '@/lib/api';
 import type { Spell } from '@/types/spell';
 import FlowGraphView from '@/components/flow-editor/presentation/canvas/FlowGraphView';
 import FlowStructureOutline from '@/components/flow-editor/presentation/FlowStructureOutline';
+import FlowScriptCanvas from '@/components/flow-editor/script/FlowScriptCanvas';
+import type { ScriptDndState } from '@/components/flow-editor/hooks/use-script-dnd';
+import type { ScriptBlock } from '@/types/flowScript';
 import type { FlowDefinition } from '@/types/flow';
 import { FLOW_CATEGORIES } from '@/types/flow';
 
 type ViewTab = 'graph' | 'outline';
+
+// 只读画布的 dnd 状态恒空值：块不可拖、插槽不可点、无幽灵层
+const VIEWER_DND: ScriptDndState = { dragId: null, pointer: null, activeSlotKey: null };
+const noop = () => {};
+
+function countScriptBlocks(body: ScriptBlock[]): number {
+  let n = 0;
+  for (const b of body) {
+    n++;
+    if (b.kind === 'if') n += countScriptBlocks(b.onTrue) + countScriptBlocks(b.onFalse);
+  }
+  return n;
+}
 
 function categoryLabel(category?: string): string {
   if (!category) return '自定义流程';
@@ -24,6 +41,7 @@ export default function FlowView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { theme } = useTheme();
 
   const [flow, setFlow] = useState<FlowDefinition | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,6 +51,9 @@ export default function FlowView() {
   const [bindingTab, setBindingTab] = useState(false);
   const [tab, setTab] = useState<ViewTab>('graph');
   const [boundSpells, setBoundSpells] = useState<Spell[]>([]);
+  // script 存在 → 积木只读渲染优先；仅有图 → 回退旧图视图
+  const hasScript = !!flow?.script;
+  const blockCount = flow?.script ? 1 + countScriptBlocks(flow.script.body) : 0;
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -154,7 +175,7 @@ export default function FlowView() {
               {categoryLabel(flow.category)}
             </span>
             <span className="dark:text-text-dark-muted light:text-text-light-muted">
-              {flow.nodes.length} 节点 · {flow.edges.length} 连线
+              {hasScript ? `${blockCount} 积木块` : `${flow.nodes.length} 节点 · ${flow.edges.length} 连线`}
             </span>
             {flow.publishedVersion && flow.publishedVersion > 0 ? (
               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-500">
@@ -200,7 +221,7 @@ export default function FlowView() {
                   : 'dark:text-text-dark light:text-text-light hover:bg-black/5 dark:hover:bg-white/10'
               }`}
             >
-              <Network className="w-4 h-4" /> 结构图
+              <Network className="w-4 h-4" /> {hasScript ? '积木图' : '结构图'}
             </button>
             <button
               onClick={() => setTab('outline')}
@@ -218,7 +239,23 @@ export default function FlowView() {
         {/* 内容 */}
         <div className="p-6">
           {tab === 'graph' ? (
-            <FlowGraphView flow={flow} />
+            flow.script ? (
+              <div className="max-h-[70vh] overflow-y-auto rounded-xl border p-4 dark:border-border-dark light:border-border-light dark:bg-white/[0.02] light:bg-white/60">
+                <FlowScriptCanvas
+                  script={flow.script}
+                  isDark={theme === 'dark'}
+                  canvasScale={1}
+                  selectedId={null}
+                  dnd={VIEWER_DND}
+                  readOnly
+                  beginDrag={noop}
+                  onDelete={noop}
+                  onSlotPick={noop}
+                />
+              </div>
+            ) : (
+              <FlowGraphView flow={flow} />
+            )
           ) : (
             <div className="rounded-xl border p-5 dark:border-border-dark light:border-border-light">
               <FlowStructureOutline flow={flow} />
