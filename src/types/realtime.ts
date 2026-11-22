@@ -71,7 +71,7 @@ export type TurnCommitOp =
       ranged?: boolean;
       /** 命中触发的追加效果选择（至圣斩/震慑拳等；近战/投掷攻击才携带）。
        *  DM 入账时 applyAttackRiders 统一扣池/法术位 + 挂状态，伤害骰已并入 damage.amount */
-      riders?: { featureName: string; slotLevel?: string; saveResult?: 'success' | 'fail' }[];
+      riders?: { featureName: string; slotLevel?: string; saveResult?: 'success' | 'fail'; choiceKey?: string; choiceSaveResult?: 'success' | 'fail' }[];
       /** 写入先攻表格的行动文本 */
       roundText: string;
     }

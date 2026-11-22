@@ -111,6 +111,8 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
             featureName: r.featureName,
             ...(r.slotLevel ? { slotLevel: r.slotLevel as SpellSlotLevel } : {}),
             ...(r.saveResult ? { saveResult: r.saveResult } : {}),
+            ...(r.choiceKey ? { choiceKey: r.choiceKey } : {}),
+            ...(r.choiceSaveResult ? { choiceSaveResult: r.choiceSaveResult } : {}),
           })),
           request.round - 1,
           { targetAlive: !!target && ((combatStore.get(record.id) ?? record).combatants.find(c => c.id === op.targetId)?.currentHp ?? 0) > 0 },
