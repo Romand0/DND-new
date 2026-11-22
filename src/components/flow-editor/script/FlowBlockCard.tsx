@@ -132,11 +132,12 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
 
   if (!isC) return header;
 
-  // C 形块：头卡 + 双分支插槽体 + C 口收底
+  // C 形块：头卡 + 双分支插槽体 + C 口收底；detour 形态只有满足体，否则路径渲染为「直接向下」提示条
   const cBlock = block as ScriptIf;
   const pair = BLOCK_SHAPE_REGISTRY[nodeType]?.cPair;
   const trueLabel = pair?.trueLabel ?? '满足';
   const falseLabel = pair?.falseLabel ?? '否则';
+  const isDetour = cBlock.form === 'detour';
   const bodyPath = { viaIds: [...viaIds, cBlock.id], branches };
 
   return (
@@ -149,12 +150,21 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
           containerPath={{ viaIds: bodyPath.viaIds, branches: [...branches, 'onTrue'] }}
           {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, onSelect, beginDrag, onDelete, onSlotPick, slotKeyOf }}
         />
-        <BranchBody
-          label={falseLabel}
-          blocks={cBlock.onFalse}
-          containerPath={{ viaIds: bodyPath.viaIds, branches: [...branches, 'onFalse'] }}
-          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, onSelect, beginDrag, onDelete, onSlotPick, slotKeyOf }}
-        />
+        {isDetour ? (
+          <div className={`pl-4 border-l-2 ${isDark ? 'border-white/10' : 'border-black/10'} my-1`}>
+            <div className="text-[10px] font-medium text-gray-400 py-0.5">{falseLabel}</div>
+            <div className={`px-2 py-1 mb-1 rounded text-[10px] ${isDark ? 'bg-white/[0.03] text-gray-400' : 'bg-black/[0.03] text-gray-500'}`}>
+              {falseLabel} → 直接向下（跳过分支体，汇合回主链）
+            </div>
+          </div>
+        ) : (
+          <BranchBody
+            label={falseLabel}
+            blocks={cBlock.onFalse}
+            containerPath={{ viaIds: bodyPath.viaIds, branches: [...branches, 'onFalse'] }}
+            {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, onSelect, beginDrag, onDelete, onSlotPick, slotKeyOf }}
+          />
+        )}
       </div>
       <div
         className="h-2 rounded-b-lg border border-t-0"
