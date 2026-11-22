@@ -21,11 +21,17 @@ const FAIL_LABELS: Record<NonNullable<AttackRiderSpec['save']>['failStatus'], st
   disarmed: '缴械',
 };
 
+/** spec.damage 动态解析（神圣打击按等级/子职业变体） */
+function resolveDamage(spec: AttackRiderSpec, attacker: Character): { dice: string; damageType: string } | undefined {
+  if (!spec.damage) return undefined;
+  return typeof spec.damage === 'function' ? spec.damage(attacker) : spec.damage;
+}
+
 /** 伤害弹窗勾选区的一个可发动 rider 选项（只读快照，落地时按此扣资源） */
 export interface AttackRiderOption {
   featureName: string;
   hint: string;
-  kind: 'pool' | 'spellSlot';
+  kind: 'pool' | 'spellSlot' | 'free';
   /** pool 成本：池键与战斗内余量（available < cost 时弹窗禁选） */
   poolKey?: string;
   poolCost?: number;
@@ -38,6 +44,17 @@ export interface AttackRiderOption {
   perSlotDice?: { dice: string; damageType: string };
   /** 命中后豁免（震慑拳）：DC 已按攻击者角色卡算好 */
   save?: { abilityLabel: string; dc: number; failHint: string; failLabel: string };
+  /** 命中时多选一（散打技巧）：弹窗内单选一项；带豁免的项填结果，directStatus 项直接落地 */
+  choice?: {
+    key: string;
+    label: string;
+    abilityLabel?: string;
+    dc?: number;
+    failLabel?: string;
+    pushLabel?: string;
+    /** directStatus 型提示（无需豁免直接挂状态） */
+    directHint?: string;
+  }[];
 }
 
 /** 玩家/DM 勾选结果（弹窗 payload 回传） */
@@ -47,6 +64,10 @@ export interface AttackRiderSelection {
   slotLevel?: SpellSlotLevel;
   /** 豁免 rider 结果（仅带 save 的 rider） */
   saveResult?: 'success' | 'fail';
+  /** 多选一 rider 选定的效应 key（散打技巧） */
+  choiceKey?: string;
+  /** 多选一效应的豁免结果（带 save 的选项） */
+  choiceSaveResult?: 'success' | 'fail';
 }
 
 const ABILITY_LABELS: Record<string, string> = {
@@ -75,6 +96,9 @@ export function getAttackRiders(record: CombatRecord, attacker: Combatant): Atta
     const capability = resolveFeatureCapability(f.name);
     if (capability.channel !== 'attack_rider' || !capability.attackRider) continue;
     const spec: AttackRiderSpec = capability.attackRider;
+    // 每回合一次 rider（神圣打击）：本回合已发动则隐藏（perRoundFeatureUsed 回合推进清空）
+    if (spec.perRound && (record.perRoundFeatureUsed?.[attacker.id] ?? []).includes(f.name)) continue;
+    const damage = resolveDamage(spec, char);
     if (spec.cost.kind === 'pool') {
       const poolKey = resolvePoolKey(f);
       const entry = poolKey ? poolView.find(p => p.featureKey === poolKey) : undefined;
@@ -89,13 +113,13 @@ export function getAttackRiders(record: CombatRecord, attacker: Combatant): Atta
         poolCost: cost,
         poolAvailable: available,
         poolMax: entry?.max,
-        damage: spec.damage,
+        damage,
         bonusDice: spec.bonusDice,
         save: spec.save
           ? { abilityLabel: ABILITY_LABELS[spec.save.ability] ?? spec.save.ability, dc: spec.save.dc(char), failHint: spec.save.todo, failLabel: FAIL_LABELS[spec.save.failStatus] }
           : undefined,
       });
-    } else {
+    } else if (spec.cost.kind === 'spellSlot') {
       // 法术位成本：列出全部仍有余量的环级（1 环起）；无任何余量则不显示
       const slot = char.spells?.spellSlots ?? {};
       const levels: { level: SpellSlotLevel; remaining: number }[] = [];
@@ -112,9 +136,29 @@ export function getAttackRiders(record: CombatRecord, attacker: Combatant): Atta
         hint: spec.hint,
         kind: 'spellSlot',
         slotLevels: levels,
-        damage: spec.damage,
+        damage,
         bonusDice: spec.bonusDice,
         perSlotDice: spec.perSlotDice,
+      });
+    } else {
+      // free 成本：无资源扣减；choice 型展开选项（DC 按攻击者卡算好）
+      options.push({
+        featureName: f.name,
+        hint: spec.hint,
+        kind: 'free',
+        damage,
+        bonusDice: spec.bonusDice,
+        choice: spec.choice
+          ? spec.choice.options.map(o => ({
+              key: o.key,
+              label: o.label,
+              abilityLabel: o.save ? ABILITY_LABELS[o.save.ability] ?? o.save.ability : undefined,
+              dc: o.save ? o.save.dc(char) : undefined,
+              failLabel: o.failStatus ? FAIL_LABELS[o.failStatus] : undefined,
+              pushLabel: o.push ? `推离 ${o.push.feet} 尺` : undefined,
+              directHint: o.directStatus ? '直接生效，无需豁免' : undefined,
+            }))
+          : undefined,
       });
     }
   }
@@ -138,6 +182,7 @@ export function getAttackRidersForPlayer(
     const capability = resolveFeatureCapability(rf.name);
     if (capability.channel !== 'attack_rider' || !capability.attackRider) continue;
     const spec: AttackRiderSpec = capability.attackRider;
+    const damage = resolveDamage(spec, char);
     if (spec.cost.kind === 'pool') {
       const poolKey = rf.poolKey;
       const cost = rf.cost ?? spec.cost.cost;
@@ -151,13 +196,13 @@ export function getAttackRidersForPlayer(
         poolCost: cost,
         poolAvailable: rf.poolLeft,
         poolMax: rf.poolMax,
-        damage: spec.damage,
+        damage,
         bonusDice: spec.bonusDice,
         save: spec.save
           ? { abilityLabel: ABILITY_LABELS[spec.save.ability] ?? spec.save.ability, dc: spec.save.dc(char), failHint: spec.save.todo, failLabel: FAIL_LABELS[spec.save.failStatus] }
           : undefined,
       });
-    } else {
+    } else if (spec.cost.kind === 'spellSlot') {
       // 法术位成本：从投影余量（max - used，已含战斗 delta）列出可用环级
       const levels: { level: SpellSlotLevel; remaining: number }[] = [];
       for (const s of spellSlots ?? []) {
@@ -172,9 +217,29 @@ export function getAttackRidersForPlayer(
         hint: spec.hint,
         kind: 'spellSlot',
         slotLevels: levels,
-        damage: spec.damage,
+        damage,
         bonusDice: spec.bonusDice,
         perSlotDice: spec.perSlotDice,
+      });
+    } else {
+      // free 成本（玩家端无 perRound 投影，限制由 DM 端落地时把关）
+      options.push({
+        featureName: rf.name,
+        hint: spec.hint,
+        kind: 'free',
+        damage,
+        bonusDice: spec.bonusDice,
+        choice: spec.choice
+          ? spec.choice.options.map(o => ({
+              key: o.key,
+              label: o.label,
+              abilityLabel: o.save ? ABILITY_LABELS[o.save.ability] ?? o.save.ability : undefined,
+              dc: o.save ? o.save.dc(char) : undefined,
+              failLabel: o.failStatus ? FAIL_LABELS[o.failStatus] : undefined,
+              pushLabel: o.push ? `推离 ${o.push.feet} 尺` : undefined,
+              directHint: o.directStatus ? '直接生效，无需豁免' : undefined,
+            }))
+          : undefined,
       });
     }
   }
@@ -184,7 +249,7 @@ export function getAttackRidersForPlayer(
 /**
  * 落地勾选结果：扣资源（池漏斗 / 法术位 delta）+ 豁免失败挂状态与 TurnTodo。
  * @param currentRound0 0-based 放映轮次
- * @param opts.targetAlive 目标在伤害后是否存活（死亡跳过震慑挂载；资源照常消耗）
+ * @param opts.targetAlive 目标在伤害后是否存活（死亡跳过状态挂载；资源照常消耗）
  * @returns 回合记录补充行（每 rider 一行；无勾选返回空数组）
  */
 export function applyAttackRiders(
@@ -196,6 +261,43 @@ export function applyAttackRiders(
   opts?: { targetAlive?: boolean },
 ): string[] {
   const lines: string[] = [];
+  // 状态挂载 + Todo（save 失败与 choice directStatus 共用；放映轮次随 record.mode 区分）
+  const applyStatusWithTodo = (statusId: string, durationRounds: number | undefined, todo: string) => {
+    globalStatusManager.applyEffect(target.id, statusId, 'combat', record.id, {
+      durationRounds,
+      ...(record.mode === 'playback'
+        ? { combatMode: 'playback' as const, startRound: currentRound0 }
+        : { combatMode: 'simulation' as const }),
+    });
+    combatStore.addTurnTodo(record.id, {
+      combatantId: target.id,
+      name: todo,
+      type: 'condition_check',
+      startRound: currentRound0,
+      endRound: currentRound0 + (durationRounds ?? 1),
+    });
+  };
+  // push 型位移（推撞 / 散打推离共用）：按攻击者→目标方向切比雪夫步进 clamp 边界
+  const applyPush = (feet: number): string => {
+    const cells = Math.max(1, Math.round(feet / 5));
+    const bg = battlegroundStore.get(record.id);
+    const tTok = bg?.tokens.find((t) => t.combatantId === target.id);
+    const aTok = bg?.tokens.find((t) => t.combatantId === attacker.id);
+    if (tTok && aTok) {
+      const preset = GRID_PRESETS[bg!.size];
+      const dx = Math.sign(tTok.col - aTok.col);
+      const dz = Math.sign(tTok.row - aTok.row);
+      const nc = Math.max(0, Math.min(preset.cols - 1, tTok.col + dx * cells));
+      const nr = Math.max(0, Math.min(preset.rows - 1, tTok.row + dz * cells));
+      if (nc !== tTok.col || nr !== tTok.row) {
+        battlegroundStore.placeToken(record.id, { combatantId: target.id, col: nc, row: nr });
+        const moved = Math.max(Math.abs(nc - tTok.col), Math.abs(nr - tTok.row));
+        return `被推离 ${moved} 格（${feet} 尺）`;
+      }
+      return '已在边界无处可推';
+    }
+    return `被推离 ${feet} 尺（无沙盘棋子，请手动处理位置）`;
+  };
   for (const sel of selections) {
     const capability = resolveFeatureCapability(sel.featureName);
     if (capability.channel !== 'attack_rider' || !capability.attackRider) continue;
@@ -208,10 +310,29 @@ export function applyAttackRiders(
       if (poolKey) {
         combatStore.consumeFeatureUse(record.id, attacker.id, poolKey, spec.cost.cost);
       }
-    } else if (sel.slotLevel) {
+    } else if (spec.cost.kind === 'spellSlot' && sel.slotLevel) {
       combatStore.consumeSpellSlot(record.id, attacker.id, sel.slotLevel);
     }
-    let line = `「${sel.featureName}」发动${spec.cost.kind === 'pool' ? `（${spec.cost.cost} 点）` : `（${SLOT_LABEL[sel.slotLevel!] ?? sel.slotLevel ?? ''}法术位）`}`;
+    const costSuffix =
+      spec.cost.kind === 'pool'
+        ? `（${spec.cost.cost} 点）`
+        : spec.cost.kind === 'spellSlot'
+          ? `（${SLOT_LABEL[sel.slotLevel!] ?? sel.slotLevel ?? ''}法术位）`
+          : spec.perRound
+            ? '（每回合一次）'
+            : '';
+    let line = `「${sel.featureName}」发动${costSuffix}`;
+    // 每回合一次 rider：本回合记账（回合推进/放映重开由 resetTurnTodosForRound 清空）；
+    // 走 store 原子写，与传入 record 引用的后续 update 解耦（两处调用方回写时机不同）
+    if (spec.perRound) {
+      const cur = combatStore.get(record.id) ?? record;
+      combatStore.update(record.id, {
+        perRoundFeatureUsed: {
+          ...(cur.perRoundFeatureUsed ?? {}),
+          [attacker.id]: [...(cur.perRoundFeatureUsed?.[attacker.id] ?? []), sel.featureName],
+        },
+      });
+    }
     // 延迟引爆 rider（渗透劲类）：命中勾选即埋劲——挂标记状态（metadata.attackerId 记录施劲者）；
     // 同一时间仅一个目标受影响：挂载前解除其他目标上的旧标记
     if (spec.embed) {
@@ -228,31 +349,38 @@ export function applyAttackRiders(
       });
       mark.metadata = { ...mark.metadata, attackerId: attacker.id, attackerName: attacker.name };
       line += `：劲力已埋入「${target.name}」（DM 可用动作引爆）`;
+    } else if (spec.choice && sel.choiceKey) {
+      // 多选一 rider（散打技巧）：按 key 定位效应——豁免型判结果，directStatus 直挂
+      const opt = spec.choice.options.find(o => o.key === sel.choiceKey);
+      if (opt) {
+        if (opt.directStatus) {
+          line += `：已${opt.label}`;
+          if (opts?.targetAlive !== false) {
+            applyStatusWithTodo(opt.directStatus, opt.durationRounds, opt.todo ?? opt.label);
+          }
+        } else if (opt.save && opt.push) {
+          const abilityLabel = ABILITY_LABELS[opt.save.ability] ?? '';
+          line += sel.choiceSaveResult === 'fail'
+            ? `：目标${abilityLabel}豁免失败，${applyPush(opt.push.feet)}`
+            : `：目标${abilityLabel}豁免成功`;
+        } else if (opt.save && opt.failStatus) {
+          const abilityLabel = ABILITY_LABELS[opt.save.ability] ?? '';
+          if (sel.choiceSaveResult === 'fail') {
+            line += `：目标${abilityLabel}豁免失败，${FAIL_LABELS[opt.failStatus]}`;
+            if (opts?.targetAlive !== false) {
+              applyStatusWithTodo(opt.failStatus, opt.durationRounds, opt.todo ?? FAIL_LABELS[opt.failStatus]);
+            }
+          } else {
+            line += `：目标${abilityLabel}豁免成功`;
+          }
+        }
+      }
     } else if (sel.saveResult) {
       const abilityLabel = ABILITY_LABELS[spec.save!.ability] ?? '';
       const isFail = sel.saveResult === 'fail';
       if (isFail && spec.push) {
-        // 推撞：纯位移不挂状态——按攻击者→目标方向推 feet/5 格（切比雪夫步进，clamp 边界）
-        const cells = Math.max(1, Math.round(spec.push.feet / 5));
-        const bg = battlegroundStore.get(record.id);
-        const tTok = bg?.tokens.find((t) => t.combatantId === target.id);
-        const aTok = bg?.tokens.find((t) => t.combatantId === attacker.id);
-        if (tTok && aTok) {
-          const preset = GRID_PRESETS[bg!.size];
-          const dx = Math.sign(tTok.col - aTok.col);
-          const dz = Math.sign(tTok.row - aTok.row);
-          const nc = Math.max(0, Math.min(preset.cols - 1, tTok.col + dx * cells));
-          const nr = Math.max(0, Math.min(preset.rows - 1, tTok.row + dz * cells));
-          if (nc !== tTok.col || nr !== tTok.row) {
-            battlegroundStore.placeToken(record.id, { combatantId: target.id, col: nc, row: nr });
-            const moved = Math.max(Math.abs(nc - tTok.col), Math.abs(nr - tTok.row));
-            line += `：目标${abilityLabel}豁免失败，被推离 ${moved} 格（${spec.push.feet} 尺）`;
-          } else {
-            line += `：目标${abilityLabel}豁免失败，已在边界无处可推`;
-          }
-        } else {
-          line += `：目标${abilityLabel}豁免失败，被推离 ${spec.push.feet} 尺（无沙盘棋子，请手动处理位置）`;
-        }
+        // 推撞：纯位移不挂状态
+        line += `：目标${abilityLabel}豁免失败，${applyPush(spec.push.feet)}`;
       } else {
         line += isFail
           ? `：目标${abilityLabel}豁免失败，${FAIL_LABELS[spec.save!.failStatus]}`
@@ -262,19 +390,7 @@ export function applyAttackRiders(
     lines.push(line);
     // 豁免失败：挂状态（push 型只位移不挂状态）+ TurnTodo 提醒解除（endRound 与 P2 status 约定同构：start + duration）
     if (sel.saveResult === 'fail' && spec.save && !spec.push && opts?.targetAlive !== false) {
-      globalStatusManager.applyEffect(target.id, spec.save.failStatus, 'combat', record.id, {
-        durationRounds: spec.save.durationRounds,
-        ...(record.mode === 'playback'
-          ? { combatMode: 'playback' as const, startRound: currentRound0 }
-          : { combatMode: 'simulation' as const }),
-      });
-      combatStore.addTurnTodo(record.id, {
-        combatantId: target.id,
-        name: spec.save.todo,
-        type: 'condition_check',
-        startRound: currentRound0,
-        endRound: currentRound0 + spec.save.durationRounds,
-      });
+      applyStatusWithTodo(spec.save.failStatus, spec.save.durationRounds, spec.save.todo);
     }
   }
   return lines;

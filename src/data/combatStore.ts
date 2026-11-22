@@ -648,6 +648,7 @@ function load(): CombatRecord[] {
         })(),
         loadedWeapons: r.loadedWeapons && typeof r.loadedWeapons === 'object' ? { ...r.loadedWeapons } : undefined,
         loadingAttackedThisRound: r.loadingAttackedThisRound && typeof r.loadingAttackedThisRound === 'object' ? { ...r.loadingAttackedThisRound } : undefined,
+        perRoundFeatureUsed: r.perRoundFeatureUsed && typeof r.perRoundFeatureUsed === 'object' ? { ...r.perRoundFeatureUsed } : undefined,
         playbackState: r.playbackState && typeof r.playbackState === 'object' ? {
           started: !!r.playbackState.started,
           paused: !!r.playbackState.paused,
@@ -1777,9 +1778,12 @@ const combatStore = {
         (t.endRound === -1 || t.endRound >= round) ? { ...t, executed: false } : t
       );
     }
-    // 新回合重置装填武器攻击标记
+    // 新回合重置装填武器攻击标记 + 每回合一次 rider（神圣打击等）
     if (record.loadingAttackedThisRound) {
       record.loadingAttackedThisRound = {};
+    }
+    if (record.perRoundFeatureUsed) {
+      record.perRoundFeatureUsed = {};
     }
     record.updatedAt = Date.now();
     save(records);

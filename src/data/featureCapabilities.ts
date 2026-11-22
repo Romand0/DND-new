@@ -135,10 +135,10 @@ export interface FeatureCapability {
  * damage 骰在弹窗内与武器骰合并输入，重击一起翻倍；伤害类型分组件走抗性结算。
  */
 export interface AttackRiderSpec {
-  /** 资源消耗：pool = 特性池（气等）；spellSlot = 法术位（环级可升级，每高 1 环 +perSlotDice） */
-  cost: { kind: 'pool'; cost: number } | { kind: 'spellSlot' };
-  /** 基础追加伤害骰 */
-  damage?: { dice: string; damageType: string };
+  /** 资源消耗：pool = 特性池（气等）；spellSlot = 法术位（环级可升级，每高 1 环 +perSlotDice）；free = 零资源（神圣打击/散打技巧） */
+  cost: { kind: 'pool'; cost: number } | { kind: 'spellSlot' } | { kind: 'free' };
+  /** 基础追加伤害骰；函数形态按攻击者卡推导（神圣打击 8 级 1d8 → 14 级 2d8、伤害类型随子职业变体） */
+  damage?: { dice: string; damageType: string } | ((attacker: Character) => { dice: string; damageType: string });
   /** 目标生物类型匹配时追加骰（至圣斩对不死/邪眷） */
   bonusDice?: { dice: string; damageType: string; vs: string[] };
   /** spellSlot 成本按环级升级：每高于基准环 1 级追加一组骰 */
@@ -160,6 +160,27 @@ export interface AttackRiderSpec {
    */
   push?: {
     feet: number;
+  };
+  /**
+   * 每回合一次 rider（神圣打击）：cost free 但限制每参战者每回合发动一次。
+   * 记账在 record.perRoundFeatureUsed（combatantId → 特性名数组），回合推进清空。
+   */
+  perRound?: boolean;
+  /**
+   * 命中时多选一 rider（散打技巧）：勾选后弹窗内选一项落地——带豁免的项失败挂
+   * failStatus / 成功无效果；带 push 的项失败位移；带 directStatus 的项无豁免直挂状态。
+   */
+  choice?: {
+    options: {
+      key: string;
+      label: string;
+      save?: { ability: AbilityKey; dc: (attacker: Character) => number };
+      failStatus?: 'stunned' | 'prone' | 'frightened' | 'goaded' | 'disarmed';
+      push?: { feet: number };
+      directStatus?: string;
+      durationRounds?: number;
+      todo?: string;
+    }[];
   };
   /**
    * 延迟引爆 rider（渗透劲类）：命中勾选不结算即时效果，改为在目标身上挂标记状态
@@ -279,6 +300,14 @@ function battleMasterDc(attacker: Character): number {
   return 8 + prof + Math.max(str, dex);
 }
 
+/** 通用豁免 DC：8 + 熟练 + 指定属性调整值（武僧气系/散打技巧 WIS 同款） */
+function dcWith(ability: AbilityKey) {
+  return (attacker: Character): number => {
+    const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+    return 8 + prof + (attacker.abilities?.[ability]?.modifier ?? 0);
+  };
+}
+
 // P6-2 注册表：战斗大师战技（卓越骰 1 粒 = 池 cost 1，战技骰 d8 伤害并入武器伤害同类型）。
 // 豁免失败效果：摔绊→倒地 / 恐吓→恐惧 / 挑衅→挑衅 / 缴械→缴械；推撞→位移 10 尺（push）。
 register('摔绊攻击', {
@@ -359,6 +388,58 @@ register('缴械攻击', {
       todo: '缴械：一件手持武器落在脚边（拾取需自由互动/动作）',
     },
     hint: '命中时消耗 1 粒卓越骰：+1d8 伤害，目标敏捷豁免 DC 8+熟练+力敏调，失败缴械一件手持武器',
+  },
+});
+
+// P6-2 注册表：散打技巧（武僧散打宗 3 级）——疾风连击命中时三选一，无资源消耗。
+// 弹窗内勾选后单选效应；倒地/推动带豁免（DC 8+熟练+感调），封锁反应直挂状态。
+register('散打技巧', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'free' },
+    choice: {
+      options: [
+        {
+          key: 'prone',
+          label: '击倒地',
+          save: { ability: 'dexterity', dc: dcWith('wisdom') },
+          failStatus: 'prone',
+          durationRounds: 2,
+          todo: '倒地：起身需半速移动（至下回合）',
+        },
+        {
+          key: 'push',
+          label: '推离 15 尺',
+          save: { ability: 'strength', dc: dcWith('wisdom') },
+          push: { feet: 15 },
+        },
+        {
+          key: 'no_reactions',
+          label: '封锁反应',
+          directStatus: 'no_reactions',
+          durationRounds: 2,
+          todo: '无法反应解除（至施用者下回合结束）',
+        },
+      ],
+    },
+    hint: '疾风连击命中时三选一：敏捷豁免失败倒地 / 力量豁免失败推离 15 尺 / 封锁反应至你下回合结束（DC 8+熟练+感调）',
+  },
+});
+
+// P6-2 注册表：神圣打击（圣武士 4 誓言 8 级拷贝）——每回合一次 free rider。
+// 伤害骰 8 级 1d8 → 14 级 2d8；伤害类型按卡上描述关键词（光耀/毒素/雷鸣），通用文本并入武器类型。
+register('神圣打击', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'free' },
+    perRound: true,
+    damage: (attacker) => {
+      const dice = (attacker.level ?? 8) >= 14 ? '2d8' : '1d8';
+      const desc = (attacker.features ?? []).find(f => f.name === '神圣打击')?.description ?? '';
+      const damageType = desc.includes('光耀') ? '光耀' : desc.includes('毒素') ? '毒素' : desc.includes('雷鸣') ? '雷鸣' : '';
+      return { dice, damageType };
+    },
+    hint: '命中时每回合一次：武器攻击额外 +1d8（14 级 2d8）神圣能量伤害，类型随誓言变体',
   },
 });
 

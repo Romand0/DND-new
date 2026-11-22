@@ -633,6 +633,12 @@ export interface CombatRecord {
      * 新回合由 resetTurnTodosForRound 清空。
      */
     loadingAttackedThisRound?: Record<string, boolean>;
+    /**
+     * 本回合已发动的每回合一次 rider 特性（key=combatantId，value=特性名列表）。
+     * 神圣打击等 perRound rider：getAttackRiders 据此过滤、applyAttackRiders 落地时记账。
+     * 新回合由 resetTurnTodosForRound 清空。
+     */
+    perRoundFeatureUsed?: Record<string, string[]>;
     /** 放映状态持久化：刷新后自动恢复到当前回合并暂停 */
     playbackState?: {
       started: boolean;

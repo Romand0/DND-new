@@ -575,6 +575,29 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'sword',
       },
     });
+
+    // 散打技巧第三项（武僧散打宗 3 级）：疾风连击命中目标封锁反应至施用者下回合结束。
+    // 无优劣势引擎效果——反应可用性由反应通道（reactionRules detectReactions）读取此状态裁决。
+    this.register({
+      id: 'no_reactions',
+      name: '无法反应',
+      description: '该目标无法执行反应（散打技巧命中效应），持续至施用者下一回合结束。',
+      shortDescription: '无法执行反应',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：散打技巧「封锁反应」效应触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '效果持续时间届满（施用者下一回合结束）。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'slate',
+        icon: 'shield-off',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {
