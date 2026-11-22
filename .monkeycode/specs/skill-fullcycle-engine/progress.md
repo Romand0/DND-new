@@ -27,6 +27,7 @@
 | P5-2 专用硬编码批次 | [x] 完成 | 分支 feat/container-preselect，merge `d1bc6ec`：混元体 heal 直结 / 容器预选（引导神力/暗影技艺）/ 渗透劲延迟引爆；probe-active-skills 117/117 + p2 99/99 + 全量 ALL PROBES OK；见交付明细 |
 | P5 反应数据面 | [x] 第 1 期交付 | 分支 feat/reaction-data：种子 8 条标注 / 提取器渠道 / DamageAbsorbModal 直连 / 挂起修复（`cffb1d9`）；probe-reaction 59/59 + 全量 ALL PROBES OK；见交付明细 |
 | P5 荒野变形 | [x] 完成 | 分支 feat/wildshape-p5：图鉴野兽复用 + wildShape 通道 + 参战者形状替换/快照还原 + HP0 破碎；probe-wildshape 29/29 + 全量 ALL PROBES OK；见交付明细 |
+| P6 战技接线 | [ ] 调查完成 | 16 条战斗大师战技 + 散打技巧三选一 + 神圣打击子型；基建覆盖 ~60%，缺口 8 项；分期方案见调查段 |
 | P5 收尾 | [ ] 进行中 | 剩余：极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
 
 ## P1 交付明细（2026-11-18）
@@ -197,3 +198,41 @@
 - **关键探针知识**：d20 填 20 = nat20 重击（伤害骰翻倍：1d6+2 → 填 3 得 8 伤）；15g 提取器口径断言在 probe-active-skills 与 p2 各有一份（skip 11→22 已同步）
 - **第 2-4 期**（design.md 附录）：attack_modifier 家族（守御闪光劣势/幻影化形强制 miss/战神祝福 +10 + trigger any_attack）→ target_save 家族（风暴狂怒/法术窃贼/斗转星移 + trigger status_applied）→ 特殊触发（无情复仇/复仇之魂/灵机一斩 + trigger opportunity_hit/foe_attacked/any_attacked + 雾遁复合）
 - 通用约束：零暗骰手填 / 确认扣资源放弃零损失 / damage_taken 窗口仅攻击链（effect 伤害走通用提示）
+
+## P6 战技接线调查（2026-11-22，用户立项：基础设施完善 → 纯接线）
+
+### 范围盘点
+
+- **16 条战斗大师战技**（职业.json 战斗大师 features[].options L3344-3488，features 拷贝带 system/systemKind=container 容器标记；traits 拷贝 L3526 已带 poolFormula levelTiers 4/5/6 short = 卓越骰池本体）
+- **提取管道盲区**：extract-features-batch.mjs collectTraits 只走 traits——16 条战技 options 从未进管道，报告零提及；接线需扩 options 采集线
+- **战技条目本体**：仅 name/nameEn/text/system/systemKind=member/role=active/level(3)，纯描述文本零结构化字段；成员挂池靠 `system:'卓越战技'` 引用（震慑拳→气同构，池键解析已支持）
+- **其他战技类**：散打技巧三选一（rider 缺 choice 字段，现 manual 兜底）/ 神圣打击（每回合一次 rider 子型，4 誓言 8 处拷贝 4 伤害变体）/ 精通至圣斩（无资源 rider 子型）/ 导引打击（check_modifier +10 看结果后决定）
+- DC 公式：职业.json 文本无 DC；options.json 卓越战技 options 有「豁免DC＝8＋熟练＋力敏调（自选）」；武僧气豁免 8+prof+WIS
+
+### 基建覆盖矩阵（16 条 → 通道）
+
+| 形态 | 战技 | 现有基建 | 缺口 |
+|---|---|---|---|
+| rider+save（伤害骰+豁免+状态） | 摔绊/恐吓/挑衅/推撞/缴械 | AttackRiderSpec.save 完整（震慑拳先例） | failStatus 枚举扩：prone/frightened/goaded/pushed15/disarm |
+| attack 检定加骰 | 精准攻击 | PendingCheckModifier 引擎 | attack 场景 register |
+| 他人对目标攻击优势 | 扰乱打击 | pendingAdvantageSources | incoming 型 + rider 伤复合 |
+| 附赠虚晃→自身优势+骰伤 | 诡诈攻击 | advantage self + rider damage | 双通道混合编排 |
+| 第二目标 rider 伤 | 横扫攻击 | — | secondTarget 子型 |
+| 反应减伤 | 格挡 | DamageAbsorbModal 直连已建（报偿先例） | register 即通（卓越骰+敏捷调公式） |
+| 敌未命中反应反打 | 反击 | 反应引擎 trigger foe_missed = 第 4 期待办 | 等反应第 4 期 |
+| 附赠+盟友 tempHP | 重整旗鼓 | heal 引擎 | HealSpec type:'tempHp' 子型 |
+| 复合编排 | 指挥官奇袭/灵动攻击 | — | manual 或专窗 |
+| 回合级 | 灵巧步法（移动期 AC）/突刺（触及+5尺+骰伤） | TurnTodo/回合级 status | manual 起步 |
+
+覆盖判定：~60% 直接接线（register + 枚举扩），3 个新子型（secondTarget/tempHp/choice），其余等反应第 4 期或 manual。
+
+### 体系池（既有待办正好被战技推动）
+
+`system:卓越战技` 共享池 + spec/feature `poolRef` 引用——双线索决策（2026-11-19）已定形态：池挂体系容器（卓越战技 traits 池），成员战技引用池键。震慑拳→气 = 技能线索型已实现，体系线索型待建。卓越骰池 = 第一个体系池实例。
+
+### 分期建议
+
+- P6-1 管道：options 采集线（collectTraits 扩或第二条线）+ 体系池 `system:<名>` + 成员战技种子补 system 字段 → 16 条进批量报告
+- P6-2 rider 子型扩展：save.failStatus 枚举（5 条战技直接落）+ rider choice（散打三选一）+ perRound 子型（神圣打击）
+- P6-3 通道 register：格挡（reaction damage_modifier）/ 精准（checkModifier attack）/ 重整旗鼓（heal tempHp）
+- P6-4 新子型 + 复合：横扫 secondTarget / 扰乱 incoming advantage / 诡诈混合 / 反击（等反应第 4 期）/ 指挥官·灵动 manual
