@@ -52,6 +52,8 @@ interface BlockCommonProps {
   activeSlotKey: string | null;
   /** 只读渲染（FlowView 预览）：无拖柄、无删除钮、插槽不可点 */
   readOnly?: boolean;
+  /** 点击卡头选中块（FlowEditor 据此自动展开右侧编辑面板）；缺省 = 不可点 */
+  onSelect?: (blockId: string) => void;
   beginDrag: (e: React.PointerEvent, blockId: string) => void;
   onDelete: (blockId: string) => void;
   onSlotPick: (slotKey: string) => void;
@@ -77,6 +79,7 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
   activeSlotKey,
   isHat,
   readOnly,
+  onSelect,
   beginDrag,
   onDelete,
   onSlotPick,
@@ -92,9 +95,10 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
   const header = (
     <div
       data-node-id={block.id}
+      onClick={!readOnly && onSelect ? e => { e.stopPropagation(); onSelect(block.id); } : undefined}
       className={`group relative flex items-center gap-2 px-3 py-2.5 rounded-lg border text-left transition-shadow ${
         selected ? 'border-primary shadow-md ring-1 ring-primary/40' : isDark ? 'border-border-dark' : 'border-border-light'
-      } ${ghosting ? 'opacity-40' : ''} ${isHat ? 'rounded-b-none rounded-t-2xl border-b-0' : ''}`}
+      } ${ghosting ? 'opacity-40' : ''} ${isHat ? 'rounded-b-none rounded-t-2xl border-b-0' : ''} ${!readOnly && onSelect ? 'cursor-pointer' : ''}`}
       style={{ borderLeft: `4px solid ${color}`, backgroundColor: isDark ? 'rgba(255,255,255,0.04)' : '#fff' }}
     >
       <span
@@ -143,13 +147,13 @@ export const FlowBlockCard: React.FC<FlowBlockCardProps> = ({
           label={trueLabel}
           blocks={cBlock.onTrue}
           containerPath={{ viaIds: bodyPath.viaIds, branches: [...branches, 'onTrue'] }}
-          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, beginDrag, onDelete, onSlotPick, slotKeyOf }}
+          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, onSelect, beginDrag, onDelete, onSlotPick, slotKeyOf }}
         />
         <BranchBody
           label={falseLabel}
           blocks={cBlock.onFalse}
           containerPath={{ viaIds: bodyPath.viaIds, branches: [...branches, 'onFalse'] }}
-          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, beginDrag, onDelete, onSlotPick, slotKeyOf }}
+          {...{ isDark, selectedId, dragging, dragId, activeSlotKey, readOnly, onSelect, beginDrag, onDelete, onSlotPick, slotKeyOf }}
         />
       </div>
       <div
