@@ -6,9 +6,20 @@ import { characterStore } from '@/data/characterStore';
 import { resolveFeatureCapability, type AttackRiderSpec } from '@/data/featureCapabilities';
 import { resolvePoolKey } from '@/data/featurePool';
 import { globalStatusManager } from '@/data/statusManager';
+import battlegroundStore from '@/data/battlegroundStore';
+import { GRID_PRESETS } from '@/types/battleground';
 import type { CombatRecord, Combatant } from '@/types/combat';
 import type { Character, SpellSlotLevel } from '@/types/character';
 import type { RosterActiveFeature, RosterSpellSlot } from '@/types/realtime';
+
+/** 豁免失败效果文本（行记录 + 弹窗失败提示共用） */
+const FAIL_LABELS: Record<NonNullable<AttackRiderSpec['save']>['failStatus'], string> = {
+  stunned: '震慑',
+  prone: '倒地',
+  frightened: '恐惧',
+  goaded: '挑衅',
+  disarmed: '缴械',
+};
 
 /** 伤害弹窗勾选区的一个可发动 rider 选项（只读快照，落地时按此扣资源） */
 export interface AttackRiderOption {
@@ -26,7 +37,7 @@ export interface AttackRiderOption {
   bonusDice?: { dice: string; damageType: string; vs: string[] };
   perSlotDice?: { dice: string; damageType: string };
   /** 命中后豁免（震慑拳）：DC 已按攻击者角色卡算好 */
-  save?: { abilityLabel: string; dc: number; failHint: string };
+  save?: { abilityLabel: string; dc: number; failHint: string; failLabel: string };
 }
 
 /** 玩家/DM 勾选结果（弹窗 payload 回传） */
@@ -81,7 +92,7 @@ export function getAttackRiders(record: CombatRecord, attacker: Combatant): Atta
         damage: spec.damage,
         bonusDice: spec.bonusDice,
         save: spec.save
-          ? { abilityLabel: ABILITY_LABELS[spec.save.ability] ?? spec.save.ability, dc: spec.save.dc(char), failHint: spec.save.todo }
+          ? { abilityLabel: ABILITY_LABELS[spec.save.ability] ?? spec.save.ability, dc: spec.save.dc(char), failHint: spec.save.todo, failLabel: FAIL_LABELS[spec.save.failStatus] }
           : undefined,
       });
     } else {
@@ -143,7 +154,7 @@ export function getAttackRidersForPlayer(
         damage: spec.damage,
         bonusDice: spec.bonusDice,
         save: spec.save
-          ? { abilityLabel: ABILITY_LABELS[spec.save.ability] ?? spec.save.ability, dc: spec.save.dc(char), failHint: spec.save.todo }
+          ? { abilityLabel: ABILITY_LABELS[spec.save.ability] ?? spec.save.ability, dc: spec.save.dc(char), failHint: spec.save.todo, failLabel: FAIL_LABELS[spec.save.failStatus] }
           : undefined,
       });
     } else {
@@ -218,13 +229,39 @@ export function applyAttackRiders(
       mark.metadata = { ...mark.metadata, attackerId: attacker.id, attackerName: attacker.name };
       line += `：劲力已埋入「${target.name}」（DM 可用动作引爆）`;
     } else if (sel.saveResult) {
-      line += sel.saveResult === 'fail'
-        ? `：目标${ABILITY_LABELS[spec.save!.ability] ?? ''}豁免失败，震慑`
-        : `：目标${ABILITY_LABELS[spec.save!.ability] ?? ''}豁免成功`;
+      const abilityLabel = ABILITY_LABELS[spec.save!.ability] ?? '';
+      const isFail = sel.saveResult === 'fail';
+      if (isFail && spec.push) {
+        // 推撞：纯位移不挂状态——按攻击者→目标方向推 feet/5 格（切比雪夫步进，clamp 边界）
+        const cells = Math.max(1, Math.round(spec.push.feet / 5));
+        const bg = battlegroundStore.get(record.id);
+        const tTok = bg?.tokens.find((t) => t.combatantId === target.id);
+        const aTok = bg?.tokens.find((t) => t.combatantId === attacker.id);
+        if (tTok && aTok) {
+          const preset = GRID_PRESETS[bg!.size];
+          const dx = Math.sign(tTok.col - aTok.col);
+          const dz = Math.sign(tTok.row - aTok.row);
+          const nc = Math.max(0, Math.min(preset.cols - 1, tTok.col + dx * cells));
+          const nr = Math.max(0, Math.min(preset.rows - 1, tTok.row + dz * cells));
+          if (nc !== tTok.col || nr !== tTok.row) {
+            battlegroundStore.placeToken(record.id, { combatantId: target.id, col: nc, row: nr });
+            const moved = Math.max(Math.abs(nc - tTok.col), Math.abs(nr - tTok.row));
+            line += `：目标${abilityLabel}豁免失败，被推离 ${moved} 格（${spec.push.feet} 尺）`;
+          } else {
+            line += `：目标${abilityLabel}豁免失败，已在边界无处可推`;
+          }
+        } else {
+          line += `：目标${abilityLabel}豁免失败，被推离 ${spec.push.feet} 尺（无沙盘棋子，请手动处理位置）`;
+        }
+      } else {
+        line += isFail
+          ? `：目标${abilityLabel}豁免失败，${FAIL_LABELS[spec.save!.failStatus]}`
+          : `：目标${abilityLabel}豁免成功`;
+      }
     }
     lines.push(line);
-    // 豁免失败：挂震慑状态（复用 C 类通道的挂载口径）+ TurnTodo 提醒解除（endRound 与 P2 status 约定同构：start + duration）
-    if (sel.saveResult === 'fail' && spec.save && opts?.targetAlive !== false) {
+    // 豁免失败：挂状态（push 型只位移不挂状态）+ TurnTodo 提醒解除（endRound 与 P2 status 约定同构：start + duration）
+    if (sel.saveResult === 'fail' && spec.save && !spec.push && opts?.targetAlive !== false) {
       globalStatusManager.applyEffect(target.id, spec.save.failStatus, 'combat', record.id, {
         durationRounds: spec.save.durationRounds,
         ...(record.mode === 'playback'

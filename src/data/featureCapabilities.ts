@@ -148,10 +148,18 @@ export interface AttackRiderSpec {
     ability: AbilityKey;
     /** DC 由攻击者角色卡推导（8 + 熟练 + 属性调整值） */
     dc: (attacker: Character) => number;
-    failStatus: 'stunned';
+    /** 失败挂载的状态（statusLibrary definitionId；P6-2 扩战技系：倒地/恐惧/挑衅/缴械） */
+    failStatus: 'stunned' | 'prone' | 'frightened' | 'goaded' | 'disarmed';
     /** 状态持续回合数（durationRounds 2 ≈ 至施用者下回合结束） */
     durationRounds: number;
     todo: string;
+  };
+  /**
+   * 豁免失败位移 rider（推撞攻击）：状态型 failStatus 表达不了的纯位移效果。
+   * 有沙盘 token 时自动推离攻击者 cells 格（切比雪夫方向、clamp 边界）；无 token 记提示行。
+   */
+  push?: {
+    feet: number;
   };
   /**
    * 延迟引爆 rider（渗透劲类）：命中勾选不结算即时效果，改为在目标身上挂标记状态
@@ -260,6 +268,97 @@ register('至圣斩', {
     bonusDice: { dice: '1d8', damageType: '光耀', vs: ['undead', 'fiend'] },
     perSlotDice: { dice: '1d8', damageType: '光耀' },
     hint: '命中时消耗 1 环法术位：+2d8 光耀（不死/邪眷再 +1d8），每高 1 环再 +1d8',
+  },
+});
+
+/** 战技豁免 DC：8 + 熟练 + 力敏较高者（PHB2014 战斗大师习得时自选，工具取双高免卡上配置） */
+function battleMasterDc(attacker: Character): number {
+  const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+  const str = attacker.abilities?.strength?.modifier ?? 0;
+  const dex = attacker.abilities?.dexterity?.modifier ?? 0;
+  return 8 + prof + Math.max(str, dex);
+}
+
+// P6-2 注册表：战斗大师战技（卓越骰 1 粒 = 池 cost 1，战技骰 d8 伤害并入武器伤害同类型）。
+// 豁免失败效果：摔绊→倒地 / 恐吓→恐惧 / 挑衅→挑衅 / 缴械→缴械；推撞→位移 10 尺（push）。
+register('摔绊攻击', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'pool', cost: 1 },
+    damage: { dice: '1d8', damageType: '' },
+    save: {
+      ability: 'dexterity',
+      dc: battleMasterDc,
+      failStatus: 'prone',
+      durationRounds: 2,
+      todo: '倒地：起身需半速移动（至下回合）',
+    },
+    hint: '命中时消耗 1 粒卓越骰：+1d8 伤害，目标敏捷豁免 DC 8+熟练+力敏调，失败倒地',
+  },
+});
+
+register('恐吓攻击', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'pool', cost: 1 },
+    damage: { dice: '1d8', damageType: '' },
+    save: {
+      ability: 'wisdom',
+      dc: battleMasterDc,
+      failStatus: 'frightened',
+      durationRounds: 2,
+      todo: '恐惧解除检查（至施用者下回合结束）',
+    },
+    hint: '命中时消耗 1 粒卓越骰：+1d8 伤害，目标感知豁免 DC 8+熟练+力敏调，失败恐惧至施用者下回合结束',
+  },
+});
+
+register('挑衅攻击', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'pool', cost: 1 },
+    damage: { dice: '1d8', damageType: '' },
+    save: {
+      ability: 'wisdom',
+      dc: battleMasterDc,
+      failStatus: 'goaded',
+      durationRounds: 2,
+      todo: '挑衅解除检查（至施用者下回合结束）',
+    },
+    hint: '命中时消耗 1 粒卓越骰：+1d8 伤害，目标感知豁免 DC 8+熟练+力敏调，失败挑衅（对他人攻击劣势）至施用者下回合结束',
+  },
+});
+
+register('推撞攻击', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'pool', cost: 1 },
+    damage: { dice: '1d8', damageType: '' },
+    save: {
+      ability: 'strength',
+      dc: battleMasterDc,
+      failStatus: 'prone',
+      durationRounds: 2,
+      todo: '（推撞：不倒地，仅位移）',
+    },
+    push: { feet: 10 },
+    hint: '命中时消耗 1 粒卓越骰：+1d8 伤害，目标力量豁免 DC 8+熟练+力敏调，失败被推离 10 尺',
+  },
+});
+
+register('缴械攻击', {
+  channel: 'attack_rider',
+  attackRider: {
+    cost: { kind: 'pool', cost: 1 },
+    damage: { dice: '1d8', damageType: '' },
+    save: {
+      ability: 'dexterity',
+      dc: battleMasterDc,
+      failStatus: 'disarmed',
+      durationRounds: 2,
+      todo: '缴械：一件手持武器落在脚边（拾取需自由互动/动作）',
+    },
+    hint: '命中时消耗 1 粒卓越骰：+1d8 伤害，目标敏捷豁免 DC 8+熟练+力敏调，失败缴械一件手持武器',
   },
 });
 

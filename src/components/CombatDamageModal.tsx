@@ -566,7 +566,7 @@ export default function CombatDamageModal({
                           />
                           {(riderSaveRoll[option.featureName] ?? '').trim() !== '' && (
                             <span className={parseInt(riderSaveRoll[option.featureName], 10) >= option.save.dc ? 'text-green-400' : 'text-red-400 font-medium'}>
-                              {parseInt(riderSaveRoll[option.featureName], 10) >= option.save.dc ? '豁免成功' : '豁免失败 → 震慑'}
+                              {parseInt(riderSaveRoll[option.featureName], 10) >= option.save.dc ? '豁免成功' : `豁免失败 → ${option.save.failLabel}`}
                             </span>
                           )}
                         </div>

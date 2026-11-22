@@ -452,6 +452,129 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'zap',
       },
     });
+
+    // P6-2 战技失败状态（战斗大师 rider 豁免失败挂载；手动声明，DM 可随时解除）
+    this.register({
+      id: 'prone',
+      name: '倒地',
+      description: '唯一移动方式为爬行（每尺额外消耗 1 尺移动）。起身需要消耗一半速度。你的攻击检定有劣势；5 尺内对你发动近战攻击的生物有优势；5 尺外对你发动的远程攻击检定有劣势。',
+      shortDescription: '倒地：攻击劣势 / 5 尺内近战对你优势 / 远程对你优势',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：摔绊类战技/法术/地面效果触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '起身（消耗一半移动）或被扶起（半速）。',
+      },
+      duration: { type: 'permanent' },
+      effects: [
+        {
+          id: 'prone.own_attack_disadvantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'disadvantage', scene: 'attack', appliesTo: 'self' },
+          description: '你倒地：攻击检定有劣势',
+        },
+        {
+          id: 'prone.incoming_melee_advantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'advantage', scene: 'attack_melee', appliesTo: 'incoming' },
+          description: '倒地者 5 尺内近战攻击对你有优势',
+        },
+        {
+          id: 'prone.incoming_ranged_advantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'advantage', scene: 'attack_ranged', appliesTo: 'incoming' },
+          description: '5 尺外远程攻击对你有优势（倒地）',
+        },
+      ],
+      ui: {
+        badgeColor: 'orange',
+        icon: 'arrow-down',
+      },
+    });
+
+    this.register({
+      id: 'frightened',
+      name: '恐惧',
+      description: '你对恐惧源的攻击检定有劣势，且不能自愿向恐惧源移动。',
+      shortDescription: '恐惧：对恐惧源攻击劣势 / 不能靠近',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：恐惧类战技/法术/威吓效果触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '效果持续时间届满或豁免成功解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [
+        {
+          id: 'frightened.attack_disadvantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'disadvantage', scene: 'attack', appliesTo: 'self' },
+          description: '你对恐惧源的攻击检定有劣势（距离来源由 DM 把握）',
+        },
+      ],
+      ui: {
+        badgeColor: 'purple',
+        icon: 'ghost',
+      },
+    });
+
+    this.register({
+      id: 'goaded',
+      name: '挑衅',
+      description: '挑衅者在你 5 尺内时，你对挑衅者之外的生物攻击检定有劣势。',
+      shortDescription: '挑衅：对挑衅者以外目标攻击劣势',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：挑衅类战技触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '效果持续时间届满或挑衅者倒地/离场。',
+      },
+      duration: { type: 'permanent' },
+      effects: [
+        {
+          id: 'goaded.attack_disadvantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'disadvantage', scene: 'attack', appliesTo: 'self' },
+          description: '你对挑衅者之外的攻击有劣势（挑衅者位置由 DM 把握）',
+        },
+      ],
+      ui: {
+        badgeColor: 'red',
+        icon: 'target',
+      },
+    });
+
+    this.register({
+      id: 'disarmed',
+      name: '缴械',
+      description: '一件手持武器被击落在地（落在目标占据格内或相邻格）。拾取需要自由互动或动作（DM 把握）。',
+      shortDescription: '缴械：手持武器落地待拾取',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：缴械类战技豁免失败触发。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '重新拾取武器或换持其他物品。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'zinc',
+        icon: 'sword',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {
