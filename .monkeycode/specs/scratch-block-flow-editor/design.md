@@ -117,7 +117,7 @@ collectChain(nodeId, visited):
 - `scaled_effect` 是**内嵌条件的作用器**：分档/公式取值即条件分支与作用器的结合，恒为堆叠；
 - `condition_branch` 是唯一的**显式控制分流**原语，恒为 C 形。
 
-检定块 C 形（`onTrue`/`onFalse` 体）仅在两个结果要走完全不同效果链时使用；编辑器右侧栏提供 堆叠 ⇄ 分支 切换（`convertBlockForm`，分支体非空不可收敛）。调色板新增检定块默认建堆叠（`buildNewBlock` 仅 `condition_branch` 建 if）。
+检定块 C 形（`onTrue`/`onFalse` 体）仅在两个结果要走完全不同效果链时使用；编辑器右侧栏提供形态切换（`convertBlockForm`）。**分支形态三态（2026-11-22 用户观察追加）**：堆叠（信号传递）/ 单分支 `detour`（满足走小路汇合回主链、未满足直接向下——D&D 法术绝大多数是单边特殊效果，`form: "detour"` 且 `onFalse` 恒空，编译语义 = 双分支且否则体为空，零编译器改动）/ 双分支 `ifelse`（缺省形态）。`condition_branch` 默认 detour，无堆叠形态；检定块默认堆叠（`buildNewBlock`）。收敛守卫：分支体非空不可丢（detour→堆叠需清满足体，ifelse→detour 需清否则体）。
 
 ```ts
 // src/types/flowScript.ts

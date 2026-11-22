@@ -211,7 +211,15 @@
 | 内嵌条件的作用器 | `scaled_effect` | 分档/公式取值是块内逻辑，条件分支与作用器的结合体，恒为堆叠 |
 | 显式条件分支 | `condition_branch` | 唯一的控制分流原语，恒为 C 形 |
 
-**默认写法：检定块用堆叠（信号传递），只有两个结果要走完全不同的效果链时才切 C 形。**
+**默认写法：检定块用堆叠（信号传递）；条件/检定的单边特殊效果用单分支（detour）；只有两个结果都要走不同效果链时才用双分支（ifelse）。**
+
+**分支形态三态**（D&D 法术绝大多数是「一方有特殊效果，另一方正常进下一环节」——大路 + 小路拐回大路，不是岔路口）：
+
+| 形态 | 字段 | 语义 | 编译产物 |
+|------|------|------|----------|
+| 堆叠 `step` | — | 结果信号沿链传递，下游自行消化 | 纯 on_complete 链 |
+| 单分支 `detour` | `form: "detour"`，`onFalse` 恒空 | 满足 → 走分支体 → **汇合回主链**；未满足 → 直接向下 | on_true → 分支体 → 汇合点；on_false → 直连汇合点 |
+| 双分支 `ifelse` | 缺省（无 `form` 字段） | 两个结果各自展开走不同效果链 | on_true / on_failure 各连一体 |
 
 线性直伤 + 敏捷豁免（推荐：堆叠信号传递，半伤留在效果节点配置）：
 
@@ -231,7 +239,18 @@
 
 > `halfDamageOnSave: true` = 豁免成功时每个伤害分量先减半再结算抗性（失败受满伤）。这是「效果分配消化上游检定信号」的官方路径，与火球术等存量流程的真实形态一致。
 
-显式结果分流（C 形，仅当两个结果走**不同效果链**——如未通过要附加状态、通过要伤害）：
+单分支小路（`detour`，推荐的条件用法——满足才有特殊效果，否则正常进下一环节）：
+
+```json
+{ "kind": "if", "nodeType": "condition_branch", "id": "low_hp_bonus", "label": "濒空加伤", "form": "detour", "condition": "target.hp <= 20",
+  "onTrue": [ { "kind": "step", "nodeType": "apply_effect", "id": "bonus_damage", "label": "额外伤害", "config": { "effectType": "damage", "value": "2d6", "damageType": "necrotic" } } ],
+  "onFalse": []
+}
+```
+
+> detour 编译语义与「双分支且否则体为空」完全一致：满足体走完汇合回主链，未满足直连汇合点。编辑器右侧栏「块形态」可在 堆叠 / 单分支 / 双分支 间切换（「否则」体非空时不可收敛为单分支/堆叠）；生成器直接产出对应 `kind` + `form`，无需迁移。
+
+双分支岔路口（`ifelse`，仅当两个结果走**不同效果链**——如未通过要附加状态、通过要伤害）：
 
 ```json
 { "kind": "if", "nodeType": "saving_throw", "id": "save_wis", "label": "感知豁免", "config": { "ability": "wisdom", "dc": "" },
@@ -239,8 +258,6 @@
   "onFalse": [ { "kind": "step", "nodeType": "apply_effect", "id": "fear", "label": "恐惧状态", "config": { "effectType": "status", "affinityKind": "resistance", "damageTypes": "" } } ]
 }
 ```
-
-> 编辑器右侧栏「块形态」可在 堆叠 ⇄ 分支 间切换（分支体非空时不可收敛回堆叠）；生成器直接产出对应 `kind` 即可，无需迁移。
 
 法术攻击（同构：默认堆叠信号传递；显式分流时用 C 形 `attack_roll`，插槽标签「命中/未命中」）：
 
@@ -316,7 +333,7 @@
 
 - 恰好一个帽子块（`cast_start`），只能位于 `script.hat`。
 - 块 `id` 全局唯一（编译后即节点 ID），`snake_case` 表意。
-- `saving_throw` / `attack_roll` 默认堆叠形态（结果信号沿链传递）；C 形（`onTrue`/`onFalse` 体）仅当两个结果要走不同效果链时使用，且 C 形收敛回堆叠前分支体必须为空。`condition_branch` 恒为 C 形（其存在意义即分流）。
+- 检定块形态三态：堆叠（默认，结果信号沿链传递）→ 单分支 detour（满足走小路汇合回主链，`onFalse` 恒空）→ 双分支 ifelse（两个结果走不同效果链）。`condition_branch` 默认 detour，无堆叠形态。C 形收敛（detour/ifelse → 堆叠）前分支体必须为空；ifelse → detour 前否则体必须为空。
 - `condition_branch` 的 C 形块需带 `condition` 表达式；检定块靠结果状态分流，无需 `condition`。
 - 分支体允许为空数组（= 直接连汇合点），但 C 形块两体字段（`onTrue`/`onFalse`）必须存在。
 - 回流/循环无法表达（编译时按死代码丢弃）；需要重复触发的机制改为多段堆叠或留人工评审。
@@ -414,8 +431,8 @@
 | 图边 trigger | 积木表达 |
 |--------------|----------|
 | `on_complete` | 堆叠顺序（`body` 数组先后），隐式无字段 |
-| `on_success` / `on_failure` | 二选一：检定块堆叠形态（沿链传递，下游节点按结果信号自行处理——如 `halfDamageOnSave`），或 C 形块的 `onTrue` / `onFalse` 体 |
-| `on_true` / `on_false` | `condition_branch` C 形块的 `onTrue` / `onFalse` 体（条件写在块 `condition` 字段） |
+| `on_success` / `on_failure` | 三选一：检定块堆叠形态（沿链传递，下游按结果信号自行处理——如 `halfDamageOnSave`）、detour 单分支（满足体走完汇合回主链）、双分支 `onTrue` / `onFalse` 体 |
+| `on_true` / `on_false` | `condition_branch` 的 `onTrue` / `onFalse` 体（detour 时否则路径 = 直接向下汇合；条件写在块 `condition` 字段） |
 | `on_partial` | 无对应表达（见 §2.4）；半伤用 `halfDamageOnSave` 或 `onFalse` 体 |
 
 `label`（「成功/失败/半伤」等）由 C 形插槽内置（`BLOCK_SHAPE_REGISTRY` 的 `cPair` 标签），无需手写；`dataMap` / 边 `condition`（守卫）积木语言暂不表达，需要时留人工评审。
