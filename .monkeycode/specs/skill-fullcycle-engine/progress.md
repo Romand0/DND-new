@@ -27,7 +27,7 @@
 | P5-2 专用硬编码批次 | [x] 完成 | 分支 feat/container-preselect，merge `d1bc6ec`：混元体 heal 直结 / 容器预选（引导神力/暗影技艺）/ 渗透劲延迟引爆；probe-active-skills 117/117 + p2 99/99 + 全量 ALL PROBES OK；见交付明细 |
 | P5 反应数据面 | [x] 第 1 期交付 | 分支 feat/reaction-data：种子 8 条标注 / 提取器渠道 / DamageAbsorbModal 直连 / 挂起修复（`cffb1d9`）；probe-reaction 59/59 + 全量 ALL PROBES OK；见交付明细 |
 | P5 荒野变形 | [x] 完成 | 分支 feat/wildshape-p5：图鉴野兽复用 + wildShape 通道 + 参战者形状替换/快照还原 + HP0 破碎；probe-wildshape 29/29 + 全量 ALL PROBES OK；见交付明细 |
-| P6 战技接线 | [x] P6-2 完成 | 5 条 rider+save 战技落地（倒地/恐惧/挑衅/缴械 + 推撞位移）；下一步 P6-3 register + options 采集线 |
+| P6 战技接线 | [x] P6-2 完成（含 choice/perRound） | 5 条 save 战技 + 散打技巧 choice 三选一 + 神圣打击 perRound + no_reactions 反应封锁；下一步 P6-3 register + options 采集线 |
 | P5 收尾 | [ ] 进行中 | 剩余：极效潜行 ctx.skillKey / 守御灵光光环抗性 / 体系池 system:卓越骰 / 空灵体 / 反应第 2-4 期 |
 
 ## P1 交付明细（2026-11-18）
@@ -283,7 +283,7 @@
 ### 下一步
 
 - P6-3 register 通道：格挡（reaction damage_modifier）/ 精准（checkModifier attack）/ 重整旗鼓（heal tempHp）+ 提取管道 options 采集线
-- rider choice 子型（散打技巧三选一）/ perRound 子型（神圣打击）——随 P6-3/P6-4 一并
+- ~~rider choice 子型（散打技巧三选一）/ perRound 子型（神圣打击）~~ → 本轮完成，见下段
 
 ## P6 前置经济修复（2026-11-22，用户报障：回气不扣附赠动作）
 
@@ -293,3 +293,32 @@
 - **新探针 probe-econ.cjs**（11 断言转正）：三变体（开关关新卡/开关开新卡/开关开老卡）+ heal 引擎 alert 断言；dbg-17/dbg-ws 改名脱离 run.sh glob
 - **踩坑再验证**：探针大面积无关 FAIL（reaction 11 fail/p2 FATAL）= 陈旧 dev server 腐化态（长跑 3.5h + HMR + stash 往复改写源文件），MEMORY 基线对照法条目已有——冷重启 --force 即恢复，ALL PROBES OK；stash 对照必须在干净 server 上跑（腐化 server 上两版本同烂=对照无效）
 - 远程并行活动：b0c9c34（flow-editor detour 形态 docs）、7dd154b（flow-editor P1 积木编辑器，独立域不涉战斗）——rebase 无冲突
+
+## P6-2 剩余子型完成：散打技巧 choice + 神圣打击 perRound + no_reactions 反应封锁（2026-11-22，`2170abe` 合并已推送）
+
+### 落地内容
+
+- **AttackRiderSpec 三扩**：`cost` 加 `{ kind: 'free' }`（无资源扣减）；`damage` 支持函数形态 `(attacker) => { dice, damageType }`（getAttackRiders 构建期解析为静态对象，弹窗零改动）；新增 `perRound?: boolean` 与 `choice?: { options: [{key,label,save?,failStatus?,push?,directStatus?,durationRounds?,todo?}] }`
+- **散打技巧注册**（武僧散打宗 3 级）：free + choice 三选一——倒地（dex 豁免→prone）/ 推离 15 尺（str 豁免→push 3 格）/ 封锁反应（directStatus no_reactions 直挂）；`dcWith('wisdom')` helper（8+熟练+WIS，渗透劲内联公式抽象复用）
+- **神圣打击注册**（圣武士 4 誓言 8 级拷贝，nameEn Divine Strike）：free + perRound + damage 函数（L14→2d8）+ damageType 按卡上 description 关键词（光耀/毒素/雷鸣/空串并入武器）
+- **no_reactions 状态**（statusLibrary）：无法反应，手动解除；**reactionRules.canReact 读状态封锁**——detectors 四场景（move/attack/damage/spell_cast）候选生成统一门控
+- **attackRiders 全链**：getAttackRiders perRound 过滤（record.perRoundFeatureUsed）+ free 分支 + choice 投影（key/label/abilityLabel/dc/failLabel/pushLabel/directHint）；applyAttackRiders 重构——applyStatusWithTodo/applyPush 抽 helper（save 与 choice 共用）+ choice 三效应落地分支 + perRound 走 combatStore.update 原子写（与调用方回写解耦）
+- **CombatDamageModal choice UI**：radio 单选组（选定项带豁免出输入框复用 riderSaveRoll）+ 确认校验（choiceKey 必选、带豁免项必填）+ payload choiceKey/choiceSaveResult；free 型成本文案「无资源消耗」
+- **turnCommitApply riders 映射**透传 choiceKey/choiceSaveResult（realtime 类型同步扩）
+- **CombatRecord.perRoundFeatureUsed**（照 loadingAttackedThisRound 先例）：Record<combatantId, string[]> + load 兜底 + resetTurnTodosForRound 回合清空
+
+### 探针与验证
+
+- probe-p62 扩至 23 断言全绿：C 组散打（choice 3 项 + DC 13 + prone 状态/推 3 格 (4,2)->(7,2)/no_reactions 直挂）+ D 组神圣（1d8 光耀 + perRound 记账/二次隐藏/回合重置恢复/L14 2d8）+ C7 串卡防护
+- run.sh 29/29 ALL PROBES OK；tsc + build 通过；合并 main 后 build 再验证 → 推送
+
+### 踩坑补充
+
+- probe evaluate 跨块变量不共享：setup evaluate 定义的 card/monkCard 在 wire evaluate 不可见（独立作用域），wire 内须重查
+- 探针 helper 返回值分层易断链：applyM 返回 lines（string[]），states/todos/pos 需单独读再 return——断言引用未 return 的字段 = undefined FATAL
+
+### 下一步
+
+- P6-3 register 通道：格挡（reaction damage_modifier）/ 精准（checkModifier attack）/ 重整旗鼓（heal tempHp）
+- 提取管道 options 采集线（extract-features-batch.mjs collectTraits 扩 options 遍历）——报告侧
+- 遗留：no_reactions 状态在玩家端申报表单/状态卡片的可见性文案（现仅 DM 端生效）
