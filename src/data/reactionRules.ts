@@ -8,6 +8,7 @@ import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
 import { BUILTIN_OPPORTUNITY_ATTACK } from '@/data/reactionDefinitions';
 import { spellStore } from '@/data/spellStore';
+import { globalStatusManager } from '@/data/statusManager';
 import type { CombatRecord, Combatant, ReactionPrompt, ReactionResolution, ReactionTrigger, NpcAttack } from '@/types/combat';
 import type { Attack, Feature } from '@/types/character';
 import type { Spell } from '@/types/spell';
@@ -172,9 +173,11 @@ interface ReactionSource {
   spellId?: string;
 }
 
-/** 参战者是否仍能行使反应（死亡/昏迷/失能均不能） */
+/** 参战者是否仍能行使反应（死亡/昏迷/失能均不能；no_reactions 状态 = 散打技巧封锁） */
 function canReact(c: Combatant): boolean {
-  return !c.isDead && !c.isUnconscious && !c.isIncapacitated;
+  if (c.isDead || c.isUnconscious || c.isIncapacitated) return false;
+  if (globalStatusManager.getActiveStatuses(c.id, 'combat').some(i => i.definitionId === 'no_reactions')) return false;
+  return true;
 }
 
 /** 特性反应候选：角色卡上带 reaction 声明且已达生效等级的特性 */
