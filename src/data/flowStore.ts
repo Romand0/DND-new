@@ -1,7 +1,20 @@
 import type { FlowDefinition } from '../types/flow';
-import { parseFlowId } from '../types/flow';
+import { parseFlowId, ensureNodePositions } from '../types/flow';
 import { apiFetch } from '../lib/api';
 import { createBlankFlow } from './flowFactory';
+import { compileScriptToGraph } from '../lib/flowScriptCompile';
+
+/**
+ * 脚本流程补编译图：script 是唯一事实源，nodes/edges 是运行时（flowCompiler）、
+ * 校验器与图视图的消费面。生成器产出的 script-only 流程在入库边界补上编译产物
+ * （含自动布局坐标，过「节点缺少位置」门禁），使积木配方直入发布管线
+ * （P2 design「生成流程直入发布管线」）。
+ */
+function ensureCompiledGraph(flow: FlowDefinition): FlowDefinition {
+  if (!flow.script) return flow;
+  const graph = compileScriptToGraph(flow.script);
+  return ensureNodePositions({ ...flow, nodes: graph.nodes, edges: graph.edges });
+}
 
 /**
  * 深度清理对象中的 undefined 值
@@ -173,12 +186,13 @@ const flowStore = {
       }
 
       // 验证数据完整性
-      const validation = this.validateFlowDefinition(imported);
+      const compiled = ensureCompiledGraph(imported);
+      const validation = this.validateFlowDefinition(compiled);
       if (validation.errors && validation.errors.length > 0) {
         throw new Error(`导入失败: ${validation.errors.join(', ')}`);
       }
 
-      return await this.publish(imported as FlowDefinition);
+      return await this.publish(compiled);
     } catch (error) {
       console.error('导入失败:', error);
       return undefined;
