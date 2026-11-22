@@ -4,7 +4,7 @@
 // 口径，避免同名义条目重复渲染或隐藏状态错乱）；已存在条目一律保留用户编辑（描述、隐藏状
 // 态），只追加缺失条目，因此补全操作幂等且无破坏性。
 import type { CharacterOption } from '@/types/characterOption';
-import type { Character, FeatureReaction, FeatureRole, FeatureActivation, FeatureResourceKind, FeaturePoolFormula } from '@/types/character';
+import type { Character, Feature, FeatureReaction, FeatureRole, FeatureActivation, FeatureResourceKind, FeaturePoolFormula } from '@/types/character';
 import { optionStore } from '@/data/optionStore';
 import { getClassProficiencyInfo } from '@/data/classProficiencies';
 import { getSubclassDisplayName } from '@/data/subclasses';
@@ -140,4 +140,49 @@ export function computeMissingOptionFeatures(character: Character): OptionFeatur
   return collectOptionFeatureEntries(character).filter(
     (e) => !existing.has(`${e.category}:${e.name}`)
   );
+}
+
+/**
+ * 机械字段合并刷新：角色卡上已存在的库条目，机械字段（等级/作用方式/资源模型/反应声明等）
+ * 以选项库当前标注为准刷新；description 等用户编辑保留。幂等无损——老卡缺 activation/
+ * resource/poolFormula 标注时打开角色卡即自动升级（动作/池经济恢复记账），无需手动「刷新」。
+ * 返回 changed=false 时调用方跳过写入（防 effect 循环）。
+ */
+export function mergeFeatureMechanics(character: Character): {
+  features: Character['features'];
+  changed: boolean;
+} {
+  const expMap = new Map(
+    collectOptionFeatureEntries(character).map((e) => [`${e.category}:${e.name}`, e])
+  );
+  let changed = false;
+  const features = (character.features || []).map((f) => {
+    const e = expMap.get(`${f.category || ''}:${f.name}`);
+    if (!e) return f;
+    const patch: Partial<Feature> = {};
+    const seedFields: Partial<Record<keyof Feature, unknown>> = {
+      level: e.level,
+      role: e.role,
+      system: e.system,
+      systemKind: e.systemKind,
+      reaction: e.reaction,
+      activation: e.activation,
+      resource: e.resource,
+      poolFormula: e.poolFormula,
+      pool: e.pool,
+      cost: e.cost,
+    };
+    for (const [k, v] of Object.entries(seedFields)) {
+      // 库无标注（undefined）时保留卡上现有值——合并只做「库有而卡缺/过期」的升级，零破坏
+      if (v == null) continue;
+      const key = k as keyof Feature;
+      if (JSON.stringify(f[key]) !== JSON.stringify(v)) {
+        (patch as Record<string, unknown>)[k] = v;
+      }
+    }
+    if (Object.keys(patch).length === 0) return f;
+    changed = true;
+    return { ...f, ...patch };
+  });
+  return { features, changed };
 }

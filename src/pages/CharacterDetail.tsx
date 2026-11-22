@@ -48,7 +48,7 @@ import statusLibrary from '@/data/statusLibrary';
 import { useNumberInput, type UseNumberInputResult } from '@/hooks/useInput';
 import { buildAbilityEntries, collectCharacterAbilityBonuses } from '@/data/abilityBonus';
 import { computeFinalProficiencies, collectProficiencyBonusRules, buildFinalProficiencies } from '@/data/proficiencyBonus';
-import { collectClassProficiencyEntries, collectOptionFeatureEntries } from '@/data/optionFeatures';
+import { collectClassProficiencyEntries, collectOptionFeatureEntries, mergeFeatureMechanics } from '@/data/optionFeatures';
 import { warmSeed, loadSeed } from '@/data/seedLoader';
 import FeatureSystemView from '@/components/FeatureSystemView';
 import type { SystemMember } from '@/data/systemView';
@@ -1147,8 +1147,20 @@ export default function CharacterDetail({
   };
 
   // 选项库种子 chunk 晚到时重渲染一次（亚种下拉的条件渲染依赖 getSubraces）
-  const [, setOptionTick] = useState(0);
+  const [optionTick, setOptionTick] = useState(0);
   useEffect(() => optionStore.subscribe(() => setOptionTick((t) => t + 1)), []);
+
+  // 机械字段自动刷新：库条目的 role/activation/resource/poolFormula 等标注随种子演进，
+  // 老卡（手动「刷新」前创建）缺新标注会导致战斗动作/池经济零记账——打开角色卡时幂等合并
+  // （description 等用户编辑保留，库无标注的键不动，changed 才写入防循环）。draftMode 期间
+  // 劫持的是草稿会话，正式卡刷新留在提交后的正式链路，跳过避免污染草稿 diff。
+  useEffect(() => {
+    if (draftMode || externalCharacter || !character || !id) return;
+    const { features, changed } = mergeFeatureMechanics(character);
+    if (!changed) return;
+    characterStore.update(id, { features });
+    reloadChar();
+  }, [character?.id, optionTick, draftMode, externalCharacter, id]);
 
   // 打开角色时按基线重算一次最终属性值：选项缓存异步加载会改变规则集，
   // 不重算则静态值滞留旧底、与属性解析口径漂移（基线未设置时 recompute 自动跳过）

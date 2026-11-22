@@ -41,6 +41,7 @@ import { globalStatusManager } from '@/data/statusManager';
 import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
+import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { getAttackRiders, applyAttackRiders } from '@/data/attackRiders';
@@ -467,6 +468,23 @@ export default function CombatSession() {
     });
     return unsub;
   }, [sessionId]);
+
+  // 参战者角色卡机械字段自动刷新：老卡缺 activation/resource/poolFormula 标注会导致
+  // 动作/池经济零记账（特性引擎按名字命中 capability，数据面靠卡上标注）——进战时幂等合并
+  // 一次（description 保留、库无标注不动、changed 才写入防循环）；与 CharacterDetail 的
+  // 打卡刷新同源（mergeFeatureMechanics），战斗页无角色卡详情打开路径也能升级。
+  const mechanicsSyncedRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!record) return;
+    for (const c of record.combatants) {
+      if (!c.characterId || mechanicsSyncedRef.current.has(c.characterId)) continue;
+      const char = characterStore.get(c.characterId);
+      if (!char) continue;
+      const { features, changed } = mergeFeatureMechanics(char);
+      mechanicsSyncedRef.current.add(c.characterId);
+      if (changed) characterStore.update(char.id, { features });
+    }
+  }, [record?.id]);
 
   // 放映生命周期：由 hook 接管（暂停/恢复/从头播放/退出确认/initial 快照 IDB 持久化）。
   // 置于 useActions 之前：isPlaybackActive 依赖本 hook 的 playbackPaused。
@@ -1633,7 +1651,7 @@ export default function CombatSession() {
                         updatedAt: Date.now(),
                       });
                     }}
-                    title="资源消耗模式：开启后动作、移动、弹药、重装填、法术位按正式战斗规则消耗；关闭=无限资源"
+                    title="资源消耗模式：开启后动作、移动、弹药、重装填、法术位按正式战斗规则消耗；关闭=动作类资源无限（特性资源池始终记账，如卓越骰/气/回气次数）"
                     className={`px-2 sm:px-3 py-2 rounded-lg border text-sm flex items-center gap-1 transition-colors ${
                       record.resourceConsumption
                         ? 'bg-amber-500 border-amber-500 text-white hover:bg-amber-400'
