@@ -125,12 +125,24 @@ export function collectOptionFeatureEntries(character: {
     if (sub) {
       for (const t of sub.traits || []) {
         if (t.name && t.text) push({ name: t.name, description: t.text, category: '职业特性', source: sub.name, level: t.level, role: t.role, system: t.system, systemKind: t.systemKind, reaction: t.reaction, activation: t.activation, resource: t.resource, poolFormula: t.poolFormula, pool: t.pool, cost: t.cost });
+        // 体系容器成员展开（P6 战技）：学习集型容器（卓越战技）的 options 成员派生为独立
+        // 卡上条目，成员自带 system/systemKind/role 标注；预选单选型容器（引导神力）沿用
+        // chosenForm 机制，成员不入卡——展开范围按名单限定，避免超魔/魔印类全量灌卡
+        if (MEMBER_EXPAND_CONTAINERS.has(t.name) && t.systemKind === 'container' && Array.isArray(t.options)) {
+          for (const o of t.options) {
+            if (o.name && o.text) push({ name: o.name, description: o.text, category: '职业特性', source: sub.name, level: o.level, role: o.role, system: o.system, systemKind: o.systemKind, reaction: o.reaction, activation: o.activation, resource: o.resource, poolFormula: o.poolFormula, pool: o.pool, cost: o.cost });
+          }
+        }
       }
     }
   }
 
   return out;
 }
+
+/** 体系容器成员展开名单：学习集型容器的 options 成员派生为卡上独立条目（P6 战技；
+ * 单选预选型容器（引导神力/暗影技艺）沿用 chosenForm 机制，成员不入卡 */
+const MEMBER_EXPAND_CONTAINERS = new Set(['卓越战技']);
 
 /** 缺失条目 = 期望条目中角色卡上没有同 category+name 的那些 */
 export function computeMissingOptionFeatures(character: Character): OptionFeatureEntry[] {
@@ -184,5 +196,42 @@ export function mergeFeatureMechanics(character: Character): {
     changed = true;
     return { ...f, ...patch };
   });
+  // 体系容器成员追加（P6 战技）：学习集型容器（卓越战技）的池主与成员条目旧卡上不存在
+  // （extract 采集线此前不落 options，卡上从未有过），进战时按库全量补齐——面板按池聚合
+  // 展示战技列表，未学的由 DM 自律/隐藏机制管理；其余全量期望条目（熟练项等选择型内容）
+  // 仍走角色卡手动「刷新」，避免合并改变卡的构建语义。成员/池主已在卡上时 added 为空，
+  // changed 不翻转，幂等防循环。
+  const added: Character['features'] = [];
+  const existingKeys = new Set(
+    (character.features || []).map((f) => `${f.category || ''}:${f.name}`)
+  );
+  for (const [key, e] of expMap) {
+    if (existingKeys.has(key)) continue;
+    const isPoolContainer = e.systemKind === 'container' && MEMBER_EXPAND_CONTAINERS.has(e.name);
+    const isSystemMember = e.systemKind === 'member' && MEMBER_EXPAND_CONTAINERS.has(e.system ?? '');
+    if (isPoolContainer || isSystemMember) {
+      added.push({
+        id: crypto.randomUUID(),
+        name: e.name,
+        description: e.description,
+        category: e.category,
+        source: e.source,
+        level: e.level,
+        role: e.role,
+        system: e.system,
+        systemKind: e.systemKind,
+        reaction: e.reaction,
+        activation: e.activation,
+        resource: e.resource,
+        poolFormula: e.poolFormula,
+        pool: e.pool,
+        cost: e.cost,
+      });
+    }
+  }
+  if (added.length > 0) {
+    changed = true;
+    features.push(...added);
+  }
   return { features, changed };
 }
