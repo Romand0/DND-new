@@ -12,10 +12,12 @@ import type {
   AdvantageEffectConfig,
 } from '@/types/combat';
 import type { Attack, Character } from '@/types/character';
+import type { Battleground } from '@/types/battleground';
 import type { Effect } from '@/types/status';
 import { globalStatusManager } from './statusManager';
 import statusLibrary from './statusLibrary';
 import { detectPassiveFeatureRules } from './passiveCombatRules';
+import { getEffectiveTierAt, canSenseInDark, type LightTier } from './visionRules';
 
 // =======================
 // 场景匹配（通配组 → 具体场景）
@@ -70,6 +72,10 @@ export interface AdvantageContext {
   /** 全体参战者花名册（光环类被动判定：守护灵光/勇气灵光需查同阵营持有者）；
    *  未传入时光环检测器静默跳过。 */
   roster?: Combatant[] | null;
+  /** 技能检定技能键（skill_check 场景；微光察觉劣势等按技能过滤的判定需要） */
+  skillKey?: string;
+  /** 沙盘光照数据快照（视野系统 R2：黑暗/微光优劣势判定；未传入时跳过几何判定） */
+  battleground?: Pick<Battleground, 'ambientLight' | 'lightCells'> | null;
 }
 
 export type AdvantageDetector = (ctx: AdvantageContext) => AdvantageResult;
@@ -402,17 +408,93 @@ function detectPassiveFeature(ctx: AdvantageContext): AdvantageResult {
 }
 
 // =======================
+// 内置检测器 7：environment-light（黑暗中的不可见攻防，视野系统 R2）
+// =======================
+
+const ATTACK_SCENES: CheckScene[] = ['attack_melee', 'attack_ranged', 'attack_thrown', 'spell_attack'];
+
+/** 参战者感官：结构化 senses 优先，旧 darkvision 字段兜底 */
+function sensesOf(c: Combatant | null | undefined): Combatant['senses'] {
+  if (!c) return undefined;
+  if (c.senses && Object.keys(c.senses).length > 0) return c.senses;
+  return c.darkvision ? { darkvision: c.darkvision } : undefined;
+}
+
+/**
+ * 黑暗可见性判定（5e unseen attacker / unseen target）：
+ * - 掷骰方（攻方）看不见目标 → 攻击劣势
+ * - 目标看不见掷骰方（攻方隐于黑暗）→ 攻击优势
+ * 双方互不可见时优劣势抵消（resolveRollMode 统一处理）。
+ * 位置基准：以被观察者所在格光照 + 观察者感官降档判定；震颤感知/盲视尺数覆盖距离者不受黑暗影响。
+ */
+function detectEnvironmentLight(ctx: AdvantageContext): AdvantageResult {
+  const advantage: AdvantageReason[] = [];
+  const disadvantage: AdvantageReason[] = [];
+  if (!ATTACK_SCENES.includes(ctx.scene)) return { advantage, disadvantage };
+  const attacker = ctx.attacker;
+  const target = ctx.target;
+  const bg = ctx.battleground;
+  if (!attacker || !bg) return { advantage, disadvantage };
+
+  const aPos = ctx.attackerPos ?? ctx.combatantPositions?.[attacker.id] ?? null;
+  const tPos = ctx.targetPos ?? (target ? ctx.combatantPositions?.[target.id] : undefined) ?? null;
+  if (!aPos || !tPos) return { advantage, disadvantage };
+
+  const aSenses = sensesOf(attacker);
+  const tSenses = sensesOf(target);
+  const dist = ctx.distanceCells;
+
+  // 攻方视角：目标格对攻方是否黑暗且攻方无法在黑暗中定位 → 看不见目标
+  const targetSeenByAttacker =
+    getEffectiveTierAt(bg, tPos, aSenses).tier !== 'darkness' || canSenseInDark(aSenses, dist);
+  // 守方视角：攻方格对守方是否黑暗且守方无法定位 → 目标看不见攻方
+  const attackerSeenByTarget = target
+    ? getEffectiveTierAt(bg, aPos, tSenses).tier !== 'darkness' || canSenseInDark(tSenses, dist)
+    : true;
+
+  if (!targetSeenByAttacker) {
+    disadvantage.push({ kind: 'environment', label: '黑暗：看不见目标' });
+  }
+  if (!attackerSeenByTarget) {
+    advantage.push({ kind: 'environment', label: '黑暗：目标看不见你' });
+  }
+  return { advantage, disadvantage };
+}
+
+// =======================
+// 内置检测器 8：environment-dim（微光下依赖视觉的察觉劣势）
+// =======================
+
+function detectEnvironmentDim(ctx: AdvantageContext): AdvantageResult {
+  const advantage: AdvantageReason[] = [];
+  const disadvantage: AdvantageReason[] = [];
+  if (ctx.scene !== 'skill_check') return { advantage, disadvantage };
+  // 只作用于察觉（依赖视觉的感知）；其他技能检定不受微光影响
+  if (ctx.skillKey !== 'perception') return { advantage, disadvantage };
+  const roller = ctx.attacker;
+  const bg = ctx.battleground;
+  if (!roller || !bg) return { advantage, disadvantage };
+  const pos = ctx.attackerPos ?? ctx.combatantPositions?.[roller.id] ?? null;
+  if (!pos) return { advantage, disadvantage };
+  const tier: LightTier = getEffectiveTierAt(bg, pos, sensesOf(roller)).tier;
+  if (tier === 'dim') {
+    disadvantage.push({ kind: 'environment', label: '微光环境（依赖视觉的察觉劣势）' });
+  }
+  return { advantage, disadvantage };
+}
+
+// =======================
 // 模块初始化：注册内置检测器
 // =======================
 
-registerDetector('equipment', detectEquipment);
-registerDetector('positional', detectPositional);
+registerDetector('equipment', detectEquipment);registerDetector('positional', detectPositional);
 registerDetector('pending', detectPending);
 registerDetector('condition', detectCondition);
 registerDetector('trait', detectTrait);
 registerDetector('passive-feature', detectPassiveFeature);
+registerDetector('environment-light', detectEnvironmentLight);
+registerDetector('environment-dim', detectEnvironmentDim);
 
 // 预留接入点注释（不实现，仅说明）：
-// - action: dodge（被攻击者回避 → 攻击劣势）、hide（隐匿检定）
-//   registerDetector('action', (ctx) => { ... });
-// - environment: 光照/遮蔽（待光照系统建立后注册）
+// - action: hide（隐匿检定对抗 + hidden 状态落账，P3）
+// - environment: 光照（已接入 detectEnvironmentLight / detectEnvironmentDim）
