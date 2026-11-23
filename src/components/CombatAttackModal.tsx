@@ -86,6 +86,10 @@ interface Props {
   characterOverride?: Character | null;
   /** 沙盘墙体格（"col,row" 列表）：视线遮挡几何提示（掩护裁定辅助） */
   paintedCells?: string[];
+  /** 多重攻击序列锁定：本步只展示该攻击（宿主已按配方解析为精确攻击名）；未匹配步不传 = 自选攻击 */
+  lockedAttackName?: string;
+  /** 多重攻击序列步骤徽标（弹窗标题旁）：「多重攻击 第2/3击 · 爪击」 */
+  multiattackStepLabel?: string;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -93,7 +97,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, lockedAttackName, multiattackStepLabel }: Props) {
   // 掩护单次覆盖：'' = 跟随参战者标注；'none' = 本弹窗覆盖为无掩护；其余为临时等级（写回在参战者面板）
   const [coverOverride, setCoverOverride] = useState<'' | 'none' | CoverTier>('');
   const effectiveCover: CoverTier | null = coverOverride === '' ? (target?.coverTier ?? null) : coverOverride === 'none' ? null : coverOverride;
@@ -582,7 +586,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
   // 可用攻击置顶
   const sortedAttacks = useMemo(() => {
-    return [...attacks].sort((a, b) => {
+    const list = lockedAttackName ? attacks.filter(a => a.name === lockedAttackName) : attacks;
+    return [...list].sort((a, b) => {
       const sa = getAttackStatus(a).usable ? 0 : 1;
       const sb = getAttackStatus(b).usable ? 0 : 1;
       return sa - sb;
@@ -771,6 +776,11 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
             <span className="font-bold dark:text-text-dark light:text-text-light">
               {stage === 'attacks' ? (reactionMode ? '借机攻击（反应）' : '攻击方式') : '攻击检定'}
             </span>
+            {multiattackStepLabel && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400">
+                {multiattackStepLabel}
+              </span>
+            )}
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-white/10">
             <X className="w-5 h-5" />
@@ -828,6 +838,12 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
           {/* 阶段1：攻击方式列表 */}
           {stage === 'attacks' && (
             <div className="space-y-2">
+              {/* 多重攻击序列提示：本步锁定配方攻击；剩余攻击可随时主动放弃（5e 允许多次攻击中途停下） */}
+              {multiattackStepLabel && (
+                <div className="rounded-lg bg-violet-500/10 px-2.5 py-1.5 text-xs text-violet-400">
+                  {multiattackStepLabel}——本步只能使用该攻击；结束本次攻击后可随时在面板放弃剩余击数
+                </div>
+              )}
               {/* 手部装备区：攻击流程内直接调整手持（仅 PC；换手后攻击可用性实时重算） */}
               {character && (
                 <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">

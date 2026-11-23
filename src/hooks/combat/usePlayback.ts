@@ -286,6 +286,8 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
         featureUses: init.featureUses
           ? Object.fromEntries(Object.entries(init.featureUses).map(([k, v]) => [k, { ...v }]))
           : undefined,
+        // 多重攻击序列不在回合快照里：从头回溯时整体清空，避免残留进行中的队列
+        multiattackProgress: {},
         updatedAt: Date.now(),
       });
     } else if (playbackSnapshotRef.current) {

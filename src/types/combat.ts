@@ -638,6 +638,13 @@ export interface CombatRecord {
      */
     loadingAttackedThisRound?: Record<string, boolean>;
     /**
+     * 多重攻击序列（方案A：1 个 Attack 动作内按配方出 N 击，5e Multiattack 语义）。
+     * key=combatantId；queue 为配方展开后的攻击名序列，pos 为当前击下标；
+     * actionConsumed 在序列首击结算时置位——整序列只消耗 1 个动作，后续击共享。
+     * 回合开始由 resetActions 清除；从头回溯由 startPlaybackFromBeginning 清空。
+     */
+    multiattackProgress?: Record<string, { queue: string[]; pos: number; actionConsumed?: boolean }>;
+    /**
      * 本回合已发动的每回合一次 rider 特性（key=combatantId，value=特性名列表）。
      * 神圣打击等 perRound rider：getAttackRiders 据此过滤、applyAttackRiders 落地时记账。
      * 新回合由 resetTurnTodosForRound 清空。
