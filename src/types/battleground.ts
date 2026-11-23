@@ -39,6 +39,29 @@ export interface ItemToken {
 /** 特殊区域类型（地形效果） */
 export type ZoneType = 'fire' | 'poison' | 'difficult' | 'custom';
 
+/** 光照档位（视野系统 R2）：明亮 / 微光 / 黑暗 */
+export type LightTier = 'bright' | 'dim' | 'darkness';
+
+/** 光照画笔格桶：每档位独立的格子集合（同格由画笔互斥，最后涂的档位生效） */
+export interface LightCells {
+  bright: string[];
+  dim: string[];
+  darkness: string[];
+}
+
+export const LIGHT_LABELS: Record<LightTier, string> = {
+  bright: '明亮',
+  dim: '微光',
+  darkness: '黑暗',
+};
+
+/** 光照层渲染遮罩色（叠加在格子背景上；bright 用淡黄提示光源区） */
+export const LIGHT_OVERLAY: Record<LightTier, string> = {
+  bright: 'rgba(253, 224, 71, 0.18)',
+  dim: 'rgba(15, 23, 42, 0.28)',
+  darkness: 'rgba(2, 6, 23, 0.6)',
+};
+
 /**
  * 沙盘地形区域（着火、毒云等）。
  * 规则基线：《玩家手册 2014》油瓶 —— 进入区域或在区域内结束回合时受到伤害，
@@ -128,6 +151,10 @@ export interface Battleground {
   itemTokens?: ItemToken[];
   /** 被涂白的格子（边界墙），格式为 "col,row" */
   paintedCells?: string[];
+  /** 环境光照档位（无光照区域覆盖时的全图默认；未设置视为明亮） */
+  ambientLight?: LightTier;
+  /** 光照区域格桶（视野系统 R2：DM 光照画笔标注，覆盖环境档位） */
+  lightCells?: LightCells;
   /** 地形区域列表（着火、毒云等） */
   zones?: BattlegroundZone[];
   updatedAt: number;
