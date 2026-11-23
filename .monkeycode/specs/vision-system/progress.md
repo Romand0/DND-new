@@ -3,7 +3,7 @@
 ## 阶段状态
 
 - **P1 掩护完成**（2026-11-23，`61ec87f` 推送）：23 断言探针全绿，run.sh 29/29。
-- **P2 光线/感官**：未开工（环境档位骨架已落 visionRules.getAmbientLightTier）。
+- **P2 光线/感官完成**（2026-11-23，main `77bdc47` 推送）：probe-vision-p2 34 断言全绿 + p1 23 断言回归绿，build 通过。
 - **P3 隐身/决策点**：未开工。
 
 ## P1 已交付（掩护）
@@ -19,22 +19,38 @@
 - **NPC 路径修正**：computeCombatantAc NPC 提前 return 分支必须同步加掩护加值（探针 19/21 失败定位）。
 - **探针踩坑复现**：改源码后不冷重启 dev server 会大面积假 FAIL（HMR 腐化，states/todos 落账断言全空）——冷重启后 29/29 全绿，与 AGENTS.md 8.1 经验一致。
 
+## P2 已交付（光线/感官）
+
+- 数据层：`Battleground.ambientLight/lightCells`（三桶 bright/dim/darkness，与 paintedCells 同构；store `setLightCell` 桶间互斥、同档重涂=擦除、`setAmbientLight`、`clearLightCells`；load 兜底 ambientLight='bright' 与空桶）；`Combatant.senses`（darkvision/blindsight/truesight/tremorsense）
+- 引擎：visionRules `getLightTierAt`（区域 > 环境，返回 source）/`getEffectiveTierAt`（感官降档 truesight 无视光照、blindsight 黑暗→明亮、darkvision 黑暗→微光，优先级 truesight>blindsight>darkvision）/`canSenseInDark`（tremorsense/blindsight 尺数 ≥ 距离格×5）/`parseSenses`（中文感官文本正则）
+- 检测器：`environment-light`（攻击场景双向黑暗可见性，ATTACK_SCENES 四场景，互不可见时优劣势抵消交给 resolveRollMode）、`environment-dim`（仅 skill_check+perception，有效档位 dim 时劣势）；AdvantageContext 增 `skillKey`/`battleground`；AdvantageSourceKind 增 `environment`
+- UI：Battleground 环境档位三态按钮 + 光照画笔三档（DM 侧，非投影非放映）+ 光照格微光/黑暗遮罩 + 橡皮擦光照 + modeHint；CombatAttackModal/CombatSession 传 ambientLight/lightCells 入优劣势上下文；SpellCheckStep 补 attackerPos/targetPos/distanceCells/battleground（法术链黑暗判定贯通）；NpcCreator 模板 senses → parseSenses → 入战结构化
+- 探针：probe-vision-p2.cjs 34 断言（档位解析 4 / 降档矩阵 6 / canSenseInDark 4 / parseSenses 5 / environment-light 5 / environment-dim 4 + 注册 2 / 三桶写读 5）
+
+## P2 设计修正（实现期决策）
+
+- **lightZones → lightCells 三桶**：design.md 原设想 `lightZones{id,cells,tier,label}` 数组，实现改三桶字符串列表（与 paintedCells 同构，画笔/渲染/序列化/擦除统一，桶间天然互斥）；design 语义（区域覆盖环境）不变。
+- **无光源中心概念**：v1 不做「光照半径随距离衰减」，感官尺数只用于 canSenseInDark 覆盖判定与展示；truesight 一律视为无视黑暗/微光。
+- **环境档位不做全局压暗**：只渲染格级 lightCells 遮罩（明亮区不压色），避免与地形区域色冲突。
+- **微光察觉劣势限定 perception**：其他技能检定不受微光影响，靠 AdvantageContext.skillKey 区分。
+- **兜底口径**：parseSenses 全部失败返回空对象（DM 面板可后续录入），不抛出。
+
 ## 下一步
 
-1. P2 光线/感官实施：
-   - battleground 扩展 ambientLight + lightZones（load 兜底）+ Battleground 光照画笔图层（复用 paintedCells 画笔交互链）
-   - getLightTierAt 完整实现：区域覆盖 > 环境默认 → 感官降档（darkvision/blindsight/truesight 尺数）
-   - parseSenses NPC 文本解析器 + Combatant.senses 结构化（PC deriveDarkvision 迁移兼容）
-   - light-visibility / dim-perception detector 注册（模块尾部）
-   - SpellCheckStep 补传 attackerPos/targetPos/distanceCells（侦查 E3 缺口）
-2. P3 待 P2 验收后细化。
+1. P3 隐身/决策点：
+   - statusManager hidden 状态 + `hide` 动作落账（turnCommitApply）
+   - `unseen-attacker`/`unseen-target` 检测器（hidden/invisible 状态接入 Attr advantage 判定）
+   - 决策点机制：record.pendingDecisions + 圆桌信箱即时请求/回填（R5），回合末批量审批展示
+   - 探针 probe-vision-p3.cjs（隐藏落账 + 决策点往返数据级断言）
+2. 交付前 checklist：分领域探针（p1/p2/p3）全绿 + tsc + build。
 
 ## 验证命令
 
 ```bash
 npx tsc -p tsconfig.app.json --noEmit
 npm run build
-sh scripts/probes/run.sh   # 29/29（含 probe-vision-p1 23 断言）
+NODE_PATH=$(npm root -g) node scripts/probes/probe-vision-p1.cjs   # 23 断言
+NODE_PATH=$(npm root -g) node scripts/probes/probe-vision-p2.cjs   # 34 断言
 ```
 
 ## 关键上下文
