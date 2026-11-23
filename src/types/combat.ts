@@ -379,11 +379,11 @@ export interface NpcTemplate {
   sourceDir?: string;
 }
 
-/** 天生施法环阶分组（括号注记结构化：随意=无限；N法术位=总量；缺省=原文无注记，按不设限处理） */
+/** 天生施法环阶分组（括号注记/标记结构化：随意=无限；N法术位=总量；每项N/日=组内每项各自 N 次/日；N/日=组总量；缺省=原文无注记，按不设限处理） */
 export interface SpellcastingGroup {
   ring: string;
   spells: string[];
-  usage?: { kind: 'atWill' | 'slots'; count?: number };
+  usage?: { kind: 'atWill' | 'slots' | 'perDay' | 'perDayEach'; count?: number };
 }
 
 export interface NpcAttack {

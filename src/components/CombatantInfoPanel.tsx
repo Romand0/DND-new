@@ -1282,26 +1282,54 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       </div>
                       {(combatant.spellcasting.groups ?? []).map(g => {
                         const usage = g.usage;
+                        const consumeBtn = (disabled: boolean, onClick: () => void) => (
+                          <button
+                            type="button"
+                            disabled={disabled}
+                            onClick={onClick}
+                            className={`rounded px-1.5 py-0.5 text-[10px] ${disabled ? 'bg-text-dark/10 text-text-dark/40' : 'bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'}`}
+                          >
+                            消耗
+                          </button>
+                        );
+                        // 每项N/日：组内每项法术各自计数，键 ring·spell（快照还原按字符串键天然兼容）
+                        if (usage?.kind === 'perDayEach') {
+                          const count = typeof usage.count === 'number' ? usage.count : null;
+                          return (
+                            <div key={g.ring} className="space-y-1">
+                              <div className="text-violet-400/80">{g.ring}{count !== null ? `（每项${count}/日）` : ''}：</div>
+                              {g.spells.map(spell => {
+                                const key = `${g.ring}·${spell}`;
+                                const used = combatant.spellcastingUsage?.[key] ?? 0;
+                                const remaining = count !== null ? count - used : null;
+                                return (
+                                  <div key={key} className="flex items-center gap-2 pl-3">
+                                    <span className="text-violet-400/80 flex-1">
+                                      {spell}{remaining !== null ? `（剩 ${remaining}）` : ''}
+                                    </span>
+                                    {remaining !== null && !sealed && recordId && consumeBtn(remaining <= 0, () => combatStore.consumeNpcSpellcasting(recordId, combatant.id, key))}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        }
+                        const trackable = (usage?.kind === 'slots' || usage?.kind === 'perDay') && typeof usage.count === 'number';
                         const used = combatant.spellcastingUsage?.[g.ring] ?? 0;
-                        const remaining = usage?.kind === 'slots' && typeof usage.count === 'number' ? usage.count - used : null;
+                        const remaining = trackable ? usage.count - used : null;
                         const exhausted = remaining !== null && remaining <= 0;
                         return (
                           <div key={g.ring} className="flex items-center gap-2">
                             <span className="text-violet-400/80 flex-1">
                               {g.ring}
-                              {usage?.kind === 'atWill' ? '（随意）' : remaining !== null ? `（${usage.count}法术位，剩 ${remaining}）` : ''}：
+                              {usage?.kind === 'atWill'
+                                ? '（随意）'
+                                : trackable && usage.kind === 'slots' ? `（${usage.count}法术位，剩 ${remaining}）`
+                                : trackable && usage.kind === 'perDay' ? `（${usage.count}/日，剩 ${remaining}）`
+                                : ''}：
                               {g.spells.join('、')}
                             </span>
-                            {remaining !== null && !sealed && recordId && (
-                              <button
-                                type="button"
-                                disabled={exhausted}
-                                onClick={() => combatStore.consumeNpcSpellcasting(recordId, combatant.id, g.ring)}
-                                className={`rounded px-1.5 py-0.5 text-[10px] ${exhausted ? 'bg-text-dark/10 text-text-dark/40' : 'bg-violet-500/20 text-violet-300 hover:bg-violet-500/30'}`}
-                              >
-                                消耗
-                              </button>
-                            )}
+                            {remaining !== null && !sealed && recordId && consumeBtn(exhausted, () => combatStore.consumeNpcSpellcasting(recordId, combatant.id, g.ring))}
                           </div>
                         );
                       })}
