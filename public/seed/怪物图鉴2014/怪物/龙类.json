@@ -5429,7 +5429,40 @@
     "id": "f0e84c81-66c0-4736-92e7-ef11d09e030d",
     "createdAt": 1793607170320,
     "updatedAt": 1793607174,
-    "campaignId": null
+    "campaignId": null,
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "舞光术",
+            "法师之手",
+            "次级幻象"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
+        },
+        {
+          "ring": "1/日",
+          "spells": [
+            "七彩喷射",
+            "镜影术",
+            "暗示术",
+            "高级幻影",
+            "幻景",
+            "变形术"
+          ],
+          "usage": {
+            "kind": "perDay",
+            "count": 1
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "ancient-copper-dragon",

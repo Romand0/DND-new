@@ -95,11 +95,34 @@
             "侦测思想",
             "隐形术",
             "法师之手",
-            "高级幻影",
+            "高级幻影"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "恐惧术",
             "飞行术",
             "火球术",
             "巧言术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "位面转移"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -595,9 +618,32 @@
           "spells": [
             "侦测魔法",
             "侦测思想",
-            "法师之手",
+            "法师之手"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "恐惧术",
             "隐形术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "火球术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -1576,9 +1622,22 @@
           "ring": "随意",
           "spells": [
             "侦测思想",
-            "浮空术",
+            "浮空术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "支配怪物",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -1712,12 +1771,35 @@
             "侦测思想",
             "隐形术",
             "法师之手",
-            "高级幻影",
+            "高级幻影"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "恐惧术",
             "火球术",
             "飞行术",
-            "巧言术",
+            "巧言术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "死云术",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },

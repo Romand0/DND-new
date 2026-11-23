@@ -270,7 +270,10 @@
             "法师之手",
             "魔法伎俩",
             "冷冻射线"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -279,7 +282,11 @@
             "魔法飞弹",
             "护盾术",
             "雷鸣波"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
@@ -288,7 +295,11 @@
             "隐形术",
             "马友夫强酸箭",
             "镜影术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
@@ -297,48 +308,76 @@
             "反制法术",
             "解除魔法",
             "火球术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
           "spells": [
             "枯萎术",
             "任意门"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
           "spells": [
             "死云术",
             "探知术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "6环",
           "spells": [
             "解离术",
             "法术无效结界"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         },
         {
           "ring": "7环",
           "spells": [
             "死亡一指",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         },
         {
           "ring": "8环",
           "spells": [
             "支配怪物",
             "律令震慑"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         },
         {
           "ring": "9环",
           "spells": [
             "律令死亡"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         }
       ]
     },
@@ -1143,34 +1182,54 @@
             "命令术",
             "强令对决",
             "炽焰斩"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "定身类人",
             "魔化武器"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "解除魔法",
             "元素武器"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
           "spells": [
             "放逐术",
             "惊惧斩"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
           "spells": [
             "湮灭波"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         }
       ]
     },
@@ -1790,7 +1849,10 @@
           "spells": [
             "圣火术",
             "奇术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -1798,7 +1860,11 @@
             "命令术",
             "光导箭",
             "虔诚护盾"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
@@ -1806,34 +1872,54 @@
             "定身类人",
             "沉默术",
             "灵体武器"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "活化死尸",
             "解除魔法"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
           "spells": [
             "预言术",
             "信仰守卫"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
           "spells": [
             "疫病术",
             "疫病虫群"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         },
         {
           "ring": "6环",
           "spells": [
             "重伤术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         }
       ]
     },
@@ -2294,27 +2380,42 @@
           "ring": "戏法",
           "spells": [
             "法师之手"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
           "spells": [
             "魔法飞弹",
             "护盾术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "朦胧术",
             "炽焰法球"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "火球术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         }
       ]
     },
