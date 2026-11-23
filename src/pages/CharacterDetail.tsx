@@ -1615,6 +1615,40 @@ export default function CharacterDetail({
           {renderSpellDice(feature.description)}
         </p>
       )}
+      {feature.systemKind === 'container' && feature.system && (() => {
+        // 体系容器内嵌固定滚动窗口：只列该角色已选成员（全貌在「体系」分页查看）；
+        // 成员不再作为独立卡片出现在各分页，此处是它们在详情页的唯一展示位
+        const owned = (character?.features ?? [])
+          .filter((f) => f.systemKind === 'member' && f.system === feature.system)
+          .sort((a, b) => (a.level ?? 0) - (b.level ?? 0) || a.name.localeCompare(b.name, 'zh'));
+        if (owned.length === 0) return null;
+        return (
+          <div className="rounded-lg border dark:border-border-dark light:border-border-light overflow-hidden">
+            <div className="px-2 py-1 text-[11px] dark:text-text-dark-muted light:text-text-light-muted border-b dark:border-border-dark light:border-border-light bg-black/[0.03] dark:bg-white/[0.03]">
+              已选战技 / 子条目（{owned.length}）
+            </div>
+            <div className="max-h-44 overflow-y-auto divide-y dark:divide-border-dark light:divide-border-light">
+              {owned.map((m) => (
+                <div key={m.id} className="px-2 py-1.5 space-y-0.5">
+                  <div className="text-xs font-medium dark:text-text-dark light:text-text-light flex items-center gap-1.5">
+                    {m.name}
+                    {m.level != null && (
+                      <span className="text-[10px] px-1 rounded-full bg-primary/10 text-primary flex-shrink-0">
+                        Lv.{m.level}
+                      </span>
+                    )}
+                  </div>
+                  {m.description && (
+                    <p className="text-[11px] dark:text-text-dark-muted light:text-text-light-muted leading-relaxed whitespace-pre-wrap">
+                      {renderSpellDice(m.description)}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
     );
   };
@@ -3190,7 +3224,9 @@ if (character) {
                     !hiddenFeatures.has(`${f.category || ''}:${f.name}`)
                 );
                 const profGroup = visible.filter((f) => proficiencyEntryLabels[f.name]);
-                const normalGroup = visible.filter((f) => !proficiencyEntryLabels[f.name]);
+                // 体系成员（systemKind='member'，如指挥官奇袭）归属体系分页/容器卡片内滚动窗口，
+                // 主动/被动等分页不再作为独立卡片出现；搜索模式例外（明确意图定位仍可命中）
+                const normalGroup = visible.filter((f) => !proficiencyEntryLabels[f.name] && f.systemKind !== 'member');
                 const groups: Record<FeatureRole, Feature[]> = {
                   active: normalGroup.filter((f) => deriveFeatureRole(f) === 'active'),
                   passive: normalGroup.filter((f) => deriveFeatureRole(f) === 'passive'),
