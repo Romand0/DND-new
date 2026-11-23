@@ -8,6 +8,7 @@ import { characterStore } from '@/data/characterStore';
 import type { SpellSlotLevel } from '@/types/character';
 import type { CombatRecord, ReactionPrompt } from '@/types/combat';
 import { detectReactions } from '@/data/reactionRules';
+import { globalStatusManager } from '@/data/statusManager';
 import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
@@ -241,6 +242,26 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
           c.id === actor.id ? { ...c, dashExtraMovement: (c.dashExtraMovement ?? 0) + battleSpeed } : c
         ),
         updatedAt: Date.now(),
+      });
+      if (!consumedAction) {
+        consumeAction(actor.id);
+        consumedAction = true;
+      }
+    } else if (op.kind === 'dodge') {
+      // 回避：挂 dodging 状态（放映锚定自己下回合开始自动解除；模拟模式由 DM 手动解除），
+      // 失能/速度归零由 advantageRules 读取时判定失效
+      globalStatusManager.applyEffect(actor.id, 'dodging', 'combat', record.id, {
+        durationRounds: 1,
+        ...(record.mode === 'playback'
+          ? { combatMode: 'playback' as const, startRound: request.round - 1, untilNextTurn: true, anchorCombatantId: actor.id, turnCount: 1 }
+          : { combatMode: 'simulation' as const }),
+      });
+      combatStore.addTurnTodo(record.id, {
+        combatantId: actor.id,
+        name: '回避增益持续中（下回合开始解除）',
+        type: 'condition_check',
+        startRound: request.round - 1,
+        endRound: request.round,
       });
       if (!consumedAction) {
         consumeAction(actor.id);

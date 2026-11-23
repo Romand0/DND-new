@@ -154,6 +154,10 @@ export type TurnCommitOp =
       kind: 'dash';
       roundText: string;
     }
+  | {
+      kind: 'dodge';
+      roundText: string;
+    }
   | { kind: 'end-turn' };
 
 export interface TurnCommitPayload {
