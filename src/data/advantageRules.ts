@@ -80,6 +80,10 @@ export type AdvantageDetector = (ctx: AdvantageContext) => AdvantageResult;
 
 // 判断是否远程武器
 function isRangedWeapon(attack: Attack | NpcAttack): boolean {
+  // 怪物图鉴口径：提取器（parse-monsters.mjs）对近战也恒填 normalRange/maxRange（触及5尺 → 5/5），
+  // 「normalRange>0 即远程」启发式对怪物近战全误判；range 前缀「触及/射程」是解析链的
+  // 权威近远程标记（种子全量命中），「触及」直接判近战（含触及>5 的长触及）
+  if (attack.range?.startsWith('触及')) return false;
   if (attack.subtype) {
     if (attack.subtype.includes('远程') || attack.subtype.includes('弹药')) return true;
   }

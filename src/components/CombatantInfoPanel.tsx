@@ -343,6 +343,9 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   };
 
   const isRangedWeapon = (attack: Attack | NpcAttack): boolean => {
+    // 怪物图鉴口径：提取器对近战也恒填 normalRange/maxRange，「normalRange>0 即远程」失效；
+    // range 前缀「触及/射程」是解析链权威近远程标记（与 advantageRules/reactionRules 副本同步维护）
+    if (attack.range?.startsWith('触及')) return false;
     // 优先检查子分类
     if (attack.subtype) {
       if (attack.subtype.includes('远程') || attack.subtype.includes('弹药')) return true;
@@ -387,10 +390,12 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
       const meleeFeet = meleeMatch ? parseInt(meleeMatch[1], 10) : 5;
       ranges.push({ label: '近战', value: meleeRange, feet: meleeFeet });
     }
-    if (hasNormal) {
+    // 常规/最大段仅远程/投掷武器展示：怪物近战恒填 normalRange/maxRange（触及5尺 → 5/5），
+    // 不过滤会与近战段并排出「常规5尺/最大5尺」伪段（与 CombatAttackModal.getRangeInfo 同口径）
+    if (hasNormal && (isRanged || isThrown)) {
       ranges.push({ label: '常规', value: `${attack.normalRange}尺`, feet: attack.normalRange });
     }
-    if (hasMax) {
+    if (hasMax && (isRanged || isThrown)) {
       ranges.push({ label: '最大', value: `${attack.maxRange}尺`, feet: attack.maxRange });
     }
     return ranges;
