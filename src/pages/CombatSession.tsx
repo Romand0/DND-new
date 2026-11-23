@@ -2318,6 +2318,7 @@ export default function CombatSession() {
           attackerPos={attackModal.attackerPos}
           targetPos={attackModal.targetPos}
           combatantPositions={combatantPositions}
+          paintedCells={record ? battlegroundStore.get(record.id)?.paintedCells : undefined}
           combatInventory={getCombatInventory(record, liveAttackModalAttacker ?? attackModal.attacker)}
           targetCharacter={liveAttackModalTarget?.characterId ? characterStore.get(liveAttackModalTarget.characterId) : null}
           targetCombatInventory={getCombatInventory(record, liveAttackModalTarget ?? attackModal.target)}
@@ -2582,6 +2583,7 @@ export default function CombatSession() {
             attackerPos={ownerPos ? { col: ownerPos.col, row: ownerPos.row } : undefined}
             targetPos={targetPos}
             combatantPositions={combatantPositions}
+            paintedCells={record ? battlegroundStore.get(record.id)?.paintedCells : undefined}
             combatInventory={getCombatInventory(record, owner)}
             targetCharacter={reactionTarget.characterId ? characterStore.get(reactionTarget.characterId) : null}
             targetCombatInventory={getCombatInventory(record, reactionTarget)}
