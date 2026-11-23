@@ -9,11 +9,11 @@
 | 消耗重构（整序列 1 动作）+ 终点推进（miss/伤害结算） | [x] |
 | 面板入口（多重攻击按钮 + 进度 chip + 结束序列） | [x] |
 | 回溯清空（startPlaybackFromBeginning） | [x] |
-| 探针 + 构建 + 合并推送 | [x] |
+| 探针 + 构建 + 合并推送 | [x] 已推送 main 2b3ef62（2026-11-23） |
 
 ## 已决策
 - 方案 A：Multiattack = 「1 个 Attack 动作内按配方出 N 击」；动作在首击结算时消耗一次（actionConsumed 标记），后续击共享该动作
-- 配方步骤解析（resolveMultiattackStep，纯函数）：精确名 → 锁定；一方包含另一方（CHM 噪声「鞭攻击」vs「鞭击」）→ 锁定；失配（49/329 步，如「投掷烈焰」「近战攻击」）→ 该步自选攻击，配方名仍展示
+- 配方步骤解析（resolveMultiattackStep，纯函数）：精确名 → 锁定；**唯一**包含关系 → 锁定（如「匕首」vs「匕首（近战/远程）」）；歧义子串或失配（含「鞭攻击」vs「鞭击」这类无包含关系的近形名，49/329 步）→ 该步自选攻击，配方名仍展示交 DM 裁决
 - 步骤间目标由 DM 显式选择（复用现有 openAttackFor 目标挑选），不自动猜目标开弹窗
 - 回合开始 resetActions 清序列；从头回溯 startPlaybackFromBeginning 清空全部序列
 - PC Extra Attack 同源但不在本轮：序列基建是通用的（queue 由配方展开），PC 侧待后续接职业特性推导
