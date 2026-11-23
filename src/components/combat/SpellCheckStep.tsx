@@ -6,6 +6,7 @@ import { Dices } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
 import combatStore from '@/data/combatStore';
+import battlegroundStore from '@/data/battlegroundStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
 import { detectCheckModifiers, computeModifierTotal, collectDiceRequests, getAppliedModifierRefs, type CheckModifierContext } from '@/data/checkModifierRules';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
@@ -151,6 +152,13 @@ export default function SpellCheckStep({
   // 掷骰方挂在 ctx.attacker（引擎的 self 侧），另一方挂在 ctx.target（incoming 侧）。
   const roller = checkType === 'save' ? target : caster;
   const counterpart = checkType === 'save' ? caster : target;
+  // 位置与光照快照（视野系统：法术攻击场景的黑暗可见性判定）
+  const rollerPos = combatantPositions?.[roller.id] ?? null;
+  const counterpartPos = combatantPositions?.[counterpart.id] ?? null;
+  const lightDistanceCells = rollerPos && counterpartPos
+    ? Math.max(Math.abs(rollerPos.col - counterpartPos.col), Math.abs(rollerPos.row - counterpartPos.row))
+    : undefined;
+  const bgSnapshot = recordId ? battlegroundStore.get(recordId) : null;
   const advantageContext: AdvantageContext = {
     scene: (checkType === 'save' ? 'saving_throw' : 'spell_attack') as CheckScene,
     currentRound,
@@ -160,8 +168,12 @@ export default function SpellCheckStep({
     targetCharacter: checkType === 'save' ? casterCharacter : (targetCharacter ?? null),
     saveAbility: checkType === 'save' ? SAVE_ATTR_MAP[saveAttribute] : undefined,
     sourceSpellName: spellName,
+    attackerPos: rollerPos,
+    targetPos: counterpartPos,
+    distanceCells: lightDistanceCells,
     combatantPositions,
     roster: combatStore.get(recordId)?.combatants ?? null,
+    battleground: bgSnapshot ? { ambientLight: bgSnapshot.ambientLight, lightCells: bgSnapshot.lightCells } : null,
     recordId,
     roundCtx: getCombatRoundCtx(recordId),
   };
