@@ -598,6 +598,42 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'shield-off',
       },
     });
+
+    this.register({
+      id: 'dodging',
+      name: '回避',
+      description: '你专注于回避攻击：至你的下一回合开始前，你可见的敌人对你发动的攻击检定（近战/远程/法术攻击）具有劣势；你的敏捷豁免检定具有优势（豁免法术不受影响）。陷入失能或可用速度归零（能力上，缠绕/约束等）时增益立即失效。',
+      shortDescription: '回避：攻击对你劣势 / 敏捷豁免优势（失能或速度归零即失效）',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：基础动作「回避」（消耗 1 动作）。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '你的下一回合开始；或陷入失能 / 可用速度归零（增益读取时判定失效）。',
+      },
+      duration: { type: 'permanent' },
+      effects: [
+        {
+          id: 'dodging.incoming_attack_disadvantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'disadvantage', scene: 'attack', appliesTo: 'incoming', label: '回避（攻击劣势）' },
+          description: '可见敌人对你发动的攻击检定具有劣势（含法术攻击，豁免法术除外）',
+        },
+        {
+          id: 'dodging.dex_save_advantage',
+          type: 'advantage',
+          target: 'self',
+          config: { mode: 'advantage', scene: 'saving_throw', ability: 'dexterity', appliesTo: 'self', label: '回避（敏捷豁免优势）' },
+          description: '你的敏捷豁免检定具有优势',
+        },
+      ],
+      ui: {
+        badgeColor: 'sky',
+        icon: 'shield',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {

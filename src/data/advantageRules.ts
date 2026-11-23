@@ -222,6 +222,12 @@ function collectSideConditions(
   const instances = globalStatusManager.getActiveStatuses(combatant.id, 'combat', ctx.roundCtx);
 
   for (const instance of instances) {
+    // 回避增益读取时失效：持有者失能或能力速度归零时增益不再生效
+    //（速度 = 上限 speed+speedModifier；已耗移动/疾走属移动经济，不影响回避）
+    if (instance.definitionId === 'dodging') {
+      const speed = (combatant.speed ?? 30) + (combatant.speedModifier ?? 0);
+      if (combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated || speed <= 0) continue;
+    }
     const definition = statusLibrary.get(instance.definitionId);
     const statusLabel = definition?.name ?? instance.definitionId;
     const instanceEffects: Effect[] = [
