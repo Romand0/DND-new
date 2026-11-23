@@ -1350,10 +1350,11 @@ async function main() {
   check('16a DM 端回气（heal）：填 7 → HP 恢复 12（1d10(线下骰)=7 + 战士等级×1=5）',
     healed16 === 12 && healUi.hp <= (beforeHeal.maxHp ?? 999), { ...beforeHeal, ...healUi, healed16, dialog: healDialog16 });
   check('16b heal 池扣 +1、附赠动作扣 1（槽位差值）', healUi.uses === 1 && healUi.bonus === 0, healUi);
-  // 16l skill 事件 + 先攻表双写（§5.2）：结算明细行用标记语言（数值【】），事件流与先攻表同源
-  check('16l skill 事件 + 先攻表/操作日志结算行：heal 明细标记语言（恢复【12】点生命 + 1d10(线下骰)=【7】）',
-    healUi.skillEvts16.some(t => t.includes('《回气》→') && t.includes('恢复【12】点生命') && t.includes('1d10(线下骰)=【7】'))
-      && (healUi.logText ?? '').includes('恢复【12】点生命') && (healUi.logText ?? '').includes('1d10(线下骰)=【7】'), healUi);
+  // 16l skill 事件 + 先攻表双写（§5.2）：结算行结果导向（数值【】），计算过程只走 alert 不进记录
+  check('16l skill 事件 + 先攻表/操作日志结算行：结果导向（恢复【12】点生命，无过程标记）',
+    healUi.skillEvts16.some(t => t.includes('《回气》→') && t.includes('恢复【12】点生命'))
+      && (healUi.logText ?? '').includes('恢复【12】点生命')
+      && !(healUi.logText ?? '').includes('1d10(线下骰)'), healUi);
   // 16c conv 单目标（无踪步 hide）：数据级直调 runner（UI 面板交互链时序不稳，改为等价数据断言）
   const hideCh = await page.evaluate(async () => {
     const combatStore = (await import('/src/data/combatStore.ts')).default;
