@@ -221,6 +221,9 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   // usageMode: 投掷武器的使用方式（近战/投掷）；纯远程或纯近战武器忽略此参数
   type UsageMode = 'melee' | 'thrown';
   const isRangedWeapon = (attack: Attack | NpcAttack): boolean => {
+    // 怪物图鉴口径：提取器对近战也恒填 normalRange/maxRange，「normalRange>0 即远程」失效；
+    // range 前缀「触及/射程」是解析链权威近远程标记（与 advantageRules/reactionRules 副本同步维护）
+    if (attack.range?.startsWith('触及')) return false;
     if (attack.subtype) {
       if (attack.subtype.includes('远程') || attack.subtype.includes('弹药')) return true;
     }

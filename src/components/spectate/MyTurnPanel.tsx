@@ -94,6 +94,9 @@ function DialogShell({ title, onClose, children, footer }: {
 
 /** 武器是否远程（飞矢动画与先攻表格标注用：弹药/投掷属性或带射程数据） */
 function isRangedAttack(atk: Attack | NpcAttack): boolean {
+  // 怪物图鉴口径：提取器对近战也恒填 normalRange/maxRange，「normalRange>0 即远程」失效；
+  // range 前缀「触及/射程」是解析链权威近远程标记（与其他 isRangedWeapon 副本同步维护）
+  if (atk.range?.startsWith('触及')) return false;
   const props = atk.properties ?? [];
   return props.includes('弹药') || props.includes('投掷') || ((atk as Attack).normalRange ?? 0) > 0;
 }
