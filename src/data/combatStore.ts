@@ -1,4 +1,5 @@
-import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent, ReactionPrompt } from '@/types/combat';
+import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent, ReactionPrompt, CoverTier } from '@/types/combat';
+import { getCoverBonus } from '@/data/visionRules';
 import { scopedKey } from '@/data/campaignScope';
 import { pushCharacterLog } from '@/lib/characterLog';
 import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
@@ -301,9 +302,13 @@ export function computeCombatantAc(
   combatant: Combatant,
   character: Character | null | undefined,
   combatInventory?: Equipment[] | null,
+  /** 单次覆盖掩护等级（攻击弹窗临时改判时传；undefined = 读参战者标注） */
+  coverOverride?: CoverTier | null,
 ): number {
-  // NPC：直接返回 combatant.ac
-  if (!character || !combatant.isPc) return combatant.ac ?? 0;
+  // NPC：直接返回 combatant.ac + 掩护加值（掩护等级读参战者标注，弹窗可单次覆盖）
+  if (!character || !combatant.isPc) {
+    return (combatant.ac ?? 0) + getCoverBonus(coverOverride !== undefined ? coverOverride : combatant.coverTier);
+  }
   const inventory = combatInventory ?? character.equipment as Equipment[] | undefined ?? [];
   const dex = character.abilities?.dexterity?.modifier ?? 0;
 
@@ -374,6 +379,8 @@ export function computeCombatantAc(
       if (!isNaN(outfitParsed) && outfitParsed > ac) ac = outfitParsed;
     }
   }
+  // 掩护加值（DM 在参战者面板标注；total 全身掩护直接瞄准被阻断，AC 加值仍按 half/3q 语义给 0）
+  ac += getCoverBonus(coverOverride !== undefined ? coverOverride : combatant.coverTier);
   return ac;
 }
 
