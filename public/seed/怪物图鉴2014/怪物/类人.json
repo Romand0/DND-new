@@ -574,7 +574,81 @@
     "id": "1ee8570a-cf87-49ae-866a-9171a4a6bc8e",
     "createdAt": 1793607170321,
     "updatedAt": 1793607178,
-    "campaignId": null
+    "campaignId": null,
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "神导术",
+            "圣火术",
+            "奇术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "庇护术",
+            "虔诚护盾"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "灵体武器"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "灵体卫士",
+            "巧言术"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "操控水体",
+            "预言术"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "群体疗伤术",
+            "探知术"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "thug",
@@ -797,10 +871,23 @@
         {
           "ring": "随意",
           "spells": [
-            "回避侦测",
+            "回避侦测"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "目盲",
             "朦胧术",
             "易容术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -1099,11 +1186,24 @@
           "ring": "随意",
           "spells": [
             "羽落术",
-            "法师之手",
+            "法师之手"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "疗伤术",
             "变巨",
             "灼热金属",
             "镜影术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -1200,7 +1300,10 @@
             "法师之手",
             "魔法伎俩",
             "电爪"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -1209,7 +1312,11 @@
             "鉴定术",
             "法师护甲",
             "魔法飞弹"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
@@ -1217,7 +1324,11 @@
             "侦测思想",
             "镜影术",
             "迷踪步"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
@@ -1225,7 +1336,11 @@
             "法术反制",
             "飞行术",
             "闪电束"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
@@ -1233,7 +1348,11 @@
             "放逐术",
             "火焰护盾",
             "石肤术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
@@ -1241,31 +1360,51 @@
             "寒冰锥",
             "探知术",
             "力场墙"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "6环",
           "spells": [
             "法术无效结界"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         },
         {
           "ring": "7环",
           "spells": [
             "传送术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         },
         {
           "ring": "8环",
           "spells": [
             "心灵屏障"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         },
         {
           "ring": "9环",
           "spells": [
             "时间停止"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         }
       ]
     },
@@ -1443,21 +1582,32 @@
             "神导术",
             "抵抗术",
             "奇术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
           "spells": [
             "祝福术",
             "命令术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "卜筮术",
             "灵体武器"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         }
       ]
     },
@@ -1917,7 +2067,10 @@
           "spells": [
             "神导术",
             "奇术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -1925,21 +2078,33 @@
             "祝福术",
             "侦测魔法",
             "光导箭"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "定身类人",
             "灵体武器"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "群体治愈真言",
             "巧言术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         }
       ]
     },
@@ -2189,7 +2354,35 @@
     "id": "5a4973b8-d008-409d-8e0b-51fb72f7cbca",
     "createdAt": 1793607170321,
     "updatedAt": 1793607178,
-    "campaignId": null
+    "campaignId": null,
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "圣火术",
+            "奇术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "灾祸术",
+            "虔诚护盾"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "assassin",
@@ -2717,7 +2910,10 @@
             "光亮术",
             "法师之手",
             "魔法伎俩"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -2726,14 +2922,22 @@
             "法师护甲",
             "魔法飞弹",
             "护盾术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "迷踪步",
             "暗示术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
@@ -2741,20 +2945,32 @@
             "法术反制",
             "火球术",
             "飞行术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
           "spells": [
             "高等隐形术",
             "冰风暴"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
           "spells": [
             "寒冰锥"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         }
       ]
     },
@@ -2938,7 +3154,10 @@
             "光亮术",
             "圣火术",
             "奇术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -2946,14 +3165,22 @@
             "命令术",
             "致伤术",
             "虔诚护盾"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "定身类人",
             "灵体武器"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         }
       ]
     },
@@ -3151,9 +3378,22 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -3266,10 +3506,23 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火",
             "浮空术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -3789,12 +4042,35 @@
         {
           "ring": "随意",
           "spells": [
-            "法师之手",
+            "法师之手"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "羽落术",
             "跳跃术",
             "识破隐形",
-            "护盾术每项",
+            "护盾术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "魅影杀手",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -4329,7 +4605,10 @@
             "光亮术",
             "圣火术",
             "奇术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -4337,7 +4616,11 @@
             "祝福术",
             "疗伤术",
             "庇护术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         }
       ]
     },
@@ -4453,10 +4736,23 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火",
             "浮空术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -4544,7 +4840,10 @@
             "德鲁伊伎俩",
             "燃火术",
             "橡棍术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -4553,14 +4852,22 @@
             "大步奔行",
             "动物交谈",
             "雷鸣波"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "动物信使",
             "树肤术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         }
       ]
     },
@@ -4719,12 +5026,35 @@
         {
           "ring": "随意",
           "spells": [
-            "法师之手",
+            "法师之手"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "跳跃术",
             "迷踪步",
             "回避侦测",
-            "巧言术",
+            "巧言术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "位面转移",
             "心灵遥控"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -5374,28 +5704,43 @@
             "德鲁伊伎俩",
             "燃火术",
             "荆棘之鞭"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
           "spells": [
             "纠缠术",
             "云雾术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "灼热金属",
             "荆棘丛生"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "咒唤兽群",
             "植物滋长"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         }
       ]
     },
@@ -5740,10 +6085,23 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火",
             "浮空术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -5845,7 +6203,10 @@
             "光亮术",
             "圣火术",
             "奇术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -5853,21 +6214,33 @@
             "疗伤术",
             "光导箭",
             "庇护术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "次等复原术",
             "灵体武器"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "解除魔法",
             "灵体卫士"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         }
       ]
     },

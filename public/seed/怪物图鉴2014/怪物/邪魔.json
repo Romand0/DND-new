@@ -184,7 +184,35 @@
     "id": "1d6a017b-0181-4aa0-9d3b-64df617a0387",
     "createdAt": 1793607170320,
     "updatedAt": 1793607173,
-    "campaignId": null
+    "campaignId": null,
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "易容术",
+            "命令术",
+            "侦测魔法"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "位面转移"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "erinyes",
@@ -392,11 +420,34 @@
             "侦测魔法",
             "侦测思想",
             "解除魔法",
-            "隐形术",
+            "隐形术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "任意门",
             "恐惧术",
-            "火墙术",
+            "火墙术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "火焰风暴",
             "集体暗示术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -619,7 +670,10 @@
             "灼热",
             "隐形术",
             "魔法飞弹"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         }
       ]
     },
@@ -722,15 +776,38 @@
             "侦测思想",
             "易容术",
             "法师之手",
-            "次级幻象",
+            "次级幻象"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "魅惑类人",
             "侦测魔法",
             "隐形术",
             "高级幻影",
-            "暗示术",
+            "暗示术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "支配类人",
             "飞行术",
             "位面转移",
             "真知术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -1120,7 +1197,20 @@
           "spells": [
             "侦测思想",
             "蛛网术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "支配类人"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -1600,7 +1690,34 @@
     "id": "79eab7c1-48c0-42f5-8c00-73776e808c07",
     "createdAt": 1793607170321,
     "updatedAt": 1793607180,
-    "campaignId": null
+    "campaignId": null,
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 11,
+      "groups": [
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "黑暗术",
+            "解除魔法"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        },
+        {
+          "ring": "1/日",
+          "spells": [
+            "死云术"
+          ],
+          "usage": {
+            "kind": "perDay",
+            "count": 1
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "glabrezu",
@@ -1682,9 +1799,22 @@
           "spells": [
             "黑暗术",
             "侦测魔法",
-            "解除魔法",
+            "解除魔法"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "困惑术",
             "律令震慑"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -2713,7 +2843,35 @@
     "id": "b405801f-d0a2-49ee-94b5-46101bf69bf7",
     "createdAt": 1793607170319,
     "updatedAt": 1793607171,
-    "campaignId": null
+    "campaignId": null,
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "纠缠术",
+            "魅影之力"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "易容术",
+            "隐形术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "manes",
@@ -2996,9 +3154,22 @@
           "ring": "随意",
           "spells": [
             "侦测魔法",
-            "火球术",
+            "火球术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "定身怪物",
             "火墙术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
         }
       ]
     },

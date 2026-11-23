@@ -4161,7 +4161,10 @@
             "灼热",
             "隐形术",
             "魔法飞弹"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         }
       ]
     },
@@ -5417,7 +5420,35 @@
     "source": "怪物图鉴 2014",
     "sourceDir": "邪魔",
     "creatureSize": 3,
-    "creatureType": "fiend"
+    "creatureType": "fiend",
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "纠缠术",
+            "魅影之力"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "易容术",
+            "隐形术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "basilisk",
@@ -7522,7 +7553,35 @@
     "source": "怪物图鉴 2014",
     "sourceDir": "邪魔",
     "creatureSize": 2,
-    "creatureType": "fiend"
+    "creatureType": "fiend",
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 14,
+      "groups": [
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "易容术",
+            "命令术",
+            "侦测魔法"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "位面转移"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "camel",
@@ -8809,16 +8868,39 @@
           "spells": [
             "侦测善恶",
             "侦测魔法",
-            "侦测思想",
+            "侦测思想"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "祝福术",
             "造粮术",
             "疗伤术",
             "次等复原术",
             "防护毒素",
             "庇护术",
-            "护盾术",
+            "护盾术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "托梦术",
             "高等复原术",
             "探知术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -9366,15 +9448,38 @@
           "spells": [
             "侦测善恶",
             "侦测魔法",
-            "塑石术",
+            "塑石术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "穿墙术",
             "地动术",
-            "巧言术",
+            "巧言术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "咒唤元素",
             "气化形体",
             "隐形术",
             "魅影杀手",
             "位面转移",
             "石墙术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -9801,12 +9906,35 @@
             "侦测思想",
             "隐形术",
             "法师之手",
-            "高级幻影",
+            "高级幻影"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "恐惧术",
             "火球术",
             "飞行术",
-            "巧言术",
+            "巧言术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "死云术",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -10173,9 +10301,22 @@
         {
           "ring": "随意",
           "spells": [
-            "侦测善恶",
+            "侦测善恶"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "通神术",
             "死者复活"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -10406,15 +10547,38 @@
           "spells": [
             "侦测善恶",
             "侦测魔法",
-            "雷鸣波",
+            "雷鸣波"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "造粮术",
             "巧言术",
-            "御风而行",
+            "御风而行"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "咒唤元素",
             "造物术",
             "气化形体",
             "隐形术",
             "高级幻影",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -10853,9 +11017,22 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -10962,9 +11139,22 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -11075,10 +11265,23 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火",
             "浮空术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -11188,10 +11391,23 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火",
             "浮空术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -11307,10 +11523,23 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火",
             "浮空术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -11514,11 +11743,34 @@
         {
           "ring": "随意",
           "spells": [
-            "德鲁伊伎俩",
-            "神莓术",
+            "德鲁伊伎俩"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "纠缠术",
+            "神莓术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "树肤术",
             "行动无踪",
             "橡棍术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -11993,14 +12245,37 @@
         {
           "ring": "随意",
           "spells": [
-            "侦测魔法",
-            "巧言术",
+            "侦测魔法"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "变巨",
+            "巧言术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "咒唤元素",
             "气化形体",
             "隐形术",
             "高级幻影",
             "位面转移",
             "火墙术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -12244,12 +12519,25 @@
             "高等复原术",
             "行动无踪",
             "水下呼吸",
-            "水上行走",
+            "水上行走"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "通神术",
             "驱逐善恶",
             "地震术",
             "火焰风暴",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -12673,7 +12961,40 @@
     "source": "怪物图鉴 2014",
     "sourceDir": "龙类",
     "creatureSize": 0,
-    "creatureType": "dragon"
+    "creatureType": "dragon",
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 13,
+      "groups": [
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "舞光术",
+            "法师之手",
+            "次级幻象"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
+        },
+        {
+          "ring": "1/日",
+          "spells": [
+            "七彩喷射",
+            "镜影术",
+            "暗示术",
+            "高级幻影",
+            "幻景",
+            "变形术"
+          ],
+          "usage": {
+            "kind": "perDay",
+            "count": 1
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "fire-elemental",
@@ -16146,12 +16467,35 @@
         {
           "ring": "随意",
           "spells": [
-            "法师之手",
+            "法师之手"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "跳跃术",
             "迷踪步",
             "回避侦测",
-            "巧言术",
+            "巧言术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "位面转移",
             "心灵遥控"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -16402,12 +16746,35 @@
         {
           "ring": "随意",
           "spells": [
-            "法师之手",
+            "法师之手"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "羽落术",
             "跳跃术",
             "识破隐形",
-            "护盾术每项",
+            "护盾术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "魅影杀手",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -16509,9 +16876,22 @@
           "spells": [
             "黑暗术",
             "侦测魔法",
-            "解除魔法",
+            "解除魔法"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "困惑术",
             "律令震慑"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -16966,10 +17346,23 @@
         {
           "ring": "随意",
           "spells": [
-            "回避侦测",
+            "回避侦测"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "目盲",
             "朦胧术",
             "易容术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -17702,11 +18095,34 @@
             "侦测思想",
             "隐形术",
             "法师之手",
-            "高级幻影",
+            "高级幻影"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "恐惧术",
             "飞行术",
             "火球术",
             "巧言术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "位面转移"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -17918,7 +18334,10 @@
             "舞光术",
             "次级幻象",
             "恶言相加"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         }
       ]
     },
@@ -18037,9 +18456,32 @@
           "spells": [
             "侦测魔法",
             "侦测思想",
-            "法师之手",
+            "法师之手"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "恐惧术",
             "隐形术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "火球术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -21724,7 +22166,81 @@
     "source": "怪物图鉴 2014",
     "sourceDir": "类人生物",
     "creatureSize": 2,
-    "creatureType": "humanoid"
+    "creatureType": "humanoid",
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 14,
+      "attackBonus": 6,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "神导术",
+            "圣火术",
+            "奇术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "侦测魔法",
+            "庇护术",
+            "虔诚护盾"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
+        },
+        {
+          "ring": "2环",
+          "spells": [
+            "定身类人",
+            "灵体武器"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
+        },
+        {
+          "ring": "3环",
+          "spells": [
+            "灵体卫士",
+            "巧言术"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
+        },
+        {
+          "ring": "4环",
+          "spells": [
+            "操控水体",
+            "预言术"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
+        },
+        {
+          "ring": "5环",
+          "spells": [
+            "群体疗伤术",
+            "探知术"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "kuo-toa-whip",
@@ -21853,7 +22369,35 @@
     "source": "怪物图鉴 2014",
     "sourceDir": "类人生物",
     "creatureSize": 2,
-    "creatureType": "humanoid"
+    "creatureType": "humanoid",
+    "spellcasting": {
+      "ability": "感知",
+      "dc": 12,
+      "attackBonus": 4,
+      "groups": [
+        {
+          "ring": "戏法",
+          "spells": [
+            "圣火术",
+            "奇术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "1环",
+          "spells": [
+            "灾祸术",
+            "虔诚护盾"
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "lamia",
@@ -21927,11 +22471,34 @@
           "ring": "随意",
           "spells": [
             "易容术",
-            "高级幻影",
+            "高级幻影"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "魅惑类人",
             "镜影术",
             "探知",
             "暗示术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "1/日",
+          "spells": [
+            "指使术"
+          ],
+          "usage": {
+            "kind": "perDay",
+            "count": 1
+          }
         }
       ]
     },
@@ -23362,14 +23929,37 @@
             "侦测善恶",
             "侦测魔法",
             "云雾术",
-            "净化粮食",
+            "净化粮食"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "巧言术",
             "水中呼吸",
-            "水上行走",
+            "水上行走"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "咒唤元素",
             "操控水体",
             "气化形体",
             "隐形术",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -23921,7 +24511,34 @@
     "source": "怪物图鉴 2014",
     "sourceDir": "邪魔",
     "creatureSize": 2,
-    "creatureType": "fiend"
+    "creatureType": "fiend",
+    "spellcasting": {
+      "ability": "魅力",
+      "dc": 11,
+      "groups": [
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "黑暗术",
+            "解除魔法"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
+        },
+        {
+          "ring": "1/日",
+          "spells": [
+            "死云术"
+          ],
+          "usage": {
+            "kind": "perDay",
+            "count": 1
+          }
+        }
+      ]
+    }
   },
   {
     "templateId": "mimic",
@@ -24092,9 +24709,22 @@
           "ring": "随意",
           "spells": [
             "侦测思想",
-            "浮空术",
+            "浮空术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "支配怪物",
             "位面转移"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -25260,10 +25890,23 @@
           "ring": "随意",
           "spells": [
             "侦测魔法",
-            "魔法飞弹",
+            "魔法飞弹"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项2/日",
+          "spells": [
+            "位面转移",
             "衰弱射线",
             "睡眠术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 2
+          }
         }
       ]
     },
@@ -25989,11 +26632,24 @@
           "ring": "随意",
           "spells": [
             "黑暗术",
-            "隐形术",
+            "隐形术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "魅惑类人",
             "寒冰锥",
             "气化形体",
             "睡眠术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -27087,9 +27743,22 @@
           "ring": "随意",
           "spells": [
             "侦测魔法",
-            "火球术",
+            "火球术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "定身怪物",
             "火墙术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
         }
       ]
     },
@@ -27203,7 +27872,16 @@
         {
           "ring": "随意",
           "spells": [
-            "德鲁伊伎俩",
+            "德鲁伊伎俩"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "困惑术",
             "舞光术",
             "侦测善恶",
             "侦测思想",
@@ -27213,7 +27891,11 @@
             "魅影之力",
             "变形术",
             "睡眠术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -27311,13 +27993,36 @@
           "ring": "随意",
           "spells": [
             "侦测善恶",
-            "隐形术",
+            "隐形术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "剑刃护壁",
             "驱逐善恶",
             "焰击术",
-            "死者复活",
+            "死者复活"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "通神术",
             "控制天气",
             "疫病虫群"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -28088,11 +28793,24 @@
           "ring": "随意",
           "spells": [
             "羽落术",
-            "法师之手",
+            "法师之手"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "疗伤术",
             "变巨",
             "灼热金属",
             "镜影术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -28397,15 +29115,38 @@
             "侦测思想",
             "易容术",
             "法师之手",
-            "次级幻象",
+            "次级幻象"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "魅惑类人",
             "侦测魔法",
             "隐形术",
             "高级幻影",
-            "暗示术",
+            "暗示术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "支配类人",
             "飞行术",
             "位面转移",
             "真知术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -31182,11 +31923,34 @@
           "ring": "随意",
           "spells": [
             "侦测善恶",
-            "隐形术",
+            "隐形术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "剑刃护壁",
             "复生术",
-            "驱逐善恶",
+            "驱逐善恶"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "通神术",
             "操控天气"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -32300,9 +33064,22 @@
             "侦测魔法",
             "羽落术",
             "浮空术",
-            "光亮术",
+            "光亮术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "操控天气",
             "水下呼吸"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
         }
       ]
     },
@@ -33874,11 +34651,34 @@
             "侦测魔法",
             "侦测思想",
             "解除魔法",
-            "隐形术",
+            "隐形术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "任意门",
             "恐惧术",
-            "火墙术",
+            "火墙术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "火焰风暴",
             "集体暗示术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -34082,10 +34882,23 @@
           "spells": [
             "侦测善恶",
             "德鲁伊伎俩",
-            "行动无踪",
+            "行动无踪"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "安定心神",
             "驱逐善恶",
             "纠缠术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -36379,7 +37192,20 @@
           "spells": [
             "侦测思想",
             "蛛网术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "支配类人"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -37738,7 +38564,30 @@
           "ring": "随意",
           "spells": [
             "化兽为友"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "暗示术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "恐惧术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -37883,7 +38732,20 @@
           "ring": "随意",
           "spells": [
             "化兽为友"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "暗示术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
         }
       ]
     },
@@ -38054,9 +38916,22 @@
         {
           "ring": "随意",
           "spells": [
-            "化兽为友",
+            "化兽为友"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "毒液飞溅",
             "暗示术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
         }
       ]
     },

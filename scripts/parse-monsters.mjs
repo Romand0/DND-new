@@ -15,7 +15,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -215,30 +215,44 @@ function parseRegeneration(traits) {
 
 // 天生施法/施法：抽施法属性/DC/攻击命中 + 环阶分组法术列表。
 // CHM 缺字（「智?」「魅?」）放宽映射；重复污染段的法术名跨段与段内双重去重；
-// 原文未印 DC 或无环阶标记的单法术条目解析失败，保留 traits 原文
-function parseSpellcasting(traits) {
+// 原文未印 DC 或单法术条目解析失败，保留 traits 原文
+export function parseSpellcasting(traits) {
   const t = (traits ?? []).find((x) => /^(天生施法|施法|契约施法|邪术施法)/.test(x.name ?? ''));
   if (!t) return undefined;
   const text = t.text ?? '';
-  const dcs = [...text.matchAll(/DC(\d{1,2})/g)].map((m) => parseInt(m[1], 10));
+  const dcs = [...text.matchAll(/DC\s*(\d{1,2})/g)].map((m) => parseInt(m[1], 10));
   const abFull = text.match(/属性为(力量|敏捷|体质|智力|感知|魅力)/)?.[1];
   const ability = abFull ?? ({ 智: '智力', 魅: '魅力', 感: '感知', 力: '力量', 敏: '敏捷', 体: '体质' })[text.match(/属性为(智|魅|感|力|敏|体)\??/)?.[1] ?? ''];
   if (!dcs.length || !ability) return undefined;
   const attackBonus = parseInt(text.match(/命中\s*\+?\s*(\d{1,2})/)?.[1] ?? '', 10);
-  // 环阶标记：「戏法（随意）：」「1环（3法术位）：」「随意：」（括号注记可选）
-  // 括号注记捕获为结构化 usage：随意→atWill（无限），N法术位→slots（总量 N）
-  const parts = text.split(/(戏法|\d环|随意)\s*(?:（([^）：]*)）)?：/);
+  // 环阶/次数标记：「戏法（随意）：」「1环（3法术位）：」「随意：」「每项2/日：」「3/日：」（括号注记可选）
+  // 括号注记与标记自身捕获为结构化 usage：随意→atWill（无限），N法术位→slots（总量），
+  // 每项N/日→perDayEach（组内每项法术各自 N 次/日），N/日→perDay（组总量）
+  // 「每项N/日」分支必须先于「N/日」：前者包含后者文本，左优先匹配整体
+  const parts = text.split(/(戏法|\d环|随意|每项\s*\d+\s*\/日|\d+\s*\/日)\s*(?:（([^）：]*)）)?：/);
   const groups = [];
   for (let i = 1; i < parts.length - 1; i += 3) {
-    const ring = parts[i];
+    const ring = parts[i].replace(/\s+/g, '');
     const note = (parts[i + 1] ?? '').trim();
     const spells = [...new Set(parts[i + 2].split(/[，、；,]/)
       .map((s) => s.trim().match(/^[\u4e00-\u9fa5]{2,12}/)?.[0])
       .filter(Boolean))];
     if (!spells.length) continue;
+    const perDayEach = ring.match(/^每项(\d+)\/日$/);
+    const perDay = !perDayEach && ring.match(/^(\d+)\/日$/);
+    // 随意既可作独立标记（「随意：」）也可作括号注记（「戏法（随意）：」），两处都要认
+    const usage = (ring === '随意' || note === '随意')
+      ? { kind: 'atWill' }
+      : /^(\d+)法术位$/.test(note)
+        ? { kind: 'slots', count: parseInt(note, 10) }
+        : perDayEach
+          ? { kind: 'perDayEach', count: parseInt(perDayEach[1], 10) }
+          : perDay
+            ? { kind: 'perDay', count: parseInt(perDay[1], 10) }
+            : undefined;
     const g = groups.find((x) => x.ring === ring);
     if (g) g.spells = [...new Set(g.spells.concat(spells))];
-    else groups.push({ ring, spells, usage: note === '随意' ? { kind: 'atWill' } : (/^(\d+)法术位$/.test(note) ? { kind: 'slots', count: parseInt(note, 10) } : undefined) });
+    else groups.push({ ring, spells, usage });
   }
   if (!groups.length) return undefined;
   return {
@@ -731,4 +745,5 @@ function main() {
   console.log(`报告: ${path.relative(ROOT, OUT_REPORT)}`);
 }
 
-main();
+// 仅 CLI 直跑时执行主流程；被 import（迁移脚本/探针）时只取导出函数
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main();

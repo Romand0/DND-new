@@ -448,7 +448,10 @@
             "修复术",
             "圣火术",
             "奇术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -456,41 +459,65 @@
             "命令术",
             "疗伤术",
             "虔诚护盾"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "安定心神",
             "定身类人"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "降咒",
             "鹰眼术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
           "spells": [
             "放逐术",
             "行动自如"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
           "spells": [
             "焰击术",
             "指使术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         },
         {
           "ring": "6环",
           "spells": [
             "真知术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         }
       ]
     },
@@ -1472,7 +1499,10 @@
             "法师之手",
             "次级幻象",
             "法师伎俩"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -1480,7 +1510,11 @@
             "侦测魔法",
             "鉴定术",
             "护盾术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
@@ -1488,7 +1522,11 @@
             "黑暗术",
             "物件定位术",
             "暗示术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
@@ -1496,20 +1534,32 @@
             "解除魔法",
             "移除诅咒",
             "巧言术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
           "spells": [
             "放逐术",
             "高等隐形术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
           "spells": [
             "通晓传奇"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         }
       ]
     },
@@ -1681,9 +1731,22 @@
         {
           "ring": "随意",
           "spells": [
-            "化兽为友",
+            "化兽为友"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "毒液飞溅",
             "暗示术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
         }
       ]
     },
@@ -1827,7 +1890,10 @@
             "圣火术",
             "维生术",
             "奇术"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -1835,41 +1901,65 @@
             "命令术",
             "侦测善恶",
             "侦测魔法"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "次等复原术",
             "诚实之域"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "解除魔法",
             "巧言术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
           "spells": [
             "放逐术",
             "行动自如"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
           "spells": [
             "炎击术",
             "高等复原术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         },
         {
           "ring": "6环",
           "spells": [
             "英雄宴"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 1
+          }
         }
       ]
     },
@@ -2385,7 +2475,20 @@
           "ring": "随意",
           "spells": [
             "化兽为友"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "暗示术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
         }
       ]
     },
@@ -2766,7 +2869,10 @@
             "法师之手",
             "次级幻象",
             "冷冻射线"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -2775,7 +2881,11 @@
             "虔诚护盾",
             "魅惑类人",
             "睡眠术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
@@ -2783,7 +2893,11 @@
             "安定心神",
             "定身类人",
             "侦测思想"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
@@ -2792,7 +2906,11 @@
             "则其施法属性为智力",
             "且准备了以下法师法术",
             "闪电束"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         }
       ]
     },
@@ -2962,7 +3080,10 @@
             "法师之手",
             "次级幻象",
             "冷冻射线"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
         },
         {
           "ring": "1环",
@@ -2970,34 +3091,54 @@
             "魅惑类人",
             "侦测魔法",
             "睡眠术"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 4
+          }
         },
         {
           "ring": "2环",
           "spells": [
             "侦测思想",
             "定身类人"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "3环",
           "spells": [
             "闪电束",
             "水下呼吸"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "4环",
           "spells": [
             "枯萎术",
             "任意门"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 3
+          }
         },
         {
           "ring": "5环",
           "spells": [
             "支配类人"
-          ]
+          ],
+          "usage": {
+            "kind": "slots",
+            "count": 2
+          }
         }
       ]
     },
@@ -3199,11 +3340,34 @@
           "ring": "随意",
           "spells": [
             "易容术",
-            "高级幻影",
+            "高级幻影"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "魅惑类人",
             "镜影术",
             "探知",
             "暗示术"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "1/日",
+          "spells": [
+            "指使术"
+          ],
+          "usage": {
+            "kind": "perDay",
+            "count": 1
+          }
         }
       ]
     },
@@ -3866,9 +4030,22 @@
         {
           "ring": "随意",
           "spells": [
-            "舞光术",
+            "舞光术"
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "黑暗术",
             "妖火"
-          ]
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
@@ -4436,7 +4613,30 @@
           "ring": "随意",
           "spells": [
             "化兽为友"
-          ]
+          ],
+          "usage": {
+            "kind": "atWill"
+          }
+        },
+        {
+          "ring": "每项3/日",
+          "spells": [
+            "暗示术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 3
+          }
+        },
+        {
+          "ring": "每项1/日",
+          "spells": [
+            "恐惧术"
+          ],
+          "usage": {
+            "kind": "perDayEach",
+            "count": 1
+          }
         }
       ]
     },
