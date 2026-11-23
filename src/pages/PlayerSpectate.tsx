@@ -547,6 +547,10 @@ export default function PlayerSpectate() {
                 if (c.id !== myTurnActor?.id) return;
                 addOp({ kind: 'dash', roundText: '疾走（+移动力）' });
               }}
+              onPanelDodgeClick={(c) => {
+                if (c.id !== myTurnActor?.id) return;
+                addOp({ kind: 'dodge', roundText: '回避（至下回合开始，攻击对己劣势、敏捷豁免优势）' });
+              }}
               onPanelHelpClick={(c) => {
                 if (c.id !== myTurnActor?.id) return;
                 addOp({ kind: 'note', roundText: '协助（为同伴创造优势）', actionCost: 'action' });

@@ -1560,6 +1560,31 @@ export default function CombatSession() {
     alert(`专注于疾跑，获得 ${battleSpeed} 尺额外移动力`);
   };
 
+  // 基础动作「回避」：1 动作挂 dodging 状态——至下一回合开始，可见敌人攻击对己劣势（引擎
+  // 攻击通配组 incoming）+ 敏捷豁免优势；失能/速度归零由 advantageRules 读取时判定失效。
+  // 放映模式用 untilNextTurn 锚定自己下回合开始自动解除；模拟模式永续由 DM 手动解除（与现有
+  // durationRounds 状态一致）。
+  const dodgeFor = (c: Combatant) => {
+    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    globalStatusManager.applyEffect(c.id, 'dodging', 'combat', record.id, {
+      durationRounds: 1,
+      ...(record.mode === 'playback'
+        ? { combatMode: 'playback' as const, startRound: currentRound0, untilNextTurn: true, anchorCombatantId: c.id, turnCount: 1 }
+        : { combatMode: 'simulation' as const }),
+    });
+    combatStore.addTurnTodo(record.id, {
+      combatantId: c.id,
+      name: '回避增益持续中（下回合开始解除）',
+      type: 'condition_check',
+      startRound: currentRound0,
+      endRound: currentRound0 + 1,
+    });
+    consumeCombatantAction(c.id);
+    recordOperation(c.id, '回避：至下回合开始，攻击对己劣势、敏捷豁免优势', 'record');
+    alert(`「${c.name}」专注于回避：至下一回合开始，可见敌人的攻击对其劣势，其敏捷豁免有优势`);
+  };
+
   // 原内容：完全保留，一个字都没改（页面结构主体不变）
   return (
     <div className="max-w-full mx-auto p-4 space-y-4">
@@ -2017,6 +2042,7 @@ export default function CombatSession() {
         onPanelAttackClick={openAttackFor}
         onPanelCastClick={openCastFor}
         onPanelDashClick={dashFor}
+        onPanelDodgeClick={dodgeFor}
         onPanelForcedMoveClick={(c) => setForcedMoveTarget(c)}
         onPanelFeatureClick={handleFeatureUse}
         isProvingGround={record.isProvingGround ?? false}
@@ -3379,6 +3405,10 @@ export default function CombatSession() {
             }}
             onDashClick={() => {
               dashFor(liveCombatant);
+              setInfoPanelCombatant(null);
+            }}
+            onDodgeClick={() => {
+              dodgeFor(liveCombatant);
               setInfoPanelCombatant(null);
             }}
             onForcedMoveClick={() => setForcedMoveTarget(liveCombatant)}
