@@ -1317,14 +1317,15 @@ export default function CombatSession() {
       if (r.heal) {
         if (r.heal.type === 'temp') {
           const tp = combatStore.addTempHp(record.id, r.heal.targetId, r.heal.amount);
-          const healLine = `《${feature.name}》→ ${c.name} 获得临时生命【${tp ?? r.heal.amount}】（${r.heal.detail}）`;
+          // 先攻表/事件流只记结果（detail 计算过程走 alert 供 DM 核对）
+          const healLine = `《${feature.name}》→ ${c.name} 获得临时生命【${tp ?? r.heal.amount}】`;
           recordOperation(c.id, healLine, 'record');
           combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: c.id, targetId: r.heal.targetId, text: healLine });
           // alert 是 DM 直读 UI，剥离标记符号（detail 与先攻表/事件流共用）
           alert(`「${feature.name}」：${c.name} 获得临时生命 ${tp ?? r.heal.amount}（${r.heal.detail.replace(/[【】]/g, '')}）`);
         } else {
           const hr = handleApplyHealing(r.heal.targetId, r.heal.amount);
-          const healLine = `《${feature.name}》→ ${c.name} 恢复【${hr?.healed ?? 0}】点生命（${r.heal.detail}）`;
+          const healLine = `《${feature.name}》→ ${c.name} 恢复【${hr?.healed ?? 0}】点生命`;
           recordOperation(c.id, healLine, 'record');
           combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: c.id, targetId: r.heal.targetId, text: healLine });
           alert(`「${feature.name}」：${c.name} 恢复 ${hr?.healed ?? 0} 点生命（${r.heal.detail.replace(/[【】]/g, '')}${hr != null && hr.healed < r.heal.amount ? '，已达生命上限' : ''}）`);
@@ -1460,13 +1461,14 @@ export default function CombatSession() {
     if (r.heal) {
       if (r.heal.type === 'temp') {
         const tp = combatStore.addTempHp(record.id, r.heal.targetId, r.heal.amount);
-        const healLine = `《${feature.name}》→ ${from.name} 获得临时生命【${tp ?? r.heal.amount}】（${r.heal.detail}）`;
+        // 先攻表/事件流只记结果（detail 计算过程走 alert 供 DM 核对）
+        const healLine = `《${feature.name}》→ ${from.name} 获得临时生命【${tp ?? r.heal.amount}】`;
         recordOperation(from.id, healLine, 'record');
         combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId: r.heal.targetId, text: healLine });
         alert(`「${feature.name}」：${from.name} 获得临时生命 ${tp ?? r.heal.amount}（${r.heal.detail.replace(/[【】]/g, '')}）`);
       } else {
         const hr = handleApplyHealing(r.heal.targetId, r.heal.amount);
-        const healLine = `《${feature.name}》→ ${from.name} 恢复【${hr?.healed ?? 0}】点生命（${r.heal.detail}）`;
+        const healLine = `《${feature.name}》→ ${from.name} 恢复【${hr?.healed ?? 0}】点生命`;
         recordOperation(from.id, healLine, 'record');
         combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId: r.heal.targetId, text: healLine });
         alert(`「${feature.name}」：${from.name} 恢复 ${hr?.healed ?? 0} 点生命（${r.heal.detail.replace(/[【】]/g, '')}${hr != null && hr.healed < r.heal.amount ? '，已达生命上限' : ''}）`);

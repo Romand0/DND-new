@@ -283,19 +283,22 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       if (capability.channel === 'heal' && capability.heal) {
         const spec = capability.heal;
         const char = actor.characterId ? characterStore.get(actor.characterId) : null;
+        // 先攻表只记结果；玩家 op 缺骰值时标注「未掷骰」（引擎兜底按固定+等级落账，不虚构线下骰）
+        const diceMissing = op.healAmount == null && !!spec.dice;
+        const diceNote = diceMissing ? '（未掷骰）' : '';
         const plan = op.healAmount != null
           ? { amount: op.healAmount, detail: `线下骰合计 ${op.healAmount}` }
           : planHealAmount(spec, char?.level ?? 1);
         if (spec.type === 'temp') {
           const tp = combatStore.addTempHp(record.id, actor.id, plan.amount);
-          opCtx.featureNote = `获得临时生命【${tp ?? plan.amount}】（${plan.detail}）`;
+          opCtx.featureNote = `获得临时生命【${tp ?? plan.amount}】${diceNote}`;
         } else if (deps.applyHealing) {
           const hr = deps.applyHealing(actor.id, plan.amount);
           opCtx.featureNote = hr
-            ? `恢复【${hr.healed}】点生命（${plan.detail}${hr.healed < plan.amount ? '，已达生命上限' : ''}）`
+            ? `恢复【${hr.healed}】点生命${hr.healed < plan.amount ? '（已达生命上限）' : ''}${diceNote}`
             : `治疗未生效（参战者不在场）`;
         } else {
-          opCtx.featureNote = `治疗【${plan.amount}】点（${plan.detail}；DM 端未注入治疗钩子，请手动结算）`;
+          opCtx.featureNote = `治疗【${plan.amount}】点（DM 端未注入治疗钩子，请手动结算）${diceNote}`;
         }
       }
       // aoe_save 通道（玩家吐息武器）：朝向 + 线下骰值随 op 提交——伤害骰全目标共用（玩家掷），
