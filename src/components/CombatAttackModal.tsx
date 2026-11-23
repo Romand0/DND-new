@@ -86,6 +86,10 @@ interface Props {
   characterOverride?: Character | null;
   /** 沙盘墙体格（"col,row" 列表）：视线遮挡几何提示（掩护裁定辅助） */
   paintedCells?: string[];
+  /** 沙盘环境光照档位（视野系统：黑暗攻防优劣势判定） */
+  ambientLight?: 'bright' | 'dim' | 'darkness';
+  /** 沙盘光照格桶（视野系统：光照区域覆盖） */
+  lightCells?: { bright: string[]; dim: string[]; darkness: string[] };
   /** 多重攻击序列锁定：本步只展示该攻击（宿主已按配方解析为精确攻击名）；未匹配步不传 = 自选攻击 */
   lockedAttackName?: string;
   /** 多重攻击序列步骤徽标（弹窗标题旁）：「多重攻击 第2/3击 · 爪击」 */
@@ -97,7 +101,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, lockedAttackName, multiattackStepLabel }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, ambientLight, lightCells, lockedAttackName, multiattackStepLabel }: Props) {
   // 掩护单次覆盖：'' = 跟随参战者标注；'none' = 本弹窗覆盖为无掩护；其余为临时等级（写回在参战者面板）
   const [coverOverride, setCoverOverride] = useState<'' | 'none' | CoverTier>('');
   const effectiveCover: CoverTier | null = coverOverride === '' ? (target?.coverTier ?? null) : coverOverride === 'none' ? null : coverOverride;
@@ -510,6 +514,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       distanceCells,
       combatantPositions,
       roster: combatStore.get(recordId)?.combatants ?? null,
+      battleground: { ambientLight, lightCells },
       recordId,
       roundCtx: getCombatRoundCtx(recordId),
     };
