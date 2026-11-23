@@ -13,6 +13,8 @@ import { combatantCastingModifier } from '@/lib/flowCompiler';
 import AdvDisadvToggle from '../AdvDisadvToggle';
 import CheckModifierPanel from './CheckModifierPanel';
 import { computeSaveBonus } from '@/lib/saveBonus';
+import { getCoverSaveBonus, COVER_LABELS } from '@/data/visionRules';
+import type { CoverTier } from '@/types/combat';
 import type { Combatant, CheckScene, AdvantageResult } from '@/types/combat';
 import type { Character, AbilityKey } from '@/types/character';
 
@@ -103,6 +105,11 @@ export default function SpellCheckStep({
     return computeSaveBonus(target, targetCharacter, abilityKey);
   })();
 
+  // 掩护对敏捷豁免的加值（半身 +2 / 四分之三 +5；目标等级由 DM 在参战者面板标注）
+  const coverSaveBonus = checkType === 'save'
+    ? getCoverSaveBonus(target.coverTier, SAVE_ATTR_MAP[saveAttribute])
+    : 0;
+
   // DC 来源拆解（与 calcSpellSaveDC 公式一致：8 基础 + 施法属性调整值 + 熟练；熟练部分反推保持与实际 DC 严格一致）
   const dcBreakdown = (() => {
     if (checkType !== 'save' || spellSaveDC === null || !casterCharacter) return null;
@@ -133,6 +140,8 @@ export default function SpellCheckStep({
         }
       }
     }
+    // 掩护修正并入自动填入值（用户仍可手动覆盖）
+    bonus += getCoverSaveBonus(target.coverTier, abilityKey);
 
     setTargetSaveBonus(String(bonus));
   }, [checkType, saveAttribute, targetCharacter, target]);
@@ -240,11 +249,13 @@ export default function SpellCheckStep({
   };
 
   // ============ 校验 ============
+  // 全身掩护：法术攻击无法直接瞄准目标（豁免型法术不受影响——范围效应以目标为豁免判定）
+  const coverBlocked = checkType === 'ac' && target.coverTier === 'total';
   const parsedDice = d20Values.map(v => parseInt(v, 10));
   const allFilled = isDual
     ? parsedDice.length === 2 && parsedDice.every(n => !isNaN(n) && n >= 1 && n <= 20)
     : parsedDice.length === 1 && !isNaN(parsedDice[0]) && parsedDice[0] >= 1 && parsedDice[0] <= 20;
-  const canConfirmCheck = checkType === 'save'
+  const canConfirmCheck = coverBlocked ? false : checkType === 'save'
     ? allFilled && targetSaveBonus !== '' && !isNaN(parseInt(targetSaveBonus, 10))
     : allFilled;
 
@@ -341,6 +352,16 @@ export default function SpellCheckStep({
 
   return (
     <div className="space-y-3">
+      {coverBlocked && (
+        <div className="text-[11px] text-amber-500 px-2 py-1 rounded bg-amber-500/10">
+          目标处于全身掩护，法术攻击无法直接瞄准（可改用范围豁免型结算或由 DM 裁定）
+        </div>
+      )}
+      {checkType === 'save' && coverSaveBonus > 0 && (
+        <div className="text-[11px] text-amber-500 px-2 py-1 rounded bg-amber-500/10">
+          掩护修正 {COVER_LABELS[target.coverTier as CoverTier]}：豁免加值已并入 +{coverSaveBonus}，可修改
+        </div>
+      )}
       {/* 检定方式切换：ac / save 留在本步；none 交还宿主重建序列 */}
       <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">
         <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1.5">检定方式</div>

@@ -166,6 +166,8 @@ export interface WildShapeState {
   };
 }
 
+export type CoverTier = 'half' | 'three_quarters' | 'total';
+
 export interface Combatant {
   id: string;
   name: string;
@@ -226,6 +228,8 @@ export interface Combatant {
   passiveChecks?: PassiveChecks;
   /** 黑暗视觉尺数（PC 入战派生：种族/特性条目；undefined = 无黑暗视觉） */
   darkvision?: number;
+  /** 掩护等级（DM 在参战者面板标注；攻击弹窗可单次覆盖）。total = 全身掩护，直接瞄准被阻断 */
+  coverTier?: CoverTier | null;
   /** 反应是否已用（5e：每个回合 1 个反应，自己回合开始时恢复；undefined 视为未用） */
   reactionUsed?: boolean;
   /** 未决反应机会（借机攻击窗口；处理后消费，跨回合推进过期清除） */

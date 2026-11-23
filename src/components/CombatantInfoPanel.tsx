@@ -949,6 +949,35 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 </div>
               </div>
 
+              {/* 掩护等级：DM 标注（攻击/法术弹窗自动应用 AC 与 Dex 豁免修正，可单次覆盖） */}
+              <div className={`rounded-lg border dark:border-border-dark light:border-border-light p-3 ${playerMode ? 'hidden' : ''}`}>
+                <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">掩护等级</div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={combatant.coverTier ?? ''}
+                    onChange={e => {
+                      const value = e.target.value as '' | 'half' | 'three_quarters' | 'total';
+                      const record = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
+                      if (record) {
+                        const updatedCombatants = record.combatants.map(c =>
+                          c.id === combatant.id ? { ...c, coverTier: value === '' ? null : value } : c
+                        );
+                        combatStore.update(record.id, { combatants: updatedCombatants });
+                      }
+                    }}
+                    className="px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light text-xs dark:text-text-dark light:text-text-light"
+                  >
+                    <option value="">无掩护</option>
+                    <option value="half">半身掩护（AC/Dex豁免 +2）</option>
+                    <option value="three_quarters">四分之三掩护（AC/Dex豁免 +5）</option>
+                    <option value="total">全身掩护（无法直接瞄准）</option>
+                  </select>
+                </div>
+                <div className="text-[10px] mt-1 dark:text-text-dark-muted light:text-text-light-muted">
+                  攻击弹窗可对本击单次覆盖；全身掩护阻断直接瞄准
+                </div>
+              </div>
+
               {/* 状态卡片：专注（施法者正在维持的专注类法术，可主动停止） */}
               {combatant.concentration && (
                 <div className="rounded-lg border border-amber-500/40 overflow-hidden">
