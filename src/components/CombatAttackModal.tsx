@@ -8,9 +8,10 @@ import combatStore from '@/data/combatStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
 import { detectCheckModifiers, computeModifierTotal, collectDiceRequests, getAppliedModifierRefs, resolveModifierValue, type CheckModifierContext } from '@/data/checkModifierRules';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
+import { suggestCoverHint, COVER_LABELS } from '@/data/visionRules';
 import CheckModifierPanel from './combat/CheckModifierPanel';
 import AdvDisadvToggle from './AdvDisadvToggle';
-import type { Combatant, NpcAttack, CheckScene } from '@/types/combat';
+import type { Combatant, NpcAttack, CheckScene, CoverTier } from '@/types/combat';
 import type { AdvantageReason, AdvantageResult } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
 
@@ -83,6 +84,12 @@ interface Props {
    * undefined = 沿用 characterStore 读取（DM 端行为不变）；null = 显式视为无角色卡。
    */
   characterOverride?: Character | null;
+  /** 沙盘墙体格（"col,row" 列表）：视线遮挡几何提示（掩护裁定辅助） */
+  paintedCells?: string[];
+  /** 多重攻击序列锁定：本步只展示该攻击（宿主已按配方解析为精确攻击名）；未匹配步不传 = 自选攻击 */
+  lockedAttackName?: string;
+  /** 多重攻击序列步骤徽标（弹窗标题旁）：「多重攻击 第2/3击 · 爪击」 */
+  multiattackStepLabel?: string;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -90,9 +97,15 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride }: Props) {
-  // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）
-  const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null);
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, lockedAttackName, multiattackStepLabel }: Props) {
+  // 掩护单次覆盖：'' = 跟随参战者标注；'none' = 本弹窗覆盖为无掩护；其余为临时等级（写回在参战者面板）
+  const [coverOverride, setCoverOverride] = useState<'' | 'none' | CoverTier>('');
+  const effectiveCover: CoverTier | null = coverOverride === '' ? (target?.coverTier ?? null) : coverOverride === 'none' ? null : coverOverride;
+  const coverForCalc = coverOverride === '' ? undefined : effectiveCover;
+  // 目标 AC：PC 角色传入战斗背包时重算（被移除的护甲/盾牌不加值）；掩护等级并入（弹窗可单次覆盖）
+  const effectiveTargetAc = computeCombatantAc(target, targetCharacter ?? null, targetCombatInventory ?? null, coverForCalc);
+  // 几何提示：攻击线被沙盘墙体遮挡时建议 DM 考虑掩护等级
+  const coverHint = suggestCoverHint({ paintedCells }, attackerPos, targetPos);
   const [stage, setStage] = useState<Stage>('attacks');
   const [selectedAttack, setSelectedAttack] = useState<Attack | NpcAttack | null>(null);
   // d20 投掷值：普通模式长度 1，优/劣势模式长度 2
@@ -405,6 +418,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
   // 判断攻击是否可用 + 不可用原因
   const getAttackStatus = (attack: Attack | NpcAttack, usageMode?: UsageMode): { usable: boolean; reason?: string } => {
+    // 全身掩护：目标无法被直接瞄准（含法术攻击外的所有武器攻击），阻断在可用性层
+    if (effectiveCover === 'total') return { usable: false, reason: '目标处于全身掩护，无法直接瞄准' };
     if (character) {
       const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
       const rightMatch = heldRightItem && heldRightItem.name === attack.name;
@@ -571,7 +586,8 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
   // 可用攻击置顶
   const sortedAttacks = useMemo(() => {
-    return [...attacks].sort((a, b) => {
+    const list = lockedAttackName ? attacks.filter(a => a.name === lockedAttackName) : attacks;
+    return [...list].sort((a, b) => {
       const sa = getAttackStatus(a).usable ? 0 : 1;
       const sb = getAttackStatus(b).usable ? 0 : 1;
       return sa - sb;
@@ -760,6 +776,11 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
             <span className="font-bold dark:text-text-dark light:text-text-light">
               {stage === 'attacks' ? (reactionMode ? '借机攻击（反应）' : '攻击方式') : '攻击检定'}
             </span>
+            {multiattackStepLabel && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400">
+                {multiattackStepLabel}
+              </span>
+            )}
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-white/10">
             <X className="w-5 h-5" />
@@ -779,7 +800,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
         {/* 内容区 */}
         <div className="flex-1 overflow-y-auto p-4">
           {/* 攻击者/目标信息 */}
-          <div className="flex items-center justify-between mb-4 text-xs">
+          <div className="flex items-center justify-between mb-1 text-xs">
             <div className="flex items-center gap-1.5">
               <span className="dark:text-text-dark-muted light:text-text-light-muted">攻击者</span>
               <span className="font-medium dark:text-text-dark light:text-text-light">{attacker.name}</span>
@@ -790,10 +811,39 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
               <span className="px-1.5 py-0.5 rounded bg-danger/10 text-danger">AC {effectiveTargetAc || 0}</span>
             </div>
           </div>
+          {/* 掩护：参战者标注预填，弹窗内单次覆盖（写回在参战者面板）；total 时所有攻击被阻断 */}
+          <div className="flex items-center justify-between mb-2 text-[11px]">
+            <div className="flex items-center gap-1.5">
+              <span className="dark:text-text-dark-muted light:text-text-light-muted">掩护</span>
+              <select
+                value={coverOverride}
+                onChange={e => setCoverOverride(e.target.value as '' | 'none' | CoverTier)}
+                className="px-1 py-0.5 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light text-[11px] dark:text-text-dark light:text-text-light"
+              >
+                <option value="">跟随标注{target.coverTier ? `（${COVER_LABELS[target.coverTier]}）` : '（无）'}</option>
+                <option value="none">覆盖为无掩护</option>
+                <option value="half">半身掩护（AC/Dex豁免 +2）</option>
+                <option value="three_quarters">四分之三掩护（AC/Dex豁免 +5）</option>
+                <option value="total">全身掩护（无法直接瞄准）</option>
+              </select>
+            </div>
+            <span className={`text-[10px] ${effectiveCover ? 'text-amber-500' : 'dark:text-text-dark-muted light:text-text-light-muted'}`}>
+              {effectiveCover ? COVER_LABELS[effectiveCover] : '无掩护'}
+            </span>
+          </div>
+          {coverHint && (
+            <div className="text-[10px] text-amber-500 mb-2">{coverHint}</div>
+          )}
 
           {/* 阶段1：攻击方式列表 */}
           {stage === 'attacks' && (
             <div className="space-y-2">
+              {/* 多重攻击序列提示：本步锁定配方攻击；剩余攻击可随时主动放弃（5e 允许多次攻击中途停下） */}
+              {multiattackStepLabel && (
+                <div className="rounded-lg bg-violet-500/10 px-2.5 py-1.5 text-xs text-violet-400">
+                  {multiattackStepLabel}——本步只能使用该攻击；结束本次攻击后可随时在面板放弃剩余击数
+                </div>
+              )}
               {/* 手部装备区：攻击流程内直接调整手持（仅 PC；换手后攻击可用性实时重算） */}
               {character && (
                 <div className="rounded-lg border dark:border-border-dark light:border-border-light p-2.5">

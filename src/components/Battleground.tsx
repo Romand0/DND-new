@@ -49,6 +49,12 @@ interface Props {
   onPanelForcedMoveClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：主动技能按钮（交由 main 走 handleFeatureUse 扣池扣动作链路；漏传则面板降级为提示） */
   onPanelFeatureClick?: (combatant: Combatant, feature: Feature, poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => void;
+  /** 多重攻击序列进行中的队列状态（key 为 combatantId；信息面板据此显示进度 chip 与结束序列） */
+  multiattackProgress?: Record<string, { queue: string[]; pos: number; actionConsumed?: boolean }>;
+  /** 双击棋子信息面板：开启多重攻击序列（交由 main 展开配方队列并入第一击） */
+  onPanelMultiattackStart?: (combatant: Combatant) => void;
+  /** 双击棋子信息面板：多重攻击序列中途放弃剩余击 */
+  onPanelMultiattackEnd?: (combatantId: string) => void;
   /** 双击棋子信息面板：试验场标记（仪表盘 tab / 状态附加面板 / 法术全库的开关） */
   isProvingGround?: boolean;
   /** 双击棋子信息面板：试验场记录引用（ProvingDashboard 数据源） */
@@ -92,7 +98,7 @@ interface Props {
   onRequestStopConcentration?: (combatantId: string) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelDodgeClick, onPanelForcedMoveClick, onPanelFeatureClick, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, panelSpellSlots, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelDodgeClick, onPanelForcedMoveClick, onPanelFeatureClick, multiattackProgress, onPanelMultiattackStart, onPanelMultiattackEnd, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, panelSpellSlots, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
   const navigate = useNavigate();
   // 投影模式：数据来自外部快照，禁止一切写库操作
   const projectionMode = bgData !== undefined;
@@ -1737,6 +1743,13 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   provingRecord={provingRecord}
                   onHelpClick={() => onPanelHelpClick?.(live)}
                   onAttackClick={() => onPanelAttackClick?.(live)}
+                  multiattackRecipe={live.multiattack}
+                  multiattackStep={(() => {
+                    const seq = multiattackProgress?.[live.id];
+                    return seq ? { pos: seq.pos, total: seq.queue.length, stepName: seq.queue[seq.pos] } : null;
+                  })()}
+                  onMultiattackStart={() => onPanelMultiattackStart?.(live)}
+                  onMultiattackEnd={() => onPanelMultiattackEnd?.(live.id)}
                   onCastClick={() => onPanelCastClick?.(live)}
                   onDashClick={() => onPanelDashClick?.(live)}
                   onDodgeClick={() => onPanelDodgeClick?.(live)}

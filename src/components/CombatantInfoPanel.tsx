@@ -40,6 +40,14 @@ interface Props {
   onFeatureClick?: (feature: Feature, poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }) => void;
   /** 点击「攻击」动作时回调（用于替代 info 面板内按钮，保持动作面板入口统一） */
   onAttackClick?: () => void;
+  /** 多重攻击配方（参战者身上，非空时在动作区展示入口按钮） */
+  multiattackRecipe?: { count: number; name: string }[];
+  /** 多重攻击序列进行中的当前步（null = 未在进行中） */
+  multiattackStep?: { pos: number; total: number; stepName: string } | null;
+  /** 开启多重攻击序列（宿主展开配方队列并入第一击） */
+  onMultiattackStart?: () => void;
+  /** 中途放弃剩余击数（5e 允许多次攻击随时停下） */
+  onMultiattackEnd?: () => void;
   /** 点击「施法」动作时回调 */
   onCastClick?: () => void;
   /** 点击「疾走」动作时回调 */
@@ -68,7 +76,7 @@ interface Props {
   spellSlotsOverride?: { level: number; label: string; used: number; max: number }[] | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onDodgeClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onDodgeClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride, multiattackRecipe, multiattackStep, onMultiattackStart, onMultiattackEnd }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -949,6 +957,35 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 </div>
               </div>
 
+              {/* 掩护等级：DM 标注（攻击/法术弹窗自动应用 AC 与 Dex 豁免修正，可单次覆盖） */}
+              <div className={`rounded-lg border dark:border-border-dark light:border-border-light p-3 ${playerMode ? 'hidden' : ''}`}>
+                <div className="text-sm font-medium mb-2 dark:text-text-dark light:text-text-light">掩护等级</div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={combatant.coverTier ?? ''}
+                    onChange={e => {
+                      const value = e.target.value as '' | 'half' | 'three_quarters' | 'total';
+                      const record = combatStore.getAll().find(r => r.combatants.some(c => c.id === combatant.id));
+                      if (record) {
+                        const updatedCombatants = record.combatants.map(c =>
+                          c.id === combatant.id ? { ...c, coverTier: value === '' ? null : value } : c
+                        );
+                        combatStore.update(record.id, { combatants: updatedCombatants });
+                      }
+                    }}
+                    className="px-2 py-1 rounded border dark:border-border-dark light:border-border-light dark:bg-bg-dark-2 light:bg-bg-light text-xs dark:text-text-dark light:text-text-light"
+                  >
+                    <option value="">无掩护</option>
+                    <option value="half">半身掩护（AC/Dex豁免 +2）</option>
+                    <option value="three_quarters">四分之三掩护（AC/Dex豁免 +5）</option>
+                    <option value="total">全身掩护（无法直接瞄准）</option>
+                  </select>
+                </div>
+                <div className="text-[10px] mt-1 dark:text-text-dark-muted light:text-text-light-muted">
+                  攻击弹窗可对本击单次覆盖；全身掩护阻断直接瞄准
+                </div>
+              </div>
+
               {/* 状态卡片：专注（施法者正在维持的专注类法术，可主动停止） */}
               {combatant.concentration && (
                 <div className="rounded-lg border border-amber-500/40 overflow-hidden">
@@ -1348,6 +1385,21 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
                   可执行动作
                 </div>
+                {/* 多重攻击进行中：步骤进度 chip + 中途放弃（剩余击数不强制打完） */}
+                {multiattackStep && (
+                  <div className="mb-2 flex items-center justify-between rounded-lg bg-violet-500/10 px-2.5 py-1.5 text-xs text-violet-400">
+                    <span>多重攻击 第{multiattackStep.pos + 1}/{multiattackStep.total}击：{multiattackStep.stepName}</span>
+                    {onMultiattackEnd && (
+                      <button
+                        type="button"
+                        onClick={() => onMultiattackEnd?.()}
+                        className="text-[10px] underline opacity-80 hover:opacity-100"
+                      >
+                        结束序列
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-1.5">
                   {ALL_ACTIONS.map((type) => {
                     const statusBlocked = !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated);
@@ -1387,6 +1439,28 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       </button>
                     );
                   })}
+                  {/* 多重攻击入口：按配方展开队列后逐击进行（仅怪物配方；进行中由上方 chip 接管） */}
+                  {multiattackRecipe?.length ? (() => {
+                    const statusBlocked = !!(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated);
+                    const clickable = (!sealed || playerMode) && !statusBlocked && !!onMultiattackStart && !multiattackStep;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => onMultiattackStart?.()}
+                        disabled={!clickable}
+                        className={`col-span-2 flex items-center justify-between px-2 py-1.5 rounded text-xs text-left transition-colors ${
+                          clickable
+                            ? 'dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light hover:bg-violet-500/15 active:scale-[0.98]'
+                            : 'dark:bg-bg-dark-2/50 light:bg-gray-50 dark:text-text-dark-muted light:text-text-light-muted opacity-70 cursor-not-allowed'
+                        }`}
+                      >
+                        <span>多重攻击</span>
+                        <span className="text-[10px] opacity-60">
+                          {multiattackRecipe.map(m => `${m.name}×${m.count}`).join(' + ')}
+                        </span>
+                      </button>
+                    );
+                  })() : null}
                 </div>
                 {(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated) && (
                   <p className="mt-1.5 text-[10px] text-purple-400">
