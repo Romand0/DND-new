@@ -1582,7 +1582,31 @@ export default function CombatSession() {
     });
     consumeCombatantAction(c.id);
     recordOperation(c.id, '回避：至下回合开始，攻击对己劣势、敏捷豁免优势', 'record');
-    alert(`「${c.name}」专注于回避：至下一回合开始，可见敌人的攻击对其劣势，其敏捷豁免有优势`);
+    alert(`「${c.name}」专注于回避：至下回合开始，可见敌人的攻击对其劣势，其敏捷豁免有优势`);
+  };
+
+  // 基础动作「撤离」：1 动作挂 disengaging 状态——状态存续期间移动不引发借机攻击
+  //（抑制点在 reactionRules 借机检测器唯一出口）。生命周期与 dodging 同款：放映模式
+  // untilNextTurn 锚定自己下回合开始解除，模拟模式永续由 DM 手动解除。
+  const disengageFor = (c: Combatant) => {
+    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    globalStatusManager.applyEffect(c.id, 'disengaging', 'combat', record.id, {
+      durationRounds: 1,
+      ...(record.mode === 'playback'
+        ? { combatMode: 'playback' as const, startRound: currentRound0, untilNextTurn: true, anchorCombatantId: c.id, turnCount: 1 }
+        : { combatMode: 'simulation' as const }),
+    });
+    combatStore.addTurnTodo(record.id, {
+      combatantId: c.id,
+      name: '撤离增益持续中（下回合开始解除）',
+      type: 'condition_check',
+      startRound: currentRound0,
+      endRound: currentRound0 + 1,
+    });
+    consumeCombatantAction(c.id);
+    recordOperation(c.id, '撤离：本回合移动不引发借机攻击', 'record');
+    alert(`「${c.name}」采取撤离：本回合移动离开敌人触及范围不会引发借机攻击；下回合开始时解除`);
   };
 
   // 原内容：完全保留，一个字都没改（页面结构主体不变）
@@ -2043,6 +2067,7 @@ export default function CombatSession() {
         onPanelCastClick={openCastFor}
         onPanelDashClick={dashFor}
         onPanelDodgeClick={dodgeFor}
+        onPanelDisengageClick={disengageFor}
         onPanelForcedMoveClick={(c) => setForcedMoveTarget(c)}
         onPanelFeatureClick={handleFeatureUse}
         isProvingGround={record.isProvingGround ?? false}
@@ -3411,6 +3436,10 @@ export default function CombatSession() {
             }}
             onDodgeClick={() => {
               dodgeFor(liveCombatant);
+              setInfoPanelCombatant(null);
+            }}
+            onDisengageClick={() => {
+              disengageFor(liveCombatant);
               setInfoPanelCombatant(null);
             }}
             onForcedMoveClick={() => setForcedMoveTarget(liveCombatant)}

@@ -46,6 +46,8 @@ interface Props {
   onDashClick?: () => void;
   /** 点击「回避」动作时回调（挂 dodging 状态，CombatSession 结算） */
   onDodgeClick?: () => void;
+  /** 点击「撤离」动作时回调（挂 disengaging 状态，CombatSession 结算） */
+  onDisengageClick?: () => void;
   /** 点击「强制位移」按钮时回调（DM 手动推离入口，CombatSession 挂弹窗与落位引擎） */
   onForcedMoveClick?: () => void;
   /** 试验场模式：开放仪表盘 tab 与状态附加面板 */
@@ -68,7 +70,7 @@ interface Props {
   spellSlotsOverride?: { level: number; label: string; used: number; max: number }[] | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onDodgeClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onDodgeClick, onDisengageClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -1386,9 +1388,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       (type === 'attack' && !!onAttackClick) ||
                       (type === 'cast' && !!onCastClick) ||
                       (type === 'dash' && !!onDashClick) ||
-                      (type === 'dodge' && !!onDodgeClick));
+                      (type === 'dodge' && !!onDodgeClick) ||
+                      (type === 'disengage' && !!onDisengageClick));
                     const implemented =
-                      type === 'attack' || type === 'cast' || type === 'help' || type === 'dash' || type === 'dodge';
+                      type === 'attack' || type === 'cast' || type === 'help' || type === 'dash' || type === 'dodge' || type === 'disengage';
                     return (
                       <button
                         key={type}
@@ -1399,6 +1402,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           else if (type === 'cast') onCastClick?.();
                           else if (type === 'dash') onDashClick?.();
                           else if (type === 'dodge') onDodgeClick?.();
+                          else if (type === 'disengage') onDisengageClick?.();
                         }}
                         disabled={!clickable}
                         className={`flex items-center justify-between px-2 py-1.5 rounded text-xs text-left transition-colors ${

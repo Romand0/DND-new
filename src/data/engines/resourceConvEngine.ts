@@ -1,9 +1,11 @@
 // resource_conv 引擎（B7 渠道，feature-fullcycle P3）：convert 动作项执行 + grants 额外资源。
 // from 槽扣减（原特性 activation 对应 actions/bonusActions）由调用方（handleFeatureUse /
 // turnCommitApply）统一执行，引擎只负责 to 目标的落地与声明。
-// v1 覆盖度：dash 走移动力账务（与 dash op 同构）；disengage/hide 借机攻击/隐匿机制未建，
-// 产出声明 note 由 DM 按沙盘裁定；action/bonus 目标走槽位授予。
+// v1 覆盖度：dash 走移动力账务（与 dash op 同构）；disengage 挂撤离状态（与基础动作
+// disengageFor 同状态，反应通道据此抑制借机攻击）；hide 隐匿机制未建，产出声明 note；
+// action/bonus 目标走槽位授予。
 import combatStore from '@/data/combatStore';
+import { globalStatusManager } from '@/data/statusManager';
 import type { Combatant } from '@/types/combat';
 
 /** convert.to 动作项中文标签（弹窗选择列表与回合记录共用） */
@@ -22,7 +24,8 @@ export interface ConvApplyResult {
 /**
  * convert.to 单项目标执行：
  *  - dash：额外移动力 += 战斗速度（speed + speedModifier），与 dash op/DM 端 dashFor 同账务
- *  - disengage/hide：机制未建（借机攻击/隐匿检定占位），声明文案交 DM 裁定
+ *  - disengage：挂撤离状态（至下回合开始），移动不引发借机攻击；动作消耗由转换上游扣除
+ *  - hide：隐匿机制未建（隐匿检定占位），声明文案交 DM 裁定
  *  - action/bonus：对应动作槽 +1（grants 语义复用）
  */
 export function applyConvTarget(recordId: string, combatant: Combatant, target: string): ConvApplyResult {
@@ -47,7 +50,25 @@ export function applyConvTarget(recordId: string, combatant: Combatant, target: 
     return { note: bonus != null ? `获得一个附赠动作（本回合可用附赠动作 ${bonus}）` : '无法授予附赠动作' };
   }
   if (target === 'disengage') {
-    return { note: '本回合移动不触发敌人的借机攻击（借机攻击由 DM 按沙盘裁定）' };
+    // 与 CombatSession.disengageFor 同一状态：放映模式锚定至自己下回合开始，
+    // 模拟模式保留手动解除（与 dodging 同款语义）。
+    const playback = latest?.mode === 'playback';
+    const currentRound0 = latest
+      ? (latest.playbackState?.currentTurn?.round ?? Math.max(0, latest.rounds.length - 1))
+      : 0;
+    globalStatusManager.applyEffect(combatant.id, 'disengaging', 'combat', recordId, {
+      durationRounds: 1,
+      ...(playback
+        ? {
+            combatMode: 'playback' as const,
+            startRound: currentRound0,
+            untilNextTurn: true,
+            anchorCombatantId: combatant.id,
+            turnCount: 1,
+          }
+        : { combatMode: 'simulation' as const }),
+    });
+    return { note: '本回合移动不引发借机攻击' };
   }
   if (target === 'hide') {
     return { note: '进入躲藏（隐匿检定与被动察觉对抗由 DM 按沙盘裁定）' };
