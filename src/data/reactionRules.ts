@@ -6,6 +6,7 @@
 // 弹窗内的是闭包函数，抽公共模块的收益低于双份维护的漂移风险，改动时两处同步）。
 import battlegroundStore from '@/data/battlegroundStore';
 import { characterStore } from '@/data/characterStore';
+import { getCombatRoundCtx } from '@/data/combatAffinities';
 import { BUILTIN_OPPORTUNITY_ATTACK } from '@/data/reactionDefinitions';
 import { spellStore } from '@/data/spellStore';
 import { globalStatusManager } from '@/data/statusManager';
@@ -132,6 +133,11 @@ registerReactionDetector((record, event) => {
   const { moverId, from: fromPos, to: toPos } = event;
   const mover = record.combatants.find(c => c.id === moverId);
   if (!mover || mover.isDead || mover.isUnconscious) return [];
+  // 撤离（disengage）：持有者在状态存续期间的移动不引发借机攻击。
+  // 仅抑制本检测器（离开触及）；enter_reach 哨兵类检测器不受影响。
+  if (globalStatusManager
+    .getActiveStatuses(moverId, 'combat', getCombatRoundCtx(record.id))
+    .some(i => i.definitionId === 'disengaging')) return [];
   const bg = battlegroundStore.get(record.id);
   const tokens = bg?.tokens ?? [];
   const ownerPosOf = (id: string) => {
