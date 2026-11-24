@@ -56,6 +56,9 @@ export interface AdvantageContext {
   attackerPos?: { col: number; row: number } | null;
   targetPos?: { col: number; row: number } | null;
   distanceCells?: number;
+  /** 攻击者体型（重型武器劣势判定：微型/小型持重型武器攻击劣势）。
+   *  PC 由宿主读角色卡 size，NPC 读模板 size；缺省时回退 attackerCharacter.size */
+  attackerSize?: string;
   saveAbility?: 'strength' | 'dexterity' | 'constitution' | 'intelligence' | 'wisdom' | 'charisma';
   /** 来源法术名（豁免场景：目标对哪个法术做豁免；被动技能按名称识别魅惑/催眠类效应） */
   sourceSpellName?: string;
@@ -194,6 +197,26 @@ function detectPositional(ctx: AdvantageContext): AdvantageResult {
   // 劣势：投掷武器处于最大射程段
   if (thrown && ctx.scene === 'attack_thrown' && getRangeTier(ctx.attack, distanceCells) === 'max') {
     disadvantage.push({ kind: 'positional', label: '投掷武器处于最大射程段' });
+  }
+  return { advantage, disadvantage };
+}
+
+// =======================
+// 内置检测器 3：heavy-weapon（小体型持重型武器攻击劣势）
+// =======================
+
+function detectHeavyWeapon(ctx: AdvantageContext): AdvantageResult {
+  const advantage: AdvantageReason[] = [];
+  const disadvantage: AdvantageReason[] = [];
+  const applicableScenes: CheckScene[] = ['attack_melee', 'attack_ranged', 'attack_thrown'];
+  if (!applicableScenes.includes(ctx.scene)) return { advantage, disadvantage };
+  if (!ctx.attack) return { advantage, disadvantage };
+  const isHeavy = (ctx.attack.properties ?? []).some(p => String(p).includes('重型'));
+  if (!isHeavy) return { advantage, disadvantage };
+  // 5e：微型/小型生物使用重型武器攻击检定有劣势（中体型及以上不受影响）
+  const size = ctx.attackerSize ?? ctx.attackerCharacter?.size ?? '';
+  if (size === '微型' || size === '小型') {
+    disadvantage.push({ kind: 'equipment', label: `${size}生物使用重型武器` });
   }
   return { advantage, disadvantage };
 }
@@ -411,6 +434,7 @@ function detectPassiveFeature(ctx: AdvantageContext): AdvantageResult {
 
 registerDetector('equipment', detectEquipment);
 registerDetector('positional', detectPositional);
+registerDetector('heavy-weapon', detectHeavyWeapon);
 registerDetector('pending', detectPending);
 registerDetector('condition', detectCondition);
 registerDetector('trait', detectTrait);
