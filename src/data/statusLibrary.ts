@@ -634,6 +634,50 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'shield',
       },
     });
+
+    // 躲藏：可见性状态（无自动优劣势 effect——unseen 检测器按目标状态 + 攻方感官裁定）
+    this.register({
+      id: 'hidden',
+      name: '躲藏',
+      description: '你已躲藏：未被观察者定位前，针对你的攻击具有劣势、你的攻击具有优势（盲视/真实视觉尺数内不受影响）；首次攻击或被发现后解除。',
+      shortDescription: '躲藏：攻方劣势 / 己方优势（一攻揭晓）',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：基础动作「躲藏」（消耗 1 动作，隐匿检定对抗观察者被动察觉）。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '发起攻击结算后；或被观察者搜索察觉（DM 手动解除）。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'violet',
+        icon: 'eye-off',
+      },
+    });
+
+    // 隐形：可见性状态（一攻不揭晓，仅真实视觉可看破）
+    this.register({
+      id: 'invisible',
+      name: '隐形',
+      description: '你处于隐形状态：未被真实视觉定位前，针对你的攻击具有劣势、你的攻击具有优势。',
+      shortDescription: '隐形：攻方劣势 / 己方优势（真实视觉看破）',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：法术或能力效果（如隐形术）。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '效果结束（DM 手动解除）。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'indigo',
+        icon: 'ghost',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {

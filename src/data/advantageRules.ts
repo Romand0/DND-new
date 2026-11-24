@@ -17,7 +17,7 @@ import type { Effect } from '@/types/status';
 import { globalStatusManager } from './statusManager';
 import statusLibrary from './statusLibrary';
 import { detectPassiveFeatureRules } from './passiveCombatRules';
-import { getEffectiveTierAt, canSenseInDark, type LightTier } from './visionRules';
+import { getEffectiveTierAt, canSenseInDark, canSeeThroughHide, type LightTier } from './visionRules';
 
 // =======================
 // 场景匹配（通配组 → 具体场景）
@@ -484,6 +484,57 @@ function detectEnvironmentDim(ctx: AdvantageContext): AdvantageResult {
 }
 
 // =======================
+// 内置检测器 9：unseen（躲藏/隐形可见性）
+// =======================
+
+/** 读取参战者当前的可见性状态（hidden 优先于 invisible：两者同时存在按 hidden 结算一攻揭晓） */
+function getVisibilityState(
+  combatant: Combatant | null | undefined,
+  ctx: AdvantageContext,
+): 'hidden' | 'invisible' | null {
+  if (!combatant) return null;
+  const instances = globalStatusManager.getActiveStatuses(combatant.id, 'combat', ctx.roundCtx);
+  const ids = new Set(instances.map(i => i.definitionId));
+  if (ids.has('hidden')) return 'hidden';
+  if (ids.has('invisible')) return 'invisible';
+  return null;
+}
+
+/**
+ * 躲藏/隐形可见性判定：
+ * - 目标处于 hidden/invisible 且攻方感官无法看破 → 攻方劣势
+ * - 攻击者处于 hidden/invisible 且守方感官无法看破 → 攻方优势
+ * 感官豁免：hidden 可被盲视/真实视觉看破；invisible 仅真实视觉看破（尺数需覆盖距离）。
+ * 双方互相不可见时优劣势抵消（resolveRollMode 统一处理）。
+ */
+function detectUnseen(ctx: AdvantageContext): AdvantageResult {
+  const advantage: AdvantageReason[] = [];
+  const disadvantage: AdvantageReason[] = [];
+  if (!ATTACK_SCENES.includes(ctx.scene)) return { advantage, disadvantage };
+  const attacker = ctx.attacker;
+  const target = ctx.target;
+  if (!attacker || !target) return { advantage, disadvantage };
+
+  const dist = ctx.distanceCells;
+  const targetState = getVisibilityState(target, ctx);
+  const attackerState = getVisibilityState(attacker, ctx);
+
+  if (targetState && !canSeeThroughHide(sensesOf(attacker), dist, targetState)) {
+    disadvantage.push({
+      kind: 'condition',
+      label: targetState === 'hidden' ? '目标处于躲藏（无法定位）' : '目标处于隐形',
+    });
+  }
+  if (attackerState && !canSeeThroughHide(sensesOf(target), dist, attackerState)) {
+    advantage.push({
+      kind: 'condition',
+      label: attackerState === 'hidden' ? '你处于躲藏（目标无法定位）' : '你处于隐形',
+    });
+  }
+  return { advantage, disadvantage };
+}
+
+// =======================
 // 模块初始化：注册内置检测器
 // =======================
 
@@ -494,7 +545,4 @@ registerDetector('trait', detectTrait);
 registerDetector('passive-feature', detectPassiveFeature);
 registerDetector('environment-light', detectEnvironmentLight);
 registerDetector('environment-dim', detectEnvironmentDim);
-
-// 预留接入点注释（不实现，仅说明）：
-// - action: hide（隐匿检定对抗 + hidden 状态落账，P3）
-// - environment: 光照（已接入 detectEnvironmentLight / detectEnvironmentDim）
+registerDetector('unseen', detectUnseen);
