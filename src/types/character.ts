@@ -45,6 +45,8 @@ export interface Attack {
   silvered?: boolean;
   /** 武器是否精金 */
   adamantine?: boolean;
+  /** 双武器战斗副手攻击条目（弹窗内动态合成的临时攻击，非角色卡持久数据） */
+  offhand?: boolean;
 }
 
 export interface SpellSlots {

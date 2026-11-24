@@ -2439,10 +2439,12 @@ export default function CombatSession() {
               updatedAt: Date.now(),
             });
           }}
+          bonusActionsAvailable={liveAttackModalAttacker?.bonusActions ?? attackModal.attacker.bonusActions}
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
-            // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
-            consumeAttackActionFor(attackModal.attacker.id);
+            // 副手攻击（双武器战斗）消耗附赠动作；常规攻击消耗动作（多重攻击序列首击扣 1，后续击共享）
+            if ((attack as Attack).offhand) consumeCombatantBonusAction(attackModal.attacker.id);
+            else consumeAttackActionFor(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
             if (attack.properties?.some(p => p.includes('装填'))) {
               markLoadingAttacked(attackModal.attacker.id);
@@ -2514,8 +2516,9 @@ export default function CombatSession() {
             }
           }}
           onAttackMiss={(missInfo) => {
-            // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
-            consumeAttackActionFor(attackModal.attacker.id);
+            // 副手攻击（双武器战斗）消耗附赠动作；常规攻击消耗动作（多重攻击序列首击扣 1，后续击共享）
+            if ((missInfo.attack as Attack).offhand) consumeCombatantBonusAction(attackModal.attacker.id);
+            else consumeAttackActionFor(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
             if (missInfo.attack.properties?.some(p => p.includes('装填'))) {
               markLoadingAttacked(attackModal.attacker.id);
@@ -2568,8 +2571,8 @@ export default function CombatSession() {
                 false, record, missInfo.usageMode,
               );
             }
-            // 当前击（未命中）结算完毕 → 推进多重攻击序列
-            advanceMultiattackFor(attackModal.attacker.id);
+            // 当前击（未命中）结算完毕 → 推进多重攻击序列（副手攻击独立于序列，不推进）
+            if (!(missInfo.attack as Attack).offhand) advanceMultiattackFor(attackModal.attacker.id);
           }}
         />
       )}
@@ -2855,8 +2858,8 @@ export default function CombatSession() {
               }
             }
             applyDamageNow();
-            // 当前击（命中伤害落账）结算完毕 → 推进多重攻击序列；反应挂起路径未落账不推进
-            advanceMultiattackFor(damageModal.attacker.id);
+            // 当前击（命中伤害落账）结算完毕 → 推进多重攻击序列；反应挂起路径未落账不推进（副手攻击不推进）
+            if (!(damageModal.attack as Attack).offhand) advanceMultiattackFor(damageModal.attacker.id);
             return false;
           }}
           onClose={() => {
