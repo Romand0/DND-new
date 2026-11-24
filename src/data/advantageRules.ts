@@ -187,6 +187,10 @@ function detectPositional(ctx: AdvantageContext): AdvantageResult {
   if (treatAsRanged && distanceCells === 1) {
     disadvantage.push({ kind: 'positional', label: '从 5 尺距离发动远程攻击' });
   }
+  // 劣势：纯远程武器（弓弩等）处于最大射程段（5e：超出常规射程但未超最大射程为劣势）
+  if (rangedOnly && getRangeTier(ctx.attack, distanceCells) === 'max') {
+    disadvantage.push({ kind: 'positional', label: '远程武器处于最大射程段' });
+  }
   // 劣势：投掷武器处于最大射程段
   if (thrown && ctx.scene === 'attack_thrown' && getRangeTier(ctx.attack, distanceCells) === 'max') {
     disadvantage.push({ kind: 'positional', label: '投掷武器处于最大射程段' });
