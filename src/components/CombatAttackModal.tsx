@@ -3,6 +3,7 @@ import { useState, useMemo } from 'react';
 import { X, Swords, Dices, ChevronLeft } from 'lucide-react';
 import { rollDice } from '@/data/diceService';
 import { characterStore } from '@/data/characterStore';
+import npcTemplateStore from '@/data/npcTemplateStore';
 import { computeCombatantAc } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
@@ -136,6 +137,16 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     return null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attacker.characterId, handRefreshKey, characterOverride]);
+
+  // 攻击者体型（重型武器劣势判定）：PC 读角色卡，NPC 读模板
+  const attackerSize = useMemo(() => {
+    if (character?.size) return character.size;
+    if (attacker.templateId) {
+      const tpl = npcTemplateStore.getAll().find(t => t.templateId === attacker.templateId);
+      if (tpl?.size) return tpl.size;
+    }
+    return undefined;
+  }, [character, attacker.templateId]);
 
   // PC 手持装备：战斗层手持（参战者上，进战时从角色卡备战槽初始化）；仅从战斗背包查找，物品被消耗后自然为 null
   const heldLeftId = combatStore.getCombatantHandSlot(attacker, 'left').equipmentId;
@@ -503,6 +514,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       attacker,
       target,
       attackerCharacter: character,
+      attackerSize,
       attack,
       usageMode,
       attackerPos: attackerPos ?? null,
