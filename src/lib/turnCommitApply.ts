@@ -267,6 +267,25 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         consumeAction(actor.id);
         consumedAction = true;
       }
+    } else if (op.kind === 'hide') {
+      // 躲藏：挂 hidden 状态（无自动解除——首次攻击结算后揭晓 / 被发现时 DM 手动移除），
+      // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认本 op（引擎零暗骰）
+      globalStatusManager.applyEffect(actor.id, 'hidden', 'combat', record.id, {
+        ...(record.mode === 'playback'
+          ? { combatMode: 'playback' as const, startRound: request.round - 1 }
+          : { combatMode: 'simulation' as const }),
+      });
+      combatStore.addTurnTodo(record.id, {
+        combatantId: actor.id,
+        name: '躲藏中（首次攻击或被发现后解除）',
+        type: 'condition_check',
+        startRound: request.round - 1,
+        endRound: request.round,
+      });
+      if (!consumedAction) {
+        consumeAction(actor.id);
+        consumedAction = true;
+      }
     } else if (op.kind === 'note') {
       if (op.actionCost === 'action' && !consumedAction) {
         consumeAction(actor.id);

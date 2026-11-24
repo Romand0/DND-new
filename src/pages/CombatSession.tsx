@@ -1647,6 +1647,37 @@ export default function CombatSession() {
     alert(`「${c.name}」专注于回避：至下一回合开始，可见敌人的攻击对其劣势，其敏捷豁免有优势`);
   };
 
+  // 基础动作「躲藏」：1 动作挂 hidden 状态——未被定位前攻击对己劣势、己方攻击优势；
+  // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认（引擎零暗骰）。
+  // hidden 不自动过期：首次攻击结算后揭晓（breakHidden），被发现时 DM 手动解除。
+  const hideFor = (c: Combatant) => {
+    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    const observers = record.combatants.filter(o => o.id !== c.id && !o.isDead && !o.isUnconscious);
+    const dcList = observers.map(o => `${o.name} 被动察觉 ${o.passiveChecks?.perception ?? 10}`).join('、');
+    globalStatusManager.applyEffect(c.id, 'hidden', 'combat', record.id, {
+      ...(record.mode === 'playback'
+        ? { combatMode: 'playback' as const, startRound: currentRound0 }
+        : { combatMode: 'simulation' as const }),
+    });
+    combatStore.addTurnTodo(record.id, {
+      combatantId: c.id,
+      name: '躲藏中（首次攻击或被发现后解除）',
+      type: 'condition_check',
+      startRound: currentRound0,
+      endRound: currentRound0 + 1,
+    });
+    consumeCombatantAction(c.id);
+    recordOperation(c.id, `躲藏：未被定位前攻击劣势/己方优势（观察者：${dcList || '无'}）`, 'record');
+    alert(`「${c.name}」进入躲藏。\n\n隐匿检定需达到以下观察者被动察觉：\n${dcList || '（无观察者）'}\n\n检定失败的观察者可看破其位置（DM 手动移除躲藏状态）`);
+  };
+
+  // 一攻揭晓：躲藏者发起攻击（命中/未命中均算）结算后移除 hidden
+  const breakHidden = (combatantId: string) => {
+    const inst = globalStatusManager.getActiveStatuses(combatantId, 'combat').find(i => i.definitionId === 'hidden');
+    if (inst) globalStatusManager.declareEnd(inst.instanceId);
+  };
+
   // 原内容：完全保留，一个字都没改（页面结构主体不变）
   return (
     <div className="max-w-full mx-auto p-4 space-y-4">
@@ -2422,6 +2453,8 @@ export default function CombatSession() {
           onConfirmHit={(attack, info) => {
             // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
             consumeAttackActionFor(attackModal.attacker.id);
+            // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算）
+            breakHidden(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
             if (attack.properties?.some(p => p.includes('装填'))) {
               markLoadingAttacked(attackModal.attacker.id);
@@ -2495,6 +2528,8 @@ export default function CombatSession() {
           onAttackMiss={(missInfo) => {
             // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
             consumeAttackActionFor(attackModal.attacker.id);
+            // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算）
+            breakHidden(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
             if (missInfo.attack.properties?.some(p => p.includes('装填'))) {
               markLoadingAttacked(attackModal.attacker.id);
@@ -2692,6 +2727,7 @@ export default function CombatSession() {
             onConfirmHit={(attack, info) => {
               // 行使反应：扣反应次数 + 消费机会（反应攻击不消耗主动作）
               noteReactionExercised();
+              breakHidden(owner.id);
               combatStore.consumeReaction(record.id, owner.id);
               combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
               combatStore.pushCombatEvent(record.id, {
@@ -2725,6 +2761,7 @@ export default function CombatSession() {
             }}
             onAttackMiss={(missInfo) => {
               noteReactionExercised();
+              breakHidden(owner.id);
               combatStore.consumeReaction(record.id, owner.id);
               combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
               const text = `《${missInfo.attackName}》→ ${reactionTarget.name}：${definition?.name ?? '反应'}未命中`;
@@ -3504,6 +3541,10 @@ export default function CombatSession() {
             }}
             onDodgeClick={() => {
               dodgeFor(liveCombatant);
+              setInfoPanelCombatant(null);
+            }}
+            onHideClick={() => {
+              hideFor(liveCombatant);
               setInfoPanelCombatant(null);
             }}
             onForcedMoveClick={() => setForcedMoveTarget(liveCombatant)}

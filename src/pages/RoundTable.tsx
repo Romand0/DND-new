@@ -1,7 +1,7 @@
 // DM 圆桌页：左侧发起检定表单 + 观战抛送，右侧消息流（发起的请求状态 + 收到的结果）
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Send, Ban, Dices, Inbox, Hourglass, Eye } from 'lucide-react';
-import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, DcMode, SpectateInvitePayload } from '@/types/roundTable';
+import { Send, Ban, Dices, Inbox, Hourglass, Eye, Gavel, Check, X } from 'lucide-react';
+import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, DcMode, SpectateInvitePayload, DecisionRequestPayload } from '@/types/roundTable';
 import { SKILL_LABELS, ABILITY_LABELS } from '@/types/roundTable';
 import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 import type { BoundCharacterInfo } from '@/types/roundTable';
@@ -71,7 +71,7 @@ export default function RoundTable() {
   }, [checkKind, checkKey]);
 
   // 消息配对：发起的 request → 对应 result（via replyMessageId）；观战邀请单独分流
-  const { requests, resultById, invites } = useMemo(() => {
+  const { requests, resultById, invites, decisions } = useMemo(() => {
     const rbs = new Map<string, TableMessage & { payload: CheckResultPayload }>();
     for (const m of inbox.messages) {
       if (m.type === 'check_result') {
@@ -80,7 +80,9 @@ export default function RoundTable() {
     }
     const reqs = outbox.messages.filter(m => m.type === 'check_request').sort((a, b) => b.createdAt - a.createdAt);
     const invs = outbox.messages.filter(m => m.type === 'spectate_invite').sort((a, b) => b.createdAt - a.createdAt);
-    return { requests: reqs, resultById: rbs, invites: invs };
+    // 决策点：DM 是 decision_request 的收件人（玩家回合中途提交的裁定请求）
+    const decs = inbox.messages.filter(m => m.type === 'decision_request').sort((a, b) => b.createdAt - a.createdAt);
+    return { requests: reqs, resultById: rbs, invites: invs, decisions: decs };
   }, [inbox.messages, outbox.messages]);
 
   const submit = useCallback(async () => {
@@ -350,6 +352,15 @@ export default function RoundTable() {
             );
           })}
 
+          {decisions.map(msg => (
+            <DecisionRequestCard
+              key={msg.id}
+              message={msg}
+              payload={msg.payload as DecisionRequestPayload}
+              onResolved={() => inbox.refresh()}
+            />
+          ))}
+
           {requests.map(msg => {
             const payload = msg.payload as CheckRequestPayload;
             const result = resultById.get(msg.id);
@@ -397,6 +408,90 @@ export default function RoundTable() {
           })}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** DM 端决策点卡：玩家回合中途提交的裁定请求（批准/驳回 + 理由） */
+function DecisionRequestCard({
+  message,
+  payload,
+  onResolved,
+}: {
+  message: TableMessage;
+  payload: DecisionRequestPayload;
+  onResolved: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState('');
+
+  const resolve = async (approved: boolean) => {
+    setSending(true);
+    setError('');
+    try {
+      await api.sendDecisionResult({ replyTo: message.id, approved, reason: reason.trim() || undefined });
+      onResolved();
+    } catch (e: any) {
+      setError(e?.message || '裁定失败，请重试');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border p-4 border-accent/40 dark:bg-card-dark light:bg-card-light">
+      <div className="flex items-center justify-between gap-2 mb-1">
+        <div className="text-sm font-bold dark:text-text-dark light:text-text-light flex items-center gap-1.5">
+          <Gavel className="w-4 h-4 text-accent" />
+          {payload.characterName} · 请求裁定：{payload.decisionLabel}
+        </div>
+        {message.status === 'pending' && (
+          <span className="flex items-center gap-1 text-xs text-amber-500 shrink-0">
+            <Hourglass className="w-3.5 h-3.5" />
+            等待裁定
+          </span>
+        )}
+        {message.status === 'answered' && <span className="text-xs text-emerald-500 shrink-0">已裁定</span>}
+        {message.status === 'cancelled' && (
+          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">已撤回</span>
+        )}
+      </div>
+      {payload.note && (
+        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-2">{payload.note}</div>
+      )}
+      <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+        {new Date(message.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+      </div>
+      {message.status === 'pending' && (
+        <div className="mt-2 space-y-2">
+          <input
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="裁定理由（可选，回传给玩家）"
+            className="w-full px-2.5 py-1.5 rounded-lg border text-xs dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => resolve(true)}
+              disabled={sending}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-emerald-500/15 text-emerald-600 hover:bg-emerald-500/25 transition-colors disabled:opacity-50"
+            >
+              <Check className="w-3.5 h-3.5" />
+              批准
+            </button>
+            <button
+              onClick={() => resolve(false)}
+              disabled={sending}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-500 hover:bg-red-500/25 transition-colors disabled:opacity-50"
+            >
+              <X className="w-3.5 h-3.5" />
+              驳回
+            </button>
+            {error && <span className="text-xs text-red-500">{error}</span>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 // 数据来源：观战投影（roster/board）+ 本人角色卡（云端拉取，仅用于攻击加值/法术位/法术列表）。
 // 投影经 combatantAdapter 映射成 Combatant 形状，弹窗内的射程/弹药/装填/优劣势判定与 DM 端同源。
 import { useEffect, useMemo, useState } from 'react';
-import { Dices, Hand, PenLine, RotateCcw, Send, Sparkles, Swords, Trash2, X } from 'lucide-react';
+import { Dices, Hand, PenLine, RotateCcw, Send, Sparkles, Swords, Trash2, X, EyeOff } from 'lucide-react';
 import { useTextInput } from '@/hooks/useInput';
 import { fetchCharacter } from '@/lib/api';
 import { spellStore } from '@/data/spellStore';
@@ -60,6 +60,10 @@ interface Props {
   /** 沙盘白圈「攻击/施法」按钮发起的请求（seq 用于重复请求去重），宿主处理后回 handled 清空 */
   boardRequest?: { kind: 'attack' | 'cast'; targetId?: string; seq: number } | null;
   onBoardRequestHandled?: () => void;
+  /** 决策点：躲藏裁定请求是否待 DM 审批（等待标记） */
+  hideDecisionPending?: boolean;
+  /** 决策点：发起躲藏裁定请求（回合中途，DM 批准后自动记入操作序列） */
+  onRequestHideDecision?: () => void;
 }
 
 /** 弹窗外壳：换持 / 其他行动这类轻量弹窗用（掷骰类弹窗直接复用 DM 侧组件） */
@@ -101,7 +105,7 @@ function isRangedAttack(atk: Attack | NpcAttack): boolean {
   return props.includes('弹药') || props.includes('投掷') || ((atk as Attack).normalRange ?? 0) > 0;
 }
 
-export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board, boardRequest, onBoardRequestHandled }: Props) {
+export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board, boardRequest, onBoardRequestHandled, hideDecisionPending = false, onRequestHideDecision }: Props) {
   const [sentAt, setSentAt] = useState<number | null>(null);
   // 发送失败（连接未就绪）或已被 DM 拒绝时进入可重试态：保留 ops 与服务端基线，原样重发
   const [sendFailed, setSendFailed] = useState(false);
@@ -410,6 +414,17 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           <PenLine className="w-4 h-4 inline mr-1" />
           其他行动
         </button>
+        {onRequestHideDecision && (
+          <button
+            onClick={onRequestHideDecision}
+            disabled={hideDecisionPending}
+            className={ghostBtn}
+            title="回合中途提交躲藏裁定请求，DM 批准后记入操作序列"
+          >
+            <EyeOff className="w-4 h-4 inline mr-1" />
+            {hideDecisionPending ? '等待 DM 裁定…' : '请求裁定（躲藏）'}
+          </button>
+        )}
         {targets.length > 0 && (
           <select
             value={target?.id ?? ''}

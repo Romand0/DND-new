@@ -64,6 +64,9 @@ function opText(op: TurnCommitOp, combatantNames?: Record<string, string>): stri
   if (op.kind === 'dodge') {
     return '回避（至下回合开始，攻击对己劣势、敏捷豁免优势）';
   }
+  if (op.kind === 'hide') {
+    return '躲藏（未被定位前攻击劣势/己方优势，一攻揭晓）';
+  }
   const roll = `d20 ${op.d20}+${op.bonus}=${op.d20 + op.bonus}`;
   const verdict = op.critical ? '暴击命中' : op.hit ? '命中' : '未命中';
   const ammo = op.ammoCount ? `，弹药 -${op.ammoCount}` : '';

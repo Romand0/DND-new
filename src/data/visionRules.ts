@@ -173,6 +173,24 @@ export function canSenseInDark(senses: CombatantSenses | null | undefined, dista
   return false;
 }
 
+/**
+ * 躲藏/隐形的可见性判定（5e 非魔法感知口径，距离单位=格）：
+ *   - hidden（躲藏）：盲视或真实视觉尺数覆盖距离 → 可见（被非视觉感官锁定）
+ *   - invisible（隐形）：仅真实视觉尺数覆盖距离 → 可见
+ * 黑暗仅影响普通视觉，不改变本判定（黑暗优劣势由 environment-light 单独产出）。
+ */
+export function canSeeThroughHide(
+  senses: CombatantSenses | null | undefined,
+  distanceCells: number | undefined,
+  kind: 'hidden' | 'invisible',
+): boolean {
+  const s = senses ?? {};
+  const dist = Math.max(1, distanceCells ?? 1) * 5;
+  if (s.truesight && s.truesight >= dist) return true;
+  if (kind === 'hidden' && s.blindsight && s.blindsight >= dist) return true;
+  return false;
+}
+
 // =======================
 // 感官文本解析（NPC 图鉴 senses 自由文本 → 结构化）
 // =======================

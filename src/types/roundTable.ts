@@ -1,7 +1,12 @@
 // 圆桌消息信箱类型（与 functions/api/table/_shared.ts 同构）
 import type { AbilityKey } from './character';
 
-export type TableMessageType = 'check_request' | 'check_result' | 'spectate_invite';
+export type TableMessageType =
+  | 'check_request'
+  | 'check_result'
+  | 'spectate_invite'
+  | 'decision_request'
+  | 'decision_result';
 export type TableMessageStatus = 'pending' | 'answered' | 'cancelled';
 
 /** 检定类别：属性检定 / 技能检定 / 豁免检定 */
@@ -38,6 +43,24 @@ export interface CheckResultPayload {
   submittedAt: number;
 }
 
+/** 回合中途决策点请求（玩家发起 → DM 裁定；首个使用方：躲藏） */
+export interface DecisionRequestPayload {
+  characterId: string;
+  characterName: string;
+  decisionKind: 'hide';
+  decisionLabel: string;
+  note: string;
+  campaignId?: string;
+}
+
+/** 决策点裁定结果（DM 回填 → 玩家端恢复操作） */
+export interface DecisionResultPayload {
+  replyTo: string;
+  approved: boolean;
+  reason?: string;
+  submittedAt: number;
+}
+
 /** DM 抛送的观战邀请：玩家一键加入实时战斗房间（/player/spectate?room=<roomId>） */
 export interface SpectateInvitePayload {
   roomId: string;
@@ -50,7 +73,12 @@ export interface TableMessage {
   fromUserId: string;
   toUserId: string;
   type: TableMessageType;
-  payload: CheckRequestPayload | CheckResultPayload | SpectateInvitePayload;
+  payload:
+    | CheckRequestPayload
+    | CheckResultPayload
+    | SpectateInvitePayload
+    | DecisionRequestPayload
+    | DecisionResultPayload;
   status: TableMessageStatus;
   replyMessageId: string | null;
   createdAt: number;
