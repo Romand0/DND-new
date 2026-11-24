@@ -7,6 +7,7 @@ import npcTemplateStore from '@/data/npcTemplateStore';
 import { computeCombatantAc } from '@/data/combatStore';
 import combatStore from '@/data/combatStore';
 import { detectAdvantage, resolveRollMode, getMatchedPendingSourceIds, type AdvantageContext } from '@/data/advantageRules';
+import { buildOffhandAttackCandidates } from '@/lib/twoWeaponFighting';
 import { detectCheckModifiers, computeModifierTotal, collectDiceRequests, getAppliedModifierRefs, resolveModifierValue, type CheckModifierContext } from '@/data/checkModifierRules';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
 import { suggestCoverHint, COVER_LABELS } from '@/data/visionRules';
@@ -91,6 +92,8 @@ interface Props {
   lockedAttackName?: string;
   /** 多重攻击序列步骤徽标（弹窗标题旁）：「多重攻击 第2/3击 · 爪击」 */
   multiattackStepLabel?: string;
+  /** 攻击者当前可用附赠动作数（双武器战斗副手攻击条目需要；缺省按 1 兜底） */
+  bonusActionsAvailable?: number;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -98,7 +101,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, lockedAttackName, multiattackStepLabel }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, lockedAttackName, multiattackStepLabel, bonusActionsAvailable }: Props) {
   // 掩护单次覆盖：'' = 跟随参战者标注；'none' = 本弹窗覆盖为无掩护；其余为临时等级（写回在参战者面板）
   const [coverOverride, setCoverOverride] = useState<'' | 'none' | CoverTier>('');
   const effectiveCover: CoverTier | null = coverOverride === '' ? (target?.coverTier ?? null) : coverOverride === 'none' ? null : coverOverride;
@@ -238,8 +241,16 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   };
 
   // 攻击列表：角色卡有条目用角色卡，否则回落参战者自带攻击（试验场影子卡 attacks 为空数组，武器条目在参战者上）
-  const attacks: (Attack | NpcAttack)[] =
-    character?.attacks && character.attacks.length > 0 ? character.attacks : attacker.attacks || [];
+  // 双武器战斗：两手各持合格近战武器且有附赠动作时，追加副手攻击候选条目（左右各一，临时合成不入卡）
+  const attacks: (Attack | NpcAttack)[] = useMemo(() => {
+    const base = character?.attacks && character.attacks.length > 0 ? character.attacks : attacker.attacks || [];
+    if (reactionMode) return base;
+    const offhand = buildOffhandAttackCandidates(heldLeftItem, heldRightItem, character, {
+      bonusActionsAvailable: typeof bonusActionsAvailable === 'number' ? bonusActionsAvailable : 1,
+    });
+    return offhand.length > 0 ? [...base, ...offhand] : base;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [character, attacker.attacks, reactionMode, heldLeftId, heldRightId, bonusActionsAvailable, combatInventory]);
 
   // ========= 射程判定辅助函数（复用 CombatantInfoPanel 的逻辑） =========
   // usageMode: 投掷武器的使用方式（近战/投掷）；纯远程或纯近战武器忽略此参数
@@ -432,8 +443,12 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
     // 全身掩护：目标无法被直接瞄准（含法术攻击外的所有武器攻击），阻断在可用性层
     if (effectiveCover === 'total') return { usable: false, reason: '目标处于全身掩护，无法直接瞄准' };
     if (character) {
-      const leftMatch = heldLeftItem && heldLeftItem.name === attack.name;
-      const rightMatch = heldRightItem && heldRightItem.name === attack.name;
+      // 副手攻击条目名带「副手攻击（…）」前缀，手持匹配用内层武器名
+      const matchName = (attack as Attack).offhand
+        ? attack.name.replace(/^副手攻击（(.+)）$/, '$1')
+        : attack.name;
+      const leftMatch = heldLeftItem && heldLeftItem.name === matchName;
+      const rightMatch = heldRightItem && heldRightItem.name === matchName;
       // 徒手打击无需武器（任何生物默认可用）
       const isHeld = leftMatch || rightMatch || attack.name === '徒手击打';
 
