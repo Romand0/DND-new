@@ -4,7 +4,7 @@
 
 - **P1 掩护完成**（2026-11-23，`61ec87f` 推送）：23 断言探针全绿，run.sh 29/29。
 - **P2 光线/感官完成**（2026-11-23，main `77bdc47` 推送）：probe-vision-p2 34 断言全绿 + p1 23 断言回归绿，build 通过。
-- **P3 隐身/决策点**：未开工。
+- **P3 隐身/决策点完成**（2026-11-24，feature/vision-p3-hide-decision）：probe-vision-p3 21 断言全绿 + p1 23 / p2 34 回归绿，tsc + build 通过。
 
 ## P1 已交付（掩护）
 
@@ -35,14 +35,24 @@
 - **微光察觉劣势限定 perception**：其他技能检定不受微光影响，靠 AdvantageContext.skillKey 区分。
 - **兜底口径**：parseSenses 全部失败返回空对象（DM 面板可后续录入），不抛出。
 
+## P3 已交付（躲藏隐身/决策点）
+
+- 引擎：visionRules `canSeeThroughHide`（truesight 全窥、hidden 额外 blindsight、尺数≥dist×5）；statusLibrary `hidden`/`invisible` 条目（无自动解除效果）；advantageRules `getVisibilityState` + `detectUnseen`（detector `unseen`：hidden 与 ATTR 攻击场景双向判定，双向优势抵消交给 resolveRollMode）
+- 落账：TurnCommitOp `{kind:'hide'}`；turnCommitApply hide 分支（applyEffect hidden + addTurnTodo + consumeAction）；PlayerActionReviewCard hide 文案
+- 交互：CombatantInfoPanel hide 动作 + onHideClick → Battleground onPanelHideClick；CombatSession `hideFor`（1 动作挂 hidden + 观察者被动察觉 DC 提示）与 `breakHidden`（四处攻击回调一攻揭晓）
+- 决策点（R5）：`functions/api/table/decision-request.ts`（登录 + 角色绑定校验 + 定向投 DM）+ `decision-result.ts`（isAdmin + to_user_id + batch 原子回填）；`findDmUserId`（campaign_members role='dm' → is_admin=1 回退）；前端 sendDecisionRequest/sendDecisionResult + RoundTable DecisionRequestCard（DM 裁定）；玩家端 MyTurnPanel「请求裁定（躲藏）」按钮 + 等待标记 + PlayerSpectate 发件箱轮询回执（批准自动记入 hide op，驳回提示理由）
+- 探针：probe-vision-p3.cjs 21 断言（canSeeThroughHide 矩阵 / 状态库 / unseen 双向判定 / 注册）
+
+## P3 设计修正（实现期决策）
+
+- **决策点复用 table_messages**：不新建 pendingDecisions 表/字段；新 type decision_request/decision_result + payload 扩展，status/reply_message_id 复用，DM 归属 findDmUserId。
+- **等待标记放玩家端组件态 + 圆桌发件箱轮询**：玩家请求不阻塞回合继续，回执到达后自动补 hide op；驳回不改动已记录的其他操作。
+- **一攻揭晓显式 breakHidden**：hidden 状态无自动解除 effect，四处攻击回调（主攻击两处 + 反应两处）统一调用，避免依赖隐藏状态生命周期隐式规则。
+
 ## 下一步
 
-1. P3 隐身/决策点：
-   - statusManager hidden 状态 + `hide` 动作落账（turnCommitApply）
-   - `unseen-attacker`/`unseen-target` 检测器（hidden/invisible 状态接入 Attr advantage 判定）
-   - 决策点机制：record.pendingDecisions + 圆桌信箱即时请求/回填（R5），回合末批量审批展示
-   - 探针 probe-vision-p3.cjs（隐藏落账 + 决策点往返数据级断言）
-2. 交付前 checklist：分领域探针（p1/p2/p3）全绿 + tsc + build。
+1. 远程不可达时（gnutls handshake 失败）稍后重试 push；本地 feature 分支已提交 5 个原子 commit 并合入 main 验证通过。
+2. 后续可扩展 decisionKind（如「借机攻击确认」「专注打断」）——后端 DECISION_KINDS 白名单 + 前端按钮即可。
 
 ## 验证命令
 
@@ -51,6 +61,7 @@ npx tsc -p tsconfig.app.json --noEmit
 npm run build
 NODE_PATH=$(npm root -g) node scripts/probes/probe-vision-p1.cjs   # 23 断言
 NODE_PATH=$(npm root -g) node scripts/probes/probe-vision-p2.cjs   # 34 断言
+NODE_PATH=$(npm root -g) node scripts/probes/probe-vision-p3.cjs   # 21 断言
 ```
 
 ## 关键上下文
