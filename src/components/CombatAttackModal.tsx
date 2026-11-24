@@ -838,10 +838,12 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
           {/* 阶段1：攻击方式列表 */}
           {stage === 'attacks' && (
             <div className="space-y-2">
-              {/* 多重攻击序列提示：本步锁定配方攻击；剩余攻击可随时主动放弃（5e 允许多次攻击中途停下） */}
+              {/* 序列提示：锁定步（怪物配方）只能用该攻击；PC 额外攻击不锁武器（5e 每击可换武器） */}
               {multiattackStepLabel && (
                 <div className="rounded-lg bg-violet-500/10 px-2.5 py-1.5 text-xs text-violet-400">
-                  {multiattackStepLabel}——本步只能使用该攻击；结束本次攻击后可随时在面板放弃剩余击数
+                  {lockedAttackName
+                    ? `${multiattackStepLabel}——本步只能使用该攻击；结束本次攻击后可随时在面板放弃剩余击数`
+                    : `${multiattackStepLabel}——本击可用任意已持有的武器攻击；可随时在面板放弃剩余击数`}
                 </div>
               )}
               {/* 手部装备区：攻击流程内直接调整手持（仅 PC；换手后攻击可用性实时重算） */}

@@ -1385,10 +1385,13 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
                   可执行动作
                 </div>
-                {/* 多重攻击进行中：步骤进度 chip + 中途放弃（剩余击数不强制打完） */}
+                {/* 序列进行中：步骤进度 chip + 中途放弃（剩余击数不强制打完）；
+                    空步骤名 = PC 额外攻击（不锁武器仅计次），怪物序列带配方名 */}
                 {multiattackStep && (
                   <div className="mb-2 flex items-center justify-between rounded-lg bg-violet-500/10 px-2.5 py-1.5 text-xs text-violet-400">
-                    <span>多重攻击 第{multiattackStep.pos + 1}/{multiattackStep.total}击：{multiattackStep.stepName}</span>
+                    <span>
+                      {multiattackStep.stepName ? '多重攻击' : '额外攻击'} 第{multiattackStep.pos + 1}/{multiattackStep.total}击{multiattackStep.stepName ? `：${multiattackStep.stepName}` : ''}
+                    </span>
                     {onMultiattackEnd && (
                       <button
                         type="button"

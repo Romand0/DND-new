@@ -41,6 +41,7 @@ import { globalStatusManager } from '@/data/statusManager';
 import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
+import { derivePcAttacksPerAction } from '@/lib/pcExtraAttack';
 import { optionStore } from '@/data/optionStore';
 import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
@@ -1557,10 +1558,30 @@ export default function CombatSession() {
     combatStore.advanceMultiattack(record.id, attackerId);
   };
 
+  // 步骤徽标文案：怪物队列存配方名（带攻击名）；PC 额外攻击队列存空哨兵（不锁武器，仅计次）
+  const multiattackStepLabelOf = (seq: { queue: string[]; pos: number }) => {
+    const name = seq.queue[seq.pos];
+    const head = name ? '多重攻击' : '额外攻击';
+    return `${head} 第${seq.pos + 1}/${seq.queue.length}击${name ? ` · ${name}` : ''}`;
+  };
+
+  // PC 额外攻击：每次攻击动作可攻击 N 次（职业特性推导），进第一击前自动开序列；
+  // 队列哨兵为空名 → 弹窗不锁定攻击（5e 允许多次攻击中每击换武器），仅提供计数与动作共享
+  const beginPcExtraAttackIfNeeded = (c: Combatant): { queue: string[]; pos: number } | null => {
+    if (!record || !c.isPc || !c.characterId) return null;
+    const n = derivePcAttacksPerAction(characterStore.get(c.characterId));
+    if (n <= 1) return null;
+    const queue = Array.from({ length: n }, () => '');
+    if (!combatStore.startMultiattack(record.id, c.id, queue)) return null;
+    return combatStore.get(record.id)?.multiattackProgress?.[c.id] ?? null;
+  };
+
   const openAttackFor = (c: Combatant) => {
-    const seq = activeMultiattackSeq(c.id);
+    let seq = activeMultiattackSeq(c.id);
     if (!seq) {
       if (!ensureCanAct(c, canUseAction(c.id))) return;
+      // PC 额外攻击（N>1）自动开序列；返回 null 视同单次攻击走原路径
+      seq = beginPcExtraAttackIfNeeded(c);
     } else if (actionDeniedReason(c)) {
       // 序列进行中动作已承诺：只拦死亡/昏迷/失能，不拦动作数
       alert(actionDeniedReason(c));
@@ -1582,7 +1603,7 @@ export default function CombatSession() {
         targetPos: tPos ? { col: tPos.col, row: tPos.row } : undefined,
         ...(seq ? {
           lockedAttackName: stepAttack?.name,
-          multiattackStepLabel: `多重攻击 第${seq.pos + 1}/${seq.queue.length}击 · ${stepName}`,
+          multiattackStepLabel: multiattackStepLabelOf(seq),
         } : {}),
       });
       setInfoPanelCombatant(null);
@@ -2171,10 +2192,12 @@ export default function CombatSession() {
           }
         }}
         onRequestAttack={(attacker, target) => {
-          const seq = activeMultiattackSeq(attacker.id);
+          let seq = activeMultiattackSeq(attacker.id);
           if (!seq) {
             // 动作校验：放映模式可用动作耗尽时禁止发起攻击
             if (!ensureCanAct(attacker, canUseAction(attacker.id))) return;
+            // PC 额外攻击（N>1）自动开序列；返回 null 视同单次攻击走原路径
+            seq = beginPcExtraAttackIfNeeded(attacker);
           } else if (actionDeniedReason(attacker)) {
             // 序列进行中动作已承诺：只拦死亡/昏迷/失能
             alert(actionDeniedReason(attacker));
@@ -2196,7 +2219,7 @@ export default function CombatSession() {
             targetPos: targetPos ? { col: targetPos.col, row: targetPos.row } : undefined,
             ...(seq ? {
               lockedAttackName: stepAttack?.name,
-              multiattackStepLabel: `多重攻击 第${seq.pos + 1}/${seq.queue.length}击 · ${stepName}`,
+              multiattackStepLabel: multiattackStepLabelOf(seq),
             } : {}),
           });
         }}
