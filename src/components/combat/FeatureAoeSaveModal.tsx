@@ -34,6 +34,8 @@ interface Props {
   featureName: string;
   /** 容器子形态能力覆盖（缺省按 featureName 注册表解析） */
   capability?: FeatureCapability;
+  /** 形状描述覆盖（怪物吐息等无角色卡特性文本时，直接传模板 shape 文本） */
+  descriptionOverride?: string;
   combatants: Combatant[];
   combatantPositions?: Record<string, { col: number; row: number } | null | undefined> | null;
   bounds: { cols: number; rows: number };
@@ -49,14 +51,15 @@ interface Props {
   onClose: () => void;
 }
 
-export default function FeatureAoeSaveModal({ caster, featureName, capability: capabilityProp, combatants, combatantPositions, bounds, onResolve, onClose }: Props) {
+export default function FeatureAoeSaveModal({ caster, featureName, capability: capabilityProp, descriptionOverride, combatants, combatantPositions, bounds, onResolve, onClose }: Props) {
   const capability = capabilityProp ?? resolveFeatureCapability(featureName);
   const spec: FeatureAoeSaveSpec | undefined = capability.aoeSave;
   // 形状规格：从角色卡特性描述解析（「15尺锥状」等），AoETargetStep 特性模式直传
   const description = useMemo(() => {
+    if (descriptionOverride) return descriptionOverride;
     const char = caster.characterId ? characterStore.get(caster.characterId) : null;
     return char?.features?.find(f => f.name === featureName)?.description ?? '';
-  }, [caster.characterId, featureName]);
+  }, [caster.characterId, featureName, descriptionOverride]);
   const aoeSpec = useMemo(() => parseAoeSpec(description), [description]);
 
   const [stage, setStage] = useState<'pick' | 'settle'>('pick');

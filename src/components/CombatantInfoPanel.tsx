@@ -5,6 +5,7 @@ import { characterStore } from '@/data/characterStore';
 import { deriveFeatureRole } from '@/data/featureRole';
 import { resolvePoolKey } from '@/data/featurePool';
 import { resolveFeatureCapability } from '@/data/featureCapabilities';
+import { parseAoeSpec } from '@/data/aoeShapes';
 import { computeNetChanges, computeCombatantAc, type NetChangeEntry } from '@/data/combatStore';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import combatStore from '@/data/combatStore';
@@ -42,6 +43,8 @@ interface Props {
   onAttackClick?: () => void;
   /** 多重攻击配方（参战者身上，非空时在动作区展示入口按钮） */
   multiattackRecipe?: { count: number; name: string }[];
+  /** 吐息武器入口（怪物：形状可解析且有伤害骰的条目走 aoe_save 自动结算） */
+  onBreathWeaponClick?: (index: number) => void;
   /** 多重攻击序列进行中的当前步（null = 未在进行中） */
   multiattackStep?: { pos: number; total: number; stepName: string } | null;
   /** 开启多重攻击序列（宿主展开配方队列并入第一击） */
@@ -80,7 +83,7 @@ interface Props {
   spellSlotsOverride?: { level: number; label: string; used: number; max: number }[] | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onDodgeClick, onDisengageClick, onHideClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride, multiattackRecipe, multiattackStep, onMultiattackStart, onMultiattackEnd }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onDodgeClick, onDisengageClick, onHideClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride, multiattackRecipe, multiattackStep, onMultiattackStart, onMultiattackEnd, onBreathWeaponClick }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -102,6 +105,13 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
   const activeFeatures = useMemo(
     () => (character?.features || []).filter((f) => deriveFeatureRole(f) === 'active'),
     [character]
+  );
+  // 吐息武器：仅形状可解析且有伤害骰的条目提供自动豁免入口（纯效果型/无形状留 DM 手动）
+  const breathWeapons = useMemo(
+    () => (combatant.breathWeapon ?? [])
+      .map((b, index) => ({ b, index }))
+      .filter(({ b }) => !!b.damageDice && !!parseAoeSpec(b.shape)),
+    [combatant.breathWeapon],
   );
   // 池视图：池满量/卡已用/本场消耗/可用量（refreshKey 每秒跳动，顺带驱动池数据刷新）
   const poolView = useMemo(
@@ -1472,6 +1482,29 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       </button>
                     );
                   })() : null}
+                  {/* 吐息武器入口：范围豁免 + 半伤自动结算（动作成本在弹窗确认时扣） */}
+                  {onBreathWeaponClick && breathWeapons.length > 0 && breathWeapons.map(({ b, index }) => {
+                    const blocked = !!(sealed && !playerMode) || combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated;
+                    return (
+                      <button
+                        key={`breath-${index}`}
+                        type="button"
+                        onClick={() => onBreathWeaponClick(index)}
+                        disabled={blocked}
+                        title={[b.recharge, b.shape, b.dc ? `DC${b.dc}${b.ability ?? ''}豁免` : '', b.halfOnSave ? '豁免成功则伤害减半' : ''].filter(Boolean).join(' · ')}
+                        className={`col-span-2 flex items-center justify-between px-2 py-1.5 rounded text-xs text-left transition-colors ${
+                          blocked
+                            ? 'dark:bg-bg-dark-2/50 light:bg-gray-50 dark:text-text-dark-muted light:text-text-light-muted opacity-70 cursor-not-allowed'
+                            : 'dark:bg-bg-dark-2 light:bg-gray-100 dark:text-text-dark light:text-text-light hover:bg-orange-500/15 active:scale-[0.98]'
+                        }`}
+                      >
+                        <span className="truncate">吐息武器：{b.name}</span>
+                        <span className="text-[10px] opacity-60 flex-shrink-0">
+                          {[b.recharge, b.dc ? `DC${b.dc}` : ''].filter(Boolean).join(' ')}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
                 {(combatant.isDead || combatant.isUnconscious || combatant.isIncapacitated) && (
                   <p className="mt-1.5 text-[10px] text-purple-400">
