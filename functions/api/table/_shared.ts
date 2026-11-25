@@ -2,7 +2,12 @@
 // 圆桌消息信箱共享类型与校验（前后端各自声明同构常量，避免跨端 import）
 import type { Env } from '../../_utils';
 
-export type TableMessageType = 'check_request' | 'check_result' | 'spectate_invite';
+export type TableMessageType =
+  | 'check_request'
+  | 'check_result'
+  | 'spectate_invite'
+  | 'decision_request'
+  | 'decision_result';
 export type TableMessageStatus = 'pending' | 'answered' | 'cancelled';
 export type CheckKind = 'ability' | 'skill' | 'save';
 export type DcMode = 'open' | 'hidden_dc' | 'value_only';
@@ -10,6 +15,24 @@ export type DcMode = 'open' | 'hidden_dc' | 'value_only';
 export interface SpectateInvitePayload {
   roomId: string;
   title: string;
+}
+
+/** 回合中途决策点请求（玩家发起 → DM 裁定；首个使用方：躲藏） */
+export interface DecisionRequestPayload {
+  characterId: string;
+  characterName: string;
+  decisionKind: 'hide';
+  decisionLabel: string;
+  note: string;
+  campaignId?: string;
+}
+
+/** 决策点裁定结果（DM 回填 → 玩家端恢复操作） */
+export interface DecisionResultPayload {
+  replyTo: string;
+  approved: boolean;
+  reason?: string;
+  submittedAt: number;
 }
 
 export interface TableMessageRow {
@@ -55,6 +78,28 @@ export async function isCharacterBoundTo(env: Env, userId: string, characterId: 
     .bind(userId, characterId)
     .first<{ ok: number }>();
   return row?.ok === 1;
+}
+
+/**
+ * 查团组的 DM 账号：优先 campaign_members 中 role='dm' 的成员；
+ * 无团组/未标记时回退站点管理员（is_admin=1，最早注册者）。
+ */
+export async function findDmUserId(env: Env, campaignId: string | null): Promise<string | null> {
+  if (campaignId) {
+    const member = await env.DB
+      .prepare(
+        `SELECT user_id FROM campaign_members
+         WHERE campaign_id = ? AND role = 'dm'
+         ORDER BY joined_at ASC LIMIT 1`
+      )
+      .bind(campaignId)
+      .first<{ user_id: string }>();
+    if (member?.user_id) return member.user_id;
+  }
+  const admin = await env.DB
+    .prepare('SELECT id FROM users WHERE is_admin = 1 ORDER BY created_at ASC LIMIT 1')
+    .first<{ id: string }>();
+  return admin?.id ?? null;
 }
 
 /** 消息行 → API 形状（payload 解析为对象；解析失败保底空对象不炸整个信箱） */

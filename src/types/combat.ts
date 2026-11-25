@@ -168,6 +168,14 @@ export interface WildShapeState {
 
 export type CoverTier = 'half' | 'three_quarters' | 'total';
 
+/** 视觉感官结构化尺数（NPC 从 senses 文本解析；PC 从特性派生）。undefined = 无该感官 */
+export interface CombatantSenses {
+  darkvision?: number;
+  blindsight?: number;
+  truesight?: number;
+  tremorsense?: number;
+}
+
 export interface Combatant {
   id: string;
   name: string;
@@ -228,6 +236,8 @@ export interface Combatant {
   passiveChecks?: PassiveChecks;
   /** 黑暗视觉尺数（PC 入战派生：种族/特性条目；undefined = 无黑暗视觉） */
   darkvision?: number;
+  /** 视觉感官结构化（NPC 从图鉴 senses 文本解析；PC 由黑暗视觉派生同步写入 darkvision 字段） */
+  senses?: CombatantSenses;
   /** 掩护等级（DM 在参战者面板标注；攻击弹窗可单次覆盖）。total = 全身掩护，直接瞄准被阻断 */
   coverTier?: CoverTier | null;
   /** 反应是否已用（5e：每个回合 1 个反应，自己回合开始时恢复；undefined 视为未用） */
@@ -638,6 +648,13 @@ export interface CombatRecord {
      */
     loadingAttackedThisRound?: Record<string, boolean>;
     /**
+     * 多重攻击序列（方案A：1 个 Attack 动作内按配方出 N 击，5e Multiattack 语义）。
+     * key=combatantId；queue 为配方展开后的攻击名序列，pos 为当前击下标；
+     * actionConsumed 在序列首击结算时置位——整序列只消耗 1 个动作，后续击共享。
+     * 回合开始由 resetActions 清除；从头回溯由 startPlaybackFromBeginning 清空。
+     */
+    multiattackProgress?: Record<string, { queue: string[]; pos: number; actionConsumed?: boolean }>;
+    /**
      * 本回合已发动的每回合一次 rider 特性（key=combatantId，value=特性名列表）。
      * 神圣打击等 perRound rider：getAttackRiders 据此过滤、applyAttackRiders 落地时记账。
      * 新回合由 resetTurnTodosForRound 清空。
@@ -818,6 +835,7 @@ export type AdvantageSourceKind =
   | 'action'       // 动作相关（dodge/hide 等，本次仅预留）
   | 'condition'    // 状态相关（中毒/束缚/倒地/隐形等，来自 statusManager 状态效果）
   | 'trait'        // 特质相关（魔法抗性等，来自怪物图鉴特质识别）
+  | 'environment'  // 环境相关（黑暗/微光可见性、光照感官判定）
   | 'manual';      // DM 手动覆盖
 
 /** 优劣势原因条目 */

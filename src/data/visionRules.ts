@@ -1,10 +1,10 @@
 // src/data/visionRules.ts
 // 视野系统纯函数层（仿 zoneRules 模式）：掩护几何 / 光照档位 / 感官解析。
 // 全部函数无副作用，可被探针直调；几何判定结果仅作 DM 提示，最终裁定在弹窗完成。
-import type { Battleground } from '@/types/battleground';
-import type { CoverTier } from '@/types/combat';
+import type { Battleground, LightTier } from '@/types/battleground';
+import type { CoverTier, CombatantSenses } from '@/types/combat';
 
-export type LightTier = 'bright' | 'dim' | 'darkness';
+export type { LightTier };
 
 export interface CellPos {
   col: number;
@@ -117,15 +117,108 @@ export function suggestCoverHint(
 }
 
 // =======================
-// 光照档位（P2 完整实现；先落环境/区域读取骨架供 P1 引用）
+// 光照档位（视野系统 R2）
 // =======================
 
-/**
- * 沙盘环境光照档位（load 兜底口径同 battlegroundStore：未设置视为明亮）。
- * P2 扩展：光照区域覆盖 + 感官降档。
- */
+type LightBg = Pick<Battleground, 'ambientLight' | 'lightCells'> | null | undefined;
+
+/** 沙盘环境光照档位（load 兜底口径同 battlegroundStore：未设置视为明亮） */
 export function getAmbientLightTier(bg: { ambientLight?: LightTier } | null | undefined): LightTier {
   return bg?.ambientLight ?? 'bright';
 }
 
+/**
+ * 格子原始光照档位：光照区域覆盖 > 环境默认。
+ * 区域无标注格返回环境档位（source='ambient'）。
+ */
+export function getLightTierAt(bg: LightBg, cell: CellPos | string): { tier: LightTier; source: 'zone' | 'ambient' } {
+  const key = typeof cell === 'string' ? cell : `${cell.col},${cell.row}`;
+  const lc = bg?.lightCells;
+  if (lc) {
+    if (lc.darkness.includes(key)) return { tier: 'darkness', source: 'zone' };
+    if (lc.dim.includes(key)) return { tier: 'dim', source: 'zone' };
+    if (lc.bright.includes(key)) return { tier: 'bright', source: 'zone' };
+  }
+  return { tier: getAmbientLightTier(bg), source: 'ambient' };
+}
+
+/**
+ * 参战者视角的有效档位：按自身感官降档。
+ * v1 口径（无光源中心概念，尺数仅作展示）：
+ *   - truesight：darkness/dim → bright（真实视觉无视光照）
+ *   - blindsight：darkness → bright（盲视不依赖视觉）
+ *   - darkvision：darkness → dim（黑暗视觉按微光辨识）
+ * 优先级 truesight > blindsight > darkvision。
+ */
+export function getEffectiveTierAt(
+  bg: LightBg,
+  cell: CellPos | string,
+  senses: CombatantSenses | null | undefined,
+): { tier: LightTier; base: LightTier; source: 'zone' | 'ambient'; sense?: 'truesight' | 'blindsight' | 'darkvision' } {
+  const raw = getLightTierAt(bg, cell);
+  const s = senses ?? {};
+  if (raw.tier === 'bright') return { ...raw, base: raw.tier };
+  if (s.truesight) return { tier: 'bright', base: raw.tier, source: raw.source, sense: 'truesight' };
+  if (s.blindsight && raw.tier === 'darkness') return { tier: 'bright', base: raw.tier, source: raw.source, sense: 'blindsight' };
+  if (s.darkvision && raw.tier === 'darkness') return { tier: 'dim', base: raw.tier, source: raw.source, sense: 'darkvision' };
+  return { ...raw, base: raw.tier };
+}
+
+/** 能否在黑暗中定位目标（震颤感知尺数覆盖距离；距离单位=格） */
+export function canSenseInDark(senses: CombatantSenses | null | undefined, distanceCells: number | undefined): boolean {
+  const s = senses ?? {};
+  const dist = Math.max(1, distanceCells ?? 1) * 5;
+  if (s.tremorsense && s.tremorsense >= dist) return true;
+  if (s.blindsight && s.blindsight >= dist) return true;
+  return false;
+}
+
+/**
+ * 躲藏/隐形的可见性判定（5e 非魔法感知口径，距离单位=格）：
+ *   - hidden（躲藏）：盲视或真实视觉尺数覆盖距离 → 可见（被非视觉感官锁定）
+ *   - invisible（隐形）：仅真实视觉尺数覆盖距离 → 可见
+ * 黑暗仅影响普通视觉，不改变本判定（黑暗优劣势由 environment-light 单独产出）。
+ */
+export function canSeeThroughHide(
+  senses: CombatantSenses | null | undefined,
+  distanceCells: number | undefined,
+  kind: 'hidden' | 'invisible',
+): boolean {
+  const s = senses ?? {};
+  const dist = Math.max(1, distanceCells ?? 1) * 5;
+  if (s.truesight && s.truesight >= dist) return true;
+  if (kind === 'hidden' && s.blindsight && s.blindsight >= dist) return true;
+  return false;
+}
+
+// =======================
+// 感官文本解析（NPC 图鉴 senses 自由文本 → 结构化）
+// =======================
+
+const SENSE_KEYS: Record<string, keyof CombatantSenses> = {
+  黑暗视觉: 'darkvision',
+  盲视: 'blindsight',
+  真实视觉: 'truesight',
+  震颤感知: 'tremorsense',
+};
+
+/**
+ * 解析 NPC senses 文本（如「盲视60尺，黑暗视觉120尺，被动察觉21」）。
+ * 解析失败的条目忽略（其余正常提取）；全部失败返回空对象，DM 面板可手动录入。
+ */
+export function parseSenses(text?: string | null): CombatantSenses {
+  const out: CombatantSenses = {};
+  if (!text || typeof text !== 'string') return out;
+  const re = /(黑暗视觉|盲视|真实视觉|震颤感知)\s*(\d+)\s*尺/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const key = SENSE_KEYS[m[1]];
+    const value = parseInt(m[2], 10);
+    if (!key || isNaN(value) || value <= 0) continue;
+    out[key] = Math.max(out[key] ?? 0, value);
+  }
+  return out;
+}
+
 export { parseCellKey };
+

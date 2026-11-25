@@ -158,6 +158,10 @@ export type TurnCommitOp =
       kind: 'dodge';
       roundText: string;
     }
+  | {
+      kind: 'hide';
+      roundText: string;
+    }
   | { kind: 'end-turn' };
 
 export interface TurnCommitPayload {

@@ -225,6 +225,10 @@ export default function CombatSession() {
     target: Combatant;
     attackerPos?: { col: number; row: number };
     targetPos?: { col: number; row: number };
+    /** 多重攻击序列：本步锁定的攻击名（未匹配步缺省 = 自选攻击） */
+    lockedAttackName?: string;
+    /** 多重攻击序列步骤徽标：「多重攻击 第2/3击 · 爪击」 */
+    multiattackStepLabel?: string;
   } | null>(null);
   // ✅ 新增：伤害结算弹窗（攻击命中后切换）
   const [damageModal, setDamageModal] = useState<{
@@ -1508,8 +1512,60 @@ export default function CombatSession() {
     combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, targetId: target.id, text: line });
   };
 
-  const openAttackFor = (c: Combatant) => {
+  // ── 多重攻击序列（方案A：1 个 Attack 动作内按配方出 N 击）──
+  // 读 combatStore 最新值而非闭包 record：序列状态在弹窗回调链中高频变更
+  const activeMultiattackSeq = (combatantId: string) =>
+    (record ? combatStore.get(record.id)?.multiattackProgress?.[combatantId] : null) ?? null;
+
+  const startMultiattackSequence = (c: Combatant) => {
+    if (!record) return;
+    const recipe = c.multiattack ?? [];
+    if (recipe.length === 0) return;
     if (!ensureCanAct(c, canUseAction(c.id))) return;
+    const queue = combatStore.expandMultiattackQueue(recipe);
+    if (!combatStore.startMultiattack(record.id, c.id, queue)) return;
+    // 直接入第一击（openAttackFor 的序列锁定分支接管，目标挑选逻辑复用）
+    openAttackFor(c);
+  };
+
+  const endMultiattackSequence = (combatantId: string) => {
+    if (!record) return;
+    combatStore.endMultiattack(record.id, combatantId);
+  };
+
+  // 攻击结算时的动作消耗：序列首击扣 1 动作并置位 actionConsumed，后续击共享该动作；非序列按原行为逐击扣
+  const consumeAttackActionFor = (attackerId: string) => {
+    if (!record) return;
+    const latest = combatStore.get(record.id);
+    const seq = latest?.multiattackProgress?.[attackerId];
+    if (seq) {
+      if (seq.actionConsumed) return;
+      combatStore.update(record.id, {
+        multiattackProgress: {
+          ...(latest.multiattackProgress ?? {}),
+          [attackerId]: { ...seq, actionConsumed: true },
+        },
+        updatedAt: Date.now(),
+      });
+    }
+    consumeCombatantAction(attackerId);
+  };
+
+  // 当前击结算完毕（伤害落账或未命中确认）→ 推进序列，越过队尾自动清除
+  const advanceMultiattackFor = (attackerId: string) => {
+    if (!record) return;
+    combatStore.advanceMultiattack(record.id, attackerId);
+  };
+
+  const openAttackFor = (c: Combatant) => {
+    const seq = activeMultiattackSeq(c.id);
+    if (!seq) {
+      if (!ensureCanAct(c, canUseAction(c.id))) return;
+    } else if (actionDeniedReason(c)) {
+      // 序列进行中动作已承诺：只拦死亡/昏迷/失能，不拦动作数
+      alert(actionDeniedReason(c));
+      return;
+    }
     // 攻击需要目标，若已有上次选中的敌人优先；否则提示等手动选择
     const potentialTarget = record.combatants.find(x => x.id !== c.id && !x.isDead);
     if (potentialTarget) {
@@ -1517,11 +1573,17 @@ export default function CombatSession() {
       const tokens = bg?.tokens ?? [];
       const aPos = tokens.find(t => t.combatantId === c.id);
       const tPos = tokens.find(t => t.combatantId === potentialTarget.id);
+      const stepName = seq ? seq.queue[seq.pos] : null;
+      const stepAttack = stepName ? combatStore.resolveMultiattackStep(stepName, c.attacks ?? []) : null;
       setAttackModal({
         attacker: c,
         target: potentialTarget,
         attackerPos: aPos ? { col: aPos.col, row: aPos.row } : undefined,
         targetPos: tPos ? { col: tPos.col, row: tPos.row } : undefined,
+        ...(seq ? {
+          lockedAttackName: stepAttack?.name,
+          multiattackStepLabel: `多重攻击 第${seq.pos + 1}/${seq.queue.length}击 · ${stepName}`,
+        } : {}),
       });
       setInfoPanelCombatant(null);
     } else {
@@ -1607,6 +1669,37 @@ export default function CombatSession() {
     consumeCombatantAction(c.id);
     recordOperation(c.id, '撤离：本回合移动不引发借机攻击', 'record');
     alert(`「${c.name}」采取撤离：本回合移动离开敌人触及范围不会引发借机攻击；下回合开始时解除`);
+  };
+
+  // 基础动作「躲藏」：1 动作挂 hidden 状态——未被定位前攻击对己劣势、己方攻击优势；
+  // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认（引擎零暗骰）。
+  // hidden 不自动过期：首次攻击结算后揭晓（breakHidden），被发现时 DM 手动解除。
+  const hideFor = (c: Combatant) => {
+    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    const observers = record.combatants.filter(o => o.id !== c.id && !o.isDead && !o.isUnconscious);
+    const dcList = observers.map(o => `${o.name} 被动察觉 ${o.passiveChecks?.perception ?? 10}`).join('、');
+    globalStatusManager.applyEffect(c.id, 'hidden', 'combat', record.id, {
+      ...(record.mode === 'playback'
+        ? { combatMode: 'playback' as const, startRound: currentRound0 }
+        : { combatMode: 'simulation' as const }),
+    });
+    combatStore.addTurnTodo(record.id, {
+      combatantId: c.id,
+      name: '躲藏中（首次攻击或被发现后解除）',
+      type: 'condition_check',
+      startRound: currentRound0,
+      endRound: currentRound0 + 1,
+    });
+    consumeCombatantAction(c.id);
+    recordOperation(c.id, `躲藏：未被定位前攻击劣势/己方优势（观察者：${dcList || '无'}）`, 'record');
+    alert(`「${c.name}」进入躲藏。\n\n隐匿检定需达到以下观察者被动察觉：\n${dcList || '（无观察者）'}\n\n检定失败的观察者可看破其位置（DM 手动移除躲藏状态）`);
+  };
+
+  // 一攻揭晓：躲藏者发起攻击（命中/未命中均算）结算后移除 hidden
+  const breakHidden = (combatantId: string) => {
+    const inst = globalStatusManager.getActiveStatuses(combatantId, 'combat').find(i => i.definitionId === 'hidden');
+    if (inst) globalStatusManager.declareEnd(inst.instanceId);
   };
 
   // 原内容：完全保留，一个字都没改（页面结构主体不变）
@@ -2070,6 +2163,9 @@ export default function CombatSession() {
         onPanelDisengageClick={disengageFor}
         onPanelForcedMoveClick={(c) => setForcedMoveTarget(c)}
         onPanelFeatureClick={handleFeatureUse}
+        multiattackProgress={record.multiattackProgress}
+        onPanelMultiattackStart={startMultiattackSequence}
+        onPanelMultiattackEnd={endMultiattackSequence}
         isProvingGround={record.isProvingGround ?? false}
         provingRecord={record.isProvingGround ? record : null}
         combatInventories={combatInventories}
@@ -2131,8 +2227,15 @@ export default function CombatSession() {
           }
         }}
         onRequestAttack={(attacker, target) => {
-          // 动作校验：放映模式可用动作耗尽时禁止发起攻击
-          if (!ensureCanAct(attacker, canUseAction(attacker.id))) return;
+          const seq = activeMultiattackSeq(attacker.id);
+          if (!seq) {
+            // 动作校验：放映模式可用动作耗尽时禁止发起攻击
+            if (!ensureCanAct(attacker, canUseAction(attacker.id))) return;
+          } else if (actionDeniedReason(attacker)) {
+            // 序列进行中动作已承诺：只拦死亡/昏迷/失能
+            alert(actionDeniedReason(attacker));
+            return;
+          }
           // 从最新 record 重取对象（pendingAdvantageSources 必须是协助后最新状态，不能用闭包 capture 的旧 snapshot）
           const latestAttacker = record.combatants.find(c => c.id === attacker.id) ?? attacker;
           const latestTarget = record.combatants.find(c => c.id === target.id) ?? target;
@@ -2140,11 +2243,17 @@ export default function CombatSession() {
           const tokens = bg?.tokens ?? [];
           const attackerPos = tokens.find(t => t.combatantId === attacker.id);
           const targetPos = tokens.find(t => t.combatantId === target.id);
+          const stepName = seq ? seq.queue[seq.pos] : null;
+          const stepAttack = stepName ? combatStore.resolveMultiattackStep(stepName, latestAttacker.attacks ?? []) : null;
           setAttackModal({
             attacker: latestAttacker,
             target: latestTarget,
             attackerPos: attackerPos ? { col: attackerPos.col, row: attackerPos.row } : undefined,
             targetPos: targetPos ? { col: targetPos.col, row: targetPos.row } : undefined,
+            ...(seq ? {
+              lockedAttackName: stepAttack?.name,
+              multiattackStepLabel: `多重攻击 第${seq.pos + 1}/${seq.queue.length}击 · ${stepName}`,
+            } : {}),
           });
         }}
         onRequestSpell={(caster, target) => {
@@ -2344,6 +2453,8 @@ export default function CombatSession() {
           targetPos={attackModal.targetPos}
           combatantPositions={combatantPositions}
           paintedCells={record ? battlegroundStore.get(record.id)?.paintedCells : undefined}
+          ambientLight={record ? battlegroundStore.get(record.id)?.ambientLight : undefined}
+          lightCells={record ? battlegroundStore.get(record.id)?.lightCells : undefined}
           combatInventory={getCombatInventory(record, liveAttackModalAttacker ?? attackModal.attacker)}
           targetCharacter={liveAttackModalTarget?.characterId ? characterStore.get(liveAttackModalTarget.characterId) : null}
           targetCombatInventory={getCombatInventory(record, liveAttackModalTarget ?? attackModal.target)}
@@ -2365,8 +2476,10 @@ export default function CombatSession() {
           }}
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
-            // 攻击（无论是否命中）消耗 1 个动作
-            consumeCombatantAction(attackModal.attacker.id);
+            // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
+            consumeAttackActionFor(attackModal.attacker.id);
+            // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算）
+            breakHidden(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
             if (attack.properties?.some(p => p.includes('装填'))) {
               markLoadingAttacked(attackModal.attacker.id);
@@ -2438,8 +2551,10 @@ export default function CombatSession() {
             }
           }}
           onAttackMiss={(missInfo) => {
-            // 攻击（无论是否命中）消耗 1 个动作
-            consumeCombatantAction(attackModal.attacker.id);
+            // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
+            consumeAttackActionFor(attackModal.attacker.id);
+            // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算）
+            breakHidden(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
             if (missInfo.attack.properties?.some(p => p.includes('装填'))) {
               markLoadingAttacked(attackModal.attacker.id);
@@ -2492,6 +2607,8 @@ export default function CombatSession() {
                 false, record, missInfo.usageMode,
               );
             }
+            // 当前击（未命中）结算完毕 → 推进多重攻击序列
+            advanceMultiattackFor(attackModal.attacker.id);
           }}
         />
       )}
@@ -2609,6 +2726,8 @@ export default function CombatSession() {
             targetPos={targetPos}
             combatantPositions={combatantPositions}
             paintedCells={record ? battlegroundStore.get(record.id)?.paintedCells : undefined}
+            ambientLight={record ? battlegroundStore.get(record.id)?.ambientLight : undefined}
+            lightCells={record ? battlegroundStore.get(record.id)?.lightCells : undefined}
             combatInventory={getCombatInventory(record, owner)}
             targetCharacter={reactionTarget.characterId ? characterStore.get(reactionTarget.characterId) : null}
             targetCombatInventory={getCombatInventory(record, reactionTarget)}
@@ -2633,6 +2752,7 @@ export default function CombatSession() {
             onConfirmHit={(attack, info) => {
               // 行使反应：扣反应次数 + 消费机会（反应攻击不消耗主动作）
               noteReactionExercised();
+              breakHidden(owner.id);
               combatStore.consumeReaction(record.id, owner.id);
               combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
               combatStore.pushCombatEvent(record.id, {
@@ -2666,6 +2786,7 @@ export default function CombatSession() {
             }}
             onAttackMiss={(missInfo) => {
               noteReactionExercised();
+              breakHidden(owner.id);
               combatStore.consumeReaction(record.id, owner.id);
               combatStore.consumePendingReaction(record.id, opp.ownerId, opp.id);
               const text = `《${missInfo.attackName}》→ ${reactionTarget.name}：${definition?.name ?? '反应'}未命中`;
@@ -2777,6 +2898,8 @@ export default function CombatSession() {
               }
             }
             applyDamageNow();
+            // 当前击（命中伤害落账）结算完毕 → 推进多重攻击序列；反应挂起路径未落账不推进
+            advanceMultiattackFor(damageModal.attacker.id);
             return false;
           }}
           onClose={() => {
@@ -3426,6 +3549,13 @@ export default function CombatSession() {
             onHelpClick={() => openHelpFor(liveCombatant)}
             onFeatureClick={(feature, poolInfo) => handleFeatureUse(liveCombatant, feature, poolInfo)}
             onAttackClick={() => openAttackFor(liveCombatant)}
+            multiattackRecipe={liveCombatant.multiattack}
+            multiattackStep={(() => {
+              const seq = activeMultiattackSeq(liveCombatant.id);
+              return seq ? { pos: seq.pos, total: seq.queue.length, stepName: seq.queue[seq.pos] } : null;
+            })()}
+            onMultiattackStart={() => startMultiattackSequence(liveCombatant)}
+            onMultiattackEnd={() => endMultiattackSequence(liveCombatant.id)}
             onCastClick={() => {
               openCastFor(liveCombatant);
               setInfoPanelCombatant(null);
@@ -3440,6 +3570,10 @@ export default function CombatSession() {
             }}
             onDisengageClick={() => {
               disengageFor(liveCombatant);
+              setInfoPanelCombatant(null);
+            }}
+            onHideClick={() => {
+              hideFor(liveCombatant);
               setInfoPanelCombatant(null);
             }}
             onForcedMoveClick={() => setForcedMoveTarget(liveCombatant)}

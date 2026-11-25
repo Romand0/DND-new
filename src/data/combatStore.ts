@@ -967,10 +967,91 @@ const combatStore = {
     const idx = record.combatants.findIndex(c => c.id === combatantId);
     if (idx === -1) return null;
     record.combatants[idx] = { ...record.combatants[idx], actions: 1, bonusActions: 1, movementUsed: 0, dashExtraMovement: 0, reactionUsed: false };
+    // 多重攻击序列随回合开始清除（回合切走时未结束的序列视为放弃）
+    if (record.multiattackProgress?.[combatantId]) {
+      const next = { ...record.multiattackProgress };
+      delete next[combatantId];
+      record.multiattackProgress = next;
+    }
     record.updatedAt = Date.now();
     save(records);
     this.syncCombatantStatusFlags(recordId, combatantId);
     return 1;
+  },
+
+  /**
+   * 多重攻击配方步骤 → 参战者攻击匹配（纯函数，探针直调）。
+   * 精确名命中 → 该攻击；唯一包含关系命中 → 该攻击（配方名「匕首」vs 攻击名「匕首（近战/远程）」类噪声）；
+   * 歧义或失配 → null：该步自选攻击交 DM 裁决，配方名仍在 UI 展示。
+   */
+  resolveMultiattackStep(recipeName: string, attacks: { name: string }[]): { name: string } | null {
+    if (!recipeName) return null;
+    if (attacks.some(a => a.name === recipeName)) return attacks.find(a => a.name === recipeName)!;
+    const fuzzy = attacks.filter(a => !!a.name && (a.name.includes(recipeName) || recipeName.includes(a.name)));
+    return fuzzy.length === 1 ? fuzzy[0] : null;
+  },
+
+  /** 配方展开为攻击名队列（{name,count} → count 项 name；count<=0 丢弃） */
+  expandMultiattackQueue(recipe: { count: number; name: string }[]): string[] {
+    return (recipe ?? []).flatMap(s =>
+      Array.from({ length: Math.max(0, Math.floor(s.count) || 0) }, () => s.name),
+    );
+  },
+
+  /** 开启多重攻击序列（覆盖同参战者旧序列；动作在首击结算时才消耗；仅限带配方的参战者） */
+  startMultiattack(recordId: string, combatantId: string, queue: string[]): boolean {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    const combatant = record?.combatants.find(c => c.id === combatantId);
+    if (!record || !combatant || (combatant.multiattack ?? []).length === 0 || queue.length === 0) return false;
+    record.multiattackProgress = {
+      ...(record.multiattackProgress ?? {}),
+      [combatantId]: { queue: [...queue], pos: 0 },
+    };
+    record.updatedAt = Date.now();
+    save(records);
+    return true;
+  },
+
+  /**
+   * 推进序列到下一击：当前击结算（伤害落账或未命中确认）后调用。
+   * 越过队尾即整序列完成，自动清除。
+   * @returns done=true 序列已结束（或本就不存在）；否则返回下一击攻击名
+   */
+  advanceMultiattack(recordId: string, combatantId: string): { done: boolean; nextName: string | null } {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record) return { done: true, nextName: null };
+    const seq = record.multiattackProgress?.[combatantId];
+    if (!seq) return { done: true, nextName: null };
+    const pos = seq.pos + 1;
+    if (pos >= seq.queue.length) {
+      const next = { ...record.multiattackProgress };
+      delete next[combatantId];
+      record.multiattackProgress = next;
+      record.updatedAt = Date.now();
+      save(records);
+      return { done: true, nextName: null };
+    }
+    record.multiattackProgress = {
+      ...record.multiattackProgress,
+      [combatantId]: { ...seq, pos },
+    };
+    record.updatedAt = Date.now();
+    save(records);
+    return { done: false, nextName: seq.queue[pos] };
+  },
+
+  /** 主动放弃剩余攻击（5e：可以在多次攻击的中途停下），清除序列 */
+  endMultiattack(recordId: string, combatantId: string): void {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    if (!record?.multiattackProgress?.[combatantId]) return;
+    const next = { ...record.multiattackProgress };
+    delete next[combatantId];
+    record.multiattackProgress = next;
+    record.updatedAt = Date.now();
+    save(records);
   },
 
   /**

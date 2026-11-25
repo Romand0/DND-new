@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { X, Plus, Save, Keyboard, Users, User, ArrowLeft, Edit3, Check, Pencil, BookOpen } from 'lucide-react';
-import type { NpcTemplate, NpcAttack, Combatant, CreatureSize, CreatureType } from '@/types/combat';
+import type { NpcTemplate, NpcAttack, Combatant, CreatureSize, CreatureType, CombatantSenses } from '@/types/combat';
 import { CREATURE_SIZE_LABELS, CREATURE_TYPE_LABELS } from '@/types/combat';
+import { parseSenses } from '@/data/visionRules';
 import { DAMAGE_TYPE_OPTIONS } from '@/types/damage';
 import { buildCombatantAffinities } from '@/data/combatAffinities';
 import npcTemplateStore from '@/data/npcTemplateStore';
@@ -31,6 +32,8 @@ interface NpcEditState {
   speed: number;
   ac: number;
   attacks: NpcAttack[];
+  /** 视觉感官（从模板 senses 文本解析带入；自定义 NPC 为空，DM 面板可后续录入） */
+  senses?: CombatantSenses;
   d20: number;
   initiative: number;
   templateId?: string;
@@ -71,6 +74,7 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
     : 0;
   return {
     name: index !== undefined ? `${template.name}${index + 1}` : template.name,
+    senses: parseSenses(template.senses),
     abilities: {
       strength: String(template.strength),
       dexterity: String(template.dexterity),
@@ -153,6 +157,7 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     regenAmount: state.regenAmount,
     regenNegate: state.regenNegate,
     damageAffinities: buildCombatantAffinities(state),
+    ...(state.senses && Object.keys(state.senses).length > 0 ? { senses: state.senses } : {}),
   };
 }
 
