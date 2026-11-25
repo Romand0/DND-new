@@ -98,6 +98,8 @@ interface Props {
   multiattackStepLabel?: string;
   /** 攻击者当前可用附赠动作数（双武器战斗副手攻击条目需要；缺省按 1 兜底） */
   bonusActionsAvailable?: number;
+  /** 攻击者当前可用主动作数（仅用于非阻断提示：0 时常规攻击需 DM 裁定，副手攻击仍可用） */
+  actionsAvailable?: number;
 }
 
 // 射程等级：用于判断投掷武器的标签
@@ -105,7 +107,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, ambientLight, lightCells, lockedAttackName, multiattackStepLabel, bonusActionsAvailable }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, ambientLight, lightCells, lockedAttackName, multiattackStepLabel, bonusActionsAvailable, actionsAvailable }: Props) {
   // 掩护单次覆盖：'' = 跟随参战者标注；'none' = 本弹窗覆盖为无掩护；其余为临时等级（写回在参战者面板）
   const [coverOverride, setCoverOverride] = useState<'' | 'none' | CoverTier>('');
   const effectiveCover: CoverTier | null = coverOverride === '' ? (target?.coverTier ?? null) : coverOverride === 'none' ? null : coverOverride;
@@ -870,6 +872,12 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
           {/* 阶段1：攻击方式列表 */}
           {stage === 'attacks' && (
             <div className="space-y-2">
+              {/* 动作经济提示：入口不锁（放映模式 DM 裁定），仅提示主动作已用完；附赠动作副手攻击不受影响 */}
+              {!reactionMode && typeof actionsAvailable === 'number' && actionsAvailable <= 0 && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 px-2.5 py-1.5 text-xs text-amber-400">
+                  本回合主动作已用完：常规攻击需 DM 裁定；有附赠动作时仍可选择副手攻击。
+                </div>
+              )}
               {/* 序列提示：锁定步（怪物配方）只能用该攻击；PC 额外攻击不锁武器（5e 每击可换武器） */}
               {multiattackStepLabel && (
                 <div className="rounded-lg bg-violet-500/10 px-2.5 py-1.5 text-xs text-violet-400">
