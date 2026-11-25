@@ -71,6 +71,16 @@ export function applyConvTarget(recordId: string, combatant: Combatant, target: 
     return { note: '本回合移动不引发借机攻击' };
   }
   if (target === 'hide') {
+    // 与 CombatSession.hideFor 同一状态：一攻揭晓（攻击 op 结算后移除），
+    // 被发现时由 DM 手动解除；隐匿检定线下掷、DM 核对观察者被动察觉（引擎零暗骰）。
+    globalStatusManager.applyEffect(combatant.id, 'hidden', 'combat', recordId, {
+      ...(latest?.mode === 'playback'
+        ? {
+            combatMode: 'playback' as const,
+            startRound: latest.playbackState?.currentTurn?.round ?? Math.max(0, latest.rounds.length - 1),
+          }
+        : { combatMode: 'simulation' as const }),
+    });
     return { note: '进入躲藏（隐匿检定与被动察觉对抗由 DM 按沙盘裁定）' };
   }
   return { note: `${CONV_TARGET_LABELS[target] ?? target}（无对应引擎，DM 手动裁定）` };
