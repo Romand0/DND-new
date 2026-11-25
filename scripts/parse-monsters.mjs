@@ -162,8 +162,19 @@ const ZH_NUM = { 一: 1, 两: 2, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7,
 function parseMultiattack(traits) {
   const t = (traits ?? []).find((x) => /^多重攻击/.test(x.name ?? ''));
   if (!t) return undefined;
+  // 去拉丁种名（爪击Claw攻击 → 爪击攻击），否则中文攻击名后缀匹配失败
+  const text = (t.text ?? '').replace(/[A-Za-z][A-Za-z'’\- ]*/g, '');
+  // 泛化「N 次攻击」：名「攻击」交引擎按自选处理（resolveMultiattackStep 失配 → 每击任选武器）
+  const generic = () => {
+    const g = text.match(/([一二两三四五六七八九十\d])次(?:发动|使用|进行)?攻击/);
+    if (!g) return undefined;
+    const n = ZH_NUM[g[1]] ?? parseInt(g[1], 10);
+    return n > 0 ? [{ count: n, name: '攻击' }] : undefined;
+  };
+  // 多形态（熊人/野猪人/狼人…）：各形态攻击配方不同，具名配方无法统一表达 → 只取通用击数
+  if (/形态/.test(text)) return generic();
   const items = [];
-  for (const seg of (t.text ?? '').split(/[，。、；和及]/)) {
+  for (const seg of text.split(/[，。、；和及]/)) {
     const m = seg.trim().match(/([一二两三四五六七八九十\d])次(?:发动|使用|进行|的)?([\u4e00-\u9fa5]{2,8})$/);
     if (!m) continue;
     const name = m[2];
@@ -171,7 +182,7 @@ function parseMultiattack(traits) {
     const n = ZH_NUM[m[1]] ?? parseInt(m[1], 10);
     if (n > 0) items.push({ count: n, name });
   }
-  return items.length > 0 ? items : undefined;
+  return items.length > 0 ? items : generic();
 }
 
 // 吐息武器：抽充能/形状/DC/豁免属性/伤害/成功减半。
