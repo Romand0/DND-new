@@ -28,6 +28,8 @@
 | 改样式 / 主题 | Tailwind class（内联）+ `public/css/main.css`（全局 token） | 不要手写 CSS 文件，尽量用 Tailwind；暗黑模式 class 后缀 `-dark` |
 | 加新功能页面 | 建 `src/pages/Xxx.tsx` → 在 `src/App.tsx` 注册路由 → 在 `Layout` / `PlayerLayout` 对应菜单里加入口 | |
 | 恢复跨会话功能 / 交接 | `.monkeycode/specs/<feature>/progress.md`（模板 `.monkeycode/specs/_template/`） | 靠会话历史记忆当前进度 |
+| 查询种子数据（怪物/选项/法术） | `npm run seed -- monster --cr 1/2 --fields name,ac,maxHp --compact`（模块 `scripts/lib/seedQuery.cjs` 供探针直接 import 拿 fixture） | 不要绕过校验器直接改种子；改种子后 `npm run validate-seed` 必须过 |
+| 校验 / 构建种子库 | `npm run validate-seed`（结构不变量门禁，已挂在 build 前置）；快照重建走 `scripts/build-seed.mjs` | 手改 `src/data/*.json` 后必跑；警告（traits 为空等）不阻断 |
 | 改数据库表结构 | `migrations/NNNN_name.sql`（新建迁移文件，不要改旧的）+ `functions/_utils.ts` 对应类型 | 迁移文件追加式，D1 手动 apply |
 | 侦查 / 定位代码模块（先读文档再读源码） | `docs/generated/src/**`（按源码路径镜像的 .md 概述文档，见 §5.14） | 文档是路由表不是唯一事实源，关键判断仍以 `src/` 源码为准；改代码后需重新触发 docs workflow 更新文档 |
 

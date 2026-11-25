@@ -998,12 +998,13 @@ const combatStore = {
     );
   },
 
-  /** 开启多重攻击序列（覆盖同参战者旧序列；动作在首击结算时才消耗；仅限带配方的参战者） */
+  /** 开启多重攻击序列（覆盖同参战者旧序列；动作在首击结算时才消耗。
+   *  不校验 multiattack 配方：怪物入口由调用方把关；PC 额外攻击无配方、队列由职业特性推导 */
   startMultiattack(recordId: string, combatantId: string, queue: string[]): boolean {
     const records = load();
     const record = records.find(r => r.id === recordId);
     const combatant = record?.combatants.find(c => c.id === combatantId);
-    if (!record || !combatant || (combatant.multiattack ?? []).length === 0 || queue.length === 0) return false;
+    if (!record || !combatant || queue.length === 0) return false;
     record.multiattackProgress = {
       ...(record.multiattackProgress ?? {}),
       [combatantId]: { queue: [...queue], pos: 0 },

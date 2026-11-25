@@ -12603,7 +12603,7 @@
     ],
     "damageVulnerabilities": [],
     "conditionImmunities": [
-      "毒素"
+      "中毒"
     ],
     "traits": [
       {
@@ -29634,7 +29634,7 @@
     "conditionImmunities": [
       "魅惑",
       "力竭",
-      "惊恐",
+      "恐惧",
       "麻痹",
       "中毒",
       "震慑"
@@ -35943,7 +35943,7 @@
     "xp": 1100,
     "proficiencyBonus": 2,
     "pbDerived": true,
-    "size": "中形",
+    "size": "中型",
     "type": "类人生物（人类，变形生物）",
     "alignment": "绝对中立",
     "ac": 12,
@@ -36064,7 +36064,7 @@
     "xp": 700,
     "proficiencyBonus": 2,
     "pbDerived": true,
-    "size": "中形",
+    "size": "中型",
     "type": "类人生物（人类，变形生物）",
     "alignment": "混乱邪恶",
     "ac": 12,

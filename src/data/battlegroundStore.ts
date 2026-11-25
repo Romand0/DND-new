@@ -347,6 +347,19 @@ const battlegroundStore = {
     saveAll(list);
   },
 
+  /** 整批覆盖光照格（绘图模式保存用；三桶一次性写入，避免逐格触发多次持久化） */
+  setLightCells(sessionId: string, cells: { bright: string[]; dim: string[]; darkness: string[] }): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    list[idx] = {
+      ...list[idx],
+      lightCells: { bright: [...cells.bright], dim: [...cells.dim], darkness: [...cells.darkness] },
+      updatedAt: Date.now(),
+    };
+    saveAll(list);
+  },
+
   /** 清除全部光照区域格（保留环境档位） */
   clearLightCells(sessionId: string): void {
     const list = loadAll();

@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, MoreHorizontal, Package, Pencil, PenTool } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import battlegroundStore from '@/data/battlegroundStore';
-import { GRID_PRESETS, ZONE_PRESETS, LIGHT_LABELS, LIGHT_OVERLAY } from '@/types/battleground';
+import { GRID_PRESETS, ZONE_PRESETS, LIGHT_OVERLAY } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone, ZoneType, LightTier } from '@/types/battleground';
 import type { Combatant, CombatRecord, EquipmentChanges } from '@/types/combat';
 import type { Character, Equipment, Feature } from '@/types/character';
@@ -115,8 +115,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   // 记录每次成功 placeToken 的位移距离（与 sandbox moveHistory 对齐，最多 5 条），用于撤回时 onRefundMovement 回退
   const lastMoveDistanceStack = useRef<Array<{ combatantId: string; feet: number }>>([]);
   const [eraserMode, setEraserMode] = useState(false);
-  // 光照画笔档位（null = 关闭；开启时与橡皮互斥）
-  const [lightBrush, setLightBrush] = useState<LightTier | null>(null);
   // 双击弹窗
   const [doubleClickedCombatant, setDoubleClickedCombatant] = useState<Combatant | null>(null);
   // 缩放与平移状态
@@ -774,11 +772,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       return;
     }
     const existingCombatantId = cellToken.get(`${col},${row}`);
-    // 光照画笔：点亮/切换该格光照档位（重涂同档 = 擦除，由 store 三桶互斥保证）
-    if (lightBrush && !projectionMode) {
-      battlegroundStore.setLightCell(sessionId, `${col},${row}`, lightBrush);
-      return;
-    }
     if (eraserMode && !projectionMode) {
       const key = `${col},${row}`;
       if (existingCombatantId) {
@@ -786,9 +779,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
       }
       if (paintedSet.has(key)) {
         battlegroundStore.togglePaintedCell(sessionId, key);
-      }
-      if (lightCellTierMap.has(key)) {
-        battlegroundStore.setLightCell(sessionId, key, null);
       }
       // 地形区域擦除：该格从所属区域的格子集合里移除，区域空了则整块删除
       const zonesHere = zoneCellMap.get(key) ?? [];
@@ -930,8 +920,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
   // 沙盘操作提示语（按模式优先级显示）
   const modeHint = playbackOnlyMovableId
     ? `放映模式：仅 ${combatantMap.get(playbackOnlyMovableId)?.name ?? '当前角色'} 可操作沙盘`
-    : lightBrush
-    ? `光照画笔（${LIGHT_LABELS[lightBrush]}）：点击格子涂色，重涂同档擦除`
     : eraserMode
     ? '橡皮模式：点击棋子移除，点击边界格擦除'
     : selectedCombatantId
@@ -979,7 +967,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             onClick={() => {
               if (playbackOnlyMovableId) return; // 放映模式禁用橡皮
               setEraserMode((v) => !v);
-              setLightBrush(null);
               setSelectedCombatantId(null);
             }}
             disabled={!!playbackOnlyMovableId}
@@ -1097,55 +1084,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             );
           })}
         </div>
-        {/* 光照：环境档位 + 光照画笔（DM 侧；投影/放映不显示） */}
-        {!projectionMode && !readOnly && (
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0 w-10">
-            光照
-          </span>
-          <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">环境</span>
-          {(['bright', 'dim', 'darkness'] as LightTier[]).map(t => (
-            <button
-              key={`env-${t}`}
-              onClick={() => battlegroundStore.setAmbientLight(sessionId, t)}
-              className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
-                (bg?.ambientLight ?? 'bright') === t
-                  ? 'bg-primary text-white border-primary'
-                  : 'dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-primary/10'
-              }`}
-              title={`环境光照设为${LIGHT_LABELS[t]}`}
-            >
-              {LIGHT_LABELS[t]}
-            </button>
-          ))}
-          <span className="ml-2 text-xs dark:text-text-dark-muted light:text-text-light-muted">画笔</span>
-          {(['bright', 'dim', 'darkness'] as LightTier[]).map(t => (
-            <button
-              key={`brush-${t}`}
-              onClick={() => {
-                setLightBrush(lightBrush === t ? null : t);
-                setEraserMode(false);
-                setSelectedCombatantId(null);
-              }}
-              className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
-                lightBrush === t
-                  ? 'bg-info text-white border-info'
-                  : 'dark:border-border-dark light:border-border-light dark:text-text-dark light:text-text-light hover:bg-info/10'
-              }`}
-              title={`点击格子涂${LIGHT_LABELS[t]}（重涂同档擦除，橡皮可擦）`}
-            >
-              {LIGHT_LABELS[t]}
-            </button>
-          ))}
-          <button
-            onClick={() => battlegroundStore.clearLightCells(sessionId)}
-            className="px-2 py-0.5 text-xs rounded-full border transition-colors dark:border-border-dark light:border-border-light dark:text-text-dark-muted light:text-text-light-muted hover:bg-danger/10"
-            title="清除全部光照格（保留环境档位）"
-          >
-            清除
-          </button>
-        </div>
-        )}
         {/* 未放置：点击选中后到沙盘放置（投影模式全部由 DM 摆放，不显示） */}
         {!projectionMode && (
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -1323,14 +1261,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                 style={{ width: cellSize, height: cellSize }}
                 title={combatant ? combatant.name : itemsHere.length > 0 ? itemsHere.map(t => t.name).join(', ') : `${col},${row}`}
               >
-                {/* 光照区着色（最底层；微光/黑暗半透明罩，明亮区不压色） */}
-                {lightTierHere && lightTierHere !== 'bright' && (
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{ background: LIGHT_OVERLAY[lightTierHere] }}
-                  />
-                )}
-
                 {/* 地形区域着色（不拦截指针事件） */}
                 {zonesHere.length > 0 && (
                   <div
@@ -1357,6 +1287,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                         width: cellSize - 8,
                         height: cellSize - 8,
                         touchAction: 'none',
+                        ...(lightTierHere === 'darkness'
+                          ? { outline: '2px solid rgba(255,255,255,0.65)', outlineOffset: '-1px' }
+                          : lightTierHere === 'dim'
+                            ? { outline: '1px solid rgba(255,255,255,0.35)', outlineOffset: '-1px' }
+                            : {}),
                       }}
                       onPointerDown={(e) => {
                         if (readOnly) return;
@@ -1450,6 +1385,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                       height: cellSize - 6,
                       fontSize: cellSize > 22 ? 11 : 9,
                       touchAction: 'none',
+                      // 黑暗/微光格给棋子描白边：遮罩压暗后仍能辨认轮廓
+                      ...(lightTierHere === 'darkness'
+                        ? { outline: '2px solid rgba(255,255,255,0.7)', outlineOffset: '-1px' }
+                        : lightTierHere === 'dim'
+                          ? { outline: '1px solid rgba(255,255,255,0.4)', outlineOffset: '-1px' }
+                          : {}),
                     }}
                     onPointerDown={(e) => {
                       if (readOnly) return;
@@ -1518,6 +1459,15 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   >
                     <MoreHorizontal style={{ width: '70%', height: '70%' }} />
                   </div>
+                )}
+
+                {/* 光照遮罩：盖在棋盘格与棋子之上，按真实明暗压暗格内一切内容；
+                    棋子已带白色轮廓，黑暗格仍可辨认。不拦截指针事件。 */}
+                {lightTierHere && (
+                  <div
+                    className="absolute inset-0 z-30 pointer-events-none"
+                    style={{ background: LIGHT_OVERLAY[lightTierHere] }}
+                  />
                 )}
               </div>
             );

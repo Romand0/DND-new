@@ -58,6 +58,8 @@ interface NpcEditState {
   damageResistances: string[];
   damageImmunities: string[];
   damageVulnerabilities: string[];
+  /** 状态免疫（从模板带入；状态挂载时由 conditionImmunity 拦截） */
+  conditionImmunities: string[];
 }
 
 function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEditState {
@@ -119,6 +121,7 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
     damageResistances: [...(template.damageResistances ?? [])],
     damageImmunities: [...(template.damageImmunities ?? [])],
     damageVulnerabilities: [...(template.damageVulnerabilities ?? [])],
+    conditionImmunities: [...(template.conditionImmunities ?? [])],
   };
 }
 
@@ -211,7 +214,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
       abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
       proficientSaves: [], proficiencyBonus: 2,
       magicResistance: false, legendaryResistanceTotal: 0,
-      damageResistances: [], damageImmunities: [], damageVulnerabilities: [],
+      damageResistances: [], damageImmunities: [], damageVulnerabilities: [], conditionImmunities: [],
       hp: 10, speed: 30, ac: 10, attacks: [],
       d20, initiative: d20 + 0,
     });
@@ -227,7 +230,7 @@ export default function NpcCreator({ onClose, onCreate, onBatchCreate }: Props) 
         abilities: { strength: '10', dexterity: '10', constitution: '10', intelligence: '10', wisdom: '10', charisma: '10' },
       proficientSaves: [], proficiencyBonus: 2,
         magicResistance: false, legendaryResistanceTotal: 0,
-        damageResistances: [], damageImmunities: [], damageVulnerabilities: [],
+        damageResistances: [], damageImmunities: [], damageVulnerabilities: [], conditionImmunities: [],
         hp: 10, speed: 30, ac: 10, attacks: [],
         d20, initiative: d20 + 0,
       });
@@ -692,6 +695,7 @@ function NpcEditor(props: NpcEditorProps) {
         damageResistances: state.damageResistances.length > 0 ? state.damageResistances : undefined,
         damageImmunities: state.damageImmunities.length > 0 ? state.damageImmunities : undefined,
         damageVulnerabilities: state.damageVulnerabilities.length > 0 ? state.damageVulnerabilities : undefined,
+        conditionImmunities: state.conditionImmunities.length > 0 ? state.conditionImmunities : undefined,
       });
     }
     onSave();

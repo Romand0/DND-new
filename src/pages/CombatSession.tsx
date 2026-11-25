@@ -41,11 +41,13 @@ import { globalStatusManager } from '@/data/statusManager';
 import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
+import { derivePcAttacksPerAction } from '@/lib/pcExtraAttack';
 import { optionStore } from '@/data/optionStore';
 import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { getAttackRiders, applyAttackRiders } from '@/data/attackRiders';
+import { immunityLabelFor } from '@/data/conditionImmunity';
 import { resolvePoolKey } from '@/data/featurePool';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
@@ -181,14 +183,15 @@ function migrateProvingGroundData(record: CombatRecord) {
   });
 }
 
-function ensureCanAct(c: Combatant, canUse: boolean, kind: 'action' | 'bonus' = 'action'): boolean {
+/**
+ * 动作入口门禁：只拦死亡/昏迷/失能。
+ * 动作经济（主动作/附赠动作）在结算点消费，不在入口锁——放映模式下由 DM 裁定，
+ * 且 0 主动作时仍可能有附赠动作入口（副手攻击、附赠动作法术）。
+ */
+function ensureCanEnter(c: Combatant): boolean {
   const reason = actionDeniedReason(c);
   if (reason) {
     alert(reason);
-    return false;
-  }
-  if (!canUse) {
-    alert(kind === 'bonus' ? '该参战者本回合已没有可用附赠动作' : '该参战者本回合已没有可用动作');
     return false;
   }
   return true;
@@ -1105,16 +1108,12 @@ export default function CombatSession() {
 
   // ============ 动作入口统一函数（操作栏面板与沙盘双击面板共用） ============
   const openHelpFor = (c: Combatant) => {
-    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    if (!ensureCanEnter(c)) return;
     setHelpModal({ from: c });
   };
 
   const openCheckModifierFor = (c: Combatant, featureName: string, activation: Feature['activation'], poolInfo: { poolKey: string | null; available: number | null; max: number | null; cost: number }, capability?: FeatureCapability) => {
-    if (activation === 'action') {
-      if (!ensureCanAct(c, canUseAction(c.id))) return;
-    } else if (activation === 'bonus') {
-      if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
-    }
+    if (!ensureCanEnter(c)) return;
     if (poolInfo.poolKey && poolInfo.available != null && poolInfo.available < poolInfo.cost) {
       alert(`「${featureName}」资源不足（可用 ${poolInfo.available}/${poolInfo.max ?? '?'}）`);
       return;
@@ -1254,12 +1253,8 @@ export default function CombatSession() {
       }
       capability = form.capability;
     }
-    // 1. 动作成本校验（reaction/free 不扣动作；checkModifier 实际扣减在弹窗确认时）
-    if (feature.activation === 'action') {
-      if (!ensureCanAct(c, canUseAction(c.id))) return;
-    } else if (feature.activation === 'bonus') {
-      if (!ensureCanAct(c, canUseBonusAction(c.id), 'bonus')) return;
-    }
+    // 1. 状态校验（动作成本在结算点消费；入口不按主动作/附赠动作经济加锁）
+    if (!ensureCanEnter(c)) return;
     // 2. checkModifier 通道：先选受益人，动作与池在弹窗确认时扣（取消不损失资源）
     if (capability.channel === 'checkModifier' && capability.checkModifier) {
       openCheckModifierFor(c, feature.name, feature.activation, poolInfo, capability);
@@ -1411,11 +1406,7 @@ export default function CombatSession() {
    */
   const confirmConvTargetUse = (from: Combatant, featureName: string, target: string, activation: Feature['activation'], poolKey: string | null, cost: number, capability?: FeatureCapability) => {
     setConvTargetPick(null);
-    if (activation === 'action') {
-      if (!ensureCanAct(from, canUseAction(from.id))) return;
-    } else if (activation === 'bonus') {
-      if (!ensureCanAct(from, canUseBonusAction(from.id), 'bonus')) return;
-    }
+    if (!ensureCanEnter(from)) return;
     if (poolKey) {
       const ok = combatStore.consumeFeatureUse(record.id, from.id, poolKey, cost);
       if (!ok) {
@@ -1444,11 +1435,7 @@ export default function CombatSession() {
     setHealRollPick(null);
     const { from, feature, capability } = pick;
     const activation = feature.activation;
-    if (activation === 'action') {
-      if (!ensureCanAct(from, canUseAction(from.id))) return;
-    } else if (activation === 'bonus') {
-      if (!ensureCanAct(from, canUseBonusAction(from.id), 'bonus')) return;
-    }
+    if (!ensureCanEnter(from)) return;
     if (pick.poolKey) {
       const ok = combatStore.consumeFeatureUse(record.id, from.id, pick.poolKey, pick.cost);
       if (!ok) {
@@ -1521,7 +1508,7 @@ export default function CombatSession() {
     if (!record) return;
     const recipe = c.multiattack ?? [];
     if (recipe.length === 0) return;
-    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    if (!ensureCanEnter(c)) return;
     const queue = combatStore.expandMultiattackQueue(recipe);
     if (!combatStore.startMultiattack(record.id, c.id, queue)) return;
     // 直接入第一击（openAttackFor 的序列锁定分支接管，目标挑选逻辑复用）
@@ -1557,13 +1544,31 @@ export default function CombatSession() {
     combatStore.advanceMultiattack(record.id, attackerId);
   };
 
+  // 步骤徽标文案：怪物队列存配方名（带攻击名）；PC 额外攻击队列存空哨兵（不锁武器，仅计次）
+  const multiattackStepLabelOf = (seq: { queue: string[]; pos: number }) => {
+    const name = seq.queue[seq.pos];
+    const head = name ? '多重攻击' : '额外攻击';
+    return `${head} 第${seq.pos + 1}/${seq.queue.length}击${name ? ` · ${name}` : ''}`;
+  };
+
+  // PC 额外攻击：每次攻击动作可攻击 N 次（职业特性推导），进第一击前自动开序列；
+  // 队列哨兵为空名 → 弹窗不锁定攻击（5e 允许多次攻击中每击换武器），仅提供计数与动作共享
+  const beginPcExtraAttackIfNeeded = (c: Combatant): { queue: string[]; pos: number } | null => {
+    if (!record || !c.isPc || !c.characterId) return null;
+    const n = derivePcAttacksPerAction(characterStore.get(c.characterId));
+    if (n <= 1) return null;
+    const queue = Array.from({ length: n }, () => '');
+    if (!combatStore.startMultiattack(record.id, c.id, queue)) return null;
+    return combatStore.get(record.id)?.multiattackProgress?.[c.id] ?? null;
+  };
+
   const openAttackFor = (c: Combatant) => {
-    const seq = activeMultiattackSeq(c.id);
+    let seq = activeMultiattackSeq(c.id);
     if (!seq) {
-      if (!ensureCanAct(c, canUseAction(c.id))) return;
-    } else if (actionDeniedReason(c)) {
-      // 序列进行中动作已承诺：只拦死亡/昏迷/失能，不拦动作数
-      alert(actionDeniedReason(c));
+      if (!ensureCanEnter(c)) return;
+      // PC 额外攻击（N>1）自动开序列；返回 null 视同单次攻击走原路径
+      seq = beginPcExtraAttackIfNeeded(c);
+    } else if (!ensureCanEnter(c)) {
       return;
     }
     // 攻击需要目标，若已有上次选中的敌人优先；否则提示等手动选择
@@ -1582,7 +1587,7 @@ export default function CombatSession() {
         targetPos: tPos ? { col: tPos.col, row: tPos.row } : undefined,
         ...(seq ? {
           lockedAttackName: stepAttack?.name,
-          multiattackStepLabel: `多重攻击 第${seq.pos + 1}/${seq.queue.length}击 · ${stepName}`,
+          multiattackStepLabel: multiattackStepLabelOf(seq),
         } : {}),
       });
       setInfoPanelCombatant(null);
@@ -1592,11 +1597,7 @@ export default function CombatSession() {
   };
 
   const openCastFor = (c: Combatant) => {
-    const denied = actionDeniedReason(c);
-    if (denied) {
-      alert(denied);
-      return;
-    }
+    if (!ensureCanEnter(c)) return;
     // 通道 2：操作栏施法 = 先在弹窗内选法术，再按法术对象类型选目标
     // （自身类法术在选法术后直接跳过目标确认；单体法术在目标确认步骤
     // 列表选人 + 射程门禁）。入口目标恒为施法者自己（通道 1 拖拽才带目标）
@@ -1604,7 +1605,7 @@ export default function CombatSession() {
   };
 
   const dashFor = (c: Combatant) => {
-    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    if (!ensureCanEnter(c)) return;
     // 疾走：额外获得等于战斗速度的可用移动力（dashExtraMovement += battleSpeed）
     // 注意：疾走不改变 speedModifier，只增加 dashExtraMovement
     const battleSpeed = (c.speed ?? 30) + (c.speedModifier ?? 0);
@@ -1627,7 +1628,7 @@ export default function CombatSession() {
   // 放映模式用 untilNextTurn 锚定自己下回合开始自动解除；模拟模式永续由 DM 手动解除（与现有
   // durationRounds 状态一致）。
   const dodgeFor = (c: Combatant) => {
-    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    if (!ensureCanEnter(c)) return;
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
     globalStatusManager.applyEffect(c.id, 'dodging', 'combat', record.id, {
       durationRounds: 1,
@@ -1651,7 +1652,7 @@ export default function CombatSession() {
   //（抑制点在 reactionRules 借机检测器唯一出口）。生命周期与 dodging 同款：放映模式
   // untilNextTurn 锚定自己下回合开始解除，模拟模式永续由 DM 手动解除。
   const disengageFor = (c: Combatant) => {
-    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    if (!ensureCanEnter(c)) return;
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
     globalStatusManager.applyEffect(c.id, 'disengaging', 'combat', record.id, {
       durationRounds: 1,
@@ -1675,7 +1676,7 @@ export default function CombatSession() {
   // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认（引擎零暗骰）。
   // hidden 不自动过期：首次攻击结算后揭晓（breakHidden），被发现时 DM 手动解除。
   const hideFor = (c: Combatant) => {
-    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    if (!ensureCanEnter(c)) return;
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
     const observers = record.combatants.filter(o => o.id !== c.id && !o.isDead && !o.isUnconscious);
     const dcList = observers.map(o => `${o.name} 被动察觉 ${o.passiveChecks?.perception ?? 10}`).join('、');
@@ -2227,13 +2228,13 @@ export default function CombatSession() {
           }
         }}
         onRequestAttack={(attacker, target) => {
-          const seq = activeMultiattackSeq(attacker.id);
+          let seq = activeMultiattackSeq(attacker.id);
           if (!seq) {
-            // 动作校验：放映模式可用动作耗尽时禁止发起攻击
-            if (!ensureCanAct(attacker, canUseAction(attacker.id))) return;
-          } else if (actionDeniedReason(attacker)) {
-            // 序列进行中动作已承诺：只拦死亡/昏迷/失能
-            alert(actionDeniedReason(attacker));
+            // 入口只拦死亡/昏迷/失能；动作经济在结算点消费
+            if (!ensureCanEnter(attacker)) return;
+            // PC 额外攻击（N>1）自动开序列；返回 null 视同单次攻击走原路径
+            seq = beginPcExtraAttackIfNeeded(attacker);
+          } else if (!ensureCanEnter(attacker)) {
             return;
           }
           // 从最新 record 重取对象（pendingAdvantageSources 必须是协助后最新状态，不能用闭包 capture 的旧 snapshot）
@@ -2252,13 +2253,13 @@ export default function CombatSession() {
             targetPos: targetPos ? { col: targetPos.col, row: targetPos.row } : undefined,
             ...(seq ? {
               lockedAttackName: stepAttack?.name,
-              multiattackStepLabel: `多重攻击 第${seq.pos + 1}/${seq.queue.length}击 · ${stepName}`,
+              multiattackStepLabel: multiattackStepLabelOf(seq),
             } : {}),
           });
         }}
         onRequestSpell={(caster, target) => {
-          // 动作校验：放映模式可用动作耗尽时禁止施法
-          if (!ensureCanAct(caster, canUseAction(caster.id))) return;
+          // 入口只拦死亡/昏迷/失能；施法时间对应的动作经济在弹窗内按法术裁定
+          if (!ensureCanEnter(caster)) return;
           const latestCaster = record.combatants.find(c => c.id === caster.id) ?? caster;
           const latestTarget = record.combatants.find(c => c.id === target.id) ?? target;
           // 法术按钮：打开独立法术施放弹窗
@@ -2474,10 +2475,13 @@ export default function CombatSession() {
               updatedAt: Date.now(),
             });
           }}
+          bonusActionsAvailable={liveAttackModalAttacker?.bonusActions ?? attackModal.attacker.bonusActions}
+          actionsAvailable={liveAttackModalAttacker?.actions ?? attackModal.attacker.actions}
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
-            // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
-            consumeAttackActionFor(attackModal.attacker.id);
+            // 副手攻击（双武器战斗）消耗附赠动作；常规攻击消耗动作（多重攻击序列首击扣 1，后续击共享）
+            if ((attack as Attack).offhand) consumeCombatantBonusAction(attackModal.attacker.id);
+            else consumeAttackActionFor(attackModal.attacker.id);
             // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算）
             breakHidden(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
@@ -2551,8 +2555,9 @@ export default function CombatSession() {
             }
           }}
           onAttackMiss={(missInfo) => {
-            // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
-            consumeAttackActionFor(attackModal.attacker.id);
+            // 副手攻击（双武器战斗）消耗附赠动作；常规攻击消耗动作（多重攻击序列首击扣 1，后续击共享）
+            if ((missInfo.attack as Attack).offhand) consumeCombatantBonusAction(attackModal.attacker.id);
+            else consumeAttackActionFor(attackModal.attacker.id);
             // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算）
             breakHidden(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
@@ -2607,8 +2612,8 @@ export default function CombatSession() {
                 false, record, missInfo.usageMode,
               );
             }
-            // 当前击（未命中）结算完毕 → 推进多重攻击序列
-            advanceMultiattackFor(attackModal.attacker.id);
+            // 当前击（未命中）结算完毕 → 推进多重攻击序列（副手攻击独立于序列，不推进）
+            if (!(missInfo.attack as Attack).offhand) advanceMultiattackFor(attackModal.attacker.id);
           }}
         />
       )}
@@ -2898,8 +2903,8 @@ export default function CombatSession() {
               }
             }
             applyDamageNow();
-            // 当前击（命中伤害落账）结算完毕 → 推进多重攻击序列；反应挂起路径未落账不推进
-            advanceMultiattackFor(damageModal.attacker.id);
+            // 当前击（命中伤害落账）结算完毕 → 推进多重攻击序列；反应挂起路径未落账不推进（副手攻击不推进）
+            if (!(damageModal.attack as Attack).offhand) advanceMultiattackFor(damageModal.attacker.id);
             return false;
           }}
           onClose={() => {
@@ -2970,6 +2975,8 @@ export default function CombatSession() {
             // 逐目标 HP 回写（编译器纯计算，落地在此）；NPC 归 0 标记昏迷，与手动结算语义一致
             // 附加的状态实例 ID 收集进 concentration.statusIds：专注断 → 效果断
             const appliedStatusIds: string[] = [];
+            // 条件免疫跳过的目标（摘要追加提示）
+            const immunityNotes: string[] = [];
             payload.targetResults.forEach(tr => {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
@@ -3032,6 +3039,12 @@ export default function CombatSession() {
                 //   放映模式 + durationRounds → 绝对回合自动过期
                 //   模拟模式 → 永续待手动取消
                 if (tr.statusId) {
+                  // 条件免疫：免疫的状态跳过挂载（5e 状态免疫语义）
+                  const immuneLabel = immunityLabelFor(c, tr.statusId);
+                  if (immuneLabel) {
+                    immunityNotes.push(`「${c.name}」免疫${immuneLabel}，状态未附加`);
+                    return;
+                  }
                   const isPlayback = record?.mode === 'playback';
                   const castRound = currentTurn?.round ?? Math.max(0, (record?.rounds.length ?? 1) - 1);
                   // 次数型检定奖惩（如激励）：写参战者计数通道，不进状态系统
@@ -3084,8 +3097,9 @@ export default function CombatSession() {
                 handleApplyHealing(tr.combatantId, tr.finalValue);
               }
             });
-            // 摘要文本（FlowRunStep 生成的单行紧凑文本）；专注替换备注追加在末尾
+            // 摘要文本（FlowRunStep 生成的单行紧凑文本）；专注替换/免疫拦截备注追加在末尾
             let flowSummary = payload.summary;
+            if (immunityNotes.length > 0) flowSummary += `（${immunityNotes.join('；')}）`;
             if (payload.concentration && payload.success) {
               const concNote = beginConcentration(spellModal.caster.id, payload.spellName, appliedStatusIds);
               if (concNote) flowSummary += concNote;

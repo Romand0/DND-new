@@ -55,11 +55,15 @@ export const LIGHT_LABELS: Record<LightTier, string> = {
   darkness: '黑暗',
 };
 
-/** 光照层渲染遮罩色（叠加在格子背景上；bright 用淡黄提示光源区） */
+/**
+ * 光照层渲染遮罩色：按「真实亮暗」压暗格内一切内容（含棋子），三档区分度靠明度而非色相。
+ * bright 保持自然（仅极淡暖光提示被照亮）；dim 中灰压暗；darkness 深黑压暗但保留可视性
+ * （配合格子内棋子的白色轮廓，避免黑暗格内棋子糊成一团）。
+ */
 export const LIGHT_OVERLAY: Record<LightTier, string> = {
-  bright: 'rgba(253, 224, 71, 0.18)',
-  dim: 'rgba(15, 23, 42, 0.28)',
-  darkness: 'rgba(2, 6, 23, 0.6)',
+  bright: 'rgba(253, 224, 71, 0.1)',
+  dim: 'rgba(8, 12, 22, 0.38)',
+  darkness: 'rgba(3, 6, 14, 0.66)',
 };
 
 /**
