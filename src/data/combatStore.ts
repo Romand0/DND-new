@@ -1,4 +1,5 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent, ReactionPrompt, CoverTier } from '@/types/combat';
+import { planTurnStartRegeneration, type RegenPlan } from '@/data/regeneration';
 import { getCoverBonus } from '@/data/visionRules';
 import { scopedKey } from '@/data/campaignScope';
 import { pushCharacterLog } from '@/lib/characterLog';
@@ -977,6 +978,39 @@ const combatStore = {
     save(records);
     this.syncCombatantStatusFlags(recordId, combatantId);
     return 1;
+  },
+
+  /**
+   * 回合开始再生结算（5e Regeneration）：恢复 regenAmount 点生命；
+   * regenSuppressed 标记存在则本回合不恢复并在消费后清除；
+   * 以 0 生命值开始且再生失效的怪物按原文死亡（巨魔/还魂鬼语义）。
+   * @returns 结算计划（heal/dies/note），无再生特性返回 null
+   */
+  applyTurnStartRegeneration(recordId: string, combatantId: string): RegenPlan | null {
+    const records = load();
+    const record = records.find(r => r.id === recordId);
+    const idx = record?.combatants.findIndex(c => c.id === combatantId) ?? -1;
+    if (!record || idx === -1) return null;
+    const target = record.combatants[idx];
+    const plan = planTurnStartRegeneration(target);
+    if (!plan) return null;
+    const newHp = Math.min(target.maxHp ?? target.currentHp ?? 0, Math.max(0, target.currentHp ?? 0) + plan.heal);
+    record.combatants[idx] = {
+      ...target,
+      currentHp: plan.dies ? 0 : newHp,
+      isDead: plan.dies ? true : (plan.heal > 0 ? false : target.isDead),
+      isUnconscious: plan.dies ? false : (plan.heal > 0 ? false : target.isUnconscious),
+      regenSuppressed: false,
+    };
+    record.updatedAt = Date.now();
+    save(records);
+    this.syncCombatantStatusFlags(recordId, combatantId);
+    if (plan.dies) {
+      this.pushCombatEvent(recordId, { kind: 'note', targetId: combatantId, text: plan.note });
+    } else if (plan.heal > 0) {
+      this.pushCombatEvent(recordId, { kind: 'heal', targetId: combatantId, amount: plan.heal, text: plan.note });
+    }
+    return plan;
   },
 
   /**

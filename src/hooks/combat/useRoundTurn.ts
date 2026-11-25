@@ -174,6 +174,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       combatStore.clearAdvantageByExpireCombatant(record.id, next.combatantId);
       setCurrentTurn(next);
       resetCombatantActions(next.combatantId);
+      // 回合开始再生（5e：回血/失效/0 生命值死亡），写在快照前使回溯快照包含本次恢复
+      combatStore.applyTurnStartRegeneration(record.id, next.combatantId);
       takeTurnSnapshot(next.round, next.combatantId);
       checkAndAutoAdvance(next);
       return;

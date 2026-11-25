@@ -1387,9 +1387,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                     </div>
                   )}
                   {combatant.regenAmount && (
-                    <div className="rounded-lg bg-green-500/10 p-2 text-xs text-green-400">
+                    <div className={`rounded-lg p-2 text-xs ${combatant.regenSuppressed ? 'bg-amber-500/10 text-amber-400' : 'bg-green-500/10 text-green-400'}`}>
                       再生：每回合开始恢复 {combatant.regenAmount} 点生命值
                       {combatant.regenNegate ? `（受到${combatant.regenNegate}则下回合失效）` : ''}
+                      {combatant.regenSuppressed ? ' — 本回合已失效' : ''}
                     </div>
                   )}
                 </div>

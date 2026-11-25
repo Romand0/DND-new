@@ -267,8 +267,10 @@ export interface Combatant {
   spellcastingUsage?: Record<string, number>;
   /** 再生恢复量（每回合开始，从模板再生特质带入） */
   regenAmount?: number;
-  /** 再生失效条件（如「火焰伤害」；受该类伤害时再生下回合失效，由 DM 判断） */
+  /** 再生失效条件（如「火焰伤害」；受该类伤害时再生下回合失效） */
   regenNegate?: string;
+  /** 再生本回合失效标记（受到 regenNegate 类型伤害时置位，回合开始时消费清除） */
+  regenSuppressed?: boolean;
   /** NPC 攻击方式（从模板带入） */
   attacks?: NpcAttack[];
   /** 荒野变形状态（德鲁伊 PC）：存在 = 已处于野兽形态，参战者战斗字段已被野兽数据覆盖 */

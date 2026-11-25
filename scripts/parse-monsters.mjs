@@ -219,9 +219,13 @@ function parseBreathWeapon(traits) {
 function parseRegeneration(traits) {
   const t = (traits ?? []).find((x) => /^再生/.test(x.name ?? ''));
   if (!t) return undefined;
-  const amount = parseInt((t.text ?? '').match(/恢复(\d+)点生命值/)?.[1] ?? '', 10);
+  // 「恢复10点」与「回复10点」两种措辞并存
+  const amount = parseInt((t.text ?? '').match(/(?:恢复|回复)(\d+)点生命值/)?.[1] ?? '', 10);
   if (!Number.isFinite(amount)) return undefined;
-  return { amount, negate: t.text.match(/若它受到([\u4e00-\u9fa5]{2,12}伤害)/)?.[1] };
+  // 否定条件：「受到强酸或者火焰伤害」「受到火焰或光耀伤害」（去「者」归一为单字「或」）
+  const negateRaw = t.text.match(/受到([\u4e00-\u9fa5]{2,14}?)伤害/)?.[1];
+  const negate = negateRaw ? negateRaw.replace(/或者/g, '或') : undefined;
+  return { amount, negate };
 }
 
 // 天生施法/施法：抽施法属性/DC/攻击命中 + 环阶分组法术列表。
