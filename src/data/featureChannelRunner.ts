@@ -4,6 +4,7 @@
 // currentRound0 为 0-based 放映轮次（与 playbackState.currentTurn.round 同口径）。
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
+import { immunityLabelFor } from '@/data/conditionImmunity';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
 import { planHealAmount } from '@/data/engines/healEngine';
 import { applyConvTarget, CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
@@ -70,6 +71,9 @@ export function executeFeatureChannel(
 
   if (capability.channel === 'status' && capability.status) {
     const { statusKey, durationRounds, todo, effects } = capability.status;
+    // 条件免疫：免疫的状态不附加（也不建待办）
+    const immuneLabel = immunityLabelFor(combatant, statusKey);
+    if (immuneLabel) return { note: `「${combatant.name}」免疫${immuneLabel}，状态未附加` };
     // AdvantageEffectConfig → 状态实例级 Effect（advantage 引擎按 config 匹配检定场景）
     const instanceEffects: Effect[] | undefined = effects?.length
       ? effects.map((cfg, i) => ({

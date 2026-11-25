@@ -47,6 +47,7 @@ import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
 import { getAttackRiders, applyAttackRiders } from '@/data/attackRiders';
+import { immunityLabelFor } from '@/data/conditionImmunity';
 import { resolvePoolKey } from '@/data/featurePool';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
@@ -2974,6 +2975,8 @@ export default function CombatSession() {
             // 逐目标 HP 回写（编译器纯计算，落地在此）；NPC 归 0 标记昏迷，与手动结算语义一致
             // 附加的状态实例 ID 收集进 concentration.statusIds：专注断 → 效果断
             const appliedStatusIds: string[] = [];
+            // 条件免疫跳过的目标（摘要追加提示）
+            const immunityNotes: string[] = [];
             payload.targetResults.forEach(tr => {
               const c = record?.combatants.find(x => x.id === tr.combatantId);
               if (!c) return;
@@ -3036,6 +3039,12 @@ export default function CombatSession() {
                 //   放映模式 + durationRounds → 绝对回合自动过期
                 //   模拟模式 → 永续待手动取消
                 if (tr.statusId) {
+                  // 条件免疫：免疫的状态跳过挂载（5e 状态免疫语义）
+                  const immuneLabel = immunityLabelFor(c, tr.statusId);
+                  if (immuneLabel) {
+                    immunityNotes.push(`「${c.name}」免疫${immuneLabel}，状态未附加`);
+                    return;
+                  }
                   const isPlayback = record?.mode === 'playback';
                   const castRound = currentTurn?.round ?? Math.max(0, (record?.rounds.length ?? 1) - 1);
                   // 次数型检定奖惩（如激励）：写参战者计数通道，不进状态系统
@@ -3088,8 +3097,9 @@ export default function CombatSession() {
                 handleApplyHealing(tr.combatantId, tr.finalValue);
               }
             });
-            // 摘要文本（FlowRunStep 生成的单行紧凑文本）；专注替换备注追加在末尾
+            // 摘要文本（FlowRunStep 生成的单行紧凑文本）；专注替换/免疫拦截备注追加在末尾
             let flowSummary = payload.summary;
+            if (immunityNotes.length > 0) flowSummary += `（${immunityNotes.join('；')}）`;
             if (payload.concentration && payload.success) {
               const concNote = beginConcentration(spellModal.caster.id, payload.spellName, appliedStatusIds);
               if (concNote) flowSummary += concNote;
