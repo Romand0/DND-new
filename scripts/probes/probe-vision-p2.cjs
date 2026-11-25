@@ -102,10 +102,14 @@ async function main() {
     const ambient = bgStore.get(sid).ambientLight;
     bgStore.clearLightCells(sid);
     const afterClear = bgStore.get(sid).lightCells;
+    // 绘图模式整批覆盖（setLightCells）
+    bgStore.setLightCells(sid, { bright: ['0,0'], dim: ['0,1'], darkness: ['0,2', '0,3'] });
+    const afterBulk = bgStore.get(sid).lightCells;
     out.cellsAfterMove = afterMove;
     out.cellsAfterErase = afterErase;
     out.ambientSet = ambient;
     out.cellsAfterClear = afterClear;
+    out.cellsAfterBulk = afterBulk;
 
     return out;
   });
@@ -152,6 +156,7 @@ async function main() {
   check('黑暗格保持', results.cellsAfterMove.darkness.includes('2,2'), results.cellsAfterMove);
   check('环境档位写入', results.ambientSet === 'darkness', results.ambientSet);
   check('清除光照格', results.cellsAfterClear.bright.length === 0 && results.cellsAfterClear.dim.length === 0 && results.cellsAfterClear.darkness.length === 0, results.cellsAfterClear);
+  check('整批覆盖光照格', results.cellsAfterBulk.bright.join() === '0,0' && results.cellsAfterBulk.dim.join() === '0,1' && results.cellsAfterBulk.darkness.join() === '0,2,0,3', results.cellsAfterBulk);
 
   console.log(`\n=== probe-vision-p2: ${pass} passed, ${fail} failed ===`);
   if (failures.length) console.log('FAILURES: ' + failures.join(', '));

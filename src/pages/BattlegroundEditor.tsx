@@ -1,17 +1,25 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Grid3x3, Pencil, Eraser, Hand, Flame } from 'lucide-react';
+import { Grid3x3, Pencil, Eraser, Hand, Flame, Sun, Moon, MoonStar } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import combatStore from '@/data/combatStore';
-import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
-import type { Battleground as BG, BattlegroundZone, ZoneType } from '@/types/battleground';
+import { GRID_PRESETS, ZONE_PRESETS, LIGHT_LABELS, LIGHT_OVERLAY } from '@/types/battleground';
+import type { Battleground as BG, BattlegroundZone, ZoneType, LightTier } from '@/types/battleground';
 import type { Combatant } from '@/types/combat';
 import { useNumberInput } from '@/hooks/useInput';
 
 type Tool = 'brush' | 'eraser' | 'hand';
 
-/** 画笔对象：边界墙（涂白）或某类地形区域 */
-type PaintMode = 'wall' | ZoneType;
+/** 画笔对象：边界墙（涂白）、某类地形区域，或三档光照标注 */
+type PaintMode = 'wall' | ZoneType | `light:${LightTier}`;
+
+const LIGHT_TIERS: LightTier[] = ['bright', 'dim', 'darkness'];
+const LIGHT_ICONS: Record<LightTier, typeof Sun> = { bright: Sun, dim: Moon, darkness: MoonStar };
+
+/** 是否是光照画笔（光照标注从战斗沙盘移入绘图模式） */
+function isLightMode(m: PaintMode): m is `light:${LightTier}` {
+  return m.startsWith('light:');
+}
 
 /** 绘图模式创建的区域统一标记，保存时只替换这一批，保留法术生成的其他区域 */
 const BRUSH_SOURCE = '绘图';
@@ -26,8 +34,14 @@ export default function BattlegroundEditor() {
   // 草稿涂白格子
   const [draftCells, setDraftCells] = useState<Set<string>>(new Set());
 
-  // 画笔对象：边界墙 or 地形区域类型
+  // 画笔对象：边界墙 or 地形区域类型 or 光照档位
   const [paintMode, setPaintMode] = useState<PaintMode>('wall');
+
+  // 光照草稿：三桶互斥（与 store 语义一致），保存时整批覆盖
+  const [draftLight, setDraftLight] = useState<Record<LightTier, Set<string>>>({
+    bright: new Set(), dim: new Set(), darkness: new Set(),
+  });
+  const [draftAmbient, setDraftAmbient] = useState<LightTier>('bright');
 
   // 草稿区域（仅绘图模式创建的，保存时与法术区域合并）
   const [draftZones, setDraftZones] = useState<BattlegroundZone[]>([]);
@@ -56,6 +70,12 @@ export default function BattlegroundEditor() {
     setBg(data);
     setDraftCells(new Set(data.paintedCells || []));
     setDraftZones((data.zones ?? []).filter(z => z.source === BRUSH_SOURCE));
+    setDraftLight({
+      bright: new Set(data.lightCells?.bright ?? []),
+      dim: new Set(data.lightCells?.dim ?? []),
+      darkness: new Set(data.lightCells?.darkness ?? []),
+    });
+    setDraftAmbient(data.ambientLight ?? 'bright');
     const unsub = battlegroundStore.subscribe(() => {
       setBg(battlegroundStore.get(sessionId));
     });
@@ -102,6 +122,15 @@ export default function BattlegroundEditor() {
     return m;
   }, [bg?.tokens]);
 
+  // 光照格索引："col,row" -> 档位（三桶互斥）
+  const lightTierMap = useMemo(() => {
+    const m = new Map<string, LightTier>();
+    (['bright', 'dim', 'darkness'] as LightTier[]).forEach(t => {
+      draftLight[t].forEach(key => m.set(key, t));
+    });
+    return m;
+  }, [draftLight]);
+
   // —— early return 放在所有 hooks 之后 ——
   if (!bg) {
     return (
@@ -146,9 +175,27 @@ export default function BattlegroundEditor() {
   };
 
   /** 当前画笔的区域预设（自定义时用表单值覆盖伤害与时长） */
-  const activeZonePreset = paintMode === 'wall' ? null : ZONE_PRESETS[paintMode];
+  const activeZonePreset = paintMode === 'wall' || isLightMode(paintMode) ? null : ZONE_PRESETS[paintMode];
 
   const applyPaint = (key: string, mode: 'paint' | 'erase') => {
+    if (isLightMode(paintMode)) {
+      const tier = paintMode.slice('light:'.length) as LightTier;
+      setDraftLight(prev => {
+        const next = {
+          bright: new Set(prev.bright),
+          dim: new Set(prev.dim),
+          darkness: new Set(prev.darkness),
+        };
+        // 同档重涂 = 擦除（与战斗沙盘旧交互一致）；异档重涂 = 迁移
+        const sameTier = next[tier].has(key);
+        next.bright.delete(key);
+        next.dim.delete(key);
+        next.darkness.delete(key);
+        if (mode === 'paint' && !sameTier) next[tier].add(key);
+        return next;
+      });
+      return;
+    }
     if (paintMode === 'wall') {
       setDraftCells(prev => {
         const next = new Set(prev);
@@ -192,6 +239,19 @@ export default function BattlegroundEditor() {
       if (zones[idx].cells.includes(key)) return prev;
       zones[idx] = { ...zones[idx], cells: [...zones[idx].cells, key] };
       return zones;
+    });
+  };
+
+  /** 全局填充：整张地图一次写满某档光照（null = 清空全部光照格） */
+  const fillAllLight = (tier: LightTier | null) => {
+    const all = new Set<string>();
+    for (let c = 0; c < preset.cols; c++) {
+      for (let r = 0; r < preset.rows; r++) all.add(`${c},${r}`);
+    }
+    setDraftLight({
+      bright: tier === 'bright' ? all : new Set(),
+      dim: tier === 'dim' ? all : new Set(),
+      darkness: tier === 'darkness' ? all : new Set(),
     });
   };
 
@@ -330,6 +390,12 @@ export default function BattlegroundEditor() {
       expireRound: undefined,
     }));
     battlegroundStore.setZones(sessionId, [...existing, ...brushZones]);
+    battlegroundStore.setLightCells(sessionId, {
+      bright: [...draftLight.bright],
+      dim: [...draftLight.dim],
+      darkness: [...draftLight.darkness],
+    });
+    battlegroundStore.setAmbientLight(sessionId, draftAmbient);
   };
 
   const handleSave = () => {
@@ -409,6 +475,11 @@ export default function BattlegroundEditor() {
                     {combatant.name.slice(0, 1)}
                   </div>
                 )}
+                {/* 光照遮罩：与战斗沙盘同口径，盖在格内一切内容之上 */}
+                {lightTierMap.get(key) && (
+                  <div className="absolute inset-0 z-30 pointer-events-none"
+                    style={{ background: LIGHT_OVERLAY[lightTierMap.get(key) as LightTier] }} />
+                )}
               </div>
             );
           })}
@@ -438,6 +509,49 @@ export default function BattlegroundEditor() {
           </button>
         ))}
       </div>
+
+      {/* 光照：环境档位 + 三档画笔 + 全局填充（光照设置只存在于绘图模式） */}
+      <div className="flex items-center justify-center gap-2 px-4 pt-2 flex-wrap">
+        <span className="text-xs opacity-60">环境</span>
+        {LIGHT_TIERS.map((t) => (
+          <button key={`ambient-${t}`} onClick={() => setDraftAmbient(t)}
+            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
+              draftAmbient === t ? 'bg-primary text-white' : 'border dark:border-border-dark light:border-border-light hover:bg-white/5'
+            }`}>
+            {LIGHT_LABELS[t]}
+          </button>
+        ))}
+        <span className="ml-3 text-xs opacity-60">光照画笔</span>
+        {LIGHT_TIERS.map((t) => {
+          const Icon = LIGHT_ICONS[t];
+          const active = paintMode === `light:${t}`;
+          return (
+            <button key={`light-brush-${t}`} onClick={() => setPaintMode(`light:${t}`)}
+              className={`px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1 ${
+                active ? 'bg-info text-white' : 'border dark:border-border-dark light:border-border-light hover:bg-info/10'
+              }`}
+              title={`点击/拖拽给格子标注${LIGHT_LABELS[t]}（重涂同档擦除，橡皮可擦）`}>
+              <Icon className="w-3.5 h-3.5" />
+              <span>{LIGHT_LABELS[t]}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 全局填充：一次写满整张地图 */}
+      <div className="flex items-center justify-center gap-2 px-4 pt-2 flex-wrap">
+        <span className="text-xs opacity-60">全局填充</span>
+        {LIGHT_TIERS.map((t) => (
+          <button key={`fill-${t}`} onClick={() => fillAllLight(t)}
+            className="px-3 py-1.5 rounded-lg text-xs border dark:border-border-dark light:border-border-light hover:bg-info/10 transition-colors">
+            全部{LIGHT_LABELS[t]}
+          </button>
+        ))}
+        <button onClick={() => fillAllLight(null)}
+          className="px-3 py-1.5 rounded-lg text-xs border border-danger/50 text-danger hover:bg-danger/10 transition-colors">
+          清空光照
+        </button>
+      </div>
       {paintMode === 'custom' && (
         <div className="flex items-center justify-center gap-3 px-4 pt-2 text-xs">
           <label className="flex items-center gap-1">
@@ -459,6 +573,11 @@ export default function BattlegroundEditor() {
       {activeZonePreset && (
         <div className="px-4 pt-2 text-center text-xs opacity-55">
           {activeZonePreset.description}
+        </div>
+      )}
+      {isLightMode(paintMode) && (
+        <div className="px-4 pt-2 text-center text-xs opacity-55">
+          光照画笔（{LIGHT_LABELS[paintMode.slice('light:'.length) as LightTier]}）：点击/拖拽给格子标注明暗，重涂同档擦除；遮罩按真实明暗压暗格内棋子
         </div>
       )}
 
