@@ -1321,14 +1321,6 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                 style={{ width: cellSize, height: cellSize }}
                 title={combatant ? combatant.name : itemsHere.length > 0 ? itemsHere.map(t => t.name).join(', ') : `${col},${row}`}
               >
-                {/* 光照区着色（最底层；微光/黑暗半透明罩，明亮区不压色） */}
-                {lightTierHere && lightTierHere !== 'bright' && (
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{ background: LIGHT_OVERLAY[lightTierHere] }}
-                  />
-                )}
-
                 {/* 地形区域着色（不拦截指针事件） */}
                 {zonesHere.length > 0 && (
                   <div
@@ -1355,6 +1347,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                         width: cellSize - 8,
                         height: cellSize - 8,
                         touchAction: 'none',
+                        ...(lightTierHere === 'darkness'
+                          ? { outline: '2px solid rgba(255,255,255,0.65)', outlineOffset: '-1px' }
+                          : lightTierHere === 'dim'
+                            ? { outline: '1px solid rgba(255,255,255,0.35)', outlineOffset: '-1px' }
+                            : {}),
                       }}
                       onPointerDown={(e) => {
                         if (readOnly) return;
@@ -1448,6 +1445,12 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                       height: cellSize - 6,
                       fontSize: cellSize > 22 ? 11 : 9,
                       touchAction: 'none',
+                      // 黑暗/微光格给棋子描白边：遮罩压暗后仍能辨认轮廓
+                      ...(lightTierHere === 'darkness'
+                        ? { outline: '2px solid rgba(255,255,255,0.7)', outlineOffset: '-1px' }
+                        : lightTierHere === 'dim'
+                          ? { outline: '1px solid rgba(255,255,255,0.4)', outlineOffset: '-1px' }
+                          : {}),
                     }}
                     onPointerDown={(e) => {
                       if (readOnly) return;
@@ -1516,6 +1519,15 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   >
                     <MoreHorizontal style={{ width: '70%', height: '70%' }} />
                   </div>
+                )}
+
+                {/* 光照遮罩：盖在棋盘格与棋子之上，按真实明暗压暗格内一切内容；
+                    棋子已带白色轮廓，黑暗格仍可辨认。不拦截指针事件。 */}
+                {lightTierHere && (
+                  <div
+                    className="absolute inset-0 z-30 pointer-events-none"
+                    style={{ background: LIGHT_OVERLAY[lightTierHere] }}
+                  />
                 )}
               </div>
             );
