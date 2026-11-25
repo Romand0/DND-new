@@ -232,6 +232,8 @@ export interface Combatant {
   templateId?: string;
   /** 伤害抗性/易伤/免疫快照（从模板创建时解析并固化，旧记录可按 templateId 回退） */
   damageAffinities?: DamageAffinitySet;
+  /** 状态免疫（从怪物图鉴模板带入；状态挂载时拦截） */
+  conditionImmunities?: string[];
   /** 被动检定快照（PC 入战派生：10 + 属性调整 + 技能熟练/专精 + 特性修正） */
   passiveChecks?: PassiveChecks;
   /** 黑暗视觉尺数（PC 入战派生：种族/特性条目；undefined = 无黑暗视觉） */
