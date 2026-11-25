@@ -222,3 +222,15 @@ getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消�
 **做新的跨模块侦查时**：先并行读相关 `.md`（每个 2–15KB 一次读完），基于文档列出的函数 / 文件清单决定要精读的 1–2 个源码文件，而非逐个通读。
 
 ---
+
+### 5.15 动作经济：入口只判状态，经济在结算点消费
+
+**为什么用**：放映模式下动作（主动作/附赠动作）会随回合耗尽；若在「点击入口」处用 `canUseAction` / `canUseBonusAction` 直接锁按钮，会把合法的附赠动作路径（副手攻击、附赠动作法术、特性赋予的额外动作）一起挡掉，且 DM 无法在放映中裁定越界操作。规则判定属于结算层，交互层只负责收集意图。
+
+**实现约定**：
+- 入口统一走 `ensureCanEnter(c)`（只拦死亡/昏迷/失能），不要再传 `canUseAction(c.id)` 做前置门禁
+- 动作消耗在结算点执行（`consumeCombatantAction` / `consumeCombatantBonusAction`，内部 `Math.max(0, n-1)` 钳制）
+- 主动作耗尽时由弹窗给**非阻断提示**（如 `CombatAttackModal` 的 `actionsAvailable <= 0` 横幅），而不是禁用入口
+- 副手攻击候选由 `buildOffhandAttackCandidates` 按 `bonusActionsAvailable` 过滤，保证附赠动作经济独立生效
+
+**❌ 严禁**：在 `openAttackFor` / `openCastFor` / `dashFor` / `dodgeFor` / `disengageFor` / `hideFor` / 手动记录等入口用动作数 `alert` 拦截。

@@ -21,7 +21,7 @@ export interface UseManualRecordProps {
 export function useManualRecord(record: CombatRecord | null, props: UseManualRecordProps) {
   const {
     selectedCell, setSelectedCell,
-    canUseAction, consumeCombatantAction,
+    consumeCombatantAction,
     getEffectiveAc, handleApplyDamage, handleApplyHealing, recordOperation,
   } = props;
 
@@ -42,10 +42,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     const attacker = record.combatants.find(c => c.id === combatantId);
 
     if (manualRecordType === 'attack') {
-      if (!canUseAction(combatantId)) {
-        alert('该参战者本回合已没有可用动作');
-        return;
-      }
+      // 入口只做输入校验；动作经济在记录落账时消费（DM 手动记录允许补录/裁定）
       if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
       if (!target) { alert('请选择目标'); return; }
       if (!manualAttackRoll) { alert('请填写攻击检定值'); return; }
