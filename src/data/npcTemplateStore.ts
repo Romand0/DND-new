@@ -57,9 +57,13 @@ type Listener = () => void;
 
 let listeners: Listener[] = [];
 
-// 规则书集变化触发刷新；种子就绪触发刷新
+// 规则书集变化触发刷新；种子就绪触发刷新（并让云端缓存重置：种子到位后才能识别
+// 旧版整库上云快照行，首次 loadCloud 发生在种子就绪前的话需要重读一次）
 subscribeLibraryScope(() => notify());
-subscribeSeed(() => notify());
+subscribeSeed(() => {
+  cloudCache = null;
+  notify();
+});
 
 // 进程内缓存：避免每次读都全量 parse localStorage。所有写操作必须经过 save()。
 let cloudCache: NpcTemplate[] | null = null;
@@ -134,6 +138,28 @@ function normalizeTemplate(t: any): NpcTemplate {
   };
 }
 
+// 种子 slug 集合（normalizedSeeds 的 id 已对齐 templateId；种子未就绪时为空集）
+function seedSlugSet(): Set<string> {
+  const seeds = getCachedSeed<NpcTemplate>('monsters');
+  if (!seeds || seeds.length === 0) return new Set();
+  return new Set(seeds.map((s) => s.templateId || s.id));
+}
+
+/**
+ * 旧版「整库上云」快照行：id 是种子原始 uuid、无 seedId、templateId 命中种子 slug。
+ * 这些行内容即种子副本，来源是早期一次性推种子到云端的残留。种子才是唯一事实源，
+ * 读写两侧都剔除；否则云端副本会作为「自建」再并入一次（421 → 842 条），拖慢首屏。
+ */
+function isLegacySeedSnapshot(row: NpcTemplate, slugs: Set<string>): boolean {
+  return row.deleted !== true && !row.seedId && typeof row.templateId === 'string' && slugs.has(row.templateId);
+}
+
+function dropLegacySeedSnapshots(rows: NpcTemplate[]): NpcTemplate[] {
+  const slugs = seedSlugSet();
+  if (slugs.size === 0) return rows;
+  return rows.filter((row) => !isLegacySeedSnapshot(row, slugs));
+}
+
 // 云端行缓存（覆盖/墓碑/自建），不含种子
 function loadCloud(): NpcTemplate[] {
   if (cloudCache) return cloudCache;
@@ -144,7 +170,16 @@ function loadCloud(): NpcTemplate[] {
       return cloudCache;
     }
     const parsed: unknown[] = JSON.parse(raw);
-    cloudCache = parsed.map(normalizeTemplate);
+    const rows = parsed.map(normalizeTemplate);
+    cloudCache = dropLegacySeedSnapshots(rows);
+    // 读时顺手清理持久化副本：旧快照行可达数百 KB，留着每次冷启动都要 parse
+    if (cloudCache.length !== rows.length) {
+      try {
+        localStorage.setItem(storageKey(), JSON.stringify(cloudCache));
+      } catch {
+        // 清理失败不影响本次视图，下次保存时再写
+      }
+    }
     return cloudCache;
   } catch {
     cloudCache = [];
@@ -153,9 +188,9 @@ function loadCloud(): NpcTemplate[] {
 }
 
 function saveCloud(templates: NpcTemplate[]): void {
-  cloudCache = templates;
+  cloudCache = dropLegacySeedSnapshots(templates);
   try {
-    localStorage.setItem(storageKey(), JSON.stringify(templates));
+    localStorage.setItem(storageKey(), JSON.stringify(cloudCache));
   } catch (e) {
     console.error('NPC模板保存失败:', e);
   }
