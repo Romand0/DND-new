@@ -37,6 +37,12 @@ export interface TurnCommitApplyDeps {
 
 export type TurnCommitApplyResult = { ok: true; reactions?: ReactionPrompt[] } | { ok: false; reason: string };
 
+/** 一攻揭晓：躲藏者发起攻击（命中/未命中均算）结算后移除 hidden（与 DM 端 CombatSession.breakHidden 同口径） */
+function breakHidden(combatantId: string) {
+  const inst = globalStatusManager.getActiveStatuses(combatantId, 'combat').find((i) => i.definitionId === 'hidden');
+  if (inst) globalStatusManager.declareEnd(inst.instanceId);
+}
+
 /** 弹药扣减：剩余发数足够走 quantityDeltas，扣到最后一发整件移除（与 DM 端攻击链一致） */
 function consumeAmmo(record: CombatRecord, combatantId: string, ammoChildId: string, count: number) {
   const changes = record.equipmentChanges?.[combatantId] ?? { added: [], removedChildIds: [], quantityDeltas: {} };
@@ -131,6 +137,8 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
           collectedReactions.push(...fulls);
         }
       }
+      // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算；多次攻击幂等）
+      breakHidden(actor.id);
       // 同一回合多次攻击只扣一次主动作（额外攻击规则由 DM 桌面把握）
       if (!consumedAction) {
         consumeAction(actor.id);
