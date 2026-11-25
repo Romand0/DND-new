@@ -29690,7 +29690,8 @@
       }
     ],
     "regeneration": {
-      "amount": 10
+      "amount": 10,
+      "negate": "火焰或光耀"
     },
     "attacks": [
       {
@@ -34395,6 +34396,10 @@
         "name": "爪击"
       }
     ],
+    "regeneration": {
+      "amount": 10,
+      "negate": "强酸或火焰"
+    },
     "attacks": [
       {
         "name": "啃咬",
