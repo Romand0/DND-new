@@ -52,7 +52,8 @@ import { resolvePoolKey } from '@/data/featurePool';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
-import type { Character, Attack, Feature } from '@/types/character';
+import type { Character, Attack, Feature, AbilityKey } from '@/types/character';
+import { ABILITY_LABEL_MAP } from '@/lib/saveBonus';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionPrompt, WildShapeState } from '@/types/combat';
 import type { SpellSlotLevel } from '@/types/character';
 import { detectReactions } from '@/data/reactionRules';
@@ -312,6 +313,8 @@ export default function CombatSession() {
     activation: Feature['activation'];
     poolKey: string | null;
     cost: number;
+    /** 形状描述覆盖（怪物吐息传入模板 shape 文本，无角色卡特性可读） */
+    descriptionOverride?: string;
   } | null>(null);
   // resource_conv convert 通道弹窗（灵巧动作类）：to 多元素先选动作项，确认时扣动作与池
   const [convTargetPick, setConvTargetPick] = useState<{
@@ -1228,6 +1231,41 @@ export default function CombatSession() {
     recordOperation(from.id, payload.message, 'damage');
     combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, text: `《${featureName}》→ ${payload.message}` });
     setAoeSaveModal(null);
+  };
+
+  /** 怪物吐息武器：按模板结构化字段合成 aoe_save 能力，复用范围豁免弹窗（动作在确认时扣） */
+  const openNpcBreathWeapon = (c: Combatant, index: number) => {
+    const b = c.breathWeapon?.[index];
+    if (!b || !record) return;
+    if (!ensureCanEnter(c)) return;
+    const bg = battlegroundStore.get(record.id);
+    const placed = (bg?.tokens ?? []).some(t => t.combatantId === c.id);
+    if (!placed) {
+      alert(`「${b.name}」需要先将该参战者放置在沙盘上（范围以自身为源点）`);
+      return;
+    }
+    const dc = b.dc ?? 10;
+    const label = b.ability ?? '敏捷';
+    const saveAbility = (Object.entries(ABILITY_LABEL_MAP).find(([, l]) => l === label)?.[0] as AbilityKey | undefined) ?? 'dexterity';
+    const capability: FeatureCapability = {
+      channel: 'aoe_save',
+      aoeSave: {
+        damage: { dice: b.damageDice ?? '', damageType: b.damageType ?? '火焰' },
+        saveAbility,
+        dc: () => dc,
+        halfOnSave: b.halfOnSave ?? false,
+      },
+      hint: `${c.name}的${b.name}：${b.shape ?? ''}${b.recharge ? `（${b.recharge}）` : ''}，DC${dc}${label}豁免${b.halfOnSave ? '，成功减半' : ''}`,
+    };
+    setAoeSaveModal({
+      from: c,
+      featureName: `吐息武器（${b.name}）`,
+      capability,
+      activation: 'action',
+      poolKey: null,
+      cost: 1,
+      descriptionOverride: b.shape ?? '',
+    });
   };
 
   /**
@@ -3319,6 +3357,7 @@ export default function CombatSession() {
             caster={aoeSaveModal.from}
             featureName={aoeSaveModal.featureName}
             capability={aoeSaveModal.capability}
+            descriptionOverride={aoeSaveModal.descriptionOverride}
             combatants={record.combatants}
             combatantPositions={combatantPositions}
             bounds={{ cols: preset.cols, rows: preset.rows }}
@@ -3570,6 +3609,7 @@ export default function CombatSession() {
             })()}
             onMultiattackStart={() => startMultiattackSequence(liveCombatant)}
             onMultiattackEnd={() => endMultiattackSequence(liveCombatant.id)}
+            onBreathWeaponClick={(index) => openNpcBreathWeapon(liveCombatant, index)}
             onCastClick={() => {
               openCastFor(liveCombatant);
               setInfoPanelCombatant(null);

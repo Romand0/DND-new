@@ -141,7 +141,8 @@ export function parseAoeSpec(description: string | undefined): AoeSpec | null {
 
   const lineShape = text.search(/线状|线形/);
   if (lineShape !== -1) {
-    const lenWidth = text.match(/长\s*(\d+)\s*尺[^。]{0,10}?宽\s*(\d+)\s*尺/);
+    const lenWidth = text.match(/长\s*(\d+)\s*尺[^。]{0,10}?宽\s*(\d+)\s*尺/)
+      ?? text.match(/(\d+)\s*尺长[^。]{0,10}?(\d+)\s*尺宽/);
     if (lenWidth) {
       return { shape: 'line', lengthFt: parseInt(lenWidth[1], 10), widthFt: parseInt(lenWidth[2], 10) };
     }

@@ -254,6 +254,8 @@ export interface Combatant {
   legendaryResistanceTotal?: number;
   /** 多重攻击结构（从模板带入，动作面板显示构成提醒） */
   multiattack?: { count: number; name: string }[];
+  /** 吐息武器（从模板带入；动作面板「吐息武器」入口走 aoe_save 通道自动豁免结算） */
+  breathWeapon?: NpcTemplate['breathWeapon'];
   /** 天生施法（从模板带入：施法属性/DC/命中/法术列表，动作面板展示） */
   spellcasting?: {
     ability: string;
