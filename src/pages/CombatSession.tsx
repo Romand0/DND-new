@@ -41,6 +41,7 @@ import { globalStatusManager } from '@/data/statusManager';
 import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
+import { derivePcAttacksPerAction } from '@/lib/pcExtraAttack';
 import { optionStore } from '@/data/optionStore';
 import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
@@ -1557,10 +1558,30 @@ export default function CombatSession() {
     combatStore.advanceMultiattack(record.id, attackerId);
   };
 
+  // 步骤徽标文案：怪物队列存配方名（带攻击名）；PC 额外攻击队列存空哨兵（不锁武器，仅计次）
+  const multiattackStepLabelOf = (seq: { queue: string[]; pos: number }) => {
+    const name = seq.queue[seq.pos];
+    const head = name ? '多重攻击' : '额外攻击';
+    return `${head} 第${seq.pos + 1}/${seq.queue.length}击${name ? ` · ${name}` : ''}`;
+  };
+
+  // PC 额外攻击：每次攻击动作可攻击 N 次（职业特性推导），进第一击前自动开序列；
+  // 队列哨兵为空名 → 弹窗不锁定攻击（5e 允许多次攻击中每击换武器），仅提供计数与动作共享
+  const beginPcExtraAttackIfNeeded = (c: Combatant): { queue: string[]; pos: number } | null => {
+    if (!record || !c.isPc || !c.characterId) return null;
+    const n = derivePcAttacksPerAction(characterStore.get(c.characterId));
+    if (n <= 1) return null;
+    const queue = Array.from({ length: n }, () => '');
+    if (!combatStore.startMultiattack(record.id, c.id, queue)) return null;
+    return combatStore.get(record.id)?.multiattackProgress?.[c.id] ?? null;
+  };
+
   const openAttackFor = (c: Combatant) => {
-    const seq = activeMultiattackSeq(c.id);
+    let seq = activeMultiattackSeq(c.id);
     if (!seq) {
       if (!ensureCanAct(c, canUseAction(c.id))) return;
+      // PC 额外攻击（N>1）自动开序列；返回 null 视同单次攻击走原路径
+      seq = beginPcExtraAttackIfNeeded(c);
     } else if (actionDeniedReason(c)) {
       // 序列进行中动作已承诺：只拦死亡/昏迷/失能，不拦动作数
       alert(actionDeniedReason(c));
@@ -1582,7 +1603,7 @@ export default function CombatSession() {
         targetPos: tPos ? { col: tPos.col, row: tPos.row } : undefined,
         ...(seq ? {
           lockedAttackName: stepAttack?.name,
-          multiattackStepLabel: `多重攻击 第${seq.pos + 1}/${seq.queue.length}击 · ${stepName}`,
+          multiattackStepLabel: multiattackStepLabelOf(seq),
         } : {}),
       });
       setInfoPanelCombatant(null);
@@ -1644,7 +1665,31 @@ export default function CombatSession() {
     });
     consumeCombatantAction(c.id);
     recordOperation(c.id, '回避：至下回合开始，攻击对己劣势、敏捷豁免优势', 'record');
-    alert(`「${c.name}」专注于回避：至下一回合开始，可见敌人的攻击对其劣势，其敏捷豁免有优势`);
+    alert(`「${c.name}」专注于回避：至下回合开始，可见敌人的攻击对其劣势，其敏捷豁免有优势`);
+  };
+
+  // 基础动作「撤离」：1 动作挂 disengaging 状态——状态存续期间移动不引发借机攻击
+  //（抑制点在 reactionRules 借机检测器唯一出口）。生命周期与 dodging 同款：放映模式
+  // untilNextTurn 锚定自己下回合开始解除，模拟模式永续由 DM 手动解除。
+  const disengageFor = (c: Combatant) => {
+    if (!ensureCanAct(c, canUseAction(c.id))) return;
+    const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
+    globalStatusManager.applyEffect(c.id, 'disengaging', 'combat', record.id, {
+      durationRounds: 1,
+      ...(record.mode === 'playback'
+        ? { combatMode: 'playback' as const, startRound: currentRound0, untilNextTurn: true, anchorCombatantId: c.id, turnCount: 1 }
+        : { combatMode: 'simulation' as const }),
+    });
+    combatStore.addTurnTodo(record.id, {
+      combatantId: c.id,
+      name: '撤离增益持续中（下回合开始解除）',
+      type: 'condition_check',
+      startRound: currentRound0,
+      endRound: currentRound0 + 1,
+    });
+    consumeCombatantAction(c.id);
+    recordOperation(c.id, '撤离：本回合移动不引发借机攻击', 'record');
+    alert(`「${c.name}」采取撤离：本回合移动离开敌人触及范围不会引发借机攻击；下回合开始时解除`);
   };
 
   // 基础动作「躲藏」：1 动作挂 hidden 状态——未被定位前攻击对己劣势、己方攻击优势；
@@ -2136,6 +2181,7 @@ export default function CombatSession() {
         onPanelCastClick={openCastFor}
         onPanelDashClick={dashFor}
         onPanelDodgeClick={dodgeFor}
+        onPanelDisengageClick={disengageFor}
         onPanelForcedMoveClick={(c) => setForcedMoveTarget(c)}
         onPanelFeatureClick={handleFeatureUse}
         multiattackProgress={record.multiattackProgress}
@@ -2202,10 +2248,12 @@ export default function CombatSession() {
           }
         }}
         onRequestAttack={(attacker, target) => {
-          const seq = activeMultiattackSeq(attacker.id);
+          let seq = activeMultiattackSeq(attacker.id);
           if (!seq) {
             // 动作校验：放映模式可用动作耗尽时禁止发起攻击
             if (!ensureCanAct(attacker, canUseAction(attacker.id))) return;
+            // PC 额外攻击（N>1）自动开序列；返回 null 视同单次攻击走原路径
+            seq = beginPcExtraAttackIfNeeded(attacker);
           } else if (actionDeniedReason(attacker)) {
             // 序列进行中动作已承诺：只拦死亡/昏迷/失能
             alert(actionDeniedReason(attacker));
@@ -2227,7 +2275,7 @@ export default function CombatSession() {
             targetPos: targetPos ? { col: targetPos.col, row: targetPos.row } : undefined,
             ...(seq ? {
               lockedAttackName: stepAttack?.name,
-              multiattackStepLabel: `多重攻击 第${seq.pos + 1}/${seq.queue.length}击 · ${stepName}`,
+              multiattackStepLabel: multiattackStepLabelOf(seq),
             } : {}),
           });
         }}
@@ -2449,10 +2497,12 @@ export default function CombatSession() {
               updatedAt: Date.now(),
             });
           }}
+          bonusActionsAvailable={liveAttackModalAttacker?.bonusActions ?? attackModal.attacker.bonusActions}
           onClose={() => setAttackModal(null)}
           onConfirmHit={(attack, info) => {
-            // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
-            consumeAttackActionFor(attackModal.attacker.id);
+            // 副手攻击（双武器战斗）消耗附赠动作；常规攻击消耗动作（多重攻击序列首击扣 1，后续击共享）
+            if ((attack as Attack).offhand) consumeCombatantBonusAction(attackModal.attacker.id);
+            else consumeAttackActionFor(attackModal.attacker.id);
             // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算）
             breakHidden(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
@@ -2526,8 +2576,9 @@ export default function CombatSession() {
             }
           }}
           onAttackMiss={(missInfo) => {
-            // 攻击（无论是否命中）消耗动作：多重攻击序列首击扣 1，后续击共享（见 consumeAttackActionFor）
-            consumeAttackActionFor(attackModal.attacker.id);
+            // 副手攻击（双武器战斗）消耗附赠动作；常规攻击消耗动作（多重攻击序列首击扣 1，后续击共享）
+            if ((missInfo.attack as Attack).offhand) consumeCombatantBonusAction(attackModal.attacker.id);
+            else consumeAttackActionFor(attackModal.attacker.id);
             // 一攻揭晓：躲藏者攻击结算后移除 hidden（命中/未命中均算）
             breakHidden(attackModal.attacker.id);
             // 装填武器：标记本回合已攻击（每回合只能一次，优先级高于额外动作）
@@ -2582,8 +2633,8 @@ export default function CombatSession() {
                 false, record, missInfo.usageMode,
               );
             }
-            // 当前击（未命中）结算完毕 → 推进多重攻击序列
-            advanceMultiattackFor(attackModal.attacker.id);
+            // 当前击（未命中）结算完毕 → 推进多重攻击序列（副手攻击独立于序列，不推进）
+            if (!(missInfo.attack as Attack).offhand) advanceMultiattackFor(attackModal.attacker.id);
           }}
         />
       )}
@@ -2873,8 +2924,8 @@ export default function CombatSession() {
               }
             }
             applyDamageNow();
-            // 当前击（命中伤害落账）结算完毕 → 推进多重攻击序列；反应挂起路径未落账不推进
-            advanceMultiattackFor(damageModal.attacker.id);
+            // 当前击（命中伤害落账）结算完毕 → 推进多重攻击序列；反应挂起路径未落账不推进（副手攻击不推进）
+            if (!(damageModal.attack as Attack).offhand) advanceMultiattackFor(damageModal.attacker.id);
             return false;
           }}
           onClose={() => {
@@ -3541,6 +3592,10 @@ export default function CombatSession() {
             }}
             onDodgeClick={() => {
               dodgeFor(liveCombatant);
+              setInfoPanelCombatant(null);
+            }}
+            onDisengageClick={() => {
+              disengageFor(liveCombatant);
               setInfoPanelCombatant(null);
             }}
             onHideClick={() => {

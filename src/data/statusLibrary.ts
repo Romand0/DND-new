@@ -635,6 +635,30 @@ class StatusLibraryImpl implements StatusLibrary {
       },
     });
 
+    // 撤离（disengage 基础动作）：无优劣势引擎效果——借机攻击抑制由反应通道
+    //（reactionRules detectReactions）读取此状态裁决，与 no_reactions 同构。
+    // 5e 语义：你的移动不引发借机攻击；本项目按「至你的下回合开始」锚定（与 dodging 一致）。
+    this.register({
+      id: 'disengaging',
+      name: '撤离',
+      description: '你采取撤离动作：至你的下回合开始前，你移动离开敌人触及范围不会引发借机攻击。',
+      shortDescription: '撤离：移动不引发借机攻击',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：基础动作「撤离」（消耗 1 动作），或特性转换（灵巧动作等）。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '你的下一回合开始解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'emerald',
+        icon: 'footprints',
+      },
+    });
+
     // 躲藏：可见性状态（无自动优劣势 effect——unseen 检测器按目标状态 + 攻方感官裁定）
     this.register({
       id: 'hidden',

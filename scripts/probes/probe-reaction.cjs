@@ -58,6 +58,11 @@ async function main() {
         { combatantId: 'react-pc', col: 2, row: 2 },
         { combatantId: 'react-npc', col: 3, row: 2 },
       ]);
+      // 清理上一轮崩溃可能残留的撤离状态，避免污染 baseline 断言
+      const { globalStatusManager } = await import('/src/data/statusManager.ts');
+      globalStatusManager.getActiveStatuses('react-npc', 'combat')
+        .filter(i => i.definitionId === 'disengaging')
+        .forEach(i => globalStatusManager.declareEnd(i.instanceId));
     }
   });
   await page.waitForTimeout(400);
@@ -675,6 +680,45 @@ async function main() {
   check('17h 吸收弹窗弹出（damage_modifier 直连）', ui17.absorb === true, ui17);
   check('17i 重击 8 伤 - 吸收 2 = 6，反应战士 HP 40→34', ui17.hp?.pcHp === 34 && ui17.hp?.maxHp === 40, ui17.hp);
   check('17j 操作日志含反应吸收记录', ui17.hp?.logLine === '吸收记录', ui17.hp);
+
+  // ===== 18. 撤离（disengage）状态抑制借机攻击 =====
+  const dis = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { detectReactions } = await import('/src/data/reactionRules.ts');
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const { applyConvTarget } = await import('/src/data/engines/resourceConvEngine.ts');
+    const rec = combatStore.getAll().find(r => r.isProvingGround);
+    const det = (moverId, from, to) => detectReactions(rec, { kind: 'move', moverId, from, to, source: 'dm_drag' });
+    const clear = () => globalStatusManager.getActiveStatuses('react-npc', 'combat')
+      .filter(i => i.definitionId === 'disengaging')
+      .forEach(i => globalStatusManager.declareEnd(i.instanceId));
+    clear();
+    const before = det('react-npc', { col: 3, row: 2 }, { col: 6, row: 2 }).length;
+
+    globalStatusManager.applyEffect('react-npc', 'disengaging', 'combat', rec.id, { durationRounds: 1 });
+    const active = globalStatusManager.getActiveStatuses('react-npc', 'combat').some(i => i.definitionId === 'disengaging');
+    const suppressed = det('react-npc', { col: 3, row: 2 }, { col: 6, row: 2 }).length;
+    const pcStill = det('react-pc', { col: 2, row: 2 }, { col: 2, row: 6 }).length;
+    clear();
+    const restored = det('react-npc', { col: 3, row: 2 }, { col: 6, row: 2 }).length;
+
+    const npc = rec.combatants.find(c => c.id === 'react-npc');
+    const conv = applyConvTarget(rec.id, npc, 'disengage');
+    const npcAfter = combatStore.get(rec.id).combatants.find(c => c.id === 'react-npc');
+    const convActive = globalStatusManager.getActiveStatuses('react-npc', 'combat').some(i => i.definitionId === 'disengaging');
+    const convSuppressed = det('react-npc', { col: 3, row: 2 }, { col: 6, row: 2 }).length;
+    clear();
+    const convCleared = det('react-npc', { col: 3, row: 2 }, { col: 6, row: 2 }).length;
+    return { before, active, suppressed, pcStill, restored, convNote: conv.note, convActive, convSuppressed, convCleared, actionsBefore: npc.actions, actionsAfter: npcAfter.actions };
+  });
+  check('18a 基线：无撤离时 NPC 离开触及生成机会', dis.before >= 1, dis);
+  check('18b 撤离状态挂载成功', dis.active === true, dis);
+  check('18c 撤离持有者移动 → 机会被抑制', dis.suppressed === 0, dis);
+  check('18d 撤离仅豁免持有者：PC 移动仍被借机', dis.pcStill === 1, dis);
+  check('18e 解除撤离后机会恢复（与基线一致）', dis.restored === dis.before, dis);
+  check('18f 特性转换挂同一撤离状态并返回提示', dis.convActive === true && /借机攻击/.test(dis.convNote ?? ''), dis);
+  check('18g 特性转换后被抑制、解除后恢复（与基线一致）', dis.convSuppressed === 0 && dis.convCleared === dis.before, dis);
+  check('18h 特性转换不改变主动作数（消耗在转换上游）', dis.actionsBefore === dis.actionsAfter, dis);
 
   console.log(`\n==== probe-reaction: ${pass} pass, ${fail} fail ====`);
   await browser.close();

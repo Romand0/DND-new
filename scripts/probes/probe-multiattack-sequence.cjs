@@ -65,8 +65,10 @@ async function main() {
   check('队列写入 record', JSON.stringify(seq0?.queue) === JSON.stringify(['啮咬', '爪击', '爪击']), seq0);
   check('起始位置 0', seq0?.pos === 0, seq0);
 
-  check('无配方参战者 startMultiattack 拒绝', combatStore.startMultiattack(rec.id, pcId, ['爪击']) === false);
-  check('配方拒绝不产生脏状态', combatStore.get(rec.id).multiattackProgress?.[pcId] === undefined, combatStore.get(rec.id).multiattackProgress);
+  check('PC 无配方带队列可开（额外攻击路径）', combatStore.startMultiattack(rec.id, pcId, ['爪击']) === true);
+  after = combatStore.get(rec.id);
+  check('PC 队列已写入', JSON.stringify(after.multiattackProgress?.[pcId]?.queue) === JSON.stringify(['爪击']), after.multiattackProgress);
+  combatStore.endMultiattack(rec.id, pcId);
 
   // ---- advanceMultiattack：推进 + 越尾自动清除 ----
   combatStore.advanceMultiattack(rec.id, monId);

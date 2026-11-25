@@ -54,6 +54,9 @@ interface Props {
   onDashClick?: () => void;
   /** 点击「回避」动作时回调（挂 dodging 状态，CombatSession 结算） */
   onDodgeClick?: () => void;
+  /** 点击「撤离」动作时回调（挂 disengaging 状态，CombatSession 结算） */
+  onDisengageClick?: () => void;
+  /** 点击「躲藏」动作时回调（挂 hidden 状态，CombatSession 结算） */
   onHideClick?: () => void;
   /** 点击「强制位移」按钮时回调（DM 手动推离入口，CombatSession 挂弹窗与落位引擎） */
   onForcedMoveClick?: () => void;
@@ -77,7 +80,7 @@ interface Props {
   spellSlotsOverride?: { level: number; label: string; used: number; max: number }[] | null;
 }
 
-export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onDodgeClick, onHideClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride, multiattackRecipe, multiattackStep, onMultiattackStart, onMultiattackEnd }: Props) {
+export default function CombatantInfoPanel({ combatant, onClose, combatants = [], tokenMap, combatInventory, onRemoveItem, equipmentChanges, onUpdateChanges, actions, bonusActions, onHelpClick, onFeatureClick, onAttackClick, onCastClick, onDashClick, onDodgeClick, onDisengageClick, onHideClick, onForcedMoveClick, isProvingGround = false, provingRecord = null, recordId, sealed = false, characterOverride, onRequestHandChange, onRequestHandState, onRequestStopConcentration, spellSlotsOverride, multiattackRecipe, multiattackStep, onMultiattackStart, onMultiattackEnd }: Props) {
   const [activeTab, setActiveTab] = useState<'info' | 'status' | 'inventory' | 'actions' | 'dashboard'>('info');
   const [refreshKey, setRefreshKey] = useState(0);
   const [selectedAttackId, setSelectedAttackId] = useState<string | null>(null);
@@ -1386,10 +1389,13 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                 <div className="text-xs font-medium dark:text-text-dark light:text-text-light mb-2">
                   可执行动作
                 </div>
-                {/* 多重攻击进行中：步骤进度 chip + 中途放弃（剩余击数不强制打完） */}
+                {/* 序列进行中：步骤进度 chip + 中途放弃（剩余击数不强制打完）；
+                    空步骤名 = PC 额外攻击（不锁武器仅计次），怪物序列带配方名 */}
                 {multiattackStep && (
                   <div className="mb-2 flex items-center justify-between rounded-lg bg-violet-500/10 px-2.5 py-1.5 text-xs text-violet-400">
-                    <span>多重攻击 第{multiattackStep.pos + 1}/{multiattackStep.total}击：{multiattackStep.stepName}</span>
+                    <span>
+                      {multiattackStep.stepName ? '多重攻击' : '额外攻击'} 第{multiattackStep.pos + 1}/{multiattackStep.total}击{multiattackStep.stepName ? `：${multiattackStep.stepName}` : ''}
+                    </span>
                     {onMultiattackEnd && (
                       <button
                         type="button"
@@ -1411,9 +1417,10 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                       (type === 'cast' && !!onCastClick) ||
                       (type === 'dash' && !!onDashClick) ||
                       (type === 'dodge' && !!onDodgeClick) ||
+                      (type === 'disengage' && !!onDisengageClick) ||
                       (type === 'hide' && !!onHideClick));
                     const implemented =
-                      type === 'attack' || type === 'cast' || type === 'help' || type === 'dash' || type === 'dodge' || type === 'hide';
+                      type === 'attack' || type === 'cast' || type === 'help' || type === 'dash' || type === 'dodge' || type === 'disengage' || type === 'hide';
                     return (
                       <button
                         key={type}
@@ -1424,6 +1431,7 @@ export default function CombatantInfoPanel({ combatant, onClose, combatants = []
                           else if (type === 'cast') onCastClick?.();
                           else if (type === 'dash') onDashClick?.();
                           else if (type === 'dodge') onDodgeClick?.();
+                          else if (type === 'disengage') onDisengageClick?.();
                           else if (type === 'hide') onHideClick?.();
                         }}
                         disabled={!clickable}
