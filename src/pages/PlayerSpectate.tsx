@@ -7,7 +7,9 @@ import { useSearchParams } from 'react-router-dom';
 import { Eye, Link2, LogOut, RefreshCw, Skull, Sparkles, Ban, Moon, Swords, Wifi, WifiOff, Hand } from 'lucide-react';
 import { CombatRoomClient } from '@/lib/combatRoomClient';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchMyCharacters, fetchCharacter } from '@/lib/api';
+import { fetchMyCharacters, fetchCharacter, sendDecisionRequest } from '@/lib/api';
+import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
+import type { DecisionResultPayload } from '@/types/roundTable';
 import SpectatorTable from '@/components/spectate/SpectatorTable';
 import AnimationOverlay from '@/components/spectate/AnimationOverlay';
 import RoundNarrativeBoard from '@/components/spectate/RoundNarrativeBoard';
@@ -103,6 +105,10 @@ export default function PlayerSpectate() {
   const [healRollPick, setHealRollPick] = useState<{ combatant: CombatRosterEntry; feature: RosterActiveFeature; cap: FeatureCapability } | null>(null);
   // ops 提升到页面层：沙盘拖拽与回合面板共享同一操作列表
   const [pendingOps, setPendingOps] = useState<TurnCommitOp[]>([]);
+  // 决策点（R5）：回合中途躲藏裁定请求——待审批期间展示等待标记，DM 裁定后自动记入操作序列
+  const [hideDecision, setHideDecision] = useState<{ id: string } | null>(null);
+  const [hideDecisionResult, setHideDecisionResult] = useState<{ approved: boolean; reason?: string } | null>(null);
+  const decisionInbox = useRoundTableInbox({ outbox: true, enabled: !!hideDecision });
   const lastOpsRoundRef = useRef<number | null>(null);
   // 未提交 ops 的缓存键（刷新/断线重连后据此恢复）
   const opsKeyRef = useRef<string | null>(null);
@@ -259,6 +265,46 @@ export default function PlayerSpectate() {
     }
   }
   const addOp = (op: TurnCommitOp) => updateOps((prev) => [...prev, op]);
+
+  // 决策点回填：轮询发件箱找到本次请求的裁定结果
+  useEffect(() => {
+    if (!hideDecision) return;
+    const reply = decisionInbox.messages.find(
+      (m) => m.type === 'decision_result' && (m.payload as DecisionResultPayload).replyTo === hideDecision.id
+    );
+    if (!reply) return;
+    const payload = reply.payload as DecisionResultPayload;
+    setHideDecisionResult({ approved: payload.approved, ...(payload.reason ? { reason: payload.reason } : {}) });
+    setHideDecision(null);
+  }, [decisionInbox.messages, hideDecision]);
+
+  // 决策点落地：批准 → 记入操作序列；驳回 → 提示理由（不影响已记录的其他操作）
+  useEffect(() => {
+    if (!hideDecisionResult) return;
+    if (hideDecisionResult.approved) {
+      addOp({ kind: 'hide', roundText: '躲藏（DM 已批准：未被定位前攻击劣势/己方优势，一攻揭晓）' });
+      setNotice('DM 已批准躲藏，已记入操作序列');
+    } else {
+      setNotice(`DM 驳回躲藏${hideDecisionResult.reason ? `：${hideDecisionResult.reason}` : ''}`);
+    }
+    setHideDecisionResult(null);
+  }, [hideDecisionResult]);
+
+  const requestHideDecision = async (characterId: string) => {
+    if (hideDecision) return;
+    try {
+      const { id } = await sendDecisionRequest({
+        characterId,
+        decisionKind: 'hide',
+        decisionLabel: '躲藏',
+        note: '回合中途请求裁定：躲藏（隐匿检定对抗观察者被动察觉）',
+      });
+      setHideDecision({ id });
+      setNotice('已提交躲藏裁定请求，等待 DM 回填…');
+    } catch (e: any) {
+      setNotice(e?.message || '提交决策请求失败');
+    }
+  };
 
   // 我的参战者：当前回合且绑定自身角色 —— 沙盘仅它可移动（与 DM 端 playbackOnlyMovableId 同语义）
   const myTurnActor = spectate?.turn?.combatantId
@@ -478,6 +524,10 @@ export default function PlayerSpectate() {
                 board={spectate.board ?? null}
                 boardRequest={boardRequest}
                 onBoardRequestHandled={() => setBoardRequest(null)}
+                hideDecisionPending={!!hideDecision}
+                onRequestHideDecision={
+                  actor.characterId ? () => requestHideDecision(actor.characterId as string) : undefined
+                }
               />
             );
           })()}
@@ -550,6 +600,10 @@ export default function PlayerSpectate() {
               onPanelDodgeClick={(c) => {
                 if (c.id !== myTurnActor?.id) return;
                 addOp({ kind: 'dodge', roundText: '回避（至下回合开始，攻击对己劣势、敏捷豁免优势）' });
+              }}
+              onPanelHideClick={(c) => {
+                if (c.id !== myTurnActor?.id) return;
+                addOp({ kind: 'hide', roundText: '躲藏（未被定位前攻击劣势/己方优势，一攻揭晓）' });
               }}
               onPanelHelpClick={(c) => {
                 if (c.id !== myTurnActor?.id) return;

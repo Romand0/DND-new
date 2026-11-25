@@ -634,6 +634,74 @@ class StatusLibraryImpl implements StatusLibrary {
         icon: 'shield',
       },
     });
+
+    // 撤离（disengage 基础动作）：无优劣势引擎效果——借机攻击抑制由反应通道
+    //（reactionRules detectReactions）读取此状态裁决，与 no_reactions 同构。
+    // 5e 语义：你的移动不引发借机攻击；本项目按「至你的下回合开始」锚定（与 dodging 一致）。
+    this.register({
+      id: 'disengaging',
+      name: '撤离',
+      description: '你采取撤离动作：至你的下回合开始前，你移动离开敌人触及范围不会引发借机攻击。',
+      shortDescription: '撤离：移动不引发借机攻击',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：基础动作「撤离」（消耗 1 动作），或特性转换（灵巧动作等）。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '你的下一回合开始解除。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'emerald',
+        icon: 'footprints',
+      },
+    });
+
+    // 躲藏：可见性状态（无自动优劣势 effect——unseen 检测器按目标状态 + 攻方感官裁定）
+    this.register({
+      id: 'hidden',
+      name: '躲藏',
+      description: '你已躲藏：未被观察者定位前，针对你的攻击具有劣势、你的攻击具有优势（盲视/真实视觉尺数内不受影响）；首次攻击或被发现后解除。',
+      shortDescription: '躲藏：攻方劣势 / 己方优势（一攻揭晓）',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：基础动作「躲藏」（消耗 1 动作，隐匿检定对抗观察者被动察觉）。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '发起攻击结算后；或被观察者搜索察觉（DM 手动解除）。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'violet',
+        icon: 'eye-off',
+      },
+    });
+
+    // 隐形：可见性状态（一攻不揭晓，仅真实视觉可看破）
+    this.register({
+      id: 'invisible',
+      name: '隐形',
+      description: '你处于隐形状态：未被真实视觉定位前，针对你的攻击具有劣势、你的攻击具有优势。',
+      shortDescription: '隐形：攻方劣势 / 己方优势（真实视觉看破）',
+      startTrigger: {
+        type: 'manual',
+        description: '手动声明：法术或能力效果（如隐形术）。',
+      },
+      endTrigger: {
+        type: 'manual',
+        description: '效果结束（DM 手动解除）。',
+      },
+      duration: { type: 'permanent' },
+      effects: [],
+      ui: {
+        badgeColor: 'indigo',
+        icon: 'ghost',
+      },
+    });
   }
 
   private loadCustomStatuses(): void {

@@ -604,6 +604,25 @@ export async function cancelCheckRequest(messageId: string): Promise<{ ok: boole
   return apiFetch('/table/cancel', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ messageId }) });
 }
 
+/** 玩家发起回合中途决策点请求（定向投给团组 DM） */
+export async function sendDecisionRequest(body: {
+  characterId: string;
+  decisionKind: 'hide';
+  decisionLabel: string;
+  note?: string;
+}): Promise<{ ok: boolean; id: string }> {
+  return apiFetch('/table/decision-request', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+}
+
+/** DM 裁定决策点请求（批准/驳回 + 理由） */
+export async function sendDecisionResult(body: {
+  replyTo: string;
+  approved: boolean;
+  reason?: string;
+}): Promise<{ ok: boolean; id: string }> {
+  return apiFetch('/table/decision-result', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+}
+
 /** 查当前账号绑定的角色卡（玩家侧「我的角色」） */
 export async function fetchMyCharacters(): Promise<{ characters: any[] }> {
   return apiFetch('/table/my-characters', { headers: authHeaders() });

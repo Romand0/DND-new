@@ -1,5 +1,5 @@
 // 网格沙盘本地存储 —— 按 sessionId 索引，独立于战斗记录
-import type { Battleground, GridSize, TokenPosition, ItemToken, BattlegroundZone } from '@/types/battleground';
+import type { Battleground, GridSize, TokenPosition, ItemToken, BattlegroundZone, LightTier } from '@/types/battleground';
 import { scopedKey } from '@/data/campaignScope';
 import { GRID_PRESETS, ZONE_PRESETS } from '@/types/battleground';
 import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
@@ -60,6 +60,9 @@ function cloneBg(bg: Battleground): Battleground {
     tokens: [...bg.tokens],
     itemTokens: [...(bg.itemTokens ?? [])],
     paintedCells: [...(bg.paintedCells ?? [])],
+    lightCells: bg.lightCells
+      ? { bright: [...bg.lightCells.bright], dim: [...bg.lightCells.dim], darkness: [...bg.lightCells.darkness] }
+      : undefined,
     zones: (bg.zones ?? []).map((z) => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })),
     moveHistory: [...(bg.moveHistory ?? [])],
   };
@@ -96,6 +99,12 @@ function loadAll(): Battleground[] {
       paintedCells: Array.isArray(b.paintedCells)
         ? b.paintedCells.filter((s: any) => typeof s === 'string')
         : [],
+      ambientLight: (['bright', 'dim', 'darkness'].includes(b.ambientLight) ? b.ambientLight : 'bright') as LightTier,
+      lightCells: (() => {
+        const lc = b.lightCells && typeof b.lightCells === 'object' ? b.lightCells : {};
+        const pick = (v: any) => Array.isArray(v) ? v.filter((s: any) => typeof s === 'string') : [];
+        return { bright: pick(lc.bright), dim: pick(lc.dim), darkness: pick(lc.darkness) };
+      })(),
       zones: Array.isArray(b.zones) ? b.zones.map(normalizeZone).filter((z): z is BattlegroundZone => !!z) : [],
     }));
   } catch {
@@ -143,6 +152,7 @@ const battlegroundStore = {
         tokens: [],
         itemTokens: [],
         paintedCells: [],
+        ambientLight: 'bright',
         zones: [],
         moveHistory: [],
         updatedAt: Date.now(),
@@ -303,6 +313,46 @@ const battlegroundStore = {
     const idx = list.findIndex((b) => b.sessionId === sessionId);
     if (idx === -1) return;
     list[idx] = { ...list[idx], paintedCells: [], updatedAt: Date.now() };
+    saveAll(list);
+  },
+
+  // ── 光照（视野系统） ──
+
+  /** 设置环境光照档位（全图默认，光照区域覆盖它） */
+  setAmbientLight(sessionId: string, tier: LightTier): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    list[idx] = { ...list[idx], ambientLight: tier, updatedAt: Date.now() };
+    saveAll(list);
+  },
+
+  /**
+   * 给格子涂某档位光照（三桶互斥：先清出其他档位桶再写入；重复涂同档位 = 擦除）。
+   * tier=null 表示纯擦除该格的全部光照标注。
+   */
+  setLightCell(sessionId: string, cell: string, tier: LightTier | null): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    const prev = list[idx].lightCells ?? { bright: [], dim: [], darkness: [] };
+    const existed = tier !== null && prev[tier].includes(cell);
+    const next = {
+      bright: prev.bright.filter(c => c !== cell),
+      dim: prev.dim.filter(c => c !== cell),
+      darkness: prev.darkness.filter(c => c !== cell),
+    };
+    if (tier !== null && !existed) next[tier].push(cell);
+    list[idx] = { ...list[idx], lightCells: next, updatedAt: Date.now() };
+    saveAll(list);
+  },
+
+  /** 清除全部光照区域格（保留环境档位） */
+  clearLightCells(sessionId: string): void {
+    const list = loadAll();
+    const idx = list.findIndex((b) => b.sessionId === sessionId);
+    if (idx === -1) return;
+    list[idx] = { ...list[idx], lightCells: { bright: [], dim: [], darkness: [] }, updatedAt: Date.now() };
     saveAll(list);
   },
 
