@@ -49,6 +49,12 @@
 - **等待标记放玩家端组件态 + 圆桌发件箱轮询**：玩家请求不阻塞回合继续，回执到达后自动补 hide op；驳回不改动已记录的其他操作。
 - **一攻揭晓显式 breakHidden**：hidden 状态无自动解除 effect，四处攻击回调（主攻击两处 + 反应两处）统一调用，避免依赖隐藏状态生命周期隐式规则。
 
+## 实施期修正（躲藏链路补口）
+
+- 玩家侧攻击 op 揭晓：`turnCommitApply.ts` 攻击分支末尾补 `breakHidden`（与 DM 端 CombatSession 同口径，多次攻击幂等）；此前只有 DM 端 4 个调用点会揭晓
+- 特性转换：`resourceConvEngine.ts` 的 `hide` 目标从占位改为挂 `hidden` 状态（放映模式 `startRound` 锚定，模拟模式手动）
+- 探针：`probe-reaction.cjs` 19a-19e（转换挂状态 / 攻击 op 揭晓 / 只解攻方），共 72 断言
+
 ## 下一步
 
 1. 远程不可达时（gnutls handshake 失败）稍后重试 push；本地 feature 分支已提交 5 个原子 commit 并合入 main 验证通过。

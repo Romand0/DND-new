@@ -720,6 +720,57 @@ async function main() {
   check('18g 特性转换后被抑制、解除后恢复（与基线一致）', dis.convSuppressed === 0 && dis.convCleared === dis.before, dis);
   check('18h 特性转换不改变主动作数（消耗在转换上游）', dis.actionsBefore === dis.actionsAfter, dis);
 
+  // ===== 19. 躲藏（hidden）：特性转换挂状态 + 玩家攻击 op 一攻揭晓 =====
+  const hide = await page.evaluate(async () => {
+    const combatStore = (await import('/src/data/combatStore.ts')).default;
+    const { globalStatusManager } = await import('/src/data/statusManager.ts');
+    const { applyConvTarget } = await import('/src/data/engines/resourceConvEngine.ts');
+    const { applyTurnCommit } = await import('/src/lib/turnCommitApply.ts');
+    const rec0 = combatStore.getAll().find(r => r.isProvingGround);
+    const has = id => globalStatusManager.getActiveStatuses(id, 'combat').some(i => i.definitionId === 'hidden');
+    const clearHidden = () => ['react-pc', 'react-npc'].forEach(id => {
+      globalStatusManager.getActiveStatuses(id, 'combat')
+        .filter(i => i.definitionId === 'hidden')
+        .forEach(i => globalStatusManager.declareEnd(i.instanceId));
+    });
+    clearHidden();
+    const pc = rec0.combatants.find(c => c.id === 'react-pc');
+
+    // 特性转换（灵巧动作等）→ 挂 hidden，与 hideFor 同口径
+    const conv = applyConvTarget(rec0.id, pc, 'hide');
+    const pcHiddenAfterConv = has('react-pc');
+
+    // 攻守双方各挂一层：验证揭晓只解攻方
+    globalStatusManager.applyEffect('react-npc', 'hidden', 'combat', rec0.id, { combatMode: 'simulation' });
+
+    const rec = combatStore.get(rec0.id);
+    const round = Math.max(1, rec.rounds.length);
+    const request = {
+      combatantId: 'react-pc',
+      round,
+      action: {
+        ops: [{
+          kind: 'attack', weaponName: '长剑', targetId: 'react-npc', targetName: '反应地精',
+          d20: 5, bonus: 5, hit: false, critical: false, damage: null,
+          roundText: '躲藏后发起攻击（探针）',
+        }],
+      },
+    };
+    const outcome = applyTurnCommit({
+      record: rec, request, currentRound: round,
+      applyDamage: () => null, consumeAction: () => {}, consumeBonusAction: () => {}, advanceTurn: () => {},
+    });
+    const pcHiddenAfterAttack = has('react-pc');
+    const npcHiddenAfterAttack = has('react-npc');
+    clearHidden();
+    return { note: conv.note, pcHiddenAfterConv, ok: outcome.ok, pcHiddenAfterAttack, npcHiddenAfterAttack };
+  });
+  check('19a 特性转换到躲藏 → 挂 hidden 状态', hide.pcHiddenAfterConv === true, hide);
+  check('19b 转换提示含躲藏文案', /躲藏/.test(hide.note ?? ''), hide);
+  check('19c 玩家攻击 op 入账成功', hide.ok === true, hide);
+  check('19d 一攻揭晓：攻击 op 结算后 hidden 移除', hide.pcHiddenAfterAttack === false, hide);
+  check('19e 揭晓只作用于攻方（守方 hidden 保留）', hide.npcHiddenAfterAttack === true, hide);
+
   console.log(`\n==== probe-reaction: ${pass} pass, ${fail} fail ====`);
   await browser.close();
   process.exit(fail > 0 ? 1 : 0);
