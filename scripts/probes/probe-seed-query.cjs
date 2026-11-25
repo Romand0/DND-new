@@ -42,7 +42,7 @@ async function main() {
   const elements = seed.searchMonsters({ type: '元素生物' });
   check('类型筛选全命中', elements.length === 23 && elements.every(m => m.type === '元素生物'), elements.length);
   const multi = seed.searchMonsters({ has: 'multiattack' });
-  check('has 过滤 = multiattack 非空', multi.length === 193 && multi.every(m => Array.isArray(m.multiattack) && m.multiattack.length > 0), multi.length);
+  check('has 过滤 = multiattack 非空', multi.length === 199 && multi.every(m => Array.isArray(m.multiattack) && m.multiattack.length > 0), multi.length);
   const proj = seed.searchMonsters({ name: '狼人', fields: ['name', 'size', 'cr'] });
   check('字段投影仅含指定键', proj.length === 1 && JSON.stringify(proj[0]) === JSON.stringify({ name: '狼人', size: '中型', cr: '3' }), proj[0]);
   const limited = seed.searchMonsters({ limit: 5 });
@@ -66,7 +66,22 @@ async function main() {
 
   // ---- stats ----
   const stats = seed.seedStats();
-  check('统计概览总数一致', stats.monsters.total === 421 && stats.monsters.withMultiattack === 193 && stats.options.classes === 12, stats.monsters);
+  check('统计概览总数一致', stats.monsters.total === 421 && stats.monsters.withMultiattack === 199 && stats.options.classes === 12, stats.monsters);
+
+  // ---- 多重攻击解析漏斗（特质 → 结构化回填）----
+  const traitMA = monsters.filter(m => (m.traits || []).some(t => /^多重攻击/.test(t.name || '')));
+  check('多重攻击特质 204 条', traitMA.length === 204, traitMA.length);
+  check('结构化配方 199 条（剩 5 条非机械可译）', traitMA.filter(m => m.multiattack).length === 199,
+    traitMA.filter(m => !m.multiattack).map(m => m.name));
+  const maOf = (n) => monsters.find(m => m.name === n)?.multiattack;
+  check('罪魔 3 击（泛化「三次攻击」）', JSON.stringify(maOf('罪魔')) === '[{"count":3,"name":"攻击"}]', maOf('罪魔'));
+  check('蛛化卓尔 3 击', JSON.stringify(maOf('蛛化卓尔')) === '[{"count":3,"name":"攻击"}]', maOf('蛛化卓尔'));
+  check('噬脑怪 1 击', JSON.stringify(maOf('噬脑怪')) === '[{"count":1,"name":"攻击"}]', maOf('噬脑怪'));
+  check('野猪人 2 击', JSON.stringify(maOf('野猪人')) === '[{"count":2,"name":"攻击"}]', maOf('野猪人'));
+  check('鼠人 2 击', JSON.stringify(maOf('鼠人')) === '[{"count":2,"name":"攻击"}]', maOf('鼠人'));
+  check('狼人 2 击（多形态只取通用击数）', JSON.stringify(maOf('狼人')) === '[{"count":2,"name":"攻击"}]', maOf('狼人'));
+  check('熊人多形态不同攻击 → 留 DM（不误译）', maOf('熊人') === undefined, maOf('熊人'));
+  check('多头蛇动态头数 → 留 DM', maOf('多头蛇') === undefined, maOf('多头蛇'));
 
   // ---- CLI 冒烟（grep 约定退出码）----
   const cnt = runCli('monster', '--cr', '1/2', '--size', '小型', '--count').trim();
