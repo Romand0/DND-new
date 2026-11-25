@@ -6,6 +6,7 @@ import { characterStore } from '@/data/characterStore';
 import { resolveFeatureCapability, type AttackRiderSpec } from '@/data/featureCapabilities';
 import { resolvePoolKey } from '@/data/featurePool';
 import { globalStatusManager } from '@/data/statusManager';
+import { isImmuneToStatus } from '@/data/conditionImmunity';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { CombatRecord, Combatant } from '@/types/combat';
@@ -262,7 +263,9 @@ export function applyAttackRiders(
 ): string[] {
   const lines: string[] = [];
   // 状态挂载 + Todo（save 失败与 choice directStatus 共用；放映轮次随 record.mode 区分）
-  const applyStatusWithTodo = (statusId: string, durationRounds: number | undefined, todo: string) => {
+  const applyStatusWithTodo = (statusId: string, durationRounds: number | undefined, todo: string): boolean => {
+    // 条件免疫：免疫的状态不附加（也不建待办）
+    if (isImmuneToStatus(target, statusId)) return false;
     globalStatusManager.applyEffect(target.id, statusId, 'combat', record.id, {
       durationRounds,
       ...(record.mode === 'playback'
@@ -276,6 +279,7 @@ export function applyAttackRiders(
       startRound: currentRound0,
       endRound: currentRound0 + (durationRounds ?? 1),
     });
+    return true;
   };
   // push 型位移（推撞 / 散打推离共用）：按攻击者→目标方向切比雪夫步进 clamp 边界
   const applyPush = (feet: number): string => {
@@ -354,10 +358,11 @@ export function applyAttackRiders(
       const opt = spec.choice.options.find(o => o.key === sel.choiceKey);
       if (opt) {
         if (opt.directStatus) {
-          line += `：已${opt.label}`;
-          if (opts?.targetAlive !== false) {
-            applyStatusWithTodo(opt.directStatus, opt.durationRounds, opt.todo ?? opt.label);
-          }
+          const alive = opts?.targetAlive !== false;
+          const applied = alive && applyStatusWithTodo(opt.directStatus, opt.durationRounds, opt.todo ?? opt.label);
+          line += alive && !applied
+            ? `：「${target.name}」免疫${opt.label}`
+            : `：已${opt.label}`;
         } else if (opt.save && opt.push) {
           const abilityLabel = ABILITY_LABELS[opt.save.ability] ?? '';
           line += sel.choiceSaveResult === 'fail'
@@ -366,10 +371,10 @@ export function applyAttackRiders(
         } else if (opt.save && opt.failStatus) {
           const abilityLabel = ABILITY_LABELS[opt.save.ability] ?? '';
           if (sel.choiceSaveResult === 'fail') {
+            const alive = opts?.targetAlive !== false;
+            const applied = alive && applyStatusWithTodo(opt.failStatus, opt.durationRounds, opt.todo ?? FAIL_LABELS[opt.failStatus]);
             line += `：目标${abilityLabel}豁免失败，${FAIL_LABELS[opt.failStatus]}`;
-            if (opts?.targetAlive !== false) {
-              applyStatusWithTodo(opt.failStatus, opt.durationRounds, opt.todo ?? FAIL_LABELS[opt.failStatus]);
-            }
+            if (alive && !applied) line += '（目标免疫，未生效）';
           } else {
             line += `：目标${abilityLabel}豁免成功`;
           }
@@ -381,17 +386,17 @@ export function applyAttackRiders(
       if (isFail && spec.push) {
         // 推撞：纯位移不挂状态
         line += `：目标${abilityLabel}豁免失败，${applyPush(spec.push.feet)}`;
+      } else if (isFail) {
+        // 豁免失败：挂状态（push 型只位移不挂状态）+ TurnTodo 提醒解除（endRound 与 P2 status 约定同构：start + duration）
+        const alive = opts?.targetAlive !== false;
+        const applied = alive && applyStatusWithTodo(spec.save!.failStatus, spec.save!.durationRounds, spec.save!.todo);
+        line += `：目标${abilityLabel}豁免失败，${FAIL_LABELS[spec.save!.failStatus]}`;
+        if (alive && !applied) line += '（目标免疫，未生效）';
       } else {
-        line += isFail
-          ? `：目标${abilityLabel}豁免失败，${FAIL_LABELS[spec.save!.failStatus]}`
-          : `：目标${abilityLabel}豁免成功`;
+        line += `：目标${abilityLabel}豁免成功`;
       }
     }
     lines.push(line);
-    // 豁免失败：挂状态（push 型只位移不挂状态）+ TurnTodo 提醒解除（endRound 与 P2 status 约定同构：start + duration）
-    if (sel.saveResult === 'fail' && spec.save && !spec.push && opts?.targetAlive !== false) {
-      applyStatusWithTodo(spec.save.failStatus, spec.save.durationRounds, spec.save.todo);
-    }
   }
   return lines;
 }

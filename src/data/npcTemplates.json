@@ -12603,7 +12603,7 @@
     ],
     "damageVulnerabilities": [],
     "conditionImmunities": [
-      "毒素"
+      "中毒"
     ],
     "traits": [
       {
@@ -29634,7 +29634,7 @@
     "conditionImmunities": [
       "魅惑",
       "力竭",
-      "惊恐",
+      "恐惧",
       "麻痹",
       "中毒",
       "震慑"

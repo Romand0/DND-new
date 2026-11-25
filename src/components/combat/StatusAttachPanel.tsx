@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus, X, Zap, Dices, TrendingUp } from 'lucide-react';
 import statusLibrary from '@/data/statusLibrary';
 import { globalStatusManager } from '@/data/statusManager';
+import { immunityLabelFor } from '@/data/conditionImmunity';
 import { GENERIC_ADVANTAGE_STATUS_ID, GENERIC_AFFINITY_STATUS_ID } from '@/lib/flowCompiler';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
 import combatStore from '@/data/combatStore';
@@ -131,6 +132,12 @@ export default function StatusAttachPanel({ recordId, combatant }: Props) {
   );
 
   const handleAttach = (def: StatusDefinition) => {
+    // 条件免疫：免疫的状态不可附加（5e 状态免疫语义）
+    const immuneLabel = immunityLabelFor(combatant, def.id);
+    if (immuneLabel) {
+      setError(`「${combatant.name}」免疫${immuneLabel}，无法附加该状态`);
+      return;
+    }
     try {
       globalStatusManager.applyEffect(combatant.id, def.id, 'combat', recordId);
       setTick(t => t + 1);
