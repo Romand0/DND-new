@@ -64,12 +64,38 @@ async function loadIndex(): Promise<SeedIndex | null> {
   return indexPromise;
 }
 
+// 条目稳定键：怪物种子用 templateId（id 是随机 uuid），其余库用自身 id。
+// 旧版本可能把重复拼接的分片结果持久化进 localStorage，读到后按此键去重，
+// 避免种子库自身翻倍（如 421 → 842）。
+function seedIdentity(item: unknown): string | null {
+  if (!item || typeof item !== 'object') return null;
+  const obj = item as Record<string, unknown>;
+  const key = obj.templateId ?? obj.id;
+  return typeof key === 'string' && key.length > 0 ? key : null;
+}
+
+function dedupeSeedItems<T>(items: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of items) {
+    const key = seedIdentity(item);
+    if (key === null) {
+      out.push(item);
+      continue;
+    }
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
 function readCachedData<T>(kind: SeedKind): T[] | null {
   if (memoryCache.has(kind)) return memoryCache.get(kind) as T[];
   try {
     const raw = localStorage.getItem(DATA_KEY(kind));
     if (raw) {
-      const parsed = JSON.parse(raw) as T[];
+      const parsed = dedupeSeedItems(JSON.parse(raw) as T[]);
       memoryCache.set(kind, parsed);
       return parsed;
     }
@@ -119,7 +145,7 @@ export async function loadSeed<T = unknown>(kind: SeedKind): Promise<T[]> {
     )
   )
     .then((parts) => {
-      const merged = parts.flatMap((p) => p.items);
+      const merged = dedupeSeedItems(parts.flatMap((p) => p.items));
       // 建立 id → 分片路径 映射（怪物种子 id 可能对齐为 templateId，这里存原始条目 id 与 templateId 双键）
       const sourceMap: Record<string, string> = {};
       for (const part of parts) {

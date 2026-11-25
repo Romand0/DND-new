@@ -7,6 +7,8 @@
 
 export interface Mergeable {
   id: string;
+  /** 种子稳定业务键：怪物图鉴种子 id 是随机 uuid，模板 slug 存在 templateId */
+  templateId?: string | null;
   seedId?: string | null;
   deleted?: boolean;
   campaignId?: string | null;
@@ -32,10 +34,13 @@ export function mergeBaseline<T extends Mergeable>(seeds: T[], cloud: T[]): Merg
   const overlayBySeed = new Map<string, T>();
   const tombstoned = new Set<string>();
   const extra: T[] = [];
+  const extraKeys = new Set<string>();
 
   for (const row of cloud) {
-    // 匹配键：覆盖行 seedId 指回种子；自建行无 seedId 用自身 id；旧出版物行无 seedId 用自身 id
-    const target = row.seedId ?? row.id;
+    // 匹配键：覆盖行 seedId 指回种子；怪物种子的 id 已对齐为 templateId，云端旧快照行
+    // 只带原始 uuid id + templateId slug，必须用 templateId 才能命中（否则会当自建行重复并入，
+    // 表现为图鉴条数翻倍，如 421 → 842）；其余库缺 templateId 时退化为自身 id
+    const target = row.seedId ?? row.templateId ?? row.id;
     const hitsSeed = seedIndex.has(target);
     if (row.deleted === true) {
       if (hitsSeed) tombstoned.add(target);
@@ -46,13 +51,18 @@ export function mergeBaseline<T extends Mergeable>(seeds: T[], cloud: T[]): Merg
       // 显式覆盖行（seedId 指回种子，图鉴编辑种子时 saveItem 生成）：云端赢
       overlayBySeed.set(target, row);
     } else if (!row.seedId && hitsSeed) {
-      // 旧出版物整库回流行（无 seedId、id 命中种子）：种子赢。
+      // 旧出版物整库回流行（无 seedId、id/templateId 命中种子）：种子赢。
       // 仓库种子是唯一事实源（带 level/system/role 标注 + 清洗文本），这类行是早期
       // 导入快照残留（旧描述/无标注/脏文本），展示与刷新一律以种子为准；
       // 用户对种子的合法修改只会以带 seedId 的覆盖行形式存在
     } else if (row.campaignId) {
       // 自建条目：团组私有（campaignId 非空）。真源自建行一定有归属团组。
-      extra.push(row);
+      // 按 id/templateId 去重：旧快照残留可能让同一模板出现多行
+      const dedupeKey = row.templateId ?? row.id;
+      if (!extraKeys.has(dedupeKey)) {
+        extraKeys.add(dedupeKey);
+        extra.push(row);
+      }
     }
     // 无 seedId + campaignId 空 + id 不命中种子 = 旧出版物残留行（种子已不收录，如已修复的
     // 脏数据）。丢弃，避免旧行回流覆盖新种子或产生幽灵条目。
