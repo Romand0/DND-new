@@ -1,5 +1,5 @@
 import { X, Swords, Heart, Check } from 'lucide-react';
-import type { AdvantageReason, Combatant, ManualMode } from '@/types/combat';
+import type { AdvantageReason, Combatant, ManualActionCost, ManualMode } from '@/types/combat';
 import AdvDisadvToggle from '@/components/AdvDisadvToggle';
 import { DAMAGE_TYPE_OPTIONS } from '@/types/damage';
 import { getCombatantAffinities } from '@/data/combatAffinities';
@@ -9,7 +9,7 @@ import {
   type ManualAttackSource,
   type ManualWeaponTraits,
 } from '@/data/manualDamage';
-import { resolveManualAttackRoll } from '@/data/manualAttack';
+import { MANUAL_ACTION_COST_LABELS, resolveManualAttackRoll } from '@/data/manualAttack';
 
 const NO_REASONS: AdvantageReason[] = [];
 
@@ -39,6 +39,12 @@ interface Props {
   onRollModeChange: (m: ManualMode) => void;
   crit: boolean;
   onCritChange: (v: boolean) => void;
+  actionCost: ManualActionCost;
+  onActionCostChange: (v: ManualActionCost) => void;
+  attackCount: string;
+  onAttackCountChange: (v: string) => void;
+  /** 当前操作主体各资源是否可用（放映模式 0 时为 false） */
+  actionAvailability: Record<ManualActionCost, boolean>;
   damage: string;
   onDamageChange: (v: string) => void;
   isKill: boolean;
@@ -70,6 +76,9 @@ export default function ManualRecordDialog(props: Props) {
     attackBonus, onAttackBonusChange,
     rollMode, onRollModeChange,
     crit, onCritChange,
+    actionCost, onActionCostChange,
+    attackCount, onAttackCountChange,
+    actionAvailability,
     damage, onDamageChange, isKill, onIsKillChange,
     damageType, onDamageTypeChange, attackSource, onAttackSourceChange,
     weaponTraits, onWeaponTraitsChange,
@@ -145,6 +154,8 @@ export default function ManualRecordDialog(props: Props) {
                   onAttackD20Change('');
                   onAttackD20SecondChange('');
                   onCritChange(false);
+              onActionCostChange('action');
+              onAttackCountChange('1');
                 }}
                 className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
               >
@@ -228,6 +239,49 @@ export default function ManualRecordDialog(props: Props) {
                   {rollInfo.critical && '（重击）'}
                 </div>
               )}
+            </div>
+
+            {/* 资源消耗与攻击次数 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                  消耗
+                </label>
+                <select
+                  value={actionCost}
+                  onChange={(e) => onActionCostChange(e.target.value as ManualActionCost)}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                >
+                  {(['action', 'bonus', 'reaction', 'free'] as const).map((k) => (
+                    <option key={k} value={k}>
+                      {MANUAL_ACTION_COST_LABELS[k]}
+                      {!actionAvailability[k] ? '（已用尽）' : ''}
+                    </option>
+                  ))}
+                </select>
+                {!actionAvailability[actionCost] && (
+                  <div className="mt-1 text-xs text-red-500">本回合该资源已用尽，确认时会被拦截</div>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                  攻击次数（多重攻击只扣一次资源）
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={10}
+                  value={attackCount}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === '' || (parseInt(v, 10) >= 1 && parseInt(v, 10) <= 10)) {
+                      onAttackCountChange(v);
+                    }
+                  }}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                  placeholder="1"
+                />
+              </div>
             </div>
 
             {/* 攻击方式 */}
@@ -432,6 +486,28 @@ export default function ManualRecordDialog(props: Props) {
               </select>
             </div>
 
+            {/* 资源消耗 */}
+            <div>
+              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                消耗
+              </label>
+              <select
+                value={actionCost}
+                onChange={(e) => onActionCostChange(e.target.value as ManualActionCost)}
+                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+              >
+                {(['action', 'bonus', 'reaction', 'free'] as const).map((k) => (
+                  <option key={k} value={k}>
+                    {MANUAL_ACTION_COST_LABELS[k]}
+                    {!actionAvailability[k] ? '（已用尽）' : ''}
+                  </option>
+                ))}
+              </select>
+              {!actionAvailability[actionCost] && (
+                <div className="mt-1 text-xs text-red-500">本回合该资源已用尽，确认时会被拦截</div>
+              )}
+            </div>
+
             {/* 恢复方式 */}
             <div>
               <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
@@ -516,6 +592,8 @@ export default function ManualRecordDialog(props: Props) {
               onTargetIdChange('');
               onHealMethodChange('');
               onHealAmountChange('');
+              onActionCostChange('free');
+              onAttackCountChange('1');
             }}
             className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
               recordType === 'recovery'

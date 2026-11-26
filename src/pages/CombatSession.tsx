@@ -567,8 +567,10 @@ export default function CombatSession() {
     isPlaybackActive,
     canUseAction,
     canUseBonusAction,
+    canUseReaction,
     consumeCombatantAction,
     consumeCombatantBonusAction,
+    consumeCombatantReaction,
     markLoadingAttacked,
     resetCombatantActions,
   } = useActions(record, { playbackStarted, playbackPaused, currentTurn });
@@ -888,6 +890,8 @@ export default function CombatSession() {
     manualAttackBonus, setManualAttackBonus,
     manualRollMode, setManualRollMode,
     manualCrit, setManualCrit,
+    manualActionCost, setManualActionCost,
+    manualAttackCount, setManualAttackCount,
     manualDamageType, setManualDamageType,
     manualAttackSource, setManualAttackSource,
     manualWeaponTraits, setManualWeaponTraits,
@@ -898,7 +902,11 @@ export default function CombatSession() {
     setSelectedCell,
     getEffectiveAc,
     canUseAction: (id: string) => canUseAction(id),
+    canUseBonusAction: (id: string) => canUseBonusAction(id),
+    canUseReaction: (id: string) => canUseReaction(id),
     consumeCombatantAction: (id: string) => consumeCombatantAction(id),
+    consumeCombatantBonusAction: (id: string) => consumeCombatantBonusAction(id),
+    consumeCombatantReaction: (id: string) => consumeCombatantReaction(id),
     handleApplyDamage: (event) => handleApplyDamage(event),
     handleApplyHealing,
     recordOperation,
@@ -919,6 +927,8 @@ export default function CombatSession() {
     setManualAttackBonus('0');
     setManualRollMode('none');
     setManualCrit(false);
+    setManualActionCost('action');
+    setManualAttackCount('1');
     setManualDamageType('');
     setManualAttackSource('weapon');
     setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
@@ -3512,6 +3522,16 @@ export default function CombatSession() {
           onRollModeChange={setManualRollMode}
           crit={manualCrit}
           onCritChange={setManualCrit}
+          actionCost={manualActionCost}
+          onActionCostChange={setManualActionCost}
+          attackCount={manualAttackCount}
+          onAttackCountChange={setManualAttackCount}
+          actionAvailability={{
+            action: selectedCell ? canUseAction(selectedCell.combatantId) : false,
+            bonus: selectedCell ? canUseBonusAction(selectedCell.combatantId) : false,
+            reaction: selectedCell ? canUseReaction(selectedCell.combatantId) : false,
+            free: true,
+          }}
           damage={manualDamage}
           onDamageChange={setManualDamage}
           isKill={manualIsKill}

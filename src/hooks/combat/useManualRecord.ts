@@ -6,8 +6,12 @@ import {
   type ManualAttackSource,
   type ManualWeaponTraits,
 } from '@/data/manualDamage';
-import { formatManualRollSummary, resolveManualAttackRoll } from '@/data/manualAttack';
-import type { CombatRecord, ManualMode, OperationLogEntry } from '@/types/combat';
+import {
+  formatManualRollSummary,
+  normalizeManualAttackCount,
+  resolveManualAttackRoll,
+} from '@/data/manualAttack';
+import type { CombatRecord, ManualActionCost, ManualMode, OperationLogEntry } from '@/types/combat';
 import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
 
 // 手动攻击方式是自由文本，按关键词启发式判定远程（只影响观众端动画形态：飞矢 vs 冲刺）
@@ -17,7 +21,11 @@ export interface UseManualRecordProps {
   selectedCell: { round: number; combatantId: string } | null;
   setSelectedCell: (v: { round: number; combatantId: string } | null) => void;
   canUseAction: (id: string) => boolean;
+  canUseBonusAction: (id: string) => boolean;
+  canUseReaction: (id: string) => boolean;
   consumeCombatantAction: (id: string) => void;
+  consumeCombatantBonusAction: (id: string) => void;
+  consumeCombatantReaction: (id: string) => void;
   getEffectiveAc: (c: any) => number;
   handleApplyDamage: (event: DamageApplication) => DamageApplyResult | null;
   handleApplyHealing: (targetId: string, amount: number) => HealApplyResult | null;
@@ -28,7 +36,8 @@ export interface UseManualRecordProps {
 export function useManualRecord(record: CombatRecord | null, props: UseManualRecordProps) {
   const {
     selectedCell, setSelectedCell,
-    consumeCombatantAction,
+    canUseAction, canUseBonusAction, canUseReaction,
+    consumeCombatantAction, consumeCombatantBonusAction, consumeCombatantReaction,
     getEffectiveAc, handleApplyDamage, handleApplyHealing, recordOperation,
   } = props;
 
@@ -45,6 +54,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
   const [manualAttackBonus, setManualAttackBonus] = useState('0');
   const [manualRollMode, setManualRollMode] = useState<ManualMode>('none');
   const [manualCrit, setManualCrit] = useState(false);
+  const [manualActionCost, setManualActionCost] = useState<ManualActionCost>('action');
+  const [manualAttackCount, setManualAttackCount] = useState('1');
   const [manualDamageType, setManualDamageType] = useState('');
   const [manualAttackSource, setManualAttackSource] = useState<ManualAttackSource>('weapon');
   // 高级选项：武器材质显式指定（null = 按攻击方式自动推断）
@@ -72,6 +83,10 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       }
       const bonus = manualAttackBonus.trim() === '' ? 0 : parseInt(manualAttackBonus, 10);
       if (isNaN(bonus)) { alert('攻击加值必须是整数'); return; }
+      if (manualActionCost === 'action' && !canUseAction(combatantId)) { alert('该角色本回合已无可用动作'); return; }
+      if (manualActionCost === 'bonus' && !canUseBonusAction(combatantId)) { alert('该角色本回合已无可用附赠动作'); return; }
+      if (manualActionCost === 'reaction' && !canUseReaction(combatantId)) { alert('该角色本回合已无可用反应'); return; }
+      const strikeCount = normalizeManualAttackCount(manualAttackCount);
       const tgtAc = getEffectiveAc(target);
       if (!tgtAc && tgtAc !== 0) { alert('目标缺少 AC，无法判定命中'); return; }
       const rollInfo = resolveManualAttackRoll({
@@ -82,11 +97,13 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         forceCrit: manualCrit,
       });
       const rollDetail = formatManualRollSummary({ d20: dice, bonus, mode: manualRollMode }, rollInfo);
+      const costTag = manualActionCost === 'bonus' ? '（附赠动作）' : manualActionCost === 'reaction' ? '（反应）' : '';
+      const methodLabel = strikeCount > 1 ? `《${manualAttackMethod}》×${strikeCount}` : `《${manualAttackMethod}》`;
       const hit = rollInfo.hit;
       let text = '';
       let kind: OperationLogEntry['kind'] = 'attack';
       if (!hit) {
-        text = `《${manualAttackMethod}》→ ${target.name}：未命中（${rollDetail} vs AC【${tgtAc}】）`;
+        text = `${methodLabel}→ ${target.name}：未命中（${rollDetail} vs AC【${tgtAc}】）${costTag}`;
         if (rollInfo.isNatural1) text += '（自然1 必失）';
       } else {
         const rawDmg = parseInt(manualDamage, 10);
@@ -103,9 +120,10 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         const dmg = preview.final;
         const typeLabel = preview.damageType ?? '';
         kind = 'damage';
-        text = `《${manualAttackMethod}》→ ${target.name}：命中（${rollDetail} vs AC【${tgtAc}】）`;
+        text = `${methodLabel}→ ${target.name}：命中（${rollDetail} vs AC【${tgtAc}】）${costTag}`;
         if (rollInfo.critical) text += '（重击）';
         text += `，【${dmg}】${typeLabel}伤害`;
+        if (strikeCount > 1) text += `（${strikeCount} 击合计）`;
         if (preview.breakdown) text += `（${preview.breakdown}）`;
         else if (!preview.damageType) text += '（未声明伤害类型，未应用抗性）';
         if (target.currentHp !== undefined) {
@@ -150,12 +168,17 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         text,
       });
       recordOperation(combatantId, text, kind);
-      consumeCombatantAction(combatantId);
+      if (manualActionCost === 'action') consumeCombatantAction(combatantId);
+      else if (manualActionCost === 'bonus') consumeCombatantBonusAction(combatantId);
+      else if (manualActionCost === 'reaction') consumeCombatantReaction(combatantId);
     } else if (manualRecordType === 'recovery') {
       if (!manualHealMethod.trim()) { alert('请填写恢复方式'); return; }
       const amount = parseInt(manualHealAmount, 10);
       if (isNaN(amount) || amount <= 0) { alert('请输入有效的恢复量（正整数）'); return; }
       if (!attacker) return;
+      if (manualActionCost === 'action' && !canUseAction(combatantId)) { alert('该角色本回合已无可用动作'); return; }
+      if (manualActionCost === 'bonus' && !canUseBonusAction(combatantId)) { alert('该角色本回合已无可用附赠动作'); return; }
+      if (manualActionCost === 'reaction' && !canUseReaction(combatantId)) { alert('该角色本回合已无可用反应'); return; }
       let targetHpId = manualTargetId;
       let targetName = target?.name || '';
       if (!target) {
@@ -172,7 +195,13 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         ? `《${manualHealMethod}》→ 自己：【+${amount}】生命`
         : `《${manualHealMethod}》→ ${targetName}：【+${amount}】生命`;
       if (oldHp != null) text += `，HP【${oldHp}→${newHp}】`;
+      if (manualActionCost === 'bonus') text += '（附赠动作）';
+      else if (manualActionCost === 'reaction') text += '（反应）';
+      else if (manualActionCost === 'action') text += '（动作）';
       recordOperation(combatantId, text, 'heal');
+      if (manualActionCost === 'action') consumeCombatantAction(combatantId);
+      else if (manualActionCost === 'bonus') consumeCombatantBonusAction(combatantId);
+      else if (manualActionCost === 'reaction') consumeCombatantReaction(combatantId);
     }
 
     setManualRecordOpen(false);
@@ -188,6 +217,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualAttackBonus('0');
     setManualRollMode('none');
     setManualCrit(false);
+    setManualActionCost('action');
+    setManualAttackCount('1');
     setManualDamageType('');
     setManualAttackSource('weapon');
     setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
@@ -208,6 +239,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualAttackBonus('0');
     setManualRollMode('none');
     setManualCrit(false);
+    setManualActionCost('action');
+    setManualAttackCount('1');
     setManualDamageType('');
     setManualAttackSource('weapon');
     setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
@@ -241,6 +274,10 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualRollMode,
     manualCrit,
     setManualCrit,
+    manualActionCost,
+    setManualActionCost,
+    manualAttackCount,
+    setManualAttackCount,
     manualDamageType,
     setManualDamageType,
     manualAttackSource,
