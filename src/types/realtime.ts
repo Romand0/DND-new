@@ -225,6 +225,8 @@ export interface RosterStatusEntry {
   name: string;
   /** 躲藏实例的隐匿总值（statusManager metadata.stealthTotal）；仅 hidden 等携带该元数据的状态存在 */
   stealthTotal?: number;
+  /** 躲藏实例的未察觉观察者 ID 列表（per-observer 可见性）；缺省 = legacy 全局隐藏 */
+  unseenBy?: string[];
 }
 
 export interface CombatRosterEntry {

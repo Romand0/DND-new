@@ -9,6 +9,7 @@ import type { SpellSlotLevel } from '@/types/character';
 import type { CombatRecord, ReactionPrompt } from '@/types/combat';
 import { detectReactions } from '@/data/reactionRules';
 import { globalStatusManager } from '@/data/statusManager';
+import { collectHideObservers, contestHide } from '@/data/hiddenRules';
 import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
@@ -279,14 +280,24 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       }
     } else if (op.kind === 'hide') {
       // 躲藏：挂 hidden 状态并记录隐匿检定总值（搜索对抗的依据）。
-      // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认本 op（引擎零暗骰）；
+      // 入账时与其余存活清醒参战者的被动察觉自动对抗，unseenBy 记录被蒙蔽的观察者；
       // 无自动解除——首次攻击结算后揭晓 / 被发现时 DM 手动移除。
+      const stealthTotal =
+        typeof op.stealthTotal === 'number' && Number.isFinite(op.stealthTotal) ? op.stealthTotal : undefined;
+      const observers = collectHideObservers(record.combatants, actor.id);
+      const contest = stealthTotal != null ? contestHide(stealthTotal, observers) : null;
       globalStatusManager.applyEffect(actor.id, 'hidden', 'combat', record.id, {
         ...(record.mode === 'playback'
           ? { combatMode: 'playback' as const, startRound: request.round - 1 }
           : { combatMode: 'simulation' as const }),
-        ...(typeof op.stealthTotal === 'number' && Number.isFinite(op.stealthTotal)
-          ? { metadata: { stealthTotal: op.stealthTotal, stealthSource: 'roll' as const } }
+        ...(stealthTotal != null
+          ? {
+              metadata: {
+                stealthTotal,
+                stealthSource: 'roll' as const,
+                ...(contest ? { unseenBy: contest.unseenBy } : {}),
+              },
+            }
           : {}),
       });
       combatStore.addTurnTodo(record.id, {
@@ -300,12 +311,14 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         consumeAction(actor.id);
         consumedAction = true;
       }
-      // DM 明细：隐匿总值 + 观察者被动察觉清单（观察者=其余存活参战者；NPC 无角色卡为 —）
+      // DM 明细：隐匿总值 + 观察者被动察觉与对抗结果（未察觉/看破）
       opCtx.hide = {
         stealthTotal: op.stealthTotal,
-        observers: record.combatants
-          .filter((o) => o.id !== actor.id && !o.isDead && !o.isUnconscious)
-          .map((o) => ({ name: o.name, pp: o.passiveChecks?.perception })),
+        observers: observers.map((o) => ({
+          name: o.name,
+          pp: o.pp,
+          unseen: contest ? contest.unseenBy.includes(o.id) : undefined,
+        })),
       };
     } else if (op.kind === 'search') {
       // 搜索：察觉检定对抗全图活跃 hidden 实例的隐匿总值（成功解除该实例）。

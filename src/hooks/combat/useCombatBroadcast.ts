@@ -29,6 +29,7 @@ function projectStatuses(combatantId: string): RosterStatusEntry[] {
     definitionId: s.definitionId,
     name: statusLibrary.get(s.definitionId)?.name ?? s.definitionId,
     stealthTotal: typeof s.metadata?.stealthTotal === 'number' ? s.metadata.stealthTotal : undefined,
+    unseenBy: Array.isArray(s.metadata?.unseenBy) ? s.metadata.unseenBy : undefined,
   }));
 }
 

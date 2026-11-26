@@ -20,18 +20,13 @@ export interface SearchResolution {
   skipped: { targetId: string; name: string }[];
 }
 
-/** 读取目标的活跃 hidden 实例 */
-export function getHiddenInstance(targetId: string) {
-  return globalStatusManager
-    .getActiveStatuses(targetId, 'combat')
-    .find((i) => i.definitionId === 'hidden') ?? null;
-}
-
 /**
  * 以一次察觉检定总值搜索全图躲藏者。
  * - 排除搜索者自身；
  * - 平局不解除（严格大于才被发现）；
- * - 缺 stealthTotal 的实例跳过（老数据，待 DM 补录）。
+ * - 缺 stealthTotal 的实例跳过（老数据，待 DM 补录）；
+ * - per-observer：仅把搜索者移出 unseenBy，最后一个观察者看破才解除实例；
+ *   legacy 实例（无 unseenBy）维持整例解除的旧行为。
  */
 export function resolveSearch(params: {
   searcherId: string;
@@ -52,7 +47,14 @@ export function resolveSearch(params: {
         continue;
       }
       if (total > raw) {
-        globalStatusManager.declareEnd(inst.instanceId);
+        const unseenBy = inst.metadata?.unseenBy;
+        if (Array.isArray(unseenBy)) {
+          const remaining = unseenBy.filter((id: string) => id !== searcherId);
+          if (remaining.length === 0) globalStatusManager.declareEnd(inst.instanceId);
+          else globalStatusManager.patchMetadata(inst.instanceId, { unseenBy: remaining });
+        } else {
+          globalStatusManager.declareEnd(inst.instanceId);
+        }
         result.revealed.push({
           targetId: c.id,
           name: c.name,

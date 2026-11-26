@@ -6,6 +6,7 @@
 // （无掷骰环节，按被动隐匿代填并标注待复核）；action/bonus 目标走槽位授予。
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
+import { collectHideObservers, contestHide } from '@/data/hiddenRules';
 import { characterStore } from '@/data/characterStore';
 import { deriveSkillCheckBonus } from '@/data/passiveCombatRules';
 import type { Combatant } from '@/types/combat';
@@ -78,6 +79,8 @@ export function applyConvTarget(recordId: string, combatant: Combatant, target: 
     // stealthSource='passive' 供搜索结果提示 DM 复核。
     const character = live.characterId ? characterStore.get(live.characterId) : null;
     const stealthTotal = 10 + deriveSkillCheckBonus(character, 'stealth');
+    const observers = collectHideObservers(latest?.combatants ?? [], combatant.id);
+    const contest = contestHide(stealthTotal, observers);
     globalStatusManager.applyEffect(combatant.id, 'hidden', 'combat', recordId, {
       ...(latest?.mode === 'playback'
         ? {
@@ -85,9 +88,15 @@ export function applyConvTarget(recordId: string, combatant: Combatant, target: 
             startRound: latest.playbackState?.currentTurn?.round ?? Math.max(0, latest.rounds.length - 1),
           }
         : { combatMode: 'simulation' as const }),
-      metadata: { stealthTotal, stealthSource: 'passive' as const },
+      metadata: { stealthTotal, stealthSource: 'passive' as const, unseenBy: contest.unseenBy },
     });
-    return { note: `进入躲藏（隐匿值按被动 ${stealthTotal} 代填，待 DM 复核）` };
+    const verdict =
+      contest.unseenBy.length === 0
+        ? '位置已被全部看破（无机械收益）'
+        : contest.seenBy.length === 0
+          ? `全部 ${observers.length} 名观察者未察觉`
+          : `${contest.unseenBy.length} 名未察觉 / ${contest.seenBy.length} 名看破`;
+    return { note: `进入躲藏（隐匿值按被动 ${stealthTotal} 代填，待 DM 复核；${verdict}）` };
   }
   return { note: `${CONV_TARGET_LABELS[target] ?? target}（无对应引擎，DM 手动裁定）` };
 }

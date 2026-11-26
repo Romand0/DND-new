@@ -196,7 +196,13 @@ export default function SpectatorBoard({
                 onMoveToken(t.combatantId, { col, row });
               }
             };
-            const isHidden = (r.statuses ?? []).some((s) => s.definitionId === 'hidden');
+            // per-observer：观看方全部角色都未察觉才幽灵化；legacy 实例（无 unseenBy）与无自方角色按隐藏处理
+            const hiddenEntry = (r.statuses ?? []).find((s) => s.definitionId === 'hidden');
+            const isHidden =
+              !!hiddenEntry &&
+              (!Array.isArray(hiddenEntry.unseenBy) ||
+                movableSet.size === 0 ||
+                [...movableSet].every((id) => hiddenEntry.unseenBy!.includes(id)));
             return (
               <div
                 key={t.combatantId}

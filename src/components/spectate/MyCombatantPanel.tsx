@@ -124,6 +124,11 @@ export function MyCombatantPanel({
           >
             {s.name}
             {s.stealthTotal != null && <span className="font-mono">隐匿 {s.stealthTotal}</span>}
+            {s.definitionId === 'hidden' && Array.isArray(s.unseenBy) && (
+              <span className="font-mono">
+                {s.unseenBy.length === 0 ? '已被全部看破' : `对 ${s.unseenBy.length} 个观察者隐蔽`}
+              </span>
+            )}
           </span>
         ))}
         {!c.dead && !c.downed && !c.incapacitated && !c.concentrating && (c.statuses ?? []).length === 0 && (

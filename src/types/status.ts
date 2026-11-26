@@ -244,7 +244,8 @@ export interface StatusManager {
 
 /** 状态变更事件 —— 用于订阅/通知 */
 export interface StatusChangeEvent {
-  type: 'start' | 'end' | 'expire';
+  /** update = 实例运行时元数据就地变更（如躲藏揭晓后收窄 unseenBy），不涉及启停 */
+  type: 'start' | 'end' | 'expire' | 'update';
   instance: StatusInstance;
   definition: StatusDefinition;
   timestamp: number;
