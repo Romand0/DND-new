@@ -872,6 +872,9 @@ export interface AdvantageResult {
 /** 手动模式 */
 export type ManualMode = 'none' | 'advantage' | 'disadvantage';
 
+/** 手动记录的资源消耗类型：动作 / 附赠动作 / 反应 / 不消耗 */
+export type ManualActionCost = 'action' | 'bonus' | 'reaction' | 'free';
+
 /** 待消费的优劣势标记（发起者赋予他人的一次性优劣势来源） */
 export interface PendingAdvantageSource {
   /** 唯一实例 ID（crypto.randomUUID()） */

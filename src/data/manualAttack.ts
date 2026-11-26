@@ -2,7 +2,7 @@
 //
 // 语义与自动攻击链（CombatAttackModal.handleConfirmRoll）保持一致：
 // 优/劣势下任一骰为自然 20 → 直接命中（优先于自然 1 与取高/取低）；自然 1 必失。
-import type { ManualMode } from '@/types/combat';
+import type { ManualActionCost, ManualMode } from '@/types/combat';
 
 export interface ManualAttackRollInput {
   d20: number[];
@@ -62,4 +62,18 @@ export function formatManualRollSummary(
   const modeLabel = input.mode === 'advantage' ? '优势' : '劣势';
   const diceLabel = input.d20.join(',');
   return `${modeLabel} d20【${diceLabel}】取${result.d20}${bonusPart}=【${result.total}】`;
+}
+
+export const MANUAL_ACTION_COST_LABELS: Record<ManualActionCost, string> = {
+  action: '动作',
+  bonus: '附赠动作',
+  reaction: '反应',
+  free: '不消耗',
+};
+
+/** 攻击次数：整数 1-10，非法值按 1 次处理（多重攻击只扣一次动作资源） */
+export function normalizeManualAttackCount(raw: unknown): number {
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n)) return 1;
+  return Math.min(10, Math.max(1, n));
 }

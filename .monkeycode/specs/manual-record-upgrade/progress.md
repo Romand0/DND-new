@@ -8,12 +8,12 @@
 ## 阶段状态
 - [x] P0-1 伤害类型贯通：来源（武器/法术/其他效果）+ 13 类伤害选择，抗性/易伤/免疫实时预览，再生否定条件可用（已合 main 3a2f3a5）
 - [x] P0-1b 材质判定显式化：魔法/镀银/精金收进折叠「高级选项」，三态（自动/是/否）覆盖文本推断（本分支）
-- [x] P0-2 命中判定接引擎：d20+加值、优劣势两颗骰、自然 1/20、重击标记（本分支）
-- [ ] P0-3 动作经济细化：动作类型、多重攻击次数、弹药/装填消耗
+- [x] P0-2 命中判定接引擎：d20+加值、优劣势两颗骰、自然 1/20、重击标记（已合 main dd5c7cc）
+- [x] P0-3 动作经济细化：动作/附赠/反应/自由四类消耗 + 多重攻击次数归一（本分支）；弹药/装填消耗暂缓（见决策）
 - [ ] P0-4 单条记录撤销 + 历史格写回定位（resolveWriteCell 串列问题）
 - [ ] P1 目标多选 AoE、检定/状态/移动/物品模板
 
-当前：P0-2 已完成待合并。
+当前：P0-3 已完成（动作类型 + 攻击次数），待合并；探针 15 断言全绿。
 
 ## 已决策
 - 复用 `data/damageRules` 的 `resolveDamage`：手动伤害与自动攻击同一结算入口，弹窗预览与确认落账共用 `data/manualDamage.resolveManualDamage`
@@ -24,16 +24,19 @@
 - 重击只做标记：伤害由 DM 输入最终值，不自动翻倍；自然20 自动重击且不可取消，手动重击可勾选/取消
 - 放弃方案：在 hook 内联抗性计算 —— 无法探针测试，且与 CombatDamageModal 双实现易漂移
 - 放弃方案：沿用「攻击检定总值」输入 —— 无法识别自然 1/20，改为 d20+加值
+- 动作经济接 store 现有 API：动作/附赠/反应分别调用 `consumeCombatantAction/BonusAction/Reaction`，自由不消耗；确认前用 `canUseAction/BonusAction/Reaction` 拦截已用尽资源
+- 多重攻击只扣一次资源：次数经 `normalizeManualAttackCount` 归一到 1~10，日志标注「×N（N 击合计）」
+- 弹药/装填消耗暂缓：手动记录没有武器实例引用，强行加弹药选择器会引入半套装备状态；等 P1 引入武器选择后再统一，当前由 DM 在装备面板手动扣减
 
 ## 下一步
-1. 合并本分支后开始 P0-3：动作类型（动作/附赠/反应/自由）、多重攻击次数、弹药与装填消耗
-2. P0-4 顺手修 `hooks/combat/useRoundTurn.ts:258 resolveWriteCell` 忽略所选格的问题
+1. 合并本分支后开始 P0-4：单条记录撤销栈 + 修 `hooks/combat/useRoundTurn.ts:258 resolveWriteCell` 忽略所选格的问题
+2. P1：武器选择（含弹药/装填自动消耗）、目标多选 AoE、检定/状态/移动/物品模板
 
 ## 验证方式
-- 本功能探针：`QUIET=1 node scripts/probes/probe-manual-damage.cjs`（31 断言）、`probe-manual-attack-roll.cjs`（19 断言）
+- 本功能探针：`QUIET=1 node scripts/probes/probe-manual-damage.cjs`（31 断言）、`probe-manual-attack-roll.cjs`（19 断言）、`probe-manual-action-cost.cjs`（15 断言）
 - 基线回归：regeneration / condition-immunity / breath-weapon / seed-query
 - 构建：`npm run build`
 
 ## 分支与提交
-- 分支：`feature/manual-record-attack-roll`（待合并）
-- 关键提交：`feat(combat): 手动记录命中判定（d20/优劣势/自然1·20/重击）`
+- 分支：`feature/manual-record-action-cost`（待合并）
+- 关键提交：`feat(combat): 手动记录动作经济（四类消耗+多重攻击次数）`
