@@ -10,7 +10,7 @@
 - [x] 实现 P4：玩家端渲染 per-observer（幽灵化 / 徽章）
 - [x] 探针 probe-hidden-per-observer 19 断言全绿 + 回归（search 20 / projection 11 / reaction 72）全绿
 - [x] tsc + build 通过
-- [ ] 合 main 推送
+- [x] 合 main 推送（main 合并后 tsc+build 通过；探针 19 + search 20 + manual-damage 23 全绿）
 
 ## 已决策
 
