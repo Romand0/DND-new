@@ -41,6 +41,8 @@ export type StatusManagerWithApply = StatusManager & {
       untilNextTurn?: boolean;
       /** untilNextTurn 的锚定参战者（通常为施法者） */
       anchorCombatantId?: string;
+      /** 调用方写入的实例级运行时数据（如躲藏的 stealthTotal），与 definition 元数据合并 */
+      metadata?: Record<string, any>;
     }
   ): StatusInstance;
 };
@@ -274,6 +276,8 @@ export function createStatusManager(): StatusManagerWithApply {
       anchorCombatantId?: string;
       /** 轮到锚定者的第 N 个回合时结束（1=下一回合，2=下下回合…；缺省 1） */
       turnCount?: number;
+      /** 调用方写入的实例级运行时数据（如躲藏的 stealthTotal），与 definition 元数据合并 */
+      metadata?: Record<string, any>;
     }
     ): StatusInstance {
       // 应用状态
@@ -286,6 +290,9 @@ export function createStatusManager(): StatusManagerWithApply {
       }
       if (options?.instanceEffects && options.instanceEffects.length > 0) {
         instance.metadata = { ...instance.metadata, effects: options.instanceEffects };
+      }
+      if (options?.metadata) {
+        instance.metadata = { ...instance.metadata, ...options.metadata };
       }
       if (options?.durationRounds && options.durationRounds > 0) {
         instance.durationRounds = options.durationRounds;

@@ -9,6 +9,8 @@ export interface SummaryContext {
   dashFeet?: number;
   /** feature-use 通道执行结果说明（挂状态/优劣势标记） */
   featureNote?: string | null;
+  /** 搜索结算结果（察觉对抗 hidden） */
+  search?: { total: number; revealed: number; skipped: number; estimated: number };
 }
 
 const HAND_STATE_LABELS: Record<'ready' | 'action' | 'unavailable', string> = {
@@ -40,6 +42,14 @@ export function summarizeOp(op: TurnCommitOp, ctx: SummaryContext = {}): string[
       return [`移动至（第 ${op.to.col + 1} 列，第 ${op.to.row + 1} 行）`];
     case 'dash':
       return [`疾走：+【${ctx.dashFeet ?? 0}】尺移动`];
+    case 'search': {
+      const s = ctx.search;
+      if (!s) return op.roundText ? [op.roundText] : [];
+      let line = s.revealed > 0 ? `搜索（察觉 ${s.total}）：发现 ${s.revealed} 名潜伏者` : `搜索（察觉 ${s.total}）：未发现目标`;
+      if (s.estimated > 0) line += `（其中 ${s.estimated} 名隐匿值为被动代填，待 DM 复核）`;
+      if (s.skipped > 0) line += `（${s.skipped} 名潜伏者未录入隐匿值，待 DM 补录）`;
+      return [line];
+    }
     case 'ready-item': {
       const hand = op.slot === 'left' ? '左手' : '右手';
       return [op.itemName ? `${hand}换持《${op.itemName}》` : `${hand}放下物品`];
