@@ -28,6 +28,7 @@ import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import FeatureConvTargetModal from '@/components/combat/FeatureConvTargetModal';
 import HealRollModal from '@/components/combat/HealRollModal';
 import DiceInputModal from '@/components/combat/DiceInputModal';
+import { deriveSkillCheckBonus } from '@/data/passiveCombatRules';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterActiveFeature, TurnCommitOp } from '@/types/realtime';
@@ -108,6 +109,11 @@ export default function PlayerSpectate() {
   // 决策点（R5）：回合中途躲藏裁定请求——待审批期间展示等待标记，DM 裁定后自动记入操作序列
   const [hideDecision, setHideDecision] = useState<{ id: string } | null>(null);
   const [hideDecisionResult, setHideDecisionResult] = useState<{ approved: boolean; reason?: string } | null>(null);
+  // 躲藏/搜索线下骰录入：viaDecision=躲藏裁定路径（先录入隐匿总值再发请求）
+  const [hideRoll, setHideRoll] = useState<{ combatantId: string; characterId: string; viaDecision: boolean } | null>(null);
+  const [searchRoll, setSearchRoll] = useState<{ combatantId: string } | null>(null);
+  // 裁定路径的隐匿总值：批准后回填到 hide op
+  const [pendingHideDecisionTotal, setPendingHideDecisionTotal] = useState<number | null>(null);
   const decisionInbox = useRoundTableInbox({ outbox: true, enabled: !!hideDecision });
   const lastOpsRoundRef = useRef<number | null>(null);
   // 未提交 ops 的缓存键（刷新/断线重连后据此恢复）
@@ -282,23 +288,30 @@ export default function PlayerSpectate() {
   useEffect(() => {
     if (!hideDecisionResult) return;
     if (hideDecisionResult.approved) {
-      addOp({ kind: 'hide', roundText: '躲藏（DM 已批准：未被定位前攻击劣势/己方优势，一攻揭晓）' });
+      const total = pendingHideDecisionTotal ?? 10;
+      addOp({
+        kind: 'hide',
+        stealthTotal: total,
+        roundText: `躲藏（DM 已批准；隐匿总值 ${total}，一攻揭晓）`,
+      });
       setNotice('DM 已批准躲藏，已记入操作序列');
     } else {
       setNotice(`DM 驳回躲藏${hideDecisionResult.reason ? `：${hideDecisionResult.reason}` : ''}`);
     }
+    setPendingHideDecisionTotal(null);
     setHideDecisionResult(null);
   }, [hideDecisionResult]);
 
-  const requestHideDecision = async (characterId: string) => {
+  const requestHideDecision = async (characterId: string, stealthTotal: number) => {
     if (hideDecision) return;
     try {
       const { id } = await sendDecisionRequest({
         characterId,
         decisionKind: 'hide',
         decisionLabel: '躲藏',
-        note: '回合中途请求裁定：躲藏（隐匿检定对抗观察者被动察觉）',
+        note: `回合中途请求裁定：躲藏（隐匿检定总值 ${stealthTotal}，对抗观察者被动察觉）`,
       });
+      setPendingHideDecisionTotal(stealthTotal);
       setHideDecision({ id });
       setNotice('已提交躲藏裁定请求，等待 DM 回填…');
     } catch (e: any) {
@@ -526,8 +539,11 @@ export default function PlayerSpectate() {
                 onBoardRequestHandled={() => setBoardRequest(null)}
                 hideDecisionPending={!!hideDecision}
                 onRequestHideDecision={
-                  actor.characterId ? () => requestHideDecision(actor.characterId as string) : undefined
+                  actor.characterId
+                    ? () => setHideRoll({ combatantId: actor.id, characterId: actor.characterId as string, viaDecision: true })
+                    : undefined
                 }
+                onSearchClick={() => setSearchRoll({ combatantId: actor.id })}
               />
             );
           })()}
@@ -603,7 +619,11 @@ export default function PlayerSpectate() {
               }}
               onPanelHideClick={(c) => {
                 if (c.id !== myTurnActor?.id) return;
-                addOp({ kind: 'hide', roundText: '躲藏（未被定位前攻击劣势/己方优势，一攻揭晓）' });
+                setHideRoll({ combatantId: c.id, characterId: c.characterId ?? '', viaDecision: false });
+              }}
+              onPanelSearchClick={(c) => {
+                if (c.id !== myTurnActor?.id) return;
+                setSearchRoll({ combatantId: c.id });
               }}
               onPanelHelpClick={(c) => {
                 if (c.id !== myTurnActor?.id) return;
@@ -785,6 +805,53 @@ export default function PlayerSpectate() {
               onClose={() => setAoeDamagePending(null)}
             />
           )}
+
+          {/* 躲藏：录入线下掷出的隐匿检定总值（搜索对抗依据 / 裁定请求附带给 DM） */}
+          {hideRoll && (
+            <DiceInputModal
+              title={`躲藏 · ${roster.find((r) => r.id === hideRoll.combatantId)?.name ?? '我的角色'}`}
+              diceText="d20 + 隐匿加值"
+              hint="填入敏捷（隐匿）检定总值；之后被搜索时以此为对抗 DC，平局仍视为未被发现"
+              min={1}
+              max={60}
+              confirmLabel={hideRoll.viaDecision ? '提交裁定请求' : '记入躲藏'}
+              onConfirm={(stealthTotal) => {
+                const pending = hideRoll;
+                setHideRoll(null);
+                if (pending.viaDecision) {
+                  void requestHideDecision(pending.characterId, stealthTotal);
+                } else {
+                  addOp({ kind: 'hide', stealthTotal, roundText: `躲藏（隐匿总值 ${stealthTotal}，一攻揭晓）` });
+                }
+              }}
+              onClose={() => setHideRoll(null)}
+            />
+          )}
+
+          {/* 搜索：录入线下察觉 d20，加值按角色卡派生后打包 op */}
+          {searchRoll && (() => {
+            const bonus = deriveSkillCheckBonus(panelCharacters[searchRoll.combatantId] ?? null, 'perception');
+            return (
+              <DiceInputModal
+                title={`搜索 · ${roster.find((r) => r.id === searchRoll.combatantId)?.name ?? '我的角色'}`}
+                diceText="d20"
+                hint={`填入感知（察觉）检定 d20 骰面，系统按 d20 ${bonus >= 0 ? '+' : '-'} ${Math.abs(bonus)} 对抗全图躲藏者的隐匿值`}
+                min={1}
+                max={20}
+                confirmLabel="记入搜索"
+                onConfirm={(d20) => {
+                  setSearchRoll(null);
+                  addOp({
+                    kind: 'search',
+                    d20,
+                    bonus,
+                    roundText: `搜索：察觉 ${d20}${bonus >= 0 ? '+' : '-'}${Math.abs(bonus)}`,
+                  });
+                }}
+                onClose={() => setSearchRoll(null)}
+              />
+            );
+          })()}
 
           {/* heal 骰值环节（线下骰）：填入线下掷骰结果后打包 op，healAmount=填入骰值+固定+等级合计 */}
           {healRollPick && spectate && (() => {

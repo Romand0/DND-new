@@ -19,6 +19,7 @@ import { planAoeSave, applyAoeSave, saveBonusFor } from '@/data/aoeSaveEngine';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Bearing } from '@/data/battleGeometry';
 import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
+import { resolveSearch } from '@/data/searchRules';
 
 export interface TurnCommitApplyDeps {
   record: CombatRecord;
@@ -276,12 +277,16 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         consumedAction = true;
       }
     } else if (op.kind === 'hide') {
-      // 躲藏：挂 hidden 状态（无自动解除——首次攻击结算后揭晓 / 被发现时 DM 手动移除），
-      // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认本 op（引擎零暗骰）
+      // 躲藏：挂 hidden 状态并记录隐匿检定总值（搜索对抗的依据）。
+      // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认本 op（引擎零暗骰）；
+      // 无自动解除——首次攻击结算后揭晓 / 被发现时 DM 手动移除。
       globalStatusManager.applyEffect(actor.id, 'hidden', 'combat', record.id, {
         ...(record.mode === 'playback'
           ? { combatMode: 'playback' as const, startRound: request.round - 1 }
           : { combatMode: 'simulation' as const }),
+        ...(typeof op.stealthTotal === 'number' && Number.isFinite(op.stealthTotal)
+          ? { metadata: { stealthTotal: op.stealthTotal, stealthSource: 'roll' as const } }
+          : {}),
       });
       combatStore.addTurnTodo(record.id, {
         combatantId: actor.id,
@@ -290,6 +295,25 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         startRound: request.round - 1,
         endRound: request.round,
       });
+      if (!consumedAction) {
+        consumeAction(actor.id);
+        consumedAction = true;
+      }
+    } else if (op.kind === 'search') {
+      // 搜索：察觉检定对抗全图活跃 hidden 实例的隐匿总值（成功解除该实例）。
+      // 失败照扣 1 动作（5e 未规定退还）；文案只回「发现/未发现」，不写目标身份。
+      const total = op.d20 + op.bonus;
+      const resolution = resolveSearch({
+        searcherId: actor.id,
+        total,
+        combatants: (combatStore.get(record.id) ?? record).combatants,
+      });
+      opCtx.search = {
+        total,
+        revealed: resolution.revealed.length,
+        skipped: resolution.skipped.length,
+        estimated: resolution.revealed.filter((r) => r.estimated).length,
+      };
       if (!consumedAction) {
         consumeAction(actor.id);
         consumedAction = true;

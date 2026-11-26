@@ -65,7 +65,10 @@ function opText(op: TurnCommitOp, combatantNames?: Record<string, string>): stri
     return '回避（至下回合开始，攻击对己劣势、敏捷豁免优势）';
   }
   if (op.kind === 'hide') {
-    return '躲藏（未被定位前攻击劣势/己方优势，一攻揭晓）';
+    return `躲藏（隐匿总值 ${op.stealthTotal}，未被定位前攻击劣势/己方优势，一攻揭晓）`;
+  }
+  if (op.kind === 'search') {
+    return `搜索：察觉 ${op.d20}+${op.bonus}=${op.d20 + op.bonus}（对抗全图躲藏者隐匿值，平局不可见）`;
   }
   const roll = `d20 ${op.d20}+${op.bonus}=${op.d20 + op.bonus}`;
   const verdict = op.critical ? '暴击命中' : op.hit ? '命中' : '未命中';

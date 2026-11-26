@@ -27,6 +27,7 @@ import PlaybackToolbar from '@/components/combat/PlaybackToolbar';
 import RewindDialog from '@/components/combat/RewindDialog';
 import SurpriseAttackDialog from '@/components/combat/SurpriseAttackDialog';
 import PlayerActionReviewPanel from '@/components/combat/PlayerActionReviewPanel';
+import DiceInputModal from '@/components/combat/DiceInputModal';
 import CombatantTraitPanel from '@/components/combat/CombatantTraitPanel';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import * as snapDb from '@/lib/combatSnapshots';
@@ -42,6 +43,8 @@ import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import { derivePcAttacksPerAction } from '@/lib/pcExtraAttack';
+import { deriveSkillCheckBonus } from '@/data/passiveCombatRules';
+import { resolveSearch } from '@/data/searchRules';
 import { optionStore } from '@/data/optionStore';
 import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
@@ -352,6 +355,9 @@ export default function CombatSession() {
   const [infoPanelCombatant, setInfoPanelCombatant] = useState<Combatant | null>(null);
   // ✅ 强制位移弹窗（参战者面板/沙盘双击面板入口，落位引擎见 useForcedMove）
   const [forcedMoveTarget, setForcedMoveTarget] = useState<Combatant | null>(null);
+  // 躲藏/搜索的线下骰录入弹窗（隐匿总值 / 察觉 d20）
+  const [hideRollTarget, setHideRollTarget] = useState<Combatant | null>(null);
+  const [searchRollTarget, setSearchRollTarget] = useState<Combatant | null>(null);
   // ✅ 战斗结束回传弹窗
   const [commitModalOpen, setCommitModalOpen] = useState(false);
   // ✅ 沙盘最近单击选中的参战者 ID（用于左上 HUD 展示；若放映中有当前回合则以当前回合角色优先覆盖）
@@ -1711,9 +1717,9 @@ export default function CombatSession() {
   };
 
   // 基础动作「躲藏」：1 动作挂 hidden 状态——未被定位前攻击对己劣势、己方攻击优势；
-  // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认（引擎零暗骰）。
+  // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后录入总值（引擎零暗骰）。
   // hidden 不自动过期：首次攻击结算后揭晓（breakHidden），被发现时 DM 手动解除。
-  const hideFor = (c: Combatant) => {
+  const hideFor = (c: Combatant, stealthTotal: number) => {
     if (!ensureCanEnter(c)) return;
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
     const observers = record.combatants.filter(o => o.id !== c.id && !o.isDead && !o.isUnconscious);
@@ -1722,6 +1728,7 @@ export default function CombatSession() {
       ...(record.mode === 'playback'
         ? { combatMode: 'playback' as const, startRound: currentRound0 }
         : { combatMode: 'simulation' as const }),
+      metadata: { stealthTotal, stealthSource: 'roll' as const },
     });
     combatStore.addTurnTodo(record.id, {
       combatantId: c.id,
@@ -1731,8 +1738,28 @@ export default function CombatSession() {
       endRound: currentRound0 + 1,
     });
     consumeCombatantAction(c.id);
-    recordOperation(c.id, `躲藏：未被定位前攻击劣势/己方优势（观察者：${dcList || '无'}）`, 'record');
-    alert(`「${c.name}」进入躲藏。\n\n隐匿检定需达到以下观察者被动察觉：\n${dcList || '（无观察者）'}\n\n检定失败的观察者可看破其位置（DM 手动移除躲藏状态）`);
+    recordOperation(c.id, `躲藏：隐匿总值 ${stealthTotal}（观察者：${dcList || '无'}）`, 'record');
+    alert(`「${c.name}」进入躲藏（隐匿总值 ${stealthTotal}）。\n\n观察者被动察觉：\n${dcList || '（无观察者）'}\n\n若隐匿总值未超过某观察者被动察觉，该观察者已看破位置（DM 手动移除躲藏状态）`);
+  };
+
+  // 基础动作「搜索」：察觉检定对抗全图活跃 hidden 实例的隐匿总值；成功解除该实例。
+  // 规则无射程限制（全图），失败照扣 1 动作；结果只回发现/未发现，不写目标身份。
+  const searchFor = (c: Combatant, d20: number) => {
+    if (!ensureCanEnter(c)) return;
+    if (!canUseAction(c.id)) {
+      alert(`「${c.name}」本回合动作已用完，无法搜索`);
+      return;
+    }
+    const character = c.characterId ? characterStore.get(c.characterId) : null;
+    const bonus = deriveSkillCheckBonus(character, 'perception');
+    const total = d20 + bonus;
+    const resolution = resolveSearch({ searcherId: c.id, total, combatants: record.combatants });
+    consumeCombatantAction(c.id);
+    const found = resolution.revealed.length;
+    const detail = found > 0 ? `发现 ${found} 名潜伏者` : '未发现目标';
+    const extra = resolution.skipped.length > 0 ? `；${resolution.skipped.length} 名潜伏者未录入隐匿值，需补录` : '';
+    recordOperation(c.id, `搜索：察觉 ${d20}+${bonus}=${total}，${detail}${extra}`, 'record');
+    alert(`「${c.name}」搜索（察觉 ${d20}+${bonus}=${total}）：${detail}${extra}`);
   };
 
   // 一攻揭晓：躲藏者发起攻击（命中/未命中均算）结算后移除 hidden
@@ -2200,6 +2227,8 @@ export default function CombatSession() {
         onPanelDashClick={dashFor}
         onPanelDodgeClick={dodgeFor}
         onPanelDisengageClick={disengageFor}
+        onPanelHideClick={(c) => setHideRollTarget(c)}
+        onPanelSearchClick={(c) => setSearchRollTarget(c)}
         onPanelForcedMoveClick={(c) => setForcedMoveTarget(c)}
         onPanelFeatureClick={handleFeatureUse}
         multiattackProgress={record.multiattackProgress}
@@ -3627,7 +3656,11 @@ export default function CombatSession() {
               setInfoPanelCombatant(null);
             }}
             onHideClick={() => {
-              hideFor(liveCombatant);
+              setHideRollTarget(liveCombatant);
+              setInfoPanelCombatant(null);
+            }}
+            onSearchClick={() => {
+              setSearchRollTarget(liveCombatant);
               setInfoPanelCombatant(null);
             }}
             onForcedMoveClick={() => setForcedMoveTarget(liveCombatant)}
@@ -3635,6 +3668,46 @@ export default function CombatSession() {
         );
        })()}
      
+      {/* 躲藏：录入线下掷出的隐匿检定总值（供后续搜索对抗） */}
+      {hideRollTarget && (
+        <DiceInputModal
+          title={`躲藏 · ${hideRollTarget.name}`}
+          diceText="d20 + 隐匿加值"
+          hint="填入敏捷（隐匿）检定总值；搜索时以察觉检定与之对抗，平局仍视为未被发现"
+          min={1}
+          max={60}
+          confirmLabel="进入躲藏"
+          onConfirm={(stealthTotal) => {
+            const target = hideRollTarget;
+            setHideRollTarget(null);
+            hideFor(target, stealthTotal);
+          }}
+          onClose={() => setHideRollTarget(null)}
+        />
+      )}
+
+      {/* 搜索：录入线下掷出的察觉 d20，加值由角色卡派生 */}
+      {searchRollTarget && (() => {
+        const character = searchRollTarget.characterId ? characterStore.get(searchRollTarget.characterId) : null;
+        const bonus = deriveSkillCheckBonus(character, 'perception');
+        return (
+          <DiceInputModal
+            title={`搜索 · ${searchRollTarget.name}`}
+            diceText="d20"
+            hint={`填入感知（察觉）检定 d20 骰面，系统按 d20 ${bonus >= 0 ? '+' : '-'} ${Math.abs(bonus)} 对抗全图躲藏者的隐匿值`}
+            min={1}
+            max={20}
+            confirmLabel="发起搜索"
+            onConfirm={(d20) => {
+              const target = searchRollTarget;
+              setSearchRollTarget(null);
+              searchFor(target, d20);
+            }}
+            onClose={() => setSearchRollTarget(null)}
+          />
+        );
+      })()}
+
       {/* 强制位移弹窗（参战者面板 / 沙盘双击面板共用入口） */}
       {forcedMoveTarget && record && (() => {
         const bg = battlegroundStore.get(record.id);

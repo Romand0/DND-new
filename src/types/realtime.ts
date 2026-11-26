@@ -160,6 +160,16 @@ export type TurnCommitOp =
     }
   | {
       kind: 'hide';
+      /** 躲藏时的隐匿检定总值（DM 录入 / 玩家线下掷骰），供后续搜索对抗 */
+      stealthTotal: number;
+      roundText: string;
+    }
+  | {
+      kind: 'search';
+      /** 玩家线下掷的 d20 骰面（1-20） */
+      d20: number;
+      /** 察觉技能加值（前端按角色卡派生） */
+      bonus: number;
       roundText: string;
     }
   | { kind: 'end-turn' };

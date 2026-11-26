@@ -3,7 +3,7 @@
 // 数据来源：观战投影（roster/board）+ 本人角色卡（云端拉取，仅用于攻击加值/法术位/法术列表）。
 // 投影经 combatantAdapter 映射成 Combatant 形状，弹窗内的射程/弹药/装填/优劣势判定与 DM 端同源。
 import { useEffect, useMemo, useState } from 'react';
-import { Dices, Hand, PenLine, RotateCcw, Send, Sparkles, Swords, Trash2, X, EyeOff } from 'lucide-react';
+import { Dices, Hand, PenLine, RotateCcw, Send, Sparkles, Swords, Trash2, X, EyeOff, Eye } from 'lucide-react';
 import { useTextInput } from '@/hooks/useInput';
 import { fetchCharacter } from '@/lib/api';
 import { spellStore } from '@/data/spellStore';
@@ -64,6 +64,8 @@ interface Props {
   hideDecisionPending?: boolean;
   /** 决策点：发起躲藏裁定请求（回合中途，DM 批准后自动记入操作序列） */
   onRequestHideDecision?: () => void;
+  /** 搜索动作：录入察觉 d20 后记入操作序列（宿主打开掷骰弹窗） */
+  onSearchClick?: () => void;
 }
 
 /** 弹窗外壳：换持 / 其他行动这类轻量弹窗用（掷骰类弹窗直接复用 DM 侧组件） */
@@ -105,7 +107,7 @@ function isRangedAttack(atk: Attack | NpcAttack): boolean {
   return props.includes('弹药') || props.includes('投掷') || ((atk as Attack).normalRange ?? 0) > 0;
 }
 
-export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board, boardRequest, onBoardRequestHandled, hideDecisionPending = false, onRequestHideDecision }: Props) {
+export default function MyTurnPanel({ actor, roster, round, baseSeq, send, result, onNotice, ops, onOpsChange, board, boardRequest, onBoardRequestHandled, hideDecisionPending = false, onRequestHideDecision, onSearchClick }: Props) {
   const [sentAt, setSentAt] = useState<number | null>(null);
   // 发送失败（连接未就绪）或已被 DM 拒绝时进入可重试态：保留 ops 与服务端基线，原样重发
   const [sendFailed, setSendFailed] = useState(false);
@@ -414,6 +416,16 @@ export default function MyTurnPanel({ actor, roster, round, baseSeq, send, resul
           <PenLine className="w-4 h-4 inline mr-1" />
           其他行动
         </button>
+        {onSearchClick && (
+          <button
+            onClick={onSearchClick}
+            className={ghostBtn}
+            title="投入注意力搜索：录入察觉检定 d20，对抗全图躲藏者的隐匿值"
+          >
+            <Eye className="w-4 h-4 inline mr-1" />
+            搜索
+          </button>
+        )}
         {onRequestHideDecision && (
           <button
             onClick={onRequestHideDecision}

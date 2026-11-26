@@ -48,6 +48,8 @@ interface Props {
   /** 双击棋子信息面板：撤离动作（交由 main 挂 disengaging 状态） */
   onPanelDisengageClick?: (combatant: Combatant) => void;
   onPanelHideClick?: (combatant: Combatant) => void;
+  /** 双击棋子信息面板：搜索动作（交由 main 录入察觉 d20 并结算 hidden 对抗） */
+  onPanelSearchClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：强制位移按钮（交由 main 打开 ForcedMoveDialog） */
   onPanelForcedMoveClick?: (combatant: Combatant) => void;
   /** 双击棋子信息面板：主动技能按钮（交由 main 走 handleFeatureUse 扣池扣动作链路；漏传则面板降级为提示） */
@@ -101,7 +103,7 @@ interface Props {
   onRequestStopConcentration?: (combatantId: string) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelDodgeClick, onPanelDisengageClick, onPanelHideClick, onPanelForcedMoveClick, onPanelFeatureClick, multiattackProgress, onPanelMultiattackStart, onPanelMultiattackEnd, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, panelSpellSlots, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelDodgeClick, onPanelDisengageClick, onPanelHideClick, onPanelSearchClick, onPanelForcedMoveClick, onPanelFeatureClick, multiattackProgress, onPanelMultiattackStart, onPanelMultiattackEnd, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, panelSpellSlots, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
   const navigate = useNavigate();
   // 投影模式：数据来自外部快照，禁止一切写库操作
   const projectionMode = bgData !== undefined;
@@ -1791,6 +1793,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                   onDodgeClick={() => onPanelDodgeClick?.(live)}
                   onDisengageClick={() => onPanelDisengageClick?.(live)}
                   onHideClick={() => onPanelHideClick?.(live)}
+                  onSearchClick={() => onPanelSearchClick?.(live)}
                   onForcedMoveClick={() => onPanelForcedMoveClick?.(live)}
                   onFeatureClick={onPanelFeatureClick ? (feature, poolInfo) => onPanelFeatureClick(live, feature, poolInfo) : undefined}
                   characterOverride={panelCharacters ? panelCharacters[live.id] : undefined}
