@@ -886,6 +886,7 @@ export default function CombatSession() {
     manualAttackRoll, setManualAttackRoll,
     manualDamageType, setManualDamageType,
     manualAttackSource, setManualAttackSource,
+    manualWeaponTraits, setManualWeaponTraits,
     confirmManualRecord,
     cancelManualRecord,
   } = useManualRecord(record, {
@@ -912,6 +913,7 @@ export default function CombatSession() {
     setManualAttackRoll('');
     setManualDamageType('');
     setManualAttackSource('weapon');
+    setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
   };
 
   // 先攻全链路：由 hook 接管（投掷弹窗 / 平局拖拽 / 批量删除 / 圆形序号）。
@@ -3502,6 +3504,8 @@ export default function CombatSession() {
           onDamageTypeChange={setManualDamageType}
           attackSource={manualAttackSource}
           onAttackSourceChange={setManualAttackSource}
+          weaponTraits={manualWeaponTraits}
+          onWeaponTraitsChange={(patch) => setManualWeaponTraits(prev => ({ ...prev, ...patch }))}
           healMethod={manualHealMethod}
           onHealMethodChange={setManualHealMethod}
           healAmount={manualHealAmount}
