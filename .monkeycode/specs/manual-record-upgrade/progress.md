@@ -10,10 +10,10 @@
 - [x] P0-1b 材质判定显式化：魔法/镀银/精金收进折叠「高级选项」，三态（自动/是/否）覆盖文本推断（本分支）
 - [x] P0-2 命中判定接引擎：d20+加值、优劣势两颗骰、自然 1/20、重击标记（已合 main dd5c7cc）
 - [x] P0-3 动作经济细化：动作/附赠/反应/自由四类消耗 + 多重攻击次数归一（本分支）；弹药/装填消耗暂缓（见决策）
-- [ ] P0-4 单条记录撤销 + 历史格写回定位（resolveWriteCell 串列问题）
+- [x] P0-4 历史格写回定位 + 单条记录撤销（本分支）：手动记录按 DM 点选的历史格写回，撤销仅回退该条记录文本/日志
 - [ ] P1 目标多选 AoE、检定/状态/移动/物品模板
 
-当前：P0-3 已完成（动作类型 + 攻击次数），待合并；探针 15 断言全绿。
+当前：P0-4 已完成并待合并；P0 系列全部收口。
 
 ## 已决策
 - 复用 `data/damageRules` 的 `resolveDamage`：手动伤害与自动攻击同一结算入口，弹窗预览与确认落账共用 `data/manualDamage.resolveManualDamage`
@@ -27,16 +27,18 @@
 - 动作经济接 store 现有 API：动作/附赠/反应分别调用 `consumeCombatantAction/BonusAction/Reaction`，自由不消耗；确认前用 `canUseAction/BonusAction/Reaction` 拦截已用尽资源
 - 多重攻击只扣一次资源：次数经 `normalizeManualAttackCount` 归一到 1~10，日志标注「×N（N 击合计）」
 - 弹药/装填消耗暂缓：手动记录没有武器实例引用，强行加弹药选择器会引入半套装备状态；等 P1 引入武器选择后再统一，当前由 DM 在装备面板手动扣减
+- 写回格优先级：DM 点选的历史格（round 有效）> 当前回合；round<0（模拟模式主体选择器）或越界回退当前回合，抽 `lib/combatWriteCell.resolveRecordWriteCell` 纯函数
+- 撤销范围只含记录本身（播放格 rounds/roundsDm 或模拟 operationLog 一条），不回退 HP 与装备变更，避免误伤已结算伤害；切换战斗记录时清空撤销栈
 
 ## 下一步
-1. 合并本分支后开始 P0-4：单条记录撤销栈 + 修 `hooks/combat/useRoundTurn.ts:258 resolveWriteCell` 忽略所选格的问题
-2. P1：武器选择（含弹药/装填自动消耗）、目标多选 AoE、检定/状态/移动/物品模板
+1. P1：武器选择（含弹药/装填自动消耗）、目标多选 AoE、检定/状态/移动/物品模板
+2. P2：结构化日志 payload、常用模板
 
 ## 验证方式
-- 本功能探针：`QUIET=1 node scripts/probes/probe-manual-damage.cjs`（31 断言）、`probe-manual-attack-roll.cjs`（19 断言）、`probe-manual-action-cost.cjs`（15 断言）
+- 本功能探针：`QUIET=1 node scripts/probes/probe-manual-damage.cjs`（31 断言）、`probe-manual-attack-roll.cjs`（19 断言）、`probe-manual-action-cost.cjs`（15 断言）、`probe-manual-write-cell.cjs`（13 断言）
 - 基线回归：regeneration / condition-immunity / breath-weapon / seed-query
 - 构建：`npm run build`
 
 ## 分支与提交
-- 分支：`feature/manual-record-action-cost`（待合并）
-- 关键提交：`feat(combat): 手动记录动作经济（四类消耗+多重攻击次数）`
+- 分支：`feature/manual-record-write-cell`（待合并）
+- 关键提交：`feat(combat): 手动记录写回选中格 + 单条撤销`

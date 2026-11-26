@@ -1,10 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { CombatRecord, Combatant, RoundAction, TurnSnapshot, OperationLogEntry } from '@/types/combat';
 import battlegroundStore from '@/data/battlegroundStore';
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
 import * as snapDb from '@/lib/combatSnapshots';
 import { appendRoundLines } from '@/lib/combatActionSummary';
+import {
+  applyPlaybackUndo,
+  applyLogUndo,
+  buildPlaybackUndoEntry,
+  resolveRecordWriteCell,
+  type RecordUndoEntry,
+} from '@/lib/combatWriteCell';
 
 // 再导出共享类型：stale usePlayback（P4 迁移前）仍从此处 import TurnSnapshot
 export type { TurnSnapshot };
@@ -45,6 +52,15 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     combatantIdx: number;
     firstClickDone: boolean;
   } | null>(null);
+  // ✅ 单条记录撤销：只记录「上一条 recordOperation」写前的目标格/日志快照
+  const lastRecordUndoRef = useRef<RecordUndoEntry | null>(null);
+  const [canUndoLastRecord, setCanUndoLastRecord] = useState(false);
+
+  // 切换战斗记录后清空撤销栈，避免跨场撤销
+  useEffect(() => {
+    lastRecordUndoRef.current = null;
+    setCanUndoLastRecord(false);
+  }, [record?.id]);
 
   // 原内容：完全保留，一个字都没改（单元格编辑逻辑不变）
   const handleCellChange = (roundIndex: number, combatantId: string, value: string) => {
@@ -297,14 +313,54 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
   // 未开始/暂停时写最后一轮），模拟模式写操作日志。跟随 mode 保证「看到的与记下的」一致：
   // 模拟模式 UI 是日志面板，放映模式 UI 是表格（未开始/暂停也显示表格）。
   // （模拟模式无回合概念，rounds 表格无意义；combatantId 可空=全局操作，放映时全局操作不落表格）
-  const recordOperation = (combatantId: string | null, text: string, kind: OperationLogEntry['kind'], detail?: string) => {
+  const recordOperation = (
+    combatantId: string | null,
+    text: string,
+    kind: OperationLogEntry['kind'],
+    detail?: string,
+    writeCellOverride?: { round: number; combatantId: string } | null,
+  ) => {
     if (!record) return;
     if (record.mode === 'playback' && combatantId) {
-      const cell = resolveWriteCell(combatantId);
-      if (cell) appendRoundRecord(cell.round, cell.combatantId, text, detail);
+      // 手动记录可显式指定写回格（DM 点选的历史格），否则落到当前回合；round<0 或越界视为未选中
+      const cell = resolveRecordWriteCell(
+        writeCellOverride,
+        resolveWriteCell(combatantId),
+        record.rounds.length,
+      );
+      if (cell) {
+        lastRecordUndoRef.current = buildPlaybackUndoEntry(record.id, cell, combatStore.get(record.id));
+        setCanUndoLastRecord(true);
+        appendRoundRecord(cell.round, cell.combatantId, text, detail);
+      }
       return;
     }
     combatStore.addOperationLog(record.id, { combatantId: combatantId ?? undefined, kind, text });
+    const latestLog = combatStore.get(record.id)?.operationLog;
+    const lastLog = latestLog?.[latestLog.length - 1];
+    if (lastLog) {
+      lastRecordUndoRef.current = { kind: 'log', recordId: record.id, logId: lastLog.id };
+      setCanUndoLastRecord(true);
+    }
+  };
+
+  // ✅ 撤销上一条记录：仅回退该条记录本身（播放格文本/DM 明细或模拟日志），不回退 HP，避免误伤已结算伤害
+  const undoLastRecord = () => {
+    const entry = lastRecordUndoRef.current;
+    if (!entry) return;
+    const latest = combatStore.get(entry.recordId);
+    if (!latest) { lastRecordUndoRef.current = null; setCanUndoLastRecord(false); return; }
+    if (entry.kind === 'playback') {
+      const { rounds, roundsDm } = applyPlaybackUndo(latest, entry);
+      combatStore.update(entry.recordId, { rounds, roundsDm, updatedAt: Date.now() });
+    } else {
+      combatStore.update(entry.recordId, {
+        operationLog: applyLogUndo(latest, entry.logId),
+        updatedAt: Date.now(),
+      });
+    }
+    lastRecordUndoRef.current = null;
+    setCanUndoLastRecord(false);
   };
 
   // ✅ 拍某回合的快照：记录此回合开始时的 combatants / rounds / 沙盘
@@ -478,6 +534,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     setConfirmEndTurnOpen,
     rewindModal,
     setRewindModal,
+    canUndoLastRecord,
+    undoLastRecord,
     // 函数
     handleCellChange,
     findNextValidTurn,
