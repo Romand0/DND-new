@@ -883,6 +883,8 @@ export default function CombatSession() {
     manualHealMethod, setManualHealMethod,
     manualHealAmount, setManualHealAmount,
     manualAttackRoll, setManualAttackRoll,
+    manualDamageType, setManualDamageType,
+    manualAttackSource, setManualAttackSource,
     confirmManualRecord,
     cancelManualRecord,
   } = useManualRecord(record, {
@@ -907,6 +909,8 @@ export default function CombatSession() {
     setManualHealMethod('');
     setManualHealAmount('');
     setManualAttackRoll('');
+    setManualDamageType('');
+    setManualAttackSource('weapon');
   };
 
   // 先攻全链路：由 hook 接管（投掷弹窗 / 平局拖拽 / 批量删除 / 圆形序号）。
@@ -3484,6 +3488,10 @@ export default function CombatSession() {
           onDamageChange={setManualDamage}
           isKill={manualIsKill}
           onIsKillChange={setManualIsKill}
+          damageType={manualDamageType}
+          onDamageTypeChange={setManualDamageType}
+          attackSource={manualAttackSource}
+          onAttackSourceChange={setManualAttackSource}
           healMethod={manualHealMethod}
           onHealMethodChange={setManualHealMethod}
           healAmount={manualHealAmount}
