@@ -18,7 +18,7 @@ import { applyAttackRiders } from '@/data/attackRiders';
 import { planAoeSave, applyAoeSave, saveBonusFor } from '@/data/aoeSaveEngine';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Bearing } from '@/data/battleGeometry';
-import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
+import { summarizeOp, summarizeOpDetail, appendRoundLines, type SummaryContext } from './combatActionSummary';
 import { resolveSearch } from '@/data/searchRules';
 
 export interface TurnCommitApplyDeps {
@@ -77,6 +77,7 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
   let endTurn = false;
 
   const summaryLines: string[] = [];
+  const detailLines: string[] = [];
   for (const op of ops) {
     const opCtx: SummaryContext = {};
     if (op.kind === 'attack') {
@@ -299,6 +300,13 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         consumeAction(actor.id);
         consumedAction = true;
       }
+      // DM 明细：隐匿总值 + 观察者被动察觉清单（观察者=其余存活参战者；NPC 无角色卡为 —）
+      opCtx.hide = {
+        stealthTotal: op.stealthTotal,
+        observers: record.combatants
+          .filter((o) => o.id !== actor.id && !o.isDead && !o.isUnconscious)
+          .map((o) => ({ name: o.name, pp: o.passiveChecks?.perception })),
+      };
     } else if (op.kind === 'search') {
       // 搜索：察觉检定对抗全图活跃 hidden 实例的隐匿总值（成功解除该实例）。
       // 失败照扣 1 动作（5e 未规定退还）；文案只回「发现/未发现」，不写目标身份。
@@ -313,6 +321,8 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         revealed: resolution.revealed.length,
         skipped: resolution.skipped.length,
         estimated: resolution.revealed.filter((r) => r.estimated).length,
+        hits: resolution.revealed.map((r) => ({ name: r.name, stealthTotal: r.stealthTotal, estimated: r.estimated })),
+        skippedNames: resolution.skipped.map((s) => s.name),
       };
       if (!consumedAction) {
         consumeAction(actor.id);
@@ -447,13 +457,14 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       endTurn = true;
     }
     summaryLines.push(...summarizeOp(op, opCtx));
+    detailLines.push(...summarizeOpDetail(op, opCtx));
   }
 
   // 先推进回合再写表格/装备：advanceTurn 闭包基于旧 state 补新回合行，
   // 本轮文本在其之后写回才不会被旧快照覆盖
   if (endTurn) advanceTurn();
 
-  if (summaryLines.length > 0 || Object.keys(appliedChanges).length > 0) {
+  if (summaryLines.length > 0 || detailLines.length > 0 || Object.keys(appliedChanges).length > 0) {
     const latest = combatStore.get(record.id) ?? record;
     const patch: Partial<CombatRecord> = {};
     if (summaryLines.length > 0) {
@@ -462,6 +473,14 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       const row = rounds[request.round - 1] ?? {};
       rounds[request.round - 1] = { ...row, [actor.id]: appendRoundLines(row[actor.id] ?? '', summaryLines) };
       patch.rounds = rounds;
+    }
+    // DM 明细通道（roundsDm 与 rounds 平行）：与玩家行同格双写，玩家端默认渲染 rounds
+    if (detailLines.length > 0) {
+      const roundsDm = (latest.roundsDm ?? []).map((r) => ({ ...r }));
+      while (roundsDm.length < request.round) roundsDm.push({});
+      const row = roundsDm[request.round - 1] ?? {};
+      roundsDm[request.round - 1] = { ...row, [actor.id]: appendRoundLines(row[actor.id] ?? '', detailLines) };
+      patch.roundsDm = roundsDm;
     }
     if (Object.keys(appliedChanges).length > 0) {
       patch.equipmentChanges = {

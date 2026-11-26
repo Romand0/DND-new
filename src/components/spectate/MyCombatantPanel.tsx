@@ -116,7 +116,17 @@ export function MyCombatantPanel({
             <Sparkles className="w-3 h-3" /> 专注
           </span>
         )}
-        {!c.dead && !c.downed && !c.incapacitated && !c.concentrating && (
+        {/* 自己的 PC 状态全量可见（含躲藏 + 隐匿总值）；透传数据，渲染层自行决定展示 */}
+        {(c.statuses ?? []).map((s) => (
+          <span
+            key={s.definitionId}
+            className="flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-sky-600/15 text-sky-600 dark:text-sky-400"
+          >
+            {s.name}
+            {s.stealthTotal != null && <span className="font-mono">隐匿 {s.stealthTotal}</span>}
+          </span>
+        ))}
+        {!c.dead && !c.downed && !c.incapacitated && !c.concentrating && (c.statuses ?? []).length === 0 && (
           <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted">状态正常</span>
         )}
       </div>

@@ -207,6 +207,21 @@ export default function CombatSession() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [record, setRecord] = useState<CombatRecord | null>(null);
+
+  // DM 明细合并视图：roundsDm 格非空则优先（机器明细），否则回退玩家行；
+  // DM 手动编辑走 handleCellChange 会清对应 roundsDm 格，之后显示回退到玩家行
+  const dmMergedRounds = useMemo(
+    () =>
+      (record?.rounds ?? []).map((row, i) => {
+        const dm = record?.roundsDm?.[i] ?? {};
+        const merged: Record<string, string> = { ...row };
+        for (const [cid, v] of Object.entries(dm)) {
+          if (v && v.trim()) merged[cid] = v;
+        }
+        return merged;
+      }),
+    [record?.rounds, record?.roundsDm],
+  );
   const [editingCell, setEditingCell] = useState<{ round: number; combatantId: string } | null>(null);
   // ✅ 新增：控制角色选择弹窗的显示状态（仅点击按钮触发，不影响加载逻辑）
   const [showCharSelect, setShowCharSelect] = useState(false);
@@ -1738,7 +1753,8 @@ export default function CombatSession() {
       endRound: currentRound0 + 1,
     });
     consumeCombatantAction(c.id);
-    recordOperation(c.id, `躲藏：隐匿总值 ${stealthTotal}（观察者：${dcList || '无'}）`, 'record');
+    // 双通道：玩家行只写「躲藏」（隐匿总值与观察者清单属 DM 明细）
+    recordOperation(c.id, '躲藏', 'record', `躲藏：隐匿总值 ${stealthTotal}（观察者：${dcList || '无'}）`);
     alert(`「${c.name}」进入躲藏（隐匿总值 ${stealthTotal}）。\n\n观察者被动察觉：\n${dcList || '（无观察者）'}\n\n若隐匿总值未超过某观察者被动察觉，该观察者已看破位置（DM 手动移除躲藏状态）`);
   };
 
@@ -1756,10 +1772,13 @@ export default function CombatSession() {
     const resolution = resolveSearch({ searcherId: c.id, total, combatants: record.combatants });
     consumeCombatantAction(c.id);
     const found = resolution.revealed.length;
-    const detail = found > 0 ? `发现 ${found} 名潜伏者` : '未发现目标';
-    const extra = resolution.skipped.length > 0 ? `；${resolution.skipped.length} 名潜伏者未录入隐匿值，需补录` : '';
-    recordOperation(c.id, `搜索：察觉 ${d20}+${bonus}=${total}，${detail}${extra}`, 'record');
-    alert(`「${c.name}」搜索（察觉 ${d20}+${bonus}=${total}）：${detail}${extra}`);
+    // 双通道：玩家行只回数量（不写拆解与目标身份）；DM 明细含掷骰拆解 + 目标名/隐匿值
+    const playerLine = found > 0 ? `搜索：发现 ${found} 名潜伏者` : '搜索：未发现目标';
+    const hitParts = resolution.revealed.map(r => `《${r.name}》隐匿 ${r.stealthTotal}${r.estimated ? '（被动代填）' : ''}`);
+    const skippedParts = resolution.skipped.map(s => `《${s.name}》未录入隐匿值`);
+    const detailParts = [`察觉 ${d20}+${bonus}=${total}`, ...(hitParts.length ? [`发现：${hitParts.join('、')}`] : []), ...(skippedParts.length ? [`跳过：${skippedParts.join('、')}`] : [])];
+    recordOperation(c.id, playerLine, 'record', `搜索：${detailParts.join('；')}`);
+    alert(`「${c.name}」搜索：${detailParts.join('；')}${skippedParts.length ? '（跳过者需补录隐匿值）' : ''}`);
   };
 
   // 一攻揭晓：躲藏者发起攻击（命中/未命中均算）结算后移除 hidden
@@ -2184,7 +2203,7 @@ export default function CombatSession() {
       ) : (
         <InitiativeTable
           combatants={record.combatants}
-          rounds={record.rounds}
+          rounds={dmMergedRounds}
           batchMode={batchMode}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
