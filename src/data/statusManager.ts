@@ -45,6 +45,8 @@ export type StatusManagerWithApply = StatusManager & {
       metadata?: Record<string, any>;
     }
   ): StatusInstance;
+  /** 就地更新实例运行时元数据（如躲藏揭晓后收窄 unseenBy）；触发 'update' 事件 */
+  patchMetadata(instanceId: string, partial: Record<string, any>): StatusInstance | null;
 };
 
 /** 创建新的状态管理器实例（每局战斗或全局各一个） */
@@ -174,6 +176,17 @@ export function createStatusManager(): StatusManagerWithApply {
         });
       }
 
+      return instance;
+    },
+
+    patchMetadata(instanceId: string, partial: Record<string, any>): StatusInstance | null {
+      const instance = store.instances.find(i => i.instanceId === instanceId);
+      if (!instance || !instance.isActive) return null;
+      instance.metadata = { ...instance.metadata, ...partial };
+      const definition = statusLibrary.get(instance.definitionId);
+      if (definition) {
+        emit({ type: 'update', instance, definition, timestamp: Date.now() });
+      }
       return instance;
     },
 

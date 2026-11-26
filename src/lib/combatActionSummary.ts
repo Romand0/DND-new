@@ -23,8 +23,8 @@ export interface SummaryContext {
   /** 躲藏结算结果（DM 明细用） */
   hide?: {
     stealthTotal: number;
-    /** 观察者清单（被动察觉值；无角色卡的 NPC 为 undefined） */
-    observers?: { name: string; pp?: number }[];
+    /** 观察者清单（被动察觉值；无角色卡的 NPC 为 undefined；unseen=本次对抗是否未看破） */
+    observers?: { name: string; pp?: number; unseen?: boolean }[];
   };
 }
 
@@ -116,7 +116,10 @@ export function summarizeOpDetail(op: TurnCommitOp, ctx: SummaryContext = {}): s
       const h = ctx.hide;
       if (!h) return [];
       const lines = [`躲藏：隐匿总值 ${h.stealthTotal}（来源：线下掷骰/DM 录入）`];
-      const observers = (h.observers ?? []).map((o) => `《${o.name}》被动察觉 ${o.pp ?? '—'}`);
+      const observers = (h.observers ?? []).map((o) => {
+        const verdict = o.unseen === true ? '（未察觉）' : o.unseen === false ? '（看破）' : '';
+        return `《${o.name}》被动察觉 ${o.pp ?? '—'}${verdict}`;
+      });
       if (observers.length > 0) lines.push(`观察者：${observers.join('、')}`);
       return lines;
     }

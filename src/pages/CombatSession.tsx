@@ -45,6 +45,7 @@ import { characterStore } from '@/data/characterStore';
 import { derivePcAttacksPerAction } from '@/lib/pcExtraAttack';
 import { deriveSkillCheckBonus } from '@/data/passiveCombatRules';
 import { resolveSearch } from '@/data/searchRules';
+import { collectHideObservers, contestHide } from '@/data/hiddenRules';
 import { optionStore } from '@/data/optionStore';
 import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
@@ -1741,13 +1742,17 @@ export default function CombatSession() {
   const hideFor = (c: Combatant, stealthTotal: number) => {
     if (!ensureCanEnter(c)) return;
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
-    const observers = record.combatants.filter(o => o.id !== c.id && !o.isDead && !o.isUnconscious);
-    const dcList = observers.map(o => `${o.name} 被动察觉 ${o.passiveChecks?.perception ?? 10}`).join('、');
+    const observers = collectHideObservers(record.combatants, c.id);
+    const contest = contestHide(stealthTotal, observers);
+    const unseenSet = new Set(contest.unseenBy);
+    const dcList = observers
+      .map(o => `${o.name} 被动察觉 ${o.pp}${unseenSet.has(o.id) ? '（未察觉）' : '（看破）'}`)
+      .join('、');
     globalStatusManager.applyEffect(c.id, 'hidden', 'combat', record.id, {
       ...(record.mode === 'playback'
         ? { combatMode: 'playback' as const, startRound: currentRound0 }
         : { combatMode: 'simulation' as const }),
-      metadata: { stealthTotal, stealthSource: 'roll' as const },
+      metadata: { stealthTotal, stealthSource: 'roll' as const, unseenBy: contest.unseenBy },
     });
     combatStore.addTurnTodo(record.id, {
       combatantId: c.id,
@@ -1759,7 +1764,12 @@ export default function CombatSession() {
     consumeCombatantAction(c.id);
     // 双通道：玩家行只写「躲藏」（隐匿总值与观察者清单属 DM 明细）
     recordOperation(c.id, '躲藏', 'record', `躲藏：隐匿总值 ${stealthTotal}（观察者：${dcList || '无'}）`);
-    alert(`「${c.name}」进入躲藏（隐匿总值 ${stealthTotal}）。\n\n观察者被动察觉：\n${dcList || '（无观察者）'}\n\n若隐匿总值未超过某观察者被动察觉，该观察者已看破位置（DM 手动移除躲藏状态）`);
+    const verdict = unseenSet.size === 0
+      ? '警告：隐匿总值未超过任何观察者被动察觉，位置已被全部看破（无机械收益）'
+      : contest.seenBy.length === 0
+        ? '全部观察者未察觉位置（对攻击/被攻击的优劣势生效）'
+        : `${unseenSet.size} 名观察者未察觉，${contest.seenBy.length} 名已看破位置`;
+    alert(`「${c.name}」进入躲藏（隐匿总值 ${stealthTotal}）。\n\n${verdict}\n\n观察者被动察觉：\n${dcList || '（无观察者）'}`);
   };
 
   // 基础动作「搜索」：察觉检定对抗全图活跃 hidden 实例的隐匿总值；成功解除该实例。
