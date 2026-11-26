@@ -445,6 +445,8 @@ export interface TurnSnapshot {
   rounds: RoundAction[];
   battleground: any[];
   equipmentChanges?: Record<string, EquipmentChanges>;
+  /** DM 明细表格快照（roundsDm 平行通道，回溯时一并还原） */
+  roundsDm?: RoundAction[];
   /** 法术位消耗漏斗快照（回溯时与装备变更一起还原） */
   spellSlotChanges?: Record<string, Partial<Record<SpellSlotLevel, number>>>;
   /** 特性资源消耗漏斗快照（回溯时与法术位漏斗一起还原） */
@@ -616,6 +618,11 @@ export interface CombatRecord {
   title: string;
   combatants: Combatant[];
   rounds: RoundAction[];
+  /**
+   * DM 明细表格（rounds 的平行通道，稀疏同形状）：含目标名/隐匿值等机密细节，
+   * 只投给 DM 端表格显示；DM 手动编辑格时对应 roundsDm 格清空（机器明细失效）。
+   */
+  roundsDm?: RoundAction[];
   /** 战斗模式：'simulation' 模拟模式（无回合），'playback' 放映模式（有回合） */
   mode?: 'simulation' | 'playback';
   /** 试验场标记：沙盒测试会话（入口一键进入、人偶快速生成、全库调用、仪表盘） */

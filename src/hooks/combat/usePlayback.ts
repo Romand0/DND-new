@@ -77,6 +77,7 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
       const initialSnap: TurnSnapshot = {
         combatants: record.combatants.map(c => ({ ...c })),
         rounds: record.rounds.map(r => ({ ...r })),
+        roundsDm: (record.roundsDm ?? []).map(r => ({ ...r })),
         battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
         zones: (bg?.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })),
         equipmentChanges: latestForSnapshot?.equipmentChanges
@@ -117,6 +118,7 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
         combatStore.update(record.id, {
           combatants: init.combatants.map(c => ({ ...c })),
           rounds: init.rounds.map(r => ({ ...r })),
+          roundsDm: (init.roundsDm ?? []).map(r => ({ ...r })),
           equipmentChanges: init.equipmentChanges
             ? Object.fromEntries(
                 Object.entries(init.equipmentChanges).map(([k, v]) => [
@@ -272,6 +274,7 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
       combatStore.update(record.id, {
         combatants: init.combatants.map(c => ({ ...c })),
         rounds: init.rounds.map(r => ({ ...r })),
+        roundsDm: (init.roundsDm ?? []).map(r => ({ ...r })),
         equipmentChanges: init.equipmentChanges
           ? Object.fromEntries(
               Object.entries(init.equipmentChanges).map(([k, v]) => [

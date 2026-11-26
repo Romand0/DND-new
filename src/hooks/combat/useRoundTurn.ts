@@ -58,6 +58,13 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
       rounds: updatedRounds,
       updatedAt: Date.now(),
     });
+    // DM 手动编辑使机器明细失效：清平行 roundsDm 格（若刚由 appendRoundRecord 写入，随后会重写）
+    const latest = combatStore.get(record.id);
+    if (latest?.roundsDm?.[roundIndex]?.[combatantId]) {
+      const dm = [...latest.roundsDm];
+      dm[roundIndex] = { ...dm[roundIndex], [combatantId]: '' };
+      combatStore.update(record.id, { roundsDm: dm, updatedAt: Date.now() });
+    }
   };
 
   // ✅ 找到下一个有效回合（跳过被突袭/死亡，不跳过昏迷）
@@ -266,21 +273,35 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
   };
 
   // ✅ 写入先攻表格：支持追加（保留已有内容，另起一行）
-  const appendRoundRecord = (round: number, combatantId: string, newLine: string) => {
+  const appendRoundRecord = (round: number, combatantId: string, newLine: string, detail?: string) => {
     if (!record) return;
     const existing = record.rounds[round]?.[combatantId] || '';
     handleCellChange(round, combatantId, appendRoundLines(existing, [newLine]));
+    if (detail) appendRoundsDmLine(round, combatantId, detail);
+  };
+
+  // ✅ DM 明细通道写入（roundsDm 与 rounds 平行稀疏）：从 store 读最新值避免 record state 滞后覆盖
+  const appendRoundsDmLine = (round: number, combatantId: string, detail: string) => {
+    if (!record) return;
+    const latest = combatStore.get(record.id);
+    if (!latest) return;
+    const dm = [...(latest.roundsDm ?? [])];
+    dm[round] = {
+      ...dm[round],
+      [combatantId]: appendRoundLines(dm[round]?.[combatantId] || '', [detail]),
+    };
+    combatStore.update(record.id, { roundsDm: dm, updatedAt: Date.now() });
   };
 
   // ✅ 统一操作记录入口：按 record.mode 分流——放映写先攻表格（resolveWriteCell 内部处理
   // 未开始/暂停时写最后一轮），模拟模式写操作日志。跟随 mode 保证「看到的与记下的」一致：
   // 模拟模式 UI 是日志面板，放映模式 UI 是表格（未开始/暂停也显示表格）。
   // （模拟模式无回合概念，rounds 表格无意义；combatantId 可空=全局操作，放映时全局操作不落表格）
-  const recordOperation = (combatantId: string | null, text: string, kind: OperationLogEntry['kind']) => {
+  const recordOperation = (combatantId: string | null, text: string, kind: OperationLogEntry['kind'], detail?: string) => {
     if (!record) return;
     if (record.mode === 'playback' && combatantId) {
       const cell = resolveWriteCell(combatantId);
-      if (cell) appendRoundRecord(cell.round, cell.combatantId, text);
+      if (cell) appendRoundRecord(cell.round, cell.combatantId, text, detail);
       return;
     }
     combatStore.addOperationLog(record.id, { combatantId: combatantId ?? undefined, kind, text });
@@ -298,6 +319,7 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     const snap: TurnSnapshot = {
       combatants: latest.combatants.map(c => ({ ...c })),
       rounds: latest.rounds.map(r => ({ ...r })),
+      roundsDm: (latest.roundsDm ?? []).map(r => ({ ...r })),
       battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
       zones: (bg?.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })),
       equipmentChanges: latest.equipmentChanges
@@ -396,10 +418,17 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
     });
     // 关键修改：截断到 round + 1，移除当前轮数之后的所有整行（而非仅清空单元格）
     const truncatedRounds = paddedRounds.slice(0, round + 1);
+    // DM 明细通道与 rounds 同步截断（快照时刻的 roundsDm；缺省补空行）
+    const snapRoundsDm = (snap.roundsDm ?? []).map(r => ({ ...r }));
+    const paddedRoundsDm: RoundAction[] = [];
+    for (let r = 0; r < truncatedRounds.length; r++) {
+      paddedRoundsDm.push(snapRoundsDm[r] ?? {});
+    }
     // 3) 应用还原
     combatStore.update(record.id, {
       combatants: restoredCombatants,
       rounds: truncatedRounds,
+      roundsDm: paddedRoundsDm,
       equipmentChanges: snap.equipmentChanges
         ? Object.fromEntries(
             Object.entries(snap.equipmentChanges).map(([k, v]) => [

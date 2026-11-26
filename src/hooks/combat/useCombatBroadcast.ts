@@ -16,8 +16,21 @@ import type { HandSlot } from '@/types/character';
 import { deriveFeatureRole } from '@/data/featureRole';
 import { resolvePoolKey, getPoolCost } from '@/data/featurePool';
 import { spellStore } from '@/data/spellStore';
+import { globalStatusManager } from '@/data/statusManager';
+import statusLibrary from '@/data/statusLibrary';
+import type { RosterStatusEntry } from '@/types/realtime';
 
 const BROADCAST_DEBOUNCE_MS = 300;
+
+/** 参战者活跃状态 → 投影：与 DM 侧 CombatSession 同语义（scope 'combat'）。
+ *  全量透传（含 hidden 的 stealthTotal），玩家端渲染层决定默认可见性。 */
+function projectStatuses(combatantId: string): RosterStatusEntry[] {
+  return globalStatusManager.getActiveStatuses(combatantId, 'combat').map((s) => ({
+    definitionId: s.definitionId,
+    name: statusLibrary.get(s.definitionId)?.name ?? s.definitionId,
+    stealthTotal: typeof s.metadata?.stealthTotal === 'number' ? s.metadata.stealthTotal : undefined,
+  }));
+}
 
 /** 手持槽 → 投影：从战斗背包解析武器名（combatInventory 是装备变更漏斗后的真实背包） */
 function projectHand(record: CombatRecord, c: Combatant, slot: HandSlot | undefined): RosterHandInfo | null {
@@ -181,6 +194,7 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
       spellSlots: projectSpellSlots(record, c),
       activeFeatures: projectActiveFeatures(record, c),
       spells: projectSpells(c),
+      statuses: projectStatuses(c.id),
     };
   });
   const turn = record.playbackState?.started
@@ -202,10 +216,11 @@ export function buildCombatDelta(record: CombatRecord): CombatDeltaPayload {
     board: buildBoardProjection(record),
     // 放映模式是专门投给玩家看的时刻：表格随快照下发；非放映投空（玩家端清空）
     rounds: turn ? (record.rounds ?? []) : [],
+    // DM 明细通道（目标名/隐匿值等）：透传下发，玩家端默认渲染 rounds；DM 手动编辑过的格此通道为空
+    roundsDm: turn ? (record.roundsDm ?? []) : [],
     // 战斗事件流（最近 50 条）：驱动玩家端回合摘要与动画
     events: (record.combatEvents ?? []).slice(-50),
-  };
-}
+  };}
 
 export function useCombatBroadcast(record: CombatRecord | null): {
   connected: boolean;
@@ -267,9 +282,12 @@ export function useCombatBroadcast(record: CombatRecord | null): {
     };
     const unsubCombat = combatStore.subscribe(scheduleFlush);
     const unsubBoard = battlegroundStore.subscribe(scheduleFlush);
+    // 状态实例存内存单例（非 store），不订阅则加/解状态永远推不出 delta
+    const unsubStatus = globalStatusManager.subscribe(scheduleFlush);
     return () => {
       unsubCombat();
       unsubBoard();
+      unsubStatus();
       if (debounceRef.current !== null) {
         clearTimeout(debounceRef.current);
         debounceRef.current = null;
