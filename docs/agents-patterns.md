@@ -234,3 +234,21 @@ getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消�
 - 副手攻击候选由 `buildOffhandAttackCandidates` 按 `bonusActionsAvailable` 过滤，保证附赠动作经济独立生效
 
 **❌ 严禁**：在 `openAttackFor` / `openCastFor` / `dashFor` / `dodgeFor` / `disengageFor` / `hideFor` / 手动记录等入口用动作数 `alert` 拦截。
+
+---
+
+### 5.16 躲藏 per-observer 可见性：`hiddenRules.ts` + `metadata.unseenBy`
+
+**为什么用**：躲藏是「观察者相对」的可见性状态——同一躲藏者可能被甲看破、对乙仍隐蔽。全局单实例的 hidden 只能整例启停，无法承载 5e 中「被动察觉逐个对抗」的粒度。
+
+**模型约定**：
+- hidden 实例 `metadata.unseenBy: string[]` = 无法定位躲藏者的参战者 ID（`hiddenRules.contestHide` 在入账时自动对抗：`stealthTotal >= PP` 即隐藏，平局成立）
+- **缺省 = legacy 语义**：对全员隐藏（老数据零迁移）；感官看破（盲视/真实视觉）始终在消费端另行判定
+- 消费端一律走 `hiddenRules.isHiddenFrom(hiderId, observerId)`，不要自己读 metadata
+- 搜索揭晓是逐观察者的：`resolveSearch` 成功只把搜索者移出 unseenBy，最后一个看破才 `declareEnd`；legacy 实例维持整例解除
+- 就地更新走 `statusManager.patchMetadata`（emit `'update'` 事件，触发广播 flush）
+- 数据透传（君子协定）：投影透传 unseenBy 全集，渲染层按观看者决定幽灵化/徽章文案
+
+**三条 hide 入账路径必须同步**：`CombatSession.hideFor`（DM 直操）/ `turnCommitApply` hide 分支（玩家 op）/ `engines/resourceConvEngine` hide 转换。改一条就要改三条。
+
+**❌ 严禁**：在 `CombatAttackModal` / `CombatSpellModal` 硬编码「hidden → 优劣势」；在搜索/躲藏路径各自手写被动察觉比较（一律 `contestHide`）。
