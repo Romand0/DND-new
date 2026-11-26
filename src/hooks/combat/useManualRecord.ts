@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import combatStore from '@/data/combatStore';
 import { getCombatantAffinities } from '@/data/combatAffinities';
-import { resolveManualDamage, type ManualAttackSource } from '@/data/manualDamage';
+import {
+  resolveManualDamage,
+  type ManualAttackSource,
+  type ManualWeaponTraits,
+} from '@/data/manualDamage';
 import type { CombatRecord, OperationLogEntry } from '@/types/combat';
 import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
 
@@ -38,6 +42,12 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
   const [manualAttackRoll, setManualAttackRoll] = useState('');
   const [manualDamageType, setManualDamageType] = useState('');
   const [manualAttackSource, setManualAttackSource] = useState<ManualAttackSource>('weapon');
+  // 高级选项：武器材质显式指定（null = 按攻击方式自动推断）
+  const [manualWeaponTraits, setManualWeaponTraits] = useState<ManualWeaponTraits>({
+    magical: null,
+    silvered: null,
+    adamantine: null,
+  });
 
   const confirmManualRecord = () => {
     if (!selectedCell || !record) return;
@@ -68,6 +78,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
           damageType: manualDamageType,
           source: manualAttackSource,
           method: manualAttackMethod,
+          weaponTraits: manualWeaponTraits,
           affinities: getCombatantAffinities(target, record.id),
         });
         const dmg = preview.final;
@@ -153,6 +164,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualAttackRoll('');
     setManualDamageType('');
     setManualAttackSource('weapon');
+    setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
     setSelectedCell(null);
   };
 
@@ -168,6 +180,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualAttackRoll('');
     setManualDamageType('');
     setManualAttackSource('weapon');
+    setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
     setSelectedCell(null);
   };
 
@@ -194,6 +207,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualDamageType,
     manualAttackSource,
     setManualAttackSource,
+    manualWeaponTraits,
+    setManualWeaponTraits,
     confirmManualRecord,
     cancelManualRecord,
   };

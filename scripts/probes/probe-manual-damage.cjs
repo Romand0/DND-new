@@ -18,7 +18,7 @@ if (typeof globalThis.localStorage === 'undefined') {
 const jiti = createJiti(__filename, { alias: { '@': path.resolve(__dirname, '../../src') } });
 
 async function main() {
-  const { resolveManualDamage, manualDamageSource } = await jiti.import('@/data/manualDamage');
+  const { resolveManualDamage, manualDamageSource, inferManualWeaponTraits } = await jiti.import('@/data/manualDamage');
   const { parseDamageAffinities } = await jiti.import('@/data/damageRules');
   const { getCombatantAffinities } = await jiti.import('@/data/combatAffinities');
   const { isRegenSuppressedBy } = await jiti.import('@/data/regeneration');
@@ -83,6 +83,33 @@ async function main() {
   check('来源推断：普通武器非魔法', wPlain.kind === 'weapon' && !wPlain.magical, wPlain);
   const eSrc = manualDamageSource('effect', '陷阱');
   check('来源推断：其他效果', eSrc.kind === 'effect', eSrc);
+
+  // ---- 高级选项：材质显式指定覆盖文本推断 ----
+  const autoTraits = inferManualWeaponTraits('魔法镀银长剑');
+  check('自动推断：魔法+镀银', autoTraits.magical === true && autoTraits.silvered === true, autoTraits);
+  const autoNone = inferManualWeaponTraits('长剑');
+  check('自动推断：普通武器无材质', !autoNone.magical && !autoNone.silvered && !autoNone.adamantine, autoNone);
+
+  const overrideOn = manualDamageSource('weapon', '长剑', { magical: true });
+  check('显式指定魔法：覆盖无魔法文本', overrideOn.magical === true, overrideOn);
+  const overrideOff = manualDamageSource('weapon', '魔法长剑', { magical: false });
+  check('显式否定魔法：覆盖魔法文本', overrideOff.magical === false, overrideOff);
+
+  const silveredResist = parseDamageAffinities({ resistances: ['非镀银武器的挥砍伤害'] });
+  const plainVsSilver = resolveManualDamage({ amount: 20, damageType: '挥砍', source: 'weapon', method: '长剑', affinities: silveredResist });
+  check('未镀银：吃非镀银抗性', plainVsSilver.final === 10, plainVsSilver);
+  const silverVsSilver = resolveManualDamage({ amount: 20, damageType: '挥砍', source: 'weapon', method: '长剑', weaponTraits: { silvered: true }, affinities: silveredResist });
+  check('高级选项指定镀银：绕过抗性', silverVsSilver.final === 20, silverVsSilver);
+
+  const magicOverrideResist = resolveManualDamage({
+    amount: 20, damageType: '钝击', source: 'weapon', method: '铁锤',
+    weaponTraits: { magical: true },
+    affinities: parseDamageAffinities({ resistances: ['非魔法武器的伤害'] }),
+  });
+  check('高级选项指定魔法：绕过非魔法抗性', magicOverrideResist.final === 20, magicOverrideResist);
+
+  const spellIgnoresTraits = manualDamageSource('spell', '火球', { magical: false, silvered: true });
+  check('法术来源忽略武器材质选项', spellIgnoresTraits.kind === 'spell' && spellIgnoresTraits.magical === true, spellIgnoresTraits);
 
   // ---- 与参战者亲和快照联动 ----
   const combatant = {

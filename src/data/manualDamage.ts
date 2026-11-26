@@ -20,13 +20,41 @@ import type {
 /** 手动攻击的来源类型：决定「非魔法武器」「法术伤害」等限定词是否命中 */
 export type ManualAttackSource = 'weapon' | 'spell' | 'effect';
 
-export function manualDamageSource(kind: ManualAttackSource, method: string): DamageSource {
+/** 武器材质判定：null/undefined = 按攻击方式自动推断，true/false = DM 在高级选项中显式指定 */
+export interface ManualWeaponTraits {
+  magical?: boolean | null;
+  silvered?: boolean | null;
+  adamantine?: boolean | null;
+}
+
+function withOverride(auto: boolean | undefined, override: boolean | null | undefined): boolean | undefined {
+  return override === true || override === false ? override : auto;
+}
+
+/** 攻击方式文本的自动推断结果（高级选项里展示给 DM，并可被显式指定覆盖） */
+export function inferManualWeaponTraits(method: string): { magical: boolean; silvered: boolean; adamantine: boolean } {
+  const source = inferWeaponDamageSource({ note: method });
+  return {
+    magical: source.magical || (/魔法/.test(method) && !/非魔法/.test(method)),
+    silvered: !!source.silvered,
+    adamantine: !!source.adamantine,
+  };
+}
+
+export function manualDamageSource(
+  kind: ManualAttackSource,
+  method: string,
+  traits?: ManualWeaponTraits | null,
+): DamageSource {
   if (kind === 'spell') return spellDamageSource();
   if (kind === 'effect') return { kind: 'effect' };
-  const source = inferWeaponDamageSource({ note: method });
-  // 手动填写的攻击方式更自由（如「魔法长剑」「+1 长弓」），补一层宽松的魔法判定
-  if (!source.magical && /魔法/.test(method) && !/非魔法/.test(method)) source.magical = true;
-  return source;
+  const auto = inferManualWeaponTraits(method);
+  return {
+    kind: 'weapon',
+    magical: withOverride(auto.magical, traits?.magical),
+    silvered: withOverride(auto.silvered, traits?.silvered),
+    adamantine: withOverride(auto.adamantine, traits?.adamantine),
+  };
 }
 
 export interface ManualDamagePreview {
@@ -45,6 +73,8 @@ export function resolveManualDamage(params: {
   damageType?: string | null;
   source?: ManualAttackSource;
   method?: string;
+  /** 高级选项中的武器材质显式指定（null = 自动推断） */
+  weaponTraits?: ManualWeaponTraits | null;
   affinities?: DamageAffinitySet | null;
 }): ManualDamagePreview {
   const damageType = normalizeDamageType(params.damageType);
@@ -53,7 +83,7 @@ export function resolveManualDamage(params: {
     ? resolveDamage(
         [{ type: damageType, amount }],
         params.affinities ?? null,
-        manualDamageSource(params.source ?? 'weapon', params.method ?? ''),
+        manualDamageSource(params.source ?? 'weapon', params.method ?? '', params.weaponTraits),
       )
     : createUntypedResolution(amount);
 

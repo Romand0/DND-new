@@ -2,7 +2,18 @@ import { X, Swords, Heart, Check } from 'lucide-react';
 import type { Combatant } from '@/types/combat';
 import { DAMAGE_TYPE_OPTIONS } from '@/types/damage';
 import { getCombatantAffinities } from '@/data/combatAffinities';
-import { resolveManualDamage, type ManualAttackSource } from '@/data/manualDamage';
+import {
+  inferManualWeaponTraits,
+  resolveManualDamage,
+  type ManualAttackSource,
+  type ManualWeaponTraits,
+} from '@/data/manualDamage';
+
+const WEAPON_TRAIT_FIELDS = [
+  { key: 'magical', label: '魔法武器' },
+  { key: 'silvered', label: '镀银武器' },
+  { key: 'adamantine', label: '精金武器' },
+] as const;
 
 interface Props {
   open: boolean;
@@ -24,6 +35,8 @@ interface Props {
   onDamageTypeChange: (v: string) => void;
   attackSource: ManualAttackSource;
   onAttackSourceChange: (v: ManualAttackSource) => void;
+  weaponTraits: ManualWeaponTraits;
+  onWeaponTraitsChange: (patch: Partial<ManualWeaponTraits>) => void;
   healMethod: string;
   onHealMethodChange: (v: string) => void;
   healAmount: string;
@@ -43,6 +56,7 @@ export default function ManualRecordDialog(props: Props) {
     attackRoll, onAttackRollChange,
     damage, onDamageChange, isKill, onIsKillChange,
     damageType, onDamageTypeChange, attackSource, onAttackSourceChange,
+    weaponTraits, onWeaponTraitsChange,
     healMethod, onHealMethodChange, healAmount, onHealAmountChange,
     getEffectiveAc, getInitiativeCircle,
     onConfirm, onCancel,
@@ -52,6 +66,12 @@ export default function ManualRecordDialog(props: Props) {
 
   const attacker = combatants.find(x => x.id === attackerId) || null;
   const selectedTarget = combatants.find(x => x.id === targetId) || null;
+  const autoTraits = inferManualWeaponTraits(attackMethod);
+  const autoTraitLabel = [
+    autoTraits.magical ? '魔法' : '',
+    autoTraits.silvered ? '镀银' : '',
+    autoTraits.adamantine ? '精金' : '',
+  ].filter(Boolean).join(' / ');
   // 与确认落账共用同一结算函数：抗性/易伤/免疫实时预览
   const damagePreview = (() => {
     const amount = parseInt(damage, 10) || 0;
@@ -61,6 +81,7 @@ export default function ManualRecordDialog(props: Props) {
       damageType,
       source: attackSource,
       method: attackMethod,
+      weaponTraits,
       affinities: getCombatantAffinities(selectedTarget),
     });
   })();
@@ -200,6 +221,39 @@ export default function ManualRecordDialog(props: Props) {
                 </select>
               </div>
             </div>
+
+            {/* 高级选项：武器材质宽松判定显式化（默认折叠） */}
+            <details className="rounded-lg border dark:border-border-dark light:border-border-light">
+              <summary className="px-3 py-2 text-xs font-medium cursor-pointer select-none dark:text-text-dark light:text-text-light">
+                高级选项（武器材质判定）
+                <span className="ml-1 font-normal opacity-60">
+                  {attackSource === 'weapon' && autoTraitLabel ? `自动：${autoTraitLabel}` : '默认自动'}
+                </span>
+              </summary>
+              <div className="px-3 pb-3 space-y-2">
+                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  仅武器来源生效；显式指定优先于攻击方式文本（如「魔法长剑」）。
+                </div>
+                {WEAPON_TRAIT_FIELDS.map((field) => (
+                  <div key={field.key} className="flex items-center justify-between gap-2">
+                    <span className="text-xs dark:text-text-dark light:text-text-light">{field.label}</span>
+                    <select
+                      value={weaponTraits[field.key] === true ? 'true' : weaponTraits[field.key] === false ? 'false' : ''}
+                      disabled={attackSource !== 'weapon'}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        onWeaponTraitsChange({ [field.key]: v === '' ? null : v === 'true' } as Partial<ManualWeaponTraits>);
+                      }}
+                      className="w-28 px-2 py-1.5 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-xs outline-none focus:border-primary disabled:opacity-40"
+                    >
+                      <option value="">自动</option>
+                      <option value="true">是</option>
+                      <option value="false">否</option>
+                    </select>
+                  </div>
+                ))}
+              </div>
+            </details>
 
             {/* 伤害（根据攻击检定自动判定命中后显示） */}
             {targetId && attackRoll && (() => {
@@ -382,6 +436,7 @@ export default function ManualRecordDialog(props: Props) {
               onIsKillChange(false);
               onDamageTypeChange('');
               onAttackSourceChange('weapon');
+              onWeaponTraitsChange({ magical: null, silvered: null, adamantine: null });
             }}
             className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
               recordType === 'attack'
