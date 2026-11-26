@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import combatStore from '@/data/combatStore';
+import { getCombatantAffinities } from '@/data/combatAffinities';
+import { resolveManualDamage, type ManualAttackSource } from '@/data/manualDamage';
 import type { CombatRecord, OperationLogEntry } from '@/types/combat';
 import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
 
@@ -34,6 +36,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
   const [manualHealMethod, setManualHealMethod] = useState('');
   const [manualHealAmount, setManualHealAmount] = useState('');
   const [manualAttackRoll, setManualAttackRoll] = useState('');
+  const [manualDamageType, setManualDamageType] = useState('');
+  const [manualAttackSource, setManualAttackSource] = useState<ManualAttackSource>('weapon');
 
   const confirmManualRecord = () => {
     if (!selectedCell || !record) return;
@@ -56,18 +60,32 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       if (!hit) {
         text = `《${manualAttackMethod}》→ ${target.name}：未命中`;
       } else {
-        const dmg = parseInt(manualDamage, 10);
-        if (isNaN(dmg) || dmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
+        const rawDmg = parseInt(manualDamage, 10);
+        if (isNaN(rawDmg) || rawDmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
+        // 抗性/易伤/免疫与自动攻击链共用同一引擎；未声明类型时原样通过
+        const preview = resolveManualDamage({
+          amount: rawDmg,
+          damageType: manualDamageType,
+          source: manualAttackSource,
+          method: manualAttackMethod,
+          affinities: getCombatantAffinities(target, record.id),
+        });
+        const dmg = preview.final;
+        const typeLabel = preview.damageType ?? '';
         kind = 'damage';
-        text = `《${manualAttackMethod}》→ ${target.name}：【${dmg}】伤害`;
+        text = `《${manualAttackMethod}》→ ${target.name}：【${dmg}】${typeLabel}伤害`;
+        if (preview.breakdown) text += `（${preview.breakdown}）`;
+        else if (!preview.damageType) text += '（未声明伤害类型，未应用抗性）';
         if (target.currentHp !== undefined) {
           const oldHp = target.currentHp;
           const tempHp = Math.max(0, target.tempHp ?? 0);
-          const status: 'unconscious' | 'dead' | undefined = manualIsKill
+          // 免疫/0 伤害不致死：击倒勾选仅在最终伤害 > 0 时生效
+          const lethal = manualIsKill && dmg > 0;
+          const status: 'unconscious' | 'dead' | undefined = lethal
             ? (target.isPc ? 'unconscious' : 'dead')
             : undefined;
           // 手动击倒优先于临时 HP：补足穿透伤害确保 HP 归零
-          const amount = manualIsKill ? Math.max(dmg, oldHp + tempHp) : dmg;
+          const amount = lethal ? Math.max(dmg, oldHp + tempHp) : dmg;
           const result = handleApplyDamage({
             targetId: target.id,
             amount,
@@ -75,11 +93,13 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
             sourceId: attacker?.id,
             sourceName: manualAttackMethod,
             sourceKind: 'manual',
+            damageType: preview.damageType ?? undefined,
           });
           const newHp = result?.newHp ?? Math.max(0, oldHp - dmg);
           text += `，HP【${oldHp}→${newHp}】`;
           if (result?.tempAbsorbed) text += `，临时HP吸收${result.tempAbsorbed}`;
-          if (manualIsKill) text += target.isPc ? `，击昏` : `，杀死`;
+          if (lethal) text += target.isPc ? `，击昏` : `，杀死`;
+          else if (manualIsKill) text += '，免疫该伤害，击倒未生效';
         } else if (manualIsKill) {
           alert('目标缺少当前 HP，无法判定击倒');
           return;
@@ -131,6 +151,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualHealMethod('');
     setManualHealAmount('');
     setManualAttackRoll('');
+    setManualDamageType('');
+    setManualAttackSource('weapon');
     setSelectedCell(null);
   };
 
@@ -144,6 +166,8 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualHealMethod('');
     setManualHealAmount('');
     setManualAttackRoll('');
+    setManualDamageType('');
+    setManualAttackSource('weapon');
     setSelectedCell(null);
   };
 
@@ -166,6 +190,10 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualHealAmount,
     manualAttackRoll,
     setManualAttackRoll,
+    manualDamageType,
+    setManualDamageType,
+    manualAttackSource,
+    setManualAttackSource,
     confirmManualRecord,
     cancelManualRecord,
   };

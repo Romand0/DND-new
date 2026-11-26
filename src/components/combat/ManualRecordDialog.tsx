@@ -1,5 +1,8 @@
 import { X, Swords, Heart, Check } from 'lucide-react';
 import type { Combatant } from '@/types/combat';
+import { DAMAGE_TYPE_OPTIONS } from '@/types/damage';
+import { getCombatantAffinities } from '@/data/combatAffinities';
+import { resolveManualDamage, type ManualAttackSource } from '@/data/manualDamage';
 
 interface Props {
   open: boolean;
@@ -17,6 +20,10 @@ interface Props {
   onDamageChange: (v: string) => void;
   isKill: boolean;
   onIsKillChange: (v: boolean) => void;
+  damageType: string;
+  onDamageTypeChange: (v: string) => void;
+  attackSource: ManualAttackSource;
+  onAttackSourceChange: (v: ManualAttackSource) => void;
   healMethod: string;
   onHealMethodChange: (v: string) => void;
   healAmount: string;
@@ -35,6 +42,7 @@ export default function ManualRecordDialog(props: Props) {
     attackMethod, onAttackMethodChange,
     attackRoll, onAttackRollChange,
     damage, onDamageChange, isKill, onIsKillChange,
+    damageType, onDamageTypeChange, attackSource, onAttackSourceChange,
     healMethod, onHealMethodChange, healAmount, onHealAmountChange,
     getEffectiveAc, getInitiativeCircle,
     onConfirm, onCancel,
@@ -43,6 +51,19 @@ export default function ManualRecordDialog(props: Props) {
   if (!open || !recordType) return null;
 
   const attacker = combatants.find(x => x.id === attackerId) || null;
+  const selectedTarget = combatants.find(x => x.id === targetId) || null;
+  // 与确认落账共用同一结算函数：抗性/易伤/免疫实时预览
+  const damagePreview = (() => {
+    const amount = parseInt(damage, 10) || 0;
+    if (!selectedTarget || amount <= 0) return null;
+    return resolveManualDamage({
+      amount,
+      damageType,
+      source: attackSource,
+      method: attackMethod,
+      affinities: getCombatantAffinities(selectedTarget),
+    });
+  })();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -145,6 +166,41 @@ export default function ManualRecordDialog(props: Props) {
               />
             </div>
 
+            {/* 伤害来源与类型：决定抗性/易伤/免疫是否生效 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                  伤害来源
+                </label>
+                <select
+                  value={attackSource}
+                  onChange={(e) => onAttackSourceChange(e.target.value as ManualAttackSource)}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                >
+                  <option value="weapon">武器</option>
+                  <option value="spell">法术</option>
+                  <option value="effect">其他效果</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                  伤害类型
+                </label>
+                <select
+                  value={damageType}
+                  onChange={(e) => onDamageTypeChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                >
+                  <option value="">未声明（不应用抗性）</option>
+                  {DAMAGE_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {/* 伤害（根据攻击检定自动判定命中后显示） */}
             {targetId && attackRoll && (() => {
               const tgt = combatants.find(c => c.id === targetId);
@@ -174,14 +230,19 @@ export default function ManualRecordDialog(props: Props) {
                       className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
                       placeholder="例如：15"
                     />
+                    {damagePreview && (damagePreview.breakdown || !damagePreview.damageType) && (
+                      <div className={`mt-1 text-xs font-medium ${damagePreview.resolution.anyImmune ? 'text-gray-500 dark:text-gray-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                        {damagePreview.breakdown || '未声明伤害类型，不应用抗性'}
+                      </div>
+                    )}
                   </div>
 
                   {/* 干掉目标 */}
                   {targetId && (() => {
                     const target = combatants.find(c => c.id === targetId);
                     if (!target || target.currentHp === undefined) return null;
-                    const dmg = parseInt(damage, 10) || 0;
-                    const willKill = dmg > 0 && dmg >= (target.currentHp ?? 0);
+                    const finalDmg = damagePreview?.final ?? (parseInt(damage, 10) || 0);
+                    const willKill = finalDmg > 0 && finalDmg >= (target.currentHp ?? 0);
                     if (!willKill) return null;
                     return (
                       <label className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/30 cursor-pointer mt-3">
@@ -216,9 +277,12 @@ export default function ManualRecordDialog(props: Props) {
               if (autoHit === false) {
                 preview = `对 ${target.name} 的攻击未命中，${attackMethod || '???'}打偏了`;
               } else if (autoHit === true) {
-                const dmg = parseInt(damage, 10) || 0;
-                preview = `对 ${target.name} 的攻击命中，用${attackMethod || '???'}造成${dmg}点伤害`;
-                if (isKill) preview += target.isPc ? `，将其击昏` : `，将其杀死`;
+                const rawDmg = parseInt(damage, 10) || 0;
+                const dmg = damagePreview?.final ?? rawDmg;
+                const typeLabel = damagePreview?.damageType ? `${damagePreview.damageType}` : '';
+                preview = `对 ${target.name} 的攻击命中，用${attackMethod || '???'}造成${dmg}点${typeLabel}伤害`;
+                if (damagePreview?.breakdown) preview += `（${damagePreview.breakdown}）`;
+                if (isKill && dmg > 0) preview += target.isPc ? `，将其击昏` : `，将其杀死`;
               } else {
                 preview = '请先填写攻击检定值';
               }
@@ -316,6 +380,8 @@ export default function ManualRecordDialog(props: Props) {
               onAttackMethodChange('');
               onDamageChange('');
               onIsKillChange(false);
+              onDamageTypeChange('');
+              onAttackSourceChange('weapon');
             }}
             className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
               recordType === 'attack'
