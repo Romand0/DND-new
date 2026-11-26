@@ -6,7 +6,8 @@ import {
   type ManualAttackSource,
   type ManualWeaponTraits,
 } from '@/data/manualDamage';
-import type { CombatRecord, OperationLogEntry } from '@/types/combat';
+import { formatManualRollSummary, resolveManualAttackRoll } from '@/data/manualAttack';
+import type { CombatRecord, ManualMode, OperationLogEntry } from '@/types/combat';
 import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
 
 // 手动攻击方式是自由文本，按关键词启发式判定远程（只影响观众端动画形态：飞矢 vs 冲刺）
@@ -39,7 +40,11 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
   const [manualIsKill, setManualIsKill] = useState(false);
   const [manualHealMethod, setManualHealMethod] = useState('');
   const [manualHealAmount, setManualHealAmount] = useState('');
-  const [manualAttackRoll, setManualAttackRoll] = useState('');
+  const [manualD20, setManualD20] = useState('');
+  const [manualD20Second, setManualD20Second] = useState('');
+  const [manualAttackBonus, setManualAttackBonus] = useState('0');
+  const [manualRollMode, setManualRollMode] = useState<ManualMode>('none');
+  const [manualCrit, setManualCrit] = useState(false);
   const [manualDamageType, setManualDamageType] = useState('');
   const [manualAttackSource, setManualAttackSource] = useState<ManualAttackSource>('weapon');
   // 高级选项：武器材质显式指定（null = 按攻击方式自动推断）
@@ -59,16 +64,30 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       // 入口只做输入校验；动作经济在记录落账时消费（DM 手动记录允许补录/裁定）
       if (!manualAttackMethod.trim()) { alert('请填写攻击方式'); return; }
       if (!target) { alert('请选择目标'); return; }
-      if (!manualAttackRoll) { alert('请填写攻击检定值'); return; }
-      const roll = parseInt(manualAttackRoll, 10);
-      if (isNaN(roll)) { alert('攻击检定值必须是数字'); return; }
+      const dice = [parseInt(manualD20, 10)];
+      if (manualRollMode !== 'none') dice.push(parseInt(manualD20Second, 10));
+      if (dice.some(n => isNaN(n) || n < 1 || n > 20)) {
+        alert(manualRollMode === 'none' ? 'd20 骰值需为 1-20 的整数' : '请填写两颗 d20 骰值（均为 1-20）');
+        return;
+      }
+      const bonus = manualAttackBonus.trim() === '' ? 0 : parseInt(manualAttackBonus, 10);
+      if (isNaN(bonus)) { alert('攻击加值必须是整数'); return; }
       const tgtAc = getEffectiveAc(target);
       if (!tgtAc && tgtAc !== 0) { alert('目标缺少 AC，无法判定命中'); return; }
-      const hit = roll >= tgtAc;
+      const rollInfo = resolveManualAttackRoll({
+        d20: dice,
+        bonus,
+        ac: tgtAc,
+        mode: manualRollMode,
+        forceCrit: manualCrit,
+      });
+      const rollDetail = formatManualRollSummary({ d20: dice, bonus, mode: manualRollMode }, rollInfo);
+      const hit = rollInfo.hit;
       let text = '';
       let kind: OperationLogEntry['kind'] = 'attack';
       if (!hit) {
-        text = `《${manualAttackMethod}》→ ${target.name}：未命中`;
+        text = `《${manualAttackMethod}》→ ${target.name}：未命中（${rollDetail} vs AC【${tgtAc}】）`;
+        if (rollInfo.isNatural1) text += '（自然1 必失）';
       } else {
         const rawDmg = parseInt(manualDamage, 10);
         if (isNaN(rawDmg) || rawDmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
@@ -84,7 +103,9 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         const dmg = preview.final;
         const typeLabel = preview.damageType ?? '';
         kind = 'damage';
-        text = `《${manualAttackMethod}》→ ${target.name}：【${dmg}】${typeLabel}伤害`;
+        text = `《${manualAttackMethod}》→ ${target.name}：命中（${rollDetail} vs AC【${tgtAc}】）`;
+        if (rollInfo.critical) text += '（重击）';
+        text += `，【${dmg}】${typeLabel}伤害`;
         if (preview.breakdown) text += `（${preview.breakdown}）`;
         else if (!preview.damageType) text += '（未声明伤害类型，未应用抗性）';
         if (target.currentHp !== undefined) {
@@ -124,6 +145,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         targetId: target.id,
         ranged: RANGED_HINT.test(manualAttackMethod),
         hit,
+        critical: rollInfo.critical,
         weaponName: manualAttackMethod,
         text,
       });
@@ -161,7 +183,11 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualIsKill(false);
     setManualHealMethod('');
     setManualHealAmount('');
-    setManualAttackRoll('');
+    setManualD20('');
+    setManualD20Second('');
+    setManualAttackBonus('0');
+    setManualRollMode('none');
+    setManualCrit(false);
     setManualDamageType('');
     setManualAttackSource('weapon');
     setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
@@ -177,7 +203,11 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualIsKill(false);
     setManualHealMethod('');
     setManualHealAmount('');
-    setManualAttackRoll('');
+    setManualD20('');
+    setManualD20Second('');
+    setManualAttackBonus('0');
+    setManualRollMode('none');
+    setManualCrit(false);
     setManualDamageType('');
     setManualAttackSource('weapon');
     setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
@@ -201,8 +231,16 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     setManualHealMethod,
     manualHealAmount,
     setManualHealAmount,
-    manualAttackRoll,
-    setManualAttackRoll,
+    manualD20,
+    setManualD20,
+    manualD20Second,
+    setManualD20Second,
+    manualAttackBonus,
+    setManualAttackBonus,
+    manualRollMode,
+    setManualRollMode,
+    manualCrit,
+    setManualCrit,
     manualDamageType,
     setManualDamageType,
     manualAttackSource,

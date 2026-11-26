@@ -883,7 +883,11 @@ export default function CombatSession() {
     manualIsKill, setManualIsKill,
     manualHealMethod, setManualHealMethod,
     manualHealAmount, setManualHealAmount,
-    manualAttackRoll, setManualAttackRoll,
+    manualD20, setManualD20,
+    manualD20Second, setManualD20Second,
+    manualAttackBonus, setManualAttackBonus,
+    manualRollMode, setManualRollMode,
+    manualCrit, setManualCrit,
     manualDamageType, setManualDamageType,
     manualAttackSource, setManualAttackSource,
     manualWeaponTraits, setManualWeaponTraits,
@@ -910,7 +914,11 @@ export default function CombatSession() {
     setManualIsKill(false);
     setManualHealMethod('');
     setManualHealAmount('');
-    setManualAttackRoll('');
+    setManualD20('');
+    setManualD20Second('');
+    setManualAttackBonus('0');
+    setManualRollMode('none');
+    setManualCrit(false);
     setManualDamageType('');
     setManualAttackSource('weapon');
     setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
@@ -3494,8 +3502,16 @@ export default function CombatSession() {
           onTargetIdChange={setManualTargetId}
           attackMethod={manualAttackMethod}
           onAttackMethodChange={setManualAttackMethod}
-          attackRoll={manualAttackRoll}
-          onAttackRollChange={setManualAttackRoll}
+          attackD20={manualD20}
+          onAttackD20Change={setManualD20}
+          attackD20Second={manualD20Second}
+          onAttackD20SecondChange={setManualD20Second}
+          attackBonus={manualAttackBonus}
+          onAttackBonusChange={setManualAttackBonus}
+          rollMode={manualRollMode}
+          onRollModeChange={setManualRollMode}
+          crit={manualCrit}
+          onCritChange={setManualCrit}
           damage={manualDamage}
           onDamageChange={setManualDamage}
           isKill={manualIsKill}
