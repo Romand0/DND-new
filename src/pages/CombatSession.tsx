@@ -403,6 +403,8 @@ export default function CombatSession() {
     setConfirmEndTurnOpen,
     rewindModal,
     setRewindModal,
+    canUndoLastRecord,
+    undoLastRecord,
     handleCellChange,
     findNextValidTurn,
     checkAndAutoAdvance,
@@ -810,7 +812,8 @@ export default function CombatSession() {
   // recordOperation 依赖 useRoundTurn 已返回；applyDamage 走统一伤害入口。
   const { handleTokenMoved, resolveEndTurnZone, expireZonesForRound } = useZoneEffects(record, {
     applyDamage: handleApplyDamage,
-    recordOperation: (combatantId, text, kind) => recordOperation(combatantId, text, kind),
+    recordOperation: (combatantId, text, kind, detail?, writeCellOverride?) =>
+      recordOperation(combatantId, text, kind, detail, writeCellOverride),
   });
 
   // 沙盘变更信号：棋子移动只写 battlegroundStore，不经过 combatStore，
@@ -913,7 +916,8 @@ export default function CombatSession() {
   });
 
   // 手动记录入口：重置全部字段后打开弹窗（表格两处调用 + 沙盘共用同一重置序列）
-  const openManualRecord = () => {
+  const openManualRecord = (round?: number, combatantId?: string) => {
+    if (round !== undefined && combatantId) setSelectedCell({ round, combatantId });
     setManualRecordType('attack');
     setManualRecordOpen(true);
     setManualTargetId('');
@@ -2029,6 +2033,21 @@ export default function CombatSession() {
               创建NPC
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ✅ 单条记录撤销：仅回退上一条手动记录文本/日志，不回退 HP */}
+      {canUndoLastRecord && (
+        <div className="fixed bottom-4 right-4 z-40">
+          <button
+            type="button"
+            onClick={undoLastRecord}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-600 text-white text-sm shadow-lg hover:bg-amber-700 transition-colors"
+            title="撤销上一条记录（仅回退记录文本，不回退生命值）"
+          >
+            <Undo2 className="w-4 h-4" />
+            撤销上一条
+          </button>
         </div>
       )}
 

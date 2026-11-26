@@ -30,7 +30,13 @@ export interface UseManualRecordProps {
   handleApplyDamage: (event: DamageApplication) => DamageApplyResult | null;
   handleApplyHealing: (targetId: string, amount: number) => HealApplyResult | null;
   /** 统一记录入口（放映写表格 / 模拟写日志） */
-  recordOperation: (combatantId: string | null, text: string, kind: OperationLogEntry['kind']) => void;
+  recordOperation: (
+    combatantId: string | null,
+    text: string,
+    kind: OperationLogEntry['kind'],
+    detail?: string,
+    writeCellOverride?: { round: number; combatantId: string } | null,
+  ) => void;
 }
 
 export function useManualRecord(record: CombatRecord | null, props: UseManualRecordProps) {
@@ -167,7 +173,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         weaponName: manualAttackMethod,
         text,
       });
-      recordOperation(combatantId, text, kind);
+      recordOperation(combatantId, text, kind, undefined, selectedCell);
       if (manualActionCost === 'action') consumeCombatantAction(combatantId);
       else if (manualActionCost === 'bonus') consumeCombatantBonusAction(combatantId);
       else if (manualActionCost === 'reaction') consumeCombatantReaction(combatantId);
@@ -198,7 +204,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
       if (manualActionCost === 'bonus') text += '（附赠动作）';
       else if (manualActionCost === 'reaction') text += '（反应）';
       else if (manualActionCost === 'action') text += '（动作）';
-      recordOperation(combatantId, text, 'heal');
+      recordOperation(combatantId, text, 'heal', undefined, selectedCell);
       if (manualActionCost === 'action') consumeCombatantAction(combatantId);
       else if (manualActionCost === 'bonus') consumeCombatantBonusAction(combatantId);
       else if (manualActionCost === 'reaction') consumeCombatantReaction(combatantId);
