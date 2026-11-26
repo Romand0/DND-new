@@ -12,9 +12,9 @@
 - [x] P3 双端入口（CombatantInfoPanel/Battleground/CombatSession/MyTurnPanel/PlayerSpectate）
 - [x] P4 探针（probe-search.cjs 20 断言全绿）
 - [x] P5 构建验证（tsc + build 通过）
-- [ ] P6 合并 main + 推送
+- [x] P6 合并 main + 推送（30bd2b9）
 
-当前：P6 待合并。
+当前：已完成（main 30bd2b9）。
 
 ## 已决策
 - 只做搜人（hidden 实例对抗），搜物留给 DM 检定请求
