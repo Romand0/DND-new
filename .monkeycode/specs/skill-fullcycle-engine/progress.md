@@ -322,3 +322,9 @@
 - P6-3 register 通道：格挡（reaction damage_modifier）/ 精准（checkModifier attack）/ 重整旗鼓（heal tempHp）
 - 提取管道 options 采集线（extract-features-batch.mjs collectTraits 扩 options 遍历）——报告侧
 - 遗留：no_reactions 状态在玩家端申报表单/状态卡片的可见性文案（现仅 DM 端生效）
+
+## 版本收束（2026-11-27，内测 v0.8 交付）
+
+- v0.8 收束范围：P0-P6 已交付部分全部合入 main（最新 `91a907b`），收敛目标「技能引擎全套」按已交付口径达成。
+- 顺延 v0.9：P6-3 register 通道（格挡 reaction damage_modifier / 精准 checkModifier attack / 重整旗鼓 heal tempHp）+ 提取管道 options 采集线；no_reactions 玩家端可见性文案。
+- 收束基线探针：p6/active-skills/passive2/reaction 全绿，随 v0.8 验收记录见 `docs/内测版本沿革.md`。
