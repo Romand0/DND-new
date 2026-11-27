@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Grid3x3, Pencil, Eraser, Hand, Flame, Sun, Moon, MoonStar } from 'lucide-react';
+import { Grid3x3, Pencil, Eraser, Hand, Flame, Sun, Moon, MoonStar, Undo2 } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import combatStore from '@/data/combatStore';
 import { GRID_PRESETS, ZONE_PRESETS, LIGHT_LABELS, LIGHT_OVERLAY } from '@/types/battleground';
@@ -10,16 +10,27 @@ import { useNumberInput } from '@/hooks/useInput';
 
 type Tool = 'brush' | 'eraser' | 'hand';
 
-/** 画笔对象：边界墙（涂白）、某类地形区域，或三档光照标注 */
-type PaintMode = 'wall' | ZoneType | `light:${LightTier}`;
+/** 画笔对象：边界墙（涂白）、某类地形区域，或光照标注（明亮=无标注，故只画笔微光/黑暗） */
+type PaintMode = 'wall' | ZoneType | 'light:dim' | 'light:darkness';
 
 const LIGHT_TIERS: LightTier[] = ['bright', 'dim', 'darkness'];
+const LIGHT_BRUSH_TIERS: ('dim' | 'darkness')[] = ['dim', 'darkness'];
 const LIGHT_ICONS: Record<LightTier, typeof Sun> = { bright: Sun, dim: Moon, darkness: MoonStar };
 
 /** 是否是光照画笔（光照标注从战斗沙盘移入绘图模式） */
-function isLightMode(m: PaintMode): m is `light:${LightTier}` {
+function isLightMode(m: PaintMode): m is 'light:dim' | 'light:darkness' {
   return m.startsWith('light:');
 }
+
+/** 绘图草稿快照：撤销以「一次画笔/一次环境切换」为粒度整体回滚 */
+interface DraftSnapshot {
+  cells: string[];
+  light: Record<LightTier, string[]>;
+  zones: BattlegroundZone[];
+  ambient: LightTier;
+}
+
+const UNDO_LIMIT = 50;
 
 /** 绘图模式创建的区域统一标记，保存时只替换这一批，保留法术生成的其他区域 */
 const BRUSH_SOURCE = '绘图';
@@ -59,6 +70,9 @@ export default function BattlegroundEditor() {
 
   // 保存成功提示
   const [savedFlash, setSavedFlash] = useState(false);
+
+  // 画笔撤销栈：每次起笔/切换环境前压入快照，撤销整体回滚到该步之前
+  const [undoStack, setUndoStack] = useState<DraftSnapshot[]>([]);
 
   // 网格数据
   const [bg, setBg] = useState<BG | null>(null);
@@ -177,6 +191,36 @@ export default function BattlegroundEditor() {
   /** 当前画笔的区域预设（自定义时用表单值覆盖伤害与时长） */
   const activeZonePreset = paintMode === 'wall' || isLightMode(paintMode) ? null : ZONE_PRESETS[paintMode];
 
+  /** 压入一次快照（起笔、切换环境前调用），上限 UNDO_LIMIT 步 */
+  const pushUndo = () => {
+    const snap: DraftSnapshot = {
+      cells: [...draftCells],
+      light: {
+        bright: [...draftLight.bright],
+        dim: [...draftLight.dim],
+        darkness: [...draftLight.darkness],
+      },
+      zones: draftZones.map(z => ({ ...z, cells: [...z.cells] })),
+      ambient: draftAmbient,
+    };
+    setUndoStack(prev => [...prev.slice(-(UNDO_LIMIT - 1)), snap]);
+  };
+
+  /** 撤销一步：整体回滚到最近一次快照 */
+  const undoLastPaint = () => {
+    if (undoStack.length === 0) return;
+    const snap = undoStack[undoStack.length - 1];
+    setDraftCells(new Set(snap.cells));
+    setDraftLight({
+      bright: new Set(snap.light.bright),
+      dim: new Set(snap.light.dim),
+      darkness: new Set(snap.light.darkness),
+    });
+    setDraftZones(snap.zones);
+    setDraftAmbient(snap.ambient);
+    setUndoStack(prev => prev.slice(0, -1));
+  };
+
   const applyPaint = (key: string, mode: 'paint' | 'erase') => {
     if (isLightMode(paintMode)) {
       const tier = paintMode.slice('light:'.length) as LightTier;
@@ -242,17 +286,11 @@ export default function BattlegroundEditor() {
     });
   };
 
-  /** 全局填充：整张地图一次写满某档光照（null = 清空全部光照格） */
-  const fillAllLight = (tier: LightTier | null) => {
-    const all = new Set<string>();
-    for (let c = 0; c < preset.cols; c++) {
-      for (let r = 0; r < preset.rows; r++) all.add(`${c},${r}`);
-    }
-    setDraftLight({
-      bright: tier === 'bright' ? all : new Set(),
-      dim: tier === 'dim' ? all : new Set(),
-      darkness: tier === 'darkness' ? all : new Set(),
-    });
+  /** 全图环境档位：设置默认光照并清空单格标注（环境=全图，画笔=单格覆盖） */
+  const changeAmbient = (tier: LightTier) => {
+    pushUndo();
+    setDraftAmbient(tier);
+    setDraftLight({ bright: new Set(), dim: new Set(), darkness: new Set() });
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -273,6 +311,7 @@ export default function BattlegroundEditor() {
           if (col >= 0 && col < preset.cols && row >= 0 && row < preset.rows) {
             const key = `${col},${row}`;
             const mode = tool === 'brush' ? 'paint' : 'erase';
+            pushUndo();
             paintDragRef.current = { active: true, cells: new Set([key]), mode };
             applyPaint(key, mode);
           }
@@ -475,11 +514,14 @@ export default function BattlegroundEditor() {
                     {combatant.name.slice(0, 1)}
                   </div>
                 )}
-                {/* 光照遮罩：与战斗沙盘同口径，盖在格内一切内容之上 */}
-                {lightTierMap.get(key) && (
-                  <div className="absolute inset-0 z-30 pointer-events-none"
-                    style={{ background: LIGHT_OVERLAY[lightTierMap.get(key) as LightTier] }} />
-                )}
+                {/* 光照遮罩：单格标注覆盖全图环境；明亮=自然状态不叠图层 */}
+                {(() => {
+                  const tierHere = lightTierMap.get(key) ?? draftAmbient;
+                  return LIGHT_OVERLAY[tierHere] !== 'transparent'
+                    ? <div className="absolute inset-0 z-30 pointer-events-none"
+                        style={{ background: LIGHT_OVERLAY[tierHere] }} />
+                    : null;
+                })()}
               </div>
             );
           })}
@@ -510,19 +552,20 @@ export default function BattlegroundEditor() {
         ))}
       </div>
 
-      {/* 光照：环境档位 + 三档画笔 + 全局填充（光照设置只存在于绘图模式） */}
+      {/* 光照：全图环境（默认档位）+ 单格画笔（明亮=自然状态无标注，故只画微光/黑暗） */}
       <div className="flex items-center justify-center gap-2 px-4 pt-2 flex-wrap">
-        <span className="text-xs opacity-60">环境</span>
+        <span className="text-xs opacity-60">全图环境</span>
         {LIGHT_TIERS.map((t) => (
-          <button key={`ambient-${t}`} onClick={() => setDraftAmbient(t)}
+          <button key={`ambient-${t}`} onClick={() => changeAmbient(t)}
             className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
               draftAmbient === t ? 'bg-primary text-white' : 'border dark:border-border-dark light:border-border-light hover:bg-white/5'
-            }`}>
+            }`}
+            title={`整张地图默认${LIGHT_LABELS[t]}（会清空单格光照标注）`}>
             {LIGHT_LABELS[t]}
           </button>
         ))}
-        <span className="ml-3 text-xs opacity-60">光照画笔</span>
-        {LIGHT_TIERS.map((t) => {
+        <span className="ml-3 text-xs opacity-60">单格画笔</span>
+        {LIGHT_BRUSH_TIERS.map((t) => {
           const Icon = LIGHT_ICONS[t];
           const active = paintMode === `light:${t}`;
           return (
@@ -530,27 +573,12 @@ export default function BattlegroundEditor() {
               className={`px-3 py-1.5 rounded-lg text-xs transition-colors flex items-center gap-1 ${
                 active ? 'bg-info text-white' : 'border dark:border-border-dark light:border-border-light hover:bg-info/10'
               }`}
-              title={`点击/拖拽给格子标注${LIGHT_LABELS[t]}（重涂同档擦除，橡皮可擦）`}>
+              title={`点击/拖拽给格子标注${LIGHT_LABELS[t]}（重涂同档擦除，橡皮可擦回自然明亮）`}>
               <Icon className="w-3.5 h-3.5" />
               <span>{LIGHT_LABELS[t]}</span>
             </button>
           );
         })}
-      </div>
-
-      {/* 全局填充：一次写满整张地图 */}
-      <div className="flex items-center justify-center gap-2 px-4 pt-2 flex-wrap">
-        <span className="text-xs opacity-60">全局填充</span>
-        {LIGHT_TIERS.map((t) => (
-          <button key={`fill-${t}`} onClick={() => fillAllLight(t)}
-            className="px-3 py-1.5 rounded-lg text-xs border dark:border-border-dark light:border-border-light hover:bg-info/10 transition-colors">
-            全部{LIGHT_LABELS[t]}
-          </button>
-        ))}
-        <button onClick={() => fillAllLight(null)}
-          className="px-3 py-1.5 rounded-lg text-xs border border-danger/50 text-danger hover:bg-danger/10 transition-colors">
-          清空光照
-        </button>
       </div>
       {paintMode === 'custom' && (
         <div className="flex items-center justify-center gap-3 px-4 pt-2 text-xs">
@@ -577,7 +605,7 @@ export default function BattlegroundEditor() {
       )}
       {isLightMode(paintMode) && (
         <div className="px-4 pt-2 text-center text-xs opacity-55">
-          光照画笔（{LIGHT_LABELS[paintMode.slice('light:'.length) as LightTier]}）：点击/拖拽给格子标注明暗，重涂同档擦除；遮罩按真实明暗压暗格内棋子
+          光照画笔（{LIGHT_LABELS[paintMode.slice('light:'.length) as LightTier]}）：点击/拖拽给格子标注{paintMode === 'light:dim' ? '微光' : '黑暗'}，重涂同档擦除；明亮无需标注（自然状态），用橡皮擦回
         </div>
       )}
 
@@ -603,6 +631,12 @@ export default function BattlegroundEditor() {
           }`}>
           <Hand className="w-4 h-4" />
           <span>拖拽</span>
+        </button>
+        <button onClick={undoLastPaint} disabled={undoStack.length === 0}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs transition-colors border dark:border-border-dark light:border-border-light hover:bg-white/5 disabled:opacity-40 disabled:cursor-not-allowed"
+          title="撤销上一步画笔/环境操作">
+          <Undo2 className="w-4 h-4" />
+          <span>撤销</span>
         </button>
       </div>
 

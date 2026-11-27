@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, MoreHorizontal, Package, Pencil, PenTool } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import battlegroundStore from '@/data/battlegroundStore';
+import { getAmbientLightTier } from '@/data/visionRules';
 import { GRID_PRESETS, ZONE_PRESETS, LIGHT_OVERLAY } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone, ZoneType, LightTier } from '@/types/battleground';
 import type { Combatant, CombatRecord, EquipmentChanges } from '@/types/combat';
@@ -252,6 +253,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     }
     return m;
   }, [bg?.lightCells]);
+
+  // 全图环境档位：无单格标注时的默认光照（环境=全图默认，画笔=单格覆盖）
+  const ambientTier = useMemo(() => getAmbientLightTier(bg), [bg?.ambientLight]);
 
   // 地形区域索引："col,row" -> 区域列表（支持同一格多个区域叠加）
   // 全量版供擦除/伤害结算等数据操作使用；显示版按激活图层过滤
@@ -1233,7 +1237,7 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             const row = Math.floor(i / preset.cols);
             const key = `${col},${row}`;
             const isPainted = paintedSet.has(`${col},${row}`);
-            const lightTierHere = lightCellTierMap.get(`${col},${row}`);
+            const lightTierHere = lightCellTierMap.get(`${col},${row}`) ?? ambientTier;
             const combatantId = cellToken.get(key);
             const combatant = combatantId ? combatantMap.get(combatantId) : null;
             const itemsHere = cellItemTokens.get(key) || [];
@@ -1464,8 +1468,8 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                 )}
 
                 {/* 光照遮罩：盖在棋盘格与棋子之上，按真实明暗压暗格内一切内容；
-                    棋子已带白色轮廓，黑暗格仍可辨认。不拦截指针事件。 */}
-                {lightTierHere && (
+                    明亮是自然状态，不叠图层；棋子已带白色轮廓，黑暗格仍可辨认。不拦截指针事件。 */}
+                {LIGHT_OVERLAY[lightTierHere] !== 'transparent' && (
                   <div
                     className="absolute inset-0 z-30 pointer-events-none"
                     style={{ background: LIGHT_OVERLAY[lightTierHere] }}
