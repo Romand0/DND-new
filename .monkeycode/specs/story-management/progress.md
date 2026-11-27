@@ -21,7 +21,7 @@
 | P0 需求 + 设计 | [x] 完成 | 双域定位与账本口径定稿（2026-11-27） |
 | P1 笔记域数据层 | [x] 完成 | 类型 + `_shared.ts`（归一化/校验/投影/成员校验）+ `/api/story` 读写删 + `storyApi` + `storyStore`；`probe-story-notes` 27/27 全绿（2026-11-27） |
 | P2 账本域 | [x] 完成 | migration 0017 + `/api/story/ledger`（索引 CRUD、五类源批量聚合、玩家按绑定角色过滤、失效引用）+ 宝藏分配补写 `source='treasure'` 日志；`probe-story-ledger` 16/16 全绿（2026-11-27）。0017 待线上手动 apply |
-| P3 DM 工作台 | [ ] 未开工 | `/c/:campaignId/story`：弧/章/场景编辑、文本导入（`storyImport.ts`）、片段组合与实体引用、私记、DM 阅读视图；账本挂载与时间线 |
+| P3 DM 工作台 | [x] 代码完成 | `/story` 路由：剧情线/章节/场景编辑（独立草稿 + 保存/还原）、文本导入切场景、片段组合与装备/法术/怪物引用、私记、阅读视图；右侧账本时间线 + 候选挂载/解除；`probe-story-import` 17/17（2026-11-27）。UI 交互待人工验收 |
 | P4 道具与玩家端 | [ ] 未开工 | 道具 CRUD/投送/已读/收藏 → `/player/story` 道具箱 + 玩家自己的经济事件视图 |
 | P5 结算与回顾 | [ ] 未开工 | 场景完成生成结算摘要、按场次/时间/角色筛选、Markdown 导出 |
 
@@ -52,6 +52,6 @@ NODE_PATH=$(npm root -g) QUIET=1 node scripts/probes/probe-story-handout.cjs
 
 ## 下一步
 
-1. 开 P3：DM 工作台（`/c/:campaignId/story`）：弧/章/场景编辑、文本导入（`storyImport.ts`）、片段组合与实体引用、私记、DM 阅读视图
-2. 场景内账本挂载 UI：最近记录推荐（检定/物资/宝藏/施法/成长）+ 时间线与汇总
-3. 线上 apply 0017 后跑 API 权限探针（玩家读不到笔记、只读自己角色的账本）
+1. 线上 apply 0017 后跑 API 权限探针（玩家读不到笔记、只读自己角色的账本、candidates 仅 DM）
+2. 人工验收工作台：导入 → 编辑 → 保存 → 挂载账本 → 阅读视图
+3. 开 P4：道具投送 + 玩家端道具箱与经济视图

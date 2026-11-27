@@ -46,6 +46,7 @@ import LocalStorageManager from '@/pages/LocalStorageManager';
 import GameClockPage from '@/pages/GameClockPage';
 import CalendarPage from '@/pages/CalendarPage';
 import NotesPage from '@/pages/NotesPage';
+import StoryBoard from '@/pages/StoryBoard';
 import CampaignSettings from '@/pages/CampaignSettings';
 import DicePage from '@/pages/DicePage';
 import UserProfile from '@/pages/UserProfile';
@@ -228,6 +229,7 @@ export default function App() {
               <Route path="data-management" element={<Navigate to="/settings/data" replace />} />
               <Route path="campaign" element={<CampaignSettings />} />
               <Route path="notes" element={<NotesPage />} />
+              <Route path="story" element={<StoryBoard />} />
               <Route path="clock" element={<GameClockPage />} />
               <Route path="calendar" element={<CalendarPage />} />
               <Route path="dice" element={<DicePage />} />

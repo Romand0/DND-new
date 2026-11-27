@@ -34,6 +34,7 @@ const allNavItems = [
   { path: '/spells', label: '法术库', icon: Sparkles },
   { path: '/options', label: '角色选项', icon: BookOpen },
   { path: '/monsters', label: '怪物图鉴', icon: Swords },
+  { path: '/story', label: '剧情工作台', icon: ScrollText },
   { path: '/notes', label: '剧情笔记', icon: ScrollText },
   { path: '/flows', label: '流程库', icon: GitBranch },
   { path: '/clock', label: '游戏时钟', icon: Clock },

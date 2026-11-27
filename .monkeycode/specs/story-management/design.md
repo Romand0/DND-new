@@ -51,8 +51,10 @@ graph TD
 | `src/lib/storyApi.ts` | 客户端请求封装 |
 | `src/data/storyStore.ts` | 笔记缓存 + 订阅 + 保存冲突处理 |
 | `src/lib/storyImport.ts` | 纯文本导入解析（分隔符切分、标题兜底） |
-| `src/pages/StoryBoard.tsx` | DM 工作台：弧/章/场景、导入、私记、阅读视图 |
-| `src/pages/StoryLedger.tsx` | DM 账本时间线与场景汇总 |
+| `src/lib/storyModel.ts` | 树构造/不可变更新/排序（纯函数） |
+| `src/pages/StoryBoard.tsx` | DM 工作台：弧/章/场景、导入、私记、阅读视图；场景账本 |
+| `src/components/story/SceneEditor.tsx` | 场景表单：时间/地点/名单/依赖/目标/奖励/片段/引用 |
+| `src/components/story/LedgerPanel.tsx` | 账本时间线、汇总、候选挂载与解除 |
 | `src/pages/PlayerStory.tsx` | 玩家道具箱 + 自己的经济事件 |
 
 ## Data Models
@@ -236,6 +238,7 @@ export interface StoryHandoutRead {
 | POST | `/api/story/ledger` | 团组 DM | 创建索引 |
 | DELETE | `/api/story/ledger?id=` | 团组 DM | 解除索引 |
 | POST | `/api/story/handout` | 团组 DM | 创建并投送道具 |
+| GET | `/api/story/candidates?campaignId=&sceneId=` | 团组 DM | 场景最近经济记录候选（日志 + 检定） |
 | GET | `/api/story/handouts?campaignId=` | 团组成员 | 玩家仅目标含自己，DM 全部 |
 | DELETE | `/api/story/handout?id=` | 团组 DM | 撤回未读道具 |
 | POST | `/api/story/handout-read` | 团组成员 | 标记已读 / 收藏 |

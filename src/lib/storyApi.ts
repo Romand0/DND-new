@@ -37,3 +37,18 @@ export function createStoryLedgerLink(input: LedgerLinkInput): Promise<unknown> 
 export function deleteStoryLedgerLink(id: string): Promise<{ ok: boolean }> {
   return apiFetch(`/story/ledger?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+
+export interface StoryCandidate {
+  kind: 'log' | 'check';
+  id: string;
+  characterId?: string;
+  title: string;
+  category: string;
+  logKind?: string;
+  sourceKind: LedgerSourceKind;
+  createdAt: number;
+}
+
+export function fetchStoryCandidates(sceneId: string): Promise<{ logs: StoryCandidate[]; checks: StoryCandidate[] }> {
+  return apiFetch(`/story/candidates?sceneId=${encodeURIComponent(sceneId)}`);
+}
