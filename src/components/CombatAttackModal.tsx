@@ -11,6 +11,7 @@ import { buildOffhandAttackCandidates } from '@/lib/twoWeaponFighting';
 import { detectCheckModifiers, computeModifierTotal, collectDiceRequests, getAppliedModifierRefs, resolveModifierValue, type CheckModifierContext } from '@/data/checkModifierRules';
 import { getCombatRoundCtx } from '@/data/combatAffinities';
 import { suggestCoverHint, COVER_LABELS } from '@/data/visionRules';
+import { getAmmoNames, matchesAmmoName, isTwoHandedGripOk, hasAmmoProperty } from '@/data/ammo';
 import CheckModifierPanel from './combat/CheckModifierPanel';
 import AdvDisadvToggle from './AdvDisadvToggle';
 import type { Combatant, NpcAttack, CheckScene, CoverTier } from '@/types/combat';
@@ -300,51 +301,30 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
   };
 
   // ========= 弹药属性武器 =========
-  // 弹药类型映射：武器名称 → 对应弹药名称（中英文都匹配）
-  const AMMO_MAP: Record<string, string[]> = {
-    '短弓': ['箭矢', 'Arrows'],
-    '长弓': ['箭矢', 'Arrows'],
-    '轻弩': ['弩矢', 'Bolts'],
-    '手弩': ['弩矢', 'Bolts'],
-    '重弩': ['弩矢', 'Bolts'],
-    '投石索': ['投石索弹丸', 'Sling Bullets'],
-    '吹箭筒': ['吹箭针', 'Blowgun Needles'],
-  };
-
   /** 攻击是否为弹药属性武器 */
   const isAmmoWeapon = (attack: Attack | NpcAttack): boolean => {
-    if (!attack.properties) return false;
-    if (!attack.properties.some(p => p.includes('弹药'))) return false;
+    if (!hasAmmoProperty(attack)) return false;
     // 弹药属性与投掷属性互斥
-    if (attack.properties.some(p => p.includes('投掷'))) return false;
+    if (attack.properties?.some(p => p.includes('投掷'))) return false;
     if (attack.subtype && attack.subtype.includes('投掷')) return false;
     return true;
   };
 
-  /** 获取该攻击对应的弹药名称列表（弹药属性武器适用） */
-  const getAmmoNames = (attack: Attack | NpcAttack): string[] => {
-    return AMMO_MAP[attack.name] || [];
-  };
-
-  /** 在战斗背包中查找弹药装备及其当前数量 */
+  /** 在战斗背包中查找弹药装备及其当前数量（优先返回还有存量的那一叠） */
   const findAmmoInInventory = (attack: Attack | NpcAttack): { equipment: Equipment; childId: string; currentQty: number } | null => {
     if (!combatInventory || combatInventory.length === 0) return null;
     const ammoNames = getAmmoNames(attack);
     if (ammoNames.length === 0) return null;
+    let emptied: { equipment: Equipment; childId: string; currentQty: number } | null = null;
     for (const eq of combatInventory) {
-      if (ammoNames.some(name => eq.name === name)) {
-        const cid = eq.childId || eq.id || '';
-        if (!cid) continue;
-        return { equipment: eq, childId: cid, currentQty: eq.quantity || 1 };
-      }
+      if (!matchesAmmoName(eq.name, ammoNames)) continue;
+      const cid = eq.childId || eq.id || '';
+      if (!cid) continue;
+      const found = { equipment: eq, childId: cid, currentQty: eq.quantity || 1 };
+      if (found.currentQty > 0) return found;
+      emptied ??= found;
     }
-    return null;
-  };
-
-  /** 弹药属性武器：检查战斗背包中弹药数量是否 > 0 */
-  const checkAmmoAvailable = (attack: Attack | NpcAttack): boolean => {
-    const ammo = findAmmoInInventory(attack);
-    return !!ammo && ammo.currentQty > 0;
+    return emptied;
   };
 
   // ========= 装填属性武器 =========
@@ -460,24 +440,35 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
 
       if (!isHeld) return { usable: false, reason: '未手持' };
 
+      const ammoWeapon = isAmmoWeapon(attack);
+
+      // 弹药属性武器：先检查战斗背包中弹药数量（资源缺失比握持问题更值得优先提示）
+      if (ammoWeapon) {
+        const ammoNames = getAmmoNames(attack);
+        const ammo = findAmmoInInventory(attack);
+        if (!ammo) {
+          const hint = ammoNames[0] ? `（背包中需要「${ammoNames[0]}」）` : '';
+          return { usable: false, reason: `无弹药${hint}` };
+        }
+        if (ammo.currentQty <= 0) return { usable: false, reason: `弹药已耗尽（「${ammo.equipment.name}」）` };
+      }
+
       // 双手武器检查（双手+装填并存时，双手优先于装填：另一手必须为同一把武器）
+      // 弹药武器另允许「一手持弓 + 另一手持对应弹药」的常见摆法
       const isTwoHanded = attack.properties?.includes('双手');
       if (isTwoHanded) {
         const bothHands = leftMatch && rightMatch;
-        if (!bothHands) return { usable: false, reason: '未双手握持' };
+        const otherItem = leftMatch ? heldRightItem : rightMatch ? heldLeftItem : null;
+        if (!isTwoHandedGripOk(attack, bothHands, otherItem?.name ?? null)) {
+          const hint = ammoWeapon ? '或对应弹药' : '';
+          return { usable: false, reason: `未双手握持（另一手需持同一把武器${hint}）` };
+        }
       }
 
       const handUsable = (leftMatch && leftUsable) || (rightMatch && rightUsable);
       // 装填武器跳过 handUsable 检查（装备层面的双手判定会被 isWeaponUsable 拦截）；徒手无装备同样跳过
       if (!handUsable && !isLoadingWeapon(attack) && attack.name !== '徒手击打') {
         return { usable: false, reason: '手部不可用' };
-      }
-
-      // 弹药属性武器：检查战斗背包中弹药数量 > 0
-      if (isAmmoWeapon(attack)) {
-        const ammo = findAmmoInInventory(attack);
-        if (!ammo) return { usable: false, reason: '无弹药' };
-        if (ammo.currentQty <= 0) return { usable: false, reason: '弹药已耗尽' };
       }
 
       // 装填属性武器：检查装填状态和另一只手
