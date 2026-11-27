@@ -1,6 +1,6 @@
 // CombatSession：战斗追踪主页面（拆解完成态）
 // 状态与逻辑由 9 个 hooks/combat/* hook 提供；弹窗/表格/工具条由 components/combat/* 组件渲染。
-// CombatantList 预抽取已废弃：其卡片列表 UI 已并入先攻表格表头，详见 CombatSession-拆解规划.md §七。
+// CombatantList 预抽取已废弃：其卡片列表 UI 已并入先攻表格表头，详见 docs/archive/combat-session-decomposition.md §七。
 import { useActions } from '@/hooks/combat/useActions';
 import { useCombatInventories } from '@/hooks/combat/useCombatInventories';
 import { useCombatBroadcast } from '@/hooks/combat/useCombatBroadcast';

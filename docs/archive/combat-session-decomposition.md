@@ -1,6 +1,6 @@
 # CombatSession 拆解规划
 
-> **状态：✅ 已完结（2026-10-17）**。`src/pages/CombatSession.tsx` 从 3646 行拆解至 **1580 行**（-56.7%）：9 个 combat hooks + 8 个 combat 子组件全部以真实 import 接线，`import type {}` 占位归零，`tsc -b --force` 零错误。完结总结见 §零；模块导航见 `docs/combat-navigation.md`。
+> **状态：✅ 已完结（2026-10-17）**。`src/pages/CombatSession.tsx` 从 3646 行拆解至 **1580 行**（-56.7%）：9 个 combat hooks + 8 个 combat 子组件全部以真实 import 接线，`import type {}` 占位归零，`tsc -b --force` 零错误。完结总结见 §零；模块导航见 `docs/guides/combat-navigation.md`。
 >
 > 本文以下章节保留为**决策档案**：§一～§五 是迁移期的现状分析与操作规程（结论已沉淀进看板与导航），§七 进度看板含每个单元的裁定详情，§九 记录了「重新基线」的方法论转折。
 
@@ -64,7 +64,7 @@ p2-2 → p1-1 → p4 → p6-1 → p6-2 → p6-3 → p6-batch
 
 ## 一、现状快照（历史档案，2026-10-14 实测）
 
-> ⚠️ 本节及 §1.2/1.3/1.4 为**迁移前状态记录**，用于解释方案 A 的由来；现行结构见 `docs/combat-navigation.md`。
+> ⚠️ 本节及 §1.2/1.3/1.4 为**迁移前状态记录**，用于解释方案 A 的由来；现行结构见 `docs/guides/combat-navigation.md`。
 
 > 下列数值均为 **2026-10-14 实测**（非估算），命令见括号内。
 

@@ -1,6 +1,6 @@
 # 项目记忆：操作 / 构建 / 排障 / 协作
 
-> 只记「怎么做」；架构与设计细节见 `AGENTS.md` 与 `docs/agents-patterns.md`，不在此重复。
+> 只记「怎么做」；架构与设计细节见 `AGENTS.md` 与 `docs/patterns/agents-patterns.md`，不在此重复。
 
 ## 构建与云端
 - 根 tsconfig.json 是 solution-style（只有 references），`npx tsc --noEmit` 空跑假通过；真门禁 = `npm run build`（tsc -b + vite），共享类型改动用 `tsc -b --force`；单域快查 `npx tsc -p tsconfig.app.json --noEmit`

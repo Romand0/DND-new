@@ -923,7 +923,7 @@ results.<nodeId>.anyVulnerable
 
 ### 9.3 相关文档
 
-- `docs/dnd-dsl-compiler.md`：流程 DSL 总体架构。
+- `docs/guides/dnd-dsl-compiler.md`：流程 DSL 总体架构。
 - `docs/nodes/apply_effect.md`：效果节点设计。
 - `docs/nodes/apply_damage.md`：历史设计稿，`apply_damage` 节点未实现。
 - `skills/流程生成器/SKILL.md`：流程建模配方，包含半伤与效果节点的现状说明。

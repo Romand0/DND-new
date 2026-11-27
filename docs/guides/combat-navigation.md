@@ -1,7 +1,7 @@
 # Combat 模块导航
 
 > 战斗追踪（CombatSession）拆解完成后的模块地图。页面只保留组装层职责，状态与逻辑在 hooks，展示与交互在组件。
-> 拆解过程的完整裁定记录见仓库根目录 `CombatSession-拆解规划.md`（§零 完结总结 + §七 进度看板）。
+> 拆解过程的完整裁定记录见 `docs/archive/combat-session-decomposition.md`（§零 完结总结 + §七 进度看板）。
 
 ## 1. 模块全景
 

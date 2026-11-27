@@ -124,7 +124,7 @@ Related Specs: `.monkeycode/specs/round-table-checks/`（通用检定，已交�
 | **M-R5** | 角色成长任务：升级触发 + 选取表单（法术/特性/属性提升）+ DM 审核 diff + 落卡 | M-R4 + 角色卡写权限（已有） |
 | **M-R6** | 搜索阶段二（FTS5 / 服务端相关度）+ provider 生态（模组库等新数据源接入） | M-R3 |
 
-每个里程碑实施前，在本目录按惯例展开独立 spec（requirements.md / design.md / tasklist.md），命名建议 `round-table-tasks`（M-R4+R5）、`round-table-search`（M-R3+R6）。
+每个里程碑实施前，在 `.monkeycode/specs/` 下按惯例展开独立 spec（requirements.md / design.md / tasklist.md），命名建议 `round-table-tasks`（M-R4+R5）、`round-table-search`（M-R3+R6）。
 
 ## 七、跨里程碑架构约束
 
