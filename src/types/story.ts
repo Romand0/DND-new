@@ -120,9 +120,11 @@ export interface StoryLedgerLink {
 
 export interface LedgerEntryView {
   linkId: string;
+  sceneId: string;
   sourceKind: LedgerSourceKind;
   sourceId: string;
   characterId?: string;
+  note?: string;
   title: string;
   amountText?: string;
   occurredAt: number;

@@ -230,3 +230,128 @@ export function isLedgerSourceKind(v: unknown): boolean {
 export function isHandoutKind(v: unknown): boolean {
   return typeof v === 'string' && HANDOUT_KINDS.includes(v);
 }
+
+// ---------- 账本聚合（纯函数：端点负责取源记录，这里只做组装与汇总） ----------
+
+function parseJson(raw: any): any {
+  if (!raw) return {};
+  if (typeof raw === 'object') return raw;
+  try {
+    return JSON.parse(String(raw));
+  } catch {
+    return {};
+  }
+}
+
+const CURRENCY_KEYS = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
+
+function formatTreasureDetail(detail: any): string {
+  const parts: string[] = [];
+  for (const key of CURRENCY_KEYS) {
+    const v = Number(detail?.currency?.[key] ?? 0);
+    if (v > 0) parts.push(`${v}${key}`);
+  }
+  const items = arr(detail?.items);
+  if (items.length) {
+    parts.push(items.map((it: any) => `${str(it?.name)}×${Math.max(1, Math.round(num(it?.quantity, 1)))}`).join('、'));
+  }
+  const exp = num(detail?.experience);
+  if (exp > 0) parts.push(`经验 +${exp}`);
+  return parts.join(' · ');
+}
+
+export interface LedgerRails {
+  /** check 请求：key = 消息 id */
+  checkRequests: Map<string, any>;
+  /** check 结果：key = 请求消息 id（来自 reply_message_id） */
+  checkResults: Map<string, any>;
+  /** character_logs：key = 日志 id */
+  logs: Map<string, any>;
+}
+
+/** 把索引 + 源记录组装为账本条目；源记录缺失时标记 invalid */
+export function buildLedgerEntries(links: any[], rails: LedgerRails): any[] {
+  const entries = links.map((link: any) => {
+    const base = {
+      linkId: str(link.id),
+      sceneId: str(link.scene_id),
+      sourceKind: str(link.source_kind),
+      sourceId: str(link.source_id),
+      characterId: optionalStr(link.character_id),
+      note: optionalStr(link.note),
+    };
+    if (link.source_kind === 'check') {
+      const request = rails.checkRequests.get(str(link.source_id));
+      if (!request) {
+        return { ...base, title: '检定记录不存在', occurredAt: num(link.occurred_at, 0), invalid: true };
+      }
+      const payload = parseJson(request.payload);
+      const result = rails.checkResults.get(str(link.source_id));
+      const resultPayload = result ? parseJson(result.payload) : null;
+      const parts = [`检定：${str(payload.checkLabel, '检定')}（${str(payload.characterName, '角色')}）`];
+      if (payload.dcMode === 'open') parts.push(`DC ${num(payload.dc)}`);
+      parts.push(resultPayload ? `结果 ${num(resultPayload.appliedValue)}` : '待回应');
+      return {
+        ...base,
+        title: parts[0],
+        amountText: parts.slice(1).join(' · '),
+        occurredAt: resultPayload ? num(resultPayload.submittedAt, num(request.created_at)) : num(request.created_at),
+      };
+    }
+
+    const log = rails.logs.get(str(link.source_id));
+    if (!log) {
+      return { ...base, title: '源记录不存在', occurredAt: num(link.occurred_at, 0), invalid: true };
+    }
+    const detail = parseJson(log.detail);
+    return {
+      ...base,
+      title: str(log.title, '未命名记录'),
+      amountText: link.source_kind === 'treasure' ? formatTreasureDetail(detail) : undefined,
+      occurredAt: num(link.occurred_at, num(log.created_at)),
+    };
+  });
+
+  entries.sort((a: any, b: any) => a.occurredAt - b.occurredAt || String(a.linkId).localeCompare(String(b.linkId)));
+  return entries;
+}
+
+export interface LedgerTotals {
+  itemCount: number;
+  currency: Record<string, number>;
+  experience: number;
+  spellSlots: Record<number, number>;
+}
+
+/** 汇总口径：宝藏明细累加钱币/物品/经验；法术 slot_change 累加消耗环级；物资日志计件 */
+export function summarizeLedger(links: any[], rails: Pick<LedgerRails, 'logs'>): LedgerTotals {
+  const totals: LedgerTotals = { itemCount: 0, currency: { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }, experience: 0, spellSlots: {} };
+  for (const link of links) {
+    const log = rails.logs.get(str(link.source_id));
+    if (!log) continue;
+    const detail = parseJson(log.detail);
+    if (link.source_kind === 'treasure') {
+      for (const key of CURRENCY_KEYS) totals.currency[key] += Math.max(0, num(detail?.currency?.[key]));
+      for (const it of arr(detail?.items)) totals.itemCount += Math.max(1, Math.round(num(it?.quantity, 1)));
+      totals.experience += Math.max(0, num(detail?.experience));
+      continue;
+    }
+    if (link.source_kind === 'item') {
+      totals.itemCount += 1;
+      continue;
+    }
+    if (link.source_kind === 'spell' && log.kind === 'slot_change') {
+      const level = parseInt(String(detail?.levelKey ?? '').replace(/\D/g, ''), 10);
+      const fromUsed = num(detail?.from?.used);
+      const toUsed = num(detail?.to?.used);
+      if (Number.isFinite(level) && toUsed > fromUsed) {
+        totals.spellSlots[level] = (totals.spellSlots[level] ?? 0) + (toUsed - fromUsed);
+      }
+      continue;
+    }
+    if (link.source_kind === 'growth' && log.kind === 'exp_change') {
+      totals.experience += Math.max(0, num(detail?.to) - num(detail?.from));
+    }
+  }
+  return totals;
+}

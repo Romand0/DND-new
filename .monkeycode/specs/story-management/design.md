@@ -34,7 +34,7 @@ graph TD
   F --> H["源记录聚合"]
   H --> I["character_logs"]
   H --> J["table_messages 检定"]
-  H --> K["campaign_artifacts kind=treasure"]
+  H --> K["character_logs source=treasure"]
   H --> L["character_change_requests"]
   M["道具投送"] --> N["story_handouts"]
   N --> O["story_handout_reads"]
@@ -152,7 +152,7 @@ export interface StoryLedgerLink {
   campaignId: string;
   sceneId: string;
   sourceKind: LedgerSourceKind;
-  sourceId: string;          // 源记录主键；宝藏为 treasureId
+  sourceId: string;          // 源记录主键（treasure 为分配汇总日志 id）
   characterId?: string;      // 归属角色（宝藏分配必填）
   note?: string;             // DM 归类备注
   occurredAt?: number;       // 覆盖源记录时间（用于排序）
@@ -205,11 +205,13 @@ export interface StoryHandoutRead {
 |------------|----------|------|----------|----------|
 | `check` | `table_messages`（check_request/check_result） | message id | 检定名称、DC、结果值 | DM 在场景内抛送或对已有检定挂载 |
 | `item` | `character_logs`（category=item/general） | log id | 日志标题（获得/移除/数量/钱币） | DM 从最近日志中挑选挂载 |
-| `treasure` | `campaign_artifacts kind='treasure'` + `DistributionRecord` | treasureId + characterId | 宝藏标题、分配金额/物品 | 宝藏分配后挂载 |
+| `treasure` | `character_logs`（`source='treasure'`，分配流程写入；`detail` 含 treasureId/份额） | log id | 宝藏标题、每人份额 | 宝藏分配后从最近日志挂载 |
 | `spell` | `character_logs`（category=spell） | log id | 施法/法术位变化摘要 | 战斗结算或施法记录后挂载 |
 | `growth` | `character_change_requests` + `character_logs`（category=growth） | request/log id | 等级变化、审批结果 | 升级审批通过后挂载 |
 
 **挂载策略**：DM 手动挑选（默认），并在场景处于 `active` 时提供「本场次最近记录」推荐列表。系统不自动写索引，避免归错场景。
+
+**宝藏前置改动**：`TreasureDistribute` 在 `recordDistribution` 后为每个受益角色补写一条 `item_acquire` 日志（`source='treasure'`，`detail` 存 treasureId、货币、物品、经验），使分发明细在服务端可读且与角色卡同步。
 
 ## Aggregation Algorithm
 
@@ -351,7 +353,7 @@ CREATE TABLE IF NOT EXISTS story_handout_reads (
 );
 ```
 
-笔记树继续复用 `campaign_artifacts`（`kind='story'`），索引已由 `migrations/0011_campaigns.sql` 提供。
+笔记树继续复用 `campaign_artifacts`（`kind='story'`），索引已由 `migrations/0011_campaigns.sql` 提供。0017 为手动 apply 迁移；未应用时剧情线删除对索引清理做容错。
 
 ## Rollout
 
