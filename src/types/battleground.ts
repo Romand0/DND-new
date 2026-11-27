@@ -57,11 +57,11 @@ export const LIGHT_LABELS: Record<LightTier, string> = {
 
 /**
  * 光照层渲染遮罩色：按「真实亮暗」压暗格内一切内容（含棋子），三档区分度靠明度而非色相。
- * bright 保持自然（仅极淡暖光提示被照亮）；dim 中灰压暗；darkness 深黑压暗但保留可视性
- * （配合格子内棋子的白色轮廓，避免黑暗格内棋子糊成一团）。
+ * bright 是自然状态，不叠任何图层（transparent，判空即不渲染）；dim 中灰压暗；
+ * darkness 深黑压暗但保留可视性（配合格子内棋子的白色轮廓，避免黑暗格内棋子糊成一团）。
  */
 export const LIGHT_OVERLAY: Record<LightTier, string> = {
-  bright: 'rgba(253, 224, 71, 0.1)',
+  bright: 'transparent',
   dim: 'rgba(8, 12, 22, 0.38)',
   darkness: 'rgba(3, 6, 14, 0.66)',
 };
