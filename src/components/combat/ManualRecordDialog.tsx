@@ -1,5 +1,5 @@
-import { X, Swords, Heart, Check } from 'lucide-react';
-import type { AdvantageReason, Combatant, ManualActionCost, ManualMode } from '@/types/combat';
+import { X, Swords, Heart, Check, Flame } from 'lucide-react';
+import type { AdvantageReason, Combatant, ManualActionCost, ManualMode, ManualRecordType } from '@/types/combat';
 import AdvDisadvToggle from '@/components/AdvDisadvToggle';
 import { DAMAGE_TYPE_OPTIONS } from '@/types/damage';
 import { getCombatantAffinities } from '@/data/combatAffinities';
@@ -21,10 +21,10 @@ const WEAPON_TRAIT_FIELDS = [
 
 interface Props {
   open: boolean;
-  recordType: 'attack' | 'recovery' | null;
+  recordType: ManualRecordType | null;
   combatants: Combatant[];
   attackerId: string;
-  onSetType: (t: 'attack' | 'recovery' | null) => void;
+  onSetType: (t: ManualRecordType | null) => void;
   targetId: string;
   onTargetIdChange: (v: string) => void;
   attackMethod: string;
@@ -130,7 +130,7 @@ export default function ManualRecordDialog(props: Props) {
       <div className="w-full max-w-md rounded-xl p-4 dark:bg-card-dark light:bg-card-light border dark:border-border-dark light:border-border-light max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold dark:text-text-dark light:text-text-light">
-            {recordType === 'attack' ? '攻击记录' : '恢复记录'}
+            {recordType === 'attack' ? '攻击记录' : recordType === 'damage' ? '伤害记录' : '恢复记录'}
           </h3>
           <button
             onClick={onCancel}
@@ -462,6 +462,146 @@ export default function ManualRecordDialog(props: Props) {
           </div>
         )}
 
+        {recordType === 'damage' && (
+          <div className="space-y-4">
+            {/* 目标：直接伤害可命中任意参战者（含友方/自身/环境目标） */}
+            <div>
+              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                受伤目标
+              </label>
+              <select
+                value={targetId}
+                onChange={(e) => onTargetIdChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+              >
+                <option value="">选择目标...</option>
+                {combatants.map(c => {
+                  const circle = getInitiativeCircle(c.id);
+                  return (
+                    <option key={c.id} value={c.id}>
+                      {circle} {c.name}（先攻 {c.initiative}）
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+
+            {/* 效果/来源描述 */}
+            <div>
+              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                效果/来源描述
+              </label>
+              <input
+                type="text"
+                value={attackMethod}
+                onChange={(e) => onAttackMethodChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                placeholder="例如：陷阱、持续火焰、反伤"
+              />
+            </div>
+
+            {/* 资源消耗 */}
+            <div>
+              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                消耗
+              </label>
+              <select
+                value={actionCost}
+                onChange={(e) => onActionCostChange(e.target.value as ManualActionCost)}
+                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+              >
+                {(['free', 'action', 'bonus', 'reaction'] as const).map((k) => (
+                  <option key={k} value={k}>
+                    {MANUAL_ACTION_COST_LABELS[k]}
+                    {!actionAvailability[k] ? '（已用尽）' : ''}
+                  </option>
+                ))}
+              </select>
+              {!actionAvailability[actionCost] && (
+                <div className="mt-1 text-xs text-red-500">本回合该资源已用尽，确认时会被拦截</div>
+              )}
+            </div>
+
+            {/* 伤害值 */}
+            <div>
+              <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                伤害值（正整数）
+              </label>
+              <input
+                type="number"
+                min={1}
+                value={damage}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === '' || parseInt(v, 10) >= 1) onDamageChange(v);
+                }}
+                className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                placeholder="例如：8"
+              />
+            </div>
+
+            {/* 伤害来源与类型 */}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                  伤害来源
+                </label>
+                <select
+                  value={attackSource}
+                  onChange={(e) => onAttackSourceChange(e.target.value as ManualAttackSource)}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                >
+                  <option value="effect">其他效果</option>
+                  <option value="weapon">武器</option>
+                  <option value="spell">法术</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium dark:text-text-dark-muted light:text-text-light-muted mb-1 block">
+                  伤害类型
+                </label>
+                <select
+                  value={damageType}
+                  onChange={(e) => onDamageTypeChange(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light text-sm outline-none focus:border-primary"
+                >
+                  <option value="">未声明（不应用抗性）</option>
+                  {DAMAGE_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* 若干伤：最终伤害 > 0 才会击倒 */}
+            <label className="flex items-center gap-2 text-sm dark:text-text-dark light:text-text-light">
+              <input
+                type="checkbox"
+                checked={isKill}
+                onChange={(e) => onIsKillChange(e.target.checked)}
+              />
+              致命伤害（击杀/击昏，仅最终伤害 &gt; 0 时生效）
+            </label>
+
+            {/* 预览 */}
+            {selectedTarget && damagePreview && (
+              <div className="p-2 rounded-lg bg-bg-dark/50 border border-border-dark text-xs dark:text-text-dark-muted light:text-text-light-muted space-y-1">
+                <div>
+                  <span className="opacity-60">预览：</span>
+                  {selectedTarget.name} 受到 {damagePreview.final} 点{damagePreview.damageType ?? ''}伤害
+                </div>
+                {damagePreview.breakdown && <div className="text-primary">抗性结算：{damagePreview.breakdown}</div>}
+                {!damagePreview.damageType && <div className="opacity-60">未声明伤害类型，不应用抗性</div>}
+                {selectedTarget.currentHp !== undefined && damagePreview.final >= selectedTarget.currentHp && (
+                  <div className="text-danger">伤害足以使目标 HP 归零</div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {recordType === 'recovery' && (
           <div className="space-y-4">
             {/* 恢复目标 */}
@@ -602,6 +742,27 @@ export default function ManualRecordDialog(props: Props) {
             }`}
           >
             <Heart className="w-4 h-4 inline mr-1" />恢复模板
+          </button>
+          <button
+            onClick={() => {
+              onSetType('damage');
+              onTargetIdChange('');
+              onAttackMethodChange('');
+              onDamageChange('');
+              onIsKillChange(false);
+              onDamageTypeChange('');
+              onAttackSourceChange('effect');
+              onWeaponTraitsChange({ magical: null, silvered: null, adamantine: null });
+              onActionCostChange('free');
+              onAttackCountChange('1');
+            }}
+            className={`flex-1 px-3 py-2 rounded-lg border text-sm transition-colors ${
+              recordType === 'damage'
+                ? 'border-primary bg-primary/10 text-primary'
+                : 'dark:border-border-dark light:border-border-light'
+            }`}
+          >
+            <Flame className="w-4 h-4 inline mr-1" />伤害模板
           </button>
         </div>
 
