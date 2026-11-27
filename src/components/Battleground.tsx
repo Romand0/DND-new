@@ -3,10 +3,10 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, MoreHorizontal, Package, Pencil, PenTool } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import battlegroundStore from '@/data/battlegroundStore';
-import { getAmbientLightTier } from '@/data/visionRules';
+import { getAmbientLightTier, getEffectiveTierAt } from '@/data/visionRules';
 import { GRID_PRESETS, ZONE_PRESETS, LIGHT_OVERLAY } from '@/types/battleground';
 import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone, ZoneType, LightTier } from '@/types/battleground';
-import type { Combatant, CombatRecord, EquipmentChanges } from '@/types/combat';
+import type { Combatant, CombatRecord, EquipmentChanges, CombatantSenses } from '@/types/combat';
 import type { Character, Equipment, Feature } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
 
@@ -96,6 +96,11 @@ interface Props {
   panelCharacters?: Record<string, Character | null>;
   /** 投影模式下：参战者法术位只读视图（key 为 combatantId） */
   panelSpellSlots?: Record<string, { level: number; label: string; used: number; max: number }[]>;
+  /**
+   * 投影模式下：观看者感官（玩家端按自己角色的黑暗视觉等降档渲染光照外观）。
+   * 不传 = DM 端原始光照（DM 看到真实明暗）。
+   */
+  viewerSenses?: CombatantSenses | null;
   /** 投影模式下：信息面板的手持变更请求（宿主转成 ready-item op） */
   onRequestHandChange?: (combatantId: string, side: 'left' | 'right', item: Equipment | null) => void;
   /** 投影模式下：信息面板的手持状态变更（宿主转成 hand-state op） */
@@ -104,7 +109,7 @@ interface Props {
   onRequestStopConcentration?: (combatantId: string) => void;
 }
 
-export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelDodgeClick, onPanelDisengageClick, onPanelHideClick, onPanelSearchClick, onPanelForcedMoveClick, onPanelFeatureClick, multiattackProgress, onPanelMultiattackStart, onPanelMultiattackEnd, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, panelSpellSlots, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
+export default function Battleground({ sessionId, combatants, onRequestAttack, onRequestSpell, onPickupItem, readOnly = false, activeTurnCombatantId = null, playbackOnlyMovableId = null, combatInventories, onRemoveItem, equipmentChangesMap, onUpdateChanges, mode = 'simulation', playbackActive = false, actionsMap = {}, remainingMovementMap = {}, onConsumeMovement, onRefundMovement, onSelectionChange, onPanelHelpClick, onPanelAttackClick, onPanelCastClick, onPanelDashClick, onPanelDodgeClick, onPanelDisengageClick, onPanelHideClick, onPanelSearchClick, onPanelForcedMoveClick, onPanelFeatureClick, multiattackProgress, onPanelMultiattackStart, onPanelMultiattackEnd, isProvingGround = false, provingRecord = null, onTokenMoved, bgData, onRequestMoveToken, projectionOverlay, panelCharacters, panelSpellSlots, viewerSenses = null, onRequestHandChange, onRequestHandState, onRequestStopConcentration }: Props) {
   const navigate = useNavigate();
   // 投影模式：数据来自外部快照，禁止一切写库操作
   const projectionMode = bgData !== undefined;
@@ -1237,7 +1242,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             const row = Math.floor(i / preset.cols);
             const key = `${col},${row}`;
             const isPainted = paintedSet.has(`${col},${row}`);
-            const lightTierHere = lightCellTierMap.get(`${col},${row}`) ?? ambientTier;
+            const baseTierHere = lightCellTierMap.get(`${col},${row}`) ?? ambientTier;
+            // 投影模式下按观看者感官降档（黑暗视觉：微光→明亮、黑暗→微光），DM 端保持真实明暗
+            const lightTierHere = viewerSenses
+              ? getEffectiveTierAt(bg, key, viewerSenses).tier
+              : baseTierHere;
             const combatantId = cellToken.get(key);
             const combatant = combatantId ? combatantMap.get(combatantId) : null;
             const itemsHere = cellItemTokens.get(key) || [];

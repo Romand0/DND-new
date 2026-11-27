@@ -125,7 +125,7 @@ async function main() {
   check('盲视 黑暗→明亮', results.effBlindsight === 'bright', results.effBlindsight);
   check('真实视觉 黑暗→明亮', results.effTruesight === 'bright', results.effTruesight);
   check('真实视觉 微光→明亮', results.effTruesightDim === 'bright', results.effTruesightDim);
-  check('黑暗视觉 微光不升档', results.effDarkvisionDim === 'dim', results.effDarkvisionDim);
+  check('黑暗视觉 微光→明亮', results.effDarkvisionDim === 'bright', results.effDarkvisionDim);
   // C
   check('震颤感知 30 尺覆盖 6 格', results.senseTremorNear === true, results.senseTremorNear);
   check('震颤感知 30 尺不覆盖 7 格', results.senseTremorFar === false, results.senseTremorFar);
