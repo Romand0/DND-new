@@ -390,6 +390,27 @@ export function createStatusManager(): StatusManagerWithApply {
       }
     },
 
+    getActiveCombatInstances(combatId: string): StatusInstance[] {
+      return store.instances
+        .filter(i => i.combatId === combatId && i.isActive)
+        .map(i => ({ ...i, metadata: i.metadata ? { ...i.metadata } : undefined }));
+    },
+
+    loadCombatInstances(combatId: string, instances: StatusInstance[]): void {
+      store.instances = store.instances.filter(i => i.combatId !== combatId);
+      for (const inst of instances) {
+        const copy: StatusInstance = {
+          ...inst,
+          combatId,
+          isActive: true,
+          metadata: inst.metadata ? { ...inst.metadata } : undefined,
+        };
+        store.instances.push(copy);
+        const definition = statusLibrary.get(copy.definitionId);
+        if (definition) emit({ type: 'start', instance: copy, definition, timestamp: Date.now() });
+      }
+    },
+
     cleanupExpired(): void {
       const now = Date.now();
       const expired = store.instances.filter(

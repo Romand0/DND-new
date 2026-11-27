@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import type { CombatRecord, RoundAction, TurnSnapshot } from '@/types/combat';
 import combatStore from '@/data/combatStore';
 import battlegroundStore from '@/data/battlegroundStore';
+import { globalStatusManager } from '@/data/statusManager';
+import { buildTurnSnapshot } from '@/data/turnSnapshot';
 import * as snapDb from '@/lib/combatSnapshots';
 
 interface Props {
@@ -71,37 +73,13 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
     // 其他情况：直接切换
     commitModeChange(mode);
     if (mode === 'playback') {
-      const bg = battlegroundStore.get(record.id);
-      const latestForSnapshot = combatStore.get(record.id);
-      playbackSnapshotRef.current = (bg?.tokens ?? []).map(t => ({ ...t }));
-      const initialSnap: TurnSnapshot = {
-        combatants: record.combatants.map(c => ({ ...c })),
-        rounds: record.rounds.map(r => ({ ...r })),
-        roundsDm: (record.roundsDm ?? []).map(r => ({ ...r })),
-        battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
-        zones: (bg?.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })),
-        equipmentChanges: latestForSnapshot?.equipmentChanges
-          ? Object.fromEntries(
-              Object.entries(latestForSnapshot.equipmentChanges).map(([k, v]) => [
-                k,
-                { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
-              ]),
-            )
-          : undefined,
-        spellSlotChanges: latestForSnapshot?.spellSlotChanges
-          ? Object.fromEntries(
-              Object.entries(latestForSnapshot.spellSlotChanges).map(([k, v]) => [k, { ...v }]),
-            )
-          : undefined,
-        featureUses: latestForSnapshot?.featureUses
-          ? Object.fromEntries(
-              Object.entries(latestForSnapshot.featureUses).map(([k, v]) => [k, { ...v }]),
-            )
-          : undefined,
-      };
-      rollbackSnapshotRef.current = { initial: initialSnap, snapshots: {} };
-      // 同步写入 IndexedDB：刷新/关闭页面后恢复可用
-      snapDb.putInitialSnapshot(record.id, initialSnap).catch(e => console.warn('写入初始快照失败', e));
+      const initialSnap = buildTurnSnapshot(record.id);
+      if (initialSnap) {
+        playbackSnapshotRef.current = initialSnap.battleground;
+        rollbackSnapshotRef.current = { initial: initialSnap, snapshots: {} };
+        // 同步写入 IndexedDB：刷新/关闭页面后恢复可用
+        snapDb.putInitialSnapshot(record.id, initialSnap).catch(e => console.warn('写入初始快照失败', e));
+      }
     }
   };
 
@@ -135,6 +113,9 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
             : undefined,
           updatedAt: Date.now(),
         });
+        if (Array.isArray(init.statusInstances)) {
+          globalStatusManager.loadCombatInstances(record.id, init.statusInstances);
+        }
         battlegroundStore.setTokens(record.id, init.battleground.map(t => ({ ...t })));
         battlegroundStore.setZones(record.id, (init.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })));
       } else if (playbackSnapshotRef.current) {
@@ -293,6 +274,10 @@ export function usePlayback(record: CombatRecord | null, props: Props) {
         multiattackProgress: {},
         updatedAt: Date.now(),
       });
+      // 状态机实例一并还原到初始快照（legacy 快照缺字段时保持内存现状）
+      if (Array.isArray(init.statusInstances)) {
+        globalStatusManager.loadCombatInstances(record.id, init.statusInstances);
+      }
     } else if (playbackSnapshotRef.current) {
       battlegroundStore.setTokens(record.id, playbackSnapshotRef.current);
     }

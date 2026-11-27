@@ -46,6 +46,7 @@ import { derivePcAttacksPerAction } from '@/lib/pcExtraAttack';
 import { deriveSkillCheckBonus } from '@/data/passiveCombatRules';
 import { resolveSearch } from '@/data/searchRules';
 import { collectHideObservers, contestHide } from '@/data/hiddenRules';
+import { hydrateCombatStatuses, startStatusPersistence } from '@/data/statusPersistence';
 import { optionStore } from '@/data/optionStore';
 import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
@@ -503,6 +504,14 @@ export default function CombatSession() {
     });
     return unsub;
   }, [sessionId]);
+
+  // 状态机持久化：进入战斗按记录水合（hidden/专注等跨刷新不丢），变更防抖写回记录
+  useEffect(() => {
+    const id = record?.id;
+    if (!id) return;
+    hydrateCombatStatuses(id);
+    return startStatusPersistence(id);
+  }, [record?.id]);
 
   // 参战者角色卡机械字段自动刷新：老卡缺 activation/resource/poolFormula 标注会导致
   // 动作/池经济零记账（特性引擎按名字命中 capability，数据面靠卡上标注）——进战时幂等合并
