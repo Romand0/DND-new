@@ -1,4 +1,5 @@
-import { X, Play, Pencil, Keyboard, Undo2, Trash2, Zap } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { X, Play, Pencil, Keyboard, Undo2, Trash2, Zap, ChevronDown, ChevronRight } from 'lucide-react';
 import type { Combatant, RoundAction } from '@/types/combat';
 import { renderLogText } from '@/lib/logRichText';
 
@@ -34,6 +35,31 @@ export default function InitiativeTable(props: Props) {
     isPlayback, playbackStarted, playbackPaused, currentTurn,
     onStartPlayback, onOpenManualRecord, onOpenRewind,
   } = props;
+
+  // 与玩家观战表格一致的历史轮折叠：仅放映开始后启用，当前轮自动展开，其余轮折叠为摘要条
+  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(new Set());
+  const prevRoundRef = useRef<number | null>(null);
+  const collapsible = isPlayback && playbackStarted;
+  const activeRound = isPlayback && playbackStarted && currentTurn ? currentTurn.round : null;
+
+  useEffect(() => {
+    if (activeRound == null || activeRound === prevRoundRef.current) return;
+    prevRoundRef.current = activeRound;
+    setExpandedRounds((prev) => {
+      if (prev.has(activeRound)) return prev;
+      const next = new Set(prev);
+      next.add(activeRound);
+      return next;
+    });
+  }, [activeRound]);
+
+  const toggleRound = (idx: number) =>
+    setExpandedRounds((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
 
   return (
     <div className="overflow-x-auto rounded-lg border dark:border-border-dark light:border-border-light max-w-[900px]">
@@ -137,12 +163,27 @@ export default function InitiativeTable(props: Props) {
                 >
                   先攻 {c.initiative}
                 </div>
-                {/* 展示 HP（PC 和 NPC 均显示） */}
-                {c.maxHp != null && c.maxHp > 0 && (
-                  <div className="text-xs opacity-60 mt-1">
-                    HP {c.currentHp}/{c.maxHp}
-                  </div>
-                )}
+                {/* HP 条：复用玩家观战表格样式，区别是 DM 侧 PC/NPC 均显示数值 */}
+                {c.maxHp != null && c.maxHp > 0 && (() => {
+                  const temp = Math.max(0, c.tempHp ?? 0);
+                  const hpRatio = Math.max(0, Math.min(1, (c.currentHp + temp) / c.maxHp));
+                  return (
+                    <div className="mt-1 space-y-1">
+                      <div className="flex items-baseline justify-between gap-1 font-mono text-[10px] opacity-70">
+                        <span>HP</span>
+                        <span>{c.currentHp}{temp > 0 ? `+${temp}` : ''}/{c.maxHp}</span>
+                      </div>
+                      <div className="h-1 rounded-full bg-neutral-500/20 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            hpRatio > 0.5 ? 'bg-emerald-500' : hpRatio > 0.25 ? 'bg-amber-500' : 'bg-red-500'
+                          }`}
+                          style={{ width: `${hpRatio * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
                 {/* 单个删除按钮：仅非批量模式显示 */}
                 {!batchMode && (
                   <button
@@ -162,20 +203,63 @@ export default function InitiativeTable(props: Props) {
           </tr>
         </thead>
         <tbody>
-          {rounds.map((round, roundIndex) => (
+          {rounds.map((round, roundIndex) => {
+            const isCurrentRound = collapsible && currentTurn?.round === roundIndex;
+            const isExpanded = !collapsible || expandedRounds.has(roundIndex);
+            if (!isExpanded) {
+              // 折叠行：与玩家侧一致的单格摘要条（该轮行动记录条数）
+              const actionCount = combatants.filter(
+                (c) => (round[c.id] || '') !== '' && round[c.id] !== '被突袭',
+              ).length;
+              return (
+                <tr
+                  key={roundIndex}
+                  onClick={() => toggleRound(roundIndex)}
+                  className={`border-t dark:border-border-dark/50 light:border-border-light/50 cursor-pointer select-none ${
+                    isCurrentRound ? 'bg-yellow-400/5 dark:bg-yellow-300/5' : 'hover:bg-white/5'
+                  }`}
+                >
+                  <td
+                    colSpan={combatants.length + 1}
+                    className={`p-1.5 text-xs dark:text-text-dark-muted light:text-text-light-muted ${
+                      isCurrentRound ? 'ring-1 ring-inset ring-yellow-400/60' : ''
+                    }`}
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      <ChevronRight className="w-3.5 h-3.5" />
+                      第 {roundIndex + 1} 轮 · {actionCount} 条行动记录
+                      {isCurrentRound && <span className="text-yellow-600 dark:text-yellow-400 font-medium">（当前）</span>}
+                    </span>
+                  </td>
+                </tr>
+              );
+            }
+            return (
             <tr key={roundIndex} className="border-t dark:border-border-dark/50 light:border-border-light/50">
               <td className="p-2 border-r dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light font-medium text-center">
-                {roundIndex === 0 ? (
-                  <button
-                    onClick={() => onOpenSurpriseAttack(roundIndex)}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-primary/10 text-primary transition-colors cursor-pointer"
-                    title="设置被突袭角色"
-                  >
-                    {roundIndex + 1}
-                  </button>
-                ) : (
-                  roundIndex + 1
-                )}
+                <span className="inline-flex items-center justify-center gap-1">
+                  {collapsible && (
+                    <button
+                      type="button"
+                      onClick={() => toggleRound(roundIndex)}
+                      className="p-0.5 rounded hover:bg-white/10 opacity-60"
+                      title="收起该轮"
+                    >
+                      <ChevronDown className="w-3 h-3" />
+                    </button>
+                  )}
+                  {roundIndex === 0 ? (
+                    <button
+                      onClick={() => onOpenSurpriseAttack(roundIndex)}
+                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-primary/10 text-primary transition-colors cursor-pointer"
+                      title="设置被突袭角色"
+                    >
+                      {roundIndex + 1}
+                    </button>
+                  ) : (
+                    roundIndex + 1
+                  )}
+                </span>
               </td>
               {combatants.map((c) => {
                 const action = round[c.id] || '';
@@ -362,7 +446,8 @@ export default function InitiativeTable(props: Props) {
                 );
               })}
             </tr>
-          ))}
+          );
+          })}
         </tbody>
       </table>
     </div>

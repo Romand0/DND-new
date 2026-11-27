@@ -404,8 +404,6 @@ export default function CombatSession() {
     setConfirmEndTurnOpen,
     rewindModal,
     setRewindModal,
-    canUndoLastRecord,
-    undoLastRecord,
     handleCellChange,
     findNextValidTurn,
     checkAndAutoAdvance,
@@ -2042,21 +2040,6 @@ export default function CombatSession() {
               创建NPC
             </button>
           </div>
-        </div>
-      )}
-
-      {/* ✅ 单条记录撤销：仅回退上一条手动记录文本/日志，不回退 HP */}
-      {canUndoLastRecord && (
-        <div className="fixed bottom-4 right-4 z-40">
-          <button
-            type="button"
-            onClick={undoLastRecord}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-600 text-white text-sm shadow-lg hover:bg-amber-700 transition-colors"
-            title="撤销上一条记录（仅回退记录文本，不回退生命值）"
-          >
-            <Undo2 className="w-4 h-4" />
-            撤销上一条
-          </button>
         </div>
       )}
 
