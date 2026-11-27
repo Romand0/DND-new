@@ -2,6 +2,7 @@
 import type { CastStepLog } from './castStep';
 import type { AbilityKey, SpellSlotLevel, HandSlot } from './character';
 import type { DamageAffinitySet } from './damage';
+import type { StatusInstance } from './status';
 
 // ===== 新增：体型枚举 =====
 /** 体型级别：0=微型, 1=小型, 2=中型, 3=大型, 4=巨型, 5=超巨型 */
@@ -453,6 +454,8 @@ export interface TurnSnapshot {
   featureUses?: Record<string, Record<string, number>>;
   /** 沙盘地形区域快照（回溯时连同棋子一起还原） */
   zones?: import('@/types/battleground').BattlegroundZone[];
+  /** 状态机实例快照（回溯时整体还原；legacy 快照缺字段时保持内存现状） */
+  statusInstances?: StatusInstance[];
 }
 
 /**
@@ -685,6 +688,11 @@ export interface CombatRecord {
     lastSpellCasts?: Record<string, string[]>;
     /** 模拟模式操作日志（无回合概念，按时间顺序记录参战者操作；放映模式写 rounds 不写此字段） */
     operationLog?: OperationLogEntry[];
+    /**
+     * 战斗状态机活跃实例（hidden / 专注 / 死亡豁免等）。
+     * statusManager 是内存单例，靠本字段跨刷新/换端恢复；只存活跃实例（历史结束即弃）。
+     */
+    statusInstances?: StatusInstance[];
     /** 战斗结算封存时间戳（存在 = 已结算，记录只读、防重复结算） */
     settledAt?: number;
     createdAt: number;

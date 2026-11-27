@@ -654,6 +654,31 @@ function load(): CombatRecord[] {
           }
           return out;
         })(),
+        // 战斗状态机实例（hidden/专注等）：白名单重建，缺失会在下次保存永久抹掉
+        statusInstances: Array.isArray(r.statusInstances) ? r.statusInstances.filter(
+          (s: any) => s && typeof s === 'object'
+            && typeof s.instanceId === 'string' && typeof s.definitionId === 'string'
+            && typeof s.targetId === 'string' && s.isActive === true
+            && (s.scope === 'combat' || s.scope === 'global'),
+        ).map((s: any) => ({
+          instanceId: s.instanceId,
+          definitionId: s.definitionId,
+          targetId: s.targetId,
+          scope: s.scope === 'global' ? 'global' as const : 'combat' as const,
+          combatId: typeof s.combatId === 'string' ? s.combatId : undefined,
+          isActive: true,
+          declaredAt: typeof s.declaredAt === 'number' && Number.isFinite(s.declaredAt) ? s.declaredAt : Date.now(),
+          expiresAt: typeof s.expiresAt === 'number' && Number.isFinite(s.expiresAt) ? s.expiresAt : undefined,
+          durationRounds: typeof s.durationRounds === 'number' && Number.isFinite(s.durationRounds) ? s.durationRounds : undefined,
+          startRound: typeof s.startRound === 'number' && Number.isFinite(s.startRound) ? s.startRound : undefined,
+          expiresAtRound: typeof s.expiresAtRound === 'number' && Number.isFinite(s.expiresAtRound) ? s.expiresAtRound : undefined,
+          anchorCombatantId: typeof s.anchorCombatantId === 'string' ? s.anchorCombatantId : undefined,
+          turnCount: typeof s.turnCount === 'number' && Number.isFinite(s.turnCount) ? s.turnCount : undefined,
+          expirePolicy: s.expirePolicy === 'rounds' || s.expirePolicy === 'combatantTurn' || s.expirePolicy === 'manual'
+            ? s.expirePolicy as 'rounds' | 'combatantTurn' | 'manual'
+            : undefined,
+          metadata: s.metadata && typeof s.metadata === 'object' ? { ...s.metadata } : undefined,
+        })) : undefined,
         loadedWeapons: r.loadedWeapons && typeof r.loadedWeapons === 'object' ? { ...r.loadedWeapons } : undefined,
         loadingAttackedThisRound: r.loadingAttackedThisRound && typeof r.loadingAttackedThisRound === 'object' ? { ...r.loadingAttackedThisRound } : undefined,
         perRoundFeatureUsed: r.perRoundFeatureUsed && typeof r.perRoundFeatureUsed === 'object' ? { ...r.perRoundFeatureUsed } : undefined,

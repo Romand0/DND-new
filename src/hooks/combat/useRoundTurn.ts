@@ -5,6 +5,7 @@ import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
 import * as snapDb from '@/lib/combatSnapshots';
 import { appendRoundLines } from '@/lib/combatActionSummary';
+import { buildTurnSnapshot } from '@/data/turnSnapshot';
 import {
   applyPlaybackUndo,
   applyLogUndo,
@@ -369,30 +370,8 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
   // 双写：内存 useRef（同步快读）+ IndexedDB（刷新/关闭页面后仍可回溯）
   const takeTurnSnapshot = (round: number, combatantId: string) => {
     if (!record) return;
-    const latest = combatStore.get(record.id);
-    if (!latest) return;
-    const bg = battlegroundStore.get(record.id);
-    const snap: TurnSnapshot = {
-      combatants: latest.combatants.map(c => ({ ...c })),
-      rounds: latest.rounds.map(r => ({ ...r })),
-      roundsDm: (latest.roundsDm ?? []).map(r => ({ ...r })),
-      battleground: (bg?.tokens ?? []).map(t => ({ ...t })),
-      zones: (bg?.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })),
-      equipmentChanges: latest.equipmentChanges
-        ? Object.fromEntries(
-            Object.entries(latest.equipmentChanges).map(([k, v]) => [
-              k,
-              { added: [...v.added], removedChildIds: [...v.removedChildIds], quantityDeltas: { ...v.quantityDeltas } },
-            ]),
-          )
-        : undefined,
-      spellSlotChanges: latest.spellSlotChanges
-        ? Object.fromEntries(Object.entries(latest.spellSlotChanges).map(([k, v]) => [k, { ...v }]))
-        : undefined,
-      featureUses: latest.featureUses
-        ? Object.fromEntries(Object.entries(latest.featureUses).map(([k, v]) => [k, { ...v }]))
-        : undefined,
-    };
+    const snap = buildTurnSnapshot(record.id);
+    if (!snap) return;
     const memKey = `${round}:${combatantId}`;
     // 只在第一次拍（始终回到该回合最初状态）
     if (!rollbackSnapshotRef.current.snapshots[memKey]) {
@@ -501,7 +480,11 @@ export function useRoundTurn(record: CombatRecord | null, props: UseRoundTurnPro
         : undefined,
       updatedAt: Date.now(),
     });
-    // 4) 还原沙盘（棋子 + 地形区域）
+    // 4) 还原状态机实例（legacy 快照缺字段时保持内存现状）
+    if (Array.isArray(snap.statusInstances)) {
+      globalStatusManager.loadCombatInstances(record.id, snap.statusInstances);
+    }
+    // 5) 还原沙盘（棋子 + 地形区域）
     battlegroundStore.setTokens(record.id, snap.battleground.map(t => ({ ...t })));
     battlegroundStore.setZones(record.id, (snap.zones ?? []).map(z => ({ ...z, cells: [...z.cells], hitRounds: { ...(z.hitRounds ?? {}) } })));
     // 5) 当前回合跳到此回合格
