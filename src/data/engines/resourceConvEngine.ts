@@ -2,10 +2,13 @@
 // from 槽扣减（原特性 activation 对应 actions/bonusActions）由调用方（handleFeatureUse /
 // turnCommitApply）统一执行，引擎只负责 to 目标的落地与声明。
 // v1 覆盖度：dash 走移动力账务（与 dash op 同构）；disengage 挂撤离状态（与基础动作
-// disengageFor 同状态，反应通道据此抑制借机攻击）；hide 隐匿机制未建，产出声明 note；
-// action/bonus 目标走槽位授予。
+// disengageFor 同状态，反应通道据此抑制借机攻击）；hide 挂 hidden 状态并记录隐匿总值
+// （无掷骰环节，按被动隐匿代填并标注待复核）；action/bonus 目标走槽位授予。
 import combatStore from '@/data/combatStore';
 import { globalStatusManager } from '@/data/statusManager';
+import { collectHideObservers, contestHide } from '@/data/hiddenRules';
+import { characterStore } from '@/data/characterStore';
+import { deriveSkillCheckBonus } from '@/data/passiveCombatRules';
 import type { Combatant } from '@/types/combat';
 
 /** convert.to 动作项中文标签（弹窗选择列表与回合记录共用） */
@@ -25,7 +28,7 @@ export interface ConvApplyResult {
  * convert.to 单项目标执行：
  *  - dash：额外移动力 += 战斗速度（speed + speedModifier），与 dash op/DM 端 dashFor 同账务
  *  - disengage：挂撤离状态（至下回合开始），移动不引发借机攻击；动作消耗由转换上游扣除
- *  - hide：隐匿机制未建（隐匿检定占位），声明文案交 DM 裁定
+ *  - hide：挂 hidden 状态并记录隐匿总值（转换无掷骰环节，按被动隐匿代填待 DM 复核）
  *  - action/bonus：对应动作槽 +1（grants 语义复用）
  */
 export function applyConvTarget(recordId: string, combatant: Combatant, target: string): ConvApplyResult {
@@ -72,7 +75,12 @@ export function applyConvTarget(recordId: string, combatant: Combatant, target: 
   }
   if (target === 'hide') {
     // 与 CombatSession.hideFor 同一状态：一攻揭晓（攻击 op 结算后移除），
-    // 被发现时由 DM 手动解除；隐匿检定线下掷、DM 核对观察者被动察觉（引擎零暗骰）。
+    // 被发现时由 DM 手动解除。转换路径没有掷骰环节，按被动隐匿（10 + 隐匿加值）代填，
+    // stealthSource='passive' 供搜索结果提示 DM 复核。
+    const character = live.characterId ? characterStore.get(live.characterId) : null;
+    const stealthTotal = 10 + deriveSkillCheckBonus(character, 'stealth');
+    const observers = collectHideObservers(latest?.combatants ?? [], combatant.id);
+    const contest = contestHide(stealthTotal, observers);
     globalStatusManager.applyEffect(combatant.id, 'hidden', 'combat', recordId, {
       ...(latest?.mode === 'playback'
         ? {
@@ -80,8 +88,15 @@ export function applyConvTarget(recordId: string, combatant: Combatant, target: 
             startRound: latest.playbackState?.currentTurn?.round ?? Math.max(0, latest.rounds.length - 1),
           }
         : { combatMode: 'simulation' as const }),
+      metadata: { stealthTotal, stealthSource: 'passive' as const, unseenBy: contest.unseenBy },
     });
-    return { note: '进入躲藏（隐匿检定与被动察觉对抗由 DM 按沙盘裁定）' };
+    const verdict =
+      contest.unseenBy.length === 0
+        ? '位置已被全部看破（无机械收益）'
+        : contest.seenBy.length === 0
+          ? `全部 ${observers.length} 名观察者未察觉`
+          : `${contest.unseenBy.length} 名未察觉 / ${contest.seenBy.length} 名看破`;
+    return { note: `进入躲藏（隐匿值按被动 ${stealthTotal} 代填，待 DM 复核；${verdict}）` };
   }
   return { note: `${CONV_TARGET_LABELS[target] ?? target}（无对应引擎，DM 手动裁定）` };
 }

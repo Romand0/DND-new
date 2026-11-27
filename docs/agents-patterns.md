@@ -234,3 +234,37 @@ getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消�
 - 副手攻击候选由 `buildOffhandAttackCandidates` 按 `bonusActionsAvailable` 过滤，保证附赠动作经济独立生效
 
 **❌ 严禁**：在 `openAttackFor` / `openCastFor` / `dashFor` / `dodgeFor` / `disengageFor` / `hideFor` / 手动记录等入口用动作数 `alert` 拦截。
+
+---
+
+### 5.16 躲藏 per-observer 可见性：`hiddenRules.ts` + `metadata.unseenBy`
+
+**为什么用**：躲藏是「观察者相对」的可见性状态——同一躲藏者可能被甲看破、对乙仍隐蔽。全局单实例的 hidden 只能整例启停，无法承载 5e 中「被动察觉逐个对抗」的粒度。
+
+**模型约定**：
+- hidden 实例 `metadata.unseenBy: string[]` = 无法定位躲藏者的参战者 ID（`hiddenRules.contestHide` 在入账时自动对抗：`stealthTotal >= PP` 即隐藏，平局成立）
+- **缺省 = legacy 语义**：对全员隐藏（老数据零迁移）；感官看破（盲视/真实视觉）始终在消费端另行判定
+- 消费端一律走 `hiddenRules.isHiddenFrom(hiderId, observerId)`，不要自己读 metadata
+- 搜索揭晓是逐观察者的：`resolveSearch` 成功只把搜索者移出 unseenBy，最后一个看破才 `declareEnd`；legacy 实例维持整例解除
+- 就地更新走 `statusManager.patchMetadata`（emit `'update'` 事件，触发广播 flush）
+- 数据透传（君子协定）：投影透传 unseenBy 全集，渲染层按观看者决定幽灵化/徽章文案
+
+**三条 hide 入账路径必须同步**：`CombatSession.hideFor`（DM 直操）/ `turnCommitApply` hide 分支（玩家 op）/ `engines/resourceConvEngine` hide 转换。改一条就要改三条。
+
+**❌ 严禁**：在 `CombatAttackModal` / `CombatSpellModal` 硬编码「hidden → 优劣势」；在搜索/躲藏路径各自手写被动察觉比较（一律 `contestHide`）。
+
+---
+
+### 5.17 战斗状态持久化桥：`statusPersistence.ts` + `CombatRecord.statusInstances`
+
+**为什么用**：statusManager 是纯内存单例，hidden / 专注 / 死亡豁免等实例刷新即丢（参战者 HP 却还在）。状态实例自带 `combatId`，把它挂到战斗记录上就能随 localStorage + 云备份一起走。
+
+**实现约定**：
+- `CombatRecord.statusInstances` 只存**活跃**实例（结束即弃，防记录无限膨胀）；`TurnSnapshot.statusInstances` 让回溯/从头放映一并还原
+- combatStore.load() **必须白名单重建**该字段（instanceId/definitionId/targetId/scope/isActive 缺一即丢）——否则下次保存把状态永久抹掉，与 heldLeft 同坑
+- 水合每场战斗只做一次（模块级 Set）：`hydrateCombatStatuses(recordId)`；记录无该字段时保持内存现状（老数据零迁移）
+- 写回走 `startStatusPersistence(recordId)`（100ms 防抖 + 卸载补写）；内容 JSON 相等时跳过，避免 updatedAt 空转导致云同步风暴
+- 快照构建统一 `buildTurnSnapshot(recordId)`（useRoundTurn / usePlayback 共用），新增快照字段只改这一处
+- 还原点三处（与 roundsDm 同构）：`applyRollback` / `finalizeExitPlayback` / `startPlaybackFromBeginning`；legacy 快照缺字段时保持内存现状
+
+**❌ 严禁**：在 statusManager 内直接 import combatStore（单向依赖：持久化桥负责双向，状态机保持无存储依赖）；在组件里手写 statusInstances 序列化（一律走桥模块）。

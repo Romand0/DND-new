@@ -2,6 +2,7 @@
 import type { CastStepLog } from './castStep';
 import type { AbilityKey, SpellSlotLevel, HandSlot } from './character';
 import type { DamageAffinitySet } from './damage';
+import type { StatusInstance } from './status';
 
 // ===== 新增：体型枚举 =====
 /** 体型级别：0=微型, 1=小型, 2=中型, 3=大型, 4=巨型, 5=超巨型 */
@@ -254,6 +255,8 @@ export interface Combatant {
   legendaryResistanceTotal?: number;
   /** 多重攻击结构（从模板带入，动作面板显示构成提醒） */
   multiattack?: { count: number; name: string }[];
+  /** 吐息武器（从模板带入；动作面板「吐息武器」入口走 aoe_save 通道自动豁免结算） */
+  breathWeapon?: NpcTemplate['breathWeapon'];
   /** 天生施法（从模板带入：施法属性/DC/命中/法术列表，动作面板展示） */
   spellcasting?: {
     ability: string;
@@ -265,8 +268,10 @@ export interface Combatant {
   spellcastingUsage?: Record<string, number>;
   /** 再生恢复量（每回合开始，从模板再生特质带入） */
   regenAmount?: number;
-  /** 再生失效条件（如「火焰伤害」；受该类伤害时再生下回合失效，由 DM 判断） */
+  /** 再生失效条件（如「火焰伤害」；受该类伤害时再生下回合失效） */
   regenNegate?: string;
+  /** 再生本回合失效标记（受到 regenNegate 类型伤害时置位，回合开始时消费清除） */
+  regenSuppressed?: boolean;
   /** NPC 攻击方式（从模板带入） */
   attacks?: NpcAttack[];
   /** 荒野变形状态（德鲁伊 PC）：存在 = 已处于野兽形态，参战者战斗字段已被野兽数据覆盖 */
@@ -441,12 +446,16 @@ export interface TurnSnapshot {
   rounds: RoundAction[];
   battleground: any[];
   equipmentChanges?: Record<string, EquipmentChanges>;
+  /** DM 明细表格快照（roundsDm 平行通道，回溯时一并还原） */
+  roundsDm?: RoundAction[];
   /** 法术位消耗漏斗快照（回溯时与装备变更一起还原） */
   spellSlotChanges?: Record<string, Partial<Record<SpellSlotLevel, number>>>;
   /** 特性资源消耗漏斗快照（回溯时与法术位漏斗一起还原） */
   featureUses?: Record<string, Record<string, number>>;
   /** 沙盘地形区域快照（回溯时连同棋子一起还原） */
   zones?: import('@/types/battleground').BattlegroundZone[];
+  /** 状态机实例快照（回溯时整体还原；legacy 快照缺字段时保持内存现状） */
+  statusInstances?: StatusInstance[];
 }
 
 /**
@@ -612,6 +621,11 @@ export interface CombatRecord {
   title: string;
   combatants: Combatant[];
   rounds: RoundAction[];
+  /**
+   * DM 明细表格（rounds 的平行通道，稀疏同形状）：含目标名/隐匿值等机密细节，
+   * 只投给 DM 端表格显示；DM 手动编辑格时对应 roundsDm 格清空（机器明细失效）。
+   */
+  roundsDm?: RoundAction[];
   /** 战斗模式：'simulation' 模拟模式（无回合），'playback' 放映模式（有回合） */
   mode?: 'simulation' | 'playback';
   /** 试验场标记：沙盒测试会话（入口一键进入、人偶快速生成、全库调用、仪表盘） */
@@ -674,6 +688,11 @@ export interface CombatRecord {
     lastSpellCasts?: Record<string, string[]>;
     /** 模拟模式操作日志（无回合概念，按时间顺序记录参战者操作；放映模式写 rounds 不写此字段） */
     operationLog?: OperationLogEntry[];
+    /**
+     * 战斗状态机活跃实例（hidden / 专注 / 死亡豁免等）。
+     * statusManager 是内存单例，靠本字段跨刷新/换端恢复；只存活跃实例（历史结束即弃）。
+     */
+    statusInstances?: StatusInstance[];
     /** 战斗结算封存时间戳（存在 = 已结算，记录只读、防重复结算） */
     settledAt?: number;
     createdAt: number;
@@ -860,6 +879,9 @@ export interface AdvantageResult {
 
 /** 手动模式 */
 export type ManualMode = 'none' | 'advantage' | 'disadvantage';
+
+/** 手动记录的资源消耗类型：动作 / 附赠动作 / 反应 / 不消耗 */
+export type ManualActionCost = 'action' | 'bonus' | 'reaction' | 'free';
 
 /** 待消费的优劣势标记（发起者赋予他人的一次性优劣势来源） */
 export interface PendingAdvantageSource {

@@ -196,15 +196,24 @@ export default function SpectatorBoard({
                 onMoveToken(t.combatantId, { col, row });
               }
             };
+            // per-observer：观看方全部角色都未察觉才幽灵化；legacy 实例（无 unseenBy）与无自方角色按隐藏处理
+            const hiddenEntry = (r.statuses ?? []).find((s) => s.definitionId === 'hidden');
+            const isHidden =
+              !!hiddenEntry &&
+              (!Array.isArray(hiddenEntry.unseenBy) ||
+                movableSet.size === 0 ||
+                [...movableSet].every((id) => hiddenEntry.unseenBy!.includes(id)));
             return (
               <div
                 key={t.combatantId}
-                title={`${r.name}（HP ${r.hp}/${r.maxHp}）`}
+                title={`${r.name}（HP ${r.hp}/${r.maxHp}）${isHidden ? '· 躲藏中' : ''}`}
                 className={`absolute rounded-full flex items-center justify-center font-bold text-white leading-none transition-all select-none z-10 ${
                   r.dead || r.downed ? 'bg-gray-500' : r.isPc ? 'bg-info' : 'bg-danger'
                 } ${r.dead || r.downed ? 'opacity-60' : ''} ${
                   r.incapacitated ? 'opacity-50 ring-2 ring-purple-400' : ''
-                } ${isCurrent ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''} ${
+                } ${isHidden ? 'opacity-40 border-2 border-dashed border-white/70' : ''} ${
+                  isCurrent ? 'ring-4 ring-yellow-300 animate-pulse scale-110 shadow-lg shadow-yellow-400/50' : ''
+                } ${
                   droppable ? 'cursor-grab active:cursor-grabbing' : ''
                 } ${dragging ? 'scale-110 shadow-xl' : ''}`}
                 style={{
@@ -250,6 +259,7 @@ export default function SpectatorBoard({
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-danger inline-block" />NPC</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-amber-600/80 inline-block" />掉落物</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-500 inline-block" />昏迷/死亡</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-400/40 border border-dashed border-white/70 inline-block" />躲藏中</span>
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-neutral-400 ring-2 ring-yellow-300 inline-block" />当前行动</span>
       </div>
     </div>

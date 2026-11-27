@@ -98,6 +98,21 @@ export default function SpectatorTable({
                         />
                       </div>
                     )}
+                    {/* 状态徽章：hidden 默认不渲染（防意外渲染）；其余全量展示 */}
+                    {(c.statuses ?? []).some((s) => s.definitionId !== 'hidden') && (
+                      <div className="flex gap-1 flex-wrap">
+                        {(c.statuses ?? [])
+                          .filter((s) => s.definitionId !== 'hidden')
+                          .map((s) => (
+                            <span
+                              key={s.definitionId}
+                              className="px-1.5 py-0.5 rounded text-[10px] bg-sky-600/15 text-sky-600 dark:text-sky-400"
+                            >
+                              {s.name}
+                            </span>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 </th>
               );

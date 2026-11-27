@@ -9,6 +9,7 @@ import type { SpellSlotLevel } from '@/types/character';
 import type { CombatRecord, ReactionPrompt } from '@/types/combat';
 import { detectReactions } from '@/data/reactionRules';
 import { globalStatusManager } from '@/data/statusManager';
+import { collectHideObservers, contestHide } from '@/data/hiddenRules';
 import type { DamageApplication, DamageApplyResult } from '@/types/damage';
 import type { PlayerActionRequest, TurnCommitOp } from '@/types/realtime';
 import { executeFeatureChannel } from '@/data/featureChannelRunner';
@@ -18,7 +19,8 @@ import { applyAttackRiders } from '@/data/attackRiders';
 import { planAoeSave, applyAoeSave, saveBonusFor } from '@/data/aoeSaveEngine';
 import { GRID_PRESETS } from '@/types/battleground';
 import type { Bearing } from '@/data/battleGeometry';
-import { summarizeOp, appendRoundLines, type SummaryContext } from './combatActionSummary';
+import { summarizeOp, summarizeOpDetail, appendRoundLines, type SummaryContext } from './combatActionSummary';
+import { resolveSearch } from '@/data/searchRules';
 
 export interface TurnCommitApplyDeps {
   record: CombatRecord;
@@ -76,6 +78,7 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
   let endTurn = false;
 
   const summaryLines: string[] = [];
+  const detailLines: string[] = [];
   for (const op of ops) {
     const opCtx: SummaryContext = {};
     if (op.kind === 'attack') {
@@ -276,12 +279,26 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         consumedAction = true;
       }
     } else if (op.kind === 'hide') {
-      // 躲藏：挂 hidden 状态（无自动解除——首次攻击结算后揭晓 / 被发现时 DM 手动移除），
-      // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认本 op（引擎零暗骰）
+      // 躲藏：挂 hidden 状态并记录隐匿检定总值（搜索对抗的依据）。
+      // 入账时与其余存活清醒参战者的被动察觉自动对抗，unseenBy 记录被蒙蔽的观察者；
+      // 无自动解除——首次攻击结算后揭晓 / 被发现时 DM 手动移除。
+      const stealthTotal =
+        typeof op.stealthTotal === 'number' && Number.isFinite(op.stealthTotal) ? op.stealthTotal : undefined;
+      const observers = collectHideObservers(record.combatants, actor.id);
+      const contest = stealthTotal != null ? contestHide(stealthTotal, observers) : null;
       globalStatusManager.applyEffect(actor.id, 'hidden', 'combat', record.id, {
         ...(record.mode === 'playback'
           ? { combatMode: 'playback' as const, startRound: request.round - 1 }
           : { combatMode: 'simulation' as const }),
+        ...(stealthTotal != null
+          ? {
+              metadata: {
+                stealthTotal,
+                stealthSource: 'roll' as const,
+                ...(contest ? { unseenBy: contest.unseenBy } : {}),
+              },
+            }
+          : {}),
       });
       combatStore.addTurnTodo(record.id, {
         combatantId: actor.id,
@@ -290,6 +307,36 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
         startRound: request.round - 1,
         endRound: request.round,
       });
+      if (!consumedAction) {
+        consumeAction(actor.id);
+        consumedAction = true;
+      }
+      // DM 明细：隐匿总值 + 观察者被动察觉与对抗结果（未察觉/看破）
+      opCtx.hide = {
+        stealthTotal: op.stealthTotal,
+        observers: observers.map((o) => ({
+          name: o.name,
+          pp: o.pp,
+          unseen: contest ? contest.unseenBy.includes(o.id) : undefined,
+        })),
+      };
+    } else if (op.kind === 'search') {
+      // 搜索：察觉检定对抗全图活跃 hidden 实例的隐匿总值（成功解除该实例）。
+      // 失败照扣 1 动作（5e 未规定退还）；文案只回「发现/未发现」，不写目标身份。
+      const total = op.d20 + op.bonus;
+      const resolution = resolveSearch({
+        searcherId: actor.id,
+        total,
+        combatants: (combatStore.get(record.id) ?? record).combatants,
+      });
+      opCtx.search = {
+        total,
+        revealed: resolution.revealed.length,
+        skipped: resolution.skipped.length,
+        estimated: resolution.revealed.filter((r) => r.estimated).length,
+        hits: resolution.revealed.map((r) => ({ name: r.name, stealthTotal: r.stealthTotal, estimated: r.estimated })),
+        skippedNames: resolution.skipped.map((s) => s.name),
+      };
       if (!consumedAction) {
         consumeAction(actor.id);
         consumedAction = true;
@@ -423,13 +470,14 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       endTurn = true;
     }
     summaryLines.push(...summarizeOp(op, opCtx));
+    detailLines.push(...summarizeOpDetail(op, opCtx));
   }
 
   // 先推进回合再写表格/装备：advanceTurn 闭包基于旧 state 补新回合行，
   // 本轮文本在其之后写回才不会被旧快照覆盖
   if (endTurn) advanceTurn();
 
-  if (summaryLines.length > 0 || Object.keys(appliedChanges).length > 0) {
+  if (summaryLines.length > 0 || detailLines.length > 0 || Object.keys(appliedChanges).length > 0) {
     const latest = combatStore.get(record.id) ?? record;
     const patch: Partial<CombatRecord> = {};
     if (summaryLines.length > 0) {
@@ -438,6 +486,14 @@ export function applyTurnCommit(deps: TurnCommitApplyDeps): TurnCommitApplyResul
       const row = rounds[request.round - 1] ?? {};
       rounds[request.round - 1] = { ...row, [actor.id]: appendRoundLines(row[actor.id] ?? '', summaryLines) };
       patch.rounds = rounds;
+    }
+    // DM 明细通道（roundsDm 与 rounds 平行）：与玩家行同格双写，玩家端默认渲染 rounds
+    if (detailLines.length > 0) {
+      const roundsDm = (latest.roundsDm ?? []).map((r) => ({ ...r }));
+      while (roundsDm.length < request.round) roundsDm.push({});
+      const row = roundsDm[request.round - 1] ?? {};
+      roundsDm[request.round - 1] = { ...row, [actor.id]: appendRoundLines(row[actor.id] ?? '', detailLines) };
+      patch.roundsDm = roundsDm;
     }
     if (Object.keys(appliedChanges).length > 0) {
       patch.equipmentChanges = {

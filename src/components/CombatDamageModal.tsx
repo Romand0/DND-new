@@ -128,7 +128,8 @@ export default function CombatDamageModal({
   );
   const [calculated, setCalculated] = useState<number | null>(null);
   // NPC 致命伤害时的状态决定：昏迷 / 死亡
-  const [downedStatus, setDownedStatus] = useState<'unconscious' | 'dead' | null>(null);
+  // 有再生的怪物默认选「昏迷」：0 HP 未毁，待其回合开始按再生是否生效决定复活或死亡
+  const [downedStatus, setDownedStatus] = useState<'unconscious' | 'dead' | null>(target.regenAmount ? 'unconscious' : null);
   // 命中触发 rider（至圣斩/震慑拳）：勾选状态、选环、rider 骰输入与豁免结果
   const [riderChecks, setRiderChecks] = useState<Record<string, boolean>>({});
   const [riderSlotLevel, setRiderSlotLevel] = useState<Record<string, SpellSlotLevel | undefined>>({});
@@ -760,6 +761,11 @@ export default function CombatDamageModal({
                       死亡
                     </button>
                   </div>
+                  {target.regenAmount && (
+                    <div className="text-xs text-green-400">
+                      该生物具有再生：0 HP 建议选「昏迷」——其回合开始时按再生是否生效决定回复或死亡
+                    </div>
+                  )}
                   {downedStatus === 'unconscious' && (
                     <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
                       昏迷：先攻表格表头黯淡，棋子变灰，留在原地

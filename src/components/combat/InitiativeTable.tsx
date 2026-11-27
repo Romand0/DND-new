@@ -22,7 +22,7 @@ interface Props {
   playbackPaused: boolean;
   currentTurn: { round: number; combatantId: string } | null;
   onStartPlayback: () => void;
-  onOpenManualRecord: () => void;
+  onOpenManualRecord: (round: number, combatantId: string) => void;
   onOpenRewind: (round: number, combatantId: string, combatantIdx: number) => void;
 }
 
@@ -283,7 +283,7 @@ export default function InitiativeTable(props: Props) {
                                   type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onOpenManualRecord();
+                                    onOpenManualRecord(roundIndex, c.id);
                                   }}
                                   className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
                                   title="手动记录"
@@ -331,7 +331,7 @@ export default function InitiativeTable(props: Props) {
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                onOpenManualRecord();
+                                onOpenManualRecord(roundIndex, c.id);
                               }}
                               className="p-2 rounded-lg bg-primary text-white hover:bg-primary/90 transition-colors shadow-sm flex items-center gap-1 text-xs"
                               title="手动记录"

@@ -41,8 +41,12 @@ export type StatusManagerWithApply = StatusManager & {
       untilNextTurn?: boolean;
       /** untilNextTurn 的锚定参战者（通常为施法者） */
       anchorCombatantId?: string;
+      /** 调用方写入的实例级运行时数据（如躲藏的 stealthTotal），与 definition 元数据合并 */
+      metadata?: Record<string, any>;
     }
   ): StatusInstance;
+  /** 就地更新实例运行时元数据（如躲藏揭晓后收窄 unseenBy）；触发 'update' 事件 */
+  patchMetadata(instanceId: string, partial: Record<string, any>): StatusInstance | null;
 };
 
 /** 创建新的状态管理器实例（每局战斗或全局各一个） */
@@ -175,6 +179,17 @@ export function createStatusManager(): StatusManagerWithApply {
       return instance;
     },
 
+    patchMetadata(instanceId: string, partial: Record<string, any>): StatusInstance | null {
+      const instance = store.instances.find(i => i.instanceId === instanceId);
+      if (!instance || !instance.isActive) return null;
+      instance.metadata = { ...instance.metadata, ...partial };
+      const definition = statusLibrary.get(instance.definitionId);
+      if (definition) {
+        emit({ type: 'update', instance, definition, timestamp: Date.now() });
+      }
+      return instance;
+    },
+
     restoreInstance(instance: StatusInstance): StatusInstance {
       // 叠加检查与 declareStart 同规则：同 definitionId+targetId 已有活跃实例时按 stacking 处理
       const existing = store.instances.find(
@@ -274,6 +289,8 @@ export function createStatusManager(): StatusManagerWithApply {
       anchorCombatantId?: string;
       /** 轮到锚定者的第 N 个回合时结束（1=下一回合，2=下下回合…；缺省 1） */
       turnCount?: number;
+      /** 调用方写入的实例级运行时数据（如躲藏的 stealthTotal），与 definition 元数据合并 */
+      metadata?: Record<string, any>;
     }
     ): StatusInstance {
       // 应用状态
@@ -286,6 +303,9 @@ export function createStatusManager(): StatusManagerWithApply {
       }
       if (options?.instanceEffects && options.instanceEffects.length > 0) {
         instance.metadata = { ...instance.metadata, effects: options.instanceEffects };
+      }
+      if (options?.metadata) {
+        instance.metadata = { ...instance.metadata, ...options.metadata };
       }
       if (options?.durationRounds && options.durationRounds > 0) {
         instance.durationRounds = options.durationRounds;
@@ -367,6 +387,27 @@ export function createStatusManager(): StatusManagerWithApply {
             });
           }
         }
+      }
+    },
+
+    getActiveCombatInstances(combatId: string): StatusInstance[] {
+      return store.instances
+        .filter(i => i.combatId === combatId && i.isActive)
+        .map(i => ({ ...i, metadata: i.metadata ? { ...i.metadata } : undefined }));
+    },
+
+    loadCombatInstances(combatId: string, instances: StatusInstance[]): void {
+      store.instances = store.instances.filter(i => i.combatId !== combatId);
+      for (const inst of instances) {
+        const copy: StatusInstance = {
+          ...inst,
+          combatId,
+          isActive: true,
+          metadata: inst.metadata ? { ...inst.metadata } : undefined,
+        };
+        store.instances.push(copy);
+        const definition = statusLibrary.get(copy.definitionId);
+        if (definition) emit({ type: 'start', instance: copy, definition, timestamp: Date.now() });
       }
     },
 

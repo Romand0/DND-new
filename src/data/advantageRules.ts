@@ -15,6 +15,7 @@ import type { Attack, Character } from '@/types/character';
 import type { Battleground } from '@/types/battleground';
 import type { Effect } from '@/types/status';
 import { globalStatusManager } from './statusManager';
+import { isHiddenFrom } from './hiddenRules';
 import statusLibrary from './statusLibrary';
 import { detectPassiveFeatureRules } from './passiveCombatRules';
 import { getEffectiveTierAt, canSenseInDark, canSeeThroughHide, type LightTier } from './visionRules';
@@ -531,6 +532,7 @@ function getVisibilityState(
  * 躲藏/隐形可见性判定：
  * - 目标处于 hidden/invisible 且攻方感官无法看破 → 攻方劣势
  * - 攻击者处于 hidden/invisible 且守方感官无法看破 → 攻方优势
+ * - hidden 额外受 per-observer unseenBy 约束（被动察觉未看破才成立）；invisible 无此粒度
  * 感官豁免：hidden 可被盲视/真实视觉看破；invisible 仅真实视觉看破（尺数需覆盖距离）。
  * 双方互相不可见时优劣势抵消（resolveRollMode 统一处理）。
  */
@@ -546,13 +548,17 @@ function detectUnseen(ctx: AdvantageContext): AdvantageResult {
   const targetState = getVisibilityState(target, ctx);
   const attackerState = getVisibilityState(attacker, ctx);
 
-  if (targetState && !canSeeThroughHide(sensesOf(attacker), dist, targetState)) {
+  // per-observer 门控：该观察者已看破躲藏位置则不再构成优劣势；invisible 不受此约束
+  const targetUnseenByAttacker = targetState !== 'hidden' || isHiddenFrom(target.id, attacker.id, ctx.roundCtx);
+  const attackerUnseenByTarget = attackerState !== 'hidden' || isHiddenFrom(attacker.id, target.id, ctx.roundCtx);
+
+  if (targetState && targetUnseenByAttacker && !canSeeThroughHide(sensesOf(attacker), dist, targetState)) {
     disadvantage.push({
       kind: 'condition',
       label: targetState === 'hidden' ? '目标处于躲藏（无法定位）' : '目标处于隐形',
     });
   }
-  if (attackerState && !canSeeThroughHide(sensesOf(target), dist, attackerState)) {
+  if (attackerState && attackerUnseenByTarget && !canSeeThroughHide(sensesOf(target), dist, attackerState)) {
     advantage.push({
       kind: 'condition',
       label: attackerState === 'hidden' ? '你处于躲藏（目标无法定位）' : '你处于隐形',

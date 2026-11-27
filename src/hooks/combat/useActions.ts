@@ -58,6 +58,21 @@ export function useActions(record: CombatRecord | null, { playbackStarted, playb
     combatStore.consumeBonusAction(record.id, combatantId, 'playback');
   };
 
+  // 反应：每回合 1 次（reactionUsed 在回合开始时重置）；暂停期间按模拟模式处理
+  const canUseReaction = (combatantId: string): boolean => {
+    if (!record) return false;
+    const c = record.combatants.find(x => x.id === combatantId);
+    if (!c || c.isDead || c.isUnconscious || c.isIncapacitated) return false;
+    if (!isConsumptionActive()) return true;
+    return c.reactionUsed !== true;
+  };
+
+  const consumeCombatantReaction = (combatantId: string) => {
+    if (!record) return;
+    if (!isConsumptionActive()) return;
+    combatStore.consumeReaction(record.id, combatantId);
+  };
+
   // 放映模式：标记本回合已用过装填武器攻击（每回合只能攻击一次，优先级高于额外动作）
   // 暂停期间不做标记，暂停解除前的操作不计入回合限制
   const markLoadingAttacked = (combatantId: string) => {
@@ -85,8 +100,10 @@ export function useActions(record: CombatRecord | null, { playbackStarted, playb
     isPlaybackActive,
     canUseAction,
     canUseBonusAction,
+    canUseReaction,
     consumeCombatantAction,
     consumeCombatantBonusAction,
+    consumeCombatantReaction,
     markLoadingAttacked,
     resetCombatantActions,
   };

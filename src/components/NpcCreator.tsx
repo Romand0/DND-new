@@ -50,6 +50,8 @@ interface NpcEditState {
   legendaryResistanceTotal: number;
   /** 多重攻击结构（从模板解析带入，动作面板提醒用） */
   multiattack?: { count: number; name: string }[];
+  /** 吐息武器（从模板带入；动作面板走范围豁免自动结算） */
+  breathWeapon?: NpcTemplate['breathWeapon'];
   /** 天生施法（从模板解析带入，动作面板展示） */
   spellcasting?: NpcTemplate['spellcasting'];
   /** 再生恢复量与失效条件（从模板解析带入） */
@@ -115,6 +117,7 @@ function createStateFromTemplate(template: NpcTemplate, index?: number): NpcEdit
     magicResistance: hasMagicResistance,
     legendaryResistanceTotal: legendaryTotal,
     multiattack: template.multiattack,
+    breathWeapon: template.breathWeapon,
     spellcasting: template.spellcasting,
     regenAmount: template.regeneration?.amount,
     regenNegate: template.regeneration?.negate,
@@ -156,6 +159,7 @@ function stateToCombatant(state: NpcEditState): Omit<Combatant, 'id'> {
     legendaryResistanceLeft: state.legendaryResistanceTotal,
     legendaryResistanceTotal: state.legendaryResistanceTotal,
     multiattack: state.multiattack,
+    breathWeapon: state.breathWeapon,
     spellcasting: state.spellcasting,
     regenAmount: state.regenAmount,
     regenNegate: state.regenNegate,
@@ -696,6 +700,7 @@ function NpcEditor(props: NpcEditorProps) {
         damageImmunities: state.damageImmunities.length > 0 ? state.damageImmunities : undefined,
         damageVulnerabilities: state.damageVulnerabilities.length > 0 ? state.damageVulnerabilities : undefined,
         conditionImmunities: state.conditionImmunities.length > 0 ? state.conditionImmunities : undefined,
+        breathWeapon: state.breathWeapon,
       });
     }
     onSave();

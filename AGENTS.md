@@ -293,6 +293,8 @@ CombatSession
 | 5.12 `currentTurn` 纯 id 设计 | 回合标记/先攻重排 | `pages/CombatSession.tsx` |
 | 5.13 注册式优劣势引擎 | 新优劣势来源/检定场景 | `data/advantageRules.ts` |
 | 5.14 文档路由 | 跨模块侦查 | `docs/generated/src/**` |
+| 5.16 躲藏 per-observer 可见性 | 改 hidden 状态/搜索揭晓/可见性优劣势 | `data/hiddenRules.ts` · `statusManager.patchMetadata` · `advantageRules.detectUnseen` |
+| 5.17 战斗状态持久化桥 | 改状态机存储/刷新恢复/回合回溯 | `data/statusPersistence.ts` · `CombatRecord.statusInstances` · `data/turnSnapshot.ts` |
 
 新模式的通用判据：逻辑跨 3 处以上复用、或涉及「临时副本/状态生命周期」时，先在此表登记再实现。
 

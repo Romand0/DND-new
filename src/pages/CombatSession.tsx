@@ -27,6 +27,7 @@ import PlaybackToolbar from '@/components/combat/PlaybackToolbar';
 import RewindDialog from '@/components/combat/RewindDialog';
 import SurpriseAttackDialog from '@/components/combat/SurpriseAttackDialog';
 import PlayerActionReviewPanel from '@/components/combat/PlayerActionReviewPanel';
+import DiceInputModal from '@/components/combat/DiceInputModal';
 import CombatantTraitPanel from '@/components/combat/CombatantTraitPanel';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import * as snapDb from '@/lib/combatSnapshots';
@@ -42,6 +43,10 @@ import { actionDeniedReason } from '@/data/statusRuntime';
 import { formatDamageBreakdown, normalizeDamageType } from '@/data/damageRules';
 import { characterStore } from '@/data/characterStore';
 import { derivePcAttacksPerAction } from '@/lib/pcExtraAttack';
+import { deriveSkillCheckBonus } from '@/data/passiveCombatRules';
+import { resolveSearch } from '@/data/searchRules';
+import { collectHideObservers, contestHide } from '@/data/hiddenRules';
+import { hydrateCombatStatuses, startStatusPersistence } from '@/data/statusPersistence';
 import { optionStore } from '@/data/optionStore';
 import { mergeFeatureMechanics } from '@/data/optionFeatures';
 import { resolveFeatureCapability, type FeatureCapability } from '@/data/featureCapabilities';
@@ -52,7 +57,8 @@ import { resolvePoolKey } from '@/data/featurePool';
 import npcTemplateStore from '@/data/npcTemplateStore';
 import battlegroundStore from '@/data/battlegroundStore';
 import { GRID_PRESETS } from '@/types/battleground';
-import type { Character, Attack, Feature } from '@/types/character';
+import type { Character, Attack, Feature, AbilityKey } from '@/types/character';
+import { ABILITY_LABEL_MAP } from '@/lib/saveBonus';
 import type { CombatRecord, Combatant, NpcTemplate, NpcAttack, EquipmentChanges, TurnSnapshot, ReactionPrompt, WildShapeState } from '@/types/combat';
 import type { SpellSlotLevel } from '@/types/character';
 import { detectReactions } from '@/data/reactionRules';
@@ -203,6 +209,21 @@ export default function CombatSession() {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const [record, setRecord] = useState<CombatRecord | null>(null);
+
+  // DM 明细合并视图：roundsDm 格非空则优先（机器明细），否则回退玩家行；
+  // DM 手动编辑走 handleCellChange 会清对应 roundsDm 格，之后显示回退到玩家行
+  const dmMergedRounds = useMemo(
+    () =>
+      (record?.rounds ?? []).map((row, i) => {
+        const dm = record?.roundsDm?.[i] ?? {};
+        const merged: Record<string, string> = { ...row };
+        for (const [cid, v] of Object.entries(dm)) {
+          if (v && v.trim()) merged[cid] = v;
+        }
+        return merged;
+      }),
+    [record?.rounds, record?.roundsDm],
+  );
   const [editingCell, setEditingCell] = useState<{ round: number; combatantId: string } | null>(null);
   // ✅ 新增：控制角色选择弹窗的显示状态（仅点击按钮触发，不影响加载逻辑）
   const [showCharSelect, setShowCharSelect] = useState(false);
@@ -312,6 +333,8 @@ export default function CombatSession() {
     activation: Feature['activation'];
     poolKey: string | null;
     cost: number;
+    /** 形状描述覆盖（怪物吐息传入模板 shape 文本，无角色卡特性可读） */
+    descriptionOverride?: string;
   } | null>(null);
   // resource_conv convert 通道弹窗（灵巧动作类）：to 多元素先选动作项，确认时扣动作与池
   const [convTargetPick, setConvTargetPick] = useState<{
@@ -349,6 +372,9 @@ export default function CombatSession() {
   const [infoPanelCombatant, setInfoPanelCombatant] = useState<Combatant | null>(null);
   // ✅ 强制位移弹窗（参战者面板/沙盘双击面板入口，落位引擎见 useForcedMove）
   const [forcedMoveTarget, setForcedMoveTarget] = useState<Combatant | null>(null);
+  // 躲藏/搜索的线下骰录入弹窗（隐匿总值 / 察觉 d20）
+  const [hideRollTarget, setHideRollTarget] = useState<Combatant | null>(null);
+  const [searchRollTarget, setSearchRollTarget] = useState<Combatant | null>(null);
   // ✅ 战斗结束回传弹窗
   const [commitModalOpen, setCommitModalOpen] = useState(false);
   // ✅ 沙盘最近单击选中的参战者 ID（用于左上 HUD 展示；若放映中有当前回合则以当前回合角色优先覆盖）
@@ -378,6 +404,8 @@ export default function CombatSession() {
     setConfirmEndTurnOpen,
     rewindModal,
     setRewindModal,
+    canUndoLastRecord,
+    undoLastRecord,
     handleCellChange,
     findNextValidTurn,
     checkAndAutoAdvance,
@@ -477,6 +505,14 @@ export default function CombatSession() {
     return unsub;
   }, [sessionId]);
 
+  // 状态机持久化：进入战斗按记录水合（hidden/专注等跨刷新不丢），变更防抖写回记录
+  useEffect(() => {
+    const id = record?.id;
+    if (!id) return;
+    hydrateCombatStatuses(id);
+    return startStatusPersistence(id);
+  }, [record?.id]);
+
   // 参战者角色卡机械字段自动刷新：老卡缺 activation/resource/poolFormula 标注会导致
   // 动作/池经济零记账（特性引擎按名字命中 capability，数据面靠卡上标注）——进战时幂等合并
   // 一次（description 保留、库无标注不动、changed 才写入防循环）；与 CharacterDetail 的
@@ -542,8 +578,10 @@ export default function CombatSession() {
     isPlaybackActive,
     canUseAction,
     canUseBonusAction,
+    canUseReaction,
     consumeCombatantAction,
     consumeCombatantBonusAction,
+    consumeCombatantReaction,
     markLoadingAttacked,
     resetCombatantActions,
   } = useActions(record, { playbackStarted, playbackPaused, currentTurn });
@@ -783,7 +821,8 @@ export default function CombatSession() {
   // recordOperation 依赖 useRoundTurn 已返回；applyDamage 走统一伤害入口。
   const { handleTokenMoved, resolveEndTurnZone, expireZonesForRound } = useZoneEffects(record, {
     applyDamage: handleApplyDamage,
-    recordOperation: (combatantId, text, kind) => recordOperation(combatantId, text, kind),
+    recordOperation: (combatantId, text, kind, detail?, writeCellOverride?) =>
+      recordOperation(combatantId, text, kind, detail, writeCellOverride),
   });
 
   // 沙盘变更信号：棋子移动只写 battlegroundStore，不经过 combatStore，
@@ -858,7 +897,16 @@ export default function CombatSession() {
     manualIsKill, setManualIsKill,
     manualHealMethod, setManualHealMethod,
     manualHealAmount, setManualHealAmount,
-    manualAttackRoll, setManualAttackRoll,
+    manualD20, setManualD20,
+    manualD20Second, setManualD20Second,
+    manualAttackBonus, setManualAttackBonus,
+    manualRollMode, setManualRollMode,
+    manualCrit, setManualCrit,
+    manualActionCost, setManualActionCost,
+    manualAttackCount, setManualAttackCount,
+    manualDamageType, setManualDamageType,
+    manualAttackSource, setManualAttackSource,
+    manualWeaponTraits, setManualWeaponTraits,
     confirmManualRecord,
     cancelManualRecord,
   } = useManualRecord(record, {
@@ -866,14 +914,19 @@ export default function CombatSession() {
     setSelectedCell,
     getEffectiveAc,
     canUseAction: (id: string) => canUseAction(id),
+    canUseBonusAction: (id: string) => canUseBonusAction(id),
+    canUseReaction: (id: string) => canUseReaction(id),
     consumeCombatantAction: (id: string) => consumeCombatantAction(id),
+    consumeCombatantBonusAction: (id: string) => consumeCombatantBonusAction(id),
+    consumeCombatantReaction: (id: string) => consumeCombatantReaction(id),
     handleApplyDamage: (event) => handleApplyDamage(event),
     handleApplyHealing,
     recordOperation,
   });
 
   // 手动记录入口：重置全部字段后打开弹窗（表格两处调用 + 沙盘共用同一重置序列）
-  const openManualRecord = () => {
+  const openManualRecord = (round?: number, combatantId?: string) => {
+    if (round !== undefined && combatantId) setSelectedCell({ round, combatantId });
     setManualRecordType('attack');
     setManualRecordOpen(true);
     setManualTargetId('');
@@ -882,7 +935,16 @@ export default function CombatSession() {
     setManualIsKill(false);
     setManualHealMethod('');
     setManualHealAmount('');
-    setManualAttackRoll('');
+    setManualD20('');
+    setManualD20Second('');
+    setManualAttackBonus('0');
+    setManualRollMode('none');
+    setManualCrit(false);
+    setManualActionCost('action');
+    setManualAttackCount('1');
+    setManualDamageType('');
+    setManualAttackSource('weapon');
+    setManualWeaponTraits({ magical: null, silvered: null, adamantine: null });
   };
 
   // 先攻全链路：由 hook 接管（投掷弹窗 / 平局拖拽 / 批量删除 / 圆形序号）。
@@ -1228,6 +1290,41 @@ export default function CombatSession() {
     recordOperation(from.id, payload.message, 'damage');
     combatStore.pushCombatEvent(record.id, { kind: 'skill', actorId: from.id, text: `《${featureName}》→ ${payload.message}` });
     setAoeSaveModal(null);
+  };
+
+  /** 怪物吐息武器：按模板结构化字段合成 aoe_save 能力，复用范围豁免弹窗（动作在确认时扣） */
+  const openNpcBreathWeapon = (c: Combatant, index: number) => {
+    const b = c.breathWeapon?.[index];
+    if (!b || !record) return;
+    if (!ensureCanEnter(c)) return;
+    const bg = battlegroundStore.get(record.id);
+    const placed = (bg?.tokens ?? []).some(t => t.combatantId === c.id);
+    if (!placed) {
+      alert(`「${b.name}」需要先将该参战者放置在沙盘上（范围以自身为源点）`);
+      return;
+    }
+    const dc = b.dc ?? 10;
+    const label = b.ability ?? '敏捷';
+    const saveAbility = (Object.entries(ABILITY_LABEL_MAP).find(([, l]) => l === label)?.[0] as AbilityKey | undefined) ?? 'dexterity';
+    const capability: FeatureCapability = {
+      channel: 'aoe_save',
+      aoeSave: {
+        damage: { dice: b.damageDice ?? '', damageType: b.damageType ?? '火焰' },
+        saveAbility,
+        dc: () => dc,
+        halfOnSave: b.halfOnSave ?? false,
+      },
+      hint: `${c.name}的${b.name}：${b.shape ?? ''}${b.recharge ? `（${b.recharge}）` : ''}，DC${dc}${label}豁免${b.halfOnSave ? '，成功减半' : ''}`,
+    };
+    setAoeSaveModal({
+      from: c,
+      featureName: `吐息武器（${b.name}）`,
+      capability,
+      activation: 'action',
+      poolKey: null,
+      cost: 1,
+      descriptionOverride: b.shape ?? '',
+    });
   };
 
   /**
@@ -1673,17 +1770,22 @@ export default function CombatSession() {
   };
 
   // 基础动作「躲藏」：1 动作挂 hidden 状态——未被定位前攻击对己劣势、己方攻击优势；
-  // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后确认（引擎零暗骰）。
+  // 隐匿检定由玩家线下掷骰、DM 核对观察者被动察觉后录入总值（引擎零暗骰）。
   // hidden 不自动过期：首次攻击结算后揭晓（breakHidden），被发现时 DM 手动解除。
-  const hideFor = (c: Combatant) => {
+  const hideFor = (c: Combatant, stealthTotal: number) => {
     if (!ensureCanEnter(c)) return;
     const currentRound0 = currentTurn?.round ?? Math.max(0, record.rounds.length - 1);
-    const observers = record.combatants.filter(o => o.id !== c.id && !o.isDead && !o.isUnconscious);
-    const dcList = observers.map(o => `${o.name} 被动察觉 ${o.passiveChecks?.perception ?? 10}`).join('、');
+    const observers = collectHideObservers(record.combatants, c.id);
+    const contest = contestHide(stealthTotal, observers);
+    const unseenSet = new Set(contest.unseenBy);
+    const dcList = observers
+      .map(o => `${o.name} 被动察觉 ${o.pp}${unseenSet.has(o.id) ? '（未察觉）' : '（看破）'}`)
+      .join('、');
     globalStatusManager.applyEffect(c.id, 'hidden', 'combat', record.id, {
       ...(record.mode === 'playback'
         ? { combatMode: 'playback' as const, startRound: currentRound0 }
         : { combatMode: 'simulation' as const }),
+      metadata: { stealthTotal, stealthSource: 'roll' as const, unseenBy: contest.unseenBy },
     });
     combatStore.addTurnTodo(record.id, {
       combatantId: c.id,
@@ -1693,8 +1795,37 @@ export default function CombatSession() {
       endRound: currentRound0 + 1,
     });
     consumeCombatantAction(c.id);
-    recordOperation(c.id, `躲藏：未被定位前攻击劣势/己方优势（观察者：${dcList || '无'}）`, 'record');
-    alert(`「${c.name}」进入躲藏。\n\n隐匿检定需达到以下观察者被动察觉：\n${dcList || '（无观察者）'}\n\n检定失败的观察者可看破其位置（DM 手动移除躲藏状态）`);
+    // 双通道：玩家行只写「躲藏」（隐匿总值与观察者清单属 DM 明细）
+    recordOperation(c.id, '躲藏', 'record', `躲藏：隐匿总值 ${stealthTotal}（观察者：${dcList || '无'}）`);
+    const verdict = unseenSet.size === 0
+      ? '警告：隐匿总值未超过任何观察者被动察觉，位置已被全部看破（无机械收益）'
+      : contest.seenBy.length === 0
+        ? '全部观察者未察觉位置（对攻击/被攻击的优劣势生效）'
+        : `${unseenSet.size} 名观察者未察觉，${contest.seenBy.length} 名已看破位置`;
+    alert(`「${c.name}」进入躲藏（隐匿总值 ${stealthTotal}）。\n\n${verdict}\n\n观察者被动察觉：\n${dcList || '（无观察者）'}`);
+  };
+
+  // 基础动作「搜索」：察觉检定对抗全图活跃 hidden 实例的隐匿总值；成功解除该实例。
+  // 规则无射程限制（全图），失败照扣 1 动作；结果只回发现/未发现，不写目标身份。
+  const searchFor = (c: Combatant, d20: number) => {
+    if (!ensureCanEnter(c)) return;
+    if (!canUseAction(c.id)) {
+      alert(`「${c.name}」本回合动作已用完，无法搜索`);
+      return;
+    }
+    const character = c.characterId ? characterStore.get(c.characterId) : null;
+    const bonus = deriveSkillCheckBonus(character, 'perception');
+    const total = d20 + bonus;
+    const resolution = resolveSearch({ searcherId: c.id, total, combatants: record.combatants });
+    consumeCombatantAction(c.id);
+    const found = resolution.revealed.length;
+    // 双通道：玩家行只回数量（不写拆解与目标身份）；DM 明细含掷骰拆解 + 目标名/隐匿值
+    const playerLine = found > 0 ? `搜索：发现 ${found} 名潜伏者` : '搜索：未发现目标';
+    const hitParts = resolution.revealed.map(r => `《${r.name}》隐匿 ${r.stealthTotal}${r.estimated ? '（被动代填）' : ''}`);
+    const skippedParts = resolution.skipped.map(s => `《${s.name}》未录入隐匿值`);
+    const detailParts = [`察觉 ${d20}+${bonus}=${total}`, ...(hitParts.length ? [`发现：${hitParts.join('、')}`] : []), ...(skippedParts.length ? [`跳过：${skippedParts.join('、')}`] : [])];
+    recordOperation(c.id, playerLine, 'record', `搜索：${detailParts.join('；')}`);
+    alert(`「${c.name}」搜索：${detailParts.join('；')}${skippedParts.length ? '（跳过者需补录隐匿值）' : ''}`);
   };
 
   // 一攻揭晓：躲藏者发起攻击（命中/未命中均算）结算后移除 hidden
@@ -1914,6 +2045,21 @@ export default function CombatSession() {
         </div>
       )}
 
+      {/* ✅ 单条记录撤销：仅回退上一条手动记录文本/日志，不回退 HP */}
+      {canUndoLastRecord && (
+        <div className="fixed bottom-4 right-4 z-40">
+          <button
+            type="button"
+            onClick={undoLastRecord}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-600 text-white text-sm shadow-lg hover:bg-amber-700 transition-colors"
+            title="撤销上一条记录（仅回退记录文本，不回退生命值）"
+          >
+            <Undo2 className="w-4 h-4" />
+            撤销上一条
+          </button>
+        </div>
+      )}
+
       {/* ✅ 模拟模式手动记录：先选操作主体（放映模式的主体来自表格格子，模拟模式无格子可点） */}
       {manualPickerOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -2119,7 +2265,7 @@ export default function CombatSession() {
       ) : (
         <InitiativeTable
           combatants={record.combatants}
-          rounds={record.rounds}
+          rounds={dmMergedRounds}
           batchMode={batchMode}
           selectedIds={selectedIds}
           onToggleSelect={toggleSelect}
@@ -2162,6 +2308,8 @@ export default function CombatSession() {
         onPanelDashClick={dashFor}
         onPanelDodgeClick={dodgeFor}
         onPanelDisengageClick={disengageFor}
+        onPanelHideClick={(c) => setHideRollTarget(c)}
+        onPanelSearchClick={(c) => setSearchRollTarget(c)}
         onPanelForcedMoveClick={(c) => setForcedMoveTarget(c)}
         onPanelFeatureClick={handleFeatureUse}
         multiattackProgress={record.multiattackProgress}
@@ -3319,6 +3467,7 @@ export default function CombatSession() {
             caster={aoeSaveModal.from}
             featureName={aoeSaveModal.featureName}
             capability={aoeSaveModal.capability}
+            descriptionOverride={aoeSaveModal.descriptionOverride}
             combatants={record.combatants}
             combatantPositions={combatantPositions}
             bounds={{ cols: preset.cols, rows: preset.rows }}
@@ -3391,12 +3540,36 @@ export default function CombatSession() {
           onTargetIdChange={setManualTargetId}
           attackMethod={manualAttackMethod}
           onAttackMethodChange={setManualAttackMethod}
-          attackRoll={manualAttackRoll}
-          onAttackRollChange={setManualAttackRoll}
+          attackD20={manualD20}
+          onAttackD20Change={setManualD20}
+          attackD20Second={manualD20Second}
+          onAttackD20SecondChange={setManualD20Second}
+          attackBonus={manualAttackBonus}
+          onAttackBonusChange={setManualAttackBonus}
+          rollMode={manualRollMode}
+          onRollModeChange={setManualRollMode}
+          crit={manualCrit}
+          onCritChange={setManualCrit}
+          actionCost={manualActionCost}
+          onActionCostChange={setManualActionCost}
+          attackCount={manualAttackCount}
+          onAttackCountChange={setManualAttackCount}
+          actionAvailability={{
+            action: selectedCell ? canUseAction(selectedCell.combatantId) : false,
+            bonus: selectedCell ? canUseBonusAction(selectedCell.combatantId) : false,
+            reaction: selectedCell ? canUseReaction(selectedCell.combatantId) : false,
+            free: true,
+          }}
           damage={manualDamage}
           onDamageChange={setManualDamage}
           isKill={manualIsKill}
           onIsKillChange={setManualIsKill}
+          damageType={manualDamageType}
+          onDamageTypeChange={setManualDamageType}
+          attackSource={manualAttackSource}
+          onAttackSourceChange={setManualAttackSource}
+          weaponTraits={manualWeaponTraits}
+          onWeaponTraitsChange={(patch) => setManualWeaponTraits(prev => ({ ...prev, ...patch }))}
           healMethod={manualHealMethod}
           onHealMethodChange={setManualHealMethod}
           healAmount={manualHealAmount}
@@ -3570,6 +3743,7 @@ export default function CombatSession() {
             })()}
             onMultiattackStart={() => startMultiattackSequence(liveCombatant)}
             onMultiattackEnd={() => endMultiattackSequence(liveCombatant.id)}
+            onBreathWeaponClick={(index) => openNpcBreathWeapon(liveCombatant, index)}
             onCastClick={() => {
               openCastFor(liveCombatant);
               setInfoPanelCombatant(null);
@@ -3587,7 +3761,11 @@ export default function CombatSession() {
               setInfoPanelCombatant(null);
             }}
             onHideClick={() => {
-              hideFor(liveCombatant);
+              setHideRollTarget(liveCombatant);
+              setInfoPanelCombatant(null);
+            }}
+            onSearchClick={() => {
+              setSearchRollTarget(liveCombatant);
               setInfoPanelCombatant(null);
             }}
             onForcedMoveClick={() => setForcedMoveTarget(liveCombatant)}
@@ -3595,6 +3773,46 @@ export default function CombatSession() {
         );
        })()}
      
+      {/* 躲藏：录入线下掷出的隐匿检定总值（供后续搜索对抗） */}
+      {hideRollTarget && (
+        <DiceInputModal
+          title={`躲藏 · ${hideRollTarget.name}`}
+          diceText="d20 + 隐匿加值"
+          hint="填入敏捷（隐匿）检定总值；搜索时以察觉检定与之对抗，平局仍视为未被发现"
+          min={1}
+          max={60}
+          confirmLabel="进入躲藏"
+          onConfirm={(stealthTotal) => {
+            const target = hideRollTarget;
+            setHideRollTarget(null);
+            hideFor(target, stealthTotal);
+          }}
+          onClose={() => setHideRollTarget(null)}
+        />
+      )}
+
+      {/* 搜索：录入线下掷出的察觉 d20，加值由角色卡派生 */}
+      {searchRollTarget && (() => {
+        const character = searchRollTarget.characterId ? characterStore.get(searchRollTarget.characterId) : null;
+        const bonus = deriveSkillCheckBonus(character, 'perception');
+        return (
+          <DiceInputModal
+            title={`搜索 · ${searchRollTarget.name}`}
+            diceText="d20"
+            hint={`填入感知（察觉）检定 d20 骰面，系统按 d20 ${bonus >= 0 ? '+' : '-'} ${Math.abs(bonus)} 对抗全图躲藏者的隐匿值`}
+            min={1}
+            max={20}
+            confirmLabel="发起搜索"
+            onConfirm={(d20) => {
+              const target = searchRollTarget;
+              setSearchRollTarget(null);
+              searchFor(target, d20);
+            }}
+            onClose={() => setSearchRollTarget(null)}
+          />
+        );
+      })()}
+
       {/* 强制位移弹窗（参战者面板 / 沙盘双击面板共用入口） */}
       {forcedMoveTarget && record && (() => {
         const bg = battlegroundStore.get(record.id);

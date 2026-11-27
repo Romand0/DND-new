@@ -160,6 +160,16 @@ export type TurnCommitOp =
     }
   | {
       kind: 'hide';
+      /** 躲藏时的隐匿检定总值（DM 录入 / 玩家线下掷骰），供后续搜索对抗 */
+      stealthTotal: number;
+      roundText: string;
+    }
+  | {
+      kind: 'search';
+      /** 玩家线下掷的 d20 骰面（1-20） */
+      d20: number;
+      /** 察觉技能加值（前端按角色卡派生） */
+      bonus: number;
       roundText: string;
     }
   | { kind: 'end-turn' };
@@ -208,6 +218,17 @@ export interface RosterTurnTodo {
   executed: boolean;
 }
 
+/** 参战者活跃状态投影条目（全量透传，默认可见性由玩家端渲染层决定） */
+export interface RosterStatusEntry {
+  definitionId: string;
+  /** 状态名（statusLibrary 注册名） */
+  name: string;
+  /** 躲藏实例的隐匿总值（statusManager metadata.stealthTotal）；仅 hidden 等携带该元数据的状态存在 */
+  stealthTotal?: number;
+  /** 躲藏实例的未察觉观察者 ID 列表（per-observer 可见性）；缺省 = legacy 全局隐藏 */
+  unseenBy?: string[];
+}
+
 export interface CombatRosterEntry {
   id: string;
   name: string;
@@ -250,6 +271,8 @@ export interface CombatRosterEntry {
   activeFeatures?: RosterActiveFeature[] | null;
   /** PC 可施法术列表（角色卡法术名解析模板库所得；NPC 或无法术为 null） */
   spells?: RosterSpellEntry[] | null;
+  /** 活跃状态全量投影（含 hidden；玩家端表格默认不渲染 hidden，自己的 PC 可见隐匿总值） */
+  statuses?: RosterStatusEntry[];
 }
 
 /** 主动技能投影条目（玩家端主动技能按钮所需最小集，含池量与动作成本） */
@@ -354,6 +377,8 @@ export interface CombatDeltaPayload {
   board: BoardProjection | null;
   /** 先攻表格：仅在放映中（turn 非 null）随快照下发，非放映时空数组（玩家端据此清空） */
   rounds: RoundsProjection;
+  /** DM 明细表格（rounds 的平行通道，含目标名/隐匿值等机密细节）：透传下发，玩家端默认渲染 rounds 通道 */
+  roundsDm?: RoundsProjection;
   /** 战斗事件流（最近 50 条）：驱动回合摘要与动画；玩家端按 id 去重增量播放 */
   events?: CombatEvent[];
 }

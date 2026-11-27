@@ -1,4 +1,5 @@
 import combatStore from '@/data/combatStore';
+import { isRegenSuppressedBy } from '@/data/regeneration';
 import { restoreWildShapeForm } from '@/data/wildShapeBeasts';
 import type { CombatRecord, Combatant } from '@/types/combat';
 import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
@@ -22,6 +23,7 @@ export function useDamageAndHp(
     status: 'unconscious' | 'dead' | undefined,
     wasUnconscious: boolean,
     replacement?: Combatant,
+    suppressRegen = false,
   ) => {
     if (!record) return [];
     const latest = combatStore.get(record.id);
@@ -29,8 +31,10 @@ export function useDamageAndHp(
     const updatedCombatants = latest.combatants.map(c => {
       if (c.id !== targetId) return c;
       const base = replacement ?? c;
+      // 再生失效标记：受到特质否定类型伤害时置位，回合开始时消费清除（跨伤害保留）
+      const regenSuppressed = suppressRegen || base.regenSuppressed;
       if (newHp <= 0 && status === 'dead') {
-        return { ...base, currentHp: newHp, tempHp: tempHpAfter, isDead: true, isUnconscious: false };
+        return { ...base, currentHp: newHp, tempHp: tempHpAfter, isDead: true, isUnconscious: false, regenSuppressed };
       }
       if (newHp <= 0 && status === 'unconscious') {
         const firstDown = !wasUnconscious;
@@ -42,6 +46,7 @@ export function useDamageAndHp(
           isUnconscious: true,
           deathSaveFailures: firstDown ? 0 : (base.deathSaveFailures ?? 0),
           deathSaveSuccesses: firstDown ? 0 : (base.deathSaveSuccesses ?? 0),
+          regenSuppressed,
         };
       }
       return {
@@ -52,6 +57,7 @@ export function useDamageAndHp(
         isUnconscious: false,
         deathSaveFailures: 0,
         deathSaveSuccesses: 0,
+        regenSuppressed,
       };
     });
     combatStore.update(record.id, { combatants: updatedCombatants, updatedAt: Date.now() });
@@ -113,13 +119,20 @@ export function useDamageAndHp(
       newHp = restoredHp;
     }
 
-    // 尸体不会被伤害“复活”；NPC 未指定致命状态时默认死亡，避免 0 HP 仍站立
+    // 尸体不会被伤害“复活”；NPC 未指定致命状态时默认死亡，避免 0 HP 仍站立。
+    // 有再生的怪物例外：0 HP 先记为昏迷（未毁），待其回合开始按再生是否生效决定回血或死亡。
     const status: 'unconscious' | 'dead' | undefined =
       newHp <= 0
-        ? (effectiveTarget.isDead ? 'dead' : (event.status ?? (effectiveTarget.isPc ? 'unconscious' : 'dead')))
+        ? (effectiveTarget.isDead
+          ? 'dead'
+          : (event.status ?? (effectiveTarget.isPc || effectiveTarget.regenAmount ? 'unconscious' : 'dead')))
         : undefined;
 
-    const updatedCombatants = writeCombatantHp(event.targetId, newHp, tempHpAfter, status, wasUnconscious, effectiveTarget);
+    // 再生否定条件：受到火焰/强酸等伤害 → 下一回合再生失效（伤者为 0 时不触发）
+    const regenHit = damage > 0
+      && !!effectiveTarget.regenAmount
+      && isRegenSuppressedBy(effectiveTarget.regenNegate, event.damageType);
+    const updatedCombatants = writeCombatantHp(event.targetId, newHp, tempHpAfter, status, wasUnconscious, effectiveTarget, regenHit);
 
     // 专注豁免（D&D 5e）：DC = max(10, floor(承受伤害/2))。
     // 伤害量来自攻击方结算，包含被临时 HP 吸收的部分；HP 归零时专注直接中断。

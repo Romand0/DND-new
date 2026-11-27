@@ -172,6 +172,31 @@ const PASSIVE_CHECK_DEFS = [
   { key: 'investigation', ability: 'intelligence', skill: 'investigation' },
 ] as const;
 
+/** 技能 → 关联属性（主动检定加值派生用，仅列常用项） */
+const SKILL_ABILITY: Record<string, AbilityKey> = {
+  perception: 'wisdom',
+  insight: 'wisdom',
+  investigation: 'intelligence',
+  stealth: 'dexterity',
+};
+
+/**
+ * 主动技能检定加值：属性调整 + 熟练(×1)/专精(×2) × 熟练加值 + 技能 extra。
+ * 不含「仅被动生效」的特性修正（如观察力 +5 被动），主动搜索时不应享受。
+ */
+export function deriveSkillCheckBonus(
+  char: Character | null | undefined,
+  skillKey: keyof Character['skills'],
+): number {
+  if (!char) return 0;
+  const ability = SKILL_ABILITY[skillKey as string];
+  if (!ability) return 0;
+  const abilityMod = char.abilities?.[ability]?.modifier ?? 0;
+  const skill = char.skills?.[skillKey];
+  const profMult = skill?.expertise ? 2 : skill?.proficient ? 1 : 0;
+  return abilityMod + profMult * (char.proficiencyBonus ?? 0) + (skill?.extra ?? 0);
+}
+
 /** 特性对被动检定的固定修正：PASSIVE_CHECK_BONUS_RULES（passiveRules.ts）表驱动 */
 
 /**
@@ -181,13 +206,9 @@ const PASSIVE_CHECK_DEFS = [
  */
 export function derivePassiveChecks(char: Character | null | undefined): PassiveChecks | undefined {
   if (!char) return undefined;
-  const prof = char.proficiencyBonus ?? 0;
   const result = {} as PassiveChecks;
   for (const def of PASSIVE_CHECK_DEFS) {
-    const abilityMod = char.abilities?.[def.ability]?.modifier ?? 0;
-    const skill = char.skills?.[def.skill];
-    const profMult = skill?.expertise ? 2 : skill?.proficient ? 1 : 0;
-    result[def.key] = 10 + abilityMod + profMult * prof + (skill?.extra ?? 0);
+    result[def.key] = 10 + deriveSkillCheckBonus(char, def.skill);
   }
   for (const rule of PASSIVE_CHECK_BONUS_RULES) {
     if (hasActiveTrait(char, rule.trait)) result[rule.target] += rule.bonus;

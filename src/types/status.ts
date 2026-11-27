@@ -234,7 +234,13 @@ export interface StatusManager {
   /** 清理过期状态 */
   cleanupExpired(): void;
 
-  /** 订阅状态生命周期事件（start / end / expire）；返回取消订阅函数 */
+  /** 读取某战斗的全部活跃实例（持久化 / 回合快照用；metadata 深拷贝） */
+  getActiveCombatInstances(combatId: string): StatusInstance[];
+
+  /** 以持久化 / 快照数据整场替换某战斗的实例（hydration / 回溯），逐条广播 start 供订阅方刷新 */
+  loadCombatInstances(combatId: string, instances: StatusInstance[]): void;
+
+  /** 订阅状态生命周期事件（start / end / expire / update）；返回取消订阅函数 */
   subscribe(listener: StatusChangeListener): () => void;
 }
 
@@ -244,7 +250,8 @@ export interface StatusManager {
 
 /** 状态变更事件 —— 用于订阅/通知 */
 export interface StatusChangeEvent {
-  type: 'start' | 'end' | 'expire';
+  /** update = 实例运行时元数据就地变更（如躲藏揭晓后收窄 unseenBy），不涉及启停 */
+  type: 'start' | 'end' | 'expire' | 'update';
   instance: StatusInstance;
   definition: StatusDefinition;
   timestamp: number;
