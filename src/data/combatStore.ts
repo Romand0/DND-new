@@ -1,6 +1,7 @@
 import type { Combatant, CombatRecord, RoundAction, EquipmentChanges, TurnTodo, PendingAdvantageSource, PendingCheckModifier, OperationLogEntry, SettlementPreview, SettlementEntry, SettlementSelections, CombatEvent, ReactionPrompt, CoverTier } from '@/types/combat';
 import { planTurnStartRegeneration, type RegenPlan } from '@/data/regeneration';
 import { getCoverBonus } from '@/data/visionRules';
+import { isTwoHandedGripOk } from '@/data/ammo';
 import { scopedKey } from '@/data/campaignScope';
 import { pushCharacterLog } from '@/lib/characterLog';
 import { syncListDiff, pullArtifactsOnce, mergeByIdentity } from '@/data/artifactSync';
@@ -2562,7 +2563,12 @@ const combatStore = {
     if (!equip) return false;
     if (characterStore.isTwoHandedWeapon(equip)) {
       const other = combatStore.getCombatantHandSlot(combatant, hand === 'left' ? 'right' : 'left');
-      return other.state === 'ready' && other.equipmentId === slot.equipmentId;
+      const sameWeapon = other.state === 'ready' && other.equipmentId === slot.equipmentId;
+      // 弹药武器（弓/弩）允许另一手持对应弹药：弹药是消耗品，不占「双手同持一把武器」的槽位
+      const otherEquip = other.equipmentId
+        ? source.find(e => (e.childId || e.id) === other.equipmentId)
+        : null;
+      return isTwoHandedGripOk(equip, sameWeapon, otherEquip?.name ?? null);
     }
     return true;
   },

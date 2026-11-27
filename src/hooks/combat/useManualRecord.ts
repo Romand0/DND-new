@@ -11,7 +11,7 @@ import {
   normalizeManualAttackCount,
   resolveManualAttackRoll,
 } from '@/data/manualAttack';
-import type { CombatRecord, ManualActionCost, ManualMode, OperationLogEntry } from '@/types/combat';
+import type { CombatRecord, Combatant, ManualActionCost, ManualMode, ManualRecordType, OperationLogEntry } from '@/types/combat';
 import type { DamageApplication, DamageApplyResult, HealApplyResult } from '@/types/damage';
 
 // 手动攻击方式是自由文本，按关键词启发式判定远程（只影响观众端动画形态：飞矢 vs 冲刺）
@@ -48,7 +48,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
   } = props;
 
   const [manualRecordOpen, setManualRecordOpen] = useState(false);
-  const [manualRecordType, setManualRecordType] = useState<'attack' | 'recovery' | null>(null);
+  const [manualRecordType, setManualRecordType] = useState<ManualRecordType | null>(null);
   const [manualTargetId, setManualTargetId] = useState('');
   const [manualAttackMethod, setManualAttackMethod] = useState('');
   const [manualDamage, setManualDamage] = useState('');
@@ -70,6 +70,57 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
     silvered: null,
     adamantine: null,
   });
+
+  // 手动伤害统一落账：抗性/易伤/免疫（含再生否定来源）+ 致命击倒 + HP/临时 HP 文案。
+  // 攻击模板与「直接伤害」模板共用，避免两处结算漂移。
+  const applyManualDamageOutcome = (params: {
+    target: Combatant;
+    rawDmg: number;
+    method: string;
+    source: ManualAttackSource;
+    isKill: boolean;
+    sourceId?: string;
+  }): { ok: true; preview: ReturnType<typeof resolveManualDamage>; dmg: number; hpFragment: string } | { ok: false; error: string } => {
+    if (!record) return { ok: false, error: '战斗记录不存在' };
+    const { target, rawDmg, method, source, isKill, sourceId } = params;
+    const preview = resolveManualDamage({
+      amount: rawDmg,
+      damageType: manualDamageType,
+      source,
+      method,
+      weaponTraits: manualWeaponTraits,
+      affinities: getCombatantAffinities(target, record.id),
+    });
+    const dmg = preview.final;
+    if (target.currentHp === undefined) {
+      if (isKill) return { ok: false, error: '目标缺少当前 HP，无法判定击倒' };
+      return { ok: true, preview, dmg, hpFragment: '' };
+    }
+    const oldHp = target.currentHp;
+    const tempHp = Math.max(0, target.tempHp ?? 0);
+    // 免疫/0 伤害不致死：击倒勾选仅在最终伤害 > 0 时生效
+    const lethal = isKill && dmg > 0;
+    const status: 'unconscious' | 'dead' | undefined = lethal
+      ? (target.isPc ? 'unconscious' : 'dead')
+      : undefined;
+    // 手动击倒优先于临时 HP：补足穿透伤害确保 HP 归零
+    const amount = lethal ? Math.max(dmg, oldHp + tempHp) : dmg;
+    const result = handleApplyDamage({
+      targetId: target.id,
+      amount,
+      status,
+      sourceId,
+      sourceName: method,
+      sourceKind: 'manual',
+      damageType: preview.damageType ?? undefined,
+    });
+    const newHp = result?.newHp ?? Math.max(0, oldHp - dmg);
+    let hpFragment = `，HP【${oldHp}→${newHp}】`;
+    if (result?.tempAbsorbed) hpFragment += `，临时HP吸收${result.tempAbsorbed}`;
+    if (lethal) hpFragment += target.isPc ? '，击昏' : '，杀死';
+    else if (isKill) hpFragment += '，免疫该伤害，击倒未生效';
+    return { ok: true, preview, dmg, hpFragment };
+  };
 
   const confirmManualRecord = () => {
     if (!selectedCell || !record) return;
@@ -115,15 +166,16 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         const rawDmg = parseInt(manualDamage, 10);
         if (isNaN(rawDmg) || rawDmg === 0) { alert('请输入有效的伤害值（非0整数）'); return; }
         // 抗性/易伤/免疫与自动攻击链共用同一引擎；未声明类型时原样通过
-        const preview = resolveManualDamage({
-          amount: rawDmg,
-          damageType: manualDamageType,
-          source: manualAttackSource,
+        const outcome = applyManualDamageOutcome({
+          target,
+          rawDmg,
           method: manualAttackMethod,
-          weaponTraits: manualWeaponTraits,
-          affinities: getCombatantAffinities(target, record.id),
+          source: manualAttackSource,
+          isKill: manualIsKill,
+          sourceId: attacker?.id,
         });
-        const dmg = preview.final;
+        if ('error' in outcome) { alert(outcome.error); return; }
+        const { preview, dmg } = outcome;
         const typeLabel = preview.damageType ?? '';
         kind = 'damage';
         text = `${methodLabel}→ ${target.name}：命中（${rollDetail} vs AC【${tgtAc}】）${costTag}`;
@@ -132,34 +184,7 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         if (strikeCount > 1) text += `（${strikeCount} 击合计）`;
         if (preview.breakdown) text += `（${preview.breakdown}）`;
         else if (!preview.damageType) text += '（未声明伤害类型，未应用抗性）';
-        if (target.currentHp !== undefined) {
-          const oldHp = target.currentHp;
-          const tempHp = Math.max(0, target.tempHp ?? 0);
-          // 免疫/0 伤害不致死：击倒勾选仅在最终伤害 > 0 时生效
-          const lethal = manualIsKill && dmg > 0;
-          const status: 'unconscious' | 'dead' | undefined = lethal
-            ? (target.isPc ? 'unconscious' : 'dead')
-            : undefined;
-          // 手动击倒优先于临时 HP：补足穿透伤害确保 HP 归零
-          const amount = lethal ? Math.max(dmg, oldHp + tempHp) : dmg;
-          const result = handleApplyDamage({
-            targetId: target.id,
-            amount,
-            status,
-            sourceId: attacker?.id,
-            sourceName: manualAttackMethod,
-            sourceKind: 'manual',
-            damageType: preview.damageType ?? undefined,
-          });
-          const newHp = result?.newHp ?? Math.max(0, oldHp - dmg);
-          text += `，HP【${oldHp}→${newHp}】`;
-          if (result?.tempAbsorbed) text += `，临时HP吸收${result.tempAbsorbed}`;
-          if (lethal) text += target.isPc ? `，击昏` : `，杀死`;
-          else if (manualIsKill) text += '，免疫该伤害，击倒未生效';
-        } else if (manualIsKill) {
-          alert('目标缺少当前 HP，无法判定击倒');
-          return;
-        }
+        text += outcome.hpFragment;
       }
       // 攻击事件：伤害/治疗事件由 handleApplyDamage 自动推送，此处补攻击动画本体
       combatStore.pushCombatEvent(record.id, {
@@ -174,6 +199,35 @@ export function useManualRecord(record: CombatRecord | null, props: UseManualRec
         text,
       });
       recordOperation(combatantId, text, kind, undefined, selectedCell);
+      if (manualActionCost === 'action') consumeCombatantAction(combatantId);
+      else if (manualActionCost === 'bonus') consumeCombatantBonusAction(combatantId);
+      else if (manualActionCost === 'reaction') consumeCombatantReaction(combatantId);
+    } else if (manualRecordType === 'damage') {
+      // 直接伤害/效果伤害：无攻击检定（环境、陷阱、持续伤害、法术已命中、反伤等）
+      if (!target) { alert('请选择目标'); return; }
+      const rawDmg = parseInt(manualDamage, 10);
+      if (isNaN(rawDmg) || rawDmg <= 0) { alert('请输入有效的伤害值（正整数）'); return; }
+      if (manualActionCost === 'action' && !canUseAction(combatantId)) { alert('该角色本回合已无可用动作'); return; }
+      if (manualActionCost === 'bonus' && !canUseBonusAction(combatantId)) { alert('该角色本回合已无可用附赠动作'); return; }
+      if (manualActionCost === 'reaction' && !canUseReaction(combatantId)) { alert('该角色本回合已无可用反应'); return; }
+      const method = manualAttackMethod.trim() || '直接伤害';
+      const outcome = applyManualDamageOutcome({
+        target,
+        rawDmg,
+        method,
+        source: manualAttackSource,
+        isKill: manualIsKill,
+        sourceId: attacker?.id,
+      });
+      if ('error' in outcome) { alert(outcome.error); return; }
+      const { preview, dmg } = outcome;
+      const typeLabel = preview.damageType ?? '';
+      const costTag = manualActionCost === 'bonus' ? '（附赠动作）' : manualActionCost === 'reaction' ? '（反应）' : manualActionCost === 'action' ? '（动作）' : '';
+      let text = `《${method}》→ ${target.name}：受到【${dmg}】${typeLabel}伤害${costTag}`;
+      if (preview.breakdown) text += `（${preview.breakdown}）`;
+      else if (!preview.damageType) text += '（未声明伤害类型，未应用抗性）';
+      text += outcome.hpFragment;
+      recordOperation(combatantId, text, 'damage', undefined, selectedCell);
       if (manualActionCost === 'action') consumeCombatantAction(combatantId);
       else if (manualActionCost === 'bonus') consumeCombatantBonusAction(combatantId);
       else if (manualActionCost === 'reaction') consumeCombatantReaction(combatantId);
