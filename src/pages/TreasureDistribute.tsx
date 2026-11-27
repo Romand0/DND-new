@@ -25,6 +25,7 @@ import treasureStore from '@/data/treasureStore';
 import { extractBaseFields } from '@/data/equipmentFactory';
 import { characterStore } from '@/data/characterStore';
 import { sortInventory } from '@/data/combatStore';
+import { pushCharacterLog } from '@/lib/characterLog';
 
 /* ─── 类型 ─── */
 
@@ -501,6 +502,27 @@ export default function TreasureDistribute() {
         distributedAt: Date.now(),
       };
       treasureStore.recordDistribution(record);
+
+      // 账本锚点：一条带 treasureId 的汇总日志，供剧情经济账本按角色挂载与聚合
+      const parts: string[] = [];
+      for (const key of ['pp', 'gp', 'ep', 'sp', 'cp'] as const) {
+        if (dist.currency[key] > 0) parts.push(`${dist.currency[key]}${key}`);
+      }
+      if (dist.items.length) parts.push(dist.items.map(it => `${it.name}×${it.quantity}`).join('、'));
+      if (dist.experience > 0) parts.push(`经验 +${dist.experience}`);
+      pushCharacterLog(dist.characterId, {
+        category: 'item',
+        kind: 'item_acquire',
+        title: `宝藏分配：${treasure.title}${parts.length ? `（${parts.join(' · ')}）` : ''}`,
+        detail: JSON.stringify({
+          treasureId: id,
+          currency: dist.currency,
+          items: dist.items.map(it => ({ name: it.name, quantity: it.quantity })),
+          experience: dist.experience,
+          distributedAt: record.distributedAt,
+        }),
+        source: 'treasure',
+      });
     });
 
     setShowConfirm(false);
