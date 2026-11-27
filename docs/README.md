@@ -10,7 +10,7 @@
 | `docs/patterns/` | 设计模式索引（`agents-patterns.md`，AGENTS.md §5 正文） | 新跨模块模式落地时追加 |
 | `docs/guides/` | 操作与架构指南：战斗模块导航、提交指引、流程 DSL 编译器 | 随实现同步 |
 | `docs/design/` | 规则与机制设计稿（如抗性机制全生命周期） | 设计定稿后归档 |
-| `docs/roadmap/` | 跨版本路线图（如圆桌枢纽） | 规划变更时更新 |
+| `docs/roadmap/` | 版本路线图（`v0.9.md` 当前版本）与跨版本规划（如圆桌枢纽） | 规划变更时更新 |
 | `docs/nodes/` | 流程 DSL 节点说明（每节点一篇） | 新增节点类型时同步 |
 | `docs/archive/` | 已完结的拆解规划、根因修复报告（保留决策档案，不再更新） | 只读 |
 | `docs/generated/` | 按 `src/` 路径镜像的代码概述，由 GitHub Actions 生成 | 不手改 |
@@ -30,6 +30,6 @@
 
 ## 常用入口
 
-- 新人上手：`docs/changelog.md` → `AGENTS.md` → `docs/guides/combat-navigation.md`
+- 新人上手：`docs/changelog.md` → `docs/roadmap/v0.9.md` → `AGENTS.md`
 - 改战斗逻辑：`AGENTS.md` §4 → `docs/patterns/agents-patterns.md` → `docs/guides/combat-navigation.md`
 - 加设计模式：`docs/patterns/agents-patterns.md` 追加编号条目，并在 `AGENTS.md` §5 表格登记
