@@ -252,3 +252,19 @@ getMatchedPendingSourceIds(auto): string[]          // 取本次命中需要消�
 **三条 hide 入账路径必须同步**：`CombatSession.hideFor`（DM 直操）/ `turnCommitApply` hide 分支（玩家 op）/ `engines/resourceConvEngine` hide 转换。改一条就要改三条。
 
 **❌ 严禁**：在 `CombatAttackModal` / `CombatSpellModal` 硬编码「hidden → 优劣势」；在搜索/躲藏路径各自手写被动察觉比较（一律 `contestHide`）。
+
+---
+
+### 5.17 战斗状态持久化桥：`statusPersistence.ts` + `CombatRecord.statusInstances`
+
+**为什么用**：statusManager 是纯内存单例，hidden / 专注 / 死亡豁免等实例刷新即丢（参战者 HP 却还在）。状态实例自带 `combatId`，把它挂到战斗记录上就能随 localStorage + 云备份一起走。
+
+**实现约定**：
+- `CombatRecord.statusInstances` 只存**活跃**实例（结束即弃，防记录无限膨胀）；`TurnSnapshot.statusInstances` 让回溯/从头放映一并还原
+- combatStore.load() **必须白名单重建**该字段（instanceId/definitionId/targetId/scope/isActive 缺一即丢）——否则下次保存把状态永久抹掉，与 heldLeft 同坑
+- 水合每场战斗只做一次（模块级 Set）：`hydrateCombatStatuses(recordId)`；记录无该字段时保持内存现状（老数据零迁移）
+- 写回走 `startStatusPersistence(recordId)`（100ms 防抖 + 卸载补写）；内容 JSON 相等时跳过，避免 updatedAt 空转导致云同步风暴
+- 快照构建统一 `buildTurnSnapshot(recordId)`（useRoundTurn / usePlayback 共用），新增快照字段只改这一处
+- 还原点三处（与 roundsDm 同构）：`applyRollback` / `finalizeExitPlayback` / `startPlaybackFromBeginning`；legacy 快照缺字段时保持内存现状
+
+**❌ 严禁**：在 statusManager 内直接 import combatStore（单向依赖：持久化桥负责双向，状态机保持无存储依赖）；在组件里手写 statusInstances 序列化（一律走桥模块）。
