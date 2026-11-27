@@ -11,9 +11,10 @@
 - [x] P0-2 命中判定接引擎：d20+加值、优劣势两颗骰、自然 1/20、重击标记（已合 main dd5c7cc）
 - [x] P0-3 动作经济细化：动作/附赠/反应/自由四类消耗 + 多重攻击次数归一（本分支）；弹药/装填消耗暂缓（见决策）
 - [x] P0-4 历史格写回定位 + 单条记录撤销（本分支）：手动记录按 DM 点选的历史格写回，撤销仅回退该条记录文本/日志
-- [ ] P1 目标多选 AoE、检定/状态/移动/物品模板
+- [x] P1-1 直接伤害/效果伤害：新增「伤害模板」，无攻击检定（环境/陷阱/持续伤害/已命中法术/反伤），任意目标，复用抗性引擎（本分支）
+- [ ] P1-2 多目标 AoE、检定/状态/移动/物品模板
 
-当前：P0-4 已完成并待合并；P0 系列全部收口。
+当前：P1-1 直接伤害已完成待合并。
 
 ## 已决策
 - 复用 `data/damageRules` 的 `resolveDamage`：手动伤害与自动攻击同一结算入口，弹窗预览与确认落账共用 `data/manualDamage.resolveManualDamage`
@@ -29,16 +30,18 @@
 - 弹药/装填消耗暂缓：手动记录没有武器实例引用，强行加弹药选择器会引入半套装备状态；等 P1 引入武器选择后再统一，当前由 DM 在装备面板手动扣减
 - 写回格优先级：DM 点选的历史格（round 有效）> 当前回合；round<0（模拟模式主体选择器）或越界回退当前回合，抽 `lib/combatWriteCell.resolveRecordWriteCell` 纯函数
 - 撤销范围只含记录本身（播放格 rounds/roundsDm 或模拟 operationLog 一条），不回退 HP 与装备变更，避免误伤已结算伤害；切换战斗记录时清空撤销栈
+- 方向修正（2026-11-27）：手动记录只补自动流程未覆盖的能力。放弃「武器选择 + 弹药/装填自动消耗」——与 CombatAttackModal 重复；转向新增记录类型
+- P1-1 直接伤害：抽出 `applyManualDamageOutcome` 供攻击/直接伤害共用（抗性、致命击倒、HP/临时 HP 文案单实现）；伤害模板默认来源「其他效果」、默认消耗「不消耗」
 
 ## 下一步
-1. P1：武器选择（含弹药/装填自动消耗）、目标多选 AoE、检定/状态/移动/物品模板
-2. P2：结构化日志 payload、常用模板
+1. P1-2：多目标 AoE（一次选中多个目标，按各自抗性分别结算并汇总日志）
+2. P1-3：状态/条件 + 豁免、移动/推撞、物品/地形；P2：结构化日志 payload、常用模板
 
 ## 验证方式
-- 本功能探针：`QUIET=1 node scripts/probes/probe-manual-damage.cjs`（31 断言）、`probe-manual-attack-roll.cjs`（19 断言）、`probe-manual-action-cost.cjs`（15 断言）、`probe-manual-write-cell.cjs`（13 断言）
+- 本功能探针：`QUIET=1 node scripts/probes/probe-manual-damage.cjs`（31 断言）、`probe-manual-attack-roll.cjs`（19 断言）、`probe-manual-action-cost.cjs`（15 断言）、`probe-manual-write-cell.cjs`（13 断言）、`probe-manual-direct-damage.cjs`（10 断言）
 - 基线回归：regeneration / condition-immunity / breath-weapon / seed-query
 - 构建：`npm run build`
 
 ## 分支与提交
-- 分支：`feature/manual-record-write-cell`（待合并）
-- 关键提交：`feat(combat): 手动记录写回选中格 + 单条撤销`
+- 分支：`feature/manual-record-direct-damage`（待合并）
+- 关键提交：`feat(combat): 手动直接伤害模板（无攻击检定，复用抗性引擎）`
