@@ -32,6 +32,7 @@
 | 校验 / 构建种子库 | `npm run validate-seed`（结构不变量门禁，已挂在 build 前置）；快照重建走 `scripts/build-seed.mjs` | 手改 `src/data/*.json` 后必跑；警告（traits 为空等）不阻断 |
 | 改数据库表结构 | `migrations/NNNN_name.sql`（新建迁移文件，不要改旧的）+ `functions/_utils.ts` 对应类型 | 迁移文件追加式，D1 手动 apply |
 | 侦查 / 定位代码模块（先读文档再读源码） | `docs/generated/src/**`（按源码路径镜像的 .md 概述文档，见 §5.14） | 文档是路由表不是唯一事实源，关键判断仍以 `src/` 源码为准；改代码后需重新触发 docs workflow 更新文档 |
+| 找项目文档 / 新增文档 | `docs/README.md`（目录索引 + 放置规则） | `docs/generated/` 由 workflow 生成不手改；功能规格进 `.monkeycode/specs/`，已完结规划进 `docs/archive/` |
 
 ---
 
@@ -275,7 +276,7 @@ CombatSession
 
 ---
 
-## 5. 设计模式索引（实现细节见 `docs/agents-patterns.md`）
+## 5. 设计模式索引（实现细节见 `docs/patterns/agents-patterns.md`）
 
 | 模式 | 何时用 | 位置 |
 |------|--------|------|

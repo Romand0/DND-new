@@ -17,7 +17,7 @@
 
 ## 已决策
 - **模型默认 qwen3-30b-a3b-fp8**：$0.051/$0.335 per M tokens，单次 ≈50 Neurons，免费额度 10k/天约 200 次；质量不足再切 llama-3.3-70b（≈311 Neurons/次）。
-- **prompt 与校验器同源**：节点目录与 config 字段从代码常量程序化生成，代码迭代语义后 prompt 自动跟；语义规则（形态三态/硬性规则）以常量维护并需人工同步 SKILL.md + `docs/agents-patterns.md`。实证：`apply_effect` 实际有 7 种 effectType（多出 advantage/zone/forced_move），SKILL.md §3.1 只记 4 种，手抄配方会漂移——同源层自动取到了最新枚举。
+- **prompt 与校验器同源**：节点目录与 config 字段从代码常量程序化生成，代码迭代语义后 prompt 自动跟；语义规则（形态三态/硬性规则）以常量维护并需人工同步 SKILL.md + `docs/patterns/agents-patterns.md`。实证：`apply_effect` 实际有 7 种 effectType（多出 advantage/zone/forced_move），SKILL.md §3.1 只记 4 种，手抄配方会漂移——同源层自动取到了最新枚举。
 - **输出目标为 script-only JSON**：编译桥 `ensureCompiledGraph` 自动补 nodes/edges/positions，模型无需生成图结构。
 - **生成结果不自动发布**：端点只回传草稿，落库走现有 import 管线 + 人工确认（延续方案生成器「不自行发布」原则）。
 - **默认值渲染策略**：prompt 只展示 boolean/object 类默认值；text/select/dice 类默认值会诱导模型抄模板（如 condition 抄成 target.currentHp <= 100），不展示。
