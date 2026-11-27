@@ -28,8 +28,9 @@ import { CONV_TARGET_LABELS } from '@/data/engines/resourceConvEngine';
 import FeatureConvTargetModal from '@/components/combat/FeatureConvTargetModal';
 import HealRollModal from '@/components/combat/HealRollModal';
 import DiceInputModal from '@/components/combat/DiceInputModal';
-import { deriveSkillCheckBonus } from '@/data/passiveCombatRules';
+import { deriveSkillCheckBonus, deriveDarkvision } from '@/data/passiveCombatRules';
 import type { Battleground as BattlegroundData } from '@/types/battleground';
+import type { CombatantSenses } from '@/types/combat';
 import { useAnimationPlayer } from '@/hooks/spectate/useAnimationPlayer';
 import type { BoardProjection, CombatDeltaPayload, CombatRosterEntry, PlayerActionRequest, PlayerActionResult, RosterActiveFeature, TurnCommitOp } from '@/types/realtime';
 import type { Character } from '@/types/character';
@@ -92,6 +93,15 @@ export default function PlayerSpectate() {
   // 保留完整角色卡：沙盘双击面板要读装备/属性（本地 store 没有同团角色卡）
   const [myCharacters, setMyCharacters] = useState<Character[]>([]);
   const myCharacterIds = new Set(myCharacters.map((c) => c.id));
+  // 观看者感官（投影沙盘外观按自己角色的黑暗视觉降档：微光→明亮、黑暗→微光）
+  const viewerSenses = useMemo<CombatantSenses | undefined>(() => {
+    let darkvision = 0;
+    for (const c of myCharacters) {
+      const dv = deriveDarkvision(c);
+      if (dv && dv > darkvision) darkvision = dv;
+    }
+    return darkvision > 0 ? { darkvision } : undefined;
+  }, [myCharacters]);
   // 回合提交（回合批提交模型）：最近收到的 combat.delta seq（提交时携带，DM 端校验状态是否过期）
   const lastDeltaSeqRef = useRef(0);
   const [lastResult, setLastResult] = useState<(PlayerActionResult & { at: number }) | null>(null);
@@ -575,6 +585,7 @@ export default function PlayerSpectate() {
               combatInventories={combatInventories}
               panelCharacters={panelCharacters}
               panelSpellSlots={panelSpellSlots}
+              viewerSenses={viewerSenses}
               onRequestHandChange={(combatantId, side, item) => {
                 if (combatantId !== myTurnActor?.id) return;
                 addOp({

@@ -147,7 +147,7 @@ export function getLightTierAt(bg: LightBg, cell: CellPos | string): { tier: Lig
  * v1 口径（无光源中心概念，尺数仅作展示）：
  *   - truesight：darkness/dim → bright（真实视觉无视光照）
  *   - blindsight：darkness → bright（盲视不依赖视觉）
- *   - darkvision：darkness → dim（黑暗视觉按微光辨识）
+ *   - darkvision：dim → bright、darkness → dim（黑暗视觉把微光当明亮、黑暗当微光）
  * 优先级 truesight > blindsight > darkvision。
  */
 export function getEffectiveTierAt(
@@ -160,7 +160,10 @@ export function getEffectiveTierAt(
   if (raw.tier === 'bright') return { ...raw, base: raw.tier };
   if (s.truesight) return { tier: 'bright', base: raw.tier, source: raw.source, sense: 'truesight' };
   if (s.blindsight && raw.tier === 'darkness') return { tier: 'bright', base: raw.tier, source: raw.source, sense: 'blindsight' };
-  if (s.darkvision && raw.tier === 'darkness') return { tier: 'dim', base: raw.tier, source: raw.source, sense: 'darkvision' };
+  if (s.darkvision) {
+    if (raw.tier === 'darkness') return { tier: 'dim', base: raw.tier, source: raw.source, sense: 'darkvision' };
+    if (raw.tier === 'dim') return { tier: 'bright', base: raw.tier, source: raw.source, sense: 'darkvision' };
+  }
   return { ...raw, base: raw.tier };
 }
 
