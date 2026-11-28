@@ -401,6 +401,13 @@ export default function SceneEditor({ arc, scene, characters, onChange }: Props)
           <p className="text-xs text-gray-500">当前章节下一个空位：{nextSceneOrder(arc.chapters.flatMap(c => c.scenes))}</p>
         </div>
       </section>
+
+      {scene.settlementSummary && (
+        <section>
+          <label className={labelCls}>结算摘要（完成场景时自动生成）</label>
+          <p className="rounded-lg border border-border-dark bg-black/10 px-2 py-1.5 text-xs text-gray-300">{scene.settlementSummary}</p>
+        </section>
+      )}
     </div>
   );
 }

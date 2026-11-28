@@ -12,6 +12,7 @@ import {
   X,
   FileText,
   RotateCcw,
+  LineChart,
 } from 'lucide-react';
 import type { Character } from '@/types/character';
 import type { StoryArc, StoryChapter, StoryScene } from '@/types/story';
@@ -39,6 +40,9 @@ import {
 import SceneEditor from '@/components/story/SceneEditor';
 import LedgerPanel from '@/components/story/LedgerPanel';
 import HandoutPanel from '@/components/story/HandoutPanel';
+import StoryReviewPanel from '@/components/story/StoryReviewPanel';
+import { fetchStoryLedger } from '@/lib/storyApi';
+import { buildSettlementSummary } from '@/lib/storyReview';
 
 const inputCls = 'w-full px-2 py-1.5 rounded-lg bg-black/20 border border-border-dark text-sm dark:text-text-dark light:text-text-light focus:border-primary outline-none';
 const panelCls = 'rounded-xl border border-border-dark bg-bg-dark/40 p-3';
@@ -71,6 +75,7 @@ export default function StoryBoard() {
   const [saving, setSaving] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showRead, setShowRead] = useState(false);
+  const [showReview, setShowReview] = useState(false);
   const [importText, setImportText] = useState('');
   const [importTitle, setImportTitle] = useState('');
   const [importDelimiter, setImportDelimiter] = useState('---');
@@ -199,7 +204,18 @@ export default function StoryBoard() {
 
   function patchScene(patch: Partial<StoryScene>) {
     if (!draft || !sceneId) return;
+    const completedNow = patch.status === 'done' && selectedScene?.status !== 'done';
+    const targetSceneId = sceneId;
     mutate(updateScene(draft, sceneId, patch));
+    if (!completedNow) return;
+    // 账本聚合是异步读取；摘要回来后按场景 id 合并进当前草稿，避免覆盖等待期间的其它编辑
+    void fetchStoryLedger(targetSceneId)
+      .then(ledger => {
+        const summary = buildSettlementSummary(ledger.summary, ledger.entries.length);
+        setDraft(prev => (prev ? updateScene(prev, targetSceneId, { settlementSummary: summary }) : prev));
+        setDirty(true);
+      })
+      .catch(() => undefined);
   }
 
   return (
@@ -308,6 +324,7 @@ export default function StoryBoard() {
               <div className="flex flex-wrap gap-2">
                 <button className={btnCls} onClick={() => setShowImport(true)}><Upload className="w-3.5 h-3.5" /> 导入文本</button>
                 <button className={btnCls} onClick={() => setShowRead(true)}><FileText className="w-3.5 h-3.5" /> 阅读视图</button>
+                <button className={btnCls} onClick={() => setShowReview(true)}><LineChart className="w-3.5 h-3.5" /> 回顾</button>
                 {dirty && <span className="self-center text-[11px] text-yellow-400">有未保存修改</span>}
               </div>
               <textarea className={`${inputCls} min-h-14`} value={draft.summary} onChange={e => mutate({ ...draft, summary: e.target.value })} placeholder="剧情线概要" />
@@ -409,6 +426,10 @@ export default function StoryBoard() {
             ))}
           </div>
         </div>
+      )}
+
+      {showReview && (
+        <StoryReviewPanel characters={characters} onClose={() => setShowReview(false)} />
       )}
     </div>
   );

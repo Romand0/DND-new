@@ -1,5 +1,12 @@
 // 剧情模块请求封装：笔记树读写（服务端对玩家投影为空）
-import type { HandoutKind, LedgerResponse, LedgerSourceKind, StoryArc, StoryHandout } from '@/types/story';
+import type {
+  HandoutKind,
+  LedgerResponse,
+  LedgerSourceKind,
+  StoryArc,
+  StoryHandout,
+  StoryTimelineResponse,
+} from '@/types/story';
 import { apiFetch } from './api';
 
 export function fetchStoryArcs(): Promise<StoryArc[]> {
@@ -19,6 +26,10 @@ export function deleteStoryArc(arcId: string): Promise<{ ok: boolean; removedSce
 
 export function fetchStoryLedger(sceneId: string): Promise<LedgerResponse> {
   return apiFetch<LedgerResponse>(`/story/ledger?sceneId=${encodeURIComponent(sceneId)}`);
+}
+
+export function fetchStoryTimeline(): Promise<StoryTimelineResponse> {
+  return apiFetch<StoryTimelineResponse>('/story/timeline');
 }
 
 export interface LedgerLinkInput {

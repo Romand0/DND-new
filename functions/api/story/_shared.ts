@@ -311,6 +311,67 @@ export function projectHandoutRow(row: any, viewerRead?: any, readCount = 0): an
   return view;
 }
 
+// ---------- 战役回顾（纯函数：场景元数据索引 + 账本条目补全） ----------
+
+export interface SceneIndexEntry {
+  sceneTitle: string;
+  chapterTitle: string;
+  arcTitle: string;
+  sessionNo?: number;
+  gameDate?: string;
+  gameMinute?: number;
+  sceneOrder?: number;
+}
+
+export function buildSceneIndex(arcs: any[]): Record<string, SceneIndexEntry> {
+  const index: Record<string, SceneIndexEntry> = {};
+  for (const arc of arr(arcs)) {
+    for (const chapter of arr(arc?.chapters)) {
+      for (const scene of arr(chapter?.scenes)) {
+        const sceneId = str(scene?.id);
+        if (!sceneId) continue;
+        const time = scene?.time ?? {};
+        const meta: SceneIndexEntry = {
+          sceneTitle: str(scene?.title, '未命名场景'),
+          chapterTitle: str(chapter?.title, '未命名章节'),
+          arcTitle: str(arc?.title, '未命名剧情线'),
+        };
+        const sessionNo = optionalNum(time.sessionNo);
+        const gameDate = optionalStr(time.gameDate);
+        const gameMinute = optionalNum(time.gameMinute);
+        const sceneOrder = optionalNum(time.order);
+        if (sessionNo !== undefined) meta.sessionNo = sessionNo;
+        if (gameDate !== undefined) meta.gameDate = gameDate;
+        if (gameMinute !== undefined) meta.gameMinute = gameMinute;
+        if (sceneOrder !== undefined) meta.sceneOrder = sceneOrder;
+        index[sceneId] = meta;
+      }
+    }
+  }
+  return index;
+}
+
+export function enrichTimelineEntries(entries: any[], sceneIndex: Record<string, SceneIndexEntry>): any[] {
+  return entries.map(entry => {
+    const meta = sceneIndex[str(entry?.sceneId)] ?? {
+      sceneTitle: '未知场景',
+      chapterTitle: '未知章节',
+      arcTitle: '未知剧情线',
+    };
+    const out: any = {
+      ...entry,
+      sceneTitle: meta.sceneTitle,
+      chapterTitle: meta.chapterTitle,
+      arcTitle: meta.arcTitle,
+    };
+    if (meta.sessionNo !== undefined) out.sessionNo = meta.sessionNo;
+    if (meta.gameDate !== undefined) out.gameDate = meta.gameDate;
+    if (meta.gameMinute !== undefined) out.gameMinute = meta.gameMinute;
+    if (meta.sceneOrder !== undefined) out.sceneOrder = meta.sceneOrder;
+    return out;
+  });
+}
+
 // ---------- 账本聚合（纯函数：端点负责取源记录，这里只做组装与汇总） ----------
 
 function parseJson(raw: any): any {

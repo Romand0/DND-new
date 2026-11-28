@@ -143,6 +143,21 @@ export interface LedgerResponse {
   summary: LedgerSummary;
 }
 
+/** 战役级回顾条目：账本条目 + 所属场景的场次/游戏时间元数据 */
+export interface StoryTimelineEntry extends LedgerEntryView {
+  sceneTitle: string;
+  chapterTitle: string;
+  arcTitle: string;
+  sessionNo?: number;
+  gameDate?: string;
+  gameMinute?: number;
+  sceneOrder?: number;
+}
+
+export interface StoryTimelineResponse {
+  entries: StoryTimelineEntry[];
+}
+
 export type HandoutKind = 'letter' | 'map' | 'notice' | 'other';
 
 export interface StoryHandout {
