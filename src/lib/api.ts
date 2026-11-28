@@ -2,6 +2,7 @@
 import { getCampaignId } from '@/data/campaignScope';
 import type { Campaign, CampaignMember } from '@/types/campaign';
 import type { ChangeRequest } from '@/types/changeRequest';
+import type { ActiveSpectateRoom, CurrentSpectateRoom } from '@/types/roundTable';
 
 const AUTH_TOKEN_KEY = 'auth_token';
 const DM_TOKEN_KEY = 'dm_token'; // 保留，兼容旧逻辑（设置页的 DM Token 验证）
@@ -576,13 +577,31 @@ export async function sendCheckRequest(body: {
   return apiFetch('/table/check-request', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
 }
 
-/** DM 抛送观战邀请给当前团绑定玩家（需管理员；重发同房间会自动失效旧邀请） */
+/** DM 投送当前观战战斗给团内绑定玩家（需管理员；切换战斗会覆盖玩家上一场） */
 export async function sendSpectateInvite(body: {
   roomId: string;
   title: string;
   campaignId?: string;
-}): Promise<{ ok: boolean; recipients: number }> {
+}): Promise<{ ok: boolean; recipients: number; roomId: string }> {
   return apiFetch('/table/spectate-invite', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+}
+
+/** 玩家查询自己当前所在的观战房间 */
+export async function fetchCurrentSpectate<T = { room: CurrentSpectateRoom | null }>(): Promise<T> {
+  return apiFetch<T>('/table/spectate-current', { headers: authHeaders() });
+}
+
+/** DM 查询自己当前投送中的战斗房间 */
+export async function fetchActiveSpectateRooms<T = { rooms: ActiveSpectateRoom[] }>(
+  campaignId?: string
+): Promise<T> {
+  const qs = campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : '';
+  return apiFetch<T>(`/table/spectate-active${qs}`, { headers: authHeaders() });
+}
+
+/** DM 结束某场战斗投送（清除玩家当前房间） */
+export async function cancelSpectateRoom(roomId: string): Promise<{ ok: boolean; removed: number }> {
+  return apiFetch('/table/spectate-cancel', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ roomId }) });
 }
 
 /** 玩家答复检定任务 */
