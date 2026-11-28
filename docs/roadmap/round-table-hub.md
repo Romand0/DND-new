@@ -30,7 +30,7 @@ Related Specs: `.monkeycode/specs/round-table-checks/`（通用检定，已交�
 |--------|------|--------|
 | M-R1 | 通用检定：DM 定向抛送属性/技能/豁免检定，玩家投骰经特性引擎加工回传，DC 三档可见性 | `round-table-checks` spec 全量：`/table`、`/player/table`、`checkPipeline`、`table_messages` 单表信箱 |
 | M-R2 | 战斗抛送加入：DM 开战时向圆桌抛送观战邀请（`?room=combat-xxx`），玩家点击即入实时观战 | PlayerSpectate 自动加入 + PlayerRoundTable 邀请卡 |
-| M-R3a | 圆桌桌面：环形展示除自己外的成员头像（含角色名），作为检定/任务/物资的投递目标区 | `components/roundtable/TableRing.tsx` + `/table` 首屏；检定已接通，任务/物资为规划中占位 |
+| M-R3a | 圆桌桌面：环形展示除自己外的成员头像（含角色名），作为检定/任务/物资的投递目标区；记录区按待处理/检定/观战/裁定分类，同战斗房间投送合并折叠 | `components/roundtable/TableRing.tsx` + 记录分组组件；检定已接通，任务/物资为规划中占位 |
 
 信箱模型已验证的三条架构原则，后续功能域继续遵守：
 
@@ -54,6 +54,7 @@ Related Specs: `.monkeycode/specs/round-table-checks/`（通用检定，已交�
 - 未绑定角色卡的成员仍显示在桌上，但检定不可投放（降透明 + 提示）
 - 座位数据以团组成员为准（`/campaigns/[id]/members`），成员列表不可用时回退到 `/table/bound-characters`；自己不占座位
 - 投递只负责**选中目标**，真正的发送仍走既有表单与 API，桌面不新增写路径
+- 记录区按「待我裁定 / 等待玩家答复 / 观战投送 / 检定记录 / 裁定记录」分区，每区可折叠；观战投送以 `roomId` 合并为一组（显示投送次数与有效条数），历史区默认折叠
 
 ---
 
