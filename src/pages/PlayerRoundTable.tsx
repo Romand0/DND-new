@@ -2,15 +2,18 @@
 // 另接收 DM 的观战邀请（spectate_invite）：一键跳 /player/spectate?room= 加入实时战斗房间
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Inbox, Clock, CheckCircle2, Ban, Eye } from 'lucide-react';
+import { Inbox, Clock, CheckCircle2, Ban, Eye, History } from 'lucide-react';
 import type { Character } from '@/types/character';
-import type { TableMessage, CheckRequestPayload, SpectateInvitePayload } from '@/types/roundTable';
+import type { TableMessage, CheckRequestPayload } from '@/types/roundTable';
 import type { CampaignMember } from '@/types/campaign';
 import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 import { characterStore } from '@/data/characterStore';
 import * as api from '@/lib/api';
 import CheckRequestDialog from '@/components/roundtable/CheckRequestDialog';
 import TableRing, { type TableSeat } from '@/components/roundtable/TableRing';
+import CollapsibleSection from '@/components/roundtable/CollapsibleSection';
+import SpectateInviteGroupCard from '@/components/roundtable/SpectateInviteGroupCard';
+import { groupSpectateInvites } from '@/lib/roundTableGroups';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -49,17 +52,8 @@ export default function PlayerRoundTable() {
   const pending = requests.filter(m => m.status === 'pending');
   const closed = requests.filter(m => m.status !== 'pending').sort((a, b) => b.updatedAt - a.updatedAt);
 
-  // 观战邀请：pending 按 roomId 去重（DM 重发会产生多条，只显示最新一条）
-  const invites = useMemo(() => {
-    const byRoom = new Map<string, TableMessage>();
-    for (const m of messages) {
-      if (m.type !== 'spectate_invite' || m.status !== 'pending') continue;
-      const roomId = (m.payload as SpectateInvitePayload).roomId;
-      const prev = byRoom.get(roomId);
-      if (!prev || m.createdAt > prev.createdAt) byRoom.set(roomId, m);
-    }
-    return [...byRoom.values()].sort((a, b) => b.createdAt - a.createdAt);
-  }, [messages]);
+  // 观战邀请按战斗房间合并：同房间多次抛送只占一张折叠卡
+  const inviteGroups = useMemo(() => groupSpectateInvites(messages), [messages]);
 
   // 打开弹窗时确保本地有角色卡数据（玩家端 characterStore 缺卡时从云端拉一次，不入库）
   const openDialog = async (msg: TableMessage) => {
@@ -107,42 +101,9 @@ export default function PlayerRoundTable() {
         <TableRing seats={seats} readOnly />
       </div>
 
-      {invites.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">
-            观战邀请
-          </h2>
-          {invites.map(msg => {
-            const payload = msg.payload as SpectateInvitePayload;
-            return (
-              <button
-                key={msg.id}
-                onClick={() => navigate(`/player/spectate?room=${encodeURIComponent(payload.roomId)}`)}
-                className="w-full text-left rounded-xl border p-4 flex items-center justify-between gap-2 dark:border-primary/50 dark:bg-card-dark light:border-primary/50 light:bg-card-light hover:border-primary transition-colors"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-2 rounded-lg bg-emerald-600/15 shrink-0">
-                    <Eye className="w-5 h-5 text-emerald-500" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-sm font-bold dark:text-text-dark light:text-text-light truncate">
-                      DM 邀请你观战「{payload.title}」
-                    </div>
-                    <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                      点击加入实时观战 · {new Date(msg.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                  </div>
-                </div>
-                <span className="text-xs text-primary shrink-0">加入 →</span>
-              </button>
-            );
-          })}
-        </section>
-      )}
-
-      {pending.length === 0 && closed.length === 0 && invites.length === 0 && (
-        <div className="rounded-xl border dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light p-10 text-center">
-          <Inbox className="w-10 h-10 mx-auto dark:text-text-dark-muted light:text-text-light-muted opacity-40" />
+      {pending.length === 0 && closed.length === 0 && inviteGroups.length === 0 && (
+        <div className="rounded-xl border p-10 text-center dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
+          <Inbox className="mx-auto h-10 w-10 opacity-40 dark:text-text-dark-muted light:text-text-light-muted" />
           <div className="mt-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
             暂无检定任务，DM 发起后会出现在这里
           </div>
@@ -150,17 +111,14 @@ export default function PlayerRoundTable() {
       )}
 
       {pending.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">
-            待答复（{pending.length}）
-          </h2>
+        <CollapsibleSection title="待答复" icon={Clock} count={pending.length} tone="amber">
           {pending.map(msg => {
             const payload = msg.payload as CheckRequestPayload;
             return (
               <button
                 key={msg.id}
                 onClick={() => openDialog(msg)}
-                className="w-full text-left rounded-xl border p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light hover:border-primary transition-colors"
+                className="w-full rounded-lg border p-4 text-left transition-colors hover:border-primary dark:border-border-dark light:border-border-light"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-sm font-bold dark:text-text-dark light:text-text-light">
@@ -171,30 +129,52 @@ export default function PlayerRoundTable() {
                     等待答复
                   </span>
                 </div>
-                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-1">
+                <div className="mt-1 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                   {payload.characterName} · DC {payload.dcMode === 'open' ? payload.dc : payload.dcMode === 'hidden_dc' ? '已隐藏' : '无需判定'}
                   {payload.note ? ` · ${payload.note}` : ''}
                 </div>
-                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5">
+                <div className="mt-0.5 text-xs dark:text-text-dark-muted light:text-text-light-muted">
                   {new Date(msg.createdAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
                 </div>
               </button>
             );
           })}
-        </section>
+        </CollapsibleSection>
+      )}
+
+      {inviteGroups.length > 0 && (
+        <CollapsibleSection
+          title="观战邀请"
+          icon={Eye}
+          count={inviteGroups.length}
+          tone="emerald"
+          hint={`${inviteGroups.reduce((n, g) => n + g.messages.length, 0)} 条记录按战斗合并`}
+        >
+          {inviteGroups.map(group => (
+            <SpectateInviteGroupCard
+              key={group.roomId}
+              group={group}
+              variant="player"
+              onJoin={roomId => navigate(`/player/spectate?room=${encodeURIComponent(roomId)}`)}
+            />
+          ))}
+        </CollapsibleSection>
       )}
 
       {closed.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">
-            历史记录
-          </h2>
+        <CollapsibleSection
+          title="历史记录"
+          icon={History}
+          count={closed.length}
+          defaultOpen={false}
+          hint="已答复 / 已撤回"
+        >
           {closed.map(msg => {
             const payload = msg.payload as CheckRequestPayload;
             return (
               <div
                 key={msg.id}
-                className="rounded-xl border p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light opacity-70"
+                className="rounded-lg border p-4 opacity-70 dark:border-border-dark light:border-border-light"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-sm dark:text-text-dark light:text-text-light">
@@ -206,7 +186,7 @@ export default function PlayerRoundTable() {
                       已答复
                     </span>
                   ) : (
-                    <span className="flex items-center gap-1 text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">
+                    <span className="flex items-center gap-1 text-xs shrink-0 dark:text-text-dark-muted light:text-text-light-muted">
                       <Ban className="w-3.5 h-3.5" />
                       已撤回
                     </span>
@@ -215,7 +195,7 @@ export default function PlayerRoundTable() {
               </div>
             );
           })}
-        </section>
+        </CollapsibleSection>
       )}
 
       {activeMessage && (
