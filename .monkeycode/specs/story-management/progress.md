@@ -23,7 +23,7 @@
 | P2 账本域 | [x] 完成 | migration 0017 + `/api/story/ledger`（索引 CRUD、五类源批量聚合、玩家按绑定角色过滤、失效引用）+ 宝藏分配补写 `source='treasure'` 日志；`probe-story-ledger` 16/16 全绿（2026-11-27）。0017 待线上手动 apply |
 | P3 DM 工作台 | [x] 代码完成 | `/story` 路由：剧情线/章节/场景编辑（独立草稿 + 保存/还原）、文本导入切场景、片段组合与装备/法术/怪物引用、私记、阅读视图；右侧账本时间线 + 候选挂载/解除；`probe-story-import` 17/17（2026-11-27）。UI 交互待人工验收 |
 | P4 道具与玩家端 | [x] 代码完成 | `/api/story/handout`（创建/零已读撤回）、`/api/story/handouts`（目标隔离）、`/api/story/handout-read`（已读单调/收藏）；DM 场景右侧「道具投送」面板；`/player/story` 道具箱 + 自己角色的经济事件/当前钱币；`probe-story-handout` 21/21（2026-11-28）。0017 待线上手动 apply，API 权限与 UI 交互待人工验收 |
-| P5 结算与回顾 | [ ] 未开工 | 场景完成生成结算摘要、按场次/时间/角色筛选、Markdown 导出 |
+| P5 结算与回顾 | [x] 代码完成 | 场景 status→done 时按账本 summary 生成 `settlementSummary`（异步回填不覆盖其它编辑）；`/api/story/timeline` 聚合全团索引 + 场景元数据（玩家按绑定角色）；`StoryReviewPanel` 四维筛选 + Markdown 按场景分组导出；`probe-story-review` 10/10（2026-11-28）。UI 交互待人工验收 |
 
 ## P1/P2 实施要点
 
@@ -48,6 +48,7 @@ npm run build
 NODE_PATH=$(npm root -g) QUIET=1 node scripts/probes/probe-story-notes.cjs
 NODE_PATH=$(npm root -g) QUIET=1 node scripts/probes/probe-story-ledger.cjs
 NODE_PATH=$(npm root -g) QUIET=1 node scripts/probes/probe-story-handout.cjs
+NODE_PATH=$(npm root -g) QUIET=1 node scripts/probes/probe-story-review.cjs
 ```
 
 ## P3/P4 实施要点
@@ -57,8 +58,14 @@ NODE_PATH=$(npm root -g) QUIET=1 node scripts/probes/probe-story-handout.cjs
 - 阅读状态单调：重复标记已读不改首次 `read_at`；收藏与已读独立，可取消收藏
 - DM 入口在 `/story` 右侧面板，投送时绑定当前选中场景；`/player/story` 独立读取道具箱与绑定角色日志
 
+## P5 实施要点
+
+- 结算摘要只在场景从非 done 切到 done 时生成，格式复用账本 `buildSettlementSummary`；读取账本为异步，摘要回填按场景 id 合并进当前草稿，避免覆盖等待期间编辑；不修改计划目标与计划奖励
+- 时间线端点复用 `buildLedgerEntries` 聚合，仅追加场景/章节/剧情线标题、场次、游戏日期与排序元数据；缺失元数据回退「未知场景/章节/剧情线」
+- 回顾筛选四维叠加（场次 / 游戏日期区间 / 角色 / 类别），Markdown 按场景分组导出；无记录导出占位行
+
 ## 下一步
 
-1. 线上 apply 0017 后跑 API 权限探针（玩家读不到笔记、只读自己角色的账本、道具仅目标、candidates 仅 DM）
-2. 人工验收：DM 投送 → 玩家道具箱打开/收藏 → 零已读撤回 → 撤回后消失
-3. P5：场景结算摘要、按场次/时间/角色筛选、Markdown 导出
+1. 线上 apply 0017 后跑 API 权限探针（玩家读不到笔记、只读自己角色的账本、时间线仅绑定角色、道具仅目标、candidates 仅 DM）
+2. 人工验收：DM 投送 → 玩家道具箱打开/收藏 → 零已读撤回 → 撤回后消失；场景完成摘要 → 回顾筛选 → Markdown 导出
+3. 按需推进 V9-2 后续分期或转入 V9-5 战斗遗留项
