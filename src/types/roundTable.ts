@@ -91,6 +91,7 @@ export interface BoundCharacterInfo {
   class: string;
   level: number;
   race: string;
+  boundUserId?: string;
   boundUserName?: string;
 }
 
