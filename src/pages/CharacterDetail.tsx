@@ -68,6 +68,7 @@ import { useEquipmentActions } from '@/hooks/useEquipmentActions';
 import TradeModal from '@/components/TradeModal';
 import FeatureExtractorModal from '@/components/FeatureExtractorModal';
 import SpellMaterialRequirementBlock from '@/components/SpellMaterialRequirementBlock';
+import GrowthPathTimeline from '@/components/growth/GrowthPathTimeline';
 
 const abilityLabels: Record<AbilityKey, string> = {
   strength: '力量',
@@ -100,10 +101,10 @@ const proficiencyEntryLabels: Record<string, string> = {
 };
 
 
-// 角色有效等级：与顶栏「等级」展示同源（经验推导）。character.level 是独立存储字段，
-// 旧数据/导入卡/云端行可能与经验脱节（显示 3 级、字段残留高值），用它过滤会全量放行
+// 角色有效等级：经验值为唯一事实源。character.level 仅保存时同步的兼容缓存，
+// 旧数据/导入卡/云端行可能与经验脱节，业务判断一律读有效等级
 function charDisplayLevel(character: Character): number {
-  return characterStore.getLevelFromExp(character.experience ?? 0) || 1;
+  return characterStore.getEffectiveLevel(character);
 }
 
 // 特性解锁门槛：卡片 level 优先 → 选项库同名条目回填（旧卡未透传 level）→
@@ -2030,10 +2031,17 @@ if (character) {
                         <div className="text-xs space-y-1">
                           <div>智力施法，最高4环</div>
                           <div>3级开始获得法术位</div>
-                          <div>1环: {character.level >= 3 ? (character.level >= 5 ? 4 : (character.level >= 4 ? 3 : 2)) : 0}个</div>
-                          <div>2环: {character.level >= 5 ? (character.level >= 9 ? 3 : (character.level >= 7 ? 2 : 0)) : 0}个</div>
-                          <div>3环: {character.level >= 9 ? (character.level >= 17 ? 3 : (character.level >= 13 ? 1 : 0)) : 0}个</div>
-                          <div>4环: {character.level >= 13 ? (character.level >= 19 ? 3 : (character.level >= 15 ? 2 : 1)) : 0}个</div>
+                          {(() => {
+                            const lv = charDisplayLevel(character);
+                            return (
+                              <>
+                                <div>1环: {lv >= 3 ? (lv >= 5 ? 4 : (lv >= 4 ? 3 : 2)) : 0}个</div>
+                                <div>2环: {lv >= 5 ? (lv >= 9 ? 3 : (lv >= 7 ? 2 : 0)) : 0}个</div>
+                                <div>3环: {lv >= 9 ? (lv >= 17 ? 3 : (lv >= 13 ? 1 : 0)) : 0}个</div>
+                                <div>4环: {lv >= 13 ? (lv >= 19 ? 3 : (lv >= 15 ? 2 : 1)) : 0}个</div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}
@@ -2070,7 +2078,7 @@ if (character) {
           <Star className="w-3.5 h-3.5 text-accent" />
           <span className="text-sm dark:text-text-dark-muted light:text-text-light-muted">等级</span>
           <span className="text-sm font-bold dark:text-text-dark light:text-text-light">
-            {characterStore.getLevelFromExp(character.experience)}
+            {charDisplayLevel(character)}
           </span>
         </div>
       </div>
@@ -2103,9 +2111,8 @@ if (character) {
                   } else {
                     const exp = parseInt(val);
                     if (!isNaN(exp)) {
-                      const level = characterStore.getLevelFromExp(exp);
-                      const proficiencyBonus = Math.ceil(level / 4) + 1;
-                      characterStore.update(id!, { experience: exp, level, proficiencyBonus });
+                      // 只写经验值；level/proficiencyBonus 在保存流程按有效等级同步
+                      characterStore.update(id!, { experience: exp });
                       reloadChar();
                     }
                   }
@@ -2113,14 +2120,14 @@ if (character) {
                 onBlur={(e) => {
                   // 失去焦点时，如果为空，设置为 0
                   if (e.target.value === '') {
-                    characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                    characterStore.update(id!, { experience: 0 });
                     reloadChar();
                   }
                 }}
                 onKeyDown={(e) => {
                   // 按回车时，如果为空，设置为 0
                   if (e.key === 'Enter' && (e.target as HTMLInputElement).value === '') {
-                    characterStore.update(id!, { experience: 0, level: 0, proficiencyBonus: 2 });
+                    characterStore.update(id!, { experience: 0 });
                     reloadChar();
                   }
                 }}
@@ -3391,6 +3398,10 @@ if (character) {
                 </div>
               )}
             </div>
+          </Section>
+
+          <Section title="成长路径" icon={Sparkles}>
+            <GrowthPathTimeline character={character} options={optionStore.getAll()} />
           </Section>
         </div>
       </div>

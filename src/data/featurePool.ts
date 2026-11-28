@@ -1,6 +1,7 @@
 // 职业资源池公式引擎：角色卡池量计算与池键解析（主动技能引擎 P1）。
 // 纯读派生——池满量由等级/属性实时计算，角色卡只存 used（与法术位 max/used 同构）。
 import type { Character, Feature, FeaturePoolFormula, AbilityKey } from '@/types/character';
+import { getEffectiveLevel } from '@/lib/experience';
 
 /** 池键稳定口径：与 reactionDefinitions 的 feature:<名> 键一致 */
 export function featurePoolKey(name: string): string {
@@ -28,7 +29,7 @@ function abilityMod(character: Character, ability?: AbilityKey): number {
 /** 按公式计算池满量（角色当前等级/属性实时派生；公式缺失返回 0） */
 export function getPoolMax(character: Character, formula?: FeaturePoolFormula): number {
   if (!formula) return 0;
-  const level = character.level ?? 1;
+  const level = getEffectiveLevel(character);
   let max = 0;
   switch (formula.type) {
     case 'fixed':

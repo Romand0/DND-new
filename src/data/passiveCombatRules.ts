@@ -144,8 +144,7 @@ export function deriveSpeedModifier(
   opts: { wearingHeavyArmor?: boolean; combatShieldHeld?: boolean } = {}
 ): number {
   if (!char) return 0;
-  // 等级取卡面等级与经验推导值的较大者（影子卡可能只填 level；真实卡两处一致）
-  const level = Math.max(char.level ?? 1, characterStore.getLevelFromExp(char.experience ?? 0) || 1);
+  const level = characterStore.getEffectiveLevel(char);
   let bonus = 0;
   for (const rule of SPEED_MOD_RULES) {
     if (!hasActiveTrait(char, rule.trait)) continue;
@@ -267,7 +266,7 @@ export function deriveInitiativeAdvantage(char: Character | null | undefined): A
 
 /** 单条特性是否已达到生效等级（职业特性带 level 标注，未达标不参与派生） */
 function isActiveFeature(f: NonNullable<Character['features']>[number], char: Character): boolean {
-  const level = Math.max(char.level ?? 1, characterStore.getLevelFromExp(char.experience ?? 0) || 1);
+  const level = characterStore.getEffectiveLevel(char);
   return f.level == null || f.level <= level;
 }
 

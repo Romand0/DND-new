@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { X, Search, Users } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { fetchAllCharacters } from '@/lib/api';
+import { characterStore } from '@/data/characterStore';
 
 interface CharacterPickerProps {
   isOpen: boolean;
@@ -115,7 +116,7 @@ export default function CharacterPicker({
                       </div>
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-primary/20 text-primary">
-                          Lv.{character.level ?? 1}
+                          Lv.{characterStore.getEffectiveLevel(character)}
                         </span>
                         <span className="text-sm dark:text-text-dark light:text-text-light">
                           {character.profession?.class || '未知职业'}

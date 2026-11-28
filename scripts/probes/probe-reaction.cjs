@@ -541,7 +541,7 @@ async function main() {
     if (pcChar) {
       // level 提到 14：getFeatureReactionSources 按 f.level <= level 过滤（报偿 14）
       characterStore.update(pcChar.id, {
-        level: 14,
+        experience: 140000,
         features: [
           { name: '报偿', description: '探针', category: '职业特性', level: 14, activation: 'reaction', resource: 'manual', reaction: { trigger: 'damage_taken', resolution: 'attack', scope: 'self' } },
           { name: '守御闪光', description: '探针', category: '职业特性', level: 1, activation: 'reaction', resource: 'manual', reaction: { trigger: 'attack_targeted', scope: 'self' } },

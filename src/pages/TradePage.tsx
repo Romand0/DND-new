@@ -97,7 +97,7 @@ export default function TradePage() {
                         {c.name}
                       </span>
                       <span className="text-xs px-1.5 py-0.5 rounded dark:bg-white/10 light:bg-white/60 dark:text-text-dark-muted light:text-text-light-muted">
-                        Lv.{c.level || 1}
+                        Lv.{c ? characterStore.getEffectiveLevel(c) : 1}
                       </span>
                     </div>
                     <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted mt-0.5 truncate">

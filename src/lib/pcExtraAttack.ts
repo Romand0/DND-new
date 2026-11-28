@@ -1,4 +1,5 @@
 import type { Character } from '@/types/character';
+import { getEffectiveLevel } from '@/lib/experience';
 
 /**
  * PC 每次攻击动作的攻击次数（5e Extra Attack 家族）。
@@ -10,7 +11,7 @@ import type { Character } from '@/types/character';
  */
 export function derivePcAttacksPerAction(char: Character | null | undefined): number {
   if (!char) return 1;
-  const level = typeof char.level === 'number' ? char.level : 1;
+  const level = getEffectiveLevel(char);
   const cls = char.profession?.class ?? '';
   const fighterTiers = (): number => {
     if (cls === '战士') {

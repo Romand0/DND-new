@@ -43,7 +43,7 @@ async function main() {
       name,
       race: '',
       level: 5,
-      experience: 3500,
+      experience: 6500,
       abilities: { strength: { score: 10, modifier: 0 }, dexterity: { score: 14, modifier: 2 }, constitution: { score: 16, modifier: 3 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 10, modifier: 0 }, charisma: { score: 10, modifier: 0 } },
       skills: {},
       proficiencyBonus: 3,
@@ -93,7 +93,7 @@ async function main() {
     const monk = mk('验·武僧', [
       { name: '无甲防御', description: 'AC=10+敏捷+感知' },
       { name: '无甲移动', description: '未着装护甲时移动力增加' },
-    ], { profession: { class: '武僧' }, level: 2, experience: 0 });
+    ], { profession: { class: '武僧' }, level: 2, experience: 300 });
     const monkChar = characterStore.get(monk);
     out.a3 = m.resolveUnarmoredAc(monkChar, false, true);
     out.v1 = m.deriveSpeedModifier(monkChar, {});
@@ -119,8 +119,8 @@ async function main() {
     out.d2 = m.deriveDarkvision(characterStore.get(drow));
 
     // 类7 先攻优劣势（等级门槛）
-    const barb7 = mk('验·野7', [{ name: '野性直觉', description: '先攻优势', level: 7 }], { profession: { class: '野蛮人' }, level: 7, experience: 16500 });
-    const barb2 = mk('验·野2', [{ name: '野性直觉', description: '先攻优势', level: 7 }], { profession: { class: '野蛮人' }, level: 2, experience: 0 });
+    const barb7 = mk('验·野7', [{ name: '野性直觉', description: '先攻优势', level: 7 }], { profession: { class: '野蛮人' }, level: 7, experience: 23000 });
+    const barb2 = mk('验·野2', [{ name: '野性直觉', description: '先攻优势', level: 7 }], { profession: { class: '野蛮人' }, level: 2, experience: 300 });
     out.i1 = m.deriveInitiativeAdvantage(characterStore.get(barb7))?.label ?? null;
     out.i2 = m.deriveInitiativeAdvantage(characterStore.get(barb2))?.label ?? null;
 
@@ -170,7 +170,7 @@ async function main() {
       name,
       race: '',
       level: 5,
-      experience: 3500,
+      experience: 6500,
       abilities: { strength: { score: 10, modifier: 0 }, dexterity: { score: 14, modifier: 2 }, constitution: { score: 16, modifier: 3 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 10, modifier: 0 }, charisma: { score: 10, modifier: 0 } },
       skills: {},
       proficiencyBonus: 3,
@@ -186,23 +186,23 @@ async function main() {
 
     // 类1 险境感知 L2 门槛
     const r1 = mk('验·险L1', [{ name: '险境感知', description: 'DEX豁免优势', level: 2 }], { profession: { class: '游侠' }, level: 1, experience: 0 });
-    const r2 = mk('验·险L2', [{ name: '险境感知', description: 'DEX豁免优势', level: 2 }], { profession: { class: '游侠' }, level: 2, experience: 0 });
+    const r2 = mk('验·险L2', [{ name: '险境感知', description: 'DEX豁免优势', level: 2 }], { profession: { class: '游侠' }, level: 2, experience: 300 });
     out.g1 = saveCtx(characterStore.get(r1), 'dexterity');
     out.g2 = saveCtx(characterStore.get(r2), 'dexterity');
 
     // 类2 自然之护 L10 门槛（德鲁伊）
-    const d2 = mk('验·德L2', [{ name: '自然之护', description: '免疫毒素疾病', level: 10 }], { profession: { class: '德鲁伊' }, level: 2, experience: 0 });
-    const d10 = mk('验·德L10', [{ name: '自然之护', description: '免疫毒素疾病', level: 10 }], { profession: { class: '德鲁伊' }, level: 10, experience: 0 });
+    const d2 = mk('验·德L2', [{ name: '自然之护', description: '免疫毒素疾病', level: 10 }], { profession: { class: '德鲁伊' }, level: 2, experience: 300 });
+    const d10 = mk('验·德L10', [{ name: '自然之护', description: '免疫毒素疾病', level: 10 }], { profession: { class: '德鲁伊' }, level: 10, experience: 64000 });
     out.g3 = m.deriveCharacterAffinities(characterStore.get(d2))?.immunities?.length ?? 0;
     out.g4 = m.deriveCharacterAffinities(characterStore.get(d10))?.immunities?.map(e => e.types.flat()) ?? [];
 
     // 类3 速度门槛
     const s1 = mk('验·速L1', [{ name: '快速移动', description: '未穿重甲+10尺', level: 5 }], { profession: { class: '游侠' }, level: 1, experience: 0 });
-    const s5 = mk('验·速L5', [{ name: '快速移动', description: '未穿重甲+10尺', level: 5 }], { profession: { class: '游侠' }, level: 5, experience: 0 });
+    const s5 = mk('验·速L5', [{ name: '快速移动', description: '未穿重甲+10尺', level: 5 }], { profession: { class: '游侠' }, level: 5, experience: 6500 });
     out.g5 = m.deriveSpeedModifier(characterStore.get(s1), {});
     out.g6 = m.deriveSpeedModifier(characterStore.get(s5), {});
     const m1 = mk('验·僧L1', [{ name: '无甲移动', description: '移动力增加', level: 2 }], { profession: { class: '武僧' }, level: 1, experience: 0 });
-    const m2 = mk('验·僧L2', [{ name: '无甲移动', description: '移动力增加', level: 2 }], { profession: { class: '武僧' }, level: 2, experience: 0 });
+    const m2 = mk('验·僧L2', [{ name: '无甲移动', description: '移动力增加', level: 2 }], { profession: { class: '武僧' }, level: 2, experience: 300 });
     out.g7 = m.deriveSpeedModifier(characterStore.get(m1), {});
     out.g8 = m.deriveSpeedModifier(characterStore.get(m2), {});
 
@@ -276,7 +276,7 @@ async function main() {
     await page.evaluate(async () => {
       const { characterStore } = await import('/src/data/characterStore.ts');
       characterStore.add({
-        name: '验收·入战卡', race: '精灵', level: 5, profession: { class: '游侠' }, maxHp: 20, currentHp: 20,
+        name: '验收·入战卡', race: '精灵', level: 5, experience: 6500, profession: { class: '游侠' }, maxHp: 20, currentHp: 20,
         abilities: { strength: { score: 10, modifier: 0 }, dexterity: { score: 14, modifier: 2 }, constitution: { score: 10, modifier: 0 }, intelligence: { score: 10, modifier: 0 }, wisdom: { score: 14, modifier: 2 }, charisma: { score: 10, modifier: 0 } },
         skills: { perception: { proficient: true, extra: 0 } },
         proficiencyBonus: 3,
