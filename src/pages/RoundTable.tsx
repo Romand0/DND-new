@@ -5,8 +5,11 @@ import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, 
 import { SKILL_LABELS, ABILITY_LABELS } from '@/types/roundTable';
 import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 import type { BoundCharacterInfo } from '@/types/roundTable';
+import type { CampaignMember } from '@/types/campaign';
 import combatStore from '@/data/combatStore';
 import { useCampaign } from '@/contexts/CampaignContext';
+import { useAuth } from '@/contexts/AuthContext';
+import TableRing, { type TableDeliverable, type TableSeat } from '@/components/roundtable/TableRing';
 import * as api from '@/lib/api';
 
 const ABILITY_KEYS = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
@@ -30,8 +33,11 @@ export default function RoundTable() {
   const inbox = useRoundTableInbox();
   const outbox = useRoundTableInbox({ outbox: true });
   const { current: campaign } = useCampaign();
+  const { user } = useAuth();
 
   const [boundChars, setBoundChars] = useState<BoundCharacterInfo[]>([]);
+  const [members, setMembers] = useState<CampaignMember[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [charId, setCharId] = useState('');
   const [checkKind, setCheckKind] = useState<CheckKind>('ability');
   const [checkKey, setCheckKey] = useState<AbilityKeyStr>('strength');
@@ -52,6 +58,73 @@ export default function RoundTable() {
     api.fetchBoundCharacters()
       .then(res => setBoundChars((res.characters ?? []) as BoundCharacterInfo[]))
       .catch(e => setError(e?.message || '加载绑定角色失败'));
+  }, []);
+
+  useEffect(() => {
+    if (!campaign?.id) { setMembers([]); return; }
+    api.fetchCampaignMembers<CampaignMember[]>(campaign.id)
+      .then(list => setMembers(Array.isArray(list) ? list : []))
+      .catch(() => setMembers([]));
+  }, [campaign?.id]);
+
+  // 座位以团组成员为准，缺成员列表时回退到已绑定角色；自己不上桌
+  const ringSeats = useMemo<TableSeat[]>(() => {
+    const boundByUser = new Map<string, BoundCharacterInfo>();
+    for (const c of boundChars) {
+      if (c.boundUserId) boundByUser.set(c.boundUserId, c);
+    }
+    const seats: TableSeat[] = [];
+    const seen = new Set<string>();
+    for (const m of members) {
+      if (m.userId === user?.id) continue;
+      const c = boundByUser.get(m.userId);
+      seats.push({
+        userId: m.userId,
+        username: m.username || '未知账号',
+        avatar: m.avatar || '',
+        role: m.role,
+        characterId: c?.id,
+        characterName: c?.name,
+      });
+      seen.add(m.userId);
+    }
+    for (const c of boundChars) {
+      const uid = c.boundUserId;
+      if (!uid || uid === user?.id || seen.has(uid)) continue;
+      seats.push({
+        userId: uid,
+        username: c.boundUserName || '未知账号',
+        avatar: '',
+        role: 'player',
+        characterId: c.id,
+        characterName: c.name,
+      });
+    }
+    return seats;
+  }, [boundChars, members, user?.id]);
+
+  const handleSeatDeliver = useCallback((kind: TableDeliverable, seat: TableSeat) => {
+    if (kind !== 'check') {
+      setNotice('任务与物资投送将在圆桌后续阶段接入');
+      return;
+    }
+    if (!seat.characterId) {
+      setError(`${seat.username} 未绑定角色卡，无法发起检定`);
+      return;
+    }
+    setError('');
+    setSelectedUserId(seat.userId);
+    setCharId(seat.characterId);
+    setNotice(`检定目标已选中：${seat.username} · ${seat.characterName}`);
+    document.getElementById('check-composer')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
+
+  const handleSeatSelect = useCallback((seat: TableSeat) => {
+    setSelectedUserId(seat.userId);
+    if (seat.characterId) {
+      setCharId(seat.characterId);
+      setError('');
+    }
   }, []);
 
   // 检定项选项随类型联动
@@ -155,9 +228,18 @@ export default function RoundTable() {
         </p>
       </div>
 
+      <div className="rounded-xl border p-3 sm:p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
+        <TableRing
+          seats={ringSeats}
+          selectedUserId={selectedUserId}
+          onSelectSeat={handleSeatSelect}
+          onDeliver={handleSeatDeliver}
+        />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         {/* 发起表单 */}
-        <div className="lg:col-span-2 rounded-xl border p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light space-y-3 self-start">
+        <div id="check-composer" className="lg:col-span-2 rounded-xl border p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light space-y-3 self-start">
           <div className="text-sm font-medium dark:text-text-dark light:text-text-light flex items-center gap-1.5">
             <Dices className="w-4 h-4 text-accent" />
             发起通用检定
@@ -167,7 +249,11 @@ export default function RoundTable() {
             <label className="text-xs dark:text-text-dark-muted light:text-text-light-muted mb-1 block">目标角色（已绑定玩家账号）</label>
             <select
               value={charId}
-              onChange={e => setCharId(e.target.value)}
+              onChange={e => {
+                const next = e.target.value;
+                setCharId(next);
+                setSelectedUserId(boundChars.find(c => c.id === next)?.boundUserId || '');
+              }}
               className="w-full px-2.5 py-2 rounded-lg border text-sm dark:border-border-dark light:border-border-light dark:bg-bg-dark light:bg-bg-light dark:text-text-dark light:text-text-light outline-none focus:border-primary"
             >
               <option value="">选择角色…</option>

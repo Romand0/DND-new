@@ -5,16 +5,42 @@ import { useNavigate } from 'react-router-dom';
 import { Inbox, Clock, CheckCircle2, Ban, Eye } from 'lucide-react';
 import type { Character } from '@/types/character';
 import type { TableMessage, CheckRequestPayload, SpectateInvitePayload } from '@/types/roundTable';
+import type { CampaignMember } from '@/types/campaign';
 import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 import { characterStore } from '@/data/characterStore';
 import * as api from '@/lib/api';
 import CheckRequestDialog from '@/components/roundtable/CheckRequestDialog';
+import TableRing, { type TableSeat } from '@/components/roundtable/TableRing';
+import { useCampaign } from '@/contexts/CampaignContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PlayerRoundTable() {
   const { messages, connectionLost, refresh } = useRoundTableInbox();
   const [activeMessage, setActiveMessage] = useState<TableMessage | null>(null);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
+  const { current: campaign } = useCampaign();
+  const { user } = useAuth();
+  const [members, setMembers] = useState<CampaignMember[]>([]);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!campaign?.id) { setMembers([]); return; }
+    api.fetchCampaignMembers<CampaignMember[]>(campaign.id)
+      .then(list => setMembers(Array.isArray(list) ? list : []))
+      .catch(() => setMembers([]));
+  }, [campaign?.id]);
+
+  const seats = useMemo<TableSeat[]>(
+    () => members
+      .filter(m => m.userId !== user?.id)
+      .map(m => ({
+        userId: m.userId,
+        username: m.username || '未知账号',
+        avatar: m.avatar || '',
+        role: m.role,
+      })),
+    [members, user?.id]
+  );
 
   const requests = useMemo(
     () => messages.filter(m => m.type === 'check_request'),
@@ -75,6 +101,10 @@ export default function PlayerRoundTable() {
         >
           刷新
         </button>
+      </div>
+
+      <div className="rounded-xl border p-3 sm:p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
+        <TableRing seats={seats} readOnly />
       </div>
 
       {invites.length > 0 && (
