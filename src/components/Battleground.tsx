@@ -3,9 +3,9 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { Grid3x3, Eraser, Trash2, ZoomIn, ZoomOut, Undo2, X, Swords, BookOpen, MoreHorizontal, Package, Pencil, PenTool } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import battlegroundStore from '@/data/battlegroundStore';
-import { getAmbientLightTier, getEffectiveTierAt } from '@/data/visionRules';
+import { buildFireLightMap, getEffectiveTierAt, getLightTierAt } from '@/data/visionRules';
 import { GRID_PRESETS, ZONE_PRESETS, LIGHT_OVERLAY } from '@/types/battleground';
-import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone, ZoneType, LightTier } from '@/types/battleground';
+import type { Battleground as BG, GridSize, ItemToken, BattlegroundZone, ZoneType } from '@/types/battleground';
 import type { Combatant, CombatRecord, EquipmentChanges, CombatantSenses } from '@/types/combat';
 import type { Character, Equipment, Feature } from '@/types/character';
 import CombatantInfoPanel from './CombatantInfoPanel';
@@ -247,20 +247,9 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
     return new Set(bg?.paintedCells || []);
   }, [bg?.paintedCells]);
 
-  // 光照格索引："col,row" -> 档位（三桶互斥，后涂覆盖）
-  const lightCellTierMap = useMemo(() => {
-    const m = new Map<string, LightTier>();
-    const lc = bg?.lightCells;
-    if (lc) {
-      lc.bright.forEach(k => m.set(k, 'bright'));
-      lc.dim.forEach(k => m.set(k, 'dim'));
-      lc.darkness.forEach(k => m.set(k, 'darkness'));
-    }
-    return m;
-  }, [bg?.lightCells]);
-
-  // 全图环境档位：无单格标注时的默认光照（环境=全图默认，画笔=单格覆盖）
-  const ambientTier = useMemo(() => getAmbientLightTier(bg), [bg?.ambientLight]);
+  // 光照/地域索引与着火照明：光照档位统一由 visionRules 解析
+  // 全图环境档位 + 着火照明由 getLightTierAt 统一解析（见 visionRules），这里只预计算火焰照明表
+  const fireLightMap = useMemo(() => buildFireLightMap(bg?.zones), [bg?.zones]);
 
   // 地形区域索引："col,row" -> 区域列表（支持同一格多个区域叠加）
   // 全量版供擦除/伤害结算等数据操作使用；显示版按激活图层过滤
@@ -1242,11 +1231,10 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
             const row = Math.floor(i / preset.cols);
             const key = `${col},${row}`;
             const isPainted = paintedSet.has(`${col},${row}`);
-            const baseTierHere = lightCellTierMap.get(`${col},${row}`) ?? ambientTier;
-            // 投影模式下按观看者感官降档（黑暗视觉：微光→明亮、黑暗→微光），DM 端保持真实明暗
+            // 原始档位含环境/单格标注/着火照明下限；投影模式再按观看者感官降档
             const lightTierHere = viewerSenses
-              ? getEffectiveTierAt(bg, key, viewerSenses).tier
-              : baseTierHere;
+              ? getEffectiveTierAt(bg, key, viewerSenses, fireLightMap).tier
+              : getLightTierAt(bg, key, fireLightMap).tier;
             const combatantId = cellToken.get(key);
             const combatant = combatantId ? combatantMap.get(combatantId) : null;
             const itemsHere = cellItemTokens.get(key) || [];

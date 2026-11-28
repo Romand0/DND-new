@@ -356,7 +356,7 @@ export interface BoardProjection {
   items: { id: string; col: number; row: number; name: string }[];
   /** 被涂白的格子（边界墙），格式 "col,row" */
   painted: string[];
-  zones: { id: string; cells: string[]; color: string; label: string }[];
+  zones: { id: string; cells: string[]; color: string; label: string; type: 'fire' | 'poison' | 'difficult' | 'custom' }[];
 }
 
 /** 先攻表格投影：数组下标即轮次（0 = 第 1 轮），每行是 { 参战者ID: 行动文本 }。

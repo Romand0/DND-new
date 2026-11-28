@@ -149,7 +149,7 @@ export function buildBoardProjection(record: CombatRecord): BoardProjection | nu
       .map((t) => ({ combatantId: t.combatantId, col: t.col, row: t.row })),
     items: (bg.itemTokens ?? []).map((it) => ({ id: it.id, col: it.col, row: it.row, name: it.name })),
     painted: bg.paintedCells ?? [],
-    zones: (bg.zones ?? []).map((z) => ({ id: z.id, cells: z.cells, color: z.color, label: z.label })),
+    zones: (bg.zones ?? []).map((z) => ({ id: z.id, cells: z.cells, color: z.color, label: z.label, type: z.type })),
   };
 }
 
