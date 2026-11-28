@@ -1,7 +1,7 @@
 // src/data/visionRules.ts
 // 视野系统纯函数层（仿 zoneRules 模式）：掩护几何 / 光照档位 / 感官解析。
 // 全部函数无副作用，可被探针直调；几何判定结果仅作 DM 提示，最终裁定在弹窗完成。
-import type { Battleground, LightTier } from '@/types/battleground';
+import type { Battleground, BattlegroundZone, LightTier } from '@/types/battleground';
 import type { CoverTier, CombatantSenses } from '@/types/combat';
 
 export type { LightTier };
@@ -120,7 +120,52 @@ export function suggestCoverHint(
 // 光照档位（视野系统 R2）
 // =======================
 
-type LightBg = Pick<Battleground, 'ambientLight' | 'lightCells'> | null | undefined;
+type LightBg = Pick<Battleground, 'ambientLight' | 'lightCells' | 'zones'> | null | undefined;
+
+const TIER_RANK: Record<LightTier, number> = { darkness: 0, dim: 1, bright: 2 };
+
+/** 取两档位中更亮的一个（着火照明作为「至少这么亮」的下限使用） */
+export function strongerTier(a: LightTier, b: LightTier): LightTier {
+  return TIER_RANK[a] >= TIER_RANK[b] ? a : b;
+}
+
+/**
+ * 着火区域照明半径（按 5 尺/格换算）：
+ * 区域自身及周围 20 尺（4 格）明亮，再向外 20 尺（至 40 尺 / 8 格）微光。
+ * 注意：官方读物没有「着火区域提供光照」的规则，这里复用火把数据（明亮 20 尺 / 微光再 20 尺），
+ * 属于本工具的房规近似，不代表 5e 标准。
+ */
+export const FIRE_LIGHT_BRIGHT_CELLS = 4;
+export const FIRE_LIGHT_DIM_CELLS = 8;
+
+/**
+ * 由着火区域生成照明格映射（切比雪夫距离，单位格）：bright 4 格内 / dim 8 格内。
+ * 多块火焰重叠取更亮档位；供渲染按格查表，避免每个格子重复遍历区域。
+ */
+export function buildFireLightMap(zones?: BattlegroundZone[] | null): Map<string, LightTier> {
+  const map = new Map<string, LightTier>();
+  if (!zones || zones.length === 0) return map;
+  for (const zone of zones) {
+    if (zone.type !== 'fire') continue;
+    for (const cell of zone.cells) {
+      const [cs, rs] = cell.split(',');
+      const c0 = parseInt(cs, 10);
+      const r0 = parseInt(rs, 10);
+      if (isNaN(c0) || isNaN(r0)) continue;
+      for (let dc = -FIRE_LIGHT_DIM_CELLS; dc <= FIRE_LIGHT_DIM_CELLS; dc++) {
+        for (let dr = -FIRE_LIGHT_DIM_CELLS; dr <= FIRE_LIGHT_DIM_CELLS; dr++) {
+          const dist = Math.max(Math.abs(dc), Math.abs(dr));
+          if (dist > FIRE_LIGHT_DIM_CELLS) continue;
+          const key = `${c0 + dc},${r0 + dr}`;
+          const tier: LightTier = dist <= FIRE_LIGHT_BRIGHT_CELLS ? 'bright' : 'dim';
+          const prev = map.get(key);
+          if (!prev || TIER_RANK[tier] > TIER_RANK[prev]) map.set(key, tier);
+        }
+      }
+    }
+  }
+  return map;
+}
 
 /** 沙盘环境光照档位（load 兜底口径同 battlegroundStore：未设置视为明亮） */
 export function getAmbientLightTier(bg: { ambientLight?: LightTier } | null | undefined): LightTier {
@@ -128,18 +173,27 @@ export function getAmbientLightTier(bg: { ambientLight?: LightTier } | null | un
 }
 
 /**
- * 格子原始光照档位：光照区域覆盖 > 环境默认。
- * 区域无标注格返回环境档位（source='ambient'）。
+ * 格子原始光照档位：光照区域覆盖 > 环境默认，再取着火照明下限（火把口径）。
+ * 区域无标注格返回环境档位（source='ambient'）；着火提亮时记 source='zone'。
+ * fireMap 可传入预计算表避免逐格重复遍历区域。
  */
-export function getLightTierAt(bg: LightBg, cell: CellPos | string): { tier: LightTier; source: 'zone' | 'ambient' } {
+export function getLightTierAt(
+  bg: LightBg,
+  cell: CellPos | string,
+  fireMap?: Map<string, LightTier>,
+): { tier: LightTier; source: 'zone' | 'ambient' } {
   const key = typeof cell === 'string' ? cell : `${cell.col},${cell.row}`;
+  let tier: LightTier;
+  let source: 'zone' | 'ambient';
   const lc = bg?.lightCells;
-  if (lc) {
-    if (lc.darkness.includes(key)) return { tier: 'darkness', source: 'zone' };
-    if (lc.dim.includes(key)) return { tier: 'dim', source: 'zone' };
-    if (lc.bright.includes(key)) return { tier: 'bright', source: 'zone' };
-  }
-  return { tier: getAmbientLightTier(bg), source: 'ambient' };
+  if (lc && lc.darkness.includes(key)) { tier = 'darkness'; source = 'zone'; }
+  else if (lc && lc.dim.includes(key)) { tier = 'dim'; source = 'zone'; }
+  else if (lc && lc.bright.includes(key)) { tier = 'bright'; source = 'zone'; }
+  else { tier = getAmbientLightTier(bg); source = 'ambient'; }
+
+  const fireTier = (fireMap ?? buildFireLightMap(bg?.zones)).get(key);
+  if (fireTier && TIER_RANK[fireTier] > TIER_RANK[tier]) return { tier: fireTier, source: 'zone' };
+  return { tier, source };
 }
 
 /**
@@ -154,8 +208,9 @@ export function getEffectiveTierAt(
   bg: LightBg,
   cell: CellPos | string,
   senses: CombatantSenses | null | undefined,
+  fireMap?: Map<string, LightTier>,
 ): { tier: LightTier; base: LightTier; source: 'zone' | 'ambient'; sense?: 'truesight' | 'blindsight' | 'darkvision' } {
-  const raw = getLightTierAt(bg, cell);
+  const raw = getLightTierAt(bg, cell, fireMap);
   const s = senses ?? {};
   if (raw.tier === 'bright') return { ...raw, base: raw.tier };
   if (s.truesight) return { tier: 'bright', base: raw.tier, source: raw.source, sense: 'truesight' };

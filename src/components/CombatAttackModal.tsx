@@ -17,6 +17,7 @@ import AdvDisadvToggle from './AdvDisadvToggle';
 import type { Combatant, NpcAttack, CheckScene, CoverTier } from '@/types/combat';
 import type { AdvantageReason, AdvantageResult } from '@/types/combat';
 import type { Character, Attack, Equipment } from '@/types/character';
+import type { BattlegroundZone } from '@/types/battleground';
 
 interface Props {
   attacker: Combatant;
@@ -93,6 +94,8 @@ interface Props {
   ambientLight?: 'bright' | 'dim' | 'darkness';
   /** 沙盘光照格桶（视野系统：光照区域覆盖） */
   lightCells?: { bright: string[]; dim: string[]; darkness: string[] };
+  /** 沙盘地形区域（着火区域提供照明：自身及周围 20 尺明亮、再 20 尺微光） */
+  zones?: BattlegroundZone[];
   /** 多重攻击序列锁定：本步只展示该攻击（宿主已按配方解析为精确攻击名）；未匹配步不传 = 自选攻击 */
   lockedAttackName?: string;
   /** 多重攻击序列步骤徽标（弹窗标题旁）：「多重攻击 第2/3击 · 爪击」 */
@@ -108,7 +111,7 @@ type RangeTier = 'melee' | 'normal' | 'max' | 'outOfRange';
 
 type Stage = 'attacks' | 'roll';
 
-export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, ambientLight, lightCells, lockedAttackName, multiattackStepLabel, bonusActionsAvailable, actionsAvailable }: Props) {
+export default function CombatAttackModal({ attacker, target, onClose, attackerPos, targetPos, onConfirmHit, onAttackMiss, combatInventory, targetCharacter, targetCombatInventory, loadedWeapons, onLoadedChange, loadingAttackedThisRound, combatMode, playbackTurnActive, recordId, currentRound, combatantPositions, reactionMode, reactionSpent, characterOverride, paintedCells, ambientLight, lightCells, zones, lockedAttackName, multiattackStepLabel, bonusActionsAvailable, actionsAvailable }: Props) {
   // 掩护单次覆盖：'' = 跟随参战者标注；'none' = 本弹窗覆盖为无掩护；其余为临时等级（写回在参战者面板）
   const [coverOverride, setCoverOverride] = useState<'' | 'none' | CoverTier>('');
   const effectiveCover: CoverTier | null = coverOverride === '' ? (target?.coverTier ?? null) : coverOverride === 'none' ? null : coverOverride;
@@ -534,7 +537,7 @@ export default function CombatAttackModal({ attacker, target, onClose, attackerP
       distanceCells,
       combatantPositions,
       roster: combatStore.get(recordId)?.combatants ?? null,
-      battleground: { ambientLight, lightCells },
+      battleground: { ambientLight, lightCells, zones },
       recordId,
       roundCtx: getCombatRoundCtx(recordId),
     };

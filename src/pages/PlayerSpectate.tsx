@@ -44,7 +44,7 @@ function projectionToBg(board: BoardProjection, sessionId: string): Battleground
     tokens: board.tokens.map((t) => ({ combatantId: t.combatantId, col: t.col, row: t.row })),
     itemTokens: board.items.map((i) => ({ id: i.id, col: i.col, row: i.row, name: i.name, equipmentData: {} })),
     paintedCells: board.painted,
-    zones: board.zones.map((z) => ({ id: z.id, type: 'custom' as const, label: z.label, cells: z.cells, color: z.color })),
+    zones: board.zones.map((z) => ({ id: z.id, type: z.type ?? 'custom', label: z.label, cells: z.cells, color: z.color })),
     updatedAt: 0,
   };
 }

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Grid3x3, Pencil, Eraser, Hand, Flame, Sun, Moon, MoonStar, Undo2 } from 'lucide-react';
 import battlegroundStore from '@/data/battlegroundStore';
 import combatStore from '@/data/combatStore';
+import { buildFireLightMap, strongerTier } from '@/data/visionRules';
 import { GRID_PRESETS, ZONE_PRESETS, LIGHT_LABELS, LIGHT_OVERLAY } from '@/types/battleground';
 import type { Battleground as BG, BattlegroundZone, ZoneType, LightTier } from '@/types/battleground';
 import type { Combatant } from '@/types/combat';
@@ -144,6 +145,9 @@ export default function BattlegroundEditor() {
     });
     return m;
   }, [draftLight]);
+
+  // 着火照明（火把口径：自身+20 尺明亮、再 20 尺微光），绘图时即时预览
+  const fireLightMap = useMemo(() => buildFireLightMap(draftZones), [draftZones]);
 
   // —— early return 放在所有 hooks 之后 ——
   if (!bg) {
@@ -514,9 +518,11 @@ export default function BattlegroundEditor() {
                     {combatant.name.slice(0, 1)}
                   </div>
                 )}
-                {/* 光照遮罩：单格标注覆盖全图环境；明亮=自然状态不叠图层 */}
+                {/* 光照遮罩：单格标注覆盖全图环境，着火照明作为下限；明亮=自然状态不叠图层 */}
                 {(() => {
-                  const tierHere = lightTierMap.get(key) ?? draftAmbient;
+                  const baseTier = lightTierMap.get(key) ?? draftAmbient;
+                  const fireTier = fireLightMap.get(key);
+                  const tierHere = fireTier ? strongerTier(baseTier, fireTier) : baseTier;
                   return LIGHT_OVERLAY[tierHere] !== 'transparent'
                     ? <div className="absolute inset-0 z-30 pointer-events-none"
                         style={{ background: LIGHT_OVERLAY[tierHere] }} />

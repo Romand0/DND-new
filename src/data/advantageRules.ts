@@ -79,7 +79,7 @@ export interface AdvantageContext {
   /** 技能检定技能键（skill_check 场景；微光察觉劣势等按技能过滤的判定需要） */
   skillKey?: string;
   /** 沙盘光照数据快照（视野系统 R2：黑暗/微光优劣势判定；未传入时跳过几何判定） */
-  battleground?: Pick<Battleground, 'ambientLight' | 'lightCells'> | null;
+  battleground?: Pick<Battleground, 'ambientLight' | 'lightCells' | 'zones'> | null;
 }
 
 export type AdvantageDetector = (ctx: AdvantageContext) => AdvantageResult;

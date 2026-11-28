@@ -35,6 +35,13 @@ async function main() {
     out.tierZoneDim = vr.getLightTierAt(zoneBg, '2,2');
     out.tierNullBg = vr.getLightTierAt(null, '0,0');
     out.tierObjCell = vr.getLightTierAt(zoneBg, { col: 2, row: 2 });
+    // 着火照明（火把口径）：自身+20 尺（4 格）明亮，再 20 尺（至 8 格）微光
+    const fireBg = { ambientLight: 'darkness', zones: [{ id: 'f', type: 'fire', label: '火焰', cells: ['0,0'], color: '#f00' }] };
+    out.fireCenter = vr.getLightTierAt(fireBg, '0,0');
+    out.fireBrightEdge = vr.getLightTierAt(fireBg, '4,0').tier;
+    out.fireDimEdge = vr.getLightTierAt(fireBg, '5,0').tier;
+    out.fireDimOuter = vr.getLightTierAt(fireBg, '8,0').tier;
+    out.fireBeyond = vr.getLightTierAt(fireBg, '9,0').tier;
 
     // ===== B. 感官降档矩阵 =====
     const darkBg = { ambientLight: 'darkness' };
@@ -119,6 +126,10 @@ async function main() {
   check('区域微光覆盖环境', results.tierZoneDim.tier === 'dim' && results.tierZoneDim.source === 'zone', results.tierZoneDim);
   check('沙盘缺失回落明亮', results.tierNullBg.tier === 'bright', results.tierNullBg);
   check('对象格参数与字符串等价', results.tierObjCell.tier === 'dim', results.tierObjCell);
+  check('着火中心明亮', results.fireCenter.tier === 'bright', results.fireCenter);
+  check('着火 20 尺内明亮', results.fireBrightEdge === 'bright', results.fireBrightEdge);
+  check('着火 20-40 尺微光', results.fireDimEdge === 'dim' && results.fireDimOuter === 'dim', { edge: results.fireDimEdge, outer: results.fireDimOuter });
+  check('着火 40 尺外回落环境黑暗', results.fireBeyond === 'darkness', results.fireBeyond);
   // B
   check('无障碍黑暗仍黑暗', results.effNone === 'darkness', results.effNone);
   check('黑暗视觉 黑暗→微光', results.effDarkvision === 'dim', results.effDarkvision);

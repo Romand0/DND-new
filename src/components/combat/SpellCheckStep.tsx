@@ -173,7 +173,7 @@ export default function SpellCheckStep({
     distanceCells: lightDistanceCells,
     combatantPositions,
     roster: combatStore.get(recordId)?.combatants ?? null,
-    battleground: bgSnapshot ? { ambientLight: bgSnapshot.ambientLight, lightCells: bgSnapshot.lightCells } : null,
+    battleground: bgSnapshot ? { ambientLight: bgSnapshot.ambientLight, lightCells: bgSnapshot.lightCells, zones: bgSnapshot.zones } : null,
     recordId,
     roundCtx: getCombatRoundCtx(recordId),
   };

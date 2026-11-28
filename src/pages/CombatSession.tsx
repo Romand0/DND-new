@@ -2587,6 +2587,7 @@ export default function CombatSession() {
           paintedCells={record ? battlegroundStore.get(record.id)?.paintedCells : undefined}
           ambientLight={record ? battlegroundStore.get(record.id)?.ambientLight : undefined}
           lightCells={record ? battlegroundStore.get(record.id)?.lightCells : undefined}
+          zones={record ? battlegroundStore.get(record.id)?.zones : undefined}
           combatInventory={getCombatInventory(record, liveAttackModalAttacker ?? attackModal.attacker)}
           targetCharacter={liveAttackModalTarget?.characterId ? characterStore.get(liveAttackModalTarget.characterId) : null}
           targetCombatInventory={getCombatInventory(record, liveAttackModalTarget ?? attackModal.target)}
@@ -2864,6 +2865,7 @@ export default function CombatSession() {
             paintedCells={record ? battlegroundStore.get(record.id)?.paintedCells : undefined}
             ambientLight={record ? battlegroundStore.get(record.id)?.ambientLight : undefined}
             lightCells={record ? battlegroundStore.get(record.id)?.lightCells : undefined}
+            zones={record ? battlegroundStore.get(record.id)?.zones : undefined}
             combatInventory={getCombatInventory(record, owner)}
             targetCharacter={reactionTarget.characterId ? characterStore.get(reactionTarget.characterId) : null}
             targetCombatInventory={getCombatInventory(record, reactionTarget)}
