@@ -1,7 +1,7 @@
 // DM 圆桌页：左侧发起检定表单 + 观战抛送，右侧消息流（发起的请求状态 + 收到的结果）
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Send, Ban, Dices, Inbox, Hourglass, Eye, Gavel, Check, X } from 'lucide-react';
-import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, DcMode, SpectateInvitePayload, DecisionRequestPayload } from '@/types/roundTable';
+import { Send, Ban, Dices, Inbox, Hourglass, Eye, Gavel, Check, X, History, ListChecks } from 'lucide-react';
+import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, DcMode, DecisionRequestPayload } from '@/types/roundTable';
 import { SKILL_LABELS, ABILITY_LABELS } from '@/types/roundTable';
 import { useRoundTableInbox } from '@/hooks/useRoundTableInbox';
 import type { BoundCharacterInfo } from '@/types/roundTable';
@@ -10,6 +10,9 @@ import combatStore from '@/data/combatStore';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useAuth } from '@/contexts/AuthContext';
 import TableRing, { type TableDeliverable, type TableSeat } from '@/components/roundtable/TableRing';
+import CollapsibleSection from '@/components/roundtable/CollapsibleSection';
+import SpectateInviteGroupCard from '@/components/roundtable/SpectateInviteGroupCard';
+import { groupSpectateInvites } from '@/lib/roundTableGroups';
 import * as api from '@/lib/api';
 
 const ABILITY_KEYS = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
@@ -158,6 +161,13 @@ export default function RoundTable() {
     return { requests: reqs, resultById: rbs, invites: invs, decisions: decs };
   }, [inbox.messages, outbox.messages]);
 
+  const pendingChecks = useMemo(() => requests.filter(m => m.status === 'pending'), [requests]);
+  const closedChecks = useMemo(() => requests.filter(m => m.status !== 'pending'), [requests]);
+  const pendingDecisions = useMemo(() => decisions.filter(m => m.status === 'pending'), [decisions]);
+  const closedDecisions = useMemo(() => decisions.filter(m => m.status !== 'pending'), [decisions]);
+  const spectateGroups = useMemo(() => groupSpectateInvites(invites), [invites]);
+  const totalRecords = requests.length + invites.length + decisions.length;
+
   const submit = useCallback(async () => {
     const char = boundChars.find(c => c.id === charId);
     if (!char) { setError('请选择目标角色'); return; }
@@ -217,6 +227,50 @@ export default function RoundTable() {
       setSendingInvite(false);
     }
   }, [spectateRecordId, campaign, outbox]);
+
+  const renderCheckCard = (msg: TableMessage) => {
+    const payload = msg.payload as CheckRequestPayload;
+    const result = resultById.get(msg.id);
+    return (
+      <div
+        key={msg.id}
+        className="rounded-lg border p-3 dark:border-border-dark light:border-border-light"
+      >
+        <div className="flex items-center justify-between gap-2 mb-1">
+          <div className="text-sm font-bold dark:text-text-dark light:text-text-light">
+            {payload.characterName} · {payload.checkLabel}
+          </div>
+          {msg.status === 'pending' && (
+            <span className="flex items-center gap-1 text-xs text-amber-500 shrink-0">
+              <Hourglass className="w-3.5 h-3.5" />
+              等待答复
+            </span>
+          )}
+          {msg.status === 'answered' && <span className="text-xs text-emerald-500 shrink-0">已答复</span>}
+          {msg.status === 'cancelled' && (
+            <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">已撤回</span>
+          )}
+        </div>
+        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+          DC {payload.dcMode === 'value_only' ? '（不判定）' : payload.dc}
+          {payload.dcMode === 'hidden_dc' ? '（玩家不可见）' : ''}
+          {payload.note ? ` · ${payload.note}` : ''} · {new Date(msg.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </div>
+
+        {result && <ResultCard result={result.payload} />}
+
+        {msg.status === 'pending' && (
+          <button
+            onClick={() => cancel(msg.id)}
+            className="mt-2 flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+          >
+            <Ban className="w-3.5 h-3.5" />
+            撤回
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -390,108 +444,99 @@ export default function RoundTable() {
           </div>
         </div>
 
-        {/* 消息流 */}
+        {/* 记录分区：按待处理/检定/观战/裁定分类，历史默认折叠 */}
         <div className="lg:col-span-3 space-y-3">
-          {requests.length === 0 && invites.length === 0 && (
-            <div className="rounded-xl border dark:border-border-dark light:border-border-dark dark:bg-card-dark light:bg-card-light p-10 text-center">
-              <Inbox className="w-10 h-10 mx-auto dark:text-text-dark-muted light:text-text-light-muted opacity-40" />
+          {totalRecords === 0 ? (
+            <div className="rounded-xl border p-10 text-center dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
+              <Inbox className="mx-auto h-10 w-10 opacity-40 dark:text-text-dark-muted light:text-text-light-muted" />
               <div className="mt-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
                 暂无抛送记录，左侧发起第一个检定
               </div>
             </div>
+          ) : (
+            <>
+              {pendingDecisions.length > 0 && (
+                <CollapsibleSection
+                  title="待我裁定"
+                  icon={Gavel}
+                  count={pendingDecisions.length}
+                  tone="accent"
+                  hint="玩家回合中途提交"
+                >
+                  {pendingDecisions.map(msg => (
+                    <DecisionRequestCard
+                      key={msg.id}
+                      message={msg}
+                      payload={msg.payload as DecisionRequestPayload}
+                      onResolved={() => inbox.refresh()}
+                    />
+                  ))}
+                </CollapsibleSection>
+              )}
+
+              {pendingChecks.length > 0 && (
+                <CollapsibleSection
+                  title="等待玩家答复"
+                  icon={Hourglass}
+                  count={pendingChecks.length}
+                  tone="amber"
+                  hint="检定请求已抛送"
+                >
+                  {pendingChecks.map(renderCheckCard)}
+                </CollapsibleSection>
+              )}
+
+              {spectateGroups.length > 0 && (
+                <CollapsibleSection
+                  title="观战投送"
+                  icon={Eye}
+                  count={spectateGroups.length}
+                  tone="emerald"
+                  hint={`${invites.length} 条记录按战斗合并`}
+                >
+                  {spectateGroups.map(group => (
+                    <SpectateInviteGroupCard
+                      key={group.roomId}
+                      group={group}
+                      variant="dm"
+                      onCancel={cancel}
+                    />
+                  ))}
+                </CollapsibleSection>
+              )}
+
+              {closedChecks.length > 0 && (
+                <CollapsibleSection
+                  title="检定记录"
+                  icon={ListChecks}
+                  count={closedChecks.length}
+                  defaultOpen={false}
+                  hint="已答复 / 已撤回"
+                >
+                  {closedChecks.map(renderCheckCard)}
+                </CollapsibleSection>
+              )}
+
+              {closedDecisions.length > 0 && (
+                <CollapsibleSection
+                  title="裁定记录"
+                  icon={History}
+                  count={closedDecisions.length}
+                  defaultOpen={false}
+                  hint="已裁定 / 已撤回"
+                >
+                  {closedDecisions.map(msg => (
+                    <DecisionRequestCard
+                      key={msg.id}
+                      message={msg}
+                      payload={msg.payload as DecisionRequestPayload}
+                      onResolved={() => inbox.refresh()}
+                    />
+                  ))}
+                </CollapsibleSection>
+              )}
+            </>
           )}
-
-          {invites.map(msg => {
-            const payload = msg.payload as SpectateInvitePayload;
-            return (
-              <div
-                key={msg.id}
-                className="rounded-xl border p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light"
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2 text-sm font-bold dark:text-text-dark light:text-text-light">
-                    <Eye className="w-4 h-4 text-emerald-500 shrink-0" />
-                    观战邀请 · {payload.title}
-                  </div>
-                  {msg.status === 'pending' ? (
-                    <span className="flex items-center gap-1 text-xs text-emerald-500 shrink-0">
-                      <Hourglass className="w-3.5 h-3.5" />
-                      玩家可加入
-                    </span>
-                  ) : (
-                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">已撤回</span>
-                  )}
-                </div>
-                <div className="text-xs font-mono dark:text-text-dark-muted light:text-text-light-muted">
-                  {payload.roomId} · {new Date(msg.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </div>
-                {msg.status === 'pending' && (
-                  <button
-                    onClick={() => cancel(msg.id)}
-                    className="mt-2 flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-                  >
-                    <Ban className="w-3.5 h-3.5" />
-                    撤回（玩家端停止展示）
-                  </button>
-                )}
-              </div>
-            );
-          })}
-
-          {decisions.map(msg => (
-            <DecisionRequestCard
-              key={msg.id}
-              message={msg}
-              payload={msg.payload as DecisionRequestPayload}
-              onResolved={() => inbox.refresh()}
-            />
-          ))}
-
-          {requests.map(msg => {
-            const payload = msg.payload as CheckRequestPayload;
-            const result = resultById.get(msg.id);
-            return (
-              <div
-                key={msg.id}
-                className="rounded-xl border p-4 dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light"
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="text-sm font-bold dark:text-text-dark light:text-text-light">
-                    {payload.characterName} · {payload.checkLabel}
-                  </div>
-                  {msg.status === 'pending' && (
-                    <span className="flex items-center gap-1 text-xs text-amber-500 shrink-0">
-                      <Hourglass className="w-3.5 h-3.5" />
-                      等待答复
-                    </span>
-                  )}
-                  {msg.status === 'answered' && (
-                    <span className="text-xs text-emerald-500 shrink-0">已答复</span>
-                  )}
-                  {msg.status === 'cancelled' && (
-                    <span className="text-xs dark:text-text-dark-muted light:text-text-light-muted shrink-0">已撤回</span>
-                  )}
-                </div>
-                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
-                  DC {payload.dcMode === 'value_only' ? '（不判定）' : payload.dc}
-                  {payload.dcMode === 'hidden_dc' ? '（玩家不可见）' : ''}
-                  {payload.note ? ` · ${payload.note}` : ''} · {new Date(msg.createdAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                </div>
-
-                {result && <ResultCard result={result.payload} />}
-
-                {msg.status === 'pending' && (
-                  <button
-                    onClick={() => cancel(msg.id)}
-                    className="mt-2 flex items-center gap-1 text-xs px-2 py-1 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
-                  >
-                    <Ban className="w-3.5 h-3.5" />
-                    撤回
-                  </button>
-                )}
-              </div>
-            );
-          })}
         </div>
       </div>
     </div>
