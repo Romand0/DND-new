@@ -1,5 +1,5 @@
-// 玩家圆桌信箱：检定任务列表（pending 待答复 / answered 已答复 / cancelled 已撤回）+ 检定弹窗
-// 另接收 DM 的观战邀请（spectate_invite）：一键跳 /player/spectate?room= 加入实时战斗房间
+// 玩家圆桌：检定任务列表（pending 待答复 / answered 已答复 / cancelled 已撤回）+ 检定弹窗
+// 观战只同步「当前所在战斗」状态（每人同时一场），点击进入 /player/spectate?room=
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Inbox, Clock, CheckCircle2, Ban, Eye, History } from 'lucide-react';
@@ -12,8 +12,7 @@ import * as api from '@/lib/api';
 import CheckRequestDialog from '@/components/roundtable/CheckRequestDialog';
 import TableRing, { type TableSeat } from '@/components/roundtable/TableRing';
 import CollapsibleSection from '@/components/roundtable/CollapsibleSection';
-import SpectateInviteGroupCard from '@/components/roundtable/SpectateInviteGroupCard';
-import { groupSpectateInvites } from '@/lib/roundTableGroups';
+import { useCurrentSpectate } from '@/hooks/useSpectatePresence';
 import { useCampaign } from '@/contexts/CampaignContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -22,7 +21,8 @@ export default function PlayerRoundTable() {
   const [activeMessage, setActiveMessage] = useState<TableMessage | null>(null);
   const [activeCharacter, setActiveCharacter] = useState<Character | null>(null);
   const { current: campaign } = useCampaign();
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const { room: currentRoom, refresh: refreshSpectate } = useCurrentSpectate(Boolean(token));
   const [members, setMembers] = useState<CampaignMember[]>([]);
   const navigate = useNavigate();
 
@@ -51,9 +51,6 @@ export default function PlayerRoundTable() {
   );
   const pending = requests.filter(m => m.status === 'pending');
   const closed = requests.filter(m => m.status !== 'pending').sort((a, b) => b.updatedAt - a.updatedAt);
-
-  // 观战邀请按战斗房间合并：同房间多次抛送只占一张折叠卡
-  const inviteGroups = useMemo(() => groupSpectateInvites(messages), [messages]);
 
   // 打开弹窗时确保本地有角色卡数据（玩家端 characterStore 缺卡时从云端拉一次，不入库）
   const openDialog = async (msg: TableMessage) => {
@@ -90,7 +87,7 @@ export default function PlayerRoundTable() {
           </p>
         </div>
         <button
-          onClick={refresh}
+          onClick={() => { refresh(); refreshSpectate(); }}
           className="text-xs px-2.5 py-1.5 rounded-lg border dark:border-border-dark dark:text-text-dark-muted light:border-border-light light:text-text-light-muted hover:text-primary transition-colors"
         >
           刷新
@@ -101,7 +98,7 @@ export default function PlayerRoundTable() {
         <TableRing seats={seats} readOnly />
       </div>
 
-      {pending.length === 0 && closed.length === 0 && inviteGroups.length === 0 && (
+      {pending.length === 0 && closed.length === 0 && !currentRoom && (
         <div className="rounded-xl border p-10 text-center dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
           <Inbox className="mx-auto h-10 w-10 opacity-40 dark:text-text-dark-muted light:text-text-light-muted" />
           <div className="mt-3 text-sm dark:text-text-dark-muted light:text-text-light-muted">
@@ -142,24 +139,30 @@ export default function PlayerRoundTable() {
         </CollapsibleSection>
       )}
 
-      {inviteGroups.length > 0 && (
-        <CollapsibleSection
-          title="观战邀请"
-          icon={Eye}
-          count={inviteGroups.length}
-          pageSize={5}
-          tone="emerald"
-          hint={`${inviteGroups.reduce((n, g) => n + g.messages.length, 0)} 条记录按战斗合并`}
-        >
-          {inviteGroups.map(group => (
-            <SpectateInviteGroupCard
-              key={group.roomId}
-              group={group}
-              variant="player"
-              onJoin={roomId => navigate(`/player/spectate?room=${encodeURIComponent(roomId)}`)}
-            />
-          ))}
-        </CollapsibleSection>
+      {currentRoom && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-medium dark:text-text-dark-muted light:text-text-light-muted">当前战斗</h2>
+          <button
+            type="button"
+            onClick={() => navigate(`/player/spectate?room=${encodeURIComponent(currentRoom.roomId)}`)}
+            className="flex w-full items-center justify-between gap-2 rounded-xl border p-4 text-left transition-colors hover:border-primary dark:border-primary/50 dark:bg-card-dark light:border-primary/50 light:bg-card-light"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="shrink-0 rounded-lg bg-emerald-600/15 p-2">
+                <Eye className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-bold dark:text-text-dark light:text-text-light">
+                  {currentRoom.title}
+                </div>
+                <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                  DM 正在投送 · {new Date(currentRoom.updatedAt).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            </div>
+            <span className="shrink-0 text-xs text-primary">进入观战 →</span>
+          </button>
+        </section>
       )}
 
       {closed.length > 0 && (

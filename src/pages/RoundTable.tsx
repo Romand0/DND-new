@@ -1,4 +1,4 @@
-// DM 圆桌页：左侧发起检定表单 + 观战抛送，右侧消息流（发起的请求状态 + 收到的结果）
+// DM 圆桌页：左侧发起检定/投送当前战斗，右侧按状态分类的记录与当前投送房间
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Send, Ban, Dices, Inbox, Hourglass, Eye, Gavel, Check, X, History, ListChecks } from 'lucide-react';
 import type { TableMessage, CheckRequestPayload, CheckResultPayload, CheckKind, DcMode, DecisionRequestPayload } from '@/types/roundTable';
@@ -11,8 +11,7 @@ import { useCampaign } from '@/contexts/CampaignContext';
 import { useAuth } from '@/contexts/AuthContext';
 import TableRing, { type TableDeliverable, type TableSeat } from '@/components/roundtable/TableRing';
 import CollapsibleSection from '@/components/roundtable/CollapsibleSection';
-import SpectateInviteGroupCard from '@/components/roundtable/SpectateInviteGroupCard';
-import { groupSpectateInvites } from '@/lib/roundTableGroups';
+import { useActiveSpectateRooms } from '@/hooks/useSpectatePresence';
 import * as api from '@/lib/api';
 
 const ABILITY_KEYS = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'] as const;
@@ -37,6 +36,7 @@ export default function RoundTable() {
   const outbox = useRoundTableInbox({ outbox: true });
   const { current: campaign } = useCampaign();
   const { user } = useAuth();
+  const { rooms: activeRooms, refresh: refreshActiveSpectate } = useActiveSpectateRooms(campaign?.id, Boolean(user));
 
   const [boundChars, setBoundChars] = useState<BoundCharacterInfo[]>([]);
   const [members, setMembers] = useState<CampaignMember[]>([]);
@@ -51,7 +51,7 @@ export default function RoundTable() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
-  // 观战抛送：本机战斗记录（未封存），发送前重读保证最新
+  // 战斗投送：本机战斗记录（未封存），发送前重读保证最新
   const [combats, setCombats] = useState(() => combatStore.getAll());
   const [spectateRecordId, setSpectateRecordId] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
@@ -146,8 +146,8 @@ export default function RoundTable() {
     return `${ABILITY_LABELS[checkKey as AbilityKeyStr]}检定`;
   }, [checkKind, checkKey]);
 
-  // 消息配对：发起的 request → 对应 result（via replyMessageId）；观战邀请单独分流
-  const { requests, resultById, invites, decisions } = useMemo(() => {
+  // 消息配对：发起的 request → 对应 result（via replyMessageId）；观战状态走独立 presence 接口
+  const { requests, resultById, decisions } = useMemo(() => {
     const rbs = new Map<string, TableMessage & { payload: CheckResultPayload }>();
     for (const m of inbox.messages) {
       if (m.type === 'check_result') {
@@ -155,18 +155,16 @@ export default function RoundTable() {
       }
     }
     const reqs = outbox.messages.filter(m => m.type === 'check_request').sort((a, b) => b.createdAt - a.createdAt);
-    const invs = outbox.messages.filter(m => m.type === 'spectate_invite').sort((a, b) => b.createdAt - a.createdAt);
     // 决策点：DM 是 decision_request 的收件人（玩家回合中途提交的裁定请求）
     const decs = inbox.messages.filter(m => m.type === 'decision_request').sort((a, b) => b.createdAt - a.createdAt);
-    return { requests: reqs, resultById: rbs, invites: invs, decisions: decs };
+    return { requests: reqs, resultById: rbs, decisions: decs };
   }, [inbox.messages, outbox.messages]);
 
   const pendingChecks = useMemo(() => requests.filter(m => m.status === 'pending'), [requests]);
   const closedChecks = useMemo(() => requests.filter(m => m.status !== 'pending'), [requests]);
   const pendingDecisions = useMemo(() => decisions.filter(m => m.status === 'pending'), [decisions]);
   const closedDecisions = useMemo(() => decisions.filter(m => m.status !== 'pending'), [decisions]);
-  const spectateGroups = useMemo(() => groupSpectateInvites(invites), [invites]);
-  const totalRecords = requests.length + invites.length + decisions.length;
+  const totalRecords = requests.length + decisions.length + activeRooms.length;
 
   const submit = useCallback(async () => {
     const char = boundChars.find(c => c.id === charId);
@@ -205,7 +203,17 @@ export default function RoundTable() {
     }
   }, [outbox]);
 
-  // 抛送观战邀请：重读本机战斗列表（放映中数据可能已更新）→ fan-out 给团内绑定玩家
+  const endSpectate = useCallback(async (roomId: string) => {
+    try {
+      await api.cancelSpectateRoom(roomId);
+      setNotice('已结束该场战斗投送');
+      refreshActiveSpectate();
+    } catch (e: any) {
+      setError(e?.message || '结束投送失败');
+    }
+  }, [refreshActiveSpectate]);
+
+  // 投送当前战斗：把收件人的「当前房间」切换为本场（每人同时只在一场）
   const sendSpectate = useCallback(async () => {
     const record = combatStore.get(spectateRecordId);
     if (!record) { setError('请选择要抛送的战斗'); return; }
@@ -219,14 +227,14 @@ export default function RoundTable() {
         title: record.title,
         campaignId: campaign?.id || undefined,
       });
-      setNotice(`观战邀请已抛送给 ${res.recipients} 个玩家账号`);
-      outbox.refresh();
+      setNotice(`已将 ${res.recipients} 名玩家切换到「${record.title}」观战`);
+      refreshActiveSpectate();
     } catch (e: any) {
       setError(e?.message || '抛送失败，请重试');
     } finally {
       setSendingInvite(false);
     }
-  }, [spectateRecordId, campaign, outbox]);
+  }, [spectateRecordId, campaign, refreshActiveSpectate]);
 
   const renderCheckCard = (msg: TableMessage) => {
     const payload = msg.payload as CheckRequestPayload;
@@ -412,11 +420,11 @@ export default function RoundTable() {
             {sending ? '抛送中…' : '抛送检定'}
           </button>
 
-          {/* 观战抛送：把实时战斗房间邀请发给团内绑定玩家 */}
+          {/* 战斗投送：把收件人的当前观战房间切换为本场 */}
           <div className="border-t pt-3 space-y-2 dark:border-border-dark light:border-border-light">
             <div className="text-sm font-medium dark:text-text-dark light:text-text-light flex items-center gap-1.5">
               <Eye className="w-4 h-4 text-emerald-500" />
-              抛送观战邀请
+              投送当前战斗
             </div>
             <select
               value={spectateRecordId}
@@ -439,12 +447,15 @@ export default function RoundTable() {
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-sm hover:bg-emerald-600/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Eye className="w-4 h-4" />
-              {sendingInvite ? '抛送中…' : '抛送观战'}
+              {sendingInvite ? '投送中…' : '投送当前战斗'}
             </button>
+            <div className="text-[11px] leading-relaxed dark:text-text-dark-muted light:text-text-light-muted">
+              玩家同一时间只处于一场战斗；再次投送会把名单切换到本场。
+            </div>
           </div>
         </div>
 
-        {/* 记录分区：按待处理/检定/观战/裁定分类，历史默认折叠 */}
+        {/* 记录分区：按待处理/检定/裁定分类；战斗投送只显示当前房间 */}
         <div className="lg:col-span-3 space-y-3">
           {totalRecords === 0 ? (
             <div className="rounded-xl border p-10 text-center dark:border-border-dark light:border-border-light dark:bg-card-dark light:bg-card-light">
@@ -486,22 +497,39 @@ export default function RoundTable() {
                 </CollapsibleSection>
               )}
 
-              {spectateGroups.length > 0 && (
+              {activeRooms.length > 0 && (
                 <CollapsibleSection
-                  title="观战投送"
+                  title="当前战斗投送"
                   icon={Eye}
-                  count={spectateGroups.length}
-                  pageSize={5}
+                  count={activeRooms.length}
                   tone="emerald"
-                  hint={`${invites.length} 条记录按战斗合并`}
+                  hint="玩家同一时间只在一场"
                 >
-                  {spectateGroups.map(group => (
-                    <SpectateInviteGroupCard
-                      key={group.roomId}
-                      group={group}
-                      variant="dm"
-                      onCancel={cancel}
-                    />
+                  {activeRooms.map(room => (
+                    <div
+                      key={room.roomId}
+                      className="flex items-center justify-between gap-2 rounded-lg border p-3 dark:border-border-dark light:border-border-light"
+                    >
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold dark:text-text-dark light:text-text-light">
+                          {room.title}
+                        </div>
+                        <div className="text-xs dark:text-text-dark-muted light:text-text-light-muted">
+                          {room.recipients} 名玩家 · {new Date(room.updatedAt).toLocaleString('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                        <div className="truncate font-mono text-[11px] dark:text-text-dark-muted light:text-text-light-muted">
+                          {room.roomId}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => endSpectate(room.roomId)}
+                        className="flex shrink-0 items-center gap-1 rounded-lg bg-red-500/10 px-2 py-1 text-xs text-red-500 hover:bg-red-500/20"
+                      >
+                        <Ban className="h-3.5 w-3.5" />
+                        结束投送
+                      </button>
+                    </div>
                   ))}
                 </CollapsibleSection>
               )}

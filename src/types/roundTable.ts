@@ -67,6 +67,25 @@ export interface SpectateInvitePayload {
   title: string;
 }
 
+/** 玩家当前所在观战房间（每人同时最多一场） */
+export interface CurrentSpectateRoom {
+  roomId: string;
+  title: string;
+  campaignId: string | null;
+  fromUserId: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** DM 当前投送中的战斗（按房间聚合收件人数） */
+export interface ActiveSpectateRoom {
+  roomId: string;
+  title: string;
+  campaignId: string | null;
+  recipients: number;
+  updatedAt: number;
+}
+
 export interface TableMessage {
   id: string;
   campaignId: string | null;

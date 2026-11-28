@@ -1,6 +1,5 @@
-// DM 抛送观战邀请：写 spectate_invite 消息给当前团所有绑定玩家账号（fan-out）
-// 玩家点击后跳 /player/spectate?room=<roomId> 加入实时房间。
-// 同 roomId 的旧 pending 邀请在插入前统一置 cancelled（重发即刷新，玩家端不堆积过期邀请）。
+// DM 投送当前观战战斗：按收件人 upsert 到 table_spectate_presence（每人同时只处于一场）。
+// 玩家端不再接收逐条邀请消息，只查询自己当前所在房间；切换战斗即覆盖旧房间。
 // 权限：JWT + isAdmin。
 import { jsonResponse, errorResponse, handleOptions, authenticateRequest, readJsonBody, now, type Env } from '../../_utils';
 
@@ -40,26 +39,30 @@ export async function onRequestPost(context: { request: Request; env: EnvWithDb 
 
   const ts = now();
 
-  // 重发即刷新：同房间的旧 pending 邀请先失效（payload JSON 按 roomId 匹配）
+  // 同一 DM 对同一房间重发：先清空旧名单，再按最新收件人重建
   await env.DB
-    .prepare(
-      `UPDATE table_messages SET status = 'cancelled', updated_at = ?
-       WHERE type = 'spectate_invite' AND status = 'pending'
-         AND json_extract(payload, '$.roomId') = ?`
-    )
-    .bind(ts, roomId)
+    .prepare('DELETE FROM table_spectate_presence WHERE from_user_id = ? AND room_id = ?')
+    .bind(auth.sub, roomId)
     .run();
 
-  const insert = env.DB.prepare(
-    `INSERT INTO table_messages (id, campaign_id, from_user_id, to_user_id, type, payload, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'spectate_invite', ?, 'pending', ?, ?)`
+  const upsert = env.DB.prepare(
+    `INSERT INTO table_spectate_presence
+       (user_id, campaign_id, room_id, title, from_user_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET
+       campaign_id = excluded.campaign_id,
+       room_id = excluded.room_id,
+       title = excluded.title,
+       from_user_id = excluded.from_user_id,
+       updated_at = excluded.updated_at`
   );
-  const payload = JSON.stringify({ roomId, title });
   await env.DB.batch(
-    recipients.map((uid) => insert.bind(crypto.randomUUID(), campaignId || null, auth.sub, uid, payload, ts, ts)),
+    recipients.map((uid) =>
+      upsert.bind(uid, campaignId || null, roomId, title, auth.sub, ts, ts)
+    )
   );
 
-  return jsonResponse({ ok: true, recipients: recipients.length });
+  return jsonResponse({ ok: true, recipients: recipients.length, roomId });
 }
 
 export function onRequestOptions(): Response {
