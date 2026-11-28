@@ -44,6 +44,7 @@ const allNavItems = [
 
 const playerNavItems = [
   { path: '/player/table', label: '圆桌', icon: Inbox },
+  { path: '/player/story', label: '故事与物资', icon: ScrollText },
   { path: '/player/combat', label: '战斗记录', icon: Swords },
   { path: '/player/inventory', label: '物资钱币', icon: Coins },
   { path: '/player/spells', label: '法术库', icon: Sparkles },

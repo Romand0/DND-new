@@ -38,6 +38,7 @@ import {
 } from '@/lib/storyModel';
 import SceneEditor from '@/components/story/SceneEditor';
 import LedgerPanel from '@/components/story/LedgerPanel';
+import HandoutPanel from '@/components/story/HandoutPanel';
 
 const inputCls = 'w-full px-2 py-1.5 rounded-lg bg-black/20 border border-border-dark text-sm dark:text-text-dark light:text-text-light focus:border-primary outline-none';
 const panelCls = 'rounded-xl border border-border-dark bg-bg-dark/40 p-3';
@@ -322,7 +323,7 @@ export default function StoryBoard() {
           )}
         </main>
 
-        <aside className={`${panelCls} col-span-12 lg:col-span-4`}>
+        <aside className={`${panelCls} col-span-12 lg:col-span-4 space-y-4`}>
           {selectedScene ? (
             dirty ? (
               <div className="text-xs text-gray-500">
@@ -335,6 +336,9 @@ export default function StoryBoard() {
           ) : (
             <p className="text-sm text-gray-500">选择场景后查看经济账本</p>
           )}
+          <div className="border-t border-border-dark pt-3">
+            <HandoutPanel sceneId={selectedScene?.id} />
+          </div>
         </aside>
       </div>
 

@@ -231,6 +231,86 @@ export function isHandoutKind(v: unknown): boolean {
   return typeof v === 'string' && HANDOUT_KINDS.includes(v);
 }
 
+// ---------- 道具投送（纯函数：可读性、归一化、行投影） ----------
+
+/** 空目标 = 全团；已撤回对玩家不可见；DM 始终可见 */
+export function canViewHandout(handout: any, userId: string, isDm: boolean): boolean {
+  if (isDm) return true;
+  if (!handout || handout.recalledAt) return false;
+  const targets = arr(handout.targetUserIds).filter((v): v is string => typeof v === 'string');
+  return targets.length === 0 || targets.includes(userId);
+}
+
+/** 零已读才允许撤回 */
+export function canRecallHandout(readCount: number): boolean {
+  return !(Number.isFinite(readCount) && readCount > 0);
+}
+
+export function normalizeHandout(raw: any, campaignId: string, createdBy: string, timestamp = Date.now()) {
+  const targetUserIds = Array.from(
+    new Set(arr(raw?.targetUserIds).filter((v): v is string => typeof v === 'string' && v.trim().length > 0))
+  );
+  return {
+    id: str(raw?.id) || newId(),
+    campaignId,
+    ...(optionalStr(raw?.sceneId) ? { sceneId: raw.sceneId } : {}),
+    kind: isHandoutKind(raw?.kind) ? raw.kind : (typeof raw?.kind === 'string' && raw.kind ? raw.kind : 'letter'),
+    title: str(raw?.title).trim().slice(0, 200),
+    body: str(raw?.body).slice(0, 20000),
+    ...(optionalStr(raw?.imageUrl) ? { imageUrl: raw.imageUrl } : {}),
+    targetUserIds,
+    createdBy,
+    createdAt: num(raw?.createdAt, timestamp),
+  };
+}
+
+export interface HandoutValidation { ok: boolean; error?: string }
+
+export function validateHandout(handout: any): HandoutValidation {
+  if (!handout || typeof handout !== 'object') return { ok: false, error: '道具为空' };
+  if (!isHandoutKind(handout.kind)) return { ok: false, error: '未知道具类别' };
+  if (!str(handout.title).trim()) return { ok: false, error: '道具标题必填' };
+  if (!str(handout.body).trim() && !str(handout.imageUrl).trim()) {
+    return { ok: false, error: '道具正文与图片至少填写一项' };
+  }
+  return { ok: true };
+}
+
+function parseHandoutTargets(raw: unknown): string[] {
+  if (Array.isArray(raw)) return raw.filter((v): v is string => typeof v === 'string');
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+/** DB 行 → 客户端视图：data JSON 展开，附查看者已读状态与已读人数 */
+export function projectHandoutRow(row: any, viewerRead?: any, readCount = 0): any {
+  const data = parseJson(row?.data);
+  const view: any = {
+    id: str(row?.id),
+    campaignId: str(row?.campaign_id),
+    ...(optionalStr(row?.scene_id) ? { sceneId: row.scene_id } : {}),
+    kind: isHandoutKind(row?.kind) ? row.kind : 'other',
+    title: str(data.title),
+    body: str(data.body),
+    ...(optionalStr(data.imageUrl) ? { imageUrl: data.imageUrl } : {}),
+    targetUserIds: parseHandoutTargets(row?.target_user_ids),
+    createdBy: str(row?.created_by),
+    createdAt: num(row?.created_at),
+    ...(optionalNum(row?.recalled_at) ? { recalledAt: Number(row.recalled_at) } : {}),
+    readCount: Math.max(0, Math.round(num(readCount))),
+  };
+  if (viewerRead && num(viewerRead.read_at) > 0) view.readAt = num(viewerRead.read_at);
+  if (viewerRead && optionalNum(viewerRead.favorited_at)) view.favoritedAt = Number(viewerRead.favorited_at);
+  return view;
+}
+
 // ---------- 账本聚合（纯函数：端点负责取源记录，这里只做组装与汇总） ----------
 
 function parseJson(raw: any): any {

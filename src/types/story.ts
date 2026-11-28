@@ -159,4 +159,6 @@ export interface StoryHandout {
   recalledAt?: number;
   readAt?: number;
   favoritedAt?: number;
+  /** DM 视角已读人数；玩家视角同样返回但不作为主信息 */
+  readCount?: number;
 }
