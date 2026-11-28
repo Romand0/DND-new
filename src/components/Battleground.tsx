@@ -1382,9 +1382,11 @@ export default function Battleground({ sessionId, combatants, onRequestAttack, o
                 {/* 多实体共存：角色棋子在上层 */}
                 {combatant && (() => {
                   const downed = combatant.isDead || combatant.isUnconscious;
+                  // 选中/当前回合/锁定/拖拽悬停的棋子要压在光照遮罩（z-30）之上，黄圈不被压暗
+                  const highlighted = selectedCombatantId === combatant.id || isLocked || isActiveTurn || isDragHovered;
                   return (
                   <div
-                    className={`relative rounded-full flex items-center justify-center font-bold text-white leading-none transition-all select-none z-10 ${
+                    className={`relative rounded-full flex items-center justify-center font-bold text-white leading-none transition-all select-none ${highlighted ? 'z-40' : 'z-10'} ${
                       downed
                         ? 'bg-gray-500'
                         : combatant.isPc ? 'bg-info' : 'bg-danger'
