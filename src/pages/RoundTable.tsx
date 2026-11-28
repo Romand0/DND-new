@@ -491,6 +491,7 @@ export default function RoundTable() {
                   title="观战投送"
                   icon={Eye}
                   count={spectateGroups.length}
+                  pageSize={5}
                   tone="emerald"
                   hint={`${invites.length} 条记录按战斗合并`}
                 >
@@ -511,6 +512,7 @@ export default function RoundTable() {
                   icon={ListChecks}
                   count={closedChecks.length}
                   defaultOpen={false}
+                  pageSize={5}
                   hint="已答复 / 已撤回"
                 >
                   {closedChecks.map(renderCheckCard)}
@@ -523,6 +525,7 @@ export default function RoundTable() {
                   icon={History}
                   count={closedDecisions.length}
                   defaultOpen={false}
+                  pageSize={5}
                   hint="已裁定 / 已撤回"
                 >
                   {closedDecisions.map(msg => (

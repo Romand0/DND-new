@@ -147,6 +147,7 @@ export default function PlayerRoundTable() {
           title="观战邀请"
           icon={Eye}
           count={inviteGroups.length}
+          pageSize={5}
           tone="emerald"
           hint={`${inviteGroups.reduce((n, g) => n + g.messages.length, 0)} 条记录按战斗合并`}
         >
@@ -167,6 +168,7 @@ export default function PlayerRoundTable() {
           icon={History}
           count={closed.length}
           defaultOpen={false}
+          pageSize={5}
           hint="已答复 / 已撤回"
         >
           {closed.map(msg => {
