@@ -1,4 +1,5 @@
 import { Character } from '@/types/character';
+import { getEffectiveLevel } from '@/lib/experience';
 
 export interface SpellProgression {
   cantrips: string;
@@ -293,10 +294,10 @@ export function canChooseSubclass(character: Character): boolean {
   if (!character.profession) return false;
   // 术士和邪术师1级就可以选择子职业
   if (character.profession.class === '术士' || character.profession.class === '邪术师') {
-    return character.level >= 1 && !!character.profession.subclass;
+    return getEffectiveLevel(character) >= 1 && !!character.profession.subclass;
   }
   // 其他职业3级可以选择子职业
-  return character.level >= 3 && !!character.profession.subclass;
+  return getEffectiveLevel(character) >= 3 && !!character.profession.subclass;
 }
 
 export function setSubclass(character: Character, subclass: Subclass | null): Character {

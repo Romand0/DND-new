@@ -193,10 +193,7 @@ function canReact(c: Combatant): boolean {
 function getFeatureReactionSources(combatant: Combatant): ReactionSource[] {
   const character = combatant.characterId ? characterStore.get(combatant.characterId) : null;
   if (!character) return [];
-  const level = Math.max(
-    character.level ?? 1,
-    characterStore.getLevelFromExp(character.experience ?? 0) || 1,
-  );
+  const level = characterStore.getEffectiveLevel(character);
   return (character.features || [])
     .filter(f => f.reaction?.trigger && (f.level == null || f.level <= level))
     .map(f => ({

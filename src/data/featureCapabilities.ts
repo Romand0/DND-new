@@ -214,7 +214,7 @@ function bardicDieSides(caster: Combatant): number {
   const char = caster.characterId ? characterStore.get(caster.characterId) : null;
   const cls = String(char?.profession?.class ?? (char as any)?.class ?? '');
   if (cls.includes('吟游诗人') && char) {
-    const lv = typeof char.level === 'number' ? char.level : 1;
+    const lv = characterStore.getEffectiveLevel(char);
     if (lv >= 15) return 12;
     if (lv >= 10) return 10;
     if (lv >= 5) return 8;
@@ -294,7 +294,7 @@ register('至圣斩', {
 
 /** 战技豁免 DC：8 + 熟练 + 力敏较高者（PHB2014 战斗大师习得时自选，工具取双高免卡上配置） */
 function battleMasterDc(attacker: Character): number {
-  const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+  const prof = attacker.proficiencyBonus ?? 2 + Math.floor((characterStore.getEffectiveLevel(attacker) - 1) / 4);
   const str = attacker.abilities?.strength?.modifier ?? 0;
   const dex = attacker.abilities?.dexterity?.modifier ?? 0;
   return 8 + prof + Math.max(str, dex);
@@ -303,7 +303,7 @@ function battleMasterDc(attacker: Character): number {
 /** 通用豁免 DC：8 + 熟练 + 指定属性调整值（武僧气系/散打技巧 WIS 同款） */
 function dcWith(ability: AbilityKey) {
   return (attacker: Character): number => {
-    const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+    const prof = attacker.proficiencyBonus ?? 2 + Math.floor((characterStore.getEffectiveLevel(attacker) - 1) / 4);
     return 8 + prof + (attacker.abilities?.[ability]?.modifier ?? 0);
   };
 }
@@ -434,7 +434,7 @@ register('神圣打击', {
     cost: { kind: 'free' },
     perRound: true,
     damage: (attacker) => {
-      const dice = (attacker.level ?? 8) >= 14 ? '2d8' : '1d8';
+      const dice = characterStore.getEffectiveLevel(attacker) >= 14 ? '2d8' : '1d8';
       const desc = (attacker.features ?? []).find(f => f.name === '神圣打击')?.description ?? '';
       const damageType = desc.includes('光耀') ? '光耀' : desc.includes('毒素') ? '毒素' : desc.includes('雷鸣') ? '雷鸣' : '';
       return { dice, damageType };
@@ -451,7 +451,7 @@ register('震慑拳', {
       ability: 'constitution',
       dc: (attacker) => {
         // 熟练加值：卡上缺失时按等级推导（L1-4→2，每 4 级 +1）
-        const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+        const prof = attacker.proficiencyBonus ?? 2 + Math.floor((characterStore.getEffectiveLevel(attacker) - 1) / 4);
         return 8 + prof + (attacker.abilities?.wisdom?.modifier ?? 0);
       },
       failStatus: 'stunned',
@@ -473,7 +473,7 @@ register('渗透劲', {
       detonate: {
         ability: 'constitution',
         dc: (attacker) => {
-          const prof = attacker.proficiencyBonus ?? 2 + Math.floor((((attacker.level ?? 1) as number) - 1) / 4);
+          const prof = attacker.proficiencyBonus ?? 2 + Math.floor((characterStore.getEffectiveLevel(attacker) - 1) / 4);
           return 8 + prof + (attacker.abilities?.wisdom?.modifier ?? 0);
         },
         damageDice: '10d10',

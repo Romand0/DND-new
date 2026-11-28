@@ -23,6 +23,9 @@ import { equipmentStore } from './equipmentStore';
 import { computeAbilityBreakdown } from './abilityBonus';
 import { resolveUnarmoredAc } from './passiveCombatRules';
 import { featurePoolKey, getPoolUsed, findPoolOwner } from './featurePool';
+import { XP_TABLE, getLevelFromExp, getEffectiveLevel, getNextLevelInfo, getProficiencyBonus } from '@/lib/experience';
+
+export { getLevelFromExp, getEffectiveLevel, getNextLevelInfo } from '@/lib/experience';
 
 // 从 localStorage 读取 auth_token，构造带 JWT 的 headers
 function getAuthHeaders(): Record<string, string> {
@@ -187,6 +190,7 @@ function getAllVisibleCharacters(): Character[] {
 function createSandboxCharacter(data: Partial<Character>): Character {
   const chars = getStore();
   const now = Date.now();
+  const sandboxLevel = data.level ?? 1;
   const char: Character = {
     id: crypto.randomUUID(),
     name: data.name ?? '试验体',
@@ -197,7 +201,7 @@ function createSandboxCharacter(data: Partial<Character>): Character {
     race: data.race ?? '',
     background: data.background ?? '',
     alignment: data.alignment ?? '',
-    experience: data.experience ?? 0,
+    experience: data.experience ?? (sandboxLevel > 1 ? XP_TABLE[Math.min(20, sandboxLevel) - 1] : 0),
     size: data.size ?? '中',
     passivePerception: data.passivePerception ?? 10,
     hitDice: data.hitDice ?? { type: 'd8', total: 1, used: 0 },
@@ -360,19 +364,27 @@ function getCharacter(charId: string): Character | null {
 }
 
 function saveCharacter(charData: Character): Character {
+  // 等级唯一事实源是经验值；保存时把 level/proficiencyBonus 同步为派生缓存，
+  // 兼容旧数据与外部读取方，业务判断继续走 getEffectiveLevel。
+  const effectiveLevel = getEffectiveLevel(charData);
+  const normalized: Character = {
+    ...charData,
+    level: effectiveLevel,
+    proficiencyBonus: getProficiencyBonus(effectiveLevel),
+  };
   // 草稿会话存活时只写会话 + 暂存，正式桶与云端零接触
-  const session = draftSessions.get(charData.id);
+  const session = draftSessions.get(normalized.id);
   if (session) {
-    recalculateArmorClass(charData);
-    const next = { ...charData, updatedAt: Date.now() };
-    draftSessions.set(charData.id, next);
-    persistDraft(charData.id, next);
+    recalculateArmorClass(normalized);
+    const next = { ...normalized, updatedAt: Date.now() };
+    draftSessions.set(normalized.id, next);
+    persistDraft(normalized.id, next);
     return next;
   }
   const chars = getStore();
-  const index = chars.findIndex((c) => c.id === charData.id);
+  const index = chars.findIndex((c) => c.id === normalized.id);
   const now = Date.now();
-  const charWithTimestamps = { ...charData, updatedAt: now };
+  const charWithTimestamps = { ...normalized, updatedAt: now };
 
     if (index === -1) {
     charWithTimestamps.createdAt = now;
@@ -723,6 +735,11 @@ function addCharacter(characterData: Partial<Character>): Character {
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };
+  // 旧调用方/测试数据只提供 level 时，按等级表补齐经验，避免派生层把角色压回 1 级。
+  // 显式提供的 experience（包括 0）始终优先。
+  if (typeof characterData.experience !== 'number' && typeof characterData.level === 'number' && characterData.level > 1) {
+    newChar.experience = XP_TABLE[Math.min(20, characterData.level) - 1];
+  }
   return saveCharacter(newChar);
 }
 
@@ -743,7 +760,9 @@ function updateCharacter(charId: string, updatedData: Partial<Character>): Chara
   const char = getCharacter(charId);
   if (!char) return null;
   const updated = { ...char, ...updatedData, updatedAt: Date.now() };
+  const beforeLevel = getEffectiveLevel(char);
   const result = saveCharacter(updated);
+  const afterLevel = getEffectiveLevel(result ?? updated);
   // 全周期日志埋点：重点领域字段 diff（草稿会话内 saveCharacter 已旁路，此处检测的是直接 update 路径）
   const curLabels: Record<string, string> = { cp: '铜币', sp: '银币', ep: '电子币', gp: '金币', pp: '铂币' };
   if (updatedData.currency) {
@@ -768,17 +787,17 @@ function updateCharacter(charId: string, updatedData: Partial<Character>): Chara
       category: 'growth',
       kind: 'exp_change',
       title: `经验值 ${char.experience ?? 0} → ${updatedData.experience}（${updatedData.experience - (char.experience ?? 0) > 0 ? '+' : ''}${updatedData.experience - (char.experience ?? 0)}）`,
-      detail: JSON.stringify({ from: char.experience, to: updatedData.experience, level: updated.level ?? char.level }),
+      detail: JSON.stringify({ from: char.experience, to: updatedData.experience, level: afterLevel }),
       source: 'store',
     });
   }
-  if (typeof updatedData.level === 'number' && updatedData.level !== char.level) {
-    const up = (updatedData.level ?? 0) > (char.level ?? 0);
+  if (afterLevel !== beforeLevel) {
+    const up = afterLevel > beforeLevel;
     logStoreChange(charId, {
       category: 'growth',
       kind: 'level_up',
-      title: `等级 ${char.level ?? 0} → ${updatedData.level}${up ? '（升级）' : '（调整）'}`,
-      detail: JSON.stringify({ from: char.level, to: updatedData.level }),
+      title: `等级 ${beforeLevel} → ${afterLevel}${up ? '（升级）' : '（调整）'}`,
+      detail: JSON.stringify({ from: beforeLevel, to: afterLevel }),
       source: 'store',
     });
   }
@@ -1678,63 +1697,6 @@ function getSkillsList(char: Character): { key: SkillKey; name: string; totalBon
 // 经验值与等级计算 (Experience & Level)
 // ============================================================
 
-const XP_TABLE = [
-  0,
-  300,
-  900,
-  2700,
-  6500,
-  14000,
-  23000,
-  34000,
-  48000,
-  64000,
-  85000,
-  100000,
-  120000,
-  140000,
-  165000,
-  195000,
-  225000,
-  265000,
-  305000,
-  355000,
-];
-
-function getLevelFromExp(exp: number): number {
-  if (typeof exp !== 'number' || exp < 0) return 1;
-  let level = 1;
-  for (let i = 0; i < XP_TABLE.length; i++) {
-    if (exp >= XP_TABLE[i]) {
-      level = i + 1;
-    } else {
-      break;
-    }
-  }
-  return Math.min(level, 20);
-}
-
-function getNextLevelInfo(currentExp: number): {
-  currentLevel: number;
-  nextLevel: number;
-  expNeeded: number;
-  expProgress: number;
-  expRemaining: number;
-} {
-  const currentLevel = getLevelFromExp(currentExp);
-  const nextLevel = Math.min(currentLevel + 1, 20);
-  const needed = XP_TABLE[nextLevel - 1] || XP_TABLE[XP_TABLE.length - 1];
-  const previous = XP_TABLE[currentLevel - 1] || 0;
-  const progress = needed > previous ? (currentExp - previous) / (needed - previous) : 1;
-  return {
-    currentLevel,
-    nextLevel,
-    expNeeded: needed,
-    expProgress: Math.min(Math.max(progress, 0), 1),
-    expRemaining: Math.max(needed - currentExp, 0),
-  };
-}
-
 function calculateLevelsForCharacters(characters: Character[]): (Character & { level: number })[] {
   return characters.map((char) => ({
     ...char,
@@ -2003,7 +1965,7 @@ function getSpellSlotsByLevel(char: Character): {
 } | null {
   if (!hasSpellcasting(char)) return null;
 
-  const level = Number(char.level) || 1;
+  const level = getEffectiveLevel(char);
   const levelIndex = Math.min(Math.max(0, Math.floor(level) - 1), 19);
   const casterType = getCasterType(char);
 
@@ -2265,11 +2227,11 @@ function resetFeaturePools(charId: string, restKind: 'long' | 'short'): void {
 export function canCharacterChooseSubclass(character: Character): boolean {
   const className = getCharacterClass(character);
   // 术士和邪术师1级就可以选择子职业
-  if (className === '术士' || className === '邪术师') {
-    return character.level >= 1;
+  if (className === '术士' || className === '邪术师' || className === '魔契师') {
+    return getEffectiveLevel(character) >= 1;
   }
   // 其他职业3级可以选择子职业
-  return character.level >= 3;
+  return getEffectiveLevel(character) >= 3;
 }
 
 /**
@@ -2395,6 +2357,7 @@ export const characterStore = {
   setSaveBonusOverride,
   setSkillProficiencies,
   getLevelFromExp,
+  getEffectiveLevel,
   getNextLevelInfo,
   calculateLevelsForCharacters,
   canLevelUp,

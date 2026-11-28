@@ -153,9 +153,9 @@ async function main() {
     const perRoundAfterReset = combatStore.get(rec.id).perRoundFeatureUsed?.['p62-mnk'] ?? [];
     const divineRidersAfterReset = getAttackRiders(combatStore.get(rec.id), mnk).map(r => r.featureName);
     const monkCardId = characterStore.getAll().find(c => c.name === 'P6探针·散打宗')?.id;
-    characterStore.update(monkCardId, { level: 14 });
+    characterStore.update(monkCardId, { experience: 140000 });
     const divine14 = getAttackRiders(combatStore.get(rec.id), mnk).find(r => r.featureName === '神圣打击');
-    characterStore.update(monkCardId, { level: 5 });
+    characterStore.update(monkCardId, { experience: 6500 });
     return {
       names, tripDc: trip?.save?.dc, pushDc: pushOpt?.save?.dc,
       tripDamage: trip?.damage?.dice, tripFailLabel: trip?.save?.failLabel,

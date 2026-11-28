@@ -308,7 +308,7 @@ export default function CharacterList() {
                       </div>
                       <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full bg-black/30 text-white text-sm font-medium">
                         <Shield className="w-3.5 h-3.5" />
-                        Lv.{char.level}
+                        Lv.{characterStore.getEffectiveLevel(char)}
                       </div>
                     </div>
                   </Link>

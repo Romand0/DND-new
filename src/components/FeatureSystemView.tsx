@@ -3,6 +3,7 @@ import { Plus } from 'lucide-react';
 import type { Character } from '@/types/character';
 import { FEATURE_ROLE_META, deriveFeatureRole } from '@/data/featureRole';
 import { collectSystemGroups, isMemberSelected, type SystemMember } from '@/data/systemView';
+import { getEffectiveLevel } from '@/lib/experience';
 
 interface Props {
   character: Character;
@@ -15,7 +16,7 @@ interface Props {
 
 export default function FeatureSystemView(props: Props) {
   const { character, search, charLevel, readOnly, onAddMember } = props;
-  const level = charLevel ?? (character.level || 1);
+  const level = charLevel ?? getEffectiveLevel(character);
   const kw = search.trim().toLowerCase();
   const groups = collectSystemGroups(character).filter((g) => {
     if (!kw) return true;

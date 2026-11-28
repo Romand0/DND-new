@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { Character, Currency } from '@/types/character';
+import { characterStore } from '@/data/characterStore';
 import type { CharacterLog, CharacterLogCategory } from '@/types/characterLog';
 import type { HandoutKind, StoryHandout } from '@/types/story';
 import {
@@ -260,7 +261,7 @@ export default function PlayerStory() {
               <div key={c.id} className="rounded-lg border border-border-dark bg-black/10 p-2.5">
                 <p className="truncate text-sm font-medium dark:text-text-dark light:text-text-light">{c.name}</p>
                 <p className="text-[11px] text-gray-500">
-                  {c.profession?.class || '未知职业'} · {c.level} 级
+                  {c.profession?.class || '未知职业'} · {characterStore.getEffectiveLevel(c)} 级
                 </p>
                 <p className="mt-1 text-xs text-primary">{moneyText(c.currency)}</p>
               </div>

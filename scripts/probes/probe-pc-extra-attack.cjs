@@ -20,7 +20,7 @@ const jiti = createJiti(__filename, { alias: { '@': path.resolve(__dirname, '../
 function mkChar(overrides) {
   return {
     id: 'c1', name: '测试卡', gender: 'other', profession: { class: '战士' }, level: 1,
-    race: '人类', background: '士兵', alignment: '守序善良', experience: 0, size: '中型',
+    race: '人类', background: '士兵', alignment: '守序善良', experience: [0, 0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000][Math.min(20, Math.max(1, overrides?.level ?? 1))], size: '中型',
     abilities: {}, proficiencyBonus: 2, passivePerception: 10, armorClass: 16, speed: 30,
     maxHp: 20, currentHp: 20, tempHp: 0, hitDice: { d10: { max: 1, used: 0 } },
     attacks: [], spells: { cantrips: [], custom: [], spellSlots: [] },
